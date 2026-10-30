@@ -147,11 +147,15 @@ export class EditorApp {
   constructor(private wm: WM) {}
 
   private async ensure(path: string) {
-    const w = await this.wm.open("editor", baseName(path));
+    const ed = this.wm.prefs?.editor ?? "studio";
+    const appName = ed === "pad" ? "Notepad" : ed === "vim" ? "vim" : "Studio";
+    const w = await this.wm.open("editor", `${baseName(path)}  ${appName}`);
     if (!w.body.querySelector(".editor")) {
-      w.body.innerHTML = `<div class="editor"><div class="tabs" role="tablist"></div><div class="code-wrap"><div class="code"></div></div></div>`;
+      w.body.innerHTML = `<div class="editor ed-${ed}"><div class="tabs" role="tablist"></div><div class="code-wrap"><div class="code"></div></div>${ed === "vim" ? `<div class="vim-bar"><b>-- INSERT --</b><span></span></div>` : ""}</div>`;
       this.tabs.clear();
     }
+    const bar = w.body.querySelector(".vim-bar span");
+    if (bar) bar.textContent = path.replace(/\\/g, "/").split("/").slice(-2).join("/");
     const tabsEl = w.body.querySelector(".tabs") as HTMLElement;
     let tab = this.tabs.get(path);
     if (!tab) {

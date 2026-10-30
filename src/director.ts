@@ -1,3 +1,4 @@
+import gsap from "gsap";
 import { WM, Cancelled } from "./os/wm";
 import { IdleLife } from "./os/idle";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ChatApp, ToolApp, prettyTool } from "./os/apps";
@@ -27,6 +28,9 @@ export class Director {
   private browser: BrowserApp; private chat: ChatApp; private tool: ToolApp;
   onActivity: (text: string) => void = () => {};
   private idleLife: IdleLife;
+  private mobile = false;       // the agent is testing a phone-sized viewport
+  private phoneUp = false;      // the robot is holding its phone
+  private peekFn: (url: string) => Promise<any>;
   private lastEventAt = 0;
 
   constructor(private wm: WM, private robot: Robot, private stage: Stage, peek: (url: string) => Promise<any>, private image: (path: string) => Promise<string | null>, private readText: (path: string) => Promise<string | null>) {
@@ -37,11 +41,14 @@ export class Director {
     this.chat = new ChatApp(wm);
     this.tool = new ToolApp(wm);
     this.idleLife = new IdleLife(wm, robot, stage);
+    this.peekFn = peek;
     this.idleLife.onActivity = (t) => this.onActivity(t);
   }
 
   reset() {
     this.idleLife.stop();
+    this.mobile = false;
+    if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
     this.lastEventAt = 0;
     this.wm.reset();
     this.items.clear();
@@ -230,6 +237,30 @@ export class Director {
       preview_resize: "Resizing the page", preview_open: "Opening a tab", preview_act: "Using the page", preview_wait_for: "Waiting for the page",
       preview_status: "Checking the page", preview_dialog: "Answering a page dialog",
     };
+    if (base === "preview_resize") {
+      const done = await this.settle(id, 10000);
+      const set = done.data.output?.setting || {};
+      const preset = String(done.data.input?.preset || set.presetId || "");
+      const width = Number(set.width || done.data.input?.width || 0);
+      this.mobile = (width > 0 && width <= 520) || /iphone|pixel|galaxy|mobile|phone/i.test(preset);
+      if (this.mobile) {
+        this.onActivity("Testing on its phone");
+        this.stage.setGlow(GLOW.browser);
+        const tab = done.data.output?.tabs?.[0];
+        await this.phonePage(tab?.url || null, tab?.title || null, `Phone size ${width || 390} wide`);
+      } else {
+        await this.phone(false);
+        this.onActivity("Back to the desktop browser");
+      }
+      return true;
+    }
+    if (this.mobile && (base === "preview_navigate" || browserActs[base])) {
+      const done = await this.settle(id, 15000);
+      const url = done.data.output?.url || done.data.input?.url || null;
+      this.onActivity(base === "preview_navigate" ? "Opening the page on its phone" : `${browserActs[base] || "Using the page"} on its phone`);
+      await this.phonePage(url, done.data.output?.title || null, browserActs[base] || "Loading");
+      return true;
+    }
     if (base === "preview_navigate") return false; // a normal visit, handled by the caller
     if (browserActs[base]) {
       this.onActivity(browserActs[base]);
@@ -242,8 +273,49 @@ export class Director {
     return false;
   }
 
+  private async phone(on: boolean) {
+    if (on === this.phoneUp) return;
+    this.phoneUp = on;
+    await this.robot.holdPhone(on);
+  }
+
+  // Show a page on the robot's phone, the way a person checks a site on mobile.
+  private async phonePage(url: string | null, title: string | null, caption: string) {
+    const screen = this.stage.phoneScreen;
+    if (!screen) return;
+    await this.phone(true);
+    let page = screen.querySelector(".pp") as HTMLElement | null;
+    if (!page) {
+      screen.innerHTML = `<div class="pp"><div class="pp-bar"><span class="pp-url"></span></div><div class="pp-body"></div><div class="pp-cap"></div></div>`;
+      page = screen.querySelector(".pp") as HTMLElement;
+    }
+    const host = url ? url.replace(/^https?:\/\//, "").replace(/\/$/, "") : "";
+    if (url && page.dataset.url !== url) {
+      page.dataset.url = url;
+      (page.querySelector(".pp-url") as HTMLElement).textContent = host;
+      const body = page.querySelector(".pp-body") as HTMLElement;
+      body.innerHTML = `<h4></h4><div class="pp-skel"></div><div class="pp-skel s"></div><div class="pp-skel"></div>`;
+      body.querySelector("h4")!.textContent = title || host;
+      if (/^https?:/.test(url) && !/^https?:\/\/(127\.0\.0\.1|localhost)/.test(url)) {
+        const res = await this.peekFn(url).catch(() => null);
+        if (res?.ok) {
+          body.innerHTML = `<h4></h4>${(res.blocks || []).slice(0, 8).map((b: any) => `<p class="${b.tag}"></p>`).join("")}`;
+          body.querySelector("h4")!.textContent = res.title || title || host;
+          body.querySelectorAll("p").forEach((p, i) => (p.textContent = res.blocks[i].text));
+        }
+      }
+    }
+    const cap = page.querySelector(".pp-cap") as HTMLElement;
+    cap.textContent = caption;
+    gsap.fromTo(cap, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.3 });
+    this.robot.swipe();
+    await this.wm.sleep(1100);
+  }
+
   private async play(id: string) {
     const it = this.get(id);
+    const tool = it.type === "dynamic_tool" ? String(it.data.toolName || "") : "";
+    if (this.phoneUp && !/preview_|browser/i.test(tool)) await this.phone(false);
     const d = it.data;
     const root = this.info?.root || null;
     if (it.type !== "reasoning" && it.type !== "user_input_request") this.stage.say(null);

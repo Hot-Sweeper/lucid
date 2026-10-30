@@ -4,6 +4,7 @@ import { Director, type ThreadInfo } from "../director";
 import { GEOM, UNIT, type DeskRig, type Pt, type SeatedRobot } from "./rig";
 import { StubRobot } from "./stub-robot";
 import { logoFor } from "./brand";
+import { WALLPAPERS, type RobotProfile } from "./roster";
 
 // One workstation, seen fake top-down: the desk surface from above, the monitor and the
 // robot as upright figures. The robot sits south of the desk with its back to us, the
@@ -20,6 +21,7 @@ export interface DeskStage {
   setPlan(steps: { text: string; status: string }[]): void;
   setGlow(color: string): void;
   sleepy(on: boolean): void;
+  readonly phoneScreen?: HTMLElement;
 }
 
 export interface DeskServices {
@@ -80,13 +82,26 @@ export class Desk implements DeskStage {
 
   get phoneScreen() { return this.el.querySelector(".phone-screen") as HTMLElement; }
 
-  assign(thread: { id: string; title: string; provider: string } | null) {
+  profile: RobotProfile | null = null;
+  private model: string | null = null;
+
+  assign(thread: { id: string; title: string; provider: string; model?: string | null } | null, profile: RobotProfile | null = null) {
     if (this.threadId === (thread?.id ?? null)) return;
     this.director.reset();
     this.threadId = thread?.id ?? null;
+    this.profile = profile;
+    this.model = thread?.model ?? null;
     this.el.classList.toggle("empty", !thread);
     if (thread) {
       this.robot.setBrand(thread.provider);
+      this.robot.setModel?.(this.model);
+      if (profile) {
+        this.robot.setLook?.(profile.look);
+        this.wm.prefs = profile.prefs;
+        this.wm.setWallpaper(WALLPAPERS[profile.prefs.wallpaper % WALLPAPERS.length]);
+        const mug = this.el.querySelector("[data-d=mug] rect") as SVGRectElement | null;
+        mug?.setAttribute("fill", profile.prefs.mug);
+      }
       const logo = logoFor(thread.provider);
       if (logo) this.wm.setWallpaperLogo(logo);
     }
@@ -99,14 +114,19 @@ export class Desk implements DeskStage {
     const logo = logoFor(provider);
     img.hidden = !logo;
     if (logo) img.src = logo;
-    plate.querySelector("span")!.textContent = title;
-    plate.title = title;
+    const who = this.profile ? this.profile.name : "";
+    plate.querySelector("span")!.innerHTML = who ? `<b></b> <i></i>` : `<i></i>`;
+    if (who) plate.querySelector("b")!.textContent = who;
+    plate.querySelector("i")!.textContent = title;
+    plate.title = [who, title, this.model].filter(Boolean).join("\n");
   }
 
   setInfo(info: ThreadInfo) {
     this.info = info;
     if (info.title) this.label(info.title, info.provider);
     if (this.robot.brandName !== info.provider) this.robot.setBrand(info.provider);
+    const model = (info as any).model as string | null | undefined;
+    if (model && model !== this.model) { this.model = model; this.robot.setModel?.(model); }
     const logo = logoFor(info.provider);
     if (logo) this.wm.setWallpaperLogo(logo);
     this.director.setInfo(info);

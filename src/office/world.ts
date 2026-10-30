@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
 import { GEOM } from "./rig";
+import { Roster, type RobotProfile } from "./roster";
 
 // The whole building, seen fake top-down: rooms laid out on a floor plan, one shared camera.
 // Offices hold desks (one per thread). Desks live in one layer above the rooms, so a robot
@@ -147,6 +148,12 @@ export class World {
     const rooms: Room[] = [];
     let x = 0;
     const topH = Math.max(...top.map((r) => r.h));
+    // Robots: working threads get one (reusing free teammates first), resting ones keep theirs.
+    const working = [...queue, ...main, ...freelance, ...[...perProject.values()].flat()];
+    this.roster.assign(working, new Set(brk.map((t) => t.id)), new Set(data.threads.map((t) => t.id)));
+    const resting = this.roster.restingFor(brk.slice(0, 8));
+    const restingIds = new Set(resting.map((r) => r.thread));
+    const brkShown = brk.filter((t) => restingIds.has(t.id)).slice(0, 8);
     const idsOf = (r: Plan) => r.threads.filter((t): t is WThread => !!t).map((t) => t.id);
     for (const r of top) { rooms.push({ id: r.id, kind: r.kind, title: r.title, icon: r.icon, x, y: topH - r.h, w: r.w, h: r.h, el: null as any, threadIds: idsOf(r) }); x += r.w + GAP; }
     const topW = x - GAP;
@@ -207,7 +214,7 @@ export class World {
         if (!d) {
           // a newcomer takes the empty desk already standing in its seat
           d = here && !here.threadId ? here : this.makeDesk(s.x, s.y);
-          d.assign({ id: s.t.id, title: s.t.title, provider: s.t.provider });
+          d.assign({ id: s.t.id, title: s.t.title, provider: s.t.provider, model: s.t.model }, this.roster.byThread(s.t.id));
           this.desks.set(s.t.id, d);
         }
       } else {
@@ -225,12 +232,13 @@ export class World {
     // desks whose seat disappeared are retired properly (their robot and computer stop)
     const inUse = new Set(this.slotDesks.values());
     for (const d of this.allDesks) if (!inUse.has(d)) { this.allDesks.delete(d); if (this.selected === d) this.select(null); d.destroy(); }
-    this.ext.break?.setThreads(brk.slice(0, 8));
-    this.ext.queue?.setThreads(queue);
+    this.ext.break?.setThreads(brkShown.map((t) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name })) as any);
+    this.ext.queue?.setThreads(queue.map((t) => ({ id: t.id, provider: t.provider, title: t.title, question: t.question, model: t.model, name: this.roster.byThread(t.id)?.name })) as any);
     this.onRooms(rooms);
   }
 
   private allDesks = new Set<Desk>();
+  roster = new Roster();
   private makeDesk(x: number, y: number) {
     const d = new Desk(this.deskLayer, x, y, this.services);
     this.allDesks.add(d);

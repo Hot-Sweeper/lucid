@@ -118,7 +118,9 @@ function renderFocus() {
   logo.hidden = !src;
   if (src) logo.src = src;
   $("focus-title").textContent = info?.title || "Free desk";
-  $("focus-sub").textContent = [info?.projectTitle, harnessName(info?.provider)].filter(Boolean).join(" · ");
+  const who = d.profile ? `${d.profile.name}, ${harnessName(info?.provider)} robot` : `${harnessName(info?.provider)} robot`;
+  $("focus-sub").textContent = [who, (info as any)?.model, info?.projectTitle].filter(Boolean).join(" · ");
+  $("focus-sub").title = d.profile ? `Likes: ${d.profile.prefs.editor === "pad" ? "Notepad" : d.profile.prefs.editor === "vim" ? "vim" : "Studio"} editor, ${d.profile.prefs.phone === "clips" ? "short clips" : "long videos"}, subagents in the ${d.profile.prefs.subagents === "cli" ? "terminal" : "desktop app"}. Jobs done: ${d.profile.jobs}` : "";
   $("focus-activity").textContent = d.activity || "";
 }
 world.onSelect = (d) => {

@@ -29,6 +29,7 @@ export class WM {
   cursorEl: HTMLElement;
   wins = new Map<AppId, Win>();
   onCursor?: (x: number, y: number) => void;
+  prefs: import("../office/roster").Prefs | null = null;
   speed = 1;
   epoch = 0;
   private z = 10;
@@ -50,6 +51,10 @@ export class WM {
     this.dock = screen.querySelector(".dock")!;
     this.cursorEl = screen.querySelector(".cursor")!;
     gsap.set(this.cursorEl, { x: this.cursor.x, y: this.cursor.y });
+  }
+
+  setWallpaper(css: string) {
+    (this.root.querySelector(".wallpaper") as HTMLElement).style.background = css;
   }
 
   setWallpaperLogo(src: string) {
