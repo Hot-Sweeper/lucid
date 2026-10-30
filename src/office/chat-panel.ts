@@ -5,7 +5,7 @@ import { logoFor, harnessName } from "./brand";
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
 
-type Msg = { id: string; role: string; at: string; streaming: boolean; text: string; run?: string | null; attachments: { type: string; name: string; mime: string; size: number; path: string | null }[] };
+type Msg = { id: string; role: string; at: string; streaming: boolean; text: string; run?: string | null; queue?: number | null; attachments: { type: string; name: string; mime: string; size: number; path: string | null }[] };
 type Api = {
   conversation(id: string): Promise<Msg[]>;
   sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
@@ -50,6 +50,7 @@ export class ChatPanel {
       </header>
       <p class="cp-status" aria-live="polite"><i></i><span></span></p>
       <div class="cp-list" role="log" aria-live="polite"></div>
+      <section class="cp-queue" aria-label="Queued messages" hidden><h4>Queued</h4><ol></ol></section>
       <div class="cp-zoom" hidden><img alt=""><button type="button" class="ghost">Close image</button></div>
       <form class="cp-form">
         <textarea rows="2" placeholder="Message this robot"></textarea>
@@ -156,23 +157,35 @@ export class ChatPanel {
     const list = this.el.querySelector(".cp-list") as HTMLElement;
     const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
     let added = 0;
-    for (const m of msgs) {
+    // Queued messages wait in their own section at the bottom, in the order the robot takes them.
+    const queued = msgs.filter((m) => m.role === "user" && m.run === "queued").sort((a, b) => (a.queue ?? 99) - (b.queue ?? 99));
+    const timeline = msgs.filter((m) => !(m.role === "user" && m.run === "queued"));
+    this.renderQueue(queued);
+    for (const id of [...this.shown.keys()]) {
+      if (!timeline.some((m) => m.id === id)) { this.shown.get(id)!.remove(); this.shown.delete(id); }
+    }
+    let prevEl: HTMLElement | null = null;
+    for (const m of timeline) {
       let el = this.shown.get(m.id);
       const html = this.render(m);
       if (!el) {
         el = document.createElement("div");
         el.className = `cp-msg ${m.role === "user" ? "you" : "bot"}`;
         el.innerHTML = html;
-        list.appendChild(el);
+        // insert in order (a late arrival lands where it belongs, not at the end)
+        const after: Element | null = prevEl ? prevEl.nextElementSibling : list.firstElementChild;
+        list.insertBefore(el, after);
         this.shown.set(m.id, el);
         if (this.shown.size > msgs.length - 6) gsap.fromTo(el, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out", delay: added++ * 0.05 });
       } else if (el.dataset.sig !== `${m.text.length}:${m.streaming}:${m.run}`) {
         el.innerHTML = html;
       }
       el.dataset.sig = `${m.text.length}:${m.streaming}:${m.run}`;
+      prevEl = el;
     }
     // pending bubbles disappear once the real message shows up
     const texts = new Set(msgs.filter((m) => m.role === "user").map((m) => m.text.trim()));
+    list.querySelectorAll(".cp-msg.pending").forEach((e) => list.appendChild(e));
     this.pending = this.pending.filter((p) => !texts.has(p.text) && Date.now() - p.at < 60000);
     this.renderPending();
     if (!list.children.length) list.innerHTML = `<p class="cp-empty">No messages yet. Say hello.</p>`;
@@ -185,9 +198,21 @@ export class ChatPanel {
       if (a.type === "image" && a.path) return `<figure class="cp-att"><img src="${fileUrl(a.path)}" alt="${esc(a.name)}" loading="lazy"></figure>`;
       return `<div class="cp-file" title="${esc(a.name)}"><span>${esc(a.name)}</span><i>${Math.max(1, Math.round((a.size || 0) / 1024))} KB</i></div>`;
     }).join("");
-    const state = m.role === "user" && m.run === "queued" ? `<em class="cp-queued">Queued, it reads this next</em>`
-      : m.role === "user" && m.run === "running" ? `<em class="cp-live">It is working on this</em>` : "";
+    const state = m.role === "user" && m.run === "running" ? `<em class="cp-live">It is working on this</em>` : "";
     return `${atts ? `<div class="cp-atts">${atts}</div>` : ""}${m.text ? `<div class="cp-text">${md(m.text)}${m.streaming ? '<span class="caret"></span>' : ""}</div>` : ""}${state}<time>${when(m.at)}</time>`;
+  }
+
+  private renderQueue(queued: Msg[]) {
+    const box = this.el.querySelector(".cp-queue") as HTMLElement;
+    const ol = box.querySelector("ol") as HTMLOListElement;
+    box.hidden = !queued.length;
+    const ord = (n: number) => (n === 1 ? "next" : `${n}${n === 2 ? "nd" : n === 3 ? "rd" : "th"}`);
+    const html = queued.map((m, i) => `<li><span class="cq-n">${ord(i + 1)}</span><p></p></li>`).join("");
+    if (ol.dataset.sig === queued.map((m) => m.id).join(",")) return;
+    ol.dataset.sig = queued.map((m) => m.id).join(",");
+    ol.innerHTML = html;
+    ol.querySelectorAll("p").forEach((p, i) => { p.textContent = queued[i].text; p.title = queued[i].text; });
+    gsap.fromTo(ol.children, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.25, stagger: 0.04 });
   }
 
   private zoom(src: string) {

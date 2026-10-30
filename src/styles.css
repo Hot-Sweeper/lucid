@@ -283,3 +283,7 @@ textarea::placeholder { color: var(--ink-3); }
 
 .msg-imgs { display: flex; gap: 4px; margin-bottom: 4px; justify-content: flex-end; }
 .msg-imgs img { width: 74px; height: 50px; object-fit: cover; border-radius: 6px; }
+
+.notes { height: 100%; overflow-y: auto; padding: 12px 14px; background: #fff7d6; color: #3d3214; font-size: 11.5px; line-height: 1.55;
+  background-image: repeating-linear-gradient(#fff7d6 0 17px, #f0e3b0 17px 18px); }
+.notes p { margin: 0 0 10px; }

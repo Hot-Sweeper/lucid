@@ -115,6 +115,35 @@ export class Director {
 
   private get(id: string) { return this.items.get(id)!; }
 
+  // The robot's notes: while it thinks, its reasoning gets jotted down here.
+  private async openNotes() {
+    const w = await this.wm.open("notes", "Notes");
+    if (!w.body.querySelector(".notes")) w.body.innerHTML = `<div class="notes"></div>`;
+    return w.body.querySelector(".notes") as HTMLElement;
+  }
+  private noteFor = new WeakMap<HTMLElement, HTMLElement>();
+  private async writeNote(box: HTMLElement, text: string) {
+    const clean = text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim().slice(0, 600);
+    let p = this.noteFor.get(box);
+    if (!p || !p.isConnected) {
+      p = document.createElement("p");
+      box.appendChild(p);
+      this.noteFor.set(box, p);
+      while (box.children.length > 6) box.firstElementChild!.remove();
+    }
+    const done = p.textContent || "";
+    if (clean.startsWith(done) && clean.length > done.length) {
+      const rest = clean.slice(done.length);
+      for (let i = 0; i < rest.length; i += 3) {
+        p.textContent = done + rest.slice(0, i + 3);
+        this.robot.pressKey(rest[i] || " ");
+        box.scrollTop = box.scrollHeight;
+        await new Promise((r) => setTimeout(r, 22 / this.wm.speed));
+      }
+    } else p.textContent = clean;
+    box.scrollTop = box.scrollHeight;
+  }
+
   // Poll the helper's own thread and mirror its actions into the harness window.
   private followChild(id: string, session: HarnessSession, child: string | null) {
     const s = { session, child, since: "", timer: 0, done: false };
@@ -415,6 +444,7 @@ export class Director {
         return;
       }
       case "reasoning": {
+        this.noteFor = new WeakMap();
         this.onActivity("Thinking");
         this.stage.setGlow(GLOW.think);
         this.robot.setPose("think");
@@ -424,10 +454,11 @@ export class Director {
         };
         let last = "";
         const start = Date.now();
+        const notes = await this.openNotes();
         for (;;) {
           const cur = this.get(id);
           const s = summary(cur.data.text || "");
-          if (s && s !== last) { this.stage.say(s, "think"); last = s; }
+          if (s && s !== last) { this.stage.say(s, "think"); last = s; void this.writeNote(notes, cur.data.text || ""); }
           if (!(cur.status === "running" || cur.data.streaming) || this.queue.length > 1) break;
           await this.wm.sleep(250);
           if (Date.now() - start > 90000) break;

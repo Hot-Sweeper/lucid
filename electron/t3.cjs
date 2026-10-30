@@ -341,18 +341,22 @@ function attachmentPath(a) {
 // The chat between you and one robot, oldest first, with attachments resolved to files.
 function conversation(threadId, limit = 80) {
   const rows = getDb()
-    .prepare("select message_id as id, role, created_at as at, streaming, payload_json as p from orchestration_v2_projection_messages where thread_id = ? order by created_at desc limit ?")
+    .prepare("select message_id as id, role, created_at as at, streaming, payload_json as p from orchestration_v2_projection_messages where thread_id = ? order by created_at desc, rowid desc limit ?")
     .all(threadId, limit)
     .reverse();
   const runs = new Map();
-  for (const run of getDb().prepare("select status, payload_json as p from orchestration_v2_projection_runs where thread_id = ? order by ordinal desc limit 60").all(threadId)) {
+  const queuePos = new Map();
+  const queued = [];
+  for (const run of getDb().prepare("select status, ordinal, payload_json as p from orchestration_v2_projection_runs where thread_id = ? order by ordinal desc limit 60").all(threadId)) {
     const rp = safeJson(run.p);
     if (rp?.userMessageId) runs.set(rp.userMessageId, run.status);
+    if (run.status === "queued" && rp?.userMessageId) queued.push({ id: rp.userMessageId, ordinal: run.ordinal });
   }
+  queued.sort((a, b) => a.ordinal - b.ordinal).forEach((q, i) => queuePos.set(q.id, i + 1));
   return rows.map((r) => {
     const p = safeJson(r.p) || {};
     return {
-      id: r.id, role: r.role, at: r.at, streaming: !!r.streaming, text: p.text || "", run: runs.get(r.id) || null,
+      id: r.id, role: r.role, at: r.at, streaming: !!r.streaming, text: p.text || "", run: runs.get(r.id) || null, queue: queuePos.get(r.id) || null,
       attachments: (p.attachments || []).map((a) => ({ type: a.type, name: a.name, mime: a.mimeType, size: a.sizeBytes, path: attachmentPath(a) })),
     };
   });

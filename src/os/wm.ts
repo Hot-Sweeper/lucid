@@ -5,7 +5,7 @@ import { ICONS } from "./icons";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -19,9 +19,10 @@ const FRAMES: Record<AppId, Frame> = {
   harness: { x: 110, y: 22, w: 600, h: 356 },
   beats: { x: 40, y: 12, w: 740, h: 390 },
   social: { x: 40, y: 12, w: 740, h: 390 },
+  notes: { x: 470, y: 30, w: 330, h: 300 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "chat", "harness", "tool", "beats", "social", "game"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "chat", "notes", "harness", "tool", "beats", "social", "game"];
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 
