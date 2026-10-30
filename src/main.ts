@@ -263,4 +263,4 @@ await loadProjects();
 await refresh();
 setInterval(refresh, 3000);
 checkUpdate();
-setInterval(checkUpdate, 5 * 60 * 1000);
+setInterval(checkUpdate, 60 * 1000);
