@@ -5,7 +5,7 @@ import { ICONS } from "./icons";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -16,9 +16,12 @@ const FRAMES: Record<AppId, Frame> = {
   chat: { x: 538, y: 26, w: 268, h: 372 },
   tool: { x: 470, y: 228, w: 330, h: 170 },
   game: { x: 190, y: 14, w: 440, h: 392 },
+  harness: { x: 110, y: 22, w: 600, h: 356 },
+  beats: { x: 40, y: 12, w: 740, h: 390 },
+  social: { x: 40, y: 12, w: 740, h: 390 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "chat", "tool", "game"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "chat", "harness", "tool", "beats", "social", "game"];
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 
@@ -30,6 +33,7 @@ export class WM {
   wins = new Map<AppId, Win>();
   onCursor?: (x: number, y: number) => void;
   prefs: import("../office/roster").Prefs | null = null;
+  robotName = "unit";
   speed = 1;
   epoch = 0;
   private z = 10;

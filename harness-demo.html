@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Lucid harness app demo</title>
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; overflow: auto; }
+    .demo-screen { position: relative; width: 820px; height: 461px; border-radius: 10px; overflow: hidden; background: #0e1233; flex: none; }
+    .demo-bar { width: 820px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
+    .demo-bar button { border: 0; border-radius: 7px; padding: 6px 11px; background: var(--night-3); color: var(--ink); cursor: pointer; }
+    .demo-bar button:hover { background: #303a75; }
+    .demo-bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .demo-log { width: 820px; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font: 11px var(--mono); color: var(--ink-3); }
+    .demo-log span:nth-child(even) { color: var(--ink-2); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+  </style>
+</head>
+<body>
+  <div class="demo-screen" id="screen"></div>
+  <div class="demo-bar">
+    <button data-check="c1">Check on Claude Code</button>
+    <button data-check="x1">Check on Codex</button>
+    <button data-check="g1">Check on OpenCode</button>
+    <span style="flex:1"></span>
+    <button id="restart">Restart</button>
+  </div>
+  <div class="demo-log"><span>keys</span><span id="keys"></span><span>pose</span><span id="pose"></span></div>
+  <script type="module" src="/src/harness/demo.ts"></script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { WM, Cancelled } from "./os/wm";
 import { IdleLife } from "./os/idle";
+import { HarnessApp, harnessKind, type HarnessSession, type SubagentEvent } from "./harness/harness";
 import { fileUrl } from "./office/chat-panel";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ChatApp, ToolApp, prettyTool } from "./os/apps";
 import { classify, parseDiff, baseName, type Entry } from "./os/classify";
@@ -32,6 +33,9 @@ export class Director {
   private mobile = false;       // the agent is testing a phone-sized viewport
   private phoneUp = false;      // the robot is holding its phone
   private peekFn: (url: string) => Promise<any>;
+  private harness: HarnessApp;
+  private sessions = new Map<string, { session: HarnessSession; child: string | null; since: string; timer: number; done: boolean }>();
+  childItems: (threadId: string, since: string) => Promise<any[]> = async () => [];
   attachDir = "";
   private lastEventAt = 0;
 
@@ -43,12 +47,16 @@ export class Director {
     this.chat = new ChatApp(wm);
     this.tool = new ToolApp(wm);
     this.idleLife = new IdleLife(wm, robot, stage);
+    this.harness = new HarnessApp(wm as any);
     this.peekFn = peek;
     this.idleLife.onActivity = (t) => this.onActivity(t);
   }
 
   reset() {
     this.idleLife.stop();
+    for (const s of this.sessions.values()) window.clearInterval(s.timer);
+    this.sessions.clear();
+    this.harness.reset();
     this.mobile = false;
     if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
     this.lastEventAt = 0;
@@ -96,6 +104,7 @@ export class Director {
       if (it.type === "todo_list") { this.stage.setPlan(it.data.steps || []); this.played.add(it.id); continue; }
       this.queue.push(it.id);
     }
+    for (const it of items) if (it.type === "subagent" && it.status !== "running" && this.sessions.has(it.id)) this.finishSession(it.id);
     // Plans update in place while the run goes on.
     for (const it of items) if (it.type === "todo_list" && this.played.has(it.id)) this.stage.setPlan(it.data.steps || []);
     this.queue.sort((a, b) => this.items.get(a)!.ordinal - this.items.get(b)!.ordinal);
@@ -105,6 +114,48 @@ export class Director {
   }
 
   private get(id: string) { return this.items.get(id)!; }
+
+  // Poll the helper's own thread and mirror its actions into the harness window.
+  private followChild(id: string, session: HarnessSession, child: string | null) {
+    const s = { session, child, since: "", timer: 0, done: false };
+    this.sessions.set(id, s);
+    if (!child) return;
+    const map = (it: any): SubagentEvent | null => {
+      const d = it.data || {};
+      switch (it.type) {
+        case "command_execution": return { kind: "run", text: String(d.input || "").replace(/^"[^"]*powershell[^"]*"\s+-Command\s+/i, "").slice(0, 160), detail: d.output ? String(d.output).split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 120) : undefined };
+        case "file_change": return { kind: "edit", text: String(d.fileName || d.changes?.[0]?.path || "file").split(/[\\/]/).slice(-2).join("/") };
+        case "web_search": return { kind: "web", text: String((d.patterns || [])[0] || d.query || "search") };
+        case "dynamic_tool": return { kind: "tool", text: String(d.toolName || "tool").replace(/^mcp__.+?__/, ""), detail: d.input?.file_path || d.input?.command || d.input?.pattern || undefined };
+        case "reasoning": return d.text ? { kind: "think", text: String(d.text).replace(/\s+/g, " ").slice(0, 140) } : null;
+        default: return null;
+      }
+    };
+    const seen = new Set<string>();
+    const tick = async () => {
+      if (s.done) return;
+      const items = await this.childItems(child, s.since).catch(() => []);
+      for (const it of items) {
+        if (it.updatedAt > s.since) s.since = it.updatedAt;
+        if (it.type === "assistant_message") { if (it.data?.text) session.stream(String(it.data.text)); continue; }
+        const key = `${it.id}:${it.status}`;
+        if (seen.has(it.id) || (it.status === "running" && it.type !== "command_execution")) continue;
+        seen.add(it.id);
+        if (!seen.has(key)) { const ev = map(it); if (ev) session.push(ev); }
+      }
+    };
+    void tick();
+    s.timer = window.setInterval(tick, 2500);
+  }
+
+  private finishSession(id: string) {
+    const s = this.sessions.get(id);
+    if (!s || s.done) return;
+    s.done = true;
+    window.clearInterval(s.timer);
+    const it = this.items.get(id);
+    s.session.finish(it?.data?.result || it?.data?.summary || "Done", it?.status !== "failed");
+  }
 
   private async pump() {
     if (this.pumpEpoch === this.wm.epoch) return;
@@ -117,6 +168,11 @@ export class Director {
         this.played.add(id);
         try {
           await this.play(id);
+          const live = [...this.sessions.entries()].filter(([, s]) => !s.done);
+          if (live.length && Math.random() < 0.2) {
+            this.onActivity("Checking on its helper");
+            await this.harness.checkOn(live[Math.floor(Math.random() * live.length)][0]);
+          }
         } catch (err) {
           if (err instanceof Cancelled) return;
           console.error("scene failed", err);
@@ -132,6 +188,20 @@ export class Director {
   }
 
   private idle() {
+    // Helpers still at work: wait for them and look in on them now and then.
+    const live = [...this.sessions.entries()].filter(([, s]) => !s.done);
+    if (live.length) {
+      this.robot.setPose("think");
+      this.onActivity(live.length === 1 ? "Waiting for its helper" : `Waiting for ${live.length} helpers`);
+      const epoch = this.wm.epoch;
+      window.setTimeout(async () => {
+        if (epoch !== this.wm.epoch || this.queue.length) return;
+        const still = [...this.sessions.entries()].filter(([, s]) => !s.done);
+        if (still.length) { try { await this.harness.checkOn(still[0][0]); } catch {} }
+        if (epoch === this.wm.epoch && !this.queue.length) this.idle();
+      }, 9000 + Math.random() * 6000);
+      return;
+    }
     const running = this.info?.run?.status === "running";
     this.stage.setGlow(GLOW.idle);
     if (running) {
@@ -469,8 +539,14 @@ export class Director {
         return;
       }
       case "subagent": {
-        this.wm.toast(`Handed off: ${d.title || "a subtask"}`, "tool");
-        await this.wm.sleep(900);
+        // The robot opens its harness app, types the prompt for the helper agent, and
+        // from then on the helper's real activity streams into that window.
+        const kind = harnessKind(String(d.driver || d.providerInstanceId || this.info?.provider || ""));
+        this.onActivity(`Briefing a helper: ${d.title || "subtask"}`);
+        this.stage.setGlow(GLOW.tool);
+        const session = await this.harness.start({ id, kind, title: d.title || "Subtask", prompt: d.prompt || d.title || "Help with this", label: String(d.providerInstanceId || d.driver || "") });
+        this.followChild(id, session, d.childThreadId || null);
+        if (it.status === "completed") this.finishSession(id);
         return;
       }
       case "compaction": {

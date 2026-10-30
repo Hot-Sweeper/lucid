@@ -296,6 +296,7 @@ export class World {
   private makeDesk(x: number, y: number) {
     const d = new Desk(this.deskLayer, x, y, this.services);
     d.director.attachDir = this.attachDir;
+    d.director.childItems = (id, since) => (window as any).lucid.itemsSince(id, since);
     this.allDesks.add(d);
     d.el.addEventListener("click", (e) => {
       if (this.dragged) return;

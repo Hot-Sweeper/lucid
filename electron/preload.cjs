@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld("lucid", {
   host: () => ipcRenderer.invoke("app:host"),
   rosterSave: (json) => ipcRenderer.invoke("roster:save", json),
   conversation: (id) => ipcRenderer.invoke("t3:conversation", id),
+  itemsSince: (id, since) => ipcRenderer.invoke("t3:items-since", id, since),
   attachDir: () => ipcRenderer.invoke("t3:attach-dir"),
   startThread: (opts) => ipcRenderer.invoke("t3:start", opts),
   sendMessage: (opts) => ipcRenderer.invoke("t3:send", opts),

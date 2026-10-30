@@ -100,6 +100,7 @@ export class Desk implements DeskStage {
       if (profile) {
         this.robot.setLook?.(profile.look);
         this.wm.prefs = profile.prefs;
+        this.wm.robotName = profile.name;
         this.wm.setWallpaper(WALLPAPERS[profile.prefs.wallpaper % WALLPAPERS.length]);
         const mug = this.el.querySelector("[data-d=mug] rect") as SVGRectElement | null;
         mug?.setAttribute("fill", profile.prefs.mug);

@@ -4,6 +4,9 @@ import type { SeatedRobot as Robot } from "../office/rig";
 import type { DeskStage as Stage } from "../office/desk";
 import { playSnake, playFlappy, playDash, watchPhoneFeed, watchTube, browseTensorHub, type FunHost } from "../fun";
 import "../fun/fun.css";
+import { makeBeat } from "../life/beats";
+import { hangOutInChat } from "../life/chat";
+import "../life/life.css";
 
 // What the robot does when there is no work: tidy the desktop, play a game,
 // and finally lock the screen and doze off. Any new work stops it at once.
@@ -107,6 +110,8 @@ export class IdleLife {
       tube: p?.phone === "tube" ? 1.3 : 0.5,
       tensorhub: 0.06,
       coffee: 0.7, stretch: 0.35, messages: 0.45,
+      beats: 0.2 + 1.4 * (p?.music ?? 0.4),
+      social: 0.2 + 1.2 * (p?.social ?? 0.4),
     };
     for (const r of recent) if (weights[r] != null) weights[r] *= r === recent[0] ? 0 : 0.25;
     const total = Object.values(weights).reduce((a, b) => a + b, 0);
@@ -190,6 +195,20 @@ export class IdleLife {
         this.robot.react("shy");
         return this.wait(1500, tok);
       }
+      case "beats": {
+        this.onActivity("Making a beat in BeatLab");
+        const w = await this.wm.open("beats", "BeatLab");
+        this.alive(tok);
+        await makeBeat(w.body, host, { maxMs: 60000 + Math.random() * 60000 });
+        return this.closeWin("beats" as any, tok);
+      }
+      case "social": {
+        this.onActivity("Hanging out with robot friends");
+        const w = await this.wm.open("social", "Botcord");
+        this.alive(tok);
+        await hangOutInChat(w.body, host, { maxMs: 40000 + Math.random() * 50000, me: this.wm.robotName });
+        return this.closeWin("social" as any, tok);
+      }
       case "coffee":
         this.onActivity("Sipping coffee");
         return this.robot.drink();
@@ -208,7 +227,7 @@ export class IdleLife {
     }
   }
 
-  private async closeWin(id: "game" | "browser" | "chat", tok: number) {
+  private async closeWin(id: "game" | "browser" | "chat" | "beats" | "social", tok: number) {
     const w = this.wm.wins.get(id);
     if (!w) return;
     await this.wm.pointAt(w.el.querySelector(".win-x")!, 0.5, 0.5, 380);

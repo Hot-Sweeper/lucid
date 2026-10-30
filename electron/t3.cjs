@@ -338,4 +338,4 @@ function conversation(threadId, limit = 80) {
   });
 }
 
-module.exports = { addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
+module.exports = { itemsSince, recentItems, addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
