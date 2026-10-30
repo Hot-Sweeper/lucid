@@ -4,6 +4,7 @@ import "./styles.css";
 import "./office/office.css";
 import gsap from "gsap";
 import { World, type Room, type WorldData } from "./office/world";
+import { ChatPanel } from "./office/chat-panel";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
@@ -15,6 +16,8 @@ declare global {
     lucid: {
       projects(): Promise<{ id: string; title: string; root: string }[]>;
       world(): Promise<WorldData>;
+      conversation(id: string): Promise<any[]>;
+      attachDir(): Promise<string>;
       watchSet(ids: string[]): Promise<boolean>;
       startThread(o: { project: string; message: string; provider?: string; model?: string }): Promise<{ threadId: string }>;
       sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
@@ -88,6 +91,15 @@ document.getElementById("app")!.innerHTML = `
 
 const world = new World($("scene"), { peek: (u) => api.peek(u), image: (p) => api.image(p), readText: (p) => api.readText(p) });
 let selectedDesk: Desk | null = null;
+const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), sendMessage: (o) => api.sendMessage(o) });
+world.panelWidth = 400;
+world.onFocus = (d) => { if (d) chat.open(d); else chat.close(); };
+chat.onClose = () => world.unfocus();
+// Dev aid: keep the last errors where a debug run can read them.
+(window as any).__errs = [];
+window.addEventListener("error", (e) => (window as any).__errs.push(String(e.message)));
+const origError = console.error.bind(console);
+console.error = (...a: any[]) => { (window as any).__errs.push(a.map(String).join(" ").slice(0, 300)); origError(...a); };
 let harness = "codex";
 
 // --- rooms --------------------------------------------------------------------------
@@ -155,7 +167,7 @@ $("reply-text").addEventListener("keydown", (e) => {
 });
 
 // --- live data -------------------------------------------------------------------------
-api.onItems(({ threadId, items, initial }) => world.deskFor(threadId)?.director.push(items, initial));
+api.onItems(({ threadId, items, initial }) => { world.deskFor(threadId)?.director.push(items, initial); chat.ping(threadId); });
 api.onInfo(({ threadId, info }) => {
   const d = world.deskFor(threadId);
   if (!d || info.error) return;
@@ -259,6 +271,8 @@ $("update").addEventListener("click", async () => {
   if (!res.ok) { btn.disabled = false; btn.textContent = "Retry update"; btn.title = res.error || ""; }
 });
 
+const attachDir = await api.attachDir().catch(() => "");
+world.attachDir = attachDir;
 await loadProjects();
 await refresh();
 setInterval(refresh, 3000);

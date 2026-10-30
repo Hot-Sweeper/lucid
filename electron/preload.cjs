@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld("lucid", {
   office: (projectId) => ipcRenderer.invoke("t3:office", projectId),
   offices: () => ipcRenderer.invoke("t3:offices"),
   world: () => ipcRenderer.invoke("t3:world"),
+  conversation: (id) => ipcRenderer.invoke("t3:conversation", id),
+  attachDir: () => ipcRenderer.invoke("t3:attach-dir"),
   startThread: (opts) => ipcRenderer.invoke("t3:start", opts),
   sendMessage: (opts) => ipcRenderer.invoke("t3:send", opts),
   peek: (url) => ipcRenderer.invoke("web:peek", url),

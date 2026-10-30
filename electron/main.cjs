@@ -1,9 +1,17 @@
-const { app, BrowserWindow, ipcMain, shell, net } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, net, protocol } = require("electron");
+const { pathToFileURL } = require("node:url");
+const fsp = require("node:fs/promises");
 const path = require("node:path");
 const t3 = require("./t3.cjs");
 const updater = require("./updater.cjs");
 
 const DEV_URL = process.env.LUCID_DEV_URL;
+if (process.env.LUCID_SHOT) {
+  // keep animating even though the window is off-screen
+  app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion");
+  app.commandLine.appendSwitch("disable-renderer-backgrounding");
+  app.commandLine.appendSwitch("disable-background-timer-throttling");
+}
 let win = null;
 const watchers = new Map(); // threadId -> stop()
 
@@ -16,7 +24,8 @@ function createWindow() {
     backgroundColor: "#141a33",
     title: "Lucid",
     autoHideMenuBar: true,
-    show: !process.env.LUCID_SHOT, // debug screenshot runs stay invisible
+    // debug screenshot runs render normally but off-screen, so they never pop up on you
+    ...(process.env.LUCID_SHOT ? { x: -4000, y: -4000, skipTaskbar: true, focusable: false } : {}),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -30,6 +39,21 @@ function createWindow() {
   if (process.env.LUCID_IDLE_SCALE) query.idleScale = process.env.LUCID_IDLE_SCALE;
   if (DEV_URL) win.loadURL(DEV_URL + "?" + new URLSearchParams(query));
   else win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query });
+  // Debug aid: LUCID_PROFILE=file records a 4 second CPU profile after 5 seconds.
+  if (process.env.LUCID_PROFILE) {
+    const fs = require("node:fs");
+    setTimeout(async () => {
+      const dbg = win.webContents.debugger;
+      dbg.attach("1.3");
+      await dbg.sendCommand("Profiler.enable");
+      await dbg.sendCommand("Profiler.start");
+      setTimeout(async () => {
+        const { profile } = await dbg.sendCommand("Profiler.stop");
+        fs.writeFileSync(process.env.LUCID_PROFILE, JSON.stringify(profile));
+        app.quit();
+      }, 4000);
+    }, 5000);
+  }
   // Debug aid: LUCID_SHOT=folder saves screenshots every few seconds.
   if (process.env.LUCID_SHOT) {
     const fs = require("node:fs");
@@ -74,6 +98,8 @@ ipcMain.handle("t3:watch-set", (_e, ids) => {
 });
 ipcMain.handle("t3:office", (_e, projectId) => t3.office(projectId));
 ipcMain.handle("t3:offices", () => t3.listProjectsWithCounts());
+ipcMain.handle("t3:conversation", (_e, id) => t3.conversation(id));
+ipcMain.handle("t3:attach-dir", () => require("node:path").join(process.env.T3CODE_HOME || require("node:path").join(require("node:os").homedir(), ".t3"), "userdata", "attachments") + require("node:path").sep);
 ipcMain.handle("t3:world", () => t3.world());
 ipcMain.handle("t3:start", (_e, opts) => t3.startThread(opts));
 ipcMain.handle("t3:send", (_e, opts) => t3.sendMessage(opts));
@@ -147,5 +173,22 @@ ipcMain.handle("app:apply-update", async () => {
 });
 ipcMain.handle("app:version", () => app.getVersion());
 
-app.whenReady().then(createWindow);
+// lucid-file://local/<encoded path> serves images and text files the agents worked with,
+// so the robots' screens and the chat can show them. Only known media and text types.
+protocol.registerSchemesAsPrivileged([{ scheme: "lucid-file", privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
+const SERVE = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif"]);
+
+app.whenReady().then(() => {
+  protocol.handle("lucid-file", async (req) => {
+    try {
+      const file = decodeURIComponent(new URL(req.url).pathname.slice(1));
+      if (!SERVE.has(path.extname(file).toLowerCase())) return new Response("not allowed", { status: 403 });
+      await fsp.access(file);
+      return net.fetch(pathToFileURL(file).toString());
+    } catch {
+      return new Response("missing", { status: 404 });
+    }
+  });
+  createWindow();
+});
 app.on("window-all-closed", () => app.quit());

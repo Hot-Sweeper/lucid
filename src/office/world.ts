@@ -241,9 +241,10 @@ export class World {
   roster = new Roster();
   private makeDesk(x: number, y: number) {
     const d = new Desk(this.deskLayer, x, y, this.services);
+    d.director.attachDir = this.attachDir;
     this.allDesks.add(d);
     d.el.addEventListener("click", (e) => { if (!this.dragged) { e.stopPropagation(); if (d.threadId) this.select(d); } });
-    d.monitor.addEventListener("dblclick", (e) => { e.stopPropagation(); if (d.threadId) this.focusScreen(d); });
+    d.monitor.addEventListener("click", (e) => { if (this.dragged || !d.threadId) return; e.stopPropagation(); this.select(d); this.focusScreen(d); });
     return d;
   }
 
@@ -296,12 +297,15 @@ export class World {
     this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
   }
 
-  flyTo(rect: { x: number; y: number; w: number; h: number }, pad = 40, d = 1) {
-    const W = this.scene.clientWidth, H = this.scene.clientHeight;
+  flyTo(rect: { x: number; y: number; w: number; h: number }, pad = 40, d = 1, insetRight = 0) {
+    const W = this.scene.clientWidth - insetRight, H = this.scene.clientHeight;
     if (!W || !H) return;
-    const s = Math.min((W - pad * 2) / rect.w, (H - pad * 2) / rect.h, 5);
+    const s = Math.min((W - pad * 2) / rect.w, (H - pad * 2) / rect.h, 6);
     gsap.to(this.cam, { s, x: W / 2 - (rect.x + rect.w / 2) * s, y: H / 2 - (rect.y + rect.h / 2) * s, duration: d, ease: "power3.inOut", onUpdate: () => this.apply() });
   }
+  onFocus: (d: Desk | null) => void = () => {};
+  panelWidth = 0;
+  attachDir = "";
 
   overview() { this.unfocus(false); this.flyTo({ x: 0, y: 0, w: this.size.w, h: this.size.h }, 24); }
   showRoom(id: string) {
@@ -317,8 +321,9 @@ export class World {
   focusScreen(d: Desk) {
     this.focusDesk = d;
     const m = GEOM.screen;
-    this.flyTo({ x: parseFloat(d.el.style.left) + m.x, y: parseFloat(d.el.style.top) + m.y, w: m.w, h: m.h }, 16, 0.9);
+    this.flyTo({ x: parseFloat(d.el.style.left) + m.x, y: parseFloat(d.el.style.top) + m.y, w: m.w, h: m.h }, 22, 0.9, this.panelWidth);
     this.scene.classList.add("screen-mode");
+    this.onFocus(d);
   }
 
   unfocus(fly = true) {
@@ -326,6 +331,7 @@ export class World {
     if (!d) return;
     this.focusDesk = null;
     this.scene.classList.remove("screen-mode");
+    this.onFocus(null);
     if (fly) this.showDesk(d);
   }
 

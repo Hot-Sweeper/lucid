@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { WM, Cancelled } from "./os/wm";
 import { IdleLife } from "./os/idle";
+import { fileUrl } from "./office/chat-panel";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ChatApp, ToolApp, prettyTool } from "./os/apps";
 import { classify, parseDiff, baseName, type Entry } from "./os/classify";
 import type { SeatedRobot as Robot } from "./office/rig";
@@ -31,6 +32,7 @@ export class Director {
   private mobile = false;       // the agent is testing a phone-sized viewport
   private phoneUp = false;      // the robot is holding its phone
   private peekFn: (url: string) => Promise<any>;
+  attachDir = "";
   private lastEventAt = 0;
 
   constructor(private wm: WM, private robot: Robot, private stage: Stage, peek: (url: string) => Promise<any>, private image: (path: string) => Promise<string | null>, private readText: (path: string) => Promise<string | null>) {
@@ -186,7 +188,7 @@ export class Director {
       if (done.data.viewedImagePath || done.data.output?.type === "image") {
         this.onActivity(`Looking at ${baseName(p)}`);
         this.stage.setGlow(GLOW.tool);
-        const src = await this.image(done.data.viewedImagePath || p);
+        const src = fileUrl(done.data.viewedImagePath || p);
         await this.tool.picture(baseName(p), src);
         return true;
       }
@@ -322,10 +324,23 @@ export class Director {
 
     switch (it.type) {
       case "user_message": {
+        // A new message pops up as a notification; the robot notices it, reads it, and
+        // looks at any image you attached before getting to work.
         this.onActivity("Reading your message");
         this.stage.setGlow(GLOW.chat);
+        this.robot.setPose("notice");
         this.wm.toast("New message from you");
-        await this.chat.user(d.text || "");
+        await this.wm.sleep(700);
+        const imgs: { path: string; name: string }[] = (d.attachments || [])
+          .filter((a: any) => a.type === "image" && (a.path || a.id))
+          .map((a: any) => ({ path: a.path || `${this.attachDir}${a.id}.${(a.mimeType || "image/png").split("/")[1].replace("jpeg", "jpg")}`, name: a.name || "image" }));
+        await this.chat.user(d.text || "", imgs.map((i) => fileUrl(i.path)));
+        this.robot.setPose("read");
+        await this.wm.sleep(Math.min(3200, 800 + (d.text || "").length * 12));
+        for (const img of imgs.slice(0, 2)) {
+          this.onActivity(`Looking at ${img.name}`);
+          await this.tool.picture(img.name, fileUrl(img.path));
+        }
         return;
       }
       case "reasoning": {

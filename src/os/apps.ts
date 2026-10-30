@@ -167,7 +167,10 @@ export class EditorApp {
       if (this.tabs.size > 5) { const first = this.tabs.values().next().value!; first.el.remove(); this.tabs.delete(first.path); }
     }
     for (const t of this.tabs.values()) t.el.classList.toggle("on", t === tab);
-    tab.el.scrollIntoView({ inline: "nearest", block: "nearest" });
+    // scroll only the tab strip; scrollIntoView would also scroll the office around the screen
+    const strip = tab.el.parentElement as HTMLElement;
+    if (tab.el.offsetLeft + tab.el.offsetWidth > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = tab.el.offsetLeft + tab.el.offsetWidth - strip.clientWidth;
+    else if (tab.el.offsetLeft < strip.scrollLeft) strip.scrollLeft = tab.el.offsetLeft;
     return { w, code: w.body.querySelector(".code") as HTMLElement, wrap: w.body.querySelector(".code-wrap") as HTMLElement };
   }
 
@@ -427,10 +430,11 @@ export class ChatApp {
     return w.body.querySelector(".chat") as HTMLElement;
   }
 
-  async user(text: string) {
+  async user(text: string, images: string[] = []) {
     const chat = await this.ensure();
-    const b = el(`<div class="msg you"><p></p></div>`);
+    const b = el(`<div class="msg you">${images.length ? `<div class="msg-imgs">${images.slice(0, 4).map((src) => `<img src="${src}" alt="">`).join("")}</div>` : ""}<p></p></div>`);
     b.querySelector("p")!.innerHTML = md(text.slice(0, 1200));
+    if (!text) b.querySelector("p")!.remove();
     chat.appendChild(b);
     gsap.fromTo(b, { opacity: 0, y: 14, scale: 0.92 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "back.out(1.7)", transformOrigin: "100% 100%" });
     chat.scrollTop = chat.scrollHeight;

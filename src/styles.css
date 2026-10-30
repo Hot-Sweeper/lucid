@@ -280,3 +280,6 @@ textarea::placeholder { color: var(--ink-3); }
 .vim-bar b { color: #b8e07a; font-weight: 600; }
 .desk-plate b { font-weight: 600; margin-right: 3px; }
 .desk-plate i { font-style: normal; opacity: 0.85; }
+
+.msg-imgs { display: flex; gap: 4px; margin-bottom: 4px; justify-content: flex-end; }
+.msg-imgs img { width: 74px; height: 50px; object-fit: cover; border-radius: 6px; }

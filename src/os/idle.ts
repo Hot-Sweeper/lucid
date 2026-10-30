@@ -2,29 +2,31 @@ import gsap from "gsap";
 import { WM, Cancelled } from "./wm";
 import type { SeatedRobot as Robot } from "../office/rig";
 import type { DeskStage as Stage } from "../office/desk";
+import { playSnake, playFlappy, playDash, watchPhoneFeed, watchTube, browseTensorHub, type FunHost } from "../fun";
+import "../fun/fun.css";
 
 // What the robot does when there is no work: tidy the desktop, play a game,
 // and finally lock the screen and doze off. Any new work stops it at once.
 
 const T = {
   tidyAfter: 4000,
-  gameAfter: 40000,
-  gameFor: 110000,
-  lockAfterGames: 2,
+  gameAfter: 25000,
+  gameFor: 90000,
+  lockAfterMs: 9 * 60 * 1000,
 };
 
 export class IdleLife {
-  private token = 0;
+  token = 0;
   private active = false;
   private stopGame: (() => void) | null = null;
   private lockEl: HTMLElement | null = null;
   private clockTimer = 0;
-  private nextGame: "snake" | "chess" = Math.random() < 0.5 ? "snake" : "chess";
+  private phoneUp = false;
   onActivity: (t: string) => void = () => {};
 
   constructor(private wm: WM, private robot: Robot, private stage: Stage) {
     const scale = Number(new URLSearchParams(location.search).get("idleScale") || localStorage.getItem("lucid:idleScale") || 1);
-    if (scale > 0 && scale !== 1) for (const k of Object.keys(T) as (keyof typeof T)[]) if (k !== "lockAfterGames") T[k] *= scale;
+    if (scale > 0 && scale !== 1) for (const k of Object.keys(T) as (keyof typeof T)[]) T[k] *= scale;
   }
 
   get isActive() { return this.active; }
@@ -44,6 +46,7 @@ export class IdleLife {
     this.wm.epoch++;
     this.stopGame?.();
     this.stopGame = null;
+    if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
     if (this.wm.isOpen("game")) this.wm.close("game");
     this.unlock();
     this.stage.sleepy(false);
@@ -77,23 +80,141 @@ export class IdleLife {
     await this.tidy(tok, false);
     this.robot.setPose("rest");
     await this.wait(T.gameAfter, tok);
-    for (let i = 0; i < T.lockAfterGames; i++) {
-      const g = this.nextGame;
-      this.nextGame = g === "snake" ? "chess" : "snake";
-      this.onActivity(g === "snake" ? "Playing Snake while it waits" : "Playing chess while it waits");
-      if (g === "snake") await this.playSnake(tok, T.gameFor);
-      else await this.playChess(tok);
+    const startedAt = Date.now();
+    const recent: string[] = [];
+    // A bored afternoon: weighted picks, shaped by the robot's own preferences,
+    // never the same thing twice in a row. After a while it locks up and naps.
+    while (Date.now() - startedAt < T.lockAfterMs) {
       this.alive(tok);
-      if (this.wm.isOpen("game")) {
-        await this.wm.pointAt(this.wm.wins.get("game")!.el.querySelector(".win-x")!, 0.5, 0.5, 400);
-        await this.wm.click();
-        this.wm.close("game");
-      }
+      const act = this.pick(recent);
+      recent.unshift(act);
+      recent.length = Math.min(recent.length, 3);
+      await this.doActivity(act, tok);
+      this.alive(tok);
       this.robot.setPose("rest");
       this.onActivity("Waiting for a task");
-      await this.wait(12000, tok);
+      await this.wait(5000 + Math.random() * 9000, tok);
     }
     await this.lock(tok);
+  }
+
+  private pick(recent: string[]) {
+    const p = this.wm.prefs;
+    const g = p?.games ?? { snake: 1, flappy: 1, dash: 1, chess: 1 };
+    const weights: Record<string, number> = {
+      snake: 0.9 * g.snake, flappy: 0.9 * g.flappy, dash: 0.9 * g.dash, chess: 0.7 * g.chess,
+      phone: p?.phone === "tube" ? 0.5 : 1.3,
+      tube: p?.phone === "tube" ? 1.3 : 0.5,
+      tensorhub: 0.06,
+      coffee: 0.7, stretch: 0.35, messages: 0.45,
+    };
+    for (const r of recent) if (weights[r] != null) weights[r] *= r === recent[0] ? 0 : 0.25;
+    const total = Object.values(weights).reduce((a, b) => a + b, 0);
+    let x = Math.random() * total;
+    for (const [k, w] of Object.entries(weights)) { x -= w; if (x <= 0) return k; }
+    return "coffee";
+  }
+
+  // The fun pack talks to the robot through this host.
+  private host(tok: number): FunHost {
+    const me = this;
+    return {
+      sleep: (ms) => me.wait(ms, tok),
+      pointAt: (el, ax, ay, ms) => me.wm.pointAt(el, ax, ay, ms),
+      click: () => me.wm.click(),
+      tap: (key) => me.robot.tap(key),
+      react: (kind) => me.robot.react(kind),
+      get stopped() { return tok !== me.token; },
+      thumb: () => me.robot.swipe(),
+      scroll: () => {},
+    };
+  }
+
+  private async doActivity(act: string, tok: number) {
+    const host = this.host(tok);
+    const skill = 0.35 + Math.random() * 0.5;
+    const game = async (title: string, play: (b: HTMLElement, h: FunHost, o: { maxMs: number; skill?: number }) => Promise<{ result: string }>) => {
+      this.onActivity(`Playing ${title} while it waits`);
+      const w = await this.wm.open("game", title);
+      this.alive(tok);
+      w.body.innerHTML = "";
+      this.stopGame = () => { w.body.innerHTML = ""; };
+      const out = await play(w.body, host, { maxMs: T.gameFor * (0.6 + Math.random() * 0.6), skill });
+      this.alive(tok);
+      if (out.result === "ragequit") {
+        // slam it shut
+        this.onActivity(`Rage quit ${title}`);
+        this.robot.react("angry");
+        this.wm.close("game");
+        await this.wait(2200, tok);
+      } else {
+        await this.closeWin("game", tok);
+      }
+    };
+    switch (act) {
+      case "snake": return game("Snake", playSnake);
+      case "flappy": return game("Flappy Drone", playFlappy);
+      case "dash": return game("Dash", playDash);
+      case "chess": {
+        this.onActivity("Playing chess while it waits");
+        await this.playChess(tok);
+        return this.closeWin("game", tok);
+      }
+      case "phone": {
+        const screen = this.stage.phoneScreen;
+        if (!screen) return;
+        this.onActivity("Scrolling clips on its phone");
+        await this.robot.holdPhone(true);
+        this.phoneUp = true;
+        screen.innerHTML = "";
+        try { await watchPhoneFeed(screen, host, { maxMs: 40000 + Math.random() * 50000 }); }
+        finally { if (tok === this.token) { await this.robot.holdPhone(false); this.phoneUp = false; } }
+        return;
+      }
+      case "tube": {
+        this.onActivity("Watching robot videos");
+        const w = await this.wm.open("browser", "BotTube");
+        this.alive(tok);
+        w.body.innerHTML = "";
+        await watchTube(w.body, host, { maxMs: 50000 + Math.random() * 50000 });
+        return this.closeWin("browser", tok);
+      }
+      case "tensorhub": {
+        this.onActivity("Browsing something it should not");
+        const w = await this.wm.open("browser", "TensorHub");
+        this.alive(tok);
+        w.body.innerHTML = "";
+        await browseTensorHub(w.body, host, { maxMs: 18000 + Math.random() * 12000 });
+        this.alive(tok);
+        this.wm.close("browser"); // closed fast, nobody saw anything
+        this.robot.react("shy");
+        return this.wait(1500, tok);
+      }
+      case "coffee":
+        this.onActivity("Sipping coffee");
+        return this.robot.drink();
+      case "stretch":
+        this.onActivity("Stretching");
+        this.robot.setPose("stretch");
+        return this.wait(2600, tok);
+      case "messages": {
+        this.onActivity("Checking for new messages");
+        await this.wm.open("chat");
+        this.alive(tok);
+        this.robot.setPose("read");
+        await this.wait(1800, tok);
+        return this.closeWin("chat", tok);
+      }
+    }
+  }
+
+  private async closeWin(id: "game" | "browser" | "chat", tok: number) {
+    const w = this.wm.wins.get(id);
+    if (!w) return;
+    await this.wm.pointAt(w.el.querySelector(".win-x")!, 0.5, 0.5, 380);
+    this.alive(tok);
+    await this.wm.click();
+    this.wm.close(id);
   }
 
   // Close windows one by one, like clearing a desk at the end of the day.
@@ -144,154 +265,6 @@ export class IdleLife {
     this.lockEl = null;
     if (!el) return;
     gsap.to(el, { yPercent: -100, opacity: 0.4, duration: 0.55, ease: "power3.in", onComplete: () => el.remove() });
-  }
-
-  // --- snake ---------------------------------------------------------------------
-  private async playSnake(tok: number, duration: number) {
-    const w = await this.wm.open("game", "Snake");
-    this.alive(tok);
-    w.body.innerHTML = `<div class="game snake"><div class="game-head"><span>Snake</span><span class="score">Score 0</span></div><canvas></canvas></div>`;
-    const canvas = w.body.querySelector("canvas") as HTMLCanvasElement;
-    const scoreEl = w.body.querySelector(".score") as HTMLElement;
-    const COLS = 24, ROWS = 14;
-    const rect = canvas.getBoundingClientRect();
-    const k = rect.width / canvas.clientWidth || 1;
-    const cw = canvas.clientWidth, ch = canvas.clientHeight;
-    const dpr = 2;
-    canvas.width = cw * dpr; canvas.height = ch * dpr;
-    void k;
-    const g = canvas.getContext("2d")!;
-    g.scale(dpr, dpr);
-    const cell = Math.min(cw / COLS, ch / ROWS);
-    const ox = (cw - cell * COLS) / 2, oy = (ch - cell * ROWS) / 2;
-    type P = { x: number; y: number };
-    let snake: P[] = [], prev: P[] = [], dir: P = { x: 1, y: 0 }, food: P = { x: 0, y: 0 }, score = 0, best = 0;
-    let dead = false, deadAt = 0, eatAt = 0;
-    const key = (p: P) => p.y * COLS + p.x;
-    const reset = () => {
-      snake = [{ x: 6, y: 7 }, { x: 5, y: 7 }, { x: 4, y: 7 }];
-      prev = snake.map((p) => ({ ...p }));
-      dir = { x: 1, y: 0 }; score = 0; dead = false;
-      placeFood();
-    };
-    const placeFood = () => {
-      const taken = new Set(snake.map(key));
-      const free: P[] = [];
-      for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) if (!taken.has(y * COLS + x)) free.push({ x, y });
-      food = free[Math.floor(Math.random() * free.length)];
-    };
-    const inside = (p: P) => p.x >= 0 && p.y >= 0 && p.x < COLS && p.y < ROWS;
-    const dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
-    // Shortest path to the food, avoiding the body (the tail moves away, so it is free).
-    const bfs = (from: P, to: P, blocked: Set<number>) => {
-      const seen = new Map<number, number>([[key(from), -1]]);
-      const q = [from];
-      while (q.length) {
-        const c = q.shift()!;
-        if (c.x === to.x && c.y === to.y) {
-          let cur = key(c), prevK = seen.get(cur)!;
-          while (prevK !== key(from) && prevK !== -1) { cur = prevK; prevK = seen.get(cur)!; }
-          return { x: cur % COLS - from.x, y: Math.floor(cur / COLS) - from.y };
-        }
-        for (const d of dirs) {
-          const n = { x: c.x + d.x, y: c.y + d.y };
-          if (!inside(n) || blocked.has(key(n)) || seen.has(key(n))) continue;
-          seen.set(key(n), key(c));
-          q.push(n);
-        }
-      }
-      return null;
-    };
-    const room = (from: P, blocked: Set<number>) => {
-      const seen = new Set([key(from)]);
-      const q = [from];
-      while (q.length && seen.size < 400) {
-        const c = q.shift()!;
-        for (const d of dirs) {
-          const n = { x: c.x + d.x, y: c.y + d.y };
-          if (inside(n) && !blocked.has(key(n)) && !seen.has(key(n))) { seen.add(key(n)); q.push(n); }
-        }
-      }
-      return seen.size;
-    };
-    const step = () => {
-      prev = snake.map((p) => ({ ...p }));
-      const head = snake[0];
-      const body = new Set(snake.slice(0, -1).map(key));
-      let next = bfs(head, food, body);
-      // Only take the path if the snake keeps enough space afterwards.
-      if (next) {
-        const n = { x: head.x + next.x, y: head.y + next.y };
-        if (room(n, body) < snake.length + 2) next = null;
-      }
-      if (!next) {
-        let bestRoom = -1;
-        for (const d of dirs) {
-          const n = { x: head.x + d.x, y: head.y + d.y };
-          if (!inside(n) || body.has(key(n))) continue;
-          const r = room(n, body);
-          if (r > bestRoom) { bestRoom = r; next = d; }
-        }
-      }
-      if (!next) { dead = true; deadAt = performance.now(); return; }
-      if (next.x !== dir.x || next.y !== dir.y) this.robot.tap();
-      dir = next;
-      const n = { x: head.x + dir.x, y: head.y + dir.y };
-      snake.unshift(n);
-      if (n.x === food.x && n.y === food.y) {
-        score++; best = Math.max(best, score); eatAt = performance.now();
-        scoreEl.textContent = `Score ${score}`;
-        gsap.fromTo(scoreEl, { scale: 1.25 }, { scale: 1, duration: 0.35, ease: "back.out(3)" });
-        placeFood();
-        prev.unshift({ ...prev[0] });
-      } else snake.pop();
-    };
-    reset();
-    const TICK = 120;
-    let last = performance.now();
-    const draw = () => {
-      const now = performance.now();
-      if (!dead && now - last >= TICK) { last = now; step(); }
-      if (dead && now - deadAt > 1400) { reset(); scoreEl.textContent = "Score 0"; last = now; }
-      const f = dead ? 1 : Math.min(1, (now - last) / TICK);
-      g.clearRect(0, 0, cw, ch);
-      g.fillStyle = "#12163d";
-      g.beginPath(); g.roundRect(ox, oy, cell * COLS, cell * ROWS, 8); g.fill();
-      g.fillStyle = "rgba(255,255,255,0.05)";
-      for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) { g.beginPath(); g.arc(ox + (x + 0.5) * cell, oy + (y + 0.5) * cell, 1, 0, 7); g.fill(); }
-      // food
-      const pulse = 1 + Math.sin(now / 220) * 0.08 + Math.max(0, 1 - (now - eatAt) / 300) * 0.3;
-      const fx = ox + (food.x + 0.5) * cell, fy = oy + (food.y + 0.5) * cell;
-      g.fillStyle = "rgba(255,143,90,0.18)"; g.beginPath(); g.arc(fx, fy, cell * 0.7 * pulse, 0, 7); g.fill();
-      g.fillStyle = "#ff8f5a"; g.beginPath(); g.arc(fx, fy, cell * 0.34 * pulse, 0, 7); g.fill();
-      g.fillStyle = "#ffd0b0"; g.beginPath(); g.arc(fx - cell * 0.1, fy - cell * 0.1, cell * 0.09, 0, 7); g.fill();
-      // snake, smoothly between ticks
-      const pts = snake.map((p, i) => {
-        const a = prev[i] || prev[prev.length - 1];
-        return { x: ox + (a.x + (p.x - a.x) * f + 0.5) * cell, y: oy + (a.y + (p.y - a.y) * f + 0.5) * cell };
-      });
-      const grad = g.createLinearGradient(pts[pts.length - 1].x, pts[pts.length - 1].y, pts[0].x, pts[0].y);
-      grad.addColorStop(0, dead ? "#7d6a8f" : "#2fb59f");
-      grad.addColorStop(1, dead ? "#a58ab8" : "#7ff5cf");
-      g.strokeStyle = grad; g.lineCap = "round"; g.lineJoin = "round"; g.lineWidth = cell * 0.7;
-      g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); g.stroke();
-      const h = pts[0];
-      g.fillStyle = "#0e1233";
-      const ex = dir.y !== 0 ? cell * 0.16 : 0, ey = dir.x !== 0 ? cell * 0.16 : 0;
-      for (const s of [-1, 1]) { g.beginPath(); g.arc(h.x + dir.x * cell * 0.12 + ex * s, h.y + dir.y * cell * 0.12 + ey * s, cell * 0.08, 0, 7); g.fill(); }
-      if (running) raf = requestAnimationFrame(draw);
-    };
-    let running = true;
-    let raf = requestAnimationFrame(draw);
-    this.stopGame = () => { running = false; cancelAnimationFrame(raf); };
-    this.robot.setPose("type");
-    this.robot.setTyping(false);
-    try {
-      await this.wait(duration, tok);
-    } finally {
-      running = false;
-      cancelAnimationFrame(raf);
-    }
   }
 
   // --- chess -----------------------------------------------------------------------

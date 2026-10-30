@@ -284,4 +284,33 @@ function world(limit = 40) {
   return { projects, threads };
 }
 
-module.exports = { world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
+const ATTACH_DIR = path.join(T3_HOME, "userdata", "attachments");
+const EXT = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/svg+xml": "svg", "application/pdf": "pdf", "text/plain": "txt" };
+
+function attachmentPath(a) {
+  const ext = EXT[a.mimeType] || (a.name && path.extname(a.name).slice(1)) || "";
+  const direct = path.join(ATTACH_DIR, ext ? `${a.id}.${ext}` : a.id);
+  if (fs.existsSync(direct)) return direct;
+  try {
+    const hit = fs.readdirSync(ATTACH_DIR).find((f) => f.startsWith(a.id));
+    if (hit) return path.join(ATTACH_DIR, hit);
+  } catch {}
+  return null;
+}
+
+// The chat between you and one robot, oldest first, with attachments resolved to files.
+function conversation(threadId, limit = 80) {
+  const rows = getDb()
+    .prepare("select message_id as id, role, created_at as at, streaming, payload_json as p from orchestration_v2_projection_messages where thread_id = ? order by created_at desc limit ?")
+    .all(threadId, limit)
+    .reverse();
+  return rows.map((r) => {
+    const p = safeJson(r.p) || {};
+    return {
+      id: r.id, role: r.role, at: r.at, streaming: !!r.streaming, text: p.text || "",
+      attachments: (p.attachments || []).map((a) => ({ type: a.type, name: a.name, mime: a.mimeType, size: a.sizeBytes, path: attachmentPath(a) })),
+    };
+  });
+}
+
+module.exports = { conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
