@@ -98,6 +98,17 @@ ipcMain.handle("t3:watch-set", (_e, ids) => {
 });
 ipcMain.handle("t3:office", (_e, projectId) => t3.office(projectId));
 ipcMain.handle("t3:offices", () => t3.listProjectsWithCounts());
+ipcMain.handle("project:add", (_e, o) => t3.addProject(o));
+ipcMain.handle("project:remove", (_e, o) => t3.removeProject(o));
+ipcMain.handle("app:host", () => require("node:os").hostname());
+// Small settings file (hidden offices and such).
+const SETTINGS = path.join(app.getPath("userData"), "settings.json");
+ipcMain.on("settings:load", (e) => { try { e.returnValue = require("node:fs").readFileSync(SETTINGS, "utf8"); } catch { e.returnValue = "{}"; } });
+ipcMain.handle("settings:save", (_e, json) => require("node:fs").promises.writeFile(SETTINGS, json));
+// The robot team lives in a file so names, looks and habits survive restarts.
+const ROSTER = path.join(app.getPath("userData"), "roster.json");
+ipcMain.on("roster:load", (e) => { try { e.returnValue = require("node:fs").readFileSync(ROSTER, "utf8"); } catch { e.returnValue = "[]"; } });
+ipcMain.handle("roster:save", (_e, json) => require("node:fs").promises.writeFile(ROSTER, json));
 ipcMain.handle("t3:conversation", (_e, id) => t3.conversation(id));
 ipcMain.handle("t3:attach-dir", () => require("node:path").join(process.env.T3CODE_HOME || require("node:path").join(require("node:os").homedir(), ".t3"), "userdata", "attachments") + require("node:path").sep);
 ipcMain.handle("t3:world", () => t3.world());

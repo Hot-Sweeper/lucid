@@ -83,6 +83,8 @@ export class Desk implements DeskStage {
   get phoneScreen() { return this.el.querySelector(".phone-screen") as HTMLElement; }
 
   profile: RobotProfile | null = null;
+  folder: string | null = null;
+  room = "";
   private model: string | null = null;
 
   assign(thread: { id: string; title: string; provider: string; model?: string | null } | null, profile: RobotProfile | null = null) {

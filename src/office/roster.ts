@@ -51,11 +51,20 @@ const pick = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 export class Roster {
   robots: RobotProfile[] = [];
 
+  private saveTimer = 0;
   constructor() {
-    try { this.robots = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { this.robots = []; }
+    const api = (window as any).lucid;
+    try { this.robots = JSON.parse(api?.rosterLoad?.() || localStorage.getItem(KEY) || "[]"); } catch { this.robots = []; }
   }
 
-  private save() { localStorage.setItem(KEY, JSON.stringify(this.robots)); }
+  private save() {
+    window.clearTimeout(this.saveTimer);
+    this.saveTimer = window.setTimeout(() => {
+      const json = JSON.stringify(this.robots);
+      const api = (window as any).lucid;
+      if (api?.rosterSave) void api.rosterSave(json); else localStorage.setItem(KEY, json);
+    }, 400);
+  }
 
   byThread(threadId: string) { return this.robots.find((r) => r.threadId === threadId) ?? null; }
 

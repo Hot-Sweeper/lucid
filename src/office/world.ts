@@ -11,6 +11,7 @@ export type WThread = {
   id: string; projectId: string; title: string; updatedAt: string; provider: string;
   runStatus: string | null; pinned: boolean; settled: boolean; question: string | null; model: string | null;
   schedule?: { nextRunAt: string | null; everyMs: number | null } | null;
+  folder?: string | null;
 };
 export type WProject = { id: string; title: string; root: string; icon: string | null; scratch: boolean };
 export type WorldData = { projects: WProject[]; threads: WThread[] };
@@ -72,7 +73,7 @@ export class World {
 
   constructor(scene: HTMLElement, private services: DeskServices) {
     this.scene = scene;
-    scene.innerHTML = `<div class="world"><div class="hall"></div><div class="room-layer"></div><div class="night-shade"></div><div class="desk-layer"></div></div>`;
+    scene.innerHTML = `<div class="world"><div class="building-plate"><span class="bp-dot"></span><b></b></div><div class="hall"></div><div class="room-layer"></div><div class="night-shade"></div><div class="desk-layer"></div></div>`;
     this.root = scene.querySelector(".world")!;
     this.roomLayer = scene.querySelector(".room-layer")!;
     this.deskLayer = scene.querySelector(".desk-layer")!;
@@ -140,9 +141,10 @@ export class World {
     const bottom: Plan[] = [];
     for (const [pid, list] of perProject) {
       const p = byProject.get(pid)!;
+      if (this.hidden.has(pid)) continue;
       bottom.push(office(`p:${pid}`, "project", p.title, p.icon, list, 2, 3));
     }
-    bottom.push(office("freelance", "freelance", "Freelancers", null, freelance, 2, 3));
+    if (!this.hidden.has("freelance")) bottom.push(office("freelance", "freelance", "Freelancers", null, freelance, 2, 3));
 
     // Floor plan: top row, a hallway, then project offices.
     const rooms: Room[] = [];
@@ -160,7 +162,7 @@ export class World {
     x = 0;
     const y2 = topH + HALL;
     for (const r of bottom) { rooms.push({ id: r.id, kind: r.kind, title: r.title, icon: r.icon, x, y: y2, w: r.w, h: r.h, el: null as any, threadIds: idsOf(r) }); x += r.w + GAP; }
-    const bottomW = x - GAP, bottomH = Math.max(...bottom.map((r) => r.h));
+    const bottomW = Math.max(0, x - GAP), bottomH = bottom.length ? Math.max(...bottom.map((r) => r.h)) : 0;
     this.size = { w: Math.max(topW, bottomW), h: y2 + bottomH };
     const plans = [...top, ...bottom];
 
@@ -186,6 +188,18 @@ export class World {
       hall.style.cssText = `top:${topH}px;height:${HALL}px;width:${this.size.w}px`;
       this.root.style.width = `${this.size.w}px`;
       this.root.style.height = `${this.size.h}px`;
+      (this.root.querySelector(".building-plate b") as HTMLElement).textContent = this.building;
+      // the room sign is the handle for office options
+      for (const r of rooms) {
+        if (r.kind !== "project" && r.kind !== "freelance") continue;
+        const hit = document.createElement("button");
+        hit.type = "button";
+        hit.className = "room-sign-hit";
+        hit.title = `${r.title} office options`;
+        hit.setAttribute("aria-label", `${r.title} office options`);
+        hit.addEventListener("click", (e) => { e.stopPropagation(); this.onRoomMenu(r, e.clientX, e.clientY); });
+        r.el.appendChild(hit);
+      }
       this.paintClock();
     } else rooms.forEach((r, i) => (r.el = this.rooms[i]?.el ?? r.el));
     this.rooms = rooms;
@@ -215,6 +229,8 @@ export class World {
           // a newcomer takes the empty desk already standing in its seat
           d = here && !here.threadId ? here : this.makeDesk(s.x, s.y);
           d.assign({ id: s.t.id, title: s.t.title, provider: s.t.provider, model: s.t.model }, this.roster.byThread(s.t.id));
+          d.folder = s.t.folder ?? null;
+          d.room = s.key.split("#")[0];
           this.desks.set(s.t.id, d);
         }
       } else {
@@ -244,6 +260,7 @@ export class World {
     d.director.attachDir = this.attachDir;
     this.allDesks.add(d);
     d.el.addEventListener("click", (e) => { if (!this.dragged) { e.stopPropagation(); if (d.threadId) this.select(d); } });
+    d.el.addEventListener("contextmenu", (e) => { if (!d.threadId) return; e.preventDefault(); e.stopPropagation(); this.select(d); this.onDeskMenu(d, e.clientX, e.clientY); });
     d.monitor.addEventListener("click", (e) => { if (this.dragged || !d.threadId) return; e.stopPropagation(); this.select(d); this.focusScreen(d); });
     return d;
   }
@@ -305,9 +322,13 @@ export class World {
   }
   onFocus: (d: Desk | null) => void = () => {};
   panelWidth = 0;
+  hidden = new Set<string>();          // project ids whose office is hidden in Lucid
+  onRoomMenu: (room: Room, x: number, y: number) => void = () => {};
+  onDeskMenu: (desk: Desk, x: number, y: number) => void = () => {};
+  building = "This PC";
   attachDir = "";
 
-  overview() { this.unfocus(false); this.flyTo({ x: 0, y: 0, w: this.size.w, h: this.size.h }, 24); }
+  overview() { this.unfocus(false); this.flyTo({ x: 0, y: -110, w: this.size.w, h: this.size.h + 110 }, 24); }
   showRoom(id: string) {
     const r = this.rooms.find((q) => q.id === id);
     if (r) { this.unfocus(false); this.flyTo({ x: r.x, y: r.y, w: r.w, h: r.h }, 30); }

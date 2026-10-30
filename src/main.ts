@@ -5,6 +5,7 @@ import "./office/office.css";
 import gsap from "gsap";
 import { World, type Room, type WorldData } from "./office/world";
 import { ChatPanel } from "./office/chat-panel";
+import { showMenu, confirmDialog } from "./office/menus";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
@@ -16,6 +17,11 @@ declare global {
     lucid: {
       projects(): Promise<{ id: string; title: string; root: string }[]>;
       world(): Promise<WorldData>;
+      settingsLoad(): string;
+      settingsSave(json: string): Promise<void>;
+      addProject(o: { path: string; title?: string }): Promise<{ output: string }>;
+      removeProject(o: { id: string }): Promise<{ output: string }>;
+      host(): Promise<string>;
       conversation(id: string): Promise<any[]>;
       attachDir(): Promise<string>;
       watchSet(ids: string[]): Promise<boolean>;
@@ -48,6 +54,7 @@ document.getElementById("app")!.innerHTML = `
       <h3>Rooms</h3>
       <ul id="room-list" class="room-list"></ul>
       <button type="button" class="link-btn" id="overview">Whole building</button>
+      <div class="hidden-offices" id="hidden-offices" hidden></div>
     </section>
 
     <section class="focus" id="focus">
@@ -180,6 +187,7 @@ let firstLoad = true;
 async function refresh() {
   try {
     const data = await api.world();
+    for (const p of data.projects) projectTitles.set(p.id, p.title);
     world.update(data);
     for (const d of world.desks.values()) {
       d.onActivity = (t) => { if (d === selectedDesk) { const a = $("focus-activity"); if (a.textContent !== t) { a.textContent = t; gsap.fromTo(a, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.3 }); } } };
@@ -255,6 +263,38 @@ $("new-form").addEventListener("submit", async (e) => {
   } finally { go.disabled = false; }
 });
 
+// --- office and desk options -------------------------------------------------------------
+function setupMenus() {
+  world.onRoomMenu = (room, x, y) => {
+    if (room.kind === "freelance") {
+      showMenu(x, y, "Freelancers", [{ label: "Hide this office", run: () => { world.hidden.add("freelance"); saveSettings(); void refresh(); } }]);
+      return;
+    }
+    const pid = room.id.slice(2);
+    showMenu(x, y, room.title, [
+      { label: "Hide this office", run: () => { world.hidden.add(pid); saveSettings(); void refresh(); } },
+      { label: "Remove project from T3", danger: true, run: async () => {
+        const ok = await confirmDialog(`Remove ${room.title} from T3?`,
+          "T3 removes the project only if it has no threads left. Threads are never deleted from here. You can add the folder again any time.", "Remove project");
+        if (!ok) return;
+        try { await api.removeProject({ id: pid }); void refresh(); }
+        catch (err: any) { await confirmDialog("T3 kept the project", String(err.message || err), "OK"); }
+      } },
+    ]);
+  };
+  world.onDeskMenu = (d, x, y) => {
+    const items: any[] = [
+      { label: "Look at its screen", run: () => world.focusScreen(d) },
+      { label: "Go to its desk", run: () => world.showDesk(d) },
+    ];
+    if (d.room === "freelance" && d.folder) {
+      items.push({ input: "Turn this work into a project", placeholder: "Project name", value: (d.info?.title || "").slice(0, 40), submit: "Create project",
+        run: async (name: string) => { await api.addProject({ path: d.folder!, title: name }); await refresh(); } });
+    }
+    showMenu(x, y, d.info?.title || "Robot", items);
+  };
+}
+
 // --- one-click update --------------------------------------------------------------------
 async function checkUpdate() {
   const u = await api.checkUpdate().catch(() => null);
@@ -272,6 +312,25 @@ $("update").addEventListener("click", async () => {
 });
 
 const attachDir = await api.attachDir().catch(() => "");
+world.building = await api.host().catch(() => "This PC");
+const settings: { hidden?: string[] } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+world.hidden = new Set(settings.hidden ?? []);
+const saveSettings = () => { settings.hidden = [...world.hidden]; void api.settingsSave(JSON.stringify(settings)); renderHidden(); };
+function renderHidden() {
+  const box = $("hidden-offices");
+  const ids = [...world.hidden];
+  box.hidden = !ids.length;
+  box.innerHTML = ids.length ? `<h3>Hidden offices</h3>${ids.map((id) => `<button type="button" class="link-btn" data-show="${id}">Show ${esc(projectTitles.get(id) || "office")}</button>`).join("")}` : "";
+}
+$("hidden-offices").addEventListener("click", (e) => {
+  const b = (e.target as HTMLElement).closest("[data-show]") as HTMLElement | null;
+  if (!b) return;
+  world.hidden.delete(b.dataset.show!);
+  saveSettings();
+  void refresh();
+});
+const projectTitles = new Map<string, string>();
+setupMenus();
 world.attachDir = attachDir;
 await loadProjects();
 await refresh();

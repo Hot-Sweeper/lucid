@@ -153,3 +153,29 @@
 
 /* Nothing inside a robot's screen may scroll the office itself. */
 .desk-unit, .monitor, .os, .win-layer, .win { overflow: clip; }
+
+/* building, office options, menus, dialogs */
+.building-plate { position: absolute; left: 0; top: -92px; display: flex; align-items: center; gap: 12px; padding: 12px 22px; border-radius: 14px; background: #3a3f4f; color: #fff; font: 600 30px var(--font); }
+.bp-dot { width: 14px; height: 14px; border-radius: 50%; background: #4ff0a0; }
+.room-sign-hit { position: absolute; left: 30px; top: 22px; width: 148px; height: 72px; border: 0; background: transparent; border-radius: 10px; cursor: pointer; }
+.room-sign-hit:hover { background: rgba(255, 159, 90, 0.18); }
+.room-sign-hit:focus-visible { outline: 3px solid var(--accent); }
+.pop-menu { position: fixed; z-index: 200; min-width: 220px; max-width: 300px; padding: 6px; border-radius: 12px; background: #252d5c; box-shadow: 0 18px 44px rgba(4, 6, 24, 0.55); color: var(--ink); }
+.pm-title { margin: 4px 8px 6px; font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pop-menu > button { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.pop-menu > button:hover, .pop-menu > button:focus-visible { background: rgba(255, 255, 255, 0.08); outline: none; }
+.pop-menu > button.danger { color: #ffb4a8; }
+.pm-form { padding: 8px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); margin-top: 4px; }
+.pm-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.pm-form input { background: var(--night); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; color: var(--ink); font-size: 14px; outline: none; }
+.pm-form input:focus { border-color: rgba(255, 159, 90, 0.6); }
+.pm-form .primary { align-self: flex-end; }
+.pm-msg { margin: 0; font-size: 12px; color: var(--ink-2); min-height: 1em; }
+.dialog-wrap { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: rgba(8, 10, 30, 0.55); }
+.dialog { width: min(420px, calc(100vw - 40px)); padding: 20px; border-radius: 16px; background: #252d5c; box-shadow: 0 24px 60px rgba(4, 6, 24, 0.6); }
+.dialog h2 { margin: 0 0 8px; font-size: 17px; }
+.dialog p { margin: 0 0 18px; color: var(--ink-2); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.primary.danger { background: #ff8a7a; }
+.hidden-offices { margin-top: 10px; display: flex; flex-direction: column; align-items: flex-start; }
+.hidden-offices h3 { margin: 0 0 2px; }

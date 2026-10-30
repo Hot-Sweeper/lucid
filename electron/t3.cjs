@@ -170,6 +170,17 @@ async function startThread({ project, message, provider, model }) {
   return { threadId: id };
 }
 
+async function addProject({ path: root, title }) {
+  const args = ["project", "add", String(root)];
+  if (title) args.push("--title", String(title));
+  return { output: (await runCli(args)).trim() };
+}
+
+// Never forces: T3 refuses when the project still has threads, and that message is shown as is.
+async function removeProject({ id }) {
+  return { output: (await runCli(["project", "remove", String(id)])).trim() };
+}
+
 async function sendMessage({ threadId, message }) {
   await runCli(["thread", "send", String(threadId), "-"], message);
   return { ok: true };
@@ -275,6 +286,7 @@ function world(limit = 40) {
       id: r.id, projectId: r.projectId, title: r.title, updatedAt: r.updatedAt, provider: r.provider, runStatus: busy ? "running" : r.runStatus,
       pinned: !!p.pinnedAt, settled, question, model: p.modelSelection?.model || null,
       schedule: schedules.get(r.id) || null,
+      folder: p.worktreePath || null,
     };
   });
   const projects = db
@@ -313,4 +325,4 @@ function conversation(threadId, limit = 80) {
   });
 }
 
-module.exports = { conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
+module.exports = { addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
