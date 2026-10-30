@@ -9,7 +9,10 @@ const on = (channel) => (fn) => {
 contextBridge.exposeInMainWorld("lucid", {
   projects: () => ipcRenderer.invoke("t3:projects"),
   threads: () => ipcRenderer.invoke("t3:threads"),
-  watch: (threadId) => ipcRenderer.invoke("t3:watch", threadId),
+  watchSet: (ids) => ipcRenderer.invoke("t3:watch-set", ids),
+  office: (projectId) => ipcRenderer.invoke("t3:office", projectId),
+  offices: () => ipcRenderer.invoke("t3:offices"),
+  world: () => ipcRenderer.invoke("t3:world"),
   startThread: (opts) => ipcRenderer.invoke("t3:start", opts),
   sendMessage: (opts) => ipcRenderer.invoke("t3:send", opts),
   peek: (url) => ipcRenderer.invoke("web:peek", url),

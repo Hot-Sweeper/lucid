@@ -24,6 +24,7 @@ async function typeInto(wm: WM, target: HTMLElement, text: string, opts: { cps?:
       const jitter = 0.85 + Math.random() * 0.3;
       const next = Math.min(text.length, Math.max(shown + 1, Math.floor((elapsed / 1000) * cps * jitter)));
       if (next !== shown) {
+        for (let i = shown; i < next; i++) wm.robot.pressKey(text[i] === "\n" ? "Enter" : text[i]);
         shown = next;
         target.innerHTML = render(text.slice(0, shown)) + '<span class="caret"></span>';
       }
@@ -217,7 +218,11 @@ export class EditorApp {
       pending.push(group);
     });
     gsap.fromTo(code, { opacity: 0 }, { opacity: 1, duration: 0.25 });
-    let typedBudget = 1400; // characters typed visibly per change; the rest lands line by line
+    // One steady typing speed for the whole change, picked up front from its size:
+    // short edits are typed at a human pace, long files faster, but never faster mid-file.
+    const total = hunks.reduce((n, h) => n + h.lines.filter((l) => l.kind === "+").reduce((m, l) => m + l.text.length + 1, 0), 0);
+    const targetSec = Math.min(16, Math.max(2.5, total / 55));
+    const cps = Math.max(28, total / targetSec);
     for (const g of pending) {
       const first = g.del[0] || g.add[0];
       if (first) {
@@ -239,13 +244,11 @@ export class EditorApp {
         const target = a.querySelector("span") as HTMLElement;
         const text = a.dataset.text || "";
         if (a.offsetTop - wrap.scrollTop > wrap.clientHeight - 40) gsap.to(wrap, { scrollTop: a.offsetTop - wrap.clientHeight / 2, duration: 0.3 / wm.speed });
-        if (typedBudget > 0 && text.trim()) {
-          typedBudget -= text.length;
-          await typeInto(wm, target, text, { cps: 70, budgetMs: Math.min(900, 120 + text.length * 14), render: (s) => highlight(s, lang) });
+        if (text.trim()) {
+          await typeInto(wm, target, text, { cps, budgetMs: 1e9, render: (s) => highlight(s, lang) });
         } else {
-          target.innerHTML = highlight(text, lang) || " ";
-          gsap.fromTo(a, { opacity: 0, x: -6 }, { opacity: 1, x: 0, duration: 0.2 });
-          await wm.sleep(28, e);
+          target.innerHTML = " ";
+          wm.robot.pressKey("Enter");
         }
       }
     }

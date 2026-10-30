@@ -1,7 +1,7 @@
 import gsap from "gsap";
 import { WM, Cancelled } from "./wm";
-import type { Robot } from "../robot";
-import type { Stage } from "../stage";
+import type { SeatedRobot as Robot } from "../office/rig";
+import type { DeskStage as Stage } from "../office/desk";
 
 // What the robot does when there is no work: tidy the desktop, play a game,
 // and finally lock the screen and doze off. Any new work stops it at once.

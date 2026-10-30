@@ -1,6 +1,6 @@
 import gsap from "gsap";
-import type { Robot } from "../robot";
-import { SCREEN } from "../stage";
+import type { SeatedRobot as Robot } from "../office/rig";
+const SCREEN = { w: 820, h: 461 };
 import { ICONS } from "./icons";
 
 export class Cancelled extends Error {}
@@ -28,6 +28,7 @@ export class WM {
   dock: HTMLElement;
   cursorEl: HTMLElement;
   wins = new Map<AppId, Win>();
+  onCursor?: (x: number, y: number) => void;
   speed = 1;
   epoch = 0;
   private z = 10;
@@ -83,21 +84,38 @@ export class WM {
           this.cursor.x = u * u * from.x + 2 * u * t * mx + t * t * x;
           this.cursor.y = u * u * from.y + 2 * u * t * my + t * t * y;
           gsap.set(this.cursorEl, { x: this.cursor.x, y: this.cursor.y });
+          // the physical mouse on the desk moves with the cursor, every frame
+          this.robot.mouseTo(this.cursor.x / SCREEN.w, this.cursor.y / SCREEN.h);
+          this.onCursor?.(this.cursor.x, this.cursor.y);
         },
         onComplete: () => resolve(),
       });
-      this.robot.nudgeMouse(x / SCREEN.w, y / SCREEN.h);
       this.robot.lookAt(x / SCREEN.w, y / SCREEN.h);
     });
     this.check(e);
   }
 
-  // Element position in screen coordinates, independent of camera zoom.
+  // Element position in screen coordinates from layout, so it stays right even when
+  // the monitor is angled in 3D or the camera zooms.
   pos(el: Element, ax = 0.5, ay = 0.5) {
-    const r = el.getBoundingClientRect();
-    const s = this.root.getBoundingClientRect();
-    const k = s.width / SCREEN.w || 1;
-    return { x: (r.left - s.left + r.width * ax) / k, y: (r.top - s.top + r.height * ay) / k };
+    const h = el as HTMLElement;
+    let x = 0, y = 0;
+    let cur: HTMLElement | null = h;
+    while (cur && cur !== this.root) {
+      x += cur.offsetLeft; y += cur.offsetTop;
+      const parent = cur.offsetParent as HTMLElement | null;
+      let a: HTMLElement | null = cur.parentElement;
+      while (a && a !== parent && a !== this.root) { x -= a.scrollLeft; y -= a.scrollTop; a = a.parentElement; }
+      if (parent && parent !== this.root) { x -= parent.scrollLeft; y -= parent.scrollTop; }
+      cur = parent;
+    }
+    if (!(h instanceof HTMLElement)) {
+      // SVG elements: fall back to measured geometry relative to the root
+      const r = el.getBoundingClientRect(), s = this.root.getBoundingClientRect();
+      const k = s.width / SCREEN.w || 1;
+      return { x: (r.left - s.left + r.width * ax) / k, y: (r.top - s.top + r.height * ay) / k };
+    }
+    return { x: x + h.offsetWidth * ax, y: y + h.offsetHeight * ay };
   }
 
   async pointAt(el: Element, ax = 0.5, ay = 0.5, ms?: number) {
@@ -134,11 +152,17 @@ export class WM {
       return w;
     }
     const dockItem = this.dock.querySelector(`[data-app="${id}"]`)!;
-    await this.pointAt(dockItem, 0.5, 0.5);
-    await this.click();
+    if (Math.random() < 0.22) await this.launch(TITLES[id]);
+    else {
+      await this.pointAt(dockItem, 0.5, 0.5);
+      await this.click();
+    }
     this.check(e);
     this.trim(id);
-    const f = FRAMES[id];
+    const base = FRAMES[id];
+    // windows never land in exactly the same spot twice
+    const jx = Math.round((Math.random() - 0.5) * 50), jy = Math.round((Math.random() - 0.5) * 24);
+    const f = { ...base, x: Math.max(4, Math.min(SCREEN.w - base.w - 4, base.x + jx)), y: Math.max(4, Math.min(SCREEN.h - 50 - base.h, base.y + jy)) };
     const el = document.createElement("section");
     el.className = `win app-${id}`;
     el.style.cssText = `left:${f.x}px;top:${f.y}px;width:${f.w}px;height:${f.h}px`;
@@ -157,6 +181,51 @@ export class WM {
     gsap.fromTo(el.querySelector(".win-body"), { opacity: 0 }, { opacity: 1, duration: 0.4 / this.speed, delay: 0.15 / this.speed });
     await this.sleep(260, e);
     return w;
+  }
+
+  // Open an app by typing its name into the launcher, like a keyboard person would.
+  private async launch(name: string) {
+    const e = this.epoch;
+    const bar = document.createElement("div");
+    bar.className = "launcher";
+    bar.innerHTML = `<span class="l-q"></span><span class="caret"></span>`;
+    this.root.appendChild(bar);
+    gsap.fromTo(bar, { opacity: 0, y: -10, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.25, ease: "power2.out" });
+    this.robot.setTyping(true);
+    this.robot.pressKey(" ");
+    const q = bar.querySelector(".l-q") as HTMLElement;
+    try {
+      for (const ch of name.toLowerCase()) {
+        await this.sleep(70 + Math.random() * 70, e);
+        q.textContent += ch;
+        this.robot.pressKey(ch);
+      }
+      await this.sleep(160, e);
+      this.robot.pressKey("Enter");
+    } finally {
+      this.robot.setTyping(false);
+      gsap.to(bar, { opacity: 0, y: -6, duration: 0.2, onComplete: () => bar.remove() });
+    }
+  }
+
+  // Now and then a window gets dragged somewhere else on the screen.
+  async maybeShuffle(id: AppId, chance = 0.18) {
+    const w = this.wins.get(id);
+    if (!w || Math.random() > chance) return;
+    const e = this.epoch;
+    const bar = w.el.querySelector(".win-bar")!;
+    await this.pointAt(bar, 0.4, 0.5, 360);
+    const r = { x: w.el.offsetLeft, y: w.el.offsetTop, w: w.el.offsetWidth, h: w.el.offsetHeight };
+    const nx = Math.max(4, Math.min(SCREEN.w - r.w - 4, r.x + (Math.random() - 0.5) * 220));
+    const ny = Math.max(4, Math.min(SCREEN.h - 50 - r.h, r.y + (Math.random() - 0.5) * 70));
+    const grab = { x: this.cursor.x - r.x, y: this.cursor.y - r.y };
+    w.el.classList.add("dragging");
+    this.robot.click();
+    const move = this.moveTo(nx + grab.x, ny + grab.y, 600);
+    const follow = () => { w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
+    gsap.ticker.add(follow);
+    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); }
+    this.check(e);
   }
 
   focus(id: AppId) {

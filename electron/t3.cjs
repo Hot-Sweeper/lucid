@@ -175,4 +175,104 @@ async function sendMessage({ threadId, message }) {
   return { ok: true };
 }
 
-module.exports = { listProjects, listThreads, threadInfo, watchThread, startThread, sendMessage, DB_PATH };
+// --- offices ---------------------------------------------------------------
+
+const ICON_CANDIDATES = [
+  "favicon.svg", "favicon.png", "favicon.ico", "logo.svg", "logo.png", "icon.svg", "icon.png",
+  "public/favicon.svg", "public/favicon.png", "public/favicon.ico", "public/logo.svg", "public/logo.png", "public/icon.png",
+  "static/favicon.svg", "static/favicon.png", "static/favicon.ico", "app/favicon.ico", "app/icon.png", "app/icon.svg",
+  "src/assets/logo.svg", "src/assets/logo.png", "src/assets/icon.png", "assets/logo.svg", "assets/logo.png", "assets/icon.png",
+  "build/icon.png", "resources/icon.png", "src/app/favicon.ico", "src-tauri/icons/icon.png",
+];
+const MIME = { svg: "image/svg+xml", png: "image/png", ico: "image/x-icon", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif" };
+
+function readIcon(file) {
+  try {
+    const st = fs.statSync(file);
+    if (!st.isFile() || st.size > 2 * 1024 * 1024) return null;
+    const type = MIME[path.extname(file).slice(1).toLowerCase()];
+    if (!type) return null;
+    return `data:${type};base64,${fs.readFileSync(file).toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+// The project's own logo or favicon, if it has one.
+function projectIcon(root, faviconPath) {
+  if (!root) return null;
+  if (faviconPath) {
+    const d = readIcon(path.isAbsolute(faviconPath) ? faviconPath : path.join(root, faviconPath));
+    if (d) return d;
+  }
+  try {
+    const cfg = safeJson(fs.readFileSync(path.join(root, "t3.json"), "utf8"));
+    if (cfg?.iconPath) { const d = readIcon(path.join(root, cfg.iconPath)); if (d) return d; }
+  } catch {}
+  for (const c of ICON_CANDIDATES) { const d = readIcon(path.join(root, c)); if (d) return d; }
+  return null;
+}
+
+function office(projectId, limit = 6) {
+  const p = getDb()
+    .prepare("select project_id as id, title, workspace_root as root, favicon_path as favicon from projection_projects where project_id = ?")
+    .get(projectId);
+  if (!p) return null;
+  const threads = getDb()
+    .prepare(`select t.thread_id as id, t.title, t.updated_at as updatedAt, coalesce(t.provider_instance_id, t.default_provider) as provider,
+                     (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as runStatus
+              from orchestration_v2_projection_threads t
+              where t.project_id = ? and t.archived_at is null and t.deleted_at is null
+              order by t.updated_at desc limit ?`)
+    .all(projectId, limit);
+  return { project: { id: p.id, title: p.title, root: p.root, icon: projectIcon(p.root, p.favicon) }, threads };
+}
+
+function listProjectsWithCounts() {
+  return getDb()
+    .prepare(`select p.project_id as id, p.title, p.workspace_root as root,
+                     (select count(*) from orchestration_v2_projection_threads t where t.project_id = p.project_id and t.archived_at is null and t.deleted_at is null) as threads,
+                     (select max(updated_at) from orchestration_v2_projection_threads t where t.project_id = p.project_id) as lastActive
+              from projection_projects p where p.deleted_at is null order by lastActive desc`)
+    .all();
+}
+
+// Every recent thread with what decides its room: pinned, running, settled, waiting on a question.
+function world(limit = 40) {
+  const db = getDb();
+  const rows = db
+    .prepare(`select t.thread_id as id, t.project_id as projectId, t.title, t.updated_at as updatedAt, t.payload_json as payload,
+                     coalesce(t.provider_instance_id, t.default_provider) as provider,
+                     (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as runStatus,
+                     (select count(*) from orchestration_v2_projection_runtime_requests q where q.thread_id = t.thread_id and q.status not in ('resolved','cancelled','expired','failed')) as pending,
+                     (select max(i.updated_at) from orchestration_v2_projection_turn_items i where i.thread_id = t.thread_id) as lastItemAt
+              from orchestration_v2_projection_threads t
+              where t.archived_at is null and t.deleted_at is null and t.thread_id not like 'thread:%'
+              order by t.updated_at desc limit ?`)
+    .all(limit);
+  const questionStmt = db.prepare(`select payload_json as p from orchestration_v2_projection_turn_items
+                                   where thread_id = ? and type = 'user_input_request' and status in ('running','pending') order by ordinal desc limit 1`);
+  const threads = rows.map((r) => {
+    const p = safeJson(r.payload) || {};
+    const settled = p.settledOverride === "settled" || (!!p.settledAt && !p.unsettledAt && p.settledOverride !== "unsettled");
+    let question = null;
+    if (r.pending > 0 || r.runStatus === "waiting" || r.runStatus === "awaiting_input") {
+      const q = questionStmt.get(r.id);
+      const qp = q ? safeJson(q.p) : null;
+      question = qp?.questions?.map((x) => x.question).join(" ") || "Needs your answer";
+    }
+    // T3 can show a live turn as "queued"; recent activity is the most honest signal.
+    const busy = r.runStatus === "running" || r.runStatus === "queued" || (r.lastItemAt && Date.now() - Date.parse(r.lastItemAt) < 90000);
+    return {
+      id: r.id, projectId: r.projectId, title: r.title, updatedAt: r.updatedAt, provider: r.provider, runStatus: busy ? "running" : r.runStatus,
+      pinned: !!p.pinnedAt, settled, question, model: p.modelSelection?.model || null,
+    };
+  });
+  const projects = db
+    .prepare("select project_id as id, title, workspace_root as root, favicon_path as favicon, project_icon_json as iconJson from projection_projects where deleted_at is null")
+    .all()
+    .map((p) => ({ id: p.id, title: p.title, root: p.root, icon: projectIcon(p.root, p.favicon), scratch: /[\\/]\.t3[\\/]scratch$/i.test(p.root || "") }));
+  return { projects, threads };
+}
+
+module.exports = { world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };

@@ -2,8 +2,8 @@ import { WM, Cancelled } from "./os/wm";
 import { IdleLife } from "./os/idle";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ChatApp, ToolApp, prettyTool } from "./os/apps";
 import { classify, parseDiff, baseName, type Entry } from "./os/classify";
-import type { Robot } from "./robot";
-import type { Stage } from "./stage";
+import type { SeatedRobot as Robot } from "./office/rig";
+import type { DeskStage as Stage } from "./office/desk";
 
 export type Item = { id: string; runId: string | null; ordinal: number; type: string; status: string; updatedAt: string; data: any };
 export type ThreadInfo = { id: string; title: string; provider: string; projectTitle?: string; root?: string; run?: { id: string; status: string } | null; error?: string };

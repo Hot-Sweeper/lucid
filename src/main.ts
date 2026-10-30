@@ -1,11 +1,12 @@
 import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import "./styles.css";
+import "./office/office.css";
 import gsap from "gsap";
-import { Stage } from "./stage";
-import { Robot, brandFor } from "./robot";
-import { WM } from "./os/wm";
-import { Director, type ThreadInfo } from "./director";
+import { World, type Room, type WorldData } from "./office/world";
+import type { Desk } from "./office/desk";
+import type { ThreadInfo } from "./director";
+import { logoFor, harnessName } from "./office/brand";
 import openaiLogo from "./assets/openai.svg";
 import claudeLogo from "./assets/claude.svg";
 
@@ -13,8 +14,8 @@ declare global {
   interface Window {
     lucid: {
       projects(): Promise<{ id: string; title: string; root: string }[]>;
-      threads(): Promise<{ id: string; title: string; provider: string; projectTitle: string; updatedAt: string; runStatus: string | null }[]>;
-      watch(id: string): Promise<boolean>;
+      world(): Promise<WorldData>;
+      watchSet(ids: string[]): Promise<boolean>;
       startThread(o: { project: string; message: string; provider?: string; model?: string }): Promise<{ threadId: string }>;
       sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
       peek(url: string): Promise<any>;
@@ -31,154 +32,165 @@ declare global {
 }
 
 const api = window.lucid;
-const app = document.getElementById("app")!;
-app.innerHTML = `
-  <aside class="panel" id="panel">
+const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+document.getElementById("app")!.innerHTML = `
+  <aside class="panel">
     <header class="brand"><span class="mark" aria-hidden="true"></span><h1>Lucid</h1>
       <button class="update" id="update" type="button" hidden>Update</button>
     </header>
-    <section class="now">
-      <h2 id="now-title">No thread yet</h2>
-      <p id="now-sub" class="sub">Pick a thread or give the robot a task.</p>
-      <p id="now-activity" class="activity" aria-live="polite"></p>
+
+    <section class="rooms">
+      <h3>Rooms</h3>
+      <ul id="room-list" class="room-list"></ul>
+      <button type="button" class="link-btn" id="overview">Whole building</button>
     </section>
-    <form class="reply" id="reply" hidden>
-      <textarea id="reply-text" rows="2" placeholder="Message this robot"></textarea>
-      <button type="submit">Send</button>
-    </form>
+
+    <section class="focus" id="focus">
+      <p class="hint" id="focus-hint">Click a robot to follow it.</p>
+      <div id="focus-body" hidden>
+        <div class="focus-head"><img id="focus-logo" alt=""><h2 id="focus-title"></h2></div>
+        <p class="sub" id="focus-sub"></p>
+        <p class="activity" id="focus-activity" aria-live="polite"></p>
+        <div class="focus-actions">
+          <button type="button" class="ghost" id="focus-screen">Look at its screen</button>
+          <button type="button" class="ghost" id="focus-desk">Go to its desk</button>
+        </div>
+        <form class="reply" id="reply">
+          <textarea id="reply-text" rows="2" placeholder="Message this robot"></textarea>
+          <button type="submit">Send</button>
+        </form>
+      </div>
+    </section>
+
     <section class="new">
       <h3>New task</h3>
       <form id="new-form">
-        <textarea id="new-text" rows="3" placeholder="What should the robot build?"></textarea>
+        <textarea id="new-text" rows="3" placeholder="What should a robot build?"></textarea>
+        <div class="select" id="project-select">
+          <button type="button" class="select-btn" aria-haspopup="listbox" aria-expanded="false"><span>Choose a project</span></button>
+          <ul class="select-list" role="listbox" hidden></ul>
+        </div>
         <div class="row">
-          <div class="select" id="project-select">
-            <button type="button" class="select-btn" aria-haspopup="listbox" aria-expanded="false"><span>Choose a project</span></button>
-            <ul class="select-list" role="listbox" hidden></ul>
+          <div class="seg" role="radiogroup" aria-label="Harness">
+            <button type="button" role="radio" aria-checked="true" data-h="codex"><img src="${openaiLogo}" alt="">Codex</button>
+            <button type="button" role="radio" aria-checked="false" data-h="claudeAgent"><img src="${claudeLogo}" alt="">Claude</button>
           </div>
-          <button type="submit" class="primary" id="new-go">Start with Codex</button>
+          <button type="submit" class="primary" id="new-go">Start</button>
         </div>
         <p class="form-msg" id="new-msg" role="status"></p>
       </form>
     </section>
-    <section class="threads">
-      <h3>Threads</h3>
-      <ul id="thread-list" class="thread-list"></ul>
-    </section>
   </aside>
-  <main class="scene" id="scene"></main>`;
+  <main class="scene" id="scene"></main>
+  <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button></div>`;
 
-const stage = new Stage(document.getElementById("scene")!);
-const robot = new Robot(stage.stage);
-const wm = new WM(stage.screen, robot);
-const director = new Director(wm, robot, stage, (url) => api.peek(url), (p) => api.image(p), (p) => api.readText(p));
-// Keep the robot layer above the screen but below bubbles and notes.
-stage.stage.insertBefore(robot.el, stage.notes);
+const world = new World($("scene"), { peek: (u) => api.peek(u), image: (p) => api.image(p), readText: (p) => api.readText(p) });
+let selectedDesk: Desk | null = null;
+let harness = "codex";
 
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-let currentThread: string | null = null;
-let selectedProject: { id: string; title: string; root: string } | null = null;
-
-director.onActivity = (t) => {
-  const a = $("now-activity");
-  if (a.textContent === t) return;
-  gsap.fromTo(a, { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.3 });
-  a.textContent = t;
+// --- rooms --------------------------------------------------------------------------
+world.onRooms = (rooms: Room[]) => {
+  const list = $("room-list");
+  const html = rooms.map((r) => `
+    <li><button type="button" data-room="${r.id}">
+      ${r.icon ? `<img src="${r.icon}" alt="">` : `<span class="dot ${r.kind}"></span>`}
+      <span class="rt">${esc(r.title)}</span><span class="rc">${r.threadIds.length || ""}</span>
+    </button></li>`).join("");
+  if (list.dataset.html !== html) { list.innerHTML = html; list.dataset.html = html; }
 };
+$("room-list").addEventListener("click", (e) => {
+  const b = (e.target as HTMLElement).closest("[data-room]") as HTMLElement | null;
+  if (b) world.showRoom(b.dataset.room!);
+});
+$("overview").addEventListener("click", () => world.overview());
 
-function providerIcon(provider: string) {
-  const src = brandFor(provider) === "claude" ? claudeLogo : openaiLogo;
-  return `<img class="pv ${brandFor(provider)}" src="${src}" alt="${brandFor(provider) === "claude" ? "Claude" : "Codex"}">`;
+// --- following one robot ----------------------------------------------------------------
+function renderFocus() {
+  const d = selectedDesk;
+  $("focus-hint").hidden = !!d;
+  $("focus-body").hidden = !d;
+  if (!d) return;
+  const info = d.info;
+  const logo = $("focus-logo") as HTMLImageElement;
+  const src = logoFor(info?.provider);
+  logo.hidden = !src;
+  if (src) logo.src = src;
+  $("focus-title").textContent = info?.title || "Free desk";
+  $("focus-sub").textContent = [info?.projectTitle, harnessName(info?.provider)].filter(Boolean).join(" · ");
+  $("focus-activity").textContent = d.activity || "";
 }
-
-const ago = (iso: string) => {
-  const s = (Date.now() - Date.parse(iso)) / 1000;
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-  return `${Math.floor(s / 86400)} d ago`;
+world.onSelect = (d) => {
+  selectedDesk = d && d.threadId ? d : null;
+  renderFocus();
 };
+world.onSelectThread = (id) => {
+  const d = world.deskFor(id);
+  if (d) { world.select(d); world.showDesk(d); }
+};
+$("focus-screen").addEventListener("click", () => selectedDesk && world.focusScreen(selectedDesk));
+$("focus-desk").addEventListener("click", () => selectedDesk && world.showDesk(selectedDesk));
+const sceneObserver = new MutationObserver(() => ($("back-btn").hidden = !$("scene").classList.contains("screen-mode")));
+sceneObserver.observe($("scene"), { attributes: true, attributeFilter: ["class"] });
+$("back-btn").addEventListener("click", () => world.unfocus());
 
-let lastThreadsHtml = "";
-async function loadThreads() {
-  const list = $("thread-list");
-  try {
-    const threads = await api.threads();
-    const keep = list.scrollTop;
-    const html = threads.map((t) => `
-      <li><button type="button" class="thread ${t.id === currentThread ? "on" : ""}" data-id="${t.id}" title="${t.title.replace(/"/g, "&quot;")}">
-        ${providerIcon(t.provider)}
-        <span class="tt">${escapeHtml(t.title)}</span>
-        <span class="meta">${escapeHtml(t.projectTitle || "")}${t.runStatus === "running" ? " · working" : ""} · ${ago(t.updatedAt)}</span>
-      </button></li>`).join("");
-    if (html === lastThreadsHtml) return;
-    lastThreadsHtml = html;
-    list.innerHTML = html;
-    list.scrollTop = keep;
-  } catch (err: any) {
-    list.innerHTML = `<li class="err">${escapeHtml(err.message || String(err))}</li>`;
-  }
-}
-
-function escapeHtml(s: string) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-async function openThread(id: string) {
-  if (id === currentThread) return;
-  currentThread = id;
-  localStorage.setItem("lucid:thread", id);
-  director.reset();
-  for (const b of document.querySelectorAll(".thread")) b.classList.toggle("on", (b as HTMLElement).dataset.id === id);
-  lastThreadsHtml = "";
-  $("reply").hidden = false;
-  await api.watch(id);
-}
-
-$("thread-list").addEventListener("click", (e) => {
-  const b = (e.target as HTMLElement).closest(".thread") as HTMLElement | null;
-  if (b) openThread(b.dataset.id!);
-});
-
-api.onInfo(({ threadId, info }) => {
-  if (threadId !== currentThread) return;
-  if (info.error) { $("now-sub").textContent = info.error; return; }
-  $("now-title").textContent = info.title;
-  $("now-sub").textContent = [info.projectTitle, brandFor(info.provider) === "claude" ? "Claude" : "Codex"].filter(Boolean).join(" · ");
-  if (robot.brandName !== brandFor(info.provider)) robot.setBrand(info.provider);
-  wm.setWallpaperLogo(brandFor(info.provider) === "claude" ? claudeLogo : openaiLogo);
-  director.setInfo(info);
-});
-
-api.onItems(({ threadId, items, initial }) => {
-  if (threadId !== currentThread) return;
-  director.push(items, initial);
-});
-
-// --- reply -------------------------------------------------------------------
 $("reply").addEventListener("submit", async (e) => {
   e.preventDefault();
   const ta = $<HTMLTextAreaElement>("reply-text");
   const text = ta.value.trim();
-  if (!text || !currentThread) return;
+  if (!text || !selectedDesk?.threadId) return;
   ta.disabled = true;
   try {
-    await api.sendMessage({ threadId: currentThread, message: text });
+    await api.sendMessage({ threadId: selectedDesk.threadId, message: text });
     ta.value = "";
   } catch (err: any) {
-    director.onActivity(`Could not send: ${err.message || err}`);
-  } finally {
-    ta.disabled = false;
-  }
+    $("focus-activity").textContent = `Could not send: ${err.message || err}`;
+  } finally { ta.disabled = false; }
 });
 $("reply-text").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $<HTMLFormElement>("reply").requestSubmit(); }
 });
 
-// --- project picker (themed listbox) -------------------------------------------
+// --- live data -------------------------------------------------------------------------
+api.onItems(({ threadId, items, initial }) => world.deskFor(threadId)?.director.push(items, initial));
+api.onInfo(({ threadId, info }) => {
+  const d = world.deskFor(threadId);
+  if (!d || info.error) return;
+  d.setInfo(info);
+  if (d === selectedDesk) renderFocus();
+});
+
+let watched = "";
+let firstLoad = true;
+async function refresh() {
+  try {
+    const data = await api.world();
+    world.update(data);
+    for (const d of world.desks.values()) {
+      d.onActivity = (t) => { if (d === selectedDesk) { const a = $("focus-activity"); if (a.textContent !== t) { a.textContent = t; gsap.fromTo(a, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.3 }); } } };
+    }
+    const ids = [...world.desks.keys()].sort();
+    const key = ids.join(",");
+    if (key !== watched) { watched = key; await api.watchSet(ids); }
+    if (firstLoad) {
+      firstLoad = false;
+      const want = new URLSearchParams(location.search).get("thread");
+      const d = want ? world.deskFor(want) : null;
+      if (d) { world.select(d); requestAnimationFrame(() => world.showDesk(d)); }
+      else requestAnimationFrame(() => world.overview());
+    }
+  } catch (err) {
+    console.error("world refresh failed", err);
+  }
+}
+
+// --- project picker and harness ------------------------------------------------------------
+let selectedProject: { id: string; title: string } | null = null;
 const sel = $("project-select");
 const selBtn = sel.querySelector(".select-btn") as HTMLButtonElement;
 const selList = sel.querySelector(".select-list") as HTMLUListElement;
-function closeSelect() { selList.hidden = true; selBtn.setAttribute("aria-expanded", "false"); }
+const closeSelect = () => { selList.hidden = true; selBtn.setAttribute("aria-expanded", "false"); };
 selBtn.addEventListener("click", () => {
   const open = selList.hidden;
   selList.hidden = !open;
@@ -188,55 +200,53 @@ selBtn.addEventListener("click", () => {
 selList.addEventListener("click", (e) => {
   const li = (e.target as HTMLElement).closest("li") as HTMLElement | null;
   if (!li) return;
-  selectedProject = JSON.parse(li.dataset.p!);
-  selBtn.querySelector("span")!.textContent = selectedProject!.title;
-  localStorage.setItem("lucid:project", selectedProject!.id);
+  selectedProject = { id: li.dataset.id!, title: li.textContent || "" };
+  selBtn.querySelector("span")!.textContent = selectedProject.title;
+  localStorage.setItem("lucid:project", selectedProject.id);
   closeSelect();
   selBtn.focus();
 });
 document.addEventListener("click", (e) => { if (!sel.contains(e.target as Node)) closeSelect(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !selList.hidden) { closeSelect(); selBtn.focus(); e.stopPropagation(); } }, true);
-
 async function loadProjects() {
   const projects = await api.projects().catch(() => []);
-  selList.innerHTML = projects.map((p) => `<li role="option" data-p='${JSON.stringify(p).replace(/'/g, "&#39;")}' title="${escapeHtml(p.root)}">${escapeHtml(p.title)}</li>`).join("");
-  const saved = localStorage.getItem("lucid:project");
-  const p = projects.find((x) => x.id === saved) || null;
-  if (p) { selectedProject = p; selBtn.querySelector("span")!.textContent = p.title; }
+  selList.innerHTML = projects.map((p) => `<li role="option" data-id="${p.id}" title="${esc(p.root)}">${esc(p.title)}</li>`).join("");
+  const p = projects.find((x) => x.id === localStorage.getItem("lucid:project"));
+  if (p) { selectedProject = { id: p.id, title: p.title }; selBtn.querySelector("span")!.textContent = p.title; }
 }
-
+for (const b of document.querySelectorAll<HTMLButtonElement>(".seg [data-h]")) {
+  b.addEventListener("click", () => {
+    harness = b.dataset.h!;
+    for (const o of document.querySelectorAll(".seg [data-h]")) o.setAttribute("aria-checked", String(o === b));
+  });
+}
 $("new-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const ta = $<HTMLTextAreaElement>("new-text");
-  const msg = $("new-msg");
+  const ta = $<HTMLTextAreaElement>("new-text"), msg = $("new-msg");
   const text = ta.value.trim();
   if (!text) { msg.textContent = "Describe the task first."; return; }
   if (!selectedProject) { msg.textContent = "Choose which project the robot works in."; return; }
   const go = $<HTMLButtonElement>("new-go");
   go.disabled = true;
-  msg.textContent = "Starting a Codex thread…";
+  msg.textContent = "Hiring a robot…";
   try {
-    const { threadId } = await api.startThread({ project: selectedProject.id, message: text, provider: "codex" });
-    msg.textContent = "";
+    const { threadId } = await api.startThread({ project: selectedProject.id, message: text, provider: harness });
     ta.value = "";
-    await loadThreads();
-    if (threadId) await openThread(threadId);
+    msg.textContent = "";
+    await refresh();
+    const d = world.deskFor(threadId);
+    if (d) { world.select(d); world.showDesk(d); }
   } catch (err: any) {
-    msg.textContent = `Could not start: ${err.message || err}. The text is still here.`;
-  } finally {
-    go.disabled = false;
-  }
+    msg.textContent = `Could not start: ${err.message || err}. Your text is still here.`;
+  } finally { go.disabled = false; }
 });
 
-// --- one-click update ---------------------------------------------------------------
+// --- one-click update --------------------------------------------------------------------
 async function checkUpdate() {
   const u = await api.checkUpdate().catch(() => null);
   const btn = $<HTMLButtonElement>("update");
-  if (u?.available) {
-    btn.hidden = false;
-    btn.title = (u.changes || []).join("\n");
-    btn.textContent = `Update (${u.behind})`;
-  } else btn.hidden = true;
+  if (u?.available) { btn.hidden = false; btn.title = (u.changes || []).join("\n"); btn.textContent = `Update (${u.behind})`; }
+  else btn.hidden = true;
 }
 $("update").addEventListener("click", async () => {
   const btn = $<HTMLButtonElement>("update");
@@ -247,11 +257,8 @@ $("update").addEventListener("click", async () => {
   if (!res.ok) { btn.disabled = false; btn.textContent = "Retry update"; btn.title = res.error || ""; }
 });
 
-// --- boot ----------------------------------------------------------------------------
-await loadThreads();
 await loadProjects();
-const saved = new URLSearchParams(location.search).get("thread") || localStorage.getItem("lucid:thread");
-if (saved && document.querySelector(`.thread[data-id="${saved}"]`)) openThread(saved);
-setInterval(loadThreads, 5000);
+await refresh();
+setInterval(refresh, 3000);
 checkUpdate();
-setInterval(checkUpdate, 10 * 60 * 1000);
+setInterval(checkUpdate, 5 * 60 * 1000);

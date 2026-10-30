@@ -5,7 +5,7 @@ const updater = require("./updater.cjs");
 
 const DEV_URL = process.env.LUCID_DEV_URL;
 let win = null;
-let stopWatch = null;
+const watchers = new Map(); // threadId -> stop()
 
 function createWindow() {
   win = new BrowserWindow({
@@ -24,6 +24,7 @@ function createWindow() {
   });
   const query = {};
   if (process.env.LUCID_THREAD) query.thread = process.env.LUCID_THREAD;
+  if (process.env.LUCID_PROJECT) query.project = process.env.LUCID_PROJECT;
   if (process.env.LUCID_IDLE_SCALE) query.idleScale = process.env.LUCID_IDLE_SCALE;
   if (DEV_URL) win.loadURL(DEV_URL + "?" + new URLSearchParams(query));
   else win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query });
@@ -55,15 +56,23 @@ const send = (channel, payload) => { if (win && !win.isDestroyed()) win.webConte
 
 ipcMain.handle("t3:projects", () => t3.listProjects());
 ipcMain.handle("t3:threads", () => t3.listThreads());
-ipcMain.handle("t3:watch", (_e, threadId) => {
-  if (stopWatch) stopWatch();
-  stopWatch = t3.watchThread(
-    threadId,
-    (items, initial) => send("t3:items", { threadId, items, initial }),
-    (info) => send("t3:info", { threadId, info }),
-  );
+// Watch exactly this set of threads (one per desk in the open office).
+ipcMain.handle("t3:watch-set", (_e, ids) => {
+  const want = new Set(ids);
+  for (const [id, stop] of watchers) if (!want.has(id)) { stop(); watchers.delete(id); }
+  for (const id of want) {
+    if (watchers.has(id)) continue;
+    watchers.set(id, t3.watchThread(
+      id,
+      (items, initial) => send("t3:items", { threadId: id, items, initial }),
+      (info) => send("t3:info", { threadId: id, info }),
+    ));
+  }
   return true;
 });
+ipcMain.handle("t3:office", (_e, projectId) => t3.office(projectId));
+ipcMain.handle("t3:offices", () => t3.listProjectsWithCounts());
+ipcMain.handle("t3:world", () => t3.world());
 ipcMain.handle("t3:start", (_e, opts) => t3.startThread(opts));
 ipcMain.handle("t3:send", (_e, opts) => t3.sendMessage(opts));
 
