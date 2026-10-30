@@ -96,6 +96,20 @@ export class Roster {
     return out;
   }
 
+  // The hiring screen picked someone for a new thread: a free teammate, or a fresh hire.
+  assignRobot(threadId: string, robotId: string | null, provider: string) {
+    const r = robotId ? this.robots.find((x) => x.id === robotId) : null;
+    if (r) {
+      if (r.threadId && r.threadId !== threadId) (r.done ??= []).push(r.threadId);
+      r.threadId = threadId; r.provider = provider; r.jobs++;
+    } else this.robots.push(this.hire(threadId, provider));
+    this.save();
+  }
+
+  freeTeam(settledIds: Set<string>) {
+    return this.robots.filter((r) => !r.threadId || settledIds.has(r.threadId));
+  }
+
   hireFor(threadId: string, provider: string) {
     const r = this.byThread(threadId) ?? this.hire(threadId, provider);
     if (!this.robots.includes(r)) { this.robots.push(r); this.save(); }

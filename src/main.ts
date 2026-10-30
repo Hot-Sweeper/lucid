@@ -6,6 +6,7 @@ import gsap from "gsap";
 import { World, type Room, type WorldData } from "./office/world";
 import { ChatPanel } from "./office/chat-panel";
 import { showMenu, confirmDialog } from "./office/menus";
+import { openHire } from "./office/hire";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
@@ -17,6 +18,7 @@ declare global {
     lucid: {
       projects(): Promise<{ id: string; title: string; root: string }[]>;
       world(): Promise<WorldData>;
+      startThreadIn?: never;
       settingsLoad(): string;
       settingsSave(json: string): Promise<void>;
       addProject(o: { path: string; title?: string }): Promise<{ output: string }>;
@@ -58,39 +60,12 @@ document.getElementById("app")!.innerHTML = `
     </section>
 
     <section class="focus" id="focus">
-      <p class="hint" id="focus-hint">Click a robot to follow it.</p>
+      <p class="hint" id="focus-hint">Click a robot's desk to follow it and chat. Click a free desk to hire someone.</p>
       <div id="focus-body" hidden>
         <div class="focus-head"><img id="focus-logo" alt=""><h2 id="focus-title"></h2></div>
         <p class="sub" id="focus-sub"></p>
         <p class="activity" id="focus-activity" aria-live="polite"></p>
-        <div class="focus-actions">
-          <button type="button" class="ghost" id="focus-screen">Look at its screen</button>
-          <button type="button" class="ghost" id="focus-desk">Go to its desk</button>
-        </div>
-        <form class="reply" id="reply">
-          <textarea id="reply-text" rows="2" placeholder="Message this robot"></textarea>
-          <button type="submit">Send</button>
-        </form>
       </div>
-    </section>
-
-    <section class="new">
-      <h3>New task</h3>
-      <form id="new-form">
-        <textarea id="new-text" rows="3" placeholder="What should a robot build?"></textarea>
-        <div class="select" id="project-select">
-          <button type="button" class="select-btn" aria-haspopup="listbox" aria-expanded="false"><span>Choose a project</span></button>
-          <ul class="select-list" role="listbox" hidden></ul>
-        </div>
-        <div class="row">
-          <div class="seg" role="radiogroup" aria-label="Harness">
-            <button type="button" role="radio" aria-checked="true" data-h="codex"><img src="${openaiLogo}" alt="">Codex</button>
-            <button type="button" role="radio" aria-checked="false" data-h="claudeAgent"><img src="${claudeLogo}" alt="">Claude</button>
-          </div>
-          <button type="submit" class="primary" id="new-go">Start</button>
-        </div>
-        <p class="form-msg" id="new-msg" role="status"></p>
-      </form>
     </section>
   </aside>
   <main class="scene" id="scene"></main>
@@ -100,14 +75,24 @@ const world = new World($("scene"), { peek: (u) => api.peek(u), image: (p) => ap
 let selectedDesk: Desk | null = null;
 const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), sendMessage: (o) => api.sendMessage(o) });
 world.panelWidth = 400;
-world.onFocus = (d) => { if (d) chat.open(d); else chat.close(); };
+world.onFocus = (d) => { if (d) { chat.open(d); chat.setView(world.focusMode); pushStatus(d); } else chat.close(); };
 chat.onClose = () => world.unfocus();
+chat.onToggleView = () => {
+  const d = world.focusDesk;
+  if (!d) return;
+  if (world.focusMode === "desk") world.focusScreen(d); else world.focusOn(d);
+  chat.setView(world.focusMode);
+};
+function pushStatus(d: Desk) {
+  const run = d.info?.run?.status;
+  const state = d.info && (d.info as any).question ? "waiting" : run === "running" || run === "queued" ? "working" : "idle";
+  chat.setStatus(d.activity || (state === "working" ? "Working" : "Waiting for a task"), state as any);
+}
 // Dev aid: keep the last errors where a debug run can read them.
 (window as any).__errs = [];
 window.addEventListener("error", (e) => (window as any).__errs.push(String(e.message)));
 const origError = console.error.bind(console);
 console.error = (...a: any[]) => { (window as any).__errs.push(a.map(String).join(" ").slice(0, 300)); origError(...a); };
-let harness = "codex";
 
 // --- rooms --------------------------------------------------------------------------
 world.onRooms = (rooms: Room[]) => {
@@ -150,28 +135,10 @@ world.onSelectThread = (id) => {
   const d = world.deskFor(id);
   if (d) { world.select(d); world.showDesk(d); }
 };
-$("focus-screen").addEventListener("click", () => selectedDesk && world.focusScreen(selectedDesk));
-$("focus-desk").addEventListener("click", () => selectedDesk && world.showDesk(selectedDesk));
 const sceneObserver = new MutationObserver(() => ($("back-btn").hidden = !$("scene").classList.contains("screen-mode")));
 sceneObserver.observe($("scene"), { attributes: true, attributeFilter: ["class"] });
 $("back-btn").addEventListener("click", () => world.unfocus());
 
-$("reply").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const ta = $<HTMLTextAreaElement>("reply-text");
-  const text = ta.value.trim();
-  if (!text || !selectedDesk?.threadId) return;
-  ta.disabled = true;
-  try {
-    await api.sendMessage({ threadId: selectedDesk.threadId, message: text });
-    ta.value = "";
-  } catch (err: any) {
-    $("focus-activity").textContent = `Could not send: ${err.message || err}`;
-  } finally { ta.disabled = false; }
-});
-$("reply-text").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $<HTMLFormElement>("reply").requestSubmit(); }
-});
 
 // --- live data -------------------------------------------------------------------------
 api.onItems(({ threadId, items, initial }) => { world.deskFor(threadId)?.director.push(items, initial); chat.ping(threadId); });
@@ -180,6 +147,7 @@ api.onInfo(({ threadId, info }) => {
   if (!d || info.error) return;
   d.setInfo(info);
   if (d === selectedDesk) renderFocus();
+  if (d === world.focusDesk) pushStatus(d);
 });
 
 let watched = "";
@@ -190,7 +158,7 @@ async function refresh() {
     for (const p of data.projects) projectTitles.set(p.id, p.title);
     world.update(data);
     for (const d of world.desks.values()) {
-      d.onActivity = (t) => { if (d === selectedDesk) { const a = $("focus-activity"); if (a.textContent !== t) { a.textContent = t; gsap.fromTo(a, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.3 }); } } };
+      d.onActivity = (t) => { if (d === world.focusDesk) pushStatus(d); if (d === selectedDesk) { const a = $("focus-activity"); if (a.textContent !== t) { a.textContent = t; gsap.fromTo(a, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.3 }); } } };
     }
     const ids = [...world.desks.keys()].sort();
     const key = ids.join(",");
@@ -207,64 +175,50 @@ async function refresh() {
   }
 }
 
-// --- project picker and harness ------------------------------------------------------------
-let selectedProject: { id: string; title: string } | null = null;
-const sel = $("project-select");
-const selBtn = sel.querySelector(".select-btn") as HTMLButtonElement;
-const selList = sel.querySelector(".select-list") as HTMLUListElement;
-const closeSelect = () => { selList.hidden = true; selBtn.setAttribute("aria-expanded", "false"); };
-selBtn.addEventListener("click", () => {
-  const open = selList.hidden;
-  selList.hidden = !open;
-  selBtn.setAttribute("aria-expanded", String(open));
-  if (open) gsap.fromTo(selList, { opacity: 0, y: -4 }, { opacity: 1, y: 0, duration: 0.18 });
-});
-selList.addEventListener("click", (e) => {
-  const li = (e.target as HTMLElement).closest("li") as HTMLElement | null;
-  if (!li) return;
-  selectedProject = { id: li.dataset.id!, title: li.textContent || "" };
-  selBtn.querySelector("span")!.textContent = selectedProject.title;
-  localStorage.setItem("lucid:project", selectedProject.id);
-  closeSelect();
-  selBtn.focus();
-});
-document.addEventListener("click", (e) => { if (!sel.contains(e.target as Node)) closeSelect(); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !selList.hidden) { closeSelect(); selBtn.focus(); e.stopPropagation(); } }, true);
-async function loadProjects() {
-  const projects = await api.projects().catch(() => []);
-  selList.innerHTML = projects.map((p) => `<li role="option" data-id="${p.id}" title="${esc(p.root)}">${esc(p.title)}</li>`).join("");
-  const p = projects.find((x) => x.id === localStorage.getItem("lucid:project"));
-  if (p) { selectedProject = { id: p.id, title: p.title }; selBtn.querySelector("span")!.textContent = p.title; }
-}
-for (const b of document.querySelectorAll<HTMLButtonElement>(".seg [data-h]")) {
-  b.addEventListener("click", () => {
-    harness = b.dataset.h!;
-    for (const o of document.querySelectorAll(".seg [data-h]")) o.setAttribute("aria-checked", String(o === b));
-  });
-}
-$("new-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const ta = $<HTMLTextAreaElement>("new-text"), msg = $("new-msg");
-  const text = ta.value.trim();
-  if (!text) { msg.textContent = "Describe the task first."; return; }
-  if (!selectedProject) { msg.textContent = "Choose which project the robot works in."; return; }
-  const go = $<HTMLButtonElement>("new-go");
-  go.disabled = true;
-  msg.textContent = "Hiring a robot…";
-  try {
-    const { threadId } = await api.startThread({ project: selectedProject.id, message: text, provider: harness });
-    ta.value = "";
-    msg.textContent = "";
-    await refresh();
-    const d = world.deskFor(threadId);
-    if (d) { world.select(d); world.showDesk(d); }
-  } catch (err: any) {
-    msg.textContent = `Could not start: ${err.message || err}. Your text is still here.`;
-  } finally { go.disabled = false; }
-});
-
 // --- office and desk options -------------------------------------------------------------
 function setupMenus() {
+  world.onAddDesk = (room) => {
+    world.extra.set(room, (world.extra.get(room) ?? 0) + 1);
+    saveSettings();
+    void refresh();
+  };
+  world.onFreeDeskMenu = (d, slot, x, y) => {
+    const room = slot.split("#")[0];
+    const extra = world.extra.get(room) ?? 0;
+    showMenu(x, y, "Free desk", [
+      { label: "Hire someone for this desk", run: () => world.onFreeDesk(d, slot, x, y) },
+      ...(extra > 0 ? [{ label: "Remove this desk", danger: true, run: () => { world.extra.set(room, extra - 1); saveSettings(); void refresh(); } }] : []),
+    ]);
+  };
+  world.onFreeDesk = (_d, slot, _x, _y) => {
+    const [room, idx] = slot.split("#");
+    const data = world.lastData;
+    if (!data) return;
+    const r = world.rooms.find((q) => q.id === room);
+    const settled = new Set(data.threads.filter((t) => t.settled).map((t) => t.id));
+    const scratch = data.projects.find((p) => p.scratch);
+    const projectId = room.startsWith("p:") ? room.slice(2) : room === "freelance" ? scratch?.id ?? "" : "";
+    const real = data.projects.filter((p) => !p.scratch && !world.hidden.has(p.id));
+    openHire({
+      room, roomTitle: r?.title ?? "Office", seat: Number(idx) || 0,
+      team: world.roster.freeTeam(settled),
+      providers: ["codex", "claudeAgent"],
+      models: data.models ?? {},
+      projects: projectId ? null : real.map((p) => ({ id: p.id, title: p.title })),
+      onHire: async (c) => {
+        const project = projectId || c.projectId;
+        if (!project) throw new Error("Choose a project for this desk");
+        const { threadId } = await api.startThread({ project, message: c.task, provider: c.provider, model: c.model ?? undefined });
+        world.roster.assignRobot(threadId, c.robotId, c.provider);
+        world.homes.set(threadId, room);
+        world.pendingSeat = { room, index: Number(idx) || 0, threadId };
+        saveSettings();
+        await refresh();
+        const nd = world.deskFor(threadId);
+        if (nd) { world.select(nd); world.focusOn(nd); }
+      },
+    });
+  };
   world.onRoomMenu = (room, x, y) => {
     if (room.kind === "freelance") {
       showMenu(x, y, "Freelancers", [{ label: "Hide this office", run: () => { world.hidden.add("freelance"); saveSettings(); void refresh(); } }]);
@@ -313,9 +267,17 @@ $("update").addEventListener("click", async () => {
 
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
-const settings: { hidden?: string[] } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string> } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
-const saveSettings = () => { settings.hidden = [...world.hidden]; void api.settingsSave(JSON.stringify(settings)); renderHidden(); };
+world.extra = new Map(Object.entries(settings.extra ?? {}));
+world.homes = new Map(Object.entries(settings.homes ?? {}));
+const saveSettings = () => {
+  settings.hidden = [...world.hidden];
+  settings.extra = Object.fromEntries(world.extra);
+  settings.homes = Object.fromEntries(world.homes);
+  void api.settingsSave(JSON.stringify(settings));
+  renderHidden();
+};
 function renderHidden() {
   const box = $("hidden-offices");
   const ids = [...world.hidden];
@@ -332,7 +294,6 @@ $("hidden-offices").addEventListener("click", (e) => {
 const projectTitles = new Map<string, string>();
 setupMenus();
 world.attachDir = attachDir;
-await loadProjects();
 await refresh();
 setInterval(refresh, 3000);
 checkUpdate();

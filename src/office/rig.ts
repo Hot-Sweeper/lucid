@@ -8,20 +8,20 @@ export type Pt = { x: number; y: number };
 export type Hand = "left" | "right";
 
 // Desk unit coordinates (one workstation), origin top-left. All values in desk-unit pixels.
-export const UNIT = { w: 400, h: 440 };
+export const UNIT = { w: 400, h: 380 };
 export const GEOM = {
-  monitor: { x: 88, y: 8, w: 224, h: 132 },             // bezel billboard, screen inside it
-  screen: { x: 95, y: 15, w: 210, h: 118, scale: 210 / 820 }, // the robot's desktop (820x461 DOM, scaled)
-  stand: { x: 200, top: 140, base: 170 },
-  table: { x: 24, y: 150, w: 352, h: 112, front: 14 },  // top surface, then a 14px front face
-  keyboard: { x: 110, y: 192, w: 180, h: 44 },          // 4 key rows + a space bar row, columns left to right
-  mouse: { x: 304, y: 222 },
-  mug: { x: 340, y: 180 },
-  phoneRest: { x: 64, y: 214 },
-  chair: { x: 200, y: 330 },                            // seat center; backrest is south of it (y 330..376)
-  head: { x: 200, y: 268 },                             // where the seated robot's head center rests
-  shoulders: { left: { x: 166, y: 304 }, right: { x: 234, y: 304 } },
-  bubble: { x: 300, y: -30 },                           // speech and thought bubbles anchor (top-left)
+  monitor: { x: 54, y: 4, w: 292, h: 172 },             // bezel billboard, screen inside it
+  screen: { x: 62, y: 12, w: 276, h: 155, scale: 276 / 820 }, // the robot's desktop (820x461 DOM, scaled)
+  stand: { x: 200, top: 176, base: 194 },
+  table: { x: 34, y: 180, w: 332, h: 76, front: 12 },   // top surface, then a 12px front face
+  keyboard: { x: 146, y: 208, w: 108, h: 30 },          // 4 key rows + a space bar row, columns left to right
+  mouse: { x: 278, y: 226 },
+  mug: { x: 330, y: 204 },
+  phoneRest: { x: 76, y: 226 },
+  chair: { x: 200, y: 300 },                            // seat center; backrest is south of it (y 300..344)
+  head: { x: 200, y: 262 },                             // where the seated robot's head center rests
+  shoulders: { left: { x: 170, y: 292 }, right: { x: 230, y: 292 } },
+  bubble: { x: 252, y: 150 },                           // speech and thought bubbles anchor (top-left)
 };
 
 export interface DeskRig {

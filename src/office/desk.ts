@@ -267,7 +267,7 @@ export class Desk implements DeskStage {
       <ellipse cx="${st.x}" cy="${st.base}" rx="30" ry="9" fill="#4a5063"/>
       <ellipse cx="${st.x}" cy="${st.base - 2}" rx="24" ry="6" fill="#5a6177"/>
       <rect x="${st.x - 7}" y="${st.top}" width="14" height="${st.base - st.top - 2}" fill="#3a3f4f"/>
-      <g class="papers"><rect x="38" y="172" width="58" height="40" rx="3" fill="#f4f1ea" transform="rotate(-6 67 192)"/><rect x="46" y="176" width="58" height="40" rx="3" fill="#fbf9f4" transform="rotate(4 75 196)"/></g>
+      <g class="papers"><rect x="96" y="194" width="38" height="30" rx="3" fill="#f4f1ea" transform="rotate(-7 115 209)"/><rect x="100" y="197" width="38" height="30" rx="3" fill="#fbf9f4" transform="rotate(5 119 212)"/></g>
       <rect x="${kb.x - 5}" y="${kb.y - 3}" width="${kb.w + 10}" height="${kb.h + 7}" rx="7" fill="#2e3242"/>
       <g class="keys">${keys.join("")}</g>
       <rect x="${m.x - 24}" y="${m.y - 22}" width="48" height="44" rx="10" fill="#4a5063" opacity="0.55"/>

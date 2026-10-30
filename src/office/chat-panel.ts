@@ -5,7 +5,7 @@ import { logoFor, harnessName } from "./brand";
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
 
-type Msg = { id: string; role: string; at: string; streaming: boolean; text: string; attachments: { type: string; name: string; mime: string; size: number; path: string | null }[] };
+type Msg = { id: string; role: string; at: string; streaming: boolean; text: string; run?: string | null; attachments: { type: string; name: string; mime: string; size: number; path: string | null }[] };
 type Api = {
   conversation(id: string): Promise<Msg[]>;
   sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
@@ -34,6 +34,8 @@ export class ChatPanel {
   private shown = new Map<string, HTMLElement>();
   private timer = 0;
   onClose: () => void = () => {};
+  onToggleView: () => void = () => {};
+  private pending: { text: string; at: number }[] = [];
 
   constructor(host: HTMLElement, private api: Api) {
     this.el = document.createElement("aside");
@@ -43,8 +45,10 @@ export class ChatPanel {
       <header class="cp-head">
         <img class="cp-logo" alt="">
         <div class="cp-who"><b></b><span></span></div>
+        <button type="button" class="cp-view ghost"></button>
         <button type="button" class="cp-close" aria-label="Back to the office" title="Back to the office (Esc)"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
       </header>
+      <p class="cp-status" aria-live="polite"><i></i><span></span></p>
       <div class="cp-list" role="log" aria-live="polite"></div>
       <div class="cp-zoom" hidden><img alt=""><button type="button" class="ghost">Close image</button></div>
       <form class="cp-form">
@@ -53,6 +57,7 @@ export class ChatPanel {
       </form>`;
     host.appendChild(this.el);
     this.el.querySelector(".cp-close")!.addEventListener("click", () => this.onClose());
+    this.el.querySelector(".cp-view")!.addEventListener("click", () => this.onToggleView());
     const form = this.el.querySelector(".cp-form") as HTMLFormElement;
     const ta = form.querySelector("textarea")!;
     form.addEventListener("submit", async (e) => {
@@ -60,11 +65,16 @@ export class ChatPanel {
       const text = ta.value.trim();
       if (!text || !this.desk?.threadId) return;
       ta.disabled = true;
+      // show it right away; it turns into the real message once T3 has it
+      this.pending.push({ text, at: Date.now() });
+      this.renderPending();
       try {
         await this.api.sendMessage({ threadId: this.desk.threadId, message: text });
         ta.value = "";
         this.refreshSoon(300);
       } catch (err: any) {
+        this.pending = this.pending.filter((p) => p.text !== text);
+        this.renderPending();
         this.note(`Could not send: ${err.message || err}. Your text is still here.`);
       } finally { ta.disabled = false; ta.focus(); }
     });
@@ -105,6 +115,31 @@ export class ChatPanel {
     this.desk = null;
   }
 
+  setView(mode: "desk" | "screen") {
+    (this.el.querySelector(".cp-view") as HTMLElement).textContent = mode === "desk" ? "Look at the screen" : "Back to the desk";
+  }
+
+  // What the robot is doing right now, in plain words.
+  setStatus(text: string, state: "working" | "idle" | "waiting") {
+    const p = this.el.querySelector(".cp-status") as HTMLElement;
+    p.dataset.state = state;
+    const span = p.querySelector("span")!;
+    if (span.textContent !== text) { span.textContent = text; gsap.fromTo(span, { opacity: 0.3 }, { opacity: 1, duration: 0.3 }); }
+  }
+
+  private renderPending() {
+    const list = this.el.querySelector(".cp-list") as HTMLElement;
+    list.querySelectorAll(".cp-msg.pending").forEach((e) => e.remove());
+    for (const p of this.pending) {
+      const el = document.createElement("div");
+      el.className = "cp-msg you pending";
+      el.innerHTML = `<div class="cp-text"></div><time>Sending</time>`;
+      el.querySelector(".cp-text")!.textContent = p.text;
+      list.appendChild(el);
+    }
+    list.scrollTop = list.scrollHeight;
+  }
+
   // Called when new events arrive for a thread.
   ping(threadId: string) { if (this.isOpen && threadId === this.threadId) this.refreshSoon(500); }
 
@@ -131,11 +166,15 @@ export class ChatPanel {
         list.appendChild(el);
         this.shown.set(m.id, el);
         if (this.shown.size > msgs.length - 6) gsap.fromTo(el, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out", delay: added++ * 0.05 });
-      } else if (el.dataset.sig !== `${m.text.length}:${m.streaming}`) {
+      } else if (el.dataset.sig !== `${m.text.length}:${m.streaming}:${m.run}`) {
         el.innerHTML = html;
       }
-      el.dataset.sig = `${m.text.length}:${m.streaming}`;
+      el.dataset.sig = `${m.text.length}:${m.streaming}:${m.run}`;
     }
+    // pending bubbles disappear once the real message shows up
+    const texts = new Set(msgs.filter((m) => m.role === "user").map((m) => m.text.trim()));
+    this.pending = this.pending.filter((p) => !texts.has(p.text) && Date.now() - p.at < 60000);
+    this.renderPending();
     if (!list.children.length) list.innerHTML = `<p class="cp-empty">No messages yet. Say hello.</p>`;
     else list.querySelector(".cp-empty")?.remove();
     if (nearBottom || added) list.scrollTop = list.scrollHeight;
@@ -146,7 +185,9 @@ export class ChatPanel {
       if (a.type === "image" && a.path) return `<figure class="cp-att"><img src="${fileUrl(a.path)}" alt="${esc(a.name)}" loading="lazy"></figure>`;
       return `<div class="cp-file" title="${esc(a.name)}"><span>${esc(a.name)}</span><i>${Math.max(1, Math.round((a.size || 0) / 1024))} KB</i></div>`;
     }).join("");
-    return `${atts ? `<div class="cp-atts">${atts}</div>` : ""}${m.text ? `<div class="cp-text">${md(m.text)}${m.streaming ? '<span class="caret"></span>' : ""}</div>` : ""}<time>${when(m.at)}</time>`;
+    const state = m.role === "user" && m.run === "queued" ? `<em class="cp-queued">Queued, it reads this next</em>`
+      : m.role === "user" && m.run === "running" ? `<em class="cp-live">It is working on this</em>` : "";
+    return `${atts ? `<div class="cp-atts">${atts}</div>` : ""}${m.text ? `<div class="cp-text">${md(m.text)}${m.streaming ? '<span class="caret"></span>' : ""}</div>` : ""}${state}<time>${when(m.at)}</time>`;
   }
 
   private zoom(src: string) {

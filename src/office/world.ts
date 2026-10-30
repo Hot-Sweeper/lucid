@@ -14,7 +14,7 @@ export type WThread = {
   folder?: string | null;
 };
 export type WProject = { id: string; title: string; root: string; icon: string | null; scratch: boolean };
-export type WorldData = { projects: WProject[]; threads: WThread[] };
+export type WorldData = { projects: WProject[]; threads: WThread[]; models?: Record<string, string[]> };
 
 export type RoomKind = "main" | "project" | "freelance" | "break" | "queue";
 export type Room = { id: string; kind: RoomKind; title: string; icon: string | null; x: number; y: number; w: number; h: number; el: HTMLElement; threadIds: string[] };
@@ -84,6 +84,7 @@ export class World {
 
   // --- layout -------------------------------------------------------------------
   update(data: WorldData) {
+    this.lastData = data;
     const byProject = new Map(data.projects.map((p) => [p.id, p]));
     const queue: WThread[] = [], main: WThread[] = [], brk: WThread[] = [], rest: WThread[] = [];
     const perProject = new Map<string, WThread[]>();
@@ -93,8 +94,9 @@ export class World {
       // with a short wait it stays at its desk and kills time there.
       const wait = t.schedule?.nextRunAt ? Date.parse(t.schedule.nextRunAt) - Date.now() : null;
       const p = byProject.get(t.projectId);
-      const home = !p || p.scratch ? "freelance" : `p:${p.id}`;
+      const home = this.homes.get(t.id) ?? (!p || p.scratch ? "freelance" : `p:${p.id}`);
       const want = t.question ? "queue"
+        : this.homes.has(t.id) && !t.settled ? home
         : t.runStatus === "running" || t.pinned ? "main"
         : wait != null && wait > 15 * 60 * 1000 ? "break"
         : wait != null ? "main"
@@ -113,6 +115,15 @@ export class World {
     // Keep each robot in the seat it already has; newcomers take the first free seat.
     const seatOrder = (roomId: string, list: WThread[], max: number) => {
       const prev = this.seats.get(roomId) ?? [];
+      // a robot hired at a specific desk sits exactly there
+      const ps = this.pendingSeat;
+      if (ps && ps.room === roomId && ps.threadId && list.some((t) => t.id === ps.threadId)) {
+        while (prev.length <= ps.index) prev.push(null);
+        const old = prev.indexOf(ps.threadId);
+        if (old >= 0) prev[old] = null;
+        prev[ps.index] = ps.threadId;
+        this.pendingSeat = null;
+      }
       const ids = new Set(list.map((t) => t.id));
       const seats: (string | null)[] = prev.map((id) => (id && ids.has(id) ? id : null));
       for (const t of list) {
@@ -128,8 +139,9 @@ export class World {
     };
     type Plan = { id: string; kind: RoomKind; title: string; icon: string | null; threads: (WThread | null)[]; slots: number; w: number; h: number };
     const office = (id: string, kind: RoomKind, title: string, icon: string | null, threads: WThread[], min: number, max: number): Plan => {
-      const seated = seatOrder(id, threads.slice(0, max), max);
-      const slots = Math.max(min, Math.min(max, seated.length));
+      const extra = this.extra.get(id) ?? 0;
+      const seated = seatOrder(id, threads.slice(0, max + extra), max + extra);
+      const slots = Math.max(min + extra, Math.min(max + extra, seated.length));
       const { w, h } = officeSize(slots);
       return { id, kind, title, icon, threads: seated as WThread[], slots, w, h };
     };
@@ -216,6 +228,7 @@ export class World {
       }
     });
     const wanted = new Set(slots.filter((s) => s.t).map((s) => s.t!.id));
+    this.addTiles(plans, rooms);
     for (const [id, d] of this.desks) if (!wanted.has(id)) { if (this.selected === d) this.select(null); d.destroy(); this.allDesks.delete(d); this.desks.delete(id); for (const [k, v] of this.slotDesks) if (v === d) this.slotDesks.delete(k); }
     const slotKeys = new Set(slots.map((s) => s.key));
     for (const k of [...this.slotDesks.keys()]) if (!slotKeys.has(k)) this.slotDesks.delete(k);
@@ -255,13 +268,53 @@ export class World {
 
   private allDesks = new Set<Desk>();
   roster = new Roster();
+  // "+" tiles: add a desk to an office.
+  private addTiles(plans: { id: string; kind: RoomKind; slots: number }[], rooms: Room[]) {
+    this.deskLayer.querySelectorAll(".add-desk").forEach((e) => e.remove());
+    plans.forEach((p, i) => {
+      if (!p.slots || p.kind === "queue" || p.kind === "break") return;
+      const r = rooms[i];
+      const { cols } = officeSize(p.slots);
+      const k = p.slots, c = k % cols, row = Math.floor(k / cols);
+      if (row > 0 && c === 0 && (this.extra.get(p.id) ?? 0) >= 6) return;
+      const fits = c !== 0; // only inside the room's current width
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "add-desk";
+      b.title = "Add a desk";
+      b.setAttribute("aria-label", `Add a desk to ${r.title}`);
+      b.innerHTML = `<span aria-hidden="true">+</span><i>Add a desk</i>`;
+      const x = fits ? r.x + 70 + c * SLOT_W + 110 : r.x + r.w - 150;
+      const y = fits ? r.y + WALL_FACE + 40 + row * SLOT_H + 120 : r.y + 26;
+      b.classList.toggle("compact", !fits);
+      b.style.cssText = `left:${x}px;top:${y}px`;
+      b.addEventListener("click", (e) => { e.stopPropagation(); this.onAddDesk(p.id); });
+      this.deskLayer.appendChild(b);
+    });
+  }
+
   private makeDesk(x: number, y: number) {
     const d = new Desk(this.deskLayer, x, y, this.services);
     d.director.attachDir = this.attachDir;
     this.allDesks.add(d);
-    d.el.addEventListener("click", (e) => { if (!this.dragged) { e.stopPropagation(); if (d.threadId) this.select(d); } });
-    d.el.addEventListener("contextmenu", (e) => { if (!d.threadId) return; e.preventDefault(); e.stopPropagation(); this.select(d); this.onDeskMenu(d, e.clientX, e.clientY); });
-    d.monitor.addEventListener("click", (e) => { if (this.dragged || !d.threadId) return; e.stopPropagation(); this.select(d); this.focusScreen(d); });
+    d.el.addEventListener("click", (e) => {
+      if (this.dragged) return;
+      e.stopPropagation();
+      if (d.threadId) { this.select(d); this.focusOn(d); }
+      else this.onFreeDesk(d, [...this.slotDesks.entries()].find(([, v]) => v === d)?.[0] ?? "", e.clientX, e.clientY);
+    });
+    d.el.addEventListener("contextmenu", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (!d.threadId) { this.onFreeDeskMenu(d, [...this.slotDesks.entries()].find(([, v]) => v === d)?.[0] ?? "", e.clientX, e.clientY); return; }
+      this.select(d); this.onDeskMenu(d, e.clientX, e.clientY);
+    });
+    d.monitor.addEventListener("click", (e) => {
+      if (this.dragged || !d.threadId) return;
+      e.stopPropagation();
+      this.select(d);
+      // first click brings the desk close, a click on the monitor then fills the view with the screen
+      if (this.focusDesk === d && this.focusMode === "desk") this.focusScreen(d); else this.focusOn(d);
+    });
     return d;
   }
 
@@ -323,6 +376,14 @@ export class World {
   onFocus: (d: Desk | null) => void = () => {};
   panelWidth = 0;
   hidden = new Set<string>();          // project ids whose office is hidden in Lucid
+  extra = new Map<string, number>();   // room id -> desks added by hand
+  homes = new Map<string, string>();   // thread id -> room it was hired into (it works there)
+  pendingSeat: { room: string; index: number; threadId?: string } | null = null;
+  onFreeDesk: (desk: Desk, room: string, x: number, y: number) => void = () => {};
+  onAddDesk: (room: string) => void = () => {};
+  onFreeDeskMenu: (desk: Desk, room: string, x: number, y: number) => void = () => {};
+  lastData: WorldData | null = null;
+  focusMode: "desk" | "screen" = "desk";
   onRoomMenu: (room: Room, x: number, y: number) => void = () => {};
   onDeskMenu: (desk: Desk, x: number, y: number) => void = () => {};
   building = "This PC";
@@ -338,9 +399,19 @@ export class World {
     this.flyTo({ x: parseFloat(d.el.style.left) - 20, y: parseFloat(d.el.style.top) - 40, w: UNIT_W + 40, h: UNIT_H + 60 }, 30);
   }
 
+  // Bring a whole desk close (robot, desk and screen), with the chat beside it.
+  focusOn(d: Desk) {
+    this.focusDesk = d;
+    this.focusMode = "desk";
+    this.flyTo({ x: parseFloat(d.el.style.left) - 10, y: parseFloat(d.el.style.top) - 6, w: UNIT_W + 20, h: UNIT_H + 12 }, 18, 0.85, this.panelWidth);
+    this.scene.classList.add("screen-mode");
+    this.onFocus(d);
+  }
+
   // Fill the view with the robot's screen.
   focusScreen(d: Desk) {
     this.focusDesk = d;
+    this.focusMode = "screen";
     const m = GEOM.screen;
     this.flyTo({ x: parseFloat(d.el.style.left) + m.x, y: parseFloat(d.el.style.top) + m.y, w: m.w, h: m.h }, 22, 0.9, this.panelWidth);
     this.scene.classList.add("screen-mode");

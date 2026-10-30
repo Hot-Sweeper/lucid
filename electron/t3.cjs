@@ -293,7 +293,15 @@ function world(limit = 40) {
     .prepare("select project_id as id, title, workspace_root as root, favicon_path as favicon, project_icon_json as iconJson from projection_projects where deleted_at is null")
     .all()
     .map((p) => ({ id: p.id, title: p.title, root: p.root, icon: projectIcon(p.root, p.favicon), scratch: /[\\/]\.t3[\\/]scratch$/i.test(p.root || "") }));
-  return { projects, threads };
+  // Models you have used per harness, most recent first, for the hiring screen.
+  const models = {};
+  for (const r of db.prepare("select coalesce(provider_instance_id, default_provider) as pv, payload_json as p from orchestration_v2_projection_threads order by updated_at desc limit 300").all()) {
+    const m = safeJson(r.p)?.modelSelection?.model;
+    if (!m) continue;
+    (models[r.pv] ??= []);
+    if (!models[r.pv].includes(m)) models[r.pv].push(m);
+  }
+  return { projects, threads, models };
 }
 
 const ATTACH_DIR = path.join(T3_HOME, "userdata", "attachments");
@@ -316,10 +324,15 @@ function conversation(threadId, limit = 80) {
     .prepare("select message_id as id, role, created_at as at, streaming, payload_json as p from orchestration_v2_projection_messages where thread_id = ? order by created_at desc limit ?")
     .all(threadId, limit)
     .reverse();
+  const runs = new Map();
+  for (const run of getDb().prepare("select status, payload_json as p from orchestration_v2_projection_runs where thread_id = ? order by ordinal desc limit 60").all(threadId)) {
+    const rp = safeJson(run.p);
+    if (rp?.userMessageId) runs.set(rp.userMessageId, run.status);
+  }
   return rows.map((r) => {
     const p = safeJson(r.p) || {};
     return {
-      id: r.id, role: r.role, at: r.at, streaming: !!r.streaming, text: p.text || "",
+      id: r.id, role: r.role, at: r.at, streaming: !!r.streaming, text: p.text || "", run: runs.get(r.id) || null,
       attachments: (p.attachments || []).map((a) => ({ type: a.type, name: a.name, mime: a.mimeType, size: a.sizeBytes, path: attachmentPath(a) })),
     };
   });
