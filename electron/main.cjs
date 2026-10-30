@@ -16,9 +16,11 @@ function createWindow() {
     backgroundColor: "#141a33",
     title: "Lucid",
     autoHideMenuBar: true,
+    show: !process.env.LUCID_SHOT, // debug screenshot runs stay invisible
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
+      backgroundThrottling: !process.env.LUCID_SHOT,
       sandbox: false,
     },
   });

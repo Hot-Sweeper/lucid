@@ -52,6 +52,22 @@ export class World {
   ext: Partial<Record<"break" | "queue", RoomExtension>> = {};
   extFactory: Partial<Record<"break" | "queue", (host: HTMLElement, w: number, h: number) => RoomExtension>> = {};
   private lastKey = "";
+  private placed = new Map<string, { room: string; pending?: { room: string; since: number } }>();
+  private seats = new Map<string, (string | null)[]>();   // room id -> thread id per desk slot
+  private slotDesks = new Map<string, Desk>();              // "room#index" -> desk standing there
+
+  // A robot only changes rooms once the new state has lasted a while, so brief flickers
+  // (a turn that shows as queued, a status refresh) never make desks jump around.
+  private settleRoom(t: WThread, want: string) {
+    const cur = this.placed.get(t.id);
+    if (!cur) { this.placed.set(t.id, { room: want }); return want; }
+    if (cur.room === want) { cur.pending = undefined; return want; }
+    const urgent = want === "queue";
+    if (urgent) { this.placed.set(t.id, { room: want }); return want; }
+    if (!cur.pending || cur.pending.room !== want) cur.pending = { room: want, since: Date.now() };
+    if (Date.now() - cur.pending.since > 20000) { this.placed.set(t.id, { room: want }); return want; }
+    return cur.room;
+  }
 
   constructor(scene: HTMLElement, private services: DeskServices) {
     this.scene = scene;
@@ -68,30 +84,52 @@ export class World {
   update(data: WorldData) {
     const byProject = new Map(data.projects.map((p) => [p.id, p]));
     const queue: WThread[] = [], main: WThread[] = [], brk: WThread[] = [], rest: WThread[] = [];
+    const perProject = new Map<string, WThread[]>();
+    const freelance: WThread[] = [];
     for (const t of data.threads) {
       // A scheduled robot with a long wait until its next run spends it in the break room;
       // with a short wait it stays at its desk and kills time there.
       const wait = t.schedule?.nextRunAt ? Date.parse(t.schedule.nextRunAt) - Date.now() : null;
-      if (t.question) queue.push(t);
-      else if (t.runStatus === "running" || t.pinned) main.push(t);
-      else if (wait != null && wait > 15 * 60 * 1000) brk.push(t);
-      else if (wait != null) main.push(t);
-      else if (t.settled) brk.push(t);
-      else rest.push(t);
-    }
-    const perProject = new Map<string, WThread[]>();
-    const freelance: WThread[] = [];
-    for (const t of rest) {
       const p = byProject.get(t.projectId);
-      if (!p || p.scratch) { freelance.push(t); continue; }
-      if (!perProject.has(p.id)) perProject.set(p.id, []);
-      perProject.get(p.id)!.push(t);
+      const home = !p || p.scratch ? "freelance" : `p:${p.id}`;
+      const want = t.question ? "queue"
+        : t.runStatus === "running" || t.pinned ? "main"
+        : wait != null && wait > 15 * 60 * 1000 ? "break"
+        : wait != null ? "main"
+        : t.settled ? "break" : home;
+      const room = this.settleRoom(t, want);
+      if (room === "queue") queue.push(t);
+      else if (room === "main") main.push(t);
+      else if (room === "break") brk.push(t);
+      else if (room === "freelance") freelance.push(t);
+      else {
+        const pid = room.slice(2);
+        if (!perProject.has(pid)) perProject.set(pid, []);
+        perProject.get(pid)!.push(t);
+      }
     }
-    type Plan = { id: string; kind: RoomKind; title: string; icon: string | null; threads: WThread[]; slots: number; w: number; h: number };
+    // Keep each robot in the seat it already has; newcomers take the first free seat.
+    const seatOrder = (roomId: string, list: WThread[], max: number) => {
+      const prev = this.seats.get(roomId) ?? [];
+      const ids = new Set(list.map((t) => t.id));
+      const seats: (string | null)[] = prev.map((id) => (id && ids.has(id) ? id : null));
+      for (const t of list) {
+        if (seats.includes(t.id)) continue;
+        const free = seats.indexOf(null);
+        if (free >= 0) seats[free] = t.id; else seats.push(t.id);
+      }
+      while (seats.length > max) { const i = seats.lastIndexOf(null); if (i >= 0) seats.splice(i, 1); else seats.pop(); }
+      while (seats.length && seats[seats.length - 1] === null && seats.length > list.length) seats.pop();
+      this.seats.set(roomId, seats);
+      const byId = new Map(list.map((t) => [t.id, t]));
+      return seats.map((id) => (id ? byId.get(id) ?? null : null));
+    };
+    type Plan = { id: string; kind: RoomKind; title: string; icon: string | null; threads: (WThread | null)[]; slots: number; w: number; h: number };
     const office = (id: string, kind: RoomKind, title: string, icon: string | null, threads: WThread[], min: number, max: number): Plan => {
-      const slots = Math.max(min, Math.min(max, threads.length));
+      const seated = seatOrder(id, threads.slice(0, max), max);
+      const slots = Math.max(min, Math.min(max, seated.length));
       const { w, h } = officeSize(slots);
-      return { id, kind, title, icon, threads: threads.slice(0, max), slots, w, h };
+      return { id, kind, title, icon, threads: seated as WThread[], slots, w, h };
     };
     const top: Plan[] = [
       { id: "queue", kind: "queue", title: "Questions for you", icon: null, threads: queue, slots: 0, w: 720, h: 800 },
@@ -109,11 +147,12 @@ export class World {
     const rooms: Room[] = [];
     let x = 0;
     const topH = Math.max(...top.map((r) => r.h));
-    for (const r of top) { rooms.push({ id: r.id, kind: r.kind, title: r.title, icon: r.icon, x, y: topH - r.h, w: r.w, h: r.h, el: null as any, threadIds: r.threads.map((t) => t.id) }); x += r.w + GAP; }
+    const idsOf = (r: Plan) => r.threads.filter((t): t is WThread => !!t).map((t) => t.id);
+    for (const r of top) { rooms.push({ id: r.id, kind: r.kind, title: r.title, icon: r.icon, x, y: topH - r.h, w: r.w, h: r.h, el: null as any, threadIds: idsOf(r) }); x += r.w + GAP; }
     const topW = x - GAP;
     x = 0;
     const y2 = topH + HALL;
-    for (const r of bottom) { rooms.push({ id: r.id, kind: r.kind, title: r.title, icon: r.icon, x, y: y2, w: r.w, h: r.h, el: null as any, threadIds: r.threads.map((t) => t.id) }); x += r.w + GAP; }
+    for (const r of bottom) { rooms.push({ id: r.id, kind: r.kind, title: r.title, icon: r.icon, x, y: y2, w: r.w, h: r.h, el: null as any, threadIds: idsOf(r) }); x += r.w + GAP; }
     const bottomW = x - GAP, bottomH = Math.max(...bottom.map((r) => r.h));
     this.size = { w: Math.max(topW, bottomW), h: y2 + bottomH };
     const plans = [...top, ...bottom];
@@ -145,48 +184,56 @@ export class World {
     this.rooms = rooms;
 
     // Desks: keep each thread's desk, slide it to its new slot, create or retire as needed.
-    const slots: { x: number; y: number; t: WThread | null }[] = [];
+    const slots: { key: string; x: number; y: number; t: WThread | null }[] = [];
     plans.forEach((p, i) => {
       if (!p.slots) return;
       const r = rooms[i];
       const { cols } = officeSize(p.slots);
       for (let k = 0; k < p.slots; k++) {
         const c = k % cols, row = Math.floor(k / cols);
-        slots.push({ x: r.x + 70 + c * SLOT_W, y: r.y + WALL_FACE + 40 + row * SLOT_H, t: p.threads[k] ?? null });
+        slots.push({ key: `${p.id}#${k}`, x: r.x + 70 + c * SLOT_W, y: r.y + WALL_FACE + 40 + row * SLOT_H, t: p.threads[k] ?? null });
       }
     });
     const wanted = new Set(slots.filter((s) => s.t).map((s) => s.t!.id));
-    for (const [id, d] of this.desks) if (!wanted.has(id)) { if (this.selected === d) this.select(null); d.destroy(); this.desks.delete(id); }
-    const spare = [...this.freeDesks];
+    for (const [id, d] of this.desks) if (!wanted.has(id)) { if (this.selected === d) this.select(null); d.destroy(); this.allDesks.delete(d); this.desks.delete(id); for (const [k, v] of this.slotDesks) if (v === d) this.slotDesks.delete(k); }
+    const slotKeys = new Set(slots.map((s) => s.key));
+    for (const k of [...this.slotDesks.keys()]) if (!slotKeys.has(k)) this.slotDesks.delete(k);
     this.freeDesks = [];
     for (const s of slots) {
       let d: Desk | undefined;
+      const here = this.slotDesks.get(s.key);
       if (s.t) {
         d = this.desks.get(s.t.id);
         if (!d) {
-          d = spare.pop() ?? this.makeDesk(s.x, s.y);
+          // a newcomer takes the empty desk already standing in its seat
+          d = here && !here.threadId ? here : this.makeDesk(s.x, s.y);
           d.assign({ id: s.t.id, title: s.t.title, provider: s.t.provider });
           this.desks.set(s.t.id, d);
         }
       } else {
-        d = spare.pop() ?? this.makeDesk(s.x, s.y);
-        d.assign(null);
+        d = here && !here.threadId ? here : this.makeDesk(s.x, s.y);
+        if (d.threadId) d.assign(null);
         this.freeDesks.push(d);
       }
+      this.slotDesks.set(s.key, d);
       const cur = { x: parseFloat(d.el.style.left), y: parseFloat(d.el.style.top) };
       if (Math.abs(cur.x - s.x) > 1 || Math.abs(cur.y - s.y) > 1) {
         gsap.to(d.el, { left: s.x, top: s.y, duration: 0.9, ease: "power3.inOut" });
         d.el.style.zIndex = String(Math.round(s.y));
       }
     }
-    for (const d of spare) d.destroy();
+    // desks whose seat disappeared are retired properly (their robot and computer stop)
+    const inUse = new Set(this.slotDesks.values());
+    for (const d of this.allDesks) if (!inUse.has(d)) { this.allDesks.delete(d); if (this.selected === d) this.select(null); d.destroy(); }
     this.ext.break?.setThreads(brk.slice(0, 8));
     this.ext.queue?.setThreads(queue);
     this.onRooms(rooms);
   }
 
+  private allDesks = new Set<Desk>();
   private makeDesk(x: number, y: number) {
     const d = new Desk(this.deskLayer, x, y, this.services);
+    this.allDesks.add(d);
     d.el.addEventListener("click", (e) => { if (!this.dragged) { e.stopPropagation(); if (d.threadId) this.select(d); } });
     d.monitor.addEventListener("dblclick", (e) => { e.stopPropagation(); if (d.threadId) this.focusScreen(d); });
     return d;

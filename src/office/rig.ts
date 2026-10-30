@@ -65,5 +65,16 @@ export interface SeatedRobot {
   drink(): Promise<void>;
   holdPhone(on: boolean): Promise<void>;
   swipe(): void;
+  /** Model name printed small on the robot's back plate, like a jersey (null hides it). */
+  setModel?(name: string | null): void;
+  /** Personality touches picked when the robot is first hired. */
+  setLook?(look: RobotLook): void;
   destroy(): void;
+}
+
+export interface RobotLook {
+  accent?: string;                                   // trim color: ear rings, shoulder caps
+  antennaTip?: "ball" | "star" | "heart" | "ring";
+  headphones?: boolean;
+  sticker?: "none" | "bolt" | "star" | "heart" | "smile";  // a small sticker on the back of the head, beside the logo
 }
