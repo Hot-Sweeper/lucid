@@ -1,0 +1,23 @@
+/* ---------- seated robot ---------- */
+.world-seated { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.world-thumb { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 7; }
+
+/* ---------- walking robot ---------- */
+.world-walker { position: absolute; left: 0; top: 0; width: 0; height: 0; cursor: pointer; --bob: 0px; --hx: 0px; --hy: 0px; }
+.world-walker-svg { position: absolute; overflow: visible; pointer-events: none; }
+.world-walker::before { content: ""; position: absolute; left: -32px; top: calc(-1 * var(--head-top) - 6px); width: 64px; height: calc(var(--head-top) + 8px); pointer-events: auto; }
+.world-say { position: absolute; left: 0; bottom: calc(var(--head-top) + 16px - var(--bob)); transform-origin: 50% 100%; display: none; pointer-events: none; z-index: 2; }
+.world-say.on { display: block; }
+.world-say p { position: relative; left: -50%; margin: 0; width: max-content; max-width: 25ch; padding: 7px 11px; background: #fffaf3; color: #2d3142;
+  border-radius: 13px; font: 500 12px/1.35 var(--font); box-shadow: 0 8px 18px rgba(40, 28, 14, 0.2); overflow-wrap: break-word; text-wrap: pretty; }
+.world-say p::after { content: ""; position: absolute; left: calc(50% - 7px); bottom: -6px; width: 14px; height: 14px; background: inherit; border-radius: 3px; transform: rotate(45deg); }
+.world-card { position: absolute; left: var(--hx); top: var(--hy); transform: translate(-14px, -100%); display: none; width: 132px; padding: 8px 10px 9px;
+  background: #fffdf7; color: #2d3142; border-radius: 7px; box-shadow: 0 8px 16px rgba(40, 28, 14, 0.22); font: 500 11px/1.3 var(--font); pointer-events: none; }
+.world-card.on { display: block; }
+.world-card span { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.world-battery { position: absolute; left: -15px; bottom: calc(var(--head-top) + 14px - var(--bob)); width: 30px; height: 14px; border-radius: 4px; background: #3a3f4f; padding: 2px; display: none; }
+.world-battery::after { content: ""; position: absolute; right: -4px; top: 4px; width: 3px; height: 6px; border-radius: 0 2px 2px 0; background: #3a3f4f; }
+.world-battery.on { display: block; }
+.world-battery i { display: block; height: 100%; border-radius: 2px; background: #4ff0a0; box-shadow: 0 0 8px #4ff0a0; }
+.world-z { position: absolute; left: 0; top: 0; font: 600 16px var(--font); color: #7d86c4; pointer-events: none; }
+.world-puff { position: absolute; left: -9px; top: 0; width: 18px; height: 12px; border-radius: 50%; background: #ffffff; pointer-events: none; }

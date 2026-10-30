@@ -77,7 +77,18 @@ export class Desk implements DeskStage {
     this.wm = new WM(this.screen, this.robot);
     this.director = new Director(this.wm, this.robot, this, services.peek, services.image, services.readText);
     this.director.onActivity = (t) => { this.activity = t; this.onActivity(t); };
-    el.style.zIndex = String(Math.round(y));
+    this.baseZ = Math.round(y);
+    el.style.zIndex = String(this.baseZ);
+  }
+
+  // Desks are stacked by their row, so a desk further down covers the one above it.
+  // While something rises above the desk (a bubble, z letters, a held phone) the desk
+  // comes to the front so nothing gets hidden behind a neighbor.
+  baseZ = 0;
+  private lifts = new Set<string>();
+  lift(reason: string, on: boolean) {
+    if (on) this.lifts.add(reason); else this.lifts.delete(reason);
+    this.el.style.zIndex = String(this.lifts.size ? 100000 + this.baseZ : this.baseZ);
   }
 
   get phoneScreen() { return this.el.querySelector(".phone-screen") as HTMLElement; }
@@ -139,9 +150,10 @@ export class Desk implements DeskStage {
   say(text: string | null, kind: "think" | "speak" = "think") {
     const b = this.el.querySelector(".bubble") as HTMLElement;
     if (!text) {
-      if (b.classList.contains("show")) gsap.to(b, { opacity: 0, y: 8, scale: 0.96, duration: 0.25, ease: "power2.in", onComplete: () => b.classList.remove("show") });
+      if (b.classList.contains("show")) gsap.to(b, { opacity: 0, y: 8, scale: 0.96, duration: 0.25, ease: "power2.in", onComplete: () => { b.classList.remove("show"); this.lift("bubble", false); } });
       return;
     }
+    this.lift("bubble", true);
     const was = b.classList.contains("show");
     b.className = `bubble show ${kind}`;
     b.innerHTML = `<p></p><span class="tail a"></span><span class="tail b"></span>`;
@@ -180,6 +192,7 @@ export class Desk implements DeskStage {
   sleepy(on: boolean) {
     window.clearInterval(this.zTimer);
     this.zTimer = 0;
+    this.lift("zz", on);
     if (!on) {
       this.el.querySelectorAll(".zz").forEach((z) => gsap.to(z, { opacity: 0, duration: 0.3, onComplete: () => z.remove() }));
       return;
@@ -240,6 +253,7 @@ export class Desk implements DeskStage {
       showPhone(at: Pt | null, tilt = 0) {
         phoneG.style.opacity = at ? "0" : "1";
         held.classList.toggle("on", !!at);
+        me.lift("phone", !!at);
         if (at) gsap.set(held, { x: at.x, y: at.y, rotation: tilt });
       },
     };

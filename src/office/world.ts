@@ -254,8 +254,15 @@ export class World {
       this.slotDesks.set(s.key, d);
       const cur = { x: parseFloat(d.el.style.left), y: parseFloat(d.el.style.top) };
       if (Math.abs(cur.x - s.x) > 1 || Math.abs(cur.y - s.y) > 1) {
-        gsap.to(d.el, { left: s.x, top: s.y, duration: 0.9, ease: "power3.inOut" });
-        d.el.style.zIndex = String(Math.round(s.y));
+        // a robot changing rooms leaves its old seat and shows up at the new one,
+        // instead of its whole desk sliding across the building
+        const move = () => { d!.el.style.left = `${s.x}px`; d!.el.style.top = `${s.y}px`; d!.baseZ = Math.round(s.y); d!.lift("move", false); };
+        if (d.el.isConnected && d.el.style.opacity !== "0" && d.threadId) {
+          gsap.timeline()
+            .to(d.el, { opacity: 0, scale: 0.96, duration: 0.35, ease: "power2.in" })
+            .add(move)
+            .to(d.el, { opacity: 1, scale: 1, duration: 0.45, ease: "power2.out" });
+        } else move();
       }
     }
     // desks whose seat disappeared are retired properly (their robot and computer stop)

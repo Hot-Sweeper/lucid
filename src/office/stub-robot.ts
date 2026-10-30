@@ -69,8 +69,27 @@ export class StubRobot implements SeatedRobot {
   setExpression(_e: Expression) {}
   react(_k: Reaction) {}
   wake() { this.setPose("rest"); }
-  async drink() {}
-  async holdPhone(_on: boolean) {}
+  async drink() {
+    const m = this.desk.mug, lip = { x: GEOM.head.x + 22, y: GEOM.head.y - 20 };
+    const p = { x: m.x, y: m.y };
+    await gsap.to(this.R, { x: m.x, y: m.y, duration: 0.5, ease: "power2.inOut" });
+    await gsap.to(p, { x: lip.x, y: lip.y, duration: 0.6, ease: "power2.inOut", onUpdate: () => { this.desk.moveMug(p, -20); this.R.x = p.x; this.R.y = p.y; } });
+    await gsap.to({}, { duration: 0.6 });
+    await gsap.to(p, { x: m.x, y: m.y, duration: 0.6, ease: "power2.inOut", onUpdate: () => { this.desk.moveMug(p, 0); this.R.x = p.x; this.R.y = p.y; } });
+    this.desk.moveMug(null);
+  }
+  async holdPhone(on: boolean) {
+    const hold = { x: GEOM.head.x + 30, y: GEOM.head.y - 132 };
+    if (on) {
+      await gsap.to(this.L, { x: this.desk.phoneRest.x, y: this.desk.phoneRest.y, duration: 0.45, ease: "power2.inOut" });
+      this.desk.showPhone(hold, -6);
+      gsap.to(this.L, { x: hold.x + 6, y: hold.y + 92, duration: 0.45, ease: "power2.inOut" });
+      gsap.to(this.R, { x: hold.x + 40, y: hold.y + 92, duration: 0.45, ease: "power2.inOut" });
+    } else {
+      this.desk.showPhone(null);
+      this.setPose("rest");
+    }
+  }
   swipe() {}
   destroy() { gsap.ticker.remove(this.frame); this.el.remove(); }
 

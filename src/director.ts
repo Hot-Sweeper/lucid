@@ -188,6 +188,7 @@ export class Director {
   }
 
   private idle() {
+    if (this.phoneUp) { this.mobile = false; void this.phone(false); }
     // Helpers still at work: wait for them and look in on them now and then.
     const live = [...this.sessions.entries()].filter(([, s]) => !s.done);
     if (live.length) {
