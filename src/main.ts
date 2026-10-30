@@ -9,6 +9,7 @@ import { showMenu, confirmDialog } from "./office/menus";
 import { openHire, BUILTIN_ROLES, type Role } from "./office/hire";
 import { Orchestrator, type OrchState } from "./office/orchestrator";
 import { progress } from "./office/progress";
+import { mountStats } from "./stats/stats";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
@@ -64,6 +65,11 @@ document.getElementById("app")!.innerHTML = `
       <ul id="room-list" class="room-list"></ul>
       <div class="room-links"><button type="button" class="link-btn" id="overview">Whole building</button><button type="button" class="link-btn" id="park">The park</button></div>
       <div class="hidden-offices" id="hidden-offices" hidden></div>
+    </section>
+
+    <section class="usage" id="usage">
+      <h3>Usage</h3>
+      <div id="usage-body"></div>
     </section>
 
     <section class="orch" id="orch">
@@ -378,3 +384,6 @@ await refresh();
 setInterval(refresh, 3000);
 checkUpdate();
 setInterval(checkUpdate, 60 * 1000);
+
+// tokens, plan limits and cost from the harness logs
+mountStats(document.getElementById("usage-body")!, () => (window as any).lucid.usage());

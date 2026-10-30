@@ -62,7 +62,7 @@ export function outsideSvg(o: { ox: number; oy: number; w: number; h: number; bu
     (y > o.entranceY - 120 && y < o.entranceY + 120 && x > b.x + b.w - 40 && x < p.x + 40);
   let trees = "";
   const rt = rnd(42);
-  for (let i = 0; i < 160; i++) {
+  for (let i = 0, n = Math.round((w * h) / 52000); i < n; i++) {
     const x = ox + rt() * w, y = oy + rt() * h, rr = 34 + rt() * 34;
     if (blocked(x, y, rr + 60)) continue;
     trees += rt() < 0.25 ? bush(X(x), Y(y), rr * 0.6) : tree(X(x), Y(y), rr, Math.floor(rt() * 3));

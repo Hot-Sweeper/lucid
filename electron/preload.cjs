@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld("lucid", {
   userMessagesSince: (since, exclude) => ipcRenderer.invoke("t3:user-messages", since, exclude),
   removeProject: (o) => ipcRenderer.invoke("project:remove", o),
   host: () => ipcRenderer.invoke("app:host"),
+  usage: () => ipcRenderer.invoke("usage:get"),
   rosterSave: (json) => ipcRenderer.invoke("roster:save", json),
   conversation: (id) => ipcRenderer.invoke("t3:conversation", id),
   itemsSince: (id, since) => ipcRenderer.invoke("t3:items-since", id, since),

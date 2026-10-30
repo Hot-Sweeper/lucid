@@ -120,6 +120,7 @@ ipcMain.handle("orch:dir", () => ORCH_DIR);
 ipcMain.handle("t3:user-messages", (_e, since, exclude) => t3.userMessagesSince(since, exclude));
 ipcMain.handle("project:remove", (_e, o) => t3.removeProject(o));
 ipcMain.handle("app:host", () => require("node:os").hostname());
+ipcMain.handle("usage:get", () => require("./usage.cjs").getUsage());
 // Small settings file (hidden offices and such).
 const SETTINGS = path.join(app.getPath("userData"), "settings.json");
 ipcMain.on("settings:load", (e) => { try { e.returnValue = require("node:fs").readFileSync(SETTINGS, "utf8"); } catch { e.returnValue = "{}"; } });

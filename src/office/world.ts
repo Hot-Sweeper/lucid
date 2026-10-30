@@ -201,7 +201,7 @@ export class World {
       hall.style.cssText = `top:${topH}px;height:${HALL}px;width:${this.size.w}px`;
       // the outdoors: grass and trees around the building, a park beside the entrance
       const park = { x: this.size.w + 300, y: Math.max(-200, topH + HALL / 2 - 520), w: PARK_W, h: 1040 };
-      const out = { ox: -800, oy: -700, w: this.size.w + 300 + PARK_W + 1300, h: Math.max(this.size.h, park.y + park.h) + 1400 };
+      const out = { ox: -2400, oy: -2200, w: this.size.w + 300 + PARK_W + 4800, h: Math.max(this.size.h, park.y + park.h) + 4400 };
       this.outdoor = { x: out.ox, y: out.oy, w: out.w, h: out.h, park };
       const layer = this.root.querySelector(".outside-layer") as HTMLElement;
       layer.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px`;
