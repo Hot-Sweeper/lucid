@@ -6,7 +6,7 @@ import gsap from "gsap";
 import { World, type Room, type WorldData } from "./office/world";
 import { ChatPanel } from "./office/chat-panel";
 import { showMenu, confirmDialog } from "./office/menus";
-import { openHire } from "./office/hire";
+import { openHire, BUILTIN_ROLES, type Role } from "./office/hire";
 import { Orchestrator, type OrchState } from "./office/orchestrator";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
@@ -210,18 +210,22 @@ function setupMenus() {
     const settled = new Set(data.threads.filter((t) => t.settled).map((t) => t.id));
     const scratch = data.projects.find((p) => p.scratch);
     const projectId = room.startsWith("p:") ? room.slice(2) : room === "freelance" ? scratch?.id ?? "" : "";
-    const real = data.projects.filter((p) => !p.scratch && !world.hidden.has(p.id));
+    const real = data.projects.filter((p) => !p.scratch && !world.hidden.has(p.id) && p.id !== settings.orch?.projectId);
     openHire({
       room, roomTitle: r?.title ?? "Office", seat: Number(idx) || 0,
       team: world.roster.freeTeam(settled),
       providers: ["codex", "claudeAgent"],
       models: data.models ?? {},
+      prices: data.prices ?? {},
+      roles: [...BUILTIN_ROLES, ...(settings.roles ?? [])],
+      onNewRole: (r) => { settings.roles = [...(settings.roles ?? []), r]; saveSettings(); },
       projects: projectId ? null : real.map((p) => ({ id: p.id, title: p.title })),
       onHire: async (c) => {
         const project = projectId || c.projectId;
         if (!project) throw new Error("Choose a project for this desk");
-        const { threadId } = await api.startThread({ project, message: c.task, provider: c.provider, model: c.model ?? undefined });
-        world.roster.assignRobot(threadId, c.robotId, c.provider);
+        const message = c.role ? `Your role: ${c.role.name}. ${c.role.brief}\n\nTask: ${c.task}` : c.task;
+        const { threadId } = await api.startThread({ project, message, provider: c.provider, model: c.model ?? undefined });
+        world.roster.assignRobot(threadId, c.robotId, c.provider, c.role?.name ?? "");
         world.homes.set(threadId, room);
         world.pendingSeat = { room, index: Number(idx) || 0, threadId };
         saveSettings();
@@ -279,7 +283,7 @@ $("update").addEventListener("click", async () => {
 
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
-const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[] } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));
 world.homes = new Map(Object.entries(settings.homes ?? {}));

@@ -5,7 +5,14 @@ import { brandFor, logoFor, harnessName } from "./brand";
 // The hiring screen: pick who sits at a free desk (a free teammate or a new hire),
 // which model it runs, and what it should do.
 
-export type HireChoice = { robotId: string | null; provider: string; model: string | null; projectId: string; task: string };
+export type HireChoice = { robotId: string | null; provider: string; model: string | null; projectId: string; task: string; role: Role | null };
+export type Role = { name: string; brief: string };
+export const BUILTIN_ROLES: Role[] = [
+  { name: "Reviewer", brief: "You are a careful code reviewer. Read the relevant code and changes, point out real bugs and risky spots with file and line, and suggest concrete fixes. Do not rewrite things that work." },
+  { name: "Test writer", brief: "You write focused automated tests. Find the behavior that matters, cover the edge cases, run the tests, and fix only the tests unless a real bug shows up (then report it)." },
+  { name: "UI designer", brief: "You care about polished, readable interfaces. Follow the existing visual language, check real content and states, avoid generic template styling, and verify the result visually." },
+  { name: "Researcher", brief: "You research before building. Look things up, compare options, cite sources, and finish with a short recommendation instead of code unless asked." },
+];
 type Project = { id: string; title: string };
 
 const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -33,6 +40,9 @@ export function openHire(opts: {
   team: RobotProfile[];                       // free teammates
   providers: string[];                         // harnesses you can hire from
   models: Record<string, string[]>;
+  prices?: Record<string, { input: number; output: number }>;
+  roles: Role[];
+  onNewRole: (r: Role) => void;
   projects: Project[] | null;                  // asked only when the office is not a project's own
   onHire: (c: HireChoice) => Promise<void>;
 }) {
@@ -49,7 +59,9 @@ export function openHire(opts: {
       <div class="hire-cands" role="radiogroup" aria-label="Robot">
         ${cands.map((c, i) => `<button type="button" role="radio" aria-checked="${i === 0}" class="cand" data-k="${esc(c.key)}">${avatar(c.provider, c.accent)}<b>${esc(c.name)}</b><span>${esc(c.note)}</span></button>`).join("")}
       </div>
-      <div class="hire-row"><span class="hire-label">Model</span><div class="chips" role="radiogroup" aria-label="Model"></div></div>
+      <div class="hire-row"><span class="hire-label">Model <i class="hire-hint">price per million tokens in and out</i></span><div class="chips" role="radiogroup" aria-label="Model"></div></div>
+      <div class="hire-row"><span class="hire-label">Role</span><div class="chips roles" role="radiogroup" aria-label="Role"></div>
+        <div class="role-new" hidden><input type="text" class="rn-name" placeholder="Role name, for example Grokbot"><textarea class="rn-brief" rows="2" placeholder="Standing instructions this robot always follows"></textarea><button type="button" class="ghost rn-save">Save role</button></div></div>
       ${opts.projects ? `<div class="hire-row"><span class="hire-label">Project</span><div class="chips proj" role="radiogroup" aria-label="Project">${opts.projects.map((p, i) => `<button type="button" role="radio" aria-checked="${i === 0}" data-p="${esc(p.id)}">${esc(p.title)}</button>`).join("")}</div></div>` : ""}
       <label class="hire-task"><span class="hire-label">Task</span><textarea rows="3" placeholder="What should it build?"></textarea></label>
       <p class="hire-msg" role="status"></p>
@@ -63,8 +75,15 @@ export function openHire(opts: {
   const renderModels = () => {
     const list = opts.models[pick.provider] ?? [];
     model = list[0] ?? null;
+    const price = (m: string) => opts.prices?.[m];
+    const cheapest = Math.min(...list.map((m) => price(m)?.output ?? Infinity));
+    const fmt = (n: number) => (n >= 10 ? n.toFixed(0) : n >= 1 ? n.toFixed(1) : n.toFixed(2));
     chips.innerHTML = list.length
-      ? list.slice(0, 6).map((m, i) => `<button type="button" role="radio" aria-checked="${i === 0}" data-m="${esc(m)}">${esc(m)}</button>`).join("")
+      ? list.slice(0, 7).map((m, i) => {
+          const p = price(m);
+          const tag = p ? `<small>$${fmt(p.input)} / $${fmt(p.output)}${p.output === cheapest && list.length > 1 ? " · cheapest" : ""}</small>` : "";
+          return `<button type="button" role="radio" aria-checked="${i === 0}" data-m="${esc(m)}"><span>${esc(m)}</span>${tag}</button>`;
+        }).join("")
       : `<span class="hire-none">Its usual model</span>`;
   };
   renderModels();
@@ -81,6 +100,33 @@ export function openHire(opts: {
     if (!b) return;
     model = b.dataset.m!;
     chips.querySelectorAll("[data-m]").forEach((x) => x.setAttribute("aria-checked", String(x === b)));
+  });
+  // roles: none, built in ones, your own, or a new one
+  let role: Role | null = null;
+  const rolesEl = form.querySelector(".chips.roles") as HTMLElement;
+  const renderRoles = () => {
+    rolesEl.innerHTML = [`<button type="button" role="radio" aria-checked="${!role}" data-r="">No role</button>`,
+      ...opts.roles.map((r) => `<button type="button" role="radio" aria-checked="${role?.name === r.name}" data-r="${esc(r.name)}" title="${esc(r.brief)}">${esc(r.name)}</button>`),
+      `<button type="button" data-new="1">New role</button>`].join("");
+  };
+  renderRoles();
+  rolesEl.addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest("button") as HTMLElement | null;
+    if (!b) return;
+    if (b.dataset.new) { const box = form.querySelector(".role-new") as HTMLElement; box.hidden = !box.hidden; if (!box.hidden) (box.querySelector(".rn-name") as HTMLInputElement).focus(); return; }
+    role = opts.roles.find((r) => r.name === b.dataset.r) ?? null;
+    renderRoles();
+  });
+  form.querySelector(".rn-save")!.addEventListener("click", () => {
+    const name = (form.querySelector(".rn-name") as HTMLInputElement).value.trim();
+    const brief = (form.querySelector(".rn-brief") as HTMLTextAreaElement).value.trim();
+    if (!name || !brief) return;
+    const r = { name, brief };
+    opts.roles.push(r);
+    opts.onNewRole(r);
+    role = r;
+    (form.querySelector(".role-new") as HTMLElement).hidden = true;
+    renderRoles();
   });
   let project = opts.projects?.[0]?.id ?? "";
   form.querySelector(".chips.proj")?.addEventListener("click", (e) => {
@@ -103,7 +149,7 @@ export function openHire(opts: {
     btn.disabled = true;
     msg.textContent = `${pick.name} is walking over…`;
     try {
-      await opts.onHire({ robotId: pick.robotId, provider: pick.provider, model, projectId: project, task });
+      await opts.onHire({ robotId: pick.robotId, provider: pick.provider, model, projectId: project, task, role });
       close();
     } catch (err: any) {
       msg.textContent = `Could not start: ${err?.message || err}. Your task text is still here.`;

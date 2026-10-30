@@ -128,7 +128,7 @@ export class Desk implements DeskStage {
     const logo = logoFor(provider);
     img.hidden = !logo;
     if (logo) img.src = logo;
-    const who = this.profile ? this.profile.name : "";
+    const who = this.profile ? (this.profile.role ? `${this.profile.name}, ${this.profile.role}` : this.profile.name) : "";
     plate.querySelector("span")!.innerHTML = who ? `<b></b> <i></i>` : `<i></i>`;
     if (who) plate.querySelector("b")!.textContent = who;
     plate.querySelector("i")!.textContent = title;

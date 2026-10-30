@@ -301,7 +301,24 @@ function world(limit = 40) {
     (models[r.pv] ??= []);
     if (!models[r.pv].includes(m)) models[r.pv].push(m);
   }
-  return { projects, threads, models };
+  for (const [pv, extra] of [["claudeAgent", ["claude-sonnet-5-5", "claude-haiku-5-5"]], ["codex", ["gpt-6-luna", "gpt-6.1-terra"]]]) {
+    (models[pv] ??= []);
+    for (const m of extra) if (!models[pv].includes(m)) models[pv].push(m);
+  }
+  return { projects, threads, models, prices: modelPrices(Object.values(models).flat()) };
+}
+
+let rateDoc = null;
+function modelPrices(list) {
+  try {
+    rateDoc ??= safeJson(fs.readFileSync(path.join(T3_HOME, "userdata", "usage-model-rates.json"), "utf8"))?.document || {};
+  } catch { rateDoc = {}; }
+  const out = {};
+  for (const m of list) {
+    const r = rateDoc[m] || rateDoc[`openai/${m}`] || rateDoc[`anthropic/${m}`];
+    if (r && (r.input_cost_per_token || r.output_cost_per_token)) out[m] = { input: (r.input_cost_per_token || 0) * 1e6, output: (r.output_cost_per_token || 0) * 1e6 };
+  }
+  return out;
 }
 
 const ATTACH_DIR = path.join(T3_HOME, "userdata", "attachments");

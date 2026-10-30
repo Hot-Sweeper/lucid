@@ -243,3 +243,13 @@
 .nb-body h3 { margin: 14px 0 6px; font-size: 13px; color: var(--accent-2); }
 .nb-body p { margin: 0 0 6px; font-size: 13px; line-height: 1.5; color: var(--ink); padding-left: 12px; position: relative; }
 .nb-body p::before { content: ""; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); }
+
+.hire-hint { font-style: normal; color: var(--ink-3); opacity: 0.8; margin-left: 6px; }
+.chips button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+.chips button small { font-size: 10.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.chips button[aria-checked="true"] small { color: var(--accent-2); }
+.role-new { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.role-new input { background: var(--night); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; color: var(--ink); font-size: 14px; outline: none; }
+.role-new .ghost { align-self: flex-start; }
+.role-new[hidden] { display: none; }
+.dialog.hire { max-height: calc(100vh - 40px); overflow-y: auto; }

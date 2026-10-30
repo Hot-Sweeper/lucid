@@ -28,6 +28,7 @@ export interface RobotProfile {
   threadId: string | null;
   jobs: number;
   done?: string[];
+  role?: string | null;
 }
 
 export const WALLPAPERS = [
@@ -97,12 +98,13 @@ export class Roster {
   }
 
   // The hiring screen picked someone for a new thread: a free teammate, or a fresh hire.
-  assignRobot(threadId: string, robotId: string | null, provider: string) {
-    const r = robotId ? this.robots.find((x) => x.id === robotId) : null;
+  assignRobot(threadId: string, robotId: string | null, provider: string, role: string | null = null) {
+    let r = robotId ? this.robots.find((x) => x.id === robotId) ?? null : null;
     if (r) {
       if (r.threadId && r.threadId !== threadId) (r.done ??= []).push(r.threadId);
       r.threadId = threadId; r.provider = provider; r.jobs++;
-    } else this.robots.push(this.hire(threadId, provider));
+    } else { r = this.hire(threadId, provider); this.robots.push(r); }
+    if (role !== null) r.role = role || null;
     this.save();
   }
 
