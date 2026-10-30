@@ -1,0 +1,27 @@
+{
+  "name": "lucid",
+  "version": "0.1.0",
+  "description": "A game-like office where AI coding robots work, driven by T3 Code threads.",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "vite build",
+    "start": "vite build && node scripts/start.mjs",
+    "typecheck": "tsc -p ."
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^45.2.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/lexend": "^5.3.0",
+    "gsap": "^3.15.0"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

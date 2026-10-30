@@ -1,0 +1,11 @@
+// App icons drawn for the robot's desktop. Filled shapes only, no strokes.
+export const ICONS: Record<string, string> = {
+  files: `<svg class="ico" viewBox="0 0 24 24"><path d="M2 6.5A2.5 2.5 0 0 1 4.5 4h4.6l2.1 2.2h8.3A2.5 2.5 0 0 1 22 8.7v9.8A2.5 2.5 0 0 1 19.5 21h-15A2.5 2.5 0 0 1 2 18.5Z" fill="#ffb84d"/><path d="M2 10a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8.5a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 2 18.5Z" fill="#ffcf7a"/></svg>`,
+  editor: `<svg class="ico" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="4" fill="#5a6cf0"/><path d="M9.6 8.4 6 12l3.6 3.6 1.3-1.3L8.6 12l2.3-2.3Zm4.8 0-1.3 1.3 2.3 2.3-2.3 2.3 1.3 1.3L18 12Z" fill="#fff"/></svg>`,
+  terminal: `<svg class="ico" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="4" fill="#20263f"/><path d="m6 8.5 1.2-1.2L11.9 12l-4.7 4.7L6 15.5 9.5 12Z" fill="#6ff0a0"/><rect x="12.5" y="15" width="6" height="1.8" rx=".9" fill="#6ff0a0"/></svg>`,
+  browser: `<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#2fb5ff"/><path d="M12 2c2.6 2.7 4 6.2 4 10s-1.4 7.3-4 10c-2.6-2.7-4-6.2-4-10s1.4-7.3 4-10Z" fill="#7fd3ff"/><rect x="2" y="11" width="20" height="2" fill="#d8f2ff"/></svg>`,
+  chat: `<svg class="ico" viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" fill="#ff6f91"/><circle cx="8" cy="11" r="1.4" fill="#fff"/><circle cx="12" cy="11" r="1.4" fill="#fff"/><circle cx="16" cy="11" r="1.4" fill="#fff"/></svg>`,
+  tool: `<svg class="ico" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" fill="#a86bff"/><path d="M14.8 5.2a4 4 0 0 0-4.9 5.3l-4.4 4.4a1.6 1.6 0 1 0 2.3 2.3l4.4-4.4a4 4 0 0 0 5.3-4.9l-2.3 2.3-2.2-.5-.5-2.2Z" fill="#fff"/></svg>`,
+  folder: `<svg class="ico" viewBox="0 0 24 24"><path d="M2 6.5A2.5 2.5 0 0 1 4.5 4h4.6l2.1 2.2h8.3A2.5 2.5 0 0 1 22 8.7v9.8A2.5 2.5 0 0 1 19.5 21h-15A2.5 2.5 0 0 1 2 18.5Z" fill="#ffb84d"/><path d="M2 10a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8.5a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 2 18.5Z" fill="#ffcf7a"/></svg>`,
+  file: `<svg class="ico" viewBox="0 0 24 24"><path d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" fill="#c9d1ff"/><path d="M14 2v4a2 2 0 0 0 2 2h4Z" fill="#9aa6f0"/></svg>`,
+};
