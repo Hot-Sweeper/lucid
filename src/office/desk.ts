@@ -206,7 +206,7 @@ export class Desk implements DeskStage {
       gsap.set(z, { x: GEOM.head.x + 18, y: GEOM.head.y - 46, scale: 0.6, opacity: 0, rotation: -10 });
       gsap.timeline({ onComplete: () => z.remove() })
         .to(z, { opacity: 0.9, duration: 0.6, ease: "sine.out" })
-        .to(z, { x: GEOM.head.x + 60 + Math.random() * 24, y: GEOM.head.y - 130, scale: 1.4, rotation: 12, duration: 3.2, ease: "sine.inOut" }, 0)
+        .to(z, { x: GEOM.monitor.x + GEOM.monitor.w + 14 + Math.random() * 26, y: GEOM.head.y - 120, scale: 1.4, rotation: 12, duration: 3.2, ease: "sine.inOut" }, 0)
         .to(z, { opacity: 0, duration: 1, ease: "sine.in" }, 2.2);
     };
     spawn();

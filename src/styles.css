@@ -239,7 +239,7 @@ textarea::placeholder { color: var(--ink-3); }
 
 /* idle: lock screen, games, naps */
 .lock { position: absolute; inset: 0; z-index: 9500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  background: radial-gradient(120% 90% at 30% 10%, rgba(58, 63, 153, 0.92) 0%, rgba(30, 34, 98, 0.94) 50%, rgba(16, 19, 52, 0.97) 100%); backdrop-filter: blur(10px); color: #fff; }
+  background: radial-gradient(120% 90% at 30% 10%, #3a3f99 0%, #1e2262 50%, #101334 100%); color: #fff; }
 .lock-time { font-size: 92px; font-weight: 300; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 .lock-date { font-size: 17px; color: #c9cdf5; }
 .lock-hint { margin: 26px 0 0; font-size: 12px; color: #8a91c4; }
