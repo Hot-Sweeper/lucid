@@ -14,7 +14,7 @@ export type WThread = {
   folder?: string | null;
 };
 export type WProject = { id: string; title: string; root: string; icon: string | null; scratch: boolean };
-export type WorldData = { projects: WProject[]; threads: WThread[]; models?: Record<string, string[]>; prices?: Record<string, { input: number; output: number }> };
+export type WorldData = { projects: WProject[]; threads: WThread[]; models?: Record<string, string[]>; prices?: Record<string, { input: number; output: number }>; shipped?: { total: number; today: number } };
 
 export type RoomKind = "main" | "project" | "freelance" | "break" | "queue";
 export type Room = { id: string; kind: RoomKind; title: string; icon: string | null; x: number; y: number; w: number; h: number; el: HTMLElement; threadIds: string[] };

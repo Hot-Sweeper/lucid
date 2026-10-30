@@ -305,7 +305,10 @@ function world(limit = 40) {
     (models[pv] ??= []);
     for (const m of extra) if (!models[pv].includes(m)) models[pv].push(m);
   }
-  return { projects, threads, models, prices: modelPrices(Object.values(models).flat()) };
+  const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+  const shippedRow = db.prepare(`select count(*) as total, sum(case when completed_at >= ? then 1 else 0 end) as today
+                                 from orchestration_v2_projection_runs where status = 'completed'`).get(midnight.toISOString());
+  return { projects, threads, models, prices: modelPrices(Object.values(models).flat()), shipped: { total: shippedRow.total || 0, today: shippedRow.today || 0 } };
 }
 
 let rateDoc = null;

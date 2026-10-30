@@ -8,6 +8,7 @@ import { ChatPanel } from "./office/chat-panel";
 import { showMenu, confirmDialog } from "./office/menus";
 import { openHire, BUILTIN_ROLES, type Role } from "./office/hire";
 import { Orchestrator, type OrchState } from "./office/orchestrator";
+import { progress } from "./office/progress";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
@@ -55,6 +56,8 @@ document.getElementById("app")!.innerHTML = `
     <header class="brand"><span class="mark" aria-hidden="true"></span><h1>Lucid</h1>
       <button class="update" id="update" type="button" hidden>Update</button>
     </header>
+
+    <section class="company" id="company" aria-live="polite"></section>
 
     <section class="rooms">
       <h3>Rooms</h3>
@@ -167,6 +170,7 @@ async function refresh() {
     const data = await api.world();
     for (const p of data.projects) projectTitles.set(p.id, p.title);
     orch.observe(data.threads);
+    renderCompany(data.shipped ?? { total: 0, today: 0 });
     if (settings.orch) { world.orchThread = settings.orch.threadId; world.homes.set(settings.orch.threadId, "main"); }
     world.update(data);
     for (const d of world.desks.values()) {
@@ -283,7 +287,7 @@ $("update").addEventListener("click", async () => {
 
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
-const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[] } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));
 world.homes = new Map(Object.entries(settings.homes ?? {}));
@@ -342,6 +346,32 @@ function renderOrch() {
   $("orch-desk").addEventListener("click", () => { const d = world.deskFor(s.threadId); if (d) { world.select(d); world.focusOn(d); } });
 }
 renderOrch();
+
+// --- company progress ------------------------------------------------------------------------
+let lastCompany = "";
+function renderCompany(shipped: { total: number; today: number }) {
+  const p = progress(shipped.total);
+  const key = `${shipped.total}:${shipped.today}`;
+  if (key === lastCompany) return;
+  lastCompany = key;
+  $("company").innerHTML = `
+    <div class="co-top"><b>Level ${p.level}</b><span>${p.level >= 10 ? "Top level" : `${p.to - shipped.total} runs to level ${p.level + 1}`}</span></div>
+    <div class="co-bar" role="progressbar" aria-valuemin="${p.from}" aria-valuemax="${p.to}" aria-valuenow="${shipped.total}"><i style="width:${Math.round(p.frac * 100)}%"></i></div>
+    <p class="co-sub">${shipped.total} runs shipped, ${shipped.today} today</p>`;
+  const prev = settings.level;
+  if (prev != null && p.level > prev) celebrate(p.level);
+  if (prev !== p.level) { settings.level = p.level; saveSettings(); }
+}
+function celebrate(level: number) {
+  for (const d of world.desks.values()) d.robot.react("cheer");
+  const el = document.createElement("div");
+  el.className = "level-up";
+  el.innerHTML = `<b>Level ${level}</b><span>Your company grew. New things to decorate offices with are unlocked.</span>`;
+  document.body.appendChild(el);
+  gsap.timeline({ onComplete: () => el.remove() })
+    .fromTo(el, { opacity: 0, y: -20, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(2)" })
+    .to(el, { opacity: 0, y: -10, duration: 0.4, delay: 4 });
+}
 world.attachDir = attachDir;
 await refresh();
 setInterval(refresh, 3000);
