@@ -101,6 +101,31 @@ export class Stage {
     else gsap.fromTo(b.querySelector("p"), { opacity: 0.2 }, { opacity: 1, duration: 0.3 });
   }
 
+  // Little Zs drifting up from the robot while it naps.
+  private zTimer = 0;
+  sleepy(on: boolean) {
+    window.clearInterval(this.zTimer);
+    this.zTimer = 0;
+    if (!on) {
+      gsap.to(this.stage.querySelectorAll(".zz"), { opacity: 0, duration: 0.3, onComplete: () => this.stage.querySelectorAll(".zz").forEach((z) => z.remove()) });
+      return;
+    }
+    const spawn = () => {
+      const z = document.createElement("span");
+      z.className = "zz";
+      z.textContent = "z";
+      z.setAttribute("aria-hidden", "true");
+      this.stage.appendChild(z);
+      gsap.set(z, { x: 600, y: 575, scale: 0.6, opacity: 0, rotation: -10 });
+      gsap.timeline({ onComplete: () => z.remove() })
+        .to(z, { opacity: 0.85, duration: 0.6, ease: "sine.out" })
+        .to(z, { x: 640 + Math.random() * 30, y: 470, scale: 1.4, rotation: 12, duration: 3.2, ease: "sine.inOut" }, 0)
+        .to(z, { opacity: 0, duration: 1, ease: "sine.in" }, 2.2);
+    };
+    spawn();
+    this.zTimer = window.setInterval(spawn, 1700);
+  }
+
   // Plan steps as sticky notes on the wall.
   setPlan(steps: { text: string; status: string }[]) {
     const list = this.notes;

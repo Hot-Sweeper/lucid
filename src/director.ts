@@ -1,4 +1,5 @@
 import { WM, Cancelled } from "./os/wm";
+import { IdleLife } from "./os/idle";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ChatApp, ToolApp, prettyTool } from "./os/apps";
 import { classify, parseDiff, baseName, type Entry } from "./os/classify";
 import type { Robot } from "./robot";
@@ -25,6 +26,8 @@ export class Director {
   private files: FilesApp; private editor: EditorApp; private term: TerminalApp;
   private browser: BrowserApp; private chat: ChatApp; private tool: ToolApp;
   onActivity: (text: string) => void = () => {};
+  private idleLife: IdleLife;
+  private lastEventAt = 0;
 
   constructor(private wm: WM, private robot: Robot, private stage: Stage, peek: (url: string) => Promise<any>, private image: (path: string) => Promise<string | null>, private readText: (path: string) => Promise<string | null>) {
     this.files = new FilesApp(wm);
@@ -33,9 +36,13 @@ export class Director {
     this.browser = new BrowserApp(wm, peek);
     this.chat = new ChatApp(wm);
     this.tool = new ToolApp(wm);
+    this.idleLife = new IdleLife(wm, robot, stage);
+    this.idleLife.onActivity = (t) => this.onActivity(t);
   }
 
   reset() {
+    this.idleLife.stop();
+    this.lastEventAt = 0;
     this.wm.reset();
     this.items.clear();
     this.queue = [];
@@ -53,9 +60,16 @@ export class Director {
     this.info = info;
     this.term.setCwd(info.root || null);
     const status = info.run?.status || "";
+    if (status === "running" && this.idleLife.isActive) {
+      // New work started (maybe from T3 itself): wake up before the first event arrives.
+      this.idleLife.stop();
+      this.robot.setPose("think");
+      this.onActivity("Working");
+    }
     if (!first && this.lastRunStatus === "running" && status && status !== "running" && !this.queue.length) {
       this.robot.setPose("celebrate");
       this.onActivity("Finished");
+      if (this.pumpEpoch === -1) this.idleLife.begin();
     }
     this.lastRunStatus = status;
   }
@@ -64,6 +78,8 @@ export class Director {
     let latestRun: string | null = null;
     if (initial) latestRun = [...items].reverse().find((i) => i.runId)?.runId ?? null;
     for (const it of items) {
+      const t = Date.parse(it.updatedAt);
+      if (t > this.lastEventAt) this.lastEventAt = t;
       this.items.set(it.id, it);
       if (SKIP.has(it.type) || this.played.has(it.id) || this.queue.includes(it.id)) continue;
       // On first open, replay only the latest turn so you see what the robot is doing now.
@@ -75,6 +91,7 @@ export class Director {
     for (const it of items) if (it.type === "todo_list" && this.played.has(it.id)) this.stage.setPlan(it.data.steps || []);
     this.queue.sort((a, b) => this.items.get(a)!.ordinal - this.items.get(b)!.ordinal);
     if (initial) this.catchingUp = this.queue.length > 0;
+    if (this.queue.length && this.idleLife.isActive) this.idleLife.stop();
     this.pump();
   }
 
@@ -108,8 +125,15 @@ export class Director {
   private idle() {
     const running = this.info?.run?.status === "running";
     this.stage.setGlow(GLOW.idle);
-    this.robot.setPose(running ? "think" : "rest");
-    this.onActivity(running ? "Working" : "Waiting for a task");
+    if (running) {
+      this.robot.setPose("think");
+      this.onActivity("Working");
+      return;
+    }
+    this.robot.setPose("rest");
+    // A thread that finished a while ago goes straight to the lock screen.
+    const stale = this.lastEventAt > 0 && Date.now() - this.lastEventAt > 10 * 60 * 1000 && !new URLSearchParams(location.search).has("idleScale");
+    this.idleLife.begin({ locked: stale });
   }
 
   // Wait until the item completes, or move on if newer work piles up.

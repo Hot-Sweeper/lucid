@@ -236,3 +236,27 @@ textarea::placeholder { color: var(--ink-3); }
 .b-action { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 6px 12px; border-radius: 9px; background: rgba(27, 31, 69, 0.9); color: #fff; font-size: 11px; white-space: nowrap; pointer-events: none; }
 .pic { height: 100%; display: grid; place-items: center; background: #11143a; padding: 8px; }
 .pic img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+
+/* idle: lock screen, games, naps */
+.lock { position: absolute; inset: 0; z-index: 9500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  background: radial-gradient(120% 90% at 30% 10%, rgba(58, 63, 153, 0.92) 0%, rgba(30, 34, 98, 0.94) 50%, rgba(16, 19, 52, 0.97) 100%); backdrop-filter: blur(10px); color: #fff; }
+.lock-time { font-size: 92px; font-weight: 300; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.lock-date { font-size: 17px; color: #c9cdf5; }
+.lock-hint { margin: 26px 0 0; font-size: 12px; color: #8a91c4; }
+
+.game { height: 100%; display: flex; flex-direction: column; background: #161a45; }
+.game-head { display: flex; justify-content: space-between; align-items: center; padding: 7px 12px; color: #c9cdf5; font-size: 11px; }
+.game-head .score { color: #fff; font-variant-numeric: tabular-nums; transform-origin: 100% 50%; }
+.snake canvas { flex: 1; min-height: 0; width: 100%; display: block; }
+.board-wrap { flex: 1; min-height: 0; display: grid; place-items: center; padding: 6px 0 12px; }
+.board { position: relative; width: 320px; height: 320px; display: grid; grid-template-columns: repeat(8, 1fr); border-radius: 8px; overflow: hidden; }
+.board i { display: block; }
+.board i.l { background: #e9e4ff; }
+.board i.d { background: #8a86d6; }
+.board i.l.last { background: #ffe39a; }
+.board i.d.last { background: #e3b768; }
+.pc { position: absolute; left: 0; top: 0; display: grid; place-items: center; line-height: 1; font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", serif; user-select: none; }
+.pc.w { color: #fffaf0; text-shadow: 0 1px 0 #6b5f9a, 0 2px 4px rgba(20, 16, 60, 0.45); }
+.pc.b { color: #1e1a4a; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25); }
+.pc.lift { z-index: 5; filter: drop-shadow(0 8px 6px rgba(10, 8, 40, 0.45)); }
+.zz { position: absolute; left: 0; top: 0; font-size: 26px; font-weight: 600; color: #c9d4ff; pointer-events: none; }

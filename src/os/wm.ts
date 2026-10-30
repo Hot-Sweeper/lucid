@@ -5,7 +5,7 @@ import { ICONS } from "./icons";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -15,9 +15,10 @@ const FRAMES: Record<AppId, Frame> = {
   browser: { x: 40, y: 12, w: 740, h: 390 },
   chat: { x: 538, y: 26, w: 268, h: 372 },
   tool: { x: 470, y: 228, w: 330, h: 170 },
+  game: { x: 190, y: 14, w: 440, h: 392 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "chat", "tool"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "chat", "tool", "game"];
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 

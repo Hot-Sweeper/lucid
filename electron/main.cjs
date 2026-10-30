@@ -22,8 +22,10 @@ function createWindow() {
       sandbox: false,
     },
   });
-  const query = process.env.LUCID_THREAD ? { thread: process.env.LUCID_THREAD } : undefined;
-  if (DEV_URL) win.loadURL(DEV_URL + (query ? `?thread=${query.thread}` : ""));
+  const query = {};
+  if (process.env.LUCID_THREAD) query.thread = process.env.LUCID_THREAD;
+  if (process.env.LUCID_IDLE_SCALE) query.idleScale = process.env.LUCID_IDLE_SCALE;
+  if (DEV_URL) win.loadURL(DEV_URL + "?" + new URLSearchParams(query));
   else win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query });
   // Debug aid: LUCID_SHOT=folder saves screenshots every few seconds.
   if (process.env.LUCID_SHOT) {

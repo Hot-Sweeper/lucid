@@ -26,7 +26,7 @@ const HOME_L = { x: 528, y: 712 };
 const HOME_R = { x: 592, y: 712 };
 const MOUSE = { x: 706, y: 748 };
 
-export type Pose = "idle" | "type" | "mouse" | "think" | "read" | "ask" | "rest" | "celebrate";
+export type Pose = "idle" | "type" | "mouse" | "think" | "read" | "ask" | "rest" | "celebrate" | "sleep";
 
 export class Robot {
   el: SVGSVGElement;
@@ -95,13 +95,14 @@ export class Robot {
     this.scratch?.kill();
     this.scratch = null;
     if (prev === "ask" && p !== "ask") this.turnAround(false);
+    if (prev === "sleep" && p !== "sleep") gsap.to(this.$.antenna, { opacity: 1, duration: 0.4 });
     const ease = "power3.inOut";
     const hands = (lx: number, ly: number, rx: number, ry: number, d = 0.55, delayR = 0.06) => {
       gsap.to(this.rig, { lx, ly, duration: d, ease, overwrite: "auto" });
       gsap.to(this.rig, { rx, ry, duration: d, ease, delay: delayR, overwrite: "auto" });
     };
     const head = (rot: number, hx: number, hy: number, lean: number, d = 0.7) =>
-      gsap.to(this.rig, { rot, hx, hy, lean, duration: d, ease: "power2.inOut", delay: 0.08, overwrite: "auto" });
+      gsap.to(this.rig, { rot, hx, hy, lean, yaw: 0, duration: d, ease: "power2.inOut", delay: 0.08, overwrite: "auto" });
 
     switch (p) {
       case "type":
@@ -135,10 +136,30 @@ export class Robot {
         hands(534, 726, 586, 726, 0.8, 0.1);
         head(3, 0, 2, -0.05, 0.9);
         break;
+      case "sleep":
+        hands(536, 734, 584, 734, 1.4, 0.2);
+        head(9, 2, 14, -0.12, 1.8);
+        gsap.to(this.$.antenna, { opacity: 0.45, duration: 2, ease: "sine.inOut" });
+        break;
       default:
         hands(HOME_L.x + 4, HOME_L.y + 12, HOME_R.x - 4, HOME_R.y + 12, 0.7, 0.08);
         head(0, 0, 0, 0, 0.8);
     }
+  }
+
+  // A single key press, for games and short inputs.
+  tap() {
+    const side = Math.random() < 0.5 ? "l" : "r";
+    gsap.timeline()
+      .to(this.keyOff, { [side + "y"]: -6, duration: 0.05, ease: "power2.out" })
+      .to(this.keyOff, { [side + "y"]: 0, duration: 0.09, ease: "power2.in" });
+  }
+
+  // Wake up from a nap: a little startle, then back to a normal sitting pose.
+  wake() {
+    if (this.pose !== "sleep") return;
+    this.setPose("rest");
+    gsap.fromTo(this.rig, { hy: -10 }, { hy: 2, duration: 0.5, ease: "back.out(3)" });
   }
 
   // Small head turn toward where the robot is looking on screen (nx: 0..1).
