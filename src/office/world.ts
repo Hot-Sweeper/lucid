@@ -9,6 +9,7 @@ import { GEOM } from "./rig";
 export type WThread = {
   id: string; projectId: string; title: string; updatedAt: string; provider: string;
   runStatus: string | null; pinned: boolean; settled: boolean; question: string | null; model: string | null;
+  schedule?: { nextRunAt: string | null; everyMs: number | null } | null;
 };
 export type WProject = { id: string; title: string; root: string; icon: string | null; scratch: boolean };
 export type WorldData = { projects: WProject[]; threads: WThread[] };
@@ -68,8 +69,13 @@ export class World {
     const byProject = new Map(data.projects.map((p) => [p.id, p]));
     const queue: WThread[] = [], main: WThread[] = [], brk: WThread[] = [], rest: WThread[] = [];
     for (const t of data.threads) {
+      // A scheduled robot with a long wait until its next run spends it in the break room;
+      // with a short wait it stays at its desk and kills time there.
+      const wait = t.schedule?.nextRunAt ? Date.parse(t.schedule.nextRunAt) - Date.now() : null;
       if (t.question) queue.push(t);
       else if (t.runStatus === "running" || t.pinned) main.push(t);
+      else if (wait != null && wait > 15 * 60 * 1000) brk.push(t);
+      else if (wait != null) main.push(t);
       else if (t.settled) brk.push(t);
       else rest.push(t);
     }

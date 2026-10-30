@@ -252,6 +252,14 @@ function world(limit = 40) {
     .all(limit);
   const questionStmt = db.prepare(`select payload_json as p from orchestration_v2_projection_turn_items
                                    where thread_id = ? and type = 'user_input_request' and status in ('running','pending') order by ordinal desc limit 1`);
+  // Scheduled threads: when their next run is, and how often they run.
+  const schedules = new Map();
+  try {
+    for (const s of db.prepare("select thread_id as id, schedule_json as sj, next_run_at as nextRunAt from scheduled_tasks where enabled = 1 and thread_id is not null").all()) {
+      const sj = safeJson(s.sj) || {};
+      schedules.set(s.id, { nextRunAt: s.nextRunAt, everyMs: sj.everyMs || null });
+    }
+  } catch {}
   const threads = rows.map((r) => {
     const p = safeJson(r.payload) || {};
     const settled = p.settledOverride === "settled" || (!!p.settledAt && !p.unsettledAt && p.settledOverride !== "unsettled");
@@ -266,6 +274,7 @@ function world(limit = 40) {
     return {
       id: r.id, projectId: r.projectId, title: r.title, updatedAt: r.updatedAt, provider: r.provider, runStatus: busy ? "running" : r.runStatus,
       pinned: !!p.pinnedAt, settled, question, model: p.modelSelection?.model || null,
+      schedule: schedules.get(r.id) || null,
     };
   });
   const projects = db

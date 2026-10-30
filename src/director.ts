@@ -387,9 +387,14 @@ export class Director {
         return;
       }
       case "compaction": {
-        this.onActivity("Tidying up its notes");
-        this.robot.setPose("think");
-        await this.wm.sleep(1200);
+        // Compaction is the robot's coffee break: lean back, stretch, sip, then back to it.
+        this.onActivity("Taking a short break");
+        this.stage.say(null);
+        this.robot.setPose("stretch");
+        await this.wm.sleep(1400);
+        await this.robot.drink();
+        this.robot.setPose("rest");
+        await this.wm.sleep(800);
         return;
       }
       case "error": {
