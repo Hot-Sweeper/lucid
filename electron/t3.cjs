@@ -345,15 +345,22 @@ function conversation(threadId, limit = 80) {
     .all(threadId, limit)
     .reverse();
   const runs = new Map();
+  const started = new Map();
   const queuePos = new Map();
   const queued = [];
   for (const run of getDb().prepare("select status, ordinal, payload_json as p from orchestration_v2_projection_runs where thread_id = ? order by ordinal desc limit 60").all(threadId)) {
     const rp = safeJson(run.p);
     if (rp?.userMessageId) runs.set(rp.userMessageId, run.status);
+    if (rp?.userMessageId && rp.startedAt) started.set(rp.userMessageId, rp.startedAt);
     if (run.status === "queued" && rp?.userMessageId) queued.push({ id: rp.userMessageId, ordinal: run.ordinal });
   }
   queued.sort((a, b) => a.ordinal - b.ordinal).forEach((q, i) => queuePos.set(q.id, i + 1));
-  return rows.map((r) => {
+  // A message that waited in the queue belongs where the robot picked it up, not where it was
+  // typed, so it never lands behind replies that came while it waited. Ties keep the
+  // database order, so messages with the same timestamp stay in the order they were written.
+  const key = (r) => (r.role === "user" && started.get(r.id) > r.at ? started.get(r.id) : r.at);
+  const ordered = rows.map((r, i) => ({ r, i, k: key(r) })).sort((a, b) => (a.k < b.k ? -1 : a.k > b.k ? 1 : a.i - b.i)).map((x) => x.r);
+  return ordered.map((r) => {
     const p = safeJson(r.p) || {};
     return {
       id: r.id, role: r.role, at: r.at, streaming: !!r.streaming, text: p.text || "", run: runs.get(r.id) || null, queue: queuePos.get(r.id) || null,

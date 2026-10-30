@@ -26,7 +26,12 @@ function md(text: string) {
       .replace(/\n/g, "<br>");
   }).join("");
 }
-const when = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+// Time of day for today's messages; older ones also get their date so equal times never look alike.
+const when = (iso: string) => {
+  const d = new Date(iso), now = new Date();
+  const t = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return d.toDateString() === now.toDateString() ? t : `${d.toLocaleDateString([], { month: "short", day: "numeric" })}, ${t}`;
+};
 
 export class ChatPanel {
   el: HTMLElement;
@@ -164,6 +169,7 @@ export class ChatPanel {
     for (const id of [...this.shown.keys()]) {
       if (!timeline.some((m) => m.id === id)) { this.shown.get(id)!.remove(); this.shown.delete(id); }
     }
+    list.querySelector(".cp-empty")?.remove();
     let prevEl: HTMLElement | null = null;
     for (const m of timeline) {
       let el = this.shown.get(m.id);
@@ -172,15 +178,15 @@ export class ChatPanel {
         el = document.createElement("div");
         el.className = `cp-msg ${m.role === "user" ? "you" : "bot"}`;
         el.innerHTML = html;
-        // insert in order (a late arrival lands where it belongs, not at the end)
-        const after: Element | null = prevEl ? prevEl.nextElementSibling : list.firstElementChild;
-        list.insertBefore(el, after);
         this.shown.set(m.id, el);
         if (this.shown.size > msgs.length - 6) gsap.fromTo(el, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out", delay: added++ * 0.05 });
       } else if (el.dataset.sig !== `${m.text.length}:${m.streaming}:${m.run}`) {
         el.innerHTML = html;
       }
       el.dataset.sig = `${m.text.length}:${m.streaming}:${m.run}`;
+      // keep every message in conversation order, also ones that were already on screen
+      const want: Element | null = prevEl ? prevEl.nextElementSibling : list.firstElementChild;
+      if (want !== el) list.insertBefore(el, want);
       prevEl = el;
     }
     // pending bubbles disappear once the real message shows up
