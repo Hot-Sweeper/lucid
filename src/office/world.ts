@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
 import { GEOM } from "./rig";
+import { outsideSvg, PARK_W } from "./outside";
 import { Roster, type RobotProfile } from "./roster";
 
 // The whole building, seen fake top-down: rooms laid out on a floor plan, one shared camera.
@@ -73,7 +74,7 @@ export class World {
 
   constructor(scene: HTMLElement, private services: DeskServices) {
     this.scene = scene;
-    scene.innerHTML = `<div class="world"><div class="building-plate"><span class="bp-dot"></span><b></b></div><div class="hall"></div><div class="room-layer"></div><div class="night-shade"></div><div class="desk-layer"></div></div>`;
+    scene.innerHTML = `<div class="world"><div class="outside-layer"></div><div class="building-plate"><span class="bp-dot"></span><b></b></div><div class="hall"></div><div class="room-layer"></div><div class="night-shade"></div><div class="desk-layer"></div></div>`;
     this.root = scene.querySelector(".world")!;
     this.roomLayer = scene.querySelector(".room-layer")!;
     this.deskLayer = scene.querySelector(".desk-layer")!;
@@ -198,6 +199,15 @@ export class World {
       });
       const hall = this.root.querySelector(".hall") as HTMLElement;
       hall.style.cssText = `top:${topH}px;height:${HALL}px;width:${this.size.w}px`;
+      // the outdoors: grass and trees around the building, a park beside the entrance
+      const park = { x: this.size.w + 300, y: Math.max(-200, topH + HALL / 2 - 520), w: PARK_W, h: 1040 };
+      const out = { ox: -800, oy: -700, w: this.size.w + 300 + PARK_W + 1300, h: Math.max(this.size.h, park.y + park.h) + 1400 };
+      this.outdoor = { x: out.ox, y: out.oy, w: out.w, h: out.h, park };
+      const layer = this.root.querySelector(".outside-layer") as HTMLElement;
+      layer.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px`;
+      layer.innerHTML = outsideSvg({ ...out, building: { x: 0, y: 0, w: this.size.w, h: this.size.h }, entranceY: topH + HALL / 2, park });
+      const shade = this.root.querySelector(".night-shade") as HTMLElement;
+      shade.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px;right:auto;bottom:auto`;
       this.root.style.width = `${this.size.w}px`;
       this.root.style.height = `${this.size.h}px`;
       (this.root.querySelector(".building-plate b") as HTMLElement).textContent = this.building;
@@ -396,10 +406,17 @@ export class World {
   onRoomMenu: (room: Room, x: number, y: number) => void = () => {};
   onDeskMenu: (desk: Desk, x: number, y: number) => void = () => {};
   building = "This PC";
+  outdoor: { x: number; y: number; w: number; h: number; park: { x: number; y: number; w: number; h: number } } | null = null;
   orchThread = "";
   attachDir = "";
 
-  overview() { this.unfocus(false); this.flyTo({ x: 0, y: -110, w: this.size.w, h: this.size.h + 110 }, 24); }
+  overview() {
+    this.unfocus(false);
+    const p = this.outdoor?.park;
+    const right = p ? p.x + p.w : this.size.w;
+    this.flyTo({ x: -120, y: -170, w: right + 240, h: Math.max(this.size.h, p ? p.y + p.h : 0) + 290 }, 20);
+  }
+  showPark() { const p = this.outdoor?.park; if (p) { this.unfocus(false); this.flyTo({ x: p.x - 40, y: p.y - 40, w: p.w + 80, h: p.h + 80 }, 20); } }
   showRoom(id: string) {
     const r = this.rooms.find((q) => q.id === id);
     if (r) { this.unfocus(false); this.flyTo({ x: r.x, y: r.y, w: r.w, h: r.h }, 30); }
@@ -452,6 +469,8 @@ export class World {
     st.setProperty("--sky1", v.sky1); st.setProperty("--sky2", v.sky2);
     st.setProperty("--stars", String(v.stars)); st.setProperty("--lamp", String(v.lamp));
     st.setProperty("--night", String(v.night)); st.setProperty("--city", String(v.city));
+    // the grass beyond the drawn outdoors darkens with the same night tint
+    this.root.parentElement?.style.setProperty("--scene-night", String(v.night));
     this.paintClock();
   }
 

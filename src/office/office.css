@@ -1,5 +1,5 @@
 /* ---------- world and camera ---------- */
-.scene { position: relative; overflow: clip; background: #2a2f4a; cursor: grab; touch-action: none; }
+.scene { position: relative; overflow: clip; --scene-night: 0; background: color-mix(in srgb, #0b1030 calc(var(--scene-night) * 90%), #78b066); cursor: grab; touch-action: none; }
 .scene.panning { cursor: grabbing; }
 .world { position: absolute; left: 0; top: 0; transform-origin: 0 0; --night: 0; --lamp: 0; --stars: 0; --city: 0; --sky1: #6fb2ee; --sky2: #d4ecfb; }
 .room-layer, .desk-layer { position: absolute; inset: 0; }
@@ -279,3 +279,13 @@
 .cp-queue li { display: grid; grid-template-columns: 38px 1fr; gap: 8px; align-items: start; }
 .cq-n { font-size: 11px; color: var(--ink-3); padding-top: 2px; font-variant-numeric: tabular-nums; }
 .cp-queue li p { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+
+.outside-layer { position: absolute; pointer-events: none; }
+.outside-layer svg { display: block; }
+.outside .fountain { animation: fountain 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes fountain { 50% { transform: scale(1.6); opacity: 0.4; } }
+.outside .pond-shine { animation: shine 3.4s ease-in-out infinite; }
+@keyframes shine { 50% { opacity: 0.15; } }
+@media (prefers-reduced-motion: reduce) { .outside .fountain, .outside .pond-shine { animation: none; } }
+.building-plate { z-index: 2; }
+.room-links { display: flex; gap: 16px; }

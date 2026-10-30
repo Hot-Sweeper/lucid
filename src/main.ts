@@ -62,7 +62,7 @@ document.getElementById("app")!.innerHTML = `
     <section class="rooms">
       <h3>Rooms</h3>
       <ul id="room-list" class="room-list"></ul>
-      <button type="button" class="link-btn" id="overview">Whole building</button>
+      <div class="room-links"><button type="button" class="link-btn" id="overview">Whole building</button><button type="button" class="link-btn" id="park">The park</button></div>
       <div class="hidden-offices" id="hidden-offices" hidden></div>
     </section>
 
@@ -122,6 +122,7 @@ $("room-list").addEventListener("click", (e) => {
   if (b) world.showRoom(b.dataset.room!);
 });
 $("overview").addEventListener("click", () => world.overview());
+$("park").addEventListener("click", () => world.showPark());
 
 // --- following one robot ----------------------------------------------------------------
 function renderFocus() {
