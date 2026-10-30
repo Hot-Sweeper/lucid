@@ -2,6 +2,11 @@ import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import "./styles.css";
 import "./office/office.css";
+import "./world/world.css";
+import { TopDownRobot } from "./world/seated";
+import { BreakRoom } from "./world/breakroom";
+import { QuestionLine } from "./world/queue";
+import { useRobot } from "./office/desk";
 import gsap from "gsap";
 import { World, type Room, type WorldData } from "./office/world";
 import { ChatPanel } from "./office/chat-panel";
@@ -89,7 +94,11 @@ document.getElementById("app")!.innerHTML = `
   <main class="scene" id="scene"></main>
   <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button></div>`;
 
+// robots in the original design, plus the break room and the question line
+useRobot((host, rig) => new TopDownRobot(host, rig));
 const world = new World($("scene"), { peek: (u) => api.peek(u), image: (p) => api.image(p), readText: (p) => api.readText(p) });
+world.extFactory.break = (h, w, hh) => new BreakRoom(h, w, hh);
+world.extFactory.queue = (h, w, hh) => new QuestionLine(h, w, hh);
 let selectedDesk: Desk | null = null;
 (window as any).__world = world; // debug handle for test runs
 const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), sendMessage: (o) => api.sendMessage(o) });

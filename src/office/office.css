@@ -33,7 +33,7 @@
 .desk-glow { position: absolute; left: 20px; top: 40px; width: 360px; height: 240px; pointer-events: none; --glow: #4fb6ff;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 45%, transparent), transparent); opacity: calc(0.1 + var(--night) * 1.8); }
 
-.desk-plate { position: absolute; left: 30px; top: 262px; max-width: 128px; display: flex; align-items: center; gap: 5px; padding: 3px 7px;
+.desk-plate { position: absolute; left: 12px; top: 262px; max-width: 120px; display: flex; align-items: center; gap: 5px; padding: 3px 7px;
   background: rgba(255, 255, 255, 0.93); border-radius: 6px; color: #2d3142; font: 500 10px/1.2 var(--font); box-shadow: 0 3px 8px rgba(40, 30, 20, 0.15); z-index: 2; }
 .desk-plate img { width: 11px; height: 11px; flex: none; }
 .desk-plate span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -391,7 +391,7 @@ export function hand(c: Ctx, x: number, y: number, ang: number, r: number, pal: 
 }
 
 // Upper body seen from the front: neck at (x,y), w shoulder width, h height.
-export function torso(c: Ctx, x: number, y: number, w: number, h: number, pal: Pal, body?: string) {
+export function torso(c: Ctx, x: number, y: number, w: number, h: number, pal: Pal, body?: Fill) {
   rr(c, x - w * 0.14, y - w * 0.06, w * 0.28, w * 0.2, w * 0.08, pal.deep);
   const top = y + w * 0.06;
   c.fillStyle = body ?? lin(c, 0, top, 0, top + h, [[0, pal.shell], [0.7, pal.shell], [1, pal.shade]]);

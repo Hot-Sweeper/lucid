@@ -21,9 +21,10 @@ const HIP_FB = { l: { x: 536, y: 846 }, r: { x: 584, y: 846 } };
 const HIP_SIDE = { x: 560, y: 846 };
 const UPPER = 46, FORE = 44;
 const SPEED = 110; // px per second
+const HANG_A = 0.42, HANG_B = -0.22; // arms hanging slightly out, clear of the torso
 
 type ArmPose = { a: number; b: number };
-type Prop = "none" | "mug" | "bowl" | "spoon" | "card" | "wrist";
+export type Prop = "none" | "mug" | "bowl" | "spoon" | "card" | "wrist";
 
 const PROPS: Record<Prop, string> = {
   none: "",
@@ -55,7 +56,7 @@ export class Walker {
   private battery: HTMLDivElement;
   private st = {
     phase: 0, stride: 0, bob: 0, headLag: 0, sway: 0, lean: 0, jump: 0, sit: 0, nod: 0, tilt: 0, shake: 0, shrug: 0,
-    la: 0.12, lb: 0.15, ra: 0.12, rb: 0.15, lFwd: 0, rFwd: 0, breath: 0, tapFoot: 0, dim: 0,
+    la: HANG_A, lb: HANG_B, ra: HANG_A, rb: HANG_B, lFwd: 0, rFwd: 0, breath: 0, tapFoot: 0, dim: 0,
   };
   private expr: Expression = "neutral";
   private propL: Prop = "none";
@@ -84,12 +85,16 @@ export class Walker {
     el.innerHTML = `${WALKER_SVG(sid, this.s)}
       <div class="world-card" aria-hidden="true"><span></span></div>
       <div class="world-battery" aria-hidden="true"><i></i></div>
-      <div class="world-say" role="status"><p></p></div>`;
+`;
     parent.appendChild(el);
+    this.bubble = document.createElement("div");
+    this.bubble.className = "world-say";
+    this.bubble.setAttribute("role", "status");
+    this.bubble.innerHTML = "<p></p>";
+    parent.appendChild(this.bubble);
     this.el = el;
     this.svg = el.querySelector("svg")!;
     this.$ = bind(this.svg);
-    this.bubble = el.querySelector(".world-say")!;
     this.card = el.querySelector(".world-card")!;
     this.battery = el.querySelector(".world-battery")!;
     const top = (FEET.y - 560) * this.s;
@@ -152,7 +157,7 @@ export class Walker {
     this.walkTween?.kill();
     const dx = x - this.x, dy = y - this.y, dist = Math.hypot(dx, dy);
     if (dist < 1.5) { this.setPos(x, y); return Promise.resolve(); }
-    if (this.activity !== "idle") this.do("idle");
+    this.calm();
     this.face(Math.abs(dx) > Math.abs(dy) * 0.9 ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up");
     this.walking = true;
     gsap.to(this.st, { stride: 1, duration: 0.2, ease: "power2.out", overwrite: "auto" });
@@ -184,7 +189,33 @@ export class Walker {
   stop() { this.gen++; this.walkTween?.kill(); this.walkDone?.(); }
 
   // ---- activities ---------------------------------------------------------------------------
-  do(activity: Activity, opts: { card?: string } = {}) {
+  /** Stop the current activity but keep whatever the hands carry. */
+  calm() {
+    this.activity = "idle";
+    this.act?.kill();
+    this.act = null;
+    for (const t of this.actTimers) t.kill();
+    this.actTimers = [];
+    window.clearInterval(this.zTimer);
+    this.zTimer = 0;
+    this.card.classList.remove("on");
+    this.battery.classList.remove("on");
+    const r = this.propR === "mug" || this.propR === "spoon" ? { ra: 0.25, rb: 1.5 } : { ra: HANG_A, rb: HANG_B };
+    const l = this.propL === "bowl" ? { la: 0.25, lb: 1.8 } : { la: HANG_A, lb: HANG_B };
+    gsap.to(this.st, { ...l, ...r, lFwd: 0, rFwd: 0, nod: 0, tilt: 0, shrug: 0, sit: 0, shake: 0, sway: 0, tapFoot: 0, dim: 0, duration: 0.3, ease: "power2.out", overwrite: "auto" });
+    if (this.expr === "sleepy" || this.expr === "laugh") this.setExpression("neutral");
+  }
+
+  /** Put things in its hands (kept while walking). */
+  hold(l: Prop, r: Prop) { this.setProps(l, r); this.calmArms(); }
+  private calmArms() {
+    if (this.activity !== "idle") return;
+    const r = this.propR === "mug" || this.propR === "spoon" ? { ra: 0.25, rb: 1.5 } : { ra: HANG_A, rb: HANG_B };
+    const l = this.propL === "bowl" ? { la: 0.25, lb: 1.8 } : { la: HANG_A, lb: HANG_B };
+    gsap.to(this.st, { ...l, ...r, duration: 0.3, ease: "power2.out", overwrite: "auto" });
+  }
+
+  do(activity: Activity, opts: { card?: string; keep?: boolean } = {}) {
     this.activity = activity;
     this.act?.kill();
     this.act = null;
@@ -192,11 +223,11 @@ export class Walker {
     this.actTimers = [];
     window.clearInterval(this.zTimer);
     this.zTimer = 0;
-    this.setProps("none", "none");
+    if (!opts.keep) this.setProps("none", "none");
     this.card.classList.remove("on");
     this.battery.classList.remove("on");
     const st = this.st;
-    const base = { la: 0.12, lb: 0.15, ra: 0.12, rb: 0.15, lFwd: 0, rFwd: 0, nod: 0, tilt: 0, shrug: 0, lean: 0, shake: 0, sway: 0, tapFoot: 0 };
+    const base = { la: HANG_A, lb: HANG_B, ra: HANG_A, rb: HANG_B, lFwd: 0, rFwd: 0, nod: 0, tilt: 0, shrug: 0, lean: 0, shake: 0, sway: 0, tapFoot: 0 };
     const to = (v: Partial<typeof base> & { sit?: number; dim?: number }, d = 0.45) => gsap.to(st, { ...v, duration: d, ease: "power2.inOut", overwrite: "auto" });
     const loop = (fn: () => gsap.core.Animation | void, every: () => number) => {
       const tick = () => { fn(); this.actTimers.push(gsap.delayedCall(every(), tick)); };
@@ -207,11 +238,12 @@ export class Walker {
 
     switch (activity) {
       case "idle":
+        this.calmArms();
         loop(() => {
           const r = Math.random();
           if (r < 0.4) return gsap.timeline().to(st, { tilt: pick([-7, 7]), duration: 0.6, ease: "power2.inOut" }).to(st, { tilt: 0, duration: 0.6, ease: "power2.inOut" }, "+=0.9");
           if (r < 0.7) return gsap.timeline().to(st, { sway: pick([-1, 1]), duration: 0.8, ease: "sine.inOut" }).to(st, { sway: 0, duration: 0.8, ease: "sine.inOut" }, "+=1.2");
-          return gsap.timeline().to(st, { ra: 0.3, rb: 1.2, duration: 0.4 }).to(st, { ra: 0.12, rb: 0.15, duration: 0.5 }, "+=0.8");
+          return gsap.timeline().to(st, { ra: 0.3, rb: 1.2, duration: 0.4 }).to(st, { ra: HANG_A, rb: HANG_B, duration: 0.5 }, "+=0.8");
         }, () => 2.5 + Math.random() * 3);
         break;
       case "talk":
@@ -220,7 +252,7 @@ export class Walker {
           return gsap.timeline()
             .to(st, { [side + "a"]: 0.5 + Math.random() * 0.4, [side + "b"]: 1.1 + Math.random() * 0.5, nod: 4, duration: 0.3, ease: "power2.out" })
             .to(st, { [side + "b"]: 0.7, nod: 0, duration: 0.25, yoyo: true, repeat: 1, ease: "sine.inOut" })
-            .to(st, { [side + "a"]: 0.12, [side + "b"]: 0.15, duration: 0.4, ease: "power2.inOut" });
+            .to(st, { [side + "a"]: HANG_A, [side + "b"]: HANG_B, duration: 0.4, ease: "power2.inOut" });
         }, () => 1.1 + Math.random() * 0.9);
         break;
       case "explain":
@@ -234,7 +266,7 @@ export class Walker {
         }, () => 0.9 + Math.random() * 0.6);
         break;
       case "listen":
-        to({ tilt: 6, la: 0.1, ra: 0.1 });
+        to({ tilt: 6, la: 0.3, ra: 0.3 });
         loop(() => gsap.timeline().to(st, { nod: 7, duration: 0.18, ease: "sine.inOut", yoyo: true, repeat: 3 }), () => 1.4 + Math.random() * 1.2);
         break;
       case "laugh":
@@ -255,7 +287,7 @@ export class Walker {
         break;
       case "charge":
         this.battery.classList.add("on");
-        to({ la: 0.08, ra: 0.08, lb: 0.1, rb: 0.1 });
+        to({ la: 0.3, ra: 0.3, lb: -0.1, rb: -0.1 });
         this.act = gsap.fromTo(this.battery.querySelector("i"), { scaleX: 0.15 }, { scaleX: 1, duration: 14, ease: "none", transformOrigin: "0 50%", repeat: -1, repeatDelay: 1 });
         loop(() => gsap.timeline().to(st, { tilt: pick([-5, 5]), duration: 1.2, ease: "sine.inOut" }).to(st, { tilt: 0, duration: 1.2, ease: "sine.inOut" }), () => 4 + Math.random() * 3);
         break;
@@ -270,7 +302,7 @@ export class Walker {
         this.act = gsap.timeline()
           .to(st, { ra: 2.5, rb: 0.5, duration: 0.35, ease: "back.out(1.6)" })
           .to(st, { rb: -0.3, duration: 0.22, yoyo: true, repeat: 5, ease: "sine.inOut" })
-          .to(st, { ra: 0.12, rb: 0.15, duration: 0.4, ease: "power2.inOut" });
+          .to(st, { ra: HANG_A, rb: HANG_B, duration: 0.4, ease: "power2.inOut" });
         if (this.expr === "neutral") { this.setExpression("happy"); this.actTimers.push(gsap.delayedCall(2.2, () => this.expr === "happy" && this.setExpression("neutral"))); }
         break;
       case "wait":
@@ -279,7 +311,7 @@ export class Walker {
           if (r < 0.3) { // check the wrist display
             this.setProps("wrist", this.propR);
             return gsap.timeline().to(st, { la: 0.5, lb: 1.9, lFwd: 1, tilt: 6, nod: 4, duration: 0.45, ease: "power2.inOut" })
-              .to(st, { la: 0.12, lb: 0.15, lFwd: 0, tilt: 0, nod: 0, duration: 0.45, ease: "power2.inOut" }, "+=1.3")
+              .to(st, { la: HANG_A, lb: HANG_B, lFwd: 0, tilt: 0, nod: 0, duration: 0.45, ease: "power2.inOut" }, "+=1.3")
               .add(() => this.setProps("none", this.propR));
           }
           if (r < 0.55) return gsap.timeline().to(st, { sway: pick([-1, 1]), duration: 0.6, ease: "sine.inOut" }).to(st, { sway: 0, duration: 0.7, ease: "sine.inOut" }, "+=1.4");
@@ -293,7 +325,7 @@ export class Walker {
       case "hold-card":
         if (opts.card != null) this.setCard(opts.card);
         this.card.classList.add("on");
-        to({ la: 0.3, lb: 1.5, ra: 2.7, rb: 0.15 }, 0.5);
+        to({ la: 0.3, lb: 1.5, ra: 2.85, rb: 0.1 }, 0.5);
         this.act = gsap.to(this.card, { y: -3, duration: 1.4, yoyo: true, repeat: -1, ease: "sine.inOut" });
         break;
       case "sit":
@@ -315,13 +347,13 @@ export class Walker {
     }
     gsap.timeline().to(st, { ra: 0.5, rb: 1.2, rFwd: 1.4, duration: 0.2, ease: "power2.out" })
       .to(st, { rFwd: 1.7, duration: 0.07, yoyo: true, repeat: 1 })
-      .to(st, { ra: 0.12, rb: 0.15, rFwd: 0, duration: 0.35, ease: "power2.inOut" });
+      .to(st, { ra: HANG_A, rb: HANG_B, rFwd: 0, duration: 0.35, ease: "power2.inOut" });
   }
 
   /** High five toward the side it faces. */
   highFive() {
     const st = this.st;
-    return gsap.timeline().to(st, { ra: 2.3, rb: 0.2, duration: 0.3, ease: "back.out(2)" }).to(st, { ra: 2.1, duration: 0.08, yoyo: true, repeat: 1 }).to(st, { ra: 0.12, rb: 0.15, duration: 0.45, ease: "power2.inOut" }, "+=0.3");
+    return gsap.timeline().to(st, { ra: 2.3, rb: 0.2, duration: 0.3, ease: "back.out(2)" }).to(st, { ra: 2.1, duration: 0.08, yoyo: true, repeat: 1 }).to(st, { ra: HANG_A, rb: HANG_B, duration: 0.45, ease: "power2.inOut" }, "+=0.3");
   }
 
   hop() { gsap.timeline().to(this.st, { jump: 1, duration: 0.16, ease: "power2.out" }).to(this.st, { jump: 0, duration: 0.3, ease: "bounce.out" }); }
@@ -337,16 +369,17 @@ export class Walker {
 
   say(text: string | null, ms?: number) {
     this.sayTimer?.kill();
-    const b = this.bubble;
+    const b = this.bubble, p = b.querySelector("p")!;
     if (!text) {
-      if (b.classList.contains("on")) gsap.to(b, { opacity: 0, y: 6, duration: 0.2, ease: "power2.in", onComplete: () => b.classList.remove("on") });
+      if (b.classList.contains("on")) gsap.to(p, { opacity: 0, y: 6, duration: 0.2, ease: "power2.in", onComplete: () => b.classList.remove("on") });
       return;
     }
-    b.querySelector("p")!.textContent = text;
+    p.textContent = text;
     const was = b.classList.contains("on");
     b.classList.add("on");
-    if (!was) gsap.fromTo(b, { opacity: 0, y: 8, scale: 0.85 }, { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: "back.out(2)" });
-    else gsap.fromTo(b, { scale: 0.96 }, { scale: 1, opacity: 1, y: 0, duration: 0.2, ease: "power2.out" });
+    this.placeBubble();
+    if (!was) gsap.fromTo(p, { opacity: 0, y: 8, scale: 0.85 }, { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: "back.out(2)" });
+    else gsap.fromTo(p, { scale: 0.96 }, { scale: 1, opacity: 1, y: 0, duration: 0.2, ease: "power2.out" });
     const dur = ms ?? 1400 + text.length * 55;
     this.sayTimer = gsap.delayedCall(dur / 1000, () => this.say(null));
   }
@@ -462,9 +495,9 @@ export class Walker {
         hand = { x: elbow.x + Math.sin(c) * sgn * FORE, y: elbow.y + Math.cos(c) * FORE - Math.max(0, swing) * 12 - fwd * 46 };
       } else {
         s0 = { x: SH_SIDE.x + shakeX + swayX + (k === "l" ? -6 : 6), y: SH_SIDE.y + bodyY - st.shrug };
-        const aa = a * 0.9 + swing * 0.55 + fwd * 0.5;
+        const aa = (a - HANG_A) * 0.9 + 0.06 + swing * 0.55 + fwd * 0.5;
         elbow = { x: s0.x + Math.sin(aa) * UPPER, y: s0.y + Math.cos(aa) * UPPER };
-        const bb = aa + b + fwd * 0.3;
+        const bb = aa + (b - HANG_B) + 0.12 + fwd * 0.3;
         hand = { x: elbow.x + Math.sin(bb) * FORE, y: elbow.y + Math.cos(bb) * FORE };
       }
       const d = `M${s0.x.toFixed(1)} ${s0.y.toFixed(1)} L${elbow.x.toFixed(1)} ${elbow.y.toFixed(1)} L${hand.x.toFixed(1)} ${hand.y.toFixed(1)}`;
@@ -489,9 +522,15 @@ export class Walker {
     this.$.sideAntenna.style.opacity = String(dim);
 
     // overlays follow the head
-    const headPx = headY * this.s;
-    this.el.style.setProperty("--bob", `${headPx.toFixed(1)}px`);
+    this.headPx = headY * this.s;
+    this.el.style.setProperty("--bob", `${this.headPx.toFixed(1)}px`);
+    if (this.bubble.classList.contains("on")) this.placeBubble();
   };
+  private headPx = 0;
+  private placeBubble() {
+    const top = this.y - (FEET.y - 560) * this.s * (1 - this.st.sit * 0.12) - 16 + this.headPx;
+    this.bubble.style.transform = `translate(${this.x.toFixed(1)}px, ${top.toFixed(1)}px)`;
+  }
 
   destroy() {
     this.stop();
@@ -502,7 +541,8 @@ export class Walker {
     this.blinkTl.kill();
     this.sayTimer?.kill();
     window.clearInterval(this.zTimer);
-    gsap.killTweensOf([this.st, this, this.card, this.bubble]);
+    gsap.killTweensOf([this.st, this, this.card, this.bubble.firstElementChild]);
+    this.bubble.remove();
     this.el.remove();
   }
 }

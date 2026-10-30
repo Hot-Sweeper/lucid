@@ -6,9 +6,9 @@
 .world-walker { position: absolute; left: 0; top: 0; width: 0; height: 0; cursor: pointer; --bob: 0px; --hx: 0px; --hy: 0px; }
 .world-walker-svg { position: absolute; overflow: visible; pointer-events: none; }
 .world-walker::before { content: ""; position: absolute; left: -32px; top: calc(-1 * var(--head-top) - 6px); width: 64px; height: calc(var(--head-top) + 8px); pointer-events: auto; }
-.world-say { position: absolute; left: 0; bottom: calc(var(--head-top) + 16px - var(--bob)); transform-origin: 50% 100%; display: none; pointer-events: none; z-index: 2; }
+.world-say { position: absolute; left: 0; top: 0; width: 0; height: 0; display: none; pointer-events: none; z-index: 100000; }
 .world-say.on { display: block; }
-.world-say p { position: relative; left: -50%; margin: 0; width: max-content; max-width: 25ch; padding: 7px 11px; background: #fffaf3; color: #2d3142;
+.world-say p { position: absolute; left: 0; bottom: 0; translate: -50% 0; transform-origin: 50% 100%; margin: 0; width: max-content; max-width: 25ch; padding: 7px 11px; background: #fffaf3; color: #2d3142;
   border-radius: 13px; font: 500 12px/1.35 var(--font); box-shadow: 0 8px 18px rgba(40, 28, 14, 0.2); overflow-wrap: break-word; text-wrap: pretty; }
 .world-say p::after { content: ""; position: absolute; left: calc(50% - 7px); bottom: -6px; width: 14px; height: 14px; background: inherit; border-radius: 3px; transform: rotate(45deg); }
 .world-card { position: absolute; left: var(--hx); top: var(--hy); transform: translate(-14px, -100%); display: none; width: 132px; padding: 8px 10px 9px;
@@ -21,3 +21,20 @@
 .world-battery i { display: block; height: 100%; border-radius: 2px; background: #4ff0a0; box-shadow: 0 0 8px #4ff0a0; }
 .world-z { position: absolute; left: 0; top: 0; font: 600 16px var(--font); color: #7d86c4; pointer-events: none; }
 .world-puff { position: absolute; left: -9px; top: 0; width: 18px; height: 12px; border-radius: 50%; background: #ffffff; pointer-events: none; }
+
+/* ---------- rooms ---------- */
+.world-room { position: relative; overflow: hidden; }
+.world-room-shell { position: absolute; left: 0; top: 0; display: block; }
+.world-room-layer { position: absolute; inset: 0; }
+.world-room-front { position: absolute; left: 0; top: 0; z-index: 99999; pointer-events: none; }
+.world-prop { position: absolute; pointer-events: none; }
+.world-prop svg { display: block; overflow: visible; }
+
+/* ---------- handoff ---------- */
+.world-spark { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 100001; pointer-events: none; }
+.world-spark i { position: absolute; left: -2px; top: -26px; width: 4px; height: 12px; border-radius: 2px; background: #ffd23f; transform-origin: 2px 26px; }
+.world-spark i:nth-child(2) { rotate: 60deg; background: #ff9f5a; }
+.world-spark i:nth-child(3) { rotate: 120deg; }
+.world-spark i:nth-child(4) { rotate: 180deg; background: #4ff0a0; }
+.world-spark i:nth-child(5) { rotate: 240deg; }
+.world-spark i:nth-child(6) { rotate: 300deg; background: #ff6f91; }

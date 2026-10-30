@@ -3,6 +3,7 @@ import { WM } from "../os/wm";
 import { Director, type ThreadInfo } from "../director";
 import { GEOM, UNIT, type DeskRig, type Pt, type SeatedRobot } from "./rig";
 import { StubRobot } from "./stub-robot";
+import { playHandoff } from "../world/handoff";
 import { logoFor } from "./brand";
 import { WALLPAPERS, type RobotProfile } from "./roster";
 
@@ -105,6 +106,7 @@ export class Desk implements DeskStage {
     this.profile = profile;
     this.model = thread?.model ?? null;
     this.el.classList.toggle("empty", !thread);
+    this.handoffBusy = false;
     if (thread) {
       this.robot.setBrand(thread.provider);
       this.robot.setModel?.(this.model);
@@ -138,12 +140,38 @@ export class Desk implements DeskStage {
   setInfo(info: ThreadInfo) {
     this.info = info;
     if (info.title) this.label(info.title, info.provider);
-    if (this.robot.brandName !== info.provider) this.robot.setBrand(info.provider);
+    if (this.robot.brandName !== info.provider && !this.handoffBusy) {
+      const from = this.robot.brandName;
+      if (from && from !== info.provider && this.threadId) void this.handoff(from, info.provider, (info as any).model ?? null);
+      else this.robot.setBrand(info.provider);
+    }
     const model = (info as any).model as string | null | undefined;
     if (model && model !== this.model) { this.model = model; this.robot.setModel?.(model); }
     const logo = logoFor(info.provider);
     if (logo) this.wm.setWallpaperLogo(logo);
     this.director.setInfo(info);
+  }
+
+  // The thread moved to another harness: the old robot explains the work to the new one,
+  // then the new one takes the chair.
+  private handoffBusy = false;
+  private async handoff(from: string, to: string, model: string | null) {
+    this.handoffBusy = true;
+    const tid = this.threadId;
+    const host = this.el.querySelector(".robot-host") as HTMLElement;
+    const name = this.profile?.name;
+    gsap.to(host, { opacity: 0, duration: 0.3 });
+    this.lift("handoff", true);
+    try {
+      await playHandoff(this.el, { provider: from, model: this.model ?? undefined, name }, { provider: to, model: model ?? undefined }, { x: UNIT.w / 2, y: UNIT.h - 10 });
+    } catch (e) { console.error("handoff failed", e); }
+    if (this.threadId === tid) {
+      this.robot.setBrand(to);
+      if (model) { this.model = model; this.robot.setModel?.(model); }
+    }
+    gsap.to(host, { opacity: 1, duration: 0.3 });
+    this.lift("handoff", false);
+    this.handoffBusy = false;
   }
 
   // --- DeskStage -------------------------------------------------------------

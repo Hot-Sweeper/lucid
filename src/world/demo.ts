@@ -6,6 +6,9 @@ import { UNIT, type Expression, type Pose, type Reaction, type RobotLook } from 
 import { TopDownRobot } from "./seated";
 import { DemoDesk } from "./demo-desk";
 import { Walker, type Activity, type Facing } from "./walker";
+import { BreakRoom } from "./breakroom";
+import { QuestionLine } from "./queue";
+import { playHandoff } from "./handoff";
 
 // Demo of the world characters. URL params:
 //   only=desk|break|queue|handoff   show one section
@@ -131,13 +134,13 @@ if (want("desk")) {
 
 // ---- walking robots: every facing and activity -------------------------------------------
 if (want("walkers")) {
-  const sec = section("Walking robots", 1100, 560, 1);
+  const sec = section("Walking robots", 1100, 640, 1);
   const brands = ["codex", "claudeAgent", "grok", "opencode"];
   const facings: Facing[] = ["up", "down", "left", "right"];
   const ws: Walker[] = [];
   brands.forEach((b, i) => facings.forEach((f, j) => {
     const w = new Walker(sec.stage, { id: `${b}-${f}`, provider: b, model: ["gpt-5.5-codex", "claude-opus-5-5", "grok-5", "qwen-coder"][i], name: b });
-    w.setPos(90 + j * 260 + i * 50, 140 + i * 125);
+    w.setPos(90 + j * 260 + i * 50, 200 + i * 125);
     w.face(f);
     ws.push(w);
   }));
@@ -150,4 +153,71 @@ if (want("walkers")) {
     b.onclick = () => ws.forEach((w) => w.do(a, { card: "Should I delete the old migration files?" }));
     sec.controls.appendChild(b);
   }
+}
+
+// ---- break room with five residents -------------------------------------------------------------
+const ROOM_SCALE = Number(qs.get("roomScale") || (ONLY ? 1 : 0.75));
+if (want("break")) {
+  const sec = section("Break room", 1200, 800, ROOM_SCALE);
+  const room = new BreakRoom(sec.stage, 1200, 800);
+  api.breakRoom = room;
+  const residents = [
+    { id: "t1", provider: "codex", title: "Refactor the auth module", model: "gpt-5.5-codex", name: "Pixel" },
+    { id: "t2", provider: "claudeAgent", title: "Write release notes", model: "claude-opus-5-5", name: "Biscuit" },
+    { id: "t3", provider: "grok", title: "Benchmark the parser", model: "grok-5", name: "Volt" },
+    { id: "t4", provider: "opencode", title: "Fix flaky tests", model: "qwen-coder-4", name: "Sprocket" },
+    { id: "t5", provider: "claudeAgent", title: "Update dependencies", model: "claude-sonnet-5-5", name: "Mochi" },
+  ];
+  room.setThreads(residents);
+  room.onSelect = (id) => (sec.status.textContent = `Selected ${residents.find((r) => r.id === id)?.name ?? id}`);
+  const btn = (label: string, fn: () => void) => { const b = document.createElement("button"); b.textContent = label; b.onclick = fn; sec.controls.appendChild(b); };
+  btn("One leaves", () => room.setThreads(residents.slice(0, 4)));
+  btn("All five", () => room.setThreads(residents));
+  btn("Night", () => { const r = document.documentElement.style; r.setProperty("--sky1", "#0b1030"); r.setProperty("--sky2", "#262c62"); r.setProperty("--stars", "1"); r.setProperty("--lamp", "1"); });
+  btn("Day", () => { const r = document.documentElement.style; r.setProperty("--sky1", "#6fb2ee"); r.setProperty("--sky2", "#d4ecfb"); r.setProperty("--stars", "0"); r.setProperty("--lamp", "0.15"); });
+}
+
+// ---- question line with three robots ---------------------------------------------------------------
+if (want("queue")) {
+  const sec = section("Question line", 720, 800, ROOM_SCALE);
+  const line = new QuestionLine(sec.stage, 720, 800);
+  api.queue = line;
+  const waiting = [
+    { id: "q1", provider: "codex", title: "Migrate the database", question: "Should I delete the old migration files or keep them for rollback?", model: "gpt-5.5-codex" },
+    { id: "q2", provider: "claudeAgent", title: "Landing page copy", question: "Which tone do you prefer for the hero text: playful or calm?", model: "claude-opus-5-5" },
+    { id: "q3", provider: "grok", title: "API keys", question: "Can I use the staging API key for the load test?", model: "grok-5" },
+  ];
+  let list = [...waiting];
+  line.setThreads(list);
+  line.onSelect = (id) => (sec.status.textContent = `Selected ${id}`);
+  const btn = (label: string, fn: () => void) => { const b = document.createElement("button"); b.textContent = label; b.onclick = fn; sec.controls.appendChild(b); };
+  let n = 4;
+  btn("Answer the first", () => { list = list.slice(1); line.setThreads(list); });
+  btn("New question", () => { list = [...list, { id: `q${n}`, provider: n % 2 ? "opencode" : "codex", title: "Question", question: `Is it okay to rename the ${["utils", "helpers", "lib", "core"][n % 4]} folder?`, model: "qwen-coder-4" }]; n++; line.setThreads(list); });
+}
+
+// ---- handoff ---------------------------------------------------------------------------------------
+if (want("handoff")) {
+  const sec = section("Handoff", UNIT.w, UNIT.h, ONLY ? 1.5 : 1);
+  const pairs: [string, string, string, string][] = [
+    ["claudeAgent", "claude-opus-5-5", "codex", "gpt-5.5-codex"],
+    ["codex", "gpt-5.5-codex", "grok", "grok-5"],
+    ["grok", "grok-5", "opencode", "qwen-coder-4"],
+  ];
+  let k = 0, playing = false;
+  const play = async () => {
+    if (playing) return;
+    playing = true;
+    const [fp, fm, tp, tm] = pairs[k++ % pairs.length];
+    sec.status.textContent = `${fm} hands over to ${tm}`;
+    await playHandoff(sec.stage, { provider: fp, model: fm }, { provider: tp, model: tm }, { x: UNIT.w / 2, y: UNIT.h - 90 });
+    sec.status.textContent = "";
+    playing = false;
+  };
+  const b = document.createElement("button");
+  b.textContent = "Play handoff";
+  b.onclick = () => void play();
+  sec.controls.appendChild(b);
+  api.playHandoff = play;
+  if (ONLY === "handoff") void play();
 }
