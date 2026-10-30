@@ -99,6 +99,25 @@ ipcMain.handle("t3:watch-set", (_e, ids) => {
 ipcMain.handle("t3:office", (_e, projectId) => t3.office(projectId));
 ipcMain.handle("t3:offices", () => t3.listProjectsWithCounts());
 ipcMain.handle("project:add", (_e, o) => t3.addProject(o));
+// --- orchestrator -----------------------------------------------------------------
+const orch = require("./orchestrator.cjs");
+const ORCH_DIR = path.join(require("node:os").homedir(), "T3 Projects", "Lucid Orchestrator");
+ipcMain.handle("orch:init", async (_e, { provider = "claudeAgent", model = "claude-sonnet-5-5" } = {}) => {
+  const { dir } = orch.ensureFolder(ORCH_DIR);
+  const norm = (s) => String(s || "").replace(/[\/]+$/, "").toLowerCase();
+  let project = t3.listProjects().find((p) => norm(p.root) === norm(dir));
+  if (!project) {
+    await t3.addProject({ path: dir, title: "Lucid Orchestrator" });
+    project = t3.listProjects().find((p) => norm(p.root) === norm(dir));
+  }
+  if (!project) throw new Error("T3 did not register the orchestrator folder as a project.");
+  const intro = "You are now the Orchestrator for Lucid. Read CLAUDE.md and memory.md in this folder, then reply with two short lines: what you know about the user, and how you will help.";
+  const { threadId } = await t3.startThread({ project: project.id, message: intro, provider, model });
+  return { threadId, projectId: project.id, dir };
+});
+ipcMain.handle("orch:memory", () => orch.readMemory(ORCH_DIR));
+ipcMain.handle("orch:dir", () => ORCH_DIR);
+ipcMain.handle("t3:user-messages", (_e, since, exclude) => t3.userMessagesSince(since, exclude));
 ipcMain.handle("project:remove", (_e, o) => t3.removeProject(o));
 ipcMain.handle("app:host", () => require("node:os").hostname());
 // Small settings file (hidden offices and such).

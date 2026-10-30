@@ -338,4 +338,16 @@ function conversation(threadId, limit = 80) {
   });
 }
 
-module.exports = { itemsSince, recentItems, addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
+// Messages you wrote to robots since a moment, newest last (the orchestrator learns from them).
+function userMessagesSince(since, exclude) {
+  return getDb()
+    .prepare(`select m.thread_id as threadId, m.created_at as at, m.payload_json as p, t.title as title
+              from orchestration_v2_projection_messages m left join orchestration_v2_projection_threads t on t.thread_id = m.thread_id
+              where m.role = 'user' and m.created_at > ? and m.thread_id != ? and m.thread_id not like 'thread:%'
+              order by m.created_at asc limit 40`)
+    .all(since, exclude || "")
+    .map((r) => ({ threadId: r.threadId, title: r.title, at: r.at, text: (safeJson(r.p)?.text || "").slice(0, 1500) }))
+    .filter((m) => m.text.trim());
+}
+
+module.exports = { userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };

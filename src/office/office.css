@@ -223,3 +223,23 @@
 .cp-queued { color: #ffd27a; }
 .cp-live { color: var(--mint); }
 .cp-msg.pending .cp-text { opacity: 0.7; }
+
+/* orchestrator */
+.orch-line { margin: 0 0 10px; font-size: 13px; color: var(--ink-2); }
+.orch-line b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.orch-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.orch .hint { margin: 0 0 10px; }
+.switch { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13.5px; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch .track { width: 36px; height: 20px; border-radius: 10px; background: var(--night-3); position: relative; flex: none; transition: background 0.2s; }
+.switch .track i { position: absolute; left: 3px; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink-2); transition: transform 0.2s, background 0.2s; }
+.switch input:checked + .track { background: rgba(255, 159, 90, 0.85); }
+.switch input:checked + .track i { transform: translateX(16px); background: #fff; }
+.switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.orch-desk .desk-plate { background: #ffe9b8; }
+.dialog.notebook { width: min(560px, calc(100vw - 40px)); max-height: calc(100vh - 80px); display: flex; flex-direction: column; }
+.nb-sub { margin: -4px 0 12px; }
+.nb-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 4px 4px 0; margin-bottom: 14px; }
+.nb-body h3 { margin: 14px 0 6px; font-size: 13px; color: var(--accent-2); }
+.nb-body p { margin: 0 0 6px; font-size: 13px; line-height: 1.5; color: var(--ink); padding-left: 12px; position: relative; }
+.nb-body p::before { content: ""; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); }

@@ -7,6 +7,7 @@ import { World, type Room, type WorldData } from "./office/world";
 import { ChatPanel } from "./office/chat-panel";
 import { showMenu, confirmDialog } from "./office/menus";
 import { openHire } from "./office/hire";
+import { Orchestrator, type OrchState } from "./office/orchestrator";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
@@ -24,6 +25,9 @@ declare global {
       addProject(o: { path: string; title?: string }): Promise<{ output: string }>;
       removeProject(o: { id: string }): Promise<{ output: string }>;
       host(): Promise<string>;
+      orchInit(o?: { provider?: string; model?: string }): Promise<{ threadId: string; projectId: string; dir: string }>;
+      orchMemory(): Promise<string>;
+      userMessagesSince(since: string, exclude: string): Promise<{ threadId: string; title: string; at: string; text: string }[]>;
       conversation(id: string): Promise<any[]>;
       attachDir(): Promise<string>;
       watchSet(ids: string[]): Promise<boolean>;
@@ -57,6 +61,11 @@ document.getElementById("app")!.innerHTML = `
       <ul id="room-list" class="room-list"></ul>
       <button type="button" class="link-btn" id="overview">Whole building</button>
       <div class="hidden-offices" id="hidden-offices" hidden></div>
+    </section>
+
+    <section class="orch" id="orch">
+      <h3>Orchestrator</h3>
+      <div id="orch-body"></div>
     </section>
 
     <section class="focus" id="focus">
@@ -157,6 +166,8 @@ async function refresh() {
   try {
     const data = await api.world();
     for (const p of data.projects) projectTitles.set(p.id, p.title);
+    orch.observe(data.threads);
+    if (settings.orch) { world.orchThread = settings.orch.threadId; world.homes.set(settings.orch.threadId, "main"); }
     world.update(data);
     for (const d of world.desks.values()) {
       d.onActivity = (t) => { if (d === world.focusDesk) pushStatus(d); if (d === selectedDesk) { const a = $("focus-activity"); if (a.textContent !== t) { a.textContent = t; gsap.fromTo(a, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.3 }); } } };
@@ -268,7 +279,7 @@ $("update").addEventListener("click", async () => {
 
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
-const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string> } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));
 world.homes = new Map(Object.entries(settings.homes ?? {}));
@@ -294,6 +305,39 @@ $("hidden-offices").addEventListener("click", (e) => {
 });
 const projectTitles = new Map<string, string>();
 setupMenus();
+const orch = new Orchestrator(api as any, world, () => settings.orch ?? null, (s) => { settings.orch = s; saveSettings(); });
+orch.onChange = renderOrch;
+(window as any).__orch = orch; // debug handle for test runs
+function renderOrch() {
+  const s = settings.orch;
+  const body = $("orch-body");
+  if (!s) {
+    body.innerHTML = `<p class="hint">Your stand-in: it learns how you like things done from what you tell robots, and can review their finished work for you.</p><button type="button" class="primary" id="orch-hire">Hire the orchestrator</button><p class="form-msg" id="orch-msg" role="status"></p>`;
+    $("orch-hire").addEventListener("click", async () => {
+      const b = $<HTMLButtonElement>("orch-hire");
+      b.disabled = true;
+      $("orch-msg").textContent = "Setting up its desk and notebook…";
+      try {
+        const id = await orch.hire();
+        await refresh();
+        const d = world.deskFor(id);
+        if (d) { world.select(d); world.focusOn(d); }
+      } catch (err: any) {
+        $("orch-msg").textContent = `Could not hire it: ${err.message || err}`;
+        b.disabled = false;
+      }
+    });
+    return;
+  }
+  body.innerHTML = `
+    <p class="orch-line">Learned from <b>${s.learned}</b> of your messages</p>
+    <label class="switch"><input type="checkbox" id="orch-review" ${s.review ? "checked" : ""}><span class="track" aria-hidden="true"><i></i></span><span>Review finished work for me</span></label>
+    <div class="orch-actions"><button type="button" class="ghost" id="orch-notes">Read its notebook</button><button type="button" class="ghost" id="orch-desk">Go to its desk</button></div>`;
+  $<HTMLInputElement>("orch-review").addEventListener("change", (e) => orch.setReview((e.target as HTMLInputElement).checked));
+  $("orch-notes").addEventListener("click", () => void orch.showNotebook());
+  $("orch-desk").addEventListener("click", () => { const d = world.deskFor(s.threadId); if (d) { world.select(d); world.focusOn(d); } });
+}
+renderOrch();
 world.attachDir = attachDir;
 await refresh();
 setInterval(refresh, 3000);

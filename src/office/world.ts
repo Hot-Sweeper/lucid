@@ -252,6 +252,7 @@ export class World {
         this.freeDesks.push(d);
       }
       this.slotDesks.set(s.key, d);
+      if (d.threadId) d.el.classList.toggle("orch-desk", d.threadId === this.orchThread);
       const cur = { x: parseFloat(d.el.style.left), y: parseFloat(d.el.style.top) };
       if (Math.abs(cur.x - s.x) > 1 || Math.abs(cur.y - s.y) > 1) {
         // a robot changing rooms leaves its old seat and shows up at the new one,
@@ -395,6 +396,7 @@ export class World {
   onRoomMenu: (room: Room, x: number, y: number) => void = () => {};
   onDeskMenu: (desk: Desk, x: number, y: number) => void = () => {};
   building = "This PC";
+  orchThread = "";
   attachDir = "";
 
   overview() { this.unfocus(false); this.flyTo({ x: 0, y: -110, w: this.size.w, h: this.size.h + 110 }, 24); }
