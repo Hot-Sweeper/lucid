@@ -102,7 +102,7 @@ async function composer() {
     createBufferSource() { return { connect() {}, start() {} }; }
     startRendering() { return Promise.resolve({ getChannelData: () => this.pcm }); }
   }
-  const source = fs.readFileSync(path.resolve(__dirname, '../src/office/dictation.ts'), 'utf8').replace("import './dictation.css';", '').replace(/^import captureWorklet.*;$/m, "const captureWorklet = 'file:///fixture/worklet.js';");
+  const source = fs.readFileSync(path.resolve(__dirname, '../src/office/dictation.ts'), 'utf8').replace("import './dictation.css';", '').replace(/^import \{ loadCaptureWorklet \}.*;$/m, "const loadCaptureWorklet = context => context.audioWorklet.addModule('blob:fixture');");
   const compiled = require('node:module').stripTypeScriptTypes(source, { mode: 'transform' }).replace('export function attachDictation', 'function attachDictation').replace(/export\s*\{\s*\};?/, '') + '\nexports.attachDictation = attachDictation;';
   const exports = {};
   vm.runInNewContext(compiled, { exports, window, document: { createElement: () => new Element() }, navigator: { mediaDevices: { getUserMedia: (...args) => getUserMedia(...args) } }, AudioContext: Audio, AudioWorkletNode: Worklet, OfflineAudioContext: Offline, Event, DOMException, Uint8Array, Float32Array, URL, console });

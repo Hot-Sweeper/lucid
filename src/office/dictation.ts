@@ -1,5 +1,5 @@
 import './dictation.css';
-import captureWorklet from '../../scripts/dictation-test/capture-worklet.js?no-inline&url';
+import { loadCaptureWorklet } from './dictation-worklet';
 
 type DictationResult = { text: string; computeMs: number; audioSeconds: number };
 type DictationAPI = { load(mode?: string): Promise<unknown>; run(bytes: Uint8Array): Promise<DictationResult>; cancel(): Promise<void> };
@@ -91,7 +91,7 @@ export function attachDictation(form: HTMLFormElement, owner: () => string | nul
       if (mine !== generation) { opened.getTracks().forEach(track => track.stop()); return; }
       stream = opened;
       context = new AudioContext();
-      await context.audioWorklet.addModule(captureWorklet);
+      await loadCaptureWorklet(context);
       if (mine !== generation) return;
       await context.resume();
       if (mine !== generation || !context) return;
