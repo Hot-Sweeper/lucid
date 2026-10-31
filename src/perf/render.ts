@@ -4,10 +4,10 @@ import { screenFrameRate } from "./screen-budget";
 // One clock for screen apps. Geometry arrives from the camera/IntersectionObserver, never
 // from layout reads in a draw callback. Logical events and real thread data keep running.
 type Surface = { visible: boolean; fps: number; phase: number; explicit: boolean; refs: number; el: HTMLElement };
-type Loop = { owner?: HTMLElement; surface?: Surface; win: HTMLElement | null; cb: (now: number, dt: number) => void; last: number; due: number; fps: number; once: boolean; bound: boolean; stop: () => void };
+type Loop = { owner?: HTMLElement; surface?: Surface; win: HTMLElement | null; parent: HTMLElement | null; cb: (now: number, dt: number) => void; last: number; due: number; fps: number; once: boolean; bound: boolean; stop: () => void };
 const surfaces = new WeakMap<HTMLElement, Surface>();
 const loops = new Set<Loop>();
-const contexts = new WeakMap<HTMLElement, { host: HTMLElement; win: HTMLElement | null }>();
+const contexts = new WeakMap<HTMLElement, { host: HTMLElement; win: HTMLElement | null; parent: HTMLElement | null }>();
 let raf = 0;
 let surfaceSequence = 0;
 const io = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver((entries) => {
@@ -37,8 +37,8 @@ export function wakeRender() { wake(); }
 export function renderFps(owner: HTMLElement) {
   if (document.hidden || !owner.isConnected) return 0;
   let context = contexts.get(owner);
-  if (!context || !context.host.contains(owner) || context.win && !context.win.contains(owner)) {
-    context = { host: owner.closest<HTMLElement>(".screen, .phone-screen") ?? owner, win: owner.closest<HTMLElement>(".win") };
+  if (!context || context.parent !== owner.parentElement || !context.host.contains(owner) || context.win && !context.win.contains(owner)) {
+    context = { host: owner.closest<HTMLElement>(".screen, .phone-screen") ?? owner, win: owner.closest<HTMLElement>(".win"), parent: owner.parentElement };
     contexts.set(owner, context);
   }
   const s = surfaces.get(context.host);
@@ -57,22 +57,27 @@ export function renderLoop(owner: HTMLElement | undefined, cb: Loop["cb"], once 
     const current = loop.surface;
     if (current && --current.refs === 0 && !current.explicit) { io?.unobserve(current.el); surfaces.delete(current.el); }
   };
-  const loop: Loop = { owner, surface: s, win: owner?.closest<HTMLElement>(".win") ?? null, cb, last: 0, due: 0, fps: 0, once, bound: !owner || owner.isConnected, stop };
+  const loop: Loop = { owner, surface: s, win: owner?.closest<HTMLElement>(".win") ?? null, parent: owner?.parentElement ?? null, cb, last: 0, due: 0, fps: 0, once, bound: !owner || owner.isConnected, stop };
   loops.add(loop); wake();
   return stop;
 }
 export function deferRender(owner: HTMLElement, cb: () => void) { return renderLoop(owner, cb, true); }
-function active(l: Loop) {
-  if (l.owner?.isConnected && (!l.bound || l.surface && !l.surface.el.contains(l.owner) || l.win && !l.win.contains(l.owner))) {
+function loopFrameRate(l: Loop) {
+  if (document.hidden) return 0;
+  if (l.owner && !l.owner.isConnected) return 0;
+  if (l.owner && (!l.bound || l.parent !== l.owner.parentElement || l.surface && !l.surface.el.contains(l.owner) || l.win && !l.win.contains(l.owner))) {
     const host = l.once ? l.owner : l.owner.closest<HTMLElement>(".screen, .phone-screen") ?? l.owner;
     const next = surface(host), old = l.surface;
     if (next !== old) {
       if (old && --old.refs === 0 && !old.explicit) { io?.unobserve(old.el); surfaces.delete(old.el); }
       next.refs++; l.surface = next;
     }
-    l.win = l.owner.closest<HTMLElement>(".win"); l.bound = true;
+    l.win = l.owner.closest<HTMLElement>(".win"); l.parent = l.owner.parentElement; l.bound = true;
   }
-  return (!l.owner || l.owner.isConnected) && l.win?.dataset.renderHidden !== "1" && (!l.surface || l.surface.visible && l.surface.fps > 0) && (!l.owner || renderFps(l.owner) > 0);
+  if (l.win?.dataset.renderHidden === "1" || l.surface?.visible === false) return 0;
+  // Continuous loops are already bound to their screen. Only a deferred thumbnail has
+  // its own IntersectionObserver surface in addition to its containing desktop.
+  return Math.min(l.surface?.fps ?? 60, l.once && l.owner ? renderFps(l.owner) : 60);
 }
 function wake() { if (!raf && !document.hidden && loops.size) raf = requestAnimationFrame(frame); }
 function frame(now: number) {
@@ -81,17 +86,24 @@ function frame(now: number) {
   let running = false;
   let paintedStatic = false;
   for (const l of loops) {
-    if (!active(l)) { l.last = 0; continue; }
+    // A 144 Hz display must not re-walk every app's ancestors 144 times a second
+    // for a desktop drawing at 20 Hz. Visibility is checked before its next draw.
+    if (l.last && l.surface?.fps === l.fps && now < l.due - .5) { running = true; continue; }
+    const fps = loopFrameRate(l);
+    if (!fps) { l.last = 0; continue; }
     running = true;
     if (l.once && paintedStatic) continue; // amortize expensive poster/thumbnail construction
-    const fps = Math.min(l.surface?.fps ?? 60, l.owner ? renderFps(l.owner) : 60), interval = 1000 / fps;
+    const interval = 1000 / fps;
     if (fps !== l.fps) { l.fps = fps; l.last = l.due = 0; }
     if (l.last && now < l.due - .5) continue;
     const dt = l.last ? Math.min(.05, (now - l.last) / 1000) : 1 / 60;
     // Each workstation owns a stable clock phase. Zooming out must not synchronize
     // every visible canvas into one expensive repaint burst every 50 ms.
     const phase = (l.surface?.phase ?? 0) * interval;
-    l.due = (Math.floor((now - phase) / interval) + 1) * interval + phase;
+    // The eligibility tolerance also belongs in the slot calculation. Otherwise a
+    // frame just before its slot gets scheduled into that same slot again and draws
+    // twice within a single display tick on high refresh rate monitors.
+    l.due = (Math.floor((now + .5 - phase) / interval) + 1) * interval + phase;
     l.last = now;
     const start = beginSystem();
     try { l.cb(now, dt); } catch (error) { l.stop(); reportError(error); } finally { endSystem("apps", start); }
@@ -102,6 +114,6 @@ function frame(now: number) {
 document.addEventListener("visibilitychange", wake);
 if ((window as any).__lucidPerf) (window as any).__lucidPerf.render = () => {
   let activeLoops = 0, pendingImages = 0;
-  for (const l of loops) { if (active(l)) activeLoops++; if (l.once) pendingImages++; }
+  for (const l of loops) { if (loopFrameRate(l)) activeLoops++; if (l.once) pendingImages++; }
   return { loops: loops.size, active: activeLoops, pendingImages };
 };

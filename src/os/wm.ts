@@ -74,6 +74,7 @@ export class WM {
   private clockTimer = 0;
   private cursorX!: (x: number) => void;
   private cursorY!: (y: number) => void;
+  private movingWindows = new Map<Win, number>();
 
   constructor(screen: HTMLElement, robot: Robot) {
     this.robot = robot;
@@ -453,6 +454,25 @@ export class WM {
     return best;
   }
   // grab the title bar and drag the window to a new frame (resizing on drop if needed)
+  private beginWindowMove(w: Win) {
+    this.movingWindows.set(w, (this.movingWindows.get(w) ?? 0) + 1);
+    // The old opaque rectangle is no longer a valid cover while it moves. Resume
+    // underlying apps now, so dragging/maximizing never exposes an empty body.
+    this.syncOcclusion();
+    let ended = false;
+    return () => {
+      if (ended) return;
+      ended = true;
+      const count = (this.movingWindows.get(w) ?? 1) - 1;
+      if (count > 0) this.movingWindows.set(w, count); else this.movingWindows.delete(w);
+      this.syncOcclusion();
+    };
+  }
+  private animateFrame(w: Win, to: Frame | { left: string; top: string; width: string; height: string }, duration: number, delay = 0, ease = "power3.out") {
+    const end = this.beginWindowMove(w);
+    const frame = "left" in to ? to : { left: to.x, top: to.y, width: to.w, height: to.h };
+    return gsap.to(w.el, { ...frame, duration: duration / this.speed, delay: delay / this.speed, ease, onComplete: end, onInterrupt: end });
+  }
   async dragTo(id: AppId, to: Frame) {
     const w = this.wins.get(id);
     if (!w) return;
@@ -462,15 +482,14 @@ export class WM {
     const r = this.frameOf(w);
     const grab = { x: this.cursor.x - r.x, y: this.cursor.y - r.y };
     w.el.classList.add("dragging");
-    for (const other of this.wins.values()) { other.el.dataset.renderHidden = "0"; other.el.classList.remove("render-hidden"); }
-    wakeRender();
+    const endMove = this.beginWindowMove(w);
     this.robot.click();
     const move = this.moveTo(to.x + grab.x, to.y + grab.y, 520);
     const follow = () => { w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
     gsap.ticker.add(follow);
-    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); this.syncOcclusion(); }
+    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); endMove(); }
     this.check(e);
-    if (to.w !== r.w || to.h !== r.h) gsap.to(w.el, { left: to.x, top: to.y, width: to.w, height: to.h, duration: 0.3 / this.speed, ease: "power2.out", onComplete: () => this.syncOcclusion() });
+    if (to.w !== r.w || to.h !== r.h) this.animateFrame(w, to, 0.3, 0, "power2.out");
   }
   // drag to a screen edge: the window snaps to that half, like on a real desktop
   async snap(id: AppId, side: "left" | "right") {
@@ -484,12 +503,12 @@ export class WM {
     flash.style.cssText = `left:${half.x}px;top:${half.y}px;width:${half.w}px;height:${half.h}px`;
     this.layer.appendChild(flash);
     gsap.fromTo(flash, { opacity: 0 }, { opacity: 1, duration: 0.15, yoyo: true, repeat: 1, onComplete: () => flash.remove() });
-    gsap.to(w.el, { left: half.x, top: half.y, width: half.w, height: half.h, duration: 0.32 / this.speed, ease: "power3.out" });
+    this.animateFrame(w, half, 0.32);
     // the window on the other side fills the rest, if there is one
     const other = [...this.wins.values()].filter((o) => o.id !== id).sort((a, b) => b.lastUsed - a.lastUsed)[0];
     if (other && Math.random() < 0.7) {
       const rest = { x: side === "left" ? Math.round(SCREEN.w / 2) + 2 : 4, y: 4, w: half.w, h: half.h };
-      gsap.to(other.el, { left: rest.x, top: rest.y, width: rest.w, height: rest.h, duration: 0.36 / this.speed, ease: "power3.out", delay: 0.12 / this.speed });
+      this.animateFrame(other, rest, 0.36, 0.12);
     }
     await this.sleep(380);
   }
@@ -501,7 +520,7 @@ export class WM {
     this.unmax.set(id, { left: w.el.style.left, top: w.el.style.top, width: w.el.style.width, height: w.el.style.height });
     await this.pointAt(w.el.querySelector(".win-bar")!, 0.5, 0.5, 340);
     await this.click(true);
-    gsap.to(w.el, { left: 4, top: 4, width: SCREEN.w - 8, height: SCREEN.h - 58, duration: 0.32 / this.speed, ease: "power3.out" });
+    this.animateFrame(w, { x: 4, y: 4, w: SCREEN.w - 8, h: SCREEN.h - 58 }, 0.32);
     await this.sleep(360);
   }
 
@@ -512,7 +531,7 @@ export class WM {
     this.unmax.delete(id);
     await this.pointAt(w.el.querySelector(".win-bar")!, 0.5, 0.5, 300);
     await this.click(true);
-    gsap.to(w.el, { left: was.left, top: was.top, width: was.width, height: was.height, duration: 0.3 / this.speed, ease: "power3.out" });
+    this.animateFrame(w, was, 0.3);
     await this.sleep(340);
   }
 
@@ -561,11 +580,12 @@ export class WM {
     const ny = Math.max(4, Math.min(SCREEN.h - 50 - r.h, r.y + (Math.random() - 0.5) * 70));
     const grab = { x: this.cursor.x - r.x, y: this.cursor.y - r.y };
     w.el.classList.add("dragging");
+    const endMove = this.beginWindowMove(w);
     this.robot.click();
     const move = this.moveTo(nx + grab.x, ny + grab.y, 600);
     const follow = () => { w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
     gsap.ticker.add(follow);
-    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); this.syncOcclusion(); }
+    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); endMove(); }
     this.check(e);
   }
 
@@ -586,12 +606,15 @@ export class WM {
         if (other === w || Number(other.el.style.zIndex) <= z) continue;
         // An opening window is still translucent and scaled. Its final rectangle
         // must not hide the real app underneath before the opening finishes.
-        if (other.el.classList.contains("render-opening")) continue;
+        if (other.el.classList.contains("render-opening") || this.movingWindows.has(other)) continue;
         const o = this.frameOf(other);
         if (o.x <= f.x && o.y <= f.y && o.x + o.w >= f.x + f.w && o.y + o.h >= f.y + f.h) { hidden = true; break; }
       }
-      w.el.dataset.renderHidden = hidden ? "1" : "0";
-      w.el.classList.toggle("render-hidden", hidden);
+      const state = hidden ? "1" : "0";
+      if (w.el.dataset.renderHidden !== state) {
+        w.el.dataset.renderHidden = state;
+        w.el.classList.toggle("render-hidden", hidden);
+      }
     }
     wakeRender();
   }

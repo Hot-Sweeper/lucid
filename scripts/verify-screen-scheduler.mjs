@@ -11,10 +11,11 @@ assert.equal(screenFrameRate(200), 30); assert.equal(screenFrameRate(449), 30); 
 
 const source = await readFile(new URL('../src/perf/render.ts', import.meta.url), 'utf8');
 const code = (await transformWithOxc(source.replace(/^import .*;\r?\n/gm, ''), 'render.ts')).code.replace(/export\s*\{[^}]*\};?/g, '').replace(/^export /gm, '');
-let nextFrame = null, io;
+let nextFrame = null, io, hierarchyChecks = 0;
 class Element {
   constructor(kind, parent = null) { this.kind = kind; this.parent = parent; this.isConnected = true; this.dataset = {}; this.classList = { toggle() {} }; }
-  contains(other) { for (let p = other; p; p = p.parent) if (p === this) return true; return false; }
+  get parentElement() { return this.parent; }
+  contains(other) { hierarchyChecks++; for (let p = other; p; p = p.parent) if (p === this) return true; return false; }
   closest(selector) { for (let p = this; p; p = p.parent) if (selector.includes(`.${p.kind}`)) return p; return null; }
 }
 const document = { hidden: false, addEventListener() {} };
@@ -42,6 +43,29 @@ scheduler.setRenderView(screen2, true, 300); frames(12);
 assert.ok(draws > covered, 'Reparenting into a visible window must not retain the old covered-window cache');
 stop(); frames(2);
 
+// A connected standalone owner can later become a covered desktop child. A cached
+// fallback host must not keep it rendering at 60 Hz outside that desktop's budget.
+const moved = new Element('canvas');
+assert.equal(scheduler.renderFps(moved), 60);
+moved.parent = win2; win2.dataset.renderHidden = '1';
+assert.equal(scheduler.renderFps(moved), 0);
+win2.dataset.renderHidden = '0';
+assert.equal(scheduler.renderFps(moved), 30);
+
+// High refresh displays should not repeatedly traverse ancestors between 20 Hz draws.
+const highRefreshScreen = new Element('screen'), highRefreshOwner = new Element('canvas', highRefreshScreen);
+scheduler.setRenderView(highRefreshScreen, true, 50);
+let highRefreshDraws = 0;
+const highRefreshTimes = [];
+const stopHighRefresh = scheduler.renderLoop(highRefreshOwner, time => {highRefreshDraws++;highRefreshTimes.push(time);});
+hierarchyChecks = 0;
+for (let i=0;i<144;i++) { now += 1000/144; const callback=nextFrame;nextFrame=null;callback?.(now); }
+const highRefreshChecks = hierarchyChecks;
+assert.ok(highRefreshDraws >= 19 && highRefreshDraws <= 22);
+assert.ok(highRefreshTimes.slice(2).every((time,i)=>time-highRefreshTimes[i+1]>40), 'After initial phase alignment a slot tolerance must not schedule two app draws within one high refresh display tick');
+assert.ok(highRefreshChecks < 60, `20 Hz apps should validate hierarchy near draw time, got ${highRefreshChecks} checks`);
+stopHighRefresh();frames(2);
+
 const thumbnail = new Element('canvas'); let constructed=0;
 scheduler.deferRender(thumbnail, () => constructed++);
 io([{ target:thumbnail,isIntersecting:true,boundingClientRect:{width:12} }]); frames(3);
@@ -52,4 +76,4 @@ for(let i=0;i<20;i++) { const s=new Element('screen');scheduler.setRenderView(s,
 for(let i=0;i<65;i++) { const before=count;frame();counts.push(count-before); }
 assert.ok(Math.max(...counts.slice(2)) < 12, `Screen clocks should be staggered, peak ${Math.max(...counts.slice(2))}`);
 for(const stop of stops)stop();
-console.log(JSON.stringify({tinyVisibleHz:20,closeHz:60,offscreenPaused:true,coveredPaused:true,reparentingResumed:true,tinyThumbnailBuilt:true,staggeredPeak:Math.max(...counts.slice(2))}));
+console.log(JSON.stringify({tinyVisibleHz:20,closeHz:60,offscreenPaused:true,coveredPaused:true,reparentingResumed:true,tinyThumbnailBuilt:true,highRefreshDraws,highRefreshChecks,staggeredPeak:Math.max(...counts.slice(2))}));
