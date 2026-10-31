@@ -147,7 +147,13 @@ class StaticRun {
     if (!this.dependencies.length) return;
     const style = getComputedStyle(this.svg), next = this.dependencies.map((name) => style.getPropertyValue(name)).join("|");
     if (next === this.dependency) return;
-    this.generation++; this.request = ""; this.failedUntil = 0; this.serialize(); this.fallback(); this.update(true);
+    this.generation++; this.request = ""; this.failedUntil = 0;
+    this.fallback();
+    // Coverage alone does not make an asset current. Keeping the old crop here
+    // lets update() immediately re-show stale pixels and skip the replacement job.
+    if (this.asset) { this.asset.refs--; this.asset = null; }
+    this.crop = null; this.image.removeAttribute("href");
+    this.serialize(); this.update(true); trimAssets();
   }
 
   private position() {

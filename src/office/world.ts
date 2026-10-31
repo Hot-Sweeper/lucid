@@ -1387,16 +1387,14 @@ export class World {
     this.clampCam();
     this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
     this.recull();
-    // While the zoom changes, the world is scaled as one finished picture instead of being redrawn
-    // at every step (that redraw kept the graphics process busy most of the time); it is redrawn
-    // sharp a moment after the zoom settles.
-    // Panning too: a moving picture is just slid by the graphics card (and stays sharp), instead
-    // of the whole office being repainted every frame.
+    // Translation can reuse composited pixels. Scaling must let Chromium choose a
+    // new raster density immediately, rather than magnifying a finished world image.
     if (this.cam.s !== this.lastScale || this.cam.x !== this.lastX || this.cam.y !== this.lastY) {
+      if (this.cam.s !== this.lastScale) this.root.classList.add("scaling");
       this.lastScale = this.cam.s; this.lastX = this.cam.x; this.lastY = this.cam.y;
       if (!this.zooming) { this.zooming = true; this.root.classList.add("zooming"); }
       window.clearTimeout(this.zoomEnd);
-      this.zoomEnd = window.setTimeout(() => { this.zooming = false; this.root.classList.remove("zooming"); }, 180);
+      this.zoomEnd = window.setTimeout(() => { this.zooming = false; this.root.classList.remove("zooming", "scaling"); }, 180);
     }
     setZoom(this.cam.s, this.cam.x, this.cam.y);
     const box = this.sceneBox ??= this.scene.getBoundingClientRect();

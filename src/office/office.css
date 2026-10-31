@@ -810,8 +810,8 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .wl-boost.hot { background: #ffd27a; box-shadow: 0 0 12px rgba(255, 210, 122, 0.6); }
 .cm-error.calm { color: var(--ink-3); }
 
-/* while zooming, the world is scaled as a finished picture (see World.apply) */
-.world.zooming { will-change: transform; }
+/* Reuse pixels during pans; let live text and vectors rerasterize during zoom. */
+.world.zooming:not(.scaling) { will-change: transform; }
 
 .cp-plan { flex: none; margin: 0 16px 8px; color: var(--ink-2); font-size: 12px; }
 .cp-plan[hidden] { display: none; }

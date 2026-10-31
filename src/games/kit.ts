@@ -3,6 +3,8 @@
 import gsap from "gsap";
 import type { FunHost, FunOpts, Outcome } from "../fun/host";
 import { renderLoop } from "../perf/render";
+import { LiveCanvases, fitCanvas } from "../perf/canvas";
+export { fitCanvas } from "../perf/canvas";
 
 export type { FunHost, FunOpts, Outcome };
 
@@ -11,13 +13,16 @@ export class Scope {
   private fns: (() => void)[] = [];
   private tweens: (gsap.core.Tween | gsap.core.Timeline)[] = [];
   disposed = false;
-  constructor(private owner?: HTMLElement) {}
+  private canvases: LiveCanvases;
+  constructor(private owner?: HTMLElement) { this.canvases = new LiveCanvases(owner); }
 
   add(fn: () => void) { this.fns.push(fn); }
+  liveCanvas(canvas: HTMLCanvasElement) { return this.canvases.add(canvas); }
+  releaseCanvas(canvas: HTMLCanvasElement) { this.canvases.remove(canvas); }
 
   /** rAF loop with time in seconds and a clamped delta. */
   raf(cb: (now: number, dt: number) => void) {
-    this.add(renderLoop(this.owner, (now, dt) => { if (!this.disposed) cb(now / 1000, dt); }));
+    this.add(renderLoop(this.owner, (now, dt) => { if (!this.disposed) { this.canvases.prepare(); cb(now / 1000, dt); } }));
   }
 
   tw<T extends gsap.core.Tween | gsap.core.Timeline>(t: T): T {
@@ -39,21 +44,13 @@ export class Scope {
     for (const f of this.fns.splice(0).reverse()) {
       try { f(); } catch { /* keep cleaning */ }
     }
+    this.canvases.clear();
   }
 }
 
 export const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export const DPR = 2;
-export function fitCanvas(canvas: HTMLCanvasElement, w: number, h: number) {
-  canvas.width = Math.max(1, Math.round(w * DPR));
-  canvas.height = Math.max(1, Math.round(h * DPR));
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  const ctx = canvas.getContext("2d")!;
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  return ctx;
-}
 
 export function html(s: string) {
   const t = document.createElement("template");

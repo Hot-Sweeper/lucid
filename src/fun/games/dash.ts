@@ -126,6 +126,7 @@ export async function playDash(body: HTMLElement, host: FunHost, opts: FunOpts):
   try {
     const view = mountGame(body, scope, "Dash", "dash");
     const { ctx, w, h } = view;
+    scope.liveCanvas(view.canvas);
     const S = new Session(host, opts, { base: 0.08, step: 0.03, calm: 0.02 });
     const skill = S.skill;
     const level = generate(Math.floor(Math.random() * 1e9));

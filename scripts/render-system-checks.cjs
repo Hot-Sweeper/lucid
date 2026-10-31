@@ -47,13 +47,13 @@ module.exports = async ({ js, wc, wait, out, setMessages }) => {
   assert(await js("window.__checkDesk.wm.wins.get('game').el.classList.contains('render-hidden')"), "Opaque covering window did not hide the game");
   result.covered = await sample();
   assert(result.covered.calls === 0, "Fully covered app still renders");
-  await js(`{const wm=window.__checkDesk.wm;wm.speed=1;wm.animateFrame(wm.wins.get('notes'),{x:700,y:8,w:100,h:200},.8)}`);
+  await js(`{const wm=window.__checkDesk.wm;wm.speed=1;wm.animateFrame(wm.wins.get('notes'),{x:700,y:8,w:100,h:200},.8);void 0}`);
   result.movingCover = await js(`{const w=window.__checkDesk.wm.wins.get('game');({hidden:w.el.dataset.renderHidden,bodyVisibility:getComputedStyle(w.body).visibility})}`);
   assert(result.movingCover.hidden === "0" && result.movingCover.bodyVisibility === "visible", "Moving a covering window must immediately expose the real app body");
   await wait(900);
   result.movedCover = await sample();
   assert(result.movedCover.calls > 0, "An app exposed by moving another window must resume without a focus change");
-  await js(`{const wm=window.__checkDesk.wm;wm.animateFrame(wm.wins.get('notes'),{x:0,y:0,w:820,h:461},.1)}`);
+  await js(`{const wm=window.__checkDesk.wm;wm.animateFrame(wm.wins.get('notes'),{x:0,y:0,w:820,h:461},.1);void 0}`);
   await wait(250);
   result.recoveredCover = await sample();
   assert(result.recoveredCover.calls === 0, "A settled opaque covering window must pause the app again");

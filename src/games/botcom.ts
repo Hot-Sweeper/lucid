@@ -320,6 +320,7 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
     const tempo = clamp(opts.maxMs / 108000, 0.5, 0.9);
     const W = f.w, H = f.h, MH = H - PANEL;
     const { ctx } = addCanvas(f.stage, W, MH);
+    scope.liveCanvas(ctx.canvas);
     const ox = Math.round(W / 2), oy = Math.round((MH - (GW + GH) * TH / 2) / 2) + 12;
     const sx = (x: number, y: number) => ox + (x - y) * TW / 2;
     const sy = (x: number, y: number) => oy + (x + y) * TH / 2 + TH / 2;
@@ -1039,6 +1040,7 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
     };
 
     let accT = 0;
+    let bufferWidth = ctx.canvas.width, bufferHeight = ctx.canvas.height;
     scope.raf((t, dt) => {
       if (!M) return;
       for (const p of parts) {
@@ -1050,7 +1052,9 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       for (let i = parts.length - 1; i >= 0; i--) if (parts[i].life >= parts[i].max) parts.splice(i, 1);
       if (!calm) for (const b of ambient) { b.y += b.vy * dt; if (b.y < -6) { b.y = MH + 4; b.x = Math.random() * W; } }
       accT += dt;
-      if (accT < 1 / 31) return;
+      const resized = bufferWidth !== ctx.canvas.width || bufferHeight !== ctx.canvas.height;
+      if (accT < 1 / 31 && !resized) return;
+      bufferWidth = ctx.canvas.width; bufferHeight = ctx.canvas.height;
       accT = 0;
       draw(t);
     });

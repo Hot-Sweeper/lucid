@@ -1,5 +1,6 @@
 import gsap from "gsap";
 import { renderLoop } from "../perf/render";
+import { LiveCanvases, fitCanvas } from "../perf/canvas";
 import type { FunHost, FunOpts, Outcome } from "./types";
 
 // Thrown internally when time is up or the host says stop. Never leaves this module.
@@ -16,8 +17,11 @@ export class Kit {
   private stopFrames: (() => void) | null = null;
   dead = false;
   readonly t0 = performance.now();
+  private canvases: LiveCanvases;
 
-  constructor(readonly root: HTMLElement, readonly host: FunHost, readonly opts: FunOpts) {}
+  constructor(readonly root: HTMLElement, readonly host: FunHost, readonly opts: FunOpts) { this.canvases = new LiveCanvases(root); }
+  liveCanvas(canvas: HTMLCanvasElement) { return this.canvases.add(canvas); }
+  releaseCanvas(canvas: HTMLCanvasElement) { this.canvases.remove(canvas); }
 
   get left() { return this.opts.maxMs - (performance.now() - this.t0); }
   get over() { return this.dead || this.host.stopped || this.left <= 0; }
@@ -49,6 +53,7 @@ export class Kit {
   }
   private frame = (now: number, dt: number) => {
     if (this.dead) return;
+    this.canvases.prepare();
     for (const f of this.ticks) f(now, dt);
   };
 
@@ -74,6 +79,7 @@ export class Kit {
     this.timers.clear();
     this.ticks.clear();
     this.stopFrames?.(); this.stopFrames = null;
+    this.canvases.clear();
     gsap.killTweensOf(this.root.querySelectorAll("*"));
   }
 }
@@ -113,13 +119,7 @@ export function rel(el: Element, box: HTMLElement) {
 }
 
 export function canvas(el: HTMLCanvasElement, w: number, h: number) {
-  el.width = Math.max(1, Math.round(w * 2));
-  el.height = Math.max(1, Math.round(h * 2));
-  el.style.width = w + "px";
-  el.style.height = h + "px";
-  const ctx = el.getContext("2d")!;
-  ctx.setTransform(2, 0, 0, 2, 0, 0);
-  return ctx;
+  return fitCanvas(el, w, h);
 }
 
 export function esc(s: string) {

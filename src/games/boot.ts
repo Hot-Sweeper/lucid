@@ -720,6 +720,7 @@ const lighten = (c: number) => 0xff000000 | (((((c >> 16) & 255) + 255) >> 1) <<
 /** Returns draw(run, time, calm): fills buf with one frame. Allocates nothing per frame. */
 function renderer(P: Pack, RW: number, RH: number, buf: Uint32Array) {
   const zbuf = new Float32Array(RW);
+  const wallTop = new Int16Array(RW), wallBottom = new Int16Array(RW);
   const PL = RW / (2 * RH);
   const MAX = 220;
   const qx = new Float32Array(MAX), qy = new Float32Array(MAX), qz = new Float32Array(MAX), qw = new Float32Array(MAX), qh = new Float32Array(MAX), qd = new Float32Array(MAX);
@@ -750,28 +751,6 @@ function renderer(P: Pack, RW: number, RH: number, buf: Uint32Array) {
     const hz = RH / 2 + (calm || r.dead ? 0 : Math.sin(r.walk * 2) * move * 1.6);
     const eye = r.eyeZ;
     const boost = r.fireT < 0.07 ? 1.3 : 1;
-
-    // floor and ceiling
-    const r0x = ca - plX, r0y = sa - plY, r1x = ca + plX, r1y = sa + plY;
-    for (let y = 0; y < RH; y++) {
-      const dy = y + 0.5 - hz;
-      let o = y * RW;
-      if (Math.abs(dy) < 0.6) { for (let x = 0; x < RW; x++) buf[o++] = 0xff000000; continue; }
-      const fl = dy > 0;
-      const dist = ((fl ? eye : 1 - eye) * RH) / Math.abs(dy);
-      const s = Math.min(256, (shadeF(dist) * (fl ? 1 : 0.85) * 256 * boost) | 0);
-      let fx = r.x + dist * r0x, fy = r.y + dist * r0y;
-      const stx = (dist * (r1x - r0x)) / RW, sty = (dist * (r1y - r0y)) / RW;
-      const T = fl ? P.floor : P.ceil;
-      for (let x = 0; x < RW; x++) {
-        const cx = Math.floor(fx), cy = Math.floor(fy);
-        const ti = ((((fy - cy) * 32) | 0) & 31) * 32 + ((((fx - cx) * 32) | 0) & 31);
-        const tt = !fl && cx >= 0 && cy >= 0 && cx < MW && cy < MH && LIGHT[cy * MW + cx] ? P.lamp : T;
-        const c = tt.px[ti];
-        buf[o++] = tt.glow[ti] ? c : shadePx(c, s);
-        fx += stx; fy += sty;
-      }
-    }
 
     // walls (DDA), with sliding doors on the cell mid-line
     const blink = Math.floor(time * 2.2);
@@ -807,10 +786,12 @@ function renderer(P: Pack, RW: number, RH: number, buf: Uint32Array) {
         break;
       }
       zbuf[x] = perp;
+      wallTop[x] = wallBottom[x] = 0;
       if (!tex) continue;
       const lh = RH / perp;
       const top = hz - (1 - eye) * lh;
       const y0 = Math.max(0, Math.ceil(top - 0.5)), y1 = Math.min(RH, Math.ceil(top + lh - 0.5));
+      wallTop[x] = y0; wallBottom[x] = y1;
       const step = 32 / lh;
       let v = (y0 + 0.5 - top) * step;
       const s = Math.min(256, (shadeF(perp) * (side ? 0.78 : 1) * 256 * boost) | 0);
@@ -818,6 +799,34 @@ function renderer(P: Pack, RW: number, RH: number, buf: Uint32Array) {
       const px = tex.px, gl = tex.glow;
       let o = y0 * RW + x;
       for (let y = y0; y < y1; y++) { const ti = ((v | 0) & 31) * 32 + tx; buf[o] = gl[ti] ? px[ti] : shadePx(px[ti], s); v += step; o += RW; }
+    }
+
+    // Shade only visible floor/ceiling pixels. The original pass shaded the whole
+    // viewport before walls immediately overwrote most of it, especially close up.
+    const r0x = ca - plX, r0y = sa - plY, r1x = ca + plX, r1y = sa + plY;
+    for (let y = 0; y < RH; y++) {
+      const dy = y + 0.5 - hz;
+      let o = y * RW;
+      if (Math.abs(dy) < 0.6) {
+        for (let x = 0; x < RW; x++, o++) if (y < wallTop[x] || y >= wallBottom[x]) buf[o] = 0xff000000;
+        continue;
+      }
+      const fl = dy > 0;
+      const dist = ((fl ? eye : 1 - eye) * RH) / Math.abs(dy);
+      const s = Math.min(256, (shadeF(dist) * (fl ? 1 : 0.85) * 256 * boost) | 0);
+      let fx = r.x + dist * r0x, fy = r.y + dist * r0y;
+      const stx = (dist * (r1x - r0x)) / RW, sty = (dist * (r1y - r0y)) / RW;
+      const T = fl ? P.floor : P.ceil;
+      for (let x = 0; x < RW; x++) {
+        if (y < wallTop[x] || y >= wallBottom[x]) {
+          const cx = Math.floor(fx), cy = Math.floor(fy);
+          const ti = ((((fy - cy) * 32) | 0) & 31) * 32 + ((((fx - cx) * 32) | 0) & 31);
+          const tt = !fl && cx >= 0 && cy >= 0 && cx < MW && cy < MH && LIGHT[cy * MW + cx] ? P.lamp : T;
+          const c = tt.px[ti];
+          buf[o] = tt.glow[ti] ? c : shadePx(c, s);
+        }
+        o++; fx += stx; fy += sty;
+      }
     }
 
     // sprites, far to near

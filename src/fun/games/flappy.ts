@@ -12,6 +12,7 @@ export async function playFlappy(body: HTMLElement, host: FunHost, opts: FunOpts
   try {
     const view = mountGame(body, scope, "Flappy Drone", "flappy");
     const { ctx, w, h } = view;
+    scope.liveCanvas(view.canvas);
     const S = new Session(host, opts, { base: 0.32, step: 0.16, calm: 0.05 });
     const skill = S.skill;
     const k = h / 336;

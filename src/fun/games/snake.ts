@@ -13,6 +13,7 @@ export async function playSnake(body: HTMLElement, host: FunHost, opts: FunOpts)
   try {
     const view = mountGame(body, scope, "Snake", "snake");
     const { ctx, w, h } = view;
+    scope.liveCanvas(view.canvas);
     const S = new Session(host, opts, { base: 0.35, step: 0.18, calm: 0.05 });
     const skill = S.skill;
 

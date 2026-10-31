@@ -3,8 +3,8 @@ import { screenFrameRate } from "./screen-budget";
 
 // One clock for screen apps. Geometry arrives from the camera/IntersectionObserver, never
 // from layout reads in a draw callback. Logical events and real thread data keep running.
-type Surface = { visible: boolean; fps: number; phase: number; explicit: boolean; refs: number; el: HTMLElement };
-type Loop = { owner?: HTMLElement; surface?: Surface; win: HTMLElement | null; parent: HTMLElement | null; cb: (now: number, dt: number) => void; last: number; due: number; fps: number; once: boolean; bound: boolean; stop: () => void };
+type Surface = { visible: boolean; fps: number; scale: number; phase: number; explicit: boolean; refs: number; el: HTMLElement };
+type Loop = { owner?: HTMLElement; surface?: Surface; win: HTMLElement | null; parent: HTMLElement | null; cb: (now: number, dt: number) => void; last: number; due: number; fps: number; density: number; once: boolean; bound: boolean; stop: () => void };
 const surfaces = new WeakMap<HTMLElement, Surface>();
 const loops = new Set<Loop>();
 const contexts = new WeakMap<HTMLElement, { host: HTMLElement; win: HTMLElement | null; parent: HTMLElement | null }>();
@@ -13,36 +13,59 @@ let surfaceSequence = 0;
 const io = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver((entries) => {
   for (const e of entries) {
     const s = surfaces.get(e.target as HTMLElement);
-    if (s && !s.explicit) { s.visible = e.isIntersecting; s.fps = screenFrameRate(e.boundingClientRect.width); }
+    if (s && !s.explicit) {
+      s.visible = e.isIntersecting; s.fps = screenFrameRate(e.boundingClientRect.width);
+      // Observer delivery is outside drawing. A standalone/phone surface supplies
+      // its logical width here; draw callbacks never force a layout measurement.
+      const logicalWidth = s.el.clientWidth;
+      if (logicalWidth > 0) s.scale = e.boundingClientRect.width / logicalWidth;
+    }
   }
   wake();
 });
 function surface(el: HTMLElement) {
   let s = surfaces.get(el);
-  if (!s) { s = { visible: !io, fps: 60, phase: (++surfaceSequence * .61803398875) % 1, explicit: false, refs: 0, el }; surfaces.set(el, s); io?.observe(el); }
+  if (!s) { s = { visible: !io, fps: 60, scale: 1, phase: (++surfaceSequence * .61803398875) % 1, explicit: false, refs: 0, el }; surfaces.set(el, s); io?.observe(el); }
   return s;
 }
-export function setRenderView(el: HTMLElement, visible: boolean, screenWidth: number) {
+export function setRenderView(el: HTMLElement, visible: boolean, screenWidth: number, logicalWidth = 820) {
   const s = surface(el), fps = screenFrameRate(screenWidth);
   const changed = !s.explicit || s.visible !== visible || s.fps !== fps;
+  const scale = screenWidth / logicalWidth, densityChanged = s.scale !== scale;
   s.explicit = true; s.visible = visible; s.fps = fps;
+  if (Number.isFinite(scale) && scale > 0) s.scale = scale;
   if (changed) {
     el.classList.toggle("render-paused", !visible);
     el.dataset.renderFps = String(visible ? fps : 0);
     wake();
   }
+  else if (densityChanged) wake();
 }
 export function releaseRenderView(el: HTMLElement) { io?.unobserve(el); surfaces.delete(el); }
 export function wakeRender() { wake(); }
-export function renderFps(owner: HTMLElement) {
-  if (document.hidden || !owner.isConnected) return 0;
+function contextFor(owner: HTMLElement) {
   let context = contexts.get(owner);
   if (!context || context.parent !== owner.parentElement || !context.host.contains(owner) || context.win && !context.win.contains(owner)) {
     context = { host: owner.closest<HTMLElement>(".screen, .phone-screen") ?? owner, win: owner.closest<HTMLElement>(".win"), parent: owner.parentElement };
     contexts.set(owner, context);
   }
+  return context;
+}
+export function renderFps(owner: HTMLElement) {
+  if (document.hidden || !owner.isConnected) return 0;
+  const context = contextFor(owner);
   const s = surfaces.get(context.host);
   return context.win?.dataset.renderHidden === "1" || s?.visible === false ? 0 : s?.fps ?? 60;
+}
+/** Physical pixels per app coordinate, using camera/observer data rather than layout. */
+export function renderPixelRatio(owner?: HTMLElement) {
+  const dpr = Math.max(.1, window.devicePixelRatio || 1);
+  if (!owner) return dpr;
+  const host = contextFor(owner).host;
+  return (surfaces.get(host)?.scale ?? 1) * dpr;
+}
+export function pixelRatioBucket(required: number) {
+  return Math.pow(2, Math.ceil(Math.log2(Math.max(required, 1 / 1024)) * 4) / 4);
 }
 export function presentationFrame(owner: HTMLElement) {
   const fps = renderFps(owner);
@@ -57,7 +80,7 @@ export function renderLoop(owner: HTMLElement | undefined, cb: Loop["cb"], once 
     const current = loop.surface;
     if (current && --current.refs === 0 && !current.explicit) { io?.unobserve(current.el); surfaces.delete(current.el); }
   };
-  const loop: Loop = { owner, surface: s, win: owner?.closest<HTMLElement>(".win") ?? null, parent: owner?.parentElement ?? null, cb, last: 0, due: 0, fps: 0, once, bound: !owner || owner.isConnected, stop };
+  const loop: Loop = { owner, surface: s, win: owner?.closest<HTMLElement>(".win") ?? null, parent: owner?.parentElement ?? null, cb, last: 0, due: 0, fps: 0, density: 0, once, bound: !owner || owner.isConnected, stop };
   loops.add(loop); wake();
   return stop;
 }
@@ -86,16 +109,20 @@ function frame(now: number) {
   let running = false;
   let paintedStatic = false;
   for (const l of loops) {
+    const requiredDensity = (l.surface?.scale ?? 1) * (window.devicePixelRatio || 1);
+    const sharper = requiredDensity > l.density;
     // A 144 Hz display must not re-walk every app's ancestors 144 times a second
     // for a desktop drawing at 20 Hz. Visibility is checked before its next draw.
-    if (l.last && l.surface?.fps === l.fps && now < l.due - .5) { running = true; continue; }
+    // Zooming beyond the current sharp density bypasses that delay, so the very
+    // next display frame resizes and redraws rather than stretching stale pixels.
+    if (!sharper && l.last && l.surface?.fps === l.fps && now < l.due - .5) { running = true; continue; }
     const fps = loopFrameRate(l);
     if (!fps) { l.last = 0; continue; }
     running = true;
     if (l.once && paintedStatic) continue; // amortize expensive poster/thumbnail construction
     const interval = 1000 / fps;
     if (fps !== l.fps) { l.fps = fps; l.last = l.due = 0; }
-    if (l.last && now < l.due - .5) continue;
+    if (!sharper && l.last && now < l.due - .5) continue;
     const dt = l.last ? Math.min(.05, (now - l.last) / 1000) : 1 / 60;
     // Each workstation owns a stable clock phase. Zooming out must not synchronize
     // every visible canvas into one expensive repaint burst every 50 ms.
@@ -105,6 +132,7 @@ function frame(now: number) {
     // twice within a single display tick on high refresh rate monitors.
     l.due = (Math.floor((now + .5 - phase) / interval) + 1) * interval + phase;
     l.last = now;
+    l.density = pixelRatioBucket(requiredDensity);
     const start = beginSystem();
     try { l.cb(now, dt); } catch (error) { l.stop(); reportError(error); } finally { endSystem("apps", start); }
     if (l.once) { l.stop(); paintedStatic = true; }

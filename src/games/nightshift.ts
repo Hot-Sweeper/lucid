@@ -3,7 +3,7 @@
 // before they reach the office. Survive until 6 AM, or get booped.
 import "./games.css";
 import {
-  Scope, Session, Halt, mountFrame, addCanvas, nap, think, chance, pick, clamp, lerp, reducedMotion, hash,
+  Scope, Session, Halt, mountFrame, addCanvas, fitCanvas, nap, think, chance, pick, clamp, lerp, reducedMotion, hash,
   P, fillRR, circle, ellipse, poly, line, lin, rad, glow, text, withAlpha,
   type Ctx, type FunHost, type FunOpts, type Outcome,
 } from "./kit";
@@ -223,6 +223,7 @@ export async function playNightShift(body: HTMLElement, host: FunHost, opts: Fun
     const skill = S.skill;
     const W = f.w, H = f.h;
     const { ctx } = addCanvas(f.stage, W, H, "gm-ns-office");
+    scope.liveCanvas(ctx.canvas);
     const night = 1 + Math.floor(Math.random() * 4);
     const hourMs = clamp((opts.maxMs * 0.82 - 4000) / 6, 6500, 11000);
 
@@ -246,7 +247,8 @@ export async function playNightShift(body: HTMLElement, host: FunHost, opts: Fun
     const camEl = q(".gm-ns-cam");
     const feedC = q<HTMLCanvasElement>(".gm-ns-feed");
     const camH = H - 30;
-    const fctx = (() => { feedC.width = W * 2; feedC.height = camH * 2; feedC.style.width = `${W}px`; feedC.style.height = `${camH}px`; const c = feedC.getContext("2d")!; c.setTransform(2, 0, 0, 2, 0, 0); return c; })();
+    const fctx = fitCanvas(feedC, W, camH);
+    scope.liveCanvas(feedC);
     const btn = (side: Side, k: "door" | "light") => q(`.gm-ns-${side.toLowerCase()} [data-k="${k}"]`);
     const flipEl = q(".gm-ns-flip");
     const clockB = q(".gm-ns-clock b");
@@ -292,13 +294,14 @@ export async function playNightShift(body: HTMLElement, host: FunHost, opts: Fun
       scope.to(camEl, { yPercent: up ? 0 : 110, autoAlpha: up ? 1 : 0, duration: up ? 0.26 : 0.22, ease: up ? "power2.out" : "power2.in" });
       if (up) staticT = 0.3;
     };
+    let hudPower = -1, hudUsage = -1, hudHour = -1, hudLow = false;
     const hud = () => {
-      powB.textContent = `${Math.max(0, Math.ceil(power))}%`;
-      powB.classList.toggle("gm-low", power < 20);
+      const shownPower = Math.max(0, Math.ceil(power)), low = power < 20;
+      if (shownPower !== hudPower) { hudPower = shownPower; powB.textContent = `${shownPower}%`; }
+      if (low !== hudLow) { hudLow = low; powB.classList.toggle("gm-low", low); }
       const u = usage();
-      useBars.forEach((b, i) => b.classList.toggle("gm-on", i < Math.min(4, u)));
-      clockB.textContent = HOURS[hour];
-      f.setScore(`Night ${night}   ${HOURS[hour]}`);
+      if (u !== hudUsage) { hudUsage = u; useBars.forEach((b, i) => b.classList.toggle("gm-on", i < Math.min(4, u))); }
+      if (hour !== hudHour) { hudHour = hour; clockB.textContent = HOURS[hour]; f.setScore(`Night ${night}   ${HOURS[hour]}`); }
     };
     hud();
 

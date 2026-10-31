@@ -2,7 +2,7 @@
 // repeatedly during middle-button pans, stalling the GPU for hundreds of milliseconds.
 // Keep a small overview bitmap and rasterize only viewport crops at screen density.
 // Two recent crops are retained for backtracking instead of rebuilding the same pixels.
-// The overview covers camera motion until an asynchronous sharp crop is ready.
+// Original bounded vectors cover camera motion until a full-density crop is ready.
 import { beginSystem, endSystem } from "../perf/metrics";
 import { setSvgAttribute } from "../perf/svg-write";
 import { outsideView, outsideProjection, outsideOverviewDensity } from "./outside-view";
@@ -31,6 +31,9 @@ class OutsideRaster {
   private overview = document.createElement("canvas");
   private overviewReady = false;
   private overviewDensity = 0;
+  private nativeHost = document.createElement("div");
+  private native: SVGSVGElement;
+  private nativeCrop: Crop | null = null;
   private previewCrop: Crop | null = null;
   private liveCrop: Crop | null = null;
   private paintCount = 0;
@@ -56,11 +59,21 @@ class OutsideRaster {
     this.plane.className = "outside-viewport";
     this.plane.style.cssText = "position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden;pointer-events:none";
     this.live = layer.querySelector<SVGSVGElement>(".outside-live");
+    // The source is the exact self-contained SVG used for rasterization. A shadow
+    // tree keeps its stylesheet and fragment IDs local, including svg{} variable
+    // declarations that would otherwise alter every robot and room in the app.
+    this.nativeHost.className = "outside-native";
+    this.nativeHost.style.cssText = "position:absolute;left:0;top:0;pointer-events:none;display:none";
+    this.native = document.importNode(new DOMParser().parseFromString(svg, "image/svg+xml").documentElement, true) as unknown as SVGSVGElement;
+    this.native.setAttribute("aria-hidden", "true");
+    this.native.setAttribute("width", "1"); this.native.setAttribute("height", "1");
+    this.native.style.cssText = "display:block;overflow:hidden";
+    this.nativeHost.attachShadow({ mode: "open" }).append(this.native);
     for (const cv of [this.preview, this.detail]) {
       cv.setAttribute("aria-hidden", "true");
       cv.style.cssText = "position:absolute;left:0;top:0;pointer-events:none;visibility:hidden";
     }
-    this.plane.append(this.preview, this.detail);
+    this.plane.append(this.preview, this.detail, this.nativeHost);
     if (this.live) this.plane.append(this.live);
     layer.append(this.plane);
     if (fallback) { this.preview.width = fallback.width; this.preview.height = fallback.height; this.preview.getContext("2d")!.drawImage(fallback, 0, 0); this.preview.style.visibility = "visible"; }
@@ -192,6 +205,39 @@ class OutsideRaster {
       canvas.style.transform = `translate(${(crop.x - viewport.x) * this.cam.s}px,${(crop.y - viewport.y) * this.cam.s}px)`;
       canvas.style.visibility = outsideProjection(crop, viewport, this.cam.s) ? "visible" : "hidden";
     };
+    const current = this.view(), density = this.cam.s * dpr;
+    const sharp = !!current && !!this.crop && this.crop.density >= density * (1 - 1e-9)
+      && this.crop.x <= current.x + .01 && this.crop.y <= current.y + .01
+      && this.crop.x + this.crop.w >= current.x + current.w - .01 && this.crop.y + this.crop.h >= current.y + current.h - .01;
+    const overview = this.overviewReady && this.overviewDensity >= density * (1 - 1e-9);
+    if (current && !sharp && !overview) {
+      // Never magnify an undersized bitmap or leave an uncovered strip while the
+      // asynchronous crop is pending. The original vectors remain screen-bounded.
+      if (!this.nativeCrop || this.nativeCrop.density !== density || !this.covers(this.nativeCrop, current)) {
+        const pad = MARGIN / this.cam.s;
+        this.nativeCrop = { x: viewport.x - pad, y: viewport.y - pad, w: viewport.w + 2 * pad, h: viewport.h + 2 * pad, density };
+        const crop = this.nativeCrop;
+        setSvgAttribute(this.native, "viewBox", `${crop.x} ${crop.y} ${crop.w} ${crop.h}`);
+        setSvgAttribute(this.native, "width", String(crop.w * this.cam.s)); setSvgAttribute(this.native, "height", String(crop.h * this.cam.s));
+      }
+      const crop = this.nativeCrop;
+      this.nativeHost.style.transform = `translate(${(crop.x - viewport.x) * this.cam.s}px,${(crop.y - viewport.y) * this.cam.s}px)`;
+      this.nativeHost.style.display = "";
+      this.preview.style.visibility = this.detail.style.visibility = "hidden";
+      this.detail.dataset.sharp = "0";
+      this.plane.dataset.presentation = "vectors";
+      return;
+    }
+    this.nativeHost.style.display = "none";
+    if (sharp && this.crop && !overview) {
+      place(this.detail, this.crop);
+      this.detail.dataset.sourceDensity = String(this.crop.density);
+      this.detail.dataset.sharp = "1";
+      this.preview.style.visibility = "hidden";
+      this.plane.dataset.presentation = "detail";
+      return;
+    }
+    this.plane.dataset.presentation = "overview";
     if (this.overviewReady) {
       const view = { ...viewport, density: this.cam.s * dpr };
       if (!this.covers(this.previewCrop, view)) {
@@ -211,25 +257,12 @@ class OutsideRaster {
       this.preview.style.width = `${this.width}px`; this.preview.style.height = `${this.height}px`;
       this.preview.style.transform = "";
     }
-    const needsSharp = this.cam.s * dpr > this.overviewDensity;
-    let covered = false;
-    if (this.sharp && this.crop && needsSharp) {
-      place(this.detail, this.crop);
-      this.detail.dataset.sourceDensity = String(this.crop.density);
-      const current = this.view();
-      this.detail.dataset.sharp = current && this.covers(this.crop, current) ? "1" : "0";
-      const crop = this.crop;
-      // Do not composite translucent grounds twice where sharp pixels cover the view.
-      covered = !!current && crop.x <= current.x + .01 && crop.y <= current.y + .01
-        && crop.x + crop.w >= current.x + current.w - .01 && crop.y + crop.h >= current.y + current.h - .01;
-    } else {
-      this.detail.style.visibility = "hidden";
-      this.detail.dataset.sourceDensity = ""; this.detail.dataset.sharp = "0";
-    }
-    if (covered) this.preview.style.visibility = "hidden";
+    this.detail.style.visibility = "hidden";
+    this.detail.dataset.sourceDensity = ""; this.detail.dataset.sharp = "0";
   }
 
   snapshot() {
+    if (this.nativeHost.style.display !== "none") return undefined;
     if (!this.preview.width || !this.preview.height) return undefined;
     const dpr = devicePixelRatio || 1;
     const canvas = document.createElement("canvas"); canvas.width = Math.max(1, Math.ceil(this.width * dpr)); canvas.height = Math.max(1, Math.ceil(this.height * dpr));

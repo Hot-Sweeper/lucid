@@ -19,7 +19,7 @@ class Element {
   closest(selector) { for (let p = this; p; p = p.parent) if (selector.includes(`.${p.kind}`)) return p; return null; }
 }
 const document = { hidden: false, addEventListener() {} };
-const window = {};
+const window = { devicePixelRatio: 1 };
 class Observer { constructor(callback) { io = callback; } observe() {} unobserve() {} }
 const scheduler = new Function('document','window','IntersectionObserver','requestAnimationFrame','beginSystem','endSystem','reportError','screenFrameRate',
   `${code};return {setRenderView,renderLoop,deferRender,renderFps}`)(document, window, Observer, callback => { nextFrame = callback; return 1; }, () => -1, () => {}, error => { throw error; }, screenFrameRate);
@@ -65,6 +65,20 @@ assert.ok(highRefreshDraws >= 19 && highRefreshDraws <= 22);
 assert.ok(highRefreshTimes.slice(2).every((time,i)=>time-highRefreshTimes[i+1]>40), 'After initial phase alignment a slot tolerance must not schedule two app draws within one high refresh display tick');
 assert.ok(highRefreshChecks < 60, `20 Hz apps should validate hierarchy near draw time, got ${highRefreshChecks} checks`);
 stopHighRefresh();frames(2);
+
+const zoomScreen=new Element('screen'),zoomOwner=new Element('canvas',zoomScreen);
+scheduler.setRenderView(zoomScreen,true,20);
+let zoomDraws=0;
+const stopZoom=scheduler.renderLoop(zoomOwner,()=>zoomDraws++);
+frame();assert.equal(zoomDraws,1);
+const fineFrame=()=>{now+=.001;const callback=nextFrame;nextFrame=null;callback?.(now);};
+scheduler.setRenderView(zoomScreen,true,38);fineFrame();
+assert.equal(zoomDraws,2,'Zooming up must redraw on the next display frame even when the 20 Hz slot is not due');
+scheduler.setRenderView(zoomScreen,true,37);fineFrame();
+assert.equal(zoomDraws,2,'Zooming down reuses sharp pixels without forcing extra draws');
+window.devicePixelRatio=2;fineFrame();
+assert.equal(zoomDraws,3,'Moving to a denser display must immediately refresh the canvas');
+stopZoom();window.devicePixelRatio=1;frames(2);
 
 const thumbnail = new Element('canvas'); let constructed=0;
 scheduler.deferRender(thumbnail, () => constructed++);
