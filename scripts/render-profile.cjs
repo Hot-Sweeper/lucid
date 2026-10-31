@@ -36,7 +36,7 @@ if (!process.versions.electron) {
   const threads = Array.from({ length: 31 }, (_, i) => ({
     id: `perf-t${i}`, projectId: projects[i % 4].id, title: `Robot ${i + 1}`,
     updatedAt: new Date().toISOString(), provider: i % 2 ? "codex" : "claudeAgent",
-    runStatus: null, pinned: i < 6, settled: i >= 18 && i < 26,
+    runStatus: i < 18 ? "running" : null, pinned: i < 6, settled: i >= 18 && i < 26,
     question: i >= 26 ? "Can you review this change?" : null, model: null,
   }));
   let messages = Array.from({length:200},(_,i)=>({id:`perf-msg${i}`,role:i%2?'assistant':'user',at:new Date(1800000000000+i*1000).toISOString(),streaming:false,text:`Message ${i}: **Rendering update**\n\n${'A paragraph about the office and the measured frame budget. '.repeat(4)}\n\n\`\`\`ts\nconst frame = 16.7;\n\`\`\``,attachments:[]}));
@@ -56,11 +56,17 @@ if (!process.versions.electron) {
         await wait(6500);
         if (process.env.LUCID_REAL_WORLD !== "1") await js("window.__chat.api.conversationPage=undefined");
         if (process.env.LUCID_STATIC_ART_OFF) await js("window.__staticArt.enable(false)");
+        if (process.env.LUCID_CAMERA_NO_GATE) await js("{const w=window.__world;w.flushCamera=()=>{w.applyQueued=0;w.apply();w.keepFocus()};void 0}");
         if (process.env.LUCID_PERF_CSS) await js(`{const s=document.createElement('style');s.textContent=${JSON.stringify(process.env.LUCID_PERF_CSS)};document.head.append(s)}`);
+        if (process.env.LUCID_CAMERA_APPS) {
+          await js(`{let i=0;for(const d of window.__world.desks.values()){d.wm.speed=20;void d.director.idleLife.doActivity(['blockcraft','nightshift','botcom','boot','botflix','tensorhub'][i++%6],d.director.idleLife.token).catch(e=>{if(e.constructor.name!=='Cancelled')console.error(e)})}}`);
+          await wait(6000);
+        }
         await dbg.sendCommand("Performance.enable");
         if (process.env.LUCID_PERF_CPU) await dbg.sendCommand("Emulation.setCPUThrottlingRate", { rate: Number(process.env.LUCID_PERF_CPU) });
         const suite = process.env.LUCID_PERF_SUITE, real = process.env.LUCID_REAL_WORLD === "1";
         let scenes = real ? [["overview",0,0,0],["panning",0,0,0],["office",.65,0,0],["close",2,0,0],["chat",2,0,0],["rain",0,0,0]] : suite ? [["idle", .65, 2100, 480], ["many", .23, 2100, 850], ["zoomed", 2, 1460, 430], ["panning", .65, 2100, 480], ["apps-many", .65, 2100, 480], ["apps-far", .23, 2100, 850], ["apps-close", 2, 1460, 430], ["chat", 2, 1460, 430], ["rain", .65, 2100, 480]] : [["overview", .23, 2100, 850], ["office", .65, 2100, 480], ["close", 2, 1460, 430]];
+        if (process.env.LUCID_CAMERA_SUITE) scenes = [["drag-overview",0,0,0],["drag-far",.23,0,0],["drag-office",.65,0,0],["drag-close",2,0,0]];
         if (process.env.LUCID_PERF_SCENES) scenes = scenes.filter(([name]) => process.env.LUCID_PERF_SCENES.split(",").includes(name));
         const tracing = process.env.LUCID_PERF_TRACE !== "0";
         let layerNodes=[];
@@ -75,10 +81,11 @@ if (!process.versions.electron) {
           }
           if (name === "chat") { await js(`window.__chat.open(window.__world.desks.values().next().value)`); chatTimer = setInterval(() => { void js("window.__chat.refresh()"); }, 750); }
           if (name === "rain") { clearInterval(chatTimer); await js(`{window.__chat.close();const w=window.__world;w.weather={...w.weather,kind:'rain',rainMm:3};w.daylight();}`); }
-          if(real && !scale) await js(`{const w=window.__world,p=w.outdoor?.park,right=p?p.x+p.w:w.size.w;w.stopFollow();w.unfocus(false);w.frame=null;w.cam=w.fitTarget({x:-120,y:-170,w:right+240,h:Math.max(w.size.h,p?p.y+p.h:0)+290},20,w.scene.clientWidth,w.scene.clientHeight);w.apply()}`);
+          if(!scale) await js(`{const w=window.__world,p=w.outdoor?.park,right=p?p.x+p.w:w.size.w;w.stopFollow();w.unfocus(false);w.frame=null;w.cam=w.fitTarget({x:-120,y:-170,w:right+240,h:Math.max(w.size.h,p?p.y+p.h:0)+290},20,w.scene.clientWidth,w.scene.clientHeight);w.apply()}`);
           else await js(`{const w=window.__world,d=${real ? "[...w.desks.values()].find(d=>!d.el.classList.contains('arriving'))||w.desks.values().next().value" : "w.desks.get('perf-t0')"}; w.stopFollow();
-            const close=${JSON.stringify(real || ["zoomed", "apps-close", "chat"].includes(name))};
-            const cx=close?parseFloat(d.el.style.left)+200:${cx},cy=close?parseFloat(d.el.style.top)+100:${cy};
+            const close=${JSON.stringify(real || !!process.env.LUCID_CAMERA_SUITE || ["zoomed", "apps-close", "chat"].includes(name))};
+            const r=w.rooms.find(r=>r.kind==='main'&&!r.collapsed)||w.rooms.find(r=>r.kind==='project'&&!r.collapsed)||w.rooms[0];
+            const cx=close?(d?parseFloat(d.el.style.left)+200:r.x+r.w/2):${cx},cy=close?(d?parseFloat(d.el.style.top)+100:r.y+r.h/2):${cy};
             w.cam={s:${scale},x:w.scene.clientWidth/2-cx*${scale},y:w.scene.clientHeight/2-cy*${scale}}; w.apply();}`);
           await wait(1200);
           if (process.env.LUCID_PERF_METRICS) await js("window.__lucidPerf?.enable(true);window.__lucidPerf?.reset()");
@@ -93,7 +100,8 @@ if (!process.versions.electron) {
           const before = await dbg.sendCommand("Performance.getMetrics");
           await js(`window.__frames=[]; window.__record=true; {let last=performance.now(); const frame=t=>{if(!window.__record)return; window.__frames.push(t-last);last=t;requestAnimationFrame(frame)};requestAnimationFrame(frame)}`);
           const point = await js(`{const r=window.__world.scene.getBoundingClientRect(); ({x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)})}`);
-          const pan = real ? name === "panning" : !suite || name === "panning";
+          const pan = name.startsWith("drag-") || (real ? name === "panning" : !suite || name === "panning");
+          if (pan) await js(`{window.__cameraCommits=[];window.__cameraLatency=[];window.__cameraPointerAt=0;window.__cameraMove=()=>{window.__cameraPointerAt=performance.now()};window.addEventListener('pointermove',window.__cameraMove,true);let prior=window.__world.root.style.transform,last=0;window.__cameraObserver=new MutationObserver(()=>{const next=window.__world.root.style.transform;if(next===prior)return;prior=next;const now=performance.now();if(last)window.__cameraCommits.push(now-last);last=now;if(window.__cameraPointerAt)window.__cameraLatency.push(now-window.__cameraPointerAt)});window.__cameraObserver.observe(window.__world.root,{attributes:true,attributeFilter:['style']})}`);
           if (pan) wc.sendInputEvent({ type: "mouseDown", button: "middle", clickCount: 1, ...point });
           const started = Date.now();
           while (Date.now() - started < 4000) {
@@ -120,6 +128,7 @@ if (!process.versions.electron) {
           dbg.removeListener("message", onTrace);
           const deltas = Object.fromEntries(after.metrics.filter((m) => /Duration|Count/.test(m.name)).map((m) => [m.name, m.value - (before.metrics.find((x) => x.name === m.name)?.value || 0)]));
           stats.staticArt = await js("window.__staticArt?.stats()");
+          if (pan) stats.camera = await js(`{window.__cameraObserver.disconnect();window.removeEventListener('pointermove',window.__cameraMove,true);const stats=a=>{a.sort((x,y)=>x-y);return{count:a.length,mean:a.reduce((s,x)=>s+x,0)/a.length,p95:a[Math.floor(a.length*.95)],max:a.at(-1),over33:a.filter(n=>n>33.4).length}};({commits:stats(window.__cameraCommits),inputLatency:stats(window.__cameraLatency)})}`);
           results.push({ name, ...stats, deltas });
           if (tracing) {
             fs.writeFileSync(path.join(out, `${name}-trace.json`), JSON.stringify({ traceEvents: trace }));
@@ -157,6 +166,13 @@ if (!process.versions.electron) {
           console.log("compactLayoutChecks", JSON.stringify(compact));
         }
         if (process.env.LUCID_HISTORY_CHECKS) await require("./render-history-pagination-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_CAMERA_CHECKS) await require("./render-camera-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_ROOM_CHECKS) await require("./render-room-arrangement-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_ACTIVITY_CHECKS) {
+          const result = await require("./activity-room-checks.cjs")({ js, wc, wait, out });
+          fs.writeFileSync(path.join(out, "activity-room-checks.json"), JSON.stringify(result, null, 2));
+          console.log("activityRoomChecks", JSON.stringify(result));
+        }
         app.quit();
       } catch (error) { console.error(error); app.exit(1); }
     });

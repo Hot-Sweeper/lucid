@@ -25,17 +25,21 @@ const evaluation = `
   window.__deskCheck = { running: true };
   const w = window.__world, checks = [], assert = (ok, message) => { if (!ok) throw Error(message); checks.push(message); };
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const fixtureDeadline=Date.now()+90000;
+  const until = async (predicate, message, timeout=30000) => { const end=Math.min(fixtureDeadline,Date.now()+timeout); while(!predicate()){if(Date.now()>end)throw Error('Timed out: '+message);await wait(100)} };
   try {
     const update = w.update.bind(w);
     // Isolate deterministic fixtures from the connected world's three-second refresh.
-    w.update = () => {};
+    w.update = next => { if(next?.__deskFixture) update(next); };
     const saveLayout = w.onLayoutChange;
     w.onLayoutChange = () => {};
     w.homes.clear(); w.seats.clear(); w.extra.clear(); w.hidden.clear();
+    w.expandedRooms.clear();w.revealedThread=null;w.physicalPlans=[];w.physicalLayoutHeld=false;w.layoutParticipants.clear();w.pendingMeeting=null;
     w.placed.clear(); w.roomOf.clear(); w.hasLayout=false; w.orchThread = '';
     for (const walker of w.transit.values()) walker.destroy(); w.transit.clear(); w.trips.clear();
+    w.exits.clear();w.ext.break?.setThreads([]);w.ext.queue?.setThreads([]);w.park.setThreads([]);
     const thread = (id, projectId) => ({ id, projectId, title: 'Desk ' + id, provider: 'codex', model: null, updatedAt: new Date().toISOString(), runStatus: 'running', pinned: true, settled: false, question: null });
-    let data = { projects: [{ id: 'a', title: 'Navigation', root: '', icon: null, scratch: false }, { id: 'b', title: 'Second project', root: '', icon: null, scratch: false }], threads: [thread('a1','a'), thread('a2','a'), thread('a3','a'), thread('b1','b')] };
+    let data = { __deskFixture:true, projects: [{ id: 'a', title: 'Navigation', root: '', icon: null, scratch: false }, { id: 'b', title: 'Second project', root: '', icon: null, scratch: false }], threads: [thread('a1','a'), thread('a2','a'), thread('a3','a'), thread('b1','b')] };
     update(data); await wait(400);
     assert(w.rooms.find(r => r.id === 'main').threadIds.length === 0, 'running and pinned threads never autojoin main');
     const before = JSON.stringify([...w.seats]), rooms = JSON.stringify(w.rooms.map(r => [r.id,r.x,r.y,r.w,r.h]));
@@ -45,6 +49,8 @@ const evaluation = `
     assert(JSON.stringify([...w.seats]) === before, 'refresh order preserves reserved seats');
     assert(JSON.stringify(w.rooms.map(r => [r.id,r.x,r.y,r.w,r.h])) === rooms, 'refresh order preserves room geometry');
     assert([...identity].every(([id,d]) => w.desks.get(id) === d), 'refresh preserves desk and computer identity');
+    window.__deskDuplicates=[];window.__deskCounting=true;
+    const sample=()=>{if(!window.__deskCounting)return;const counts=new Map();for(const el of w.root.querySelectorAll('.world-walker'))counts.set(el.dataset.id,(counts.get(el.dataset.id)||0)+1);for(const[id,d]of w.desks)if(!d.el.classList.contains('arriving'))counts.set(id,(counts.get(id)||0)+1);for(const[id,n]of counts)if(n>1&&window.__deskDuplicates.length<20)window.__deskDuplicates.push({id,n});requestAnimationFrame(sample)};requestAnimationFrame(sample);
     // Exercise pointer handlers, including preview, neighbor motion, cancellation and persistence.
     w.showRoom('p:a'); await wait(1100);
     const desk = w.desks.get('a1'), positions = [...w.slotDesks].filter(([key]) => key.startsWith('p:a#')).sort((a,b)=>Number(a[0].split('#')[1])-Number(b[0].split('#')[1]));
@@ -81,21 +87,25 @@ const evaluation = `
     assert(JSON.stringify(w.seats.get('p:a')) === JSON.stringify(reserved) && w.desks.get('a2') === oldDesk, 'questions retain the same desk reservation');
     assert(oldDesk.el.classList.contains('arriving'), 'away robot is hidden at its reserved desk');
     // Exercise the real sidebar drag handler and its room-list target.
-    w.update = next => { if (next.projects.some(p => p.id === 'a')) update(next); };
     const row = document.createElement('button'); row.className = 'th-row'; row.dataset.id = 'a1'; row.textContent = 'Desk a1';
     document.getElementById('th-list').prepend(row);
     row.scrollIntoView({block:'center'}); w.showRoom('main'); await wait(1100);
+    await until(()=>!w.rooms.find(r=>r.id==='main').collapsed,'manual main office opens after the source actor clears');
     const rr = row.getBoundingClientRect(), mr = w.scene.getBoundingClientRect();
     const rowEvent = (type,x,y) => row.dispatchEvent(new PointerEvent(type,{bubbles:true,button:0,pointerId:78,clientX:x,clientY:y}));
     const dropX=mr.left+mr.width/2, dropY=mr.top+mr.height/2;
     rowEvent('pointerdown',rr.left+20,rr.top+12); rowEvent('pointermove',dropX,dropY);
     assert(!!document.querySelector('.office-drop-preview') && document.body.classList.contains('th-dragging'), 'sidebar drag previews office membership drop');
     rowEvent('pointerup',dropX,dropY); row.remove(); await wait(350);
-    assert(w.homes.get('a1') === 'main' && w.rooms.find(r => r.id === 'main').threadIds.includes('a1'), 'main membership follows the user drop');
+    assert(w.homes.get('a1') === 'main', 'main membership follows the user drop immediately');
+    await until(()=>w.rooms.find(r=>r.id==='main').threadIds.includes('a1'),'physical main membership follows the safe hallway handoff');
+    assert(w.desks.get('a1')===desk,'office transfer preserves the same desk and computer');
     saveLayout(); await wait(100);
     assert(JSON.parse(window.lucid.settingsLoad()).homes.a1 === 'main', 'user-selected main membership persists in Electron settings');
     assert(w.desks.get('a1').el.classList.contains('arriving') && w.transit.has('a1'), 'office transfer walks instead of showing a seated duplicate');
     assert(w.placeThread('a1','p:a'), 'thread drop removes main membership'); await wait(350);
+    assert(w.homes.get('a1')==='p:a','removing main membership updates explicit home immediately');
+    await until(()=>!w.rooms.find(r=>r.id==='main').threadIds.includes('a1'),'physical transfer back clears main office');
     assert(!w.rooms.find(r => r.id === 'main').threadIds.includes('a1'), 'main stays empty after user removes the thread');
     const settled = { ...thread('done','a'), runStatus:null, pinned:false, settled:true };
     data = { ...data, threads:[...data.threads,settled] }; update(data);
@@ -104,12 +114,15 @@ const evaluation = `
     w.level=100; w.owns=()=>true;
     w.themes.set('p:a',{decor:['beanbags','pingpong','plants','bookshelf','coffee','water']});
     update(data); await wait(400);
+    await until(()=>!w.physicalLayoutHeld&&!w.slidingDesks.size,'purchased furniture uses the settled physical layout');
     assert(w.furniture(w.rooms.find(r=>r.id==='p:a')).length > w.seats.get('p:a').length*2,'purchased furniture participates in route collision');
     w.update = () => {};
     // Check every desk approach against the same floor footprints used during travel.
-    let segments = 0;
+    let segments = 0, approaches = 0;
+    const expectedApproaches=[...w.slotDesks.values()].length;
     for (const room of w.rooms.filter(r => ['main','project','freelance'].includes(r.kind))) {
       for (const [key,d] of w.slotDesks) if (key.startsWith(room.id + '#')) {
+        approaches++;
         const route = w.toSeat(room, w.deskPos(d));
         for (let i=1; i<route.length; i++) {
           const a = route[i-1], b = route[i];
@@ -125,7 +138,7 @@ const evaluation = `
         }
       }
     }
-    assert(segments > 15, 'all office desk approaches checked');
+    assert(approaches===expectedApproaches&&segments>=approaches,'every physical desk approach and its furniture route is checked');
     const park = w.park, oldGeometry = park.geo;
     let parkWalks=0, parkSnaps=0;
     const parkWalker = {x:oldGeometry.door.x,y:oldGeometry.door.y,stop:()=>{},setPos:()=>parkSnaps++,walkPath:async pts=>{parkWalks++;const last=pts.at(-1);parkWalker.x=last.x;parkWalker.y=last.y;}};
@@ -145,20 +158,24 @@ const evaluation = `
     event('pointerdown',finalRect.left+20,finalRect.top+200*w.cam.s);
     event('pointermove',finalRect.left-180,finalRect.top+200*w.cam.s);
     window.__endDeskPreview = () => { desk.el.dispatchEvent(new PointerEvent('pointercancel',{bubbles:true,pointerId:77})); window.__endDeskPreview=null; };
-    window.__deskCheck = { ok:true, checks, segments };
-  } catch (error) { window.__deskCheck = {ok:false,error:String(error),stack:error.stack,checks}; }
+    window.__deskCounting=false;
+    assert(window.__deskDuplicates.length===0,'native transfers never show duplicate robot actors');
+    window.__deskCheck = { ok:true, checks, segments, approaches };
+  } catch (error) { window.__deskCounting=false; window.__deskCheck = {ok:false,error:String(error),stack:error.stack,checks}; }
   return window.__deskCheck;
 })()
 `;
 new Script(evaluation);
 const evaluationFile = join(folder, 'evaluation.js');
 await writeFile(evaluationFile, evaluation);
-const env = { ...process.env, LUCID_SHOT: folder, LUCID_SHOT_PROFILE: join(folder, 'profile'), LUCID_SHOT_COUNT: '3', LUCID_SHOT_EVERY: '10000', LUCID_SHOT_QUIT: '1', LUCID_EVAL_FILE: evaluationFile };
+const env = { ...process.env, LUCID_SHOT: folder, LUCID_SHOT_PROFILE: join(folder, 'profile'), LUCID_SHOT_COUNT: '20', LUCID_SHOT_EVERY: '5000', LUCID_SHOT_QUIT: '1', LUCID_EVAL_FILE: evaluationFile };
 delete env.LUCID_EVAL;
 delete env.ELECTRON_RUN_AS_NODE;
 await new Promise((resolve, reject) => {
   const child = spawn(electron, ['.'], { env, stdio: 'inherit' });
-  child.on('error', reject); child.on('exit', (code) => code === 0 ? resolve() : reject(Error('Electron exited ' + code)));
+  let completed=false, stopping=false;
+  const poll=setInterval(async()=>{try{const log=await readFile(join(folder,'eval.log'),'utf8');if(!stopping&&(/"ok":\s*(true|false)/).test(log)){completed=stopping=true;setTimeout(()=>child.kill(),6000)}}catch{}},500);
+  child.on('error',error=>{clearInterval(poll);reject(error)}); child.on('exit', (code) => {clearInterval(poll);code === 0||completed ? resolve() : reject(Error('Electron exited ' + code))});
 });
 const log = await readFile(join(folder, 'eval.log'), 'utf8');
 console.log('Artifacts: ' + folder);

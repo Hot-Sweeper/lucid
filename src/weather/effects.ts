@@ -127,6 +127,8 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   const sky = document.createElement("canvas");
   const skyView = document.createElement("canvas");
   const fall = document.createElement("canvas");
+  skyView.className = "weather-sky-view";
+  fall.className = "weather-fall";
   const flashEl = document.createElement("div");
   flashEl.className = "weather-flash";
   root.append(skyView, fall);
@@ -147,9 +149,12 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
     fall.style.cssText = "position:absolute;left:0;top:0;transform-origin:0 0;";
     fallXf = "";
     planeStyle = "";
+    skyCrop = null;
   };
   let fallXf = "";
   let planeStyle = "";
+  let skyCrop: { x: number; y: number; w: number; h: number; s: number; q: number } | null = null;
+  let skyPresents = 0;
   place();
   const sg = sky.getContext("2d")!;
   const vg = skyView.getContext("2d")!;
@@ -189,11 +194,14 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   let indoors = false;
   let plane = { x: 0, y: 0, s: 1, w: 0, h: 0, q: 1 };
   function presentSky() {
-    if (!plane.w || !plane.h) return;
+    const crop = skyCrop;
+    if (!crop) return;
     vg.setTransform(1, 0, 0, 1, 0, 0);
     vg.clearRect(0, 0, skyView.width, skyView.height);
-    vg.setTransform(plane.q, 0, 0, plane.q, 0, 0);
-    vg.drawImage(sky, plane.x + rect.x * plane.s, plane.y + rect.y * plane.s, rect.w * plane.s, rect.h * plane.s);
+    const k = crop.q * crop.s;
+    vg.setTransform(k, 0, 0, k, -crop.x * k, -crop.y * k);
+    vg.drawImage(sky, rect.x, rect.y, rect.w, rect.h);
+    root.dataset.skyPresents = String(++skyPresents);
   }
   function presentFall(v: NonNullable<typeof view>) {
     const xf = `translate(${(plane.x + (rect.x + v.x) * plane.s).toFixed(3)}px,${(plane.y + (rect.y + v.y) * plane.s).toFixed(3)}px) scale(${(v.k * plane.s).toFixed(7)})`;
@@ -207,10 +215,9 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
       sc = sr;
     }
     if (!(c.s > 0) || !sc.width || !sc.height) return;
+    const resizing = plane.w !== sc.width || plane.h !== sc.height;
     plane.x = c.x; plane.y = c.y; plane.s = c.s; plane.w = sc.width; plane.h = sc.height;
     plane.q = Math.min(devicePixelRatio || 1, 1.5, Math.sqrt(1.6e6 / (sc.width * sc.height)));
-    const bw = Math.max(1, Math.round(sc.width * plane.q)), bh = Math.max(1, Math.round(sc.height * plane.q));
-    if (skyView.width !== bw || skyView.height !== bh) { skyView.width = bw; skyView.height = bh; }
     const top = clamp(c.y + rect.y * c.s, 0, sc.height), left = clamp(c.x + rect.x * c.s, 0, sc.width);
     const right = sc.width - clamp(c.x + (rect.x + rect.w) * c.s, 0, sc.width), bottom = sc.height - clamp(c.y + (rect.y + rect.h) * c.s, 0, sc.height);
     const xf = `translate(${-c.x / c.s}px,${-c.y / c.s}px) scale(${1 / c.s})`;
@@ -221,10 +228,23 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
         el.style.width = `${sc.width}px`; el.style.height = `${sc.height}px`; el.style.transform = xf;
         el.style.clipPath = `inset(${top}px ${right}px ${bottom}px ${left}px)`;
       }
-      skyView.style.width = `${sc.width}px`; skyView.style.height = `${sc.height}px`;
-      presentSky();
       if (view) presentFall(view);
     }
+    // Keep sky pixels between their real cloud/fog updates. A camera pan only
+    // moves this bounded overscan crop, rather than reblitting the full viewport.
+    const vx = -c.x / c.s, vy = -c.y / c.s, vw = sc.width / c.s, vh = sc.height / c.s;
+    const pad = 128 / c.s, guard = 32 / c.s;
+    if (!skyCrop || resizing || skyCrop.s !== c.s || skyCrop.q !== plane.q || vx < skyCrop.x + guard || vy < skyCrop.y + guard || vx + vw > skyCrop.x + skyCrop.w - guard || vy + vh > skyCrop.y + skyCrop.h - guard) {
+      skyCrop = { x: vx - pad, y: vy - pad, w: vw + 2 * pad, h: vh + 2 * pad, s: c.s, q: plane.q };
+      skyView.width = Math.max(1, Math.ceil(skyCrop.w * c.s * plane.q));
+      skyView.height = Math.max(1, Math.ceil(skyCrop.h * c.s * plane.q));
+      skyView.style.width = `${skyCrop.w * c.s}px`; skyView.style.height = `${skyCrop.h * c.s}px`;
+      skyView.dataset.sourceDensity = String(plane.q);
+      skyView.dataset.sourceX = String(skyCrop.x); skyView.dataset.sourceY = String(skyCrop.y);
+      skyView.dataset.sourceW = String(skyCrop.w); skyView.dataset.sourceH = String(skyCrop.h);
+      presentSky();
+    }
+    skyView.style.transform = `translate(${c.x + skyCrop.x * c.s}px,${c.y + skyCrop.y * c.s}px)`;
   }
   function measure() {
     let hr: { left: number; top: number; width: number }, s: number, clip: { left: number; top: number; right: number; bottom: number };
