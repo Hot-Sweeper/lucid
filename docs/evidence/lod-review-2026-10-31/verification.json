@@ -31,14 +31,15 @@
     "cameraReversal": true,
     "noRendererErrors": true,
     "allSamplesVisible": true,
-    "physicalWheel": "pending_followup",
-    "animatedAppWork": "pending_followup"
+    "physicalWheel": "passed: CDP trusted mouseWheel events and inverse across full/lines and shapes/icon cutoffs",
+    "animatedAppWork": "passed: real Snake canvas clearRect count in 2-second samples, full60/shapes0/icon0/restored61, same retained canvas"
   },
   "scopeLimitations": [
-    "Current Files/Tasks/Botify scenes have no continuous canvas loops. They do not demonstrate canvas-loop work reduction.",
     "No FPS or p95 conclusion.",
     "No live build delivery or restart performed.",
     "Native control plugin unavailable; used Electron native window and CDP screenshot capture.",
-    "Before and after app window geometry can vary naturally; not a pixel-exact comparison."
+    "Before and after app window geometry can vary naturally; not a pixel-exact comparison.",
+    "First static-app capture set had no continuous loops; runtime-work.json supplies the separate real Snake evidence.",
+    "Wheel checks use trusted Electron/CDP input events, not a human-operated physical device."
   ]
 }

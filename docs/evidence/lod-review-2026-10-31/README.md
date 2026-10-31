@@ -26,3 +26,11 @@ CPU checks: TypeScript, symmetric tier cutoffs and wheel-multiplier round trips,
 ## Full detail restored
 
 [Files](after-files-restored.png), [Tasks](after-tasks-restored.png), and [Botify](after-music-restored.png) after returning from the farthest tier. These three additional genuine captures are attached to the source thread too. `attachment-verification.json` confirms that all 15 LOD review images resolve through the report evidence collector.
+
+## Completed runtime work and input follow-up
+
+The explicitly granted follow-up loaded the same isolated `index-CpXzjJTd.js` production renderer and launched its real Snake implementation through IdleLife. A temporary counter wrapped `CanvasRenderingContext2D.clearRect`, scoped to the original game canvas inside the app body; it excluded LOD snapshot canvases. Four 2-second windows recorded 60 draw clears in full detail, zero in shapes, zero in icon view, and 61 after restoring full detail. The scheduler retained one loop throughout, active only at full detail. The original game canvas remained mounted throughout. All samples were visible, with no visibility-loss event or renderer error. The counter was removed, and the isolated process exited before explicitly releasing the GPU slot.
+
+Trusted CDP `mouseWheel` events exercised the actual window's wheel handler: scale 1.12/full -> 0.9355026367806247/lines -> 1.12/full, and 0.61/shapes -> 0.5095148289608759/icon -> 0.6099999999999999/shapes. Both inverse steps restored the original tier and camera scale within floating point precision. This uses real renderer input events, not a human-operated physical wheel.
+
+See [runtime-work.json](runtime-work.json). These results demonstrate suppressed per-app drawing work, not total-frame speed or p95 improvement. Snapshot construction, layout, scenery and other app activity are outside this narrowly scoped counter. The first static-app capture set did not itself measure continuous app work; this follow-up supplies that missing evidence. The earlier pending statements in this document describe the first capture run; the follow-up checks are now passed. Live Lucid remains untouched by this verification. Status remains unsettled pending review and combined delivery.
