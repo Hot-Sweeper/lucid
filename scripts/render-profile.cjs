@@ -162,6 +162,7 @@ if (!process.versions.electron) {
         if (process.env.LUCID_STATIC_ART_CHECKS) await require("./render-static-art-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_CANVAS_CHECKS) await require("./render-canvas-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_MEDIA_CANVAS_CHECKS) await require("./render-media-canvas-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_INTERFACE_CHECKS) await require("./render-interface-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_COMPACT_CHECKS) {
           const compact = await require("./compact-layout-checks.cjs")({ js });
           fs.writeFileSync(path.join(out, "compact-layout-checks.json"), JSON.stringify(compact, null, 2));
