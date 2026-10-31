@@ -67,7 +67,7 @@ export function imageResult(it: AnyItem, toUrl: (path: string) => string): Image
   if (it.type === "command_execution") walk(d.output);
   else walk({ o: d.output, r: d.result, s: d.savedPath, p: d.path, i: d.images, f: d.files, u: d.url });
   const failed = it.status === "failed" || d.output?.isError || (it.type === "command_execution" && d.exitCode != null && d.exitCode !== 0)
-    ? String(d.error?.message ?? d.error ?? (typeof d.output === "string" ? d.output : d.output?.error) ?? "").trim().split(/\r?\n/).slice(-1)[0] || "The image could not be generated" : undefined;
+    ? String(d.error?.message ?? d.error ?? (typeof d.output === "string" ? d.output : d.output?.error ?? (Array.isArray(d.output?.content) ? d.output.content.map((c: any) => c?.text || "").join("\n") : "")) ?? "").trim().split(/\r?\n/).slice(-1)[0] || "The image could not be generated" : undefined;
   return { sources: out, failed };
 }
 

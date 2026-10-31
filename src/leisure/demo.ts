@@ -1,6 +1,8 @@
 // Test bench: a real robot at a stand-in desk driving a real desktop (WM), running one scene.
 //   #mouse    sketchpad drawing, with the cursor path and the physical mouse path compared
 //   #codex    the Codex app making a picture (?img=<file path> shows a real file, else a drawn one)
+//   #parse    image generation items from T3 in several shapes, parsed (results in the log)
+//   #director a Codex image generation command played by the real Director, running then finished
 //   #skip     Botify playing and skipping songs
 //   #steam    Steambot: store, library, install, play
 //   #trading  Tradebot: charts, orders, mistakes
@@ -17,6 +19,8 @@ import { WM, Cancelled } from "../os/wm";
 import { IdleLife } from "../os/idle";
 import { MusicApp } from "../os/music";
 import { CodexApp } from "../os/codex";
+import { Director, type Item } from "../director";
+import { imageGenOf, imageResult } from "../os/imagegen";
 import { fileUrl } from "../office/chat-panel";
 import type { Prefs } from "../office/roster";
 
@@ -93,6 +97,11 @@ function stats() {
   W.__lc.stats = { cursorSamples: cursorPts.length, mouseSamples: mousePts.length, corrX: pearson(c.map((p) => p[0]), m.map((p) => p[0])), corrY: pearson(c.map((p) => p[1]), m.map((p) => p[1])), mouseRangeX: range(0), mouseRangeY: range(1) };
 }
 window.setInterval(stats, 1000);
+// frames per second of the page, to see that a scene does not slow it down
+let frames = 0;
+const countFrames = () => { frames++; requestAnimationFrame(countFrames); };
+requestAnimationFrame(countFrames);
+window.setInterval(() => { (W.__lc as unknown as { fps: number }).fps = frames; frames = 0; }, 1000);
 
 function drawn(): string {
   const c = document.createElement("canvas");
@@ -120,6 +129,47 @@ async function scene() {
         size: "1536x1024",
         state: () => ({ done: Date.now() - t0 > 7000, sources: Date.now() - t0 > 7000 ? [src] : [] }),
       });
+    } else if (SCENE === "parse") {
+      const mk = (id: string, type: string, data: Record<string, unknown>, status = "completed"): Item => ({ id, runId: "r", ordinal: 1, type, status, updatedAt: "", data });
+      const png = "C:\\Users\\tim\\.codex\\generated_images\\abc\\ig_1.png";
+      const items: Item[] = [
+        mk("a", "dynamic_tool", { toolName: "image_gen", input: { prompt: "a fox on a skateboard", size: "1024x1536" }, output: { content: [{ text: `Saved to ${png}` }] } }),
+        mk("b", "command_execution", { input: "\"C:\\Windows\\powershell.exe\" -Command \"python $IMAGE_GEN generate --prompt 'a red robot' --size 1536x1024 --out out.png\"", output: "wrote C:\\Users\\tim\\out.png\n", exitCode: 0 }),
+        mk("c", "image_generation", { revisedPrompt: "a calm lake", result: "iVBOR" + "A".repeat(5000) }),
+        mk("d", "command_execution", { input: "cat ~/.codex/skills/imagegen/SKILL.md", output: "docs" }),
+        mk("e", "command_execution", { input: "rg image_gen src", output: "src/x.ts:1:image_gen" }),
+        mk("f", "dynamic_tool", { toolName: "t3-code.preview_open", input: { url: "https://x.y" }, output: {} }),
+        mk("g", "dynamic_tool", { toolName: "generate_image", input: JSON.stringify({ prompt: "a cat" }), output: { isError: true, content: [{ text: "rate limited" }] }, }, "failed"),
+      ];
+      W.__lc.stats = { parsed: items.map((it) => { const g = imageGenOf(it), r = imageResult(it, (p) => "file:" + p); return { id: it.id, gen: g, sources: r.sources.map((x) => x.slice(0, 70)), failed: r.failed ?? null }; }) };
+      logEl.textContent = "parsed";
+      await new Promise(() => {});
+    } else if (SCENE === "director") {
+      const stub = { phoneScreen: null, say() {}, sleepy() {}, setGlow() {}, setPlan() {} } as never;
+      const d = new Director(wm, robot, stub, async () => null, async () => null, async () => null);
+      d.setInfo({ id: "t", title: "Hero image for the landing page", provider: "codex", model: "gpt-5.5-codex", projectTitle: "Lucid", run: { id: "r", status: "running" } });
+      const file = IMG ?? "";
+      const mk = (status: string, output: string): Item => ({ id: "img1", runId: "r", ordinal: 5, type: "command_execution", status, updatedAt: new Date().toISOString(), data: { input: 'python "C:\\skills\\imagegen\\scripts\\image_gen.py" generate --prompt "A cozy top-down office at golden hour, tiny robots at their desks, flat vector style" --size 1536x1024', output, exitCode: status === "completed" ? 0 : null } });
+      d.push([mk("running", "")], false);
+      window.setTimeout(() => d.push([mk("completed", `Saved ${file}\n`)], false), 14000);
+    } else if (SCENE === "pick") {
+      // how often robots with different tastes pick Steambot and Tradebot (4000 draws each)
+      const rows: Record<string, unknown> = {};
+      const cases: [string, Partial<Prefs>][] = [
+        ["gamer, favourites steam + solitaire", { hobby: "gamer", apps: ["steam", "solitaire"] }],
+        ["gamer, no steam", { hobby: "gamer", apps: ["mail", "lingo"] }],
+        ["watcher, favourites trading + lingo", { hobby: "watcher", apps: ["trading", "lingo"] }],
+        ["chiller, favourites stocks + crossword", { hobby: "chiller", apps: ["stocks", "crossword"] }],
+      ];
+      for (const [name, over] of cases) {
+        const fake = { prefs: { ...base, ...over, socials: ["botsapp"] } } as unknown as WM;
+        const l = new IdleLife(fake, robot, {} as never) as unknown as { pick(r: string[]): string };
+        const n: Record<string, number> = {};
+        for (let i = 0; i < 4000; i++) { const a = l.pick([]); n[a] = (n[a] ?? 0) + 1; }
+        rows[name] = { steam: `${((n.steam ?? 0) / 40).toFixed(1)}%`, trading: `${((n.trading ?? 0) / 40).toFixed(1)}%`, stocks: `${((n.stocks ?? 0) / 40).toFixed(1)}%` };
+      }
+      W.__lc.stats = rows;
+      await new Promise(() => {});
     } else if (SCENE === "skip") {
       const music = new MusicApp(wm);
       life.music = music;
