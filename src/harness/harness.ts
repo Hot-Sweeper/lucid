@@ -1,27 +1,22 @@
-// Harness app: the robot's own copy of Claude Code, Codex or another agent console.
-// When the robot's agent delegates work to a subagent, the robot opens this app,
-// types the prompt into a session tab, and the session streams the subagent's work.
+// Harness app: the robot's own copy of Claude Code, Codex, Gemini CLI, OpenCode and friends.
+// When the robot's agent hands work to a helper agent, the robot opens this app, types the
+// brief into a session tab, and the tab streams the helper's real activity.
+// Each harness comes in a terminal (CLI/TUI) flavour and, where one exists, a desktop app
+// flavour. The robot's habit (prefs.subagents) picks which one it drives.
 import gsap from "gsap";
 import type { AppId } from "../os/wm";
 import type { Robot } from "../robot";
-import claudeLogo from "../assets/claude.svg";
-import openaiLogo from "../assets/openai.svg";
+import { ICONS } from "../os/icons";
+import { THEMES, markEl, prettyModel, effortWord, normEffort, modelVendor, type HarnessKind, type Flavor, type Theme } from "./themes";
 import "./harness.css";
+
+export { harnessKind, resolveFlavor, prettyModel, normEffort, THEMES, type HarnessKind, type Flavor } from "./themes";
+import { resolveFlavor } from "./themes";
 
 export const HARNESS_APP_ID = "harness" as const;
 
 /** Dock and title bar icon: a tabbed window with a small robot face. Filled shapes only. */
 export const HARNESS_ICON = `<svg class="ico" viewBox="0 0 24 24"><rect x="12.4" y="3.2" width="9" height="5.4" rx="2" fill="#d6951c"/><rect x="2" y="3" width="11" height="6" rx="2.2" fill="#ffc94d"/><rect x="2" y="6.4" width="20" height="14.6" rx="3.6" fill="#ffc94d"/><circle cx="8.6" cy="12.6" r="1.7" fill="#4a3304"/><circle cx="15.4" cy="12.6" r="1.7" fill="#4a3304"/><rect x="9.4" y="16" width="5.2" height="1.8" rx=".9" fill="#4a3304"/></svg>`;
-
-export type HarnessKind = "claude" | "codex" | "generic";
-
-/** Anything mentioning Claude is Claude Code, Codex or OpenAI is Codex, everything else is the generic console. */
-export function harnessKind(providerOrTool: string): HarnessKind {
-  const p = (providerOrTool || "").toLowerCase();
-  if (p.includes("claude")) return "claude";
-  if (p.includes("codex") || p.includes("openai")) return "codex";
-  return "generic";
-}
 
 export interface SubagentEvent {
   kind: "read" | "edit" | "run" | "search" | "web" | "think" | "say" | "tool" | "error";
@@ -31,14 +26,25 @@ export interface SubagentEvent {
   detail?: string;
 }
 
+/** What kind of helper it is: shown in the harness the way that harness shows it. */
+export interface HarnessMeta {
+  model?: string;
+  /** Reasoning effort or thinking level: low, medium, high, xhigh, max... */
+  effort?: string;
+}
+
 export interface HarnessSession {
   readonly id: string;
+  readonly kind: HarnessKind;
+  readonly flavor: Flavor;
   /** Append a live activity line (animated in). */
   push(ev: SubagentEvent): void;
   /** Replace or extend the subagent's current streaming message. */
   stream(text: string): void;
   /** Final state with a short result. */
   finish(summary?: string, ok?: boolean): void;
+  /** Model and effort learned later (for example once the child thread exists). */
+  setMeta(meta: HarnessMeta): void;
 }
 
 export interface HarnessStartOptions {
@@ -47,8 +53,13 @@ export interface HarnessStartOptions {
   title: string;
   prompt: string;
   model?: string;
-  /** Provider name shown by the generic console (OpenCode, Grok, ...). Optional subtitle for the others. */
+  effort?: string;
+  /** Terminal or desktop app. Falls back to the form the harness has. */
+  flavor?: Flavor;
+  /** Agent type or provider name, e.g. "Explore agent" or "Kimi". The generic console shows it as its name. */
   label?: string;
+  /** Working directory shown in terminal banners. */
+  cwd?: string;
 }
 
 /** The part of the window manager the harness app uses. The real `WM` satisfies it. */
@@ -67,20 +78,56 @@ export interface HarnessHost {
 type EvKind = SubagentEvent["kind"];
 type State = "idle" | "running" | "done" | "error";
 
-const LABELS: Record<HarnessKind, Record<EvKind, string>> = {
-  claude: { read: "Read", edit: "Update", run: "Bash", search: "Search", web: "Fetch", think: "Thinking", say: "", tool: "", error: "Error" },
-  codex: { read: "read", edit: "apply patch", run: "exec", search: "search", web: "web search", think: "thinking", say: "", tool: "tool", error: "error" },
-  generic: { read: "read", edit: "edit", run: "run", search: "search", web: "web", think: "think", say: "", tool: "tool", error: "error" },
+/** How a terminal harness prints a step. */
+interface CliStyle {
+  /** Glyph in front of a step, per event kind, with a default. Empty string: no glyph. */
+  glyph: Partial<Record<EvKind, string>>;
+  def: string;
+  /** Glyph while the call is still running (Gemini's executing mark). */
+  pend?: string;
+  label: Partial<Record<EvKind, string>>;
+  /** Claude prints Read(path). */
+  paren?: boolean;
+  /** Prefix of the result line under a step. */
+  sub: string;
+  /** Glyph in front of the helper's replies. */
+  say: string;
+  /** Prompt glyph in the input and in the echoed brief. */
+  prompt: string;
+  /** Box around each step (Gemini), tinted block (Pi, OpenClaw), or accent rail (Grok). */
+  block?: "box" | "tint" | "rail";
+  /** Words after the title while running and when done (OpenClaw tool cards). */
+  state?: [string, string];
+  /** Text after the target, e.g. Aider's "to the chat". */
+  after?: Partial<Record<EvKind, string>>;
+}
+
+const CLI: Record<HarnessKind, CliStyle> = {
+  claude: { def: "⏺", glyph: { think: "∴" }, label: { read: "Read", edit: "Update", run: "Bash", search: "Search", web: "Fetch", think: "Thinking…", error: "Error" }, paren: true, sub: "⎿", say: "⏺", prompt: ">" },
+  codex: { def: "•", glyph: { error: "✘" }, label: { read: "Read", edit: "Edited", run: "Ran", search: "Searched", web: "Searched the web", error: "Failed" }, sub: "└", say: "•", prompt: "›" },
+  gemini: { def: "✓", pend: "⊷", glyph: { error: "x", think: "" }, label: { read: "ReadFile", edit: "Edit", run: "Shell", search: "SearchText", web: "WebFetch", think: "Thinking...", error: "Error" }, sub: "", say: "✦", prompt: ">", block: "box" },
+  antigravity: { def: "●", glyph: { think: "∴", error: "✕" }, label: { read: "Read", edit: "Edit", run: "Run", search: "Search", web: "Browse", think: "Thinking", error: "Error" }, sub: "└", say: "", prompt: ">" },
+  opencode: { def: "→", glyph: { edit: "←", run: "$", search: "✱", web: "%", tool: "⚙", think: "", error: "✗" }, label: { read: "Read", edit: "Edit", search: "Grep", web: "WebFetch", think: "Thinking:", error: "Error" }, sub: "", say: "", prompt: "" },
+  pi: { def: "", glyph: {}, label: { read: "read", edit: "edit", run: "$", search: "grep", web: "fetch", think: "Thinking...", error: "error" }, sub: "", say: "", prompt: "", block: "tint" },
+  hermes: { def: "┊", glyph: { think: "∴" }, label: { read: "read_file", edit: "patch", run: "terminal", search: "search", web: "web_extract", think: "thinking", error: "error" }, sub: "", say: "", prompt: "❯" },
+  openclaw: { def: "", glyph: {}, label: { read: "read", edit: "edit", run: "exec", search: "grep", web: "web_fetch", think: "thinking", error: "error" }, sub: "", say: "", prompt: "", block: "tint", state: [" (running)", " (completed)"] },
+  cursor: { def: "", glyph: {}, label: { read: "Read", edit: "Edited", run: "$", search: "Grepped", web: "Fetched", think: "Thought", error: "Error" }, sub: "", say: "", prompt: "→" },
+  grok: { def: "", glyph: {}, label: { read: "Read", edit: "Edit", run: "Run", search: "Search", web: "Fetch", think: "Thinking…", error: "Error" }, sub: "", say: "", prompt: "❯", block: "rail" },
+  aider: { def: "", glyph: {}, label: { read: "Added", edit: "Applied edit to", run: "Running", search: "Searching", web: "Scraping", think: "", error: "" }, sub: "", say: "", prompt: ">", after: { read: " to the chat" } },
+  copilot: { def: "●", glyph: { think: "∴" }, label: { read: "Read", edit: "Edit", run: "Run", search: "Search", web: "Fetch", think: "Thought", error: "Error" }, sub: "└", say: "●", prompt: "❯" },
+  amp: { def: "✓", pend: "⋯", glyph: { think: "∴", error: "✗" }, label: { read: "Read", edit: "Edit", run: "Bash", search: "Grep", web: "Web", think: "Thinking", error: "Error" }, sub: "", say: "", prompt: ">" },
+  generic: { def: "", glyph: {}, label: { read: "read", edit: "edit", run: "run", search: "search", web: "web", think: "think", tool: "tool", error: "error" }, sub: "", say: "", prompt: ">" },
 };
-// Claude Code's spinner glyphs, played forward and back.
-const SPIN = ["·", "✢", "✳", "✶", "✻", "✽", "✽", "✻", "✶", "✳", "✢", "·"];
-const CLAUDE_VERBS = ["Working", "Pondering", "Thinking", "Brewing", "Noodling", "Cogitating", "Musing", "Percolating"];
+
+/** Desktop apps show finished steps as short past-tense rows. */
+const APP_VERB: Record<EvKind, string> = { read: "Read", edit: "Edited", run: "Ran", search: "Searched", web: "Fetched", think: "Thought", say: "", tool: "", error: "Error" };
+const APP_NEW: Partial<Record<HarnessKind, string>> = {
+  claude: "New session", codex: "New chat", antigravity: "New conversation", opencode: "New session", hermes: "New task",
+  openclaw: "New session", cursor: "New agent", amp: "New thread",
+};
+
 const MAX_LINES = 140;
 const MAX_TABS = 6;
-
-function brandName(kind: HarnessKind, label?: string) {
-  return kind === "claude" ? "Claude Code" : kind === "codex" ? "Codex" : (label || "Agent");
-}
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = "", text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -95,20 +142,56 @@ function shortPath(p: string) {
   return "…/" + parts.slice(-3).join("/");
 }
 
+function cwdShort(p?: string) {
+  if (!p) return "~";
+  const parts = p.split(/[\\/]/).filter(Boolean);
+  return parts.length <= 2 ? p : "…/" + parts.slice(-2).join("/");
+}
+
 function fmtElapsed(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
 }
 
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+
+/** Window title: the command in a terminal, the app name for a desktop app. */
+function windowTitle(kind: HarnessKind, flavor: Flavor, label?: string) {
+  const t = THEMES[kind];
+  if (kind === "generic") return flavor === "cli" ? (label || "agent").toLowerCase().split(/\s+/)[0] : (label || "Agent");
+  return flavor === "cli" ? (t.cmd || t.name.toLowerCase()) : (t.app || t.name);
+}
+
+/** The elapsed part of the working line, as each harness prints it. */
+function statusTail(kind: HarnessKind, flavor: Flavor, e: string) {
+  if (flavor === "app") return e;
+  switch (kind) {
+    case "claude": return `(${e} · esc to interrupt)`;
+    case "codex": return `(${e} • esc to interrupt)`;
+    case "gemini": return `(esc to cancel, ${e})`;
+    case "opencode": return `${e}  esc interrupt`;
+    case "hermes": return `(${e})`;
+    case "openclaw": return `• ${e} | running`;
+    case "cursor": return `${e}  ctrl+c to stop`;
+    case "grok": return `${e} [stop]`;
+    case "copilot": return `(Esc to cancel · ${e})`;
+    case "aider": case "pi": return "";
+    default: return e;
+  }
+}
 
 // ---------------------------------------------------------------------------
 class Session implements HarnessSession {
   readonly id: string;
   readonly kind: HarnessKind;
+  readonly flavor: Flavor;
+  readonly theme: Theme;
   title: string;
   label?: string;
   model?: string;
+  effort?: string;
+  cwd?: string;
 
   view: HTMLElement;
   scroller: HTMLElement;
@@ -118,6 +201,12 @@ class Session implements HarnessSession {
   field: HTMLElement;
   typed: HTMLElement;
   tab: HTMLElement;
+  /** Terminal banner, terminal footer, or the app's model chip and sidebar: everything that shows model and effort. */
+  private banner: HTMLElement | null = null;
+  private foot: HTMLElement | null = null;
+  private chip: HTMLElement | null = null;
+  sideList: HTMLElement | null = null;
+  private topTitle: HTMLElement | null = null;
   private spinEl: HTMLElement | null = null;
   private verbEl: HTMLElement;
   private elEl: HTMLElement;
@@ -130,6 +219,7 @@ class Session implements HarnessSession {
   steps = 0;
   private lastElapsed = "";
   private spinFrame = -1;
+  private sayLabelShown = false;
   private pending: { line: HTMLElement; timer: number } | null = null;
   streamLine: { line: HTMLElement; msg: HTMLElement; inner: HTMLElement; target: string; shown: number } | null = null;
 
@@ -141,46 +231,89 @@ class Session implements HarnessSession {
   constructor(private app: HarnessApp, o: HarnessStartOptions) {
     this.id = o.id;
     this.kind = o.kind;
+    this.flavor = resolveFlavor(o.kind, o.flavor);
+    this.theme = THEMES[o.kind];
     this.title = o.title;
     this.label = o.label;
-    this.model = o.model;
+    this.model = o.model || undefined;
+    this.effort = normEffort(o.effort) || undefined;
+    this.cwd = o.cwd;
 
-    this.view = el("div", `hx-view hx-k-${o.kind}`);
+    this.view = el("div", `hx-view hx-${this.flavor} hx-k-${o.kind}`);
     this.view.dataset.id = o.id;
     this.scroller = el("div", "hx-scroll");
     this.log = el("div", "hx-log");
-    this.scroller.append(this.header(), this.log);
 
+    // working line
     this.status = el("div", "hx-status off");
-    if (o.kind === "claude") {
-      this.spinEl = el("span", "hx-spin", SPIN[0]);
+    const t = this.theme;
+    if (t.spin.length) {
+      this.spinEl = el("span", "hx-spin", t.spin[0]);
       this.status.append(this.spinEl);
-    } else if (o.kind === "codex") {
-      this.status.append(el("i", "hx-cb"));
-    } else {
+    } else if (o.kind === "generic" || this.flavor === "app") {
       const dots = el("span", "hx-dots");
       dots.append(el("i"), el("i"), el("i"));
       this.status.append(dots);
+    } else {
+      this.status.append(el("i", "hx-cb"));
     }
-    this.verbEl = el("span", "hx-verb hx-shim", o.kind === "claude" ? CLAUDE_VERBS[Math.floor(Math.random() * CLAUDE_VERBS.length)] + "…" : "Working");
+    this.verbEl = el("span", "hx-verb hx-shim", this.firstVerb());
     this.elEl = el("span", "hx-el");
     this.status.append(this.verbEl, this.elEl);
 
-    this.input = el("div", "hx-input");
+    // input
     this.field = el("div", "hx-field");
     const fieldIn = el("div", "hx-field-in");
     this.typed = el("span", "hx-typed");
+    if (t.placeholder) this.typed.dataset.ph = t.placeholder;
     fieldIn.append(this.typed, el("span", "hx-caret"));
     this.field.append(fieldIn);
-    this.input.append(el("span", "hx-chev", o.kind === "codex" ? "›" : ">"), this.field);
 
-    this.view.append(this.scroller, this.status, this.input);
+    if (this.flavor === "cli") {
+      this.banner = el("div", "hx-ban");
+      this.scroller.append(this.banner, this.log);
+      this.input = el("div", "hx-input");
+      const glyph = CLI[o.kind].prompt;
+      if (glyph) this.input.append(el("span", "hx-chev", glyph));
+      this.input.append(this.field);
+      this.foot = el("div", "hx-foot");
+      const box = el("div", "hx-inbox");
+      box.append(this.input, this.foot);
+      this.view.append(this.scroller, this.status, box);
+    } else {
+      const side = el("div", "hx-side");
+      const brand = el("div", "hx-brand");
+      brand.append(markEl(o.kind), el("b", "", windowTitle(o.kind, "app", o.label)));
+      const add = el("div", "hx-new-row");
+      add.append(el("i", "hx-plus"), el("span", "", APP_NEW[o.kind] || "New"));
+      this.sideList = el("div", "hx-list");
+      side.append(brand, add, this.sideList);
+      const main = el("div", "hx-main");
+      const top = el("div", "hx-top");
+      this.topTitle = el("span", "hx-top-t", o.title);
+      top.append(this.topTitle);
+      if (o.label && o.kind !== "generic") top.append(el("span", "hx-top-l", o.label));
+      this.scroller.append(this.log);
+      this.input = el("div", "hx-input hx-comp");
+      const row = el("div", "hx-comp-row");
+      const left = el("div", "hx-comp-l");
+      left.append(el("i", "hx-plus"));
+      if (o.kind === "cursor") left.append(el("span", "hx-mode", "∞ Agent"));
+      if (o.kind === "opencode") left.append(el("span", "hx-mode hx-agent", "Build"));
+      this.chip = el("span", "hx-chip");
+      const send = el("i", "hx-send");
+      row.append(left, this.chip, send);
+      this.input.append(this.field, row);
+      main.append(top, this.scroller, this.status, this.input);
+      this.view.append(side, main);
+    }
+    this.renderMeta();
 
     this.tab = el("div", "hx-tab");
     this.tab.dataset.kind = o.kind;
     this.tab.setAttribute("role", "tab");
     this.tab.dataset.id = o.id;
-    this.tab.append(el("i", "hx-dot"), el("span", "hx-tab-t"));
+    this.tab.append(markEl(o.kind, "hx-tab-m"), el("span", "hx-tab-t"), el("i", "hx-dot"));
     this.setTitle(o.title);
 
     const userScroll = () => { this.followUntil = 0; };
@@ -193,39 +326,186 @@ class Session implements HarnessSession {
     }, { passive: true });
   }
 
+  private firstVerb() {
+    if (this.kind === "aider") return `Waiting for ${this.model || "the model"}`;
+    if (this.flavor === "app") return this.kind === "cursor" ? "Planning next moves" : "Working";
+    return pick(this.theme.verbs);
+  }
+
   setTitle(t: string) {
     this.title = t;
     (this.tab.querySelector(".hx-tab-t") as HTMLElement).textContent = t;
-    this.tab.title = t;
+    this.tab.title = `${windowTitle(this.kind, this.flavor, this.label)}: ${t}`;
+    if (this.topTitle) this.topTitle.textContent = t;
   }
 
-  private header() {
-    const h = el("div", "hx-head");
+  setMeta(m: HarnessMeta) {
+    const model = m.model || this.model;
+    const effort = normEffort(m.effort) || this.effort;
+    if (model === this.model && effort === this.effort) return;
+    this.model = model;
+    this.effort = effort;
+    this.renderMeta();
+  }
+
+  // --- model and effort, the way each harness shows them -------------------------------
+  private renderMeta() {
+    if (this.banner) this.banner.replaceChildren(...this.bannerParts());
+    if (this.foot) this.foot.replaceChildren(...this.footParts());
+    if (this.chip) {
+      const model = prettyModel(this.model);
+      const eff = effortWord(this.effort, true);
+      const parts: Node[] = [];
+      if (model) parts.push(el("span", "hx-cm", model));
+      if (eff) parts.push(el("span", "hx-ce", eff));
+      this.chip.replaceChildren(...parts);
+      this.chip.hidden = !parts.length;
+      this.chip.title = [model, eff && `${eff} effort`].filter(Boolean).join(", ");
+    }
+    // Pi colours the editor rules by thinking level.
+    this.view.dataset.effort = this.effort || "none";
+    if (this.kind === "aider" && this.state === "running") this.verbEl.textContent = `Waiting for ${this.model || "the model"}`;
+  }
+
+  private bannerParts(): Node[] {
+    const k = this.kind, t = this.theme;
+    const m = this.model || "", pm = prettyModel(m), eff = this.effort || "";
+    const line = (cls: string, ...kids: (Node | string)[]) => { const d = el("div", cls); d.append(...kids); return d; };
+    const dim = (s: string) => el("span", "hx-dim", s);
+    const cwd = cwdShort(this.cwd);
+    switch (k) {
+      case "claude": {
+        const txt = el("div", "hx-ban-t");
+        txt.append(line("", el("b", "", "Claude Code"), " ", dim(t.version || "")));
+        txt.append(line("hx-dim", [pm || "Claude", eff && `${eff} effort`, this.label].filter(Boolean).join(" · ")));
+        txt.append(line("hx-dim", cwd));
+        return [markEl(k), txt];
+      }
+      case "codex": {
+        const box = el("div", "hx-ban-box");
+        box.append(line("", el("span", "hx-acc", ">_"), " ", el("b", "", "OpenAI Codex"), " ", dim(`(${t.version})`)));
+        box.append(line("hx-gap"));
+        box.append(line("", dim("model:     "), [m || "default", eff].filter(Boolean).join(" "), "   ", dim("/model to change")));
+        box.append(line("", dim("directory: "), cwd));
+        return [box];
+      }
+      case "gemini": {
+        const txt = el("div", "hx-ban-t");
+        txt.append(line("", el("b", "hx-grad", "Gemini CLI"), " ", dim(t.version || "")));
+        txt.append(line("hx-dim", "Tips: ask questions, edit files, or run commands. /help for more."));
+        return [markEl(k), txt];
+      }
+      case "antigravity": {
+        const txt = el("div", "hx-ban-t");
+        txt.append(line("", el("b", "", "Antigravity CLI"), " ", dim(t.version || "")));
+        txt.append(line("hx-dim", cwd));
+        return [markEl(k), txt];
+      }
+      case "opencode": {
+        const art = el("div", "hx-art");
+        const rows = [["█▀▀█ █▀▀█ █▀▀█ █▀▀▄", " █▀▀▀ █▀▀█ █▀▀█ █▀▀█"], ["█  █ █  █ █▀▀▀ █  █", " █    █  █ █  █ █▀▀▀"], ["▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀", " ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀"]];
+        for (const [a, b] of rows) art.append(line("", el("span", "hx-dim", a), el("span", "", b)));
+        return [art];
+      }
+      case "pi": {
+        const txt = el("div", "hx-ban-t");
+        txt.append(line("", el("b", "", "pi"), " ", dim(t.version || "")));
+        txt.append(line("hx-dim", "esc to interrupt · / for commands · ! to run bash"));
+        return [markEl(k), txt];
+      }
+      case "hermes": {
+        const word = line("hx-word", "HERMES-AGENT");
+        const panel = el("div", "hx-ban-panel");
+        panel.append(line("hx-ban-cap", `Hermes Agent ${t.version}`));
+        const body = el("div", "hx-ban-body");
+        body.append(markEl(k));
+        const info = el("div", "hx-ban-t");
+        info.append(line("", pm || m || "default model", eff ? dim(` · reasoning ${eff}`) : ""));
+        info.append(line("hx-dim", cwd));
+        body.append(info);
+        panel.append(body);
+        return [word, panel];
+      }
+      case "openclaw":
+        return [line("hx-acc hx-b6", "openclaw tui - ws://127.0.0.1:18789 - agent main - session main")];
+      case "cursor": {
+        const txt = el("div", "hx-ban-bar");
+        txt.append(line("", el("b", "", "Cursor Agent"), " ", dim(t.version || "")));
+        txt.append(line("hx-dim", cwd));
+        return [txt];
+      }
+      case "grok": {
+        const txt = el("div", "hx-ban-t");
+        txt.append(line("", el("b", "", "Grok Build"), " ", dim(t.version || "")));
+        txt.append(line("hx-dim", cwd));
+        return [markEl(k), txt];
+      }
+      case "aider": {
+        const txt = el("div", "hx-ban-t");
+        txt.append(line("", `Aider ${t.version}`));
+        txt.append(line("", `Main model: ${m || "default"} with diff edit format${eff ? `, reasoning ${eff}` : ""}`));
+        txt.append(line("", "Use /help <question> for help, run \"aider --help\" to see cmd line args"));
+        return [txt];
+      }
+      case "copilot": {
+        const txt = el("div", "hx-ban-t");
+        txt.append(line("", el("b", "", "GitHub Copilot"), " ", dim(t.version || "")));
+        txt.append(line("hx-dim", cwd));
+        return [markEl(k), txt];
+      }
+      case "amp": {
+        const txt = el("div", "hx-ban-t");
+        txt.append(line("", el("b", "", "amp")));
+        txt.append(line("hx-dim", cwd));
+        return [markEl(k), txt];
+      }
+      default: {
+        const txt = el("div", "hx-ban-t");
+        txt.append(line("", el("b", "", this.label || "Agent")));
+        const grid = el("div", "hx-kv");
+        const rows: [string, string][] = [];
+        if (m) rows.push(["model", m]);
+        if (eff) rows.push(["effort", eff]);
+        rows.push(["task", this.title]);
+        for (const [a, b] of rows) grid.append(el("span", "hx-k", a), el("span", "hx-v", b));
+        txt.append(grid);
+        return [markEl(k), txt];
+      }
+    }
+  }
+
+  private footParts(): Node[] {
     const k = this.kind;
-    if (k !== "generic") {
-      const img = el("img", "hx-logo");
-      img.src = k === "claude" ? claudeLogo : openaiLogo;
-      img.alt = "";
-      h.append(img);
+    const m = this.model || "", pm = prettyModel(m), eff = this.effort || "";
+    const L = (...kids: (Node | string)[]) => { const s = el("span", "hx-fl"); s.append(...kids); return s; };
+    const R = (...kids: (Node | string)[]) => { const s = el("span", "hx-fr"); s.append(...kids); return s; };
+    const dim = (s: string) => el("span", "hx-dim", s);
+    const both = (sep: string, a: string, b: string) => [a, b].filter(Boolean).join(sep);
+    const cwd = cwdShort(this.cwd);
+    switch (k) {
+      case "claude": return [L(dim("? for shortcuts")), R(pm, eff ? el("span", "hx-eff", ` ◐ ${eff}`) : "")];
+      case "codex": return [L(dim("? for shortcuts")), R(both(" ", m, eff))];
+      case "gemini": {
+        const col = (a: string, b: string | Node) => { const c = el("span", "hx-col"); c.append(el("span", "hx-dim", a), typeof b === "string" ? el("span", "", b) : b); return c; };
+        return [col("workspace (/directory)", cwd), col("/model", el("span", "hx-acc", both(" · ", m || "auto", eff)))];
+      }
+      case "opencode": {
+        const parts: (Node | string)[] = [el("span", "hx-agent", "Build")];
+        if (m) parts.push(" · ", m, " ", dim(cap(modelVendor(m))));
+        if (eff) parts.push(" · ", el("b", "hx-eff", eff));
+        return [L(...parts), R(dim("tab agents  ctrl+p commands"))];
+      }
+      case "pi": return [L(dim(cwd)), R(dim(m ? `(${modelVendor(m) || "model"}) ${m}` : ""), el("span", "hx-eff", eff ? ` • ${eff}` : " • thinking off"))];
+      case "hermes": return [L(el("span", "hx-acc", "☤ "), pm || m || "model", dim(" │ "), eff ? `reasoning ${eff}` : "reasoning default", dim(" │ "), dim(cwd))];
+      case "openclaw": return [L(dim("agent main | session main | "), both(" ", m, eff) || "default")];
+      case "cursor": return [L(dim(both(" ", pm, eff ? effortWord(eff, true) : "") || "Auto")), R(dim(cwd))];
+      case "grok": return [L(el("span", "hx-model", m || "grok"), eff ? dim(` · ${eff}`) : "")];
+      case "aider": return [L(dim(both(" · ", m, eff ? `reasoning ${eff}` : "")))];
+      case "copilot": return [L(dim(cwd)), R(dim(m ? `${m}${eff ? ` (${eff})` : ""}` : ""))];
+      case "amp": return [L(el("span", "hx-eff", eff || "smart")), R(dim(m))];
+      case "antigravity": return [L(dim(cwd)), R(both(" · ", pm, eff ? effortWord(eff, true) : ""))];
+      default: return [L(dim(both(" · ", m, eff)))];
     }
-    const txt = el("div", "hx-head-t");
-    const name = el("div", "hx-name");
-    name.append(el("b", "", brandName(k, this.label)));
-    if (k === "claude" && this.label) name.append(el("span", "hx-sub", this.label));
-    if (k === "codex" && this.label) name.append(el("span", "hx-sub", this.label));
-    txt.append(name);
-    const rows: [string, string][] = [];
-    if (this.model) rows.push(["model", this.model]);
-    rows.push(["task", this.title]);
-    if (k === "codex" || k === "generic") {
-      const grid = el("div", "hx-kv");
-      for (const [a, b] of rows) { grid.append(el("span", "hx-k", a), el("span", "hx-v", b)); }
-      txt.append(grid);
-    } else {
-      for (const [, b] of rows) txt.append(el("div", "hx-v", b));
-    }
-    h.append(txt);
-    return h;
   }
 
   // --- visibility ------------------------------------------------------------
@@ -246,7 +526,6 @@ class Session implements HarnessSession {
   /** Called from the app ticker. Returns true while it still has work to do. */
   tick(now: number): boolean {
     let busy = false;
-    // streaming text reveal
     const st = this.streamLine;
     if (st && st.shown < st.target.length) {
       const remaining = st.target.length - st.shown;
@@ -257,7 +536,6 @@ class Session implements HarnessSession {
       this.follow(300);
       busy = true;
     }
-    // follow the bottom smoothly
     if (now < this.followUntil && this.stick) {
       const s = this.scroller;
       const target = s.scrollHeight - s.clientHeight;
@@ -269,16 +547,12 @@ class Session implements HarnessSession {
       this.lastAutoTop = s.scrollTop;
       busy = true;
     }
-    // working status
     if (this.state === "running") {
-      const e = fmtElapsed(now - this.startedAt);
-      if (e !== this.lastElapsed) {
-        this.lastElapsed = e;
-        this.elEl.textContent = this.kind === "generic" ? e : `(${e})`;
-      }
-      if (this.spinEl) {
-        const f = Math.floor(now / 110) % SPIN.length;
-        if (f !== this.spinFrame) { this.spinFrame = f; this.spinEl.textContent = SPIN[f]; }
+      const e = statusTail(this.kind, this.flavor, fmtElapsed(now - this.startedAt));
+      if (e !== this.lastElapsed) { this.lastElapsed = e; this.elEl.textContent = e; }
+      if (this.spinEl && this.theme.spinMs) {
+        const f = Math.floor(now / this.theme.spinMs) % this.theme.spin.length;
+        if (f !== this.spinFrame) { this.spinFrame = f; this.spinEl.textContent = this.theme.spin[f]; }
       }
       busy = true;
     }
@@ -310,8 +584,14 @@ class Session implements HarnessSession {
 
   private revealDetail(line: HTMLElement) {
     const d = line.querySelector(".hx-d") as HTMLElement | null;
-    const b = line.querySelector(".hx-b");
-    b?.classList.remove("pending");
+    const b = line.querySelector(".hx-b") as HTMLElement | null;
+    line.classList.remove("hx-pend");
+    if (b) {
+      b.classList.remove("pending");
+      if (b.dataset.done !== undefined) b.textContent = b.dataset.done;
+    }
+    const st = line.querySelector(".hx-st") as HTMLElement | null;
+    if (st && st.dataset.done) st.textContent = st.dataset.done;
     if (!d) return;
     d.hidden = false;
     if (this.live) {
@@ -337,35 +617,71 @@ class Session implements HarnessSession {
     this.streamLine = null;
   }
 
+  /** A reply row: glyph or label, then the text. */
+  private sayRow(msgEl: HTMLElement) {
+    const row = el("div", "hx-row hx-wrap");
+    if (this.flavor === "cli") {
+      const g = CLI[this.kind].say;
+      if (this.kind === "hermes" && !this.sayLabelShown) {
+        this.sayLabelShown = true;
+        const wrap = el("div", "hx-say-wrap");
+        wrap.append(el("div", "hx-say-l", "☤ Hermes"), msgEl);
+        row.append(wrap);
+        return row;
+      }
+      if (g) row.append(el("i", "hx-b hx-g", g));
+    }
+    row.append(msgEl);
+    return row;
+  }
+
   private buildEvent(ev: SubagentEvent): HTMLElement {
     const k = this.kind;
     const line = el("div", `hx-line hx-ev-${ev.kind}`);
-    const label = LABELS[k][ev.kind];
     if (ev.kind === "say") {
-      const row = el("div", "hx-row hx-wrap");
-      row.append(el("i", "hx-b"), el("div", "hx-msg hx-clamp", ev.text));
+      line.append(this.sayRow(el("div", "hx-msg hx-clamp", ev.text)));
+      return line;
+    }
+    const text = ev.kind === "read" || ev.kind === "edit" ? shortPath(ev.text) : ev.text;
+    const row = el("div", "hx-row");
+    row.title = ev.text;
+    if (this.flavor === "app") {
+      line.classList.add("hx-act");
+      row.append(el("i", "hx-b"));
+      if (ev.kind === "tool") row.append(el("b", "hx-l", ev.text));
+      else row.append(el("b", "hx-l", k === "cursor" && ev.kind === "search" ? "Grepped" : APP_VERB[ev.kind]), el("span", "hx-t", text));
+      if (ev.detail && ev.kind !== "think") row.append(el("span", "hx-dt", ev.detail));
       line.append(row);
       return line;
     }
-    const row = el("div", "hx-row");
-    if (ev.kind === "think" && k === "claude") row.append(el("i", "hx-glyph", "∴"));
-    else row.append(el("i", "hx-b"));
-    const text = ev.kind === "read" || ev.kind === "edit" ? shortPath(ev.text) : ev.text;
-    if (k === "claude" && ev.kind === "tool") {
-      row.append(el("b", "hx-l", ev.text));
-    } else if (k === "claude" && (ev.kind === "think" || ev.kind === "error")) {
-      row.append(el("b", "hx-l", label), el("span", "hx-t hx-plain", text));
-    } else if (k === "claude") {
-      row.append(el("b", "hx-l", label), el("span", "hx-t", text), el("span", "hx-p", ")"));
-    } else {
-      row.append(el("b", "hx-l", label), el("span", "hx-t", text));
+    const c = CLI[k];
+    if (c.block) line.classList.add(`hx-blk-${c.block}`);
+    const glyph = c.glyph[ev.kind] ?? c.def;
+    if (glyph) {
+      const g = el("i", "hx-b hx-g", glyph);
+      if (c.pend && ev.kind !== "think" && ev.kind !== "error") g.dataset.done = glyph;
+      row.append(g);
+    } else if (k === "generic") row.append(el("i", "hx-b"));
+    const label = ev.kind === "tool" ? ev.text : (c.label[ev.kind] ?? "");
+    if (label) row.append(el("b", "hx-l", label));
+    if (ev.kind !== "tool") {
+      if (c.paren && ev.kind !== "think" && ev.kind !== "error") row.append(el("span", "hx-t hx-paren", text));
+      else row.append(el("span", "hx-t", ev.kind === "search" && k === "opencode" ? `"${text}"` : text));
+      const after = c.after?.[ev.kind];
+      if (after) row.append(el("span", "hx-dim", after));
     }
-    row.title = ev.text;
+    if (c.state && ev.kind !== "think" && ev.kind !== "error") {
+      const st = el("span", "hx-st hx-dim", c.state[1]);
+      st.dataset.done = c.state[1];
+      row.append(st);
+    }
     line.append(row);
-    if (ev.detail) {
+    const detail = ev.detail;
+    if (detail) {
       const d = el("div", "hx-d");
-      d.append(el("i", "hx-e"), el("span", "hx-dt", ev.detail));
-      d.title = ev.detail;
+      if (c.sub) d.append(el("span", "hx-e", c.sub));
+      d.append(el("span", "hx-dt", detail));
+      d.title = detail;
       line.append(d);
     }
     return line;
@@ -378,19 +694,30 @@ class Session implements HarnessSession {
     this.commitStream();
     this.settlePending();
     if (ev.kind !== "say" && ev.kind !== "think") this.steps++;
-    if (ev.kind === "think" && this.kind !== "claude") this.setVerb(ev.text);
+    if (ev.kind === "think" && this.followsThoughts()) this.setVerb(ev.text);
     const line = this.buildEvent(ev);
     const toolish = ev.kind !== "say" && ev.kind !== "think" && ev.kind !== "error";
     const d = line.querySelector(".hx-d") as HTMLElement | null;
     if (toolish && this.live) {
       // a tool call shows as pending for a moment, then its result appears
-      line.querySelector(".hx-b")?.classList.add("pending");
+      const b = line.querySelector(".hx-b") as HTMLElement | null;
+      b?.classList.add("pending");
+      line.classList.add("hx-pend");
+      const c = CLI[this.kind];
+      if (b && this.flavor === "cli" && c.pend) b.textContent = c.pend;
+      const st = line.querySelector(".hx-st") as HTMLElement | null;
+      if (st && c.state) st.textContent = c.state[0];
       if (d) d.hidden = true;
       this.addLine(line);
       this.pending = { line, timer: window.setTimeout(() => this.settlePending(), 380 + Math.random() * 420) };
     } else {
       this.addLine(line);
     }
+  }
+
+  /** Harnesses whose working line turns into the current thought. */
+  private followsThoughts() {
+    return this.kind !== "claude" && this.kind !== "hermes" && this.kind !== "openclaw" && this.kind !== "aider";
   }
 
   stream(text: string): void {
@@ -408,12 +735,10 @@ class Session implements HarnessSession {
     }
     this.settlePending();
     const line = el("div", "hx-line hx-ev-say hx-streaming");
-    const row = el("div", "hx-row hx-wrap");
     const msg = el("div", "hx-msg hx-tail");
     const inner = el("div", "hx-msg-in");
     msg.append(inner);
-    row.append(el("i", "hx-b"), msg);
-    line.append(row);
+    line.append(this.sayRow(msg));
     this.streamLine = { line, msg, inner, target: text, shown: 0 };
     if (!this.live) { this.streamLine.shown = text.length; inner.textContent = text; }
     this.addLine(line, { wipe: false });
@@ -430,30 +755,75 @@ class Session implements HarnessSession {
     const took = fmtElapsed(this.endedAt - this.startedAt);
     this.setStatus(false);
     this.updateDot();
+    this.addLine(this.flavor === "app" ? this.appResult(summary, ok, took) : this.cliResult(summary, ok, took));
+    this.app.sessionChanged();
+  }
 
+  private rule(text: string) {
+    const r = el("div", "hx-rule");
+    r.append(el("i"), el("span", "", text), el("i"));
+    return r;
+  }
+
+  private cliResult(summary: string | undefined, ok: boolean, took: string) {
     const k = this.kind;
     const line = el("div", `hx-line hx-result ${ok ? "hx-ok" : "hx-fail"}`);
+    const text = summary || (ok ? "Done" : "Failed");
+    const msg = () => el("div", "hx-msg hx-clamp", text);
+    const tail = (s: string) => { const d = el("div", "hx-d"); d.append(el("span", "hx-dt", s)); return d; };
     const steps = `${this.steps} ${k === "claude" ? "tool use" : "step"}${this.steps === 1 ? "" : "s"}`;
-    if (k === "codex") {
-      const rule = el("div", "hx-rule");
-      rule.append(el("i"), el("span", "", ok ? `Worked for ${took}` : `Stopped after ${took}`), el("i"));
-      line.append(rule);
-      if (summary) {
-        const row = el("div", "hx-row hx-wrap");
-        row.append(el("i", "hx-b"), el("div", "hx-msg hx-clamp", summary));
-        line.append(row);
+    switch (k) {
+      case "claude":
+        line.append(this.sayRow(msg()), tail(`✻ ${ok ? "Worked" : "Stopped"} for ${took} · ${steps}`));
+        break;
+      case "codex":
+        line.append(this.rule(ok ? `Worked for ${took}` : `Stopped after ${took}`), this.sayRow(msg()));
+        break;
+      case "opencode": {
+        line.append(this.sayRow(msg()));
+        const d = el("div", "hx-d");
+        d.append(el("span", "hx-agent", "▣ Build"), el("span", "hx-dt", ` · ${this.model || "model"} · ${took}${ok ? "" : " · interrupted"}`));
+        line.append(d);
+        break;
       }
-    } else {
-      const row = el("div", "hx-row hx-wrap");
-      row.append(el("i", "hx-b"), el("div", "hx-msg hx-clamp", summary || (ok ? "Done" : "Failed")));
-      line.append(row);
-      const d = el("div", "hx-d");
-      const info = k === "claude" ? `${ok ? "Done" : "Failed"} (${steps} · ${took})` : `${ok ? "Finished" : "Failed"} in ${took} · ${steps}`;
-      d.append(el("i", "hx-e"), el("span", "hx-dt", info));
-      line.append(d);
+      case "hermes":
+        line.append(this.sayRow(msg()), tail(ok ? `✧٩(ˊᗜˋ*)و✧ got it! (${took})` : `(╥﹏╥) stopped (${took})`));
+        break;
+      case "cursor": {
+        const box = el("div", "hx-sum");
+        box.append(el("b", "hx-sum-t", "Summary"), msg());
+        line.append(box);
+        break;
+      }
+      case "openclaw":
+        line.append(this.sayRow(msg()), tail(`${ok ? "done" : "error"} • ${took}`));
+        break;
+      case "grok":
+        line.append(this.sayRow(msg()), tail(`${ok ? "Worked" : "Stopped"} for ${took}`));
+        break;
+      case "aider": case "pi": case "gemini": case "copilot":
+        line.append(this.sayRow(msg()));
+        if (!ok) line.append(tail("Stopped"));
+        break;
+      default:
+        line.append(this.sayRow(msg()), tail(`${ok ? "Finished" : "Failed"} in ${took} · ${steps}`));
     }
-    this.addLine(line);
-    this.app.sessionChanged();
+    return line;
+  }
+
+  private appResult(summary: string | undefined, ok: boolean, took: string) {
+    const line = el("div", `hx-line hx-result ${ok ? "hx-ok" : "hx-fail"}`);
+    const steps = `${this.steps} step${this.steps === 1 ? "" : "s"}`;
+    if (this.kind === "claude") {
+      line.append(el("div", "hx-msg hx-clamp", summary || (ok ? "Done" : "Failed")));
+      const d = el("div", "hx-d");
+      d.append(el("span", "hx-dt", `${ok ? "Done" : "Stopped"} in ${took} · ${this.steps} tool use${this.steps === 1 ? "" : "s"}`));
+      line.append(d);
+    } else {
+      line.append(this.rule(ok ? `Worked for ${took} · ${steps}` : `Stopped after ${took}`));
+      line.append(el("div", "hx-msg hx-clamp", summary || (ok ? "Done" : "Failed")));
+    }
+    return line;
   }
 
   // --- internals used by the app ---------------------------------------------------
@@ -488,7 +858,9 @@ class Session implements HarnessSession {
 
     const you = el("div", "hx-line hx-prompt");
     const row = el("div", "hx-you");
-    row.append(el("span", "hx-chev", this.kind === "codex" ? "›" : ">"), el("div", "hx-msg hx-clamp", prompt));
+    const glyph = this.flavor === "cli" ? CLI[this.kind].prompt : "";
+    if (glyph) row.append(el("span", "hx-chev", glyph));
+    row.append(el("div", "hx-msg hx-clamp", prompt));
     you.append(row);
     if (this.log.children.length) you.classList.add("hx-gap");
     this.addLine(you);
@@ -497,8 +869,10 @@ class Session implements HarnessSession {
     this.startedAt = performance.now();
     this.endedAt = 0;
     this.steps = 0;
+    this.sayLabelShown = false;
     this.lastElapsed = "";
-    this.elEl.textContent = this.kind === "generic" ? "0s" : "(0s)";
+    this.verbEl.textContent = this.firstVerb();
+    this.elEl.textContent = statusTail(this.kind, this.flavor, "0s");
     this.setStatus(true);
     this.updateDot();
     this.ready = true;
@@ -518,6 +892,8 @@ class Session implements HarnessSession {
   }
 }
 
+const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : "");
+
 // ---------------------------------------------------------------------------
 export class HarnessApp {
   readonly root: HTMLElement;
@@ -532,7 +908,7 @@ export class HarnessApp {
   private resize: ResizeObserver;
 
   constructor(private wm: HarnessHost) {
-    this.root = el("div", "hx hx-k-generic hx-empty");
+    this.root = el("div", "hx hx-k-generic hx-f-cli hx-empty");
     this.tabs = el("div", "hx-tabs");
     this.tabs.setAttribute("role", "tablist");
     this.newBtn = el("div", "hx-new");
@@ -558,7 +934,7 @@ export class HarnessApp {
       const wm = this.wm;
       const e = wm.epoch;
       let s = this.sessions.get(opts.id);
-      await this.ensureWindow(s?.kind ?? opts.kind, s?.label ?? opts.label);
+      await this.ensureWindow(s ?? null, opts);
       wm.check(e);
       if (!s) {
         if (this.sessions.size > 0) {
@@ -572,9 +948,11 @@ export class HarnessApp {
         if (this.root.isConnected && !reduced()) gsap.from(s.tab, { width: 0, minWidth: 0, opacity: 0, duration: 0.32, ease: "power2.out", clearProps: "width,minWidth,opacity" });
         this.activate(s, true);
         this.trimTabs();
+        this.refreshSides();
         await wm.sleep(320, e);
       } else {
         if (opts.title && opts.title !== s.title) s.setTitle(opts.title);
+        s.setMeta({ model: opts.model, effort: opts.effort });
         if (this.active !== s) await this.clickTab(s);
         s.reopen();
       }
@@ -605,7 +983,7 @@ export class HarnessApp {
       if (!s) return;
       const wm = this.wm;
       const e = wm.epoch;
-      await this.ensureWindow(s.kind, s.label);
+      await this.ensureWindow(s, null);
       if (this.active !== s) await this.clickTab(s);
       s.stick = true;
       s.snapBottom();
@@ -651,6 +1029,7 @@ export class HarnessApp {
   /** @internal */
   sessionChanged() {
     this.trimTabs();
+    this.refreshSides();
   }
 
   private tick = () => {
@@ -666,15 +1045,35 @@ export class HarnessApp {
     return run;
   }
 
-  private async ensureWindow(kind: HarnessKind, label?: string) {
-    const title = this.active ? brandName(this.active.kind, this.active.label) : brandName(kind, label);
-    const w = await this.wm.open(HARNESS_APP_ID as unknown as AppId, title);
+  private async ensureWindow(s: Session | null, opts: HarnessStartOptions | null) {
+    const shown = this.active ?? s;
+    const kind = shown?.kind ?? opts?.kind ?? "generic";
+    const flavor = shown?.flavor ?? resolveFlavor(kind, opts?.flavor);
+    const w = await this.wm.open(HARNESS_APP_ID as unknown as AppId, windowTitle(kind, flavor, shown?.label ?? opts?.label));
     this.win = w;
+    this.dressWindow(flavor);
     if (this.root.parentElement !== w.body) {
       w.body.replaceChildren(this.root);
-      for (const s of this.sessions.values()) if (s.stick) s.snapBottom();
+      for (const x of this.sessions.values()) if (x.stick) x.snapBottom();
     }
     return w;
+  }
+
+  /** A terminal harness runs in a terminal-looking window; an app in its own window. */
+  private dressWindow(flavor: Flavor) {
+    const w = this.win;
+    if (!w) return;
+    w.el.classList.toggle("hx-host-cli", flavor === "cli");
+    w.el.classList.toggle("hx-host-app", flavor === "app");
+    const ico = w.el.querySelector(".win-bar svg");
+    const want = flavor === "cli" ? "terminal" : "harness";
+    if (ico && (ico as HTMLElement).dataset?.hx !== want) {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = want === "terminal" ? ICONS.terminal : HARNESS_ICON;
+      const svg = tmp.firstElementChild as SVGElement;
+      svg.dataset.hx = want;
+      ico.replaceWith(svg);
+    }
   }
 
   private async clickTab(s: Session) {
@@ -688,14 +1087,19 @@ export class HarnessApp {
   private activate(s: Session, animate: boolean) {
     const prev = this.active;
     this.active = s;
-    this.root.classList.remove("hx-k-claude", "hx-k-codex", "hx-k-generic", "hx-empty");
-    this.root.classList.add(`hx-k-${s.kind}`);
+    for (const c of Array.from(this.root.classList)) if (c.startsWith("hx-k-") || c.startsWith("hx-f-")) this.root.classList.remove(c);
+    this.root.classList.remove("hx-empty");
+    this.root.classList.add(`hx-k-${s.kind}`, `hx-f-${s.flavor}`);
     for (const o of this.sessions.values()) {
       o.tab.classList.toggle("on", o === s);
       o.tab.setAttribute("aria-selected", String(o === s));
     }
-    if (this.win) this.win.title.textContent = brandName(s.kind, s.label);
+    if (this.win) {
+      this.win.title.textContent = windowTitle(s.kind, s.flavor, s.label);
+      this.dressWindow(s.flavor);
+    }
     if (s.stick) s.snapBottom();
+    this.refreshSides();
     if (prev === s) return;
     const anim = animate && this.root.isConnected && !reduced();
     if (prev) {
@@ -706,6 +1110,22 @@ export class HarnessApp {
     if (anim) gsap.fromTo(s.view, { autoAlpha: 0, x: 12 }, { autoAlpha: 1, x: 0, duration: 0.3, ease: "power2.out", delay: prev ? 0.08 : 0 });
     else gsap.set(s.view, { autoAlpha: 1, x: 0 });
     this.wake();
+  }
+
+  /** Desktop apps list their own sessions in the sidebar (helpers of the same harness). */
+  private refreshSides() {
+    for (const s of this.sessions.values()) {
+      if (!s.sideList) continue;
+      const rows: HTMLElement[] = [];
+      for (const o of this.sessions.values()) {
+        if (o.kind !== s.kind || o.flavor !== "app") continue;
+        const r = el("div", `hx-srow${o === s ? " on" : ""}${o.state === "running" ? " running" : ""}`);
+        r.append(el("span", "hx-srow-t", o.title), el("i", "hx-sdot"));
+        r.title = o.title;
+        rows.push(r);
+      }
+      s.sideList.replaceChildren(...rows);
+    }
   }
 
   // Keep at most MAX_TABS tabs: the oldest finished session closes.

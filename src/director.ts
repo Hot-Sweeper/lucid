@@ -4,7 +4,7 @@ import { CalcApp, WORK_SUMS } from "./os/calc";
 import { checkTime } from "./os/glance";
 import { MusicApp } from "./os/music";
 import { IdleLife } from "./os/idle";
-import { HarnessApp, harnessKind, type HarnessSession, type SubagentEvent } from "./harness/harness";
+import { HarnessApp, harnessKind, THEMES, type HarnessSession, type SubagentEvent } from "./harness/harness";
 import { fileUrl } from "./office/chat-panel";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ChatApp, ToolApp, prettyTool } from "./os/apps";
 import { classify, parseDiff, baseName, type Entry } from "./os/classify";
@@ -13,11 +13,38 @@ import type { SeatedRobot as Robot } from "./office/rig";
 import type { DeskStage as Stage } from "./office/desk";
 
 export type Item = { id: string; runId: string | null; ordinal: number; type: string; status: string; updatedAt: string; data: any };
-export type ThreadInfo = { id: string; title: string; provider: string; projectTitle?: string; root?: string; run?: { id: string; status: string } | null; error?: string };
+export type ThreadInfo = { id: string; title: string; provider: string; model?: string | null; effort?: string | null; projectTitle?: string; root?: string; run?: { id: string; status: string } | null; error?: string };
 
 const GLOW: Record<string, string> = {
   editor: "#6f7dff", terminal: "#4ff0a0", browser: "#4fd2ff", chat: "#ff7aa8", files: "#ffbf5a", tool: "#b07cff", think: "#9d8cff", idle: "#4fb6ff", tasks: "#4fd8c0",
 };
+
+// Reasoning effort from a T3 model selection: [{ id: "effort", value }], { effort }, Codex's "reasoningEffort"...
+function effortOf(o: any): string | undefined {
+  if (!o) return undefined;
+  const ids = ["effort", "reasoningEffort", "reasoning_effort", "reasoning", "thinkingLevel", "thinking", "variant"];
+  for (const id of ids) {
+    const v = Array.isArray(o) ? o.find((x: any) => x && x.id === id)?.value : o[id];
+    if (v != null && typeof v !== "boolean" && typeof v !== "object") return String(v);
+  }
+  return undefined;
+}
+
+// Plain text of a tool result, whatever shape the harness reported it in.
+function outText(o: any): string {
+  if (o == null) return "";
+  if (typeof o === "string") return o;
+  if (typeof o.stdout === "string") return [o.stdout, o.stderr].filter(Boolean).join("\n");
+  if (typeof o.output === "string") return o.output;
+  if (typeof o.content === "string") return o.content;
+  if (o.file && typeof o.file.content === "string") return o.file.content;
+  if (Array.isArray(o.content)) return o.content.map((c: any) => c?.text || "").join("\n");
+  return "";
+}
+
+type Helper = { session: HarnessSession; child: string | null; prompt: string; since: string; timer: number; done: boolean; last: string; runSeen: boolean; ticks: number; hasModel: boolean };
+const cleanCmd = (c: any) => String(c || "").replace(/^"[^"]*powershell[^"]*"\s+-Command\s+/i, "").slice(0, 160);
+const lastLine = (o: any) => (o ? String(o).split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 120) : undefined);
 
 const SKIP = new Set(["checkpoint", "notification", "system_notice", "handoff", "run_interrupt_request", "run_interrupt_result"]);
 
@@ -39,8 +66,15 @@ export class Director {
   private phoneUp = false;      // the robot is holding its phone
   private peekFn: (url: string) => Promise<any>;
   private harness: HarnessApp;
-  private sessions = new Map<string, { session: HarnessSession; child: string | null; since: string; timer: number; done: boolean }>();
+  // Helper sessions, keyed by the child thread when known (else the item that started it).
+  private sessions = new Map<string, Helper>();
+  /** Item id (subagent item, delegate_task call, Agent tool call) to its helper session key. */
+  private helperOf = new Map<string, string>();
+  /** What a delegate_task call said about its child (harness, model, effort), by child thread id. */
+  private helperHints = new Map<string, { provider?: string; model?: string; effort?: string }>();
   childItems: (threadId: string, since: string) => Promise<any[]> = async () => [];
+  /** Provider, model and effort of a child thread. */
+  childInfo: (threadId: string) => Promise<ThreadInfo | null> = async (id) => (window as any).lucid?.threadInfo?.(id) ?? null;
   attachDir = "";
   private lastEventAt = 0;
 
@@ -66,6 +100,8 @@ export class Director {
     this.idleLife.stop();
     for (const s of this.sessions.values()) window.clearInterval(s.timer);
     this.sessions.clear();
+    this.helperOf.clear();
+    this.helperHints.clear();
     this.harness.reset();
     this.mobile = false;
     if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
@@ -116,7 +152,11 @@ export class Director {
       if (it.type === "todo_list") { this.stage.setPlan(it.data.steps || []); if (!this.queuePlan(it)) this.played.add(it.id); continue; }
       this.queue.push(it.id);
     }
-    for (const it of items) if (it.type === "subagent" && it.status !== "running" && this.sessions.has(it.id)) this.finishSession(it.id);
+    // A helper is done when its subagent item (or Claude's Agent tool call) settles.
+    for (const it of items) {
+      if (it.status === "running" || it.status === "pending" || !this.helperOf.has(it.id)) continue;
+      if (it.type === "subagent" || (it.type === "dynamic_tool" && /^(Agent|Task)$/.test(String(it.data?.toolName || "")))) this.finishSession(it.id);
+    }
     // Plans update in place while the run goes on.
     for (const it of items) if (it.type === "todo_list" && this.played.has(it.id)) { this.stage.setPlan(it.data.steps || []); this.queuePlan(it); }
     this.queue.sort((a, b) => this.items.get(a)!.ordinal - this.items.get(b)!.ordinal);
@@ -173,18 +213,73 @@ export class Director {
     box.scrollTop = box.scrollHeight;
   }
 
+  /**
+   * The robot opens the harness app for a helper agent and types its brief. Native subagent items,
+   * T3's delegate_task tool and Claude's Agent tool all land here; the same helper seen twice
+   * (a delegate_task call, then its subagent item) keeps one tab.
+   */
+  private async openHelper(itemId: string, o: { child: string | null; prompt: string; title: string; provider?: string; driver?: string; model?: string; effort?: string; label?: string }) {
+    const existing = this.findHelper(o.child, o.prompt);
+    if (existing) {
+      this.helperOf.set(itemId, existing);
+      const h = this.sessions.get(existing)!;
+      h.session.setMeta({ model: o.model, effort: o.effort });
+      if (o.child && !h.child) { h.child = o.child; this.pollChild(h); }
+      return;
+    }
+    const hint = o.child ? this.helperHints.get(o.child) : undefined;
+    const info = o.child ? await this.childInfo(o.child).catch(() => null) : null;
+    const provider = info?.provider || hint?.provider || o.provider || o.driver || "";
+    const kind = harnessKind(provider, o.driver, o.label);
+    let model = info?.model || hint?.model || o.model || undefined;
+    let effort = info?.effort || hint?.effort || o.effort || undefined;
+    // A native helper of the parent's own harness runs on the parent's model unless told otherwise.
+    if (!o.child && kind === harnessKind(this.info?.provider)) { model = model || this.info?.model || undefined; effort = effort || this.info?.effort || undefined; }
+    const key = o.child || itemId;
+    this.helperOf.set(itemId, key);
+    const flavor = this.wm.prefs?.subagents;
+    const t = THEMES[kind];
+    this.onActivity(`Briefing a helper in ${flavor === "cli" && t.cmd ? t.cmd : t.app || t.name}: ${o.title}`);
+    this.stage.setGlow(GLOW.tool);
+    const label = o.label || (kind === "generic" && provider ? provider.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^\w/, (c) => c.toUpperCase()) : undefined);
+    const session = await this.harness.start({ id: key, kind, title: o.title, prompt: o.prompt, model, effort, flavor, label, cwd: this.info?.root });
+    const h: Helper = { session, child: o.child, prompt: o.prompt, since: "", timer: 0, done: false, last: "", runSeen: false, ticks: 0, hasModel: !!model };
+    this.sessions.set(key, h);
+    this.pollChild(h);
+  }
+
+  private findHelper(child: string | null, prompt: string): string | null {
+    for (const [key, h] of this.sessions) {
+      if (child && (key === child || h.child === child)) return key;
+      if ((!child || !h.child) && prompt && h.prompt === prompt && !h.done) return key;
+    }
+    return null;
+  }
+
   // Poll the helper's own thread and mirror its actions into the harness window.
-  private followChild(id: string, session: HarnessSession, child: string | null) {
-    const s = { session, child, since: "", timer: 0, done: false };
-    this.sessions.set(id, s);
-    if (!child) return;
+  private pollChild(s: Helper) {
+    const child = s.child;
+    if (!child || s.timer) return;
+    const session = s.session;
     const map = (it: any): SubagentEvent | null => {
       const d = it.data || {};
       switch (it.type) {
-        case "command_execution": return { kind: "run", text: String(d.input || "").replace(/^"[^"]*powershell[^"]*"\s+-Command\s+/i, "").slice(0, 160), detail: d.output ? String(d.output).split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 120) : undefined };
+        case "command_execution": return { kind: "run", text: cleanCmd(d.input), detail: lastLine(outText(d.output) || d.output) };
         case "file_change": return { kind: "edit", text: String(d.fileName || d.changes?.[0]?.path || "file").split(/[\\/]/).slice(-2).join("/") };
         case "web_search": return { kind: "web", text: String((d.patterns || [])[0] || d.query || "search") };
-        case "dynamic_tool": return { kind: "tool", text: String(d.toolName || "tool").replace(/^mcp__.+?__/, ""), detail: d.input?.file_path || d.input?.command || d.input?.pattern || undefined };
+        case "subagent": return { kind: "tool", text: "Agent", detail: d.title || undefined };
+        case "dynamic_tool": {
+          const name = String(d.toolName || "tool").replace(/^mcp__.+?__/, "");
+          const inp = d.input || {};
+          const out = outText(d.output);
+          const lines = out ? out.split(/\r?\n/).filter(Boolean).length : 0;
+          if (/^(read|read_file|view)$/i.test(name)) return { kind: "read", text: String(inp.file_path || inp.path || "file"), detail: lines ? `Read ${lines} lines` : undefined };
+          if (/^(edit|multiedit|write|str_replace|apply_patch|notebookedit)$/i.test(name)) return { kind: "edit", text: String(inp.file_path || inp.path || "file"), detail: /^write$/i.test(name) && inp.content ? `Wrote ${String(inp.content).split("\n").length} lines` : undefined };
+          if (/^(bash|powershell|shell|run_command|exec)$/i.test(name)) return { kind: "run", text: cleanCmd(inp.command), detail: lastLine(out) };
+          if (/^(grep|glob|search|find)$/i.test(name)) return { kind: "search", text: String(inp.pattern || inp.query || name), detail: lines ? `Found ${lines} result${lines === 1 ? "" : "s"}` : undefined };
+          if (/^(webfetch|websearch|fetch)$/i.test(name)) return { kind: "web", text: String(inp.url || inp.query || "the web") };
+          return { kind: "tool", text: name, detail: inp.file_path || inp.command || inp.pattern || inp.description || undefined };
+        }
         case "reasoning": return d.text ? { kind: "think", text: String(d.text).replace(/\s+/g, " ").slice(0, 140) } : null;
         default: return null;
       }
@@ -195,24 +290,39 @@ export class Director {
       const items = await this.childItems(child, s.since).catch(() => []);
       for (const it of items) {
         if (it.updatedAt > s.since) s.since = it.updatedAt;
-        if (it.type === "assistant_message") { if (it.data?.text) session.stream(String(it.data.text)); continue; }
-        const key = `${it.id}:${it.status}`;
+        if (it.type === "assistant_message") { if (it.data?.text) { s.last = String(it.data.text); session.stream(s.last); } continue; }
         if (seen.has(it.id) || (it.status === "running" && it.type !== "command_execution")) continue;
         seen.add(it.id);
-        if (!seen.has(key)) { const ev = map(it); if (ev) session.push(ev); }
+        const ev = map(it);
+        if (ev) session.push(ev);
+      }
+      // Every few polls: learn the model once the child thread exists, and notice when its run ends.
+      if (s.ticks++ % 3 === 0) {
+        const info = await this.childInfo(child).catch(() => null);
+        if (info && !s.hasModel && info.model) { s.hasModel = true; session.setMeta({ model: info.model, effort: info.effort || undefined }); }
+        const st = info?.run?.status || "";
+        if (st === "running") s.runSeen = true;
+        else if (s.runSeen && /^(completed|failed|interrupted|cancelled|canceled|error)$/.test(st)) this.endHelper(s, s.last || "Done", st === "completed");
       }
     };
     void tick();
     s.timer = window.setInterval(tick, 2500);
   }
 
-  private finishSession(id: string) {
-    const s = this.sessions.get(id);
-    if (!s || s.done) return;
+  private endHelper(s: Helper, summary: string, ok: boolean) {
+    if (s.done) return;
     s.done = true;
     window.clearInterval(s.timer);
-    const it = this.items.get(id);
-    s.session.finish(it?.data?.result || it?.data?.summary || "Done", it?.status !== "failed");
+    s.session.finish(summary, ok);
+  }
+
+  private finishSession(itemId: string) {
+    const key = this.helperOf.get(itemId) ?? itemId;
+    const s = this.sessions.get(key);
+    if (!s || s.done) return;
+    const it = this.items.get(itemId);
+    const d = it?.data || {};
+    this.endHelper(s, String(d.result || d.summary || outText(d.output) || s.last || "Done").slice(0, 600), it?.status !== "failed" && it?.status !== "error");
   }
 
   // Music while working: robots that like it put on a playlist when work starts.
@@ -477,8 +587,34 @@ export class Director {
       return true;
     }
     if (base === "Agent" || base === "Task") {
-      this.wm.toast(`Handed off: ${this.get(id).data.input?.description || "a subtask"}`, "tool");
-      await this.wm.sleep(900);
+      // Claude's own subagent tool: same harness as the parent, model from the call or inherited.
+      const it = this.get(id);
+      const inp = it.data.input || {};
+      const type = String(inp.subagent_type || "");
+      const model = inp.model && inp.model !== "inherit" ? String(inp.model) : undefined;
+      await this.openHelper(id, {
+        child: null, prompt: String(inp.prompt || inp.description || "Help with this"), title: String(inp.description || "Subtask"),
+        provider: this.info?.provider || "claude", model, label: type && type !== "general-purpose" ? `${type} agent` : undefined,
+      });
+      if (it.status !== "running" && it.status !== "pending") this.finishSession(id);
+      return true;
+    }
+    if (base === "delegate_task") {
+      // T3's delegate tool: the child may run any harness (Codex, OpenCode, ...) with its own model and effort.
+      const done = await this.settle(id, 15000);
+      const inp = done.data.input || {};
+      let out: any = done.data.output?.structuredContent || null;
+      if (!out?.childThreadId) { try { out = JSON.parse(outText(done.data.output)); } catch { out = null; } }
+      const child = out?.childThreadId ? String(out.childThreadId) : null;
+      if (!child) return false;
+      const target = inp.target || {};
+      const hint = {
+        provider: out.providerInstanceId || target.providerInstanceId || target.provider || undefined,
+        model: out.model || target.model || undefined,
+        effort: effortOf(out.options) || effortOf(target.options) || target.effort || undefined,
+      };
+      this.helperHints.set(child, hint);
+      await this.openHelper(id, { child, prompt: String(inp.task || inp.prompt || inp.title || "Help with this"), title: String(inp.title || "Subtask"), ...hint });
       return true;
     }
     const browserActs: Record<string, string> = {
@@ -728,14 +864,13 @@ export class Director {
         return;
       }
       case "subagent": {
-        // The robot opens its harness app, types the prompt for the helper agent, and
-        // from then on the helper's real activity streams into that window.
-        const kind = harnessKind(String(d.driver || d.providerInstanceId || this.info?.provider || ""));
-        this.onActivity(`Briefing a helper: ${d.title || "subtask"}`);
-        this.stage.setGlow(GLOW.tool);
-        const session = await this.harness.start({ id, kind, title: d.title || "Subtask", prompt: d.prompt || d.title || "Help with this", label: String(d.providerInstanceId || d.driver || "") });
-        this.followChild(id, session, d.childThreadId || null);
-        if (it.status === "completed") this.finishSession(id);
+        // The robot opens the harness app of the helper's own harness (its child thread says which,
+        // with model and effort), types the brief, and the helper's real activity streams in.
+        await this.openHelper(id, {
+          child: d.childThreadId || null, prompt: String(d.prompt || d.title || "Help with this"), title: String(d.title || "Subtask"),
+          provider: d.providerInstanceId || undefined, driver: d.driver || undefined,
+        });
+        if (it.status !== "running" && it.status !== "pending") this.finishSession(id);
         return;
       }
       case "todo_list": {

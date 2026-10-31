@@ -5,7 +5,7 @@ import "../styles.css";
 import gsap from "gsap";
 import type { AppId } from "../os/wm";
 import { ICONS } from "../os/icons";
-import { HarnessApp, HARNESS_ICON, harnessKind, type HarnessHost, type HarnessSession, type SubagentEvent } from "./harness";
+import { HarnessApp, HARNESS_ICON, harnessKind, THEMES, type HarnessHost, type HarnessSession, type SubagentEvent, type HarnessKind, type Flavor } from "./harness";
 
 const SCREEN = { w: 820, h: 461 };
 const ICON: Record<string, string> = { ...ICONS, harness: HARNESS_ICON };
@@ -204,6 +204,7 @@ async function feed(s: HarnessSession, steps: Step[]) {
 
 // --- the scene -----------------------------------------------------------------------
 const params = new URLSearchParams(location.search);
+const flavorParam = (d: Flavor): Flavor => (params.get("flavor") === "cli" || params.get("flavor") === "app" ? params.get("flavor") as Flavor : d);
 const speed = Number(params.get("speed") || 1);
 const screenEl = document.getElementById("screen")!;
 if (params.get("zoom")) screenEl.style.zoom = params.get("zoom")!;
@@ -228,21 +229,21 @@ async function scene() {
   await typeTerminal("git status --short");
   await wm.sleep(500, e);
   const c = await app.start({
-    id: "c1", kind: harnessKind("claudeAgent"), model: "claude-sonnet-4-5", label: "Explore agent",
+    id: "c1", kind: harnessKind("claudeAgent"), model: "claude-opus-5-5", effort: "high", label: "Explore agent", flavor: flavorParam("cli"), cwd: "C:/Users/tim/T3 Projects/Lucid-dev",
     title: "Find why window focus is lost",
     prompt: "Read src/os/wm.ts and find why focus is lost when two windows open at the same time. Report the cause and a minimal fix.",
   });
   void feed(c, CLAUDE);
   await wm.sleep(1600, e);
   const x = await app.start({
-    id: "x1", kind: harnessKind("codex"), model: "gpt-5-codex",
+    id: "x1", kind: harnessKind("codex"), model: "gpt-5.6-sol", effort: "xhigh", flavor: flavorParam("app"), cwd: "C:/Users/tim/T3 Projects/Lucid-dev",
     title: "Add unit tests for classify.ts",
     prompt: "Write unit tests for src/os/classify.ts covering ripgrep, git and PowerShell commands. Fix any expectation that turns out wrong.",
   });
   void feed(x, CODEX);
   await wm.sleep(1200, e);
   const g = await app.start({
-    id: "g1", kind: harnessKind("opencode"), label: "OpenCode", model: "grok-code-fast-1",
+    id: "g1", kind: harnessKind("opencode"), model: "grok-code-fast-1", effort: "medium", flavor: flavorParam("cli"), cwd: "C:/Users/tim/T3 Projects/Lucid-dev",
     title: "Profile dock animation jank",
     prompt: "Profile the dock hover animation and tell me what causes the dropped frames.",
   });
@@ -273,4 +274,103 @@ for (const b of document.querySelectorAll<HTMLButtonElement>("[data-check]")) {
 document.getElementById("restart")!.addEventListener("click", restart);
 
 (window as any).__demo = { app, wm, check: (id: string) => app.checkOn(id) };
-scene().catch((err) => { if (!(err instanceof Cancelled)) console.error(err); });
+
+
+// --- gallery: every harness in each form it has, with a sample stream, model and effort ------
+//   harness-demo.html?gallery=1      mid-run (working line visible)
+//   harness-demo.html?gallery=done   finished
+const SAMPLE: Record<HarnessKind, { model: string; effort: string; label?: string }> = {
+  claude: { model: "claude-opus-5-5", effort: "high" },
+  codex: { model: "gpt-5.6-sol", effort: "xhigh" },
+  gemini: { model: "gemini-3.5-pro", effort: "high" },
+  antigravity: { model: "gemini-3.5-pro", effort: "medium" },
+  opencode: { model: "claude-sonnet-5-5", effort: "high" },
+  pi: { model: "claude-opus-5-5", effort: "medium" },
+  hermes: { model: "hermes-4-405b", effort: "low" },
+  openclaw: { model: "claude-opus-5-5", effort: "high" },
+  cursor: { model: "gpt-5.6-sol", effort: "high" },
+  grok: { model: "grok-4.5", effort: "high" },
+  aider: { model: "claude-sonnet-5-5", effort: "high" },
+  copilot: { model: "gpt-5.6", effort: "medium" },
+  amp: { model: "claude-opus-5-5", effort: "high" },
+  generic: { model: "kimi-k2.5", effort: "medium", label: "Kimi" },
+};
+const BRIEF = "Read src/os/wm.ts and find why focus is lost when two windows open at the same time. Report the cause and a minimal fix.";
+const STREAM: SubagentEvent[] = [
+  { kind: "think", text: "Focus is set in WM.focus; check who calls it during open" },
+  { kind: "read", text: "src/os/wm.ts", detail: "Read 285 lines" },
+  { kind: "search", text: "focus\\(", detail: "Found 6 results" },
+  { kind: "run", text: "npx tsc -p . --noEmit", detail: "No errors" },
+  { kind: "edit", text: "src/os/wm.ts", detail: "Updated wm.ts with 4 additions and 1 removal" },
+];
+
+class TileHost implements HarnessHost {
+  epoch = 0;
+  speed = 1000;
+  robot = { pressKey() {}, setTyping() {}, setPose() {} } as unknown as HarnessHost["robot"];
+  constructor(private w: { el: HTMLElement; body: HTMLElement; title: HTMLElement }) {}
+  async open(_id: AppId, title?: string) { if (title) this.w.title.textContent = title; return this.w; }
+  async pointAt() {}
+  async click() {}
+  async sleep() {}
+  check() {}
+}
+
+function tile(grid: HTMLElement, caption: string) {
+  const cell = document.createElement("figure");
+  cell.className = "g-cell";
+  cell.innerHTML = `<section class="win app-harness focused"><header class="win-bar">${HARNESS_ICON}<span class="win-title"></span><span class="win-x"></span></header><div class="win-body"></div></section><figcaption></figcaption>`;
+  cell.querySelector("figcaption")!.textContent = caption;
+  grid.append(cell);
+  const el = cell.querySelector(".win") as HTMLElement;
+  return { el, body: el.querySelector(".win-body") as HTMLElement, title: el.querySelector(".win-title") as HTMLElement };
+}
+
+async function fill(app: HarnessApp, id: string, kind: HarnessKind, flavor: Flavor, done: boolean, title = "Find why window focus is lost") {
+  const sm = SAMPLE[kind];
+  const s = await app.start({ id, kind, flavor, title, prompt: BRIEF, model: sm.model, effort: sm.effort, label: sm.label, cwd: "C:/Users/tim/T3 Projects/Lucid-dev" });
+  for (const ev of STREAM) s.push(ev);
+  s.stream("Two opens raced for the same z index: open() awaits the dock click before focus(), so a second window can be created mid-animation and both end up focused.");
+  if (done) s.finish("Focus race fixed in WM.open: focus is claimed before the dock animation starts.", true);
+}
+
+async function gallery(done: boolean) {
+  document.body.innerHTML = "";
+  document.body.className = "g-body";
+  document.documentElement.style.cssText = "height:auto;overflow:visible";
+  const style = document.createElement("style");
+  style.textContent = `
+    .g-body { display: block; height: auto; overflow: visible; padding: 18px; background: #0e1233; }
+    .g-grid { display: grid; grid-template-columns: repeat(4, 560px); gap: 18px 16px; }
+    .g-cell { margin: 0; }
+    .g-cell .win { position: relative; width: 560px; height: 340px; }
+    .g-cell figcaption { margin-top: 6px; font: 12px var(--font); color: #b9bfe6; }
+  `;
+  document.head.append(style);
+  const grid = document.createElement("div");
+  grid.className = "g-grid";
+  document.body.append(grid);
+  const kinds = Object.keys(THEMES) as HarnessKind[];
+  const jobs: Promise<void>[] = [];
+  for (const kind of kinds) {
+    for (const flavor of THEMES[kind].forms) {
+      const w = tile(grid, `${THEMES[kind].name}, ${flavor === "cli" ? "terminal" : "desktop app"}`);
+      const app = new HarnessApp(new TileHost(w));
+      jobs.push(fill(app, `${kind}-${flavor}`, kind, flavor, done));
+    }
+  }
+  // One robot running two helpers at once: a Claude Code helper and a Codex helper in separate tabs.
+  for (const flavor of ["cli", "app"] as Flavor[]) {
+    const w = tile(grid, `Two helpers at once, ${flavor === "cli" ? "terminal" : "desktop app"} (Codex tab active)`);
+    const app = new HarnessApp(new TileHost(w));
+    jobs.push((async () => {
+      await fill(app, "m-claude", "claude", flavor, done, "Find why window focus is lost");
+      await fill(app, "m-codex", "codex", flavor, done, "Add unit tests for classify.ts");
+    })());
+  }
+  await Promise.all(jobs);
+  document.body.dataset.ready = "1";
+}
+
+if (params.get("gallery")) void gallery(params.get("gallery") === "done");
+else scene().catch((err) => { if (!(err instanceof Cancelled)) console.error(err); });

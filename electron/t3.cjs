@@ -44,6 +44,22 @@ function listThreads(limit = 60) {
   return rows;
 }
 
+// Reasoning effort from a model selection's options: [{ id: "effort", value }] (Claude),
+// "reasoningEffort" (Codex), or another thinking-level option; an object map works too.
+const EFFORT_IDS = ["effort", "reasoningEffort", "reasoning_effort", "reasoning", "thinkingLevel", "thinking", "variant"];
+function effortOf(options) {
+  if (!options) return null;
+  if (Array.isArray(options)) {
+    for (const id of EFFORT_IDS) {
+      const o = options.find((x) => x && x.id === id);
+      if (o && o.value != null && typeof o.value !== "boolean") return String(o.value);
+    }
+    return null;
+  }
+  for (const id of EFFORT_IDS) if (options[id] != null && typeof options[id] !== "boolean") return String(options[id]);
+  return null;
+}
+
 function threadInfo(threadId) {
   const t = getDb()
     .prepare(`select t.thread_id as id, t.title, coalesce(t.provider_instance_id, t.default_provider) as provider, t.payload_json as payload,
@@ -61,6 +77,7 @@ function threadInfo(threadId) {
     title: t.title,
     provider: t.provider,
     model: payload.modelSelection?.model || payload.model || null,
+    effort: effortOf(payload.modelSelection?.options),
     projectTitle: t.projectTitle,
     root: t.root,
     run: run ? { id: run.id, status: run.status } : null,
