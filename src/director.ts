@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { WM, Cancelled } from "./os/wm";
 import { CalcApp, WORK_SUMS } from "./os/calc";
+import { MusicApp } from "./os/music";
 import { IdleLife } from "./os/idle";
 import { HarnessApp, harnessKind, type HarnessSession, type SubagentEvent } from "./harness/harness";
 import { fileUrl } from "./office/chat-panel";
@@ -52,6 +53,8 @@ export class Director {
     this.tasks = new TasksApp(wm);
     this.idleLife = new IdleLife(wm, robot, stage);
     this.idleLife.browser = this.browser;
+    this.music = new MusicApp(wm);
+    this.idleLife.music = this.music;
     this.harness = new HarnessApp(wm as any);
     this.peekFn = peek;
     this.idleLife.onActivity = (t) => this.onActivity(t);
@@ -210,10 +213,27 @@ export class Director {
     s.session.finish(it?.data?.result || it?.data?.summary || "Done", it?.status !== "failed");
   }
 
+  // Music while working: robots that like it put on a playlist when work starts.
+  music: MusicApp;
+  private wasIdle = true;
+  private async maybeMusic() {
+    const pref = this.wm.prefs?.listens ?? "never";
+    if (this.music.playing || pref === "never" || Math.random() > (pref === "always" ? 0.85 : 0.3)) return;
+    this.onActivity("Putting on some music");
+    (this.robot as any).setHeadphones?.(true);
+    this.robot.setPose("mouse");
+    const bpm = await this.music.start();
+    (this.robot as any).setGroove?.(bpm);
+  }
+
   private async pump() {
     if (this.pumpEpoch === this.wm.epoch) return;
     const epoch = (this.pumpEpoch = this.wm.epoch);
     try {
+      if (this.wasIdle) {
+        this.wasIdle = false;
+        try { await this.maybeMusic(); } catch (err) { if (err instanceof Cancelled) return; }
+      }
       while (this.queue.length) {
         const backlog = this.queue.length - 1;
         this.wm.speed = Math.min(4.5, (this.catchingUp ? 2.2 : 1) + backlog * 0.45);
@@ -241,6 +261,7 @@ export class Director {
   }
 
   private idle() {
+    this.wasIdle = true;
     if (this.phoneUp) { this.mobile = false; void this.phone(false); }
     // Helpers still at work: wait for them and look in on them now and then.
     const live = [...this.sessions.entries()].filter(([, s]) => !s.done);

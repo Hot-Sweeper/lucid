@@ -24,6 +24,7 @@ export interface Prefs {
   tasks: TasksStyle;                  // its to-do list: a task board app, a checklist app, or only sticky notes on the desk
   hobby: Hobby;                       // its main pastime
   windows: "fullscreen" | "tiler" | "floating";   // how it likes its windows
+  listens: "always" | "sometimes" | "never";      // music while it works (headphones on)
 }
 export interface RobotProfile {
   id: string;
@@ -85,6 +86,7 @@ export class Roster {
     for (const r of this.robots) {
       if (r.prefs && !r.prefs.tasks) r.prefs.tasks = tasksFor(r.id || r.name || "");
       if (r.prefs && !r.prefs.hobby) r.prefs.hobby = hobbyFor(r.prefs, r.id || r.name || "");
+      if (r.prefs && !r.prefs.listens) { const x = idHash((r.id || r.name || "") + "music"); r.prefs.listens = x < 0.35 ? "always" : x < 0.7 ? "sometimes" : "never"; r.look.headphones = false; }
       if (r.prefs && !r.prefs.windows) { const x = idHash((r.id || r.name || "") + "win"); r.prefs.windows = x < 0.25 ? "fullscreen" : x < 0.6 ? "tiler" : "floating"; }
     }
   }
@@ -162,7 +164,7 @@ export class Roster {
       look: {
         accent: pick(ACCENTS),
         antennaTip: pick(["ball", "ball", "star", "heart", "ring"] as const),
-        headphones: Math.random() < 0.3,
+        headphones: false,   // they put them on when the music starts
         sticker: pick(["none", "none", "bolt", "star", "heart", "smile"] as const),
       },
       prefs: {
@@ -177,6 +179,7 @@ export class Roster {
         tasks: tasksFrom(Math.random()),
         hobby: hobbyFrom(Math.random()),
         windows: pick(["fullscreen", "tiler", "tiler", "floating", "floating"] as const),
+        listens: pick(["always", "sometimes", "sometimes", "never", "never"] as const),
       },
       hiredAt: Date.now(),
       threadId,

@@ -107,7 +107,7 @@ export class Desk implements DeskStage {
     this.model = thread?.model ?? null;
     this.el.classList.toggle("empty", !thread);
     this.handoffBusy = false;
-    this.handoffArmed = false;
+    this.lastBrand = null;
     if (thread) {
       this.robot.setBrand(thread.provider);
       this.robot.setModel?.(this.model);
@@ -140,13 +140,16 @@ export class Desk implements DeskStage {
   setInfo(info: ThreadInfo) {
     this.info = info;
     if (info.title) this.label(info.title, info.provider);
-    // Compare harness kinds ("claude", "codex"), not raw provider ids like "claudeAgent".
-    const from = this.robot.brandName, to = brandFor(info.provider);
-    if (from !== to && !this.handoffBusy) {
-      if (from && this.threadId && this.handoffArmed) void this.handoff(from, info.provider, (info as any).model ?? null);
-      else this.robot.setBrand(info.provider);
+    // The handoff scene plays only when this same conversation really moves to another harness
+    // between two updates (Claude to Codex, say). Anything else just quietly fixes the look.
+    if (info.id && info.id !== this.threadId) return;
+    const to = brandFor(info.provider);
+    const before = this.lastBrand;
+    this.lastBrand = to;
+    if (!this.handoffBusy) {
+      if (before && before !== to) void this.handoff(before, info.provider, (info as any).model ?? null);
+      else if (this.robot.brandName !== to) this.robot.setBrand(info.provider);
     }
-    this.handoffArmed = true;
     const model = (info as any).model as string | null | undefined;
     if (model && model !== this.model) { this.model = model; this.robot.setModel?.(model); }
     const logo = logoFor(info.provider);
@@ -157,7 +160,7 @@ export class Desk implements DeskStage {
   // The thread moved to another harness: the old robot explains the work to the new one,
   // then the new one takes the chair.
   private handoffBusy = false;
-  private handoffArmed = false;   // the first info after a thread arrives only sets the brand
+  private lastBrand: string | null = null;   // the harness this conversation was on at the last update
   private async handoff(from: string, to: string, model: string | null) {
     this.handoffBusy = true;
     const tid = this.threadId;
@@ -165,6 +168,8 @@ export class Desk implements DeskStage {
     const name = this.profile?.name;
     gsap.to(host, { opacity: 0, duration: 0.3 });
     this.lift("handoff", true);
+    const nice = (p: string) => ({ claude: "Claude", codex: "Codex", grok: "Grok" } as Record<string, string>)[brandFor(p)] ?? "another agent";
+    this.say(`This chat moved from ${nice(from)} to ${nice(to)}. ${nice(from)} hands over the work.`, "speak");
     try {
       await playHandoff(this.el, { provider: from, model: this.model ?? undefined, name }, { provider: to, model: model ?? undefined }, { x: UNIT.w / 2, y: UNIT.h - 10 });
     } catch (e) { console.error("handoff failed", e); }
@@ -173,6 +178,7 @@ export class Desk implements DeskStage {
       if (model) { this.model = model; this.robot.setModel?.(model); }
     }
     gsap.to(host, { opacity: 1, duration: 0.3 });
+    this.say(null);
     this.lift("handoff", false);
     this.handoffBusy = false;
   }

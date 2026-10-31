@@ -5,7 +5,7 @@ import { ICONS } from "./icons";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -22,9 +22,10 @@ const FRAMES: Record<AppId, Frame> = {
   notes: { x: 470, y: 30, w: 330, h: 300 },
   tasks: { x: 112, y: 16, w: 596, h: 380 },
   calc: { x: 560, y: 60, w: 236, h: 330 },
+  music: { x: 110, y: 18, w: 600, h: 386 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "chat", "notes", "tasks", "calc", "harness", "tool", "beats", "social", "game"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "music", "chat", "notes", "tasks", "calc", "harness", "tool", "beats", "social", "game"];
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 

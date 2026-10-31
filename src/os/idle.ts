@@ -30,6 +30,8 @@ export class IdleLife {
 
   /** The robot's web browser, set by the director, for surfing when bored. */
   browser: { visit(target: string): Promise<void>; act(caption: string, title?: string, url?: string): Promise<void> } | null = null;
+  /** The music app, set by the director. */
+  music: { playing: unknown; start(prefer?: number): Promise<number>; stop(): void } | null = null;
 
   constructor(private wm: WM, private robot: Robot, private stage: Stage) {
     const scale = Number(new URLSearchParams(location.search).get("idleScale") || localStorage.getItem("lucid:idleScale") || 1);
@@ -123,6 +125,7 @@ export class IdleLife {
       social: 0.25 * (p?.social ?? 0.4) + 2.4 * H("chatter"),
       browse: this.browser ? 0.7 + 0.9 * H("chiller") + 0.4 * H("watcher") : 0,
       calc: 0.3,
+      music: this.music && p?.listens !== "never" ? (p?.listens === "always" ? 1.2 : 0.5) + 1.2 * H("musician") : 0,
     };
     for (const r of recent) if (weights[r] != null) weights[r] *= r === recent[0] ? 0 : 0.25;
     const total = Object.values(weights).reduce((a, b) => a + b, 0);
@@ -223,6 +226,17 @@ export class IdleLife {
       case "browse":
         if (!this.browser) return;
         return this.browse(tok);
+      case "music": {
+        // lean back with a playlist: headphones on, head bobbing
+        this.onActivity("Listening to music");
+        (this.robot as any).setHeadphones?.(true);
+        const bpm = this.music!.playing ? 0 : await this.music!.start();
+        if (bpm) (this.robot as any).setGroove?.(bpm);
+        this.alive(tok);
+        this.robot.setPose("rest");
+        await this.wait(25000 + Math.random() * 30000, tok);
+        return;
+      }
       case "calc": {
         const [what, sum] = IDLE_SUMS[Math.floor(Math.random() * IDLE_SUMS.length)];
         this.onActivity(what);
@@ -310,6 +324,7 @@ export class IdleLife {
   // --- lock screen ---------------------------------------------------------------
   private async lock(tok: number) {
     this.alive(tok);
+    if (this.music?.playing) { this.music.stop(); (this.robot as any).setGroove?.(0); (this.robot as any).setHeadphones?.(false); }
     this.onActivity("Resting");
     const el = document.createElement("div");
     el.className = "lock";
