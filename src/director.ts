@@ -183,6 +183,29 @@ export class Director {
     }
     this.lastRunStatus = status;
     this.noteQueue(info.queued ?? [], first);
+    // after the robot has settled on this thread (its T3 Code window may still be reset meanwhile)
+    if (first && info.id) { const id = info.id; window.setTimeout(() => { if (this.info?.id === id) void this.loadHistory(id); }, 1200); }
+  }
+
+  private historyCut = 0;
+  /** The thread's earlier messages (yours with their images, and the robot's replies). */
+  private async loadHistory(id: string) {
+    try {
+      const msgs = await (window as any).lucid?.conversation?.(id);
+      if (!Array.isArray(msgs)) return;
+      const cut = this.historyCut || Date.now();
+      const past = msgs
+        .filter((m: any) => (m.role === "user" || m.role === "assistant") && m.run !== "queued" && Date.parse(m.at) < cut)
+        .slice(-12)
+        .map((m: any) => {
+          const raw = String(m.text || "");
+          const paths = [...raw.matchAll(/^\s*-\s*image:\s*(.+)$/gim)].map((x) => x[1].trim());
+          for (const a of m.attachments || []) if (a.path && /^image\//.test(a.mime || "image/")) paths.push(a.path);
+          return { role: m.role, text: raw.replace(/\s*Attached:[\s\S]*$/, "").trim(), images: [...new Set(paths)].map((p) => fileUrl(p)) };
+        })
+        .filter((m: any) => m.text || m.images.length);
+      this.chat.history(past);
+    } catch { /* no history then */ }
   }
 
   // Your queued messages are written down in the robot's to-do app; when you reorder, edit
@@ -209,6 +232,8 @@ export class Director {
   push(items: Item[], initial: boolean) {
     let latestRun: string | null = null;
     if (initial) latestRun = [...items].reverse().find((i) => i.runId)?.runId ?? null;
+    // what is replayed starts here; older messages are shown as history in T3 Code
+    if (initial) { const t = items.filter((i) => i.runId === latestRun).map((i) => Date.parse(i.updatedAt)).filter((n) => n > 0); this.historyCut = t.length ? Math.min(...t) - 1500 : Date.now(); }
     for (const it of items) {
       const t = Date.parse(it.updatedAt);
       if (t > this.lastEventAt) this.lastEventAt = t;

@@ -342,6 +342,26 @@ export class T3CodeApp {
     await this.wm.sleep(500);
   }
 
+  /** Earlier messages of the thread, above what is being replayed (shown at once, oldest first). */
+  history(list: { role: string; text: string; images: string[] }[]) {
+    if (!list.length || this.feed.querySelector(".t3-past")) return;
+    const box = document.createElement("div");
+    box.className = "t3-past";
+    for (const m of list) {
+      const b = document.createElement("div");
+      if (m.role === "user") {
+        b.className = "t3-you";
+        b.innerHTML = `${m.images.length ? `<div class="t3-imgs">${m.images.slice(0, 4).map((src) => `<img src="${esc(src)}" alt="">`).join("")}</div>` : ""}${m.text ? `<p>${md(m.text.slice(0, 1200))}</p>` : ""}`;
+      } else {
+        b.className = "t3-msg";
+        b.innerHTML = md(m.text.slice(0, 2400));
+      }
+      box.append(b);
+    }
+    this.feed.prepend(box);
+    this.stick();
+  }
+
   /** The robot's reply streams into the thread while it types. */
   async assistant(getText: () => { text: string; done: boolean }) {
     const wm = this.wm, e = wm.epoch;

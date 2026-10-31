@@ -427,8 +427,13 @@ export class ToolApp {
     if (src) (w.body.querySelector("img") as HTMLImageElement).src = src;
     gsap.fromTo(w.body.firstElementChild, { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.4, ease: "power2.out" });
     this.wm.robot.setPose("read");
+    // robots that like full screen windows look at pictures full screen; others now and then
+    const fs = this.wm.prefs?.windows === "fullscreen";
+    const big = !!src && Math.random() < (fs ? 0.85 : 0.25);
+    if (big) await this.wm.maximize("tool");
     await this.wm.pointAt(w.body, 0.5, 0.5, 400);
-    await this.wm.sleep(1600);
+    await this.wm.sleep(big ? 2600 : 1600);
+    if (big && !fs) await this.wm.unmaximize("tool");
   }
   async show(toolName: string, input: unknown) {
     const { app, action } = prettyTool(toolName);

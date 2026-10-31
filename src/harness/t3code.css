@@ -67,7 +67,7 @@
 .t3-you { align-self: flex-end; max-width: 82%; background: var(--bubble); border-radius: 11px; padding: 6px 10px; }
 .t3-you p, .t3-msg, .t3-note p { margin: 0; overflow-wrap: anywhere; }
 .t3-imgs { display: flex; gap: 4px; margin-bottom: 4px; }
-.t3-imgs img { width: 46px; height: 46px; object-fit: cover; border-radius: 6px; }
+.t3-imgs img { height: 52px; width: auto; max-width: 140px; object-fit: contain; border-radius: 6px; background: rgba(255, 255, 255, 0.06); }
 .t3-msg { color: var(--ink); font-size: 11.5px; line-height: 1.5; }
 .t3 code { font-family: var(--mono, ui-monospace, monospace); font-size: 0.9em; background: rgba(255, 255, 255, 0.07); border-radius: 4px; padding: 0 3px; }
 

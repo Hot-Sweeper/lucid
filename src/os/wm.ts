@@ -442,13 +442,26 @@ export class WM {
     await this.sleep(380);
   }
   // double-click the title bar: full screen
+  private unmax = new Map<AppId, { left: string; top: string; width: string; height: string }>();
   async maximize(id: AppId) {
     const w = this.wins.get(id);
     if (!w) return;
+    this.unmax.set(id, { left: w.el.style.left, top: w.el.style.top, width: w.el.style.width, height: w.el.style.height });
     await this.pointAt(w.el.querySelector(".win-bar")!, 0.5, 0.5, 340);
     await this.click(true);
     gsap.to(w.el, { left: 4, top: 4, width: SCREEN.w - 8, height: SCREEN.h - 58, duration: 0.32 / this.speed, ease: "power3.out" });
     await this.sleep(360);
+  }
+
+  /** Double-click the title bar again: back to where the window was. */
+  async unmaximize(id: AppId) {
+    const w = this.wins.get(id), was = this.unmax.get(id);
+    if (!w || !was) return;
+    this.unmax.delete(id);
+    await this.pointAt(w.el.querySelector(".win-bar")!, 0.5, 0.5, 300);
+    await this.click(true);
+    gsap.to(w.el, { left: was.left, top: was.top, width: was.width, height: was.height, duration: 0.3 / this.speed, ease: "power3.out" });
+    await this.sleep(340);
   }
 
   // Open an app by typing its name into the launcher, like a keyboard person would.
