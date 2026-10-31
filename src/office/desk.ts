@@ -253,28 +253,24 @@ export class Desk implements DeskStage {
     if (!was) gsap.fromTo(b, { opacity: 0, y: 12, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.8)" });
   }
 
-  // Plan steps as sticky notes stuck to the side of the monitor.
+  planSteps: { text: string; status: string }[] = [];
+  // A readable plan pad on the desk. The complete plan opens in chat when clicked.
   setPlan(steps: { text: string; status: string }[]) {
+    this.planSteps = steps.map((s) => ({ ...s }));
     const list = this.el.querySelector(".desk-notes") as HTMLElement;
-    const existing = Array.from(list.children) as HTMLElement[];
-    steps.slice(0, 4).forEach((st, i) => {
-      let li = existing[i];
-      if (!li) {
-        li = document.createElement("li");
-        li.innerHTML = `<span class="check" aria-hidden="true"></span><span class="t"></span>`;
-        list.appendChild(li);
-        gsap.fromTo(li, { opacity: 0, y: -12, rotation: -8 }, { opacity: 1, y: 0, rotation: i % 2 ? 3 : -3, duration: 0.6, ease: "back.out(2)", delay: i * 0.08 });
-      }
-      li.querySelector(".t")!.textContent = st.text;
-      li.title = st.text;
-      const done = st.status === "completed";
-      if (done && !li.classList.contains("done")) {
-        li.classList.add("done");
-        gsap.fromTo(li.querySelector(".check"), { scale: 0 }, { scale: 1, duration: 0.45, ease: "back.out(3)" });
-      }
-      li.classList.toggle("active", st.status === "running" || st.status === "in_progress");
-    });
-    existing.slice(steps.length).forEach((li) => gsap.to(li, { opacity: 0, y: 12, duration: 0.3, onComplete: () => li.remove() }));
+    const sig = JSON.stringify(steps);
+    if (list.dataset.sig === sig) return;
+    list.dataset.sig = sig;
+    list.replaceChildren();
+    if (!steps.length) return;
+    const done = steps.filter((s) => /completed|done/.test(s.status)).length;
+    const li = document.createElement("li"), button = document.createElement("button");
+    button.type = "button";
+    button.className = "desk-plan";
+    button.setAttribute("aria-label", `Open plan, ${done} of ${steps.length} steps complete`);
+    button.innerHTML = `<b>Plan</b><span>${done} of ${steps.length} complete</span><span class="plan-lines" aria-hidden="true"></span><small>View steps</small>`;
+    button.title = steps.map((s) => `${/completed|done/.test(s.status) ? "Done" : /progress|running/.test(s.status) ? "Doing" : "To do"}: ${s.text}`).join("\n");
+    li.appendChild(button); list.appendChild(li);
   }
 
   setGlow(color: string) {

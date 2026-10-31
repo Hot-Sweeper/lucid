@@ -13,6 +13,7 @@ type Msg = {
   id: string; role: string; at: string; streaming: boolean; text: string; run?: string | null; queue?: number | null;
   attachments: { type: string; name: string; mime: string; size: number; path: string | null }[];
   // queued messages only: their run, the live turn they can be steered into, and what T3 allows
+  event?: { kind: "compaction" | "handoff" | "harness" | "model"; status?: string; from?: { provider?: string; model?: string }; to?: { provider?: string; model?: string } };
   queueRunId?: string; steerTarget?: string | null; queueFixed?: boolean; queueGuest?: boolean;
 };
 
@@ -121,6 +122,9 @@ export class ChatPanel {
   private desk: Desk | null = null;
   private shown = new Map<string, HTMLElement>();
   private timer = 0;
+  private groups = new Map<string, HTMLElement>();
+  private timelineSig = "";
+  private loadingHistory = false;
   onClose: () => void = () => {};
   onToggleView: () => void = () => {};
   /** You started or stopped typing a message to this robot. */
@@ -292,6 +296,7 @@ export class ChatPanel {
         <button type="button" class="cp-close" aria-label="Back to the office" title="Back to the office (Esc)"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
       </header>
       <p class="cp-status" aria-live="polite"><i></i><span></span></p>
+      <details class="cp-plan" hidden><summary>Plan</summary><ol></ol></details>
       <div class="cp-list" role="log" aria-live="polite"></div>
       <section class="cp-queue" aria-label="Queued messages" hidden><button type="button" class="cq-head" aria-expanded="true"><b>Queued</b><span class="cq-count"></span><i aria-hidden="true"></i></button><p class="cq-note" role="status" hidden></p><ol></ol></section>
       <div class="cp-zoom" hidden><img alt=""><button type="button" class="ghost">Close image</button></div>
@@ -449,8 +454,9 @@ export class ChatPanel {
     if (this.closing) { this.closing = false; gsap.killTweensOf(this.el); gsap.set(this.el, { clearProps: "x,opacity" }); }
     const same = this.desk === desk;
     this.desk = desk;
+    this.setPlan(desk.planSteps || []);
     if (!same) {
-      this.shown.clear(); (this.el.querySelector(".cp-list") as HTMLElement).innerHTML = "";
+      this.shown.clear(); this.groups.clear(); this.timelineSig = ""; (this.el.querySelector(".cp-list") as HTMLElement).innerHTML = "";
       this.sel = null; this.queueHold = 0; this.closeMenu();
       (this.el.querySelector(".cp-queue ol") as HTMLElement).dataset.sig = "";
       void this.loadT3();
@@ -553,48 +559,93 @@ export class ChatPanel {
   private async refresh() {
     const id = this.threadId;
     if (!id) return;
-    const msgs = await this.api.conversation(id).catch(() => [] as Msg[]);
+    if (this.loadingHistory) { this.refreshSoon(100); return; }
+    this.loadingHistory = true;
+    let msgs: Msg[];
+    try { msgs = await this.api.conversation(id); }
+    catch { this.refreshSoon(2000); return; }
+    finally { this.loadingHistory = false; }
     if (id !== this.threadId) return;
     // the thread's model can change elsewhere too (T3 itself); check now and then
     if (this.paired && !this.saving && Date.now() - this.selAt > 4000) void this.loadSelection();
     const list = this.el.querySelector(".cp-list") as HTMLElement;
     const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
     let added = 0;
+    const initial = this.shown.size === 0;
     // Queued messages wait in their own section at the bottom, in the order the robot takes them.
     const queued = msgs.filter((m) => m.role === "user" && m.run === "queued").sort((a, b) => (a.queue ?? 99) - (b.queue ?? 99));
     const timeline = msgs.filter((m) => !(m.role === "user" && m.run === "queued"));
     this.renderQueue(queued);
+    this.setPlan(this.desk?.planSteps || []);
+    const signature = JSON.stringify(timeline);
+    if (signature === this.timelineSig) return;
+    this.timelineSig = signature;
+    const ids = new Set(timeline.map((m) => m.id));
     for (const id of [...this.shown.keys()]) {
-      if (!timeline.some((m) => m.id === id)) { this.shown.get(id)!.remove(); this.shown.delete(id); }
+      if (!ids.has(id)) { this.shown.get(id)!.remove(); this.shown.delete(id); }
     }
+    const anchor = !nearBottom ? [...list.querySelectorAll<HTMLElement>(".cp-msg")].find((e) => e.getBoundingClientRect().bottom > list.getBoundingClientRect().top) : null;
+    const anchorY = anchor?.getBoundingClientRect().top;
     list.querySelector(".cp-empty")?.remove();
-    let prevEl: HTMLElement | null = null;
+    const batches: { key: string; role: string; messages: Msg[] }[] = [];
     for (const m of timeline) {
       let el = this.shown.get(m.id);
-      const html = this.render(m);
       if (!el) {
         el = document.createElement("div");
-        el.className = `cp-msg ${m.role === "user" ? "you" : "bot"}`;
-        el.innerHTML = html;
+        el.className = m.role === "event" ? "cp-event" : `cp-msg ${m.role === "user" ? "you" : "bot"}`;
+        el.dataset.id = m.id;
         this.shown.set(m.id, el);
-        if (this.shown.size > msgs.length - 6) gsap.fromTo(el, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out", delay: added++ * 0.05 });
-      } else if (el.dataset.sig !== `${m.text.length}:${m.streaming}:${m.run}`) {
-        el.innerHTML = html;
+        if (!initial) added++;
       }
-      el.dataset.sig = `${m.text.length}:${m.streaming}:${m.run}`;
-      // very long messages of yours fold, with a toggle to read them in full
-      if (m.role === "user" && m.text.length > 700 && !el.querySelector(".cp-more")) {
-        el.classList.add("long");
-        const more = document.createElement("button");
-        more.type = "button"; more.className = "cp-more"; more.textContent = "Show all";
-        more.addEventListener("click", () => { const open = el!.classList.toggle("open"); more.textContent = open ? "Show less" : "Show all"; });
-        el.appendChild(more);
+      const sig = JSON.stringify(m);
+      if (el.dataset.sig !== sig) {
+        const expanded = el.classList.contains("open");
+        el.innerHTML = m.event ? this.renderEvent(m) : this.render(m);
+        el.dataset.sig = sig;
+        if (m.role === "user" && m.text.length > 700) {
+          el.classList.add("long");
+          el.classList.toggle("open", expanded);
+          const more = document.createElement("button");
+          more.type = "button"; more.className = "cp-more"; more.textContent = expanded ? "Show less" : "Show all";
+          more.addEventListener("click", () => { more.textContent = el!.classList.toggle("open") ? "Show less" : "Show all"; });
+          el.appendChild(more);
+        }
       }
-      // keep every message in conversation order, also ones that were already on screen
-      const want: Element | null = prevEl ? prevEl.nextElementSibling : list.firstElementChild;
-      if (want !== el) list.insertBefore(el, want);
-      prevEl = el;
+      const prev = batches.at(-1);
+      const minute = Math.floor(Date.parse(m.at) / 60000);
+      if (m.role !== "event" && prev?.role === m.role && Math.floor(Date.parse(prev.messages[0].at) / 60000) === minute) prev.messages.push(m);
+      else batches.push({ key: m.id, role: m.role, messages: [m] });
     }
+    const activeGroups = new Set<string>();
+    let previous: HTMLElement | null = null;
+    for (const batch of batches) {
+      let row: HTMLElement;
+      if (batch.role === "event") row = this.shown.get(batch.key)!;
+      else {
+        activeGroups.add(batch.key);
+        row = this.groups.get(batch.key)!;
+        if (!row) {
+          row = document.createElement("section");
+          row.className = `cp-group ${batch.role === "user" ? "you" : "bot"}`;
+          row.innerHTML = `<details class="cp-earlier"><summary></summary><div class="cp-earlier-body"></div></details><div class="cp-latest"></div>`;
+          this.groups.set(batch.key, row);
+        }
+        const details = row.querySelector("details")!;
+        details.hidden = batch.messages.length < 2;
+        const count = batch.messages.length - 1;
+        details.querySelector("summary")!.textContent = `${count} earlier ${batch.role === "user" ? (count === 1 ? "message" : "messages") : (count === 1 ? "update" : "updates")}`;
+        const earlier = row.querySelector(".cp-earlier-body")!, latest = row.querySelector(".cp-latest")!;
+        batch.messages.forEach((m, i) => {
+          const target = i === batch.messages.length - 1 ? latest : earlier;
+          const el = this.shown.get(m.id)!;
+          if (el.parentElement !== target) target.appendChild(el);
+        });
+      }
+      const next: Element | null = previous ? previous.nextElementSibling : list.firstElementChild;
+      if (next !== row) list.insertBefore(row, next);
+      previous = row;
+    }
+    for (const [key, group] of this.groups) if (!activeGroups.has(key)) { group.remove(); this.groups.delete(key); }
     // pending bubbles disappear once the real message shows up
     const texts = new Set(msgs.filter((m) => m.role === "user").map((m) => m.text.trim()));
     list.querySelectorAll(".cp-msg.pending").forEach((e) => list.appendChild(e));
@@ -604,7 +655,33 @@ export class ChatPanel {
     this.renderPending();
     if (!list.children.length) list.innerHTML = `<p class="cp-empty">No messages yet. Say hello.</p>`;
     else list.querySelector(".cp-empty")?.remove();
-    if (nearBottom || added) list.scrollTop = list.scrollHeight;
+    if (nearBottom || initial) list.scrollTop = list.scrollHeight;
+    else if (anchor?.isConnected && anchorY != null) list.scrollTop += anchor.getBoundingClientRect().top - anchorY;
+  }
+
+  showPlan() { const plan = this.el.querySelector<HTMLDetailsElement>(".cp-plan")!; plan.open = true; plan.querySelector("summary")!.focus({ preventScroll: true }); }
+
+  private setPlan(steps: { text: string; status: string }[]) {
+    const plan = this.el.querySelector<HTMLElement>(".cp-plan")!;
+    plan.hidden = !steps.length;
+    const sig = JSON.stringify(steps);
+    if (plan.dataset.sig === sig) return;
+    plan.dataset.sig = sig;
+    plan.querySelector("summary")!.textContent = `Plan (${steps.filter((s) => /completed|done/.test(s.status)).length} of ${steps.length} complete)`;
+    plan.querySelector("ol")!.innerHTML = steps.map((s) => `<li data-status="${esc(s.status)}"><span>${/completed|done/.test(s.status) ? "Done" : /progress|running/.test(s.status) ? "Doing" : "To do"}</span>${esc(s.text)}</li>`).join("");
+  }
+
+  private renderEvent(m: Msg) {
+    const e = m.event!;
+    const modelName = (s?: string) => (s || "").replace(/^claude-/, "").replace(/^gpt-/, "").replace(/-(\d)-(\d)/, "$1.$2").replace(/^([a-z])/, (c) => c.toUpperCase());
+    const selection = (s?: { provider?: string; model?: string }) => {
+      if (!s) return "";
+      const logo = s.provider ? logoFor(s.provider) : null;
+      return `<span class="cp-event-model">${logo ? `<img src="${logo}" alt="${esc(harnessName(s.provider))}">` : ""}${esc(modelName(s.model) || harnessName(s.provider))}</span>`;
+    };
+    const label = e.kind === "compaction" ? (e.status === "running" ? "Compacting context" : e.status === "failed" ? "Compaction failed" : "Context compacted")
+      : e.kind === "handoff" ? "Context handoff" : e.kind === "harness" ? "Harness switched" : "Model switched";
+    return `<span class="cp-event-line" aria-hidden="true"></span><span class="cp-event-body"><span>${label}</span>${e.from || e.to ? selection(e.from) + '<span aria-hidden="true">&rarr;</span>' + selection(e.to) : ""}<time datetime="${esc(m.at)}">${when(m.at)}</time></span><span class="cp-event-line" aria-hidden="true"></span>`;
   }
 
   private render(m: Msg) {

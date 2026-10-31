@@ -462,15 +462,19 @@ function conversation(threadId, limit = 80) {
   // database order, so messages with the same timestamp stay in the order they were written.
   const key = (r) => (r.role === "user" && started.get(r.id) > r.at ? started.get(r.id) : r.at);
   const ordered = rows.map((r, i) => ({ r, i, k: key(r) })).sort((a, b) => (a.k < b.k ? -1 : a.k > b.k ? 1 : a.i - b.i)).map((x) => x.r);
-  return ordered.map((r) => {
+  const messages = ordered.map((r) => {
     const p = safeJson(r.p) || {};
     return {
-      id: r.id, role: r.role, at: r.at, streaming: !!r.streaming, text: p.text || "", run: runs.get(r.id) || null, queue: queuePos.get(r.id) || null,
+      id: r.id, role: r.role, at: r.at, orderAt: key(r), streaming: !!r.streaming, text: p.text || "", run: runs.get(r.id) || null, queue: queuePos.get(r.id) || null,
       // queued messages: their run, the live turn to steer into, and whether T3 lets you change them
       ...(queueRun.has(r.id) ? { queueRunId: queueRun.get(r.id), steerTarget: liveRunId, queueFixed: !!(p.delegatedCompletion || p.notification), queueGuest: !!p.context?.guest } : {}),
       attachments: (p.attachments || []).map((a) => ({ type: a.type, name: a.name, mime: a.mimeType, size: a.sizeBytes, path: attachmentPath(a) })),
     };
   });
+  const since = messages.find((m) => m.run !== "queued")?.orderAt;
+  const events = require("./chat-history.cjs").historyEvents(getDb(), threadId, since);
+  const rank = (m) => m.role === "user" ? 0 : m.role === "event" ? 1 : 2;
+  return [...messages, ...events].sort((a, b) => a.orderAt.localeCompare(b.orderAt) || rank(a) - rank(b));
 }
 
 // Messages you wrote to robots since a moment, newest last (the orchestrator learns from them).

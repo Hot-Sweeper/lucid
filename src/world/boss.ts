@@ -42,11 +42,18 @@ export class Boss {
     if (!this.w) {
       const w = new Walker(this.layer, { id: info.id, provider: info.provider, model: info.model ?? undefined, name: info.name, scale: SCALE, look: info.look });
       w.el.classList.add("world-boss");
+      w.el.setAttribute("role", "button");
+      w.el.setAttribute("tabindex", "0");
+      w.el.setAttribute("aria-label", "Chat with the Orchestrator");
+      w.el.title = "Chat with the Orchestrator";
       w.setPos(this.desk.seat.x, this.desk.seat.y);
       w.face("down");
       w.setDeskEdge(this.desk.edge, this.desk.z - Math.round(this.desk.seat.y));
       w.do("type");
       w.el.addEventListener("click", (e) => { e.stopPropagation(); this.onSelect(info.id); });
+      w.el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); this.onSelect(info.id); }
+      });
       this.w = w;
       this.running = false;
       if (!reduced()) this.scheduleLife();

@@ -223,10 +223,14 @@ world.onSelect = (d) => {
   renderFocus();
 };
 world.onSelectThread = (id) => {
-  if (needsAnswer(id)) { openAnswer(id); return; }
-  const d = world.deskFor(id);
-  if (d) { world.select(d); world.showDesk(d); }
+  openThread(id);
 };
+$("scene").addEventListener("click", (e) => {
+  const pad = (e.target as Element).closest(".desk-plan");
+  if (!pad) return;
+  const desk = [...world.desks.values()].find((d) => d.el.contains(pad));
+  if (desk) { e.stopPropagation(); world.focusOn(desk); chat.showPlan(); }
+}, true);
 const sceneObserver = new MutationObserver(() => ($("back-btn").hidden = !$("scene").classList.contains("screen-mode")));
 sceneObserver.observe($("scene"), { attributes: true, attributeFilter: ["class"] });
 $("back-btn").addEventListener("click", () => world.unfocus());
@@ -582,10 +586,7 @@ function renderOrch() {
   $("orch-notes").addEventListener("click", () => void orch.showNotebook());
   // it sits in the boss chair in the questions room: follow it there (or its desk, if it has one)
   $("orch-desk").addEventListener("click", () => {
-    const d = world.deskFor(s.threadId);
-    if (d) { world.select(d); world.focusOn(d); return; }
-    const boss = document.querySelector(`.world-walker[data-id="${CSS.escape(s.threadId)}"]`) as HTMLElement | null;
-    if (boss) world.follow(boss);
+    openThread(s.threadId);
   });
 }
 renderOrch();
@@ -761,7 +762,7 @@ world.onFollowChat = (id) => {
   const t = world.lastData?.threads.find((x) => x.id === id);
   if (!t) return;
   chat.open({ threadId: id, info: { id, title: t.title, provider: t.provider }, profile: world.roster.byThread(id) } as any);
-  chat.setStatus("Off work right now", "idle");
+  chat.setStatus(t.runStatus === "running" ? "Working" : t.question ? "Needs your answer" : "Idle", t.runStatus === "running" ? "working" : t.question ? "waiting" : "idle");
 };
 
 // A walking robot clicked while a chat is open: the chat follows to that robot, the camera follows its walk
@@ -843,10 +844,11 @@ function openThread(id: string) {
   // not at a desk: follow it wherever it is (break room, questions, park, walking)
   const el = document.querySelector(`.world-walker[data-id="${CSS.escape(id)}"]`) as HTMLElement | null;
   if (el) {
-    const chatOpen = !!world.focusDesk;
     world.follow(el);
-    if (chatOpen) world.onWatchChat(id);   // an open chat moves along to this robot
   }
+  // Every real thread can be opened, including the boss in its chair and robots away
+  // from their desks. Camera following and chat selection are independent.
+  world.onWatchChat(id);
 }
 setInterval(renderThreads, 3000);
 window.setTimeout(renderThreads, 1500);
