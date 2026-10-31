@@ -1,0 +1,69 @@
+{
+  "verifiedAt": "2026-10-31T15:38:30.897Z",
+  "sourceThread": "fffc5518-6500-4c07-b737-d509599de2fe",
+  "settled": false,
+  "count": 15,
+  "allFilesResolve": true,
+  "images": [
+    {
+      "name": "after-files-icon.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-be5dcc8c-3dc3-414c-953a-c7393c029160.png"
+    },
+    {
+      "name": "after-files-shapes.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-dd4560ca-7c1f-42a4-a900-d56df56b558b.png"
+    },
+    {
+      "name": "after-music-icon.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-69fdd153-f9d8-498d-9320-2a22a052484f.png"
+    },
+    {
+      "name": "after-music-shapes.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-bb8f5bb2-fc2f-43ba-944c-12c2e414b33d.png"
+    },
+    {
+      "name": "after-tasks-icon.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-a50fe7d8-4cd1-42c7-a626-450ddbc381e5.png"
+    },
+    {
+      "name": "after-tasks-shapes.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-c2eb63aa-8d1a-40e1-a63b-d53fa9be950a.png"
+    },
+    {
+      "name": "before-files-icon.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-27b763b0-20ec-43e6-96b7-8a2e994827e2.png"
+    },
+    {
+      "name": "before-files-shapes.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-ac7ea291-5b9c-4dcb-ad2a-3db0565344a5.png"
+    },
+    {
+      "name": "before-music-icon.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-29513460-18e9-402a-9f10-a2d8f5ef6b3d.png"
+    },
+    {
+      "name": "before-music-shapes.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-eede5ed4-352f-41bb-b55a-b84c397ccc05.png"
+    },
+    {
+      "name": "before-tasks-icon.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-f66b3aad-78ca-46dc-bbb9-26def6dbd4f1.png"
+    },
+    {
+      "name": "before-tasks-shapes.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-2a4a1879-410c-47e9-a677-ee67a62a7712.png"
+    },
+    {
+      "name": "after-files-restored.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-5ff0ec7a-8c22-4e91-8f7b-cbe957ccaa26.png"
+    },
+    {
+      "name": "after-music-restored.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-0e81c1fb-a41a-4cfa-bc21-87e7a742f426.png"
+    },
+    {
+      "name": "after-tasks-restored.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\fffc5518-6500-4c07-b737-d509599de2fe-58272be4-49ef-42af-bb21-fcd49a5d0ea6.png"
+    }
+  ]
+}

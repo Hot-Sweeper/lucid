@@ -23,3 +23,6 @@ These three scenes had zero scheduled app loops. Their results establish visual 
 All 12 paired screenshots were uploaded and attached to the source thread, so they are available to its report evidence collector. The 24 original full/shapes/icon/restored captures, native runner and test scripts are also retained at `C:/Users/tim/.t3/lucid-lod-review-20261031/`.
 
 CPU checks: TypeScript, symmetric tier cutoffs and wheel-multiplier round trips, controller cache/invalidation tests and screen scheduler tests pass. Native GPU slot was explicitly released after the isolated process exited.
+## Full detail restored
+
+[Files](after-files-restored.png), [Tasks](after-tasks-restored.png), and [Botify](after-music-restored.png) after returning from the farthest tier. These three additional genuine captures are attached to the source thread too. `attachment-verification.json` confirms that all 15 LOD review images resolve through the report evidence collector.
