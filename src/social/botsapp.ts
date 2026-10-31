@@ -5,6 +5,8 @@ import { FAMILY_MEMBERS, FAMILY_SCENES, type FamLine, type FamScene } from "../c
 import { pickFresh } from "../content";
 import { Kit, runApp, rnd, chance, h, esc, avatar, seedOf, touch, typeInto, scrollTo, calm, clock, ICON, type SoHost, type SoOpts } from "./kit";
 import { sceneCanvas } from "./scenes";
+import { theyType, dotsBubble, headerTyping } from "./typing";
+import { phoneKeyboard, type PhoneKeyboard } from "./keyboard";
 
 type Chat = { id: string; name: string; color: string; group?: string[]; el?: HTMLElement; last: string; time: string; unread: number };
 
@@ -49,6 +51,7 @@ class BotsApp {
   stickerBtn!: HTMLElement;
   tray!: HTMLElement;
   nextScene = pickFresh(FAMILY_SCENES, "lucid:botsapp");
+  kb: PhoneKeyboard | null = null;
 
   constructor(private k: Kit, body: HTMLElement, private opts: SoOpts) {
     this.phone = !!opts.phone;
@@ -131,6 +134,7 @@ class BotsApp {
 
   async back() {
     if (!this.phone) return;
+    await this.kb?.close();
     await touch(this.k, this.root.querySelector(".so-ba-back")!, this.root);
     if (!calm()) await new Promise<void>((r) => this.k.to(this.view, { xPercent: 100, duration: 0.3, ease: "power2.in", onComplete: () => r() }));
     this.root.classList.remove("open");
@@ -141,6 +145,7 @@ class BotsApp {
     const c = this.cur!;
     if (typing) { this.headSub.textContent = typing; this.headSub.classList.add("typing"); return; }
     this.headSub.classList.remove("typing");
+    this.headSub.innerHTML = "";
     this.headSub.textContent = c.group ? ["You", ...c.group.map((u) => this.who(u).name)].join(", ") : "online";
   }
 
@@ -209,6 +214,7 @@ class BotsApp {
       if (this.phone) await touch(this.k, this.sendBtn, this.root); else await this.k.click(this.sendBtn);
     };
     if (l.kind === "sticker") {
+      await this.kb?.close();
       if (this.phone) await touch(this.k, this.stickerBtn, this.root); else await this.k.click(this.stickerBtn);
       this.root.classList.add("tray");
       if (!calm()) this.k.fromTo(this.tray, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25, ease: "power2.out" });
@@ -217,13 +223,17 @@ class BotsApp {
       if (this.phone) await touch(this.k, stk, this.root); else await this.k.click(stk);
       this.root.classList.remove("tray");
     } else {
-      if (this.phone) await touch(this.k, this.field, this.root);
-      else await this.k.click(this.field, rnd(0.2, 0.5), 0.5);
+      if (this.phone) {
+        if (!this.kb?.up) await touch(this.k, this.field, this.root);
+        this.kb = phoneKeyboard(this.k, this.root, { accent: "#1daa61" });
+        await this.kb.open({ ret: "send", lift: [this.root.querySelector<HTMLElement>(".so-ba-foot"), this.msgs, this.tray] });
+      } else await this.k.click(this.field, rnd(0.2, 0.5), 0.5);
       this.field.classList.add("has");
       this.sendBtn.innerHTML = ICON.send;
-      await typeInto(this.k, this.fieldText, l.t ?? "", { phone: this.phone, skill: this.opts.skill });
+      await typeInto(this.k, this.fieldText, l.t ?? "", { phone: this.phone, skill: this.opts.skill, kb: this.kb ?? undefined });
       await this.k.sleep(rnd(200, 500));
-      if (!this.phone) this.k.tap("Enter"); else await send();
+      if (!this.phone) this.k.tap("Enter"); else if (chance(0.7)) await this.kb!.enter(); else await send();
+      this.kb?.reset();
       this.fieldText.textContent = "";
       this.field.classList.remove("has");
       this.sendBtn.innerHTML = ICON.mic;
@@ -255,9 +265,20 @@ class BotsApp {
     for (let i = waiting; i < lines.length; i++) {
       const l = lines[i];
       if (l.u === "me") { await this.say(l); continue; }
-      this.setSub(this.cur!.group ? `${this.who(l.u).name} is ${l.kind === "voice" ? "recording audio" : "typing"}...` : l.kind === "voice" ? "recording audio..." : "typing...");
-      await this.k.sleep(l.kind === "voice" ? rnd(1600, 2600) : 500 + (l.t?.length ?? 8) * rnd(25, 45));
-      this.setSub(null);
+      const group = !!this.cur!.group, name = this.who(l.u).name;
+      if (l.kind === "voice") {
+        this.setSub(group ? `${name} is recording audio...` : "recording audio...");
+        await this.k.sleep(rnd(1600, 2600));
+        this.setSub(null);
+      } else {
+        // "typing..." under the name and a bubble of dots, for about as long as the message takes to write
+        await theyType(this.k, l.kind === "photo" || l.kind === "sticker" ? "a photo" : l.t, () => {
+          const off = headerTyping(this.headSub, group ? `${name} is typing` : "typing");
+          const bub = dotsBubble(this.k, this.msgs, "so-ba-msg them so-ba-dots");
+          this.toBottom();
+          return () => { bub(); off(); };
+        });
+      }
       const m = this.bubble(l);
       this.pop(m, false);
       this.toBottom();
@@ -299,6 +320,7 @@ class BotsApp {
       await this.play(s);
       await this.k.sleep(rnd(1500, 3000));
     }
+    await this.kb?.close();
   }
 }
 

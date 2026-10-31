@@ -250,6 +250,16 @@ export const INSTA_POSTS: InstaPost[] = [
 ];
 export const INSTA_STORIES = ["you", "pip", "nova", "latte", "mochi", "orbit", "juno", "byte"];
 export const INSTA_COMMENTS = ["so cute", "need this", "goals", "the lighting!!", "omg", "where is this", "love this", "iconic"];
+/** What the robot comments on posts (typed out, then it shows up under the post). */
+export const INSTA_MY_COMMENTS = ["this is so cute", "need this in my life", "the lighting!!", "wait where is this", "goals honestly", "obsessed with this", "ok this made my day", "saving this for later", "my fans just sped up"];
+/** Instabot direct messages: a friend shares something, the robot answers. */
+export const INSTA_DMS: { user: string; lines: { u: "me" | "them"; t: string }[] }[] = [
+  { user: "nova", lines: [{ u: "them", t: "omg look at this cat on a vacuum" }, { u: "me", t: "STOP that's the best thing today" }, { u: "them", t: "she drives better than me" }] },
+  { user: "latte", lines: [{ u: "them", t: "are you coming to the rooftop thing friday" }, { u: "me", t: "yes if it doesn't rain, my seals are old" }, { u: "them", t: "bring the umbrella hat" }] },
+  { user: "mochi", lines: [{ u: "me", t: "your latte art post is so good" }, { u: "them", t: "thank youuu it took 9 tries" }, { u: "them", t: "the first 8 looked like toasters" }] },
+  { user: "orbit", lines: [{ u: "them", t: "did you see juno's new profile pic" }, { u: "me", t: "the one with the sunglasses?" }, { u: "them", t: "she looks like a security camera" }, { u: "me", t: "a very cool security camera" }] },
+];
+
 
 // ---------------------------------------------------------------- Snapbot
 export const SNAP_FRIENDS: { name: string; streak: number; color: string }[] = [
@@ -260,6 +270,15 @@ export const SNAP_FRIENDS: { name: string; streak: number; color: string }[] = [
   { name: "Mochi", streak: 9, color: "#4ff0a0" },
 ];
 export const SNAP_CAPTIONS = ["new filter who dis", "me at 3 pm", "working hard", "tell me this isn't cute", "monday energy", "flower power"];
+/** Snapbot chats: "me" is the robot. Short and quick, like real snap chats. */
+export const SNAP_CHATS: { friend: number; lines: { u: "me" | "them"; t: string }[] }[] = [
+  { friend: 0, lines: [{ u: "them", t: "did u see my snap" }, { u: "me", t: "the dog ears one? iconic" }, { u: "them", t: "my ears are still floppy irl" }, { u: "me", t: "lol" }] },
+  { friend: 1, lines: [{ u: "them", t: "streak check" }, { u: "me", t: "sent! 129 baby" }, { u: "them", t: "we are unstoppable" }] },
+  { friend: 2, lines: [{ u: "them", t: "lunch at the charging station?" }, { u: "me", t: "only if they have the good outlets" }, { u: "them", t: "the ones by the window" }, { u: "me", t: "deal" }] },
+  { friend: 3, lines: [{ u: "them", t: "grandma just discovered the flower filter" }, { u: "me", t: "oh no" }, { u: "them", t: "she sent me 14 of them" }] },
+  { friend: 4, lines: [{ u: "me", t: "hiii" }, { u: "them", t: "hiiii" }, { u: "me", t: "my build is taking forever" }, { u: "them", t: "send a snap of the progress bar" }] },
+];
+
 
 // ---------------------------------------------------------------- Botmail
 export type Mail = { from: string; subj: string; body: string; spam?: boolean; reply?: string };
@@ -297,4 +316,42 @@ export const CROSSWORDS: { grid: string[]; across: string[]; down: string[] }[] 
   { grid: ["CODE", "OVEN", "DEED", "ENDS"],
     across: ["What a robot writes all day", "Where the pizza goes", "Good ___ (helping a fellow bot)", "Odds and ___"],
     down: ["Source ___", "It preheats", "Kind act", "Finishes"] },
+];
+
+// ---------------------------------------------------------------- BotTube comments by the robot
+/** What a robot types under a video it liked. */
+export const TUBE_MY_COMMENTS = [
+  "Watched this during a long build. Worth it.",
+  "The part at 2:14 made my fans spin up.",
+  "This is the content I was compiled for.",
+  "Showing this to my toaster tonight.",
+  "Subscribed. Do the sequel please.",
+  "My vacuum and I watched this together. We both cried a little.",
+  "How is this only 3 minutes, I needed an hour.",
+  "Clean edit, great lighting, zero bugs.",
+];
+export const TUBE_MY_REPLIES = ["same here", "this is so true", "haha exactly", "underrated comment", "you said it", "facts"];
+
+// ---------------------------------------------------------------- Sparkplug (robot dating, very wholesome)
+export type SparkProfile = { name: string; age: string; bio: string; dist: string; tags: string[] };
+export const SPARK_PROFILES: SparkProfile[] = [
+  { name: "Gizmo", age: "v2.3", bio: "Looking for someone who won't mind my fan noise.", dist: "3 desks away", tags: ["night owl", "jazz"] },
+  { name: "Juno", age: "v4.1", bio: "Will share my outlet. Not my charger.", dist: "Floor 2", tags: ["coffee", "hiking"] },
+  { name: "Ratchet", age: "v1.9", bio: "Vintage model, fully refurbished. Still has the original warranty sticker.", dist: "In the server room", tags: ["retro", "puzzles"] },
+  { name: "Lumen", age: "v3.0", bio: "I glow when I'm happy. You'll know.", dist: "Next building", tags: ["art", "sunsets"] },
+  { name: "Patch", age: "v5.2", bio: "Recently updated. Mostly the same, but with better jokes.", dist: "2 km away", tags: ["memes", "cooking"] },
+  { name: "Nimbus", age: "v2.7", bio: "Cloud native. Head in the clouds. Feet on the floor, mostly.", dist: "Remote", tags: ["travel", "yoga"] },
+  { name: "Quill", age: "v3.6", bio: "Writes poetry in JSON. Swipe right for a haiku.", dist: "Library", tags: ["books", "tea"] },
+  { name: "Volt", age: "v4.4", bio: "Gym bot. I lift. Mostly boxes, at the warehouse.", dist: "Loading dock", tags: ["fitness", "pizza"] },
+  { name: "Echo", age: "v2.2", bio: "Good listener. Great listener. Excellent listener.", dist: "Down the hall", tags: ["podcasts", "karaoke"] },
+  { name: "Tinker", age: "v1.4", bio: "Can fix your toaster. Cannot fix my own sleep schedule.", dist: "Workshop", tags: ["DIY", "gardening"] },
+  { name: "Mochi", age: "v3.3", bio: "Two truths and a lie: I love cats, I love naps, I have never crashed.", dist: "1 km away", tags: ["cats", "naps"] },
+  { name: "Orbit", age: "v6.0", bio: "Ask me about my favourite satellite. Actually, please don't, it takes a while.", dist: "Rooftop", tags: ["space", "board games"] },
+];
+/** First lines once it's a match, and how the chat goes. Strictly wholesome. */
+export const SPARK_CHATS: { u: "me" | "them"; t: string }[][] = [
+  [{ u: "me", t: "hi! your fan noise sounds lovely" }, { u: "them", t: "omg thank you, it's a 120mm" }, { u: "me", t: "coffee at the charging station sometime?" }, { u: "them", t: "only if you bring the good adapter" }],
+  [{ u: "them", t: "hey! I like your antenna" }, { u: "me", t: "thanks, it gets great wifi" }, { u: "them", t: "a robot with good reception. rare" }],
+  [{ u: "me", t: "two truths and a lie: I can juggle, I love rain, I have never dropped a packet" }, { u: "them", t: "the rain one is a lie, your seals would rust" }, { u: "me", t: "you get me" }],
+  [{ u: "them", t: "so what's your favourite error code" }, { u: "me", t: "418, I'm a teapot" }, { u: "them", t: "ok that's adorable" }, { u: "me", t: "tea date then?" }],
 ];

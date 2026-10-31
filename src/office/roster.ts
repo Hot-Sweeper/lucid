@@ -13,7 +13,7 @@ export type TasksStyle = "board" | "checklist" | "sticky";
 export type OfficeTaste = "none" | "writer" | "numbers" | "slides" | "suite";
 // Pastime apps on the monitor, and the social apps a robot uses (desktop and phone). Each robot has its own mix.
 export type FunApp = "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo";
-export type SocialApp = "botsapp" | "telegrid" | "chirp" | "instabot" | "snapbot" | "shorts";
+export type SocialApp = "botsapp" | "telegrid" | "chirp" | "instabot" | "snapbot" | "shorts" | "spool" | "sparkplug";
 // What a robot mostly does with free time. Gamers game, musicians make beats, chatters hang
 // out with friends, watchers watch videos, chillers sip coffee and scroll.
 export type Hobby = "gamer" | "musician" | "chatter" | "watcher" | "chiller";
@@ -38,6 +38,7 @@ export interface Prefs {
   office?: OfficeTaste;                            // which office apps it likes (none for most robots)
   apps?: FunApp[];                                 // favourite pastime apps (pinned in the dock)
   socials?: SocialApp[];                           // social apps it uses; it never opens the others
+  socialsV?: number;                               // 2 once Spool and Sparkplug were offered to it
   t3?: T3Channel;                                  // which T3 Code build it runs its thread in
 }
 /** T3 Code release channel: the stable app or T3 Code (Nightly). */
@@ -94,11 +95,13 @@ export function interestsFrom(r: () => number, hobby: Hobby): { apps: FunApp[]; 
     instabot: 0.32 + 0.2 * (H("chiller") + H("chatter")),
     snapbot: 0.22 + 0.25 * H("chatter"),
     shorts: 0.3 + 0.4 * H("watcher"),
+    spool: 0.3 + 0.35 * (H("watcher") + H("chiller")),
+    sparkplug: 0.16 + 0.22 * H("chatter"),
   };
   const all = Object.keys(odds) as SocialApp[];
   let socials = all.map((a) => [a, r()] as const).filter(([a, x]) => x < odds[a]).sort((a, b) => a[1] - b[1]).map(([a]) => a);
   while (socials.length < 2) { const a = all[Math.floor(r() * all.length)]; if (!socials.includes(a)) socials.push(a); }
-  socials = socials.slice(0, 4);
+  socials = socials.slice(0, 5);
   const like: Record<FunApp, number> = {
     doodle: 1 + 1.5 * H("musician") + H("chiller"),
     crossword: 1 + H("chiller") + 0.5 * H("gamer"),
@@ -115,6 +118,14 @@ export function interestsFrom(r: () => number, hobby: Hobby): { apps: FunApp[]; 
     apps.push(pool.find((a) => (x -= like[a]) <= 0) ?? pool[0]);
   }
   return { apps, socials };
+}
+// Robots hired before Spool (web) and Sparkplug existed: the same odds decide, from their id.
+function newSocials(have: SocialApp[], r: () => number, hobby: Hobby): SocialApp[] {
+  const H = (k: Hobby) => (hobby === k ? 1 : 0);
+  const out = [...have];
+  if (!out.includes("spool") && r() < 0.3 + 0.35 * (H("watcher") + H("chiller"))) out.push("spool");
+  if (!out.includes("sparkplug") && r() < 0.16 + 0.22 * H("chatter")) out.push("sparkplug");
+  return out;
 }
 function seeded(key: string) {
   let a = 7;
@@ -151,6 +162,7 @@ export class Roster {
       if (r.prefs && !r.prefs.git) { r.prefs.git = idHash((r.id || r.name || "") + "git") < 0.45 ? "desktop" : "cli"; migrated = true; }
       if (r.prefs && !r.prefs.office) { r.prefs.office = officeFrom(idHash((r.id || r.name || "") + "office")); migrated = true; }
       if (r.prefs && !r.prefs.socials) { Object.assign(r.prefs, interestsFrom(seeded((r.id || r.name || "") + "interests"), r.prefs.hobby)); migrated = true; }
+      if (r.prefs?.socials && (r.prefs.socialsV ?? 1) < 2) { r.prefs.socials = newSocials(r.prefs.socials, seeded((r.id || r.name || "") + "socials2"), r.prefs.hobby); r.prefs.socialsV = 2; migrated = true; }
       if (r.prefs && !r.prefs.launch) {
         const x = idHash((r.id || r.name || "") + "habits");
         r.prefs.launch = x < 0.35 ? "spotlight" : "dock";
@@ -281,6 +293,7 @@ export class Roster {
         git: Math.random() < 0.45 ? "desktop" : "cli",
         office: officeFrom(Math.random()),
         ...interestsFrom(Math.random, hobby),
+        socialsV: 2,
         t3: t3ChannelFor(id),
       },
       hiredAt: Date.now(),

@@ -1,10 +1,12 @@
 // Snapbot: the front camera shows the robot's own face, it flips through silly AR filters
 // (dog ears, a flower crown, shades, hearts), snaps one, sends it to keep its streaks alive,
 // and peeks at the friend map.
-import { SNAP_FRIENDS, SNAP_CAPTIONS } from "../content/social";
+import { SNAP_FRIENDS, SNAP_CAPTIONS, SNAP_CHATS } from "../content/social";
 import { circle, ellipse, fillRR, lin, poly, withAlpha, shade } from "../fun/draw";
 import { Kit, runApp, rnd, chance, pick, shuffle, h, avatar, seedOf, touch, typeInto, calm, canvas, ICON, type SoHost, type SoOpts } from "./kit";
 import "./snapbot.css";
+import { phoneKeyboard } from "./keyboard";
+import { theyType } from "./typing";
 
 type Ctx = CanvasRenderingContext2D;
 type Filter = "none" | "dog" | "flowers" | "shades" | "hearts";
@@ -155,8 +157,13 @@ class Snapbot {
     if (chance(0.75)) {
       await touch(this.k, this.cam, this.root);
       bar.classList.add("on");
-      await typeInto(this.k, txt, pick(SNAP_CAPTIONS), { phone: true, skill: this.opts.skill });
-      await this.k.sleep(rnd(400, 800));
+      const kb = phoneKeyboard(this.k, this.root, { dark: true, accent: "#0fadff" });
+      await kb.open({ ret: "done" });
+      await typeInto(this.k, txt, pick(SNAP_CAPTIONS), { phone: true, skill: this.opts.skill, kb });
+      await this.k.sleep(rnd(300, 600));
+      await kb.enter();
+      await kb.close();
+      await this.k.sleep(rnd(300, 600));
     }
     await touch(this.k, send, this.root);
     await this.sendTo();
@@ -224,14 +231,83 @@ class Snapbot {
     this.live = true;
   }
 
+  // The chat tab: a friend's chat, their little avatar peeking up while they type, then the reply.
+  async chat() {
+    const nav = this.root.querySelectorAll<HTMLElement>(".so-sn-ui nav span")[1];
+    await touch(this.k, nav, this.root);
+    this.live = false;
+    const sc = pick(SNAP_CHATS);
+    const fr = SNAP_FRIENDS[sc.friend];
+    const view = h("div", "so-sn-chat");
+    view.innerHTML = `<header><span class="so-sn-bk"></span><span class="so-av">${avatar(fr.color, seedOf(fr.name))}</span><b></b></header>
+      <div class="so-sn-msgs"></div>
+      <span class="so-sn-peek"><span class="so-av">${avatar(fr.color, seedOf(fr.name))}</span><small></small></span>
+      <footer><span class="so-sn-camb">${NAV.cam}</span><div class="so-sn-field"><span class="so-sn-ph">Send a chat</span><span class="so-sn-txt"></span></div></footer>`;
+    view.querySelector("header b")!.textContent = fr.name;
+    view.querySelector(".so-sn-peek small")!.textContent = `${fr.name.split(" ").pop()} is typing`;
+    this.root.appendChild(view);
+    if (!calm()) this.k.fromTo(view, { xPercent: -100 }, { xPercent: 0, duration: 0.3, ease: "power3.out" });
+    const msgs = view.querySelector(".so-sn-msgs") as HTMLElement;
+    const peek = view.querySelector(".so-sn-peek") as HTMLElement;
+    const field = view.querySelector(".so-sn-field") as HTMLElement, txt = view.querySelector(".so-sn-txt") as HTMLElement;
+    const foot = view.querySelector("footer") as HTMLElement;
+    let last: "me" | "them" | null = null;
+    const add = (u: "me" | "them", t: string) => {
+      const m = h("div", `so-sn-m ${u}`);
+      if (u !== last) m.innerHTML = `<b>${u === "me" ? "ME" : fr.name.split(" ").pop()!.toUpperCase()}</b>`;
+      m.appendChild(h("p")).textContent = t;
+      msgs.appendChild(m);
+      last = u;
+      if (!calm()) this.k.from(m, { opacity: 0, y: 6, duration: 0.25, ease: "power2.out" });
+      msgs.scrollTop = msgs.scrollHeight;
+    };
+    await this.k.sleep(rnd(500, 900));
+    const kb = phoneKeyboard(this.k, view, { accent: "#0fadff" });
+    for (const l of sc.lines) {
+      if (this.k.left < 3000) break;
+      if (l.u === "them") {
+        await kb.close();
+        await this.k.sleep(rnd(300, 800));
+        // the friend's avatar peeks up from behind the chat bar while they type
+        await theyType(this.k, l.t, () => {
+          peek.classList.add("on");
+          if (!calm()) this.k.fromTo(peek, { y: 18 }, { y: 0, duration: 0.35, ease: "back.out(2)" });
+          return () => peek.classList.remove("on");
+        });
+        add("them", l.t);
+        await this.k.sleep(600 + l.t.length * rnd(30, 45));
+        if (chance(0.3)) this.k.host.react("laugh");
+      } else {
+        if (!kb.up) await touch(this.k, field, view);
+        await kb.open({ ret: "send", lift: [foot, msgs, peek] });
+        field.classList.add("has");
+        await typeInto(this.k, txt, l.t, { phone: true, skill: this.opts.skill, kb });
+        await this.k.sleep(rnd(200, 400));
+        await kb.enter();
+        txt.textContent = "";
+        field.classList.remove("has");
+        add("me", l.t);
+        await this.k.sleep(rnd(500, 900));
+      }
+    }
+    await kb.close();
+    await this.k.sleep(rnd(900, 1500));
+    await touch(this.k, view.querySelector(".so-sn-bk")!, view);
+    if (!calm()) await new Promise<void>((r) => this.k.to(view, { xPercent: -100, duration: 0.25, ease: "power2.in", onComplete: () => r() }));
+    view.remove();
+    this.live = true;
+  }
+
   async session() {
     await this.k.sleep(rnd(800, 1400));
+    if (chance(0.45)) await this.chat();
     for (let round = 0; this.k.left > 9000; round++) {
       const tries = shuffle(FILTERS.filter((f) => f !== "none")).slice(0, 2 + Math.floor(Math.random() * 2));
       for (const f of tries) await this.pickFilter(f);
       await this.snap();
       if (round === 0 && chance(0.6) && this.k.left > 12000) await this.map();
       await this.pickFilter("none");
+      if (round === 0 && chance(0.5) && this.k.left > 15000) await this.chat();
     }
   }
 }

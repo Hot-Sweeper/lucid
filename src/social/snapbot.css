@@ -48,3 +48,27 @@
 .so-sn-pin { position: absolute; display: flex; flex-direction: column; align-items: center; width: 30px; margin-left: -15px; margin-top: -15px; }
 .so-sn-pin svg { width: 22px; height: 22px; border-radius: 50%; box-shadow: 0 0 0 2px #fff, 0 2px 4px rgba(0, 0, 0, 0.25); }
 .so-sn-pin b { margin-top: 2px; padding: 0 3px; border-radius: 3px; background: #fff; color: #16191c; font-size: 6px; font-weight: 600; }
+/* Chat: Snapchat style names in colour with a bar on the left, no bubbles. */
+.so-sn-chat { position: absolute; inset: 0; z-index: 7; display: flex; flex-direction: column; background: #fff; color: #16191c; overflow: hidden; }
+.so-sn-chat header { position: relative; z-index: 3; flex: none; height: 32px; display: flex; align-items: center; gap: 5px; padding: 8px 7px 0; background: #fff; box-shadow: 0 1px 0 #eceef0; }
+.so-sn-chat header b { font-size: 8.5px; font-weight: 700; }
+.so-sn-chat header .so-av { width: 16px; height: 16px; }
+.so-sn-bk { width: 6px; height: 6px; border: solid #16191c; border-width: 0 0 1.5px 1.5px; transform: rotate(45deg); margin: 0 2px 0 3px; }
+.so-sn-msgs { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 6px 7px 4px; gap: 1px; }
+.so-sn-m b { display: block; margin-top: 5px; font-size: 6px; font-weight: 700; letter-spacing: 0.02em; }
+.so-sn-m p { margin: 0; padding: 1px 0 1px 5px; font-size: 7.5px; line-height: 1.35; box-shadow: inset 1.5px 0 0 currentColor; overflow-wrap: anywhere; }
+.so-sn-m.me { color: #f23c57; }
+.so-sn-m.them { color: #0fadff; }
+.so-sn-m p { color: #16191c; }
+.so-sn-m.me p { box-shadow: inset 1.5px 0 0 #f23c57; }
+.so-sn-m.them p { box-shadow: inset 1.5px 0 0 #0fadff; }
+.so-sn-peek { position: absolute; left: 7px; bottom: 30px; z-index: 1; display: flex; align-items: flex-end; gap: 3px; opacity: 0; pointer-events: none; }
+.so-sn-peek.on { opacity: 1; }
+.so-sn-peek .so-av { width: 22px; height: 22px; }
+.so-sn-peek small { margin-bottom: 3px; color: #8b9198; font-size: 6px; }
+.so-sn-chat footer { position: relative; z-index: 2; flex: none; display: flex; align-items: flex-end; gap: 4px; padding: 4px 6px 10px; background: #fff; }
+.so-sn-camb { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: 50%; background: #eceef0; }
+.so-sn-camb svg { width: 10px; height: 10px; fill: #16191c; }
+.so-sn-field { flex: 1; min-width: 0; min-height: 20px; max-height: 42px; padding: 4px 8px; border-radius: 10px; background: #eceef0; font-size: 7.5px; line-height: 1.4; overflow: hidden; overflow-wrap: anywhere; }
+.so-sn-ph { color: #8b9198; }
+.so-sn-field.has .so-sn-ph { display: none; }

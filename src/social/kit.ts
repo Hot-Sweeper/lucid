@@ -3,6 +3,7 @@
 import type { FunHost } from "../fun/host";
 import { Kit, rnd, chance } from "../life/util";
 export { Kit, runApp, rnd, irnd, chance, pick, shuffle, h, esc, canvas } from "../life/util";
+import type { PhoneKeyboard } from "./keyboard";
 import "./social.css";
 
 export type SoHost = FunHost;
@@ -45,7 +46,9 @@ export async function touch(k: Kit, el: Element, root: HTMLElement, kind: "tap" 
 const NEAR: Record<string, string> = { a: "sq", s: "ad", d: "sf", e: "wr", o: "ip", i: "uo", t: "ry", n: "bm", r: "et", l: "k", h: "gj", m: "n", u: "yi" };
 
 /** Types text into an element key by key, with now and then a typo that gets fixed. */
-export async function typeInto(k: Kit, el: HTMLElement, text: string, opts: { phone?: boolean; skill?: number } = {}) {
+export async function typeInto(k: Kit, el: HTMLElement, text: string, opts: { phone?: boolean; skill?: number; kb?: PhoneKeyboard } = {}) {
+  // on the phone the robot thumb-types on its on-screen keyboard
+  if (opts.kb) return opts.kb.type(el, text, { skill: opts.skill });
   const skill = opts.skill ?? 0.7;
   const press = (key: string) => { if (opts.phone) { if (chance(0.25)) (k.host as SoHost).thumb?.("tap"); } else k.tap(key); };
   el.textContent = "";

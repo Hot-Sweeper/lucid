@@ -2,7 +2,31 @@ import { TUBE_COMMENTS, BOTCORD_USERS } from "../content";
 import type { FunHost, FunOpts, Outcome } from "./host";
 import { VIDEOS, type VideoDef } from "./videos";
 import { Scope, esc, hash } from "./util";
-import { Site, commentsHtml, parseDur, type Comment } from "./site";
+import { Site, parseDur, type Comment } from "./site";
+import { TUBE_MY_COMMENTS, TUBE_MY_REPLIES } from "../content/social";
+
+const THUMB = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 10.5h3.8V21H2.5Zm5.3 10.5V10.2l4.6-7c.9-1.3 3-.6 2.9 1l-.4 4.3h5.2c1.6 0 2.8 1.6 2.3 3.1l-2.4 7.6A2.6 2.6 0 0 1 17.5 21Z"/></svg>`;
+const fmtK = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(n >= 1e4 ? 0 : 1)}K` : String(n));
+const pickOne = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
+
+/** BotTube comments: a thumb with a count, a dislike and Reply under each one. */
+function tubeComments(list: Comment[]) {
+  return list.map((c) => `
+    <div class="fun-cm">
+      <span class="fun-av" style="background:${c.color}" aria-hidden="true"><i></i><i></i></span>
+      <div><b>${esc(c.name)}</b><p>${esc(c.text)}</p><span class="fun-tb-cact"><span class="fun-tb-cl">${THUMB}<i>${c.likes}</i></span><span class="fun-tb-cd">${THUMB}</span><span class="fun-tb-rp">Reply</span></span></div>
+    </div>`).join("");
+}
+
+/** Types into a field key by key; the robot's hands hit the matching keys. */
+async function typeOut(host: FunHost, el: HTMLElement, text: string) {
+  el.textContent = "";
+  for (const ch of text) {
+    host.tap(ch === " " ? " " : ch.toLowerCase());
+    el.textContent += ch;
+    await host.sleep(45 + Math.random() * 55 + (/[.,!?]/.test(ch) ? 150 : 0));
+  }
+}
 
 const MARK = `<svg class="fun-tb-mark" viewBox="0 0 28 24" aria-hidden="true">
   <defs><linearGradient id="fun-tbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4fb6ff"/><stop offset="1" stop-color="#b07cff"/></linearGradient></defs>
@@ -33,6 +57,7 @@ const TEXTS = [
 TEXTS.push(...TUBE_COMMENTS);
 NAMES.push(...BOTCORD_USERS.slice(0, 40));
 
+const likesOf = (v: VideoDef) => Math.floor(800 + hash(v.id.length * 7 + v.id.charCodeAt(0)) * 60000);
 const COLORS = ["#ff9f5a", "#4fb6ff", "#4ff0a0", "#b07cff", "#ff6f91", "#f6ecdc"];
 const AGO = ["2 days ago", "1 week ago", "3 weeks ago", "5 hours ago", "1 month ago", "4 days ago"];
 
@@ -88,8 +113,13 @@ export async function watchTube(body: HTMLElement, host: FunHost, opts: FunOpts)
               <div class="fun-tb-ctrl"><div class="fun-tb-bar"><i></i></div><span class="fun-tb-time"></span></div>
             </div>
             <h3 class="fun-tb-title">${esc(v.title)}</h3>
-            <div class="fun-tb-chan"><span class="fun-av" style="background:${v.color ?? COLORS[v.id.length % COLORS.length]}" aria-hidden="true"><i></i><i></i></span><div><b>${esc(v.channel)}</b><span>${subs}</span></div><span class="fun-tb-views">${esc(v.views)}</span></div>
-            <div class="fun-tb-cms"><h4>Comments</h4>${commentsHtml(comments(v))}</div>
+            <div class="fun-tb-chan"><span class="fun-av" style="background:${v.color ?? COLORS[v.id.length % COLORS.length]}" aria-hidden="true"><i></i><i></i></span><div><b>${esc(v.channel)}</b><span>${subs}</span></div>
+              <span class="fun-tb-acts"><span class="fun-tb-like">${THUMB}<b>${fmtK(likesOf(v))}</b></span><span class="fun-tb-dis">${THUMB}</span><span class="fun-tb-share">Share</span></span></div>
+            <p class="fun-tb-views">${esc(v.views)}</p>
+            <div class="fun-tb-cms"><h4>${comments(v).length + Math.floor(hash(v.id.length + 3) * 300)} Comments</h4>
+              <div class="fun-tb-add"><span class="fun-av fun-tb-me2" aria-hidden="true"><i></i><i></i></span><div class="fun-tb-in"><span class="fun-tb-ph">Add a comment...</span><span class="fun-tb-tx"></span></div></div>
+              <div class="fun-tb-addb"><span>Cancel</span><b>Comment</b></div>
+              <div class="fun-tb-list">${tubeComments(comments(v))}</div></div>
           </div>
           <aside class="fun-tb-recs">${recs.map((r) => `
             <div class="fun-tb-rec" data-id="${r.id}"><div class="fun-tb-thumb"><canvas data-v="${r.id}"></canvas></div><div><b>${esc(r.title)}</b><span>${esc(r.channel)}</span><span>${esc(r.views)}</span></div></div>`).join("")}
@@ -115,6 +145,92 @@ export async function watchTube(body: HTMLElement, host: FunHost, opts: FunOpts)
       await host.sleep(500 + Math.random() * 900);
       await host.click();
       return { thumb, v };
+    };
+
+    // Like the video (the thumb fills, the count goes up), then down to the comments: read a
+    // few, like one, reply now and then, and sometimes type a comment of its own.
+    const engage = async (like: boolean) => {
+      const P = site.page;
+      const btn = P.querySelector(".fun-tb-like") as HTMLElement | null;
+      if (like && btn && !btn.classList.contains("fun-on")) {
+        await host.pointAt(btn, 0.3, 0.5);
+        await host.click();
+        btn.classList.add("fun-on");
+        btn.querySelector("b")!.textContent = fmtK(likesOf(v!) + 1);
+        scope.fromTo(btn.querySelector("svg"), { scale: 0.5, rotation: -20 }, { scale: 1, rotation: 0, duration: 0.5, ease: "back.out(3)" });
+        await host.sleep(500 + Math.random() * 500);
+      }
+      const cms = P.querySelector(".fun-tb-cms") as HTMLElement;
+      await site.scrollTo(cms.offsetTop - 20, 1100);
+      const list = [...cms.querySelectorAll<HTMLElement>(".fun-tb-list > .fun-cm")];
+      for (const c of list.slice(0, 3)) {
+        await host.pointAt(c, 0.3, 0.5, 500);
+        await host.sleep(700 + Math.random() * 600);
+      }
+      if (Math.random() < 0.5) host.react("laugh");
+      if (Math.random() < 0.6) {
+        const c = pickOne(list.slice(0, 3));
+        const cl = c.querySelector(".fun-tb-cl") as HTMLElement;
+        await host.pointAt(cl, 0.3, 0.5);
+        await host.click();
+        cl.classList.add("fun-on");
+        const n = cl.querySelector("i")!;
+        n.textContent = String(Number(n.textContent) + 1);
+        scope.fromTo(cl.querySelector("svg"), { scale: 0.5 }, { scale: 1, duration: 0.45, ease: "back.out(3)" });
+        await host.sleep(500);
+        if (Math.random() < 0.4) {
+          // a short reply under that comment
+          await host.pointAt(c.querySelector(".fun-tb-rp")!, 0.5, 0.5);
+          await host.click();
+          const box = document.createElement("div");
+          box.className = "fun-tb-rbox";
+          box.innerHTML = `<span class="fun-av fun-tb-me2" aria-hidden="true"><i></i><i></i></span><div class="fun-tb-in on"><span class="fun-tb-tx"></span></div><b>Reply</b>`;
+          c.querySelector("div")!.appendChild(box);
+          scope.fromTo(box, { opacity: 0, y: -4 }, { opacity: 1, y: 0, duration: 0.25 });
+          const text = pickOne(TUBE_MY_REPLIES);
+          await typeOut(host, box.querySelector(".fun-tb-tx") as HTMLElement, text);
+          await host.sleep(300);
+          await host.pointAt(box.querySelector("b")!, 0.5, 0.5);
+          await host.click();
+          box.remove();
+          const r = document.createElement("div");
+          r.className = "fun-cm fun-tb-reply fun-mine";
+          r.innerHTML = `<span class="fun-av fun-tb-me2" aria-hidden="true"><i></i><i></i></span><div><b>@you</b><p></p></div>`;
+          r.querySelector("p")!.textContent = text;
+          c.querySelector("div")!.appendChild(r);
+          scope.fromTo(r, { opacity: 0, y: -4 }, { opacity: 1, y: 0, duration: 0.3 });
+          await host.sleep(900);
+        }
+      }
+      if (Math.random() < 0.45 && !timeUp()) {
+        await site.scrollTo(cms.offsetTop - 20, 600);
+        const box = cms.querySelector(".fun-tb-in") as HTMLElement;
+        await host.pointAt(box, 0.2, 0.5);
+        await host.click();
+        box.classList.add("on");
+        cms.querySelector(".fun-tb-addb")!.classList.add("on");
+        const text = pickOne(TUBE_MY_COMMENTS);
+        await typeOut(host, box.querySelector(".fun-tb-tx") as HTMLElement, text);
+        await host.sleep(300 + Math.random() * 400);
+        const go = cms.querySelector(".fun-tb-addb b") as HTMLElement;
+        go.classList.add("fun-on");
+        await host.pointAt(go, 0.5, 0.5);
+        await host.click();
+        (box.querySelector(".fun-tb-tx") as HTMLElement).textContent = "";
+        box.classList.remove("on"); go.classList.remove("fun-on");
+        cms.querySelector(".fun-tb-addb")!.classList.remove("on");
+        const mine = document.createElement("div");
+        mine.className = "fun-cm fun-mine";
+        mine.innerHTML = `<span class="fun-av fun-tb-me2" aria-hidden="true"><i></i><i></i></span><div><b>@you</b><p></p><span class="fun-tb-cact"><span class="fun-tb-cl">${THUMB}<i>0</i></span><span class="fun-tb-cd">${THUMB}</span><span class="fun-tb-rp">Reply</span></span></div>`;
+        mine.querySelector("p")!.textContent = text;
+        cms.querySelector(".fun-tb-list")!.prepend(mine);
+        scope.fromTo(mine, { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" });
+        host.react("cheer");
+        await host.sleep(1400);
+      }
+      await site.scrollTo(cms.offsetTop + 120, 900);
+      await host.sleep(1000);
+      await site.scrollTo(0, 900);
     };
 
     home();
@@ -150,19 +266,9 @@ export async function watchTube(body: HTMLElement, host: FunHost, opts: FunOpts)
           await host.pointAt(bar, to, 0.5, 600);
           await host.click();
           site.seek(to * P.dur);
-        } else if (!scrolled && el > 3500 && Math.random() < 0.012) {
+        } else if (!scrolled && el > 3500 && Math.random() < 0.02) {
           scrolled = true;
-          const cms = site.page.querySelector(".fun-tb-cms") as HTMLElement;
-          await site.scrollTo(cms.offsetTop - 20, 1100);
-          const list = [...cms.querySelectorAll<HTMLElement>(".fun-cm")];
-          for (const c of list.slice(0, 3)) {
-            await host.pointAt(c, 0.3, 0.5, 500);
-            await host.sleep(700 + Math.random() * 600);
-          }
-          if (Math.random() < 0.5) host.react("laugh");
-          await site.scrollTo(cms.offsetTop + 120, 900);
-          await host.sleep(1200);
-          await site.scrollTo(0, 900);
+          await engage(Math.random() < 0.6);
         } else if (!laughed && el > 1500 && Math.random() < 0.006) {
           laughed = true;
           host.react("laugh");

@@ -18,7 +18,7 @@ import { makeBeat } from "../life/beats";
 import { hangOutInChat } from "../life/chat";
 import "../life/life.css";
 import { officeIdle, officePick, OFFICE_IDLE_LINE } from "../office-apps/idle";
-import { chatOnBotsApp, browseTelegrid, scrollChirp, usePhone, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, PHONE_APP_DOING, type PhoneApp, type SoOpts } from "../social";
+import { chatOnBotsApp, browseTelegrid, scrollChirp, usePhone, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, browseInstaweb, scrollSpoolWeb, swipeSparkplug, PHONE_APP_DOING, type PhoneApp, type SoOpts } from "../social";
 import type { Prefs } from "../office/roster";
 
 // What the robot does when there is no work: tidy the desktop, play a game,
@@ -224,6 +224,7 @@ export class IdleLife {
       react: (kind) => me.robot.react(kind),
       get stopped() { return tok !== me.token; },
       thumb: () => me.robot.swipe(),
+      thumbAt: (nx, ny) => (me.robot as any).thumbAt?.(nx, ny),
       scroll: () => {},
     };
   }
@@ -385,6 +386,9 @@ export class IdleLife {
       case "stocks": return this.socialApp("stocks", "Watching GPU stocks", watchStocks, tok, 30000);
       case "mail": return this.socialApp("mail", "Clearing its inbox", checkMail, tok, 30000);
       case "lingo": return this.socialApp("lingo", "Keeping its Lingobot streak alive", learnWithLingobot, tok, 45000);
+      case "instaweb": return this.socialApp("instaweb", "Scrolling Instabot on the web", browseInstaweb, tok);
+      case "spoolweb": return this.socialApp("spoolweb", "Watching Spool clips on the desktop", scrollSpoolWeb, tok);
+      case "sparkplug": return this.socialApp("sparkplug", "Swiping on Sparkplug", swipeSparkplug, tok, 40000);
       case "messages": {
         this.onActivity("Checking for new messages");
         await this.wm.open("chat");
@@ -456,6 +460,9 @@ export class IdleLife {
       stocks: likes("stocks") ? 1.3 : 0,
       lingo: likes("lingo") ? 1.5 : 0,
       mail: likes("mail") ? 1.3 : 0.1,
+      instaweb: uses("instabot") ? 0.6 + 0.5 * H("chiller") : 0,
+      spoolweb: uses("spool") ? 0.6 + 0.8 * H("watcher") : 0,
+      sparkplug: uses("sparkplug") ? 0.5 + 0.5 * H("chatter") : 0,
     };
   }
 
@@ -463,7 +470,7 @@ export class IdleLife {
   private phoneApps(): PhoneApp[] {
     const p = this.wm.prefs;
     const apps: PhoneApp[] = [...(p?.socials ?? [])];
-    if (p?.phone !== "tube" || !apps.length) apps.push("spool");
+    if ((p?.phone !== "tube" || !apps.length) && !apps.includes("spool")) apps.push("spool");
     return apps;
   }
 
