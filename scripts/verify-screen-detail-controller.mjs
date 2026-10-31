@@ -4,10 +4,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 const compile = async name => (await transformWithOxc((await readFile(new URL(`../src/perf/${name}.ts`, import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,''), `${name}.ts`)).code.replace(/export\s*\{[^}]*\};?/g,'').replace(/^export /gm,'');
-const detail = new Function(`${await compile('screen-detail-budget')};return screenDetail`)();
+const { screenDetail: detail, SCREEN_DETAIL_WIDTHS } = new Function(`${await compile('screen-detail-budget')};return {screenDetail,SCREEN_DETAIL_WIDTHS}`)();
+const { paintDetailScene } = new Function(`${await compile('detail-scene')};return {paintDetailScene}`)();
 let now=0, nextId=0, reads=0, canvases=0;
 const timers=new Map(), observers=[];
-const window={setTimeout(fn,delay=0){const id=++nextId;timers.set(id,{fn,due:now+delay});return id;}};
+const window={devicePixelRatio:1,setTimeout(fn,delay=0){const id=++nextId;timers.set(id,{fn,due:now+delay});return id;}};
 const drain=()=>{let count=0;while(timers.size){assert.ok(++count<100,'Queue must settle');const [id,job]=[...timers].sort((a,b)=>a[1].due-b[1].due)[0];timers.delete(id);now=Math.max(now,job.due);job.fn();}};
 class Element {
   constructor(cls=''){this.className=cls;this.dataset={};this.style={setProperty(key,value){this[key]=value;}};this.attributes={};this.childNodes=[];this.parentElement=null;this.isConnected=true;this.tagName='DIV';this.offsetWidth=600;this.offsetHeight=360;}
@@ -30,7 +31,7 @@ class Element {
 const document={hidden:false,addEventListener(){},createElement(tag){if(tag==='canvas')canvases++;return new Element();},createRange(){return {selectNodeContents(){},getClientRects(){return [];}};}};
 class Observer{constructor(cb){this.cb=cb;observers.push(this);}observe(){}disconnect(){this.disconnected=true;}}
 const styles={display:'block',opacity:'1',backgroundColor:'#202030',color:'#eeeeff',borderRadius:'4',overflow:'hidden',overflowY:'hidden'};
-const api=new Function('screenDetail','document','window','Element','HTMLElement','MutationObserver','performance','getComputedStyle','Node','clearTimeout',`${await compile('screen-detail')};return {setScreenDetail,releaseScreenDetail}`)(detail,document,window,Element,Element,Observer,{now:()=>now},()=>{reads++;return styles;},{TEXT_NODE:3},id=>timers.delete(id));
+const api=new Function('screenDetail','document','window','Element','HTMLElement','MutationObserver','performance','getComputedStyle','Node','clearTimeout','SCREEN_DETAIL_WIDTHS','paintDetailScene',`${await compile('screen-detail')};return {setScreenDetail,releaseScreenDetail}`)(detail,document,window,Element,Element,Observer,{now:()=>now},()=>{reads++;return styles;},{TEXT_NODE:3},id=>timers.delete(id),SCREEN_DETAIL_WIDTHS,paintDetailScene);
 const host=new Element('screen'),layer=new Element('win-layer'),cursor=new Element('cursor');host.append(layer,cursor);
 const dock=new Element('dock'),dockItem=new Element('dock-item'),dockSvg=new Element();dockSvg.tagName='svg';
 const circle=new Element();circle.tagName='circle';circle.setAttribute('fill','#2fb5ff');dockSvg.append(circle);dockItem.append(dockSvg);dock.append(dockItem);host.append(dock);
@@ -51,14 +52,21 @@ mutation(toastLayer,'childList',[toast]);assert.equal(toast.style['--detail-mark
 
 // Each queue task may capture at most one window.
 let job=[...timers][0];timers.delete(job[0]);job[1].fn();assert.equal(canvases,1);drain();assert.equal(canvases,2);
+const baseCanvas=a.w.querySelector('.screen-detail').firstChild;
+const density=Number(baseCanvas.dataset.sourceDensity);
+api.setScreenDetail(host,true,330);drain();assert.equal(a.w.querySelector('.screen-detail').firstChild,baseCanvas,'Same-tier zoom reuses maximum-tier density');
+window.devicePixelRatio=2;api.setScreenDetail(host,true,330);drain();
+assert.ok(Number(a.w.querySelector('.screen-detail').firstChild.dataset.sourceDensity)>density,'DPR upgrade creates sharper backing pixels');
+api.setScreenDetail(host,true,250);drain();
+const afterDensityCanvases=canvases;
 const baselineReads=reads;mutation(cursor);drain();assert.equal(reads,baselineReads,'Cursor must cause zero captures');
-mutation(a.message,'characterData');drain();assert.equal(canvases,3,'Typing refreshes only its own window');
+mutation(a.message,'characterData');drain();assert.equal(canvases,afterDensityCanvases+1,'Typing refreshes only its own window');
 mutation(a.message,'characterData');
 job=[...timers][0];timers.delete(job[0]);job[1].fn();
 assert.ok([...timers.values()].some(t=>t.due>now),'Content refresh is throttled');
 api.setScreenDetail(host,true,140);
 assert.ok([...timers.values()].some(t=>t.due===now),'Zoom bypasses a pending content throttle');
-drain();assert.equal(canvases,3,'Icons allocate no canvas');
+drain();assert.equal(canvases,afterDensityCanvases+1,'Icons allocate no canvas');
 const overview=a.w.querySelector('.screen-detail-surface');
 assert.equal(overview.children.length,1,'Farthest view contains only app color and icon, with no title bar');
 const overviewIcon=overview.querySelector('.screen-detail-icon');
