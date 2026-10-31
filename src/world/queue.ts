@@ -47,6 +47,37 @@ export class QuestionLine implements RoomExtension {
   /** The orchestrator in the chair behind the desk, or nobody. */
   setBoss(info: BossInfo | null) { this.boss.set(info); }
 
+  // What the orchestrator is doing with a robot's question (delegate.ts): reading it while the
+  // decision is in flight, then answering it (stamp, the robot repeats the answer) or passing
+  // it to you (head shake, it points at you, the robot says it needs your answer).
+  private verdicts = new Map<string, { phase: "reading" | "answered" | "asked"; text?: string; shown?: boolean }>();
+  private readingId: string | null = null;
+  decision(id: string, phase: "reading" | "answered" | "asked" | null, text?: string) {
+    const where = () => { const q = this.line.find((x) => x.id === id && x.alive); return q ? { x: q.w.x, y: q.w.y - 40 } : null; };
+    if (!phase) {
+      this.verdicts.delete(id);
+      if (this.readingId === id) { this.readingId = null; this.boss.read(null); }
+      return;
+    }
+    this.verdicts.set(id, { phase, text });
+    if (phase === "reading") { this.readingId = id; this.boss.read(where); return; }
+    if (this.readingId === id) this.readingId = null;
+    if (phase === "answered") this.boss.answered(where());
+    else this.boss.passed();
+    const q = this.line.find((x) => x.id === id && x.alive);
+    if (q && q.slot >= 0) this.showVerdict(q);
+  }
+
+  private showVerdict(q: Q) {
+    const v = this.verdicts.get(q.id);
+    if (!v || v.shown || v.phase === "reading") return;
+    q.timers.push(gsap.delayedCall(v.phase === "answered" ? 1.1 : 1.6, () => {
+      if (!q.alive || v.shown) return;
+      v.shown = true;
+      q.w.say(v.phase === "answered" ? `The boss said: ${shortQuestion(v.text || "yes")}` : "Needs your answer", v.phase === "answered" ? 4000 : 5000);
+    }));
+  }
+
   private slotPos(i: number) {
     const cx = this.w / 2, first = 392;
     const perCol = Math.max(1, Math.floor((this.h - 70 - first) / SPACING) + 1);
@@ -63,7 +94,8 @@ export class QuestionLine implements RoomExtension {
       const q = this.line.find((x) => x.id === t.id);
       const text = shortQuestion(t.question || t.title);
       if (q) {
-        if (q.question !== text) { q.question = text; q.w.setCard(text); }
+        // answered but still standing here a moment: the card keeps the question
+        if (q.question !== text && t.question) { q.question = text; q.w.setCard(text); }
         if ((t.model ?? "") !== q.w.model) q.w.setModel(t.model);
         continue;
       }
@@ -102,6 +134,7 @@ export class QuestionLine implements RoomExtension {
         q.w.face("up");
         if (was < 0) this.boss.greet(q.w.x, q.w.y);
         this.settle(q);
+        this.showVerdict(q);
       });
     });
   }
@@ -129,9 +162,13 @@ export class QuestionLine implements RoomExtension {
     q.w.calm();
     q.w.face("down");
     q.w.do("wave");
-    q.w.say(pick(["Thanks!", "Got it, thank you!", "Back to work!", "Perfect, thanks!"]), 1600);
+    const v = this.verdicts.get(q.id);
+    this.verdicts.delete(q.id);
+    // answered by the boss: it repeats the answer (long enough to read), then goes
+    if (v?.phase === "answered") q.w.say(`The boss said: ${shortQuestion(v.text || "yes")}`, 3200);
+    else q.w.say(pick(["Thanks!", "Got it, thank you!", "Back to work!", "Perfect, thanks!"]), 1600);
     gsap.delayedCall(0.6, () => this.reflow());
-    await new Promise((r) => gsap.delayedCall(1.7, r));
+    await new Promise((r) => gsap.delayedCall(v?.phase === "answered" ? 3 : 1.7, r));
     const side = { x: this.w / 2 + 120, y: q.w.y };
     await q.w.walkPath([side, { x: this.w / 2 + 120, y: this.door.y - 20 }, this.door]);
     // at the door the hall walker takes over on the same spot; otherwise it walks out by itself

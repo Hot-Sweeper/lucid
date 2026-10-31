@@ -4,7 +4,9 @@ import type { World, WThread } from "./world";
 // Your stand-in. It learns your preferences from what you tell robots, keeps them in its
 // notebook (memory.md), and when reviews are on, checks finished work for you.
 
-export type OrchState = { threadId: string; projectId: string; dir: string; review: boolean; seenUntil: string; lastSentAt: number; learned: number; reviewed: Record<string, number>; dialogsAsked?: string };
+export type OrchState = { threadId: string; projectId: string; dir: string; review: boolean; seenUntil: string; lastSentAt: number; learned: number; reviewed: Record<string, number>; dialogsAsked?: string;
+  /** answering robots' questions for you (delegate.ts): on unless turned off, how sure it must be, learning cursors */
+  auto?: boolean; threshold?: number; answersSince?: string; folded?: string };
 type Api = {
   orchInit(o?: { provider?: string; model?: string }): Promise<{ threadId: string; projectId: string; dir: string }>;
   orchMemory(): Promise<string>;

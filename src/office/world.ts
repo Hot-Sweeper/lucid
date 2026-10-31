@@ -302,6 +302,11 @@ export class World {
     void this.travel(t, r ? { at: this.door(r)[1], face: "down" } : { outside: true }, to);
   }
 
+  /** What the orchestrator is doing with a robot's question, shown at the questions desk. */
+  bossDecision(threadId: string, phase: "reading" | "answered" | "asked" | null, text?: string) {
+    (this.ext.queue as any)?.decision?.(threadId, phase, text);
+  }
+
   // break room, question line and park only show robots that are actually there
   private pushExt() {
     const here = (l: any[]) => l.filter((x) => !this.transit.has(x.id));
@@ -409,7 +414,8 @@ export class World {
     if (!cur) { this.placed.set(t.id, { room: want }); return want; }
     if (cur.room === want) { cur.pending = undefined; return want; }
     // questions and new work never wait: the robot heads over right away
-    const urgent = want === "queue" || (t.runStatus === "running" && cur.room === "break");
+    // and an answered robot that is working again leaves the question line at once
+    const urgent = want === "queue" || (t.runStatus === "running" && (cur.room === "break" || cur.room === "queue"));
     if (urgent) { this.placed.set(t.id, { room: want }); return want; }
     if (!cur.pending || cur.pending.room !== want) cur.pending = { room: want, since: Date.now() };
     if (Date.now() - cur.pending.since > 20000) { this.placed.set(t.id, { room: want }); return want; }

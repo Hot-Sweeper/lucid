@@ -44,6 +44,11 @@ function createWindow() {
   if (process.env.LUCID_THREAD) query.thread = process.env.LUCID_THREAD;
   if (process.env.LUCID_PROJECT) query.project = process.env.LUCID_PROJECT;
   if (process.env.LUCID_IDLE_SCALE) query.idleScale = process.env.LUCID_IDLE_SCALE;
+  // test runs: the orchestrator only answers questions from this project (by title), and
+  // answers none at all without one, so a test run never answers your real threads
+  if (process.env.LUCID_AUTO_SCOPE) query.autoScope = process.env.LUCID_AUTO_SCOPE;
+  else if (process.env.LUCID_SHOT) query.autoScope = "(none: test run)";
+  query.app = "1";   // only the real app window answers questions (not pages other tools open)
   if (DEV_URL) win.loadURL(DEV_URL + "?" + new URLSearchParams(query));
   else win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query });
   // Debug aid: LUCID_TRACE=file records a 5 second performance trace (style, layout, paint,
@@ -144,6 +149,14 @@ ipcMain.handle("orch:init", async (_e, { provider = "claudeAgent", model = "clau
 ipcMain.handle("orch:memory", () => orch.readMemory(ORCH_DIR));
 ipcMain.handle("orch:dialogs", () => orch.readDialogs(ORCH_DIR));
 ipcMain.handle("orch:dir", () => ORCH_DIR);
+// answering robots' questions for the user (see src/office/delegate.ts)
+ipcMain.handle("orch:answers", () => orch.readAnswers(ORCH_DIR));
+ipcMain.handle("orch:record", (_e, list) => orch.recordAnswers(ORCH_DIR, list));
+ipcMain.handle("orch:decisions", () => orch.readDecisions(ORCH_DIR));
+ipcMain.handle("orch:log", (_e, d) => orch.logDecision(ORCH_DIR, d));
+ipcMain.handle("t3:request-context", (_e, id) => t3.requestContext(id));
+ipcMain.handle("t3:replies-since", (_e, id, since) => t3.repliesSince(id, since));
+ipcMain.handle("t3:resolved-since", (_e, since) => t3.resolvedRequestsSince(since));
 ipcMain.handle("t3:user-messages", (_e, since, exclude) => t3.userMessagesSince(since, exclude));
 ipcMain.handle("project:remove", (_e, o) => t3.removeProject(o));
 ipcMain.handle("app:host", () => require("node:os").hostname());

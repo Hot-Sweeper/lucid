@@ -836,6 +836,21 @@ export class Walker {
     return TL().to(this.st, { nod: 6, duration: 0.14, ease: "sine.inOut", yoyo: true, repeat: 3 });
   }
 
+  /** A "no": the head turns from side to side. */
+  shakeNo() {
+    return TL().to(this.st, { look: -0.55, tilt: -2, duration: 0.16, ease: "sine.inOut" })
+      .to(this.st, { look: 0.55, tilt: 2, duration: 0.28, ease: "sine.inOut", yoyo: true, repeat: 2 })
+      .to(this.st, { look: 0, tilt: 0, duration: 0.2, ease: "sine.out" });
+  }
+
+  /** Point straight out of the picture, at you, then hands back to where they were. */
+  pointAtYou(hold = 1.4) {
+    const st = this.st, typing = this.activity === "type";
+    return TL().to(st, { mash: 0, rx: 12, ry: 4, rz: 86, rr: 0, ru: 1, lean: 4, nod: 2, duration: 0.3, ease: "back.out(1.6)" })
+      .to(st, { rz: 92, duration: 0.12, yoyo: true, repeat: 1, ease: "sine.inOut" })
+      .to(st, { ...(typing ? { rx: KEYS.x, ry: KEYS.y, rz: KEYS.z } : { ru: 0 }), lean: 0, nod: 0, duration: 0.45, ease: "power2.inOut" }, `+=${hold}`);
+  }
+
   /** Pick up the rubber stamp, press it down beside the keyboard (`onHit` at contact), put it away. */
   stamp(onHit: () => void = () => {}) {
     const st = this.st, keep = this.propL;

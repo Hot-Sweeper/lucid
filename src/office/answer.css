@@ -57,3 +57,9 @@ textarea.ca-text { resize: vertical; min-height: 54px; max-height: 200px; }
 .world-queue .world-card { pointer-events: auto; cursor: pointer; }
 
 @media (prefers-reduced-motion: reduce) { .ca-text { transition: none; } }
+
+/* what the orchestrator did with the request (delegate.ts): one plain line, no badge */
+.ca-boss { margin: 0 0 10px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); overflow-wrap: anywhere; }
+.ca-boss[hidden] { display: none; }
+.ca-boss[data-state="failed"] { color: #ffcf9e; }
+.ca-alt.ca-suggested { box-shadow: inset 0 0 0 1px rgba(255, 159, 90, 0.6); }

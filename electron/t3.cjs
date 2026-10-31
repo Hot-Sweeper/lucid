@@ -471,4 +471,45 @@ function pendingRequests(threadId) {
   });
 }
 
-module.exports = { pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
+// --- the orchestrator deciding questions ---------------------------------------------------
+
+/** A short picture of a thread for the orchestrator: title, project, what was last said. */
+function requestContext(threadId) {
+  const db = getDb();
+  const t = db.prepare(`select t.title, p.title as project from orchestration_v2_projection_threads t
+                        left join projection_projects p on p.project_id = t.project_id where t.thread_id = ?`).get(threadId);
+  const last = (role) => safeJson(db.prepare("select payload_json as p from orchestration_v2_projection_messages where thread_id = ? and role = ? order by created_at desc limit 1").get(threadId, role)?.p)?.text || "";
+  return { title: t?.title || "", project: t?.project || "", user: last("user").slice(0, 400), robot: last("assistant").slice(-600) };
+}
+
+/** The orchestrator's replies since a moment, plus how its latest run is doing. */
+function repliesSince(threadId, since) {
+  const db = getDb();
+  const messages = db.prepare("select created_at as at, streaming, payload_json as p from orchestration_v2_projection_messages where thread_id = ? and role = 'assistant' and created_at > ? order by created_at asc limit 20")
+    .all(threadId, since).map((r) => ({ at: r.at, streaming: !!r.streaming, text: safeJson(r.p)?.text || "" }));
+  const run = db.prepare("select status from orchestration_v2_projection_runs where thread_id = ? order by ordinal desc limit 1").get(threadId);
+  const exists = !!db.prepare("select 1 from orchestration_v2_projection_threads where thread_id = ? and archived_at is null and deleted_at is null").get(threadId);
+  return { messages, runStatus: run?.status || null, exists };
+}
+
+/** Questions and approvals that were answered since a moment (by anyone), with what was asked and the answer. */
+function resolvedRequestsSince(since) {
+  const db = getDb();
+  const rows = db.prepare(`select q.runtime_request_id as id, q.thread_id as threadId, q.kind, q.resolved_at as at, q.payload_json as p, t.title, pr.title as project
+                           from orchestration_v2_projection_runtime_requests q
+                           left join orchestration_v2_projection_threads t on t.thread_id = q.thread_id
+                           left join projection_projects pr on pr.project_id = t.project_id
+                           where q.status = 'resolved' and q.resolved_at > ? order by q.resolved_at asc limit 40`).all(since);
+  const itemStmt = db.prepare(`select payload_json as p from orchestration_v2_projection_turn_items
+                               where thread_id = ? and type in ('user_input_request','approval_request') and json_extract(payload_json, '$.requestId') = ?
+                               order by ordinal desc limit 1`);
+  return rows.map((r) => {
+    const rp = safeJson(r.p) || {};
+    const item = safeJson(itemStmt.get(r.threadId, r.id)?.p) || {};
+    const questions = (item.questions || rp.questions || []).map((q) => ({ id: String(q.id), question: q.question || q.header || "", options: (q.options || []).map((o) => o.label) }));
+    return { id: r.id, threadId: r.threadId, title: r.title || "", project: r.project || "", at: r.at, kind: r.kind,
+      questions, answers: rp.answers || null, decision: rp.decision || null, prompt: item.prompt || "" };
+  });
+}
+
+module.exports = { requestContext, repliesSince, resolvedRequestsSince, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };

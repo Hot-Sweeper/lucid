@@ -29,6 +29,10 @@ export class Boss {
   private life: gsap.core.Tween | null = null;
   private busyUntil = 0;
   private glowAnim: gsap.core.Animation | null = null;
+  // a robot's question is with the orchestrator right now (delegate.ts): it reads instead of idling
+  private deciding = false;
+  private readLoop: gsap.core.Tween | null = null;
+  private quietUntil = 0;   // its run ended with a decision: no extra "Done." stamp for that run
 
   constructor(private layer: HTMLElement, private desk: BossDesk) {}
 
@@ -57,7 +61,7 @@ export class Boss {
   /** A robot just took its place in line: look over and wave. */
   greet(x: number, y: number) {
     const w = this.w;
-    if (!w || reduced() || performance.now() < this.busyUntil) return;
+    if (!w || reduced() || this.deciding || performance.now() < this.busyUntil) return;
     this.busyUntil = performance.now() + 2200;
     this.look(x, y, 1.6);
     gsap.delayedCall(0.3, () => this.w === w && w.greet());
@@ -65,12 +69,13 @@ export class Boss {
 
   /** The bell rang: a quick look at whoever rang it. */
   heard(x: number, y: number) {
-    if (!this.w || reduced() || performance.now() < this.busyUntil) return;
+    if (!this.w || reduced() || this.deciding || performance.now() < this.busyUntil) return;
     this.look(x, y, 0.9);
   }
 
   private look(x: number, y: number, hold: number) {
-    const w = this.w!;
+    const w = this.w;
+    if (!w) return;
     w.glance((x - w.x) / 90, Math.min(1, Math.max(-0.3, (y - w.y) / 160)), hold);
   }
 
@@ -86,7 +91,56 @@ export class Boss {
       ? (reduced() ? gsap.to(g, { opacity: 0.85, duration: 0.3 }) : gsap.fromTo(g, { opacity: 0.55 }, { opacity: 0.95, duration: 1.4, ease: "sine.inOut", yoyo: true, repeat: -1 }))
       : gsap.to(g, { opacity: 0, duration: 0.8, ease: "power2.out" });
     if (on && !reduced()) { this.busyUntil = performance.now() + 1500; w.glance(-1, 0.3, 1); }
-    if (!on && was) this.done();
+    if (!on && was && !this.deciding && performance.now() > this.quietUntil) this.done();
+  }
+
+  /** While the decision is actually in flight: it turns to the robot (`at` gives where it stands)
+   *  and reads its card, glancing at its screen in between. Null stops reading. */
+  read(at: (() => { x: number; y: number } | null) | null) {
+    this.readLoop?.kill();
+    this.readLoop = null;
+    const w = this.w;
+    this.deciding = !!at;
+    if (!w) return;
+    if (!at) { w.setExpression("neutral"); return; }
+    w.setExpression("focus");
+    const loop = (i: number) => {
+      if (this.w !== w || !this.deciding) return;
+      const p = at();
+      if (i % 3 !== 2 && p) this.look(p.x, p.y, 1.5); else w.glance(-1, 0.25, 1.1);
+      this.readLoop = gsap.delayedCall(2.2, () => loop(i + 1));
+    };
+    if (reduced()) { const p = at(); if (p) this.look(p.x, p.y, 2); } else loop(0);
+  }
+
+  /** It answered for you: a stamp on the paper and a nod toward the robot. */
+  answered(at: { x: number; y: number } | null) {
+    this.read(null);
+    const w = this.w;
+    if (!w) return;
+    this.quietUntil = performance.now() + 20000;
+    this.busyUntil = performance.now() + 3200;
+    if (reduced()) { w.setExpression("happy"); gsap.delayedCall(1.6, () => this.w === w && w.setExpression("neutral")); return; }
+    w.stamp(() => this.thunk()).add(() => {
+      w.setExpression("happy");
+      if (at) this.look(at.x, at.y, 1.2);
+      w.nodYes();
+      gsap.delayedCall(1.8, () => this.w === w && w.setExpression("neutral"));
+    });
+  }
+
+  /** It was not sure (or may not answer this kind): a shake of the head, then it points at you. */
+  passed() {
+    this.read(null);
+    const w = this.w;
+    if (!w) return;
+    this.quietUntil = performance.now() + 20000;
+    this.busyUntil = performance.now() + 3600;
+    w.setExpression("shy");
+    gsap.delayedCall(2.8, () => this.w === w && w.setExpression("neutral"));
+    w.say("Over to you.", 2200);
+    if (reduced()) return;
+    w.shakeNo().add(() => { if (this.w === w) w.pointAtYou(1.2); });
   }
 
   private done() {
@@ -115,7 +169,7 @@ export class Boss {
     this.life = gsap.delayedCall(rnd(2.5, 6), () => {
       const w = this.w;
       if (!w) return;
-      if (performance.now() >= this.busyUntil) {
+      if (performance.now() >= this.busyUntil && !this.deciding) {
         const r = Math.random(), line = this.visitors();
         if (r < 0.35) w.glance(-1, 0.25, rnd(0.8, 2));
         else if (r < 0.6 && line.length) { const v = line[0]; this.look(v.x, v.y, rnd(0.8, 1.6)); }
@@ -127,6 +181,9 @@ export class Boss {
   }
 
   clear() {
+    this.readLoop?.kill();
+    this.readLoop = null;
+    this.deciding = false;
     this.life?.kill();
     this.life = null;
     this.glowAnim?.kill();

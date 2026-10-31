@@ -1,0 +1,17 @@
+/* The orchestrator answering questions for you (delegate.ts): sidebar line and decisions list. */
+.orch-line + .orch-line { margin-top: -6px; }
+.orch .switch + .switch { margin-top: 8px; }
+.dl-sure { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; font-size: 13px; color: var(--ink-2); }
+.dl-item { padding: 10px 0; border-top: 1px solid var(--line); }
+.dl-item:first-child { border-top: 0; padding-top: 2px; }
+.dialog.decisions .nb-body p { padding-left: 0; }
+.dialog.decisions .nb-body p::before { content: none; }
+.dl-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.dialog.decisions .dl-head { margin-bottom: 2px; font-size: 12.5px; color: var(--ink-2); }
+.dl-robot { min-width: 0; overflow-wrap: anywhere; }
+.dl-proj { color: var(--ink-3); }
+.dl-head time { flex: none; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.dialog.decisions .dl-q { color: var(--ink); margin-bottom: 4px; overflow-wrap: anywhere; }
+.dialog.decisions .dl-out, .dialog.decisions .dl-why, .dialog.decisions .dl-you { font-size: 12.5px; color: var(--ink-2); margin-bottom: 2px; overflow-wrap: anywhere; }
+.dl-out b { color: var(--ink); font-weight: 600; }
+.dialog.decisions .dl-empty { color: var(--ink-2); }

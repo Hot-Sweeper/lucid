@@ -14,6 +14,7 @@ import gsap from "gsap";
 import { World, type Room, type WorldData } from "./office/world";
 import { ChatPanel } from "./office/chat-panel";
 import { AnswerCard } from "./office/answer";
+import { Delegate, showDecisions } from "./office/delegate";
 import { showMenu, confirmDialog } from "./office/menus";
 import { openHire, BUILTIN_ROLES, type Role } from "./office/hire";
 import { openCustomizeFor } from "./office/customize";
@@ -135,7 +136,7 @@ world.panelWidth = panelSpace();
 window.addEventListener("resize", () => (world.panelWidth = panelSpace()));
 world.onFocus = (d) => { if (d) { chat.open(d); chat.setView(world.focusMode); pushStatus(d); } else chat.close(); };
 // a robot's question, answered from its chat (see openAnswer)
-const answer = new AnswerCard(chat, { pending: (id) => (window as any).lucid.pendingRequests(id), t3: (window as any).lucidT3 });
+const answer = new AnswerCard(chat, { pending: (id) => (window as any).lucid.pendingRequests(id), t3: (window as any).lucidT3, advice: (rid) => delegate.advice.get(rid) ?? null });
 // a chat opened without a desk (questions room, follow chip) closes itself
 chat.onClose = () => { if (!world.focusDesk) chat.close(); world.unfocus(); };
 chat.onToggleView = () => {
@@ -225,6 +226,7 @@ async function refresh() {
     const data = await api.world();
     for (const p of data.projects) projectTitles.set(p.id, p.title);
     orch.observe(data.threads);
+    void delegate.observe(data.threads, data.projects);
     renderCompany(data.shipped ?? { total: 0, today: 0 });
     if (settings.orch) { world.orchThread = settings.orch.threadId; world.homes.set(settings.orch.threadId, "main"); }
     world.update(data);
@@ -428,6 +430,11 @@ setupMenus();
 const orch = new Orchestrator(api as any, world, () => settings.orch ?? null, (s) => { settings.orch = s; saveSettings(); });
 orch.onChange = renderOrch;
 (window as any).__orch = orch; // debug handle for test runs
+// questions go to the orchestrator first; it answers what it is sure about and passes the rest to you
+const delegate = new Delegate(api as any, (window as any).lucidT3, () => settings.orch ?? null, (p) => { if (settings.orch) { settings.orch = { ...settings.orch, ...p }; saveSettings(); } });
+delegate.onPhase = (id, phase, text) => { world.bossDecision(id, phase, text); answer.ping(id); };
+delegate.onChange = () => renderOrch();
+(window as any).__delegate = delegate;
 (window as any).__chat = chat;
 (window as any).__refresh = () => refresh();
 function renderOrch() {
@@ -451,11 +458,16 @@ function renderOrch() {
     });
     return;
   }
+  const log = delegate.log;
   body.innerHTML = `
     <p class="orch-line">Learned from <b>${s.learned}</b> of your messages</p>
+    <p class="orch-line">Answered <b>${log.auto}</b> ${log.auto === 1 ? "question" : "questions"} for you, asked you <b>${log.asked}</b></p>
+    <label class="switch"><input type="checkbox" id="orch-auto" ${s.auto !== false ? "checked" : ""}><span class="track" aria-hidden="true"><i></i></span><span>Let the Orchestrator answer for me</span></label>
     <label class="switch"><input type="checkbox" id="orch-review" ${s.review ? "checked" : ""}><span class="track" aria-hidden="true"><i></i></span><span>Review finished work for me</span></label>
-    <div class="orch-actions"><button type="button" class="ghost" id="orch-notes">Read its notebook</button><button type="button" class="ghost" id="orch-desk">Go to its chair</button></div>`;
+    <div class="orch-actions"><button type="button" class="ghost" id="orch-decisions">Recent decisions</button><button type="button" class="ghost" id="orch-notes">Read its notebook</button><button type="button" class="ghost" id="orch-desk">Go to its chair</button></div>`;
   $<HTMLInputElement>("orch-review").addEventListener("change", (e) => orch.setReview((e.target as HTMLInputElement).checked));
+  $<HTMLInputElement>("orch-auto").addEventListener("change", (e) => { if (settings.orch) { settings.orch = { ...settings.orch, auto: (e.target as HTMLInputElement).checked }; saveSettings(); } });
+  $("orch-decisions").addEventListener("click", () => showDecisions(delegate, (v) => { if (settings.orch) { settings.orch = { ...settings.orch, threshold: v }; saveSettings(); } }));
   $("orch-notes").addEventListener("click", () => void orch.showNotebook());
   // it sits in the boss chair in the questions room: follow it there (or its desk, if it has one)
   $("orch-desk").addEventListener("click", () => {
@@ -681,7 +693,7 @@ function renderThreads() {
     const p = projects.get(t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
     const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
-    const state = t.question ? `<span class="th-st ask">Needs input</span>`
+    const state = t.question ? `<span class="th-st ask">${delegate.phaseOf(t.id) === "reading" ? "With the Orchestrator" : "Needs input"}</span>`
       : t.runStatus === "running" ? `<span class="th-st work"><i></i>Working ${ago(t.runStartedAt || t.updatedAt)}</span>`
       : t.lastStatus === "failed" ? `<span class="th-st fail">Failed</span>`
       : t.unseen && t.lastStatus === "completed" ? `<span class="th-st done">Done</span>`
