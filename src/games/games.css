@@ -1,0 +1,135 @@
+/* Lucid games pack: Blockcraft, Night Shift, tic-tac-toe, Four in a Row, Bit Merge. Every class is prefixed gm-. */
+
+/* ---------------- shared frame ---------------- */
+.gm-game { position: relative; height: 100%; display: flex; flex-direction: column; background: #161a45; color: #eef0ff; font-family: var(--font, "Lexend Variable", system-ui, sans-serif); user-select: none; }
+.gm-head { flex: none; height: 30px; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 0 12px; color: #c9cdf5; font-size: 11px; }
+.gm-name { font-weight: 500; white-space: nowrap; }
+.gm-score { color: #fff; font-weight: 500; font-variant-numeric: tabular-nums; transform-origin: 100% 50%; white-space: pre; }
+.gm-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.gm-stage > canvas { position: absolute; left: 0; top: 0; display: block; }
+.gm-aim { position: absolute; left: 0; top: 0; width: 10px; height: 10px; pointer-events: none; visibility: hidden; }
+.gm-over { position: absolute; inset: 0; z-index: 20; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center;
+  background: radial-gradient(70% 60% at 50% 50%, rgba(14, 18, 51, 0.78), rgba(14, 18, 51, 0.4)); color: #fff; pointer-events: none; }
+.gm-over.gm-on { display: flex; }
+.gm-over-t { font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+.gm-over-d { font-size: 12px; color: #c9cdf5; font-variant-numeric: tabular-nums; white-space: pre; }
+.gm-over[data-tone="good"] .gm-over-t { color: #4ff0a0; }
+.gm-over[data-tone="bad"] .gm-over-t { color: #ff9f5a; }
+
+/* ---------------- tic-tac-toe ---------------- */
+.gm-ttt .gm-stage { background: radial-gradient(80% 70% at 50% 45%, #1e2458, #161a45); }
+.gm-ttt-wrap { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr auto 1fr; grid-template-rows: 1fr auto; align-items: center; justify-items: center; padding: 12px 0 10px; }
+.gm-ttt-board { position: relative; }
+.gm-ttt-board svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.gm-ttt-grid path { fill: none; stroke: #2e3577; stroke-width: 7; stroke-linecap: round; }
+.gm-ttt-x { fill: none; stroke: #ff9f5a; stroke-width: 15; stroke-linecap: round; }
+.gm-ttt-o { fill: none; stroke: #4fb6ff; stroke-width: 13; stroke-linecap: round; }
+.gm-ttt-win { fill: none; stroke: #f6ecdc; stroke-width: 9; stroke-linecap: round; opacity: 0.92; }
+.gm-ttt-cell { position: absolute; width: 33.333%; height: 33.333%; border-radius: 14px; transition: background-color 0.18s; }
+.gm-ttt-cell.gm-hot { background: rgba(255, 159, 90, 0.1); }
+.gm-ttt-side { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #8a91c4; font-size: 11px; transition: color 0.25s; }
+.gm-ttt-side b { font-size: 22px; font-weight: 600; line-height: 1; transition: transform 0.25s, color 0.25s; }
+.gm-ttt-me b { color: rgba(255, 159, 90, 0.45); }
+.gm-ttt-cpu b { color: rgba(79, 182, 255, 0.45); }
+.gm-ttt-side.gm-on { color: #eef0ff; }
+.gm-ttt-me.gm-on b { color: #ff9f5a; transform: scale(1.18); }
+.gm-ttt-cpu.gm-on b { color: #4fb6ff; transform: scale(1.18); }
+.gm-ttt-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; height: 22px; font-size: 12px; color: #c9cdf5; }
+.gm-ttt-pips { display: flex; gap: 5px; }
+.gm-ttt-pip { width: 8px; height: 8px; border-radius: 50%; background: #2e3577; }
+.gm-ttt-pip.gm-w { background: #ff9f5a; }
+.gm-ttt-pip.gm-l { background: #4fb6ff; }
+.gm-ttt-pip.gm-d { background: #8a91c4; }
+
+/* ---------------- Five Nights at the Server Room ---------------- */
+.gm-ns .gm-stage { background: #0b0d1f; }
+.gm-ns-ctl { position: absolute; top: 96px; z-index: 3; display: flex; flex-direction: column; gap: 5px; padding: 5px; border-radius: 8px; background: #1b2150; }
+.gm-ns-l { left: 108px; }
+.gm-ns-r { right: 108px; }
+.gm-ns-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 22px; border-radius: 6px; background: #2a3168; color: #8a91c4; font-size: 9px; font-weight: 600; transition: background-color 0.15s, color 0.15s; }
+.gm-ns-btn.gm-hot { background: #39418a; color: #eef0ff; }
+.gm-ns-btn[data-k="door"].gm-on { background: #ff9f5a; color: #2a1407; }
+.gm-ns-btn[data-k="light"].gm-on { background: #f6ecdc; color: #141a33; }
+.gm-ns-clock { position: absolute; top: 9px; right: 14px; z-index: 3; display: flex; align-items: baseline; gap: 8px; }
+.gm-ns-clock b { font: 600 17px var(--mono, ui-monospace, monospace); color: #f6ecdc; transform-origin: 100% 60%; }
+.gm-ns-clock span { font-size: 10px; color: #8a91c4; }
+.gm-ns-hud { position: absolute; left: 12px; bottom: 9px; z-index: 3; display: flex; align-items: center; gap: 8px; font-size: 10px; color: #8a91c4; }
+.gm-ns-pow b { font: 600 12px var(--mono, ui-monospace, monospace); color: #eef0ff; }
+.gm-ns-pow b.gm-low { color: #ff6f91; }
+.gm-ns-use { display: flex; gap: 2px; }
+.gm-ns-use i { width: 6px; height: 11px; border-radius: 2px; background: #262d5e; }
+.gm-ns-use i.gm-on { background: #4ff0a0; }
+.gm-ns-use i.gm-on:nth-child(3) { background: #ff9f5a; }
+.gm-ns-use i.gm-on:nth-child(4) { background: #ff6f91; }
+.gm-ns-flip { position: absolute; bottom: 6px; left: calc(50% - 80px); z-index: 6; display: flex; align-items: center; justify-content: center; width: 160px; height: 20px; border-radius: 6px;
+  background: #2a3168; color: #c9cdf5; font-size: 10px; font-weight: 600; transition: background-color 0.15s, color 0.15s; }
+.gm-ns-flip.gm-hot { background: #39418a; color: #fff; }
+.gm-ns-flip.gm-on { background: #4ff0a0; color: #0b1a14; }
+.gm-ns-cam { position: absolute; left: 0; right: 0; top: 0; height: calc(100% - 30px); z-index: 5; overflow: hidden; background: #0a0e1c; }
+.gm-ns-feed { position: absolute; left: 0; top: 0; display: block; }
+.gm-ns-scan { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(4, 6, 14, 0.24) 0 1px, rgba(0, 0, 0, 0) 1px 3px); }
+.gm-ns-scan::after { content: ""; position: absolute; left: 0; right: 0; top: -30%; height: 30%; background: linear-gradient(180deg, rgba(180, 230, 255, 0), rgba(180, 230, 255, 0.05), rgba(180, 230, 255, 0)); animation: gm-ns-roll 4.5s linear infinite; }
+@keyframes gm-ns-roll { to { transform: translateY(440%); } }
+.gm-ns-label { position: absolute; left: 12px; top: 10px; display: flex; align-items: baseline; gap: 8px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.gm-ns-label b { font: 600 13px var(--mono, ui-monospace, monospace); color: #f6ecdc; }
+.gm-ns-label span { font-size: 11px; color: #c9cdf5; }
+.gm-ns-map { position: absolute; right: 12px; bottom: 10px; width: 146px; height: 86px; }
+.gm-ns-room, .gm-ns-you { position: absolute; display: flex; align-items: center; justify-content: center; width: 46px; height: 26px; border-radius: 5px; font: 600 10px var(--mono, ui-monospace, monospace); }
+.gm-ns-room { background: rgba(201, 205, 245, 0.16); color: #c9cdf5; transition: background-color 0.15s, color 0.15s; }
+.gm-ns-room.gm-hot { background: rgba(201, 205, 245, 0.3); }
+.gm-ns-room.gm-on { background: #4ff0a0; color: #0b1a14; }
+.gm-ns-you { background: rgba(255, 159, 90, 0.22); color: #ff9f5a; font-family: var(--font, system-ui, sans-serif); }
+.gm-ns-intro { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: #0b0d1f; }
+.gm-ns-intro b { font-size: 17px; font-weight: 600; color: #f6ecdc; }
+.gm-ns-intro span { font: 500 12px var(--mono, ui-monospace, monospace); color: #8a91c4; white-space: pre; }
+.gm-ns-out .gm-ns-ctl, .gm-ns-out .gm-ns-flip { opacity: 0.35; }
+.gm-ns-ctl, .gm-ns-flip, .gm-ns-hud, .gm-ns-clock { transition: opacity 0.3s; }
+.gm-ns-end .gm-ns-ctl, .gm-ns-end .gm-ns-flip, .gm-ns-end .gm-ns-hud, .gm-ns-end .gm-ns-clock { opacity: 0; }
+.gm-ns-out .gm-ns-hud { opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) { .gm-ns-scan::after { animation: none; display: none; } }
+
+/* ---------------- Four in a Row ---------------- */
+.gm-c4 .gm-stage { background: radial-gradient(80% 70% at 50% 45%, #1e2458, #161a45); }
+.gm-c4-wrap { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; justify-items: center; padding-bottom: 8px; }
+.gm-c4-board { position: relative; }
+.gm-c4-board svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.gm-c4-face { fill: #2e3577; }
+.gm-c4-d.gm-p1 { fill: #ff9f5a; }
+.gm-c4-d.gm-p2 { fill: #4fb6ff; }
+.gm-c4-win { fill: none; stroke: #f6ecdc; stroke-width: 7; stroke-linecap: round; opacity: 0.92; }
+.gm-c4-col { position: absolute; }
+.gm-c4-side { display: flex; flex-direction: column; align-items: center; gap: 5px; color: #8a91c4; font-size: 11px; transition: color 0.25s; }
+.gm-c4-side i { width: 18px; height: 18px; border-radius: 50%; opacity: 0.45; transition: transform 0.25s, opacity 0.25s; }
+.gm-c4-me i { background: #ff9f5a; }
+.gm-c4-cpu i { background: #4fb6ff; }
+.gm-c4-side.gm-on { color: #eef0ff; }
+.gm-c4-side.gm-on i { opacity: 1; transform: scale(1.2); }
+
+/* ---------------- Bit Merge ---------------- */
+.gm-mg .gm-stage { background: radial-gradient(80% 70% at 50% 45%, #1e2458, #161a45); }
+.gm-mg-wrap { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; }
+.gm-mg-board { position: relative; border-radius: 12px; background: #232a63; }
+.gm-mg-slot { position: absolute; border-radius: 8px; background: #2b337a; }
+.gm-mg-tile { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border-radius: 8px; background: #3a4392; color: #f6ecdc; will-change: transform; }
+.gm-mg-tile b { font-size: 22px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.gm-mg-tile span { font-size: 9px; font-weight: 500; opacity: 0.75; }
+.gm-mg-tile[data-v="4"] { background: #4b4fb4; }
+.gm-mg-tile[data-v="8"] { background: #6a5bd6; }
+.gm-mg-tile[data-v="16"] { background: #9a6cf2; }
+.gm-mg-tile[data-v="32"] { background: #d66ab8; }
+.gm-mg-tile[data-v="64"] { background: #ff6f91; }
+.gm-mg-tile[data-v="128"] { background: #ff8f5a; color: #2a1407; }
+.gm-mg-tile[data-v="256"] { background: #ffb36b; color: #2a1407; }
+.gm-mg-tile[data-v="512"] { background: #4ff0a0; color: #0b2a1c; }
+.gm-mg-tile[data-v="1024"] { background: #4fb6ff; color: #0b1a2c; }
+.gm-mg-tile[data-v="2048"] { background: #f6ecdc; color: #141a33; }
+.gm-mg-tile[data-v="512"] b, .gm-mg-tile[data-v="1024"] b, .gm-mg-tile[data-v="2048"] b { font-size: 18px; }
+.gm-mg-eyes { position: relative; width: 18px; height: 5px; margin-bottom: 2px; }
+.gm-mg-eyes::before, .gm-mg-eyes::after { content: ""; position: absolute; top: 0; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.gm-mg-eyes::before { left: 1px; }
+.gm-mg-eyes::after { right: 1px; }
+.gm-mg-foot { display: flex; gap: 18px; font-size: 11px; color: #8a91c4; }
+.gm-mg-foot b { color: #eef0ff; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---------------- Blockcraft ---------------- */
+.gm-bc .gm-stage { background: #141a33; }

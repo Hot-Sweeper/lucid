@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { WM, Cancelled } from "./wm";
 import { CalcApp, IDLE_SUMS } from "./calc";
+import { playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge } from "../games";
 import { SEARCHES as SEARCH_LINES, GAME_LINES, pickFresh } from "../content";
 const nextSearch = pickFresh(SEARCH_LINES, "lucid:searches");
 const gameLine = (kind: string, game?: string) => {
@@ -123,6 +124,7 @@ export class IdleLife {
     const games = 0.35 + 2.2 * H("gamer");
     const weights: Record<string, number> = {
       snake: games * g.snake, flappy: games * g.flappy, dash: games * g.dash, chess: games * 0.8 * g.chess,
+      blockcraft: games * 1.1, nightshift: games * 0.8, tictactoe: games * 0.5, connect4: games * 0.5, bitmerge: games * 0.6,
       phone: (p?.phone === "tube" ? 0.4 : 1) * (0.6 + 1.6 * H("chiller") + 1.2 * H("watcher")),
       tube: (p?.phone === "tube" ? 1 : 0.4) * (0.4 + 2.4 * H("watcher")),
       tensorhub: 0.05 + 0.1 * H("watcher"),
@@ -185,6 +187,11 @@ export class IdleLife {
       case "snake": return game("Snake", playSnake);
       case "flappy": return game("Flappy Drone", playFlappy);
       case "dash": return game("Dash", playDash);
+      case "blockcraft": return game("Blockcraft", playBlockcraft);
+      case "nightshift": return game("Five Nights at the Server Room", playNightShift);
+      case "tictactoe": return game("Tic-tac-toe", playTicTacToe);
+      case "connect4": return game("Four in a Row", playConnectFour);
+      case "bitmerge": return game("Bit Merge", playBitMerge);
       case "chess": {
         this.onActivity("Playing chess while it waits");
         await this.playChess(tok);
