@@ -78,6 +78,8 @@ export class TopDownRobot implements SeatedRobot {
   private wrist = { vx: 0, lastX: 0 };
   private front = { l: false, r: false };
   private mouseP: Pt;
+  private mouseSpin = 0;
+  private mouseGoal: Pt;                          // where the real cursor says the mouse should be
   private mouseW = { v: 0 };
   private lastMouse = "";
   private gripL = { w: 0 };
@@ -132,6 +134,7 @@ export class TopDownRobot implements SeatedRobot {
       <ellipse cx="0" cy="0" rx="4.6" ry="6.8" fill="var(--shade)"/><ellipse cx="-1" cy="-1.8" rx="2.9" ry="4.3" fill="var(--shell)"/></g></svg>`);
     this.thumb = thumbHost.lastElementChild as SVGSVGElement;
     this.mouseP = { ...desk.mouse };
+    this.mouseGoal = { ...desk.mouse };
     this.wrist.lastX = this.mouseP.x;
     this.setBrand("codex");
     this.setExpression("neutral");
@@ -409,14 +412,17 @@ export class TopDownRobot implements SeatedRobot {
     gsap.timeline().to(this.press, { r: 1, duration: 0.05 }).to(this.press, { r: 0, duration: 0.12, ease: "power2.out" });
   }
 
-  mouseTo(nx: number, ny: number, d = 0.35) {
+  // The on-screen cursor moved: the physical mouse follows the same path, frame by frame, at
+  // the scale of a real mouse (the whole screen is about the width of the pad). It is not
+  // tweened here: restarting an eased tween every frame is what made it crawl before.
+  mouseTo(nx: number, ny: number) {
     const m = this.desk.mouse;
-    gsap.to(this.mouseP, { x: m.x + (nx - 0.5) * 26, y: m.y + (ny - 0.5) * 18, duration: d, ease: "power2.inOut", overwrite: true });
-    if (!this.facing && !this.busy && !this.fitting && !this.phoneP && this.pose !== "sleep" && this.pose !== "think" && this.pose !== "stretch")
-      gsap.to(this.mouseW, { v: 1, duration: 0.35, ease: "power2.inOut", overwrite: true });
+    this.mouseGoal = { x: m.x + (nx - 0.5) * 25, y: m.y + (ny - 0.5) * 15 };
+    if (this.mouseW.v < 0.999 && !gsap.isTweening(this.mouseW) && !this.facing && !this.busy && !this.fitting && !this.phoneP && this.pose !== "sleep" && this.pose !== "think" && this.pose !== "stretch")
+      gsap.to(this.mouseW, { v: 1, duration: 0.35, ease: "power2.inOut" });
   }
 
-  nudgeMouse(nx: number, ny: number) { this.mouseTo(nx, ny, 0.5); }
+  nudgeMouse(nx: number, ny: number) { this.mouseTo(nx, ny); }
 
   lookAt(nx: number, ny = 0.5) {
     if (this.facing || this.pose === "think" || this.pose === "sleep" || this.phoneP) return;
@@ -800,9 +806,16 @@ export class TopDownRobot implements SeatedRobot {
     const shrug = r.shrug - gNod * 1.3 - ant * 1.4;
     const breathPx = breath * S;
 
+    // The mouse chases the real cursor path (a short smoothing only, so it stays 1:1) and turns
+    // a little with the swing of the wrist, like a real mouse under a hand.
+    if (this.mouseW.v > 0.5) {
+      const k = 1 - Math.exp(-dt / 0.028), gx = this.mouseGoal.x - this.mouseP.x, gy = this.mouseGoal.y - this.mouseP.y;
+      this.mouseP.x += gx * k; this.mouseP.y += gy * k;
+      this.mouseSpin = lerp(this.mouseSpin, clamp(gx * 5, -7, 7), 1 - Math.exp(-dt / 0.09));
+    } else this.mouseSpin = lerp(this.mouseSpin, 0, 0.2);
     // mouse, mug and phone follow their own anchors
-    const mk = `${this.mouseP.x.toFixed(1)},${this.mouseP.y.toFixed(1)}`;
-    if (mk !== this.lastMouse) { this.lastMouse = mk; this.desk.moveMouse(this.mouseP); }
+    const mk = `${this.mouseP.x.toFixed(2)},${this.mouseP.y.toFixed(2)},${this.mouseSpin.toFixed(1)}`;
+    if (mk !== this.lastMouse) { this.lastMouse = mk; this.desk.moveMouse(this.mouseP, this.mouseSpin); }
     if (this.carrying && this.mugP) this.desk.moveMug(this.mugP, this.mugTilt.v);
     if (this.phoneP && this.phoneShown) this.desk.showPhone(this.phoneP, this.phoneTilt.v);
 

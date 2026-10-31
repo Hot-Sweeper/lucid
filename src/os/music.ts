@@ -74,7 +74,7 @@ export class MusicApp {
         <main class="bf-main"></main>
         <footer class="bf-bar">
           <div class="bf-now"></div>
-          <div class="bf-ctrl"><div class="bf-btns"><span class="bf-btn on">${I.shuffle}</span><span class="bf-btn">${I.prev}</span><span class="bf-play">${I.play}${I.pause}</span><span class="bf-btn">${I.next}</span><span class="bf-btn">${I.repeat}</span></div>
+          <div class="bf-ctrl"><div class="bf-btns"><span class="bf-btn on">${I.shuffle}</span><span class="bf-btn" data-act="prev">${I.prev}</span><span class="bf-play">${I.play}${I.pause}</span><span class="bf-btn" data-act="next">${I.next}</span><span class="bf-btn">${I.repeat}</span></div>
             <div class="bf-time"><span class="bf-el">0:00</span><div class="bf-prog"><i></i></div><span class="bf-len">0:00</span></div></div>
           <div class="bf-right"><span class="bf-btn">${I.queue}</span><span class="bf-btn">${I.device}</span><span class="bf-btn">${I.volume}</span><div class="bf-vol"><i></i></div></div>
         </footer>
@@ -165,6 +165,46 @@ export class MusicApp {
     this.run();
     await wm.sleep(400, e);
     return p.bpm;
+  }
+
+  /**
+   * Not feeling this song: open Botify (its usual way), hit next, sometimes again and again while
+   * hunting for the right one, now and then back one because the last was better. Nothing is
+   * skipped when nothing plays. Returns whether it skipped.
+   */
+  async skip() {
+    const wm = this.wm, e = wm.epoch;
+    if (!this.playing) return false;
+    const b = await this.ensure();
+    // the window was closed while the song went on: it comes back showing what plays
+    if (!b.querySelector(".bf-now b")) { this.showList(b, this.playing); this.showNow(b); }
+    const r = Math.random();
+    const presses = r < 0.55 ? 1 : r < 0.85 ? 2 : 3 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < presses; i++) {
+      wm.robot.setPose("mouse");
+      // a song gets a few seconds of a chance first
+      if (i === 0) this.elapsed = Math.max(this.elapsed, 4 + Math.floor(Math.random() * 20));
+      await wm.pointAt(b.querySelector('[data-act="next"]')!, 0.5, 0.5, i ? 200 : 420);
+      await wm.click();
+      wm.check(e);
+      this.trackIx++;
+      this.elapsed = 0;
+      this.showNow(b);
+      gsap.fromTo(b.querySelector(".bf-now div"), { opacity: 0, x: -8 }, { opacity: 1, x: 0, duration: 0.3, ease: "power2.out" });
+      await wm.sleep(i < presses - 1 ? 380 + Math.random() * 500 : 700, e);
+    }
+    // it was better before: one step back
+    if (Math.random() < 0.14 && this.trackIx > 0) {
+      await wm.pointAt(b.querySelector('[data-act="prev"]')!, 0.5, 0.5, 300);
+      await wm.click();
+      wm.check(e);
+      this.trackIx--;
+      this.elapsed = 0;
+      this.showNow(b);
+      gsap.fromTo(b.querySelector(".bf-now div"), { opacity: 0, x: 8 }, { opacity: 1, x: 0, duration: 0.3, ease: "power2.out" });
+      await wm.sleep(600, e);
+    }
+    return true;
   }
 
   // Paused: the bars stop, the row shows its number again, the clock stands still.

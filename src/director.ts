@@ -472,6 +472,15 @@ export class Director {
               await this.wm.maybeShuffle(wins[Math.floor(Math.random() * wins.length)].id, 1);
             }
           }
+          // a song it is not in the mood for: open Botify and skip it
+          if (!this.catchingUp && !this.queue.length && this.music.playing && this.present() && Math.random() < 0.05) {
+            this.onActivity("Skipping a song");
+            if (await this.music.skip()) {
+              // and back to work: Botify goes away again
+              const w = this.wm.wins.get("music");
+              if (w) { await this.wm.pointAt(w.el.querySelector(".win-x")!, 0.5, 0.5, 380); await this.wm.click(); this.wm.close("music"); }
+            }
+          }
           const live = [...this.sessions.entries()].filter(([, s]) => !s.done);
           if (live.length && Math.random() < 0.2) {
             this.onActivity("Checking on its helper");

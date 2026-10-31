@@ -336,7 +336,7 @@ export class Desk implements DeskStage {
       homeLeft: { ...me.keyCenters.get("f")! },
       homeRight: { ...me.keyCenters.get("j")! },
       mouse: { ...mouse },
-      moveMouse(p: Pt) { mouseG.setAttribute("transform", `translate(${(p.x - mouse.x).toFixed(1)} ${(p.y - mouse.y).toFixed(1)})`); },
+      moveMouse(p: Pt, turn = 0) { mouseG.setAttribute("transform", `translate(${(p.x - mouse.x).toFixed(2)} ${(p.y - mouse.y).toFixed(2)}) rotate(${turn.toFixed(1)} ${mouse.x} ${mouse.y})`); },
       mug: { ...mug },
       moveMug(p: Pt | null, tilt = 0) {
         mugG.setAttribute("transform", p ? `translate(${(p.x - mug.x).toFixed(1)} ${(p.y - mug.y).toFixed(1)}) rotate(${tilt} ${mug.x} ${mug.y})` : "");
