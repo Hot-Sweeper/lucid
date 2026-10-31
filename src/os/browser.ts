@@ -6,8 +6,9 @@ import type { WM } from "./wm";
 import { el, typeInto } from "./typing";
 import { loadPage, favHtml, searchHtml, webSearch, urlKey, shortUrl, hostOf, cleanQuery, loadingHtml, prFromApi, prHtml, compareHtml, setPrMerged, type Result, type PageView, type PrData } from "./sites";
 import "./web.css";
+import { FrontendView, localFrontendUrl, type FrontendTarget, type FrontendAction } from './frontend';
 
-type Tab = { key: string; url: string; title: string; kind: "page" | "search"; el: HTMLElement; page: HTMLElement; results: Result[]; view: PageView | null; loading: Promise<void> | null; used: number };
+type Tab = { key: string; url: string; title: string; kind: "page" | "search"; el: HTMLElement; page: HTMLElement; results: Result[]; view: PageView | null; loading: Promise<void> | null; used: number; live?: FrontendView };
 const MAX_TABS = 5;
 
 export type PrInfo = Omit<PrData, "checks" | "comments" | "state"> & { state?: PrData["state"] };
@@ -15,11 +16,53 @@ export type PrInfo = Omit<PrData, "checks" | "comments" | "state"> & { state?: P
 export class BrowserApp {
   private tabs: Tab[] = [];
   private active: Tab | null = null;
+  private frontendRefs = new Map<string, { role: string; name: string }>();
   constructor(private wm: WM, private peek: (url: string) => Promise<any>) {}
+
+  reset() { for (const t of this.tabs) t.live?.stop(); this.tabs = []; this.active = null; this.frontendRefs.clear(); }
+
+  private mountFrontend(t: Tab, target: FrontendTarget) {
+    if (t.live) { t.live.update(target); return; }
+    t.page.classList.add('frontend-page');
+    t.live = new FrontendView(target, () => this.active === t, title => { if (t.title !== title) this.look(t, title, t.url); });
+    t.page.replaceChildren(t.live.root);
+    t.view = { title: t.title, html: '', site: 'shot', url: t.url };
+  }
+
+  /** A saved HTML file can be previewed before there is a dev server. */
+  async frontendFile(file: string, root: string) {
+    const b = await this.ensure();
+    // A framework dev server owns its module transforms and HMR. Keep watching it
+    // instead of replacing it with a raw index.html when that file is edited.
+    const server = this.tabs.find(t => t.live && localFrontendUrl(t.url));
+    if (server) { this.show(b, server); return; }
+    let t = this.tabs.find(t => t.key === 'frontend-file');
+    if (!t) t = this.addTab(b, 'frontend-file', file, file.split(/[\\/]/).pop() || 'Frontend', 'page', true);
+    this.show(b, t); this.mountFrontend(t, { file, root });
+  }
+
+  rememberFrontendSnapshot(tree: string) {
+    this.frontendRefs.clear();
+    for (const line of tree.split('\n')) {
+      const ref = line.match(/(?:aria-ref=|ref=)([\w-]+)/)?.[1];
+      const label = line.match(/(?:^|[-\s])(button|link|heading|textbox|checkbox|combobox|region)\s+"([^"]+)"/);
+      if (ref && label) this.frontendRefs.set(ref, { role: label[1], name: label[2] });
+    }
+  }
+  frontendAction(action: FrontendAction) {
+    const ref = action.selector?.match(/^aria-ref=([\w-]+)$/)?.[1];
+    const identity = ref ? this.frontendRefs.get(ref) : undefined;
+    this.active?.live?.point({ ...action, ...identity });
+  }
+  refreshFrontendHtml(html: string) {
+    const t = this.tabs.find(t => t.key === 'frontend-html');
+    t?.live?.update({ html });
+  }
 
   private async ensure() {
     const w = await this.wm.open("browser");
     if (!w.body.querySelector(".browser")) {
+      this.reset();
       w.body.innerHTML = `
         <div class="browser">
           <div class="b-tabs" role="tablist"><span class="b-new" title="New tab"></span></div>
@@ -57,6 +100,7 @@ export class BrowserApp {
       const victim = [...this.tabs].filter((x) => x !== this.active && x !== t).sort((a, z) => a.used - z.used)[0];
       if (!victim) break;
       this.tabs.splice(this.tabs.indexOf(victim), 1);
+      victim.live?.stop();
       victim.page.remove();
       gsap.to(victim.el, { maxWidth: 0, opacity: 0, duration: 0.25, onComplete: () => victim.el.remove() });
     }
@@ -88,6 +132,7 @@ export class BrowserApp {
     if (!t) return;
     if (!instant) { await this.wm.pointAt(t.el.querySelector(".b-x")!, 0.5, 0.5, 300); await this.wm.click(); }
     this.tabs.splice(this.tabs.indexOf(t), 1);
+    t.live?.stop();
     t.el.remove();
     t.page.remove();
     if (!this.tabs.length) { this.active = null; this.wm.close("browser"); return; }
@@ -117,7 +162,13 @@ export class BrowserApp {
   private load(b: HTMLElement, t: Tab, url: string, o: { title?: string; text?: string; prState?: PrData["state"]; real?: boolean; html?: string } = {}) {
     const e = this.wm.epoch;
     t.url = url;
-    t.key = t.key.startsWith("pv:") ? t.key : urlKey(url);
+    t.key = t.key.startsWith("pv:") || t.key.startsWith('frontend-') ? t.key : urlKey(url);
+    if (localFrontendUrl(url) || o.html != null) {
+      this.mountFrontend(t, o.html != null ? { html: o.html } : { url });
+      this.look(t, o.title || t.title || 'Frontend', url);
+      return Promise.resolve();
+    }
+    t.live?.stop(); t.live = undefined; t.page.classList.remove('frontend-page');
     t.page.innerHTML = loadingHtml();
     t.el.classList.add("loading");
     if (t === this.active) this.q(b, ".b-progress").classList.add("loading");
@@ -144,6 +195,7 @@ export class BrowserApp {
   private async read(t: Tab, instant: boolean, ms = 3500) {
     const wm = this.wm, e = wm.epoch;
     wm.robot.setPose("read");
+    if (t.live) return;
     if (instant) { await wm.sleep(350, e); return; }
     const page = t.page;
     await wm.pointAt(page, 0.6, 0.5, 400);

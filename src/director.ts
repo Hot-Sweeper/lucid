@@ -1,3 +1,4 @@
+import { frontendUrlFromOutput } from "./os/frontend";
 import gsap from "gsap";
 import { WM, Cancelled } from "./os/wm";
 import { CalcApp, WORK_SUMS } from "./os/calc";
@@ -98,6 +99,7 @@ export class Director {
   private queue: string[] = [];
   private played = new Set<string>();
   private pumpEpoch = -1;
+  private frontendSignals = new Map<string, string>();
   private catchingUp = false;
   private info: ThreadInfo | null = null;
   private lastRunStatus = "";
@@ -161,11 +163,13 @@ export class Director {
     this.harness.reset();
     this.chat.reset();
     this.imageRefresh.reset();
+    this.browser.reset();
     this.codex.reset();
     this.uac.reset();
     this.mobile = false;
     if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
     this.lastEventAt = 0;
+    this.frontendSignals.clear();
     this.wm.reset();
     this.items.clear();
     this.queue = [];
@@ -258,6 +262,18 @@ export class Director {
     for (const it of items) {
       const t = Date.parse(it.updatedAt);
       if (t > this.lastEventAt) this.lastEventAt = t;
+      // React to streaming server output while the shell command is still running.
+      // The mirror uses its own cancellable tab lifecycle; it never sends UI clicks.
+      if (!initial && (it.type === 'command_execution' || it.type === 'dynamic_tool')) {
+        const output = outText(it.data.output);
+        const url = frontendUrlFromOutput(output);
+        if (url && this.frontendSignals.get(it.id) !== url) {
+          this.frontendSignals.set(it.id, url);
+          void this.browser.open(url, { instant: true, read: false, real: true }).catch(() => {});
+        }
+        const tool = String(it.data.toolName || '');
+        if (/html_(render|preview)$/.test(tool) && typeof it.data.input?.html === 'string') this.browser.refreshFrontendHtml(it.data.input.html);
+      }
       this.items.set(it.id, it);
       this.chat.update(it);   // a work row already in T3 Code follows its item (Running, then Ran)
       const imageUpdate = this.imageRefresh.tracks(it.id) ? this.imageRefresh.observe(it.id, this.imageState(it)) : null;
@@ -692,6 +708,14 @@ export class Director {
       await this.playOffice(String(inp.file_path), base === "Write" ? "add" : "update", { text: base === "Write" && typeof inp.content === "string" ? inp.content : null, added: typeof added === "string" ? added : undefined });
       return true;
     }
+    if (/^(Write|Edit|MultiEdit)$/.test(base) && /\.html?$/i.test(String(this.get(id).data.input?.file_path || ''))) {
+      const done = await this.settle(id, 20000);
+      if (!/failed|cancelled|interrupted/.test(done.status) && root) {
+        this.onActivity('Watching the frontend update'); this.stage.setGlow(GLOW.browser);
+        await this.browser.frontendFile(String(done.data.input?.file_path), root);
+      }
+      return true;
+    }
     if (base === "Read") {
       const done = await this.settle(id, 20000);
       const p = done.data.input?.file_path || done.data.input?.path || "";
@@ -813,8 +837,9 @@ export class Director {
       const done = await this.settle(id, 15000);
       const out = done.data.output || {};
       const inp = done.data.input || {};
-      const url = String((out.url && !/^chrome-error:/.test(out.url) ? out.url : "") || inp.url || "");
+      const url = String((out.url && !/^chrome-error:/.test(out.url) ? out.url : "") || inp.url || (inp.target?.kind === "environment-port" ? `${inp.target.protocol || "http"}://localhost:${Number(inp.target.port)}${inp.target.path || "/"}` : ""));
       const tabId = out.tabId || inp.tabId;
+      if (base === 'preview_snapshot' && typeof out.accessibilityTree === 'string') this.browser.rememberFrontendSnapshot(out.accessibilityTree);
       if (/^https?:/.test(url) && (base !== "preview_snapshot" || out.visibleText)) {
         this.stage.setGlow(GLOW.browser);
         this.onActivity(base === "preview_snapshot" ? "Reading the page" : base === "preview_open" ? "Opening a tab" : `Visiting ${hostOf(url)}`);
@@ -827,6 +852,9 @@ export class Director {
       this.onActivity(browserActs[base]);
       this.stage.setGlow(GLOW.browser);
       const done = await this.settle(id, 15000);
+      const input = done.data.input || {};
+      this.browser.frontendAction({ selector: input.selector || input.locator, x: input.x, y: input.y,
+        viewportWidth: done.data.output?.viewport?.width, viewportHeight: done.data.output?.viewport?.height });
       await this.browser.act(browserActs[base], done.data.output?.title, done.data.output?.url);
       return true;
     }
@@ -852,11 +880,9 @@ export class Director {
       const html = typeof inp.html === "string" && /</.test(inp.html) ? inp.html : null;
       if (html) {
         const title = String(inp.title || "").trim();
-        let key = 0;
-        for (let i = 0; i < html.length; i++) key = (Math.imul(key, 31) + html.charCodeAt(i)) | 0;
         this.stage.setGlow(GLOW.browser);
         this.onActivity(title ? `Looking at “${title.slice(0, 50)}” in the browser` : "Looking at the page it built");
-        await this.browser.open("about:blank", { instant: this.catchingUp, title: title || undefined, html, key: `html:${key}`, newTab: true });
+        await this.browser.open("about:blank", { instant: this.catchingUp, title: title || undefined, html, key: `frontend-html`, newTab: false });
         return true;
       }
     }
@@ -1283,6 +1309,8 @@ export class Director {
           if (ch.operation === "add") await this.editor.diff(name, parseDiff(text));
           else await this.editor.read(name, text.split(/\r?\n/).slice(0, 1500), 1);
         }
+        const htmlFile = changes.find(ch => /\.html?$/i.test(ch.path) && ch.operation !== 'delete');
+        if (htmlFile && root) { this.onActivity('Watching the frontend update'); this.stage.setGlow(GLOW.browser); await this.browser.frontendFile(htmlFile.path, root); }
         return;
       }
       case "web_search": {
