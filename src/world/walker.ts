@@ -783,6 +783,10 @@ export class Walker {
     p.textContent = text;
     const was = b.classList.contains("on");
     b.classList.add("on");
+    // inside a room the bubble must stay within its walls (rooms clip what sticks out);
+    // measured once here, not every frame
+    const room = b.parentElement?.closest(".room") ? b.parentElement : null;
+    this.bubbleFit = room ? { bw: p.offsetWidth, bh: p.offsetHeight, pw: room.clientWidth, ph: room.clientHeight } : null;
     this.placeBubble();
     if (!was) gsap.fromTo(p, { opacity: 0, y: 8, scale: 0.85 }, { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: "back.out(2)" });
     else gsap.fromTo(p, { scale: 0.96 }, { scale: 1, opacity: 1, y: 0, duration: 0.2, ease: "power2.out" });
@@ -1074,9 +1078,15 @@ export class Walker {
     el.setAttribute(name, v);
   }
 
+  private bubbleFit: { bw: number; bh: number; pw: number; ph: number } | null = null;
   private placeBubble() {
-    const top = this.y - (FEET.y - 560) * this.s - 16 + this.headPx;
-    this.bubble.style.transform = `translate(${this.x.toFixed(1)}px, ${top.toFixed(1)}px)`;
+    let top = this.y - (FEET.y - 560) * this.s - 16 + this.headPx, x = this.x;
+    const f = this.bubbleFit;
+    if (f && f.pw > 0) {
+      top = Math.max(top, f.bh + 8);                                   // not through the top wall
+      x = Math.min(Math.max(x, f.bw / 2 + 8), f.pw - f.bw / 2 - 8);   // nor through the side walls
+    }
+    this.bubble.style.transform = `translate(${x.toFixed(1)}px, ${top.toFixed(1)}px)`;
   }
 
   destroy() {
