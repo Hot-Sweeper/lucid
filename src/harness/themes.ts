@@ -1,6 +1,7 @@
 // Which agent harnesses the robot can drive, and how each one looks.
 // Notes behind these choices live in RESEARCH.md. Marks are simplified shapes drawn here,
 // except Claude and Codex, which reuse the logo files already in src/assets.
+import { logoSvg } from "./logos";
 import claudeLogo from "../assets/claude.svg";
 import openaiLogo from "../assets/openai.svg";
 
@@ -222,6 +223,15 @@ const MARKS: Partial<Record<HarnessKind, string>> = {
 
 /** The harness mark as an element (an <img> for the bundled logos, inline SVG for the drawn ones). */
 export function markEl(kind: HarnessKind, cls = "hx-mark"): HTMLElement {
+  // official logos inline, so one-colour ones take the theme's text colour
+  const official = logoSvg(kind);
+  if (official) {
+    const s = document.createElement("span");
+    s.className = cls;
+    s.dataset.k = kind;
+    s.innerHTML = official;
+    return s;
+  }
   if (kind === "claude" || kind === "codex") {
     const img = document.createElement("img");
     img.className = cls;

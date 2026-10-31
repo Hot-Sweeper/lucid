@@ -134,7 +134,7 @@ export class Desk implements DeskStage {
   private label(title: string, provider: string | null) {
     const plate = this.el.querySelector(".desk-plate") as HTMLElement;
     const img = plate.querySelector("img") as HTMLImageElement;
-    const logo = logoFor(provider);
+    const logo = logoFor(provider, "light");
     img.hidden = !logo;
     if (logo) img.src = logo;
     const who = this.profile ? (this.profile.role ? `${this.profile.name}, ${this.profile.role}` : this.profile.name) : "";

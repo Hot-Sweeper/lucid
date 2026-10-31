@@ -1,5 +1,6 @@
-import openaiLogo from "../assets/openai.svg";
 import claudeLogo from "../assets/claude.svg";
+import { harnessKind } from "../harness/themes";
+import { logoUrl } from "../harness/logos";
 
 export type BrandKind = "codex" | "claude" | "grok" | "generic";
 
@@ -12,9 +13,10 @@ export function brandFor(provider: string | null | undefined): BrandKind {
   return provider ? "generic" : "codex";
 }
 
-export function logoFor(provider: string | null | undefined): string | null {
-  const b = brandFor(provider);
-  return b === "claude" ? claudeLogo : b === "codex" ? openaiLogo : null;
+/** The harness's official logo as an image URL, coloured for a dark (default) or light background. */
+export function logoFor(provider: string | null | undefined, bg: "dark" | "light" = "dark"): string | null {
+  const k = provider ? harnessKind(provider) : "codex";
+  return logoUrl(k, bg) ?? (brandFor(provider) === "claude" ? claudeLogo : null);
 }
 
 export function harnessName(provider: string | null | undefined): string {
