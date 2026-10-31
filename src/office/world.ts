@@ -639,7 +639,6 @@ export class World {
     s.addEventListener("wheel", (e) => {
       e.preventDefault();
       this.stopFollow();
-      if (this.focusDesk) this.unfocus(false);
       const r = s.getBoundingClientRect();
       const px = e.clientX - r.left, py = e.clientY - r.top;
       const ns = Math.min(5, Math.max(0.08, this.cam.s * Math.exp(-e.deltaY * 0.0015)));
@@ -647,6 +646,7 @@ export class World {
       gsap.killTweensOf(this.cam);
       this.cam.s = ns; this.cam.x = px - wx * ns; this.cam.y = py - wy * ns;
       this.apply();
+      this.keepFocus();
     }, { passive: false });
     let start: { x: number; y: number; cx: number; cy: number } | null = null;
     s.addEventListener("pointerdown", (e) => {
@@ -658,10 +658,11 @@ export class World {
       if (!start) return;
       const dx = e.clientX - start.x, dy = e.clientY - start.y;
       if (!this.dragged && Math.hypot(dx, dy) < 5) return;
-      if (!this.dragged) { this.dragged = true; s.classList.add("panning"); this.stopFollow(); if (this.focusDesk) this.unfocus(false); }
+      if (!this.dragged) { this.dragged = true; s.classList.add("panning"); this.stopFollow(); }
       gsap.killTweensOf(this.cam);
       this.cam.x = start.cx + dx; this.cam.y = start.cy + dy;
       this.apply();
+      this.keepFocus();
     });
     window.addEventListener("pointerup", () => { start = null; s.classList.remove("panning"); setTimeout(() => (this.dragged = false), 0); });
     s.addEventListener("click", (e) => {
@@ -730,6 +731,19 @@ export class World {
   }
 
   // Bring a whole desk close (robot, desk and screen), with the chat beside it.
+  // The chat stays open while you zoom and pan around a robot. It only closes once you zoom
+  // well out (to about a third of the close-up) or move the robot's desk out of view.
+  private keepFocus() {
+    const d = this.focusDesk;
+    if (!d) return;
+    const r = d.el.getBoundingClientRect(), s = this.scene.getBoundingClientRect();
+    const visW = Math.max(0, Math.min(r.right, s.right - this.panelWidth) - Math.max(r.left, s.left));
+    const visH = Math.max(0, Math.min(r.bottom, s.bottom) - Math.max(r.top, s.top));
+    const shown = (visW * visH) / Math.max(1, r.width * r.height);
+    const deskShare = r.width / Math.max(1, s.width - this.panelWidth);   // how much of the view the desk fills
+    if (shown < 0.25 || deskShare < 0.12) this.unfocus(false);
+  }
+
   focusOn(d: Desk) {
     this.stopFollow();
     this.focusDesk = d;
