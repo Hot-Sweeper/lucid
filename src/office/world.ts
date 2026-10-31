@@ -15,6 +15,7 @@ import { groundWx, groundSig, isWet, puddleSpots, type Puddle } from "../weather
 import { gearFor } from "../weather/gear";
 import { ambientPlant } from "./ambient";
 import { Roster, type RobotProfile } from "./roster";
+import { paintOutside, updateOutside } from "./outside-zoom";
 
 // The whole building, seen fake top-down: rooms laid out on a floor plan, one shared camera.
 // Offices hold desks (one per thread). Desks live in one layer above the rooms, so a robot
@@ -83,7 +84,7 @@ export class World {
   private transit = new Map<string, Walker>();
   private trips = new Map<string, object>();           // the journey a robot in transit is on (a newer one replaces it)
   private known = new Map<string, WThread>();          // every thread at the last update, for robots whose thread went away
-  private exits = new Map<string, { t: WThread; to: string | null; timer: number }>();   // waiting for its room to hand it over at the door
+  private exits = new Map<string, { t: WThread; from: string; to: string | null }>();   // its source room owns the robot until the door handoff
   private parkDoor: Pt = { x: 0, y: 0 };
   private extLists: { brk: any[]; queue: any[]; park: any[]; orch?: any } = { brk: [], queue: [], park: [] };
   private get hallY() { return this.topH + HALL / 2; }
@@ -194,7 +195,10 @@ export class World {
     const trip = {};
     this.trips.set(t.id, trip);
     let w: Walker;
-    if ("walker" in from) { w = from.walker; w.stop(); w.zBias = 0; }
+    if ("walker" in from) {
+      w = from.walker; w.stop(); w.zBias = 0;
+      gsap.killTweensOf(w.el); w.el.style.opacity = "1";
+    }
     else if ("seat" in from) {
       // the desk robot gets up: its walking self takes over, sitting in the same chair
       w = this.spawn(t, this.seatAt(from.seat), "up");
@@ -243,24 +247,31 @@ export class World {
       plan = this.route({ x: w.x, y: w.y }, t.id, to);
     }
     if (this.trips.get(t.id) !== trip) return;
-    this.trips.delete(t.id);
-    this.transit.delete(t.id);
     const desk = plan.desk && this.desks.get(t.id) === plan.desk ? plan.desk : null;
     const done = w;
     if (desk) {
-      // it turns to the desk and sits down; the desk robot fades in on the same spot
+      // It turns and sits; switch actors in the same frame, in the same chair.
       done.face("up");
       done.do("sit");
       await pause(0.55);
+      // An update can reroute the same walker while it is sitting down. The old trip must
+      // not reveal a desk robot or destroy the walker now owned by the newer trip.
+      if (this.trips.get(t.id) !== trip) return;
       desk.el.classList.remove("arriving");
-      gsap.to(done.el, { opacity: 0, duration: 0.25, onComplete: () => done.destroy() });
+      done.destroy();
     } else if (to && to !== "park") {
       // the room's own walker takes over just inside the door
       const r = this.roomById(to), ext = this.ext[to as "break" | "queue"];
       if (r && ext?.enterFrom) ext.enterFrom(t.id, { x: done.x - r.x, y: done.y - r.y });
       done.destroy();
     } else if (to === "park") done.destroy();   // the park's own walker steps out of the same door
-    else gsap.to(done.el, { opacity: 0, duration: 0.4, onComplete: () => done.destroy() });
+    else {
+      await new Promise<void>((resolve) => gsap.to(done.el, { opacity: 0, duration: 0.4, onComplete: resolve }));
+      if (this.trips.get(t.id) !== trip) return;
+      done.destroy();
+    }
+    this.trips.delete(t.id);
+    this.transit.delete(t.id);
     this.pushExt();
   }
 
@@ -268,7 +279,6 @@ export class World {
   private handOver(id: string, at: Pt, face: Facing) {
     const ex = this.exits.get(id);
     if (!ex) return false;
-    window.clearTimeout(ex.timer);
     this.exits.delete(id);
     void this.travel(ex.t, { at, face }, ex.to);
     return true;
@@ -285,17 +295,7 @@ export class World {
     if (seat) { void this.travel(t, { seat, room: from }, to); return; }
     if (from === "break" || from === "queue" || from === "park") {
       // the room walks it to its door first and hands it over there (handOver)
-      const r = this.roomById(from);
-      const timer = window.setTimeout(() => {
-        // the room never had it on show: it steps out of that door
-        const e = this.exits.get(t.id);
-        if (!e) return;
-        this.exits.delete(t.id);
-        void this.travel(e.t, { at: r ? this.door(r)[0] : this.parkDoor, face: "down" }, e.to);
-        const w = this.transit.get(t.id);
-        if (w) gsap.fromTo(w.el, { opacity: 0 }, { opacity: 1, duration: 0.3 });
-      }, 15000);
-      this.exits.set(t.id, { t, to, timer });
+      this.exits.set(t.id, { t, from, to });
       return;
     }
     const r = this.roomById(from);
@@ -304,11 +304,21 @@ export class World {
 
   // break room, question line and park only show robots that are actually there
   private pushExt() {
-    const here = (l: any[]) => l.filter((x) => !this.transit.has(x.id));
+    // Waiting for a source room is still a journey. Showing the destination now created
+    // a second robot while the first was walking to its old room's door.
+    const here = (l: any[]) => l.filter((x) => !this.transit.has(x.id) && !this.exits.has(x.id));
     this.ext.break?.setThreads(here(this.extLists.brk) as any);
     this.ext.queue?.setThreads(here(this.extLists.queue) as any);
     (this.ext.queue as any)?.setBoss?.(this.extLists.orch ?? null);   // the orchestrator sits behind the questions desk
     this.park.setThreads(here(this.extLists.park));
+    for (const [id, ex] of this.exits) {
+      const source = ex.from === "park" ? this.park.layer : this.ext[ex.from as "break" | "queue"]?.el;
+      if (source?.querySelector(`.world-walker[data-id="${CSS.escape(id)}"]`)) continue;
+      // A culled/overflow robot or a rebuilt room has no source actor to hand over.
+      // Only then may the hall create it. A slow or held robot must never time out.
+      const r = this.roomById(ex.from);
+      this.handOver(id, r ? this.door(r)[1] : this.parkDoor, "down");
+    }
   }
   // the shop building between the office and the park
   private shopFront: ShopFront | null = null;
@@ -332,7 +342,6 @@ export class World {
   private fx: WeatherLayer | null = null;
   private outArgs: Parameters<typeof outsideSvg>[0] | null = null;
   private lookSig = "";
-  private outUrl = "";
   /** Rain, snow or a storm now, or rain within 20 minutes: nobody stays outside. */
   get outdoorsWet() {
     const w = this.weather;
@@ -366,8 +375,8 @@ export class World {
     if (!force && sig === this.lookSig) return;
     this.lookSig = sig;
     // The outdoors (the grounds, the walk and the park) is one drawing of a few thousand shapes.
-    // As live page elements they would make every frame slow, so it is shown as a single image;
-    // only the small "live" layer (lamps, animals, swaying trees) stays page elements.
+    // Cache it as a small overview and a screen-resolution viewport crop; a full-sized SVG
+    // image made pans stall in GPU raster. Only lamps, animals and swaying trees stay live.
     const layer = this.root.querySelector(".outside-layer") as HTMLElement;
     const svg = outsideSvg({ ...this.outArgs, ...look, wx: g, puddles: this.puddles, layer: "still" }).replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
     const css = [...document.styleSheets].flatMap((sh) => { try { return [...sh.cssRules].map((r) => r.cssText).filter((t) => /\.outside|@keyframes|--lamp|--night/.test(t)); } catch { return []; } }).join("\n");
@@ -377,10 +386,11 @@ export class World {
     // stays still; moving bits (water, lamps, wildlife) belong in small separate elements
     const animate = !!(window as any).__animOutside;
     const withCss = svg.replace(/(<svg[^>]*>)/, `$1<style>${root}\n${animate ? css : css.replace(/animation[^;}]*;?/g, "")}</style>`);
-    if (this.outUrl) URL.revokeObjectURL(this.outUrl);
-    this.outUrl = URL.createObjectURL(new Blob([withCss], { type: "image/svg+xml" }));
     (window as any).__outBytes = withCss.length;   // debug: size of the still image
-    layer.innerHTML = `<img class="outside-img" src="${this.outUrl}" alt="" draggable="false" style="display:block;width:100%;height:100%">` + outsideSvg({ ...this.outArgs, ...look, wx: g, layer: "live" });
+    layer.innerHTML = outsideSvg({ ...this.outArgs, ...look, wx: g, layer: "live" });
+    paintOutside(layer, withCss);
+    const box = this.sceneBox ??= this.scene.getBoundingClientRect();
+    updateOutside(layer, this.cam, box.width, box.height);
     // the scene behind the drawing has the backdrop's colour, so the soft edge never shows
     this.scene.style.setProperty("--scene-ground", backdropColor({ ...look, wx: g }));
   }
@@ -985,6 +995,8 @@ export class World {
       this.zoomEnd = window.setTimeout(() => { this.zooming = false; this.root.classList.remove("zooming"); }, 180);
     }
     setZoom(this.cam.s, this.cam.x, this.cam.y);
+    const box = this.sceneBox ??= this.scene.getBoundingClientRect();
+    updateOutside(this.root.querySelector(".outside-layer"), this.cam, box.width, box.height);
     // the weather follows the camera without measuring the page (which is slow every frame)
     if (this.fx) { this.sceneBox ??= this.scene.getBoundingClientRect(); this.fx.setCamera(this.cam, this.sceneBox, this.size.w); }
     // zoomed far out the screens are too small to read: show their glow instead of drawing them

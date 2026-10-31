@@ -11,7 +11,6 @@ import { groundsLayout, FADE, MEADOW, PARK_K, PARK_BASE_W, PARK_BASE_H, type Gro
 import { puddleSvg, snowman, sprinkler, weatherPal, type GroundWx, type Puddle } from "../weather/ground";
 import "./ambient.css";
 import "../weather/weather.css";
-import "./outside-zoom";
 
 export { groundsLayout, type Grounds } from "./grounds";
 
