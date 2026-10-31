@@ -9,6 +9,7 @@ type Bounds = { x: number; y: number; w: number; h: number };
 type Opts = {
   bounds?: () => Bounds | null;            // where it may land (in its parent's coordinates)
   onPoke?: () => void;                      // a plain click
+  onGrab?: () => void;                      // picked up (before it starts dangling)
   onOpen?: () => void;                      // a double click
   onLanded?: () => void;                    // after a drag or a throw
 };
@@ -54,8 +55,10 @@ export function makeInteractive(w: Walker, o: Opts = {}) {
       if (!dragging) {
         dragging = true;
         held.add(w);
+        o.onGrab?.();
         w.stop();
         w.calm();
+        w.grabbed(true);   // legs dangle and kick, arms flail
         w.setExpression("surprised");
         w.say(pick(GRAB), 1400);
         el.classList.add("held");
@@ -119,9 +122,10 @@ export function makeInteractive(w: Walker, o: Opts = {}) {
             w.setPos(from.x + (end.x - from.x) * (1 - (1 - t) * (1 - t)), from.y + (end.y - from.y) * (1 - (1 - t) * (1 - t)) - arc);
           } }, 0)
           .to(spin, { h: 1, duration: 0.01 }, 0.7)
-          .add(() => w.hop(), 0.7);
+          .add(() => w.grabbed(false), 0.7);   // touchdown: squash, then a dizzy wobble
       } else {
         const end = { x: clampX(w.x), y: clampY(w.y - 14) };
+        w.grabbed(false);
         gsap.to(w, { x: end.x, y: end.y, duration: 0.25, ease: "bounce.out", onUpdate: () => w.setPos(w.x, w.y) });
         el.style.rotate = "";
         gsap.to(el.style, { scale: 1, duration: 0.2 } as any);

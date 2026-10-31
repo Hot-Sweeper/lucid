@@ -138,16 +138,21 @@ export function plantSvg(s = 1) {
 
 // ---- walking graph ------------------------------------------------------------------------------
 export class Paths {
-  constructor(private nodes: Record<string, Pt>, private edges: [string, string][]) {}
+  /** `clear(a, b)`: whether a straight walk from a to b is free of furniture (optional). */
+  constructor(private nodes: Record<string, Pt>, private edges: [string, string][], private clear?: (a: Pt, b: Pt) => boolean) {}
 
+  /** The nearest node that can be reached in a straight line (the nearest one if none can). */
   private nearest(p: Pt) {
-    let best = "", bd = Infinity;
-    for (const [k, n] of Object.entries(this.nodes)) {
-      const d = Math.hypot(n.x - p.x, n.y - p.y);
-      if (d < bd) { bd = d; best = k; }
-    }
-    return best;
+    const order = Object.entries(this.nodes).map(([k, n]) => [k, Math.hypot(n.x - p.x, n.y - p.y)] as const).sort((a, b) => a[1] - b[1]);
+    if (this.clear) for (const [k] of order) if (this.clear(p, this.nodes[k])) return k;
+    return order[0][0];
   }
+
+  /** Can some node be reached from p in a straight line? */
+  reaches(p: Pt) { return !this.clear || Object.values(this.nodes).some((n) => this.clear!(p, n)); }
+
+  /** All nodes and edges (for debugging overlays). */
+  get graph() { return { nodes: this.nodes, edges: this.edges }; }
 
   /** Waypoints from `a` to `b` along the graph (excluding `a`, including `b`). */
   route(a: Pt, b: Pt): Pt[] {
@@ -170,10 +175,15 @@ export class Paths {
     }
     const chain: Pt[] = [];
     for (let k: string | null = t; k; k = prev[k]) chain.unshift(this.nodes[k]);
-    // skip the first node when we are already past it toward the second one
+    // skip the first node when we are already past it toward the second one (and can walk there directly)
     if (chain.length > 1) {
       const [n0, n1] = chain;
-      if (Math.hypot(n1.x - a.x, n1.y - a.y) < Math.hypot(n1.x - n0.x, n1.y - n0.y)) chain.shift();
+      if (Math.hypot(n1.x - a.x, n1.y - a.y) < Math.hypot(n1.x - n0.x, n1.y - n0.y) && (!this.clear || this.clear(a, n1))) chain.shift();
+    }
+    // and the last one when the goal is reachable straight from the one before it
+    if (chain.length > 1 && this.clear) {
+      const m = chain[chain.length - 2], l = chain[chain.length - 1];
+      if (Math.hypot(b.x - m.x, b.y - m.y) < Math.hypot(l.x - m.x, l.y - m.y) && this.clear(m, b)) chain.pop();
     }
     if (chain.length && Math.hypot(chain[chain.length - 1].x - b.x, chain[chain.length - 1].y - b.y) < 2) chain.pop();
     return [...chain, b];

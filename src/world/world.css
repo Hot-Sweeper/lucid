@@ -46,3 +46,6 @@
 /* ---------- break room games ---------- */
 .world-ppball { position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%; background: #fffdf6; pointer-events: none; }
 .world-ppshadow { position: absolute; left: -4.5px; top: -2px; width: 9px; height: 4px; border-radius: 50%; background: #1b1f2e; pointer-events: none; }
+/* walking robots are toys: grab, carry, throw (no filters: the held robot just rises above everything) */
+.world-walker.grabbable { cursor: grab; touch-action: none; }
+.world-walker.held { cursor: grabbing; z-index: 100000 !important; }

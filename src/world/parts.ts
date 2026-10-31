@@ -6,7 +6,8 @@ import type { Expression, Pt, RobotLook } from "../office/rig";
 
 // Shared pieces of the v0 robot: palettes, the head (back view with the embossed logo,
 // front view with the visor face, side view), antenna tips, stickers, eyes and the two-bone
-// arm solver. Everything is drawn in the original v0 coordinates (head center 560,659,
+// arm solver. No filters: the eye glow is a soft radial light behind each eye.
+// Everything is drawn in the original v0 coordinates (head center 560,659,
 // shoulders at y 748) and scaled into place by whoever uses it.
 
 export type Palette = {
@@ -47,8 +48,7 @@ export function defsSvg(id: string) {
     <linearGradient id="${id}-tor" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="var(--shell)"/><stop offset="1" stop-color="var(--shell)"/><stop offset="1" stop-color="var(--shade)"/>
     </linearGradient>
-    <filter id="${id}-soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10"/></filter>
-    <filter id="${id}-eg" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3.5"/></filter>
+    <radialGradient id="${id}-eg"><stop offset="0" stop-color="var(--glow)" stop-opacity="0.42"/><stop offset="0.55" stop-color="var(--glow)" stop-opacity="0.14"/><stop offset="1" stop-color="var(--glow)" stop-opacity="0"/></radialGradient>
     <clipPath id="${id}-hc"><rect x="490" y="600" width="140" height="118" rx="44"/></clipPath>
     <mask id="${id}-lm" maskContentUnits="userSpaceOnUse"><image data-r="logoMaskImg" x="536" y="630" width="48" height="49"/></mask>
     <mask id="${id}-fm" maskContentUnits="userSpaceOnUse"><image data-r="faceMaskImg" x="551" y="606" width="18" height="18"/></mask>`;
@@ -101,8 +101,10 @@ export function headSvg(id: string) {
       <path d="M512 618 C530 606 560 604 586 608" stroke="#ffffff" stroke-opacity="0.45" stroke-width="6" stroke-linecap="round" fill="none"/>
       <rect x="506" y="626" width="108" height="62" rx="28" fill="var(--visor)"/>
       <path d="M520 636 C534 630 556 629 572 631" stroke="#ffffff" stroke-opacity="0.12" stroke-width="5" stroke-linecap="round" fill="none"/>
-      <g data-r="eyesGlow" filter="url(#${id}-eg)" opacity="0.75"></g>
-      <g data-r="eyes"></g>
+      <g data-r="look">
+        <g data-r="eyeLight"><ellipse cx="540" cy="657" rx="22" ry="27" fill="url(#${id}-eg)"/><ellipse cx="580" cy="657" rx="22" ry="27" fill="url(#${id}-eg)"/></g>
+        <g data-r="eyes"></g>
+      </g>
       <g data-r="faceLogo">
         <rect data-r="faceMasked" x="551" y="606" width="18" height="18" fill="var(--logo)" mask="url(#${id}-fm)" opacity="0.8"/>
         <image data-r="facePlain" x="551" y="606" width="18" height="18" opacity="0.75"/>
@@ -132,8 +134,10 @@ export function headSideSvg(id: string) {
       <clipPath id="${id}-sc"><rect x="500" y="600" width="116" height="118" rx="42"/></clipPath>
       <g clip-path="url(#${id}-sc)">
         <rect x="570" y="626" width="70" height="62" rx="26" fill="var(--visor)"/>
-        <g data-r="sideEyesGlow" filter="url(#${id}-eg)" opacity="0.75"></g>
-        <g data-r="sideEyes"></g>
+        <g data-r="sideLook">
+          <ellipse data-r="sideEyeLight" cx="604" cy="657" rx="20" ry="27" fill="url(#${id}-eg)"/>
+          <g data-r="sideEyes"></g>
+        </g>
       </g>
       <circle cx="540" cy="660" r="18" fill="var(--ear, var(--deep))"/><circle cx="538" cy="658" r="11" fill="var(--shade)"/>
       <g data-r="sidePhones" style="display:none">
