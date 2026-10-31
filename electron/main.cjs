@@ -72,8 +72,9 @@ ${typeof out === "string" ? out : JSON.stringify(out, null, 1)}
       if (n >= max) { clearInterval(timer); if (process.env.LUCID_SHOT_QUIT) app.quit(); }
     }, every);
   }
+  // links in chat messages open in the real browser; only web and mail links are allowed
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (/^(https?:|mailto:)/i.test(url)) shell.openExternal(url);
     return { action: "deny" };
   });
 }

@@ -18,7 +18,9 @@
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@fontsource-variable/lexend": "^5.3.0",
-    "gsap": "^3.15.0"
+    "dompurify": "^3.4.17",
+    "gsap": "^3.15.0",
+    "marked": "^18.1.2"
   },
   "private": true,
   "engines": {

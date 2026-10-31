@@ -1,6 +1,9 @@
 import gsap from "gsap";
 import type { Desk } from "./desk";
 import { logoFor, harnessName } from "./brand";
+import { Marked } from "marked";
+import DOMPurify from "dompurify";
+import { highlight } from "../os/highlight";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
@@ -12,19 +15,35 @@ type Api = {
 };
 
 export const fileUrl = (p: string) => `lucid-file://local/${encodeURIComponent(p)}`;
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-// Light markdown: code blocks, inline code, bold, links shown as their text, line breaks.
+// Messages render as real Markdown, like in T3 Code: headings, lists, tables, quotes,
+// highlighted code blocks with a copy button, and links (web links open in the browser,
+// file paths show as file chips). Everything goes through DOMPurify.
+const FENCE: Record<string, string> = { ts: "c", tsx: "c", js: "c", jsx: "c", typescript: "c", javascript: "c", rust: "c", go: "c", java: "c", c: "c", cpp: "c", cs: "c", py: "hash", python: "hash", sh: "hash", bash: "hash", shell: "hash", powershell: "hash", ps1: "hash", yaml: "hash", yml: "hash", toml: "hash", json: "json", html: "markup", xml: "markup", svg: "markup", css: "css", scss: "css", md: "text", markdown: "text", text: "text", txt: "text" };
+const mdParser = new Marked({ gfm: true, breaks: true });
+mdParser.use({
+  renderer: {
+    code({ text, lang }: { text: string; lang?: string }) {
+      const l = (lang || "").trim().split(/\s+/)[0].toLowerCase();
+      const body = text.replace(/\n$/, "").split("\n").map((line) => highlight(line, FENCE[l] ?? "c")).join("\n");
+      return `<div class="md-code"><div class="md-code-head"><span>${esc(l || "code")}</span><button type="button" class="md-copy">Copy</button></div><pre><code>${body}</code></pre></div>`;
+    },
+    link(this: any, { href, tokens }: { href: string; tokens: any[] }) {
+      const inner = this.parser.parseInline(tokens);
+      if (/^(https?:|mailto:)/i.test(href)) return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${inner}</a>`;
+      return `<span class="md-file" title="${esc(href)}">${inner}</span>`;
+    },
+    table(this: any, token: any) {
+      const head = token.header.map((c: any) => `<th>${this.parser.parseInline(c.tokens)}</th>`).join("");
+      const rows = token.rows.map((r: any[]) => `<tr>${r.map((c) => `<td>${this.parser.parseInline(c.tokens)}</td>`).join("")}</tr>`).join("");
+      return `<div class="md-table"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    },
+  },
+});
 function md(text: string) {
-  const parts = text.split(/```[a-z0-9-]*\n?/i);
-  return parts.map((part, i) => {
-    if (i % 2 === 1) return `<pre>${esc(part.replace(/\n$/, ""))}</pre>`;
-    return esc(part)
-      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-      .replace(/`([^`\n]+)`/g, "<code>$1</code>")
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<span class="cp-link" title="$2">$1</span>')
-      .replace(/\n/g, "<br>");
-  }).join("");
+  const html = mdParser.parse(text, { async: false }) as string;
+  return DOMPurify.sanitize(html, { ADD_ATTR: ["target"] });
 }
 // Time of day for today's messages; older ones also get their date so equal times never look alike.
 const when = (iso: string) => {
@@ -55,7 +74,7 @@ export class ChatPanel {
       </header>
       <p class="cp-status" aria-live="polite"><i></i><span></span></p>
       <div class="cp-list" role="log" aria-live="polite"></div>
-      <section class="cp-queue" aria-label="Queued messages" hidden><h4>Queued</h4><ol></ol></section>
+      <section class="cp-queue" aria-label="Queued messages" hidden><button type="button" class="cq-head" aria-expanded="true"><b>Queued</b><span class="cq-count"></span><i aria-hidden="true"></i></button><ol></ol></section>
       <div class="cp-zoom" hidden><img alt=""><button type="button" class="ghost">Close image</button></div>
       <form class="cp-form">
         <textarea rows="2" placeholder="Message this robot"></textarea>
@@ -86,8 +105,15 @@ export class ChatPanel {
     });
     ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
     this.el.querySelector(".cp-list")!.addEventListener("click", (e) => {
-      const img = (e.target as HTMLElement).closest(".cp-att img") as HTMLImageElement | null;
+      const t = e.target as HTMLElement;
+      const img = t.closest(".cp-att img") as HTMLImageElement | null;
       if (img) this.zoom(img.src);
+      // copy a code block
+      const copy = t.closest(".md-copy") as HTMLButtonElement | null;
+      if (copy) {
+        const code = copy.closest(".md-code")?.querySelector("pre")?.textContent ?? "";
+        void navigator.clipboard.writeText(code).then(() => { copy.textContent = "Copied"; window.setTimeout(() => (copy.textContent = "Copy"), 1400); });
+      }
     });
     const zoom = this.el.querySelector(".cp-zoom") as HTMLElement;
     zoom.querySelector("button")!.addEventListener("click", () => (zoom.hidden = true));
@@ -212,6 +238,16 @@ export class ChatPanel {
     const box = this.el.querySelector(".cp-queue") as HTMLElement;
     const ol = box.querySelector("ol") as HTMLOListElement;
     box.hidden = !queued.length;
+    (box.querySelector(".cq-count") as HTMLElement).textContent = `${queued.length} waiting`;
+    if (!box.dataset.wired) {
+      box.dataset.wired = "1";
+      const head = box.querySelector(".cq-head") as HTMLButtonElement;
+      head.addEventListener("click", () => {
+        const open = head.getAttribute("aria-expanded") !== "true";
+        head.setAttribute("aria-expanded", String(open));
+        box.classList.toggle("folded", !open);
+      });
+    }
     const ord = (n: number) => (n === 1 ? "next" : `${n}${n === 2 ? "nd" : n === 3 ? "rd" : "th"}`);
     const html = queued.map((m, i) => `<li><span class="cq-n">${ord(i + 1)}</span><p></p></li>`).join("");
     if (ol.dataset.sig === queued.map((m) => m.id).join(",")) return;

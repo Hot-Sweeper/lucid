@@ -104,7 +104,10 @@ world.extFactory.queue = (h, w, hh) => new QuestionLine(h, w, hh);
 let selectedDesk: Desk | null = null;
 (window as any).__world = world; // debug handle for test runs
 const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), sendMessage: (o) => api.sendMessage(o) });
-world.panelWidth = 400;
+// the chat panel is about a third of the window wide; the camera leaves room for it
+const panelSpace = () => Math.min(640, Math.max(440, innerWidth * 0.36)) + 28;
+world.panelWidth = panelSpace();
+window.addEventListener("resize", () => (world.panelWidth = panelSpace()));
 world.onFocus = (d) => { if (d) { chat.open(d); chat.setView(world.focusMode); pushStatus(d); } else chat.close(); };
 chat.onClose = () => world.unfocus();
 chat.onToggleView = () => {
