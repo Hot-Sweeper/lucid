@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld("lucid", {
   saveAttachment: (name, data) => ipcRenderer.invoke("attach:save", { name, data }),
   rosterSave: (json) => ipcRenderer.invoke("roster:save", json),
   conversation: (id) => ipcRenderer.invoke("t3:conversation", id),
+  pendingRequests: (id) => ipcRenderer.invoke("t3:pending-requests", id),
   itemsSince: (id, since) => ipcRenderer.invoke("t3:items-since", id, since),
   threadInfo: (id) => ipcRenderer.invoke("t3:thread-info", id),
   attachDir: () => ipcRenderer.invoke("t3:attach-dir"),
@@ -61,6 +62,7 @@ contextBridge.exposeInMainWorld("lucidT3", {
   edit: t3s("t3s:edit"),
   steer: t3s("t3s:steer"),
   setModel: t3s("t3s:setModel"),
+  respond: t3s("t3s:respond"),
 });
 
 // Office documents for the robots' Botword, Cellsheet and Slidedeck: { ok, doc } or { ok: false, error }.

@@ -1,0 +1,59 @@
+/* Answering a robot's question from its chat (answer.ts). Same tokens as the chat panel. */
+.cp-answer { flex: none; max-height: 58%; overflow-y: auto; margin: 4px 10px 0; padding: 12px 14px 10px; border-radius: 12px;
+  background: #1f2549; box-shadow: inset 0 0 0 1px var(--line); scrollbar-width: thin; scrollbar-color: rgba(190, 200, 255, 0.22) transparent; }
+.cp-answer[hidden] { display: none; }
+.cp-answer::-webkit-scrollbar { width: 8px; }
+.cp-answer::-webkit-scrollbar-thumb { background: rgba(190, 200, 255, 0.2); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+.cp-answer::-webkit-scrollbar-track { background: transparent; }
+
+.ca-req + .ca-req, .ca-done + .ca-req, .ca-req + .ca-done { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.ca-q { border: 0; margin: 0 0 12px; padding: 0; min-width: 0; }
+.ca-q legend { padding: 0; margin: 0 0 8px; font-size: 14px; line-height: 1.5; color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
+.ca-head { font-weight: 600; }
+.ca-how { display: block; margin-top: 2px; font-size: 12.5px; font-weight: 400; color: var(--ink-3); }
+.ca-q.missing legend .ca-question { text-decoration: underline wavy rgba(255, 180, 168, 0.7); text-underline-offset: 4px; }
+
+.ca-opt { display: grid; grid-template-columns: 18px minmax(0, 1fr); column-gap: 10px; align-items: start; padding: 7px 8px; border-radius: 9px; }
+.ca-opt:hover { background: rgba(255, 255, 255, 0.05); }
+.ca-opt:has(input:checked) { background: rgba(255, 159, 90, 0.1); }
+.ca-opt > input[type="radio"], .ca-opt > input[type="checkbox"] { margin: 3px 0 0; width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+.ca-opt > input:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.ca-opt label { cursor: pointer; min-width: 0; }
+.ca-label { display: block; font-size: 13.5px; line-height: 1.45; color: var(--ink); }
+.ca-desc { display: block; margin-top: 1px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); overflow-wrap: anywhere; }
+.ca-other .ca-text { grid-column: 2; margin-top: 6px; }
+
+.ca-text { display: block; width: 100%; box-sizing: border-box; border: 0; border-radius: 9px; padding: 7px 10px; background: #12153a;
+  box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); font: inherit; font-size: 13.5px; line-height: 1.45; outline: none; transition: box-shadow 0.15s; }
+.ca-text::placeholder { color: var(--ink-3); }
+.ca-text:focus { box-shadow: inset 0 0 0 1.5px rgba(255, 159, 90, 0.75); }
+textarea.ca-text { resize: vertical; min-height: 54px; max-height: 200px; }
+.ca-free { padding: 0 2px; }
+
+.ca-title { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--ink); }
+.ca-prompt { margin: 0 0 8px; max-height: 160px; overflow: auto; padding: 8px 10px; border-radius: 9px; background: #0f1230; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  font-family: var(--mono); font-size: 12px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ca-detail { margin: 0 0 8px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); overflow-wrap: anywhere; }
+
+.ca-foot { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.ca-state { flex: 1; min-width: 0; margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
+.ca-state.err { color: #ffb4a8; }
+.ca-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ca-alt { padding: 7px 12px; font-size: 13.5px; }
+.ca-alt:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.ca-alt:disabled { opacity: 0.5; cursor: default; }
+.ca-req.sending .ca-opt, .ca-req.sending .ca-text { opacity: 0.6; }
+.ca-req.sent .ca-state { color: var(--ink); }
+
+.ca-connect { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 12.5px; color: var(--ink-3); }
+.ca-connect[hidden] { display: none; }
+.ca-connect span { flex: 1; min-width: 0; }
+.ca-connect .ghost { flex: none; padding: 5px 10px; font-size: 12.5px; }
+.ca-connect .ghost:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+.ca-done { margin: 0; overflow: hidden; font-size: 13px; color: var(--ink-2); }
+
+/* the question card a robot holds up in the questions room opens this answer */
+.world-queue .world-card { pointer-events: auto; cursor: pointer; }
+
+@media (prefers-reduced-motion: reduce) { .ca-text { transition: none; } }

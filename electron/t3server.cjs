@@ -256,6 +256,9 @@ function friendly(s) {
   if (/cannot be edited to an empty/i.test(s)) return "A queued message cannot be empty.";
   if (/Automatic completion/i.test(s)) return "Automatic task reports cannot be changed.";
   if (/guest's message cannot be edited/i.test(s)) return "A guest's message cannot be edited. Cancel it instead.";
+  if (/Runtime request \S+ (was not found|is (resolved|cancelled|expired|failed))/i.test(s)) return "This question was already answered or closed.";
+  if (/Feedback requires/i.test(s)) return "This approval does not take a note.";
+  if (/not resumable|server restarted/i.test(s)) return "The agent stopped waiting for this answer. Stop the run in T3 and ask again.";
   if (/not active/i.test(s)) return "This thread is archived or deleted.";
   if (/requiredScope|permission/i.test(s)) return "T3 did not give Lucid permission for this.";
   // keep the text, but drop T3's internal ids
@@ -295,6 +298,29 @@ function editQueued(threadId, runId, text) {
   return dispatch({ type: "queued-run.edit", threadId, runId, text: String(text) });
 }
 const steerNow = (threadId, queuedRunId, targetRunId) => dispatch({ type: "queued-message.promote-to-steer", threadId, queuedRunId, targetRunId });
+
+// --- questions and approvals -------------------------------------------------
+
+const DECISIONS = ["accept", "acceptForSession", "acceptAlways", "decline", "cancel"];
+/**
+ * Answers a pending runtime request the way T3's web app does:
+ * questions: `answers` keyed by question id, each a string (one choice or your own words)
+ * or an array of strings (several choices); approvals: a `decision`.
+ */
+function respondToRequest(threadId, requestId, { answers, decision, feedback } = {}) {
+  if (!threadId || !requestId) return Promise.reject(new T3ServerError("This question is gone.", "invalid"));
+  if (decision !== undefined) {
+    if (!DECISIONS.includes(decision)) return Promise.reject(new T3ServerError("Unknown choice for this approval.", "invalid"));
+    return dispatch({ type: "runtime-request.respond", threadId, requestId, decision, ...(feedback ? { feedback: String(feedback) } : {}) });
+  }
+  const clean = {};
+  for (const [id, v] of Object.entries(answers || {})) {
+    if (Array.isArray(v)) { const list = v.filter((x) => typeof x === "string" && x.trim()); if (list.length) clean[id] = list; }
+    else if (typeof v === "string" && v.trim()) clean[id] = v;
+  }
+  if (!Object.keys(clean).length) return Promise.reject(new T3ServerError("Pick an answer first.", "invalid"));
+  return dispatch({ type: "runtime-request.respond", threadId, requestId, answers: clean });
+}
 
 // --- model -------------------------------------------------------------------
 
@@ -373,6 +399,6 @@ async function status({ connect = false, threadId = null } = {}) {
 
 module.exports = {
   ensurePaired, status, dispatch, call, listProviders, selection,
-  reorderQueued, cancelQueued, editQueued, steerNow, setThreadModel,
+  reorderQueued, cancelQueued, editQueued, steerNow, setThreadModel, respondToRequest,
   setStorePath, closeSock, T3ServerError,
 };

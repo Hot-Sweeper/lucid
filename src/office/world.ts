@@ -822,6 +822,9 @@ export class World {
     if (near !== this.near) { this.near = near; this.scene.classList.toggle("near", near); }
   }
 
+  /** Moves the view at once (a side panel changing width keeps the office still on screen). */
+  panBy(dx: number, dy = 0) { this.cam.x += dx; this.cam.y += dy; this.sceneBox = null; this.apply(); }
+
   flyTo(rect: { x: number; y: number; w: number; h: number }, pad = 40, d = 1, insetRight = 0) {
     const W = this.scene.clientWidth - insetRight, H = this.scene.clientHeight;
     if (!W || !H) return;

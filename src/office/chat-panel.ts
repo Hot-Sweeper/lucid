@@ -4,6 +4,7 @@ import { logoFor, harnessName } from "./brand";
 import { Marked } from "marked";
 import DOMPurify from "dompurify";
 import { highlight } from "../os/highlight";
+import { type ThreadRef, refBlock, stripRefs, summarize } from "./thread-ref";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
@@ -76,6 +77,7 @@ const ICON = {
   check: `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 };
 
+const HINT = "Enter to send, Shift+Enter for a new line";
 export const fileUrl = (p: string) => `lucid-file://local/${encodeURIComponent(p)}`;
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -148,8 +150,16 @@ export class ChatPanel {
 
   private renderChips() {
     const box = this.el.querySelector(".cp-chips") as HTMLElement;
-    box.hidden = !this.files.length;
-    box.innerHTML = this.files.map((f, i) => {
+    const preview = this.refPreview && !this.refs.some((r) => r.id === this.refPreview!.id) ? this.refPreview : null;
+    box.hidden = !this.files.length && !this.refs.length && !preview;
+    const refChip = (r: ThreadRef, i: number) => {
+      const logo = logoFor(r.provider);
+      return `<div class="cp-chip cp-refchip${i < 0 ? " preview" : ""}" data-ref="${esc(r.id)}" title="${esc(`${r.title}\n${r.project}`)}">`
+        + `<span class="cpc-ref">${logo ? `<img src="${logo}" alt="">` : ""}</span>`
+        + `<span class="cpc-two"><span class="cpc-proj">${esc(r.project)}</span><span class="cpc-name">${esc(r.title)}</span></span>`
+        + (i < 0 ? "" : `<button type="button" data-rmref="${i}" aria-label="Remove reference to ${esc(r.title)}" title="Remove reference">&times;</button>`) + `</div>`;
+    };
+    box.innerHTML = this.refs.map(refChip).join("") + (preview ? refChip(preview, -1) : "") + this.files.map((f, i) => {
       let thumb = "";
       if (f.type.startsWith("image/")) {
         if (!this.previews.has(f)) this.previews.set(f, URL.createObjectURL(f));
@@ -157,6 +167,111 @@ export class ChatPanel {
       } else thumb = `<span class="cpc-ext">${esc((f.name.split(".").pop() || "file").slice(0, 4).toUpperCase())}</span>`;
       return `<div class="cp-chip">${thumb}<span class="cpc-name" title="${esc(f.name)}">${esc(f.name)}</span><button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">&times;</button></div>`;
     }).join("");
+  }
+
+  // --- threads you reference in your message (dragged in from the sidebar) -------------
+  private refs: ThreadRef[] = [];
+  private refPreview: ThreadRef | null = null;
+  private refLoads = new Map<string, Promise<void>>();
+
+  private refState(r: ThreadRef): "own" | "dup" | "ok" {
+    return r.id === this.threadId ? "own" : this.refs.some((x) => x.id === r.id) ? "dup" : "ok";
+  }
+
+  /** Where a dragged thread would land at this point: the message box, the edge tab, or nowhere. */
+  dropZone(x: number, y: number): "box" | "tab" | null {
+    if (!this.isOpen) return null;
+    const hit = (el: Element) => { const r = el.getBoundingClientRect(); return r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; };
+    if (this.collapsed) return hit(this.tab) ? "tab" : null;
+    return hit(this.el) ? "box" : null;
+  }
+
+  /** While a thread is dragged: mark the drop target and preview the chip where it will land. */
+  dragOver(ref: ThreadRef | null, zone: "box" | "tab" | null) {
+    const box = this.el.querySelector(".cp-box") as HTMLElement;
+    const hint = this.el.querySelector(".cp-hint") as HTMLElement;
+    const state = ref ? this.refState(ref) : null;
+    this.el.classList.toggle("ref-dragging", !!ref);
+    this.tab.classList.toggle("ref-dragging", !!ref);
+    box.classList.toggle("ref-over", zone === "box");
+    box.classList.toggle("ref-no", zone === "box" && state !== "ok");
+    this.tab.classList.toggle("ref-over", zone === "tab");
+    (this.tab.querySelector("span") as HTMLElement).textContent = zone === "tab" ? "Drop to reference" : this.tabLabel;
+    hint.textContent = zone === "box" ? (state === "own" ? "This is this robot's own thread" : state === "dup" ? "Already referenced" : "Drop to reference this thread") : HINT;
+    const next = zone === "box" && state === "ok" ? ref : null;
+    if (next?.id === this.refPreview?.id) return;
+    this.refPreview = next;
+    this.renderChips();
+    const p = this.el.querySelector(".cp-refchip.preview");
+    if (p) gsap.fromTo(p, { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.16, ease: "power2.out" });
+  }
+
+  /** Adds a thread to the message you are writing. Returns its chip (where a drop animation can land). */
+  addReference(ref: ThreadRef): HTMLElement | null {
+    if (this.collapsed) this.setCollapsed(false);
+    const state = this.refState(ref);
+    this.refPreview = null;
+    if (state === "ok") {
+      this.refs.push({ ...ref });
+      // the last request and reply go along as a summary; loaded now so sending stays quick
+      this.refLoads.set(ref.id, this.api.conversation(ref.id).then((msgs) => {
+        const r = this.refs.find((x) => x.id === ref.id);
+        if (r) Object.assign(r, summarize(msgs));
+      }).catch(() => {}));
+    }
+    this.renderChips();
+    const chip = this.el.querySelector(`.cp-refchip[data-ref="${CSS.escape(ref.id)}"]`) as HTMLElement | null;
+    if (chip && state === "dup") gsap.fromTo(chip, { backgroundColor: "rgba(255, 159, 90, 0.35)" }, { backgroundColor: "rgba(255, 255, 255, 0.07)", duration: 0.8, clearProps: "backgroundColor" });
+    if (state === "own") this.note("That is this robot's own thread, so there is nothing to reference.");
+    (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
+    return chip;
+  }
+
+  private removeChip(chip: HTMLElement) {
+    const rm = chip.querySelector("[data-rm], [data-rmref]") as HTMLElement | null;
+    if (!rm) return;
+    gsap.to(chip, { opacity: 0, scale: 0.9, duration: 0.14, onComplete: () => {
+      if (rm.dataset.rmref != null) { const r = this.refs.splice(Number(rm.dataset.rmref), 1)[0]; if (r) this.refLoads.delete(r.id); }
+      else this.files.splice(Number(rm.dataset.rm), 1);
+      this.renderChips();
+    } });
+  }
+
+  // --- folding the chat into a tab on the right edge ------------------------------------
+  collapsed = false;
+  /** The chat was folded into its edge tab, or opened again from it. */
+  onCollapse: (collapsed: boolean) => void = () => {};
+  private tab!: HTMLButtonElement;
+  private tabLabel = "Chat";
+
+  setCollapsed(on: boolean, animate = true) {
+    if (on === this.collapsed) return;
+    this.collapsed = on;
+    const el = this.el, tab = this.tab;
+    const still = !animate || matchMedia("(prefers-reduced-motion: reduce)").matches;
+    (el.querySelector(".cp-hide") as HTMLElement).setAttribute("aria-expanded", String(!on));
+    tab.setAttribute("aria-expanded", String(!on));
+    gsap.killTweensOf([el, tab]);
+    if (!this.isOpen) { el.classList.toggle("tabbed", on); this.onCollapse(on); return; }
+    this.closeMenu();
+    const slide = Math.max(0, el.offsetWidth - 40);
+    if (on) {
+      // the panel slides into the right edge, where its tab appears
+      const done = () => { el.classList.add("tabbed"); gsap.set(el, { clearProps: "x,opacity" }); tab.hidden = false; };
+      if (still) { done(); gsap.set(tab, { clearProps: "x,opacity" }); }
+      else gsap.timeline()
+        .to(el, { x: slide, opacity: 0, duration: 0.34, ease: "power3.in" })
+        .add(done)
+        .fromTo(tab, { x: 44, opacity: 0 }, { x: 0, opacity: 1, duration: 0.26, ease: "power3.out" }, "-=0.06");
+      if (document.activeElement && el.contains(document.activeElement)) tab.focus({ preventScroll: true });
+    } else {
+      // the tab slides away and the panel comes back out of the edge
+      tab.hidden = true;
+      el.classList.remove("tabbed");
+      if (!still) gsap.fromTo(el, { x: slide, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: "power3.out", clearProps: "x" });
+      (el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
+    }
+    this.onCollapse(on);
   }
 
   constructor(host: HTMLElement, private api: Api) {
@@ -168,6 +283,7 @@ export class ChatPanel {
         <img class="cp-logo" alt="">
         <div class="cp-who"><b></b><span></span></div>
         <button type="button" class="cp-view ghost"></button>
+        <button type="button" class="cp-hide ghost" aria-expanded="true" title="Hide the chat for more room. It stays as a tab on the right edge.">Hide chat</button>
         <button type="button" class="cp-close" aria-label="Back to the office" title="Back to the office (Esc)"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
       </header>
       <p class="cp-status" aria-live="polite"><i></i><span></span></p>
@@ -189,7 +305,7 @@ export class ChatPanel {
           <textarea rows="1" placeholder="Message this robot" aria-label="Message"></textarea>
           <div class="cp-tools">
             <button type="button" class="cp-attach" aria-label="Attach files or images" title="Attach files or images (you can also paste or drop them)"><svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="M13.5 6.5l-5.6 5.6a1.6 1.6 0 0 0 2.3 2.3l6-6a3.2 3.2 0 0 0-4.5-4.5l-6.2 6.2a4.8 4.8 0 0 0 6.8 6.8l5-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-            <span class="cp-hint">Enter to send, Shift+Enter for a new line</span>
+            <span class="cp-hint">${HINT}</span>
             <button type="submit" class="cp-send" aria-label="Send"><span>Send</span><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           </div>
           <input type="file" class="cp-fileinput" multiple hidden>
@@ -197,6 +313,16 @@ export class ChatPanel {
         <div class="cp-drop" hidden>Drop to attach</div>
       </form>`;
     host.appendChild(this.el);
+    // folded, the chat is a tab on the right edge with the robot's name
+    this.tab = document.createElement("button");
+    this.tab.type = "button";
+    this.tab.className = "cp-tab";
+    this.tab.hidden = true;
+    this.tab.setAttribute("aria-expanded", "false");
+    this.tab.innerHTML = `<img alt="" hidden><span></span><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    host.appendChild(this.tab);
+    this.tab.addEventListener("click", () => this.setCollapsed(false));
+    this.el.querySelector(".cp-hide")!.addEventListener("click", () => this.setCollapsed(true));
     this.el.querySelector(".cp-close")!.addEventListener("click", () => this.onClose());
     this.el.querySelector(".cp-view")!.addEventListener("click", () => this.onToggleView());
     const form = this.el.querySelector(".cp-form") as HTMLFormElement;
@@ -236,29 +362,50 @@ export class ChatPanel {
       e.preventDefault(); depth = 0; drop.hidden = true;
       this.addFiles([...(e.dataTransfer?.files ?? [])]);
     });
-    form.querySelector(".cp-chips")!.addEventListener("click", (e) => {
-      const x = (e.target as HTMLElement).closest("[data-rm]") as HTMLElement | null;
-      if (x) { this.files.splice(Number(x.dataset.rm), 1); this.renderChips(); }
+    const chips = form.querySelector(".cp-chips") as HTMLElement;
+    chips.addEventListener("click", (e) => {
+      const x = (e.target as HTMLElement).closest("[data-rm], [data-rmref]") as HTMLElement | null;
+      if (!x) return;
+      const chip = x.closest(".cp-chip") as HTMLElement;
+      const all = [...chips.querySelectorAll(".cp-chip:not(.preview)")];
+      const i = all.indexOf(chip);
+      this.removeChip(chip);
+      // keep the keyboard nearby: the next chip's remove button, or the message box
+      window.setTimeout(() => ((chips.querySelectorAll(".cp-chip:not(.preview) button")[Math.max(0, i - 1)] as HTMLElement | undefined) ?? ta).focus(), 170);
+    });
+    // Backspace or Delete on a chip's remove button removes it, like the x
+    chips.addEventListener("keydown", (e) => {
+      if ((e.key === "Backspace" || e.key === "Delete") && (e.target as HTMLElement).closest("[data-rm], [data-rmref]")) { e.preventDefault(); (e.target as HTMLElement).click(); }
+    });
+    // Backspace at the very start of the box removes the chip just before it
+    ta.addEventListener("keydown", (e) => {
+      if (e.key !== "Backspace" || ta.selectionStart !== 0 || ta.selectionEnd !== 0) return;
+      const last = [...chips.querySelectorAll(".cp-chip:not(.preview)")].pop() as HTMLElement | undefined;
+      if (last) { e.preventDefault(); this.removeChip(last); }
     });
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const typed = ta.value.trim();
-      if ((!typed && !this.files.length) || !this.desk?.threadId) return;
+      if ((!typed && !this.files.length && !this.refs.length) || !this.desk?.threadId) return;
       ta.disabled = true;
       const files = [...this.files];
+      const refs = [...this.refs];
       try {
         // files are saved where the agent can open them, and listed in the message
         const saved: { path: string; image: boolean }[] = [];
         for (const f of files) saved.push({ path: await this.api.saveAttachment(f.name, new Uint8Array(await f.arrayBuffer())), image: f.type.startsWith("image/") });
-        const text = saved.length
-          ? `${typed || "Have a look at the attached files."}\n\nAttached:\n${saved.map((s) => `- ${s.image ? "image" : "file"}: ${s.path}`).join("\n")}`
-          : typed;
+        // referenced threads go along as short blocks the agent can read and look up by id
+        await Promise.all(refs.map((r) => this.refLoads.get(r.id)));
+        let text = typed || (saved.length ? "Have a look at the attached files." : refs.length > 1 ? "Have a look at these threads." : refs.length ? "Have a look at this thread." : "");
+        if (refs.length) text += `\n\n${refs.map((r) => refBlock(this.refs.find((x) => x.id === r.id) ?? r, harnessName(r.provider))).join("\n\n")}`;
+        if (saved.length) text += `\n\nAttached:\n${saved.map((s) => `- ${s.image ? "image" : "file"}: ${s.path}`).join("\n")}`;
         // show it right away; it turns into the real message once T3 has it
         this.pending.push({ text, at: Date.now() });
         this.renderPending();
         await this.api.sendMessage({ threadId: this.desk.threadId, message: text });
         ta.value = "";
         this.files = [];
+        this.refs = this.refs.filter((r) => !refs.some((x) => x.id === r.id));
         this.renderChips();
         grow();
         this.refreshSoon(300);
@@ -304,7 +451,20 @@ export class ChatPanel {
     if (logo) img.src = logo;
     this.el.querySelector(".cp-who b")!.textContent = desk.profile?.name ? `${desk.profile.name}` : `${harnessName(info?.provider)} robot`;
     this.el.querySelector(".cp-who span")!.textContent = info?.title || "";
-    if (!this.isOpen) {
+    this.tabLabel = `Chat with ${this.el.querySelector(".cp-who b")!.textContent}`;
+    (this.tab.querySelector("span") as HTMLElement).textContent = this.tabLabel;
+    this.tab.setAttribute("aria-label", `Show ${this.tabLabel.replace(/^Chat/, "chat")}`);
+    this.tab.title = `Show the chat. ${info?.title || ""}`.trim();
+    const tabLogo = this.tab.querySelector("img") as HTMLImageElement;
+    tabLogo.hidden = !logo;
+    if (logo) tabLogo.src = logo;
+    if (!this.isOpen && this.collapsed) {
+      // folded: the chat stays a tab on the edge until you open it
+      this.el.classList.add("open", "tabbed");
+      this.tab.hidden = false;
+      gsap.killTweensOf(this.tab);
+      gsap.fromTo(this.tab, { x: 44, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: "power3.out" });
+    } else if (!this.isOpen) {
       this.el.classList.add("open");
       gsap.fromTo(this.el, { x: 40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "power3.out" });
     }
@@ -314,7 +474,11 @@ export class ChatPanel {
 
   close() {
     if (!this.isOpen) return;
-    gsap.to(this.el, { x: 40, opacity: 0, duration: 0.3, ease: "power2.in", onComplete: () => this.el.classList.remove("open") });
+    if (this.collapsed) {
+      const tab = this.tab;
+      this.el.classList.remove("open");
+      gsap.to(tab, { x: 44, opacity: 0, duration: 0.22, ease: "power2.in", onComplete: () => { tab.hidden = true; gsap.set(tab, { clearProps: "x,opacity" }); } });
+    } else gsap.to(this.el, { x: 40, opacity: 0, duration: 0.3, ease: "power2.in", onComplete: () => this.el.classList.remove("open") });
     this.closeMenu();
     this.desk = null;
   }
@@ -450,6 +614,15 @@ export class ChatPanel {
           : `<div class="cp-file" title="${esc(p)}"><span>${esc(name)}</span><i>file</i></div>`);
       }
     }
+    // threads you referenced show as small chips, not as the block the agent reads
+    if (m.role === "user" && body.includes("<referenced_thread ")) {
+      const rr = stripRefs(body);
+      body = rr.body;
+      for (const r of rr.refs.reverse()) {
+        const logo = logoFor(r.harness);
+        sent.unshift(`<div class="cp-file cp-reffile" title="${esc(`${r.title}, ${r.project}`)}">${logo ? `<img src="${logo}" alt="">` : ""}<span>${esc(r.title)}</span><i>${esc(r.project)}</i></div>`);
+      }
+    }
     m = { ...m, text: body };
     const atts = sent.join("") + m.attachments.map((a) => {
       if (a.type === "image" && a.path) return `<figure class="cp-att"><img src="${fileUrl(a.path)}" alt="${esc(a.name)}" loading="lazy"></figure>`;
@@ -515,8 +688,9 @@ export class ChatPanel {
         + btn("steer", m.steerTarget ? "Send now, into the current turn" : "Send now works while it is working", ICON.steer, !!m.steerTarget)
         + btn("cancel", "Remove from the queue", ICON.remove) + `</span>` : live ? `<span></span>` : "");
     const p = li.querySelector("p")!;
-    p.textContent = m.text;
-    p.title = m.text;
+    const rr = m.text.includes("<referenced_thread ") ? stripRefs(m.text) : null;
+    p.textContent = rr ? `${rr.body} (references ${rr.refs.map((r) => r.title).join(", ")})` : m.text;
+    p.title = p.textContent;
   }
 
   // "next", "2nd", ... and which arrows make sense, after any change of order

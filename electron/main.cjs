@@ -171,6 +171,7 @@ const ROSTER = path.join(app.getPath("userData"), "roster.json");
 ipcMain.on("roster:load", (e) => { try { e.returnValue = require("node:fs").readFileSync(ROSTER, "utf8"); } catch { e.returnValue = "[]"; } });
 ipcMain.handle("roster:save", (_e, json) => require("node:fs").promises.writeFile(ROSTER, json));
 ipcMain.handle("t3:conversation", (_e, id) => t3.conversation(id));
+ipcMain.handle("t3:pending-requests", (_e, id) => t3.pendingRequests(id));
 ipcMain.handle("t3:thread-info", (_e, id) => { try { return t3.threadInfo(id); } catch { return null; } });
 ipcMain.handle("t3:items-since", (_e, id, since) => (since ? t3.itemsSince(id, since) : t3.recentItems(id, 60)));
 ipcMain.handle("t3:attach-dir", () => require("node:path").join(process.env.T3CODE_HOME || require("node:path").join(require("node:os").homedir(), ".t3"), "userdata", "attachments") + require("node:path").sep);
@@ -295,6 +296,7 @@ ipcMain.handle("t3s:cancel", t3sWrap((o) => t3s.cancelQueued(o.threadId, o.runId
 ipcMain.handle("t3s:edit", t3sWrap((o) => t3s.editQueued(o.threadId, o.runId, o.text)));
 ipcMain.handle("t3s:steer", t3sWrap((o) => t3s.steerNow(o.threadId, o.queuedRunId, o.targetRunId)));
 ipcMain.handle("t3s:setModel", t3sWrap((o) => t3s.setThreadModel(o.threadId, o.selection)));
+ipcMain.handle("t3s:respond", t3sWrap((o) => t3s.respondToRequest(o.threadId, o.requestId, o)));
 app.on("before-quit", () => t3s.closeSock());
 
 // Office documents the agents wrote (docx, xlsx, pptx, csv...), read for the robots' office apps.

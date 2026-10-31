@@ -2,6 +2,7 @@ import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import "./styles.css";
 import "./office/office.css";
+import "./office/panels.css";
 import "./world/world.css";
 import "./decor/decor.css";
 import { openDecorate, type RoomTheme } from "./office/decorate";
@@ -12,6 +13,7 @@ import { useRobot } from "./office/desk";
 import gsap from "gsap";
 import { World, type Room, type WorldData } from "./office/world";
 import { ChatPanel } from "./office/chat-panel";
+import { AnswerCard } from "./office/answer";
 import { showMenu, confirmDialog } from "./office/menus";
 import { openHire, BUILTIN_ROLES, type Role } from "./office/hire";
 import { openCustomizeFor } from "./office/customize";
@@ -26,6 +28,9 @@ import { CATALOG } from "./office/shop";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
+import { wireThreadDrag } from "./office/thread-drag";
+import type { ThreadRef } from "./office/thread-ref";
+import { foldButton, foldSection, setRail } from "./office/sidebar";
 import openaiLogo from "./assets/openai.svg";
 import claudeLogo from "./assets/claude.svg";
 
@@ -66,34 +71,37 @@ const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 document.getElementById("app")!.innerHTML = `
-  <aside class="panel">
+  <aside class="panel" id="side-panel">
     <header class="brand"><span class="mark" aria-hidden="true"></span><h1>Lucid</h1><button type="button" class="wx" id="wx" hidden aria-haspopup="menu"></button>
       <button class="update" id="update" type="button" hidden>Update</button>
+      <button type="button" class="side-hide" id="side-hide" aria-expanded="true" aria-controls="side-panel" aria-label="Hide sidebar" title="Hide sidebar: it folds into a rail on the left (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M9.5 4L5.5 8l4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Hide<span class="sh-more"> sidebar</span></span></button>
     </header>
 
     <section class="company" id="company" aria-live="polite"></section>
     <section class="wallet" id="wallet"><span class="wl-coins" title="1 coin for every dollar of AI work at API prices">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></span><span class="wl-boost" id="wl-boost" hidden></span><button type="button" class="wl-shop" id="open-shop">Shop</button></section>
 
     <section class="threads">
-      <div class="th-head"><h3>Threads</h3><label class="th-search"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label></div>
-      <ol class="th-list" id="th-list"></ol>
+      <div class="th-head"><h3>Threads</h3><label class="th-search"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label>${foldButton("threads", "threads")}</div>
+      <div class="fold-body" id="fold-threads"><ol class="th-list" id="th-list" aria-label="Threads. Drag one into the chat, or press R, to reference it"></ol></div>
     </section>
 
     <section class="rooms">
-      <h3>Rooms</h3>
+      <div class="sec-head"><h3>Rooms</h3>${foldButton("rooms", "rooms")}</div>
+      <div class="fold-body" id="fold-rooms">
       <ul id="room-list" class="room-list"></ul>
       <div class="room-links"><button type="button" class="link-btn" id="overview">Whole building</button><button type="button" class="link-btn" id="park">The park</button><button type="button" class="link-btn" id="shop-link">The shop</button></div>
       <div class="hidden-offices" id="hidden-offices" hidden></div>
+      </div>
     </section>
 
     <section class="usage" id="usage">
-      <h3>Usage</h3>
-      <div id="usage-body"></div>
+      <div class="sec-head"><h3>Usage</h3>${foldButton("usage", "usage")}</div>
+      <div class="fold-body" id="fold-usage"><div id="usage-body"></div></div>
     </section>
 
     <section class="orch" id="orch">
-      <h3>Orchestrator</h3>
-      <div id="orch-body"></div>
+      <div class="sec-head"><h3>Orchestrator</h3>${foldButton("orch", "orchestrator")}</div>
+      <div class="fold-body" id="fold-orch"><div id="orch-body"></div></div>
     </section>
 
     <section class="focus" id="focus">
@@ -105,6 +113,11 @@ document.getElementById("app")!.innerHTML = `
       </div>
     </section>
   </aside>
+  <nav class="side-rail" id="side-rail" aria-label="Folded sidebar" hidden>
+    <button type="button" class="rail-show" id="rail-show" aria-expanded="false" aria-controls="side-panel" title="Show sidebar (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M6.5 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Show<br>sidebar</span></button>
+    <button type="button" class="rail-coins" id="rail-coins" title="Coins. Click to open the shop">${coinIcon(16)}<b id="rail-bal">0</b></button>
+    <ol class="rail-list" id="rail-list" aria-label="Threads"></ol>
+  </nav>
   <main class="scene" id="scene"></main>
   <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button></div>`;
 
@@ -117,11 +130,14 @@ let selectedDesk: Desk | null = null;
 (window as any).__world = world; // debug handle for test runs
 const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), t3: (window as any).lucidT3 });
 // the chat panel is about a third of the window wide; the camera leaves room for it
-const panelSpace = () => Math.min(640, Math.max(440, innerWidth * 0.36)) + 28;
+const panelSpace = () => (chat.collapsed ? 52 : Math.min(640, Math.max(440, innerWidth * 0.36)) + 28);
 world.panelWidth = panelSpace();
 window.addEventListener("resize", () => (world.panelWidth = panelSpace()));
 world.onFocus = (d) => { if (d) { chat.open(d); chat.setView(world.focusMode); pushStatus(d); } else chat.close(); };
-chat.onClose = () => world.unfocus();
+// a robot's question, answered from its chat (see openAnswer)
+const answer = new AnswerCard(chat, { pending: (id) => (window as any).lucid.pendingRequests(id), t3: (window as any).lucidT3 });
+// a chat opened without a desk (questions room, follow chip) closes itself
+chat.onClose = () => { if (!world.focusDesk) chat.close(); world.unfocus(); };
 chat.onToggleView = () => {
   const d = world.focusDesk;
   if (!d) return;
@@ -153,7 +169,10 @@ world.onRooms = (rooms: Room[]) => {
 };
 $("room-list").addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest("[data-room]") as HTMLElement | null;
-  if (b) world.showRoom(b.dataset.room!);
+  if (!b) return;
+  world.showRoom(b.dataset.room!);
+  // the questions room: answer the robot at the front of the line
+  if (world.rooms.find((r) => r.id === b.dataset.room)?.kind === "queue") { const t = world.lastData?.threads.find((x) => x.question); if (t) openAnswer(t.id); }
 });
 $("overview").addEventListener("click", () => world.overview());
 $("park").addEventListener("click", () => world.showPark());
@@ -180,6 +199,7 @@ world.onSelect = (d) => {
   renderFocus();
 };
 world.onSelectThread = (id) => {
+  if (needsAnswer(id)) { openAnswer(id); return; }
   const d = world.deskFor(id);
   if (d) { world.select(d); world.showDesk(d); }
 };
@@ -189,7 +209,7 @@ $("back-btn").addEventListener("click", () => world.unfocus());
 
 
 // --- live data -------------------------------------------------------------------------
-api.onItems(({ threadId, items, initial }) => { world.deskFor(threadId)?.director.push(items, initial); chat.ping(threadId); });
+api.onItems(({ threadId, items, initial }) => { world.deskFor(threadId)?.director.push(items, initial); chat.ping(threadId); answer.ping(threadId); });
 api.onInfo(({ threadId, info }) => {
   const d = world.deskFor(threadId);
   if (!d || info.error) return;
@@ -336,12 +356,52 @@ $("update").addEventListener("click", async () => {
 
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
-const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[] } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));
 world.themes = new Map(Object.entries(settings.themes ?? {}));
 world.level = settings.level ?? 0;
 world.homes = new Map(Object.entries(settings.homes ?? {}));
+
+// --- folding the sidebar, its sections and the chat (remembered in settings.ui) ------------
+settings.ui ??= {};
+const ui = settings.ui;
+const folded = new Set(ui.folded ?? []);
+const appEl = $("app") as HTMLElement;
+appEl.style.setProperty("--side", "300px");
+// the office view holds still while the sidebar changes width, and fits the chat again when it folds
+const refit = () => {
+  world.panelWidth = panelSpace();
+  const d = world.focusDesk;
+  if (d) { if (world.focusMode === "screen") world.focusScreen(d); else world.focusOn(d); }
+};
+$("side-panel").addEventListener("click", (e) => {
+  const b = (e.target as HTMLElement).closest("[data-fold]") as HTMLElement | null;
+  if (!b) return;
+  const key = b.dataset.fold!, open = b.getAttribute("aria-expanded") !== "true";
+  if (open) folded.delete(key); else folded.add(key);
+  foldSection(key, open);
+  ui.folded = [...folded];
+  saveSettings();
+});
+for (const key of folded) foldSection(key, false, false);
+const toggleRail = (on: boolean, animate = true) => {
+  ui.rail = on;
+  $("side-hide").setAttribute("aria-expanded", String(!on));
+  $("rail-show").setAttribute("aria-expanded", String(!on));
+  if (on) renderRail();
+  const hadFocus = document.activeElement === $("side-hide") || document.activeElement === $("rail-show");
+  setRail(on, { app: appEl, panel: $("side-panel"), rail: $("side-rail"), animate, onWidth: (dx) => world.panBy(dx), done: () => { if (hadFocus) $(on ? "rail-show" : "side-hide").focus(); } });
+};
+$("side-hide").addEventListener("click", () => { toggleRail(true); saveSettings(); });
+$("rail-show").addEventListener("click", () => { toggleRail(false); saveSettings(); });
+window.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "b") { e.preventDefault(); toggleRail(!ui.rail); saveSettings(); }
+});
+if (ui.rail) toggleRail(true, false);
+chat.setCollapsed(!!ui.chatTab, false);
+chat.onCollapse = (on) => { ui.chatTab = on; saveSettings(); refit(); };
+world.panelWidth = panelSpace();
 const saveSettings = () => {
   settings.hidden = [...world.hidden];
   settings.extra = Object.fromEntries(world.extra);
@@ -410,11 +470,15 @@ function renderCompany(shipped: { total: number; today: number }) {
   const key = `${shipped.total}:${shipped.today}`;
   if (key === lastCompany) return;
   lastCompany = key;
+  const coOpen = !folded.has("company");
   $("company").innerHTML = `
-    <div class="co-top"><b>Level ${p.level}</b><span>${p.level >= 10 ? "Top level" : `${p.to - shipped.total} runs to level ${p.level + 1}`}</span></div>
-    <div class="co-bar" role="progressbar" aria-valuemin="${p.from}" aria-valuemax="${p.to}" aria-valuenow="${shipped.total}"><i style="width:${Math.round(p.frac * 100)}%"></i></div>
+    <div class="co-top"><b>Level ${p.level}</b><span>${p.level >= 10 ? "Top level" : `${p.to - shipped.total} runs to level ${p.level + 1}`}</span>${foldButton("company", "company progress", coOpen)}</div>
+    <div class="fold-body" id="fold-company"${coOpen ? "" : " hidden"}>
+    <div class="co-bar" role="progressbar" aria-label="Progress to the next level" aria-valuemin="${p.from}" aria-valuemax="${p.to}" aria-valuenow="${shipped.total}"><i style="width:${Math.round(p.frac * 100)}%"></i></div>
     <p class="co-sub">${shipped.total} runs shipped, ${shipped.today} today</p>
-    <button type="button" class="link-btn co-ms" id="open-ms">Milestones <span id="ms-count"></span></button>`;
+    <button type="button" class="link-btn co-ms" id="open-ms">Milestones <span id="ms-count"></span></button>
+    </div>`;
+  $("company").classList.toggle("folded", !coOpen);
   $("open-ms").addEventListener("click", () => openMilestones(milestoneStats(shipped), new Set(settings.milestones ?? [])));
   lastShipped = shipped;
   checkMilestones(shipped);
@@ -468,6 +532,9 @@ world.owns = (key) => wallet.owns(key);
 const paintWallet = (gained = 0) => {
   const b = $("wl-bal");
   b.textContent = wallet.balance.toLocaleString();
+  const rb = $("rail-bal"), n = wallet.balance;
+  rb.textContent = n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : String(n);
+  $("rail-coins").title = `${n.toLocaleString()} coins. Click to open the shop`;
   if (gained > 0 && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     const f = document.createElement("span");
     f.className = "wl-gain";
@@ -481,6 +548,7 @@ wallet.onChange = (_bal, gained) => paintWallet(gained);
 paintWallet();
 const goShopping = () => openShop({ wallet, level: world.level, onBought: () => { void refresh(); shopFront.render(); } });
 $("open-shop").addEventListener("click", goShopping);
+$("rail-coins").addEventListener("click", goShopping);
 // the shop is also a real building next to the office
 const shopFront = new ShopFront(document.createElement("div"), wallet, () => world.level);
 shopFront.onOpen = goShopping;
@@ -567,6 +635,25 @@ world.onFollowChat = (id) => {
   chat.setStatus("Off work right now", "idle");
 };
 
+// A robot waiting for your answer: its chat opens with the answer card focused. At its desk if it
+// has one, otherwise beside the questions room where it waits in line.
+const needsAnswer = (id: string) => !!world.lastData?.threads.find((t) => t.id === id)?.question;
+function openAnswer(id: string) {
+  const d = world.deskFor(id);
+  if (d && !d.el.classList.contains("arriving")) world.focusOn(d);
+  else {
+    world.stopFollow();
+    const room = world.rooms.find((r) => r.kind === "queue");
+    if (room) world.showRoom(room.id, world.panelWidth);
+    // leaving a focused desk starts closing the chat; open it fresh instead
+    gsap.killTweensOf(chat.el);
+    chat.el.classList.remove("open");
+    world.onFollowChat(id);
+    chat.setStatus("Waiting for your answer", "waiting");
+  }
+  answer.focus(id);
+}
+
 // --- the thread list, like T3 Code's sidebar --------------------------------------------
 const ago = (iso?: string | null) => {
   if (!iso) return "";
@@ -576,7 +663,8 @@ const ago = (iso?: string | null) => {
 let thSig = "";
 function renderThreads() {
   const data = world.lastData;
-  if (!data) return;
+  if (!data || document.body.classList.contains("th-dragging")) return;   // never swap rows out from under a drag
+  renderRail();
   const q = (($("th-q") as HTMLInputElement).value || "").trim().toLowerCase();
   const projects = new Map(data.projects.map((p) => [p.id, p]));
   const list = [...data.threads]
@@ -610,16 +698,88 @@ function renderThreads() {
 $("th-q").addEventListener("input", renderThreads);
 $("th-list").addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest(".th-row") as HTMLElement | null;
-  if (!b) return;
-  const id = b.dataset.id!;
+  if (b) openThread(b.dataset.id!);
+});
+function openThread(id: string) {
+  if (needsAnswer(id)) { openAnswer(id); return; }
   const d = world.deskFor(id);
   if (d && !d.el.classList.contains("arriving")) { world.focusOn(d); return; }
   // not at a desk: follow it wherever it is (break room, questions, park, walking)
   const el = document.querySelector(`.world-walker[data-id="${CSS.escape(id)}"]`) as HTMLElement | null;
   if (el) world.follow(el);
-});
+}
 setInterval(renderThreads, 3000);
 window.setTimeout(renderThreads, 1500);
+
+// The folded sidebar: one button per thread with its harness logo and a dot for its state.
+let railSig = "";
+function renderRail() {
+  const data = world.lastData;
+  if (!data || !ui.rail || document.body.classList.contains("th-dragging")) return;
+  const projects = new Map(data.projects.map((p) => [p.id, p]));
+  const list = [...data.threads]
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+    .slice(0, 40);
+  const html = list.map((t) => {
+    const p = projects.get(t.projectId);
+    const proj = !p || p.scratch ? "No project" : p.title;
+    const [st, said] = t.question ? ["ask", "needs input"] : t.runStatus === "running" ? ["work", "working"]
+      : t.lastStatus === "failed" ? ["fail", "failed"] : t.unseen && t.lastStatus === "completed" ? ["done", "done"] : ["", ""];
+    const logo = logoFor(t.provider);
+    const name = `${t.title}, ${proj}${said ? `, ${said}` : ""}`;
+    return `<li><button type="button" class="rail-th${t.id === chat.threadId ? " cur" : ""}" data-id="${esc(t.id)}" aria-label="${esc(name)}" title="${esc(`${t.title}
+${proj}${said ? ` · ${said[0].toUpperCase()}${said.slice(1)}` : ""}`)}">`
+      + (logo ? `<img src="${logo}" alt="">` : `<span class="rail-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`)
+      + (st ? `<i class="rail-st ${st}" aria-hidden="true"></i>` : "") + `</button></li>`;
+  }).join("");
+  if (html === railSig) return;
+  railSig = html;
+  $("rail-list").innerHTML = html;
+}
+$("rail-list").addEventListener("click", (e) => {
+  const b = (e.target as HTMLElement).closest(".rail-th") as HTMLElement | null;
+  if (b) openThread(b.dataset.id!);
+});
+
+// --- referencing a thread in the chat: drag it in, press R on it, or use its menu ----------
+function threadRef(id: string): ThreadRef | null {
+  const data = world.lastData;
+  const t = data?.threads.find((x) => x.id === id);
+  if (!t) return null;
+  const p = data!.projects.find((x) => x.id === t.projectId);
+  return { id, title: t.title || "Untitled thread", project: !p || p.scratch ? "No project" : p.title, provider: t.provider };
+}
+wireThreadDrag([$("th-list"), $("rail-list")], chat, threadRef);
+function referenceInChat(id: string, x: number, y: number) {
+  const ref = threadRef(id);
+  if (!ref) return;
+  if (chat.isOpen && chat.threadId) { chat.addReference(ref); return; }
+  showMenu(x, y, "Open a robot's chat to reference this thread", [{ label: "Chat with this thread's robot", run: () => openThread(id) }]);
+}
+function threadMenu(row: HTMLElement, x: number, y: number) {
+  const id = row.dataset.id!, ref = threadRef(id);
+  if (!ref) return;
+  const items = [{ label: "Open", run: () => openThread(id) }];
+  if (chat.isOpen && chat.threadId && chat.threadId !== id) items.unshift({ label: "Reference in chat (R)", run: () => { chat.addReference(ref); } });
+  showMenu(x, y, ref.title, items);
+}
+for (const box of [$("th-list"), $("rail-list")]) {
+  box.addEventListener("contextmenu", (e) => {
+    const row = (e.target as HTMLElement).closest("[data-id]") as HTMLElement | null;
+    if (!row) return;
+    e.preventDefault();
+    // from the keyboard (menu key) the menu opens beside the row instead of at 0, 0
+    const r = row.getBoundingClientRect();
+    threadMenu(row, e.clientX || r.right - 20, e.clientY || r.top + 8);
+  });
+  box.addEventListener("keydown", (e) => {
+    const row = (e.target as HTMLElement).closest("[data-id]") as HTMLElement | null;
+    if (!row || e.ctrlKey || e.metaKey || e.altKey || e.key.toLowerCase() !== "r") return;
+    e.preventDefault();
+    const r = row.getBoundingClientRect();
+    referenceInChat(row.dataset.id!, r.right - 20, r.top + 8);
+  });
+}
 
 // you typing in the side chat: the robot sees it in its Messages app and waits for you
 chat.onTyping = (on) => { const id = chat.threadId; if (id) world.deskFor(id)?.director.userTyping(on); };

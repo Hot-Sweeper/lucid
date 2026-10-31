@@ -296,7 +296,8 @@ function world(limit = 40) {
               order by t.updated_at desc limit ?`)
     .all(limit);
   const questionStmt = db.prepare(`select payload_json as p from orchestration_v2_projection_turn_items
-                                   where thread_id = ? and type = 'user_input_request' and status in ('running','pending') order by ordinal desc limit 1`);
+                                   where thread_id = ? and type = 'user_input_request' and status in ('running','pending','waiting') order by ordinal desc limit 1`);
+  const approvalStmt = db.prepare(`select 1 from orchestration_v2_projection_runtime_requests where thread_id = ? and kind != 'user_input' and status not in ('resolved','cancelled','expired','failed') limit 1`);
   // Scheduled threads: when their next run is, and how often they run.
   const schedules = new Map();
   try {
@@ -312,7 +313,7 @@ function world(limit = 40) {
     if (r.pending > 0 || r.runStatus === "waiting" || r.runStatus === "awaiting_input") {
       const q = questionStmt.get(r.id);
       const qp = q ? safeJson(q.p) : null;
-      question = qp?.questions?.map((x) => x.question).join(" ") || "Needs your answer";
+      question = qp?.questions?.map((x) => x.question).join(" ") || (approvalStmt.get(r.id) ? "Needs your approval" : "Needs your answer");
     }
     // T3 can show a live turn as "queued"; recent activity is the most honest signal.
     const busy = r.runStatus === "running" || r.runStatus === "queued" || (r.lastItemAt && Date.now() - Date.parse(r.lastItemAt) < 90000);
@@ -438,4 +439,36 @@ function userMessagesSince(since, exclude) {
     .filter((m) => m.text.trim() && !/^(Delegated task node:|<task-notification>|New messages the user wrote to robots)/.test(m.text.trim()) && !/delegated-task:command/.test(m.text.slice(0, 200)));
 }
 
-module.exports = { userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
+// Open questions and approval requests of one thread, oldest first, with what the agent asked.
+// The answer goes back through the paired T3 session (t3server.cjs respondToRequest).
+const DONE_REQUEST = "('resolved','cancelled','expired','failed')";
+function pendingRequests(threadId) {
+  const db = getDb();
+  const rows = db
+    .prepare(`select runtime_request_id as id, kind, status, created_at as at, payload_json as p from orchestration_v2_projection_runtime_requests
+              where thread_id = ? and status not in ${DONE_REQUEST} order by created_at asc`)
+    .all(threadId);
+  const itemStmt = db.prepare(`select payload_json as p from orchestration_v2_projection_turn_items
+                               where thread_id = ? and type in ('user_input_request','approval_request') and json_extract(payload_json, '$.requestId') = ?
+                               order by ordinal desc limit 1`);
+  return rows.map((r) => {
+    const rp = safeJson(r.p) || {};
+    const item = safeJson(itemStmt.get(threadId, r.id)?.p) || {};
+    const cap = rp.responseCapability || {};
+    const base = { id: r.id, kind: r.kind, at: r.at, answerable: cap.type !== "not_resumable", reason: cap.type === "not_resumable" ? cap.reason || null : null };
+    if (r.kind === "user_input" || item.type === "user_input_request") {
+      const questions = (item.questions || rp.questions || []).map((q) => ({
+        id: String(q.id), header: q.header || "", question: q.question || "",
+        options: (q.options || []).map((o) => ({ label: o.label, description: o.description || "", value: o.value ?? null })),
+        multiSelect: !!q.multiSelect, allowCustomAnswer: q.allowCustomAnswer !== false, initialAnswer: q.initialAnswer ?? null,
+      }));
+      return { ...base, type: "input", questions };
+    }
+    return {
+      ...base, type: "approval", requestKind: item.requestKind || r.kind, prompt: item.prompt || "", detail: item.reason || "",
+      options: (item.options || []).map((o) => ({ decision: o.decision, label: o.label, warning: o.warning || null })),
+    };
+  });
+}
+
+module.exports = { pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };

@@ -1,0 +1,131 @@
+import gsap from "gsap";
+import { logoFor } from "./brand";
+import type { ThreadRef } from "./thread-ref";
+import type { ChatPanel } from "./chat-panel";
+
+// Dragging a thread from the sidebar into the side chat references it in your message.
+// Pointer events, not HTML drag and drop: a copy of the row follows the cursor, the chat's
+// message box lights up as the drop target, and a preview chip shows where it will land.
+// Escape puts it back. A short press is still a normal click on the row.
+
+const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const ROW = ".th-row[data-id], .rail-th[data-id]";
+
+export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFor: (id: string) => ThreadRef | null) {
+  for (const box of containers) box.addEventListener("pointerdown", (e) => start(e, box));
+
+  function start(e: PointerEvent, _box: HTMLElement) {
+    if (e.button !== 0 || e.pointerType === "touch") return;   // touch scrolls the list; the menu or R key references instead
+    const row = (e.target as HTMLElement).closest(ROW) as HTMLElement | null;
+    if (!row) return;
+    const ref = refFor(row.dataset.id!);
+    if (!ref) return;
+    const x0 = e.clientX, y0 = e.clientY;
+    let ghost: HTMLElement | null = null;
+    let zone: "box" | "tab" | null = null;
+
+    let finished = false;
+    // captured from the start, so a quick flick off the row still counts as a drag
+    try { row.setPointerCapture(e.pointerId); } catch {}
+
+    const begin = () => {
+      document.body.classList.add("th-dragging");
+      window.getSelection()?.removeAllRanges();
+      row.classList.add("th-dragsrc");
+      ghost = document.createElement("div");
+      ghost.className = "th-ghost";
+      ghost.setAttribute("aria-hidden", "true");
+      const logo = logoFor(ref.provider);
+      ghost.innerHTML = `${logo ? `<img src="${logo}" alt="">` : ""}<span><b>${esc(ref.title)}</b><i>${esc(ref.project)}</i></span><em></em>`;
+      document.body.appendChild(ghost);
+      gsap.fromTo(ghost, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.14, ease: "power2.out" });
+      window.addEventListener("keydown", onKey, true);
+      chat.dragOver(ref, null);
+      track(x0, y0);
+    };
+
+    // what happens if you let go here, said on the ghost when the chat cannot take it
+    const track = (x: number, y: number) => {
+      // above the pointer, so it never covers the chips and the label in the box it is dropped on
+      const gw = ghost!.offsetWidth, gh = ghost!.offsetHeight;
+      const gx = x + 12 + gw > innerWidth - 8 ? x - gw - 12 : x + 12;   // flips left near the right edge
+      gsap.set(ghost!, { x: Math.max(8, gx), y: Math.max(8, y - gh - 10) });
+      zone = chat.dropZone(x, y);
+      chat.dragOver(ref, zone);
+      const note = ghost!.querySelector("em") as HTMLElement;
+      const say = !chat.isOpen ? "Open a robot's chat to drop it there" : zone ? "" : "Drop on the chat to reference it";
+      if (note.textContent !== say) note.textContent = say;
+      ghost!.classList.toggle("over", !!zone);
+    };
+
+    const onMove = (ev: PointerEvent) => {
+      if (!ghost) {
+        if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return;
+        begin();
+      }
+      ev.preventDefault();
+      track(ev.clientX, ev.clientY);
+    };
+
+    const cleanup = () => {
+      finished = true;
+      row.removeEventListener("pointermove", onMove);
+      row.removeEventListener("pointerup", onUp);
+      row.removeEventListener("pointercancel", onCancel);
+      row.removeEventListener("lostpointercapture", onCancel);
+      window.removeEventListener("keydown", onKey, true);
+      document.body.classList.remove("th-dragging");
+      row.classList.remove("th-dragsrc");
+      chat.dragOver(null, null);
+    };
+
+    // nothing happens: the copy glides back to the row it came from
+    const goBack = (g: HTMLElement) => {
+      const r = row.getBoundingClientRect();
+      gsap.to(g, { x: r.left + 8, y: r.top + 4, opacity: 0, scale: 0.92, duration: 0.24, ease: "power2.in", onComplete: () => g.remove() });
+    };
+
+    // the click that ends a drag must not also open the row
+    const eatClick = () => {
+      const stop = (ev: Event) => { ev.preventDefault(); ev.stopImmediatePropagation(); };
+      window.addEventListener("click", stop, { capture: true, once: true });
+      window.setTimeout(() => window.removeEventListener("click", stop, true), 0);
+    };
+
+    const onUp = () => {
+      if (finished) return;
+      const g = ghost;
+      const at = zone;
+      cleanup();
+      if (!g) return;   // a plain click
+      eatClick();
+      if (!at) { goBack(g); return; }
+      const chip = chat.addReference(ref);
+      if (!chip) { goBack(g); return; }
+      // the copy shrinks into the chip it became
+      const r = chip.getBoundingClientRect();
+      gsap.to(g, { x: r.left, y: r.top, width: r.width, opacity: 0, scale: 0.96, duration: 0.24, ease: "power2.out", onComplete: () => g.remove() });
+      gsap.fromTo(chip, { opacity: 0.2 }, { opacity: 1, duration: 0.26, delay: 0.08 });
+    };
+    const onCancel = (ev?: Event) => {
+      if (finished) return;
+      const g = ghost;
+      cleanup();
+      if (!g) return;
+      goBack(g);
+      // cancelled with Escape while the button is still down: the click comes when it is released
+      if (ev instanceof KeyboardEvent) window.addEventListener("pointerup", eatClick, { capture: true, once: true });
+      else eatClick();
+    };
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key !== "Escape") return;
+      ev.preventDefault(); ev.stopImmediatePropagation();
+      onCancel(ev);
+      try { row.releasePointerCapture(e.pointerId); } catch {}
+    };
+    row.addEventListener("pointermove", onMove);
+    row.addEventListener("pointerup", onUp);
+    row.addEventListener("pointercancel", onCancel);
+    row.addEventListener("lostpointercapture", onCancel);
+  }
+}
