@@ -378,7 +378,8 @@ function userMessagesSince(since, exclude) {
               order by m.created_at asc limit 40`)
     .all(since, exclude || "")
     .map((r) => ({ threadId: r.threadId, title: r.title, at: r.at, text: (safeJson(r.p)?.text || "").slice(0, 1500) }))
-    .filter((m) => m.text.trim());
+    // only what you wrote yourself: helper reports and system notes are not your preferences
+    .filter((m) => m.text.trim() && !/^(Delegated task node:|<task-notification>|New messages the user wrote to robots)/.test(m.text.trim()) && !/delegated-task:command/.test(m.text.slice(0, 200)));
 }
 
 module.exports = { userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };

@@ -24,6 +24,7 @@ export async function playSnake(body: HTMLElement, host: FunHost, opts: FunOpts)
 
     let snake: P[] = [], old: P[] = [], grew = false, dir: P = { x: 1, y: 0 };
     let food: P = { x: 0, y: 0 }, foodAt = 0, score = 0;
+    let oops = 0, fumble: P | null = null;   // cooldown after a slip, and a wrong key to press first
     let dead = false, deadAt = 0, won = false, greedy = 0, cheered = false;
     let lastTick = performance.now();
     let tick = 112;
@@ -100,6 +101,21 @@ export async function playSnake(body: HTMLElement, host: FunHost, opts: FunOpts)
       if (greedy > 0) greedy--;
       const lapse = (0.006 + 0.03 * (1 - skill)) * (1 + score / 12);
       if (Math.random() < lapse) greedy = 5 + Math.floor(Math.random() * 6);
+      // Everyday human slips that are not fatal: turning one row too late (then coming back),
+      // turning the wrong way first, or fumbling the opposite key before the right one.
+      if (oops > 0) oops--;
+      const turning = !!next && (next.x !== dir.x || next.y !== dir.y);
+      if (turning && oops <= 0 && ok(dir)) {
+        const r = Math.random(), pOver = 0.09 + 0.2 * (1 - skill), pWrong = 0.03 + 0.07 * (1 - skill);
+        if (r < pOver) {
+          oops = 5;
+          if (Math.random() < 0.3) host.react(Math.random() < 0.5 ? "surprised" : "shy");
+          return dir;
+        }
+        const wrong = { x: -next!.x, y: -next!.y };
+        if (r < pOver + pWrong && ok(wrong)) { oops = 6; return wrong; }
+        if (r < pOver + pWrong + 0.05) fumble = { x: -next!.x, y: -next!.y };
+      }
       // Late reaction: it meant to turn, but straight ahead is a wall or its own tail.
       if (next && (next.x !== dir.x || next.y !== dir.y) && !ok(dir)) {
         const pLate = 0.08 + 0.32 * (1 - skill) + score * 0.005;
@@ -123,7 +139,11 @@ export async function playSnake(body: HTMLElement, host: FunHost, opts: FunOpts)
       old = snake.map((p) => ({ ...p }));
       grew = false;
       if (!next) { die(); return; }
-      if (next.x !== dir.x || next.y !== dir.y) host.tap(KEY(next));
+      if (next.x !== dir.x || next.y !== dir.y) {
+        // a fumbled key first: the wrong arrow (it does nothing), then the right one
+        if (fumble) { host.tap(KEY(fumble)); fumble = null; }
+        host.tap(KEY(next));
+      }
       dir = next;
       const head = snake[0];
       const n = { x: head.x + dir.x, y: head.y + dir.y };
