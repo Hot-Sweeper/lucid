@@ -1,7 +1,8 @@
 import gsap from "gsap";
 import { setZoom } from "../world/budget";
 import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
-import { drawFloor, drawWall, drawDecor, placeDecor, DECOR } from "../decor/decor";
+import { drawFloor, drawWall, drawDecor, placeDecor, decorFootprint, DECOR } from "../decor/decor";
+import { furniturePath, type Footprint } from "./navigation";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
 import { Walker, SIT_HEAD, pause, type Facing } from "../world/walker";
@@ -101,27 +102,14 @@ export class World {
   /** Where a walker sits so its head is where the desk robot's head is (desk at `d`, world coordinates). */
   private seatAt(d: Pt) { return { x: d.x + GEOM.chair.x, y: d.y + GEOM.head.y - 2 + SIT_HEAD * WALK_SCALE }; }
   private deskPos(d: Desk) { return { x: parseFloat(d.el.style.left), y: parseFloat(d.el.style.top) }; }
-  // From just inside the door to the seat of the desk at `d`, along the free aisles: one runs
-  // below every row of desks, others between the columns of tables and along the east wall.
+  // Plan from the door around actual floor footprints, then approach the chair from its side.
   private toSeat(r: Room, d: Pt): Pt[] {
     const [, inn] = this.door(r);
-    const seat = this.seatAt(d), rowY = d.y + UNIT_H + 10;
-    const pts: Pt[] = [inn];
-    if (r.y + r.h <= this.topH + 1) {
-      // door in the south wall: up to the aisle below the last row, then up between two columns
-      const rows = Math.max(1, Math.floor((r.h - WALL_FACE - 70) / SLOT_H));
-      const lastY = r.y + WALL_FACE + 40 + (rows - 1) * SLOT_H + UNIT_H + 10;
-      pts.push({ x: inn.x, y: lastY });
-      if (Math.abs(lastY - rowY) > 2) {
-        const ax = Math.abs(d.x - 10 - inn.x) <= Math.abs(d.x + UNIT_W + 10 - inn.x) ? d.x - 10 : d.x + UNIT_W + 10;
-        pts.push({ x: ax, y: lastY }, { x: ax, y: rowY });
-      }
-    } else pts.push({ x: inn.x, y: rowY });   // door in the north wall's east corner: down along the east wall
-    // round the chair to its side, then step in front of the desk and sit (never through the chair back)
-    const bx = seat.x + (inn.x < seat.x ? -1 : 1) * 62;
-    pts.push({ x: bx, y: rowY }, { x: bx, y: seat.y }, seat);
-    return pts;
+    const seat = this.seatAt(d), side = { x: seat.x + (inn.x < seat.x ? -1 : 1) * 62, y: seat.y };
+    const path = furniturePath(inn, side, this.furniture(r), this.walkBounds(r));
+    return [inn, ...(path ?? [side]), seat]; // walkLegs checks again; a blocked route waits
   }
+  private walkBounds(r: Room): Footprint { return { x: r.x + 20, y: r.y + WALL_FACE + 10, w: r.w - 40, h: r.h - WALL_FACE - 30 }; }
   private outside(p: Pt) { return p.x > this.size.w; }
   /** From any point to the hall (nothing when it is already outdoors), through the room's door. */
   private wayOut(p: Pt): Pt[] {
@@ -136,7 +124,8 @@ export class World {
   private route(p: Pt, id: string, to: string | null): { pts: Pt[]; desk: Desk | null; deskAt: Pt | null } {
     const pts = this.wayOut(p);
     const toRoom = this.roomById(to);
-    const desk = toRoom ? this.desks.get(id) ?? null : null;
+    const owned = this.desks.get(id);
+    const desk = toRoom && owned?.room === to ? owned : null;
     const startOut = this.outside(p), endOut = !toRoom;   // the park, or away
     if (startOut && !endOut) pts.push(this.parkDoor, this.entrance());
     if (!startOut && endOut) pts.push(this.entrance(), this.parkDoor);
@@ -175,14 +164,36 @@ export class World {
         w.destroy();
         continue;
       }
-      let j = i;
-      while (j < pts.length && this.outside(pts[j]) === out) j++;
-      await w.walkPath(pts.slice(i, j));
+      // Re-plan each leg against the actual furniture, including bought decorations.
+      while (this.deskDragActive || this.slidingDesks.size) { await pause(0.1); if (this.trips.get(t.id) !== trip) return; }
+      const j = i + 1, from = { x: w.x, y: w.y }, goal = pts[i];
+      const room = this.rooms.find((r) => ["main", "project", "freelance"].includes(r.kind) &&
+        from.x >= r.x && from.x <= r.x + r.w && from.y >= r.y && from.y <= r.y + r.h &&
+        goal.x >= r.x && goal.x <= r.x + r.w && goal.y >= r.y && goal.y <= r.y + r.h);
+      const path = room ? furniturePath(from, goal, this.furniture(room), this.walkBounds(room)) : [goal];
+      if (!path) return; // stay put and let travel retry, never walk through a blocked aisle
+      await w.walkPath(path);
       if (this.transit.get(t.id) !== w || this.trips.get(t.id) !== trip) return;
       const last = pts[j - 1];
       if (Math.hypot(w.x - last.x, w.y - last.y) > 8) return;   // picked up on the way: the caller plans again
       i = j;
     }
+  }
+
+  private furniture(r: Room): Footprint[] {
+    const blocks: Footprint[] = [];
+    for (const d of this.slotDesks.values()) if (d.room === r.id) {
+      const p = this.deskPos(d);
+      blocks.push({ x: p.x + 34, y: p.y + 180, w: 332, h: 88 }, { x: p.x + 164, y: p.y + 285, w: 72, h: 64 });
+    }
+    const slots = this.seats.get(r.id)?.length ?? 0;
+    for (const p of officeDecor(r, slots, this.themes.get(r.id), this.level)) {
+      const b = decorFootprint(p); if (b) blocks.push({ ...b, x: b.x + r.x, y: b.y + r.y });
+    }
+    if (!usable(this.themes.get(r.id), this.level).length) blocks.push(
+      { x: r.x + r.w - 82, y: r.y + r.h - 86, w: 44, h: 26 }, { x: r.x + 34, y: r.y + r.h - 84, w: 38, h: 24 });
+    if (r.kind === "freelance") blocks.push({ x: r.x + r.w - 420, y: r.y + WALL_FACE - 6, w: 290, h: 58 });
+    return blocks;
   }
 
   /**
@@ -221,7 +232,7 @@ export class World {
       gsap.fromTo(w.el, { opacity: 0 }, { opacity: 1, duration: 0.4 });
     }
     let plan = this.route({ x: w.x, y: w.y }, t.id, to);
-    for (let tries = 0; tries < 5; tries++) {
+    while (this.trips.get(t.id) === trip) {
       if (this.trips.get(t.id) !== trip) return;
       // the last steps (beside the chair, into it) are drawn over the desk, whatever raised it
       const near = plan.desk ? 2 : 0, n = plan.pts.length;
@@ -240,11 +251,10 @@ export class World {
       const d = plan.desk, moved = !!d && (this.desks.get(t.id) !== d || !d.el.isConnected || Math.hypot(this.deskPos(d).x - plan.deskAt!.x, this.deskPos(d).y - plan.deskAt!.y) > 1);
       if (!moved && (!end || Math.hypot(w.x - end.x, w.y - end.y) <= 8)) break;
       await whenFree(w);
+      await pause(0.1);
       plan = this.route({ x: w.x, y: w.y }, t.id, to);
     }
     if (this.trips.get(t.id) !== trip) return;
-    this.trips.delete(t.id);
-    this.transit.delete(t.id);
     const desk = plan.desk && this.desks.get(t.id) === plan.desk ? plan.desk : null;
     const done = w;
     if (desk) {
@@ -252,6 +262,7 @@ export class World {
       done.face("up");
       done.do("sit");
       await pause(0.55);
+      if (this.trips.get(t.id) !== trip) return;
       desk.el.classList.remove("arriving");
       gsap.to(done.el, { opacity: 0, duration: 0.25, onComplete: () => done.destroy() });
     } else if (to && to !== "park") {
@@ -261,6 +272,8 @@ export class World {
       done.destroy();
     } else if (to === "park") done.destroy();   // the park's own walker steps out of the same door
     else gsap.to(done.el, { opacity: 0, duration: 0.4, onComplete: () => done.destroy() });
+    this.trips.delete(t.id);
+    this.transit.delete(t.id);
     this.pushExt();
   }
 
@@ -285,15 +298,15 @@ export class World {
     if (seat) { void this.travel(t, { seat, room: from }, to); return; }
     if (from === "break" || from === "queue" || from === "park") {
       // the room walks it to its door first and hands it over there (handOver)
-      const r = this.roomById(from);
       const timer = window.setTimeout(() => {
-        // the room never had it on show: it steps out of that door
         const e = this.exits.get(t.id);
         if (!e) return;
+        const host = from === "park" ? this.park.layer : this.ext[from]?.el;
+        // A slow exit is still the same robot. Never replace it at the door on a timer.
+        if (host && [...host.querySelectorAll<HTMLElement>(".world-walker")].some((el) => el.dataset.id === t.id)) return;
         this.exits.delete(t.id);
-        void this.travel(e.t, { at: r ? this.door(r)[0] : this.parkDoor, face: "down" }, e.to);
-        const w = this.transit.get(t.id);
-        if (w) gsap.fromTo(w.el, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+        // It was never on show in the source room, so it enters through the outside path.
+        void this.travel(e.t, { outside: true }, e.to);
       }, 15000);
       this.exits.set(t.id, { t, to, timer });
       return;
@@ -398,8 +411,9 @@ export class World {
   ext: Partial<Record<"break" | "queue", RoomExtension>> = {};
   extFactory: Partial<Record<"break" | "queue", (host: HTMLElement, w: number, h: number) => RoomExtension>> = {};
   private lastKey = "";
+  private hasLayout = false;
   private placed = new Map<string, { room: string; pending?: { room: string; since: number } }>();
-  private seats = new Map<string, (string | null)[]>();   // room id -> thread id per desk slot
+  seats = new Map<string, (string | null)[]>();   // persistent reservations, including robots on a break
   private slotDesks = new Map<string, Desk>();              // "room#index" -> desk standing there
 
   // A robot only changes rooms once the new state has lasted a while, so brief flickers
@@ -436,10 +450,13 @@ export class World {
   // --- layout -------------------------------------------------------------------
   update(data: WorldData) {
     this.lastData = data;
+    if (this.deskDragActive) return; // live refresh must never replace a desk under the pointer
+    const seatsBefore = JSON.stringify([...this.seats]);
     const byProject = new Map(data.projects.map((p) => [p.id, p]));
     const queue: WThread[] = [], main: WThread[] = [], brk: WThread[] = [], rest: WThread[] = [];
     const perProject = new Map<string, WThread[]>();
     const freelance: WThread[] = [];
+    const residents = new Map<string, WThread[]>();
     let orchT: WThread | null = null;
     for (const t of data.threads) {
       if (t.id === this.orchThread) { orchT = t; continue; }   // no desk: it has the chair in the questions room
@@ -447,7 +464,14 @@ export class World {
       // with a short wait it stays at its desk and kills time there.
       const wait = t.schedule?.nextRunAt ? Date.parse(t.schedule.nextRunAt) - Date.now() : null;
       const p = byProject.get(t.projectId);
-      const home = this.homes.get(t.id) ?? (!p || p.scratch ? "freelance" : `p:${p.id}`);
+      const savedHome = this.homes.get(t.id);
+      const home = savedHome === "main" || savedHome === "freelance" || (savedHome?.startsWith("p:") && byProject.has(savedHome.slice(2)))
+        ? savedHome : (!p || p.scratch ? "freelance" : `p:${p.id}`);
+      // A break changes where the robot is, never who owns its furniture.
+      if (!t.settled || t.runStatus === "running" || t.pinned || this.homes.has(t.id) || this.seats.get(home)?.includes(t.id)) {
+        if (!residents.has(home)) residents.set(home, []);
+        residents.get(home)!.push(t);
+      }
       // A robot without work takes breaks: after 10 quiet minutes it spends about a third of
       // every half hour in the break room (each on its own rhythm), and comes back for work.
       const quietFor = Date.now() - Date.parse(t.updatedAt);
@@ -458,10 +482,9 @@ export class World {
         && (Math.floor(Date.now() / 60000) + rhythm) % 30 < 11;
       const want = t.question ? "queue"
         : onBreak ? "break"
-        : this.homes.has(t.id) && !t.settled ? home
-        : t.runStatus === "running" || t.pinned ? "main"
+        : t.runStatus === "running" || t.pinned ? home
         : wait != null && wait > 15 * 60 * 1000 ? "break"
-        : wait != null ? "main"
+        : wait != null ? home
         : t.settled ? "break" : home;
       const room = this.settleRoom(t, want);
       if (room === "queue") queue.push(t);
@@ -475,50 +498,56 @@ export class World {
       }
     }
     // Keep each robot in the seat it already has; newcomers take the first free seat.
-    const seatOrder = (roomId: string, list: WThread[], max: number) => {
-      const prev = this.seats.get(roomId) ?? [];
+    const seatOrder = (roomId: string, list: WThread[]) => {
+      const prev = [...(this.seats.get(roomId) ?? [])];
       // a robot hired at a specific desk sits exactly there
       const ps = this.pendingSeat;
       if (ps && ps.room === roomId && ps.threadId && list.some((t) => t.id === ps.threadId)) {
         while (prev.length <= ps.index) prev.push(null);
         const old = prev.indexOf(ps.threadId);
         if (old >= 0) prev[old] = null;
+        const displaced = prev[ps.index];
         prev[ps.index] = ps.threadId;
+        if (displaced && displaced !== ps.threadId) prev.push(displaced);
         this.pendingSeat = null;
       }
       const ids = new Set(list.map((t) => t.id));
-      const seats: (string | null)[] = prev.map((id) => (id && ids.has(id) ? id : null));
-      for (const t of list) {
+      const seen = new Set<string>();
+      const seats: (string | null)[] = prev.map((id) => {
+        if (!id || !ids.has(id) || seen.has(id)) return null;
+        seen.add(id); return id;
+      });
+      for (const t of [...list].sort((a, b) => a.id.localeCompare(b.id))) {
         if (seats.includes(t.id)) continue;
         const free = seats.indexOf(null);
         if (free >= 0) seats[free] = t.id; else seats.push(t.id);
       }
-      while (seats.length > max) { const i = seats.lastIndexOf(null); if (i >= 0) seats.splice(i, 1); else seats.pop(); }
-      while (seats.length && seats[seats.length - 1] === null && seats.length > list.length) seats.pop();
+      // Keep holes and trailing slots. Compacting them silently changes everyone else's seat.
       this.seats.set(roomId, seats);
       const byId = new Map(list.map((t) => [t.id, t]));
       return seats.map((id) => (id ? byId.get(id) ?? null : null));
     };
     type Plan = { id: string; kind: RoomKind; title: string; icon: string | null; threads: (WThread | null)[]; slots: number; w: number; h: number };
-    const office = (id: string, kind: RoomKind, title: string, icon: string | null, threads: WThread[], min: number, max: number): Plan => {
+    const office = (id: string, kind: RoomKind, title: string, icon: string | null, threads: WThread[], min: number): Plan => {
       const extra = this.extra.get(id) ?? 0;
-      const seated = seatOrder(id, threads.slice(0, max + extra), max + extra);
-      const slots = Math.max(min + extra, Math.min(max + extra, seated.length));
+      const seated = seatOrder(id, residents.get(id) ?? threads);
+      const slots = Math.max(min + extra, seated.length);
+      while (this.seats.get(id)!.length < slots) this.seats.get(id)!.push(null);
       const { w, h } = officeSize(slots, needsLounge(this.themes.get(id), this.level) ? LOUNGE : 0);
-      return { id, kind, title, icon, threads: seated as WThread[], slots, w, h };
+      return { id, kind, title, icon, threads: seated, slots, w, h };
     };
     const top: Plan[] = [
       { id: "queue", kind: "queue", title: "Questions for you", icon: null, threads: queue, slots: 0, w: 720, h: 800 },
-      office("main", "main", "Main office", null, main, 3, 6),
+      office("main", "main", "Main office", null, main, 3),
       { id: "break", kind: "break", title: "Break room", icon: null, threads: brk.slice(0, 8), slots: 0, w: 1900, h: 800 },
     ];
     const bottom: Plan[] = [];
-    for (const [pid, list] of perProject) {
-      const p = byProject.get(pid)!;
+    for (const p of [...data.projects].filter((p) => !p.scratch).sort((a, b) => a.id.localeCompare(b.id))) {
+      const pid = p.id, list = perProject.get(pid) ?? [];
       if (this.hidden.has(pid)) continue;
-      bottom.push(office(`p:${pid}`, "project", p.title, p.icon, list, 2, 3));
+      bottom.push(office(`p:${pid}`, "project", p.title, p.icon, list, 2));
     }
-    if (!this.hidden.has("freelance")) bottom.push(office("freelance", "freelance", "Freelancers", null, freelance, 2, 3));
+    if (!this.hidden.has("freelance")) bottom.push(office("freelance", "freelance", "Freelancers", null, freelance, 2));
 
     // Floor plan: top row, a hallway, then project offices.
     const rooms: Room[] = [];
@@ -544,10 +573,19 @@ export class World {
     const key = rooms.map((r, i) => `${r.id}:${plans[i].slots}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|") + `:L${this.level}:${[...this.themes.values()].map((t) => [...(t.decor ?? []), t.floor, t.wall].filter((k) => k).map((k) => (ownsItem(`decor:${k}`) || ownsItem(`floor:${k}`) || ownsItem(`wall:${k}`) ? 1 : 0)).join("")).join("")}`;
     if (key !== this.lastKey) {
       this.lastKey = key;
-      for (const kind of ["break", "queue"] as const) { this.ext[kind]?.destroy(); delete this.ext[kind]; }
-      for (const old of this.roomLayer.children) this.cull.unobserve(old);
-      this.roomLayer.innerHTML = "";
+      // Preserve room residents and their running journeys when another office changes size.
+      const oldRooms = new Map(this.rooms.map((r) => [r.id, r]));
       rooms.forEach((r, i) => {
+        const old = oldRooms.get(r.id);
+        if ((r.kind === "break" || r.kind === "queue") && old && old.w === r.w && old.h === r.h) {
+          r.el = old.el;
+          gsap.to(r.el, { left: r.x, top: r.y, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 0.3, ease: "power3.out", overwrite: "auto" });
+          const ext = this.ext[r.kind];
+          if (ext) ext.onExit = (id, at, face) => this.handOver(id, { x: at.x + parseFloat(r.el.style.left), y: at.y + parseFloat(r.el.style.top) }, face);
+          oldRooms.delete(r.id);
+          return;
+        }
+        if (old) { this.cull.unobserve(old.el); old.el.remove(); oldRooms.delete(r.id); }
         const el = document.createElement("div");
         el.className = `room room-${r.kind}`;
         el.style.cssText = `left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px`;
@@ -562,6 +600,7 @@ export class World {
         this.cull.observe(el);
         r.el = el;
       });
+      for (const old of oldRooms.values()) { this.cull.unobserve(old.el); old.el.remove(); }
       const hall = this.root.querySelector(".hall") as HTMLElement;
       hall.style.cssText = `top:${topH}px;height:${HALL}px;width:${this.size.w}px`;
       // the outdoors: grass and trees around the building, a park beside the entrance
@@ -630,11 +669,13 @@ export class World {
     const desksBefore = new Map<string, Pt>();
     for (const [id, d] of this.desks) if (!d.el.classList.contains("arriving")) desksBefore.set(id, this.deskPos(d));
     const nowRoom = new Map<string, string>();
-    for (const s of slots) if (s.t) nowRoom.set(s.t.id, s.key.split("#")[0]);
+    const atWork = new Set([...main, ...freelance, ...[...perProject.values()].flat()].map((t) => t.id));
+    for (const s of slots) if (s.t && atWork.has(s.t.id)) nowRoom.set(s.t.id, s.key.split("#")[0]);
     brkShown.forEach((t) => nowRoom.set(t.id, "break"));
     queue.forEach((t) => nowRoom.set(t.id, "queue"));
     if (!this.outdoorsWet) brk.slice(8, 14).forEach((t) => { if (!nowRoom.has(t.id)) nowRoom.set(t.id, "park"); });
-    const first = this.roomOf.size === 0;
+    const first = !this.hasLayout;
+    this.hasLayout = true;
     const moving: { t: WThread; from: string | null; to: string | null }[] = [];
     if (!first) {
       for (const t of data.threads) {
@@ -676,10 +717,13 @@ export class World {
         this.freeDesks.push(d);
       }
       this.slotDesks.set(s.key, d);
+      d.room = s.key.split("#")[0];
+      d.el.dataset.slot = s.key;
+      if (d.threadId && (nowRoom.get(d.threadId) !== d.room || moving.some((m) => m.t.id === d!.threadId) || this.transit.has(d.threadId))) d.el.classList.add("arriving");
       if (d.threadId) d.el.classList.toggle("orch-desk", d.threadId === this.orchThread);
       const cur = { x: parseFloat(d.el.style.left), y: parseFloat(d.el.style.top) };
       if (Math.abs(cur.x - s.x) > 1 || Math.abs(cur.y - s.y) > 1) {
-        d.el.style.left = `${s.x}px`; d.el.style.top = `${s.y}px`; d.baseZ = Math.round(s.y); d.lift("move", false);
+        this.slideDesk(d, s);
       }
     }
     // desks whose seat disappeared are retired properly (their robot and computer stop)
@@ -697,6 +741,7 @@ export class World {
     this.extLists = { brk: brkShown.map(info), queue: queue.map((t) => ({ ...info(t), question: t.question })), park: wet ? [] : brk.slice(8, 14).map(info), orch: orchT ? { ...info(orchT), running: orchT.runStatus === "running" } : null };
     this.pushExt();
     this.onRooms(rooms);
+    if (JSON.stringify([...this.seats]) !== seatsBefore) this.onLayoutChange();
   }
 
   private allDesks = new Set<Desk>();
@@ -779,6 +824,7 @@ export class World {
     d.director.attachDir = this.attachDir;
     d.director.childItems = (id, since) => (window as any).lucid.itemsSince(id, since);
     this.allDesks.add(d);
+    this.wireDeskDrag(d);
     d.el.addEventListener("click", (e) => {
       if (this.dragged) return;
       e.stopPropagation();
@@ -798,6 +844,117 @@ export class World {
       if (this.focusDesk === d && this.focusMode === "desk") this.focusScreen(d); else this.focusOn(d);
     });
     return d;
+  }
+
+  onLayoutChange: () => void = () => {};
+  private deskDragActive = false;
+  private slidingDesks = new Set<Desk>();
+  private slideDesk(d: Desk, at: Pt) {
+    d.baseZ = Math.round(at.y);
+    for (const w of this.transit.values()) w.stop();
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      gsap.killTweensOf(d.el, "left,top"); gsap.set(d.el, { left: at.x, top: at.y }); d.lift("move", false); return;
+    }
+    gsap.to(d.el, { left: at.x, top: at.y, duration: 0.3,
+      ease: "power3.out", overwrite: "auto", onUpdate: () => { d.baseZ = Math.round(this.deskPos(d).y); d.lift("move", false); },
+      onComplete: () => { this.slidingDesks.delete(d); }, onInterrupt: () => { this.slidingDesks.delete(d); } });
+    this.slidingDesks.add(d);
+  }
+
+  private wireDeskDrag(d: Desk) {
+    d.el.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || (e.target as HTMLElement).closest(".screen, .poke, button, input, textarea")) return;
+      const entries = [...this.slotDesks].filter(([key]) => key.split("#")[0] === d.room).sort((a, b) => Number(a[0].split("#")[1]) - Number(b[0].split("#")[1]));
+      const original = entries.map(([, desk]) => desk), source = original.indexOf(d);
+      if (source < 0) return;
+      e.stopPropagation(); e.preventDefault();
+      try { d.el.setPointerCapture(e.pointerId); } catch { /* synthetic/offscreen pointer */ }
+      const start = this.deskPos(d), x0 = e.clientX, y0 = e.clientY;
+      let z = this.cam.s;
+      const room = this.roomById(d.room)!;
+      const { cols } = officeSize(entries.length);
+      const positions = original.map((_, i) => ({ x: room.x + 70 + (i % cols) * SLOT_W, y: room.y + WALL_FACE + 40 + Math.floor(i / cols) * SLOT_H }));
+      let active = false, target = source, ended = false;
+      let preview: HTMLElement | null = null;
+      const arrange = (index: number) => { const order = [...original]; order.splice(source, 1); order.splice(index, 0, d); return order; };
+      const move = (ev: PointerEvent) => {
+        if (!active && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return;
+        if (!active) {
+          active = this.deskDragActive = this.dragged = true;
+          this.stopFollow(); gsap.killTweensOf(this.cam);
+          z = this.cam.s;
+          for (const w of this.transit.values()) w.stop();
+          for (const desk of original) gsap.killTweensOf(desk.el, "left,top");
+          document.body.classList.add("desk-dragging"); window.getSelection()?.removeAllRanges();
+          d.el.classList.add("desk-grabbed");
+          preview = document.createElement("div"); preview.className = "desk-drop-preview"; preview.textContent = "Place desk here";
+          this.deskLayer.appendChild(preview);
+        }
+        ev.preventDefault();
+        const x = Math.max(room.x + 22, Math.min(room.x + room.w - UNIT_W - 22, start.x + (ev.clientX - x0) / z));
+        const y = Math.max(room.y + WALL_FACE + 12, Math.min(room.y + room.h - UNIT_H - 22, start.y + (ev.clientY - y0) / z));
+        gsap.set(d.el, { left: x, top: y });
+        let next = target, distance = Infinity;
+        positions.forEach((p, i) => { const dist = Math.hypot(x - p.x, y - p.y); if (dist < distance) { distance = dist; next = i; } });
+        if (next !== target) { target = next; arrange(target).forEach((desk, i) => { if (desk !== d) this.slideDesk(desk, positions[i]); }); }
+        preview!.style.left = `${positions[target].x + 24}px`; preview!.style.top = `${positions[target].y + 170}px`;
+      };
+      const finish = (commit: boolean, waitForRelease = false) => {
+        if (ended) return;
+        ended = true;
+        d.el.removeEventListener("pointermove", move); d.el.removeEventListener("pointerup", up);
+        d.el.removeEventListener("pointercancel", cancel); d.el.removeEventListener("lostpointercapture", cancel);
+        window.removeEventListener("keydown", key, true); window.removeEventListener("blur", cancel);
+        try { d.el.releasePointerCapture(e.pointerId); } catch {}
+        if (!active) return;
+        const order = commit ? arrange(target) : original;
+        order.forEach((desk, i) => { this.slotDesks.set(entries[i][0], desk); this.slideDesk(desk, positions[i]); });
+        if (commit) this.seats.set(d.room, order.map((desk) => desk.threadId));
+        preview?.remove(); d.el.classList.remove("desk-grabbed"); document.body.classList.remove("desk-dragging");
+        this.deskDragActive = false;
+        // Capture phase also suppresses monitor and toy click handlers on release.
+        const eat = (event: Event) => { event.preventDefault(); event.stopImmediatePropagation(); };
+        const eatClick = () => {
+          window.addEventListener("click", eat, { capture: true, once: true });
+          setTimeout(() => window.removeEventListener("click", eat, true), 0);
+        };
+        if (waitForRelease) window.addEventListener("pointerup", eatClick, { capture: true, once: true }); else eatClick();
+        setTimeout(() => { this.dragged = false; }, 0);
+        if (this.lastData) this.update(this.lastData);
+        if (commit) this.onLayoutChange();
+      };
+      const up = () => finish(true), cancel = () => finish(false);
+      const key = (ev: KeyboardEvent) => { if (ev.key === "Escape") { ev.preventDefault(); ev.stopImmediatePropagation(); finish(false, true); } };
+      d.el.addEventListener("pointermove", move); d.el.addEventListener("pointerup", up);
+      d.el.addEventListener("pointercancel", cancel); d.el.addEventListener("lostpointercapture", cancel);
+      window.addEventListener("keydown", key, true); window.addEventListener("blur", cancel);
+    });
+  }
+
+  private threadDropPreview: HTMLElement | null = null;
+  threadDropZone(x: number, y: number): string | null {
+    const rect = this.scene.getBoundingClientRect();
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return null;
+    const at = { x: (x - rect.left - this.cam.x) / this.cam.s, y: (y - rect.top - this.cam.y) / this.cam.s };
+    return this.rooms.find((r) => ["main", "project", "freelance"].includes(r.kind) && at.x >= r.x && at.x <= r.x + r.w && at.y >= r.y && at.y <= r.y + r.h)?.id ?? null;
+  }
+  previewThreadDrop(roomId: string | null) {
+    this.threadDropPreview?.remove(); this.threadDropPreview = null;
+    const room = this.roomById(roomId);
+    if (!room) return;
+    const el = document.createElement("div"); el.className = "office-drop-preview"; el.textContent = `Move to ${room.title}`;
+    el.style.cssText = `left:${room.x + 16}px;top:${room.y + WALL_FACE}px;width:${room.w - 32}px;height:${room.h - WALL_FACE - 16}px`;
+    this.deskLayer.appendChild(el); this.threadDropPreview = el;
+  }
+  placeThread(id: string, roomId: string) {
+    const room = this.roomById(roomId), t = this.lastData?.threads.find((t) => t.id === id);
+    if (!room || !t || id === this.orchThread || !["main", "project", "freelance"].includes(room.kind)) return false;
+    this.homes.set(id, roomId);
+    for (const [r, seats] of this.seats) if (r !== roomId) this.seats.set(r, seats.map((seat) => seat === id ? null : seat));
+    // User placement takes effect immediately. Questions can still take the robot to the queue.
+    this.placed.set(id, { room: t.question ? "queue" : roomId });
+    this.update(this.lastData!); this.onLayoutChange();
+    return true;
   }
 
   select(d: Desk | null) {
@@ -1008,7 +1165,7 @@ export class World {
   panelWidth = 0;
   hidden = new Set<string>();          // project ids whose office is hidden in Lucid
   extra = new Map<string, number>();   // room id -> desks added by hand
-  homes = new Map<string, string>();   // thread id -> room it was hired into (it works there)
+  homes = new Map<string, string>();   // user-assigned home, independent of the robot's current activity
   pendingSeat: { room: string; index: number; threadId?: string } | null = null;
   onFreeDesk: (desk: Desk, room: string, x: number, y: number) => void = () => {};
   onAddDesk: (room: string) => void = () => {};
@@ -1137,6 +1294,13 @@ function monogram(title: string) {
   return ((words[0]?.[0] || "?") + (words[1]?.[0] || "")).toUpperCase();
 }
 
+function officeDecor(r: Room, slots: number, theme?: RoomTheme, level = 0) {
+  const { w, h, kind } = r, T = 16, { cols } = officeSize(Math.max(1, slots));
+  const desks = Array.from({ length: slots }, (_, k) => ({ x: 70 + (k % cols) * SLOT_W, y: WALL_FACE + 40 + Math.floor(k / cols) * SLOT_H, w: UNIT_W, h: UNIT_H }));
+  const avoid = [{ x: 30, y: T, w: 148, h: WALL_FACE - T }, ...(kind === "main" ? [{ x: w - 112, y: T, w: 64, h: 66 }] : []), ...(kind === "freelance" ? [{ x: w - 430, y: WALL_FACE - 10, w: 310, h: 70 }] : [])];
+  return placeDecor(usable(theme, level), w, h, WALL_FACE, desks, { avoid, wallTop: T });
+}
+
 function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0) {
   const { w, h, kind, title, icon } = r;
   const pal = {
@@ -1193,19 +1357,17 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0) {
     </g>` : "";
   const plant = (x: number, y: number, s = 1) => ambientPlant(x, y, s);
   const cafe = kind === "freelance" ? `
+    <g transform="translate(-90 0)">
     <rect x="${w - 330}" y="${WALL_FACE - 6}" width="290" height="58" rx="8" fill="#6b4f3a"/>
     <rect x="${w - 330}" y="${WALL_FACE - 6}" width="290" height="10" rx="5" fill="#82634b"/>
     <rect x="${w - 300}" y="${WALL_FACE + 8}" width="56" height="34" rx="6" fill="#3a3f4f"/><rect x="${w - 292}" y="${WALL_FACE + 14}" width="20" height="10" rx="3" fill="#ff9f5a"/>
-    <circle cx="${w - 200}" cy="${WALL_FACE + 26}" r="14" fill="#f6ecdc"/><circle cx="${w - 160}" cy="${WALL_FACE + 26}" r="14" fill="#f6ecdc"/>
+    <circle cx="${w - 200}" cy="${WALL_FACE + 26}" r="14" fill="#f6ecdc"/><circle cx="${w - 160}" cy="${WALL_FACE + 26}" r="14" fill="#f6ecdc"/></g>
     ${Array.from({ length: Math.floor(w / 46) }, (_, i) => `<circle cx="${20 + i * 46}" cy="${WALL_FACE + 14 + Math.sin(i * 0.9) * 6}" r="4" fill="#ffd27a" style="opacity:calc(0.5 + var(--lamp) * 0.5)"/>`).join("")}` : "";
   // the room's furnishing: placed around the desks, never on them
   let decorSvg: string | null = null;
   const items = usable(theme, level);
   if (items.length) {
-    const { cols } = officeSize(Math.max(1, slots));
-    const desks = Array.from({ length: slots }, (_, k) => ({ x: 70 + (k % cols) * SLOT_W, y: WALL_FACE + 40 + Math.floor(k / cols) * SLOT_H, w: UNIT_W, h: UNIT_H }));
-    const avoid = [{ x: 30, y: T, w: 148, h: WALL_FACE - T }, ...(kind === "main" ? [{ x: w - 112, y: T, w: 64, h: 66 }] : []), ...(kind === "freelance" ? [{ x: w - 340, y: WALL_FACE - 10, w: 310, h: 70 }] : [])];
-    decorSvg = placeDecor(items, w, h, WALL_FACE, desks, { avoid, wallTop: T }).map((p) => drawDecor(p.id, p.x, p.y, p.scale)).join("");
+    decorSvg = officeDecor(r, slots, theme, level).map((p) => drawDecor(p.id, p.x, p.y, p.scale)).join("");
   }
   return /* svg */ `
   <svg class="room-art" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">

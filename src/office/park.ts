@@ -46,7 +46,7 @@ export class Park {
   }
 
   // Where the park and the building door are, in world coordinates. If the building grows the
-  // park moves with it, and so does everyone in it.
+  // park moves with it. Visitors keep their physical position and re-plan their walk.
   setGeometry(park: Rect, door: { x: number; y: number }) {
     const prev = this.geo;
     this.geo = { park: { ...park }, door: { ...door } };
@@ -70,8 +70,7 @@ export class Park {
     for (const s of this.spots) s.taken = old.get(s.key) ?? null;
     for (const v of this.vis.values()) if (v.spot) v.spot = this.spots.find((s) => s.key === v.spot!.key) ?? null;
     if (prev && (prev.park.x !== park.x || prev.park.y !== park.y)) {
-      const dx = park.x - prev.park.x, dy = park.y - prev.park.y;
-      for (const v of this.vis.values()) { v.w.stop(); v.w.setPos(v.w.x + dx, v.w.y + dy); }
+      for (const v of this.vis.values()) v.w.stop();
     }
   }
 
@@ -152,9 +151,14 @@ export class Park {
     return pts;
   }
   // walk there; if someone picks it up on the way, it gets its bearings and sets off again
-  private async go(v: Visitor, to: { x: number; y: number }) {
-    for (let tries = 0; tries < 4 && v.alive; tries++) {
+  private async go(v: Visitor, to: { x: number; y: number }, departing = false) {
+    let geometry = this.geo;
+    while (!this.dead && (v.alive || (departing && this.leaving.has(v.w)))) {
       await whenFree(v.w);
+      if (geometry && this.geo && geometry !== this.geo) {
+        to = { x: to.x + this.geo.park.x - geometry.park.x, y: to.y + this.geo.park.y - geometry.park.y };
+        geometry = this.geo;
+      }
       await v.w.walkPath(this.route({ x: v.w.x, y: v.w.y }, to));
       if (Math.hypot(v.w.x - to.x, v.w.y - to.y) < 8) return;
     }
@@ -255,7 +259,7 @@ export class Park {
     v.w.say(this.rainSoon ? pick(["Rain's coming, pack up!", "Those clouds look wet.", "Grab the blanket, rain!", "Inside before it pours!"])
       : this.wet ? pick(["It's raining, inside!", "Nope, too wet.", "My circuits hate rain.", "Race you to the door!"]) : "Back to work!", 1600);
     const g = this.geo;
-    if (g) { await this.go(v, { x: g.park.x + 30, y: g.door.y }).catch(() => {}); await v.w.walkPath([g.door]).catch(() => {}); }
+    if (g) { await this.go(v, { x: g.park.x + 30, y: g.door.y }, true).catch(() => {}); await v.w.walkPath([g.door]).catch(() => {}); }
     this.leaving.delete(v.w);
     if (!this.dead) this.onExit?.(v.t.id, { x: v.w.x, y: v.w.y }, v.w.facing);
     v.w.destroy();

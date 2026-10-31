@@ -30,6 +30,12 @@
 .desk-unit.empty .robot-host, .desk-unit.empty .bubble, .desk-unit.empty .desk-notes, .desk-unit.empty .desk-glow { display: none; }
 .desk-unit:not(.empty) .empty-chair { display: none; }   /* a free desk keeps its chair; a robot at the desk brings its own (it swivels) */
 .desk-unit.empty { cursor: default; }
+.desk-unit { touch-action: none; }
+.desk-unit > .desk-plate { cursor: grab; }
+.desk-dragging, .desk-dragging * { user-select: none !important; cursor: grabbing !important; }
+.desk-grabbed { z-index: 600000 !important; filter: drop-shadow(0 14px 10px #24203155); }
+.desk-drop-preview { position: absolute; width: 352px; height: 178px; border: 3px dashed #526c84; border-radius: 12px; background: #c6e5ef77; color: #26364b; display: grid; place-items: end center; padding-bottom: 12px; font: 500 13px var(--font); pointer-events: none; }
+.office-drop-preview { position: absolute; z-index: 600001; border: 3px dashed #526c84; border-radius: 6px; background: #c6e5ef33; color: #26364b; padding: 12px; font: 600 18px var(--font); pointer-events: none; }
 
 .desk-glow { position: absolute; left: 20px; top: 40px; width: 360px; height: 240px; pointer-events: none; --glow: #4fb6ff;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 45%, transparent), transparent); opacity: calc(0.1 + var(--night) * 1.8); }

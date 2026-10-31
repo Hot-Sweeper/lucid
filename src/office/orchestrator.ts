@@ -64,7 +64,6 @@ Rules: lines under 70 characters, kind and funny, PG, no em dashes or en dashes,
 
   async hire() {
     const r = await this.api.orchInit({ provider: "claudeAgent", model: "claude-sonnet-5-5" });
-    this.world.homes.set(r.threadId, "main");
     this.set({ ...r, review: false, seenUntil: new Date().toISOString(), lastSentAt: Date.now(), learned: 0, reviewed: {} });
     this.world.roster.assignRobot(r.threadId, null, "claudeAgent");
     const bot = this.world.roster.byThread(r.threadId);

@@ -954,6 +954,13 @@ const gapBetween = (a: B, b: B) => {
 const toB = (r: Rect): B => ({ x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h });
 
 export type PlacedDecor = { id: DecorId; x: number; y: number; scale: number };
+/** Floor collision, shared with office navigation. Wall art and rugs do not block walking. */
+export function decorFootprint(p: PlacedDecor): Rect | null {
+  if (["rug", "posters", "neon", "trophies", "leafwreath", "stringlights", "kite", "beachposter"].includes(p.id)) return null;
+  const b = boxAt(p.id, p.x, p.y, p.scale), depth = DEPTH[p.id];
+  const top = depth == null ? b.y0 : p.y - depth * p.scale * NAT[p.id];
+  return { x: b.x0, y: top, w: b.x1 - b.x0, h: b.y1 - top };
+}
 export type PlaceOptions = {
   /** Extra areas to keep clear, in room coordinates. Defaults to the room sign (top left) and the wall clock (top right) of world.ts. */
   avoid?: Rect[];
