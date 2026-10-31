@@ -365,11 +365,23 @@ function conversation(threadId, limit = 80) {
     .prepare("select message_id as id, role, created_at as at, streaming, payload_json as p from orchestration_v2_projection_messages where thread_id = ? order by created_at desc, rowid desc limit ?")
     .all(threadId, limit)
     .reverse();
+  // Queued messages are often older than the newest messages (they wait while the robot
+  // replies to others), so they are loaded on their own: the whole queue, however old.
+  const queuedRuns = getDb().prepare("select run_id as runId, status, ordinal, payload_json as p from orchestration_v2_projection_runs where thread_id = ? and status = 'queued'").all(threadId);
+  const have = new Set(rows.map((r) => r.id));
+  const missing = queuedRuns.map((q) => safeJson(q.p)?.userMessageId).filter((id) => id && !have.has(id));
+  if (missing.length) {
+    const extra = getDb()
+      .prepare(`select message_id as id, role, created_at as at, streaming, payload_json as p from orchestration_v2_projection_messages where thread_id = ? and message_id in (${missing.map(() => "?").join(",")})`)
+      .all(threadId, ...missing);
+    rows.unshift(...extra.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0)));
+  }
   const runs = new Map();
   const started = new Map();
   const queuePos = new Map();
   const queued = [];
-  for (const run of getDb().prepare("select status, ordinal, payload_json as p from orchestration_v2_projection_runs where thread_id = ? order by ordinal desc limit 60").all(threadId)) {
+  const recent = getDb().prepare("select run_id as runId, status, ordinal, payload_json as p from orchestration_v2_projection_runs where thread_id = ? and status != 'queued' order by ordinal desc limit 60").all(threadId);
+  for (const run of [...queuedRuns, ...recent].sort((a, b) => b.ordinal - a.ordinal)) {
     const rp = safeJson(run.p);
     if (rp?.userMessageId) runs.set(rp.userMessageId, run.status);
     if (rp?.userMessageId && rp.startedAt) started.set(rp.userMessageId, rp.startedAt);
