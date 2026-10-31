@@ -454,10 +454,16 @@ function renderOrch() {
   body.innerHTML = `
     <p class="orch-line">Learned from <b>${s.learned}</b> of your messages</p>
     <label class="switch"><input type="checkbox" id="orch-review" ${s.review ? "checked" : ""}><span class="track" aria-hidden="true"><i></i></span><span>Review finished work for me</span></label>
-    <div class="orch-actions"><button type="button" class="ghost" id="orch-notes">Read its notebook</button><button type="button" class="ghost" id="orch-desk">Go to its desk</button></div>`;
+    <div class="orch-actions"><button type="button" class="ghost" id="orch-notes">Read its notebook</button><button type="button" class="ghost" id="orch-desk">Go to its chair</button></div>`;
   $<HTMLInputElement>("orch-review").addEventListener("change", (e) => orch.setReview((e.target as HTMLInputElement).checked));
   $("orch-notes").addEventListener("click", () => void orch.showNotebook());
-  $("orch-desk").addEventListener("click", () => { const d = world.deskFor(s.threadId); if (d) { world.select(d); world.focusOn(d); } });
+  // it sits in the boss chair in the questions room: follow it there (or its desk, if it has one)
+  $("orch-desk").addEventListener("click", () => {
+    const d = world.deskFor(s.threadId);
+    if (d) { world.select(d); world.focusOn(d); return; }
+    const boss = document.querySelector(`.world-walker[data-id="${CSS.escape(s.threadId)}"]`) as HTMLElement | null;
+    if (boss) world.follow(boss);
+  });
 }
 renderOrch();
 
