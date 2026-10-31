@@ -38,7 +38,10 @@ export interface Prefs {
   office?: OfficeTaste;                            // which office apps it likes (none for most robots)
   apps?: FunApp[];                                 // favourite pastime apps (pinned in the dock)
   socials?: SocialApp[];                           // social apps it uses; it never opens the others
+  t3?: T3Channel;                                  // which T3 Code build it runs its thread in
 }
+/** T3 Code release channel: the stable app or T3 Code (Nightly). */
+export type T3Channel = "stable" | "nightly";
 export interface RobotProfile {
   id: string;
   name: string;
@@ -77,6 +80,8 @@ function idHash(id: string) {
   return (h % 1000) / 1000;
 }
 function tasksFor(id: string) { return tasksFrom(idHash(id)); }
+/** The T3 Code build a robot uses, from its id: the same every launch, and about half the office on each. */
+export function t3ChannelFor(id: string): T3Channel { return idHash(id + "t3code") < 0.5 ? "nightly" : "stable"; }
 const officeFrom = (x: number): OfficeTaste => (x < 0.6 ? "none" : x < 0.72 ? "writer" : x < 0.83 ? "numbers" : x < 0.92 ? "slides" : "suite");
 // A robot's interests: two or three pastime apps and two to four social apps, nudged by its hobby.
 // \`r\` is Math.random for new hires, or a generator seeded from the id so old robots migrate the same way every launch.
@@ -153,6 +158,7 @@ export class Roster {
         r.prefs.tidiness = ((x * 13) % 1) < 0.3 ? "tidy" : ((x * 13) % 1) < 0.7 ? "normal" : "messy";
       }
       if (r.prefs && !r.prefs.listens) { const x = idHash((r.id || r.name || "") + "music"); r.prefs.listens = x < 0.35 ? "always" : x < 0.7 ? "sometimes" : "never"; r.look.headphones = false; }
+      if (r.prefs && !r.prefs.t3) { r.prefs.t3 = t3ChannelFor(r.id || r.name || ""); migrated = true; }
       if (r.prefs && !r.prefs.windows) { const x = idHash((r.id || r.name || "") + "win"); r.prefs.windows = x < 0.25 ? "fullscreen" : x < 0.6 ? "tiler" : "floating"; }
       // Robots hired before hats and builds existed get their extras from their id: unique, and the same every launch.
       if (!r.look) r.look = {};
@@ -249,8 +255,9 @@ export class Roster {
     const name = draft?.name || (free.length ? pick(free) : `${pick(NAMES)} ${this.robots.length + 1}`);
     const w = () => Math.round((0.2 + Math.random()) * 10) / 10;
     const hobby = hobbyFrom(Math.random());
+    const id = `bot-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     return {
-      id: `bot-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      id,
       name,
       brand: brandFor(provider),
       provider,
@@ -274,6 +281,7 @@ export class Roster {
         git: Math.random() < 0.45 ? "desktop" : "cli",
         office: officeFrom(Math.random()),
         ...interestsFrom(Math.random, hobby),
+        t3: t3ChannelFor(id),
       },
       hiredAt: Date.now(),
       threadId,

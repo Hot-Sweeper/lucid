@@ -6,7 +6,8 @@ import { MusicApp } from "./os/music";
 import { IdleLife } from "./os/idle";
 import { HarnessApp, harnessKind, THEMES, type HarnessSession, type SubagentEvent } from "./harness/harness";
 import { fileUrl } from "./office/chat-panel";
-import { FilesApp, EditorApp, TerminalApp, BrowserApp, ChatApp, ToolApp, prettyTool } from "./os/apps";
+import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, prettyTool } from "./os/apps";
+import { T3CodeApp } from "./harness/t3code";
 import { classify, parseDiff, baseName, relPath, unwrap, type Entry } from "./os/classify";
 import { TasksApp, type TaskStep } from "./os/tasks";
 import { GitDeskApp, type DeskFile } from "./os/gitdesk";
@@ -95,7 +96,7 @@ export class Director {
   private info: ThreadInfo | null = null;
   private lastRunStatus = "";
   private files: FilesApp; private editor: EditorApp; private term: TerminalApp;
-  private browser: BrowserApp; private chat: ChatApp; private tool: ToolApp; private tasks: TasksApp;
+  private browser: BrowserApp; private chat: T3CodeApp; private tool: ToolApp; private tasks: TasksApp;
   private planSig = "";
   onActivity: (text: string) => void = () => {};
   private idleLife: IdleLife;
@@ -120,7 +121,8 @@ export class Director {
     this.editor = new EditorApp(wm);
     this.term = new TerminalApp(wm);
     this.browser = new BrowserApp(wm, peek);
-    this.chat = new ChatApp(wm);
+    // the thread itself plays out in T3 Code, the app it really lives in (stable or Nightly per robot)
+    this.chat = new T3CodeApp(wm);
     this.tool = new ToolApp(wm);
     this.tasks = new TasksApp(wm);
     this.gitdesk = new GitDeskApp(wm);
@@ -141,6 +143,7 @@ export class Director {
     this.helperOf.clear();
     this.helperHints.clear();
     this.harness.reset();
+    this.chat.reset();
     this.mobile = false;
     if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
     this.lastEventAt = 0;
@@ -164,6 +167,7 @@ export class Director {
     if (info.error) return;
     const first = !this.info;
     this.info = info;
+    this.chat.setInfo(info);
     this.term.setCwd(info.root || null);
     const status = info.run?.status || "";
     if (status === "running" && this.idleLife.isActive) {
@@ -209,6 +213,7 @@ export class Director {
       const t = Date.parse(it.updatedAt);
       if (t > this.lastEventAt) this.lastEventAt = t;
       this.items.set(it.id, it);
+      this.chat.update(it);   // a work row already in T3 Code follows its item (Running, then Ran)
       if (SKIP.has(it.type) || this.played.has(it.id) || this.queue.includes(it.id)) continue;
       // On first open, replay only the latest turn so you see what the robot is doing now.
       if (initial && it.runId !== latestRun) { this.played.add(it.id); continue; }
@@ -410,7 +415,7 @@ export class Director {
   /** The desk robot is in its chair (not walking back to it). Set by the desk. */
   present: () => boolean = () => true;
   private seesChat() {
-    return this.present() && !this.idleLife.asleep && !this.idleLife.holdingPhone && !this.phoneUp && this.wm.isFront("chat");
+    return this.present() && !this.idleLife.asleep && !this.idleLife.holdingPhone && !this.phoneUp && this.wm.isFront("t3code");
   }
   userTyping(on: boolean) {
     if (on) {
@@ -1008,6 +1013,7 @@ export class Director {
     if (this.phoneUp && !/preview_|browser/i.test(tool)) await this.phone(false);
     const d = it.data;
     const root = this.info?.root || null;
+    this.chat.activity(it);
     if (it.type !== "reasoning" && it.type !== "user_input_request") this.stage.say(null);
 
     switch (it.type) {
@@ -1017,10 +1023,10 @@ export class Director {
         // Asleep, it hears the notification, wakes up, stretches and unlocks first. Busy in
         // another app, it looks up, then clicks the notification or goes to Messages its usual way.
         const dozing = this.idleLife.pending && this.idleLife.asleep;
-        const watching = !dozing && this.wm.isFront("chat");
+        const watching = !dozing && this.wm.isFront("t3code");
         this.onActivity(dozing ? "Waking up" : "Reading your message");
         this.stage.setGlow(GLOW.chat);
-        const note = this.wm.toast("New message from you", "chat", dozing ? 7 : 2.8);
+        const note = this.wm.toast("New message from you", "t3code", dozing ? 7 : 2.8);
         if (dozing) await this.idleLife.rouse();
         else {
           this.robot.setPose(watching ? "read" : "notice");
@@ -1029,7 +1035,7 @@ export class Director {
         }
         this.onActivity("Reading your message");
         let clicked = false;
-        if (!this.wm.isFront("chat") && note.isConnected && Math.random() < (dozing ? 0.65 : 0.4)) {
+        if (!this.wm.isFront("t3code") && note.isConnected && Math.random() < (dozing ? 0.65 : 0.4)) {
           this.robot.setPose("mouse");
           await this.wm.pointAt(note, 0.45, 0.5, 420);
           await this.wm.click();

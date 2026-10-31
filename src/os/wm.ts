@@ -5,7 +5,7 @@ import { ICONS } from "./icons";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "t3code";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -37,9 +37,10 @@ const FRAMES: Record<AppId, Frame> = {
   stocks: { x: 110, y: 18, w: 600, h: 370 },
   mail: { x: 80, y: 12, w: 660, h: 384 },
   lingo: { x: 200, y: 12, w: 420, h: 384 },
+  t3code: { x: 60, y: 10, w: 700, h: 396 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "GitHub Desktop", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "GitHub Desktop", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", t3code: "T3 Code" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "t3code", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo"];
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 
@@ -303,7 +304,7 @@ export class WM {
   // Everyone has the basics; a robot also pins what it uses a lot (games for gamers, music for
   // music lovers, its task app). Other apps show up while they are open and leave when closed.
   pinned(): AppId[] {
-    const p = this.prefs, pins = new Set<AppId>(["files", "editor", "terminal", "browser", "chat"]);
+    const p = this.prefs, pins = new Set<AppId>(["files", "editor", "terminal", "browser", "t3code", "chat"]);
     if (p?.hobby === "gamer") pins.add("game");
     if (p?.hobby === "musician") pins.add("beats");
     if (p?.hobby === "chatter") pins.add("social");

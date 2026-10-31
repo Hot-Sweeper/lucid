@@ -153,3 +153,12 @@ Counters we cannot know for real (tokens, cost, context left) are left out on pu
 
 ## Others
 Kimi CLI, Qwen Code, Factory Droid, Cline and Kilo fall back to the generic console, which shows their name, model and effort.
+
+## T3 Code (stable and Nightly)
+Sources: the installed T3 Code (Nightly) 0.1.5-nightly.20261029 (its bundled web UI in `resources/server.asar`, installer art in `app.asar`), the public screenshot on t3.codes, and github.com/pingdotgg/t3code. thesvg.org has no T3 Code entry (only "t3-stack", a different project).
+- Mark: the T3 glyph path from T3 Code's own `T3Wordmark` component, set next to "Code" in the muted colour. App icons: white T3 on black (stable), white T3 on a night sky with clouds (Nightly).
+- Default dark theme: canvas `#000`, sidebar and composer `#0e0e0e`, hairlines white 8%, text neutral-100, muted neutral-400, your messages on `#1e1e1e`, primary `oklch(57.1% .21 264)`. Status colours: Working info blue, Done emerald, Input indigo, Approval amber.
+- Sidebar: wordmark, Search with filter, new project and new thread icons, thread rows (project badge, project, time or status, title, harness logo), then a "Working n" section.
+- Thread: breadcrumb `project / title`; work rows "Ran cmd", "Read file", "Edited file", "Searched files", "Searched the web", "Thought"; "Working for 12s" while running; "Worked for 20s ›" folds the work before a reply.
+- Composer: "Ask anything. @ files, $ skills, / commands", paperclip, harness logo with model and effort ("Opus 5.5 High"), round send button.
+- Nightly: with the default "Artwork" setting the sidebar header sits on the night sky art (stars, sparkles, two clouds, `--stage-night-*` colours) with a white wordmark. Stable shows no artwork. The "Nightly" version pill only appears with the "Version pill" setting. The Windows app is named "T3 Code (Nightly)".
