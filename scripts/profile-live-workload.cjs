@@ -46,7 +46,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
         await js(`{const w=window.__world,d=[...w.desks.values()].find(d=>d.wm.wins.size && !d.el.classList.contains('arriving'))||w.desks.values().next().value;if(d){w.stopFollow();w.cam={s:2,x:w.scene.clientWidth/2-(parseFloat(d.el.style.left)+200)*2,y:w.scene.clientHeight/2-(parseFloat(d.el.style.top)+100)*2};w.apply()}}`);
         await wait(800);
       }
-      if (name === 'chat') { await js(`{const w=window.__world,id=w.orchThread||w.lastData.threads[0]?.id;if(id)w.onFollowChat(id)}`);await wait(800); }
+      const coldThread = ['chat','history'].includes(name) ? await js(`{const w=window.__world;${name === 'history' ? "w.lastData.threads.find(t=>t.id!==w.orchThread&&['completed','failed','interrupted'].includes(t.lastStatus))?.id||w.orchThread" : "w.orchThread||w.lastData.threads[0]?.id"}}`) : null;
       const point = await js(`{const r=${name === 'resize' ? "document.querySelector('.grip.right')" : "window.__world.scene"}.getBoundingClientRect();({x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)})}`);
       const trace = [], onEvent = e => { if (e.method === 'Tracing.dataCollected') trace.push(...e.params.value); };
       events.add(onEvent);
@@ -54,6 +54,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
       await js(`{window.__lucidPerf.enable(true);window.__lucidPerf.reset();window.__liveProfileFrames=[];window.__liveLongTasks=[];window.__liveVisibilityLost=document.hidden;window.__liveVisibility=()=>{if(document.hidden)window.__liveVisibilityLost=true};document.addEventListener('visibilitychange',window.__liveVisibility);if(PerformanceObserver.supportedEntryTypes.includes('longtask')){window.__liveLongObserver=new PerformanceObserver(list=>window.__liveLongTasks.push(...list.getEntries().map(e=>({duration:e.duration,start:e.startTime}))));window.__liveLongObserver.observe({type:'longtask'})}window.__liveProfileRecording=true;let last=performance.now();const tick=t=>{if(!window.__liveProfileRecording)return;window.__liveProfileFrames.push(t-last);last=t;requestAnimationFrame(tick)};requestAnimationFrame(tick)}`);
       recording = true;
       const before = await call('Performance.getMetrics');
+      const actionStart=Date.now();
+      if(coldThread)await js(`window.__world.onFollowChat(${JSON.stringify(coldThread)})`);
+      const actionMs=coldThread?Date.now()-actionStart:null;
       if (name === 'panning') { heldButton='middle';heldPoint=point;await call('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'middle', buttons: 4, clickCount: 1, ...point }); }
       if (name === 'resize') { heldButton='left';heldPoint=point;await call('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, ...point }); }
       const start = Date.now();
@@ -69,6 +72,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
       const after = await call('Performance.getMetrics');
       const stats = await js(`{window.__liveProfileRecording=false;const a=window.__liveProfileFrames.slice(1).sort((a,b)=>a-b),w=window.__world;({frames:a.length,mean:a.reduce((s,n)=>s+n,0)/a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)],p99:a[Math.floor(a.length*.99)],over33:a.filter(n=>n>33.4).length,over100:a.filter(n=>n>100).length,cam:{x:w.cam.x,y:w.cam.y,s:w.cam.s},viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio},hidden:document.hidden,desks:w.desks.size,projects:w.lastData?.projects.length,threads:w.lastData?.threads.length,dom:document.querySelectorAll('*').length,svg:document.querySelectorAll('svg *').length,roomNodes:[...document.querySelectorAll('.room')].map(e=>({nodes:e.querySelectorAll('*').length,culled:e.classList.contains('culled')})),canvases:document.querySelectorAll('canvas').length,screenWindows:[...w.desks.values()].map(d=>({windows:d.wm.wins.size,visible:!d.screen.classList.contains('render-paused'),apps:[...d.wm.wins.keys()]})),systems:window.__lucidPerf.snapshot(),errors:window.__liveProfileErrors})}`);
       recording = false;
+      if(coldThread)stats.openAction={threadId:coldThread,dispatchMs:actionMs};
       stats.longTasks=await js(`{window.__liveLongObserver?.disconnect();document.removeEventListener('visibilitychange',window.__liveVisibility);({count:window.__liveLongTasks.length,max:Math.max(0,...window.__liveLongTasks.map(e=>e.duration)),visibilityLost:window.__liveVisibilityLost})}`);
       stats.canvasPixels=await js(`{const canvases=[...document.querySelectorAll('canvas')];({count:canvases.length,pixels:canvases.reduce((n,c)=>n+c.width*c.height,0),appLoops:window.__lucidPerf.render?.()})}`);
       if (stats.hidden || stats.longTasks.visibilityLost || !stats.frames) throw Error('Foreground measurement invalidated because Lucid was hidden or produced no frames');
