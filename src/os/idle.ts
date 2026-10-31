@@ -1,5 +1,6 @@
 import gsap from "gsap";
 import { WM, Cancelled } from "./wm";
+import { CalcApp, IDLE_SUMS } from "./calc";
 import type { SeatedRobot as Robot } from "../office/rig";
 import type { DeskStage as Stage } from "../office/desk";
 import { playSnake, playFlappy, playDash, watchPhoneFeed, watchTube, browseTensorHub, type FunHost } from "../fun";
@@ -99,6 +100,7 @@ export class IdleLife {
       this.alive(tok);
       this.robot.setPose("rest");
       this.onActivity("Waiting for a task");
+      if (Math.random() < 0.3) { this.robot.setPose("mouse"); await this.wm.fidget(); this.alive(tok); this.robot.setPose("rest"); }
       await this.wait(600 + Math.random() * 1000, tok);
     }
     await this.lock(tok);
@@ -120,6 +122,7 @@ export class IdleLife {
       beats: H("musician") ? 2.6 : (p?.music ?? 0) >= 0.8 ? 0.25 : 0,
       social: 0.25 * (p?.social ?? 0.4) + 2.4 * H("chatter"),
       browse: this.browser ? 0.7 + 0.9 * H("chiller") + 0.4 * H("watcher") : 0,
+      calc: 0.3,
     };
     for (const r of recent) if (weights[r] != null) weights[r] *= r === recent[0] ? 0 : 0.25;
     const total = Object.values(weights).reduce((a, b) => a + b, 0);
@@ -220,6 +223,14 @@ export class IdleLife {
       case "browse":
         if (!this.browser) return;
         return this.browse(tok);
+      case "calc": {
+        const [what, sum] = IDLE_SUMS[Math.floor(Math.random() * IDLE_SUMS.length)];
+        this.onActivity(what);
+        await new CalcApp(this.wm).compute(sum, what);
+        this.alive(tok);
+        await this.wait(1200, tok);
+        return this.closeWin("calc" as any, tok);
+      }
       case "coffee":
         this.onActivity("Sipping coffee");
         return this.robot.drink();
@@ -266,13 +277,13 @@ export class IdleLife {
       await b.visit(url);
       this.alive(tok);
       if (Math.random() < 0.45) { await b.act("Click a link", undefined, url); this.alive(tok); }
-      if (Math.random() < 0.25) this.robot.react(Math.random() < 0.5 ? "laugh" : "think" as any);
+      if (Math.random() < 0.25) this.robot.react(Math.random() < 0.5 ? "laugh" : "surprised");
       await this.wait(1500 + Math.random() * 2500, tok);
     }
     return this.closeWin("browser", tok);
   }
 
-  private async closeWin(id: "game" | "browser" | "chat" | "beats" | "social", tok: number) {
+  private async closeWin(id: "game" | "browser" | "chat" | "beats" | "social" | "calc", tok: number) {
     const w = this.wm.wins.get(id);
     if (!w) return;
     await this.wm.pointAt(w.el.querySelector(".win-x")!, 0.5, 0.5, 380);
@@ -333,13 +344,22 @@ export class IdleLife {
 
   // --- chess -----------------------------------------------------------------------
   // Morphy vs. Duke Karl and Count Isouard, Paris 1858, the "Opera Game". The robot plays white.
-  private static OPERA = "e2e4 e7e5 g1f3 d7d6 d2d4 c8g4 d4e5 g4f3 d1f3 d6e5 f1c4 g8f6 f3b3 d8e7 b1c3 c7c6 c1g5 b7b5 c3b5 c6b5 c4b5 b8d7 e1c1 a8d8 d1d7 d8d7 h1d1 e7e6 b5d7 f6d7 b3b8 d7b8 d1d8".split(" ");
+  // Real short games, move by move. The robot takes a random side, so sometimes it gets mated.
+  private static GAMES: { name: string; moves: string[]; winner: "white" | "black" }[] = [
+    { name: "the Opera Game", winner: "white", moves: "e2e4 e7e5 g1f3 d7d6 d2d4 c8g4 d4e5 g4f3 d1f3 d6e5 f1c4 g8f6 f3b3 d8e7 b1c3 c7c6 c1g5 b7b5 c3b5 c6b5 c4b5 b8d7 e1c1 a8d8 d1d7 d8d7 h1d1 e7e6 b5d7 f6d7 b3b8 d7b8 d1d8".split(" ") },
+    { name: "Scholar's Mate", winner: "white", moves: "e2e4 e7e5 f1c4 b8c6 d1h5 g8f6 h5f7".split(" ") },
+    { name: "Fool's Mate", winner: "black", moves: "f2f3 e7e5 g2g4 d8h4".split(" ") },
+    { name: "Legal's Mate", winner: "white", moves: "e2e4 e7e5 g1f3 d7d6 f1c4 c8g4 b1c3 g7g6 f3e5 g4d1 c4f7 e8e7 c3d5".split(" ") },
+    { name: "the Blackburne Shilling trap", winner: "black", moves: "e2e4 e7e5 g1f3 b8c6 f1c4 c6d4 f3e5 d8g5 e5f7 g5g2 h1f1 g2e4 c4e2 d4f3".split(" ") },
+  ];
 
   private async playChess(tok: number) {
     const w = await this.wm.open("game", "Chess");
     this.alive(tok);
     const glyph: Record<string, string> = { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" };
-    w.body.innerHTML = `<div class="game chess"><div class="game-head"><span>Chess</span><span class="score">Robot plays white</span></div><div class="board-wrap"><div class="board"></div></div></div>`;
+    const G = IdleLife.GAMES[Math.floor(Math.random() * IdleLife.GAMES.length)];
+    const robotWhite = Math.random() < 0.6;
+    w.body.innerHTML = `<div class="game chess"><div class="game-head"><span>Chess</span><span class="score">Robot plays ${robotWhite ? "white" : "black"}</span></div><div class="board-wrap"><div class="board"></div></div></div>`;
     const board = w.body.querySelector(".board") as HTMLElement;
     const status = w.body.querySelector(".score") as HTMLElement;
     let sq = "";
@@ -398,19 +418,23 @@ export class IdleLife {
       gsap.fromTo(p, { scale: 1.12 }, { scale: 1, duration: 0.3, ease: "back.out(3)" });
       mark(from, to);
     };
-    const moves = IdleLife.OPERA;
+    const moves = G.moves;
+    const ROOK: Record<string, [string, string]> = { e1c1: ["a1", "d1"], e1g1: ["h1", "f1"], e8c8: ["a8", "d8"], e8g8: ["h8", "f8"] };
     for (let i = 0; i < moves.length; i++) {
       this.alive(tok);
       const m = moves[i], from = m.slice(0, 2), to = m.slice(2, 4);
-      const white = i % 2 === 0;
-      if (!white) { status.textContent = "Opponent is thinking"; await this.wait(700 + Math.random() * 900, tok); }
+      const whiteMove = i % 2 === 0, mine = whiteMove === robotWhite;
+      const king = pieces.get(from)?.textContent?.startsWith("♚");
+      if (!mine) { status.textContent = "Opponent is thinking"; await this.wait(700 + Math.random() * 900, tok); }
       else { status.textContent = "Robot's move"; this.robot.setPose("read"); await this.wait(600 + Math.random() * 1400, tok); this.robot.setPose("mouse"); }
-      await move(from, to, white);
-      if (m === "e1c1") await move("a1", "d1", false); // castling: the rook follows
+      await move(from, to, mine);
+      if (king && ROOK[m]) await move(ROOK[m][0], ROOK[m][1], false); // castling: the rook follows
     }
-    status.textContent = "Checkmate. The robot wins";
+    const won = (G.winner === "white") === robotWhite;
+    status.textContent = won ? `Checkmate! The robot wins (${G.name})` : `Checkmated by ${G.name}`;
     gsap.fromTo(status, { scale: 1.2 }, { scale: 1, duration: 0.5, ease: "back.out(3)" });
-    this.robot.setPose("celebrate");
-    await this.wait(5000, tok);
+    if (won) this.robot.setPose("celebrate");
+    else { this.robot.react(Math.random() < 0.5 ? "angry" : "shy"); }
+    await this.wait(won ? 5000 : 3000, tok);
   }
 }

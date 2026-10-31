@@ -5,7 +5,7 @@ import { ICONS } from "./icons";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -21,9 +21,10 @@ const FRAMES: Record<AppId, Frame> = {
   social: { x: 40, y: 12, w: 740, h: 390 },
   notes: { x: 470, y: 30, w: 330, h: 300 },
   tasks: { x: 112, y: 16, w: 596, h: 380 },
+  calc: { x: 560, y: 60, w: 236, h: 330 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "chat", "notes", "tasks", "harness", "tool", "beats", "social", "game"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "chat", "notes", "tasks", "calc", "harness", "tool", "beats", "social", "game"];
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 
@@ -195,11 +196,42 @@ export class WM {
       { opacity: 1, scale: 1, x: 0, y: 0, duration: 0.55 / this.speed, ease: "expo.out", transformOrigin: "50% 50%" });
     gsap.fromTo(el.querySelector(".win-body"), { opacity: 0 }, { opacity: 1, duration: 0.4 / this.speed, delay: 0.15 / this.speed });
     await this.sleep(260, e);
-    // now and then: snap two windows side by side, or go full screen to focus
+    // each robot has its own habit: some go full screen, some tile side by side, some let windows float
+    const style = this.prefs?.windows ?? "floating";
+    const small = id === "calc" || id === "chat" || id === "notes" || id === "tool";
     const r = Math.random();
-    if (this.wins.size >= 2 && r < 0.12) await this.snap(id, f.x + f.w / 2 < SCREEN.w / 2 ? "left" : "right").catch(rethrow);
-    else if ((id === "editor" || id === "browser") && r > 0.93) await this.maximize(id).catch(rethrow);
+    if (style === "fullscreen" && !small && r < 0.6) await this.maximize(id).catch(rethrow);
+    else if (this.wins.size >= 2 && r < (style === "tiler" ? 0.35 : style === "fullscreen" ? 0.05 : 0.05)) await this.snap(id, f.x + f.w / 2 < SCREEN.w / 2 ? "left" : "right").catch(rethrow);
     return w;
+  }
+
+  // Bored hands: drag a selection box over the empty desktop, once or a few times.
+  async fidget(times = 1 + Math.floor(Math.random() * 3)) {
+    const e = this.epoch;
+    const H = SCREEN.h - 50;
+    for (let n = 0; n < times; n++) {
+      const x0 = 30 + Math.random() * (SCREEN.w - 260), y0 = 20 + Math.random() * (H - 160);
+      const x1 = Math.min(SCREEN.w - 10, x0 + 60 + Math.random() * 220), y1 = Math.min(H - 6, y0 + 40 + Math.random() * 130);
+      await this.moveTo(x0, y0, 380);
+      this.check(e);
+      const box = document.createElement("div");
+      box.className = "sel-box";
+      this.layer.prepend(box);
+      this.robot.click();
+      const paint = () => {
+        const l = Math.min(x0, this.cursor.x), t = Math.min(y0, this.cursor.y);
+        box.style.cssText = `left:${l}px;top:${t}px;width:${Math.abs(this.cursor.x - x0)}px;height:${Math.abs(this.cursor.y - y0)}px`;
+      };
+      gsap.ticker.add(paint);
+      try {
+        await this.moveTo(x1, y1, 420 + Math.random() * 300);
+        if (Math.random() < 0.5) await this.moveTo(x1 - 40 - Math.random() * 80, y1 + 10 - Math.random() * 60, 300);
+      } finally {
+        gsap.ticker.remove(paint);
+        gsap.to(box, { opacity: 0, duration: 0.18, onComplete: () => box.remove() });
+      }
+      await this.sleep(150 + Math.random() * 250, e);
+    }
   }
 
   // --- placement -----------------------------------------------------------

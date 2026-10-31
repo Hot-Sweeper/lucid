@@ -23,6 +23,7 @@ export interface Prefs {
   mug: string;
   tasks: TasksStyle;                  // its to-do list: a task board app, a checklist app, or only sticky notes on the desk
   hobby: Hobby;                       // its main pastime
+  windows: "fullscreen" | "tiler" | "floating";   // how it likes its windows
 }
 export interface RobotProfile {
   id: string;
@@ -84,6 +85,7 @@ export class Roster {
     for (const r of this.robots) {
       if (r.prefs && !r.prefs.tasks) r.prefs.tasks = tasksFor(r.id || r.name || "");
       if (r.prefs && !r.prefs.hobby) r.prefs.hobby = hobbyFor(r.prefs, r.id || r.name || "");
+      if (r.prefs && !r.prefs.windows) { const x = idHash((r.id || r.name || "") + "win"); r.prefs.windows = x < 0.25 ? "fullscreen" : x < 0.6 ? "tiler" : "floating"; }
     }
   }
 
@@ -174,6 +176,7 @@ export class Roster {
         mug: pick(MUGS),
         tasks: tasksFrom(Math.random()),
         hobby: hobbyFrom(Math.random()),
+        windows: pick(["fullscreen", "tiler", "tiler", "floating", "floating"] as const),
       },
       hiredAt: Date.now(),
       threadId,

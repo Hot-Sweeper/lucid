@@ -1,5 +1,6 @@
 import gsap from "gsap";
 import { WM, Cancelled } from "./os/wm";
+import { CalcApp, WORK_SUMS } from "./os/calc";
 import { IdleLife } from "./os/idle";
 import { HarnessApp, harnessKind, type HarnessSession, type SubagentEvent } from "./harness/harness";
 import { fileUrl } from "./office/chat-panel";
@@ -302,10 +303,21 @@ export class Director {
         } else if (r < 0.75) {
           await this.wm.maybeShuffle(wins.length ? wins[0].id : "notes", 1);
           this.robot.setPose("think");
-        } else if (r < 0.9) {
+        } else if (r < 0.84) {
           this.onActivity("Sipping coffee while it thinks");
           await this.robot.drink();
           this.onActivity("Thinking");
+        } else if (r < 0.9) {
+          // a quick sum on the calculator
+          const [what, sum] = WORK_SUMS[Math.floor(Math.random() * WORK_SUMS.length)];
+          this.onActivity(what);
+          this.robot.setPose("mouse");
+          await new CalcApp(this.wm).compute(sum, what);
+          this.onActivity("Thinking");
+        } else if (r < 0.95) {
+          this.robot.setPose("mouse");
+          await this.wm.fidget();
+          this.robot.setPose("think");
         } else {
           this.robot.setPose("think");
         }
