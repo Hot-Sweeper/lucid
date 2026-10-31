@@ -26,6 +26,9 @@ export interface Prefs {
   hobby: Hobby;                       // its main pastime
   windows: "fullscreen" | "tiler" | "floating";   // how it likes its windows
   listens: "always" | "sometimes" | "never";      // music while it works (headphones on)
+  launch: "dock" | "spotlight";                    // how it usually opens apps
+  switching: "click" | "dock" | "alttab";          // how it usually gets back to an open window
+  tidiness: "tidy" | "normal" | "messy";           // how many windows it lets pile up
 }
 export interface RobotProfile {
   id: string;
@@ -92,6 +95,12 @@ export class Roster {
     for (const r of this.robots) {
       if (r.prefs && !r.prefs.tasks) r.prefs.tasks = tasksFor(r.id || r.name || "");
       if (r.prefs && !r.prefs.hobby) r.prefs.hobby = hobbyFor(r.prefs, r.id || r.name || "");
+      if (r.prefs && !r.prefs.launch) {
+        const x = idHash((r.id || r.name || "") + "habits");
+        r.prefs.launch = x < 0.35 ? "spotlight" : "dock";
+        r.prefs.switching = ((x * 7) % 1) < 0.45 ? "click" : ((x * 7) % 1) < 0.75 ? "dock" : "alttab";
+        r.prefs.tidiness = ((x * 13) % 1) < 0.3 ? "tidy" : ((x * 13) % 1) < 0.7 ? "normal" : "messy";
+      }
       if (r.prefs && !r.prefs.listens) { const x = idHash((r.id || r.name || "") + "music"); r.prefs.listens = x < 0.35 ? "always" : x < 0.7 ? "sometimes" : "never"; r.look.headphones = false; }
       if (r.prefs && !r.prefs.windows) { const x = idHash((r.id || r.name || "") + "win"); r.prefs.windows = x < 0.25 ? "fullscreen" : x < 0.6 ? "tiler" : "floating"; }
       // Robots hired before hats and builds existed get their extras from their id: unique, and the same every launch.
@@ -207,6 +216,9 @@ export class Roster {
         hobby: hobbyFrom(Math.random()),
         windows: pick(["fullscreen", "tiler", "tiler", "floating", "floating"] as const),
         listens: pick(["always", "sometimes", "sometimes", "never", "never"] as const),
+        launch: pick(["dock", "dock", "spotlight"] as const),
+        switching: pick(["click", "click", "dock", "alttab"] as const),
+        tidiness: pick(["tidy", "normal", "normal", "messy"] as const),
       },
       hiredAt: Date.now(),
       threadId,

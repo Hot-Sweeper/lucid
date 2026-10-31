@@ -174,15 +174,19 @@ export class WM {
     if (w) {
       if (title) w.title.textContent = title;
       if (Number(w.el.style.zIndex) !== this.z) {
-        await this.pointAt(w.el.querySelector(".win-bar")!, 0.6, 0.5, 380);
-        await this.click();
+        // bring it back the way this robot usually does: click the window, its dock icon, or Alt+Tab
+        const how = this.habit(this.prefs?.switching ?? "click", { click: 0.15, dock: 0.15, alttab: 0.12 });
+        if (how === "alttab") await this.altTab(id);
+        else if (how === "dock") { await this.pointAt(this.dock.querySelector(`[data-app="${id}"]`)!, 0.5, 0.5); await this.click(); }
+        else { await this.pointAt(w.el.querySelector(".win-bar")!, 0.6, 0.5, 380); await this.click(); }
         this.focus(id);
         if (this.covered(id) > 0.45 && Math.random() < 0.55) await this.dragTo(id, this.bestSpot(this.frameOf(w), id));
       }
       return w;
     }
     const dockItem = this.dock.querySelector(`[data-app="${id}"]`)!;
-    if (Math.random() < 0.22) await this.launch(TITLES[id]);
+    // open it the way this robot usually does, now and then the other way
+    if (this.habit(this.prefs?.launch ?? "dock", { dock: 0.2, spotlight: 0.2 }) === "spotlight") await this.launch(TITLES[id]);
     else {
       await this.pointAt(dockItem, 0.5, 0.5);
       await this.click();
@@ -193,7 +197,9 @@ export class WM {
     // a little variety in size, then the spot that overlaps the open windows least
     const k = 0.92 + Math.random() * 0.12;
     const base = { ...base0, w: Math.min(SCREEN.w - 8, Math.round(base0.w * k)), h: Math.min(SCREEN.h - 58, Math.round(base0.h * (0.96 + Math.random() * 0.06))) };
-    const f = this.wins.size ? this.bestSpot(base) : { ...base, ...this.jitter(base) };
+    // tidy robots find free space; messy ones drop windows wherever, often on top of others
+    const messy = this.prefs?.tidiness === "messy" && Math.random() < 0.7;
+    const f = this.wins.size && !messy ? this.bestSpot(base) : { ...base, ...this.jitter(base) };
     const el = document.createElement("section");
     el.className = `win app-${id}`;
     el.style.cssText = `left:${f.x}px;top:${f.y}px;width:${f.w}px;height:${f.h}px`;
@@ -395,9 +401,40 @@ export class WM {
   }
 
   // Keep the desk tidy: at most three windows, the least recently used one closes.
+  // Tidy robots keep two windows, most keep three, messy ones let five or six pile up.
   private trim(keep: AppId) {
+    const max = this.prefs?.tidiness === "tidy" ? 2 : this.prefs?.tidiness === "messy" ? 5 + (Math.random() < 0.5 ? 1 : 0) : 3;
     const open = [...this.wins.values()].filter((w) => w.id !== keep).sort((a, b) => a.lastUsed - b.lastUsed);
-    while (open.length >= 3) this.close(open.shift()!.id);
+    while (open.length >= max) this.close(open.shift()!.id);
+  }
+
+  /** The robot's usual way, or now and then another one (odds per alternative). */
+  private habit<T extends string>(usual: T, others: Record<string, number>): T {
+    for (const [alt, p] of Object.entries(others)) if (alt !== usual && Math.random() < p) return alt as T;
+    return usual;
+  }
+
+  // Alt+Tab: a strip of window previews, cycling to the one it wants.
+  private async altTab(id: AppId) {
+    const e = this.epoch;
+    const order = [...this.wins.values()].sort((a, b) => b.lastUsed - a.lastUsed);
+    const strip = document.createElement("div");
+    strip.className = "alttab";
+    strip.innerHTML = order.map((w) => `<div class="at-item" data-id="${w.id}">${ICONS[w.id]}<span></span></div>`).join("");
+    order.forEach((w, i) => { (strip.children[i].querySelector("span") as HTMLElement).textContent = w.title.textContent || TITLES[w.id]; });
+    this.root.appendChild(strip);
+    gsap.fromTo(strip, { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.15 });
+    const target = Math.max(1, order.findIndex((w) => w.id === id));
+    try {
+      for (let i = 1; i <= target; i++) {
+        this.robot.pressKey("Tab");
+        strip.querySelectorAll(".at-item").forEach((x, k) => x.classList.toggle("on", k === i % order.length));
+        await this.sleep(220, e);
+      }
+      await this.sleep(200, e);
+    } finally {
+      gsap.to(strip, { opacity: 0, duration: 0.12, onComplete: () => strip.remove() });
+    }
   }
 
   close(id: AppId) {
