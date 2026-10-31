@@ -12,7 +12,7 @@ export type TasksStyle = "board" | "checklist" | "sticky";
 // Office fans use Botword, Cellsheet or Slidedeck when bored and keep their favourites in the dock.
 export type OfficeTaste = "none" | "writer" | "numbers" | "slides" | "suite";
 // Pastime apps on the monitor, and the social apps a robot uses (desktop and phone). Each robot has its own mix.
-export type FunApp = "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo";
+export type FunApp = "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "steam" | "trading";
 export type SocialApp = "botsapp" | "telegrid" | "chirp" | "instabot" | "snapbot" | "shorts";
 // What a robot mostly does with free time. Gamers game, musicians make beats, chatters hang
 // out with friends, watchers watch videos, chillers sip coffee and scroll.
@@ -39,6 +39,7 @@ export interface Prefs {
   apps?: FunApp[];                                 // favourite pastime apps (pinned in the dock)
   socials?: SocialApp[];                           // social apps it uses; it never opens the others
   t3?: T3Channel;                                  // which T3 Code build it runs its thread in
+  leisure2?: boolean;                              // already offered Steambot and Tradebot (older robots get them once, from their id)
 }
 /** T3 Code release channel: the stable app or T3 Code (Nightly). */
 export type T3Channel = "stable" | "nightly";
@@ -106,6 +107,9 @@ export function interestsFrom(r: () => number, hobby: Hobby): { apps: FunApp[]; 
     stocks: 0.7 + 0.8 * H("watcher"),
     mail: 0.8 + H("chatter"),
     lingo: 1 + 0.6 * H("chatter") + 0.6 * H("watcher"),
+    // games on Steambot for the gamers, charts and regret on Tradebot for the watchers and the restless
+    steam: 0.35 + 2.4 * H("gamer") + 0.2 * H("watcher"),
+    trading: 0.25 + 0.7 * H("watcher") + 0.5 * H("chiller") + 0.3 * H("musician"),
   };
   const apps: FunApp[] = [];
   const want = r() < 0.3 ? 3 : 2;
@@ -158,6 +162,13 @@ export class Roster {
         r.prefs.tidiness = ((x * 13) % 1) < 0.3 ? "tidy" : ((x * 13) % 1) < 0.7 ? "normal" : "messy";
       }
       if (r.prefs && !r.prefs.listens) { const x = idHash((r.id || r.name || "") + "music"); r.prefs.listens = x < 0.35 ? "always" : x < 0.7 ? "sometimes" : "never"; r.look.headphones = false; }
+      // robots hired before Steambot and Tradebot: each gets (or does not get) them from its id, the same every launch
+      if (r.prefs?.apps && !r.prefs.leisure2) {
+        const rr = seeded((r.id || r.name || "") + "leisure2"), hb = r.prefs.hobby;
+        if (!r.prefs.apps.includes("steam") && rr() < 0.14 + (hb === "gamer" ? 0.5 : 0)) r.prefs.apps.push("steam");
+        if (!r.prefs.apps.includes("trading") && rr() < 0.1 + (hb === "watcher" ? 0.25 : hb === "chiller" ? 0.2 : 0)) r.prefs.apps.push("trading");
+        r.prefs.leisure2 = true; migrated = true;
+      }
       if (r.prefs && !r.prefs.t3) { r.prefs.t3 = t3ChannelFor(r.id || r.name || ""); migrated = true; }
       if (r.prefs && !r.prefs.windows) { const x = idHash((r.id || r.name || "") + "win"); r.prefs.windows = x < 0.25 ? "fullscreen" : x < 0.6 ? "tiler" : "floating"; }
       // Robots hired before hats and builds existed get their extras from their id: unique, and the same every launch.

@@ -19,6 +19,7 @@ import { hangOutInChat } from "../life/chat";
 import "../life/life.css";
 import { officeIdle, officePick, OFFICE_IDLE_LINE } from "../office-apps/idle";
 import { chatOnBotsApp, browseTelegrid, scrollChirp, usePhone, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, PHONE_APP_DOING, type PhoneApp, type SoOpts } from "../social";
+import { useSteam, tradeOnTradebot } from "../leisure";
 import type { Prefs } from "../office/roster";
 
 // What the robot does when there is no work: tidy the desktop, play a game,
@@ -399,6 +400,20 @@ export class IdleLife {
       case "stocks": return this.socialApp("stocks", "Watching GPU stocks", watchStocks, tok, 30000);
       case "mail": return this.socialApp("mail", "Clearing its inbox", checkMail, tok, 30000);
       case "lingo": return this.socialApp("lingo", "Keeping its Lingobot streak alive", learnWithLingobot, tok, 45000);
+      case "steam": {
+        // the store, the library, a download and a launch: then the game itself runs on its desktop
+        this.onActivity("Browsing Steambot");
+        const w = await this.wm.open("steam");
+        this.alive(tok);
+        this.robot.setPose("mouse");
+        const g = this.wm.prefs?.games ?? { snake: 1, flappy: 1, dash: 1, chess: 1 };
+        const want = (key: string) => (key === "snake" ? g.snake : key === "flappy" ? g.flappy : key === "dash" ? g.dash : key === "chess" ? g.chess : 1);
+        const out = await useSteam(w.body, this.host(tok), { maxMs: 130000, me: this.wm.robotName, skill: 0.5 + Math.random() * 0.4, want });
+        this.alive(tok);
+        if (out.launch) await this.doActivity(out.launch, tok);
+        return this.closeWin("steam", tok);
+      }
+      case "trading": return this.socialApp("trading", "Trading bitcoin on Tradebot", tradeOnTradebot, tok, 60000);
       case "messages": {
         this.onActivity("Checking for new messages");
         await this.wm.open("chat");
@@ -470,6 +485,8 @@ export class IdleLife {
       stocks: likes("stocks") ? 1.3 : 0,
       lingo: likes("lingo") ? 1.5 : 0,
       mail: likes("mail") ? 1.3 : 0.1,
+      steam: likes("steam") ? 1.7 + 1.0 * H("gamer") : 0.1 * H("gamer"),
+      trading: likes("trading") ? 1.5 : 0.06,
     };
   }
 
