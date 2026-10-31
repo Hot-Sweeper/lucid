@@ -49,7 +49,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
       const point = await js(`{const r=window.__world.scene.getBoundingClientRect();({x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)})}`);
       const trace = [], onEvent = e => { if (e.method === 'Tracing.dataCollected') trace.push(...e.params.value); };
       events.add(onEvent);
-      if (tracing) { await call('Tracing.start', { transferMode: 'ReportEvents', categories: 'devtools.timeline,disabled-by-default-devtools.timeline,cc,gpu,viz,__metadata' }); await call('Profiler.enable'); await call('Profiler.start'); }
+      if (tracing) { await call('Tracing.start', { transferMode: 'ReportEvents', categories: 'devtools.timeline,disabled-by-default-devtools.timeline,cc,gpu,viz,__metadata' + (process.env.LUCID_LIVE_INVALIDATIONS ? ',disabled-by-default-devtools.timeline.invalidationTracking' : '') }); await call('Profiler.enable'); await call('Profiler.start'); }
       await js(`{window.__lucidPerf.enable(true);window.__lucidPerf.reset();window.__liveProfileFrames=[];window.__liveProfileRecording=true;let last=performance.now();const tick=t=>{if(!window.__liveProfileRecording)return;window.__liveProfileFrames.push(t-last);last=t;requestAnimationFrame(tick)};requestAnimationFrame(tick)}`);
       recording = true;
       const before = await call('Performance.getMetrics');
