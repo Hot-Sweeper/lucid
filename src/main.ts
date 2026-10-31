@@ -28,6 +28,7 @@ import { CATALOG } from "./office/shop";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
+import { OfficeTodo, type RawTask } from "./office/todo";
 import { wireThreadDrag } from "./office/thread-drag";
 import type { ThreadRef } from "./office/thread-ref";
 import { foldButton, foldSection, setRail } from "./office/sidebar";
@@ -39,6 +40,7 @@ declare global {
     lucid: {
       projects(): Promise<{ id: string; title: string; root: string }[]>;
       world(): Promise<WorldData>;
+      tasks(): Promise<RawTask[]>;
       startThreadIn?: never;
       settingsLoad(): string;
       settingsSave(json: string): Promise<void>;
@@ -83,6 +85,11 @@ document.getElementById("app")!.innerHTML = `
     <section class="threads">
       <div class="th-head"><h3>Threads</h3><label class="th-search"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label>${foldButton("threads", "threads")}</div>
       <div class="fold-body" id="fold-threads"><ol class="th-list" id="th-list" aria-label="Threads. Drag one into the chat, or press R, to reference it"></ol></div>
+    </section>
+
+    <section class="todo" id="todo">
+      <div class="sec-head"><h3>To do</h3>${foldButton("todo", "to do")}</div>
+      <div class="fold-body" id="fold-todo"><div id="td-body"></div></div>
     </section>
 
     <section class="rooms">
@@ -177,6 +184,25 @@ $("room-list").addEventListener("click", (e) => {
 $("overview").addEventListener("click", () => world.overview());
 $("park").addEventListener("click", () => world.showPark());
 
+// --- each office's to-do list ---------------------------------------------------------------
+const todo = new OfficeTodo($("td-body"), {
+  // the office is the project a thread belongs to; scratch threads are the freelancers
+  officeOf: (t) => {
+    const data = world.lastData;
+    if (!data || t.threadId === settings.orch?.threadId) return null;
+    const p = data.projects.find((x) => x.id === t.projectId);
+    if (p && p.id === settings.orch?.projectId) return null;
+    if (!p || p.scratch) return world.hidden.has("freelance") ? null : { id: "freelance", title: "Freelancers", icon: null };
+    return world.hidden.has(p.id) ? null : { id: `p:${p.id}`, title: p.title, icon: p.icon ?? null };
+  },
+  robotName: (id) => world.roster.byThread(id)?.name ?? null,
+  order: () => world.rooms.map((r) => r.id),
+  onOffice: (id) => world.showRoom(id),
+  onTask: (id) => openThread(id),
+});
+
+(window as any).__todo = todo; // debug handle for test runs
+
 // --- following one robot ----------------------------------------------------------------
 function renderFocus() {
   const d = selectedDesk;
@@ -228,6 +254,7 @@ async function refresh() {
     renderCompany(data.shipped ?? { total: 0, today: 0 });
     if (settings.orch) { world.orchThread = settings.orch.threadId; world.homes.set(settings.orch.threadId, "main"); }
     world.update(data);
+    void api.tasks().then((t) => todo.update(t)).catch((err) => console.error("to-do list failed", err));
     for (const d of world.desks.values()) {
       d.onActivity = (t) => { if (d === world.focusDesk) pushStatus(d); if (d === selectedDesk) { const a = $("focus-activity"); if (a.textContent !== t) { a.textContent = t; gsap.fromTo(a, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.3 }); } } };
     }
