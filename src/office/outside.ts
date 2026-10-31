@@ -190,6 +190,8 @@ export function outsideSvg(o: {
   entranceY: number;
   park: { x: number; y: number; w: number; h: number };
   season?: Season; snowCover?: number; frozen?: boolean;
+  /** Extra areas kept free of trees and bushes (other buildings, like the shop). */
+  avoid?: { x: number; y: number; w: number; h: number }[];
 }) {
   const { ox, oy, w, h, building: b, park: p } = o;
   const season = o.season ?? "summer";
@@ -212,7 +214,8 @@ export function outsideSvg(o: {
   const blocked = (x: number, y: number, pad: number) =>
     (x > b.x - pad && x < b.x + b.w + pad && y > b.y - pad && y < b.y + b.h + pad) ||
     (x > p.x - pad && x < p.x + p.w + pad && y > p.y - pad && y < p.y + p.h + pad) ||
-    (y > o.entranceY - 120 && y < o.entranceY + 120 && x > b.x + b.w - 40 && x < p.x + 40);
+    (y > o.entranceY - 120 && y < o.entranceY + 120 && x > b.x + b.w - 40 && x < p.x + 40) ||
+    (o.avoid ?? []).some((a) => x > a.x - pad && x < a.x + a.w + pad && y > a.y - pad && y < a.y + a.h + pad);
   let trees = "";
   const rt = rnd(42);
   for (let i = 0, n = Math.round((w * h) / 52000); i < n; i++) {

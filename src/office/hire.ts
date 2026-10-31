@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import type { RobotProfile } from "./roster";
+import { HOBBY_LABEL, type RobotProfile } from "./roster";
 import { brandFor, logoFor, harnessName } from "./brand";
 
 // The hiring screen: pick who sits at a free desk (a free teammate or a new hire),
@@ -49,7 +49,7 @@ export function openHire(opts: {
   const wrap = document.createElement("div");
   wrap.className = "dialog-wrap hire-wrap";
   const cands = [
-    ...opts.team.map((r) => ({ key: r.id, robotId: r.id as string | null, provider: r.provider, name: r.name, note: `${r.jobs} ${r.jobs === 1 ? "job" : "jobs"} done`, accent: r.look.accent })),
+    ...opts.team.map((r) => ({ key: r.id, robotId: r.id as string | null, provider: r.provider, name: r.name, note: `${r.prefs?.hobby ? `${HOBBY_LABEL[r.prefs.hobby]}, ` : ""}${r.jobs} ${r.jobs === 1 ? "job" : "jobs"} done`, accent: r.look.accent })),
     ...opts.providers.map((p) => ({ key: `new:${p}`, robotId: null, provider: p, name: `New ${harnessName(p)} robot`, note: "Fresh hire", accent: "#ff9f5a" })),
   ];
   wrap.innerHTML = `

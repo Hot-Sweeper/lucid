@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { FLOORS, WALLS, DECOR, DECOR_IDS, drawFloor, drawDecor, type FloorId, type WallId, type DecorId } from "../decor/decor";
-import { itemFor, coinIcon, coinBurst, type Wallet, type ShopKind } from "./shop";
+import { itemFor, coinIcon, coinBurst, currentSeason, type Wallet, type ShopKind } from "./shop";
 
 // Furnishing an office: pick a floor, a wall colour and decorations. Every change shows in the
 // room right away; things unlock as the company grows.
@@ -54,11 +54,14 @@ export function openDecorate(o: { title: string; theme: RoomTheme; level: number
       g.querySelectorAll<HTMLElement>("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === cur)));
     });
     el.querySelectorAll<HTMLElement>("[data-d]").forEach((b) => {
-      const id = b.dataset.d as DecorId, locked = DECOR[id].unlockAt > o.level, own = owns("decor", id);
+      const id = b.dataset.d as DecorId;
+      const sea = itemFor("decor", id)?.season;
+      const offSeason = !!sea && sea !== currentSeason() && !owns("decor", id);
+      const locked = DECOR[id].unlockAt > o.level || offSeason, own = owns("decor", id);
       b.setAttribute("aria-pressed", String(own && theme.decor!.includes(id)));
       (b as HTMLButtonElement).disabled = locked;
       b.classList.toggle("for-sale", !locked && !own);
-      (b.querySelector(".dc-tag") as HTMLElement).innerHTML = locked ? `Level ${DECOR[id].unlockAt}` : own ? "" : `${coinIcon(12)}${price("decor", id).toLocaleString()}`;
+      (b.querySelector(".dc-tag") as HTMLElement).innerHTML = offSeason ? `In ${sea}` : locked ? `Level ${DECOR[id].unlockAt}` : own ? "" : `${coinIcon(12)}${price("decor", id).toLocaleString()}`;
     });
     el.querySelectorAll<HTMLElement>(".dc-sw button").forEach((b) => {
       const k = (b.parentElement as HTMLElement).dataset.k as "floor" | "wall";

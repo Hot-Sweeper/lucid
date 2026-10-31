@@ -3,6 +3,7 @@ import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
 import { drawFloor, drawWall, drawDecor, placeDecor, DECOR } from "../decor/decor";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
+import { SHOP_W, SHOP_H, type ShopFront } from "./shopfront";
 import { mountWeather, applySkyTint, type WeatherLayer, type Weather } from "../weather/effects";
 import { outdoorLook, seasonPalette } from "../weather/season";
 import { GEOM } from "./rig";
@@ -56,6 +57,16 @@ export class World {
   themes = new Map<string, RoomTheme>();
   set owns(f: (key: string) => boolean) { ownsItem = f; }
   park: Park;
+  // the shop building between the office and the park
+  private shopFront: ShopFront | null = null;
+  shopRect: { x: number; y: number; w: number; h: number } | null = null;
+  attachShop(sf: ShopFront) {
+    this.shopFront = sf;
+    const worldEl = this.root;
+    worldEl.insertBefore(sf.el, worldEl.querySelector(".building-plate"));
+    if (this.shopRect) sf.place(this.shopRect.x, this.shopRect.y);
+  }
+  showShop() { const r = this.shopRect; if (r) { this.unfocus(false); this.flyTo({ x: r.x - 60, y: r.y - 80, w: r.w + 120, h: r.h + 140 }, 20); } }
   // real weather and the season shape the outdoors and the light
   weather: Weather | null = null;
   private fx: WeatherLayer | null = null;
@@ -239,16 +250,23 @@ export class World {
       const hall = this.root.querySelector(".hall") as HTMLElement;
       hall.style.cssText = `top:${topH}px;height:${HALL}px;width:${this.size.w}px`;
       // the outdoors: grass and trees around the building, a park beside the entrance
-      const park = { x: this.size.w + 300, y: Math.max(-200, topH + HALL / 2 - 520), w: PARK_W, h: 1040 };
-      const out = { ox: -2400, oy: -2200, w: this.size.w + 300 + PARK_W + 4800, h: Math.max(this.size.h, park.y + park.h) + 4400 };
+      // the shop sits just past the entrance, south of the path; the park lies beyond it
+      const entY = topH + HALL / 2;
+      this.shopRect = { x: this.size.w + 150, y: entY + 110, w: SHOP_W, h: SHOP_H };
+      this.shopFront?.place(this.shopRect.x, this.shopRect.y);
+      const park = { x: this.size.w + 150 + SHOP_W + 180, y: Math.max(-200, entY - 520), w: PARK_W, h: 1040 };
+      const out = { ox: -2400, oy: -2200, w: park.x - this.size.w + PARK_W + this.size.w + 4800, h: Math.max(this.size.h, park.y + park.h) + 4400 };
       this.outdoor = { x: out.ox, y: out.oy, w: out.w, h: out.h, park };
       this.park.setGeometry(park, { x: this.size.w + 66, y: topH + HALL / 2 + 20 });
       const layer = this.root.querySelector(".outside-layer") as HTMLElement;
       layer.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px`;
-      this.outArgs = { ...out, building: { x: 0, y: 0, w: this.size.w, h: this.size.h }, entranceY: topH + HALL / 2, park };
+      this.outArgs = { ...out, building: { x: 0, y: 0, w: this.size.w, h: this.size.h }, entranceY: topH + HALL / 2, park,
+        avoid: [{ x: this.shopRect.x - 20, y: this.shopRect.y - 60, w: SHOP_W + 40, h: SHOP_H + 80 }] };
       this.redrawOutside(true);
       const wr = { ...this.outdoor, entranceY: topH + HALL / 2 };
       if (this.fx) this.fx.resize(wr); else this.fx = mountWeather(this.root, wr);
+      // the shop has a roof: keep it above the rain
+      if (this.shopFront) this.root.insertBefore(this.shopFront.el, this.root.querySelector(".building-plate"));
       const shade = this.root.querySelector(".night-shade") as HTMLElement;
       shade.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px;right:auto;bottom:auto`;
       this.root.style.width = `${this.size.w}px`;

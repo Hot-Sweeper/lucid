@@ -8,6 +8,10 @@ import { brandFor, type BrandKind } from "./brand";
 export type Editor = "studio" | "pad" | "vim";
 export type Game = "snake" | "flappy" | "dash" | "chess";
 export type TasksStyle = "board" | "checklist" | "sticky";
+// What a robot mostly does with free time. Gamers game, musicians make beats, chatters hang
+// out with friends, watchers watch videos, chillers sip coffee and scroll.
+export type Hobby = "gamer" | "musician" | "chatter" | "watcher" | "chiller";
+export const HOBBY_LABEL: Record<Hobby, string> = { gamer: "Gamer", musician: "Makes beats", chatter: "Chatty", watcher: "Video binger", chiller: "Chiller" };
 export interface Prefs {
   editor: Editor;
   wallpaper: number;                  // index into WALLPAPERS
@@ -18,6 +22,7 @@ export interface Prefs {
   social: number;                     // how often it hangs out in chat (0..1)
   mug: string;
   tasks: TasksStyle;                  // its to-do list: a task board app, a checklist app, or only sticky notes on the desk
+  hobby: Hobby;                       // its main pastime
 }
 export interface RobotProfile {
   id: string;
@@ -52,10 +57,21 @@ const KEY = "lucid:roster:v1";
 const pick = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const tasksFrom = (x: number): TasksStyle => (x < 0.45 ? "board" : x < 0.85 ? "checklist" : "sticky");
 // Robots hired before this habit existed get one from their id, so it stays the same every launch.
-function tasksFor(id: string) {
+function idHash(id: string) {
   let h = 7;
   for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return tasksFrom((h % 1000) / 1000);
+  return (h % 1000) / 1000;
+}
+function tasksFor(id: string) { return tasksFrom(idHash(id)); }
+const hobbyFrom = (x: number): Hobby => (x < 0.3 ? "gamer" : x < 0.45 ? "musician" : x < 0.65 ? "chatter" : x < 0.85 ? "watcher" : "chiller");
+// Older robots get a hobby from their existing habits, so their personality stays recognisable.
+function hobbyFor(p: Prefs, id: string): Hobby {
+  if (p.music >= 0.8) return "musician";
+  if (p.social >= 0.8) return "chatter";
+  const g = p.games ? Math.max(...Object.values(p.games)) : 0;
+  if (g >= 1.6) return "gamer";
+  if (p.phone === "tube") return "watcher";
+  return hobbyFrom((idHash(id + "hobby") * 7) % 1);
 }
 
 export class Roster {
@@ -65,7 +81,10 @@ export class Roster {
   constructor() {
     const api = (window as any).lucid;
     try { this.robots = JSON.parse(api?.rosterLoad?.() || localStorage.getItem(KEY) || "[]"); } catch { this.robots = []; }
-    for (const r of this.robots) if (r.prefs && !r.prefs.tasks) r.prefs.tasks = tasksFor(r.id || r.name || "");
+    for (const r of this.robots) {
+      if (r.prefs && !r.prefs.tasks) r.prefs.tasks = tasksFor(r.id || r.name || "");
+      if (r.prefs && !r.prefs.hobby) r.prefs.hobby = hobbyFor(r.prefs, r.id || r.name || "");
+    }
   }
 
   private save() {
@@ -154,6 +173,7 @@ export class Roster {
         social: Math.round(Math.random() * 10) / 10,
         mug: pick(MUGS),
         tasks: tasksFrom(Math.random()),
+        hobby: hobbyFrom(Math.random()),
       },
       hiredAt: Date.now(),
       threadId,

@@ -104,14 +104,18 @@ export class IdleLife {
   private pick(recent: string[]) {
     const p = this.wm.prefs;
     const g = p?.games ?? { snake: 1, flappy: 1, dash: 1, chess: 1 };
+    // The robot's hobby dominates; beats are only for robots that actually like making music.
+    const hobby = p?.hobby ?? "chiller";
+    const H = (k: string) => (hobby === k ? 1 : 0);
+    const games = 0.35 + 2.2 * H("gamer");
     const weights: Record<string, number> = {
-      snake: 0.9 * g.snake, flappy: 0.9 * g.flappy, dash: 0.9 * g.dash, chess: 0.7 * g.chess,
-      phone: p?.phone === "tube" ? 0.5 : 1.3,
-      tube: p?.phone === "tube" ? 1.3 : 0.5,
-      tensorhub: 0.06,
-      coffee: 0.7, stretch: 0.35, messages: 0.45,
-      beats: 0.2 + 1.4 * (p?.music ?? 0.4),
-      social: 0.2 + 1.2 * (p?.social ?? 0.4),
+      snake: games * g.snake, flappy: games * g.flappy, dash: games * g.dash, chess: games * 0.8 * g.chess,
+      phone: (p?.phone === "tube" ? 0.4 : 1) * (0.6 + 1.6 * H("chiller") + 1.2 * H("watcher")),
+      tube: (p?.phone === "tube" ? 1 : 0.4) * (0.4 + 2.4 * H("watcher")),
+      tensorhub: 0.05 + 0.1 * H("watcher"),
+      coffee: 0.6 + 0.8 * H("chiller"), stretch: 0.3 + 0.3 * H("chiller"), messages: 0.4,
+      beats: H("musician") ? 2.6 : (p?.music ?? 0) >= 0.8 ? 0.25 : 0,
+      social: 0.25 * (p?.social ?? 0.4) + 2.4 * H("chatter"),
     };
     for (const r of recent) if (weights[r] != null) weights[r] *= r === recent[0] ? 0 : 0.25;
     const total = Object.values(weights).reduce((a, b) => a + b, 0);

@@ -7,17 +7,24 @@ import { FLOORS, WALLS, DECOR, DECOR_IDS, drawFloor, drawDecor, type FloorId, ty
 
 export const COINS_PER_DOLLAR = 10;
 export type ShopKind = "decor" | "floor" | "wall";
-export type ShopItem = { id: string; key: string; kind: ShopKind; name: string; price: number; level: number };
+export type Season = "spring" | "summer" | "autumn" | "winter";
+export type ShopItem = { id: string; key: string; kind: ShopKind; name: string; price: number; level: number; season?: Season };
 
 const DECOR_PRICE: Record<DecorId, number> = { plants: 40, rug: 80, posters: 120, coffee: 250, water: 220, bookshelf: 400, beanbags: 450, trophies: 700, neon: 900, arcade: 1400, pingpong: 1800, aquarium: 2200 };
 const FLOOR_PRICE: Record<FloorId, number> = { wood: 0, carpet: 200, tiles: 250, oak: 300, concrete: 350, terrazzo: 600 };
 const WALL_PRICE: Record<WallId, number> = { warm: 0, cool: 100, mint: 150, lilac: 150, dusk: 250, brick: 400 };
 
+// Seasonal things are only sold in their season (bought ones stay yours all year).
+const SEASONAL_PRICE: Record<string, number> = { pumpkins: 180, leafwreath: 120, xmastree: 600, stringlights: 250, snowglobe: 200, tulips: 150, kite: 120, deskfan: 220, palm: 300, beachposter: 120 };
+const seasonOf = (id: string) => (DECOR as any)[id]?.season as Season | undefined;
 export const CATALOG: ShopItem[] = [
-  ...DECOR_IDS.map((id) => ({ id, key: `decor:${id}`, kind: "decor" as const, name: DECOR[id].name, price: DECOR_PRICE[id], level: DECOR[id].unlockAt })),
+  ...DECOR_IDS.map((id) => ({ id, key: `decor:${id}`, kind: "decor" as const, name: DECOR[id].name, price: seasonOf(id) ? SEASONAL_PRICE[id] ?? 200 : DECOR_PRICE[id] ?? 300, level: DECOR[id].unlockAt, season: seasonOf(id) })),
   ...(Object.keys(FLOORS) as FloorId[]).map((id) => ({ id, key: `floor:${id}`, kind: "floor" as const, name: FLOORS[id].name, price: FLOOR_PRICE[id], level: 0 })),
   ...(Object.keys(WALLS) as WallId[]).map((id) => ({ id, key: `wall:${id}`, kind: "wall" as const, name: WALLS[id].name, price: WALL_PRICE[id], level: 0 })),
 ];
+export function currentSeason(d = new Date()): Season { const m = d.getMonth(); return m < 2 || m === 11 ? "winter" : m < 5 ? "spring" : m < 8 ? "summer" : "autumn"; }
+export const seasonalNow = () => CATALOG.filter((c) => c.season === currentSeason());
+const SEASON_END: Record<Season, string> = { spring: "the end of May", summer: "the end of August", autumn: "the end of November", winter: "the end of February" };
 export const itemFor = (kind: ShopKind, id: string) => CATALOG.find((c) => c.kind === kind && c.id === id) ?? null;
 
 export type WalletState = { ledger: Record<string, number>; spent: number; owned: string[] };
@@ -51,6 +58,7 @@ export class Wallet {
   buy(key: string): boolean {
     const it = CATALOG.find((c) => c.key === key);
     if (!it || this.owns(key) || this.balance < it.price) return false;
+    if (it.season && it.season !== currentSeason()) return false;   // seasonal things only sell in their season
     const s = this.state();
     s.spent += it.price;
     s.owned.push(key);
@@ -75,8 +83,10 @@ export function itemPreview(it: ShopItem, w = 96, h = 72) {
 export function openShop(o: { wallet: Wallet; level: number; onBought?: (it: ShopItem) => void }) {
   const wrap = document.createElement("div");
   wrap.className = "dialog-wrap shop-wrap";
-  const tabs: [ShopKind, string][] = [["decor", "Furniture"], ["floor", "Floors"], ["wall", "Walls"]];
-  let tab: ShopKind = "decor";
+  type Tab = ShopKind | "season";
+  const season = currentSeason();
+  const tabs: [Tab, string][] = [["season", `${season[0].toUpperCase()}${season.slice(1)} specials`], ["decor", "Furniture"], ["floor", "Floors"], ["wall", "Walls"]];
+  let tab: Tab = "season";
   wrap.innerHTML = `
     <div class="dialog shop" role="dialog" aria-modal="true" aria-labelledby="shop-title">
       <header class="shop-head">
@@ -92,7 +102,9 @@ export function openShop(o: { wallet: Wallet; level: number; onBought?: (it: Sho
   const bal = wrap.querySelector(".shop-bal b") as HTMLElement;
   const paint = () => {
     bal.textContent = o.wallet.balance.toLocaleString();
-    grid.innerHTML = CATALOG.filter((c) => c.kind === tab).map((it) => {
+    const list = tab === "season" ? CATALOG.filter((c) => c.season === season) : CATALOG.filter((c) => c.kind === tab && !c.season);
+    const note = tab === "season" ? `<p class="shop-note">${list.length ? `Only sold until ${SEASON_END[season]}. What you buy stays yours all year.` : "The seasonal things are on their way."}</p>` : "";
+    grid.innerHTML = note + list.map((it) => {
       const owned = o.wallet.owns(it.key), locked = it.level > o.level, short = it.price - o.wallet.balance;
       const action = owned ? `<span class="shop-owned">${it.price ? "Owned" : "Free"}</span>`
         : locked ? `<span class="shop-lock">Level ${it.level}</span>`
@@ -104,7 +116,7 @@ export function openShop(o: { wallet: Wallet; level: number; onBought?: (it: Sho
   wrap.querySelector(".shop-tabs")!.addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest("[data-t]") as HTMLElement | null;
     if (!b) return;
-    tab = b.dataset.t as ShopKind;
+    tab = b.dataset.t as Tab;
     wrap.querySelectorAll(".shop-tabs [data-t]").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
     paint();
   });

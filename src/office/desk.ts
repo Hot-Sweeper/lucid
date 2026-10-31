@@ -5,7 +5,7 @@ import { GEOM, UNIT, type DeskRig, type Pt, type SeatedRobot } from "./rig";
 import { StubRobot } from "./stub-robot";
 import { playHandoff } from "../world/handoff";
 import { logoFor, brandFor } from "./brand";
-import { WALLPAPERS, type RobotProfile } from "./roster";
+import { WALLPAPERS, HOBBY_LABEL, type RobotProfile } from "./roster";
 
 // One workstation, seen fake top-down: the desk surface from above, the monitor and the
 // robot as upright figures. The robot sits south of the desk with its back to us, the
@@ -134,7 +134,7 @@ export class Desk implements DeskStage {
     plate.querySelector("span")!.innerHTML = who ? `<b></b> <i></i>` : `<i></i>`;
     if (who) plate.querySelector("b")!.textContent = who;
     plate.querySelector("i")!.textContent = title;
-    plate.title = [who, title, this.model].filter(Boolean).join("\n");
+    plate.title = [who, title, this.model, this.profile?.prefs.hobby ? `Free time: ${HOBBY_LABEL[this.profile.prefs.hobby]}` : ""].filter(Boolean).join("\n");
   }
 
   setInfo(info: ThreadInfo) {

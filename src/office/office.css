@@ -409,3 +409,12 @@
 .dc-bal { margin: 14px 0 0; font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
 
 .wx { margin-left: 10px; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* the shop building */
+.shopfront { position: absolute; cursor: pointer; }
+.shopfront .sf-art svg { display: block; overflow: visible; }
+.shopfront .sf-keeper { position: absolute; inset: 0; pointer-events: none; }
+.shopfront:hover .sf-art svg, .shopfront:focus-visible .sf-art svg { filter: drop-shadow(0 0 16px rgba(255, 210, 122, 0.7)); }
+.shopfront:focus-visible { outline: none; }
+.shopfront .sf-owned { opacity: 0.55; }
+.shop-note { grid-column: 1 / -1; margin: 0 0 4px; font-size: 13px; color: var(--ink-3); }

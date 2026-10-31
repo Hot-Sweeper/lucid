@@ -18,6 +18,7 @@ import { Orchestrator, type OrchState } from "./office/orchestrator";
 import { progress } from "./office/progress";
 import { mountStats } from "./stats/stats";
 import { Wallet, openShop, coinIcon, type WalletState } from "./office/shop";
+import { ShopFront } from "./office/shopfront";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
@@ -72,7 +73,7 @@ document.getElementById("app")!.innerHTML = `
     <section class="rooms">
       <h3>Rooms</h3>
       <ul id="room-list" class="room-list"></ul>
-      <div class="room-links"><button type="button" class="link-btn" id="overview">Whole building</button><button type="button" class="link-btn" id="park">The park</button></div>
+      <div class="room-links"><button type="button" class="link-btn" id="overview">Whole building</button><button type="button" class="link-btn" id="park">The park</button><button type="button" class="link-btn" id="shop-link">The shop</button></div>
       <div class="hidden-offices" id="hidden-offices" hidden></div>
     </section>
 
@@ -437,7 +438,14 @@ const paintWallet = (gained = 0) => {
 };
 wallet.onChange = (_bal, gained) => paintWallet(gained);
 paintWallet();
-$("open-shop").addEventListener("click", () => openShop({ wallet, level: world.level, onBought: () => void refresh() }));
+const goShopping = () => openShop({ wallet, level: world.level, onBought: () => { void refresh(); shopFront.render(); } });
+$("open-shop").addEventListener("click", goShopping);
+// the shop is also a real building next to the office
+const shopFront = new ShopFront(document.createElement("div"), wallet, () => world.level);
+shopFront.onOpen = goShopping;
+world.attachShop(shopFront);
+wallet.onChange = (_bal, gained) => { paintWallet(gained); shopFront.render(); };
+$("shop-link").addEventListener("click", () => world.showShop());
 mountStats(document.getElementById("usage-body")!, async () => {
   const u = await (window as any).lucid.usage();
   if (u?.windows) wallet.observe(u);
