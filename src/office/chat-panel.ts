@@ -12,6 +12,7 @@ type Msg = { id: string; role: string; at: string; streaming: boolean; text: str
 type Api = {
   conversation(id: string): Promise<Msg[]>;
   sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
+  saveAttachment(name: string, data: Uint8Array): Promise<string>;
 };
 
 export const fileUrl = (p: string) => `lucid-file://local/${encodeURIComponent(p)}`;
@@ -60,6 +61,30 @@ export class ChatPanel {
   onClose: () => void = () => {};
   onToggleView: () => void = () => {};
   private pending: { text: string; at: number }[] = [];
+  private files: File[] = [];
+  private previews = new WeakMap<File, string>();
+
+  private addFiles(list: File[]) {
+    const room = 10 - this.files.length;
+    const big = list.filter((f) => f.size > 25 * 1024 * 1024);
+    this.files.push(...list.filter((f) => f.size <= 25 * 1024 * 1024).slice(0, Math.max(0, room)));
+    if (big.length) this.note(`${big.map((f) => f.name).join(", ")} ${big.length === 1 ? "is" : "are"} over 25 MB and ${big.length === 1 ? "was" : "were"} left out.`);
+    this.renderChips();
+    (this.el.querySelector("textarea") as HTMLTextAreaElement).focus();
+  }
+
+  private renderChips() {
+    const box = this.el.querySelector(".cp-chips") as HTMLElement;
+    box.hidden = !this.files.length;
+    box.innerHTML = this.files.map((f, i) => {
+      let thumb = "";
+      if (f.type.startsWith("image/")) {
+        if (!this.previews.has(f)) this.previews.set(f, URL.createObjectURL(f));
+        thumb = `<img src="${this.previews.get(f)}" alt="">`;
+      } else thumb = `<span class="cpc-ext">${esc((f.name.split(".").pop() || "file").slice(0, 4).toUpperCase())}</span>`;
+      return `<div class="cp-chip">${thumb}<span class="cpc-name" title="${esc(f.name)}">${esc(f.name)}</span><button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">&times;</button></div>`;
+    }).join("");
+  }
 
   constructor(host: HTMLElement, private api: Api) {
     this.el = document.createElement("aside");
@@ -77,33 +102,81 @@ export class ChatPanel {
       <section class="cp-queue" aria-label="Queued messages" hidden><button type="button" class="cq-head" aria-expanded="true"><b>Queued</b><span class="cq-count"></span><i aria-hidden="true"></i></button><ol></ol></section>
       <div class="cp-zoom" hidden><img alt=""><button type="button" class="ghost">Close image</button></div>
       <form class="cp-form">
-        <textarea rows="2" placeholder="Message this robot"></textarea>
-        <button type="submit" class="primary">Send</button>
+        <div class="cp-box">
+          <div class="cp-chips" hidden></div>
+          <textarea rows="1" placeholder="Message this robot" aria-label="Message"></textarea>
+          <div class="cp-tools">
+            <button type="button" class="cp-attach" aria-label="Attach files or images" title="Attach files or images (you can also paste or drop them)"><svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="M13.5 6.5l-5.6 5.6a1.6 1.6 0 0 0 2.3 2.3l6-6a3.2 3.2 0 0 0-4.5-4.5l-6.2 6.2a4.8 4.8 0 0 0 6.8 6.8l5-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <span class="cp-hint">Enter to send, Shift+Enter for a new line</span>
+            <button type="submit" class="cp-send" aria-label="Send"><span>Send</span><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+          <input type="file" class="cp-fileinput" multiple hidden>
+        </div>
+        <div class="cp-drop" hidden>Drop to attach</div>
       </form>`;
     host.appendChild(this.el);
     this.el.querySelector(".cp-close")!.addEventListener("click", () => this.onClose());
     this.el.querySelector(".cp-view")!.addEventListener("click", () => this.onToggleView());
     const form = this.el.querySelector(".cp-form") as HTMLFormElement;
     const ta = form.querySelector("textarea")!;
+    // the box grows with what you type, up to about 40% of the panel, then scrolls
+    const grow = () => {
+      ta.style.height = "auto";
+      const max = Math.max(120, this.el.clientHeight * 0.4);
+      ta.style.height = `${Math.min(max, ta.scrollHeight)}px`;
+      ta.style.overflowY = ta.scrollHeight > max ? "auto" : "hidden";
+    };
+    ta.addEventListener("input", grow);
+    // attachments: the paperclip, pasting, or dropping files onto the panel
+    const fileInput = form.querySelector(".cp-fileinput") as HTMLInputElement;
+    form.querySelector(".cp-attach")!.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", () => { this.addFiles([...(fileInput.files ?? [])]); fileInput.value = ""; });
+    ta.addEventListener("paste", (e) => {
+      const files = [...(e.clipboardData?.files ?? [])];
+      if (files.length) { e.preventDefault(); this.addFiles(files); }
+    });
+    const drop = form.querySelector(".cp-drop") as HTMLElement;
+    let depth = 0;
+    this.el.addEventListener("dragenter", (e) => { if (e.dataTransfer?.types.includes("Files")) { depth++; drop.hidden = false; } });
+    this.el.addEventListener("dragleave", () => { if (--depth <= 0) { depth = 0; drop.hidden = true; } });
+    this.el.addEventListener("dragover", (e) => { if (e.dataTransfer?.types.includes("Files")) e.preventDefault(); });
+    this.el.addEventListener("drop", (e) => {
+      e.preventDefault(); depth = 0; drop.hidden = true;
+      this.addFiles([...(e.dataTransfer?.files ?? [])]);
+    });
+    form.querySelector(".cp-chips")!.addEventListener("click", (e) => {
+      const x = (e.target as HTMLElement).closest("[data-rm]") as HTMLElement | null;
+      if (x) { this.files.splice(Number(x.dataset.rm), 1); this.renderChips(); }
+    });
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const text = ta.value.trim();
-      if (!text || !this.desk?.threadId) return;
+      const typed = ta.value.trim();
+      if ((!typed && !this.files.length) || !this.desk?.threadId) return;
       ta.disabled = true;
-      // show it right away; it turns into the real message once T3 has it
-      this.pending.push({ text, at: Date.now() });
-      this.renderPending();
+      const files = [...this.files];
       try {
+        // files are saved where the agent can open them, and listed in the message
+        const saved: { path: string; image: boolean }[] = [];
+        for (const f of files) saved.push({ path: await this.api.saveAttachment(f.name, new Uint8Array(await f.arrayBuffer())), image: f.type.startsWith("image/") });
+        const text = saved.length
+          ? `${typed || "Have a look at the attached files."}\n\nAttached:\n${saved.map((s) => `- ${s.image ? "image" : "file"}: ${s.path}`).join("\n")}`
+          : typed;
+        // show it right away; it turns into the real message once T3 has it
+        this.pending.push({ text, at: Date.now() });
+        this.renderPending();
         await this.api.sendMessage({ threadId: this.desk.threadId, message: text });
         ta.value = "";
+        this.files = [];
+        this.renderChips();
+        grow();
         this.refreshSoon(300);
       } catch (err: any) {
-        this.pending = this.pending.filter((p) => p.text !== text);
+        this.pending = this.pending.filter((p) => !p.text.startsWith(typed));
         this.renderPending();
         this.note(`Could not send: ${err.message || err}. Your text is still here.`);
       } finally { ta.disabled = false; ta.focus(); }
     });
-    ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
+    ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); } });
     this.el.querySelector(".cp-list")!.addEventListener("click", (e) => {
       const t = e.target as HTMLElement;
       const img = t.closest(".cp-att img") as HTMLImageElement | null;
@@ -155,6 +228,9 @@ export class ChatPanel {
   setStatus(text: string, state: "working" | "idle" | "waiting") {
     const p = this.el.querySelector(".cp-status") as HTMLElement;
     p.dataset.state = state;
+    const send = this.el.querySelector(".cp-send span") as HTMLElement;
+    send.textContent = state === "working" ? "Queue" : "Send";
+    (send.parentElement as HTMLElement).title = state === "working" ? "It is busy: your message waits in the queue and comes next" : "Send";
     const span = p.querySelector("span")!;
     if (span.textContent !== text) { span.textContent = text; gsap.fromTo(span, { opacity: 0.3 }, { opacity: 1, duration: 0.3 }); }
   }
@@ -226,7 +302,21 @@ export class ChatPanel {
   }
 
   private render(m: Msg) {
-    const atts = m.attachments.map((a) => {
+    let body = m.text;
+    const sent: string[] = [];
+    const at = m.role === "user" ? body.match(/\n*Attached:\n((?:- (?:image|file): .+(?:\n|$))+)\s*$/) : null;
+    if (at) {
+      body = body.slice(0, at.index).trim();
+      for (const line of at[1].trim().split("\n")) {
+        const mm = line.match(/^- (image|file): (.+)$/);
+        if (!mm) continue;
+        const p = mm[2].trim(), name = p.split(/[\\/]/).pop()!.replace(/^\d+-/, "");
+        sent.push(mm[1] === "image" ? `<figure class="cp-att"><img src="${fileUrl(p)}" alt="${esc(name)}" loading="lazy"></figure>`
+          : `<div class="cp-file" title="${esc(p)}"><span>${esc(name)}</span><i>file</i></div>`);
+      }
+    }
+    m = { ...m, text: body };
+    const atts = sent.join("") + m.attachments.map((a) => {
       if (a.type === "image" && a.path) return `<figure class="cp-att"><img src="${fileUrl(a.path)}" alt="${esc(a.name)}" loading="lazy"></figure>`;
       return `<div class="cp-file" title="${esc(a.name)}"><span>${esc(a.name)}</span><i>${Math.max(1, Math.round((a.size || 0) / 1024))} KB</i></div>`;
     }).join("");

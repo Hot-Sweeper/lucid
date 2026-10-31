@@ -122,6 +122,15 @@ ipcMain.handle("t3:user-messages", (_e, since, exclude) => t3.userMessagesSince(
 ipcMain.handle("project:remove", (_e, o) => t3.removeProject(o));
 ipcMain.handle("app:host", () => require("node:os").hostname());
 ipcMain.handle("usage:get", () => require("./usage.cjs").getUsage());
+// Files attached in the side chat are saved where agents can open them by path.
+ipcMain.handle("attach:save", async (_e, { name, data }) => {
+  const dir = path.join(require("node:os").homedir(), ".t3", "userdata", "lucid-attachments");
+  await fsp.mkdir(dir, { recursive: true });
+  const safe = String(name || "file").replace(/[^\w.\- ]+/g, "_").slice(-120) || "file";
+  const file = path.join(dir, `${Date.now()}-${safe}`);
+  await fsp.writeFile(file, Buffer.from(data));
+  return file;
+});
 ipcMain.handle("weather:get", async () => {
   const { getWeather, lastError } = require("./weather.cjs");
   const w = await getWeather();

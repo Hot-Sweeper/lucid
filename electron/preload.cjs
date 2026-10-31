@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld("lucid", {
   host: () => ipcRenderer.invoke("app:host"),
   usage: () => ipcRenderer.invoke("usage:get"),
   weather: () => ipcRenderer.invoke("weather:get"),
+  saveAttachment: (name, data) => ipcRenderer.invoke("attach:save", { name, data }),
   rosterSave: (json) => ipcRenderer.invoke("roster:save", json),
   conversation: (id) => ipcRenderer.invoke("t3:conversation", id),
   itemsSince: (id, since) => ipcRenderer.invoke("t3:items-since", id, since),
