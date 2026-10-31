@@ -2,6 +2,7 @@ import gsap from "gsap";
 import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
 import { drawFloor, drawWall, drawDecor, placeDecor, DECOR } from "../decor/decor";
 import type { RoomTheme } from "./decorate";
+import { Park } from "./park";
 import { GEOM } from "./rig";
 import { outsideSvg, PARK_W } from "./outside";
 import { Roster, type RobotProfile } from "./roster";
@@ -49,6 +50,7 @@ export class World {
   rooms: Room[] = [];
   desks = new Map<string, Desk>();
   themes = new Map<string, RoomTheme>();
+  park: Park;
   level = 0;
   freeDesks: Desk[] = [];
   private roomLayer: HTMLElement;
@@ -83,6 +85,11 @@ export class World {
   constructor(scene: HTMLElement, private services: DeskServices) {
     this.scene = scene;
     scene.innerHTML = `<div class="world"><div class="outside-layer"></div><div class="building-plate"><span class="bp-dot"></span><b></b></div><div class="hall"></div><div class="room-layer"></div><div class="night-shade"></div><div class="desk-layer"></div></div>`;
+    // robots in the park walk on the grass above the outdoors, under the night tint
+    const worldEl = scene.querySelector(".world") as HTMLElement;
+    this.park = new Park(worldEl);
+    worldEl.insertBefore(this.park.layer, worldEl.querySelector(".building-plate"));
+    this.park.onSelect = (id) => this.onSelectThread(id);
     this.root = scene.querySelector(".world")!;
     this.roomLayer = scene.querySelector(".room-layer")!;
     this.deskLayer = scene.querySelector(".desk-layer")!;
@@ -211,6 +218,7 @@ export class World {
       const park = { x: this.size.w + 300, y: Math.max(-200, topH + HALL / 2 - 520), w: PARK_W, h: 1040 };
       const out = { ox: -2400, oy: -2200, w: this.size.w + 300 + PARK_W + 4800, h: Math.max(this.size.h, park.y + park.h) + 4400 };
       this.outdoor = { x: out.ox, y: out.oy, w: out.w, h: out.h, park };
+      this.park.setGeometry(park, { x: this.size.w + 66, y: topH + HALL / 2 + 20 });
       const layer = this.root.querySelector(".outside-layer") as HTMLElement;
       layer.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px`;
       layer.innerHTML = outsideSvg({ ...out, building: { x: 0, y: 0, w: this.size.w, h: this.size.h }, entranceY: topH + HALL / 2, park });
@@ -288,6 +296,8 @@ export class World {
     const inUse = new Set(this.slotDesks.values());
     for (const d of this.allDesks) if (!inUse.has(d)) { this.allDesks.delete(d); if (this.selected === d) this.select(null); d.destroy(); }
     this.ext.break?.setThreads(brkShown.map((t) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name })) as any);
+    // robots that finished longer ago than the break room's latest eight go out to the park
+    this.park.setThreads(brk.slice(8, 14).map((t) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name })));
     this.ext.queue?.setThreads(queue.map((t) => ({ id: t.id, provider: t.provider, title: t.title, question: t.question, model: t.model, name: this.roster.byThread(t.id)?.name })) as any);
     this.onRooms(rooms);
   }

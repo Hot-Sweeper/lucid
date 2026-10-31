@@ -4,7 +4,7 @@ import { Director, type ThreadInfo } from "../director";
 import { GEOM, UNIT, type DeskRig, type Pt, type SeatedRobot } from "./rig";
 import { StubRobot } from "./stub-robot";
 import { playHandoff } from "../world/handoff";
-import { logoFor } from "./brand";
+import { logoFor, brandFor } from "./brand";
 import { WALLPAPERS, type RobotProfile } from "./roster";
 
 // One workstation, seen fake top-down: the desk surface from above, the monitor and the
@@ -107,6 +107,7 @@ export class Desk implements DeskStage {
     this.model = thread?.model ?? null;
     this.el.classList.toggle("empty", !thread);
     this.handoffBusy = false;
+    this.handoffArmed = false;
     if (thread) {
       this.robot.setBrand(thread.provider);
       this.robot.setModel?.(this.model);
@@ -115,8 +116,7 @@ export class Desk implements DeskStage {
         this.wm.prefs = profile.prefs;
         this.wm.robotName = profile.name;
         this.wm.setWallpaper(WALLPAPERS[profile.prefs.wallpaper % WALLPAPERS.length]);
-        const mug = this.el.querySelector("[data-d=mug] rect") as SVGRectElement | null;
-        mug?.setAttribute("fill", profile.prefs.mug);
+        (this.el.querySelector("[data-d=mug]") as SVGGElement | null)?.style.setProperty("--mug", profile.prefs.mug);
       }
       const logo = logoFor(thread.provider);
       if (logo) this.wm.setWallpaperLogo(logo);
@@ -140,11 +140,13 @@ export class Desk implements DeskStage {
   setInfo(info: ThreadInfo) {
     this.info = info;
     if (info.title) this.label(info.title, info.provider);
-    if (this.robot.brandName !== info.provider && !this.handoffBusy) {
-      const from = this.robot.brandName;
-      if (from && from !== info.provider && this.threadId) void this.handoff(from, info.provider, (info as any).model ?? null);
+    // Compare harness kinds ("claude", "codex"), not raw provider ids like "claudeAgent".
+    const from = this.robot.brandName, to = brandFor(info.provider);
+    if (from !== to && !this.handoffBusy) {
+      if (from && this.threadId && this.handoffArmed) void this.handoff(from, info.provider, (info as any).model ?? null);
       else this.robot.setBrand(info.provider);
     }
+    this.handoffArmed = true;
     const model = (info as any).model as string | null | undefined;
     if (model && model !== this.model) { this.model = model; this.robot.setModel?.(model); }
     const logo = logoFor(info.provider);
@@ -155,6 +157,7 @@ export class Desk implements DeskStage {
   // The thread moved to another harness: the old robot explains the work to the new one,
   // then the new one takes the chair.
   private handoffBusy = false;
+  private handoffArmed = false;   // the first info after a thread arrives only sets the brand
   private async handoff(from: string, to: string, model: string | null) {
     this.handoffBusy = true;
     const tid = this.threadId;
@@ -316,12 +319,15 @@ export class Desk implements DeskStage {
       <rect x="${m.x - 24}" y="${m.y - 22}" width="48" height="44" rx="10" fill="#4a5063" opacity="0.55"/>
       <g data-d="mouse"><ellipse cx="${m.x}" cy="${m.y}" rx="9" ry="12" fill="#2e3242"/><ellipse cx="${m.x}" cy="${m.y - 3}" rx="6" ry="7" fill="#4a5063"/><rect x="${m.x - 0.75}" y="${m.y - 11}" width="1.5" height="6" fill="#2e3242"/></g>
       <g data-d="phone"><rect x="${ph.x - 11}" y="${ph.y - 19}" width="22" height="38" rx="5" fill="#22263a"/><rect x="${ph.x - 9}" y="${ph.y - 16}" width="18" height="32" rx="3" fill="#353b58"/></g>
-      <g data-d="mug" class="mug">
+      <g data-d="mug" class="mug" style="--mug:#ff8a65">
         <ellipse cx="${mug.x + 3}" cy="${mug.y + 6}" rx="13" ry="5" fill="#2b1d10" opacity="0.2"/>
-        <path d="M${mug.x + 9} ${mug.y - 4} q8 0 8 6 q0 6 -8 6" stroke="#e8673c" stroke-width="3.5" fill="none"/>
-        <rect x="${mug.x - 10}" y="${mug.y - 12}" width="20" height="20" rx="5" fill="#ff8a65"/>
+        <path class="mug-handle" d="M${mug.x + 8} ${mug.y - 7} q9 0 9 6 q0 6 -9 6" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+        <rect class="mug-body" x="${mug.x - 10}" y="${mug.y - 12}" width="20" height="20" rx="5"/>
+        <rect class="mug-shade" x="${mug.x + 3}" y="${mug.y - 9}" width="7" height="17" rx="3.5"/>
+        <rect x="${mug.x - 7}" y="${mug.y - 7}" width="2.6" height="11" rx="1.3" fill="#fff" opacity="0.35"/>
         <ellipse cx="${mug.x}" cy="${mug.y - 11}" rx="9" ry="4" fill="#5a2b1e"/>
         <ellipse cx="${mug.x - 2}" cy="${mug.y - 12}" rx="3" ry="1.2" fill="#8a4a32"/>
+        <g class="mug-steam"><path d="M${mug.x - 3} ${mug.y - 16} q-3 -5 0 -9 q3 -4 0 -9" /><path d="M${mug.x + 3} ${mug.y - 15} q-3 -5 0 -9 q3 -4 0 -8" /></g>
       </g>
     </svg>`;
   }

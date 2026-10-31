@@ -615,7 +615,7 @@ export class TopDownRobot implements SeatedRobot {
     let up = lerp(this.rig.upper, FOLD_BONE, fd), fo = lerp(this.rig.fore, FOLD_BONE, fd);
     if (!front) {
       const ext = Math.hypot(t.x - s.x, t.y - s.y) / (up + fo);
-      const kk = lerp(clamp(ext / 0.8, 0.55, 1), 1, fd);
+      const kk = lerp(clamp(ext / 0.8, 0.55, Math.max(1, ext * 1.01)), 1, fd);
       up *= kk; fo *= kk;
     }
     const { e, t: h } = solveArm(s, t, up, fo, out, 1.4, front ? 0.4 : lerp(-0.2, -1.2, fd));

@@ -312,3 +312,15 @@
 .dc-items button:disabled { cursor: default; }
 .dc-items button:disabled svg { filter: grayscale(1); opacity: 0.35; }
 .dc-items button:focus-visible, .dc-sw button:focus-visible, .decorate .dc-x:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* the desk mug takes the robot's favourite colour; the handle and side shade follow it */
+.mug .mug-body { fill: var(--mug); }
+.mug .mug-handle { stroke: color-mix(in srgb, var(--mug) 78%, #3a1d10); }
+.mug .mug-shade { fill: color-mix(in srgb, var(--mug) 80%, #3a1d10); opacity: 0.55; }
+.mug .mug-steam path { stroke: #fff; stroke-width: 1.6; stroke-linecap: round; fill: none; opacity: 0; animation: mug-steam 3.2s ease-out infinite; }
+.mug .mug-steam path + path { animation-delay: 1.6s; }
+@keyframes mug-steam { 0% { opacity: 0; transform: translateY(2px); } 30% { opacity: 0.55; } 100% { opacity: 0; transform: translateY(-7px); } }
+@media (prefers-reduced-motion: reduce) { .mug .mug-steam path { animation: none; opacity: 0.3; } }
+
+.park-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+.park-layer .world-walker { pointer-events: auto; cursor: pointer; }

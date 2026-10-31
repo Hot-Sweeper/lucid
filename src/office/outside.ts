@@ -26,7 +26,7 @@ function flowers(x: number, y: number, w: number, h: number, seed: number) {
   return s;
 }
 function bench(x: number, y: number) {
-  return `<g><rect x="${x - 2}" y="${y + 20}" width="74" height="8" rx="4" fill="#2b1d10" opacity="0.2"/>
+  return `<g transform="translate(${x} ${y}) scale(1.5) translate(${-x} ${-y})"><rect x="${x - 2}" y="${y + 20}" width="74" height="8" rx="4" fill="#2b1d10" opacity="0.2"/>
     <rect x="${x}" y="${y}" width="70" height="10" rx="3" fill="#a4723f"/><rect x="${x}" y="${y + 13}" width="70" height="10" rx="3" fill="#b9854c"/>
     <rect x="${x + 6}" y="${y - 2}" width="5" height="27" rx="2" fill="#3a3f4f"/><rect x="${x + 59}" y="${y - 2}" width="5" height="27" rx="2" fill="#3a3f4f"/></g>`;
 }
