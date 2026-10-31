@@ -433,3 +433,7 @@
   .hx-tab.running .hx-dot, .hx-b.pending, .hx-cb, .hx-dots i, .hx-caret, .hx-srow.running .hx-sdot, .hx-spin { animation: none; }
   .hx-shim { animation: none; }
 }
+
+/* Desktop chat apps (Claude, Codex, Antigravity...) switch chats in their left sidebar, not with
+   terminal style tabs along the top. */
+.hx.hx-f-app > .hx-tabs { display: none; }

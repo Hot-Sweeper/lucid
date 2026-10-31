@@ -938,8 +938,9 @@ export class HarnessApp {
       wm.check(e);
       if (!s) {
         if (this.sessions.size > 0) {
-          await wm.pointAt(this.newBtn, 0.5, 0.5, 360);
-          await wm.click();
+          // desktop apps start a new chat from their sidebar, terminals with the + tab
+          const add = this.active?.flavor === "app" ? (this.active.view.querySelector(".hx-new-row") as HTMLElement | null) : this.newBtn;
+          if (add) { await wm.pointAt(add, 0.5, 0.5, 360); await wm.click(); }
         }
         s = new Session(this, opts);
         this.sessions.set(opts.id, s);
@@ -1078,8 +1079,15 @@ export class HarnessApp {
 
   private async clickTab(s: Session) {
     const e = this.wm.epoch;
-    await this.wm.pointAt(s.tab, 0.45, 0.55, 340);
-    await this.wm.click();
+    // Desktop chat apps list their chats on the left; terminals have tabs along the top.
+    const a = this.active;
+    const target = a?.flavor === "app"
+      ? (a.sideList?.querySelector(`[data-id="${CSS.escape(s.id)}"]`) as HTMLElement | null)
+      : s.flavor === "cli" ? s.tab : null;
+    if (target) {
+      await this.wm.pointAt(target, 0.45, 0.55, 340);
+      await this.wm.click();
+    }
     this.activate(s, true);
     await this.wm.sleep(240, e);
   }
@@ -1122,6 +1130,7 @@ export class HarnessApp {
         const r = el("div", `hx-srow${o === s ? " on" : ""}${o.state === "running" ? " running" : ""}`);
         r.append(el("span", "hx-srow-t", o.title), el("i", "hx-sdot"));
         r.title = o.title;
+        r.dataset.id = o.id;
         rows.push(r);
       }
       s.sideList.replaceChildren(...rows);
