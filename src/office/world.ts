@@ -223,7 +223,8 @@ export class World {
     const cur = this.placed.get(t.id);
     if (!cur) { this.placed.set(t.id, { room: want }); return want; }
     if (cur.room === want) { cur.pending = undefined; return want; }
-    const urgent = want === "queue";
+    // questions and new work never wait: the robot heads over right away
+    const urgent = want === "queue" || (t.runStatus === "running" && cur.room === "break");
     if (urgent) { this.placed.set(t.id, { room: want }); return want; }
     if (!cur.pending || cur.pending.room !== want) cur.pending = { room: want, since: Date.now() };
     if (Date.now() - cur.pending.since > 20000) { this.placed.set(t.id, { room: want }); return want; }
@@ -259,7 +260,16 @@ export class World {
       const wait = t.schedule?.nextRunAt ? Date.parse(t.schedule.nextRunAt) - Date.now() : null;
       const p = byProject.get(t.projectId);
       const home = this.homes.get(t.id) ?? (!p || p.scratch ? "freelance" : `p:${p.id}`);
+      // A robot without work takes breaks: after 10 quiet minutes it spends about a third of
+      // every half hour in the break room (each on its own rhythm), and comes back for work.
+      const quietFor = Date.now() - Date.parse(t.updatedAt);
+      const watched = this.focusDesk?.threadId === t.id || this.selected?.threadId === t.id;
+      let rhythm = 0;
+      for (const ch of t.id) rhythm = (rhythm * 31 + ch.charCodeAt(0)) % 997;
+      const onBreak = !watched && !t.settled && !t.question && t.runStatus !== "running" && quietFor > 10 * 60 * 1000
+        && (Math.floor(Date.now() / 60000) + rhythm) % 30 < 11;
       const want = t.question ? "queue"
+        : onBreak ? "break"
         : this.homes.has(t.id) && !t.settled ? home
         : t.runStatus === "running" || t.pinned ? "main"
         : wait != null && wait > 15 * 60 * 1000 ? "break"
@@ -268,7 +278,7 @@ export class World {
       const room = this.settleRoom(t, want);
       if (room === "queue") queue.push(t);
       else if (room === "main") main.push(t);
-      else if (room === "break") brk.push(t);
+      else if (room === "break") { if (!t.settled) brk.unshift(t); else brk.push(t); }   // visitors on a break get a spot first
       else if (room === "freelance") freelance.push(t);
       else {
         const pid = room.slice(2);
