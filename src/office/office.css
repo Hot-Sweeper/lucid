@@ -720,3 +720,7 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .cq-save:focus-visible, .cq-yes:focus-visible, .cq-discard:focus-visible, .cq-no:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .cq-confirm { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 2px 0 4px 24px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
 .cq-confirm span { flex: 1 1 180px; }
+
+.wl-boost { flex: none; margin-right: auto; cursor: help; padding: 3px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: #3a2508; background: #8ef0b4; font-variant-numeric: tabular-nums; }
+.wl-boost[hidden] { display: none; }
+.wl-boost.hot { background: #ffd27a; box-shadow: 0 0 12px rgba(255, 210, 122, 0.6); }

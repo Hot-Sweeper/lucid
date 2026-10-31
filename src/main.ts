@@ -18,7 +18,7 @@ import { openCustomizeFor } from "./office/customize";
 import { Orchestrator, type OrchState } from "./office/orchestrator";
 import { progress } from "./office/progress";
 import { mountStats } from "./stats/stats";
-import { Wallet, openShop, coinIcon, type WalletState } from "./office/shop";
+import { Wallet, openShop, coinIcon, boostNow, luckyHour, type WalletState } from "./office/shop";
 import { ShopFront } from "./office/shopfront";
 import { watchDaily } from "./office/daily";
 import { MILESTONES, check as checkMs, celebrateMilestone, openMilestones, type Stats as MsStats } from "./office/milestones";
@@ -72,7 +72,7 @@ document.getElementById("app")!.innerHTML = `
     </header>
 
     <section class="company" id="company" aria-live="polite"></section>
-    <section class="wallet" id="wallet"><span class="wl-coins">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></span><button type="button" class="wl-shop" id="open-shop">Shop</button></section>
+    <section class="wallet" id="wallet"><span class="wl-coins" title="1 coin for every dollar of AI work at API prices">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></span><span class="wl-boost" id="wl-boost" hidden></span><button type="button" class="wl-shop" id="open-shop">Shop</button></section>
 
     <section class="threads">
       <div class="th-head"><h3>Threads</h3><label class="th-search"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label></div>
@@ -443,6 +443,26 @@ setInterval(checkUpdate, 60 * 1000);
 // Coins: the robots' API-priced spend pays for things in the shop.
 const wallet = new Wallet(() => settings.wallet, (s) => { settings.wallet = s; saveSettings(); });
 walletReady = wallet;
+// boosts and the daily reward
+const paintBoost = () => {
+  wallet.level = world.level;
+  const b = boostNow(world.level), el = $("wl-boost");
+  el.hidden = b.mult <= 1;
+  el.textContent = `${b.label === "Lucky hour" ? "★" : b.label === "Night shift" ? "☾" : "▲"} x${b.mult}`;
+  el.title = `${b.label}: ${b.label === "Lucky hour" ? "double coins for this hour" : b.label === "Night shift" ? "robots working at night earn 1.5x coins" : "your company level adds 3% per level"}. Lucky hour today: ${luckyHour()}:00.`;
+  el.classList.toggle("hot", b.label === "Lucky hour");
+};
+paintBoost();
+setInterval(paintBoost, 60000);
+wallet.onDaily = (coins, streak) => {
+  const el = document.createElement("div");
+  el.className = "ms-toast";
+  el.setAttribute("role", "status");
+  el.innerHTML = `<span class="ms-badge" aria-hidden="true">☀</span><div><b>Daily reward</b><span></span></div><em>${coinIcon(14)} +${coins}</em>`;
+  (el.querySelector("div span") as HTMLElement).textContent = streak > 1 ? `Day ${streak} in a row. Come back tomorrow for more.` : "Come back tomorrow to start a streak.";
+  document.body.appendChild(el);
+  gsap.timeline({ onComplete: () => el.remove() }).fromTo(el, { opacity: 0, y: -16 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }).to(el, { opacity: 0, duration: 0.35, delay: 4 });
+};
 window.setTimeout(() => { if (lastShipped) checkMilestones(lastShipped); }, 0);
 world.owns = (key) => wallet.owns(key);
 const paintWallet = (gained = 0) => {
