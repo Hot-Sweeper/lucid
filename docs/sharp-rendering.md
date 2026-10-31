@@ -21,4 +21,6 @@ Evidence is local under `C:/Users/tim/.t3/lucid-performance-recovery`:
 
 The original performance baseline is preserved separately in `baseline-dist`. Foreground delivery measurements must verify the actually loaded asset and must reject hidden or occluded runs. RequestAnimationFrame timing is not a direct physical-display FPS measurement.
 
+The production app was restarted with asset `index-DzPEyL7k.js` (source `966a776`). Repeated foreground measurement attempts were rejected because Chromium reported the native window hidden or occluded, including an attempt with native window restoration and foreground activation. No foreground timing is accepted from those runs. The rejected diagnostic is `C:/Users/tim/.t3/lucid-actual-ux-final/overview-rejected.json`; its timing percentiles must not be presented as foreground performance evidence. This leaves physical foreground mouse feel and frame pacing unverified in this environment.
+
 Focused CPU regressions cover detached canvas attachment, pixel density, frame cadence, context-state preservation, cache invalidation, Unicode note/prompt output, offscreen work, indexed history freshness, blocked route yielding and eight pixel-identical BOOT scenes. BOOT retains its intentional software-rendered pixel-art resolution.
