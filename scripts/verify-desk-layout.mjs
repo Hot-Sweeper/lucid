@@ -87,13 +87,16 @@ const evaluation = `
     assert(JSON.stringify(w.seats.get('p:a')) === JSON.stringify(reserved) && w.desks.get('a2') === oldDesk, 'questions retain the same desk reservation');
     assert(oldDesk.el.classList.contains('arriving'), 'away robot is hidden at its reserved desk');
     // Exercise the real sidebar drag handler and its room-list target.
-    const row = document.createElement('button'); row.className = 'th-row'; row.dataset.id = 'a1'; row.textContent = 'Desk a1';
-    document.getElementById('th-list').prepend(row);
-    row.scrollIntoView({block:'center'}); w.showRoom('main'); await wait(1100);
+    w.showRoom('main'); await wait(1100);
     await until(()=>!w.rooms.find(r=>r.id==='main').collapsed,'manual main office opens after the source actor clears');
+    w.showRoom('main'); await wait(1100);
+    const row = document.createElement('button'); row.className = 'th-row'; row.dataset.id = 'a1'; row.textContent = 'Desk a1';
+    document.getElementById('th-list').prepend(row);row.scrollIntoView({block:'center'});
+    assert(row.isConnected,'sidebar fixture row is connected after pending office layout settles');
     const rr = row.getBoundingClientRect(), mr = w.scene.getBoundingClientRect();
     const rowEvent = (type,x,y) => row.dispatchEvent(new PointerEvent(type,{bubbles:true,button:0,pointerId:78,clientX:x,clientY:y}));
-    const dropX=mr.left+mr.width/2, dropY=mr.top+mr.height/2;
+    const mainRoom=w.rooms.find(r=>r.id==='main');
+    const dropX=mr.left+w.cam.x+(mainRoom.x+mainRoom.w/2)*w.cam.s, dropY=mr.top+w.cam.y+(mainRoom.y+mainRoom.h/2)*w.cam.s;
     rowEvent('pointerdown',rr.left+20,rr.top+12); rowEvent('pointermove',dropX,dropY);
     assert(!!document.querySelector('.office-drop-preview') && document.body.classList.contains('th-dragging'), 'sidebar drag previews office membership drop');
     rowEvent('pointerup',dropX,dropY); row.remove(); await wait(350);
@@ -179,6 +182,8 @@ await new Promise((resolve, reject) => {
 });
 const log = await readFile(join(folder, 'eval.log'), 'utf8');
 console.log('Artifacts: ' + folder);
-console.log(log.split('--- 2')[0]);
+const results=log.split(/^--- \d+\r?\n/m).flatMap(part=>{try{return [JSON.parse(part)]}catch{return []}});
+const result=results.find(result=>typeof result?.ok==='boolean');
+console.log(JSON.stringify(result?{ok:result.ok,checks:result.checks?.length,segments:result.segments,approaches:result.approaches,error:result.error,stack:result.stack}:results.at(-1),null,2));
 assert.ok(log.includes('"ok": true'), 'offscreen interaction checks passed');
 assert.equal(log.includes('"ok": false'), false, 'no offscreen check failed');
