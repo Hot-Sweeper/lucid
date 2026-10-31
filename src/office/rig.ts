@@ -69,6 +69,10 @@ export interface SeatedRobot {
   setModel?(name: string | null): void;
   /** Personality touches picked when the robot is first hired. */
   setLook?(look: RobotLook): void;
+  /** Puts headphones on (the hands lift them onto the ears) or takes them off. `look.headphones` sets the starting state. */
+  setHeadphones?(on: boolean): void;
+  /** Bobs to music at this tempo on top of any pose (head on the beat, shoulder sway, antenna bounce). 0 stops smoothly. */
+  setGroove?(bpm: number): void;
   destroy(): void;
 }
 

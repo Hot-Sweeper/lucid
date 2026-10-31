@@ -1,22 +1,28 @@
 import gsap from "gsap";
 import { GEOM, UNIT, type DeskRig, type Expression, type Pose, type Pt, type Reaction, type RobotLook, type SeatedRobot } from "../office/rig";
-import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, solveArm, uid, type BrandKind } from "./parts";
+import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, solveArm, uid, type BrandKind } from "./seated-parts";
 
 // The v0 robot, seated on the south side of its desk, seen from behind and above.
-// Body and head are the original v0 shapes (v0 coordinates, scaled by S); the arms are
-// two-bone chains solved every frame in desk-unit coordinates so the mitten hands can rest
-// on the real keys, the mouse, the mug and the phone.
+// The head is the original v0 head (v0 coordinates, scaled by S); the body is a slim, tapered
+// shell under it. The arms are two-bone chains solved every frame in desk-unit coordinates so
+// the mitten hands rest on the real keys, the mouse, the mug and the phone.
+// All secondary motion (antenna spring, groove, weight shifts, swivel) is computed in one
+// per-frame pass on the gsap ticker: no filters, no blend modes, a handful of attribute writes.
 
 // Everything is derived from GEOM, so the robot follows the desk contract.
 const SH = GEOM.shoulders;
-const S = (SH.right.x - SH.left.x) / 120;                 // v0 shoulders are 120 apart
+const S = (SH.right.x - SH.left.x) / 120;                 // v0 art scale (v0 shoulders were 120 apart)
 const U = S / 0.58;                                       // relative to the size the details were tuned at
 const ORIGIN = { x: (SH.left.x + SH.right.x) / 2, y: (SH.left.y + SH.right.y) / 2 }; // v0 (560, 748)
 const HEAD_DROP = (GEOM.head.y - 2 - (ORIGIN.y - 89 * S)) / S; // tucks the head toward GEOM.head (the steep view hides the neck)
 const MAP = `translate(${ORIGIN.x} ${ORIGIN.y}) scale(${S}) translate(-560 -748)`;
-const SH_L = { x: ORIGIN.x - 60 * S, y: ORIGIN.y };
-const SH_R = { x: ORIGIN.x + 60 * S, y: ORIGIN.y };
-const UPPER = 69 * S, FORE = 132 * S;   // back view; facing the camera the forearm is foreshortened
+const SHOULDER = 50;                                      // v0 half shoulder width: slimmer than the original 60
+const SH_L = { x: ORIGIN.x - SHOULDER * S, y: ORIGIN.y };
+const SH_R = { x: ORIGIN.x + SHOULDER * S, y: ORIGIN.y };
+// Back view: the upper arm hangs down toward the floor, so from up here it reads short and the
+// elbow stays tucked at the side; the forearm reaches forward over the desk. Facing the camera the
+// forearm is the foreshortened one.
+const UPPER = 42 * S, FORE = 160 * S;
 const HX = GEOM.head.x, HY = GEOM.head.y;
 const TABLE_FRONT = GEOM.table.y + GEOM.table.h;
 const BACK_TOP = ORIGIN.y + 56 * S;     // backrest top: below the jersey plate, over the lower back
@@ -33,10 +39,14 @@ const PHONE_HOLD = { x: HX - 80, y: HY - 52 };   // beside the head, only its ed
 const PHONE_TILT = 7;
 const LEFT_KEYS = "qwertasdfgzxcvb12345";
 const RIGHT_KEYS = "yuiophjklnm,.67890 ";
+const LETTERS = "etaoinshrdlucmfwypgbvk";   // auto typing picks letters by rough English frequency
+const CALM: Partial<Record<Pose, number>> = { rest: 1, idle: 1, read: 0.8, think: 0.7, ask: 0.6, notice: 0.5, type: 0.35, mouse: 0.5, phone: 0.5 };
 
 type Side = "l" | "r";
 const wait = (s: number) => new Promise<void>((r) => gsap.delayedCall(s, r));
 const done = (a: gsap.core.Animation) => new Promise<void>((r) => a.eventCallback("onComplete", () => r()));
+const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+const TAU = Math.PI * 2;
 
 export class TopDownRobot implements SeatedRobot {
   el: SVGSVGElement;
@@ -47,11 +57,18 @@ export class TopDownRobot implements SeatedRobot {
   private facing = false;
   private expr: Expression = "neutral";
   private $: Record<string, SVGElement> = {};
-  private rig = { lx: REST_L.x, ly: REST_L.y, rx: REST_R.x, ry: REST_R.y, hx: 0, hy: 0, rot: 0, yaw: 0, lean: 0, body: 0, sx: 1, bx: 0, by: 0, shrug: 0, shake: 0, upper: UPPER, fore: FORE };
+  private rig = { lx: REST_L.x, ly: REST_L.y, rx: REST_R.x, ry: REST_R.y, hx: 0, hy: 0, rot: 0, yaw: 0, lean: 0, body: 0, sx: 1, bx: 0, by: 0, shrug: 0, shake: 0, upper: UPPER, fore: FORE, sw: 0, base: 0 };
   private lift = { l: 0, r: 0 };
   private fold = { l: 1, r: 1 };
   private press = { l: 0, r: 0 };
   private bob = { v: 0 };
+  private ant = { v: 0 };                         // anticipation dip before a pose change
+  private shift = { x: 0, r: 0 };                 // slow weight shifts
+  private ponder = { v: 0, side: 1, target: 0 };  // typing pause: head tilts toward the screen
+  private groove = { amp: 0, bpm: 0, phase: 0, beat: 0 };
+  private hp = { on: false, y: 0, sx: 1, sy: 1, o: 0, grip: 0 };
+  private spring = { phi: 0, phiV: 0, tx: 0, tvx: 0, ty: 0, tvy: 0, kick: 0 };
+  private wrist = { vx: 0, lastX: 0 };
   private front = { l: false, r: false };
   private mouseP: Pt;
   private mouseW = { v: 0 };
@@ -65,37 +82,50 @@ export class TopDownRobot implements SeatedRobot {
   private swipeP = { x: 0, y: 0, on: 0 };
   private thumb: SVGSVGElement;
   private busy = false;
+  private fitting = false;
+  private carrying = false;
+  private phoneShown = false;
   private lastExt = 0;
+  private lastAny = 0;
   private lastPress = { l: 0, r: 0 };
-  private nextAuto = { l: 0, r: 0 };
+  private nextAuto = 0;
+  private autoQ: string[] = [];
   private homed = { l: true, r: true };
   private liftTl: Partial<Record<Side, gsap.core.Timeline>> = {};
   private handHome = { lx: REST_L.x, ly: REST_L.y, rx: REST_R.x, ry: REST_R.y };
   private poseAnim: gsap.core.Animation | null = null;
   private reactTl: gsap.core.Animation | null = null;
-  private blinkTl: gsap.core.Timeline | null = null;
+  private antTl: gsap.core.Animation | null = null;
+  private swTl: gsap.core.Animation | null = null;
+  private hpTl: gsap.core.Animation | null = null;
+  private blinkCall: gsap.core.Tween | null = null;
+  private shiftCall: gsap.core.Tween | null = null;
   private loops: gsap.core.Animation[] = [];
   private glow = "#7cf2ff";
+  private spokes: SVGElement[] = [];
+  private lastBase = NaN;
+  private lastSw = "";
 
   constructor(host: HTMLElement, private desk: DeskRig) {
     const id = this.id;
     host.insertAdjacentHTML("beforeend", ROBOT(id));
     this.el = host.lastElementChild as SVGSVGElement;
     this.$ = bind(this.el);
+    this.spokes = [...this.el.querySelectorAll<SVGElement>("[data-spoke]")];
     // The fingers that hold the phone sit above the phone (which the desk draws above the robot).
     const thumbHost = host.parentElement ?? host;
     thumbHost.insertAdjacentHTML("beforeend", `<svg class="world-thumb" viewBox="0 0 ${UNIT.w} ${UNIT.h}" style="width:${UNIT.w}px;height:${UNIT.h}px" aria-hidden="true"><g data-t="g" opacity="0">
-      <ellipse cx="0" cy="0" rx="5.5" ry="8" fill="var(--shade)"/><ellipse cx="-1" cy="-2" rx="3.4" ry="5" fill="var(--shell)"/></g></svg>`);
+      <ellipse cx="0" cy="0" rx="4.6" ry="6.8" fill="var(--shade)"/><ellipse cx="-1" cy="-1.8" rx="2.9" ry="4.3" fill="var(--shell)"/></g></svg>`);
     this.thumb = thumbHost.lastElementChild as SVGSVGElement;
     this.mouseP = { ...desk.mouse };
-    gsap.set(this.$.antenna, { transformOrigin: "50% 100%" });
+    this.wrist.lastX = this.mouseP.x;
     this.setBrand("codex");
     this.setExpression("neutral");
     this.loops.push(
-      gsap.to(this.rig, { body: 1, duration: 2.4, ease: "sine.inOut", yoyo: true, repeat: -1 }),
+      gsap.to(this.rig, { body: 1, duration: 2.6, ease: "sine.inOut", yoyo: true, repeat: -1 }),
       gsap.to(this.$.antennaGlow, { opacity: 0.55, duration: 1.6, ease: "sine.inOut", yoyo: true, repeat: -1 }),
-      gsap.to(this.$.antenna, { rotation: 3, duration: 1.9, ease: "sine.inOut", yoyo: true, repeat: -1 }),
     );
+    this.scheduleShift();
     this.setPose("rest");
     gsap.ticker.add(this.frame);
   }
@@ -116,15 +146,24 @@ export class TopDownRobot implements SeatedRobot {
     this.$.nameplate.style.display = "";
     const label = name.length > 22 ? name.slice(0, 21) + "…" : name;
     t.textContent = label;
-    const w = clamp(label.length * 6.7 + 16, 46, 150);
+    // The back is slim now: the plate stays inside it and long names are condensed to fit.
+    const w = clamp(label.length * 6.2 + 14, 40, 92);
     plate.setAttribute("x", String(560 - w / 2));
     plate.setAttribute("width", String(w));
-    if (label.length * 6.7 > w - 10) { t.setAttribute("textLength", String(w - 12)); t.setAttribute("lengthAdjust", "spacingAndGlyphs"); }
+    if (label.length * 6.2 > w - 10) { t.setAttribute("textLength", String(w - 10)); t.setAttribute("lengthAdjust", "spacingAndGlyphs"); }
     else t.removeAttribute("textLength");
     (this.$.nameTitle as SVGTitleElement).textContent = name;
   }
 
-  setLook(look: RobotLook) { paintLook(this.el, this.$, look); }
+  setLook(look: RobotLook) {
+    paintLook(this.el, this.$, look);
+    if (look.headphones !== undefined && look.headphones !== this.hp.on) {
+      this.hpTl?.kill();
+      this.fitting = false;
+      this.hp.on = look.headphones;
+      Object.assign(this.hp, { y: 0, sx: 1, sy: 1, o: look.headphones ? 1 : 0, grip: 0 });
+    }
+  }
 
   // ---- poses --------------------------------------------------------------------------
   setPose(p: Pose) {
@@ -140,16 +179,24 @@ export class TopDownRobot implements SeatedRobot {
     if (this.phoneP && p !== "phone") void this.holdPhone(false);
     const faces = p === "ask" || p === "notice" || p === "celebrate";
     if (this.facing && !faces) this.turnAround(false);
-    const ease = "power3.inOut";
+    // Anticipation: the body sinks a little before it moves, then springs into the new pose.
+    if (p !== prev) {
+      this.antTl?.kill();
+      this.antTl = gsap.timeline()
+        .to(this.ant, { v: 1, duration: 0.12, ease: "power2.out" })
+        .to(this.ant, { v: 0, duration: 0.7, ease: "elastic.out(1, 0.5)" });
+    }
+    const ease = "back.inOut(1.2)";
     const hands = (l: Pt, r: Pt, d = 0.55, delayR = 0.06, delay = 0) => {
       this.handHome = { lx: l.x, ly: l.y, rx: r.x, ry: r.y };
       const folded = (q: Pt) => (Math.abs(q.y - REST_L.y) < 8 && Math.abs(q.x - HX) < 40 * U ? 1 : 0);
-      gsap.to(this.fold, { l: folded(l), r: folded(r), duration: d * 0.8, ease: "power2.inOut", delay, overwrite: true });
-      gsap.to(this.rig, { lx: l.x, ly: l.y, duration: d, ease, delay, overwrite: "auto" });
-      gsap.to(this.rig, { rx: r.x, ry: r.y, duration: d, ease, delay: delay + delayR, overwrite: "auto" });
+      gsap.to(this.fold, { l: folded(l), r: folded(r), duration: d * 0.8, ease: "power2.inOut", delay: delay + 0.06, overwrite: true });
+      gsap.to(this.rig, { lx: l.x, ly: l.y, duration: d, ease, delay: delay + 0.06, overwrite: "auto" });
+      gsap.to(this.rig, { rx: r.x, ry: r.y, duration: d, ease, delay: delay + 0.06 + delayR, overwrite: "auto" });
     };
+    // The head leads the hands a touch and settles with a small overshoot.
     const head = (rot: number, hx: number, hy: number, lean: number, d = 0.7) =>
-      gsap.to(this.rig, { rot, hx, hy, lean, yaw: 0, by: 0, bx: 0, duration: d, ease: "power2.inOut", delay: 0.08, overwrite: "auto" });
+      gsap.to(this.rig, { rot, hx, hy, lean, yaw: 0, by: 0, bx: 0, duration: d, ease: "back.out(1.5)", delay: 0.04, overwrite: "auto" });
     const mouse = (on: boolean) => gsap.to(this.mouseW, { v: on ? 1 : 0, duration: 0.45, ease: "power2.inOut", overwrite: true });
     const layer = (l: boolean, r: boolean, at = 0) => gsap.delayedCall(at, () => { this.front.l = l; this.front.r = r; this.layerArms(); });
     if (!faces && p !== "phone") layer(false, false, p === prev ? 0 : 0.18);
@@ -158,9 +205,10 @@ export class TopDownRobot implements SeatedRobot {
     switch (p) {
       case "type":
         mouse(false);
-        hands(home.l, home.r, 0.4, 0.04);
+        hands(home.l, home.r, 0.42, 0.04);
         head(0, 0, 4, 0.15, 0.5);
         this.homed = { l: true, r: true };
+        this.lastAny = performance.now();
         break;
       case "mouse":
         mouse(true);
@@ -182,10 +230,10 @@ export class TopDownRobot implements SeatedRobot {
       case "ask":
       case "notice":
         mouse(false);
-        hands(LAP_L, LAP_R, 0.6, 0.08, 0.3);
+        hands(LAP_L, LAP_R, 0.6, 0.08, 0.15);
         head(0, 0, p === "notice" ? -10 : -6, -0.1, 0.6);
         if (!this.facing) this.turnAround(true);
-        if (p === "notice") gsap.fromTo(this.rig, { by: -7 }, { by: 0, duration: 0.6, ease: "bounce.out", delay: 0.4 });
+        if (p === "notice") gsap.fromTo(this.rig, { by: -7 }, { by: 0, duration: 0.6, ease: "bounce.out", delay: 0.75 });
         break;
       case "celebrate": {
         mouse(false);
@@ -194,7 +242,7 @@ export class TopDownRobot implements SeatedRobot {
         if (!this.facing) this.turnAround(true);
         const was = this.expr;
         if (was === "neutral") this.setExpression("happy");
-        this.poseAnim = gsap.timeline({ delay: 0.75 })
+        this.poseAnim = gsap.timeline({ delay: 0.8 })
           .to(this.rig, { ly: P(0, -68).y, ry: P(0, -40).y, duration: 0.18, ease: "sine.inOut", yoyo: true, repeat: 5 })
           .add(() => { if (this.pose === "celebrate") { if (was === "neutral") this.setExpression("neutral"); this.setPose("rest"); } }, "+=0.5");
         break;
@@ -231,7 +279,7 @@ export class TopDownRobot implements SeatedRobot {
   setTyping(on: boolean) {
     if (this.typing === on) return;
     this.typing = on;
-    if (on) this.setPose("type");
+    if (on) { this.autoQ = []; this.nextAuto = performance.now() + 120; this.setPose("type"); }
     else {
       gsap.to(this.lift, { l: 0, r: 0, duration: 0.2, overwrite: true });
       const h = { l: this.desk.homeLeft, r: this.desk.homeRight };
@@ -252,8 +300,9 @@ export class TopDownRobot implements SeatedRobot {
     const now = performance.now();
     if (ext) this.lastExt = now;
     const k = this.desk.keyPos(key);
-    if (!k || this.facing || this.busy || this.phoneP || this.pose === "sleep") { this.desk.pressKey(key); return; }
+    if (!k || this.facing || this.busy || this.fitting || this.phoneP || this.pose === "sleep") { this.desk.pressKey(key); return; }
     if (this.pose !== "type") { this.setPose("type"); this.typing = this.typing || !ext; }
+    this.lastAny = now;
     const side: Side = k.hand === "left" ? "l" : "r";
     if (side === "r" && this.mouseW.v > 0) gsap.to(this.mouseW, { v: 0, duration: 0.12, overwrite: true });
     if (this.fold[side] > 0) gsap.to(this.fold, { [side]: 0, duration: 0.1, overwrite: "auto" });
@@ -262,15 +311,17 @@ export class TopDownRobot implements SeatedRobot {
     this.homed[side] = false;
     // Faster typing shortens the travel, but the hand always travels to the real key.
     const t = clamp((gap / 1000) * 0.6, 0.05, 0.14);
+    const big = key === "Enter" || key === " " || key === "Backspace";
+    const h = (big ? 1.35 : 0.75 + Math.random() * 0.45);   // varied finger height: no two strokes alike
     gsap.to(this.rig, { [side + "x"]: k.x, [side + "y"]: k.y + 1, duration: t, ease: "power2.out", overwrite: "auto" });
     this.liftTl[side]?.kill();
     this.liftTl[side] = gsap.timeline()
-      .to(this.lift, { [side]: 1, duration: t * 0.45, ease: "power2.out" })
+      .to(this.lift, { [side]: h, duration: t * 0.45, ease: "power2.out" })
       .to(this.lift, { [side]: 0, duration: t * 0.55, ease: "power3.in" })
       .add(() => {
         this.desk.pressKey(key);
         gsap.fromTo(this.press, { [side]: 1 }, { [side]: 0, duration: 0.16, ease: "power2.out" });
-        gsap.fromTo(this.bob, { v: 1 }, { v: 0, duration: 0.24, ease: "power2.out", overwrite: true });
+        gsap.fromTo(this.bob, { v: big ? 1.4 : 0.6 + Math.random() * 0.5 }, { v: 0, duration: 0.26, ease: "power2.out", overwrite: true });
       });
     gsap.to(this.rig, { yaw: ((k.x - 200) / 110) * 0.16, rot: ((k.x - 200) / 110) * 2, duration: 0.5, ease: "power2.out", overwrite: "auto" });
   }
@@ -281,8 +332,8 @@ export class TopDownRobot implements SeatedRobot {
 
   mouseTo(nx: number, ny: number, d = 0.35) {
     const m = this.desk.mouse;
-    gsap.to(this.mouseP, { x: m.x + (nx - 0.5) * 26, y: m.y + (ny - 0.5) * 18, duration: d, ease: "power2.out", overwrite: true });
-    if (!this.facing && !this.busy && !this.phoneP && this.pose !== "sleep" && this.pose !== "think" && this.pose !== "stretch")
+    gsap.to(this.mouseP, { x: m.x + (nx - 0.5) * 26, y: m.y + (ny - 0.5) * 18, duration: d, ease: "power2.inOut", overwrite: true });
+    if (!this.facing && !this.busy && !this.fitting && !this.phoneP && this.pose !== "sleep" && this.pose !== "think" && this.pose !== "stretch")
       gsap.to(this.mouseW, { v: 1, duration: 0.35, ease: "power2.inOut", overwrite: true });
   }
 
@@ -290,25 +341,85 @@ export class TopDownRobot implements SeatedRobot {
 
   lookAt(nx: number, ny = 0.5) {
     if (this.facing || this.pose === "think" || this.pose === "sleep" || this.phoneP) return;
-    gsap.to(this.rig, { yaw: (nx - 0.5) * 0.45, rot: (nx - 0.5) * 4, hy: (ny - 0.5) * 6, duration: 0.6, ease: "power2.out", overwrite: "auto" });
+    gsap.to(this.rig, { yaw: (nx - 0.5) * 0.45, rot: (nx - 0.5) * 4, hy: (ny - 0.5) * 6, duration: 0.6, ease: "back.out(1.3)", overwrite: "auto" });
   }
 
   setExpression(e: Expression) {
     const changed = e !== this.expr;
     this.expr = e;
-    const paint = () => { const s = eyesSvg(e); this.$.eyes.innerHTML = s; this.$.eyesGlow.innerHTML = s; };
+    const paint = () => { this.$.eyes.innerHTML = eyesSvg(e); };
     if (!changed || !this.facing) { paint(); return; }
     gsap.timeline()
-      .to(this.$.eyes, { scaleY: 0.1, duration: 0.07, transformOrigin: "50% 50%" })
+      .to([this.$.eyes, this.$.eyeLight], { scaleY: 0.1, duration: 0.07, transformOrigin: "50% 50%" })
       .add(paint)
-      .to(this.$.eyes, { scaleY: 1, duration: 0.12, ease: "back.out(2)" });
+      .to([this.$.eyes, this.$.eyeLight], { scaleY: 1, duration: 0.12, ease: "back.out(2)" });
+  }
+
+  // ---- headphones and music ----------------------------------------------------------------
+  /** Puts the headphones on (hands lift them over the head and press them onto the ears) or takes them off. */
+  setHeadphones(on: boolean) {
+    if (on === this.hp.on) return;
+    this.hp.on = on;
+    this.hpTl?.kill();
+    const hp = this.hp;
+    const hands = !this.busy && !this.phoneP && !this.carrying && this.pose !== "sleep";
+    if (!hands) {
+      // hands are full: they just settle on (or lift off) by themselves
+      this.fitting = false;
+      this.hpTl = on
+        ? gsap.timeline().set(hp, { y: -26, sx: 1.1, sy: 0.94, o: 0 }).to(hp, { o: 1, duration: 0.15 }).to(hp, { y: 0, sx: 1, sy: 1, duration: 0.5, ease: "back.out(2)" }, 0)
+          .add(() => this.kickAntenna(0, 90), 0.3)
+        : gsap.timeline().to(hp, { y: -26, sx: 1.08, duration: 0.35, ease: "power2.out" }).to(hp, { o: 0, duration: 0.2 }, 0.15);
+      return;
+    }
+    this.fitting = true;
+    const was = { ...this.front };
+    this.front.l = true; this.front.r = true;
+    this.layerArms();
+    gsap.to(this.lift, { l: 0, r: 0, duration: 0.15, overwrite: true });
+    const finish = () => {
+      this.fitting = false;
+      if (!this.facing) { this.front.l = was.l; this.front.r = was.r; this.layerArms(); }
+    };
+    const tl = gsap.timeline({ onComplete: finish });
+    tl.to(this.ant, { v: 0.7, duration: 0.12, ease: "power2.out" }, 0)
+      .to(this.ant, { v: 0, duration: 0.5, ease: "power2.out" }, 0.12);
+    if (on) {
+      gsap.set(hp, { y: -38, sx: 1.16, sy: 0.92, o: 0, grip: 0 });
+      tl.to(hp, { grip: 1, duration: 0.45, ease: "back.out(1.4)" }, 0.06)
+        .to(hp, { o: 1, duration: 0.16 }, 0.24)
+        .to(hp, { y: 0, duration: 0.3, ease: "power2.in" }, 0.56)
+        .add(() => { this.kickAntenna(0, 140); gsap.fromTo(this.bob, { v: 1.6 }, { v: 0, duration: 0.45, ease: "power2.out", overwrite: true }); }, 0.86)
+        .to(hp, { sx: 1, sy: 1, duration: 0.6, ease: "elastic.out(1, 0.45)" }, 0.86)
+        .to(hp, { grip: 0, duration: 0.55, ease: "back.inOut(1.2)" }, 1.0);
+    } else {
+      tl.to(hp, { grip: 1, duration: 0.42, ease: "back.out(1.4)" }, 0.06)
+        .to(hp, { y: -40, sx: 1.14, sy: 0.94, duration: 0.36, ease: "power2.out" }, 0.5)
+        .add(() => this.kickAntenna(0, -60), 0.5)
+        .to(hp, { o: 0, duration: 0.22 }, 0.76)
+        .to(hp, { grip: 0, duration: 0.5, ease: "back.inOut(1.2)" }, 0.82);
+    }
+    this.hpTl = tl;
+  }
+
+  /** Bob to the music: head on the beat, shoulders sway, the antenna bounces. 0 stops smoothly. */
+  setGroove(bpm: number) {
+    const g = this.groove;
+    bpm = Number.isFinite(bpm) ? clamp(bpm, 0, 220) : 0;
+    if (bpm > 0) {
+      if (g.amp < 0.01) { g.phase = 0.6; g.beat = 0; }   // start a little before the first beat
+      g.bpm = bpm;
+      gsap.to(g, { amp: 1, duration: 0.8, ease: "power2.out", overwrite: "auto" });
+    } else {
+      gsap.to(g, { amp: 0, duration: 0.9, ease: "power2.inOut", overwrite: "auto" });
+    }
   }
 
   react(kind: Reaction) {
     const r = this.rig;
     switch (kind) {
       case "focus":
-        gsap.to(r, { lean: 0.32, hy: 3, duration: 0.6, ease: "power2.out", overwrite: "auto" });
+        gsap.to(r, { lean: 0.32, hy: 3, duration: 0.6, ease: "back.out(1.4)", overwrite: "auto" });
         if (this.facing) this.setExpression("focus");
         break;
       case "relax":
@@ -323,6 +434,7 @@ export class TopDownRobot implements SeatedRobot {
           .to(r, { ly: 204, ry: 204, duration: 0.14, yoyo: true, repeat: 3, ease: "sine.inOut" })
           .to(r, { ...h, duration: 0.4, ease: "power2.inOut" });
         this.pulseAntenna("#4ff0a0");
+        this.kickAntenna(120, 80);
         break;
       }
       case "angry": this.slam(); break;
@@ -333,12 +445,12 @@ export class TopDownRobot implements SeatedRobot {
         break;
       case "shy":
         if (this.facing) this.flashExpr("shy", 2200);
-        gsap.timeline().to(r, { rot: 8, hy: 6, shrug: 3, duration: 0.45, ease: "power2.out" }).to(r, { rot: 0, hy: 0, shrug: 0, duration: 0.6, ease: "power2.inOut" }, "+=1.2");
+        gsap.timeline().to(r, { rot: 8, hy: 6, shrug: 3, duration: 0.45, ease: "back.out(1.5)" }).to(r, { rot: 0, hy: 0, shrug: 0, duration: 0.6, ease: "power2.inOut" }, "+=1.2");
         break;
       case "surprised":
         if (this.facing) this.flashExpr("surprised", 1200);
         gsap.timeline().to(r, { by: -8, duration: 0.14, ease: "power2.out" }).to(r, { by: 0, duration: 0.5, ease: "bounce.out" });
-        gsap.fromTo(this.$.antenna, { rotation: -14 }, { rotation: 0, duration: 1.1, ease: "elastic.out(1, 0.3)" });
+        this.kickAntenna(-260, -120);
         break;
     }
   }
@@ -354,6 +466,12 @@ export class TopDownRobot implements SeatedRobot {
       .to(this.el, { "--glow": color, duration: 0.15 } as gsap.TweenVars)
       .to(this.$.antennaGlow, { scale: 1.6, transformOrigin: "50% 50%", duration: 0.2, yoyo: true, repeat: 1 }, 0)
       .to(this.el, { "--glow": this.glow, duration: 0.8, ease: "sine.inOut" } as gsap.TweenVars, 0.6);
+  }
+
+  /** Push the antenna spring: angular velocity (deg/s) and stretch velocity. */
+  private kickAntenna(av: number, stretch: number) {
+    this.spring.phiV += av;
+    this.spring.tvy -= stretch;
   }
 
   // Both fists come up and slam the desk; keys jump.
@@ -376,6 +494,7 @@ export class TopDownRobot implements SeatedRobot {
       .add(() => {
         for (const k of "qweasdzxcuiojklm,.") if (Math.random() < 0.6) this.desk.pressKey(k);
         gsap.fromTo(this.press, { l: 1, r: 1 }, { l: 0, r: 0, duration: 0.3 });
+        this.kickAntenna(0, 220);
       })
       .to(r, { shake: 1, duration: 0.04, yoyo: true, repeat: 5 })
       .set(r, { shake: 0 })
@@ -386,7 +505,7 @@ export class TopDownRobot implements SeatedRobot {
     if (this.pose !== "sleep") return;
     this.setPose("rest");
     gsap.fromTo(this.rig, { hy: -10 }, { hy: 2, duration: 0.5, ease: "back.out(3)" });
-    gsap.fromTo(this.$.antenna, { rotation: -12 }, { rotation: 0, duration: 1, ease: "elastic.out(1, 0.3)" });
+    this.kickAntenna(-200, 160);
   }
 
   private antennaAwake() {
@@ -394,11 +513,31 @@ export class TopDownRobot implements SeatedRobot {
     gsap.to(this.$.antennaDroop, { rotation: 0, duration: 0.6, transformOrigin: "50% 100%", ease: "back.out(2)" });
   }
 
+  // ---- idle life ------------------------------------------------------------------------------
+  private scheduleShift() {
+    this.shiftCall = gsap.delayedCall(rnd(2.5, 6.5), () => {
+      gsap.to(this.shift, { x: rnd(-1.7, 1.7), r: rnd(-2.2, 2.2), duration: rnd(1.1, 1.9), ease: "sine.inOut", overwrite: true });
+      this.scheduleShift();
+    });
+  }
+
+  private scheduleBlink() {
+    this.blinkCall?.kill();
+    this.blinkCall = gsap.delayedCall(rnd(1.8, 4.6), () => {
+      const eyes = [this.$.eyes, this.$.eyeLight];
+      const tl = gsap.timeline()
+        .to(eyes, { scaleY: 0.1, duration: 0.06, transformOrigin: "50% 50%", ease: "power2.in" })
+        .to(eyes, { scaleY: 1, duration: 0.11, ease: "power2.out" });
+      if (Math.random() < 0.22) tl.to(eyes, { scaleY: 0.1, duration: 0.06, ease: "power2.in" }, "+=0.08").to(eyes, { scaleY: 1, duration: 0.11, ease: "power2.out" });
+      this.scheduleBlink();
+    });
+  }
+
   // ---- props ----------------------------------------------------------------------------
   async drink() {
     if (this.busy || this.phoneP) return;
     this.busy = true;
-    if (this.facing) { this.setPose("rest"); await wait(0.8); }
+    if (this.facing) { this.setPose("rest"); await wait(1.1); }
     const prevPose = this.pose;
     this.typing = false;
     gsap.to(this.mouseW, { v: 0, duration: 0.3, overwrite: true });
@@ -407,7 +546,7 @@ export class TopDownRobot implements SeatedRobot {
     const r = this.rig;
     const tl = gsap.timeline();
     gsap.to(this.fold, { r: 0, duration: 0.3, overwrite: "auto" });
-    tl.to(r, { bx: 14 * U, rot: 4, duration: 0.5, ease: "power2.inOut" }, 0)
+    tl.to(r, { bx: 14 * U, rot: 4, duration: 0.5, ease: "back.inOut(1.2)" }, 0)
       .to(this.gripR, { w: 1, duration: 0.6, ease: "power2.inOut" }, 0.05)
       .add(() => (this.carrying = true), 0.62)
       .to(mug, { x: P(44, -26).x, y: P(44, -26).y, duration: 0.65, ease: "power2.inOut" }, 0.65)
@@ -415,25 +554,24 @@ export class TopDownRobot implements SeatedRobot {
       .to(this.mugTilt, { v: -38, duration: 0.45, ease: "power2.inOut" }, 1.25)
       .to(r, { hy: 7, rot: -4, lean: -0.22, yaw: 0, duration: 0.5, ease: "power2.inOut" }, 1.25)
       .to(this.mugTilt, { v: 0, duration: 0.35, ease: "power2.inOut" }, 2.25)
-      .to(r, { hy: 2, rot: 2, lean: 0, duration: 0.5, ease: "power2.inOut" }, 2.25)
+      .to(r, { hy: 2, rot: 2, lean: 0, duration: 0.5, ease: "back.out(1.6)" }, 2.25)
       .to(mug, { x: home.x, y: home.y, duration: 0.55, ease: "power2.inOut" }, 2.55)
       .to(r, { bx: 14 * U, duration: 0.5 }, 2.55)
       .add(() => { this.carrying = false; this.mugP = null; this.desk.moveMug(null); }, 3.12)
       .to(this.gripR, { w: 0, duration: 0.5, ease: "power2.inOut" }, 3.12)
-      .to(r, { bx: 0, duration: 0.5, ease: "power2.inOut" }, 3.12)
+      .to(r, { bx: 0, duration: 0.5, ease: "back.out(1.4)" }, 3.12)
       .to(this.fold, { r: this.handHome.rx === REST_R.x ? 1 : 0, duration: 0.4 }, 3.12);
     await done(tl);
     this.busy = false;
     if (prevPose === "mouse" || prevPose === "read") gsap.to(this.mouseW, { v: 1, duration: 0.4 });
   }
-  private carrying = false;
 
   async holdPhone(on: boolean) {
     const r = this.rig;
     if (on) {
       if (this.phoneP || this.busy) return;
       this.busy = true;
-      if (this.facing) { this.turnAround(false); await wait(0.8); }
+      if (this.facing) { this.turnAround(false); await wait(1.1); }
       this.pose = "phone";
       this.typing = false;
       this.poseAnim?.kill();
@@ -443,14 +581,14 @@ export class TopDownRobot implements SeatedRobot {
       this.phoneShown = false;
       this.handHome = { lx: rest.x, ly: rest.y, rx: REST_R.x, ry: REST_R.y };
       const tl = gsap.timeline();
-      tl.to(r, { bx: -12 * U, rot: -4, duration: 0.5, ease: "power2.inOut" }, 0)
+      tl.to(r, { bx: -12 * U, rot: -4, duration: 0.5, ease: "back.inOut(1.2)" }, 0)
         .to(this.gripL, { w: 1, duration: 0.6, ease: "power2.inOut" }, 0.05)
         .to(r, { rx: REST_R.x, ry: REST_R.y, duration: 0.6, ease: "power2.inOut" }, 0.1)
         .to(this.fold, { l: 0, r: 1, duration: 0.5 }, 0.1)
         .add(() => (this.phoneShown = true), 0.62)
         .to(ph, { x: PHONE_HOLD.x, y: PHONE_HOLD.y, duration: 0.75, ease: "power2.inOut" }, 0.65)
         .fromTo(this.phoneTilt, { v: 0 }, { v: PHONE_TILT, duration: 0.75, ease: "power2.inOut" }, 0.65)
-        .to(r, { bx: -2, yaw: -0.12, rot: -7, hy: 2, hx: -2, lean: -0.08, duration: 0.7, ease: "power2.inOut" }, 0.7)
+        .to(r, { bx: -2, yaw: -0.12, rot: -7, hy: 2, hx: -2, lean: -0.08, duration: 0.7, ease: "back.out(1.4)" }, 0.7)
         .to(this.swipeP, { on: 1, duration: 0.3 }, 1.3);
       await done(tl);
       this.busy = false;
@@ -467,14 +605,13 @@ export class TopDownRobot implements SeatedRobot {
         .to(this.phoneTilt, { v: 0, duration: 0.6, ease: "power2.inOut" }, 0)
         .add(() => { this.phoneP = null; this.phoneShown = false; this.desk.showPhone(null); }, 0.62)
         .to(this.gripL, { w: 0, duration: 0.5, ease: "power2.inOut" }, 0.62)
-        .to(r, { lx: REST_L.x, ly: REST_L.y, bx: 0, duration: 0.5, ease: "power2.inOut" }, 0.62)
+        .to(r, { lx: REST_L.x, ly: REST_L.y, bx: 0, duration: 0.5, ease: "back.out(1.3)" }, 0.62)
         .to(this.fold, { l: 1, duration: 0.5 }, 0.62);
       await done(tl);
       this.busy = false;
       if (this.pose === "phone") { this.pose = "rest"; this.handHome = { lx: REST_L.x, ly: REST_L.y, rx: REST_R.x, ry: REST_R.y }; }
     }
   }
-  private phoneShown = false;
 
   swipe() {
     if (!this.phoneP) return;
@@ -484,27 +621,22 @@ export class TopDownRobot implements SeatedRobot {
     gsap.fromTo(this.phoneTilt, { v: PHONE_TILT + 2 }, { v: PHONE_TILT, duration: 0.5, ease: "power2.out" });
   }
 
-  // ---- turning around -------------------------------------------------------------------
+  // ---- turning around: a chair swivel ---------------------------------------------------------
+  // The head turns first, the body winds up the other way, then swings round on the seat (the
+  // star base spins a little), flips sides at its narrowest and settles with an overshoot.
   private turnAround(on: boolean) {
-    const r = this.rig;
-    const tl = gsap.timeline();
-    if (on) {
-      tl.to(r, { yaw: 1, duration: 0.35, ease: "power2.in" })
-        .add(() => this.setFacing(true))
-        .fromTo(r, { sx: 0.86 }, { sx: 1, duration: 0.45, ease: "back.out(2.2)" })
-        .to(r, { yaw: 0, duration: 0.01 }, "<");
-      this.blinkTl?.kill();
-      this.blinkTl = gsap.timeline({ repeat: -1, repeatDelay: 2.6, delay: 1 })
-        .to([this.$.eyes, this.$.eyesGlow], { scaleY: 0.1, duration: 0.07, transformOrigin: "50% 50%" })
-        .to([this.$.eyes, this.$.eyesGlow], { scaleY: 1, duration: 0.1 });
-    } else {
-      this.blinkTl?.kill();
-      tl.to(r, { sx: 0.86, duration: 0.18, ease: "power2.in" })
-        .add(() => this.setFacing(false))
-        .set(r, { yaw: -0.6 })
-        .to(r, { sx: 1, duration: 0.3, ease: "back.out(2)" })
-        .to(r, { yaw: 0, duration: 0.4, ease: "power2.out" }, "<");
-    }
+    const r = this.rig, dir = on ? 1 : -1;
+    this.swTl?.kill();
+    this.swTl = gsap.timeline()
+      .to(r, { sw: -0.12 * dir, duration: 0.16, ease: "power2.out" }, 0)
+      .to(r, { yaw: 0.85 * dir, duration: 0.32, ease: "power2.inOut" }, 0)
+      .to(r, { sw: dir, duration: 0.3, ease: "power2.in" }, 0.16)
+      .to(r, { base: r.base + 40 * dir, duration: 1.1, ease: "power3.out" }, 0.12)
+      .add(() => { this.setFacing(on); r.sw = -dir; r.yaw = on ? 0 : -0.55 * dir; }, 0.46)
+      .to(r, { sw: 0, duration: 0.7, ease: "back.out(1.9)" }, 0.46)
+      .to(r, { yaw: 0, duration: 0.6, ease: "back.out(1.5)" }, 0.56);
+    if (on) this.scheduleBlink();
+    else { this.blinkCall?.kill(); this.blinkCall = null; }
   }
 
   private setFacing(on: boolean) {
@@ -513,7 +645,7 @@ export class TopDownRobot implements SeatedRobot {
     this.$.face.setAttribute("opacity", on ? "1" : "0");
     show("backPlate", !on); show("chest", on);
     show("backrest", !on); show("seatBack", !on); show("seatFront", on); show("legs", on);
-    this.front.l = on; this.front.r = on;
+    this.front.l = on || this.fitting; this.front.r = on || this.fitting;
     this.layerArms();
     gsap.to(this.rig, { upper: on ? 60 * S : UPPER, fore: on ? 72 * S : FORE, duration: 0.35, ease: "power2.out" });
   }
@@ -528,32 +660,53 @@ export class TopDownRobot implements SeatedRobot {
   }
 
   // ---- per frame ----------------------------------------------------------------------------
-  private frame = () => {
+  private frame = (_time: number, deltaMs: number) => {
     const r = this.rig, now = performance.now();
-    if (this.typing && this.pose === "type" && now - this.lastExt > 400 && !this.busy) {
-      for (const side of ["l", "r"] as const) {
-        if (now > this.nextAuto[side]) {
-          this.nextAuto[side] = now + 120 + Math.random() * 140;
-          const keys = side === "l" ? LEFT_KEYS : RIGHT_KEYS;
-          this.hit(keys[Math.floor(Math.random() * keys.length)], false);
-        }
-      }
-    }
-    // a hand that has not typed for a moment drifts back to its home key
+    const dt = clamp((deltaMs || 16.7) / 1000, 0.001, 1 / 20);
+    this.autoType(now);
     if (this.pose === "type") {
+      // a hand that has not typed for a moment drifts back to its home key
       for (const side of ["l", "r"] as const) {
         if (!this.homed[side] && now - this.lastPress[side] > 650) {
           this.homed[side] = true;
           const h = side === "l" ? this.desk.homeLeft : this.desk.homeRight;
-          gsap.to(r, { [side + "x"]: h.x, [side + "y"]: h.y, duration: 0.4, ease: "power2.inOut", overwrite: "auto" });
+          gsap.to(r, { [side + "x"]: h.x, [side + "y"]: h.y, duration: 0.45, ease: "back.out(1.3)", overwrite: "auto" });
         }
       }
+      // a pause in the typing: the robot reads what it wrote, head tilted toward the screen
+      const target = !this.busy && !this.fitting && now - this.lastAny > 700 ? 1 : 0;
+      if (target !== this.ponder.target) {
+        this.ponder.target = target;
+        if (target) this.ponder.side = Math.random() < 0.5 ? -1 : 1;
+        gsap.to(this.ponder, { v: target, duration: target ? 0.8 : 0.22, ease: target ? "back.out(1.4)" : "power2.out", overwrite: "auto" });
+      }
+    } else if (this.ponder.target) {
+      this.ponder.target = 0;
+      gsap.to(this.ponder, { v: 0, duration: 0.3, overwrite: "auto" });
     }
 
+    // groove: a beat clock that keeps running while the amplitude fades out
+    const g = this.groove;
+    let gNod = 0, gSway = 0;
+    if (g.amp > 0.001) {
+      g.phase += (dt * g.bpm) / 60;
+      const beat = Math.floor(g.phase);
+      if (beat !== g.beat) { g.beat = beat; this.kickAntenna((beat % 2 ? 1 : -1) * 45 * g.amp, 70 * g.amp); }
+      const f = g.phase - beat;
+      gNod = Math.pow((1 + Math.cos(f * TAU)) / 2, 2) * g.amp;     // sharp dip on the beat
+      gSway = Math.sin(g.phase * Math.PI) * g.amp;                // one side per beat
+    }
+
+    const calm = (CALM[this.pose] ?? 0.4) * (this.busy ? 0.3 : 1);
     const breath = r.body * 2.2;                // v0 units
-    const jig = this.bob.v * 2.6;               // head nod per keystroke
+    const jig = this.bob.v * 2.4;               // head nod per keystroke
     const shake = r.shake * 2.2;
-    const bx = r.bx + shake, by = r.by;
+    const ant = this.ant.v;
+    const pv = this.ponder.v;
+    const swing = -Math.sin((r.sw * Math.PI) / 2) * 5;           // the body swings off-axis while swivelling
+    const bx = r.bx + shake + this.shift.x * calm + gSway * 1.4;
+    const by = r.by + ant * 1.2;
+    const shrug = r.shrug - gNod * 1.3 - ant * 1.4;
     const breathPx = breath * S;
 
     // mouse, mug and phone follow their own anchors
@@ -562,6 +715,13 @@ export class TopDownRobot implements SeatedRobot {
     if (this.carrying && this.mugP) this.desk.moveMug(this.mugP, this.mugTilt.v);
     if (this.phoneP && this.phoneShown) this.desk.showPhone(this.phoneP, this.phoneTilt.v);
 
+    // head (v0 units inside the head group)
+    const hdx = r.hx;
+    const hdy = r.hy - breath * 1.15 + jig - shrug * 0.6 + gNod * 5 + ant * 3.5 - pv * 2.5;
+    const rot = r.rot + (this.rig.lx - this.rig.rx + 108) * 0.015 + this.shift.r * calm + gSway * 3 + pv * 5 * this.ponder.side;
+    const scale = 1 + (r.lean + pv * 0.08) * 0.06;
+
+    // hands
     let L: Pt = { x: r.lx, y: r.ly }, R: Pt = { x: r.rx, y: r.ry };
     const mouseHand = { x: this.mouseP.x + 1, y: this.mouseP.y + 3 };
     R = { x: lerp(R.x, mouseHand.x, this.mouseW.v), y: lerp(R.y, mouseHand.y, this.mouseW.v) };
@@ -575,33 +735,85 @@ export class TopDownRobot implements SeatedRobot {
       const rh = { x: this.phoneP.x + PHONE_W - 2, y: this.phoneP.y + PHONE_H - 10 };
       R = { x: lerp(R.x, rh.x, this.gripL.w * 0.9), y: lerp(R.y, rh.y, this.gripL.w * 0.9) };
     }
+    // headphones: the hands hold the cups
+    const hp = this.hp;
+    if (hp.grip > 0.001) {
+      const cupPt = (vx: number) => this.headPoint(vx * hp.sx + 560 * (1 - hp.sx), 660 + hp.y, bx, by, hdx, hdy, rot);
+      L = this.mix(L, cupPt(472), hp.grip);
+      R = this.mix(R, cupPt(648), hp.grip);
+    }
+    // mouse wrist: the hand pivots on the mouse with the direction and speed of travel
+    const mvx = (this.mouseP.x - this.wrist.lastX) / dt;
+    this.wrist.lastX = this.mouseP.x;
+    this.wrist.vx = lerp(this.wrist.vx, mvx, 0.18);
+    const flexR = clamp((this.mouseP.x - this.desk.mouse.x) * 1.5 + this.wrist.vx * 0.09, -28, 28) * this.mouseW.v;
 
-    const shrug = r.shrug;
+    // Facing us, a hand that is still inside the head's outline (on its way from the desk) passes
+    // behind the head instead of across the face.
+    if (this.facing && !this.fitting) {
+      const inHead = (p: Pt) => Math.abs(p.x - HX - bx) < 38 && p.y > HY + by - 34 && p.y < HY + by + 28;
+      const fl = !inHead(L), fr = !inHead(R);
+      if (fl !== this.front.l || fr !== this.front.r) { this.front.l = fl; this.front.r = fr; this.layerArms(); }
+    }
     const sL = { x: SH_L.x + bx, y: SH_L.y + by - breathPx - shrug };
     const sR = { x: SH_R.x + bx, y: SH_R.y + by - breathPx - shrug };
-    this.drawArm("L", sL, L, -1, this.lift.l, this.press.l);
-    this.drawArm("R", sR, R, 1, this.lift.r, this.press.r);
+    const hover = pv * 0.45;
+    this.drawArm("L", sL, L, -1, this.lift.l + hover, this.press.l, -6 * (1 - this.gripL.w) * (this.pose === "type" ? 1 : 0));
+    this.drawArm("R", sR, R, 1, this.lift.r + hover * (1 - this.mouseW.v), this.press.r, flexR + 6 * (1 - this.mouseW.v) * (this.pose === "type" ? 1 : 0));
 
-    const tor = `translate(${bx.toFixed(2)} ${(by - shrug * 0.4).toFixed(2)}) ${MAP} translate(0 ${(-breath + jig * 0.25).toFixed(2)}) translate(560 820) scale(${(1 + r.lean * 0.03).toFixed(3)}) translate(-560 -820)`;
+    const tor = `translate(${bx.toFixed(2)} ${(by - shrug * 0.4).toFixed(2)}) ${MAP} translate(0 ${(-breath + jig * 0.25 + ant * 1.5).toFixed(2)}) translate(560 820) scale(${(1 + r.lean * 0.03).toFixed(3)}) translate(-560 -820)`;
     this.$.torso.setAttribute("transform", tor);
-    const scale = 1 + r.lean * 0.06;
-    const rot = r.rot + (this.rig.lx - this.rig.rx + 108) * 0.015;
     this.$.headRoot.setAttribute("transform", `translate(${bx.toFixed(2)} ${by.toFixed(2)}) ${MAP} translate(0 ${HEAD_DROP.toFixed(2)})`);
     this.$.head.setAttribute("transform",
-      `translate(${r.hx.toFixed(2)} ${(r.hy - breath * 1.15 + jig - shrug * 0.6).toFixed(2)}) rotate(${rot.toFixed(2)} 560 715) translate(560 715) scale(${(scale * r.sx).toFixed(3)} ${scale.toFixed(3)}) translate(-560 -715)`);
+      `translate(${hdx.toFixed(2)} ${hdy.toFixed(2)}) rotate(${rot.toFixed(2)} 560 715) translate(560 715) scale(${(scale * r.sx).toFixed(3)} ${scale.toFixed(3)}) translate(-560 -715)`);
 
     // Fake 3D turn: logo and ears slide with yaw, the visor peeks out on the turning side.
     const yaw = r.yaw;
     this.$.logo.setAttribute("transform", `translate(${(yaw * -34).toFixed(2)} 0) translate(560 655) scale(${(1 - Math.abs(yaw) * 0.5).toFixed(3)} 1) translate(-560 -655)`);
     this.$.logo.style.opacity = String(this.facing ? 0 : 1 - Math.max(0, Math.abs(yaw) - 0.6) * 2.5);
     this.$.sticker.setAttribute("transform", `translate(${(606 + yaw * -30).toFixed(2)} 692) rotate(-14) scale(${(1 - Math.abs(yaw) * 0.5).toFixed(3)} 1)`);
-    this.$.earL.setAttribute("transform", `translate(${(yaw * -14).toFixed(2)} 0)`);
-    this.$.earR.setAttribute("transform", `translate(${(yaw * -14).toFixed(2)} 0)`);
-    this.$.earL.style.opacity = String(yaw > 0.5 ? 1 - (yaw - 0.5) * 2 : 1);
-    this.$.earR.style.opacity = String(yaw < -0.5 ? 1 - (-yaw - 0.5) * 2 : 1);
+    const earT = `translate(${(yaw * -14).toFixed(2)} 0)`;
+    this.$.earL.setAttribute("transform", earT);
+    this.$.earR.setAttribute("transform", earT);
+    const oL = yaw > 0.5 ? 1 - (yaw - 0.5) * 2 : 1, oR = yaw < -0.5 ? 1 - (-yaw - 0.5) * 2 : 1;
+    this.$.earL.style.opacity = String(oL);
+    this.$.earR.style.opacity = String(oR);
     const peek = Math.max(0, Math.abs(yaw) - 0.15);
     this.$.visorPeek.setAttribute("transform", `translate(${yaw > 0 ? 70 - peek * 40 : -70 + peek * 40} 0)`);
     this.$.visorPeek.style.opacity = this.facing ? "0" : String(Math.min(1, peek * 2));
+
+    // headphones ride on the head; the cups slide with the ears
+    if (hp.o > 0.001) {
+      this.$.phones.style.display = "";
+      this.$.phones.setAttribute("opacity", hp.o.toFixed(3));
+      this.$.phones.setAttribute("transform", `translate(0 ${hp.y.toFixed(2)}) translate(560 660) scale(${hp.sx.toFixed(3)} ${hp.sy.toFixed(3)}) translate(-560 -660)`);
+      this.$.hpL.setAttribute("transform", earT);
+      this.$.hpR.setAttribute("transform", earT);
+      this.$.hpL.style.opacity = String(oL);
+      this.$.hpR.style.opacity = String(oR);
+    } else if (this.$.phones.style.display !== "none") this.$.phones.style.display = "none";
+
+    // Antenna: a damped spring that lags behind the head (it follows the head's tilt and position
+    // a little late, overshoots and settles), stretches when the head drops, bounces on kicks.
+    const sp = this.spring;
+    const headX = bx / S + hdx + swing / S, headY = by / S + hdy;
+    const k1 = 150, c1 = 8.5, k2 = 170, c2 = 9;
+    sp.phiV += (k1 * (rot - sp.phi) - c1 * sp.phiV) * dt; sp.phi += sp.phiV * dt;
+    sp.tvx += (k2 * (headX - sp.tx) - c2 * sp.tvx) * dt; sp.tx += sp.tvx * dt;
+    sp.tvy += (k2 * (headY - sp.ty) - c2 * sp.tvy) * dt; sp.ty += sp.tvy * dt;
+    const lagAngle = clamp(sp.phi - rot + ((sp.tx - headX) / 42) * 57.3 * 0.7, -38, 38);
+    const idle = Math.sin(now * 0.0016) * 2.2;
+    const stretch = clamp(1 + (headY - sp.ty) / 70, 0.82, 1.22);
+    this.$.antenna.setAttribute("transform", `rotate(${(lagAngle + idle).toFixed(2)} 560 610) translate(560 610) scale(1 ${stretch.toFixed(3)}) translate(-560 -610)`);
+
+    // chair swivel
+    const swKey = `${r.sw.toFixed(3)}`;
+    if (swKey !== this.lastSw) {
+      this.lastSw = swKey;
+      const sc = Math.max(0.2, Math.cos((r.sw * Math.PI) / 2 * 0.86));
+      this.$.body.setAttribute("transform", r.sw === 0 ? "" : `translate(${(CX + swing).toFixed(2)} 0) scale(${sc.toFixed(3)} 1) translate(${-CX} 0)`);
+    }
+    if (r.base !== this.lastBase) { this.lastBase = r.base; this.drawBase(r.base); }
 
     // fingers over the held phone
     const tg = this.thumb.firstElementChild as SVGGElement;
@@ -612,7 +824,33 @@ export class TopDownRobot implements SeatedRobot {
     } else tg.setAttribute("opacity", "0");
   };
 
-  private drawArm(k: "L" | "R", s: Pt, t: Pt, out: number, lift: number, press: number) {
+  // Auto typing (setTyping): words of a few letters with a space between them, uneven finger
+  // timing, and now and then a longer pause to read the screen.
+  private autoType(now: number) {
+    if (!this.typing || this.pose !== "type" || now - this.lastExt < 400 || this.busy || this.fitting) return;
+    if (now < this.nextAuto) return;
+    if (!this.autoQ.length) {
+      const n = 2 + Math.floor(Math.random() * 6);
+      for (let i = 0; i < n; i++) this.autoQ.push(LETTERS[Math.floor(Math.random() ** 1.6 * LETTERS.length)]);
+      this.autoQ.push(Math.random() < 0.1 ? "Enter" : " ");
+      if (Math.random() < 0.16) { this.nextAuto = now + rnd(900, 1800); return; }
+    }
+    const k = this.autoQ.shift()!;
+    this.hit(k, false);
+    this.nextAuto = now + (k === " " || k === "Enter" ? rnd(150, 300) : rnd(70, 190));
+  }
+
+  /** A point given in head v0 coordinates, in desk coordinates for the current frame. */
+  private headPoint(vx: number, vy: number, bx: number, by: number, hdx: number, hdy: number, rot: number): Pt {
+    const a = (rot * Math.PI) / 180, dx = vx - 560, dy = vy - 715;
+    const x = 560 + dx * Math.cos(a) - dy * Math.sin(a) + hdx;
+    const y = 715 + dx * Math.sin(a) + dy * Math.cos(a) + hdy + HEAD_DROP;
+    return { x: ORIGIN.x + bx + (x - 560) * S, y: ORIGIN.y + by + (y - 748) * S };
+  }
+
+  private mix(a: Pt, b: Pt, t: number): Pt { return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) }; }
+
+  private drawArm(k: "L" | "R", s: Pt, t: Pt, out: number, lift: number, press: number, flex = 0) {
     // Behind the body the elbows sit out and slightly forward (forearms lie on the desk);
     // in front of the body (facing us, holding things up) they hang down.
     const front = this.front[k === "L" ? "l" : "r"];
@@ -621,33 +859,45 @@ export class TopDownRobot implements SeatedRobot {
     // Folded (resting on the desk): equal bones and the elbow out and up, so the forearm lies flat.
     const fd = front ? 0 : this.fold[k === "L" ? "l" : "r"];
     let up = lerp(this.rig.upper, FOLD_BONE, fd), fo = lerp(this.rig.fore, FOLD_BONE, fd);
-    if (!front) {
-      const ext = Math.hypot(t.x - s.x, t.y - s.y) / (up + fo);
-      const kk = lerp(clamp(ext / 0.8, 0.55, Math.max(1, ext * 1.01)), 1, fd);
-      up *= kk; fo *= kk;
-    }
-    const { e, t: h } = solveArm(s, t, up, fo, out, 1.4, front ? 0.4 : lerp(-0.2, -1.2, fd));
+    const ext = Math.hypot(t.x - s.x, t.y - s.y) / (up + fo);
+    const kk = lerp(clamp(ext / 0.8, 0.55, Math.max(1, ext * 1.01)), 1, fd);
+    const shorten = front ? lerp(0.75, 0.85, this.hp.grip) : 1;   // in front of the body the arm also points at us: foreshorten it
+    up *= lerp(1, kk, shorten); fo *= lerp(1, kk, shorten);
+    const { e, t: h } = solveArm(s, t, up, fo, out, 1.4, front ? lerp(0.4, -0.6, this.hp.grip) : lerp(-0.2, -1.2, fd));
     const hy = h.y - lift * 4 * U;
-    const d = `M${s.x.toFixed(1)} ${s.y.toFixed(1)} L${e.x.toFixed(1)} ${e.y.toFixed(1)} L${h.x.toFixed(1)} ${hy.toFixed(1)}`;
-    this.$["arm" + k + "Base"].setAttribute("d", d);
-    this.$["arm" + k + "Hi"].setAttribute("d", `M${(s.x - 1.5).toFixed(1)} ${(s.y - 2.2).toFixed(1)} L${(e.x - 1.5).toFixed(1)} ${(e.y - 2.2).toFixed(1)} L${(h.x - 1.2).toFixed(1)} ${(hy - 1.8).toFixed(1)}`);
-    const ang = (Math.atan2(hy - e.y, h.x - e.x) * 180) / Math.PI;
+    const f = (n: number) => n.toFixed(1);
+    this.$["arm" + k + "Up"].setAttribute("d", `M${f(s.x)} ${f(s.y)} L${f(e.x)} ${f(e.y)}`);
+    this.$["arm" + k + "Fo"].setAttribute("d", `M${f(e.x)} ${f(e.y)} L${f(h.x)} ${f(hy)}`);
+    this.$["arm" + k + "Hi"].setAttribute("d", `M${f(s.x - 1)} ${f(s.y - 1.6)} L${f(e.x - 1)} ${f(e.y - 1.6)} L${f(h.x - 0.8)} ${f(hy - 1.3)}`);
+    this.$["arm" + k + "El"].setAttribute("transform", `translate(${f(e.x)} ${f(e.y)})`);
+    const ang = (Math.atan2(hy - e.y, h.x - e.x) * 180) / Math.PI + flex;
     const sc = 1 + lift * 0.08 - press * 0.07;
-    this.$["hand" + k].setAttribute("transform", `translate(${h.x.toFixed(1)} ${hy.toFixed(1)}) rotate(${ang.toFixed(1)}) scale(${sc.toFixed(3)})`);
+    this.$["hand" + k].setAttribute("transform", `translate(${f(h.x)} ${f(hy)}) rotate(${ang.toFixed(1)}) scale(${sc.toFixed(3)})`);
     // contact shadow on the desk surface
     const sh = this.$["shadow" + k];
     const onDesk = !front && h.y < GEOM.table.y + GEOM.table.h + 4 && h.y > GEOM.table.y;
     sh.setAttribute("cx", (h.x + 2 + lift * 2).toFixed(1));
-    sh.setAttribute("cy", (h.y + 5).toFixed(1));
+    sh.setAttribute("cy", (h.y + 4.5).toFixed(1));
     sh.setAttribute("opacity", onDesk ? (0.22 * (1 - Math.min(1, lift) * 0.5)).toFixed(2) : "0");
+  }
+
+  private drawBase(deg: number) {
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * TAU + Math.PI / 2 + (deg * Math.PI) / 180;
+      const x = CX + Math.cos(a) * 46 * U, y = BASE_Y + Math.sin(a) * 10 * U;
+      this.spokes[i * 2].setAttribute("d", `M${CX} ${BASE_Y.toFixed(1)} L${x.toFixed(1)} ${y.toFixed(1)}`);
+      this.spokes[i * 2 + 1].setAttribute("cx", x.toFixed(1));
+      this.spokes[i * 2 + 1].setAttribute("cy", (y + 4 * U).toFixed(1));
+    }
   }
 
   destroy() {
     gsap.ticker.remove(this.frame);
     for (const a of this.loops) a.kill();
-    this.poseAnim?.kill();
-    this.blinkTl?.kill();
-    gsap.killTweensOf([this.rig, this.lift, this.fold, this.press, this.bob, this.mouseW, this.mouseP, this.gripL, this.gripR, this.mugTilt, this.swipeP, this.phoneTilt, this.el]);
+    for (const a of [this.poseAnim, this.reactTl, this.antTl, this.swTl, this.hpTl, this.blinkCall, this.shiftCall]) a?.kill();
+    for (const s of ["l", "r"] as const) this.liftTl[s]?.kill();
+    gsap.killTweensOf([this.rig, this.lift, this.fold, this.press, this.bob, this.ant, this.shift, this.ponder, this.groove, this.hp, this.mouseW, this.mouseP,
+      this.gripL, this.gripR, this.mugTilt, this.swipeP, this.phoneTilt, this.el, this.$.antenna, this.$.antennaDroop, this.$.antennaGlow, this.$.eyes, this.$.eyeLight]);
     if (this.mugP) this.desk.moveMug(null);
     if (this.phoneP) this.desk.showPhone(null);
     this.thumb.remove();
@@ -657,85 +907,96 @@ export class TopDownRobot implements SeatedRobot {
 
 // ---- art -------------------------------------------------------------------------------------
 const f = (n: number) => n.toFixed(1);
-const hand = (thumbSide: number) => /* svg */ `<g transform="scale(${U.toFixed(3)})">
-  <ellipse cx="-4" cy="${7.5 * thumbSide}" rx="4.6" ry="3.6" fill="var(--shade)"/>
-  <ellipse cx="-1.5" cy="0" rx="11" ry="9.2" fill="var(--shade)"/>
-  <ellipse cx="0" cy="${-1.6 * thumbSide}" rx="7.4" ry="5.2" fill="var(--shell)"/></g>`;
+// A slim mitten with a wrist cuff; x points along the forearm.
+const hand = (thumbSide: number) => /* svg */ `<g transform="scale(${(U * 0.86).toFixed(3)})">
+  <ellipse cx="-12" cy="0" rx="4" ry="6.2" fill="var(--deep)"/>
+  <ellipse cx="-3.5" cy="${7 * thumbSide}" rx="4.2" ry="3.3" fill="var(--shade)"/>
+  <ellipse cx="-1" cy="0" rx="10" ry="8.4" fill="var(--shade)"/>
+  <ellipse cx="0.5" cy="${-1.5 * thumbSide}" rx="6.6" ry="4.8" fill="var(--shell)"/></g>`;
 
 const arm = (k: "L" | "R") => /* svg */ `
   <g data-r="arm${k}">
-    <path data-r="arm${k}Base" fill="none" stroke="var(--shade)" stroke-width="${f(28 * S)}" stroke-linecap="round" stroke-linejoin="round"/>
-    <path data-r="arm${k}Hi" fill="none" stroke="var(--shell)" stroke-width="${f(14 * S)}" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+    <path data-r="arm${k}Up" fill="none" stroke="var(--shade)" stroke-width="${f(19 * S)}" stroke-linecap="round"/>
+    <path data-r="arm${k}Fo" fill="none" stroke="var(--shade)" stroke-width="${f(15 * S)}" stroke-linecap="round"/>
+    <path data-r="arm${k}Hi" fill="none" stroke="var(--shell)" stroke-width="${f(7 * S)}" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+    <g data-r="arm${k}El"><circle r="${f(9.5 * S)}" fill="var(--deep)"/><circle cx="${f(-1.2 * S)}" cy="${f(-1.6 * S)}" r="${f(5 * S)}" fill="var(--shade)"/></g>
     <g data-r="hand${k}">${hand(k === "L" ? 1 : -1)}</g>
   </g>`;
 
 // Office chair seen from behind: backrest over the lower back, gas lift, five-star base.
 const CX = GEOM.chair.x;
-const BW = 104 * U, BH = 40 * U;
+const BW = 100 * U, BH = 40 * U;
 const BASE_Y = BACK_TOP + BH + 20 * U;
 const chairBase = () => {
   const out: string[] = [];
   for (let i = 0; i < 5; i++) {
-    const a = (i / 5) * Math.PI * 2 + Math.PI / 2;
-    const x = CX + Math.cos(a) * 50 * U, y = BASE_Y + Math.sin(a) * 11 * U;
-    out.push(`<path d="M${CX} ${f(BASE_Y)} L${f(x)} ${f(y)}" stroke="#3a3f4f" stroke-width="${f(6.5 * U)}" stroke-linecap="round"/>`);
-    out.push(`<ellipse cx="${f(x)}" cy="${f(y + 4 * U)}" rx="${f(5 * U)}" ry="${f(4 * U)}" fill="#2a2e3b"/>`);
+    out.push(`<path data-spoke="${i}" stroke="#3a3f4f" stroke-width="${f(6 * U)}" stroke-linecap="round"/>`);
+    out.push(`<ellipse data-spoke="w${i}" rx="${f(4.6 * U)}" ry="${f(3.8 * U)}" fill="#2a2e3b"/>`);
   }
-  return `<ellipse cx="${CX}" cy="${f(BASE_Y + 10 * U)}" rx="${f(70 * U)}" ry="${f(12 * U)}" fill="#2b1d10" opacity="0.2"/>
-    <rect x="${f(CX - 5 * U)}" y="${f(BACK_TOP + BH - 8)}" width="${f(10 * U)}" height="${f(BASE_Y - BACK_TOP - BH + 8)}" rx="3" fill="#3a3f4f"/>
-    ${out.join("")}<ellipse cx="${CX}" cy="${f(BASE_Y)}" rx="${f(8 * U)}" ry="${f(3.6 * U)}" fill="#4a5063"/>`;
+  return `<ellipse cx="${CX}" cy="${f(BASE_Y + 10 * U)}" rx="${f(66 * U)}" ry="${f(12 * U)}" fill="#2b1d10" opacity="0.2"/>
+    <rect x="${f(CX - 4.5 * U)}" y="${f(BACK_TOP + BH - 8)}" width="${f(9 * U)}" height="${f(BASE_Y - BACK_TOP - BH + 8)}" rx="3" fill="#3a3f4f"/>
+    ${out.join("")}<ellipse cx="${CX}" cy="${f(BASE_Y)}" rx="${f(7.5 * U)}" ry="${f(3.4 * U)}" fill="#4a5063"/>`;
 };
 const HIP_Y = ORIGIN.y + 36 * U, FOOT_Y = BASE_Y + 2 * U;
 const leg = (side: number) => {
-  const hx = CX + side * 15 * U, kx = CX + side * 18 * U;
+  const hx = CX + side * 12 * U, kx = CX + side * 14 * U;
   const d = `M${f(hx)} ${f(HIP_Y)} L${f(kx)} ${f(HIP_Y + 14 * U)} L${f(kx)} ${f(FOOT_Y - 8 * U)}`;
-  return `<path d="${d}" fill="none" stroke="var(--shade)" stroke-width="${f(34 * S)}" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="${d}" fill="none" stroke="var(--shell)" stroke-width="${f(14 * S)}" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" transform="translate(-1.2 -1.6)"/>
-    <ellipse cx="${f(kx)}" cy="${f(FOOT_Y)}" rx="${f(13 * U)}" ry="${f(7 * U)}" fill="var(--deep)"/>`;
+  return `<path d="${d}" fill="none" stroke="var(--shade)" stroke-width="${f(22 * S)}" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${d}" fill="none" stroke="var(--shell)" stroke-width="${f(9 * S)}" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" transform="translate(-1 -1.4)"/>
+    <ellipse cx="${f(kx)}" cy="${f(HIP_Y + 14 * U)}" rx="${f(6 * S)}" ry="${f(6 * S)}" fill="var(--deep)"/>
+    <ellipse cx="${f(kx + side * 1.5)}" cy="${f(FOOT_Y)}" rx="${f(10 * U)}" ry="${f(6 * U)}" fill="var(--deep)"/>`;
 };
 
+// Slim tapered shell: narrow at the shoulders, narrower at the waist; lit from the upper left.
+const shoulder = (x: number) => /* svg */ `
+  <circle cx="${x}" cy="747" r="18" fill="var(--cap, var(--shade))"/>
+  <circle cx="${x}" cy="749" r="15.5" fill="var(--shade)"/>
+  <circle cx="${x - 3}" cy="744.5" r="11" fill="var(--shell)"/>`;
+
 const ROBOT = (id: string) => /* svg */ `
-<svg class="world-seated robot" viewBox="0 0 ${UNIT.w} ${UNIT.h}" style="width:${UNIT.w}px;height:${UNIT.h}px" aria-hidden="true">
+<svg id="${id}" class="world-seated robot" viewBox="0 0 ${UNIT.w} ${UNIT.h}" style="width:${UNIT.w}px;height:${UNIT.h}px;--hp:var(--ear, var(--glow))" aria-hidden="true">
   <defs>${defsSvg(id)}</defs>
   <g class="world-chair-base">${chairBase()}</g>
-  <g data-r="seatBack"><rect x="${f(CX - BW / 2 - 2)}" y="${f(BACK_TOP - 16 * U)}" width="${f(BW + 4)}" height="${f(24 * U)}" rx="${f(12 * U)}" fill="#3a3f4f"/></g>
-  <ellipse data-r="shadowL" rx="${f(10 * U)}" ry="${f(5 * U)}" fill="#2b1d10" opacity="0"/>
-  <ellipse data-r="shadowR" rx="${f(10 * U)}" ry="${f(5 * U)}" fill="#2b1d10" opacity="0"/>
-  <g data-r="armsBack">${arm("L")}${arm("R")}</g>
-  <g data-r="torso">
-    <ellipse cx="560" cy="742" rx="150" ry="22" fill="#05081a" opacity="0.18" filter="url(#${id}-soft)"/>
-    <path d="M462 830 C458 770 470 738 512 728 L608 728 C650 738 662 770 658 830 Z" fill="var(--shade)"/>
-    <path d="M474 830 C472 778 482 748 516 740 L604 740 C636 748 646 778 644 830 Z" fill="var(--shell)"/>
-    <g data-r="backPlate">
-      <rect x="538" y="752" width="44" height="6" rx="3" fill="var(--shade)"/>
-      <rect x="538" y="764" width="44" height="6" rx="3" fill="var(--shade)"/>
-      <g data-r="nameplate" style="display:none">
-        <title data-r="nameTitle"></title>
-        <rect data-r="plate" x="518" y="781" width="84" height="17" rx="6" fill="var(--shade)"/>
-        <text data-r="model" x="560" y="793.5" text-anchor="middle" font-family="var(--mono)" font-size="11" font-weight="650" fill="var(--deep)"></text>
+  <ellipse data-r="shadowL" rx="${f(8.5 * U)}" ry="${f(4.2 * U)}" fill="#2b1d10" opacity="0"/>
+  <ellipse data-r="shadowR" rx="${f(8.5 * U)}" ry="${f(4.2 * U)}" fill="#2b1d10" opacity="0"/>
+  <g data-r="body">
+    <g data-r="seatBack"><rect x="${f(CX - BW / 2 - 2)}" y="${f(BACK_TOP - 16 * U)}" width="${f(BW + 4)}" height="${f(24 * U)}" rx="${f(12 * U)}" fill="#3a3f4f"/></g>
+    <g data-r="armsBack">${arm("L")}${arm("R")}</g>
+    <g data-r="torso">
+      <ellipse cx="560" cy="742" rx="92" ry="22" fill="url(#${id}-sh)"/>
+      <rect x="547" y="700" width="26" height="42" rx="9" fill="var(--deep)"/>
+      <path d="M503 752 C503 735 517 727 534 727 L586 727 C603 727 617 735 617 752 C617 786 607 812 601 838 L519 838 C513 812 503 786 503 752 Z" fill="var(--shade)"/>
+      <path d="M509 754 C509 740 520 733 535 733 L583 733 C596 733 606 740 606 754 C606 783 597 807 592 830 L527 830 C522 807 509 783 509 754 Z" fill="var(--shell)"/>
+      <path d="M598 748 C600 776 594 800 588 822" fill="none" stroke="var(--shade)" stroke-width="5" stroke-linecap="round" opacity="0.55"/>
+      <g data-r="backPlate">
+        <rect x="541" y="750" width="38" height="5" rx="2.5" fill="var(--shade)"/>
+        <rect x="544" y="760" width="32" height="5" rx="2.5" fill="var(--shade)"/>
+        <g data-r="nameplate" style="display:none">
+          <title data-r="nameTitle"></title>
+          <rect data-r="plate" x="518" y="774" width="84" height="16" rx="6" fill="var(--shade)"/>
+          <text data-r="model" x="560" y="786" text-anchor="middle" font-family="var(--mono)" font-size="10.5" font-weight="650" fill="var(--deep)"></text>
+        </g>
       </g>
+      <g data-r="chest" style="display:none">
+        <rect x="539" y="756" width="42" height="30" rx="10" fill="var(--shade)"/>
+        <circle cx="560" cy="771" r="8.5" fill="var(--glow)" opacity="0.35"/>
+        <circle cx="560" cy="771" r="5" fill="var(--glow)"/>
+        <circle cx="546" cy="764" r="2.2" fill="var(--deep)"/><circle cx="574" cy="764" r="2.2" fill="var(--deep)"/>
+      </g>
+      ${shoulder(560 - SHOULDER)}${shoulder(560 + SHOULDER)}
     </g>
-    <g data-r="chest" style="display:none">
-      <rect x="532" y="760" width="56" height="34" rx="11" fill="var(--shade)"/>
-      <circle cx="560" cy="777" r="9" fill="var(--glow)" opacity="0.35"/>
-      <circle cx="560" cy="777" r="5.5" fill="var(--glow)"/>
-      <circle cx="543" cy="770" r="2.5" fill="var(--deep)"/><circle cx="577" cy="770" r="2.5" fill="var(--deep)"/>
+    <g data-r="seatFront" style="display:none">
+      <rect x="${f(CX - BW / 2 - 2)}" y="${f(HIP_Y - 10 * U)}" width="${f(BW + 4)}" height="${f(26 * U)}" rx="${f(13 * U)}" fill="#4a5063"/>
+      <rect x="${f(CX - BW / 2 + 6)}" y="${f(HIP_Y - 7 * U)}" width="${f(BW - 12)}" height="${f(14 * U)}" rx="${f(7 * U)}" fill="#565d73"/>
     </g>
-    <circle cx="500" cy="748" r="30" fill="var(--cap, var(--shade))"/><circle cx="500" cy="751" r="27.5" fill="var(--shade)"/><circle cx="496" cy="744" r="22" fill="var(--shell)"/>
-    <circle cx="620" cy="748" r="30" fill="var(--cap, var(--shade))"/><circle cx="620" cy="751" r="27.5" fill="var(--shade)"/><circle cx="616" cy="744" r="22" fill="var(--shell)"/>
-    <rect x="543" y="708" width="34" height="30" rx="8" fill="var(--deep)"/>
+    <g data-r="legs" style="display:none">${leg(-1)}${leg(1)}</g>
+    <g data-r="headRoot"><g data-r="head">${headSvg(id)}</g></g>
+    <g data-r="backrest">
+      <rect x="${f(CX - 7 * U)}" y="${f(BACK_TOP + BH - 6)}" width="${f(14 * U)}" height="${f(10 * U)}" rx="3" fill="#3a3f4f"/>
+      <rect x="${f(CX - BW / 2)}" y="${f(BACK_TOP)}" width="${f(BW)}" height="${f(BH)}" rx="${f(16 * U)}" fill="#4a5063"/>
+      <rect x="${f(CX - BW / 2 + 7 * U)}" y="${f(BACK_TOP + 4 * U)}" width="${f(BW - 14 * U)}" height="${f(BH - 11 * U)}" rx="${f(11 * U)}" fill="#565d73"/>
+      <rect x="${f(CX - BW / 2 + 16 * U)}" y="${f(BACK_TOP + 7 * U)}" width="${f(BW * 0.55)}" height="${f(3.5 * U)}" rx="${f(1.75 * U)}" fill="#ffffff" opacity="0.13"/>
+    </g>
+    <g data-r="armsFront"></g>
   </g>
-  <g data-r="seatFront" style="display:none">
-    <rect x="${f(CX - BW / 2 - 2)}" y="${f(HIP_Y - 10 * U)}" width="${f(BW + 4)}" height="${f(26 * U)}" rx="${f(13 * U)}" fill="#4a5063"/>
-    <rect x="${f(CX - BW / 2 + 6)}" y="${f(HIP_Y - 7 * U)}" width="${f(BW - 12)}" height="${f(14 * U)}" rx="${f(7 * U)}" fill="#565d73"/>
-  </g>
-  <g data-r="legs" style="display:none">${leg(-1)}${leg(1)}</g>
-  <g data-r="headRoot"><g data-r="head">${headSvg(id)}</g></g>
-  <g data-r="backrest">
-    <rect x="${f(CX - 8 * U)}" y="${f(BACK_TOP + BH - 6)}" width="${f(16 * U)}" height="${f(10 * U)}" rx="3" fill="#3a3f4f"/>
-    <rect x="${f(CX - BW / 2)}" y="${f(BACK_TOP)}" width="${f(BW)}" height="${f(BH)}" rx="${f(15 * U)}" fill="#4a5063"/>
-    <rect x="${f(CX - BW / 2 + 7 * U)}" y="${f(BACK_TOP + 4 * U)}" width="${f(BW - 14 * U)}" height="${f(BH - 11 * U)}" rx="${f(11 * U)}" fill="#565d73"/>
-    <rect x="${f(CX - BW / 2 + 16 * U)}" y="${f(BACK_TOP + 7 * U)}" width="${f(BW * 0.55)}" height="${f(3.5 * U)}" rx="${f(1.75 * U)}" fill="#ffffff" opacity="0.13"/>
-  </g>
-  <g data-r="armsFront"></g>
 </svg>`;

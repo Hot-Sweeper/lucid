@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Lucid seated robot</title>
+</head>
+<body>
+  <div id="demo"></div>
+  <script>
+    // raf=0: hidden capture windows get no animation frames, so drive them from timers.
+    if (/[?&]raf=0/.test(location.search)) window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 16);
+  </script>
+  <script type="module" src="/src/world/seated-demo.ts"></script>
+</body>
+</html>
