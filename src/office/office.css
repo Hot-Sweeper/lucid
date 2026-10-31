@@ -517,3 +517,12 @@
 .cp-typing .dots i:nth-child(3) { animation-delay: 0.3s; }
 @keyframes cp-dot { 0%, 60%, 100% { transform: translateY(0); opacity: 0.45; } 30% { transform: translateY(-4px); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .cp-typing .dots i { animation: none; opacity: 0.8; } }
+
+/* project sign over the monitor in shared rooms */
+.desk-proj { position: absolute; z-index: 3; left: 200px; top: -20px; transform: translateX(-50%); max-width: 280px; display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px; border-radius: 999px; background: rgba(255, 255, 255, 0.95); color: #2d3142; font: 600 12px/1.2 var(--font); box-shadow: 0 4px 10px rgba(40, 30, 20, 0.18); white-space: nowrap; }
+.desk-proj[hidden] { display: none; }
+.desk-proj img { width: 16px; height: 16px; border-radius: 4px; object-fit: contain; flex: none; }
+.desk-proj .dp-mono { width: 16px; height: 16px; border-radius: 4px; flex: none; display: grid; place-items: center; font: 700 8px var(--font); background: #ff9f5a; color: #fff; }
+.desk-proj .dp-mono[hidden] { display: none; }
+.desk-proj b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.desk-unit.empty .desk-proj { display: none; }

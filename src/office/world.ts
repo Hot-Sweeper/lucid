@@ -455,9 +455,12 @@ export class World {
           d = here && !here.threadId ? here : this.makeDesk(s.x, s.y);
           d.assign({ id: s.t.id, title: s.t.title, provider: s.t.provider, model: s.t.model }, this.roster.byThread(s.t.id));
           d.folder = s.t.folder ?? null;
-          d.room = s.key.split("#")[0];
           this.desks.set(s.t.id, d);
         }
+        // which room it sits in now, and in shared rooms which project it works on
+        d.room = s.key.split("#")[0];
+        const proj = byProject.get(s.t.projectId);
+        d.setProject(d.room === "main" || d.room === "queue" ? (proj && !proj.scratch ? { title: proj.title, icon: proj.icon } : { title: "No project", icon: null }) : null);
       } else {
         d = here && !here.threadId ? here : this.makeDesk(s.x, s.y);
         if (d.threadId) d.assign(null);

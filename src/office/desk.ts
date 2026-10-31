@@ -69,6 +69,7 @@ export class Desk implements DeskStage {
       <button type="button" class="poke poke-mug" aria-label="Hand it its coffee" style="left:${GEOM.mug.x - 16}px;top:${GEOM.mug.y - 20}px"></button>
       <button type="button" class="poke poke-phone" aria-label="Buzz its phone" style="left:${GEOM.phoneRest.x - 16}px;top:${GEOM.phoneRest.y - 24}px"></button>
       <div class="desk-plate"><img alt=""><span></span></div>
+      <div class="desk-proj" hidden><img alt=""><span class="dp-mono"></span><b></b></div>
       <div class="phone-held"><div class="phone-screen"></div></div>
       <div class="bubble" role="status"></div>`;
     parent.appendChild(el);
@@ -212,6 +213,24 @@ export class Desk implements DeskStage {
       if (ph) gsap.fromTo(ph, { x: -2 }, { x: 2, duration: 0.05, repeat: 9, yoyo: true, clearProps: "x" });
       if (this.threadId) { this.robot.react("surprised"); this.say(["Bzzz!", "Who is texting me?", "Probably spam."][Math.floor(Math.random() * 3)], "speak"); window.setTimeout(() => this.say(null), 1600); }
     });
+  }
+
+  // In shared rooms (the main office) a sign over the monitor says which project it works on.
+  private projSig = "";
+  setProject(p: { title: string; icon: string | null } | null) {
+    const sig = p ? `${p.title}|${p.icon ?? ""}` : "";
+    if (sig === this.projSig) return;
+    this.projSig = sig;
+    const el = this.el.querySelector(".desk-proj") as HTMLElement;
+    el.hidden = !p;
+    if (!p) return;
+    const img = el.querySelector("img") as HTMLImageElement, mono = el.querySelector(".dp-mono") as HTMLElement;
+    img.hidden = !p.icon;
+    if (p.icon) img.src = p.icon;
+    mono.hidden = !!p.icon;
+    mono.textContent = p.title.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+    (el.querySelector("b") as HTMLElement).textContent = p.title;
+    el.title = `Working on ${p.title}`;
   }
 
   // --- DeskStage -------------------------------------------------------------
