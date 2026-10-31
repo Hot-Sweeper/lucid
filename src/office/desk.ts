@@ -84,6 +84,7 @@ export class Desk implements DeskStage {
     this.wm = new WM(this.screen, this.robot);
     this.director = new Director(this.wm, this.robot, this, services.peek, services.image, services.readText);
     this.director.onActivity = (t) => { this.activity = t; this.onActivity(t); };
+    this.director.present = () => !el.classList.contains("arriving");
     this.baseZ = Math.round(y);
     el.style.zIndex = String(this.baseZ);
   }

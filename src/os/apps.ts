@@ -312,8 +312,8 @@ export class ChatApp {
   constructor(private wm: WM) {}
 
   // The conversation on top, a message box with a send button below it (like any messenger).
-  private async ensure() {
-    const w = await this.wm.open("chat");
+  private async ensure(clicked = false) {
+    const w = await this.wm.open("chat", undefined, clicked);
     if (!w.body.querySelector(".chat-compose")) {
       const old = w.body.querySelector(".chat");
       w.body.innerHTML = `<div class="chat-app"><div class="chat"></div><div class="chat-compose"><div class="cc-field"><span class="cc-ph">Message</span><div class="cc-text"></div></div><span class="cc-send" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12 20 4l-4 16-4-6.5L4 12Z" fill="currentColor"/></svg></span></div></div>`;
@@ -322,8 +322,9 @@ export class ChatApp {
     return w.body.querySelector(".chat") as HTMLElement;
   }
 
-  async user(text: string, images: string[] = []) {
-    const chat = await this.ensure();
+  /** `clicked`: the robot got here by clicking the new-message notification. */
+  async user(text: string, images: string[] = [], clicked = false) {
+    const chat = await this.ensure(clicked);
     chat.querySelector(".msg.typing")?.remove();
     const b = el(`<div class="msg you">${images.length ? `<div class="msg-imgs">${images.slice(0, 4).map((src) => `<img src="${src}" alt="">`).join("")}</div>` : ""}<p></p></div>`);
     b.querySelector("p")!.innerHTML = md(text.slice(0, 1200));
@@ -383,14 +384,15 @@ export class ChatApp {
   }
 
   // You are typing in the side chat: your bubble with bouncing dots appears in its Messages app.
+  // Only in a Messages window that is already open: typing never opens the app by itself.
   async youTyping(on: boolean) {
     if (!on) {
       const t = this.wm.wins.get("chat")?.body.querySelector(".msg.typing") as HTMLElement | null;
       if (t) gsap.to(t, { opacity: 0, duration: 0.2, onComplete: () => t.remove() });
       return;
     }
-    const chat = await this.ensure();
-    if (chat.querySelector(".msg.typing")) return;
+    const chat = this.wm.wins.get("chat")?.body.querySelector(".chat") as HTMLElement | null;
+    if (!chat || chat.querySelector(".msg.typing")) return;
     const b = el(`<div class="msg you typing"><p><span class="tdots"><i></i><i></i><i></i></span></p></div>`);
     chat.appendChild(b);
     gsap.fromTo(b, { opacity: 0, y: 10, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(1.7)", transformOrigin: "100% 100%" });

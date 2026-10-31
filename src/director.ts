@@ -167,10 +167,10 @@ export class Director {
     this.term.setCwd(info.root || null);
     const status = info.run?.status || "";
     if (status === "running" && this.idleLife.isActive) {
-      // New work started (maybe from T3 itself): wake up before the first event arrives.
-      this.idleLife.stop();
-      this.robot.setPose("think");
-      this.onActivity("Working");
+      // New work started (maybe from T3 itself): no more fun, but a sleeping robot only wakes
+      // once the first event (usually your message) reaches it, see play().
+      this.idleLife.halt();
+      if (!this.idleLife.asleep) { this.robot.setPose("think"); this.onActivity("Working"); }
     }
     if (!first && this.lastRunStatus === "running" && status && status !== "running" && !this.queue.length) {
       this.robot.setPose("celebrate");
@@ -198,7 +198,7 @@ export class Director {
     const last = Math.max(0, ...[...this.items.values()].map((i) => i.ordinal || 0));
     this.items.set(id, { id, runId: null, ordinal: last + 0.5, type: "lucid_queue", status: "completed", updatedAt: new Date().toISOString(), data: { list, instant: first } } as any);
     this.queue.push(id);
-    if (this.idleLife.isActive) this.idleLife.stop();
+    if (this.idleLife.isActive) this.idleLife.halt();
     void this.pump();
   }
 
@@ -224,7 +224,7 @@ export class Director {
     for (const it of items) if (it.type === "todo_list" && this.played.has(it.id)) { this.stage.setPlan(it.data.steps || []); this.queuePlan(it); }
     this.queue.sort((a, b) => this.items.get(a)!.ordinal - this.items.get(b)!.ordinal);
     if (initial) this.catchingUp = this.queue.length > 0;
-    if (this.queue.length && this.idleLife.isActive) this.idleLife.stop();
+    if (this.queue.length && this.idleLife.isActive) this.idleLife.halt();
     this.pump();
   }
 
@@ -401,25 +401,33 @@ export class Director {
     (this.robot as any).setGroove?.(bpm);
   }
 
-  // You are typing to this robot in Lucid's side chat. It drops what it is doing for fun,
-  // opens its Messages app and watches your message come in, instead of wandering off.
+  // You are typing to this robot in Lucid's side chat. It can only know that if it sees it:
+  // awake at its desk with its Messages app on top, where your typing bubble shows up. Then it
+  // stops to read along. Asleep, away or busy in another app, it notices nothing until the
+  // message actually arrives (see "user_message" in play()).
   private userTypingAt = 0;
   private get waitingForUser() { return Date.now() - this.userTypingAt < 8000; }
+  /** The desk robot is in its chair (not walking back to it). Set by the desk. */
+  present: () => boolean = () => true;
+  private seesChat() {
+    return this.present() && !this.idleLife.asleep && !this.idleLife.holdingPhone && !this.phoneUp && this.wm.isFront("chat");
+  }
   userTyping(on: boolean) {
     if (on) {
+      if (!this.seesChat()) return;
       const fresh = !this.waitingForUser;
       this.userTypingAt = Date.now();
-      // real work keeps going; only the chat app shows the typing
-      if (this.pumpEpoch !== -1) { if (this.wm.isOpen("chat")) void this.chat.youTyping(true).catch(() => {}); return; }
-      if (!fresh) return;
+      void this.chat.youTyping(true).catch(() => {});
+      // real work keeps going; only the bubble shows the typing
+      if (!fresh || this.pumpEpoch !== -1) return;
       this.busyToken++;
-      if (this.idleLife.isActive) this.idleLife.stop();
+      if (this.idleLife.isActive) this.idleLife.halt();
       this.onActivity("Watching you type");
       this.robot.setPose("read");
-      void this.chat.youTyping(true).catch(() => {});
       return;
     }
     void this.chat.youTyping(false).catch(() => {});
+    if (!this.waitingForUser) return;   // it never saw you typing
     this.userTypingAt = Date.now() - 2000;   // a short grace period in case the message is on its way
     const epoch = this.wm.epoch;
     window.setTimeout(() => {
@@ -427,20 +435,26 @@ export class Director {
     }, 6500);
   }
 
+  // A robot walking back to its desk does nothing on its computer until it sits down.
+  private async untilPresent() {
+    for (let n = 0; n < 240 && !this.present(); n++) await this.wm.sleep(250);
+  }
+
   private async pump() {
     if (this.pumpEpoch === this.wm.epoch) return;
     const epoch = (this.pumpEpoch = this.wm.epoch);
     try {
-      if (this.wasIdle) {
-        this.wasIdle = false;
-        try { await this.maybeMusic(); } catch (err) { if (err instanceof Cancelled) return; }
-      }
       while (this.queue.length) {
         const backlog = this.queue.length - 1;
         this.wm.speed = Math.min(4.5, (this.catchingUp ? 2.2 : 1) + backlog * 0.45);
         const id = this.queue.shift()!;
         this.played.add(id);
         try {
+          // back to work after a pause: maybe some music first (once it is awake and has read your message)
+          if (this.wasIdle && !this.idleLife.pending && this.items.get(id)?.type !== "user_message" && this.present()) {
+            this.wasIdle = false;
+            await this.maybeMusic();
+          }
           await this.play(id);
           // Now and then, for no reason at all, a window gets dragged somewhere else, like
           // people do. Robots that let windows float do it more; never while catching up.
@@ -988,6 +1002,9 @@ export class Director {
   private async play(id: string) {
     const it = this.get(id);
     const tool = it.type === "dynamic_tool" ? String(it.data.toolName || "") : "";
+    await this.untilPresent();
+    // back from a nap or a game first (a new message does that itself, after its notification)
+    if (it.type !== "user_message" && this.idleLife.pending) await this.idleLife.rouse();
     if (this.phoneUp && !/preview_|browser/i.test(tool)) await this.phone(false);
     const d = it.data;
     const root = this.info?.root || null;
@@ -997,11 +1014,28 @@ export class Director {
       case "user_message": {
         // A new message pops up as a notification; the robot notices it, reads it, and
         // looks at any image you attached before getting to work.
-        this.onActivity("Reading your message");
+        // Asleep, it hears the notification, wakes up, stretches and unlocks first. Busy in
+        // another app, it looks up, then clicks the notification or goes to Messages its usual way.
+        const dozing = this.idleLife.pending && this.idleLife.asleep;
+        const watching = !dozing && this.wm.isFront("chat");
+        this.onActivity(dozing ? "Waking up" : "Reading your message");
         this.stage.setGlow(GLOW.chat);
-        this.robot.setPose("notice");
-        this.wm.toast("New message from you");
-        await this.wm.sleep(700);
+        const note = this.wm.toast("New message from you", "chat", dozing ? 7 : 2.8);
+        if (dozing) await this.idleLife.rouse();
+        else {
+          this.robot.setPose(watching ? "read" : "notice");
+          await this.wm.sleep(700);
+          if (this.idleLife.pending) await this.idleLife.rouse();
+        }
+        this.onActivity("Reading your message");
+        let clicked = false;
+        if (!this.wm.isFront("chat") && note.isConnected && Math.random() < (dozing ? 0.65 : 0.4)) {
+          this.robot.setPose("mouse");
+          await this.wm.pointAt(note, 0.45, 0.5, 420);
+          await this.wm.click();
+          this.wm.dismissToast(note);
+          clicked = true;
+        }
         const imgs: { path: string; name: string }[] = (d.attachments || [])
           .filter((a: any) => a.type === "image" && (a.path || a.id))
           .map((a: any) => ({ path: a.path || `${this.attachDir}${a.id}.${(a.mimeType || "image/png").split("/")[1].replace("jpeg", "jpg")}`, name: a.name || "image" }));
@@ -1015,7 +1049,7 @@ export class Director {
             if (mm) imgs.push({ path: mm[1].trim(), name: mm[1].trim().split(/[\\/]/).pop()!.replace(/^\d+-/, "") });
           }
         }
-        await this.chat.user(said, imgs.map((i) => fileUrl(i.path)));
+        await this.chat.user(said, imgs.map((i) => fileUrl(i.path)), clicked);
         this.robot.setPose("read");
         await this.wm.sleep(Math.min(3200, 800 + said.length * 12));
         for (const img of imgs.slice(0, 2)) {

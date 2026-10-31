@@ -56,6 +56,9 @@ export class IdleLife {
   hold: () => boolean = () => false;
 
   begin(opts: { locked?: boolean } = {}) {
+    // halted but never roused (the work went away again): it just goes on dozing
+    if (this.halted && this.lockEl) { this.halted = false; this.active = true; ++this.token; return; }
+    if (this.halted) this.stop();
     if (this.active || this.hold()) return;
     this.active = true;
     const tok = ++this.token;
@@ -64,14 +67,59 @@ export class IdleLife {
 
   // Stop instantly (new work or another thread). Cancels anything mid-animation.
   stop() {
-    if (!this.active) return;
+    if (!this.active && !this.halted) return;
     this.active = false;
+    this.halted = false;
     this.token++;
     this.wm.epoch++;
     this.stopGame?.();
     this.stopGame = null;
     if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
     if (this.wm.isOpen("game")) this.wm.close("game");
+    this.unlock();
+    this.stage.sleepy(false);
+    this.robot.wake();
+  }
+
+  // New work showed up. Nothing more for fun, but nothing jumps either: a sleeping robot stays
+  // asleep behind its lock screen and a game stays on screen until rouse() deals with them.
+  private halted = false;
+  halt() {
+    if (!this.active) return;
+    this.active = false;
+    this.halted = true;
+    this.token++;
+    this.wm.epoch++;
+  }
+
+  /** Asleep behind the lock screen right now. */
+  get asleep() { return !!this.lockEl; }
+  /** Holding its phone for fun (it cannot see the screen). */
+  get holdingPhone() { return this.phoneUp; }
+  /** Halted and not yet back to normal. */
+  get pending() { return this.halted; }
+
+  // Back to work after halt(), the way a person would: a sleeping robot hears the notification,
+  // wakes, stretches and unlocks; a playing one stops its game and puts its phone away.
+  async rouse() {
+    if (!this.halted) return;
+    const e = this.wm.epoch;
+    if (this.lockEl) {
+      await this.wm.sleep(1100, e);
+      this.stage.sleepy(false);
+      this.robot.wake();
+      await this.wm.sleep(650, e);
+      this.robot.setPose("stretch");
+      await this.wm.sleep(1500, e);
+      this.robot.setPose("rest");
+      this.unlock();
+      await this.wm.sleep(600, e);
+    }
+    this.halted = false;
+    this.stopGame?.();
+    this.stopGame = null;
+    if (this.phoneUp) { this.phoneUp = false; await this.robot.holdPhone(false); }
+    if (this.wm.isOpen("game")) { this.wm.close("game"); await this.wm.sleep(350, e); }
     this.unlock();
     this.stage.sleepy(false);
     this.robot.wake();

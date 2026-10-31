@@ -184,12 +184,14 @@ export class WM {
   // --- windows -------------------------------------------------------------
   isOpen(id: AppId) { return this.wins.has(id); }
 
-  async open(id: AppId, title?: string): Promise<Win> {
+  /** `clicked`: the robot already clicked something that opens the app (a notification), so it skips its usual way there. */
+  async open(id: AppId, title?: string, clicked = false): Promise<Win> {
     const e = this.epoch;
     let w = this.wins.get(id);
     if (w) {
       if (title) w.title.textContent = title;
-      if (Number(w.el.style.zIndex) !== this.z) {
+      if (clicked) this.focus(id);
+      else if (Number(w.el.style.zIndex) !== this.z) {
         // bring it back the way this robot usually does: click the window, its dock icon, or Alt+Tab
         const how = this.habit(this.prefs?.switching ?? "click", { click: 0.15, dock: 0.15, alttab: 0.12 });
         if (how === "alttab") await this.altTab(id);
@@ -203,7 +205,8 @@ export class WM {
     // open it the way this robot usually does, now and then the other way; apps that are not in
     // the dock can only be found with Spotlight
     const pinnedItem = this.dock.querySelector(`[data-app="${id}"]`) as HTMLElement | null;
-    if (!pinnedItem || this.habit(this.prefs?.launch ?? "dock", { dock: 0.2, spotlight: 0.2 }) === "spotlight") await this.launch(this.titleOf(id));
+    if (clicked) { /* already on its way */ }
+    else if (!pinnedItem || this.habit(this.prefs?.launch ?? "dock", { dock: 0.2, spotlight: 0.2 }) === "spotlight") await this.launch(this.titleOf(id));
     else {
       await this.pointAt(pinnedItem, 0.5, 0.5);
       // the dock may have shifted while the cursor travelled: land on the icon itself
@@ -560,7 +563,8 @@ export class WM {
     for (const id of [...this.wins.keys()]) this.close(id);
   }
 
-  async toast(text: string, icon: AppId = "chat") {
+  /** A notification slides in at the top right. `stay` keeps it up that many seconds (so the robot can click it). */
+  toast(text: string, icon: AppId = "chat", stay = 2.6) {
     const t = document.createElement("div");
     t.className = "toast";
     t.innerHTML = `${this.iconOf(icon)}<span></span>`;
@@ -568,7 +572,20 @@ export class WM {
     this.root.querySelector(".toast-layer")!.appendChild(t);
     gsap.timeline({ onComplete: () => t.remove() })
       .fromTo(t, { x: 40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "back.out(1.6)" })
-      .to(t, { x: 30, opacity: 0, duration: 0.35, ease: "power2.in" }, "+=2.6");
+      .to(t, { x: 30, opacity: 0, duration: 0.35, ease: "power2.in" }, `+=${stay}`);
+    return t;
+  }
+
+  /** A clicked notification goes away at once. */
+  dismissToast(t: HTMLElement) {
+    gsap.killTweensOf(t);
+    gsap.to(t, { opacity: 0, scale: 0.94, duration: 0.18, onComplete: () => t.remove() });
+  }
+
+  /** The window is open and on top of all others. */
+  isFront(id: AppId) {
+    const w = this.wins.get(id);
+    return !!w && Number(w.el.style.zIndex) === this.z;
   }
 
   reset() {
