@@ -162,16 +162,28 @@ ipcMain.handle("web:peek", async (_e, url) => {
     if (!type.includes("html")) return { ok: true, title: url, text: [], type };
     const html = (await res.text()).slice(0, 400000);
     const pick = (re) => (html.match(re)?.[1] || "").replace(/\s+/g, " ").trim();
-    const decode = (s) => s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
+    const decode = (s) => s.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&bull;/g, "•").replace(/&mdash;/g, ",").replace(/&ndash;/g, "-").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
     const title = decode(pick(/<title[^>]*>([\s\S]*?)<\/title>/i));
     const description = decode(pick(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)/i));
+    // Read the article, not the site chrome: start at <main>, <article> or Wikipedia's content
+    // block when there is one, drop nav, header, footer and sidebars, and skip one-word links.
+    const start = ["<main", "<article", 'id="mw-content-text"', 'id="content"', 'role="main"'].map((k) => html.indexOf(k)).filter((i) => i >= 0);
+    let body = start.length ? html.slice(Math.min(...start)) : html;
+    body = body.replace(/<(nav|header|footer|aside|script|style|noscript|form)\b[\s\S]*?<\/\1>/gi, " ");
+    // sidebars, info boxes and navboxes are tables (often nested): peel them away
+    for (let i = 0, prev = ""; i < 6 && prev !== body; i++) { prev = body; body = body.replace(/<table\b(?:(?!<table\b)[\s\S])*?<\/table>/gi, " "); }
     const blocks = [];
     const re = /<(h1|h2|h3|p|li|pre)[^>]*>([\s\S]*?)<\/\1>/gi;
     let m;
-    while ((m = re.exec(html)) && blocks.length < 40) {
+    while ((m = re.exec(body)) && blocks.length < 40) {
+      const tag = m[1].toLowerCase();
       const text = decode(m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
-      if (text.length > 2) blocks.push({ tag: m[1].toLowerCase(), text: text.slice(0, 400) });
+      if (text.length < 3 || (tag === "li" && text.split(" ").length < 4) || (tag === "p" && text.length < 25)) continue;
+      blocks.push({ tag, text: text.slice(0, 400) });
     }
+    // an article reads from its first paragraph; list pages (news feeds) keep their items
+    const firstP = blocks.findIndex((b) => b.tag === "p");
+    if (firstP > 0 && blocks.filter((b) => b.tag === "p").length >= 3) blocks.splice(0, firstP);
     return { ok: true, title, description, blocks };
   } catch (err) {
     return { ok: false, error: String(err.message || err) };

@@ -50,6 +50,7 @@ export class Director {
     this.tool = new ToolApp(wm);
     this.tasks = new TasksApp(wm);
     this.idleLife = new IdleLife(wm, robot, stage);
+    this.idleLife.browser = this.browser;
     this.harness = new HarnessApp(wm as any);
     this.peekFn = peek;
     this.idleLife.onActivity = (t) => this.onActivity(t);

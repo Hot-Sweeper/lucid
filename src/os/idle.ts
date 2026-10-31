@@ -27,6 +27,9 @@ export class IdleLife {
   private phoneUp = false;
   onActivity: (t: string) => void = () => {};
 
+  /** The robot's web browser, set by the director, for surfing when bored. */
+  browser: { visit(target: string): Promise<void>; act(caption: string, title?: string, url?: string): Promise<void> } | null = null;
+
   constructor(private wm: WM, private robot: Robot, private stage: Stage) {
     const scale = Number(new URLSearchParams(location.search).get("idleScale") || localStorage.getItem("lucid:idleScale") || 1);
     if (scale > 0 && scale !== 1) for (const k of Object.keys(T) as (keyof typeof T)[]) T[k] *= scale;
@@ -116,6 +119,7 @@ export class IdleLife {
       coffee: 0.6 + 0.8 * H("chiller"), stretch: 0.3 + 0.3 * H("chiller"), messages: 0.4,
       beats: H("musician") ? 2.6 : (p?.music ?? 0) >= 0.8 ? 0.25 : 0,
       social: 0.25 * (p?.social ?? 0.4) + 2.4 * H("chatter"),
+      browse: this.browser ? 0.7 + 0.9 * H("chiller") + 0.4 * H("watcher") : 0,
     };
     for (const r of recent) if (weights[r] != null) weights[r] *= r === recent[0] ? 0 : 0.25;
     const total = Object.values(weights).reduce((a, b) => a + b, 0);
@@ -213,6 +217,9 @@ export class IdleLife {
         await hangOutInChat(w.body, host, { maxMs: 40000 + Math.random() * 50000, me: this.wm.robotName });
         return this.closeWin("social" as any, tok);
       }
+      case "browse":
+        if (!this.browser) return;
+        return this.browse(tok);
       case "coffee":
         this.onActivity("Sipping coffee");
         return this.robot.drink();
@@ -229,6 +236,40 @@ export class IdleLife {
         return this.closeWin("chat", tok);
       }
     }
+  }
+
+  // Surfing the real web: a few pages, some searches, a click into something interesting.
+  private async browse(tok: number) {
+    const b = this.browser!;
+    const SITES: [string, string][] = [
+      ["Reading a random Wikipedia article", "https://en.wikipedia.org/wiki/Special:Random"],
+      ["Reading about cozy software", "https://en.wikipedia.org/wiki/Calm_technology"],
+      ["Catching up on tech news", "https://lobste.rs/"],
+      ["Reading about robots", "https://en.wikipedia.org/wiki/Robot"],
+      ["Reading about the history of AI", "https://en.wikipedia.org/wiki/History_of_artificial_intelligence"],
+      ["Brushing up on CSS animations", "https://developer.mozilla.org/en-US/docs/Web/CSS/animation"],
+      ["Reading about the Turing test", "https://en.wikipedia.org/wiki/Turing_test"],
+      ["Reading about Conway's Game of Life", "https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life"],
+    ];
+    const SEARCHES = ["how to center a div", "best mechanical keyboard for robots", "is it normal to dream in json", "why is my build green but i feel nothing", "cozy desk setup ideas", "how many tokens is a sandwich", "do androids dream of electric sheep summary"];
+    const order = [...SITES].sort(() => Math.random() - 0.5);
+    const pages = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < pages; i++) {
+      this.alive(tok);
+      if (i === 1 && Math.random() < 0.6) {
+        this.onActivity("Googling something");
+        await b.visit(SEARCHES[Math.floor(Math.random() * SEARCHES.length)]);
+        this.alive(tok);
+      }
+      const [what, url] = order[i];
+      this.onActivity(what);
+      await b.visit(url);
+      this.alive(tok);
+      if (Math.random() < 0.45) { await b.act("Click a link", undefined, url); this.alive(tok); }
+      if (Math.random() < 0.25) this.robot.react(Math.random() < 0.5 ? "laugh" : "think" as any);
+      await this.wait(1500 + Math.random() * 2500, tok);
+    }
+    return this.closeWin("browser", tok);
   }
 
   private async closeWin(id: "game" | "browser" | "chat" | "beats" | "social", tok: number) {

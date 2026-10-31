@@ -10,7 +10,7 @@ export type ShopKind = "decor" | "floor" | "wall";
 export type Season = "spring" | "summer" | "autumn" | "winter";
 export type ShopItem = { id: string; key: string; kind: ShopKind; name: string; price: number; level: number; season?: Season };
 
-const DECOR_PRICE: Record<DecorId, number> = { plants: 40, rug: 80, posters: 120, coffee: 250, water: 220, bookshelf: 400, beanbags: 450, trophies: 700, neon: 900, arcade: 1400, pingpong: 1800, aquarium: 2200 };
+const DECOR_PRICE: Partial<Record<DecorId, number>> = { plants: 40, rug: 80, posters: 120, coffee: 250, water: 220, bookshelf: 400, beanbags: 450, trophies: 700, neon: 900, arcade: 1400, pingpong: 1800, aquarium: 2200 };
 const FLOOR_PRICE: Record<FloorId, number> = { wood: 0, carpet: 200, tiles: 250, oak: 300, concrete: 350, terrazzo: 600 };
 const WALL_PRICE: Record<WallId, number> = { warm: 0, cool: 100, mint: 150, lilac: 150, dusk: 250, brick: 400 };
 
