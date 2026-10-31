@@ -191,6 +191,7 @@ ipcMain.handle("t3:thread-info", (_e, id) => { try { return t3.threadInfo(id); }
 ipcMain.handle("t3:items-since", (_e, id, since) => (since ? t3.itemsSince(id, since) : t3.recentItems(id, 60)));
 ipcMain.handle("t3:attach-dir", () => require("node:path").join(process.env.T3CODE_HOME || require("node:path").join(require("node:os").homedir(), ".t3"), "userdata", "attachments") + require("node:path").sep);
 ipcMain.handle("t3:world", () => t3.world());
+ipcMain.handle("t3:tasks", () => { try { return t3.officeTasks(); } catch { return []; } });
 ipcMain.handle("t3:start", (_e, opts) => t3.startThread(opts));
 ipcMain.handle("t3:send", (_e, opts) => t3.sendMessage(opts));
 

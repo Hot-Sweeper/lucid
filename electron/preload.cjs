@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("lucid", {
   office: (projectId) => ipcRenderer.invoke("t3:office", projectId),
   offices: () => ipcRenderer.invoke("t3:offices"),
   world: () => ipcRenderer.invoke("t3:world"),
+  tasks: () => ipcRenderer.invoke("t3:tasks"),
   rosterLoad: () => ipcRenderer.sendSync("roster:load"),
   settingsLoad: () => ipcRenderer.sendSync("settings:load"),
   settingsSave: (json) => ipcRenderer.invoke("settings:save", json),
