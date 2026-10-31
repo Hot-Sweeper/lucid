@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { prettyModel } from "../harness/themes";
-import { watch, unwatch, drawNow, sinceDraw } from "./budget";
+import { watch, unwatch, drawNow, sinceDraw, finishDraw } from "./budget";
 import { beginSystem, endSystem } from "../perf/metrics";
 import { setSvgAttribute } from "../perf/svg-write";
 import { sharedVector, releaseVectors } from "../perf/shared-vector";
@@ -957,6 +957,7 @@ export class TopDownRobot implements SeatedRobot {
       setSvgAttribute(tg, "transform", `translate(${tx.toFixed(1)} ${ty.toFixed(1)}) rotate(${(PHONE_TILT + 24).toFixed(0)}) scale(${(0.8 * K).toFixed(3)})`);
       setSvgAttribute(tg, "opacity", String(this.swipeP.on));
     } else setSvgAttribute(tg, "opacity", "0");
+    finishDraw();
     endSystem("robots", started);
   };
 

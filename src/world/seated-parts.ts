@@ -218,10 +218,16 @@ export function solveArm(s: Pt, t: Pt, upper: number, fore: number, out: number,
   // instead (the arm reads as pointing toward or away from us), keeping the hand on target.
   const dMin = Math.sqrt(U * U + F * F - 2 * U * F * Math.cos(MIN_ELBOW));
   if (d < dMin) { const f = Math.max(0.35, d / dMin); U *= f; F *= f; }
-  const th = Math.atan2(dy, dx);
-  const a = Math.acos(clamp((U * U + d * d - F * F) / (2 * U * d), -1, 1));
-  const e1 = { x: s.x + U * Math.cos(th + a), y: s.y + U * Math.sin(th + a) };
-  const e2 = { x: s.x + U * Math.cos(th - a), y: s.y + U * Math.sin(th - a) };
+  // Resolve the two elbow candidates in the hand direction and its perpendicular.
+  // This is the same triangle as atan2/acos followed by four sin/cos calls, without
+  // repeatedly converting each arm to angles and back on every body redraw.
+  const nx = dx === 0 && dy === 0 ? 1 : dx / d, ny = dy / d;
+  const ca = clamp((U * U + d * d - F * F) / (2 * U * d), -1, 1);
+  const sa = Math.sqrt(Math.max(0, 1 - ca * ca));
+  const along = U * ca, across = U * sa;
+  const ex = s.x + nx * along, ey = s.y + ny * along;
+  const e1 = { x: ex - ny * across, y: ey + nx * across };
+  const e2 = { x: ex + ny * across, y: ey - nx * across };
   const score = (p: Pt) => (p.x - s.x) * out + (p.y - s.y) * down;
   const diff = score(e1) - score(e2);
   if (!memo) return { e: diff > 0 ? e1 : e2, t };

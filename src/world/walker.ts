@@ -1,5 +1,6 @@
 import gsap from "gsap";
-import { watch, unwatch, drawNow, sinceDraw } from "./budget";
+import { watch, unwatch, drawNow, sinceDraw, finishDraw } from "./budget";
+import { routeSuffixLengths } from "./route-distance";
 import { beginSystem, endSystem } from "../perf/metrics";
 import { setSvgAttribute } from "../perf/svg-write";
 import type { Expression, RobotLook } from "../office/rig";
@@ -173,7 +174,7 @@ export class Walker {
   private lifeCall: gsap.core.Tween | null = null;
   private gen = 0;
   // walking
-  private mv: { pts: P2[]; i: number; wait: number; resolve: () => void } | null = null;
+  private mv: { pts: P2[]; tails: Float64Array; i: number; wait: number; resolve: () => void } | null = null;
   private v = 0;
   private settleTl: gsap.core.Timeline | null = null;
   // antenna spring (v0 units, local to the current view)
@@ -310,7 +311,7 @@ export class Walker {
     const fresh = this.v < 5 && this.st.stride < 0.25;
     this.faceToward(pts[0]);
     return new Promise<void>((resolve) => {
-      this.mv = { pts, i: 0, wait: fresh ? 0.12 : 0, resolve };
+      this.mv = { pts, tails: routeSuffixLengths(pts), i: 0, wait: fresh ? 0.12 : 0, resolve };
       // anticipation: sink and lean back a touch, then push off
       if (fresh && !reduced()) TL().to(this.st, { crouch: 0.55, lean: -4, duration: 0.12, ease: "power2.out" })
         .to(this.st, { crouch: 0, lean: 0, duration: 0.32, ease: "power2.out" });
@@ -339,8 +340,7 @@ export class Walker {
       return;
     }
     if (m.wait > 0) { m.wait -= dt; return; }
-    let rest = Math.hypot(m.pts[m.i].x - this.x, m.pts[m.i].y - this.y);
-    for (let j = m.i + 1; j < m.pts.length; j++) rest += Math.hypot(m.pts[j].x - m.pts[j - 1].x, m.pts[j].y - m.pts[j - 1].y);
+    const rest = Math.hypot(m.pts[m.i].x - this.x, m.pts[m.i].y - this.y) + m.tails[m.i];
     const cap = Math.sqrt(2 * 560 * rest) + 18;                // ease into the stop
     const want = Math.min(SPEED, cap);
     this.v = want > this.v ? this.v + (want - this.v) * Math.min(1, dt * 7) : want;
@@ -1167,6 +1167,7 @@ export class Walker {
       if (bobPx !== this.lastBob) { this.lastBob = bobPx; this.battery.style.setProperty("--bob", bobPx); }
     } else this.lastBob = "";
     if (this.bubble.classList.contains("on")) this.placeBubble();
+    finishDraw();
     endSystem("robots", started);
   };
   private footZ = { l: 0, r: 0 };
