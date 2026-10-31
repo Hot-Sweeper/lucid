@@ -100,6 +100,9 @@ function ik3(s: V3, t: V3, A: number, B: number, pole: V3, stretch = 1.15) {
   A *= k; B *= k;
   const M = A + B - 0.6;
   if (L > M) { const f = M / L; dx *= f; dy *= f; dz *= f; L = M; }
+  // never fold the elbow or knee tighter than about 40 degrees: shorten the bones instead
+  const dMin = Math.sqrt(A * A + B * B - 2 * A * B * 0.766);
+  if (L < dMin) { const f = Math.max(0.35, L / dMin); A *= f; B *= f; }
   const nx = dx / L, ny = dy / L, nz = dz / L;
   const ca = clamp((A * A + L * L - B * B) / (2 * A * L), -1, 1), sa = Math.sqrt(1 - ca * ca);
   const pd = pole.x * nx + pole.y * ny + pole.z * nz;

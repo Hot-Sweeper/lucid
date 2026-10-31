@@ -204,16 +204,29 @@ export function paintLook(el: Element, $: Record<string, SVGElement>, look: Robo
 }
 
 /** Two-bone arm: shoulder s, hand target t. `out` (-1 left, 1 right) picks the elbow that hangs outward. Bones may stretch a little. */
-export function solveArm(s: Pt, t: Pt, upper: number, fore: number, out: number, stretch = 1.25, down = 0.35) {
+/** Which way an elbow bent last frame, so it does not flip when both ways score about the same. */
+export type ArmMemo = { side?: 1 | -1 };
+const MIN_ELBOW = (40 * Math.PI) / 180;   // the elbow never closes tighter than this
+export function solveArm(s: Pt, t: Pt, upper: number, fore: number, out: number, stretch = 1.25, down = 0.35, memo?: ArmMemo) {
   let dx = t.x - s.x, dy = t.y - s.y;
   let d = Math.hypot(dx, dy) || 0.001;
   const k = clamp(d / (upper + fore - 0.5), 1, stretch);
-  const U = upper * k, F = fore * k, M = U + F - 0.5;
+  let U = upper * k, F = fore * k;
+  const M = U + F - 0.5;
   if (d > M) { t = { x: s.x + (dx / d) * M, y: s.y + (dy / d) * M }; dx = t.x - s.x; dy = t.y - s.y; d = M; }
+  // A hand close to the shoulder would fold the elbow into a hairpin: shorten both bones
+  // instead (the arm reads as pointing toward or away from us), keeping the hand on target.
+  const dMin = Math.sqrt(U * U + F * F - 2 * U * F * Math.cos(MIN_ELBOW));
+  if (d < dMin) { const f = Math.max(0.35, d / dMin); U *= f; F *= f; }
   const th = Math.atan2(dy, dx);
   const a = Math.acos(clamp((U * U + d * d - F * F) / (2 * U * d), -1, 1));
   const e1 = { x: s.x + U * Math.cos(th + a), y: s.y + U * Math.sin(th + a) };
   const e2 = { x: s.x + U * Math.cos(th - a), y: s.y + U * Math.sin(th - a) };
   const score = (p: Pt) => (p.x - s.x) * out + (p.y - s.y) * down;
-  return { e: score(e1) > score(e2) ? e1 : e2, t };
+  const diff = score(e1) - score(e2);
+  if (!memo) return { e: diff > 0 ? e1 : e2, t };
+  // keep bending the same way unless the other way is clearly better (no sudden flips)
+  const margin = (upper + fore) * 0.12;
+  if (memo.side == null || (memo.side === 1 ? diff < -margin : diff > margin)) memo.side = diff > 0 ? 1 : -1;
+  return { e: memo.side === 1 ? e1 : e2, t };
 }

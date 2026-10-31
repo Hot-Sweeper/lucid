@@ -1,7 +1,8 @@
 import gsap from "gsap";
+import { prettyModel } from "../harness/themes";
 import { watch, unwatch, drawNow, sinceDraw } from "./budget";
 import { GEOM, UNIT, type DeskRig, type Expression, type Pose, type Pt, type Reaction, type RobotLook, type SeatedRobot } from "../office/rig";
-import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, solveArm, uid, type BrandKind } from "./seated-parts";
+import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, solveArm, uid, type BrandKind, type ArmMemo } from "./seated-parts";
 import { accessoryInfo, accessorySvg, blushSvg, BUILD_SHAPE, hatInfo, hatSvg, lookMotion, paintLookColors, resolveLook, stepLookMotion, styledEyes, type FullLook, type LookMotion } from "./look";
 import { tierFor } from "../office/tier";
 
@@ -112,6 +113,7 @@ export class TopDownRobot implements SeatedRobot {
   private motion: LookMotion = { sway: [], spin: [] };
   private sway = { v: 0, vel: 0, lastBx: 0 };
   private modelName: string | null = null;
+  private armMemo: Record<"L" | "R", ArmMemo> = { L: {}, R: {} };
 
   constructor(host: HTMLElement, private desk: DeskRig) {
     const id = this.id;
@@ -160,7 +162,8 @@ export class TopDownRobot implements SeatedRobot {
     this.modelName = name;
     if (!name) { this.$.nameplate.style.display = "none"; return; }
     this.$.nameplate.style.display = "";
-    const label = name.length > 22 ? name.slice(0, 21) + "…" : name;
+    const pretty = prettyModel(name) || name;
+    const label = pretty.length > 16 ? pretty.slice(0, 15) + "…" : pretty;
     t.textContent = label;
     // The back is slim now: the plate stays inside it and long names are condensed to fit.
     const w = clamp(label.length * 6.2 + 14, 40, 92 * BUILD_SHAPE[this.look.build].kx);
@@ -948,7 +951,7 @@ export class TopDownRobot implements SeatedRobot {
     const kk = lerp(clamp(ext / 0.8, 0.55, Math.max(1, ext * 1.01)), 1, fd);
     const shorten = front ? lerp(0.75, 0.85, this.hp.grip) : 1;   // in front of the body the arm also points at us: foreshorten it
     up *= lerp(1, kk, shorten); fo *= lerp(1, kk, shorten);
-    const { e, t: h } = solveArm(s, t, up, fo, out, 1.4, front ? lerp(0.4, -0.6, this.hp.grip) : lerp(-0.2, -1.2, fd));
+    const { e, t: h } = solveArm(s, t, up, fo, out, 1.4, front ? lerp(0.4, -0.6, this.hp.grip) : lerp(-0.2, -1.2, fd), this.armMemo[k]);
     const hy = h.y - lift * 4 * U;
     const f = (n: number) => n.toFixed(1);
     this.$["arm" + k + "Up"].setAttribute("d", `M${f(s.x)} ${f(s.y)} L${f(e.x)} ${f(e.y)}`);
