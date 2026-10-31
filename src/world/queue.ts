@@ -3,6 +3,7 @@ import { Walker, type Facing } from "./walker";
 import { PAL, RoomStage, WALL, plantSvg, posterArt, windowArt } from "./room";
 import type { BreakThread, RoomExtension } from "./breakroom";
 import { Boss, type BossInfo } from "./boss";
+import { BossMonitor } from "./boss-monitor";
 
 // The question line: robots with a question for you queue up in front of your desk (an empty
 // human chair, a bell, a monitor, a plant). The front robot holds up a card with a short
@@ -21,6 +22,8 @@ export class QuestionLine implements RoomExtension {
   el: HTMLElement;
   onSelect: (id: string) => void = () => {};
   onExit?: (id: string, at: { x: number; y: number }, face: Facing) => boolean;
+  onReportArrived: (id: string) => void = () => {};
+  private reports = new Set<string>();
   private entries = new Map<string, { x: number; y: number }>();
   private opened = false;   // had robots in line before (later ones walk in through the door)
   enterFrom(id: string, at: { x: number; y: number }) { this.entries.set(id, { ...at }); }
@@ -31,6 +34,7 @@ export class QuestionLine implements RoomExtension {
   private out: { x: number; y: number };
   private anims: gsap.core.Animation[] = [];
   private boss: Boss;
+  private monitor: BossMonitor;
 
   constructor(host: HTMLElement, readonly w: number, readonly h: number) {
     this.stage = new RoomStage(host, w, h, { wall: "#ebe4ef", trim: "#d6cddd", floor: PAL.floor, seam: PAL.seam, accent: PAL.violet }, wallArt(w), "world-queue");
@@ -38,6 +42,8 @@ export class QuestionLine implements RoomExtension {
     this.door = { x: w / 2, y: h - 52 };
     this.out = { x: w / 2, y: h + 70 };
     this.furnish();
+    this.monitor = new BossMonitor(this.stage.layer, w / 2 - 170, DESK_Y);
+    this.monitor.onSelect = id => this.onSelect(id);
     const cx = w / 2;
     this.boss = new Boss(this.stage.layer, { seat: { x: cx, y: DESK_Y + 98 }, edge: DESK_Y + 56, z: DESK_Y + 158, monitorX: cx - 115, glow: this.$.glow, mark: this.$.mark });
     this.boss.onSelect = (id) => this.onSelect(id);
@@ -45,7 +51,7 @@ export class QuestionLine implements RoomExtension {
   }
 
   /** The orchestrator in the chair behind the desk, or nobody. */
-  setBoss(info: BossInfo | null) { this.boss.set(info); }
+  setBoss(info: BossInfo | null) { this.boss.set(info); this.monitor.set(info); }
 
   // What the orchestrator is doing with a robot's question (delegate.ts): reading it while the
   // decision is in flight, then answering it (stamp, the robot repeats the answer) or passing
@@ -88,6 +94,7 @@ export class QuestionLine implements RoomExtension {
 
   setThreads(list: BreakThread[]) {
     const want = list.slice(0, MAX);
+    this.reports = new Set(list.filter(t => (t as any).report).map(t => t.id));
     const ids = new Set(want.map((t) => t.id));
     for (const q of [...this.line]) if (!ids.has(q.id)) void this.leave(q);
     for (const t of want) {
@@ -142,6 +149,11 @@ export class QuestionLine implements RoomExtension {
   private settle(q: Q) {
     if (q.slot === 0) {
       q.w.do("hold-card", { card: q.question });
+      if (this.reports.has(q.id)) {
+        q.w.say("Report ready for review.", 2500);
+        this.onReportArrived(q.id);
+        return;
+      }
       const tap = () => {
         if (!q.alive || q.slot !== 0) return;
         q.w.poke();
@@ -166,6 +178,7 @@ export class QuestionLine implements RoomExtension {
     this.verdicts.delete(q.id);
     // answered by the boss: it repeats the answer (long enough to read), then goes
     if (v?.phase === "answered") q.w.say(`The boss said: ${shortQuestion(v.text || "yes")}`, 3200);
+    else if (q.question.startsWith("Report:")) q.w.say("Review complete.", 1600);
     else q.w.say(pick(["Thanks!", "Got it, thank you!", "Back to work!", "Perfect, thanks!"]), 1600);
     gsap.delayedCall(0.6, () => this.reflow());
     await new Promise((r) => gsap.delayedCall(v?.phase === "answered" ? 3 : 1.7, r));
@@ -206,8 +219,6 @@ export class QuestionLine implements RoomExtension {
       <rect x="150" y="116" width="100" height="20" rx="5" fill="#f6efe3"/>
       <text x="200" y="130" text-anchor="middle" font-family="var(--font)" font-size="11" font-weight="600" fill="#3a3f4f">Your desk</text>
       <g data-b="glow" opacity="0" fill="#8fd0ff"><rect x="6" y="-20" width="158" height="110" rx="40" opacity="0.18"/><rect x="16" y="-11" width="138" height="92" rx="28" opacity="0.22"/><rect x="25" y="-4" width="120" height="80" rx="16" opacity="0.3"/></g>
-      <rect x="30" y="0" width="110" height="72" rx="9" fill="#3a3f4f"/><rect x="36" y="6" width="98" height="58" rx="6" fill="#4a5063"/>
-      <circle cx="85" cy="35" r="9" fill="#5a6177"/>
       <rect x="77" y="70" width="16" height="10" fill="#3a3f4f"/><ellipse cx="85" cy="84" rx="24" ry="6" fill="#4a5063"/>
       <rect x="176" y="61" width="48" height="13" rx="3.5" fill="#3a3f4f"/><rect x="179" y="63.5" width="42" height="3" rx="1.5" fill="#5a6177"/><rect x="179" y="68" width="42" height="3" rx="1.5" fill="#5a6177"/>
       <g transform="rotate(4 248 70)"><rect x="232" y="60" width="32" height="22" rx="2.5" fill="#fffaf3"/><rect x="237" y="65" width="18" height="2.2" rx="1.1" fill="#c9c2d6"/><rect x="237" y="70" width="13" height="2.2" rx="1.1" fill="#c9c2d6"/>
@@ -232,6 +243,7 @@ export class QuestionLine implements RoomExtension {
   }
 
   destroy() {
+    this.monitor.destroy();
     this.boss.clear();
     for (const q of this.line) { for (const t of q.timers) t.kill(); q.w.destroy(); }
     this.line = [];

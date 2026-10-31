@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { mkdtemp,readFile,writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import electron from 'electron';
+
+const folder=await mkdtemp(join(tmpdir(),'lucid-boss-monitor-'));
+const evaluation=`(async()=>{
+  if(window.__bossMonitorCheck)return window.__bossMonitorCheck;
+  window.__bossMonitorCheck={running:true};
+  const checks=[],assert=(ok,message)=>{if(!ok)throw Error(message);checks.push(message);};
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  try{
+    const world=window.__world,queue=world.ext.queue,monitor=queue.monitor;
+    world.update=()=>{};
+    queue.setBoss({id:'__monitor-test',provider:'codex',running:true});
+    const item=(id,text,at='2026-10-31T12:00:00Z')=>({id,ordinal:1,type:'assistant_message',updatedAt:at,data:{text}});
+    monitor.api={itemsSince:async()=>[item('one','Checking the office layout <img src=x onerror=alert(1)>')],threadInfo:async()=>({id:'__monitor-test',run:{status:'running'}})};
+    world.showRoom('queue');await wait(500);
+    const el=monitor.el,back=el.querySelector('.bm-back'),front=el.querySelector('.bm-front');
+    back.click();await wait(400);
+    assert(el.classList.contains('is-open')&&!front.inert&&back.inert,'click flips monitor and exposes the front');
+    assert(document.activeElement===el.querySelector('.bm-close'),'focus moves to the visible face');
+    assert(el.textContent.includes('Checking the office layout')&&!front.querySelector('img'),'real activity renders as safe text');
+    assert(el.querySelector('.bm-status').textContent==='running','screen shows actual thread status');
+    monitor.merge([item('one','New streaming message','2026-10-31T12:00:02Z')]);
+    monitor.merge([item('one','Stale message')]);
+    assert(el.textContent.includes('New streaming message')&&!el.textContent.includes('Stale message'),'late snapshots cannot overwrite streaming updates');
+    let selected=null;monitor.onSelect=id=>selected=id;el.querySelector('.bm-chat').click();
+    assert(selected==='__monitor-test','full conversation action selects the orchestrator');
+    el.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    assert(!el.classList.contains('is-open')&&front.inert&&document.activeElement===back,'Escape turns back and restores focus');
+    let resolve;monitor.api.itemsSince=()=>new Promise(r=>resolve=r);
+    back.click();await wait(0);monitor.set(null);resolve([item('late','Wrong orchestrator')]);await wait(0);
+    assert(back.disabled&&!el.classList.contains('is-open')&&!el.textContent.includes('Wrong orchestrator'),'removing orchestrator cancels stale loads and disables monitor');
+    monitor.set({id:'__monitor-test',running:true});
+    monitor.api.itemsSince=async()=>{throw Error('offline');};back.click();await wait(0);
+    assert(el.textContent.includes('could not load'),'failed load gives a retry path');
+    monitor.turn(false);monitor.api.itemsSince=async()=>[];back.click();await wait(0);
+    assert(el.textContent.includes('No activity yet'),'empty result is shown only after loading completes');
+    monitor.merge([item('final','Reviewing robot assignments and answering the next question.')]);
+    await wait(400);
+    const bounds=el.getBoundingClientRect(),room=queue.el.getBoundingClientRect();
+    assert(bounds.left>=room.left&&bounds.right<=room.right&&bounds.top>=room.top,'turned monitor remains inside the question room');
+    window.__bossMonitorCheck={ok:true,checks};
+  }catch(error){window.__bossMonitorCheck={ok:false,error:String(error),stack:error.stack,checks};}
+  return window.__bossMonitorCheck;
+})()`;
+const file=join(folder,'evaluation.js');await writeFile(file,evaluation);
+const env={...process.env,LUCID_SHOT:folder,LUCID_SHOT_PROFILE:join(folder,'profile'),LUCID_SHOT_COUNT:'3',LUCID_SHOT_EVERY:'3000',LUCID_SHOT_QUIT:'1',LUCID_EVAL_FILE:file};
+delete env.ELECTRON_RUN_AS_NODE;delete env.LUCID_EVAL;
+await new Promise((resolve,reject)=>{const child=spawn(electron,['.'],{env,stdio:'inherit'});child.on('error',reject);child.on('exit',code=>code===0?resolve():reject(Error('Electron exited '+code)));});
+const log=await readFile(join(folder,'eval.log'),'utf8');
+console.log('Artifacts: '+folder);console.log(log);
+assert(log.includes('"ok": true')&&!log.includes('"ok": false'),'native monitor interactions pass');
