@@ -972,12 +972,17 @@ export class BreakRoom implements RoomExtension {
     const now = performance.now() / 1000;
     const key = (g.open && g.seats.find((k) => this.free(k))) || g.extraSeats.find((k) => this.free(k));
     if (!key || !g.alive) return;
+    // claim the seat now: while it stands up someone else (the host) could take it, and two
+    // robots would end up on one seat
+    const spotNow = r.spot;
+    this.spots[key].taken = r.id;
     const extra = g.extraSeats.includes(key);
     r.group = g;
     (extra ? g.extras : g.players).push(r);
     r.last = g.kind;
     r.cool[g.kind] = now + COOLDOWN[g.kind];
-    await this.stand(r);
+    try { await this.stand(r); } catch (err) { if (this.spots[key].taken === r.id) this.spots[key].taken = null; throw err; }
+    if (spotNow && spotNow.taken === r.id) spotNow.taken = null;
     const s = this.reserve(r, key);
     if (!extra && Math.random() < 0.4) r.w.say(pickOne(["I'm in!", "Count me in.", "Oh, yes."]), 1200);
     await g.until(this.goTo(r, s));
