@@ -51,3 +51,19 @@
 @media (prefers-reduced-motion: reduce) {
   .ck-box, .ck-txt { transition: none; }
 }
+
+/* your queued messages, under the plan */
+.tk-q { flex: none; margin: 0 10px 10px; padding: 7px 8px 6px; border-radius: 9px; background: rgba(255, 159, 90, 0.1); box-shadow: inset 0 0 0 1px rgba(255, 159, 90, 0.22); }
+.tk-q.empty { display: none; }
+.tk-q h4 { display: flex; justify-content: space-between; margin: 0 0 5px; padding: 0 2px; font-size: 10.5px; font-weight: 600; color: #ffd0ad; }
+.tk-q h4 b { font: 400 10px var(--mono); color: #c9a487; font-variant-numeric: tabular-nums; }
+.tk-q-list { list-style: none; margin: 0; padding: 0; max-height: 96px; overflow: hidden; counter-reset: q; }
+.tk-q-row { position: relative; display: grid; grid-template-columns: 14px 1fr; gap: 6px; padding: 4px 4px; border-radius: 6px; font-size: 10.5px; line-height: 1.35; color: #f3e6dc; counter-increment: q; }
+.tk-q-row::before { content: counter(q); font: 9.5px var(--mono); color: #c9a487; text-align: right; padding-top: 1px; }
+.tk-q-t { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; background: linear-gradient(#e7b48f, #e7b48f) 0 60% / 0% 1.5px no-repeat; transition: background-size 0.3s ease, color 0.3s; }
+.tk-q-row.gone .tk-q-t { background-size: 100% 1.5px; color: #a58b78; }
+.tk-q-row.sel .tk-q-t { background: rgba(120, 160, 255, 0.45); }
+.tk-q-row.compose { background: #fff1e6; }
+.tk-q-row.compose .tk-q-t { color: #3a2508; }
+.tk-q-row.compose .tk-q-t::after { content: ""; display: inline-block; width: 1.5px; height: 10px; margin-left: 1px; vertical-align: -1px; background: #3a2508; }
+.tk-q-row.lift { z-index: 2; background: #353d8a; box-shadow: 0 8px 16px rgba(4, 6, 24, 0.45); }

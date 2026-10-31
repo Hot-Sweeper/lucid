@@ -18,7 +18,7 @@ import type { DeskStage as Stage } from "./office/desk";
 import { OfficeSuite, OFFICE_GLOW, officeActivity, officeKind, officeTargets, resolveIn } from "./office-apps";
 
 export type Item = { id: string; runId: string | null; ordinal: number; type: string; status: string; updatedAt: string; data: any };
-export type ThreadInfo = { id: string; title: string; provider: string; model?: string | null; effort?: string | null; projectTitle?: string; root?: string; run?: { id: string; status: string } | null; error?: string };
+export type ThreadInfo = { id: string; title: string; provider: string; model?: string | null; effort?: string | null; projectTitle?: string; root?: string; run?: { id: string; status: string } | null; queued?: { id: string; text: string }[]; error?: string };
 
 const GLOW: Record<string, string> = {
   editor: "#6f7dff", terminal: "#4ff0a0", browser: "#4fd2ff", chat: "#ff7aa8", files: "#ffbf5a", tool: "#b07cff", think: "#9d8cff", idle: "#4fb6ff", tasks: "#4fd8c0", git: "#a37cff",
@@ -178,6 +178,28 @@ export class Director {
       if (this.pumpEpoch === -1) this.idleLife.begin();
     }
     this.lastRunStatus = status;
+    this.noteQueue(info.queued ?? [], first);
+  }
+
+  // Your queued messages are written down in the robot's to-do app; when you reorder, edit
+  // or remove them (or one gets sent), the robot updates the list by hand.
+  private queueSig = "";
+  private queueSeq = 0;
+  private noteQueue(list: { id: string; text: string }[], first: boolean) {
+    const sig = JSON.stringify(list);
+    if (sig === this.queueSig) return;
+    this.queueSig = sig;
+    if ((this.wm.prefs?.tasks ?? "board") === "sticky") return;
+    if (first && !list.length) return;
+    // one pending update is enough: replace its list instead of queueing another
+    const pending = this.queue.find((id) => this.items.get(id)?.type === "lucid_queue");
+    if (pending) { this.items.get(pending)!.data.list = list; return; }
+    const id = `lucid-queue-${++this.queueSeq}`;
+    const last = Math.max(0, ...[...this.items.values()].map((i) => i.ordinal || 0));
+    this.items.set(id, { id, runId: null, ordinal: last + 0.5, type: "lucid_queue", status: "completed", updatedAt: new Date().toISOString(), data: { list, instant: first } } as any);
+    this.queue.push(id);
+    if (this.idleLife.isActive) this.idleLife.stop();
+    void this.pump();
   }
 
   push(items: Item[], initial: boolean) {
@@ -447,6 +469,8 @@ export class Director {
       this.idle();
     } finally {
       if (this.pumpEpoch === epoch) this.pumpEpoch = -1;
+      // interrupted with scenes still waiting: pick them up again instead of leaving them stuck
+      if (this.queue.length && this.pumpEpoch === -1) window.setTimeout(() => void this.pump(), 60);
     }
   }
 
@@ -1140,6 +1164,12 @@ export class Director {
       }
       case "todo_list": {
         await this.playPlan(d.steps || []);
+        return;
+      }
+      case "lucid_queue": {
+        this.onActivity("Writing down your queued messages");
+        this.stage.setGlow(GLOW.tasks);
+        await this.tasks.syncQueue(d.list || [], { instant: this.catchingUp || d.instant, title: this.info?.title });
         return;
       }
       case "compaction": {

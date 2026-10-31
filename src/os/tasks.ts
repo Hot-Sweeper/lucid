@@ -44,6 +44,135 @@ export class TasksApp {
   reset() {
     this.cards = [];
     this.order.clear();
+    this.queued = [];
+  }
+
+  // --- your queued messages ------------------------------------------------------
+  private queued: { id: string; text: string }[] = [];
+
+  /** Write the queue down, or play the change by hand: new messages typed in, reordered rows
+   *  dragged, edited ones retyped, removed or sent ones crossed off. */
+  async syncQueue(list: { id: string; text: string }[], opts: { instant?: boolean; title?: string } = {}) {
+    const flavor = this.flavor;
+    if (flavor === "sticky") return;
+    const wm = this.wm, e = wm.epoch;
+    const next = list.map((q) => ({ id: q.id, text: q.text || "(attachment)" }));
+    if (!next.length && !this.queued.length) return;
+    const w = await wm.open("tasks");
+    let root = w.body.querySelector(".tk") as HTMLElement | null;
+    if (!root || root.dataset.flavor !== flavor) {
+      root = this.build(w.body, flavor as Flavor);
+      this.renderAll(root, this.cards.map((c) => ({ text: c.text, col: c.col })));
+      const name = root.querySelector(".tk-name") as HTMLElement;
+      name.textContent = name.title = opts.title || "Plan";
+    }
+    let box = root.querySelector(".tk-q") as HTMLElement | null, fresh = false;
+    if (!box) {
+      box = document.createElement("section");
+      box.className = "tk-q";
+      box.innerHTML = `<h4>From you <b></b></h4><ol class="tk-q-list"></ol>`;
+      root.appendChild(box);
+      fresh = true;
+    }
+    const ol = box.querySelector(".tk-q-list") as HTMLElement;
+    const rowOf = (id: string) => ol.querySelector(`[data-id="${CSS.escape(id)}"]`) as HTMLElement | null;
+    const mk = (q: { id: string; text: string }) => {
+      const li = document.createElement("li");
+      li.className = "tk-q-row";
+      li.dataset.id = q.id;
+      li.innerHTML = `<span class="tk-q-t"></span>`;
+      (li.firstElementChild as HTMLElement).textContent = q.text;
+      li.title = q.text;
+      return li;
+    };
+    // a reopened window shows the list as it was, then the change plays
+    if (fresh && this.queued.length) ol.replaceChildren(...this.queued.map(mk));
+    const count = () => { (box!.querySelector("h4 b") as HTMLElement).textContent = String(next.length); box!.classList.toggle("empty", !next.length); };
+    if (opts.instant) {
+      ol.replaceChildren(...next.map(mk));
+      this.queued = next;
+      count();
+      await wm.sleep(200, e);
+      return;
+    }
+    const was = new Map(this.queued.map((q) => [q.id, q.text]));
+    const now = new Set(next.map((q) => q.id));
+    // gone: crossed off (sent to the robot or removed by you), then the row folds away
+    for (const q of this.queued) {
+      if (now.has(q.id)) continue;
+      const li = rowOf(q.id);
+      if (!li) continue;
+      await wm.pointAt(li, 0.08, 0.5, 300);
+      await wm.click();
+      li.classList.add("gone");
+      await wm.sleep(320, e);
+      gsap.to(li, { height: 0, opacity: 0, paddingTop: 0, paddingBottom: 0, marginBottom: 0, duration: 0.3, ease: "power2.in", onComplete: () => li.remove() });
+      await wm.sleep(260, e);
+    }
+    // reordered: rows slide to their new places, the moved one carried by the cursor
+    const before = new Map([...ol.children].map((c) => [(c as HTMLElement).dataset.id!, (c as HTMLElement).getBoundingClientRect().top]));
+    const keepOrder = next.filter((q) => was.has(q.id)).map((q) => q.id);
+    const curOrder = this.queued.filter((q) => now.has(q.id)).map((q) => q.id);
+    if (keepOrder.join() !== curOrder.join()) {
+      const moved = keepOrder.find((id, i) => curOrder[i] !== id);
+      const movedEl = moved ? rowOf(moved) : null;
+      if (movedEl) { await wm.pointAt(movedEl, 0.5, 0.5, 300); movedEl.classList.add("lift"); }
+      for (const id of keepOrder) { const li = rowOf(id); if (li) ol.appendChild(li); }
+      const s = ol.closest(".tk")!.getBoundingClientRect().height ? (ol.offsetHeight ? ol.getBoundingClientRect().height / ol.offsetHeight : 1) : 1;
+      for (const id of keepOrder) {
+        const li = rowOf(id), b = before.get(id);
+        if (!li || b == null) continue;
+        const dy = (b - li.getBoundingClientRect().top) / (s || 1);
+        if (Math.abs(dy) > 0.5) gsap.fromTo(li, { y: dy }, { y: 0, duration: 0.45, ease: "power2.inOut" });
+      }
+      if (movedEl) { await wm.pointAt(movedEl, 0.5, 0.5, 450); await wm.sleep(150, e); movedEl.classList.remove("lift"); }
+    }
+    // edited: the old text is selected and the new text typed over it
+    for (const q of next) {
+      const old = was.get(q.id);
+      if (old == null || old === q.text) continue;
+      const li = rowOf(q.id);
+      if (!li) continue;
+      await this.typeQueued(li, q.text, true);
+    }
+    // new: typed in at its place in the line
+    for (let i = 0; i < next.length; i++) {
+      const q = next[i];
+      if (was.has(q.id)) continue;
+      const li = mk({ id: q.id, text: "" });
+      const after = i > 0 ? rowOf(next[i - 1].id) : null;
+      if (after) after.after(li); else ol.prepend(li);
+      gsap.from(li, { height: 0, opacity: 0, duration: 0.25, ease: "power2.out" });
+      await this.typeQueued(li, q.text, false);
+    }
+    this.queued = next;
+    count();
+    await wm.sleep(250, e);
+  }
+
+  private async typeQueued(li: HTMLElement, text: string, replace: boolean) {
+    const wm = this.wm, e = wm.epoch;
+    const t = li.querySelector(".tk-q-t") as HTMLElement;
+    await wm.pointAt(li, 0.4, 0.5, 280);
+    await wm.click(replace);
+    if (replace) { li.classList.add("sel"); await wm.sleep(260, e); li.classList.remove("sel"); }
+    li.classList.add("compose");
+    t.textContent = "";
+    li.title = text;
+    // long messages: the first words typed by hand, the rest pops in
+    const typed = text.slice(0, 46);
+    wm.robot.setTyping(true);
+    try {
+      for (const ch of typed) {
+        t.textContent += ch;
+        wm.robot.pressKey(ch);
+        await wm.sleep(28 + Math.random() * 40, e);
+      }
+    } finally { wm.robot.setTyping(false); }
+    t.textContent = text;
+    wm.robot.pressKey("Enter");
+    li.classList.remove("compose");
+    await wm.sleep(160, e);
   }
 
   // Open (or focus) the app and play the difference to the new list.

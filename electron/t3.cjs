@@ -60,6 +60,14 @@ function effortOf(options) {
   return null;
 }
 
+// a queued message as a to-do line: its words, with attachments as a short note
+function queuedText(m) {
+  const raw = String(m?.text || "");
+  const files = (raw.match(/^\s*-\s*(image|file):/gim) || []).length + (m?.attachments?.length || 0);
+  const words = raw.replace(/\s*Attached:[\s\S]*$/, "").replace(/\s+/g, " ").trim().slice(0, 140);
+  return words + (files ? `${words ? " " : ""}(+ ${files > 1 ? files + " attachments" : "attachment"})` : "");
+}
+
 function threadInfo(threadId) {
   const t = getDb()
     .prepare(`select t.thread_id as id, t.title, coalesce(t.provider_instance_id, t.default_provider) as provider, t.payload_json as payload,
@@ -72,8 +80,16 @@ function threadInfo(threadId) {
     .prepare("select run_id as id, status, payload_json as payload from orchestration_v2_projection_runs where thread_id = ? order by ordinal desc limit 1")
     .get(threadId);
   const payload = safeJson(t.payload) || {};
+  // your queued messages, in the order T3 will deliver them (for the robot's to-do app)
+  const queued = getDb()
+    .prepare("select r.run_id as id, r.ordinal, r.payload_json as p, m.payload_json as mp from orchestration_v2_projection_runs r left join orchestration_v2_projection_messages m on m.message_id = json_extract(r.payload_json, '$.userMessageId') where r.thread_id = ? and r.status = 'queued'")
+    .all(threadId)
+    .map((r) => ({ id: r.id, pos: safeJson(r.p)?.queuePosition ?? r.ordinal, ordinal: r.ordinal, text: queuedText(safeJson(r.mp)) }))
+    .sort((a, b) => a.pos - b.pos || a.ordinal - b.ordinal)
+    .map(({ id, text }) => ({ id, text }));
   return {
     id: t.id,
+    queued,
     title: t.title,
     provider: t.provider,
     model: payload.modelSelection?.model || payload.model || null,
