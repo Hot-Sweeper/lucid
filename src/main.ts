@@ -6,6 +6,7 @@ import "./office/panels.css";
 import "./world/world.css";
 import "./decor/decor.css";
 import { openDecorate, type RoomTheme } from "./office/decorate";
+import { Roster } from "./office/roster";
 import { TopDownRobot } from "./world/seated";
 import { BreakRoom } from "./world/breakroom";
 import { QuestionLine } from "./world/queue";
@@ -38,6 +39,8 @@ import claudeLogo from "./assets/claude.svg";
 declare global {
   interface Window {
     lucid: {
+      environments(): Promise<{ id: string; label: string; local: boolean }[]>;
+      selectEnvironment(id: string): Promise<{ id: string; label: string }>;
       projects(): Promise<{ id: string; title: string; root: string }[]>;
       world(): Promise<WorldData>;
       startThreadIn?: never;
@@ -68,6 +71,7 @@ declare global {
 }
 
 const api = window.lucid;
+let activeEnvironment = "local", environmentEpoch = 0, switchingEnvironment = false;
 const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -80,6 +84,12 @@ document.getElementById("app")!.innerHTML = `
 
     <section class="company" id="company" aria-live="polite"></section>
     <section class="wallet" id="wallet"><span class="wl-coins" title="1 coin for every dollar of AI work at API prices">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></span><span class="wl-boost" id="wl-boost" hidden></span><button type="button" class="wl-shop" id="open-shop">Shop</button></section>
+
+    <section class="buildings">
+      <div class="sec-head"><h3>Buildings</h3><button type="button" class="link-btn" id="building-retry">Refresh</button></div>
+      <ul id="building-list" class="room-list" aria-label="T3 Code machines"></ul>
+      <p id="building-status" class="hint" role="status" hidden></p>
+    </section>
 
     <section class="threads">
       <div class="th-head"><h3>Threads</h3><label class="th-search"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label>${foldButton("threads", "threads")}</div>
@@ -163,9 +173,13 @@ world.onRooms = (rooms: Room[]) => {
       ${r.icon ? `<img src="${r.icon}" alt="">` : `<span class="dot ${r.kind}"></span>`}
       <span class="rt">${esc(r.title)}</span><span class="rc">${r.threadIds.length || ""}</span>
     </button></li>`).join("");
-  if (list.dataset.html !== html) { list.innerHTML = html; list.dataset.html = html; }
+  const quiet = (world.lastData?.projects || []).filter((p) => !p.scratch && !world.hidden.has(p.id) && !rooms.some((r) => r.id === `p:${p.id}`) && (activeEnvironment !== "local" || p.id !== settings.orch?.projectId));
+  const full = html + quiet.map((p) => `<li><button type="button" data-project="${esc(p.id)}" title="${esc(`${p.title}: ${p.root}`)}"><span class="dot project"></span><span class="rt">${esc(p.title)}</span><span class="rc">Open</span></button></li>`).join("");
+  if (list.dataset.html !== full) { list.innerHTML = full; list.dataset.html = full; }
 };
-$("room-list").addEventListener("click", (e) => {
+$("room-list").addEventListener("click", async (e) => {
+  const project = (e.target as HTMLElement).closest<HTMLElement>("[data-project]");
+  if (project) { const id = `p:${project.dataset.project!}`; world.extra.set(id, 0); saveSettings(); await refresh(); world.showRoom(id); return; }
   const b = (e.target as HTMLElement).closest("[data-room]") as HTMLElement | null;
   if (!b) return;
   world.showRoom(b.dataset.room!);
@@ -218,13 +232,18 @@ api.onInfo(({ threadId, info }) => {
 
 let watched = "";
 let firstLoad = true;
+let worldConnectionError = false;
 async function refresh() {
+  const epoch = environmentEpoch;
   try {
+    if (switchingEnvironment) return;
     const data = await api.world();
+    if (epoch !== environmentEpoch || switchingEnvironment) return;
+    if (worldConnectionError) { $("building-status").hidden = true; worldConnectionError = false; }
     for (const p of data.projects) projectTitles.set(p.id, p.title);
-    orch.observe(data.threads);
-    renderCompany(data.shipped ?? { total: 0, today: 0 });
-    if (settings.orch) { world.orchThread = settings.orch.threadId; world.homes.set(settings.orch.threadId, "main"); }
+    if (activeEnvironment === "local") orch.observe(data.threads);
+    if (data.shipped) renderCompany(data.shipped);
+    if (activeEnvironment === "local" && settings.orch) { world.orchThread = settings.orch.threadId; world.homes.set(settings.orch.threadId, "main"); }
     world.update(data);
     for (const d of world.desks.values()) {
       d.onActivity = (t) => { if (d === world.focusDesk) pushStatus(d); if (d === selectedDesk) { const a = $("focus-activity"); if (a.textContent !== t) { a.textContent = t; gsap.fromTo(a, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.3 }); } } };
@@ -240,6 +259,8 @@ async function refresh() {
       else requestAnimationFrame(() => world.overview());
     }
   } catch (err) {
+    if (epoch !== environmentEpoch || switchingEnvironment) return;
+    if (activeEnvironment !== "local") { worldConnectionError = true; $("building-status").hidden = false; $("building-status").textContent = String((err as any)?.message || "This machine is unreachable. Check T3 Code and retry."); }
     console.error("world refresh failed", err, String((err as any)?.stack || "").split("\n").slice(1, 3).join(" < "));
   }
 }
@@ -354,7 +375,8 @@ $("update").addEventListener("click", async () => {
 
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
-const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+type BuildingLayout = { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; themes?: Record<string, RoomTheme> };
+const settings: { environment?: string; buildings?: Record<string, BuildingLayout>; hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));
 world.themes = new Map(Object.entries(settings.themes ?? {}));
@@ -478,10 +500,9 @@ chat.setCollapsed(!!ui.chatTab, false);
 applyLayout();
 chat.onCollapse = (on, animate) => { ui.chatTab = on; saveSettings(); slideChat(animate); };
 const saveSettings = () => {
-  settings.hidden = [...world.hidden];
-  settings.extra = Object.fromEntries(world.extra);
-  settings.themes = Object.fromEntries(world.themes);
-  settings.homes = Object.fromEntries(world.homes);
+  const layout = { hidden: [...world.hidden], extra: Object.fromEntries(world.extra), themes: Object.fromEntries(world.themes), homes: Object.fromEntries(world.homes) };
+  if (activeEnvironment === "local") Object.assign(settings, layout);
+  else (settings.buildings ??= {})[activeEnvironment] = layout;
   void api.settingsSave(JSON.stringify(settings));
   renderHidden();
 };
@@ -500,7 +521,8 @@ $("hidden-offices").addEventListener("click", (e) => {
 });
 const projectTitles = new Map<string, string>();
 setupMenus();
-const orch = new Orchestrator(api as any, world, () => settings.orch ?? null, (s) => { settings.orch = s; saveSettings(); });
+const orchApi = { ...api, sendMessage: (o: { threadId: string; message: string }) => activeEnvironment === "local" ? api.sendMessage(o) : Promise.reject(new Error("The local orchestrator is paused while another building is open.")) };
+const orch = new Orchestrator(orchApi as any, world, () => activeEnvironment === "local" ? settings.orch ?? null : null, (s) => { settings.orch = s; saveSettings(); });
 orch.onChange = renderOrch;
 (window as any).__orch = orch; // debug handle for test runs
 (window as any).__chat = chat;
@@ -508,6 +530,8 @@ orch.onChange = renderOrch;
 function renderOrch() {
   const s = settings.orch;
   const body = $("orch-body");
+  $("orch").hidden = activeEnvironment !== "local";
+  if (activeEnvironment !== "local") return;
   if (!s) {
     body.innerHTML = `<p class="hint">Your stand-in: it learns how you like things done from what you tell robots, and can review their finished work for you.</p><button type="button" class="primary" id="orch-hire">Hire the orchestrator</button><p class="form-msg" id="orch-msg" role="status"></p>`;
     $("orch-hire").addEventListener("click", async () => {
@@ -704,7 +728,7 @@ void pollWeather();
 setInterval(pollWeather, 10 * 60 * 1000);
 
 // the orchestrator's daily pack: today's event goes on the building sign
-watchDaily((p) => { world.eventName = p?.event?.name ?? ""; world.paintEvent(); });
+watchDaily((p) => { world.eventName = activeEnvironment === "local" ? p?.event?.name ?? "" : ""; world.paintEvent(); });
 
 // "Chat" on the follow chip: the robot's desk if it has one, otherwise its conversation on its own
 world.onFollowChat = (id) => {
@@ -787,6 +811,7 @@ function openThread(id: string) {
   // not at a desk: follow it wherever it is (break room, questions, park, walking)
   const el = document.querySelector(`.world-walker[data-id="${CSS.escape(id)}"]`) as HTMLElement | null;
   if (el) world.follow(el);
+  if (d) chat.open(d); else world.onFollowChat(id);
 }
 setInterval(renderThreads, 3000);
 window.setTimeout(renderThreads, 1500);
@@ -895,3 +920,51 @@ function checkMilestones(shipped: { total: number; today: number }) {
   const el = document.getElementById("ms-count");
   if (el) el.textContent = `${seen.size}/${MILESTONES.length}`;
 }
+
+// Machines come from T3 Code's existing desktop connection catalog.
+let buildings: { id: string; label: string; local: boolean }[] = [];
+const buildingViews = new Map<string, { query: string; scroll: number; thread: string | null }>();
+const buildingDrafts = new Map<string, ReturnType<ChatPanel["captureDraft"]>>();
+function paintBuildings() {
+  const list = $("building-list");
+  updateThreadRows(list, buildings.map((b) => ({ id: b.id, html: `<li><button type="button" class="building-row" data-building="${esc(b.id)}" aria-current="${b.id === activeEnvironment ? "true" : "false"}" ${switchingEnvironment ? "disabled" : ""} title="${esc(b.label)}"><span>${esc(b.label)}</span><small>${b.id === activeEnvironment ? "Current" : ""}</small></button></li>` })));
+}
+async function loadBuildings() {
+  try { buildings = await api.environments(); paintBuildings(); if (activeEnvironment !== "local" && !buildings.some((b) => b.id === activeEnvironment)) void switchBuilding("local"); }
+  catch (err: any) { $("building-status").textContent = err.message; $("building-status").hidden = false; }
+}
+async function switchBuilding(id: string) {
+  if (switchingEnvironment || id === activeEnvironment) return;
+  const status = $("building-status");
+  if (chat.changingWork || answer.changingWork || document.body.classList.contains("th-dragging")) { status.hidden = false; status.textContent = "Finish the current chat action, then switch buildings."; return; }
+  switchingEnvironment = true; ++environmentEpoch; paintBuildings();
+  status.hidden = false; status.textContent = `Opening ${buildings.find((b) => b.id === id)?.label || "building"}...`;
+  try {
+    saveSettings(); await world.roster.flush();
+    const selected = await api.selectEnvironment(id);
+    buildingDrafts.set(activeEnvironment, chat.captureDraft());
+    buildingViews.set(activeEnvironment, { query: $<HTMLInputElement>("th-q").value, scroll: $("th-list").scrollTop, thread: chat.threadId });
+    world.clearBuilding(); chat.switchEnvironment(buildingDrafts.get(id)); answer.switchEnvironment();
+    activeEnvironment = selected.id; settings.environment = activeEnvironment;
+    world.roster = new Roster(); world.building = selected.label; world.eventName = ""; world.orchThread = "";
+    const layout = id === "local" ? settings : settings.buildings?.[id];
+    world.hidden = new Set(layout?.hidden || []); world.extra = new Map(Object.entries(layout?.extra || {}));
+    world.themes = new Map(Object.entries(layout?.themes || {})); world.homes = new Map(Object.entries(layout?.homes || {}));
+    $<HTMLInputElement>("th-q").value = buildingViews.get(id)?.query || "";
+    projectTitles.clear(); selectedDesk = null; watched = ""; firstLoad = true;
+    $("th-list").replaceChildren(); $("rail-list").replaceChildren(); thSig = ""; railSig = "";
+    $("company").hidden = id !== "local"; $("usage").hidden = id !== "local"; lastCompany = "";
+    world.attachDir = id === "local" ? attachDir : "";
+    renderOrch(); renderHidden(); saveSettings();
+    status.hidden = true;
+  } catch (err: any) { status.textContent = err.message || "Could not open this building. Retry when the machine is reachable."; }
+  finally { switchingEnvironment = false; paintBuildings(); }
+  await refresh(); renderThreads(); world.overview();
+  const view = buildingViews.get(activeEnvironment);
+  if (view) { $("th-list").scrollTop = view.scroll; if (view.thread) openThread(view.thread); }
+}
+$("building-list").addEventListener("click", (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>("[data-building]"); if (b) void switchBuilding(b.dataset.building!); });
+$("building-retry").addEventListener("click", () => { $("building-status").hidden = true; void loadBuildings(); });
+void loadBuildings().then(() => { if (settings.environment && buildings.some((b) => b.id === settings.environment)) void switchBuilding(settings.environment); });
+setInterval(() => { if (!switchingEnvironment) void loadBuildings(); }, 30000);
+(window as any).__switchBuilding = switchBuilding;

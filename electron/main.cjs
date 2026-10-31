@@ -1,4 +1,8 @@
 const { app, BrowserWindow, ipcMain, shell, net, protocol } = require("electron");
+if (process.argv.includes("--lucid-t3-connections")) {
+  require("./t3-connections.cjs").runImporter();
+  return;
+}
 const { pathToFileURL } = require("node:url");
 const fsp = require("node:fs/promises");
 const path = require("node:path");
@@ -20,6 +24,13 @@ if (process.env.LUCID_SHOT) {
   app.commandLine.appendSwitch("disable-background-timer-throttling");
 }
 let win = null;
+const environments = require("./environments.cjs");
+let environmentId = "local", remote = null;
+const backend = () => remote || t3;
+const scoped = (channel, fn) => ipcMain.handle(channel, (event, expected, ...args) => {
+  if (expected !== environmentId) throw new Error("The building changed. Retry in the selected building.");
+  return fn(event, ...args);
+});
 const watchers = new Map(); // threadId -> stop()
 
 function createWindow() {
@@ -104,52 +115,62 @@ ${typeof out === "string" ? out : JSON.stringify(out, null, 1)}
 
 const send = (channel, payload) => { if (win && !win.isDestroyed()) win.webContents.send(channel, payload); };
 
-ipcMain.handle("t3:projects", () => t3.listProjects());
-ipcMain.handle("t3:threads", () => t3.listThreads());
+ipcMain.handle("environments:list", () => environments.list());
+ipcMain.handle("environments:select", async (_e, id) => {
+  const next = id === "local" ? null : await environments.client(id);
+  for (const stop of watchers.values()) stop(); watchers.clear();
+  environmentId = id; remote = next;
+  return { id, label: next?.connection.label || require("node:os").hostname() };
+});
+scoped("t3:projects", () => backend().listProjects());
+scoped("t3:threads", () => backend().listThreads());
 // Watch exactly this set of threads (one per desk in the open office).
-ipcMain.handle("t3:watch-set", (_e, ids) => {
+scoped("t3:watch-set", (_e, ids) => {
+  const context = environmentId;
   const want = new Set(ids);
   for (const [id, stop] of watchers) if (!want.has(id)) { stop(); watchers.delete(id); }
   for (const id of want) {
     if (watchers.has(id)) continue;
-    watchers.set(id, t3.watchThread(
+    watchers.set(id, backend().watchThread(
       id,
-      (items, initial) => send("t3:items", { threadId: id, items, initial }),
-      (info) => send("t3:info", { threadId: id, info }),
+      (items, initial) => send("t3:items", { environmentId: context, threadId: id, items, initial }),
+      (info) => send("t3:info", { environmentId: context, threadId: id, info }),
     ));
   }
   return true;
 });
-ipcMain.handle("t3:office", (_e, projectId) => t3.office(projectId));
-ipcMain.handle("t3:offices", () => t3.listProjectsWithCounts());
-ipcMain.handle("project:add", (_e, o) => t3.addProject(o));
+scoped("t3:office", (_e, projectId) => backend().office(projectId));
+scoped("t3:offices", () => backend().listProjectsWithCounts());
+scoped("project:add", (_e, o) => backend().addProject(o));
 // --- orchestrator -----------------------------------------------------------------
 const orch = require("./orchestrator.cjs");
 const ORCH_DIR = path.join(require("node:os").homedir(), "T3 Projects", "Lucid Orchestrator");
 // keep the orchestrator's instructions current (they gain new duties over time)
 try { if (require("node:fs").existsSync(ORCH_DIR)) orch.ensureFolder(ORCH_DIR); } catch {}
-ipcMain.handle("orch:init", async (_e, { provider = "claudeAgent", model = "claude-sonnet-5-5" } = {}) => {
+scoped("orch:init", async (_e, { provider = "claudeAgent", model = "claude-sonnet-5-5" } = {}) => {
+  if (remote) throw new Error("The orchestrator is managed in the local building.");
   const { dir } = orch.ensureFolder(ORCH_DIR);
   const norm = (s) => String(s || "").replace(/[\/]+$/, "").toLowerCase();
-  let project = t3.listProjects().find((p) => norm(p.root) === norm(dir));
+  let project = backend().listProjects().find((p) => norm(p.root) === norm(dir));
   if (!project) {
-    await t3.addProject({ path: dir, title: "Lucid Orchestrator" });
-    project = t3.listProjects().find((p) => norm(p.root) === norm(dir));
+    await backend().addProject({ path: dir, title: "Lucid Orchestrator" });
+    project = backend().listProjects().find((p) => norm(p.root) === norm(dir));
   }
   if (!project) throw new Error("T3 did not register the orchestrator folder as a project.");
   const intro = "You are now the Orchestrator for Lucid. Read CLAUDE.md and memory.md in this folder, then reply with two short lines: what you know about the user, and how you will help.";
-  const { threadId } = await t3.startThread({ project: project.id, message: intro, provider, model });
+  const { threadId } = await backend().startThread({ project: project.id, message: intro, provider, model });
   return { threadId, projectId: project.id, dir };
 });
 ipcMain.handle("orch:memory", () => orch.readMemory(ORCH_DIR));
 ipcMain.handle("orch:dialogs", () => orch.readDialogs(ORCH_DIR));
 ipcMain.handle("orch:dir", () => ORCH_DIR);
-ipcMain.handle("t3:user-messages", (_e, since, exclude) => t3.userMessagesSince(since, exclude));
-ipcMain.handle("project:remove", (_e, o) => t3.removeProject(o));
+scoped("t3:user-messages", (_e, since, exclude) => remote ? [] : t3.userMessagesSince(since, exclude));
+scoped("project:remove", (_e, o) => backend().removeProject(o));
 ipcMain.handle("app:host", () => require("node:os").hostname());
 ipcMain.handle("usage:get", () => require("./usage.cjs").getUsage());
 // Files attached in the side chat are saved where agents can open them by path.
-ipcMain.handle("attach:save", async (_e, { name, data }) => {
+scoped("attach:save", async (_e, { name, data }) => {
+  if (remote) return remote.saveAttachment(name, data);
   const dir = path.join(require("node:os").homedir(), ".t3", "userdata", "lucid-attachments");
   await fsp.mkdir(dir, { recursive: true });
   const safe = String(name || "file").replace(/[^\w.\- ]+/g, "_").slice(-120) || "file";
@@ -167,17 +188,17 @@ const SETTINGS = path.join(app.getPath("userData"), "settings.json");
 ipcMain.on("settings:load", (e) => { try { e.returnValue = require("node:fs").readFileSync(SETTINGS, "utf8"); } catch { e.returnValue = "{}"; } });
 ipcMain.handle("settings:save", (_e, json) => require("node:fs").promises.writeFile(SETTINGS, json));
 // The robot team lives in a file so names, looks and habits survive restarts.
-const ROSTER = path.join(app.getPath("userData"), "roster.json");
-ipcMain.on("roster:load", (e) => { try { e.returnValue = require("node:fs").readFileSync(ROSTER, "utf8"); } catch { e.returnValue = "[]"; } });
-ipcMain.handle("roster:save", (_e, json) => require("node:fs").promises.writeFile(ROSTER, json));
-ipcMain.handle("t3:conversation", (_e, id) => t3.conversation(id));
-ipcMain.handle("t3:pending-requests", (_e, id) => t3.pendingRequests(id));
-ipcMain.handle("t3:thread-info", (_e, id) => { try { return t3.threadInfo(id); } catch { return null; } });
-ipcMain.handle("t3:items-since", (_e, id, since) => (since ? t3.itemsSince(id, since) : t3.recentItems(id, 60)));
-ipcMain.handle("t3:attach-dir", () => require("node:path").join(process.env.T3CODE_HOME || require("node:path").join(require("node:os").homedir(), ".t3"), "userdata", "attachments") + require("node:path").sep);
-ipcMain.handle("t3:world", () => t3.world());
-ipcMain.handle("t3:start", (_e, opts) => t3.startThread(opts));
-ipcMain.handle("t3:send", (_e, opts) => t3.sendMessage(opts));
+const rosterPath = () => path.join(app.getPath("userData"), environmentId === "local" ? "roster.json" : "roster-" + environmentId.replace(/[^a-zA-Z0-9-]/g, "_") + ".json");
+ipcMain.on("roster:load", (e, expected) => { try { if (expected !== environmentId) throw new Error("Building changed"); e.returnValue = require("node:fs").readFileSync(rosterPath(), "utf8"); } catch { e.returnValue = "[]"; } });
+scoped("roster:save", (_e, json) => require("node:fs").promises.writeFile(rosterPath(), json));
+scoped("t3:conversation", (_e, id) => backend().conversation(id));
+scoped("t3:pending-requests", (_e, id) => backend().pendingRequests(id));
+scoped("t3:thread-info", (_e, id) => { try { return backend().threadInfo(id); } catch { return null; } });
+scoped("t3:items-since", (_e, id, since) => (since ? backend().itemsSince(id, since) : backend().recentItems(id, 60)));
+scoped("t3:attach-dir", () => remote ? "" : require("node:path").join(process.env.T3CODE_HOME || require("node:path").join(require("node:os").homedir(), ".t3"), "userdata", "attachments") + require("node:path").sep);
+scoped("t3:world", () => backend().world());
+scoped("t3:start", (_e, opts) => backend().startThread(opts));
+scoped("t3:send", (_e, opts) => backend().sendMessage(opts));
 
 // Fetch a page the agent visited so the robot's browser can show its real title and text.
 ipcMain.handle("web:peek", async (_e, url) => {
@@ -219,11 +240,12 @@ ipcMain.handle("web:peek", async (_e, url) => {
 });
 
 // GitHub, Hugging Face and Wikipedia data, web search results and read-only git facts.
-require("./sites.cjs").register(ipcMain, (url, opts) => net.fetch(url, opts));
+require("./sites.cjs").register({ handle: (channel, fn) => channel === "git:info" ? scoped(channel, (e, root) => remote ? remote.gitInfo(root) : fn(e, root)) : ipcMain.handle(channel, fn) }, (url, opts) => net.fetch(url, opts));
 
 // Images the agent looked at, sent as data URLs (common image types only, max 12 MB).
-ipcMain.handle("fs:image", async (_e, p) => {
+scoped("fs:image", async (_e, p) => {
   try {
+    if (remote) return remote.readImage(p);
     const fs = require("node:fs/promises");
     const ext = path.extname(p).toLowerCase().slice(1);
     const types = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml" };
@@ -237,8 +259,9 @@ ipcMain.handle("fs:image", async (_e, p) => {
 });
 
 // Text of a file the agent created or changed (max 400 KB), shown in the robot's editor.
-ipcMain.handle("fs:text", async (_e, p) => {
+scoped("fs:text", async (_e, p) => {
   try {
+    if (remote) return remote.readText(p);
     const fs = require("node:fs/promises");
     const st = await fs.stat(p);
     if (!st.isFile() || st.size > 400 * 1024) return null;
@@ -272,7 +295,9 @@ app.whenReady().then(() => {
   protocol.handle("lucid-file", async (req) => {
     try {
       const file = decodeURIComponent(new URL(req.url).pathname.slice(1));
+      if (remote && file.startsWith("t3-attachment:")) return await remote.mediaResponse(file) || new Response("missing", { status: 404 });
       if (!SERVE.has(path.extname(file).toLowerCase())) return new Response("not allowed", { status: 403 });
+      if (remote) { const response = await remote.mediaResponse(file); return response || new Response("missing", { status: 404 }); }
       await fsp.access(file);
       return net.fetch(pathToFileURL(file).toString());
     } catch {
@@ -289,15 +314,15 @@ const t3s = require("./t3server.cjs");
 const t3sWrap = (fn) => async (_e, ...args) => {
   try { return { ok: true, value: await fn(...args) }; } catch (err) { return { ok: false, error: String(err?.message || err), code: err?.code || null }; }
 };
-ipcMain.handle("t3s:status", t3sWrap((o) => t3s.status(o || {})));
-ipcMain.handle("t3s:providers", t3sWrap((o) => t3s.listProviders(o || {})));
-ipcMain.handle("t3s:reorder", t3sWrap((o) => t3s.reorderQueued(o.threadId, o.runId, o.beforeRunId ?? null)));
-ipcMain.handle("t3s:cancel", t3sWrap((o) => t3s.cancelQueued(o.threadId, o.runId)));
-ipcMain.handle("t3s:edit", t3sWrap((o) => t3s.editQueued(o.threadId, o.runId, o.text)));
-ipcMain.handle("t3s:steer", t3sWrap((o) => t3s.steerNow(o.threadId, o.queuedRunId, o.targetRunId)));
-ipcMain.handle("t3s:setModel", t3sWrap((o) => t3s.setThreadModel(o.threadId, o.selection)));
-ipcMain.handle("t3s:respond", t3sWrap((o) => t3s.respondToRequest(o.threadId, o.requestId, o)));
-app.on("before-quit", () => t3s.closeSock());
+scoped("t3s:status", t3sWrap((o) => remote ? remote.status(o || {}) : t3s.status(o || {})));
+scoped("t3s:providers", t3sWrap((o) => remote ? remote.listProviders() : t3s.listProviders(o || {})));
+scoped("t3s:reorder", t3sWrap((o) => remote ? remote.rpc.dispatch({ type: "queued-run.reorder", threadId: o.threadId, runId: o.runId, beforeRunId: o.beforeRunId ?? null }) : t3s.reorderQueued(o.threadId, o.runId, o.beforeRunId ?? null)));
+scoped("t3s:cancel", t3sWrap((o) => remote ? remote.rpc.dispatch({ type: "queued-run.cancel", threadId: o.threadId, runId: o.runId }) : t3s.cancelQueued(o.threadId, o.runId)));
+scoped("t3s:edit", t3sWrap((o) => remote ? remote.rpc.dispatch({ type: "queued-run.edit", threadId: o.threadId, runId: o.runId, text: o.text }) : t3s.editQueued(o.threadId, o.runId, o.text)));
+scoped("t3s:steer", t3sWrap((o) => remote ? remote.rpc.dispatch({ type: "queued-message.promote-to-steer", threadId: o.threadId, queuedRunId: o.queuedRunId, targetRunId: o.targetRunId }) : t3s.steerNow(o.threadId, o.queuedRunId, o.targetRunId)));
+scoped("t3s:setModel", t3sWrap((o) => remote ? remote.setModel(o.threadId, o.selection) : t3s.setThreadModel(o.threadId, o.selection)));
+scoped("t3s:respond", t3sWrap((o) => remote ? remote.respond(o.threadId, o.requestId, o) : t3s.respondToRequest(o.threadId, o.requestId, o)));
+app.on("before-quit", () => { t3s.closeSock(); environments.close(); for (const stop of watchers.values()) stop(); });
 
 // Office documents the agents wrote (docx, xlsx, pptx, csv...), read for the robots' office apps.
-require("./office.cjs").register(ipcMain);
+require("./office.cjs").register({ handle: (channel, fn) => scoped(channel, (e, p) => remote ? remote.readDoc(p) : fn(e, p)) });

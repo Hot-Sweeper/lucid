@@ -54,6 +54,7 @@ export class AnswerCard {
   private paired: boolean | null = null;
   private wantFocus: string | null = null;
   private sent = new Map<string, string>(); // requests answered from here (what to say once T3 resolves them)
+  private environmentEpoch = 0;
   private busy = false;
   private timer = 0;
 
@@ -71,6 +72,13 @@ export class AnswerCard {
     // live data: follow whichever thread the chat shows
     window.setInterval(() => void this.tick(), 1500);
   }
+
+  switchEnvironment() {
+    ++this.environmentEpoch; window.clearTimeout(this.timer); this.threadId = null; this.requests = []; this.sent.clear(); this.paired = null; this.wantFocus = null;
+    this.el.replaceChildren(); this.el.hidden = true;
+  }
+
+  get changingWork() { return this.busy; }
 
   /** Open questions of this thread get focus as soon as they are loaded. */
   focus(threadId: string) {
@@ -91,6 +99,7 @@ export class AnswerCard {
   }
 
   private async tick(force = false) {
+    const epoch = this.environmentEpoch;
     const id = this.chat.isOpen ? this.chat.threadId : null;
     if (id !== this.threadId) {
       // another robot's chat: start clean, never show the last robot's question there
@@ -106,11 +115,11 @@ export class AnswerCard {
     if (!id || (this.busy && !force)) return;
     let list: PendingRequest[];
     try { list = await this.deps.pending(id); } catch { return; }
-    if (id !== this.threadId) return;
+    if (id !== this.threadId || epoch !== this.environmentEpoch) return;
     if (list.length && this.paired === null) {
       this.paired = false;
       try { this.paired = !!this.deps.t3 && (await this.deps.t3.status({ threadId: id })).paired; } catch {}
-      if (id !== this.threadId) return;
+      if (id !== this.threadId || epoch !== this.environmentEpoch) return;
     }
     this.apply(list);
   }

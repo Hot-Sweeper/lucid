@@ -2,7 +2,7 @@ import gsap from "gsap";
 import { WM } from "./wm";
 import { ICONS } from "./icons";
 import { highlight, langOf } from "./highlight";
-import { baseName, type Hunk } from "./classify";
+import { baseName, relPath, type Hunk, type Hit, type Entry } from "./classify";
 
 import { esc, el, typeInto } from "./typing";
 import { colorGitLine } from "./git";
@@ -18,14 +18,31 @@ export class EditorApp {
   private tabs = new Map<string, Tab>();
   constructor(private wm: WM) {}
 
-  private async ensure(path: string) {
+  private async ensureWindow(path?: string) {
     const ed = this.wm.prefs?.editor ?? "vscode";
     const appName = EDITORS[ed].name;
     this.wm.brandApp("editor", { title: appName, icon: EDITORS[ed].icon });
-    const w = await this.wm.open("editor", `${baseName(path)}  ${appName}`);
+    const w = await this.wm.open("editor", path ? `${baseName(path)}  ${appName}` : appName);
     if (w.body.querySelector<HTMLElement>(".editor")?.dataset.editor !== EDITORS[ed].shell) {
       w.body.innerHTML = editorShell(ed);
       this.tabs.clear();
+    }
+    return w;
+  }
+
+  private async ensure(path: string) {
+    const w = await this.ensureWindow(path);
+    const root = w.body.querySelector<HTMLElement>(".editor")!;
+    if (root.classList.contains("searching")) {
+      const normalized = path.replace(/\\/g, "/");
+      const row = [...root.querySelectorAll<HTMLElement>(".ide-find-file")].find((r) => {
+        const target = r.dataset.file!.replace(/\\/g, "/");
+        const lower = /^[a-z]:/i.test(normalized);
+        const a = lower ? normalized.toLowerCase() : normalized, b = lower ? target.toLowerCase() : target;
+        return a === b || a.endsWith("/" + b.replace(/^\.\//, ""));
+      });
+      if (row) { row.scrollIntoView({ block: "nearest" }); await this.wm.pointAt(row, 0.35, 0.5, 280); row.classList.add("selected"); await this.wm.click(true); }
+      root.classList.remove("searching");
     }
     const bar = w.body.querySelector(".vim-bar span");
     if (bar) bar.textContent = path.replace(/\\/g, "/").split("/").slice(-2).join("/");
@@ -47,6 +64,39 @@ export class EditorApp {
     if (tab.el.offsetLeft + tab.el.offsetWidth > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = tab.el.offsetLeft + tab.el.offsetWidth - strip.clientWidth;
     else if (tab.el.offsetLeft < strip.scrollLeft) strip.scrollLeft = tab.el.offsetLeft;
     return { w, code: w.body.querySelector(".code") as HTMLElement, wrap: w.body.querySelector(".code-wrap") as HTMLElement };
+  }
+
+  async findFiles(query: string, path: string, entries: Entry[], root: string | null) {
+    await this.search(query, path, entries.filter((e) => !e.dir).map((e) => ({ file: e.path || `${path.replace(/[\\/]+$/, "")}/${e.name}`, text: "" })), root, true);
+  }
+
+  async search(query: string, path: string, hits: Hit[], projectRoot: string | null, filenamesOnly = false) {
+    const w = await this.ensureWindow(), root = w.body.querySelector<HTMLElement>(".editor")!;
+    let panel = root.querySelector<HTMLElement>(".ide-find");
+    if (!panel) {
+      panel = el(`<section class="ide-find"><header><b></b><span class="if-count"></span></header><div class="if-field"><span class="if-query"></span></div><div class="if-scope"></div><div class="if-results" role="list"></div></section>`);
+      root.querySelector(".ide-document")!.appendChild(panel);
+    }
+    const name = root.dataset.editor === "vim" ? ":vimgrep" : root.dataset.editor === "vscode" ? "Search" : "Find in Files";
+    panel.querySelector("header b")!.textContent = filenamesOnly ? (root.dataset.editor === "vim" ? ":find" : "Go to File") : name;
+    const scope = panel.querySelector<HTMLElement>(".if-scope")!;
+    scope.textContent = path; scope.title = path;
+    root.classList.add("searching");
+    panel.querySelector(".if-count")!.textContent = "Searching...";
+    panel.querySelector(".if-results")!.replaceChildren();
+    const field = panel.querySelector<HTMLElement>(".if-field")!;
+    await this.wm.pointAt(field, 0.4, 0.5, 280); await this.wm.click();
+    field.classList.add("active");
+    try { await typeInto(this.wm, field.querySelector(".if-query")!, query, { budgetMs: 800 }); }
+    finally { field.classList.remove("active"); }
+    const groups = new Map<string, Hit[]>();
+    for (const h of hits) { if (!groups.has(h.file)) groups.set(h.file, []); groups.get(h.file)!.push(h); }
+    panel.querySelector(".if-count")!.textContent = filenamesOnly ? `${groups.size} files` : `${hits.length} matching lines in ${groups.size} files`;
+    const results = panel.querySelector<HTMLElement>(".if-results")!;
+    results.innerHTML = [...groups].map(([file, matches]) => `<div class="ide-find-file" role="listitem" data-file="${esc(file)}" title="${esc(file)}"><div class="if-filehead">${ICONS.file}<span>${esc(baseName(file))}<small>${esc(relPath(file, projectRoot))}</small></span></div>${filenamesOnly ? "" : matches.slice(0, 4).map((h) => `<div class="if-hit"><b>${h.line || ""}</b><code>${esc(h.text.trim().slice(0, 220))}</code></div>`).join("")}</div>`).join("") || `<p class="if-empty">${filenamesOnly ? "No files found" : "No matches"}</p>`;
+    results.scrollTop = 0;
+    this.wm.robot.setPose("read");
+    await this.wm.sleep(300);
   }
 
   private line(n: number | string, html: string, cls = "") {

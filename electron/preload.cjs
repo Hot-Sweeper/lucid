@@ -1,45 +1,49 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+let environmentId = "local";
+const scoped = (channel, ...args) => ipcRenderer.invoke(channel, environmentId, ...args);
 const on = (channel) => (fn) => {
-  const handler = (_e, payload) => fn(payload);
+  const handler = (_e, payload) => { if (!payload?.environmentId || payload.environmentId === environmentId) fn(payload); };
   ipcRenderer.on(channel, handler);
   return () => ipcRenderer.removeListener(channel, handler);
 };
 
 contextBridge.exposeInMainWorld("lucid", {
-  projects: () => ipcRenderer.invoke("t3:projects"),
-  threads: () => ipcRenderer.invoke("t3:threads"),
-  watchSet: (ids) => ipcRenderer.invoke("t3:watch-set", ids),
-  office: (projectId) => ipcRenderer.invoke("t3:office", projectId),
-  offices: () => ipcRenderer.invoke("t3:offices"),
-  world: () => ipcRenderer.invoke("t3:world"),
-  rosterLoad: () => ipcRenderer.sendSync("roster:load"),
+  environments: () => ipcRenderer.invoke("environments:list"),
+  selectEnvironment: async (id) => { const result = await ipcRenderer.invoke("environments:select", id); environmentId = result.id; return result; },
+  projects: () => scoped("t3:projects"),
+  threads: () => scoped("t3:threads"),
+  watchSet: (ids) => scoped("t3:watch-set", ids),
+  office: (projectId) => scoped("t3:office", projectId),
+  offices: () => scoped("t3:offices"),
+  world: () => scoped("t3:world"),
+  rosterLoad: () => ipcRenderer.sendSync("roster:load", environmentId),
   settingsLoad: () => ipcRenderer.sendSync("settings:load"),
   settingsSave: (json) => ipcRenderer.invoke("settings:save", json),
-  addProject: (o) => ipcRenderer.invoke("project:add", o),
-  orchInit: (o) => ipcRenderer.invoke("orch:init", o),
+  addProject: (o) => scoped("project:add", o),
+  orchInit: (o) => scoped("orch:init", o),
   orchMemory: () => ipcRenderer.invoke("orch:memory"),
   orchDialogs: () => ipcRenderer.invoke("orch:dialogs"),
-  userMessagesSince: (since, exclude) => ipcRenderer.invoke("t3:user-messages", since, exclude),
-  removeProject: (o) => ipcRenderer.invoke("project:remove", o),
+  userMessagesSince: (since, exclude) => scoped("t3:user-messages", since, exclude),
+  removeProject: (o) => scoped("project:remove", o),
   host: () => ipcRenderer.invoke("app:host"),
   usage: () => ipcRenderer.invoke("usage:get"),
   weather: () => ipcRenderer.invoke("weather:get"),
-  saveAttachment: (name, data) => ipcRenderer.invoke("attach:save", { name, data }),
-  rosterSave: (json) => ipcRenderer.invoke("roster:save", json),
-  conversation: (id) => ipcRenderer.invoke("t3:conversation", id),
-  pendingRequests: (id) => ipcRenderer.invoke("t3:pending-requests", id),
-  itemsSince: (id, since) => ipcRenderer.invoke("t3:items-since", id, since),
-  threadInfo: (id) => ipcRenderer.invoke("t3:thread-info", id),
-  attachDir: () => ipcRenderer.invoke("t3:attach-dir"),
-  startThread: (opts) => ipcRenderer.invoke("t3:start", opts),
-  sendMessage: (opts) => ipcRenderer.invoke("t3:send", opts),
+  saveAttachment: (name, data) => scoped("attach:save", { name, data }),
+  rosterSave: (json) => scoped("roster:save", json),
+  conversation: (id) => scoped("t3:conversation", id),
+  pendingRequests: (id) => scoped("t3:pending-requests", id),
+  itemsSince: (id, since) => scoped("t3:items-since", id, since),
+  threadInfo: (id) => scoped("t3:thread-info", id),
+  attachDir: () => scoped("t3:attach-dir"),
+  startThread: (opts) => scoped("t3:start", opts),
+  sendMessage: (opts) => scoped("t3:send", opts),
   peek: (url) => ipcRenderer.invoke("web:peek", url),
   siteFetch: (url, as) => ipcRenderer.invoke("site:fetch", url, as),
   webSearch: (q) => ipcRenderer.invoke("web:search", q),
-  gitInfo: (root) => ipcRenderer.invoke("git:info", root),
-  image: (p) => ipcRenderer.invoke("fs:image", p),
-  readText: (p) => ipcRenderer.invoke("fs:text", p),
+  gitInfo: (root) => scoped("git:info", root),
+  image: (p) => scoped("fs:image", p),
+  readText: (p) => scoped("fs:text", p),
   onItems: on("t3:items"),
   onInfo: on("t3:info"),
   checkUpdate: () => ipcRenderer.invoke("app:check-update"),
@@ -50,7 +54,7 @@ contextBridge.exposeInMainWorld("lucid", {
 
 // T3 server actions that need Lucid's paired session. Each call resolves with the value or rejects with a readable message.
 const t3s = (channel) => async (arg) => {
-  const r = await ipcRenderer.invoke(channel, arg);
+  const r = await scoped(channel, arg);
   if (!r?.ok) { const err = new Error(r?.error || "T3 did not answer."); err.code = r?.code; throw err; }
   return r.value;
 };
@@ -66,4 +70,4 @@ contextBridge.exposeInMainWorld("lucidT3", {
 });
 
 // Office documents for the robots' Botword, Cellsheet and Slidedeck: { ok, doc } or { ok: false, error }.
-contextBridge.exposeInMainWorld("lucidDocs", { read: (p) => ipcRenderer.invoke("doc:read", p) });
+contextBridge.exposeInMainWorld("lucidDocs", { read: (p) => scoped("doc:read", p) });

@@ -142,7 +142,7 @@ export class Director {
 
   reset() {
     this.idleLife.stop();
-    for (const s of this.sessions.values()) window.clearInterval(s.timer);
+    for (const s of this.sessions.values()) { s.done = true; window.clearInterval(s.timer); }
     this.sessions.clear();
     this.helperOf.clear();
     this.helperHints.clear();
@@ -238,7 +238,7 @@ export class Director {
     this.pump();
   }
 
-  private get(id: string) { return this.items.get(id)!; }
+  private get(id: string) { const item = this.items.get(id); if (!item) throw new Cancelled(); return item; }
 
   // A changed plan is replayed in the robot's Tasks app, unless it only keeps sticky notes.
   private queuePlan(it: Item) {
@@ -266,6 +266,12 @@ export class Director {
   private shouldTakeNote(text: string) {
     const habit = this.wm.prefs?.noteHabit ?? "occasional";
     return habit !== "quiet" && text.trim().length >= (habit === "frequent" ? 80 : 240) && Date.now() - this.lastNoteAt >= (habit === "frequent" ? 20000 : 65000);
+  }
+  private async searchFiles(query: string, path: string, hits: import("./os/classify").Hit[], root: string | null) {
+    if (this.wm.prefs?.search === "ide" && this.wm.prefs.editor !== "pad") {
+      this.onActivity(`Searching in ${this.wm.titleOf("editor")}`);
+      await this.editor.search(query, path, hits, root);
+    } else await this.files.search(query, path, hits, root);
   }
   private noteFor = new WeakMap<HTMLElement, HTMLElement>();
   private async writeNote(box: HTMLElement, text: string) {
@@ -303,6 +309,7 @@ export class Director {
    * (a delegate_task call, then its subagent item) keeps one tab.
    */
   private async openHelper(itemId: string, o: { child: string | null; prompt: string; title: string; provider?: string; driver?: string; model?: string; effort?: string; label?: string }) {
+    const epoch = this.wm.epoch;
     const existing = this.findHelper(o.child, o.prompt);
     if (existing) {
       this.helperOf.set(itemId, existing);
@@ -313,6 +320,7 @@ export class Director {
     }
     const hint = o.child ? this.helperHints.get(o.child) : undefined;
     const info = o.child ? await this.childInfo(o.child).catch(() => null) : null;
+    this.wm.check(epoch);
     const provider = info?.provider || hint?.provider || o.provider || o.driver || "";
     const kind = harnessKind(provider, o.driver, o.label);
     let model = info?.model || hint?.model || o.model || undefined;
@@ -372,6 +380,7 @@ export class Director {
     const tick = async () => {
       if (s.done) return;
       const items = await this.childItems(child, s.since).catch(() => []);
+      if (s.done) return;
       for (const it of items) {
         if (it.updatedAt > s.since) s.since = it.updatedAt;
         if (it.type === "assistant_message") { if (it.data?.text) { s.last = String(it.data.text); session.stream(s.last); } continue; }
@@ -383,6 +392,7 @@ export class Director {
       // Every few polls: learn the model once the child thread exists, and notice when its run ends.
       if (s.ticks++ % 3 === 0) {
         const info = await this.childInfo(child).catch(() => null);
+        if (s.done) return;
         if (info && !s.hasModel && info.model) { s.hasModel = true; session.setMeta({ model: info.model, effort: info.effort || undefined }); }
         const st = info?.run?.status || "";
         if (st === "running") s.runSeen = true;
@@ -667,7 +677,7 @@ export class Director {
       const act = classify(`rg ${JSON.stringify(q)}`, text(done.data.output), root || "");
       this.onActivity(`Searching for “${q}”`);
       this.stage.setGlow(GLOW.files);
-      await this.files.search(q, done.data.input?.path || root || "", act.kind === "search" ? act.hits : [], root);
+      await this.searchFiles(q, done.data.input?.path || root || "", act.kind === "search" ? act.hits : [], root);
       return true;
     }
     if (base === "Glob") {
@@ -676,7 +686,8 @@ export class Director {
         .map((l) => ({ name: baseName(l), dir: false, path: l }));
       this.onActivity("Looking for files");
       this.stage.setGlow(GLOW.files);
-      await this.files.list(done.data.input?.path || root || "", entries, root);
+      if (this.wm.prefs?.search === "ide" && this.wm.prefs.editor !== "pad") await this.editor.findFiles(done.data.input?.pattern || "", done.data.input?.path || root || "", entries, root);
+      else await this.files.list(done.data.input?.path || root || "", entries, root);
       return true;
     }
     if (base === "WebFetch" || base === "WebSearch") {
@@ -1132,11 +1143,12 @@ export class Director {
         if (act.kind === "list") {
           this.onActivity(`Looking through ${baseName(act.path)}`);
           this.stage.setGlow(GLOW.files);
-          await this.files.list(act.path, act.entries, root);
+          if (this.wm.prefs?.search === "ide" && this.wm.prefs.editor !== "pad" && act.entries.length > 0 && act.entries.every((e) => !e.dir)) await this.editor.findFiles("", act.path, act.entries, root);
+          else await this.files.list(act.path, act.entries, root);
         } else if (act.kind === "search") {
           this.onActivity(`Searching for “${act.query}”`);
           this.stage.setGlow(GLOW.files);
-          await this.files.search(act.query, act.path, act.hits, root);
+          await this.searchFiles(act.query, act.path, act.hits, root);
         } else if (act.kind === "read") {
           this.onActivity(`Reading ${baseName(act.path)}`);
           this.stage.setGlow(GLOW.editor);

@@ -433,6 +433,22 @@ export class World {
     setInterval(() => this.daylight(), 60000);
   }
 
+  /** Leave a machine without walking its robots into the next machine's office. */
+  clearBuilding() {
+    this.unfocus(false); this.select(null); this.stopFollow();
+    this.trips.clear();
+    for (const exit of this.exits.values()) window.clearTimeout(exit.timer);
+    this.exits.clear();
+    for (const walker of this.transit.values()) walker.destroy();
+    this.transit.clear(); this.roomOf.clear(); this.known.clear(); this.seats.clear(); this.pendingSeat = null;
+    for (const desk of this.allDesks) { this.cull.unobserve(desk.el); desk.destroy(); }
+    this.allDesks.clear(); this.desks.clear(); this.slotDesks.clear();
+    for (const kind of ["break", "queue"] as const) { this.ext[kind]?.destroy(); delete this.ext[kind]; }
+    this.extLists = { brk: [], queue: [], park: [] }; this.park.setThreads([]);
+    for (const old of this.roomLayer.children) this.cull.unobserve(old);
+    this.roomLayer.innerHTML = ""; this.rooms = []; this.lastKey = ""; this.lastData = null;
+  }
+
   // --- layout -------------------------------------------------------------------
   update(data: WorldData) {
     this.lastData = data;
@@ -474,6 +490,9 @@ export class World {
         perProject.get(pid)!.push(t);
       }
     }
+    // A quiet project opens when chosen from the room list, without building every
+    // unused office into the floor plan.
+    for (const p of data.projects) if (!p.scratch && !perProject.has(p.id) && this.extra.has(`p:${p.id}`)) perProject.set(p.id, []);
     // Keep each robot in the seat it already has; newcomers take the first free seat.
     const seatOrder = (roomId: string, list: WThread[], max: number) => {
       const prev = this.seats.get(roomId) ?? [];

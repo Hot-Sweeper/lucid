@@ -126,6 +126,7 @@ export class ChatPanel {
   /** You started or stopped typing a message to this robot. */
   onTyping: (on: boolean) => void = () => {};
   private pending: { text: string; at: number }[] = [];
+  private environmentEpoch = 0;
   private files: File[] = [];
   private previews = new WeakMap<File, string>();
   // T3 session: the model bar and the queue actions need Lucid to be paired with T3
@@ -212,9 +213,11 @@ export class ChatPanel {
     const state = this.refState(ref);
     this.refPreview = null;
     if (state === "ok") {
+      const epoch = this.environmentEpoch;
       this.refs.push({ ...ref });
       // the last request and reply go along as a summary; loaded now so sending stays quick
       this.refLoads.set(ref.id, this.api.conversation(ref.id).then((msgs) => {
+        if (epoch !== this.environmentEpoch) return;
         const r = this.refs.find((x) => x.id === ref.id);
         if (r) Object.assign(r, summarize(msgs));
       }).catch(() => {}));
@@ -474,6 +477,19 @@ export class ChatPanel {
     (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
   }
 
+  get changingWork() { return (this.el.querySelector("textarea") as HTMLTextAreaElement).disabled || this.saving || this.queueHold > 0; }
+  captureDraft() { return { text: (this.el.querySelector("textarea") as HTMLTextAreaElement).value, files: [...this.files], refs: this.refs.map((r) => ({...r})) }; }
+  switchEnvironment(draft?: ReturnType<ChatPanel["captureDraft"]>) {
+    ++this.environmentEpoch; this.setTyping(false, "");
+    this.close(); this.desk = null; this.providers = null; this.sel = null; this.paired = false; this.triedConnect = false; this.selAt = 0;
+    this.pending = []; this.shown.clear(); this.queueLatest = []; this.queueHold = 0; this.refLoads.clear(); this.refPreview = null;
+    (this.el.querySelector(".cp-list") as HTMLElement).replaceChildren();
+    (this.el.querySelector(".cp-queue ol") as HTMLElement).replaceChildren();
+    const ta = this.el.querySelector("textarea") as HTMLTextAreaElement;
+    ta.value = draft?.text || ""; this.files = draft?.files || []; this.refs = draft?.refs || [];
+    this.renderChips(); ta.dispatchEvent(new Event("input")); this.renderBar();
+  }
+
   close() {
     if (!this.isOpen) return;
     this.el.classList.remove("open");
@@ -548,10 +564,11 @@ export class ChatPanel {
   }
 
   private async refresh() {
+    const epoch = this.environmentEpoch;
     const id = this.threadId;
     if (!id) return;
     const msgs = await this.api.conversation(id).catch(() => [] as Msg[]);
-    if (id !== this.threadId) return;
+    if (id !== this.threadId || epoch !== this.environmentEpoch) return;
     // the thread's model can change elsewhere too (T3 itself); check now and then
     if (this.paired && !this.saving && Date.now() - this.selAt > 4000) void this.loadSelection();
     const list = this.el.querySelector(".cp-list") as HTMLElement;
@@ -717,29 +734,31 @@ export class ChatPanel {
   private canAct() { return !!this.api.t3 && this.paired; }
 
   private async loadT3(connect = !this.triedConnect) {
+    const epoch = this.environmentEpoch;
     const t3 = this.api.t3, id = this.threadId;
     if (!t3 || !id) return;
     this.triedConnect = true;
     let st: Awaited<ReturnType<T3Api["status"]>>;
     try { st = await t3.status({ connect, threadId: id }); } catch { return; }
-    if (id !== this.threadId) return;
+    if (id !== this.threadId || epoch !== this.environmentEpoch) return;
     this.paired = st.paired;
     this.sel = st.selection; this.selAt = Date.now();
     this.renderBar();
     this.refreshSoon(0); // queue rows gain or lose their actions
     if (this.paired && !this.providers) {
-      try { this.providers = await t3.providers(); } catch (err: any) { this.failed(err); }
-      if (id === this.threadId) this.renderBar();
+      try { const providers = await t3.providers(); if (id === this.threadId && epoch === this.environmentEpoch) this.providers = providers; } catch (err: any) { this.failed(err); }
+      if (id === this.threadId && epoch === this.environmentEpoch) this.renderBar();
     }
   }
 
   private async loadSelection() {
+    const epoch = this.environmentEpoch;
     const t3 = this.api.t3, id = this.threadId;
     if (!t3 || !id) return;
     this.selAt = Date.now();
     try {
       const st = await t3.status({ threadId: id });
-      if (id !== this.threadId || this.saving || JSON.stringify(st.selection) === JSON.stringify(this.sel)) return;
+      if (id !== this.threadId || epoch !== this.environmentEpoch || this.saving || JSON.stringify(st.selection) === JSON.stringify(this.sel)) return;
       this.sel = st.selection;
       this.renderBar();
     } catch {}
@@ -833,6 +852,7 @@ export class ChatPanel {
   }
 
   private async applyModel(next: Selection) {
+    const epoch = this.environmentEpoch;
     const t3 = this.api.t3, id = this.threadId;
     if (!t3 || !id || !next.model) return;
     const prev = this.sel;

@@ -115,3 +115,13 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .th-search input { width: 100%; min-width: 0; }
 .th-head .sec-fold { margin-left: auto; }
 .room-links { flex-wrap: wrap; gap: 2px 16px; }
+/* Existing T3 machines, using the same quiet list treatment as rooms. */
+.building-row { width:100%; display:flex; align-items:center; gap:10px; border:0; border-radius:5px; background:transparent; color:var(--text, #e8eaf5); padding:8px 10px; text-align:left; font:inherit; cursor:pointer; }
+.building-row > span { min-width:0; overflow-wrap:anywhere; flex:1; }
+.building-row small { color:#9da5bc; font-size:10px; flex:none; }
+.building-row:hover, .building-row[aria-current="true"] { background:rgba(255,255,255,.06); }
+.building-row:focus-visible { outline:2px solid #8ba9ed; outline-offset:-2px; }
+.building-row:disabled { cursor:wait; opacity:.65; }
+#building-status { padding:0 10px; overflow-wrap:anywhere; }
+#building-list { list-style:none; margin:0; padding:0; }
+.company[hidden], #usage[hidden], #orch[hidden], #building-status[hidden] { display:none; }

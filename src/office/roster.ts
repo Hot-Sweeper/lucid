@@ -24,6 +24,7 @@ export interface Prefs {
   editor: Editor;
   notes?: NoteApp;
   noteHabit?: NoteHabit;
+  search?: "ide" | "explorer";
   workAppsVersion?: number;
   wallpaper: number;                  // index into WALLPAPERS
   games: Record<Game, number>;        // how much it likes each game
@@ -130,12 +131,14 @@ function seeded(key: string) {
 export function workPreferencesFor(id: string) {
   const random = seeded(id + ":work-apps:1");
   const from = <T>(items: readonly T[]) => items[Math.floor(random() * items.length)];
+  const editor = from<Editor>(["vscode", "vscode", "visualstudio", "idea", "notepadpp", "pad", "vim"]);
   return {
-    editor: from<Editor>(["vscode", "vscode", "visualstudio", "idea", "notepadpp", "pad", "vim"]),
+    editor,
     notes: from<NoteApp>(["notes", "apple", "pad", "notepadpp"]),
     noteHabit: from<NoteHabit>(["frequent", "occasional", "occasional", "quiet"]),
     tasks: tasksFrom(random()),
-    workAppsVersion: 1,
+    workAppsVersion: 2,
+    search: (editor !== "pad" && seeded(id + ":file-search:1")() < 0.6 ? "ide" : "explorer") as "ide" | "explorer",
   };
 }
 const hobbyFrom = (x: number): Hobby => (x < 0.3 ? "gamer" : x < 0.45 ? "musician" : x < 0.65 ? "chatter" : x < 0.85 ? "watcher" : "chiller");
@@ -172,6 +175,10 @@ export class Roster {
         if (r.prefs.tasks !== "sticky" && next.tasks === "notes") r.prefs.tasks = "notes";
         r.prefs.workAppsVersion = next.workAppsVersion;
         migrated = true;
+      }
+      if (r.prefs && !r.prefs.search) {
+        r.prefs.search = r.prefs.editor !== "pad" && seeded((r.id || r.name || "") + ":file-search:1")() < 0.6 ? "ide" : "explorer";
+        r.prefs.workAppsVersion = 2; migrated = true;
       }
       if (r.prefs && !r.prefs.tasks) r.prefs.tasks = tasksFor(r.id || r.name || "");
       if (r.prefs && !r.prefs.hobby) r.prefs.hobby = hobbyFor(r.prefs, r.id || r.name || "");
@@ -212,6 +219,12 @@ export class Roster {
   /** The next fresh hire of this harness gets this look and name (null clears it). */
   prepareHire(provider: string | null, look?: RobotLook, name?: string) {
     this.draft = provider && look ? { brand: brandFor(provider), look, name: (name ?? "").trim().slice(0, 32) } : null;
+  }
+
+  async flush() {
+    window.clearTimeout(this.saveTimer);
+    const json = JSON.stringify(this.robots), api = (window as any).lucid;
+    if (api?.rosterSave) await api.rosterSave(json); else localStorage.setItem(KEY, json);
   }
 
   private save() {
