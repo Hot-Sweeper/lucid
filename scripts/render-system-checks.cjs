@@ -6,9 +6,10 @@ module.exports = async ({ js, wc, wait, out, setMessages }) => {
   result.hudHiddenByDefault = await js("!document.getElementById('lucid-perf') && !window.__lucidPerf.snapshot().enabled");
   assert(result.hudHiddenByDefault, "Diagnostics must be opt-in");
   await js(`{
+    for(const desk of window.__world.desks.values())desk.director.reset();
     const w=window.__world,d=w.desks.get('perf-t0');window.__checkDesk=d;
     try{d.wm.check(d.wm.epoch-1)}catch(error){window.__fixtureCancelled=error.constructor}
-    window.__centerCheckDesk=()=>{w.cam={s:2,x:w.scene.clientWidth/2-(parseFloat(d.el.style.left)+200)*2,y:w.scene.clientHeight/2-(parseFloat(d.el.style.top)+160)*2};w.apply()};
+    window.__centerCheckDesk=(scale=2)=>{w.cam={s:scale,x:w.scene.clientWidth/2-(parseFloat(d.el.style.left)+200)*scale,y:w.scene.clientHeight/2-(parseFloat(d.el.style.top)+160)*scale};w.apply()};
     window.__centerCheckDesk();d.wm.speed=20;
     void d.director.idleLife.doActivity('nightshift',d.director.idleLife.token).catch(e=>{if(!(e instanceof window.__fixtureCancelled))console.error(e)});
     window.__lucidPerf.enable(true);
@@ -29,9 +30,16 @@ module.exports = async ({ js, wc, wait, out, setMessages }) => {
   await js("window.__centerCheckDesk()"); await wait(250);
   result.resumed = await sample();
   assert(result.resumed.calls > 0, "Game must resume when camera returns");
-  await js("{const w=window.__world;w.cam.s=.23;w.apply()}"); await wait(250);
-  result.distant = await sample();
-  assert(result.distant.calls === 0, "Tiny hidden screens still render");
+  result.screenScales = [];
+  for (const scale of [.65, .23]) {
+    await js(`window.__centerCheckDesk(${scale})`); await wait(250);
+    const measured = await sample();
+    const content = await js(`{const d=window.__checkDesk,os=d.wm.root,style=getComputedStyle(os),game=d.wm.wins.get('game');({scale:window.__world.cam.s,fps:Number(d.screen.dataset.renderFps),visible:style.visibility,contentVisibility:style.contentVisibility,paused:d.screen.classList.contains('render-paused'),title:game?.title.textContent,gameContent:!!game?.body.children.length})}`);
+    result.screenScales.push({ requested:scale,...content,...measured });
+    assert(content.fps >= 20 && content.visible === 'visible' && content.contentVisibility !== 'hidden' && !content.paused && content.gameContent && measured.calls > 0, `Visible ${scale}x screen replaced or frozen`);
+    fs.writeFileSync(path.join(out,`game-live-${scale}.png`),(await wc.capturePage()).toPNG());
+  }
+  result.distant = result.screenScales[1];
   await js("window.__centerCheckDesk()"); await wait(250);
   await js(`(async()=>{const wm=window.__checkDesk.wm,w=await wm.open('notes','Covered-game check',true);Object.assign(w.el.style,{left:'0px',top:'0px',width:'820px',height:'461px',zIndex:String(++wm.z)});wm.syncOcclusion()})()`);
   result.covered = await sample();
@@ -69,6 +77,22 @@ module.exports = async ({ js, wc, wait, out, setMessages }) => {
   await js("window.__centerCheckDesk()"); await wait(250);
   result.harnessResumed = await sample();
   assert(result.harnessResumed.calls > 0, "Harness must resume with real buffered text");
+  await js("window.__centerCheckDesk(.23);window.__helperCheck.stream('Far zoom live update. ')");
+  await js("window.__lucidPerf.reset()");
+  await wait(700);
+  result.farHarnessProgress = await js("({fps:Number(window.__checkDesk.screen.dataset.renderFps),streamText:window.__helperCheck.streamLine?.inner.textContent,calls:window.__lucidPerf.snapshot().systems.apps.calls,paused:window.__checkDesk.screen.classList.contains('render-paused'),visible:getComputedStyle(window.__checkDesk.wm.root).visibility})");
+  const progress = result.farHarnessProgress;
+  assert(progress.fps >= 20 && progress.calls > 0 && !progress.paused && progress.visible === 'visible' && progress.streamText?.length > 0 && 'Far zoom live update. '.startsWith(progress.streamText), "Visible far harness did not present new streaming progress");
+  // The harness intentionally reveals at least one character per presentation tick.
+  // At 20 Hz this 22-character update can take 1.1 seconds; 700 ms only checks progress.
+  for (let attempt = 0; attempt < 8; attempt++) {
+    result.farHarness = await js("({fps:Number(window.__checkDesk.screen.dataset.renderFps),text:window.__checkDesk.wm.root.textContent.includes('Far zoom live update.'),streamText:window.__helperCheck.streamLine?.inner.textContent})");
+    if (result.farHarness.text) break;
+    await wait(250);
+  }
+  fs.writeFileSync(path.join(out,"harness-far-live.png"),(await wc.capturePage()).toPNG());
+  assert(result.farHarness.fps >= 20 && result.farHarness.text, "Visible far harness did not finish presenting newly streamed content");
+  await js("window.__centerCheckDesk()");
   await js("window.__helperCheck.finish('Render check complete')");
   wc.sendInputEvent({type:"keyDown",keyCode:"F8",modifiers:["control","shift"]});
   wc.sendInputEvent({type:"keyUp",keyCode:"F8",modifiers:["control","shift"]});

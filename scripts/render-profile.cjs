@@ -44,19 +44,23 @@ if (!process.versions.electron) {
         await dbg.sendCommand("Performance.enable");
         if (process.env.LUCID_PERF_CPU) await dbg.sendCommand("Emulation.setCPUThrottlingRate", { rate: Number(process.env.LUCID_PERF_CPU) });
         const suite = process.env.LUCID_PERF_SUITE;
-        let scenes = suite ? [["idle", .65, 2100, 480], ["many", .23, 2100, 850], ["zoomed", 2, 1460, 430], ["panning", .65, 2100, 480], ["apps-many", .65, 2100, 480], ["apps-close", 2, 1460, 430], ["chat", 2, 1460, 430], ["rain", .65, 2100, 480]] : [["overview", .23, 2100, 850], ["office", .65, 2100, 480], ["close", 2, 1460, 430]];
+        let scenes = suite ? [["idle", .65, 2100, 480], ["many", .23, 2100, 850], ["zoomed", 2, 1460, 430], ["panning", .65, 2100, 480], ["apps-many", .65, 2100, 480], ["apps-far", .23, 2100, 850], ["apps-close", 2, 1460, 430], ["chat", 2, 1460, 430], ["rain", .65, 2100, 480]] : [["overview", .23, 2100, 850], ["office", .65, 2100, 480], ["close", 2, 1460, 430]];
         if (process.env.LUCID_PERF_SCENES) scenes = scenes.filter(([name]) => process.env.LUCID_PERF_SCENES.split(",").includes(name));
         const tracing = process.env.LUCID_PERF_TRACE !== "0";
-        let chatTimer;
+        let chatTimer, appsStarted = false;
         const results = [];
         for (const [name, scale, cx, cy] of (process.env.LUCID_PERF_CHECKS_ONLY ? [] : scenes)) {
-          if (name === "apps-many") {
+          if ((name === "apps-many" || name === "apps-far") && !appsStarted) {
+            appsStarted = true;
             await js(`{let i=0;for(const d of window.__world.desks.values()){d.wm.speed=20;void d.director.idleLife.doActivity(['blockcraft','nightshift','botcom','boot','botflix','tensorhub'][i++%6],d.director.idleLife.token).catch(e=>{if(e.constructor.name!=='Cancelled')console.error(e)})}}`);
             await wait(6000);
           }
           if (name === "chat") { await js(`window.__chat.open(window.__world.desks.values().next().value)`); chatTimer = setInterval(() => { void js("window.__chat.refresh()"); }, 750); }
           if (name === "rain") { clearInterval(chatTimer); await js(`{window.__chat.close();const w=window.__world;w.weather={...w.weather,kind:'rain',rainMm:3};w.daylight();}`); }
-          await js(`{const w=window.__world; w.stopFollow(); w.cam={s:${scale},x:w.scene.clientWidth/2-${cx}*${scale},y:w.scene.clientHeight/2-${cy}*${scale}}; w.apply();}`);
+          await js(`{const w=window.__world,d=w.desks.get('perf-t0'); w.stopFollow();
+            const close=${JSON.stringify(["zoomed", "apps-close", "chat"].includes(name))};
+            const cx=close?parseFloat(d.el.style.left)+200:${cx},cy=close?parseFloat(d.el.style.top)+100:${cy};
+            w.cam={s:${scale},x:w.scene.clientWidth/2-cx*${scale},y:w.scene.clientHeight/2-cy*${scale}}; w.apply();}`);
           await wait(1200);
           if (process.env.LUCID_PERF_METRICS) await js("window.__lucidPerf?.enable(true);window.__lucidPerf?.reset()");
           const trace = [];
@@ -82,6 +86,7 @@ if (!process.versions.electron) {
           const after = await dbg.sendCommand("Performance.getMetrics");
           const profile = tracing ? (await dbg.sendCommand("Profiler.stop")).profile : null;
           const stats = await js(`{window.__record=false; const a=window.__frames.slice(1).sort((a,b)=>a-b); const w=window.__world; ({frames:a.length,mean:a.reduce((s,x)=>s+x,0)/a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)],over33:a.filter(x=>x>33.4).length,desks:w.desks.size,walkers:document.querySelectorAll('.world-walker').length,canvases:document.querySelectorAll('canvas').length,scale:w.cam.s,systems:window.__lucidPerf?.snapshot(),errors:window.__errs})}`);
+          if ((name === "apps-close" || name === "apps-far") && (!stats.systems?.systems.apps.calls || !await js(`!!window.__world.desks.get('perf-t0').wm.wins.get('game')?.body.children.length`))) throw Error(`${name} must measure actual live game content`);
           if (tracing) {
           const complete = new Promise((resolve) => {
             const listener = (_e, method) => {
@@ -110,6 +115,8 @@ if (!process.versions.electron) {
           await js("window.__lucidPerf.enable(false)");
           await require("./render-system-checks.cjs")({ js, wc, wait, out, setMessages: (next) => { messages = next; } });
         }
+        if (process.env.LUCID_BEHAVIOR_CHECKS) await require("./render-behavior-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_SCREEN_DETAILS_CHECKS) await require("./render-screen-details-checks.cjs")({ js, wc, wait, out });
         app.quit();
       } catch (error) { console.error(error); app.exit(1); }
     });

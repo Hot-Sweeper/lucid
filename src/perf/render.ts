@@ -1,37 +1,43 @@
 import { beginSystem, endSystem } from "./metrics";
+import { screenFrameRate } from "./screen-budget";
 
 // One clock for screen apps. Geometry arrives from the camera/IntersectionObserver, never
 // from layout reads in a draw callback. Logical events and real thread data keep running.
-type Surface = { visible: boolean; fps: number; explicit: boolean; refs: number; el: HTMLElement };
+type Surface = { visible: boolean; fps: number; phase: number; explicit: boolean; refs: number; el: HTMLElement };
 type Loop = { owner?: HTMLElement; surface?: Surface; win: HTMLElement | null; cb: (now: number, dt: number) => void; last: number; due: number; fps: number; once: boolean; bound: boolean; stop: () => void };
 const surfaces = new WeakMap<HTMLElement, Surface>();
 const loops = new Set<Loop>();
 const contexts = new WeakMap<HTMLElement, { host: HTMLElement; win: HTMLElement | null }>();
 let raf = 0;
+let surfaceSequence = 0;
 const io = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver((entries) => {
   for (const e of entries) {
     const s = surfaces.get(e.target as HTMLElement);
-    if (s && !s.explicit) { s.visible = e.isIntersecting; s.fps = e.boundingClientRect.width < 40 ? 0 : e.boundingClientRect.width < 200 ? 20 : 60; }
+    if (s && !s.explicit) { s.visible = e.isIntersecting; s.fps = screenFrameRate(e.boundingClientRect.width); }
   }
   wake();
 });
 function surface(el: HTMLElement) {
   let s = surfaces.get(el);
-  if (!s) { s = { visible: !io, fps: 60, explicit: false, refs: 0, el }; surfaces.set(el, s); io?.observe(el); }
+  if (!s) { s = { visible: !io, fps: 60, phase: (++surfaceSequence * .61803398875) % 1, explicit: false, refs: 0, el }; surfaces.set(el, s); io?.observe(el); }
   return s;
 }
 export function setRenderView(el: HTMLElement, visible: boolean, screenWidth: number) {
-  const s = surface(el), fps = screenWidth < 80 ? 0 : screenWidth < 200 ? 15 : screenWidth < 450 ? 30 : 60;
-  const changed = s.visible !== visible || s.fps !== fps;
+  const s = surface(el), fps = screenFrameRate(screenWidth);
+  const changed = !s.explicit || s.visible !== visible || s.fps !== fps;
   s.explicit = true; s.visible = visible; s.fps = fps;
-  if (changed) { el.classList.toggle("render-paused", !visible || !fps); wake(); }
+  if (changed) {
+    el.classList.toggle("render-paused", !visible);
+    el.dataset.renderFps = String(visible ? fps : 0);
+    wake();
+  }
 }
 export function releaseRenderView(el: HTMLElement) { io?.unobserve(el); surfaces.delete(el); }
 export function wakeRender() { wake(); }
 export function renderFps(owner: HTMLElement) {
   if (document.hidden || !owner.isConnected) return 0;
   let context = contexts.get(owner);
-  if (!context) {
+  if (!context || !context.host.contains(owner) || context.win && !context.win.contains(owner)) {
     context = { host: owner.closest<HTMLElement>(".screen, .phone-screen") ?? owner, win: owner.closest<HTMLElement>(".win") };
     contexts.set(owner, context);
   }
@@ -57,7 +63,7 @@ export function renderLoop(owner: HTMLElement | undefined, cb: Loop["cb"], once 
 }
 export function deferRender(owner: HTMLElement, cb: () => void) { return renderLoop(owner, cb, true); }
 function active(l: Loop) {
-  if (!l.bound && l.owner?.isConnected) {
+  if (l.owner?.isConnected && (!l.bound || l.surface && !l.surface.el.contains(l.owner) || l.win && !l.win.contains(l.owner))) {
     const host = l.once ? l.owner : l.owner.closest<HTMLElement>(".screen, .phone-screen") ?? l.owner;
     const next = surface(host), old = l.surface;
     if (next !== old) {
@@ -82,7 +88,10 @@ function frame(now: number) {
     if (fps !== l.fps) { l.fps = fps; l.last = l.due = 0; }
     if (l.last && now < l.due - .5) continue;
     const dt = l.last ? Math.min(.05, (now - l.last) / 1000) : 1 / 60;
-    l.due = !l.last || now - l.due > interval ? now + interval : l.due + interval;
+    // Each workstation owns a stable clock phase. Zooming out must not synchronize
+    // every visible canvas into one expensive repaint burst every 50 ms.
+    const phase = (l.surface?.phase ?? 0) * interval;
+    l.due = (Math.floor((now - phase) / interval) + 1) * interval + phase;
     l.last = now;
     const start = beginSystem();
     try { l.cb(now, dt); } catch (error) { l.stop(); reportError(error); } finally { endSystem("apps", start); }

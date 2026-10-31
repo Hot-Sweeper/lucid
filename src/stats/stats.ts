@@ -5,7 +5,11 @@ import "./stats.css";
 import { logoFor, harnessName } from "../office/brand";
 
 export type Limit = {
-  usedPercent: number;
+  usedPercent: number | null;
+  id?: string;
+  pool?: string;
+  label?: string | null;
+  observedAt?: string;
   windowMinutes: number | null;
   resetsAt: string | null;
   /** The reset time has passed since this reading; the current value is unknown. */
@@ -16,6 +20,7 @@ export type HarnessLimits = {
   primary: Limit | null;
   secondary: Limit | null;
   plan?: string;
+  windows?: Limit[];
   observedAt: string;
 };
 
@@ -28,6 +33,7 @@ export type Totals = {
   costUsd: number;
   byHarness: Record<string, { tokens: number; costUsd: number }>;
   byModel: Record<string, { tokens: number; costUsd: number; harness: string; priced?: boolean }>;
+  byProject?: Record<string, { name: string; tokens: number; costUsd: number; priced?: boolean; sources: { session: number; cwd: number; unassigned: number } }>;
 };
 
 export type Usage = {
@@ -130,12 +136,31 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>): { ref
     root.classList.toggle("st-open", open);
   });
 
+  const projectToggle = el("button", "st-toggle", "By project today");
+  projectToggle.type = "button";
+  projectToggle.append(el("span", "st-chev"));
+  projectToggle.setAttribute("aria-expanded", "false");
+  const projectsWrap = el("div", "st-models-wrap st-projects-wrap");
+  const projectsInner = el("div", "st-models-inner");
+  const projectList = el("ol", "st-models");
+  const projectNote = el("p", "st-more");
+  projectsInner.append(projectList, projectNote);
+  projectsWrap.append(projectsInner);
+  projectsWrap.id = `st-projects-${Math.random().toString(36).slice(2, 8)}`;
+  projectToggle.setAttribute("aria-controls", projectsWrap.id);
+  projectToggle.addEventListener("click", () => {
+    const open = projectToggle.getAttribute("aria-expanded") !== "true";
+    projectToggle.setAttribute("aria-expanded", String(open));
+    root.classList.toggle("st-projects-open", open);
+  });
+  const limitsNote = el("p", "st-more st-limit-note");
   const note = el("p", "st-note");
-  root.append(head, sub, limitsBox, toggle, modelsWrap, note);
+  root.append(head, sub, limitsBox, limitsNote, projectToggle, projectsWrap, toggle, modelsWrap, note);
   host.append(root);
 
   const limitRows = new Map<string, LimitRow>();
   const modelRows = new Map<string, ModelRow>();
+  const projectRows = new Map<string, ModelRow>();
   let last: Usage | null = null;
   let seq = 0;
   let timer: ReturnType<typeof setInterval> | null = null;
@@ -174,21 +199,29 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>): { ref
     for (const harness of ["codex", "claude"] as const) {
       const h = u.limits[harness];
       if (!h) continue;
-      const list = [h.primary, h.secondary].filter((l): l is Limit => !!l);
+      const list = [...(h.windows || [h.primary, h.secondary].filter((l): l is Limit => !!l))];
       list.sort((a, b) => (a.windowMinutes ?? 0) - (b.windowMinutes ?? 0));
-      for (const l of list) wanted.push({ key: `${harness}:${l.windowMinutes}`, harness, limit: l });
+      list.forEach((l, i) => wanted.push({ key: `${harness}:${l.id || `${l.pool || "legacy"}:${i}`}`, harness, limit: l }));
     }
     const keep = new Set(wanted.map((w) => w.key));
     for (const [k, r] of limitRows) if (!keep.has(k)) { r.root.remove(); limitRows.delete(k); }
     wanted.forEach((w, i) => {
       const r = limitRow(w.key, w.harness);
       const l = w.limit;
-      setText(r.name, `${harnessName(w.harness)} ${windowName(l.windowMinutes).toLowerCase()}`);
-      const pct = Math.max(0, Math.min(100, l.usedPercent));
+      setText(r.name, `${harnessName(w.harness)} ${l.label ? `${l.label} ` : ""}${windowName(l.windowMinutes).toLowerCase()}`);
+      r.name.title = r.name.textContent || "";
+      const known = typeof l.usedPercent === "number" && Number.isFinite(l.usedPercent);
+      const pct = known ? Math.max(0, Math.min(100, l.usedPercent!)) : 0;
+      r.root.title = l.observedAt ? `Reported ${new Date(l.observedAt).toLocaleString()}` : "";
       if (l.stale) {
         r.fill.style.width = "0%";
         setText(r.pct, "");
         setText(r.reset, "no reading since reset");
+        r.root.classList.add("st-stale");
+      } else if (!known) {
+        r.fill.style.width = "0%";
+        setText(r.pct, "n/a");
+        setText(r.reset, l.resetsAt ? `usage unavailable, resets ${when(l.resetsAt)}` : "usage unavailable");
         r.root.classList.add("st-stale");
       } else {
         r.fill.style.width = `${pct}%`;
@@ -196,10 +229,13 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>): { ref
         setText(r.reset, l.resetsAt ? `resets ${when(l.resetsAt)}` : "");
         r.root.classList.remove("st-stale");
       }
-      r.root.classList.toggle("st-high", !l.stale && pct >= 90);
+      r.root.classList.toggle("st-high", known && !l.stale && pct >= 90);
       if (limitsBox.children[i] !== r.root) limitsBox.insertBefore(r.root, limitsBox.children[i] || null);
     });
     limitsBox.hidden = wanted.length === 0;
+    const unavailable = (["codex", "claude"] as const).filter((h) => !u.limits[h]).map(harnessName);
+    setText(limitsNote, unavailable.length ? `${unavailable.join(" and ")} limits unavailable in local logs` : "");
+    limitsNote.hidden = !unavailable.length;
   }
 
   function renderModels(t: Totals) {
@@ -234,6 +270,32 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>): { ref
     modelMore.hidden = !modelMore.textContent;
   }
 
+  function renderProjects(t: Totals) {
+    const entries = Object.entries(t.byProject || {}).sort((a, b) => b[1].costUsd - a[1].costUsd || b[1].tokens - a[1].tokens);
+    const keep = new Set(entries.map(([id]) => id));
+    for (const [id, r] of projectRows) if (!keep.has(id)) { r.root.remove(); projectRows.delete(id); }
+    entries.forEach(([id, p], i) => {
+      let r = projectRows.get(id);
+      if (!r) {
+        const row = el("li", "st-model");
+        const name = el("span", "st-mname");
+        const tokens = el("span", "st-mnum");
+        const cost = el("span", "st-mnum st-mcost");
+        row.append(name, tokens, cost);
+        r = { root: row, name, tokens, cost }; projectRows.set(id, r);
+      }
+      setText(r.name, p.name);
+      const sources = p.sources;
+      r.name.title = `${p.name}\n${sources.session ? `${formatTokens(sources.session)} tokens linked by T3 session. ` : ""}${sources.cwd ? `${formatTokens(sources.cwd)} tokens linked by logged working directory. ` : ""}${sources.unassigned ? "No unique project match." : ""}`;
+      setText(r.tokens, formatTokens(p.tokens));
+      setText(r.cost, `${formatCost(p.costUsd)}${p.priced === false ? "*" : ""}`);
+      r.cost.title = `$${p.costUsd.toFixed(6)} at API prices${p.priced === false ? "; some models have no price" : ""}`;
+      if (projectList.children[i] !== r.root) projectList.insertBefore(r.root, projectList.children[i] || null);
+    });
+    setText(projectNote, !entries.length ? "No project usage yet today" : entries.some(([, p]) => p.priced === false) ? "* Costs exclude models without a price" : "");
+    projectNote.hidden = !projectNote.textContent;
+  }
+
   function render(u: Usage) {
     const t = u.windows.today;
     setText(tokNum, formatTokens(t.tokens));
@@ -242,6 +304,7 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>): { ref
     setText(sub, `Last 7 days ${formatTokens(w.tokens)} tokens, ${formatCost(w.costUsd)}`);
     renderLimits(u);
     renderModels(t);
+    renderProjects(t);
     // Unknown prices already show on their model row; other problems get one quiet line.
     const other = u.errors.filter((e) => !e.startsWith("No API price"));
     setText(note, other.length ? (other.length === 1 ? other[0] : `${other.length} usage logs could not be read`) : "");

@@ -268,7 +268,7 @@ export class WM {
     const messy = this.prefs?.tidiness === "messy" && Math.random() < 0.7;
     const f = this.wins.size && !messy ? this.bestSpot(base) : { ...base, ...this.jitter(base) };
     const el = document.createElement("section");
-    el.className = `win app-${id}`;
+    el.className = `win app-${id} render-opening`;
     el.style.cssText = `left:${f.x}px;top:${f.y}px;width:${f.w}px;height:${f.h}px`;
     el.innerHTML = `<header class="win-bar">${this.iconOf(id)}<span class="win-title"></span><span class="win-x" aria-hidden="true"></span></header><div class="win-body"></div>`;
     const titleEl = el.querySelector(".win-title") as HTMLElement;
@@ -282,7 +282,7 @@ export class WM {
     const d = this.pos(dockItem);
     gsap.fromTo(el,
       { opacity: 0, scale: 0.35, x: d.x - (f.x + f.w / 2), y: d.y - (f.y + f.h / 2) },
-      { opacity: 1, scale: 1, x: 0, y: 0, duration: 0.55 / this.speed, ease: "expo.out", transformOrigin: "50% 50%" });
+      { opacity: 1, scale: 1, x: 0, y: 0, duration: 0.55 / this.speed, ease: "expo.out", transformOrigin: "50% 50%", onComplete: () => { el.classList.remove("render-opening"); this.syncOcclusion(); } });
     gsap.fromTo(el.querySelector(".win-body"), { opacity: 0 }, { opacity: 1, duration: 0.4 / this.speed, delay: 0.15 / this.speed });
     await this.sleep(260, e);
     // each robot has its own habit: some go full screen, some tile side by side, some let windows float
@@ -584,6 +584,9 @@ export class WM {
       let hidden = false;
       for (const other of this.wins.values()) {
         if (other === w || Number(other.el.style.zIndex) <= z) continue;
+        // An opening window is still translucent and scaled. Its final rectangle
+        // must not hide the real app underneath before the opening finishes.
+        if (other.el.classList.contains("render-opening")) continue;
         const o = this.frameOf(other);
         if (o.x <= f.x && o.y <= f.y && o.x + o.w >= f.x + f.w && o.y + o.h >= f.y + f.h) { hidden = true; break; }
       }

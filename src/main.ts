@@ -139,11 +139,11 @@ let selectedDesk: Desk | null = null;
 (window as any).__world = world; // debug handle for test runs
 const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), t3: (window as any).lucidT3 });
 // the sidebar and the chat are columns beside the scene, so the camera always fits what is left (see World)
-world.onFocus = (d) => { if (d) { chat.open(d); chat.setView(world.focusMode); pushStatus(d); } else chat.close(); };
+world.onFocus = (d) => { if (d) { chat.open(d); chat.setView(world.focusMode); pushStatus(d); } };
 // a robot's question, answered from its chat (see openAnswer)
 const answer = new AnswerCard(chat, { pending: (id) => (window as any).lucid.pendingRequests(id), t3: (window as any).lucidT3, advice: (rid) => delegate.advice.get(rid) ?? null });
 // a chat opened without a desk (questions room, follow chip) closes itself
-chat.onClose = () => { if (!world.focusDesk) chat.close(); world.unfocus(); };
+chat.onClose = () => { chat.close(); world.unfocus(); };
 chat.onToggleView = () => {
   const d = world.focusDesk;
   if (!d) return;
@@ -241,10 +241,15 @@ $("back-btn").addEventListener("click", () => world.unfocus());
 api.onItems(({ threadId, items, initial }) => { world.deskFor(threadId)?.director.push(items, initial); chat.ping(threadId); answer.ping(threadId); });
 api.onInfo(({ threadId, info }) => {
   const d = world.deskFor(threadId);
-  if (!d || info.error) return;
-  d.setInfo(info);
-  if (d === selectedDesk) renderFocus();
-  if (d === world.focusDesk) pushStatus(d);
+  if (info.error) return;
+  if (d) {
+    d.setInfo(info);
+    if (d === selectedDesk) renderFocus();
+  }
+  if (chat.threadId === threadId) {
+    if (d && !d.el.classList.contains("arriving")) pushStatus(d);
+    else openDetachedChat(threadId, info);
+  }
 });
 
 let watched = "";
@@ -260,7 +265,7 @@ async function refresh() {
     world.update(data);
     void api.tasks().then((t) => todo.update(t)).catch((err) => console.error("to-do list failed", err));
     for (const d of world.desks.values()) {
-      d.onActivity = (t) => { if (d === world.focusDesk) pushStatus(d); if (d === selectedDesk) { const a = $("focus-activity"); if (a.textContent !== t) { a.textContent = t; gsap.fromTo(a, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.3 }); } } };
+      d.onActivity = (t) => { if (d.threadId === chat.threadId) pushStatus(d); if (d === selectedDesk) { const a = $("focus-activity"); if (a.textContent !== t) { a.textContent = t; gsap.fromTo(a, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.3 }); } } };
     }
     const ids = [...new Set([...world.desks.keys(), ...(world.orchThread ? [world.orchThread] : []), ...(chat.threadId ? [chat.threadId] : [])])].sort();
     const key = ids.join(",");
@@ -462,19 +467,25 @@ const makeGrip = (cls: "left" | "right", label: string, key: "sideW" | "chatW", 
   g.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    g.setPointerCapture(e.pointerId);
+    try { g.setPointerCapture(e.pointerId); } catch { /* window listeners keep the resize usable */ }
     const x0 = e.clientX, w0 = now();
     g.classList.add("grabbing");
     document.body.classList.add("col-resizing");
-    const move = (ev: PointerEvent) => set(w0 + dir * (ev.clientX - x0));
+    const move = (ev: PointerEvent) => { if (ev.pointerId === e.pointerId) set(w0 + dir * (ev.clientX - x0)); };
+    let ended = false;
     const up = () => {
+      if (ended) return;
+      ended = true;
       g.classList.remove("grabbing");
       document.body.classList.remove("col-resizing");
       window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", up); window.removeEventListener("blur", up);
+      window.removeEventListener("keydown", escape, true); g.removeEventListener("lostpointercapture", up);
       if (g.hasPointerCapture(e.pointerId)) g.releasePointerCapture(e.pointerId);
       saveSettings();
     };
+    const escape = (ev: KeyboardEvent) => { if (ev.key === "Escape") { ev.preventDefault(); ev.stopImmediatePropagation(); set(w0); up(); } };
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up); window.addEventListener("blur", up);
+    window.addEventListener("keydown", escape, true); g.addEventListener("lostpointercapture", up);
   });
   g.addEventListener("dblclick", () => { ui[key] = undefined; applyLayout(); saveSettings(); });
   g.addEventListener("keydown", (e) => {
@@ -654,11 +665,12 @@ wallet.onDaily = (coins, streak) => {
   const el = document.createElement("div");
   el.className = "ms-toast";
   el.setAttribute("role", "status");
-  el.innerHTML = `<span class="ms-badge" aria-hidden="true">☀</span><div><b>Daily reward</b><span></span></div><em>${coinIcon(14)} +${coins}</em>`;
-  (el.querySelector("div span") as HTMLElement).textContent = streak > 1 ? `Day ${streak} in a row. Come back tomorrow for more.` : "Come back tomorrow to start a streak.";
+  el.innerHTML = `<span class="ms-badge" aria-hidden="true">${coinIcon(24)}</span><div><b>Daily reward</b><span class="daily-copy"></span></div><em>${coinIcon(14)} +${coins}</em>`;
+  (el.querySelector(":scope > div > .daily-copy") as HTMLElement).textContent = streak > 1 ? `Day ${streak} in a row. Come back tomorrow for more.` : "Come back tomorrow to start a streak.";
   document.body.appendChild(el);
   gsap.timeline({ onComplete: () => el.remove() }).fromTo(el, { opacity: 0, y: -16 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }).to(el, { opacity: 0, duration: 0.35, delay: 4 });
 };
+(window as any).__dailyReward = wallet.onDaily; // visual-only fixture; does not award coins
 window.setTimeout(() => { if (lastShipped) checkMilestones(lastShipped); }, 0);
 world.owns = (key) => wallet.owns(key);
 const paintWallet = (gained = 0) => {
@@ -758,20 +770,25 @@ setInterval(pollWeather, 10 * 60 * 1000);
 watchDaily((p) => { world.eventName = p?.event?.name ?? ""; world.paintEvent(); });
 
 // "Chat" on the follow chip: the robot's desk if it has one, otherwise its conversation on its own
-world.onFollowChat = (id) => {
-  const d = world.deskFor(id);
-  if (d) { world.focusOn(d); return; }
+function openDetachedChat(id: string, info?: ThreadInfo) {
   const t = world.lastData?.threads.find((x) => x.id === id);
   if (!t) return;
   const profile = world.roster.byThread(id);
-  chat.open({ threadId: id, info: { id, title: t.title, provider: t.provider }, profile: id === world.orchThread ? { ...profile, name: "Orchestrator" } : profile } as any);
-  chat.setStatus(t.runStatus === "running" ? "Working" : t.question ? "Needs your answer" : "Idle", t.runStatus === "running" ? "working" : t.question ? "waiting" : "idle");
+  chat.open({ threadId: id, info: info ?? { id, title: t.title, provider: t.provider }, profile: id === world.orchThread ? { ...profile, name: "Orchestrator" } : profile } as any, !info);
+  const question = !!t.question;
+  const running = info ? /^(running|queued)$/.test(info.run?.status ?? "") : /^(running|queued)$/.test(t.runStatus ?? "");
+  chat.setStatus(question ? "Needs your answer" : running ? "Working" : "Idle", question ? "waiting" : running ? "working" : "idle");
+}
+world.onFollowChat = (id) => {
+  const d = world.deskFor(id);
+  if (d && !d.el.classList.contains("arriving")) { world.focusOn(d); return; }
+  openDetachedChat(id);
 };
 
 // A walking robot clicked while a chat is open: the chat follows to that robot, the camera follows its walk
 world.onWatchChat = (id) => {
   const d = world.deskFor(id);
-  if (d) { chat.open(d); chat.setView("desk"); pushStatus(d); return; }
+  if (d && !d.el.classList.contains("arriving")) { chat.open(d); chat.setView("desk"); pushStatus(d); return; }
   world.onFollowChat(id);
 };
 
@@ -785,9 +802,6 @@ function openAnswer(id: string) {
     world.stopFollow();
     const room = world.rooms.find((r) => r.kind === "queue");
     if (room) world.showRoom(room.id);
-    // leaving a focused desk starts closing the chat; open it fresh instead
-    gsap.killTweensOf(chat.el);
-    chat.el.classList.remove("open");
     world.onFollowChat(id);
     chat.setStatus("Waiting for your answer", "waiting");
   }

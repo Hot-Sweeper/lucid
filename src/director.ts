@@ -12,6 +12,7 @@ import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, prettyTool } fro
 import { T3CodeApp } from "./harness/t3code";
 import { CodexApp } from "./os/codex";
 import { imageGenOf, imageResult, type ImageGen } from "./os/imagegen";
+import { ImageRefreshGate, type ImageRefresh, type ImageState } from "./os/image-refresh";
 import { classify, parseDiff, baseName, relPath, unwrap, type Entry } from "./os/classify";
 import { TasksApp, type TaskStep } from "./os/tasks";
 import { GitDeskApp, type DeskFile } from "./os/gitdesk";
@@ -120,6 +121,7 @@ export class Director {
   childInfo: (threadId: string) => Promise<ThreadInfo | null> = async (id) => (window as any).lucid?.threadInfo?.(id) ?? null;
   attachDir = "";
   private lastEventAt = 0;
+  private imageRefresh = new ImageRefreshGate();
 
   constructor(private wm: WM, private robot: Robot, private stage: Stage, peek: (url: string) => Promise<any>, private image: (path: string) => Promise<string | null>, private readText: (path: string) => Promise<string | null>) {
     this.files = new FilesApp(wm);
@@ -156,6 +158,8 @@ export class Director {
     this.helperHints.clear();
     this.harness.reset();
     this.chat.reset();
+    this.imageRefresh.reset();
+    this.codex.reset();
     this.uac.reset();
     this.mobile = false;
     if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
@@ -178,6 +182,7 @@ export class Director {
 
   setInfo(info: ThreadInfo) {
     if (info.error) return;
+    if (this.info && this.info.id !== info.id) { this.imageRefresh.reset(); this.codex.reset(); }
     const first = !this.info;
     this.info = info;
     this.chat.setInfo(info);
@@ -253,6 +258,8 @@ export class Director {
       if (t > this.lastEventAt) this.lastEventAt = t;
       this.items.set(it.id, it);
       this.chat.update(it);   // a work row already in T3 Code follows its item (Running, then Ran)
+      const imageUpdate = this.imageRefresh.tracks(it.id) ? this.imageRefresh.observe(it.id, this.imageState(it)) : null;
+      if (imageUpdate) this.refreshImage(imageUpdate);
       // An approval is not a scene: the robot is stuck until it is answered, so the prompt comes up
       // on its screen at once, whatever else it is playing, and only while T3 really has it open.
       if (it.type === "approval_request") {
@@ -830,7 +837,22 @@ export class Director {
       await this.browser.act(browserActs[base], done.data.output?.title, done.data.output?.url);
       return true;
     }
-    if (base === "t3_preview_close") { this.wm.close("browser"); return true; }
+    if (base === "preview_close" || base === "t3_preview_close") {
+      const done = await this.settle(id, 10000);
+      if (/^(failed|cancelled|canceled|interrupted|aborted)$/.test(done.status) || done.data.output?.isError) {
+        this.onActivity("Could not close the browser tab");
+        return true;
+      }
+      if (done.status === "running" || done.status === "pending" || done.data.streaming) {
+        this.onActivity("Waiting for the browser tab to close");
+        return true;
+      }
+      const tabId = done.data.input?.tabId || done.data.output?.tabId;
+      this.onActivity("Closing a browser tab");
+      await this.browser.closeTab(tabId ? `pv:${tabId}` : undefined, this.catchingUp);
+      if (this.mobile) await this.phone(false);
+      return true;
+    }
     // HTML the robot wrote and rendered to look at it: the browser draws that very page
     if (base === "html_render" || base === "html_preview") {
       const inp = this.get(id).data.input || {};
@@ -1084,17 +1106,34 @@ export class Director {
 
   // The picture is made in the Codex desktop app. The prompt and the finished file are read from the
   // tool call itself, so the frame stays empty exactly as long as the call runs.
+  private imageState(it: Item): ImageState {
+    const result = imageResult(it, fileUrl);
+    return { done: it.status !== "running" && it.status !== "pending" && !it.data.streaming, failed: result.failed, sources: result.sources };
+  }
+
+  private refreshImage(update: ImageRefresh) {
+    const epoch = this.wm.epoch, thread = this.info?.id;
+    const valid = () => epoch === this.wm.epoch && thread === this.info?.id && this.imageRefresh.valid(update);
+    void this.codex.refresh(update.id, update.state, valid).then((outcome) => {
+      if (!outcome || !valid() || this.pumpEpoch !== -1 || this.queue.length || !this.wm.isFront("codex")) return;
+      this.onActivity(outcome === "completed" ? "Image ready" : outcome === "failed" ? "Image generation failed" : "Image preview unavailable");
+    }).catch((err) => { if (valid()) console.warn("image result refresh failed", err); });
+  }
+
   private async playImageGen(id: string, first: ImageGen) {
     this.onActivity(first.edit ? "Editing an image in Codex" : "Generating an image in Codex");
     this.stage.setGlow(GLOW.tool);
-    const state = () => {
-      const cur = this.get(id);
-      const res = imageResult(cur, fileUrl);
-      return { done: cur.status !== "running" && cur.status !== "pending" && !cur.data.streaming, failed: res.failed, sources: res.sources };
-    };
+    let presented = this.imageState(this.get(id));
+    this.imageRefresh.begin(id, presented);
+    const state = () => (presented = this.imageState(this.get(id)));
     const latest = imageGenOf(this.get(id)) ?? first;
-    await this.codex.generate({ prompt: latest.prompt || first.prompt, size: latest.size ?? first.size, edit: first.edit, state, instant: this.catchingUp });
-    this.onActivity(first.edit ? "Edited an image" : "Generated an image");
+    const outcome = await this.codex.generate({ itemId: id, prompt: latest.prompt || first.prompt, size: latest.size ?? first.size, edit: first.edit, state, instant: this.catchingUp });
+    this.onActivity(outcome === "completed" ? (first.edit ? "Edited an image" : "Generated an image")
+      : outcome === "failed" ? "Image generation failed"
+      : outcome === "pending" ? "Waiting for image generation"
+      : "Image preview unavailable");
+    const late = this.imageRefresh.release(id, presented);
+    if (late) this.refreshImage(late);
   }
 
   private async play(id: string) {
@@ -1311,8 +1350,7 @@ export class Director {
         return;
       }
       case "compaction": {
-        // Compaction is the robot's coffee break: lean back, stretch, sip, then back to it.
-        this.onActivity("Taking a short break");
+        this.onActivity(it.status === "failed" ? "Context compaction failed" : it.status === "running" || it.status === "pending" ? "Compacting context" : "Context compacted");
         this.stage.say(null);
         this.robot.setPose("stretch");
         await this.wm.sleep(1400);

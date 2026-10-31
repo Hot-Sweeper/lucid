@@ -26,6 +26,7 @@ const I = {
 };
 
 export type GenState = { done: boolean; failed?: string; sources: string[] };
+export type GenOutcome = "completed" | "failed" | "pending" | "unavailable";
 const FRAME_H = 150;
 
 function loadImage(src: string, ms = 9000): Promise<HTMLImageElement | null> {
@@ -42,9 +43,13 @@ const fileName = (src: string) => { try { return decodeURIComponent(src.replace(
 
 export class CodexApp {
   private info: ThreadInfo | null = null;
+  private presentation: { itemId: string; root: HTMLElement; block: HTMLElement; epoch: number; edit: boolean; since: number } | null = null;
   constructor(private wm: WM) {}
 
+  reset() { this.presentation = null; }
+
   setInfo(info: ThreadInfo) {
+    if (this.info && this.info.id !== info.id) this.reset();
     this.info = info;
     const r = this.root();
     if (r) this.paintInfo(r);
@@ -84,7 +89,8 @@ export class CodexApp {
   }
 
   /** Types the prompt, sends it and waits for the picture. `state` is read as the tool call goes on. */
-  async generate(o: { prompt: string; size?: string; edit?: boolean; state: () => GenState; instant?: boolean; maxMs?: number }) {
+  async generate(o: { itemId?: string; prompt: string; size?: string; edit?: boolean; state: () => GenState; instant?: boolean; maxMs?: number }): Promise<GenOutcome> {
+    this.presentation = null;
     const wm = this.wm, e = wm.epoch;
     const root = await this.ensure();
     const msgs = root.querySelector(".cx-msgs") as HTMLElement;
@@ -119,6 +125,7 @@ export class CodexApp {
     block.innerHTML = `<div class="cx-line"><span class="cx-shim">${o.edit ? "Editing image" : "Generating image"}</span><span class="cx-el">0s</span></div>
       <div class="cx-frame" style="height:${FRAME_H}px;width:${Math.round(FRAME_H * ratio)}px"><div class="cx-wait"></div></div>`;
     msgs.appendChild(block);
+    if (o.itemId) this.presentation = { itemId: o.itemId, root, block, epoch: e, edit: !!o.edit, since: Date.now() };
     if (!o.instant) {
       gsap.from(mine, { opacity: 0, y: 8, duration: 0.3, ease: "power2.out" });
       gsap.from(block, { opacity: 0, duration: 0.3, delay: 0.2 });
@@ -143,7 +150,7 @@ export class CodexApp {
       if (st.failed) block.insertAdjacentHTML("beforeend", `<p class="cx-err">${esc(st.failed.slice(0, 200))}</p>`);
       wm.robot.react?.(st.failed ? "surprised" : "relax");
       await wm.sleep(900, e);
-      return;
+      return st.failed ? "failed" : "pending";
     }
 
     // the picture arrives
@@ -151,10 +158,11 @@ export class CodexApp {
     for (const src of st.sources.slice(0, 3)) { const im = await loadImage(src); wm.check(e); if (im) imgs.push(im); }
     line.innerHTML = `<span>${o.edit ? "Edited image" : "Generated image"}</span><span class="cx-el">${Math.floor((Date.now() - t0) / 1000)}s</span>`;
     if (!imgs.length) {
+      line.textContent = "Image preview unavailable";
       frame.remove();
-      block.insertAdjacentHTML("beforeend", `<p class="cx-err">${st.sources.length ? `Saved as ${esc(fileName(st.sources[0]) || "an image file")}, but the file could not be opened here.` : "The tool finished without returning a picture."}</p>`);
+      block.insertAdjacentHTML("beforeend", `<p class="cx-err">${st.sources.length ? /^data:/i.test(st.sources[0]) ? "The returned image could not be opened here." : `Saved as ${esc(fileName(st.sources[0]) || "an image file")}, but the file could not be opened here.` : "The tool finished without returning a picture."}</p>`);
       await wm.sleep(900, e);
-      return;
+      return "unavailable";
     }
     const row = document.createElement("div");
     row.className = "cx-pics";
@@ -177,7 +185,7 @@ export class CodexApp {
     }
     toEnd();
     await wm.sleep(o.instant ? 200 : 1100, e);
-    if (o.instant) return;
+    if (o.instant) return "completed";
 
     // a closer look: click it open, look, close it again
     if (Math.random() < 0.7) {
@@ -198,5 +206,44 @@ export class CodexApp {
       gsap.to(lb, { opacity: 0, duration: 0.2, onComplete: () => { lb.hidden = true; lb.innerHTML = ""; } });
       await wm.sleep(300, e);
     }
+    return "completed";
+  }
+
+  /** Update the same real tool's result block without opening, typing, or stealing focus. */
+  async refresh(itemId: string, state: GenState, valid: () => boolean): Promise<GenOutcome | null> {
+    const p = this.presentation;
+    const alive = () => !!p && this.presentation === p && p.itemId === itemId && p.epoch === this.wm.epoch && p.block.isConnected && this.root() === p.root && valid();
+    if (!alive() || (!state.done && !state.failed)) return null;
+    const imgs = state.failed ? [] : (await Promise.all(state.sources.slice(0, 3).map((src) => loadImage(src)))).filter((im): im is HTMLImageElement => !!im);
+    if (!alive() || !p) return null;
+    const line = p.block.querySelector(".cx-line") as HTMLElement;
+    p.block.querySelectorAll(".cx-frame, .cx-pics, .cx-err, .cx-file").forEach((node) => node.remove());
+    if (state.failed) {
+      line.textContent = "Image generation failed";
+      p.block.insertAdjacentHTML("beforeend", `<p class="cx-err">${esc(state.failed.slice(0, 200))}</p>`);
+      return "failed";
+    }
+    if (!imgs.length) {
+      line.textContent = "Image preview unavailable";
+      p.block.insertAdjacentHTML("beforeend", `<p class="cx-err">${state.sources.length ? "The returned image could not be opened here." : "The tool finished without returning a picture."}</p>`);
+      return "unavailable";
+    }
+    line.innerHTML = `<span>${p.edit ? "Edited image" : "Generated image"}</span><span class="cx-el">${Math.floor((Date.now() - p.since) / 1000)}s</span>`;
+    const row = document.createElement("div");
+    row.className = "cx-pics";
+    for (const im of imgs) {
+      const fig = document.createElement("figure");
+      fig.className = "cx-pic";
+      const ratio = Math.min(1.8, Math.max(0.55, im.naturalWidth / (im.naturalHeight || 1)));
+      fig.style.cssText = `height:${FRAME_H}px;width:${Math.round(FRAME_H * ratio)}px`;
+      im.alt = p.edit ? "Edited image" : "Generated image";
+      im.draggable = false;
+      fig.appendChild(im);
+      row.appendChild(fig);
+    }
+    p.block.appendChild(row);
+    const msgs = p.root.querySelector(".cx-msgs") as HTMLElement;
+    msgs.scrollTop = msgs.scrollHeight;
+    return "completed";
   }
 }

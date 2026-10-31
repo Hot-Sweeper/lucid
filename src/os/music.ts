@@ -231,8 +231,6 @@ export class MusicApp {
     const presses = r < 0.55 ? 1 : r < 0.85 ? 2 : 3 + Math.floor(Math.random() * 2);
     for (let i = 0; i < presses; i++) {
       wm.robot.setPose("mouse");
-      // a song gets a few seconds of a chance first
-      if (i === 0) this.elapsed = Math.max(this.elapsed, 4 + Math.floor(Math.random() * 20));
       await wm.pointAt(b.querySelector('[data-act="next"]')!, 0.5, 0.5, i ? 200 : 420);
       await wm.click();
       wm.check(e);

@@ -130,8 +130,14 @@ export class ChatPanel {
   onToggleView: () => void = () => {};
   /** You started or stopped typing a message to this robot. */
   onTyping: (on: boolean) => void = () => {};
-  private pending: { text: string; at: number }[] = [];
+  private pending: { threadId: string; text: string; at: number }[] = [];
   private files: File[] = [];
+  private drafts = new Map<string, { text: string; files: File[]; refs: ThreadRef[] }>();
+  private sending = new Set<string>();
+  private sendErrors = new Map<string, string>();
+  private queueCleanups = new Set<() => void>();
+  private resizeComposer: () => void = () => {};
+  private stopComposerTyping: () => void = () => {};
   private previews = new WeakMap<File, string>();
   // T3 session: the model bar and the queue actions need Lucid to be paired with T3
   private paired = false;
@@ -217,11 +223,11 @@ export class ChatPanel {
     const state = this.refState(ref);
     this.refPreview = null;
     if (state === "ok") {
-      this.refs.push({ ...ref });
+      const added = { ...ref };
+      this.refs.push(added);
       // the last request and reply go along as a summary; loaded now so sending stays quick
       this.refLoads.set(ref.id, this.api.conversation(ref.id).then((msgs) => {
-        const r = this.refs.find((x) => x.id === ref.id);
-        if (r) Object.assign(r, summarize(msgs));
+        Object.assign(added, summarize(msgs));
       }).catch(() => {}));
     }
     this.renderChips();
@@ -235,10 +241,13 @@ export class ChatPanel {
   private removeChip(chip: HTMLElement) {
     const rm = chip.querySelector("[data-rm], [data-rmref]") as HTMLElement | null;
     if (!rm) return;
+    const threadId = this.threadId, refs = this.refs, files = this.files;
+    const ref = rm.dataset.rmref != null ? refs[Number(rm.dataset.rmref)] : null;
+    const file = rm.dataset.rm != null ? files[Number(rm.dataset.rm)] : null;
     gsap.to(chip, { opacity: 0, scale: 0.9, duration: 0.14, onComplete: () => {
-      if (rm.dataset.rmref != null) { const r = this.refs.splice(Number(rm.dataset.rmref), 1)[0]; if (r) this.refLoads.delete(r.id); }
-      else this.files.splice(Number(rm.dataset.rm), 1);
-      this.renderChips();
+      if (ref) { const i = refs.indexOf(ref); if (i >= 0) refs.splice(i, 1); }
+      if (file) { const i = files.indexOf(file); if (i >= 0) files.splice(i, 1); }
+      if (threadId === this.threadId) this.renderChips();
     } });
   }
 
@@ -347,17 +356,19 @@ export class ChatPanel {
       ta.style.height = `${Math.min(max, ta.scrollHeight)}px`;
       ta.style.overflowY = ta.scrollHeight > max ? "auto" : "hidden";
     };
+    this.resizeComposer = grow;
     ta.addEventListener("input", grow);
     // let the robot know you are typing (and when you stop)
     let typingTimer = 0, typingOn = false;
     const setTyping = (on: boolean) => { if (on !== typingOn) { typingOn = on; this.onTyping(on); } };
+    this.stopComposerTyping = () => { window.clearTimeout(typingTimer); setTyping(false); };
     ta.addEventListener("input", () => {
       window.clearTimeout(typingTimer);
       if (!ta.value.trim()) { setTyping(false); return; }
       setTyping(true);
       typingTimer = window.setTimeout(() => setTyping(false), 6000);
     });
-    form.addEventListener("submit", () => { window.clearTimeout(typingTimer); typingOn = false; }, true);
+    form.addEventListener("submit", () => this.stopComposerTyping(), true);
     // attachments: the paperclip, pasting, or dropping files onto the panel
     const fileInput = form.querySelector(".cp-fileinput") as HTMLInputElement;
     form.querySelector(".cp-attach")!.addEventListener("click", () => fileInput.click());
@@ -399,10 +410,15 @@ export class ChatPanel {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const typed = ta.value.trim();
-      if ((!typed && !this.files.length && !this.refs.length) || !this.desk?.threadId) return;
+      const threadId = this.threadId;
+      if ((!typed && !this.files.length && !this.refs.length) || !threadId || this.sending.has(threadId)) return;
+      this.sending.add(threadId);
+      this.sendErrors.delete(threadId);
+      this.el.querySelectorAll(".cp-notice").forEach((n) => n.remove());
       ta.disabled = true;
       const files = [...this.files];
       const refs = [...this.refs];
+      let pending: { threadId: string; text: string; at: number } | null = null;
       try {
         // files are saved where the agent can open them, and listed in the message
         const saved: { path: string; image: boolean }[] = [];
@@ -410,23 +426,34 @@ export class ChatPanel {
         // referenced threads go along as short blocks the agent can read and look up by id
         await Promise.all(refs.map((r) => this.refLoads.get(r.id)));
         let text = typed || (saved.length ? "Have a look at the attached files." : refs.length > 1 ? "Have a look at these threads." : refs.length ? "Have a look at this thread." : "");
-        if (refs.length) text += `\n\n${refs.map((r) => refBlock(this.refs.find((x) => x.id === r.id) ?? r, harnessName(r.provider))).join("\n\n")}`;
+        if (refs.length) text += `\n\n${refs.map((r) => refBlock(r, harnessName(r.provider))).join("\n\n")}`;
         if (saved.length) text += `\n\nAttached:\n${saved.map((s) => `- ${s.image ? "image" : "file"}: ${s.path}`).join("\n")}`;
         // show it right away; it turns into the real message once T3 has it
-        this.pending.push({ text, at: Date.now() });
-        this.renderPending();
-        await this.api.sendMessage({ threadId: this.desk.threadId, message: text });
-        ta.value = "";
-        this.files = [];
-        this.refs = this.refs.filter((r) => !refs.some((x) => x.id === r.id));
-        this.renderChips();
-        grow();
-        this.refreshSoon(300);
+        pending = { threadId, text, at: Date.now() };
+        this.pending.push(pending);
+        if (threadId === this.threadId) this.renderPending();
+        await this.api.sendMessage({ threadId, message: text });
+        this.drafts.delete(threadId);
+        if (threadId === this.threadId) {
+          ta.value = "";
+          this.files = this.files.filter((f) => !files.includes(f));
+          this.refs = this.refs.filter((r) => !refs.includes(r));
+          this.renderChips();
+          grow();
+          this.refreshSoon(300);
+        }
       } catch (err: any) {
-        this.pending = this.pending.filter((p) => !p.text.startsWith(typed));
-        this.renderPending();
-        this.note(`Could not send: ${err.message || err}. Your text is still here.`);
-      } finally { ta.disabled = false; ta.focus(); }
+        if (pending) this.pending = this.pending.filter((p) => p !== pending);
+        const error = `Could not send: ${err.message || err}. Your text is still here.`;
+        this.sendErrors.set(threadId, error);
+        if (threadId === this.threadId) {
+          this.renderPending();
+          this.note(error);
+        }
+      } finally {
+        this.sending.delete(threadId);
+        if (threadId === this.threadId) { ta.disabled = false; ta.focus(); }
+      }
     });
     ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); } });
     this.el.querySelector(".cp-list")!.addEventListener("click", (e) => {
@@ -450,16 +477,32 @@ export class ChatPanel {
   get threadId() { return this.desk?.threadId ?? null; }
 
   private closing = false;
-  open(desk: Desk) {
+  private saveDraft() {
+    if (!this.threadId) return;
+    this.drafts.set(this.threadId, { text: (this.el.querySelector("textarea") as HTMLTextAreaElement).value, files: this.files, refs: this.refs });
+  }
+  open(desk: Desk, focus = true) {
     // opened again while it was sliding out (you clicked another robot): it stays
     if (this.closing) { this.closing = false; gsap.killTweensOf(this.el); gsap.set(this.el, { clearProps: "x,opacity" }); }
-    const same = this.desk === desk;
+    const same = !!desk.threadId && this.threadId === desk.threadId;
+    if (!same) { this.stopComposerTyping(); this.saveDraft(); for (const clean of [...this.queueCleanups]) clean(); }
     this.desk = desk;
     this.setPlan(desk.planSteps || []);
     if (!same) {
+      const draft = desk.threadId ? this.drafts.get(desk.threadId) : null;
+      const ta = this.el.querySelector("textarea") as HTMLTextAreaElement;
+      ta.value = draft?.text ?? "";
+      ta.disabled = !!desk.threadId && this.sending.has(desk.threadId);
+      this.files = draft?.files ?? [];
+      this.refs = draft?.refs ?? [];
+      this.refPreview = null;
+      this.renderChips();
+      this.resizeComposer();
+      this.typingOn = false;
       this.shown.clear(); this.groups.clear(); this.timelineSig = ""; (this.el.querySelector(".cp-list") as HTMLElement).innerHTML = "";
       this.sel = null; this.queueHold = 0; this.closeMenu();
       (this.el.querySelector(".cp-queue ol") as HTMLElement).dataset.sig = "";
+      this.renderQueue([]);
       void this.loadT3();
     }
     const info = desk.info, logo = logoFor(info?.provider);
@@ -481,11 +524,15 @@ export class ChatPanel {
       if (!this.collapsed) gsap.from([...this.el.children].filter((c) => !c.classList.contains("cp-empty")), { opacity: 0, y: 8, duration: 0.32, ease: "power2.out", stagger: 0.04, clearProps: "opacity,y" });
     }
     this.refresh();
-    (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
+    this.renderPending(false);
+    if (!same && this.sendErrors.has(this.threadId!)) this.note(this.sendErrors.get(this.threadId!)!);
+    if (focus) (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
   }
 
   close() {
     if (!this.isOpen) return;
+    this.stopComposerTyping(); this.saveDraft();
+    for (const clean of [...this.queueCleanups]) clean();
     this.el.classList.remove("open");
     this.closeMenu();
     this.desk = null;
@@ -536,17 +583,17 @@ export class ChatPanel {
     }
   }
 
-  private renderPending() {
+  private renderPending(scroll = true) {
     const list = this.el.querySelector(".cp-list") as HTMLElement;
     list.querySelectorAll(".cp-msg.pending").forEach((e) => e.remove());
-    for (const p of this.pending) {
+    for (const p of this.pending.filter((p) => p.threadId === this.threadId)) {
       const el = document.createElement("div");
       el.className = "cp-msg you pending";
-      const view = this.render({ id: "pending", role: "user", at: new Date().toISOString(), streaming: false, text: p.text, attachments: [] });
+      const view = this.render({ id: "pending", role: "user", at: new Date(p.at).toISOString(), streaming: false, text: p.text, attachments: [] });
       el.innerHTML = view.replace(/<time>[^<]*<\/time>$/, "<time>Sending</time>");
       list.appendChild(el);
     }
-    list.scrollTop = list.scrollHeight;
+    if (scroll) list.scrollTop = list.scrollHeight;
   }
 
   // Called when new events arrive for a thread.
@@ -587,7 +634,7 @@ export class ChatPanel {
     }
     const anchor = !nearBottom ? [...list.querySelectorAll<HTMLElement>(".cp-msg")].find((e) => e.getBoundingClientRect().bottom > list.getBoundingClientRect().top) : null;
     const anchorY = anchor?.getBoundingClientRect().top;
-    list.querySelector(".cp-empty")?.remove();
+    list.querySelector(".cp-empty:not(.cp-notice)")?.remove();
     const batches: { key: string; role: string; messages: Msg[] }[] = [];
     for (const m of timeline) {
       let el = this.shown.get(m.id);
@@ -651,12 +698,12 @@ export class ChatPanel {
     list.querySelectorAll(".cp-msg.pending").forEach((e) => list.appendChild(e));
     const typing = list.querySelector(".cp-typing");
     if (typing) list.appendChild(typing);
-    const pending = this.pending.filter((p) => !texts.has(p.text) && Date.now() - p.at < 60000);
+    const pending = this.pending.filter((p) => p.threadId !== id || (!texts.has(p.text) && Date.now() - p.at < 60000));
     const pendingChanged = pending.length !== this.pending.length;
     this.pending = pending;
-    if (pendingChanged) this.renderPending();
+    if (pendingChanged) this.renderPending(false);
     if (!list.children.length) list.innerHTML = `<p class="cp-empty">No messages yet. Say hello.</p>`;
-    else list.querySelector(".cp-empty")?.remove();
+    else list.querySelector(".cp-empty:not(.cp-notice)")?.remove();
     if (nearBottom || initial) list.scrollTop = list.scrollHeight;
     else if (anchor?.isConnected && anchorY != null) list.scrollTop += anchor.getBoundingClientRect().top - anchorY;
     endSystem("chat", started);
@@ -682,7 +729,7 @@ export class ChatPanel {
       const logo = s.provider ? logoFor(s.provider) : null;
       return `<span class="cp-event-model">${logo ? `<img src="${logo}" alt="${esc(harnessName(s.provider))}">` : ""}${esc(modelName(s.model) || harnessName(s.provider))}</span>`;
     };
-    const label = e.kind === "compaction" ? (e.status === "running" ? "Compacting context" : e.status === "failed" ? "Compaction failed" : "Context compacted")
+    const label = e.kind === "compaction" ? (/running|pending|waiting/.test(e.status ?? "") ? "Compacting context" : e.status === "failed" ? "Compaction failed" : /cancel|interrupt|abort/.test(e.status ?? "") ? "Compaction interrupted" : "Context compacted")
       : e.kind === "handoff" ? "Context handoff" : e.kind === "harness" ? "Harness switched" : "Model switched";
     return `<span class="cp-event-line" aria-hidden="true"></span><span class="cp-event-body"><span>${label}</span>${e.from || e.to ? selection(e.from) + '<span aria-hidden="true">&rarr;</span>' + selection(e.to) : ""}<time datetime="${esc(m.at)}">${when(m.at)}</time></span><span class="cp-event-line" aria-hidden="true"></span>`;
   }
@@ -737,7 +784,7 @@ export class ChatPanel {
     // never replace rows while you drag, edit or confirm; the latest state lands afterwards
     if (this.queueHold > 0) return;
     const live = this.canAct();
-    const sig = `${live}|` + queued.map((m) => `${m.id}:${m.text.length}:${m.text.slice(0, 40)}:${m.steerTarget ? 1 : 0}`).join(",");
+    const sig = JSON.stringify([live, queued]);
     if (ol.dataset.sig === sig) return;
     ol.dataset.sig = sig;
     box.classList.toggle("can-act", live);
@@ -1063,7 +1110,8 @@ export class ChatPanel {
   private wireQueue() {
     const ol = this.el.querySelector(".cp-queue ol") as HTMLOListElement;
     const items = () => [...ol.children] as HTMLElement[];
-    const hold = (on: boolean) => {
+    const hold = (on: boolean, threadId = this.threadId) => {
+      if (threadId !== this.threadId) return;
       this.queueHold = Math.max(0, this.queueHold + (on ? 1 : -1));
       if (!this.queueHold) { ol.dataset.sig = ""; this.renderQueue(this.queueLatest); }
     };
@@ -1076,28 +1124,30 @@ export class ChatPanel {
       }
     };
     const move = async (li: HTMLElement, to: number, seen?: Map<HTMLElement, number>) => {
+      const threadId = this.threadId;
       const list = items();
       const from = list.indexOf(li);
       const min = list.findIndex((x) => !x.classList.contains("fixed"));
       to = Math.max(min, Math.min(list.length - 1, to));
-      if (to === from || !this.threadId) return;
+      if (to === from || !threadId) return;
       // T3 wants the run it should now sit in front of (null: the end of the queue)
       const before = list.filter((x) => x !== li)[to] ?? null;
       seen ??= new Map(list.map((x) => [x, x.getBoundingClientRect().top]));
       ol.insertBefore(li, before);
       glide(list, seen);
       this.numberQueue();
-      hold(true);
+      hold(true, threadId);
       try {
-        await this.api.t3!.reorder({ threadId: this.threadId, runId: li.dataset.run!, beforeRunId: before?.dataset.run || null });
+        await this.api.t3!.reorder({ threadId, runId: li.dataset.run!, beforeRunId: before?.dataset.run || null });
       } catch (err: any) {
+        if (threadId !== this.threadId) return;
         const back = new Map(list.map((x) => [x, x.getBoundingClientRect().top]));
         ol.insertBefore(li, list[from + 1] ?? null);
         glide(list, back);
         this.numberQueue();
         this.failed(err, "queue");
       } finally {
-        hold(false);
+        hold(false, threadId);
         this.refreshSoon(250);
       }
     };
@@ -1106,23 +1156,26 @@ export class ChatPanel {
       const b = (e.target as HTMLElement).closest("[data-act]") as HTMLButtonElement | null;
       const li = b?.closest("li") as HTMLElement | null;
       if (!b || !li || b.disabled || !this.threadId) return;
+      const threadId = this.threadId;
+      const rowHold = (on: boolean) => hold(on, threadId);
       const i = items().indexOf(li);
       const act = b.dataset.act;
       if (act === "up" || act === "down") {
         await move(li, act === "up" ? i - 1 : i + 1);
         (li.querySelector(`[data-act="${act}"]`) as HTMLButtonElement | null)?.focus();
-      } else if (act === "edit") this.editRow(li, hold);
-      else if (act === "cancel") this.confirmRemove(li, hold);
+      } else if (act === "edit") this.editRow(li, rowHold);
+      else if (act === "cancel") this.confirmRemove(li, rowHold);
       else if (act === "steer") {
         const m = this.queueLatest.find((x) => x.id === li.dataset.id);
         if (!m?.steerTarget) return;
-        hold(true);
+        rowHold(true);
         gsap.to(li, { opacity: 0.35, duration: 0.15 });
         try {
-          await this.api.t3!.steer({ threadId: this.threadId, queuedRunId: li.dataset.run!, targetRunId: m.steerTarget });
+          await this.api.t3!.steer({ threadId, queuedRunId: li.dataset.run!, targetRunId: m.steerTarget });
+          if (threadId !== this.threadId) return;
           li.remove(); this.numberQueue();
-        } catch (err: any) { gsap.to(li, { opacity: 1, duration: 0.15 }); this.failed(err, "queue"); }
-        finally { hold(false); this.refreshSoon(250); }
+        } catch (err: any) { if (threadId === this.threadId) { gsap.to(li, { opacity: 1, duration: 0.15 }); this.failed(err, "queue"); } }
+        finally { rowHold(false); this.refreshSoon(250); }
       }
     });
 
@@ -1149,12 +1202,15 @@ export class ChatPanel {
       const gap = rects.length > 1 ? rects[1].top - rects[0].bottom : 6;
       const step = rects[from].height + gap;
       const startY = e.clientY;
+      const threadId = this.threadId;
+      const pointerId = e.pointerId;
       let to = from;
-      grip.setPointerCapture(e.pointerId);
+      try { grip.setPointerCapture(pointerId); } catch { /* window handlers cover synthetic and lost capture */ }
       li.classList.add("dragging");
       document.body.classList.add("cq-dragging");
-      hold(true);
+      hold(true, threadId);
       const onMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
         const dy = ev.clientY - startY;
         gsap.set(li, { y: dy });
         const mid = rects[from].top + rects[from].height / 2 + dy;
@@ -1171,23 +1227,37 @@ export class ChatPanel {
         preview.splice(to, 0, li);
         preview.forEach((x, i) => ((x.querySelector(".cq-n") as HTMLElement).textContent = ordLabel(i + 1)));
       };
-      const onUp = (ev: PointerEvent) => {
-        if (ev.type === "pointercancel") to = from; // interrupted: it goes back where it was
-        grip.removeEventListener("pointermove", onMove);
-        grip.removeEventListener("pointerup", onUp);
-        grip.removeEventListener("pointercancel", onUp);
+      let ended = false;
+      const finish = (cancel: boolean) => {
+        if (ended) return;
+        ended = true;
+        if (cancel) to = from;
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onCancel);
+        window.removeEventListener("blur", onCancel);
+        window.removeEventListener("keydown", onKey, true);
+        grip.removeEventListener("lostpointercapture", onCancel);
+        this.queueCleanups.delete(onCancel);
         li.classList.remove("dragging");
         document.body.classList.remove("cq-dragging");
         // remember where everything is on screen, drop the drag offsets, then glide into place
         gsap.killTweensOf(list);
         const seen = new Map(list.map((x) => [x, x.getBoundingClientRect().top]));
         list.forEach((x) => gsap.set(x, { clearProps: "transform" }));
-        if (to !== from) void move(li, to, seen).finally(() => hold(false));
-        else { glide(list, seen); this.numberQueue(); hold(false); }
+        if (to !== from) void move(li, to, seen).finally(() => hold(false, threadId));
+        else { glide(list, seen); this.numberQueue(); hold(false, threadId); }
       };
-      grip.addEventListener("pointermove", onMove);
-      grip.addEventListener("pointerup", onUp);
-      grip.addEventListener("pointercancel", onUp);
+      const onUp = (ev: PointerEvent) => { if (ev.pointerId === pointerId) finish(false); };
+      const onCancel = () => finish(true);
+      const onKey = (ev: KeyboardEvent) => { if (ev.key === "Escape") { ev.preventDefault(); ev.stopImmediatePropagation(); finish(true); } };
+      this.queueCleanups.add(onCancel);
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onCancel);
+      window.addEventListener("blur", onCancel);
+      window.addEventListener("keydown", onKey, true);
+      grip.addEventListener("lostpointercapture", onCancel);
     });
   }
 
@@ -1196,6 +1266,7 @@ export class ChatPanel {
     if (li.classList.contains("editing")) return;
     const m = this.queueLatest.find((x) => x.id === li.dataset.id);
     if (!m) return;
+    const threadId = this.threadId!;
     hold(true);
     li.classList.add("editing");
     const p = li.querySelector("p") as HTMLElement;
@@ -1207,7 +1278,11 @@ export class ChatPanel {
     p.replaceWith(box);
     ta.focus();
     ta.setSelectionRange(ta.value.length, ta.value.length);
+    let finished = false;
     const finish = () => {
+      if (finished) return;
+      finished = true;
+      this.queueCleanups.delete(finish);
       window.removeEventListener("keydown", onEsc, true);
       box.replaceWith(p);
       li.classList.remove("editing");
@@ -1215,6 +1290,7 @@ export class ChatPanel {
     };
     const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape" && box.contains(document.activeElement)) { e.stopImmediatePropagation(); finish(); (li.querySelector('[data-act="edit"]') as HTMLElement | null)?.focus(); } };
     window.addEventListener("keydown", onEsc, true);
+    this.queueCleanups.add(finish);
     const save = async () => {
       const text = ta.value.trim();
       if (!text) { this.queueNote("A queued message cannot be empty. Remove it instead."); return; }
@@ -1222,11 +1298,13 @@ export class ChatPanel {
       const saveBtn = box.querySelector(".cq-save") as HTMLButtonElement;
       saveBtn.disabled = true; saveBtn.textContent = "Saving";
       try {
-        await this.api.t3!.edit({ threadId: this.threadId!, runId: li.dataset.run!, text });
+        await this.api.t3!.edit({ threadId, runId: li.dataset.run!, text });
+        if (threadId !== this.threadId) return;
         p.textContent = text; p.title = text;
         finish();
         this.refreshSoon(200);
       } catch (err: any) {
+        if (threadId !== this.threadId) return;
         saveBtn.disabled = false; saveBtn.textContent = "Save";
         this.failed(err, "queue");
       }
@@ -1239,6 +1317,7 @@ export class ChatPanel {
   // Removing cannot be undone in T3, so the row asks once, in place.
   private confirmRemove(li: HTMLElement, hold: (on: boolean) => void) {
     if (li.classList.contains("confirming")) return;
+    const threadId = this.threadId!;
     hold(true);
     li.classList.add("confirming");
     const bar = document.createElement("div");
@@ -1248,22 +1327,24 @@ export class ChatPanel {
     li.appendChild(bar);
     const keep = bar.querySelector(".cq-no") as HTMLButtonElement;
     keep.focus();
-    const finish = () => { window.removeEventListener("keydown", onEsc, true); bar.remove(); li.classList.remove("confirming"); hold(false); };
+    let finished = false;
+    const finish = () => { if (finished) return; finished = true; this.queueCleanups.delete(finish); window.removeEventListener("keydown", onEsc, true); bar.remove(); li.classList.remove("confirming"); hold(false); };
     const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape" && bar.contains(document.activeElement)) { e.stopImmediatePropagation(); finish(); (li.querySelector('[data-act="cancel"]') as HTMLElement | null)?.focus(); } };
     window.addEventListener("keydown", onEsc, true);
+    this.queueCleanups.add(finish);
     keep.addEventListener("click", () => { finish(); (li.querySelector('[data-act="cancel"]') as HTMLElement | null)?.focus(); });
     bar.querySelector(".cq-yes")!.addEventListener("click", async () => {
       const yes = bar.querySelector(".cq-yes") as HTMLButtonElement;
       yes.disabled = true; yes.textContent = "Removing";
       try {
-        await this.api.t3!.cancel({ threadId: this.threadId!, runId: li.dataset.run! });
+        await this.api.t3!.cancel({ threadId, runId: li.dataset.run! });
+        if (threadId !== this.threadId) return;
         const next = (li.nextElementSibling ?? li.previousElementSibling) as HTMLElement | null;
-        window.removeEventListener("keydown", onEsc, true);
-        gsap.to(li, { opacity: 0, height: 0, marginTop: 0, duration: 0.2, onComplete: () => { li.remove(); this.numberQueue(); li.classList.remove("confirming"); hold(false); this.refreshSoon(100); } });
+        gsap.to(li, { opacity: 0, height: 0, marginTop: 0, duration: 0.2, onComplete: () => { li.remove(); if (threadId === this.threadId) this.numberQueue(); finish(); this.refreshSoon(100); } });
         (next?.querySelector(".cq-grip") as HTMLElement | null)?.focus();
       } catch (err: any) {
         finish();
-        this.failed(err, "queue");
+        if (threadId === this.threadId) this.failed(err, "queue");
       }
     });
   }
@@ -1278,7 +1359,7 @@ export class ChatPanel {
   private note(text: string) {
     const list = this.el.querySelector(".cp-list") as HTMLElement;
     const p = document.createElement("p");
-    p.className = "cp-empty";
+    p.className = "cp-empty cp-notice";
     p.textContent = text;
     list.appendChild(p);
     list.scrollTop = list.scrollHeight;

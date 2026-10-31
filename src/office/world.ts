@@ -816,7 +816,7 @@ export class World {
     for (const d of this.allDesks) {
       const left = this.cam.x + (parseFloat(d.el.style.left) + 54) * s;
       const top = this.cam.y + (parseFloat(d.el.style.top) + 4) * s;
-      const shown = !!d.threadId && s >= .3 && left < box.width && left + 292 * s > 0 && top < box.height && top + 172 * s > 0;
+      const shown = !!d.threadId && !d.el.classList.contains("arriving") && left < box.width && left + 292 * s > 0 && top < box.height && top + 172 * s > 0;
       setRenderView(d.screen, shown, 276 * s);
     }
     const vx = -this.cam.x / s, vy = -this.cam.y / s;
@@ -1170,7 +1170,6 @@ export class World {
   private lastY = 0;
   private zooming = false;
   private zoomEnd = 0;
-  private far = false;
   // The camera stays on the grounds: it cannot zoom out past the whole drawing, and the view never
   // drifts off it (when the view is wider or taller than the grounds, they stay centred that way).
   private clampCam() {
@@ -1209,9 +1208,6 @@ export class World {
     updateOutside(this.root.querySelector(".outside-layer"), this.cam, box.width, box.height);
     // the weather follows the camera without measuring the page (which is slow every frame)
     if (this.fx) { this.sceneBox ??= this.scene.getBoundingClientRect(); this.fx.setCamera(this.cam, this.sceneBox, this.size.w, this.size.h); }
-    // zoomed far out the screens are too small to read: show their glow instead of drawing them
-    const far = this.cam.s < 0.3;
-    if (far !== this.far) { this.far = far; this.scene.classList.toggle("far", far); }
     // small looping details (steam, swaying plants, birds) only move when you are close enough to see them
     const near = this.cam.s >= 1;
     if (near !== this.near) { this.near = near; this.scene.classList.toggle("near", near); }

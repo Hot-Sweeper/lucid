@@ -80,6 +80,20 @@ export class BrowserApp {
     if (!instant) gsap.fromTo(t.page, { opacity: 0.4 }, { opacity: 1, duration: 0.25 });
   }
 
+  /** Close the tool's tab, preserving other preview tabs and their current pages. */
+  async closeTab(key?: string, instant = false) {
+    const b = this.wm.wins.get("browser")?.body.querySelector<HTMLElement>(".browser");
+    if (!b) return;
+    const t = key ? this.tabs.find((x) => x.key === key) : this.active;
+    if (!t) return;
+    if (!instant) { await this.wm.pointAt(t.el.querySelector(".b-x")!, 0.5, 0.5, 300); await this.wm.click(); }
+    this.tabs.splice(this.tabs.indexOf(t), 1);
+    t.el.remove();
+    t.page.remove();
+    if (!this.tabs.length) { this.active = null; this.wm.close("browser"); return; }
+    if (this.active === t) this.show(b, [...this.tabs].sort((a, z) => z.used - a.used)[0]);
+  }
+
   // Press the + button for a fresh tab, like Ctrl+T.
   private async newTab(b: HTMLElement, url: string, title: string, instant: boolean) {
     if (!instant && this.tabs.length) { await this.wm.pointAt(this.q(b, ".b-new"), 0.5, 0.5, 300); await this.wm.click(); }
@@ -171,11 +185,9 @@ export class BrowserApp {
       t = this.addTab(b, key, url, card.querySelector("h3")?.textContent || o.title || hostOf(url), "page", instant);
       this.show(b, t);
     } else if (cur && cur.kind === "page" && cur.view && hostOf(cur.url) === hostOf(url) && !o.newTab && !o.key) {
-      // same site: follow a link on the page
+      // A heading is not evidence of a link to this destination. Use the actual URL.
       t = cur;
-      const link = Array.from(cur.page.querySelectorAll(".lnk, .wl, h3, h2")).find((x) => { const r = (x as HTMLElement).offsetTop - cur.page.scrollTop; return r > 20 && r < cur.page.clientHeight - 20; }) as HTMLElement | undefined;
-      if (link && !instant) { await wm.pointAt(link, 0.3, 0.5, 340); await wm.click(); }
-      else await this.typeAddress(b, shortUrl(url), instant);
+      await this.typeAddress(b, shortUrl(url), instant);
     } else {
       t = await this.newTab(b, url, o.title || hostOf(url) || "New Tab", instant);
       if (o.key) t.key = o.key;
@@ -292,13 +304,18 @@ export class BrowserApp {
   async act(caption: string, title?: string, url?: string) {
     const wm = this.wm, e = wm.epoch;
     const b = await this.ensure();
-    if (url && /^https?:/.test(url) && !this.active) await this.open(url, { title, read: false, instant: true, real: true });
+    if (url && /^https?:/.test(url) && (!this.active || urlKey(this.active.url) !== urlKey(url))) await this.open(url, { title, read: false, instant: true, real: true });
     const page = this.active?.page || this.q(b, ".b-pages");
     const chip = el(`<div class="b-action"></div>`);
     chip.textContent = caption;
     b.appendChild(chip);
-    await wm.pointAt(page, 0.3 + Math.random() * 0.4, 0.3 + Math.random() * 0.4, 360);
-    if (/Click/.test(caption)) await wm.click();
+    // Tool snapshots do not always include target coordinates. Do not invent a click.
+    wm.robot.setPose("read");
+    if (/scroll/i.test(caption)) {
+      await wm.pointAt(page, 0.75, 0.65, 360);
+      const max = Math.max(0, page.scrollHeight - page.clientHeight);
+      gsap.to(page, { scrollTop: page.scrollTop >= max - 4 ? 0 : Math.min(max, page.scrollTop + page.clientHeight * 0.65), duration: 0.65, ease: "power2.inOut" });
+    }
     gsap.fromTo(chip, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" });
     await wm.sleep(900, e);
     gsap.to(chip, { opacity: 0, duration: 0.3, onComplete: () => chip.remove() });

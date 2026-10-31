@@ -139,7 +139,7 @@
 .pp-cap { flex: none; margin: 0 8px 8px; padding: 5px 8px; border-radius: 8px; background: rgba(27, 31, 69, 0.88); color: #fff; font-size: 8.5px; text-align: center; }
 
 /* chat beside the robot's screen */
-.chat-panel { grid-column: 3; grid-row: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.chat-panel { grid-column: 3; grid-row: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; container-type: inline-size; }
 .chat-panel.tabbed { display: none; }
 /* with no robot selected the panel stays, and says how to pick one */
 .cp-empty { flex: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 8px; padding: 24px 28px; min-height: 0; }
@@ -151,10 +151,17 @@
 .cp-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 14px 14px 12px 16px; }
 .cp-logo { width: 20px; height: 20px; flex: none; }
 .cp-who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.cp-who b { font-size: 15px; font-weight: 600; }
+.cp-who b { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
 .cp-who span { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cp-close { flex: none; width: 32px; height: 32px; border: 0; border-radius: 9px; background: rgba(255,255,255,0.07); color: var(--ink-2); cursor: pointer; display: grid; place-items: center; }
 .cp-close:hover { background: rgba(255,255,255,0.13); color: var(--ink); }
+@container (max-width: 430px) {
+  .cp-head { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; }
+  .cp-head > .cp-who { grid-column: 2; grid-row: 1; }
+  .cp-head > .cp-close { grid-column: 3; grid-row: 1; justify-self: end; }
+  .cp-head > .cp-view { grid-column: 2; grid-row: 2; justify-self: start; }
+  .cp-head > .cp-hide { grid-column: 3; grid-row: 2; }
+}
 .cp-list { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
 .cp-msg { max-width: 86%; display: flex; flex-direction: column; gap: 5px; }
 .cp-msg.you { align-self: flex-end; align-items: flex-end; }
@@ -670,18 +677,13 @@
 .cp-queue { background: #241f3a; box-shadow: inset 0 0 0 1px rgba(255, 210, 122, 0.18); }
 
 /* performance: skip painting what nobody can see */
-/* desks and rooms off screen skip style, layout and paint entirely (their robots keep working),
-   and so do screens too small to read when zoomed out */
+/* Only desks and rooms outside the viewport skip painting. A visible screen always
+   keeps its actual desktop, windows and content, including at overview zoom. */
 .desk-unit.culled > *, .room.culled > * { visibility: hidden; content-visibility: hidden; }
-.scene.far .monitor .os { content-visibility: hidden; }
 /* Looping decorations each need their own graphics layer, and so does everything drawn over them:
    zoomed out they are too small to see, so they rest (sways) or step out of view (movers). */
-.scene:not(.near) :is(.mug-steam path, .amb-tree, .amb-bare, .amb-bush, .amb-fl, .amb-glow, .amb-plant, .amb-rock, .amb-sit, .amb-blink, .amb-flap, .amb-buzz, .amb-cloud, .bf-eqb i) { animation: none; }
+.scene:not(.near) :is(.mug-steam path, .amb-tree, .amb-bare, .amb-bush, .amb-fl, .amb-glow, .amb-plant, .amb-rock, .amb-sit, .amb-blink, .amb-flap, .amb-buzz, .amb-cloud) { animation: none; }
 .scene:not(.near) :is(.amb-drop, .amb-ripple, .amb-ring, .amb-path, .amb-occ, .amb-dart, .amb-hop, .amb-ffly) { animation: none; visibility: hidden; }
-.scene.far .monitor .os { visibility: hidden; }
-/* zoomed far out, small looping decorations (steam, swaying plants, drifting cloud shadows) hold still: too small to see, costly to repaint */
-.scene.far .world * { animation-play-state: paused !important; }
-.scene.far .monitor .screen { background: linear-gradient(160deg, #2b6a6a, #1d3d63); }
 .desk-unit.culled *, .room.culled *, .screen.render-paused * { animation-play-state: paused !important; }
 .win.render-hidden .win-body { visibility: hidden; content-visibility: hidden; }
 .desk-unit, .room, .robot-host { contain: layout style; }

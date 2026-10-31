@@ -251,7 +251,7 @@ export class IdleLife {
       const r = String(out.result || "");
       const kind = r === "ragequit" ? "ragequit" : /win|won|cleared|record/i.test(r) ? "win" : /lose|lost|dead|crash|over/i.test(r) ? "lose" : "close";
       const said = gameLine(kind, title.toLowerCase().includes("snake") ? "snake" : undefined);
-      if (said) { this.stage.say(said, "speak"); window.setTimeout(() => this.stage.say(null), 2600); }
+      if (said) { this.stage.say(said, "speak"); window.setTimeout(() => { if (tok === this.token) this.stage.say(null); }, 2600); }
       if (out.result === "ragequit") {
         // slam it shut
         this.onActivity(`Rage quit ${title}`);
@@ -465,7 +465,7 @@ export class IdleLife {
       this.onActivity(what);
       await b.visit(url);
       this.alive(tok);
-      if (Math.random() < 0.45) { await b.act("Click a link", undefined, url); this.alive(tok); }
+      if (Math.random() < 0.45) { await b.act("Scrolling the page", undefined, url); this.alive(tok); }
       if (Math.random() < 0.25) this.robot.react(Math.random() < 0.5 ? "laugh" : "surprised");
       await this.wait(1500 + Math.random() * 2500, tok);
     }
@@ -487,20 +487,20 @@ export class IdleLife {
       solitaire: likes("solitaire") ? 1.5 + 1.0 * H("gamer") : 0,
       stocks: likes("stocks") ? 1.3 : 0,
       lingo: likes("lingo") ? 1.5 : 0,
-      mail: likes("mail") ? 1.3 : 0.1,
+      mail: likes("mail") ? 1.3 : 0,
       instaweb: uses("instabot") ? 0.6 + 0.5 * H("chiller") : 0,
       spoolweb: uses("spool") ? 0.6 + 0.8 * H("watcher") : 0,
       sparkplug: uses("sparkplug") ? 0.5 + 0.5 * H("chatter") : 0,
-      steam: likes("steam") ? 1.7 + 1.0 * H("gamer") : 0.1 * H("gamer"),
-      trading: likes("trading") ? 1.5 : 0.06,
+      steam: likes("steam") ? 1.7 + 1.0 * H("gamer") : 0,
+      trading: likes("trading") ? 1.5 : 0,
     };
   }
 
-  /** The phone apps this robot uses: its social apps, plus clips if that is its habit. */
+  /** Keep the phone home screen consistent with this robot's saved interests. */
   private phoneApps(): PhoneApp[] {
     const p = this.wm.prefs;
     const apps: PhoneApp[] = [...(p?.socials ?? [])];
-    if ((p?.phone !== "tube" || !apps.length) && !apps.includes("spool")) apps.push("spool");
+    if (!apps.length) apps.push(p?.phone === "tube" ? "shorts" : "spool");
     return apps;
   }
 
@@ -667,7 +667,7 @@ export class IdleLife {
     const won = (G.winner === "white") === robotWhite;
     status.textContent = won ? `Checkmate! The robot wins (${G.name})` : `Checkmated by ${G.name}`;
     const quip = gameLine(won ? "win" : "lose", "chess");
-    if (quip) { this.stage.say(quip, "speak"); window.setTimeout(() => this.stage.say(null), 2600); }
+    if (quip) { this.stage.say(quip, "speak"); window.setTimeout(() => { if (tok === this.token) this.stage.say(null); }, 2600); }
     gsap.fromTo(status, { scale: 1.2 }, { scale: 1, duration: 0.5, ease: "back.out(3)" });
     if (won) this.robot.setPose("celebrate");
     else { this.robot.react(Math.random() < 0.5 ? "angry" : "shy"); }

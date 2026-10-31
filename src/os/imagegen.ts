@@ -56,6 +56,7 @@ export function imageResult(it: AnyItem, toUrl: (path: string) => string): Image
     if (typeof v === "string") {
       const s = v.trim();
       if (/^data:image\//i.test(s)) return add(s);
+      if (/^https?:\/\/\S+\.(?:png|jpe?g|webp|gif)(?:[?#]\S*)?$/i.test(s)) return add(s);
       if (s.length > 4000 && /^[A-Za-z0-9+/=\s]+$/.test(s.slice(0, 120))) return add(`data:${mimeOf(s)};base64,${s.replace(/\s+/g, "")}`);
       if (s.length < 600 && !/[\r\n]/.test(s) && new RegExp(String.raw`^(?:[A-Za-z]:[\\/]|~[\\/]|/).+\.(?:${PIC})$`, "i").test(s)) return add(toUrl(s));
       for (const m of s.matchAll(FILE_IN_TEXT)) add(toUrl(m[0]));
@@ -66,8 +67,11 @@ export function imageResult(it: AnyItem, toUrl: (path: string) => string): Image
   };
   if (it.type === "command_execution") walk(d.output);
   else walk({ o: d.output, r: d.result, s: d.savedPath, p: d.path, i: d.images, f: d.files, u: d.url });
-  const failed = it.status === "failed" || d.output?.isError || (it.type === "command_execution" && d.exitCode != null && d.exitCode !== 0)
-    ? String(d.error?.message ?? d.error ?? (typeof d.output === "string" ? d.output : d.output?.error ?? (Array.isArray(d.output?.content) ? d.output.content.map((c: any) => c?.text || "").join("\n") : "")) ?? "").trim().split(/\r?\n/).slice(-1)[0] || "The image could not be generated" : undefined;
+  const output = asObject(d.output), result = asObject(d.result);
+  const interrupted = /^(cancelled|canceled|interrupted|aborted)$/.test(it.status);
+  const failed = it.status === "failed" || interrupted || d.isError || output.isError || result.isError || (it.type === "command_execution" && d.exitCode != null && d.exitCode !== 0)
+    ? String(d.error?.message ?? d.error ?? output.error?.message ?? output.error ?? result.error?.message ?? result.error ?? (typeof d.output === "string" ? d.output : Array.isArray(output.content) ? output.content.map((c: any) => c?.text || "").join("\n") : Array.isArray(result.content) ? result.content.map((c: any) => c?.text || "").join("\n") : ""))
+      .trim().split(/\r?\n/).slice(-1)[0] || (interrupted ? "Image generation was interrupted" : "The image could not be generated") : undefined;
   return { sources: out, failed };
 }
 

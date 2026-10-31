@@ -46,7 +46,40 @@ if (!process.versions.electron) {
       await js(`document.querySelector('.cp-group.bot .cp-earlier summary').click()`);
       check(await js(`document.querySelector('.cp-group.bot details').open && document.querySelector('.cp-group.bot .cp-earlier-body').innerText.includes('First progress update.')`),'earlier updates expand without losing content');
       check(await js(`document.querySelector('.cp-event').textContent.includes('Context compacted')`),'compaction has a readable timeline row');
+      await js(`window.__world.onFollowChat(window.__world.orchThread)`);await wait(200);
+      check(await js(`document.querySelector('.cp-group.bot details').open`),'reopening the same thread preserves expanded message groups');
+      await js(`window.__world.unfocus()`);await wait(300);
+      check(await js(`window.__chat.isOpen && window.__chat.threadId===window.__world.orchThread`),'camera unfocus preserves the selected chat');
       await capture('grouped-chat');
+      check(await js(`(async()=>{
+        const c=window.__chat,api=c.api,original={...api},desk=c.desk;
+        const ta=c.el.querySelector('textarea'),form=c.el.querySelector('form'),sent=[];
+        const a={threadId:'fixture-chat-a',info:{title:'Fixture A',provider:'codex'},profile:{name:'A'}},b={threadId:'fixture-chat-b',info:{title:'Fixture B',provider:'codex'},profile:{name:'B'}};
+        const tick=()=>new Promise(r=>setTimeout(r,40));let release;
+        try{
+          api.conversation=async()=>[];api.t3=undefined;
+          api.saveAttachment=()=>new Promise(r=>{release=r});
+          api.sendMessage=async(o)=>{sent.push(o);return{ok:true}};
+          c.open(a);ta.value='A attachment';c.addFiles([new File(['fixture'],'fixture.txt',{type:'text/plain'})]);form.requestSubmit();await tick();
+          c.open(b);if(ta.value||c.files.length)throw Error('A composer leaked into B');
+          ta.value='B unfinished draft';release('fixture-file.txt');await tick();
+          if(sent.length!==1||sent[0].threadId!==a.threadId||ta.value!=='B unfinished draft')throw Error('Delayed send changed target or B draft');
+          c.open(a);if(ta.value||c.files.length)throw Error('Successful background send kept A draft');
+          c.open(b);if(ta.value!=='B unfinished draft')throw Error('B draft did not restore');
+          c.open(a);ta.value='A retry';api.sendMessage=async()=>{throw Error('Fixture connection failure')};form.requestSubmit();c.open(b);await tick();
+          c.open(a);if(ta.value!=='A retry'||!c.el.querySelector('.cp-notice')?.textContent.includes('Could not send'))throw Error('Background failure lost the retry draft');
+          c.paired=true;api.t3={reorder:async()=>{throw Error('Interrupted drag must not reorder')},status:async()=>({paired:true,selection:null})};
+          c.renderQueue([0,1].map(i=>({id:'fixture-queue-'+i,queueRunId:'fixture-run-'+i,role:'user',at:new Date().toISOString(),text:'Queued fixture '+i,attachments:[],run:'queued',queue:i})));
+          const grip=c.el.querySelector('.cq-grip'),r=grip.getBoundingClientRect();
+          grip.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:72,button:0,clientX:r.left+2,clientY:r.top+2}));
+          window.dispatchEvent(new PointerEvent('pointermove',{pointerId:72,clientY:r.top+180}));c.open(b);
+          if(document.body.classList.contains('cq-dragging')||c.queueHold)throw Error('Interrupted queue drag stayed active');
+          return true;
+        }finally{Object.assign(api,original);for(const id of[a.threadId,b.threadId]){c.drafts.delete(id);c.sendErrors.delete(id)}c.pending=c.pending.filter(p=>!p.threadId.startsWith('fixture-chat-'));c.open(desk)}
+      })()`),'attachment sends keep their original robot and thread drafts survive switching and failed sends');
+      await js(`window.__dailyReward(15,3)`);await wait(450);
+      check(await js(`{const t=[...document.querySelectorAll('.ms-toast')].at(-1),copy=t.querySelector(':scope > div > .daily-copy'),badge=t.querySelector(':scope > .ms-badge'),r=copy.getBoundingClientRect(),p=copy.parentElement.getBoundingClientRect();copy.textContent==='Day 3 in a row. Come back tomorrow for more.' && !!badge.querySelector('svg') && !badge.textContent.includes('Come back') && r.left>=p.left-1 && r.right<=p.right+1}`),'daily reward copy stays in its text column beside the vector badge');
+      await js(`document.querySelectorAll('.ms-toast').forEach(t=>t.remove())`);
       // Open a plan through the actual desk pad, with all long steps readable in chat.
       await js(`{const w=window.__world,d=[...w.desks.values()].find(d=>d.threadId);window.__uiDesk=d;d.setPlan([{text:'Measure idle, crowded, panning, rain, chat and app rendering costs.',status:'completed'},{text:'Implement visibility-aware rendering without starving any visible robot.',status:'in_progress'},{text:'Run comparisons and verify the combined application.',status:'pending'}]);w.focusOn(d)}`);await wait(1100);
       const planPoint=await js(`{const r=window.__uiDesk.el.querySelector('.desk-plan').getBoundingClientRect();({x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)})}`);
@@ -56,6 +89,10 @@ if (!process.versions.electron) {
       await capture('readable-plan');
       win.setSize(980,800);await wait(500);
       check(await js(`{const r=document.querySelector('.cp-form').getBoundingClientRect();document.querySelector('.scene').clientWidth>=350 && r.bottom<=innerHeight+1 && r.right<=innerWidth+1}`),'minimum window size keeps the scene and chat composer usable');
+      check(await js(`{const head=document.querySelector('.cp-head'),name=head.querySelector('.cp-who').getBoundingClientRect(),buttons=[...head.querySelectorAll('button')].map(b=>b.getBoundingClientRect());buttons.every(b=>b.top>=name.bottom-1||b.left>=name.right-1||b.right<=name.left+1)}`),'narrow chat header controls do not cover the robot name or thread title');
+      await js(`{const fold=document.querySelector('[data-fold="usage"]');if(fold.getAttribute('aria-expanded')==='false')fold.click();const toggle=[...document.querySelectorAll('.st-toggle')].find(b=>b.textContent.includes('By project'));if(toggle.getAttribute('aria-expanded')==='false')toggle.click();document.querySelector('#usage').scrollIntoView({block:'center'})}`);await wait(500);
+      check(await js(`{const root=document.querySelector('#usage-body .st'),rows=[...root.querySelectorAll('.st-projects-wrap .st-model')],box=root.getBoundingClientRect();rows.length>0 && rows.every(r=>{const b=r.getBoundingClientRect();return b.left>=box.left-1&&b.right<=box.right+1}) && root.scrollWidth<=root.clientWidth+1}`),'real project usage fits the narrow sidebar with readable project rows');
+      await capture('project-usage-narrow');
       check((await js('window.__uiErrors')).length===0,'no renderer errors during integrated interactions');
       fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({checks},null,2));
       console.log(JSON.stringify({out,checks}));app.exit(0);

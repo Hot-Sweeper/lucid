@@ -337,10 +337,10 @@ export class ToolApp {
     // robots that like full screen windows look at pictures full screen; others now and then
     const fs = this.wm.prefs?.windows === "fullscreen";
     const big = !!src && Math.random() < (fs ? 0.85 : 0.25);
-    if (big) await this.wm.maximize("tool");
+    if (big) await this.wm.maximize("photos");
     await this.wm.pointAt(w.body, 0.5, 0.5, 400);
     await this.wm.sleep(big ? 2600 : 1600);
-    if (big && !fs) await this.wm.unmaximize("tool");
+    if (big && !fs) await this.wm.unmaximize("photos");
   }
   async show(toolName: string, input: unknown) {
     const { app, action } = prettyTool(toolName);

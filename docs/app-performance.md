@@ -1,5 +1,7 @@
 # App performance pass
 
+Historical measurements below used the former hidden-distant-screen policy. For the current all-visible screen behavior and combined measurements, see [delivery-audit.md](delivery-audit.md).
+
 Baseline for this pass: `1ef6115ada23caf8ead6ae0254386761cd028734`, which already contains the outdoor raster and duplicate-actor fixes. All changes stay in `lucid/perf`. The production checkout is not edited.
 
 ## Findings and implementation
