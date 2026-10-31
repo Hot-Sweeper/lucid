@@ -8,6 +8,7 @@ import { mountWeather, applySkyTint, type WeatherLayer, type Weather } from "../
 import { outdoorLook, seasonPalette } from "../weather/season";
 import { GEOM } from "./rig";
 import { outsideSvg, PARK_W } from "./outside";
+import { ambientPlant } from "./ambient";
 import { Roster, type RobotProfile } from "./roster";
 
 // The whole building, seen fake top-down: rooms laid out on a floor plan, one shared camera.
@@ -72,6 +73,7 @@ export class World {
   private fx: WeatherLayer | null = null;
   private outArgs: Parameters<typeof outsideSvg>[0] | null = null;
   private lookSig = "";
+  private outUrl = "";
   setWeather(w: Weather | null) {
     this.weather = w;
     this.redrawOutside();
@@ -83,7 +85,20 @@ export class World {
     const sig = JSON.stringify(look);
     if (!force && sig === this.lookSig) return;
     this.lookSig = sig;
-    (this.root.querySelector(".outside-layer") as HTMLElement).innerHTML = outsideSvg({ ...this.outArgs, ...look });
+    // The outdoors is one big drawing with tens of thousands of shapes. As live page elements
+    // they made every frame slow, so it is shown as a single image (its CSS animations still run).
+    const layer = this.root.querySelector(".outside-layer") as HTMLElement;
+    const svg = outsideSvg({ ...this.outArgs, ...look }).replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
+    const css = [...document.styleSheets].flatMap((sh) => { try { return [...sh.cssRules].map((r) => r.cssText).filter((t) => /\.outside|@keyframes|--lamp|--night/.test(t)); } catch { return []; } }).join("\n");
+    const vars = getComputedStyle(this.root);
+    const root = `svg{--lamp:${vars.getPropertyValue("--lamp") || 0};--night:${vars.getPropertyValue("--night") || 0};--wind:${vars.getPropertyValue("--wind") || 0.3}}`;
+    // animating inside one huge image forces it to be redrawn every frame, so by default it
+    // stays still; moving bits (water, lamps, wildlife) belong in small separate elements
+    const animate = !!(window as any).__animOutside;
+    const withCss = svg.replace(/(<svg[^>]*>)/, `$1<style>${root}\n${animate ? css : css.replace(/animation[^;}]*;?/g, "")}</style>`);
+    if (this.outUrl) URL.revokeObjectURL(this.outUrl);
+    this.outUrl = URL.createObjectURL(new Blob([withCss], { type: "image/svg+xml" }));
+    layer.innerHTML = `<img class="outside-img" src="${this.outUrl}" alt="" draggable="false" style="display:block;width:100%;height:100%">`;
     this.scene.style.setProperty("--scene-ground", seasonPalette(look.season).ground);
   }
   level = 0;
@@ -609,13 +624,7 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0) {
       <rect class="clock-m" x="-1.2" y="-20" width="2.4" height="22" rx="1.2" fill="#3a3f4f"/>
       <circle r="2.6" fill="${pal.accent}"/>
     </g>` : "";
-  const plant = (x: number, y: number, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})">
-      <ellipse cx="4" cy="10" rx="30" ry="12" fill="#2b1d10" opacity="0.15"/>
-      <circle r="24" fill="#c86b4a"/><circle r="19" fill="#5a3b2a"/>
-      <path d="M0 0 C-30 -10 -28 -34 -6 -40 C-8 -20 -4 -8 0 0 Z" fill="#3f9b6e"/>
-      <path d="M0 0 C26 -14 34 -36 14 -44 C12 -24 6 -10 0 0 Z" fill="#53b884"/>
-      <path d="M0 0 C-18 14 -38 6 -40 -12 C-20 -10 -8 -6 0 0 Z" fill="#46a877"/>
-      <path d="M0 0 C20 10 38 0 40 -16 C22 -12 8 -6 0 0 Z" fill="#3a8f63"/></g>`;
+  const plant = (x: number, y: number, s = 1) => ambientPlant(x, y, s);
   const cafe = kind === "freelance" ? `
     <rect x="${w - 330}" y="${WALL_FACE - 6}" width="290" height="58" rx="8" fill="#6b4f3a"/>
     <rect x="${w - 330}" y="${WALL_FACE - 6}" width="290" height="10" rx="5" fill="#82634b"/>
