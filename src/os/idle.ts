@@ -196,7 +196,7 @@ export class IdleLife {
       tensorhub: 0.05 + 0.1 * H("watcher"),
       botflix: 0.3 + 1.6 * H("watcher") + 0.4 * H("chiller"),
       island: games * 0.6, botcom: games * 0.5, bugger: games * 0.45, boot: games * 0.7,
-      coffee: 0.6 + 0.8 * H("chiller"), stretch: 0.3 + 0.3 * H("chiller"), messages: 0.4,
+      coffee: 0.6 + 0.8 * H("chiller"), stretch: 0.3 + 0.3 * H("chiller"),
       beats: H("musician") ? 2.6 : (p?.music ?? 0) >= 0.8 ? 0.25 : 0,
       social: 0.25 * (p?.social ?? 0.4) + 2.4 * H("chatter"),
       browse: this.browser ? 0.7 + 0.9 * H("chiller") + 0.4 * H("watcher") : 0,
@@ -389,14 +389,6 @@ export class IdleLife {
       case "instaweb": return this.socialApp("instaweb", "Scrolling Instabot on the web", browseInstaweb, tok);
       case "spoolweb": return this.socialApp("spoolweb", "Watching Spool clips on the desktop", scrollSpoolWeb, tok);
       case "sparkplug": return this.socialApp("sparkplug", "Swiping on Sparkplug", swipeSparkplug, tok, 40000);
-      case "messages": {
-        this.onActivity("Checking for new messages");
-        await this.wm.open("chat");
-        this.alive(tok);
-        this.robot.setPose("read");
-        await this.wait(1800, tok);
-        return this.closeWin("chat", tok);
-      }
     }
   }
 

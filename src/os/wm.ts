@@ -5,7 +5,7 @@ import { ICONS } from "./icons";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "t3code" | "instaweb" | "spoolweb" | "sparkplug";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "t3code" | "instaweb" | "spoolweb" | "sparkplug" | "photos" | "player";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -41,9 +41,11 @@ const FRAMES: Record<AppId, Frame> = {
   spoolweb: { x: 60, y: 10, w: 700, h: 392 },
   sparkplug: { x: 70, y: 12, w: 680, h: 390 },
   t3code: { x: 60, y: 10, w: 700, h: 396 },
+  photos: { x: 470, y: 228, w: 330, h: 170 },
+  player: { x: 150, y: 14, w: 520, h: 340 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "GitHub Desktop", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", instaweb: "Instabot", spoolweb: "Spool", sparkplug: "Sparkplug", t3code: "T3 Code" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "t3code", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "GitHub Desktop", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", instaweb: "Instabot", spoolweb: "Spool", sparkplug: "Sparkplug", t3code: "T3 Code", photos: "Photos", player: "Player" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "t3code", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "photos", "player"];
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 
@@ -187,9 +189,29 @@ export class WM {
 
   // --- windows -------------------------------------------------------------
   isOpen(id: AppId) { return this.wins.has(id); }
+  /** Size of the screen the windows live on. */
+  get width() { return SCREEN.w; }
+  get height() { return SCREEN.h - 50; }
 
   /** `clicked`: the robot already clicked something that opens the app (a notification), so it skips its usual way there. */
   async open(id: AppId, title?: string, clicked = false): Promise<Win> {
+    // The old Messages app is the T3 Code window now: one messaging app, never two
+    if (id === "chat") id = "t3code";
+    // Two callers can ask for the same app while its window is still opening (it takes a moment
+    // to click the icon). The second one waits for that window instead of opening a twin.
+    const pending = this.opening.get(id);
+    if (pending) {
+      const w = await pending;
+      if (title) w.title.textContent = title;
+      return w;
+    }
+    const p = this.openNow(id, title, clicked);
+    this.opening.set(id, p);
+    try { return await p; } finally { if (this.opening.get(id) === p) this.opening.delete(id); }
+  }
+  private opening = new Map<AppId, Promise<Win>>();
+
+  private async openNow(id: AppId, title?: string, clicked = false): Promise<Win> {
     const e = this.epoch;
     let w = this.wins.get(id);
     if (w) {
@@ -246,7 +268,7 @@ export class WM {
     await this.sleep(260, e);
     // each robot has its own habit: some go full screen, some tile side by side, some let windows float
     const style = this.prefs?.windows ?? "floating";
-    const small = id === "calc" || id === "chat" || id === "notes" || id === "tool";
+    const small = id === "calc" || id === "notes" || id === "tool" || id === "photos";
     const r = Math.random();
     if (style === "fullscreen" && !small && r < 0.6) await this.maximize(id).catch(rethrow);
     else if (this.wins.size >= 2 && r < (style === "tiler" ? 0.35 : style === "fullscreen" ? 0.05 : 0.05)) await this.snap(id, f.x + f.w / 2 < SCREEN.w / 2 ? "left" : "right").catch(rethrow);
@@ -307,7 +329,7 @@ export class WM {
   // Everyone has the basics; a robot also pins what it uses a lot (games for gamers, music for
   // music lovers, its task app). Other apps show up while they are open and leave when closed.
   pinned(): AppId[] {
-    const p = this.prefs, pins = new Set<AppId>(["files", "editor", "terminal", "browser", "t3code", "chat"]);
+    const p = this.prefs, pins = new Set<AppId>(["files", "editor", "terminal", "browser", "t3code"]);
     if (p?.hobby === "gamer") pins.add("game");
     if (p?.hobby === "musician") pins.add("beats");
     if (p?.hobby === "chatter") pins.add("social");
@@ -582,7 +604,7 @@ export class WM {
   }
 
   /** A notification slides in at the top right. `stay` keeps it up that many seconds (so the robot can click it). */
-  toast(text: string, icon: AppId = "chat", stay = 2.6) {
+  toast(text: string, icon: AppId = "t3code", stay = 2.6) {
     const t = document.createElement("div");
     t.className = "toast";
     t.innerHTML = `${this.iconOf(icon)}<span></span>`;
@@ -611,6 +633,7 @@ export class WM {
     gsap.killTweensOf(this.cursor);
     for (const w of this.wins.values()) w.el.remove();
     this.wins.clear();
+    this.opening.clear();
     this.renderDock(false);
     this.root.querySelector(".toast-layer")!.innerHTML = "";
   }

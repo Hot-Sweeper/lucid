@@ -576,17 +576,19 @@ class Botcord {
     this.input.classList.add("has");
     const skill = this.k.opts.skill ?? 0.7;
     let burst = 0;
-    for (let i = 0; i < text.length; i++) {
-      const ch = text[i];
+    // by whole characters, so an emoji is typed as one and never half a surrogate pair
+    const chars = Array.from(text);
+    for (let i = 0; i < chars.length; i++) {
+      const ch = chars[i];
       const near = KEYS_NEAR[ch.toLowerCase()];
       if (near && i > 2 && chance(0.045 * (1.4 - skill))) {
         // a typo, noticed a key or two later
         const wrong = near[Math.floor(Math.random() * near.length)];
-        const extra = Math.min(text.length - i - 1, chance(0.5) ? 1 : 0);
-        const typed = wrong + text.slice(i + 1, i + 1 + extra);
+        const extra = Math.min(chars.length - i - 1, chance(0.5) ? 1 : 0);
+        const typed = wrong + chars.slice(i + 1, i + 1 + extra).join("");
         for (const c of typed) { this.k.tap(c); t.textContent += c; await this.k.sleep(rnd(50, 95)); }
         await this.k.sleep(rnd(220, 480));
-        for (let j = 0; j < typed.length; j++) { this.k.tap("Backspace"); t.textContent = t.textContent!.slice(0, -1); await this.k.sleep(rnd(70, 120)); }
+        for (let j = 0, n = Array.from(typed).length; j < n; j++) { this.k.tap("Backspace"); t.textContent = Array.from(t.textContent!).slice(0, -1).join(""); await this.k.sleep(rnd(70, 120)); }
         await this.k.sleep(rnd(80, 160));
       }
       this.k.tap(ch);

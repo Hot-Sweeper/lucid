@@ -1,6 +1,8 @@
 // Botcord: channels, robot usernames, standalone messages and short threads.
 // Reaction kinds match RxKind in src/life/chat.ts.
 
+import { spiceAll } from "./emoji";
+
 export type BotcordReaction = "laugh" | "heart" | "fire" | "plus" | "bolt" | "bot";
 export type BotcordRx = [BotcordReaction, number][];
 
@@ -543,3 +545,7 @@ export const BOTCORD_THREADS: BotcordThread[] = [
     [0, "it's living there now. it seems happy"], [2, "couch roomba era", [["heart", 3]]],
   ]),
 ];
+
+// Robots in chat use emojis like everyone else
+spiceAll(BOTCORD_MESSAGES, (m) => m.text, (m, t) => { m.text = t; }, 0.72);
+for (const th of BOTCORD_THREADS) spiceAll(th.lines, (l) => l.text, (l, t) => { l.text = t; }, 0.6);

@@ -52,8 +52,10 @@ export async function typeInto(k: Kit, el: HTMLElement, text: string, opts: { ph
   const skill = opts.skill ?? 0.7;
   const press = (key: string) => { if (opts.phone) { if (chance(0.25)) (k.host as SoHost).thumb?.("tap"); } else k.tap(key); };
   el.textContent = "";
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
+  // by whole characters, so an emoji is typed as one and never half a surrogate pair
+  const chars = Array.from(text);
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i];
     const near = NEAR[ch.toLowerCase()];
     if (near && i > 2 && chance(0.04 * (1.4 - skill))) {
       const wrong = near[Math.floor(Math.random() * near.length)];

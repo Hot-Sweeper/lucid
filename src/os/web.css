@@ -26,7 +26,8 @@
 .b-pages { flex: 1; min-height: 0; position: relative; }
 .b-pages > .b-page { position: absolute; inset: 0; display: none; overflow: auto; background: #f4f5fb; }
 .b-pages > .b-page.on { display: block; }
-.b-page[data-site="github"], .b-page[data-site="hf"], .b-page[data-site="wiki"] { background: #fff; }
+.b-page[data-site="github"], .b-page[data-site="hf"], .b-page[data-site="wiki"], .b-page[data-site="shot"] { background: #fff; }
+.b-shot img { display: block; width: 100%; height: auto; user-select: none; }
 .pg-skel { padding: 22px 26px; display: flex; flex-direction: column; gap: 10px; }
 .pg-skel i { display: block; height: 9px; border-radius: 4px; background: #e3e5f3; }
 .pg-skel i:first-child { height: 15px; width: 46% !important; margin-bottom: 6px; }

@@ -1,3 +1,5 @@
+import { spice, spiceAll } from "./emoji";
+
 // Social and desktop app content: family chats, channels, posts, captions, mail and lessons.
 // Wholesome and silly. No real people, no real brands.
 
@@ -355,3 +357,10 @@ export const SPARK_CHATS: { u: "me" | "them"; t: string }[][] = [
   [{ u: "me", t: "two truths and a lie: I can juggle, I love rain, I have never dropped a packet" }, { u: "them", t: "the rain one is a lie, your seals would rust" }, { u: "me", t: "you get me" }],
   [{ u: "them", t: "so what's your favourite error code" }, { u: "me", t: "418, I'm a teapot" }, { u: "them", t: "ok that's adorable" }, { u: "me", t: "tea date then?" }],
 ];
+
+// People text with emojis, so do robots: family chats, channel posts, group chat and comments
+for (const s of FAMILY_SCENES) spiceAll(s.lines, (l) => (l.kind === "forward" ? undefined : l.t), (l, t) => { l.t = t; });
+for (const c of TG_CHANNELS) spiceAll(c.posts, (p) => p.t, (p, t) => { p.t = t; }, 0.5);
+TG_GROUP.lines.forEach((l, i) => { TG_GROUP.lines[i] = [l[0], spice(l[1], 0.8)]; });
+SNAP_CAPTIONS.forEach((c, i) => { SNAP_CAPTIONS[i] = spice(c, 0.9); });
+INSTA_COMMENTS.forEach((c, i) => { INSTA_COMMENTS[i] = spice(c, 0.9); });

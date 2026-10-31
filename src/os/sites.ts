@@ -8,7 +8,7 @@ import { esc } from "./typing";
 import { parseDiff } from "./classify";
 
 export type Result = { url: string; title: string; snippet?: string };
-export type PageView = { title: string; html: string; site: "github" | "hf" | "wiki" | "web" | "search" | "raw" | "local"; url: string; kind?: string };
+export type PageView = { title: string; html: string; site: "github" | "hf" | "wiki" | "web" | "search" | "raw" | "local" | "shot"; url: string; kind?: string };
 export type PrFile = { path: string; adds: number; dels: number; status?: string; patch?: string };
 export type PrData = {
   repo: string; number: number | null; title: string; state: "open" | "merged" | "closed" | "draft"; user: string;
@@ -16,7 +16,8 @@ export type PrData = {
   checks: { name: string; ok: boolean | null }[]; comments: { user: string; body: string; when?: string }[];
   additions?: number; deletions?: number; created?: string;
 };
-type LoadOpts = { title?: string; text?: string; prState?: PrData["state"] };
+/** `real`: show the page as a browser draws it (a page the robot is testing), `html`: HTML the robot wrote. */
+type LoadOpts = { title?: string; text?: string; prState?: PrData["state"]; real?: boolean; html?: string };
 
 // --- fetching ------------------------------------------------------------------
 const lucid = () => (window as any).lucid;
@@ -496,9 +497,27 @@ function localPage(url: string, title: string | undefined, text: string): PageVi
   return { title: title || shortUrl(url), site: "local", url, html: `<article class="b-article b-local"><h1>${esc(title || lines[0] || shortUrl(url))}</h1>${lines.slice(title ? 0 : 1).map((l) => `<p>${esc(l)}</p>`).join("")}</article>` };
 }
 
+/** The page as a real browser draws it, from a hidden window in the main process; null when that is not possible. */
+async function realPage(url: string, opts: LoadOpts): Promise<PageView | null> {
+  const api = lucid();
+  if (!api?.shot) return null;
+  const r = await api.shot(opts.html != null ? { html: opts.html } : { url }).catch(() => null);
+  if (!r?.ok || !r.image) return null;
+  const title = r.title || opts.title || (opts.html != null ? "Preview" : hostOf(url));
+  return {
+    title, site: "shot", url: opts.html != null ? url : (r.url || url),
+    html: `<div class="b-shot"><img src="${r.image}" alt="${esc(title)}" width="${r.width}" height="${r.height}" draggable="false"></div>`,
+  };
+}
+
 /** Load any URL into a page view: a site layout with real data when we know the site, else a plain read. */
 export async function loadPage(url: string, peek: (url: string) => Promise<any>, opts: LoadOpts = {}): Promise<PageView> {
   const h = hostOf(url);
+  if (opts.real || opts.html != null) {
+    const v = await realPage(url, opts);
+    if (v) return v;
+  }
+  if (opts.html != null) return localPage(url, opts.title, "This page could not be drawn here.");
   if (opts.text) return localPage(url, opts.title, opts.text);
   try {
     let v: PageView | null = null;

@@ -6,6 +6,7 @@ import { baseName, relPath, type Entry, type Hit, type Hunk } from "./classify";
 
 import { esc, el, typeInto } from "./typing";
 import { colorGitLine } from "./git";
+import { detectSheet, playSheet } from "./sheet";
 export { BrowserApp } from "./browser";
 
 // ---------------------------------------------------------------------------
@@ -122,6 +123,8 @@ export class EditorApp {
   private async ensure(path: string) {
     const ed = this.wm.prefs?.editor ?? "studio";
     const appName = ed === "pad" ? "Notepad" : ed === "vim" ? "vim" : "Studio";
+    // Notepad and vim have their own icons (dock, window bar and app switcher)
+    this.wm.brandApp("editor", { icon: ed === "pad" ? ICONS.editorPad : ed === "vim" ? ICONS.editorVim : ICONS.editor });
     const w = await this.wm.open("editor", `${baseName(path)}  ${appName}`);
     if (!w.body.querySelector(".editor")) {
       w.body.innerHTML = `<div class="editor ed-${ed}"><div class="tabs" role="tablist"></div><div class="code-wrap"><div class="code"></div></div>${ed === "vim" ? `<div class="vim-bar"><b>-- INSERT --</b><span></span></div>` : ""}</div>`;
@@ -300,116 +303,6 @@ export class TerminalApp {
 }
 
 // ---------------------------------------------------------------------------
-function md(text: string) {
-  return esc(text)
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '<u>$1</u>')
-    .replace(/\n/g, "<br>");
-}
-
-export class ChatApp {
-  constructor(private wm: WM) {}
-
-  // The conversation on top, a message box with a send button below it (like any messenger).
-  private async ensure(clicked = false) {
-    const w = await this.wm.open("chat", undefined, clicked);
-    if (!w.body.querySelector(".chat-compose")) {
-      const old = w.body.querySelector(".chat");
-      w.body.innerHTML = `<div class="chat-app"><div class="chat"></div><div class="chat-compose"><div class="cc-field"><span class="cc-ph">Message</span><div class="cc-text"></div></div><span class="cc-send" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12 20 4l-4 16-4-6.5L4 12Z" fill="currentColor"/></svg></span></div></div>`;
-      if (old) w.body.querySelector(".chat")!.replaceWith(old);
-    }
-    return w.body.querySelector(".chat") as HTMLElement;
-  }
-
-  /** `clicked`: the robot got here by clicking the new-message notification. */
-  async user(text: string, images: string[] = [], clicked = false) {
-    const chat = await this.ensure(clicked);
-    chat.querySelector(".msg.typing")?.remove();
-    const b = el(`<div class="msg you">${images.length ? `<div class="msg-imgs">${images.slice(0, 4).map((src) => `<img src="${src}" alt="">`).join("")}</div>` : ""}<p></p></div>`);
-    b.querySelector("p")!.innerHTML = md(text.slice(0, 1200));
-    if (!text) b.querySelector("p")!.remove();
-    chat.appendChild(b);
-    gsap.fromTo(b, { opacity: 0, y: 14, scale: 0.92 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "back.out(1.7)", transformOrigin: "100% 100%" });
-    chat.scrollTop = chat.scrollHeight;
-    await this.wm.sleep(500);
-  }
-
-  // Robot writes its reply into the message box (it grows with the text), then sends it:
-  // a click on the send button, or now and then just Enter. `getText` is polled so streaming
-  // replies keep growing while it types.
-  async assistant(getText: () => { text: string; done: boolean }) {
-    const wm = this.wm, e = wm.epoch;
-    const chat = await this.ensure();
-    const box = chat.parentElement!.querySelector(".chat-compose") as HTMLElement;
-    const field = box.querySelector(".cc-text") as HTMLElement, send = box.querySelector(".cc-send") as HTMLElement;
-    let shown = 0, sent = false;
-    const post = () => {
-      if (sent) return;
-      sent = true;
-      const text = getText().text;
-      field.textContent = "";
-      box.classList.remove("has-text");
-      if (!text.trim()) return;
-      const b = el(`<div class="msg bot"><p></p></div>`);
-      b.querySelector("p")!.innerHTML = md(text);
-      chat.appendChild(b);
-      gsap.fromTo(b, { opacity: 0, y: 26, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.42, ease: "back.out(1.6)", transformOrigin: "0% 100%" });
-      gsap.fromTo(send, { scale: 0.8 }, { scale: 1, duration: 0.35, ease: "back.out(3)" });
-      chat.scrollTop = chat.scrollHeight;
-    };
-    await wm.pointAt(field, 0.3, 0.5, 260).catch(() => {});
-    wm.robot.setTyping(true);
-    try {
-      for (;;) {
-        const { text, done } = getText();
-        if (shown < text.length) {
-          const step = Math.max(2, Math.ceil((text.length - shown) / 40));
-          shown = Math.min(text.length, shown + step);
-          field.textContent = text.slice(0, shown);
-          box.classList.add("has-text");
-          field.scrollTop = field.scrollHeight;
-          await wm.sleep(28, e);
-        } else if (done) break;
-        else await wm.sleep(120, e);
-      }
-      // a short look over the draft, then send
-      await wm.sleep(250, e);
-      if (Math.random() < 0.3) { wm.robot.pressKey("Enter"); await wm.sleep(90, e); }
-      else { await wm.pointAt(send, 0.5, 0.5, 300); await wm.click(); }
-    } finally {
-      wm.robot.setTyping(false);
-      post();   // even when interrupted, the reply is never lost in the box
-    }
-  }
-
-  // You are typing in the side chat: your bubble with bouncing dots appears in its Messages app.
-  // Only in a Messages window that is already open: typing never opens the app by itself.
-  async youTyping(on: boolean) {
-    if (!on) {
-      const t = this.wm.wins.get("chat")?.body.querySelector(".msg.typing") as HTMLElement | null;
-      if (t) gsap.to(t, { opacity: 0, duration: 0.2, onComplete: () => t.remove() });
-      return;
-    }
-    const chat = this.wm.wins.get("chat")?.body.querySelector(".chat") as HTMLElement | null;
-    if (!chat || chat.querySelector(".msg.typing")) return;
-    const b = el(`<div class="msg you typing"><p><span class="tdots"><i></i><i></i><i></i></span></p></div>`);
-    chat.appendChild(b);
-    gsap.fromTo(b, { opacity: 0, y: 10, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(1.7)", transformOrigin: "100% 100%" });
-    chat.scrollTop = chat.scrollHeight;
-  }
-
-  async note(text: string, kind: "ask" | "error" = "ask") {
-    const chat = await this.ensure();
-    const b = el(`<div class="msg bot ${kind}"><p></p></div>`);
-    b.querySelector("p")!.innerHTML = md(text);
-    chat.appendChild(b);
-    gsap.fromTo(b, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.7)" });
-    chat.scrollTop = chat.scrollHeight;
-  }
-}
-
-// ---------------------------------------------------------------------------
 export function prettyTool(name: string) {
   const m = name.match(/^mcp__(.+?)__(.+)$/) || name.match(/^([\w-]+)\.(.+)$/);
   const words = (s: string) => s.replace(/[_-]+/g, " ").trim();
@@ -419,8 +312,22 @@ export function prettyTool(name: string) {
 
 export class ToolApp {
   constructor(private wm: WM) {}
-  async picture(name: string, src: string | null) {
-    const w = await this.wm.open("tool", name);
+  /**
+   * An image the robot looked at. A sprite sheet (frames in a row or grid) plays like a video;
+   * `data` reads the picture as a data URL so its pixels can be analysed.
+   */
+  async picture(name: string, src: string | null, data?: () => Promise<string | null>) {
+    // a sheet opens in the player, a picture in Photos: find out which before the window opens
+    const probe = src && data
+      ? data().then((d) => (d ? detectSheet(d, name).then((f) => f && { f, d }) : null)).catch(() => null)
+      : Promise.resolve(null);
+    const sheet = await probe;
+    if (sheet) {
+      const w = await this.wm.open("player", name);
+      await playSheet(this.wm, w.body, sheet.f, sheet.d, { width: 520 - 24 });
+      return;
+    }
+    const w = await this.wm.open("photos", name);
     w.body.innerHTML = src
       ? `<div class="pic"><img alt="${esc(name)}"></div>`
       : `<div class="tool"><h3>${esc(name)}</h3><p class="muted">This image could not be shown.</p></div>`;
