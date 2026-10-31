@@ -13,7 +13,7 @@ import { T3CodeApp } from "./harness/t3code";
 import { CodexApp } from "./os/codex";
 import { imageGenOf, imageResult, type ImageGen } from "./os/imagegen";
 import { ImageRefreshGate, type ImageRefresh, type ImageState } from "./os/image-refresh";
-import { scheduleLayout } from "./harness/layout";
+import { NotePresentation } from "./harness/note-presentation";
 import { classify, parseDiff, baseName, relPath, unwrap, type Entry } from "./os/classify";
 import { TasksApp, type TaskStep } from "./os/tasks";
 import { GitDeskApp, type DeskFile } from "./os/gitdesk";
@@ -152,6 +152,7 @@ export class Director {
   }
 
   reset() {
+    this.notePresentation.reset();
     this.idleLife.stop();
     for (const s of this.sessions.values()) window.clearInterval(s.timer);
     this.sessions.clear();
@@ -316,6 +317,7 @@ export class Director {
     return w.body.querySelector(".notes") as HTMLElement;
   }
   private noteFor = new WeakMap<HTMLElement, HTMLElement>();
+  private notePresentation = new NotePresentation(() => this.wm.epoch, (key) => this.robot.pressKey(key));
   private async writeNote(box: HTMLElement, text: string) {
     const clean = text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim().slice(0, 600);
     let p = this.noteFor.get(box);
@@ -325,17 +327,7 @@ export class Director {
       this.noteFor.set(box, p);
       while (box.children.length > 6) box.firstElementChild!.remove();
     }
-    const done = p.textContent || "";
-    if (clean.startsWith(done) && clean.length > done.length) {
-      const rest = clean.slice(done.length);
-      for (let i = 0; i < rest.length; i += 3) {
-        p.textContent = done + rest.slice(0, i + 3);
-        this.robot.pressKey(rest[i] || " ");
-        scheduleLayout(box, () => { const target = Math.max(0, box.scrollHeight - box.clientHeight); return Math.abs(target - box.scrollTop) < 0.5 ? null : () => { box.scrollTop = target; }; });
-        await new Promise((r) => setTimeout(r, 22 / this.wm.speed));
-      }
-    } else p.textContent = clean;
-    scheduleLayout(box, () => { const target = Math.max(0, box.scrollHeight - box.clientHeight); return Math.abs(target - box.scrollTop) < 0.5 ? null : () => { box.scrollTop = target; }; });
+    await this.notePresentation.write(box, p, clean, this.wm.speed);
   }
 
   /**
