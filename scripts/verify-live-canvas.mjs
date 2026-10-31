@@ -56,4 +56,9 @@ render.setRenderView(screen,true,276*.2);assert.equal(render.renderPixelRatio(ow
 render.setRenderView(screen,true,276*2);assert.equal(render.renderPixelRatio(owner),276*2/820*1.5);
 window.devicePixelRatio=3;assert.equal(render.renderPixelRatio(owner),276*2/820*3,'Changing displays updates density without forcing layout');
 const phone=new Element('phone-screen');render.setRenderView(phone,true,53.6,134);assert.ok(Math.abs(render.renderPixelRatio(phone)-1.2)<1e-10);
+const wrapper=new Element('wrapper'),nested=new Element('canvas',wrapper);
+nested.isConnected=false;wrapper.isConnected=false;
+assert.equal(render.renderPixelRatio(nested),3,'Detached construction starts without a screen scale');
+wrapper.parentElement=screen;wrapper.isConnected=nested.isConnected=true;
+assert.equal(render.renderPixelRatio(nested),276*2/820*3,'Attaching an ancestor must bind the actual screen even when the canvas parent stays unchanged');
 console.log(JSON.stringify({densityCoversDisplay:true,tinyRatio,closeRatio,statePreserved:true,staticArtworkUnchanged:true,disposalSafe:true,cameraAndDprTracked:true}));

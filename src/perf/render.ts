@@ -7,7 +7,7 @@ type Surface = { visible: boolean; fps: number; scale: number; phase: number; ex
 type Loop = { owner?: HTMLElement; surface?: Surface; win: HTMLElement | null; parent: HTMLElement | null; cb: (now: number, dt: number) => void; last: number; due: number; fps: number; density: number; once: boolean; bound: boolean; stop: () => void };
 const surfaces = new WeakMap<HTMLElement, Surface>();
 const loops = new Set<Loop>();
-const contexts = new WeakMap<HTMLElement, { host: HTMLElement; win: HTMLElement | null; parent: HTMLElement | null }>();
+const contexts = new WeakMap<HTMLElement, { host: HTMLElement; win: HTMLElement | null; parent: HTMLElement | null; connected: boolean }>();
 let raf = 0;
 let surfaceSequence = 0;
 const io = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver((entries) => {
@@ -45,10 +45,11 @@ export function releaseRenderView(el: HTMLElement) { io?.unobserve(el); surfaces
 export function wakeRender() { wake(); }
 function contextFor(owner: HTMLElement) {
   let context = contexts.get(owner);
-  if (!context || context.parent !== owner.parentElement || !context.host.contains(owner) || context.win && !context.win.contains(owner)) {
-    context = { host: owner.closest<HTMLElement>(".screen, .phone-screen") ?? owner, win: owner.closest<HTMLElement>(".win"), parent: owner.parentElement };
+  if (!context || !context.connected && owner.isConnected || context.parent !== owner.parentElement || !context.host.contains(owner) || context.win && !context.win.contains(owner)) {
+    context = { host: owner.closest<HTMLElement>(".screen, .phone-screen") ?? owner, win: owner.closest<HTMLElement>(".win"), parent: owner.parentElement, connected: owner.isConnected };
     contexts.set(owner, context);
   }
+  else context.connected = owner.isConnected;
   return context;
 }
 export function renderFps(owner: HTMLElement) {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { transformWithOxc } from 'vite';
 
 // Exercise the reel's real lifecycle and frame gate with a deterministic resize adapter.
-let ratio = .25, now = 1000, tick, stopped = 0, paints = [];
+let ratio = .25, now = 1000, tick, stopped = 0, paints = [], prepares = 0;
 const sized = new WeakMap(), observers = [];
 function fitCanvas(canvas, w, h, density = 2) {
   canvas.width = Math.ceil(w * density); canvas.height = Math.ceil(h * density);
@@ -15,6 +15,7 @@ class LiveCanvases {
   entries = new Set();
   add(canvas) { this.entries.add(canvas); }
   prepare() {
+    prepares++;
     for (const canvas of this.entries) if (canvas.isConnected) {
       const size = sized.get(canvas);
       if (size.ratio !== ratio) fitCanvas(canvas, size.w, size.h, ratio);
@@ -68,7 +69,16 @@ try {
   now += 500; tick(now); assert.equal(paints.length, 1, 'reduced-motion GIFs must not repaint at unchanged density');
   ratio = 3; tick(now); assert.equal(paints.length, 2); assert.equal(paints[1].time, poster, 'a sharp reduced-motion resize must retain the same poster');
   still.stop(); const afterStop = paints.length; tick(now + 100); assert.equal(paints.length, afterStop);
-  console.log('PASS: live GIF density, same-frame resize, logical geometry, animation continuity, hidden/resume, disposal and reduced-motion posters');
+
+  const detached = new GifReel(fn => { tick = fn; return () => stopped++; }, { still: false });
+  const nested = canvas(); nested.isConnected = false;
+  const beforeAttach = prepares; detached.add(nested, 'drake', 240);
+  assert.equal(prepares, beforeAttach, 'a nested GIF must not bind its own detached box as a presentation surface');
+  assert.equal(nested.width, 480, 'off-DOM first paint retains its complete source poster');
+  ratio = 3; nested.isConnected = true; now += 5; tick(now);
+  assert.equal(nested.width, 720, 'the first connected paint must obtain actual screen density without changing the canvas parent');
+  detached.stop();
+  console.log('PASS: live GIF density, same-frame resize, logical geometry, animation continuity, hidden/resume, disposal, reduced-motion posters and detached message attachment');
 } finally {
   for (const [key, value] of Object.entries(saved)) if (value === undefined) delete globalThis[key]; else globalThis[key] = value;
   delete globalThis.__mediaTest;

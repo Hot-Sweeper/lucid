@@ -81,7 +81,9 @@ export class GifReel {
     const t = this.freeze ?? (this.still ? posterTime(it.kind) : (now - it.t0) / 1000);
     const frame = Math.floor(t * it.fps);
     const width = it.cv.width, height = it.cv.height;
-    it.buffers.prepare();
+    // GIF boxes are painted before their containing message enters the screen.
+    // Do not bind density to that detached canvas as if it were its own surface.
+    if (it.cv.isConnected) it.buffers.prepare();
     const resized = width !== it.cv.width || height !== it.cv.height;
     if (!force && frame === it.frame && !resized) return;
     it.frame = frame;
