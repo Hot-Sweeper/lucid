@@ -43,3 +43,19 @@ contextBridge.exposeInMainWorld("lucid", {
   onUpdateStep: on("app:update-step"),
   version: () => ipcRenderer.invoke("app:version"),
 });
+
+// T3 server actions that need Lucid's paired session. Each call resolves with the value or rejects with a readable message.
+const t3s = (channel) => async (arg) => {
+  const r = await ipcRenderer.invoke(channel, arg);
+  if (!r?.ok) { const err = new Error(r?.error || "T3 did not answer."); err.code = r?.code; throw err; }
+  return r.value;
+};
+contextBridge.exposeInMainWorld("lucidT3", {
+  status: t3s("t3s:status"),
+  providers: t3s("t3s:providers"),
+  reorder: t3s("t3s:reorder"),
+  cancel: t3s("t3s:cancel"),
+  edit: t3s("t3s:edit"),
+  steer: t3s("t3s:steer"),
+  setModel: t3s("t3s:setModel"),
+});

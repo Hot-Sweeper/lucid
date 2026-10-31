@@ -8,11 +8,72 @@ import { highlight } from "../os/highlight";
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
 
-type Msg = { id: string; role: string; at: string; streaming: boolean; text: string; run?: string | null; queue?: number | null; attachments: { type: string; name: string; mime: string; size: number; path: string | null }[] };
+type Msg = {
+  id: string; role: string; at: string; streaming: boolean; text: string; run?: string | null; queue?: number | null;
+  attachments: { type: string; name: string; mime: string; size: number; path: string | null }[];
+  // queued messages only: their run, the live turn they can be steered into, and what T3 allows
+  queueRunId?: string; steerTarget?: string | null; queueFixed?: boolean; queueGuest?: boolean;
+};
+
+// T3 server actions through Lucid's paired session (see electron/t3server.cjs).
+type OptionValue = string | boolean;
+type T3Option = { id: string; label: string; type: "select" | "boolean"; choices?: { id: string; label: string; isDefault: boolean }[]; current?: OptionValue };
+type T3Model = { slug: string; name: string; shortName: string | null; isDefault: boolean; options: T3Option[] };
+type T3Provider = { instanceId: string; driver: string; name: string; ready: boolean; models: T3Model[] };
+type Selection = { providerInstanceId: string; model: string | null; options: Record<string, OptionValue> };
+export type T3Api = {
+  status(o: { connect?: boolean; threadId?: string | null }): Promise<{ paired: boolean; error: string | null; selection: Selection | null }>;
+  providers(o?: { fresh?: boolean }): Promise<T3Provider[]>;
+  reorder(o: { threadId: string; runId: string; beforeRunId: string | null }): Promise<unknown>;
+  cancel(o: { threadId: string; runId: string }): Promise<unknown>;
+  edit(o: { threadId: string; runId: string; text: string }): Promise<unknown>;
+  steer(o: { threadId: string; queuedRunId: string; targetRunId: string }): Promise<unknown>;
+  setModel(o: { threadId: string; selection: { providerInstanceId: string; model: string; options: Record<string, OptionValue> } }): Promise<unknown>;
+};
 type Api = {
   conversation(id: string): Promise<Msg[]>;
   sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
   saveAttachment(name: string, data: Uint8Array): Promise<string>;
+  t3?: T3Api;
+};
+
+// Which option is the reasoning effort and which is the speed switch, across harnesses:
+// Claude uses effort + fastMode, Codex reasoningEffort + serviceTier, OpenCode variant.
+const EFFORT_IDS = ["effort", "reasoningEffort", "reasoning_effort", "thinkingLevel", "variant", "reasoning"];
+const effortOption = (m?: T3Model) => m?.options.find((o) => o.type === "select" && EFFORT_IDS.includes(o.id)) ?? null;
+function speedOption(m?: T3Model): { opt: T3Option; on: OptionValue; off: OptionValue } | null {
+  for (const o of m?.options ?? []) {
+    if (o.type === "boolean" && /fast/i.test(o.id)) return { opt: o, on: true, off: false };
+    if (o.type === "select" && /serviceTier|speed/i.test(o.id)) {
+      const fast = o.choices?.find((c) => /priority|fast/i.test(c.id));
+      const normal = o.choices?.find((c) => c.isDefault) ?? o.choices?.find((c) => c !== fast);
+      if (fast && normal) return { opt: o, on: fast.id, off: normal.id };
+    }
+  }
+  return null;
+}
+const defaultOf = (o: T3Option): OptionValue | undefined => (o.type === "select" ? o.choices?.find((c) => c.isDefault)?.id : o.current);
+// Keep the options the next model also understands, with values it accepts.
+function carryOptions(m: T3Model | undefined, prev: Record<string, OptionValue>) {
+  if (!m) return { ...prev };
+  const out: Record<string, OptionValue> = {};
+  for (const o of m.options) {
+    const v = prev[o.id];
+    if (v === undefined) continue;
+    if (o.type === "boolean" ? typeof v === "boolean" : o.choices?.some((c) => c.id === v)) out[o.id] = v;
+  }
+  return out;
+}
+const ordLabel = (n: number) => (n === 1 ? "next" : `${n}${n === 2 ? "nd" : n === 3 ? "rd" : "th"}`);
+const CHEVRON = `<svg viewBox="0 0 10 10" width="9" height="9" aria-hidden="true"><path d="M2 3.8l3 3 3-3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON = {
+  up: `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 10l4-4 4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  down: `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  edit: `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M10.5 3.5l2 2L6 12H4v-2l6.5-6.5z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></svg>`,
+  steer: `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 4.5v3a2 2 0 0 0 2 2h7.5M9.5 6.5l3 3-3 3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  remove: `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M4 4l8 8m0-8l-8 8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  grip: `<svg viewBox="0 0 10 16" width="8" height="13" aria-hidden="true"><g fill="currentColor"><circle cx="3" cy="3.5" r="1.2"/><circle cx="7" cy="3.5" r="1.2"/><circle cx="3" cy="8" r="1.2"/><circle cx="7" cy="8" r="1.2"/><circle cx="3" cy="12.5" r="1.2"/><circle cx="7" cy="12.5" r="1.2"/></g></svg>`,
+  check: `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 };
 
 export const fileUrl = (p: string) => `lucid-file://local/${encodeURIComponent(p)}`;
@@ -65,6 +126,16 @@ export class ChatPanel {
   private pending: { text: string; at: number }[] = [];
   private files: File[] = [];
   private previews = new WeakMap<File, string>();
+  // T3 session: the model bar and the queue actions need Lucid to be paired with T3
+  private paired = false;
+  private triedConnect = false;
+  private providers: T3Provider[] | null = null;
+  private sel: Selection | null = null;
+  private selAt = 0;
+  private saving = 0;
+  private queueHold = 0; // dragging, editing or confirming: live updates wait
+  private queueLatest: Msg[] = [];
+  private menuClose: (() => void) | null = null;
 
   private addFiles(list: File[]) {
     const room = 10 - this.files.length;
@@ -101,9 +172,18 @@ export class ChatPanel {
       </header>
       <p class="cp-status" aria-live="polite"><i></i><span></span></p>
       <div class="cp-list" role="log" aria-live="polite"></div>
-      <section class="cp-queue" aria-label="Queued messages" hidden><button type="button" class="cq-head" aria-expanded="true"><b>Queued</b><span class="cq-count"></span><i aria-hidden="true"></i></button><ol></ol></section>
+      <section class="cp-queue" aria-label="Queued messages" hidden><button type="button" class="cq-head" aria-expanded="true"><b>Queued</b><span class="cq-count"></span><i aria-hidden="true"></i></button><p class="cq-note" role="status" hidden></p><ol></ol></section>
       <div class="cp-zoom" hidden><img alt=""><button type="button" class="ghost">Close image</button></div>
       <form class="cp-form">
+        <div class="cp-model" role="group" aria-label="Harness and model for this thread" hidden>
+          <button type="button" class="cm-pick cm-harness" aria-haspopup="listbox" aria-expanded="false" title="Harness"><img alt="" hidden><span></span>${CHEVRON}</button>
+          <button type="button" class="cm-pick cm-modelname" aria-haspopup="listbox" aria-expanded="false" title="Model"><span></span>${CHEVRON}</button>
+          <button type="button" class="cm-pick cm-effort" aria-haspopup="listbox" aria-expanded="false" title="Reasoning effort" hidden><span class="cm-k">Effort</span><span class="cm-v"></span>${CHEVRON}</button>
+          <button type="button" class="cm-fast" role="switch" aria-checked="false" title="Fast mode" hidden><i aria-hidden="true"></i><span>Fast</span></button>
+          <span class="cm-note" aria-live="polite"></span>
+        </div>
+        <p class="cm-error" role="alert" hidden></p>
+        <p class="cp-connect" hidden><span>Connect Lucid to T3 to change models and reorder</span><button type="button" class="ghost">Connect</button></p>
         <div class="cp-box">
           <div class="cp-chips" hidden></div>
           <textarea rows="1" placeholder="Message this robot" aria-label="Message"></textarea>
@@ -203,6 +283,7 @@ export class ChatPanel {
     const zoom = this.el.querySelector(".cp-zoom") as HTMLElement;
     zoom.querySelector("button")!.addEventListener("click", () => (zoom.hidden = true));
     window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !zoom.hidden) { e.stopImmediatePropagation(); zoom.hidden = true; } }, true);
+    this.wireT3();
   }
 
   get isOpen() { return this.el.classList.contains("open"); }
@@ -211,7 +292,12 @@ export class ChatPanel {
   open(desk: Desk) {
     const same = this.desk === desk;
     this.desk = desk;
-    if (!same) { this.shown.clear(); (this.el.querySelector(".cp-list") as HTMLElement).innerHTML = ""; }
+    if (!same) {
+      this.shown.clear(); (this.el.querySelector(".cp-list") as HTMLElement).innerHTML = "";
+      this.sel = null; this.queueHold = 0; this.closeMenu();
+      (this.el.querySelector(".cp-queue ol") as HTMLElement).dataset.sig = "";
+      void this.loadT3();
+    }
     const info = desk.info, logo = logoFor(info?.provider);
     const img = this.el.querySelector(".cp-logo") as HTMLImageElement;
     img.hidden = !logo;
@@ -229,6 +315,7 @@ export class ChatPanel {
   close() {
     if (!this.isOpen) return;
     gsap.to(this.el, { x: 40, opacity: 0, duration: 0.3, ease: "power2.in", onComplete: () => this.el.classList.remove("open") });
+    this.closeMenu();
     this.desk = null;
   }
 
@@ -297,6 +384,8 @@ export class ChatPanel {
     if (!id) return;
     const msgs = await this.api.conversation(id).catch(() => [] as Msg[]);
     if (id !== this.threadId) return;
+    // the thread's model can change elsewhere too (T3 itself); check now and then
+    if (this.paired && !this.saving && Date.now() - this.selAt > 4000) void this.loadSelection();
     const list = this.el.querySelector(".cp-list") as HTMLElement;
     const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
     let added = 0;
@@ -384,13 +473,538 @@ export class ChatPanel {
         box.classList.toggle("folded", !open);
       });
     }
-    const ord = (n: number) => (n === 1 ? "next" : `${n}${n === 2 ? "nd" : n === 3 ? "rd" : "th"}`);
-    const html = queued.map((m, i) => `<li><span class="cq-n">${ord(i + 1)}</span><p></p></li>`).join("");
-    if (ol.dataset.sig === queued.map((m) => m.id).join(",")) return;
-    ol.dataset.sig = queued.map((m) => m.id).join(",");
-    ol.innerHTML = html;
-    ol.querySelectorAll("p").forEach((p, i) => { p.textContent = queued[i].text; p.title = queued[i].text; });
-    gsap.fromTo(ol.children, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.25, stagger: 0.04 });
+    this.queueLatest = queued;
+    // never replace rows while you drag, edit or confirm; the latest state lands afterwards
+    if (this.queueHold > 0) return;
+    const live = this.canAct();
+    const sig = `${live}|` + queued.map((m) => `${m.id}:${m.text.length}:${m.text.slice(0, 40)}:${m.steerTarget ? 1 : 0}`).join(",");
+    if (ol.dataset.sig === sig) return;
+    ol.dataset.sig = sig;
+    box.classList.toggle("can-act", live);
+    // keep rows that are already there (and focus inside them); only new rows fade in
+    const old = new Map([...ol.children].map((li) => [(li as HTMLElement).dataset.id!, li as HTMLElement]));
+    const fresh: HTMLElement[] = [];
+    const rows = queued.map((m) => {
+      let li = old.get(m.id);
+      if (!li) { li = document.createElement("li"); fresh.push(li); }
+      old.delete(m.id);
+      this.fillQueueRow(li, m, live);
+      return li;
+    });
+    for (const li of old.values()) li.remove();
+    rows.forEach((li, i) => { if (ol.children[i] !== li) ol.insertBefore(li, ol.children[i] ?? null); });
+    this.numberQueue();
+    if (fresh.length) gsap.fromTo(fresh, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.25, stagger: 0.04 });
+  }
+
+  private fillQueueRow(li: HTMLElement, m: Msg, live: boolean) {
+    // rebuild only when something it shows changed, so focus inside the row survives updates
+    const sig = `${live}:${m.queueRunId}:${m.queueFixed}:${m.queueGuest}:${!!m.steerTarget}:${m.text}`;
+    if (li.dataset.sig === sig) return;
+    li.dataset.sig = sig;
+    li.dataset.id = m.id;
+    li.dataset.run = m.queueRunId ?? "";
+    li.classList.toggle("fixed", !!m.queueFixed);
+    const movable = live && !!m.queueRunId && !m.queueFixed;
+    const btn = (act: string, label: string, icon: string, show = true) =>
+      `<button type="button" class="cq-act" data-act="${act}" aria-label="${label}" title="${label}"${show ? "" : " disabled"}>${icon}</button>`;
+    li.innerHTML = `${movable ? `<button type="button" class="cq-grip" aria-label="Reorder: drag, or use the arrow keys" title="Drag to reorder">${ICON.grip}</button>` : live ? `<span class="cq-grip-gap"></span>` : ""}`
+      + `<span class="cq-n"></span><p></p>`
+      + (movable ? `<span class="cq-acts">${btn("up", "Move up", ICON.up)}${btn("down", "Move down", ICON.down)}`
+        + btn("edit", m.queueGuest ? "A guest's message cannot be edited" : "Edit", ICON.edit, !m.queueGuest)
+        + btn("steer", m.steerTarget ? "Send now, into the current turn" : "Send now works while it is working", ICON.steer, !!m.steerTarget)
+        + btn("cancel", "Remove from the queue", ICON.remove) + `</span>` : live ? `<span></span>` : "");
+    const p = li.querySelector("p")!;
+    p.textContent = m.text;
+    p.title = m.text;
+  }
+
+  // "next", "2nd", ... and which arrows make sense, after any change of order
+  private numberQueue() {
+    const ol = this.el.querySelector(".cp-queue ol") as HTMLElement;
+    const items = [...ol.children] as HTMLElement[];
+    const first = items.findIndex((li) => !li.classList.contains("fixed"));
+    items.forEach((li, i) => {
+      const n = i + 1;
+      (li.querySelector(".cq-n") as HTMLElement).textContent = ordLabel(n);
+      const up = li.querySelector('[data-act="up"]') as HTMLButtonElement | null;
+      const down = li.querySelector('[data-act="down"]') as HTMLButtonElement | null;
+      if (up) up.disabled = i <= first;
+      if (down) down.disabled = i === items.length - 1;
+    });
+  }
+
+  // --- T3 session: pairing, model bar, queue actions -----------------------------
+
+  private canAct() { return !!this.api.t3 && this.paired; }
+
+  private async loadT3(connect = !this.triedConnect) {
+    const t3 = this.api.t3, id = this.threadId;
+    if (!t3 || !id) return;
+    this.triedConnect = true;
+    let st: Awaited<ReturnType<T3Api["status"]>>;
+    try { st = await t3.status({ connect, threadId: id }); } catch { return; }
+    if (id !== this.threadId) return;
+    this.paired = st.paired;
+    this.sel = st.selection; this.selAt = Date.now();
+    this.renderBar();
+    this.refreshSoon(0); // queue rows gain or lose their actions
+    if (this.paired && !this.providers) {
+      try { this.providers = await t3.providers(); } catch (err: any) { this.failed(err); }
+      if (id === this.threadId) this.renderBar();
+    }
+  }
+
+  private async loadSelection() {
+    const t3 = this.api.t3, id = this.threadId;
+    if (!t3 || !id) return;
+    this.selAt = Date.now();
+    try {
+      const st = await t3.status({ threadId: id });
+      if (id !== this.threadId || this.saving || JSON.stringify(st.selection) === JSON.stringify(this.sel)) return;
+      this.sel = st.selection;
+      this.renderBar();
+    } catch {}
+  }
+
+  // An action failed: say why. If T3 dropped the session, offer to connect again.
+  private failed(err: any, where?: "queue" | "bar") {
+    const code = err?.code as string | undefined;
+    if (code === "unauthorized" || code === "pair-failed") {
+      this.paired = false;
+      this.renderBar();
+      (this.el.querySelector(".cp-queue ol") as HTMLElement).dataset.sig = "";
+      this.refreshSoon(0);
+    }
+    const text = String(err?.message || err || "T3 did not answer.");
+    if (where === "queue") this.queueNote(text);
+    else {
+      const p = this.el.querySelector(".cm-error") as HTMLElement;
+      p.textContent = text;
+      p.classList.remove("calm");
+      p.setAttribute("role", "alert");
+      p.hidden = false;
+      window.clearTimeout(Number(p.dataset.t));
+      p.dataset.t = String(window.setTimeout(() => (p.hidden = true), 6000));
+    }
+  }
+
+  // a calm note under the model bar
+  private hint(text: string) {
+    const p = this.el.querySelector(".cm-error") as HTMLElement;
+    p.textContent = text;
+    p.classList.add("calm");
+    p.setAttribute("role", "status");
+    p.hidden = false;
+    window.clearTimeout(Number(p.dataset.t));
+    p.dataset.t = String(window.setTimeout(() => (p.hidden = true), 7000));
+  }
+
+  private queueNote(text: string) {
+    const p = this.el.querySelector(".cq-note") as HTMLElement;
+    p.textContent = text;
+    p.hidden = false;
+    window.clearTimeout(Number(p.dataset.t));
+    p.dataset.t = String(window.setTimeout(() => (p.hidden = true), 6000));
+  }
+
+  private renderBar() {
+    const bar = this.el.querySelector(".cp-model") as HTMLElement;
+    const connect = this.el.querySelector(".cp-connect") as HTMLElement;
+    const has = !!this.api.t3 && !!this.threadId;
+    connect.hidden = !has || this.paired;
+    bar.hidden = !has || !this.paired || !this.sel;
+    if (bar.hidden) return;
+    const sel = this.sel!;
+    const prov = this.providers?.find((p) => p.instanceId === sel.providerInstanceId);
+    const model = prov?.models.find((m) => m.slug === sel.model);
+    const loading = !this.providers;
+    // harness
+    const hb = bar.querySelector(".cm-harness") as HTMLButtonElement;
+    const logo = logoFor(prov?.driver || sel.providerInstanceId);
+    const img = hb.querySelector("img") as HTMLImageElement;
+    img.hidden = !logo;
+    if (logo) img.src = logo;
+    (hb.querySelector("span") as HTMLElement).textContent = prov?.name || harnessName(sel.providerInstanceId);
+    hb.disabled = loading;
+    // model
+    const mb = bar.querySelector(".cm-modelname") as HTMLButtonElement;
+    (mb.querySelector("span") as HTMLElement).textContent = model?.shortName || model?.name || sel.model || "Default model";
+    mb.title = model ? `Model: ${model.name}` : "Model";
+    mb.disabled = loading || !prov;
+    // effort
+    const eo = effortOption(model);
+    const eb = bar.querySelector(".cm-effort") as HTMLButtonElement;
+    eb.hidden = !eo;
+    if (eo) {
+      const v = sel.options[eo.id] ?? defaultOf(eo);
+      (eb.querySelector(".cm-v") as HTMLElement).textContent = eo.choices?.find((c) => c.id === v)?.label ?? String(v ?? "Default");
+      eb.title = eo.label || "Reasoning effort";
+      eb.disabled = loading;
+    }
+    // speed
+    const sp = speedOption(model);
+    const fb = bar.querySelector(".cm-fast") as HTMLButtonElement;
+    fb.hidden = !sp;
+    if (sp) {
+      const on = (sel.options[sp.opt.id] ?? defaultOf(sp.opt)) === sp.on;
+      fb.setAttribute("aria-checked", String(on));
+      fb.title = on ? "Fast mode is on" : "Fast mode is off";
+      fb.disabled = loading;
+    }
+  }
+
+  private async applyModel(next: Selection) {
+    const t3 = this.api.t3, id = this.threadId;
+    if (!t3 || !id || !next.model) return;
+    const prev = this.sel;
+    this.sel = next; // show it right away
+    this.renderBar();
+    const note = this.el.querySelector(".cm-note") as HTMLElement;
+    note.textContent = "Saving";
+    this.saving++;
+    try {
+      await t3.setModel({ threadId: id, selection: { providerInstanceId: next.providerInstanceId, model: next.model, options: next.options } });
+      if (id === this.threadId) {
+        note.textContent = "Saved";
+        // T3 runs each queued message with the model it was queued with, and switches the
+        // thread back to that model when it starts, so say so instead of looking forgetful
+        const waiting = this.queueLatest.filter((m) => !m.queueFixed).length;
+        if (waiting) this.hint(`New messages use this. ${waiting === 1 ? "The queued message keeps" : `The ${waiting} queued messages keep`} the model ${waiting === 1 ? "it was" : "they were"} queued with.`);
+      }
+    } catch (err: any) {
+      if (id === this.threadId) { this.sel = prev; this.renderBar(); note.textContent = ""; this.failed(err, "bar"); }
+    } finally {
+      this.saving--;
+      this.selAt = Date.now();
+      window.clearTimeout(Number(note.dataset.t));
+      note.dataset.t = String(window.setTimeout(() => { if (note.textContent === "Saved") note.textContent = ""; }, 2400));
+    }
+  }
+
+  // A small listbox that opens above its button, inside the panel.
+  private openMenu(anchor: HTMLButtonElement, items: { value: string; label: string; logo?: string | null; selected: boolean; hint?: string }[], pick: (v: string) => void) {
+    const wasOpen = anchor.getAttribute("aria-expanded") === "true";
+    this.closeMenu();
+    if (wasOpen) return;
+    const menu = document.createElement("div");
+    menu.className = "cm-menu";
+    menu.setAttribute("role", "listbox");
+    menu.setAttribute("aria-label", anchor.title || "Choose");
+    for (const it of items) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("role", "option");
+      b.setAttribute("aria-selected", String(it.selected));
+      b.dataset.value = it.value;
+      b.innerHTML = `${it.logo ? `<img src="${it.logo}" alt="">` : ""}<span></span>${it.selected ? ICON.check : ""}`;
+      (b.querySelector("span") as HTMLElement).textContent = it.label;
+      if (it.hint) b.title = it.hint;
+      menu.appendChild(b);
+    }
+    this.el.appendChild(menu);
+    // above the button, kept inside the panel
+    const pr = this.el.getBoundingClientRect(), ar = anchor.getBoundingClientRect();
+    menu.style.maxHeight = `${Math.max(120, ar.top - pr.top - 16)}px`;
+    menu.style.bottom = `${pr.bottom - ar.top + 6}px`;
+    menu.style.left = `${Math.max(8, Math.min(ar.left - pr.left, pr.width - menu.offsetWidth - 8))}px`;
+    anchor.setAttribute("aria-expanded", "true");
+    const opts = [...menu.children] as HTMLButtonElement[];
+    (opts.find((o) => o.getAttribute("aria-selected") === "true") ?? opts[0])?.focus();
+    gsap.fromTo(menu, { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.14 });
+    const done = (refocus: boolean) => {
+      menu.remove();
+      anchor.setAttribute("aria-expanded", "false");
+      window.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("pointerdown", onDown, true);
+      this.menuClose = null;
+      if (refocus) anchor.focus();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.stopImmediatePropagation(); e.preventDefault(); done(true); return; }
+      if (e.key === "Tab") { done(false); return; }
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
+      e.preventDefault();
+      const i = opts.indexOf(document.activeElement as HTMLButtonElement);
+      const n = e.key === "Home" ? 0 : e.key === "End" ? opts.length - 1 : Math.max(0, Math.min(opts.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)));
+      opts[n]?.focus();
+    };
+    const onDown = (e: PointerEvent) => { if (!menu.contains(e.target as Node) && e.target !== anchor && !anchor.contains(e.target as Node)) done(false); };
+    menu.addEventListener("click", (e) => {
+      const b = (e.target as HTMLElement).closest("[role=option]") as HTMLButtonElement | null;
+      if (!b) return;
+      done(true);
+      pick(b.dataset.value!);
+    });
+    window.addEventListener("keydown", onKey, true);
+    document.addEventListener("pointerdown", onDown, true);
+    this.menuClose = () => done(false);
+  }
+
+  private closeMenu() { this.menuClose?.(); }
+
+  private wireT3() {
+    const bar = this.el.querySelector(".cp-model") as HTMLElement;
+    const current = () => {
+      const sel = this.sel!;
+      const prov = this.providers?.find((p) => p.instanceId === sel.providerInstanceId);
+      return { sel, prov, model: prov?.models.find((m) => m.slug === sel.model) };
+    };
+    bar.querySelector(".cm-harness")!.addEventListener("click", (e) => {
+      if (!this.providers || !this.sel) return;
+      const { sel } = current();
+      this.openMenu(e.currentTarget as HTMLButtonElement,
+        this.providers.map((p) => ({ value: p.instanceId, label: p.name, logo: logoFor(p.driver || p.instanceId), selected: p.instanceId === sel.providerInstanceId, hint: p.ready ? undefined : "Not ready in T3 right now" })),
+        (v) => {
+          if (v === sel.providerInstanceId) return;
+          const p = this.providers!.find((x) => x.instanceId === v)!;
+          const m = p.models.find((x) => x.isDefault) ?? p.models[0];
+          if (!m) return this.failed(new Error(`${p.name} has no models to choose from.`), "bar");
+          void this.applyModel({ providerInstanceId: v, model: m.slug, options: carryOptions(m, sel.options) });
+        });
+    });
+    bar.querySelector(".cm-modelname")!.addEventListener("click", (e) => {
+      const { sel, prov } = current();
+      if (!prov) return;
+      this.openMenu(e.currentTarget as HTMLButtonElement,
+        prov.models.map((m) => ({ value: m.slug, label: m.name, selected: m.slug === sel.model, hint: m.slug })),
+        (v) => { if (v !== sel.model) void this.applyModel({ ...sel, model: v, options: carryOptions(prov.models.find((m) => m.slug === v), sel.options) }); });
+    });
+    bar.querySelector(".cm-effort")!.addEventListener("click", (e) => {
+      const { sel, model } = current();
+      const eo = effortOption(model);
+      if (!eo) return;
+      const v = sel.options[eo.id] ?? defaultOf(eo);
+      this.openMenu(e.currentTarget as HTMLButtonElement,
+        (eo.choices ?? []).map((c) => ({ value: c.id, label: c.label, selected: c.id === v })),
+        (nv) => { if (nv !== v) void this.applyModel({ ...sel, options: { ...sel.options, [eo.id]: nv } }); });
+    });
+    bar.querySelector(".cm-fast")!.addEventListener("click", () => {
+      const { sel, model } = current();
+      const sp = speedOption(model);
+      if (!sp) return;
+      const on = (sel.options[sp.opt.id] ?? defaultOf(sp.opt)) === sp.on;
+      void this.applyModel({ ...sel, options: { ...sel.options, [sp.opt.id]: on ? sp.off : sp.on } });
+    });
+    // connect once more after a refusal
+    const connectBtn = this.el.querySelector(".cp-connect button") as HTMLButtonElement;
+    connectBtn.addEventListener("click", async () => {
+      connectBtn.disabled = true;
+      connectBtn.textContent = "Connecting";
+      await this.loadT3(true);
+      connectBtn.disabled = false;
+      connectBtn.textContent = "Connect";
+      if (!this.paired) this.failed(new Error("T3 did not pair with Lucid. Make sure T3 Code is open, then try again."), "bar");
+    });
+    this.wireQueue();
+  }
+
+  private wireQueue() {
+    const ol = this.el.querySelector(".cp-queue ol") as HTMLOListElement;
+    const items = () => [...ol.children] as HTMLElement[];
+    const hold = (on: boolean) => {
+      this.queueHold = Math.max(0, this.queueHold + (on ? 1 : -1));
+      if (!this.queueHold) { ol.dataset.sig = ""; this.renderQueue(this.queueLatest); }
+    };
+    // Moves a row to a new index on screen (animated), then tells T3; puts it back if T3 says no.
+    // FLIP: rows glide from where they were on screen (`seen`, when a drag left them shifted).
+    const glide = (list: HTMLElement[], seen: Map<HTMLElement, number>) => {
+      for (const x of list) {
+        const dy = seen.get(x)! - x.getBoundingClientRect().top;
+        if (dy) gsap.fromTo(x, { y: dy }, { y: 0, duration: 0.22, ease: "power2.out", clearProps: "transform" });
+      }
+    };
+    const move = async (li: HTMLElement, to: number, seen?: Map<HTMLElement, number>) => {
+      const list = items();
+      const from = list.indexOf(li);
+      const min = list.findIndex((x) => !x.classList.contains("fixed"));
+      to = Math.max(min, Math.min(list.length - 1, to));
+      if (to === from || !this.threadId) return;
+      // T3 wants the run it should now sit in front of (null: the end of the queue)
+      const before = list.filter((x) => x !== li)[to] ?? null;
+      seen ??= new Map(list.map((x) => [x, x.getBoundingClientRect().top]));
+      ol.insertBefore(li, before);
+      glide(list, seen);
+      this.numberQueue();
+      hold(true);
+      try {
+        await this.api.t3!.reorder({ threadId: this.threadId, runId: li.dataset.run!, beforeRunId: before?.dataset.run || null });
+      } catch (err: any) {
+        const back = new Map(list.map((x) => [x, x.getBoundingClientRect().top]));
+        ol.insertBefore(li, list[from + 1] ?? null);
+        glide(list, back);
+        this.numberQueue();
+        this.failed(err, "queue");
+      } finally {
+        hold(false);
+        this.refreshSoon(250);
+      }
+    };
+
+    ol.addEventListener("click", async (e) => {
+      const b = (e.target as HTMLElement).closest("[data-act]") as HTMLButtonElement | null;
+      const li = b?.closest("li") as HTMLElement | null;
+      if (!b || !li || b.disabled || !this.threadId) return;
+      const i = items().indexOf(li);
+      const act = b.dataset.act;
+      if (act === "up" || act === "down") {
+        await move(li, act === "up" ? i - 1 : i + 1);
+        (li.querySelector(`[data-act="${act}"]`) as HTMLButtonElement | null)?.focus();
+      } else if (act === "edit") this.editRow(li, hold);
+      else if (act === "cancel") this.confirmRemove(li, hold);
+      else if (act === "steer") {
+        const m = this.queueLatest.find((x) => x.id === li.dataset.id);
+        if (!m?.steerTarget) return;
+        hold(true);
+        gsap.to(li, { opacity: 0.35, duration: 0.15 });
+        try {
+          await this.api.t3!.steer({ threadId: this.threadId, queuedRunId: li.dataset.run!, targetRunId: m.steerTarget });
+          li.remove(); this.numberQueue();
+        } catch (err: any) { gsap.to(li, { opacity: 1, duration: 0.15 }); this.failed(err, "queue"); }
+        finally { hold(false); this.refreshSoon(250); }
+      }
+    });
+
+    // keyboard on the grip: arrow keys move the row
+    ol.addEventListener("keydown", async (e) => {
+      const grip = (e.target as HTMLElement).closest(".cq-grip") as HTMLElement | null;
+      if (!grip || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+      e.preventDefault();
+      const li = grip.closest("li") as HTMLElement;
+      await move(li, items().indexOf(li) + (e.key === "ArrowUp" ? -1 : 1));
+      (li.querySelector(".cq-grip") as HTMLElement | null)?.focus();
+    });
+
+    // dragging by the grip: the other rows make room where it will land
+    ol.addEventListener("pointerdown", (e) => {
+      const grip = (e.target as HTMLElement).closest(".cq-grip") as HTMLElement | null;
+      if (!grip || e.button !== 0) return;
+      e.preventDefault();
+      const li = grip.closest("li") as HTMLElement;
+      const list = items();
+      const from = list.indexOf(li);
+      const min = list.findIndex((x) => !x.classList.contains("fixed"));
+      const rects = list.map((x) => x.getBoundingClientRect());
+      const gap = rects.length > 1 ? rects[1].top - rects[0].bottom : 6;
+      const step = rects[from].height + gap;
+      const startY = e.clientY;
+      let to = from;
+      grip.setPointerCapture(e.pointerId);
+      li.classList.add("dragging");
+      document.body.classList.add("cq-dragging");
+      hold(true);
+      const onMove = (ev: PointerEvent) => {
+        const dy = ev.clientY - startY;
+        gsap.set(li, { y: dy });
+        const mid = rects[from].top + rects[from].height / 2 + dy;
+        to = from;
+        while (to < list.length - 1 && mid > rects[to + 1].top + rects[to + 1].height / 2) to++;
+        while (to > min && mid < rects[to - 1].top + rects[to - 1].height / 2) to--;
+        list.forEach((x, i) => {
+          if (x === li) return;
+          const shift = from < to && i > from && i <= to ? -step : to < from && i >= to && i < from ? step : 0;
+          gsap.to(x, { y: shift, duration: 0.15, ease: "power2.out", overwrite: true });
+        });
+        // the position labels follow the preview, so "next" is always the top row
+        const preview = list.filter((x) => x !== li);
+        preview.splice(to, 0, li);
+        preview.forEach((x, i) => ((x.querySelector(".cq-n") as HTMLElement).textContent = ordLabel(i + 1)));
+      };
+      const onUp = (ev: PointerEvent) => {
+        if (ev.type === "pointercancel") to = from; // interrupted: it goes back where it was
+        grip.removeEventListener("pointermove", onMove);
+        grip.removeEventListener("pointerup", onUp);
+        grip.removeEventListener("pointercancel", onUp);
+        li.classList.remove("dragging");
+        document.body.classList.remove("cq-dragging");
+        // remember where everything is on screen, drop the drag offsets, then glide into place
+        gsap.killTweensOf(list);
+        const seen = new Map(list.map((x) => [x, x.getBoundingClientRect().top]));
+        list.forEach((x) => gsap.set(x, { clearProps: "transform" }));
+        if (to !== from) void move(li, to, seen).finally(() => hold(false));
+        else { glide(list, seen); this.numberQueue(); hold(false); }
+      };
+      grip.addEventListener("pointermove", onMove);
+      grip.addEventListener("pointerup", onUp);
+      grip.addEventListener("pointercancel", onUp);
+    });
+  }
+
+  // Edit a queued message in place. Save sends it to T3; a failed save keeps your text.
+  private editRow(li: HTMLElement, hold: (on: boolean) => void) {
+    if (li.classList.contains("editing")) return;
+    const m = this.queueLatest.find((x) => x.id === li.dataset.id);
+    if (!m) return;
+    hold(true);
+    li.classList.add("editing");
+    const p = li.querySelector("p") as HTMLElement;
+    const box = document.createElement("div");
+    box.className = "cq-edit";
+    box.innerHTML = `<textarea rows="3" aria-label="Edit queued message"></textarea><div><button type="button" class="cq-save">Save</button><button type="button" class="cq-discard ghost">Discard changes</button><span>Ctrl+Enter saves</span></div>`;
+    const ta = box.querySelector("textarea")!;
+    ta.value = m.text;
+    p.replaceWith(box);
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    const finish = () => {
+      window.removeEventListener("keydown", onEsc, true);
+      box.replaceWith(p);
+      li.classList.remove("editing");
+      hold(false);
+    };
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape" && box.contains(document.activeElement)) { e.stopImmediatePropagation(); finish(); (li.querySelector('[data-act="edit"]') as HTMLElement | null)?.focus(); } };
+    window.addEventListener("keydown", onEsc, true);
+    const save = async () => {
+      const text = ta.value.trim();
+      if (!text) { this.queueNote("A queued message cannot be empty. Remove it instead."); return; }
+      if (text === m.text.trim()) { finish(); return; }
+      const saveBtn = box.querySelector(".cq-save") as HTMLButtonElement;
+      saveBtn.disabled = true; saveBtn.textContent = "Saving";
+      try {
+        await this.api.t3!.edit({ threadId: this.threadId!, runId: li.dataset.run!, text });
+        p.textContent = text; p.title = text;
+        finish();
+        this.refreshSoon(200);
+      } catch (err: any) {
+        saveBtn.disabled = false; saveBtn.textContent = "Save";
+        this.failed(err, "queue");
+      }
+    };
+    box.querySelector(".cq-save")!.addEventListener("click", save);
+    box.querySelector(".cq-discard")!.addEventListener("click", finish);
+    ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void save(); } });
+  }
+
+  // Removing cannot be undone in T3, so the row asks once, in place.
+  private confirmRemove(li: HTMLElement, hold: (on: boolean) => void) {
+    if (li.classList.contains("confirming")) return;
+    hold(true);
+    li.classList.add("confirming");
+    const bar = document.createElement("div");
+    bar.className = "cq-confirm";
+    bar.setAttribute("role", "group");
+    bar.innerHTML = `<span>Remove this message from the queue? This cannot be undone.</span><button type="button" class="cq-yes">Remove</button><button type="button" class="cq-no ghost">Keep</button>`;
+    li.appendChild(bar);
+    const keep = bar.querySelector(".cq-no") as HTMLButtonElement;
+    keep.focus();
+    const finish = () => { window.removeEventListener("keydown", onEsc, true); bar.remove(); li.classList.remove("confirming"); hold(false); };
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape" && bar.contains(document.activeElement)) { e.stopImmediatePropagation(); finish(); (li.querySelector('[data-act="cancel"]') as HTMLElement | null)?.focus(); } };
+    window.addEventListener("keydown", onEsc, true);
+    keep.addEventListener("click", () => { finish(); (li.querySelector('[data-act="cancel"]') as HTMLElement | null)?.focus(); });
+    bar.querySelector(".cq-yes")!.addEventListener("click", async () => {
+      const yes = bar.querySelector(".cq-yes") as HTMLButtonElement;
+      yes.disabled = true; yes.textContent = "Removing";
+      try {
+        await this.api.t3!.cancel({ threadId: this.threadId!, runId: li.dataset.run! });
+        const next = (li.nextElementSibling ?? li.previousElementSibling) as HTMLElement | null;
+        window.removeEventListener("keydown", onEsc, true);
+        gsap.to(li, { opacity: 0, height: 0, marginTop: 0, duration: 0.2, onComplete: () => { li.remove(); this.numberQueue(); li.classList.remove("confirming"); hold(false); this.refreshSoon(100); } });
+        (next?.querySelector(".cq-grip") as HTMLElement | null)?.focus();
+      } catch (err: any) {
+        finish();
+        this.failed(err, "queue");
+      }
+    });
   }
 
   private zoom(src: string) {

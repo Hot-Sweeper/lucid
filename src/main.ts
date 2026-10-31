@@ -115,7 +115,7 @@ world.extFactory.break = (h, w, hh) => new BreakRoom(h, w, hh);
 world.extFactory.queue = (h, w, hh) => new QuestionLine(h, w, hh);
 let selectedDesk: Desk | null = null;
 (window as any).__world = world; // debug handle for test runs
-const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d) });
+const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), t3: (window as any).lucidT3 });
 // the chat panel is about a third of the window wide; the camera leaves room for it
 const panelSpace = () => Math.min(640, Math.max(440, innerWidth * 0.36)) + 28;
 world.panelWidth = panelSpace();

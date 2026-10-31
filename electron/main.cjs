@@ -304,3 +304,18 @@ app.whenReady().then(() => {
   createWindow();
 });
 app.on("window-all-closed", () => app.quit());
+
+// --- T3 server (paired session): queue edits and model changes ------------------
+// Handlers answer { ok, value } or { ok: false, error } so the renderer gets a clean message.
+const t3s = require("./t3server.cjs");
+const t3sWrap = (fn) => async (_e, ...args) => {
+  try { return { ok: true, value: await fn(...args) }; } catch (err) { return { ok: false, error: String(err?.message || err), code: err?.code || null }; }
+};
+ipcMain.handle("t3s:status", t3sWrap((o) => t3s.status(o || {})));
+ipcMain.handle("t3s:providers", t3sWrap((o) => t3s.listProviders(o || {})));
+ipcMain.handle("t3s:reorder", t3sWrap((o) => t3s.reorderQueued(o.threadId, o.runId, o.beforeRunId ?? null)));
+ipcMain.handle("t3s:cancel", t3sWrap((o) => t3s.cancelQueued(o.threadId, o.runId)));
+ipcMain.handle("t3s:edit", t3sWrap((o) => t3s.editQueued(o.threadId, o.runId, o.text)));
+ipcMain.handle("t3s:steer", t3sWrap((o) => t3s.steerNow(o.threadId, o.queuedRunId, o.targetRunId)));
+ipcMain.handle("t3s:setModel", t3sWrap((o) => t3s.setThreadModel(o.threadId, o.selection)));
+app.on("before-quit", () => t3s.closeSock());

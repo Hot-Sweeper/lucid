@@ -379,15 +379,20 @@ function conversation(threadId, limit = 80) {
   const runs = new Map();
   const started = new Map();
   const queuePos = new Map();
+  const queueRun = new Map();
   const queued = [];
+  let liveRunId = null;
   const recent = getDb().prepare("select run_id as runId, status, ordinal, payload_json as p from orchestration_v2_projection_runs where thread_id = ? and status != 'queued' order by ordinal desc limit 60").all(threadId);
-  for (const run of [...queuedRuns, ...recent].sort((a, b) => b.ordinal - a.ordinal)) {
+  for (const run of [...queuedRuns.sort((a, b) => b.ordinal - a.ordinal), ...recent].sort((a, b) => b.ordinal - a.ordinal)) {
     const rp = safeJson(run.p);
     if (rp?.userMessageId) runs.set(rp.userMessageId, run.status);
     if (rp?.userMessageId && rp.startedAt) started.set(rp.userMessageId, rp.startedAt);
-    if (run.status === "queued" && rp?.userMessageId) queued.push({ id: rp.userMessageId, ordinal: run.ordinal });
+    if (run.status === "queued" && rp?.userMessageId) queued.push({ id: rp.userMessageId, runId: run.runId, ordinal: run.ordinal, pos: rp.queuePosition ?? run.ordinal });
+    // the turn a queued message can be steered into
+    if (!liveRunId && ["running", "starting", "preparing"].includes(run.status)) liveRunId = run.runId;
   }
-  queued.sort((a, b) => a.ordinal - b.ordinal).forEach((q, i) => queuePos.set(q.id, i + 1));
+  // T3 delivers by queuePosition (set when you reorder), then by ordinal
+  queued.sort((a, b) => a.pos - b.pos || a.ordinal - b.ordinal).forEach((q, i) => { queuePos.set(q.id, i + 1); queueRun.set(q.id, q.runId); });
   // A message that waited in the queue belongs where the robot picked it up, not where it was
   // typed, so it never lands behind replies that came while it waited. Ties keep the
   // database order, so messages with the same timestamp stay in the order they were written.
@@ -397,6 +402,8 @@ function conversation(threadId, limit = 80) {
     const p = safeJson(r.p) || {};
     return {
       id: r.id, role: r.role, at: r.at, streaming: !!r.streaming, text: p.text || "", run: runs.get(r.id) || null, queue: queuePos.get(r.id) || null,
+      // queued messages: their run, the live turn to steer into, and whether T3 lets you change them
+      ...(queueRun.has(r.id) ? { queueRunId: queueRun.get(r.id), steerTarget: liveRunId, queueFixed: !!(p.delegatedCompletion || p.notification), queueGuest: !!p.context?.guest } : {}),
       attachments: (p.attachments || []).map((a) => ({ type: a.type, name: a.name, mime: a.mimeType, size: a.sizeBytes, path: attachmentPath(a) })),
     };
   });
