@@ -127,6 +127,13 @@ const evaluation = `
       for (const [key,d] of w.slotDesks) if (key.startsWith(room.id + '#')) {
         approaches++;
         const route = w.toSeat(room, w.deskPos(d));
+        const pos = w.deskPos(d);
+        assert(w.furniture(room).some(r => r.x === pos.x+54 && r.y === pos.y+4 && r.w === 292 && r.h === 172), 'monitor participates in collision ' + key);
+        if (d.threadId) {
+          const resumed = w.route(route.at(-2), d.threadId, room.id);
+          assert(!resumed.blocked && resumed.desk === d && !resumed.rendezvous, 'in-room arrival resumes at its own desk ' + key);
+          assert(resumed.pts.every(p => p.y >= room.y+110), 'in-room arrival stays out of the hallway ' + key);
+        }
         for (let i=1; i<route.length; i++) {
           const a = route[i-1], b = route[i];
           // Expose routing through walkLegs with a harmless recorder walker.

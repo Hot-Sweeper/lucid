@@ -28,7 +28,7 @@ export type Activity =
   // seated behind a desk, facing the room, hands on the keyboard
   | "type";
 
-export interface WalkerOptions { id: string; provider: string; name?: string; model?: string; scale?: number; look?: RobotLook }
+export interface WalkerOptions { id: string; provider: string; name?: string; model?: string; scale?: number; look?: RobotLook; speed?: number }
 export type Prop = "none" | "mug" | "bowl" | "spoon" | "card" | "wrist" | "paddle" | "pad" | "popcorn" | "ball" | "stamp";
 
 // ---- skeleton (v0 units) ------------------------------------------------------------------------
@@ -146,6 +146,7 @@ export class Walker {
   zBias = 0;
   private deskEdge: number | null = null;
   private s: number;
+  private speed: number;
   private svg: SVGSVGElement;
   private $: Record<string, SVGElement> = {};
   private bubble: HTMLDivElement;
@@ -190,6 +191,7 @@ export class Walker {
   constructor(parent: Element, opts: WalkerOptions) {
     this.id = opts.id;
     this.s = opts.scale ?? 0.48;
+    this.speed = opts.speed ?? SPEED;
     this.brand = brandFor(opts.provider);
     this.name = opts.name ?? "";
     this.model = opts.model ?? "";
@@ -342,7 +344,7 @@ export class Walker {
     if (m.wait > 0) { m.wait -= dt; return; }
     const rest = Math.hypot(m.pts[m.i].x - this.x, m.pts[m.i].y - this.y) + m.tails[m.i];
     const cap = Math.sqrt(2 * 560 * rest) + 18;                // ease into the stop
-    const want = Math.min(SPEED, cap);
+    const want = Math.min(this.speed, cap);
     this.v = want > this.v ? this.v + (want - this.v) * Math.min(1, dt * 7) : want;
     let step = this.v * dt;
     while (step > 0 && m.i < m.pts.length) {
@@ -353,7 +355,7 @@ export class Walker {
       } else { this.x += ((q.x - this.x) / d) * step; this.y += ((q.y - this.y) / d) * step; step = 0; }
     }
     this.place();
-    const strideWant = 0.35 + 0.65 * Math.min(1, this.v / SPEED);
+    const strideWant = 0.35 + 0.65 * Math.min(1, this.v / this.speed);
     st.stride += (strideWant - st.stride) * Math.min(1, dt * 10);
     // feet stay planted: half a cycle covers 2 * STEP * stride of floor
     st.phase += ((this.v / this.s) / (4 * STEP * Math.max(0.3, st.stride))) * TAU * dt;

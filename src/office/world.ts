@@ -170,6 +170,15 @@ export class World {
       }
       return { pts, desk: null as Desk | null, deskAt: null as Pt | null, blocked, revision: this.layoutRevision, rendezvous: true };
     }
+    // A resumed journey already inside its destination goes straight to the chair.
+    // Sending it back through the hall creates long loops after layout changes.
+    if (desk && toRoom && p.x >= toRoom.x && p.x <= toRoom.x + toRoom.w &&
+        p.y >= toRoom.y + WALL_FACE && p.y <= toRoom.y + toRoom.h) {
+      const deskAt = this.deskPos(desk), seat = this.seatAt(deskAt);
+      const side = { x: seat.x + (p.x < seat.x ? -62 : 62), y: seat.y };
+      const path = furniturePath(p, side, this.furniture(toRoom), this.walkBounds(toRoom));
+      return { pts: path ? [...path, seat] : [], desk, deskAt, blocked: !path, revision: this.layoutRevision, rendezvous: false };
+    }
     if (startOut && !endOut) pts.push(this.parkDoor, this.entrance());
     if (!startOut && endOut) { throughHall(this.entrance()); pts.push(this.parkDoor); }
     let deskAt: Pt | null = null;
@@ -185,7 +194,7 @@ export class World {
   private spawn(t: { id: string; provider: string; model?: string | null }, at: Pt, face: Facing, outdoors = this.outside(at)) {
     const profile = this.roster.byThread(t.id);
     const out = outdoors;
-    const w = new Walker(out ? this.park.layer : this.deskLayer, { id: t.id, provider: t.provider, name: profile?.name, model: t.model ?? undefined, scale: WALK_SCALE, look: profile?.look });
+    const w = new Walker(out ? this.park.layer : this.deskLayer, { id: t.id, provider: t.provider, name: profile?.name, model: t.model ?? undefined, scale: WALK_SCALE, look: profile?.look, speed: 300 });
     w.el.classList.add("hall-walker");
     makeInteractive(w, { bounds: () => (out ? this.outdoor : null) ?? { x: 0, y: 0, w: this.size.w, h: this.size.h }, onOpen: () => this.onSelectThread(t.id) });
     w.setPos(at.x, at.y);
@@ -228,6 +237,9 @@ export class World {
     const blocks: Footprint[] = [];
     for (const d of this.slotDesks.values()) if (d.room === r.id) {
       const p = this.deskPos(d);
+      // The upright monitor occupies the north end of the workstation too.
+      // Keep passing robots out of its screen instead of drawing them over it.
+      blocks.push({ x: p.x + GEOM.monitor.x, y: p.y + GEOM.monitor.y, w: GEOM.monitor.w, h: GEOM.monitor.h });
       blocks.push({ x: p.x + 34, y: p.y + 180, w: 332, h: 88 }, { x: p.x + 164, y: p.y + 285, w: 72, h: 64 });
     }
     const slots = this.physicalPlans.find((p) => p.id === r.id)?.slots ?? 0;
