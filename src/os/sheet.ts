@@ -4,6 +4,7 @@
 import gsap from "gsap";
 import type { WM } from "./wm";
 import { analysisSize, sheetAnalysisBudget } from "./sheet-analysis";
+import { renderLoop } from "../perf/render";
 
 export type Sheet = { cols: number; rows: number; frames: number; fw: number; fh: number; fps: number; score: number };
 
@@ -198,16 +199,18 @@ export async function playSheet(wm: WM, body: HTMLElement, found: { img: HTMLIma
   gsap.fromTo(body.querySelector(".sheet"), { opacity: 0 }, { opacity: 1, duration: 0.35 });
 
   // playback: the frame comes from the clock, so it never drifts from the real frame rate
-  let playing = false, t0 = 0, at = 0, passes = 0;
+  let playing = false, t0 = 0, at = 0;
+  let stopPlayback: (() => void) | null = null;
+  const frameAt = () => at + ((performance.now() - t0) / 1000) * s.fps;
   const tick = () => {
-    const f = at + ((performance.now() - t0) / 1000) * s.fps;
-    passes = Math.floor(f / s.frames);
+    if (wm.epoch !== e || !body.contains(canvas)) { setPlaying(false); return; }
+    const f = frameAt();
     show(Math.floor(f) % s.frames);
   };
   const setPlaying = (on: boolean) => {
     if (on === playing) return;
-    if (on) { t0 = performance.now(); at = Math.max(0, cur); passes = 0; gsap.ticker.add(tick); }
-    else gsap.ticker.remove(tick);
+    if (on) { t0 = performance.now(); at = Math.max(0, cur); stopPlayback = renderLoop(body, tick); }
+    else { stopPlayback?.(); stopPlayback = null; }
     playing = on;
     play.innerHTML = on ? PAUSE : PLAY;
     play.setAttribute("aria-label", on ? "Pause" : "Play");
@@ -216,20 +219,25 @@ export async function playSheet(wm: WM, body: HTMLElement, found: { img: HTMLIma
     wm.robot.setPose("read");
     await wm.pointAt(play, 0.5, 0.5, 420);
     await wm.click();
+    wm.check(e);
     setPlaying(true);
     // it watches the loop: a few passes, a few seconds at least, never a wait for nothing
     const want = Math.max(2, opts.loops ?? 3);
     const cap = Math.min(7000, Math.max(3200, (s.frames / s.fps) * 1000 * want));
     const began = performance.now();
     await wm.pointAt(stage, 0.5, 0.55, 500);
-    while (passes < want && performance.now() - began < cap) await wm.sleep(120, e);
+    // Logical playback continues while its screen is hidden or covered. Its next
+    // visible draw samples the actual clock instead of replaying missed frames.
+    while (Math.floor(frameAt() / s.frames) < want && performance.now() - began < cap) await wm.sleep(120, e);
     // then it pauses and jumps to a frame it wants a closer look at, picked on the filmstrip
     await wm.pointAt(play, 0.5, 0.5, 360);
     await wm.click();
+    wm.check(e);
     setPlaying(false);
     const pick = thumbs[Math.min(s.frames - 1, Math.floor(s.frames * (0.3 + Math.random() * 0.5)))];
     await wm.pointAt(pick, 0.5, 0.5, 420);
     await wm.click();
+    wm.check(e);
     show(Number(pick.dataset.n));
     await wm.sleep(900, e);
   } finally { setPlaying(false); }
