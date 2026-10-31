@@ -7,6 +7,7 @@ import { brandFor, type BrandKind } from "./brand";
 
 export type Editor = "studio" | "pad" | "vim";
 export type Game = "snake" | "flappy" | "dash" | "chess";
+export type TasksStyle = "board" | "checklist" | "sticky";
 export interface Prefs {
   editor: Editor;
   wallpaper: number;                  // index into WALLPAPERS
@@ -16,6 +17,7 @@ export interface Prefs {
   music: number;                      // how often it makes beats when bored (0..1)
   social: number;                     // how often it hangs out in chat (0..1)
   mug: string;
+  tasks: TasksStyle;                  // its to-do list: a task board app, a checklist app, or only sticky notes on the desk
 }
 export interface RobotProfile {
   id: string;
@@ -48,6 +50,13 @@ const NAMES = [
 
 const KEY = "lucid:roster:v1";
 const pick = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+const tasksFrom = (x: number): TasksStyle => (x < 0.45 ? "board" : x < 0.85 ? "checklist" : "sticky");
+// Robots hired before this habit existed get one from their id, so it stays the same every launch.
+function tasksFor(id: string) {
+  let h = 7;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return tasksFrom((h % 1000) / 1000);
+}
 
 export class Roster {
   robots: RobotProfile[] = [];
@@ -56,6 +65,7 @@ export class Roster {
   constructor() {
     const api = (window as any).lucid;
     try { this.robots = JSON.parse(api?.rosterLoad?.() || localStorage.getItem(KEY) || "[]"); } catch { this.robots = []; }
+    for (const r of this.robots) if (r.prefs && !r.prefs.tasks) r.prefs.tasks = tasksFor(r.id || r.name || "");
   }
 
   private save() {
@@ -143,6 +153,7 @@ export class Roster {
         music: Math.round(Math.random() * 10) / 10,
         social: Math.round(Math.random() * 10) / 10,
         mug: pick(MUGS),
+        tasks: tasksFrom(Math.random()),
       },
       hiredAt: Date.now(),
       threadId,

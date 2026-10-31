@@ -1,5 +1,5 @@
 /* ---------- world and camera ---------- */
-.scene { position: relative; overflow: clip; --scene-night: 0; background: color-mix(in srgb, #0b1030 calc(var(--scene-night) * 90%), #78b066); cursor: grab; touch-action: none; }
+.scene { position: relative; overflow: clip; --scene-night: 0; background: color-mix(in srgb, #0b1030 calc(var(--scene-night) * 90%), var(--scene-ground, #78b066)); cursor: grab; touch-action: none; }
 .scene.panning { cursor: grabbing; }
 .world { position: absolute; left: 0; top: 0; transform-origin: 0 0; --night: 0; --lamp: 0; --stars: 0; --city: 0; --sky1: #6fb2ee; --sky2: #d4ecfb; }
 .room-layer, .desk-layer { position: absolute; inset: 0; }
@@ -407,3 +407,5 @@
 .dc-sw button.for-sale { position: relative; }
 .dc-sw button.for-sale::after { content: ""; position: absolute; right: 3px; top: 3px; width: 9px; height: 9px; border-radius: 50%; background: #ffd27a; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25); }
 .dc-bal { margin: 14px 0 0; font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+
+.wx { margin-left: 10px; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }

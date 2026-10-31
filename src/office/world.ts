@@ -3,6 +3,8 @@ import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
 import { drawFloor, drawWall, drawDecor, placeDecor, DECOR } from "../decor/decor";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
+import { mountWeather, applySkyTint, type WeatherLayer, type Weather } from "../weather/effects";
+import { outdoorLook, seasonPalette } from "../weather/season";
 import { GEOM } from "./rig";
 import { outsideSvg, PARK_W } from "./outside";
 import { Roster, type RobotProfile } from "./roster";
@@ -54,6 +56,25 @@ export class World {
   themes = new Map<string, RoomTheme>();
   set owns(f: (key: string) => boolean) { ownsItem = f; }
   park: Park;
+  // real weather and the season shape the outdoors and the light
+  weather: Weather | null = null;
+  private fx: WeatherLayer | null = null;
+  private outArgs: Parameters<typeof outsideSvg>[0] | null = null;
+  private lookSig = "";
+  setWeather(w: Weather | null) {
+    this.weather = w;
+    this.redrawOutside();
+    this.daylight();
+  }
+  private redrawOutside(force = false) {
+    if (!this.outArgs) return;
+    const look = outdoorLook(new Date(), this.weather);
+    const sig = JSON.stringify(look);
+    if (!force && sig === this.lookSig) return;
+    this.lookSig = sig;
+    (this.root.querySelector(".outside-layer") as HTMLElement).innerHTML = outsideSvg({ ...this.outArgs, ...look });
+    this.scene.style.setProperty("--scene-ground", seasonPalette(look.season).ground);
+  }
   level = 0;
   freeDesks: Desk[] = [];
   private roomLayer: HTMLElement;
@@ -224,7 +245,10 @@ export class World {
       this.park.setGeometry(park, { x: this.size.w + 66, y: topH + HALL / 2 + 20 });
       const layer = this.root.querySelector(".outside-layer") as HTMLElement;
       layer.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px`;
-      layer.innerHTML = outsideSvg({ ...out, building: { x: 0, y: 0, w: this.size.w, h: this.size.h }, entranceY: topH + HALL / 2, park });
+      this.outArgs = { ...out, building: { x: 0, y: 0, w: this.size.w, h: this.size.h }, entranceY: topH + HALL / 2, park };
+      this.redrawOutside(true);
+      const wr = { ...this.outdoor, entranceY: topH + HALL / 2 };
+      if (this.fx) this.fx.resize(wr); else this.fx = mountWeather(this.root, wr);
       const shade = this.root.querySelector(".night-shade") as HTMLElement;
       shade.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px;right:auto;bottom:auto`;
       this.root.style.width = `${this.size.w}px`;
@@ -486,12 +510,18 @@ export class World {
       : h < 17 ? S("#6fb2ee", "#d4ecfb", 0, 0.1, 0, 0)
       : h < 19 ? S("#7a7fd0", "#ffbc85", 0, 0.5, 0.05, 0.3)
       : S("#2a2f6a", "#e0708a", 0.5, 0.95, 0.2, 0.9);
+    // rain greys the sky and dims the light, storms more so
+    const t = applySkyTint(v, this.weather);
+    const night = Math.min(1, v.night + t.dim);
     const st = this.root.style;
-    st.setProperty("--sky1", v.sky1); st.setProperty("--sky2", v.sky2);
-    st.setProperty("--stars", String(v.stars)); st.setProperty("--lamp", String(v.lamp));
-    st.setProperty("--night", String(v.night)); st.setProperty("--city", String(v.city));
+    st.setProperty("--sky1", t.sky1); st.setProperty("--sky2", t.sky2);
+    st.setProperty("--stars", String(v.stars * t.stars)); st.setProperty("--lamp", String(Math.min(1, v.lamp + t.dim * 0.8)));
+    st.setProperty("--night", String(night)); st.setProperty("--city", String(v.city));
     // the grass beyond the drawn outdoors darkens with the same night tint
-    this.root.parentElement?.style.setProperty("--scene-night", String(v.night));
+    this.root.parentElement?.style.setProperty("--scene-night", String(night));
+    const look = outdoorLook(now, this.weather);
+    this.fx?.set(this.weather, { night: v.night, season: look.season, frozen: look.frozen });
+    this.redrawOutside();
     this.paintClock();
   }
 

@@ -122,6 +122,11 @@ ipcMain.handle("t3:user-messages", (_e, since, exclude) => t3.userMessagesSince(
 ipcMain.handle("project:remove", (_e, o) => t3.removeProject(o));
 ipcMain.handle("app:host", () => require("node:os").hostname());
 ipcMain.handle("usage:get", () => require("./usage.cjs").getUsage());
+ipcMain.handle("weather:get", async () => {
+  const { getWeather, lastError } = require("./weather.cjs");
+  const w = await getWeather();
+  return { weather: w, error: w ? null : lastError() };
+});
 // Small settings file (hidden offices and such).
 const SETTINGS = path.join(app.getPath("userData"), "settings.json");
 ipcMain.on("settings:load", (e) => { try { e.returnValue = require("node:fs").readFileSync(SETTINGS, "utf8"); } catch { e.returnValue = "{}"; } });

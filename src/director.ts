@@ -5,6 +5,7 @@ import { HarnessApp, harnessKind, type HarnessSession, type SubagentEvent } from
 import { fileUrl } from "./office/chat-panel";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ChatApp, ToolApp, prettyTool } from "./os/apps";
 import { classify, parseDiff, baseName, type Entry } from "./os/classify";
+import { TasksApp, type TaskStep } from "./os/tasks";
 import type { SeatedRobot as Robot } from "./office/rig";
 import type { DeskStage as Stage } from "./office/desk";
 
@@ -12,7 +13,7 @@ export type Item = { id: string; runId: string | null; ordinal: number; type: st
 export type ThreadInfo = { id: string; title: string; provider: string; projectTitle?: string; root?: string; run?: { id: string; status: string } | null; error?: string };
 
 const GLOW: Record<string, string> = {
-  editor: "#6f7dff", terminal: "#4ff0a0", browser: "#4fd2ff", chat: "#ff7aa8", files: "#ffbf5a", tool: "#b07cff", think: "#9d8cff", idle: "#4fb6ff",
+  editor: "#6f7dff", terminal: "#4ff0a0", browser: "#4fd2ff", chat: "#ff7aa8", files: "#ffbf5a", tool: "#b07cff", think: "#9d8cff", idle: "#4fb6ff", tasks: "#4fd8c0",
 };
 
 const SKIP = new Set(["checkpoint", "notification", "system_notice", "handoff", "run_interrupt_request", "run_interrupt_result"]);
@@ -27,7 +28,8 @@ export class Director {
   private info: ThreadInfo | null = null;
   private lastRunStatus = "";
   private files: FilesApp; private editor: EditorApp; private term: TerminalApp;
-  private browser: BrowserApp; private chat: ChatApp; private tool: ToolApp;
+  private browser: BrowserApp; private chat: ChatApp; private tool: ToolApp; private tasks: TasksApp;
+  private planSig = "";
   onActivity: (text: string) => void = () => {};
   private idleLife: IdleLife;
   private mobile = false;       // the agent is testing a phone-sized viewport
@@ -46,6 +48,7 @@ export class Director {
     this.browser = new BrowserApp(wm, peek);
     this.chat = new ChatApp(wm);
     this.tool = new ToolApp(wm);
+    this.tasks = new TasksApp(wm);
     this.idleLife = new IdleLife(wm, robot, stage);
     this.harness = new HarnessApp(wm as any);
     this.peekFn = peek;
@@ -68,6 +71,8 @@ export class Director {
     this.lastRunStatus = "";
     this.stage.say(null);
     this.stage.setPlan([]);
+    this.tasks.reset();
+    this.planSig = "";
     this.robot.setPose("rest");
   }
 
@@ -101,12 +106,12 @@ export class Director {
       if (SKIP.has(it.type) || this.played.has(it.id) || this.queue.includes(it.id)) continue;
       // On first open, replay only the latest turn so you see what the robot is doing now.
       if (initial && it.runId !== latestRun) { this.played.add(it.id); continue; }
-      if (it.type === "todo_list") { this.stage.setPlan(it.data.steps || []); this.played.add(it.id); continue; }
+      if (it.type === "todo_list") { this.stage.setPlan(it.data.steps || []); if (!this.queuePlan(it)) this.played.add(it.id); continue; }
       this.queue.push(it.id);
     }
     for (const it of items) if (it.type === "subagent" && it.status !== "running" && this.sessions.has(it.id)) this.finishSession(it.id);
     // Plans update in place while the run goes on.
-    for (const it of items) if (it.type === "todo_list" && this.played.has(it.id)) this.stage.setPlan(it.data.steps || []);
+    for (const it of items) if (it.type === "todo_list" && this.played.has(it.id)) { this.stage.setPlan(it.data.steps || []); this.queuePlan(it); }
     this.queue.sort((a, b) => this.items.get(a)!.ordinal - this.items.get(b)!.ordinal);
     if (initial) this.catchingUp = this.queue.length > 0;
     if (this.queue.length && this.idleLife.isActive) this.idleLife.stop();
@@ -114,6 +119,23 @@ export class Director {
   }
 
   private get(id: string) { return this.items.get(id)!; }
+
+  // A changed plan is replayed in the robot's Tasks app, unless it only keeps sticky notes.
+  private queuePlan(it: Item) {
+    if ((this.wm.prefs?.tasks ?? "board") === "sticky") return false;
+    const sig = JSON.stringify(it.data.steps || []);
+    if (sig === this.planSig) return false;
+    this.planSig = sig;
+    if (!this.queue.includes(it.id)) this.queue.push(it.id);
+    return true;
+  }
+
+  private async playPlan(steps: TaskStep[]) {
+    if ((this.wm.prefs?.tasks ?? "board") === "sticky") { await this.wm.sleep(400); return; }
+    this.onActivity(this.wm.prefs?.tasks === "checklist" ? "Updating its to-do list" : "Updating its task board");
+    this.stage.setGlow(GLOW.tasks);
+    await this.tasks.show(steps, { instant: this.catchingUp, title: this.info?.title });
+  }
 
   // The robot's notes: while it thinks, its reasoning gets jotted down here.
   private async openNotes() {
@@ -372,8 +394,9 @@ export class Director {
     }
     if (base === "TodoWrite") {
       const todos = this.get(id).data.input?.todos || [];
-      this.stage.setPlan(todos.map((t: any) => ({ text: t.content || t.activeForm || "", status: t.status === "in_progress" ? "running" : t.status })));
-      await this.wm.sleep(400);
+      const steps = todos.map((t: any) => ({ text: t.content || t.activeForm || "", status: t.status === "in_progress" ? "running" : t.status }));
+      this.stage.setPlan(steps);
+      await this.playPlan(steps);
       return true;
     }
     if (base === "Agent" || base === "Task") {
@@ -626,6 +649,10 @@ export class Director {
         const session = await this.harness.start({ id, kind, title: d.title || "Subtask", prompt: d.prompt || d.title || "Help with this", label: String(d.providerInstanceId || d.driver || "") });
         this.followChild(id, session, d.childThreadId || null);
         if (it.status === "completed") this.finishSession(id);
+        return;
+      }
+      case "todo_list": {
+        await this.playPlan(d.steps || []);
         return;
       }
       case "compaction": {

@@ -5,7 +5,7 @@ import { ICONS } from "./icons";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -20,9 +20,10 @@ const FRAMES: Record<AppId, Frame> = {
   beats: { x: 40, y: 12, w: 740, h: 390 },
   social: { x: 40, y: 12, w: 740, h: 390 },
   notes: { x: 470, y: 30, w: 330, h: 300 },
+  tasks: { x: 112, y: 16, w: 596, h: 380 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "chat", "notes", "harness", "tool", "beats", "social", "game"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "chat", "notes", "tasks", "harness", "tool", "beats", "social", "game"];
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 
@@ -37,6 +38,8 @@ export class WM {
   robotName = "unit";
   speed = 1;
   epoch = 0;
+  // An app can ask for a different window size before it opens (the Tasks checklist is narrower).
+  frameHint: Partial<Record<AppId, Frame>> = {};
   private z = 10;
   private cursor = { x: SCREEN.w * 0.55, y: SCREEN.h * 0.5 };
   robot: Robot;
@@ -169,7 +172,7 @@ export class WM {
     }
     this.check(e);
     this.trim(id);
-    const base = FRAMES[id];
+    const base = this.frameHint[id] ?? FRAMES[id];
     // windows never land in exactly the same spot twice
     const jx = Math.round((Math.random() - 0.5) * 50), jy = Math.round((Math.random() - 0.5) * 24);
     const f = { ...base, x: Math.max(4, Math.min(SCREEN.w - base.w - 4, base.x + jx)), y: Math.max(4, Math.min(SCREEN.h - 50 - base.h, base.y + jy)) };

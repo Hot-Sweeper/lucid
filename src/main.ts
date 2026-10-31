@@ -62,7 +62,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 document.getElementById("app")!.innerHTML = `
   <aside class="panel">
-    <header class="brand"><span class="mark" aria-hidden="true"></span><h1>Lucid</h1>
+    <header class="brand"><span class="mark" aria-hidden="true"></span><h1>Lucid</h1><span class="wx" id="wx" hidden></span>
       <button class="update" id="update" type="button" hidden>Update</button>
     </header>
 
@@ -443,3 +443,21 @@ mountStats(document.getElementById("usage-body")!, async () => {
   if (u?.windows) wallet.observe(u);
   return u;
 });
+
+// Real weather where you are: it rains, snows or storms over the office, and the season shows outside.
+const WX_NAME: Record<string, string> = { clear: "Clear", clouds: "Cloudy", rain: "Rain", drizzle: "Drizzle", snow: "Snow", storm: "Storm", fog: "Fog" };
+async function pollWeather() {
+  try {
+    const r = await (window as any).lucid.weather();
+    const w = r?.weather ?? null;
+    world.setWeather(w);
+    const el = $("wx");
+    el.hidden = !w;
+    if (w) {
+      el.textContent = `${WX_NAME[w.kind] ?? w.kind}, ${Math.round(w.tempC)}°C`;
+      el.title = `${w.place}: ${WX_NAME[w.kind] ?? w.kind}, ${w.tempC.toFixed(1)}°C, wind ${Math.round(w.windKmh)} km/h`;
+    }
+  } catch (err) { console.error("weather failed", err); }
+}
+void pollWeather();
+setInterval(pollWeather, 20 * 60 * 1000);
