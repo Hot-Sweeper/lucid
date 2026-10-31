@@ -2,6 +2,7 @@ import gsap from "gsap";
 import type { SeatedRobot as Robot } from "../office/rig";
 const SCREEN = { w: 820, h: 461 };
 import { ICONS } from "./icons";
+import { EDITORS, NOTE_APPS } from "./work-apps";
 
 export class Cancelled extends Error {}
 
@@ -53,7 +54,12 @@ export class WM {
   onCursor?: (x: number, y: number) => void;
   private _prefs: import("../office/roster").Prefs | null = null;
   get prefs() { return this._prefs; }
-  set prefs(p) { this._prefs = p; if (this.dock) this.renderDock(false); }
+  set prefs(p) {
+    this._prefs = p;
+    this.brandApp("editor", { title: EDITORS[p?.editor ?? "vscode"].name, icon: EDITORS[p?.editor ?? "vscode"].icon });
+    this.brandApp("notes", { title: NOTE_APPS[p?.notes ?? "notes"].name, icon: NOTE_APPS[p?.notes ?? "notes"].icon });
+    if (this.dock) this.renderDock(false);
+  }
   robotName = "unit";
   speed = 1;
   epoch = 0;
@@ -310,6 +316,7 @@ export class WM {
     if (p?.hobby === "chatter") pins.add("social");
     if (p?.listens === "always") pins.add("music");
     if (p?.tasks === "board" || p?.tasks === "checklist") pins.add("tasks");
+    if (p?.tasks === "notes" || p?.noteHabit === "frequent") pins.add("notes");
     // robots that like office apps keep their favourites in the dock
     if (p?.office === "writer" || p?.office === "suite") pins.add("botword");
     if (p?.office === "numbers" || p?.office === "suite") pins.add("cellsheet");

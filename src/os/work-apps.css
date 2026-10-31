@@ -1,0 +1,136 @@
+/* Compact interpretations of each app, within Lucid's robot desktop. */
+.editor { min-width: 0; container-type: inline-size; }
+.editor .ide-menu { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 26px; padding: 4px 9px; font-size: 9px; color: #c5c5c5; white-space: nowrap; overflow: hidden; }
+.editor .ide-project { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: #b5bac5; }
+.ide-workspace { flex: 1; display: flex; min-width: 0; min-height: 0; }
+.ide-document { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.ide-document .code-wrap { flex: 1; min-height: 0; }
+.ide-document .tabs { min-height: 27px; padding-top: 0; gap: 0; }
+.ide-document .tab { border-radius: 0; padding: 6px 11px; font-size: 10px; }
+.ide-rail { flex: 0 0 32px; display: flex; flex-direction: column; align-items: center; gap: 17px; padding-top: 12px; color: #a4a4a4; }
+.ide-rail svg { width: 19px; height: 19px; stroke: currentColor; fill: none; stroke-width: 1.3; }
+.ide-tree { flex: 0 0 142px; min-width: 0; padding: 0 0 8px; overflow: auto; background: #252526; }
+.ide-tree h4 { margin: 0; padding: 10px 9px; color: #c6c6c6; font-size: 9px; font-weight: 500; }
+.ide-file { display: flex; align-items: flex-start; gap: 6px; padding: 6px 9px; color: #c6c6c6; font-size: 10px; }
+.ide-file > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.ide-file small { display: block; color: #979797; font-size: 8px; margin-top: 2px; overflow-wrap: anywhere; }
+.ide-file.on { background: #37373d; color: #fff; }
+.ide-file-mark { width: 8px; height: 10px; border: 1px solid currentColor; flex: none; margin-top: 2px; opacity: 0.7; }
+.ide-path { flex: none; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 9px; color: #a1a1a1; padding: 5px 10px; }
+.ide-status { flex: none; display: flex; justify-content: space-between; gap: 12px; padding: 4px 10px; min-height: 21px; font-size: 9px; color: #dedede; }
+.editor.ed-vscode { background: #1f1f1f; }
+.ed-vscode .ide-menu, .ed-vscode .ide-status { background: #181818; }
+.ed-vscode .ide-rail, .ed-vscode .ide-tree, .ed-vscode .tabs { background: #181818; }
+.ed-vscode .tab.on { background: #1f1f1f; color: #fff; box-shadow: inset 0 1px #007acc; }
+.editor.ed-vscode .code { color: #d4d4d4; }
+.ed-vscode .t-k { color: #c586c0; } .ed-vscode .t-s { color: #ce9178; } .ed-vscode .t-c { color: #6a9955; } .ed-vscode .t-f { color: #dcdcaa; }
+.editor.ed-visualstudio { background: #1e1e1e; }
+.ed-visualstudio .ide-menu { background: #302b40; color: #eee; }
+.ed-visualstudio .ide-rail { order: 3; background: #292936; }
+.ed-visualstudio .ide-tree { order: 2; background: #252526; }
+.ed-visualstudio .ide-tree h4 { background: #373746; }
+.ed-visualstudio .tabs { background: #252526; }
+.ed-visualstudio .tab.on { background: #41415a; color: #fff; }
+.ed-visualstudio .ide-status { background: #4c376b; color: #fff; }
+.editor.ed-visualstudio .code { color: #ddd; }
+.ed-visualstudio .t-k { color: #569cd6; } .ed-visualstudio .t-s { color: #d69d85; } .ed-visualstudio .t-c { color: #57a64a; }
+.editor.ed-idea { background: #1e1f22; }
+.ed-idea .ide-menu, .ed-idea .ide-status, .ed-idea .ide-rail { background: #2b2d30; }
+.ed-idea .ide-tree { background: #2b2d30; }
+.ed-idea .ide-tree h4 { padding: 9px; color: #ddd; font-weight: 600; }
+.ed-idea .tabs { background: #2b2d30; }
+.ed-idea .tab.on { background: #1e1f22; color: #eee; box-shadow: inset 0 -2px #3574f0; }
+.ed-idea .ide-file.on { background: #2e436e; }
+.editor.ed-idea .code { color: #bcbec4; }
+.ed-idea .t-k { color: #cf8e6d; } .ed-idea .t-s { color: #6aab73; } .ed-idea .t-c { color: #7a7e85; } .ed-idea .t-f { color: #56a8f5; }
+.editor.ed-notepadpp { background: #fff; }
+.ed-notepadpp .ide-menu { background: #f0f0f0; color: #222; }
+.ed-notepadpp .tabs { background: #e2e5e9; }
+.ed-notepadpp .tab { color: #555; }
+.ed-notepadpp .tab.on { background: #fff; color: #222; box-shadow: inset 0 2px #e9a950; }
+.ed-notepadpp .ide-path { display: none; }
+.ed-notepadpp .ide-status { background: #eee; color: #444; }
+.editor.ed-notepadpp .code { color: #222; }
+.ed-notepadpp .ln b { background: #eee; color: #777; }
+.ed-notepadpp .t-k { color: #0000bc; } .ed-notepadpp .t-s { color: #888; } .ed-notepadpp .t-c { color: #008000; } .ed-notepadpp .t-f { color: #8a2be2; }
+.ed-notepadpp .caret, .ed-pad .caret { background: #222; }
+.editor.ed-pad .ide-menu, .ed-pad .ide-status { background: #f0f0f0; color: #444; }
+.editor.ed-pad .code, .editor.ed-pad .code [class^="t-"] { color: #222; font-style: normal; font-weight: 400; }
+.ed-pad .ide-path, .ed-pad .ln > b { display: none; }
+.ed-pad .ln { display: block; padding-left: 12px; }
+.editor.ed-vim .ide-path { display: none; }
+.editor.ed-vim .vim-bar { margin-top: auto; }
+@container (max-width: 470px) {
+  .ide-tree { flex-basis: 100px; }
+  .ide-rail { flex-basis: 26px; }
+  .editor .ide-menu .ide-project { display: none; }
+}
+
+/* The note page, its work list and the real queue share one app per robot. */
+.note-app { height: 100%; min-width: 0; display: flex; flex-direction: column; background: #fff7d6; color: #3d3214; container-type: inline-size; }
+.na-menu { flex: none; min-height: 23px; padding: 5px 9px; background: #efefef; color: #333; font-size: 9px; white-space: nowrap; overflow: hidden; }
+.na-menu:empty { display: none; }
+.na-layout { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+.na-folders { display: none; }
+.na-pages { display: flex; flex: none; gap: 0; background: #f2e7be; }
+.na-pages button { flex: 1; min-width: 0; padding: 7px 12px; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; color: #6b5b31; }
+.na-pages button b { display: block; font-weight: 500; font-size: 10px; }
+.na-pages button span { display: none; }
+.na-pages button.on { background: #fff7d6; color: #332a14; }
+.note-app [hidden] { display: none !important; }
+.na-pages button:focus-visible { outline: 1px solid currentColor; outline-offset: -2px; }
+.na-paper { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.na-head { flex: none; display: flex; align-items: center; gap: 12px; padding: 10px 14px 7px; }
+.na-title { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.na-format { flex: none; display: flex; align-items: center; gap: 10px; color: #8b6b21; font-size: 11px; }
+.na-format svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.note-app .notes, .na-work { flex: 1; min-height: 0; height: auto; overflow-y: auto; padding: 10px 16px 24px; line-height: 1.6; font-size: 11.5px; overflow-wrap: anywhere; }
+.note-app .notes p { margin: 0 0 13px; }
+.na-work { position: relative; }
+.na-work h3 { color: inherit; font-size: 14px; margin: 0 0 12px; font-weight: 600; }
+.na-todos { list-style: none; padding: 0; margin: 0; }
+.na-task { display: flex; align-items: flex-start; gap: 9px; padding: 6px 0; }
+.na-task > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.na-check { flex: none; display: grid; place-items: center; width: 14px; height: 14px; margin-top: 2px; border: 1px solid #b39b54; border-radius: 3px; font-size: 11px; line-height: 1; }
+.na-task.done .na-check { background: #a48323; border-color: #a48323; color: #fff; }
+.na-task.done > span:last-child { color: #827b66; text-decoration: line-through; }
+.na-task.doing > span:last-child { font-weight: 600; }
+.na-queued { margin-top: 18px; }
+.na-queued h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; }
+.na-queued ol { padding-left: 20px; margin: 0; }
+.na-queued li { padding: 4px 0 4px 3px; }
+.na-foot { flex: none; min-height: 20px; padding: 4px 12px; background: #f2e7be; color: #796b44; font-size: 9px; }
+.note-app.na-pad, .note-app.na-notepadpp { background: #fff; color: #222; }
+.na-pad .na-pages, .na-notepadpp .na-pages { background: #e8eaed; }
+.na-pad .na-pages button.on, .na-notepadpp .na-pages button.on { background: #fff; color: #222; }
+.na-pad .na-pages button, .na-notepadpp .na-pages button { color: #555; }
+.note-app.na-pad .notes, .note-app.na-notepadpp .notes { background: #fff; color: #222; font-family: var(--mono); font-size: 11px; }
+.na-pad .na-work, .na-notepadpp .na-work { font-family: var(--mono); font-size: 11px; }
+.na-pad .na-check, .na-notepadpp .na-check { width: 23px; border: 0; border-radius: 0; background: none; color: #555; font: 11px var(--mono); }
+.na-pad .na-task.done .na-check, .na-notepadpp .na-task.done .na-check { background: none; color: #555; }
+.na-pad .na-task.done > span:last-child, .na-notepadpp .na-task.done > span:last-child { color: #555; text-decoration: none; }
+.na-pad .na-foot, .na-notepadpp .na-foot { background: #eee; color: #555; }
+.na-pad .na-format, .na-notepadpp .na-format { display: none; }
+.na-notepadpp .notes { counter-reset: note-line; }
+.na-notepadpp .notes p { position: relative; padding-left: 27px; }
+.na-notepadpp .notes p::before { counter-increment: note-line; content: counter(note-line); position: absolute; left: 0; width: 18px; text-align: right; color: #888; }
+.note-app.na-apple { background: #fbfaf7; color: #292824; }
+.na-apple .na-layout { flex-direction: row; }
+.na-apple .na-folders { display: flex; flex-direction: column; flex: 0 0 100px; padding: 14px 7px; background: #e7e5df; font-size: 10px; }
+.na-folders b { font-weight: 600; padding: 0 6px 11px; color: #66635c; }
+.na-folder { padding: 7px; border-radius: 4px; background: #d5d2cb; }
+.na-apple .na-pages { flex: 0 0 130px; flex-direction: column; background: #f0eee8; padding: 6px; }
+.na-apple .na-pages button { flex: none; padding: 12px 8px; border-radius: 5px; margin-bottom: 4px; color: #333; }
+.na-apple .na-pages button.on { background: #f2d88d; }
+.na-apple .na-pages button span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: 9px; color: #6c6250; margin-top: 5px; }
+.na-apple .na-head { padding: 13px 16px 8px; }
+.note-app.na-apple .notes { background: #fbfaf7; color: #292824; }
+.na-apple .na-format { color: #9a760c; }
+.na-apple .na-check { border-radius: 50%; border-color: #bca452; }
+.na-apple .na-task.done .na-check { background: #c29729; border-color: #c29729; }
+.na-apple .na-foot { background: #f0eee8; color: #77736b; }
+@container (max-width: 480px) {
+  .na-apple .na-folders { display: none; }
+  .na-apple .na-pages { flex-basis: 105px; }
+  .na-format { display: none; }
+}

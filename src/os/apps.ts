@@ -6,6 +6,8 @@ import { baseName, type Hunk } from "./classify";
 
 import { esc, el, typeInto } from "./typing";
 import { colorGitLine } from "./git";
+import { EDITORS } from "./work-apps";
+import { editorShell, editorFiles } from "./editor-shell";
 export { BrowserApp } from "./browser";
 
 export { FilesApp } from "./files";
@@ -17,11 +19,12 @@ export class EditorApp {
   constructor(private wm: WM) {}
 
   private async ensure(path: string) {
-    const ed = this.wm.prefs?.editor ?? "studio";
-    const appName = ed === "pad" ? "Notepad" : ed === "vim" ? "vim" : "Studio";
+    const ed = this.wm.prefs?.editor ?? "vscode";
+    const appName = EDITORS[ed].name;
+    this.wm.brandApp("editor", { title: appName, icon: EDITORS[ed].icon });
     const w = await this.wm.open("editor", `${baseName(path)}  ${appName}`);
-    if (!w.body.querySelector(".editor")) {
-      w.body.innerHTML = `<div class="editor ed-${ed}"><div class="tabs" role="tablist"></div><div class="code-wrap"><div class="code"></div></div>${ed === "vim" ? `<div class="vim-bar"><b>-- INSERT --</b><span></span></div>` : ""}</div>`;
+    if (w.body.querySelector<HTMLElement>(".editor")?.dataset.editor !== EDITORS[ed].shell) {
+      w.body.innerHTML = editorShell(ed);
       this.tabs.clear();
     }
     const bar = w.body.querySelector(".vim-bar span");
@@ -37,6 +40,8 @@ export class EditorApp {
       if (this.tabs.size > 5) { const first = this.tabs.values().next().value!; first.el.remove(); this.tabs.delete(first.path); }
     }
     for (const t of this.tabs.values()) t.el.classList.toggle("on", t === tab);
+    for (const t of this.tabs.values()) t.el.setAttribute("aria-selected", String(t === tab));
+    editorFiles(w.body.querySelector(".editor")!, [...this.tabs.keys()], path);
     // scroll only the tab strip; scrollIntoView would also scroll the office around the screen
     const strip = tab.el.parentElement as HTMLElement;
     if (tab.el.offsetLeft + tab.el.offsetWidth > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = tab.el.offsetLeft + tab.el.offsetWidth - strip.clientWidth;
@@ -79,6 +84,8 @@ export class EditorApp {
   async diff(path: string, hunks: Hunk[]) {
     const wm = this.wm, e = wm.epoch;
     const { code, wrap } = await this.ensure(path);
+    const mode = code.closest(".editor")?.querySelector(".vim-bar b");
+    if (mode) mode.textContent = "INSERT";
     const lang = langOf(path);
     // Lay out what the file looked like around each change, then make the change.
     code.innerHTML = "";
@@ -131,6 +138,7 @@ export class EditorApp {
     }
     await wm.sleep(500, e);
     gsap.to(code.querySelectorAll(".add"), { backgroundColor: "rgba(111,240,160,0)", duration: 1.6, ease: "sine.out" });
+    if (mode) mode.textContent = "NORMAL";
   }
 }
 

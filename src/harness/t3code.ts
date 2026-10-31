@@ -227,6 +227,9 @@ export class T3CodeApp {
     this.wm.brandApp?.("t3code", { title: t3Title(c), icon: t3Icon(c) });
   }
 
+  /** Show the real thread while waiting, without inventing a message or another task. */
+  async show() { await this.ensure(); }
+
   private async ensure(clicked = false) {
     this.brand();
     const w = await this.wm.open("t3code", t3Title(this.chan()), clicked);

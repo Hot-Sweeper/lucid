@@ -38,7 +38,8 @@ export class TasksApp {
   constructor(private wm: WM) {}
 
   get flavor(): "board" | "checklist" | "sticky" {
-    return this.wm.prefs?.tasks ?? "board";
+    const style = this.wm.prefs?.tasks ?? "board";
+    return style === "notes" ? "checklist" : style;
   }
 
   reset() {

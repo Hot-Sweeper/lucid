@@ -6,9 +6,11 @@ import { migrateLook, randomLook } from "../world/look";
 // then assigned to threads. When a thread settles, its robot becomes free and the next
 // thread of the same harness gets that robot instead of a brand new hire.
 
-export type Editor = "studio" | "pad" | "vim";
+export type Editor = "studio" | "vscode" | "visualstudio" | "idea" | "notepadpp" | "pad" | "vim";
+export type NoteApp = "notes" | "apple" | "pad" | "notepadpp";
+export type NoteHabit = "frequent" | "occasional" | "quiet";
 export type Game = "snake" | "flappy" | "dash" | "chess";
-export type TasksStyle = "board" | "checklist" | "sticky";
+export type TasksStyle = "board" | "checklist" | "sticky" | "notes";
 // Office fans use Botword, Cellsheet or Slidedeck when bored and keep their favourites in the dock.
 export type OfficeTaste = "none" | "writer" | "numbers" | "slides" | "suite";
 // Pastime apps on the monitor, and the social apps a robot uses (desktop and phone). Each robot has its own mix.
@@ -20,6 +22,9 @@ export type Hobby = "gamer" | "musician" | "chatter" | "watcher" | "chiller";
 export const HOBBY_LABEL: Record<Hobby, string> = { gamer: "Gamer", musician: "Makes beats", chatter: "Chatty", watcher: "Video binger", chiller: "Chiller" };
 export interface Prefs {
   editor: Editor;
+  notes?: NoteApp;
+  noteHabit?: NoteHabit;
+  workAppsVersion?: number;
   wallpaper: number;                  // index into WALLPAPERS
   games: Record<Game, number>;        // how much it likes each game
   phone: "clips" | "tube";            // short vertical clips, or long videos on the monitor
@@ -72,7 +77,7 @@ const NAMES = [
 
 const KEY = "lucid:roster:v1";
 const pick = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
-const tasksFrom = (x: number): TasksStyle => (x < 0.45 ? "board" : x < 0.85 ? "checklist" : "sticky");
+const tasksFrom = (x: number): TasksStyle => (x < 0.3 ? "board" : x < 0.5 ? "checklist" : x < 0.85 ? "notes" : "sticky");
 // Robots hired before this habit existed get one from their id, so it stays the same every launch.
 function idHash(id: string) {
   let h = 7;
@@ -121,6 +126,18 @@ function seeded(key: string) {
   for (const ch of key) a = Math.imul(a ^ ch.charCodeAt(0), 0x5bd1e995) >>> 0;
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = Math.imul(a ^ (a >>> 15), a | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
+/** Saved once for existing and new robots, independently of their current thread. */
+export function workPreferencesFor(id: string) {
+  const random = seeded(id + ":work-apps:1");
+  const from = <T>(items: readonly T[]) => items[Math.floor(random() * items.length)];
+  return {
+    editor: from<Editor>(["vscode", "vscode", "visualstudio", "idea", "notepadpp", "pad", "vim"]),
+    notes: from<NoteApp>(["notes", "apple", "pad", "notepadpp"]),
+    noteHabit: from<NoteHabit>(["frequent", "occasional", "occasional", "quiet"]),
+    tasks: tasksFrom(random()),
+    workAppsVersion: 1,
+  };
+}
 const hobbyFrom = (x: number): Hobby => (x < 0.3 ? "gamer" : x < 0.45 ? "musician" : x < 0.65 ? "chatter" : x < 0.85 ? "watcher" : "chiller");
 // Older robots get a hobby from their existing habits, so their personality stays recognisable.
 function hobbyFor(p: Prefs, id: string): Hobby {
@@ -146,6 +163,16 @@ export class Roster {
     try { this.robots = JSON.parse(api?.rosterLoad?.() || localStorage.getItem(KEY) || "[]"); } catch { this.robots = []; }
     let migrated = false;
     for (const r of this.robots) {
+      if (r.prefs && !r.prefs.workAppsVersion) {
+        const next = workPreferencesFor(r.id || r.name || "");
+        // The old Studio was a generic editor. Keep established plain-text/vim tastes.
+        if (r.prefs.editor === "studio") r.prefs.editor = next.editor;
+        r.prefs.notes ??= next.notes;
+        r.prefs.noteHabit ??= next.noteHabit;
+        if (r.prefs.tasks !== "sticky" && next.tasks === "notes") r.prefs.tasks = "notes";
+        r.prefs.workAppsVersion = next.workAppsVersion;
+        migrated = true;
+      }
       if (r.prefs && !r.prefs.tasks) r.prefs.tasks = tasksFor(r.id || r.name || "");
       if (r.prefs && !r.prefs.hobby) r.prefs.hobby = hobbyFor(r.prefs, r.id || r.name || "");
       if (r.prefs && !r.prefs.git) { r.prefs.git = idHash((r.id || r.name || "") + "git") < 0.45 ? "desktop" : "cli"; migrated = true; }
@@ -263,7 +290,7 @@ export class Roster {
       provider,
       look: { ...(draft?.look ?? randomLook()), headphones: false },   // headphones go on when the music starts
       prefs: {
-        editor: pick(["studio", "studio", "pad", "vim"] as const),
+        ...workPreferencesFor(id),
         wallpaper: Math.floor(Math.random() * WALLPAPERS.length),
         games: { snake: w(), flappy: w(), dash: w(), chess: w() },
         phone: Math.random() < 0.6 ? "clips" : "tube",
@@ -271,7 +298,6 @@ export class Roster {
         music: Math.round(Math.random() * 10) / 10,
         social: Math.round(Math.random() * 10) / 10,
         mug: pick(MUGS),
-        tasks: tasksFrom(Math.random()),
         hobby,
         windows: pick(["fullscreen", "tiler", "tiler", "floating", "floating"] as const),
         listens: pick(["always", "sometimes", "sometimes", "never", "never"] as const),

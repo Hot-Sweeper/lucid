@@ -256,6 +256,8 @@ export class Desk implements DeskStage {
   // Plan steps as sticky notes stuck to the side of the monitor.
   setPlan(steps: { text: string; status: string }[]) {
     const list = this.el.querySelector(".desk-notes") as HTMLElement;
+    // Paper belongs to robots that chose sticky notes. Other plans live in their app.
+    if (this.wm.prefs?.tasks !== "sticky") { list.replaceChildren(); return; }
     const existing = Array.from(list.children) as HTMLElement[];
     steps.slice(0, 4).forEach((st, i) => {
       let li = existing[i];
@@ -267,12 +269,13 @@ export class Desk implements DeskStage {
       }
       li.querySelector(".t")!.textContent = st.text;
       li.title = st.text;
-      const done = st.status === "completed";
+      const done = /completed|done|finished/i.test(st.status);
       if (done && !li.classList.contains("done")) {
         li.classList.add("done");
         gsap.fromTo(li.querySelector(".check"), { scale: 0 }, { scale: 1, duration: 0.45, ease: "back.out(3)" });
       }
-      li.classList.toggle("active", st.status === "running" || st.status === "in_progress");
+      li.classList.toggle("done", done);
+      li.classList.toggle("active", /running|in_?progress|active/i.test(st.status));
     });
     existing.slice(steps.length).forEach((li) => gsap.to(li, { opacity: 0, y: 12, duration: 0.3, onComplete: () => li.remove() }));
   }

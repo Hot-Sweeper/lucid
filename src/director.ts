@@ -8,6 +8,7 @@ import { HarnessApp, harnessKind, THEMES, type HarnessSession, type SubagentEven
 import { fileUrl } from "./office/chat-panel";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, prettyTool } from "./os/apps";
 import { T3CodeApp } from "./harness/t3code";
+import { NotesApp } from "./os/notes";
 import { classify, parseDiff, baseName, relPath, unwrap, type Entry } from "./os/classify";
 import { TasksApp, type TaskStep } from "./os/tasks";
 import { GitDeskApp, type DeskFile } from "./os/gitdesk";
@@ -97,6 +98,8 @@ export class Director {
   private lastRunStatus = "";
   private files: FilesApp; private editor: EditorApp; private term: TerminalApp;
   private browser: BrowserApp; private chat: T3CodeApp; private tool: ToolApp; private tasks: TasksApp;
+  private notes: NotesApp;
+  private lastNoteAt = -Infinity;
   private planSig = "";
   onActivity: (text: string) => void = () => {};
   private idleLife: IdleLife;
@@ -125,6 +128,7 @@ export class Director {
     this.chat = new T3CodeApp(wm);
     this.tool = new ToolApp(wm);
     this.tasks = new TasksApp(wm);
+    this.notes = new NotesApp(wm);
     this.gitdesk = new GitDeskApp(wm);
     this.idleLife = new IdleLife(wm, robot, stage);
     this.idleLife.browser = this.browser;
@@ -144,6 +148,7 @@ export class Director {
     this.helperHints.clear();
     this.harness.reset();
     this.chat.reset();
+    this.notes.reset(); this.lastNoteAt = -Infinity;
     this.mobile = false;
     if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
     this.lastEventAt = 0;
@@ -247,20 +252,25 @@ export class Director {
 
   private async playPlan(steps: TaskStep[]) {
     if ((this.wm.prefs?.tasks ?? "board") === "sticky") { await this.wm.sleep(400); return; }
-    this.onActivity(this.wm.prefs?.tasks === "checklist" ? "Updating its to-do list" : "Updating its task board");
+    this.onActivity(this.wm.prefs?.tasks === "notes" ? "Checking its work list in notes" : this.wm.prefs?.tasks === "checklist" ? "Updating its to-do list" : "Updating its task board");
     this.stage.setGlow(GLOW.tasks);
-    await this.tasks.show(steps, { instant: this.catchingUp, title: this.info?.title });
+    if (this.wm.prefs?.tasks === "notes") await this.notes.showPlan(steps, { instant: this.catchingUp, title: this.info?.title });
+    else await this.tasks.show(steps, { instant: this.catchingUp, title: this.info?.title });
   }
 
-  // The robot's notes: while it thinks, its reasoning gets jotted down here.
+  // The robot's preferred notebook, opened only when its note-taking habit calls for it.
   private async openNotes() {
-    const w = await this.wm.open("notes", "Notes");
-    if (!w.body.querySelector(".notes")) w.body.innerHTML = `<div class="notes"></div>`;
-    return w.body.querySelector(".notes") as HTMLElement;
+    this.lastNoteAt = Date.now();
+    return this.notes.open(this.info?.title);
+  }
+  private shouldTakeNote(text: string) {
+    const habit = this.wm.prefs?.noteHabit ?? "occasional";
+    return habit !== "quiet" && text.trim().length >= (habit === "frequent" ? 80 : 240) && Date.now() - this.lastNoteAt >= (habit === "frequent" ? 20000 : 65000);
   }
   private noteFor = new WeakMap<HTMLElement, HTMLElement>();
   private async writeNote(box: HTMLElement, text: string) {
-    const clean = text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim().slice(0, 600);
+    const epoch = this.wm.epoch;
+    const clean = text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim().slice(0, 360);
     let p = this.noteFor.get(box);
     if (!p || !p.isConnected) {
       p = document.createElement("p");
@@ -271,12 +281,18 @@ export class Director {
     const done = p.textContent || "";
     if (clean.startsWith(done) && clean.length > done.length) {
       const rest = clean.slice(done.length);
-      for (let i = 0; i < rest.length; i += 3) {
-        p.textContent = done + rest.slice(0, i + 3);
-        this.robot.pressKey(rest[i] || " ");
-        box.scrollTop = box.scrollHeight;
-        await new Promise((r) => setTimeout(r, 22 / this.wm.speed));
-      }
+      const chunk = Math.max(3, Math.ceil(rest.length / 45));
+      this.robot.setTyping(true);
+      try {
+        for (let i = 0; i < rest.length; i += chunk) {
+          this.wm.check(epoch);
+          if (!box.isConnected) return;
+          p.textContent = done + rest.slice(0, i + chunk);
+          this.robot.pressKey(rest[i] || " ");
+          box.scrollTop = box.scrollHeight;
+          await this.wm.sleep(22, epoch);
+        }
+      } finally { this.robot.setTyping(false); }
     } else p.textContent = clean;
     box.scrollTop = box.scrollHeight;
   }
@@ -526,8 +542,7 @@ export class Director {
   }
 
   // A run is going but the next step has not shown up yet (the model is thinking, a long
-  // command runs). Never sit in front of an empty screen: jot down where things stand in
-  // the notes, then look over the open windows now and then until new work arrives.
+  // command runs). Keep the real thread visible rather than opening notes for every wait.
   private busyToken = 0;
   private async busyWhileWaiting(epoch: number) {
     const tok = ++this.busyToken;
@@ -536,12 +551,7 @@ export class Director {
       await this.wm.sleep(1200, epoch);
       if (!still()) return;
       if (!this.wm.wins.size) {
-        const last = [...this.items.values()].reverse().find((i) => (i.type === "reasoning" || i.type === "assistant_message" || i.type === "user_message") && i.data?.text);
-        const text = last ? String(last.data.text) : `Working on ${this.info?.title || "the task"}`;
-        const notes = await this.openNotes();
-        if (!still()) return;
-        this.noteFor = new WeakMap();
-        await this.writeNote(notes, last?.type === "user_message" ? `Task: ${text}` : text);
+        await this.chat.show();
       }
       for (let n = 0; n < 40 && still(); n++) {
         await this.wm.sleep(5000 + Math.random() * 6000, epoch);
@@ -1074,13 +1084,18 @@ export class Director {
           const clean = (t || "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
           return clean.length > 170 ? clean.slice(0, 168).replace(/\s+\S*$/, "") + " …" : clean;
         };
-        let last = "";
+        let last = "", written = "";
         const start = Date.now();
-        const notes = await this.openNotes();
+        let notes: HTMLElement | null = null;
         for (;;) {
           const cur = this.get(id);
-          const s = summary(cur.data.text || "");
-          if (s && s !== last) { this.stage.say(s, "think"); last = s; void this.writeNote(notes, cur.data.text || ""); }
+          const thought = cur.data.text || "";
+          const s = summary(thought);
+          if (s && s !== last) {
+            this.stage.say(s, "think"); last = s;
+          }
+          if (!notes && this.shouldTakeNote(thought)) notes = await this.openNotes();
+          if (notes && thought !== written) { await this.writeNote(notes, thought); written = thought; }
           if (!(cur.status === "running" || cur.data.streaming) || this.queue.length > 1) break;
           await this.wm.sleep(250);
           if (Date.now() - start > 90000) break;
@@ -1211,7 +1226,8 @@ export class Director {
       case "lucid_queue": {
         this.onActivity("Writing down your queued messages");
         this.stage.setGlow(GLOW.tasks);
-        await this.tasks.syncQueue(d.list || [], { instant: this.catchingUp || d.instant, title: this.info?.title });
+        if (this.wm.prefs?.tasks === "notes") await this.notes.syncQueue(d.list || [], { instant: this.catchingUp || d.instant, title: this.info?.title });
+        else await this.tasks.syncQueue(d.list || [], { instant: this.catchingUp || d.instant, title: this.info?.title });
         return;
       }
       case "compaction": {
