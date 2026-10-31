@@ -1,0 +1,50 @@
+/* Optional motion for the office decor (src/decor/decor.ts). Everything looks complete without it. */
+
+.dc-steam { animation: dc-steam 3.2s ease-in-out infinite; }
+@keyframes dc-steam {
+  0% { transform: translateY(2px); opacity: 0.2; }
+  40% { opacity: 1; }
+  100% { transform: translateY(-5px); opacity: 0; }
+}
+
+.dc-bubble { animation: dc-bubble 3.6s linear infinite; }
+@keyframes dc-bubble {
+  0% { transform: translateY(6px); opacity: 0; }
+  20% { opacity: 0.8; }
+  85% { opacity: 0.7; }
+  100% { transform: translateY(-10px); opacity: 0; }
+}
+
+.dc-fish { animation: dc-fish 7s ease-in-out infinite alternate; }
+@keyframes dc-fish {
+  0% { transform: translate(-4px, 0); }
+  50% { transform: translate(3px, -1.5px); }
+  100% { transform: translate(6px, 0.5px); }
+}
+
+.dc-neon { animation: dc-neon 6s ease-in-out infinite; }
+@keyframes dc-neon {
+  0%, 100% { opacity: 1; }
+  48% { opacity: 0.86; }
+  50% { opacity: 0.6; }
+  51% { opacity: 0.95; }
+  53% { opacity: 0.7; }
+  55% { opacity: 1; }
+}
+.dc-neon-heart { animation: dc-heart 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes dc-heart {
+  0%, 100% { transform: scale(1); }
+  12% { transform: scale(1.08); }
+  24% { transform: scale(1); }
+  36% { transform: scale(1.05); }
+}
+
+.dc-screen { animation: dc-screen 1.6s steps(2, jump-none) infinite; }
+@keyframes dc-screen {
+  0% { transform: translateX(-1.5px); }
+  100% { transform: translateX(1.5px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dc-steam, .dc-bubble, .dc-fish, .dc-neon, .dc-neon-heart, .dc-screen { animation: none; }
+}

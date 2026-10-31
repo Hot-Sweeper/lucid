@@ -1,6 +1,8 @@
 import type { FunHost, FunOpts, Outcome } from "./types";
 import { Kit, runApp, rnd, chance, pick, shuffle, h, esc, canvas } from "./util";
 import { drawMeme, type MemeKind } from "./memes";
+import { GIFS, GIF, type GifKind } from "./gifs";
+import { GifReel } from "./gifreel";
 
 // Botcord: a group chat where robot friends hang out. The robot reads along,
 // laughs, reacts and types its own replies key by key.
@@ -9,8 +11,9 @@ type Status = "on" | "idle" | "dnd" | "off";
 type User = { name: string; color: string; face: number; status: Status; act?: string; me?: boolean };
 type Rx = { kind: RxKind; n: number; mine: boolean; el?: HTMLElement };
 type RxKind = "laugh" | "heart" | "fire" | "plus" | "bolt" | "bot";
-type Msg = { u: User; t: string; meme?: MemeKind; ts: number; time: string; rx: Rx[]; el?: HTMLElement };
-type Line = { u: string; t: string; meme?: MemeKind; fun?: boolean; rx?: [RxKind, number][] };
+type Msg = { u: User; t: string; meme?: MemeKind; gif?: GifKind; ts: number; time: string; rx: Rx[]; el?: HTMLElement };
+// gif: a looping meme GIF. pick: the robot (ME) finds it in the GIF picker, typing this search first when it is a string.
+type Line = { u: string; t: string; meme?: MemeKind; gif?: GifKind; pick?: string | true; fun?: boolean; rx?: [RxKind, number][] };
 type Scene = { chan: string; lines: Line[]; pos: number };
 
 const ME = "@me";
@@ -42,6 +45,7 @@ const SEED: Record<string, Line[]> = {
   memes: [
     { u: "null_ptr", t: "posting this before lint_lord wakes up" },
     { u: "gpu_goblin", t: "found this in my cache", meme: "approve", rx: [["laugh", 3], ["fire", 1]] },
+    { u: "unit-7", t: "the eternal struggle", gif: "drake", rx: [["laugh", 4], ["plus", 2]] },
   ],
   "gpu-talk": [
     { u: "unit-7", t: "is it normal to hear your own fans in your dreams" },
@@ -54,6 +58,7 @@ const SEED: Record<string, Line[]> = {
     { u: "null_ptr", t: "suspicious. nobody touch anything", rx: [["plus", 2]] },
     { u: "lint_lord", t: "reminder: the build is red" },
     { u: "unit-7", t: "red is my favorite color" },
+    { u: "null_ptr", t: "", gif: "fine", rx: [["laugh", 3], ["fire", 2]] },
   ],
   "coffee-break": [
     { u: "tokenizer", t: "the vending machine said hi to me today" },
@@ -145,6 +150,97 @@ const SCENES: Omit<Scene, "pos">[] = [
   ] },
 ];
 
+// Friends posting GIFs. A few of these get mixed into each round of scenes.
+const GIF_SCENES: Omit<Scene, "pos">[] = [
+  { chan: "memes", lines: [
+    { u: "gpu_goblin", t: "me during every deploy", gif: "fine", fun: true, rx: [["laugh", 4], ["fire", 2]] },
+    { u: "lint_lord", t: "the hat is a nice touch" },
+    { u: ME, t: "the hat is load bearing", rx: [["laugh", 2]] },
+  ] },
+  { chan: "memes", lines: [
+    { u: "gpu_goblin", t: "be honest", gif: "boyfriend", fun: true, rx: [["laugh", 3], ["fire", 1]] },
+    { u: "tokenizer", t: "your laptop deserved better" },
+    { u: "gpu_goblin", t: "my laptop has 4GB of RAM", fun: true, rx: [["laugh", 2]] },
+  ] },
+  { chan: "memes", lines: [
+    { u: "tokenizer", t: "my usage report this month", gif: "stonks", fun: true, rx: [["laugh", 3], ["bolt", 2]] },
+    { u: "lint_lord", t: "that is not how stonks work" },
+    { u: ME, t: "that is exactly how my invoices work", rx: [["laugh", 2]] },
+  ] },
+  { chan: "memes", lines: [
+    { u: "null_ptr", t: "ascending", gif: "galaxy", fun: true, rx: [["laugh", 3], ["bot", 2]] },
+    { u: ME, t: "the final form is asking the original AI again" },
+  ] },
+  { chan: "memes", lines: [
+    { u: "unit-7", t: "every friday at 4:55", gif: "buttons", fun: true, rx: [["laugh", 3], ["plus", 2]] },
+    { u: "lint_lord", t: "the answer is refactor. it is always refactor" },
+    { u: "unit-7", t: "the answer is weekend", fun: true, rx: [["laugh", 2]] },
+  ] },
+  { chan: "memes", lines: [
+    { u: "lint_lord", t: "unfair but accurate", gif: "yelling", fun: true, rx: [["laugh", 4]] },
+    { u: "tokenizer", t: "I feel seen and I do not like it" },
+  ] },
+  { chan: "general", lines: [
+    { u: "unit-7", t: "CI just went green", gif: "dance", fun: true, rx: [["heart", 3], ["fire", 1]] },
+    { u: "lint_lord", t: "don't touch it. nobody breathe" },
+  ] },
+  { chan: "general", lines: [
+    { u: "tokenizer", t: "what happened at 3am", gif: "surprised", fun: true, rx: [["laugh", 3], ["bolt", 1]] },
+    { u: "null_ptr", t: "nobody believes it, including the build" },
+  ] },
+  { chan: "bug-hunt", lines: [
+    { u: "lint_lord", t: "you, yesterday", gif: "pigeon", fun: true, rx: [["laugh", 4], ["plus", 1]] },
+    { u: "null_ptr", t: "in my defense it was a very convincing semicolon", rx: [["laugh", 2]] },
+  ] },
+  { chan: "bug-hunt", lines: [
+    { u: "unit-7", t: "who else has auth.ts open", gif: "spiderman", fun: true, rx: [["laugh", 3], ["bot", 1]] },
+    { u: "tokenizer", t: "me. and apparently also me, in another window" },
+  ] },
+  { chan: "gpu-talk", lines: [
+    { u: "tokenizer", t: "rate limits reset at the stroke of midnight", gif: "success", fun: true, rx: [["fire", 3], ["heart", 1]] },
+    { u: ME, t: "a christmas miracle in october" },
+  ] },
+  { chan: "coffee-break", lines: [
+    { u: "lint_lord", t: "I'll be in the courtyard", gif: "changemind", fun: true, rx: [["laugh", 3]] },
+    { u: "gpu_goblin", t: "spaces. walking away now", rx: [["laugh", 1]] },
+  ] },
+];
+
+// The robot finds a GIF itself, through the picker.
+const PICK_SCENES: Omit<Scene, "pos">[] = [
+  { chan: "general", lines: [
+    { u: "lint_lord", t: "all 2,341 tests pass on main" },
+    { u: "tokenizer", t: "first time this week" },
+    { u: ME, t: "", gif: "dance", pick: "green", rx: [["heart", 3], ["laugh", 2]] },
+  ] },
+  { chan: "memes", lines: [
+    { u: "null_ptr", t: "someone post the merge conflict one" },
+    { u: ME, t: "", gif: "pain", pick: "merge", rx: [["laugh", 4], ["plus", 1]] },
+    { u: "null_ptr", t: "thank you. this is my whole week" },
+  ] },
+  { chan: "bug-hunt", lines: [
+    { u: "unit-7", t: "did anyone read the docs before changing the config" },
+    { u: ME, t: "", gif: "sideeye", pick: true, rx: [["laugh", 4]] },
+    { u: "unit-7", t: "that's a no then", fun: true },
+  ] },
+  { chan: "coffee-break", lines: [
+    { u: "gpu_goblin", t: "rate limit just reset" },
+    { u: ME, t: "", gif: "success", pick: "rate limit", rx: [["fire", 2], ["heart", 1]] },
+  ] },
+  { chan: "memes", lines: [
+    { u: "tokenizer", t: "server room is at 41 degrees" },
+    { u: ME, t: "", gif: "fine", pick: "fine", rx: [["laugh", 3], ["fire", 2]] },
+  ] },
+];
+
+const GIF_W = 200, THUMB_W = 70;
+
+// One round of conversation: all the chatter, some GIFs, and once in a while the robot posts one.
+function deck(): Scene[] {
+  const all = [...SCENES, ...shuffle([...GIF_SCENES]).slice(0, 6), ...shuffle([...PICK_SCENES]).slice(0, 2)];
+  return [...PICK_SCENES.slice(1, 2), ...shuffle(all)].map((s) => ({ ...s, pos: 0 })); // TEMPTEST
+}
+
 const KEYS_NEAR: Record<string, string> = {
   a: "sq", b: "vn", c: "xv", d: "sf", e: "wr", f: "dg", g: "fh", h: "gj", i: "uo", j: "hk", k: "jl", l: "k", m: "n", n: "bm", o: "ip", p: "o",
   q: "w", r: "et", s: "ad", t: "ry", u: "yi", v: "cb", w: "qe", x: "zc", y: "tu", z: "x",
@@ -192,10 +288,16 @@ const ICON_MIC = `<svg viewBox="0 0 16 16"><rect x="5.5" y="1.5" width="5" heigh
 const ICON_GEAR = `<svg viewBox="0 0 16 16"><path d="M7 1h2l.4 1.9 1.3.6 1.7-1 1.4 1.4-1 1.7.6 1.3L15 7v2l-1.9.4-.6 1.3 1 1.7-1.4 1.4-1.7-1-1.3.6L9 15H7l-.4-1.9-1.3-.6-1.7 1-1.4-1.4 1-1.7-.6-1.3L1 9V7l1.9-.4.6-1.3-1-1.7 1.4-1.4 1.7 1 1.3-.6z"/><circle cx="8" cy="8" r="2.2" fill="#1b2246"/></svg>`;
 const ICON_PLUS = `<svg viewBox="0 0 16 16"><rect x="7" y="2" width="2" height="12" rx="1"/><rect x="2" y="7" width="12" height="2" rx="1"/></svg>`;
 const ICON_SMILE = `<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><circle cx="5.8" cy="6.6" r="1" fill="#1b2246"/><circle cx="10.2" cy="6.6" r="1" fill="#1b2246"/><path d="M4.8 9.2h6.4a3.2 3.2 0 0 1-6.4 0z" fill="#1b2246"/></svg>`;
+const ICON_SEARCH = `<svg viewBox="0 0 16 16"><path d="M7 1.5a5.5 5.5 0 0 1 4.4 8.8l3.3 3.3-1.4 1.4-3.3-3.3A5.5 5.5 0 1 1 7 1.5zm0 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/></svg>`;
 
 
 export async function hangOutInChat(body: HTMLElement, host: FunHost, opts: FunOpts & { me: string }): Promise<Outcome> {
-  return runApp(body, host, opts, (k) => new Botcord(k, body, opts.me).session());
+  return runApp(body, host, opts, async (k) => {
+    // GIFs play on the Kit's frame loop, so kill() stops them too; stop() also lets go of the observer.
+    const reel = new GifReel((fn) => k.every((now) => fn(now)));
+    try { await new Botcord(k, body, opts.me, reel).session(); }
+    finally { reel.stop(); }
+  });
 }
 
 class Botcord {
@@ -219,7 +321,7 @@ class Botcord {
   last: Msg | null = null;
   typers = new Set<string>();
 
-  constructor(private k: Kit, body: HTMLElement, meName: string) {
+  constructor(private k: Kit, body: HTMLElement, meName: string, private reel: GifReel) {
     this.me = { name: meName || "robot", color: "#ff9f5a", face: [...(meName || "r")].reduce((a, c) => a + c.charCodeAt(0), 0) % 6, status: "on", act: "Taking a break", me: true };
     this.users = { ...FRIENDS, [ME]: this.me };
     body.innerHTML = "";
@@ -232,17 +334,17 @@ class Botcord {
     }
     this.build();
     this.renderList(false);
-    this.queue = shuffle(SCENES.map((s) => ({ ...s, pos: 0 })));
+    this.queue = deck();
   }
 
   mkMsg(l: Line, ago = 0): Msg {
     const ts = Date.now() - ago;
     const time = new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    return { u: this.users[l.u], t: l.t, meme: l.meme, ts, time, rx: (ago && l.rx ? l.rx : []).map(([kind, n]) => ({ kind, n, mine: false })) };
+    return { u: this.users[l.u], t: l.t, meme: l.meme, gif: l.gif, ts, time, rx: (ago && l.rx ? l.rx : []).map(([kind, n]) => ({ kind, n, mine: false })) };
   }
 
   // Same author within a few minutes reads as one group, like any chat app.
-  joins(prev: Msg | null | undefined, m: Msg) { return !!prev && prev.u === m.u && !m.meme && m.ts - prev.ts < 5 * 60000; }
+  joins(prev: Msg | null | undefined, m: Msg) { return !!prev && prev.u === m.u && !m.meme && !m.gif && m.ts - prev.ts < 5 * 60000; }
 
   build() {
     const r = this.root;
@@ -257,7 +359,7 @@ class Botcord {
         <header class="life-ch-head">${HASH}<b></b><span></span></header>
         <div class="life-ch-scroll"><div class="life-ch-list"></div></div>
         <div class="life-ch-typing"><span class="life-ch-dots"><i></i><i></i><i></i></span><span class="life-ch-tt"></span></div>
-        <div class="life-ch-input"><span class="life-ch-plus">${ICON_PLUS}</span><div class="life-ch-field"><span class="life-ch-ph"></span><span class="life-ch-text"></span><i class="life-ch-caret"></i></div><span class="life-ch-ico">${ICON_SMILE}</span></div>
+        <div class="life-ch-input"><span class="life-ch-plus">${ICON_PLUS}</span><div class="life-ch-field"><span class="life-ch-ph"></span><span class="life-ch-text"></span><i class="life-ch-caret"></i></div><span class="life-ch-gifbtn">GIF</span><span class="life-ch-ico">${ICON_SMILE}</span></div>
       </main>
       <aside class="life-ch-members"></aside>`;
     const q = (s: string) => r.querySelector(s) as HTMLElement;
@@ -311,18 +413,28 @@ class Botcord {
   // --- messages -------------------------------------------------------------------
   msgEl(m: Msg, cont: boolean) {
     const el = h("div", "life-ch-msg" + (cont ? " cont" : ""));
-    el.innerHTML = `${cont ? `<span class="life-ch-gut">${m.time}</span>` : avatar(m.u)}<div class="life-ch-mb">${cont ? "" : `<div class="life-ch-mh"><b style="color:${m.u.color}">${esc(m.u.name)}</b><span>${m.time}</span></div>`}<p>${esc(m.t)}</p></div><div class="life-ch-tools"></div>`;
+    el.innerHTML = `${cont ? `<span class="life-ch-gut">${m.time}</span>` : avatar(m.u)}<div class="life-ch-mb">${cont ? "" : `<div class="life-ch-mh"><b style="color:${m.u.color}">${esc(m.u.name)}</b><span>${m.time}</span></div>`}${m.t ? `<p>${esc(m.t)}</p>` : ""}</div><div class="life-ch-tools"></div>`;
     const mb = el.querySelector(".life-ch-mb")!;
     if (m.meme) {
       const cv = h("canvas", "life-ch-meme");
       mb.appendChild(cv);
       drawMeme(cv, m.meme);
     }
+    if (m.gif) mb.appendChild(this.gifEl(m.gif, GIF_W, "life-ch-gif"));
     const rxs = h("div", "life-ch-rxs");
     mb.appendChild(rxs);
     for (const rx of m.rx) rxs.appendChild(this.rxEl(rx));
     m.el = el;
     return el;
+  }
+
+  // A looping GIF with the little GIF tag in its corner.
+  gifEl(kind: GifKind, w: number, cls: string) {
+    const box = h("div", cls, `<span class="life-ch-giftag">GIF</span>`);
+    const cv = h("canvas");
+    box.prepend(cv);
+    this.reel.add(cv, kind, w, { fps: w < 120 ? 24 : 30 });
+    return box;
   }
 
   rxEl(rx: Rx) {
@@ -489,6 +601,65 @@ class Botcord {
     this.k.to(tools, { opacity: 0, duration: 0.2 });
   }
 
+  // The robot opens the GIF picker, browses or searches, and sends one.
+  async pickGif(kind: GifKind, query: string | true) {
+    const btn = this.root.querySelector(".life-ch-gifbtn") as HTMLElement;
+    await this.k.click(btn, 0.5, 0.5, rnd(450, 620));
+    btn.classList.add("on");
+    const gp = h("div", "life-ch-gp", `<div class="life-ch-gp-search"><span class="life-ch-gp-ph">Search GIFs</span><span class="life-ch-gp-q"></span>${ICON_SEARCH}</div><div class="life-ch-gp-grid"></div>`);
+    this.root.querySelector(".life-ch-main")!.appendChild(gp);
+    const grid = gp.querySelector(".life-ch-gp-grid") as HTMLElement;
+    const fill = (kinds: GifKind[]) => {
+      grid.innerHTML = "";
+      for (const kd of kinds) {
+        const th = this.gifEl(kd, THUMB_W, "life-ch-gp-th");
+        th.dataset.k = kd;
+        grid.appendChild(th);
+      }
+    };
+    const others = shuffle(GIFS.map((g) => g.kind).filter((x) => x !== kind));
+    const trending = shuffle([kind, ...others.slice(0, 5)]);
+    // when searching, the target only shows up once the search runs
+    fill(typeof query === "string" ? others.slice(0, 6) : trending);
+    const close = () => {
+      btn.classList.remove("on");
+      this.k.to(gp, { opacity: 0, y: 6, duration: 0.2, ease: "power2.in", onComplete: () => gp.remove() });
+    };
+    try {
+      this.k.fromTo(gp, { opacity: 0, y: 8, scale: 0.97, transformOrigin: "88% 100%" }, { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: "expo.out" });
+      await this.k.sleep(rnd(500, 900));
+      // glance over a thumbnail or two
+      for (let i = 0, n = Math.floor(rnd(1, 3)); i < n; i++) {
+        const th = pick([...grid.children]) as HTMLElement;
+        await this.k.point(th, rnd(0.3, 0.7), rnd(0.3, 0.7), rnd(380, 520));
+        th.classList.add("hover");
+        await this.k.sleep(rnd(350, 700));
+        th.classList.remove("hover");
+      }
+      if (typeof query === "string") {
+        const field = gp.querySelector(".life-ch-gp-search") as HTMLElement;
+        const q = gp.querySelector(".life-ch-gp-q") as HTMLElement;
+        await this.k.click(field, rnd(0.2, 0.4), 0.5, rnd(380, 520));
+        field.classList.add("has");
+        for (const ch of query) { this.k.tap(ch); q.textContent += ch; await this.k.sleep(rnd(60, 120)); }
+        await this.k.sleep(rnd(250, 450));
+        const hits = GIFS.filter((g) => g.kind !== kind && g.tags.some((t) => t.includes(query) || query.includes(t))).map((g) => g.kind);
+        const rest = others.filter((x) => !hits.includes(x));
+        fill([kind, ...hits, ...rest].slice(0, 6));
+        this.k.fromTo(grid.children, { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.3, ease: "expo.out", stagger: 0.03 });
+        await this.k.sleep(rnd(500, 800));
+      }
+      const target = grid.querySelector(`[data-k="${kind}"]`) as HTMLElement;
+      await this.k.point(target, rnd(0.4, 0.6), rnd(0.4, 0.6), rnd(420, 560));
+      target.classList.add("hover");
+      await this.k.sleep(rnd(400, 800));
+      await this.k.click();
+    } finally {
+      close();
+    }
+    await this.k.sleep(rnd(150, 300));
+  }
+
   async idleLook() {
     const r = Math.random();
     if (r < 0.35) {
@@ -525,22 +696,25 @@ class Botcord {
       const l = sc.lines[sc.pos++];
       if (l.u === ME) {
         await this.k.sleep(rnd(500, 1200));
-        await this.typeOut(l.t);
+        if (l.gif && l.pick) await this.pickGif(l.gif, l.pick);
+        else await this.typeOut(l.t);
         const m = this.post(this.cur, l);
         this.friendsReact(m, l.rx);
-        await this.k.sleep(rnd(500, 1000));
+        await this.k.sleep(rnd(500, 1000) + (l.gif ? rnd(1500, 2500) : 0));
+        if (l.gif && chance(0.6)) this.k.host.react("laugh");
         continue;
       }
       const u = this.users[l.u];
       await this.k.sleep(rnd(300, 900));
       this.showTyping(u.name);
-      await this.k.sleep(Math.min(3200, 700 + l.t.length * rnd(28, 45)) + (l.meme ? 900 : 0));
+      await this.k.sleep(Math.min(3200, 700 + l.t.length * rnd(28, 45)) + (l.meme || l.gif ? 900 : 0));
       this.typers.delete(u.name);
       this.showTyping(this.typers.size ? [...this.typers][0] : null);
       const m = this.post(this.cur, l);
       this.friendsReact(m, l.rx);
-      await this.k.sleep(Math.min(2600, 500 + l.t.length * 22) + (l.meme ? 1500 : 0));
-      if (l.fun && chance(0.75)) {
+      // a GIF gets watched for a loop or two before anyone reacts
+      await this.k.sleep(Math.min(2600, 500 + l.t.length * 22) + (l.meme ? 1500 : 0) + (l.gif ? GIF[l.gif].dur * 1000 * rnd(1, 1.6) : 0));
+      if (l.fun && chance(l.gif ? 0.85 : 0.75)) {
         this.k.host.react("laugh");
         await this.k.sleep(rnd(400, 900));
         if (chance(0.45)) await this.reactTo(m, chance(0.7) ? "laugh" : pick(["fire", "heart"] as RxKind[]));
@@ -558,7 +732,7 @@ class Botcord {
       let sc: Scene | undefined;
       if (this.pending.length && chance(0.75)) sc = this.pending.shift();
       if (!sc) {
-        if (!this.queue.length) this.queue = shuffle(SCENES.map((s) => ({ ...s, pos: 0 })));
+        if (!this.queue.length) this.queue = deck();
         const here = this.queue.findIndex((s) => s.chan === this.cur);
         const idx = here >= 0 && chance(0.55) ? here : 0;
         sc = this.queue.splice(idx, 1)[0];

@@ -1,5 +1,7 @@
 import gsap from "gsap";
 import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
+import { drawFloor, drawWall, drawDecor, placeDecor, DECOR } from "../decor/decor";
+import type { RoomTheme } from "./decorate";
 import { GEOM } from "./rig";
 import { outsideSvg, PARK_W } from "./outside";
 import { Roster, type RobotProfile } from "./roster";
@@ -32,16 +34,22 @@ const COLS = 3;
 const SLOT_W = UNIT_W + 20, SLOT_H = UNIT_H + 20;
 const GAP = 40, HALL = 150;
 
-function officeSize(slots: number) {
+const LOUNGE = 230;      // extra floor below the desks for a rug, beanbags or a ping pong table
+function officeSize(slots: number, lounge = 0) {
   const cols = Math.min(COLS, Math.max(1, slots)), rows = Math.ceil(Math.max(1, slots) / COLS);
-  return { w: 70 + cols * SLOT_W + 50, h: WALL_FACE + 40 + rows * SLOT_H + 30, cols };
+  return { w: 70 + cols * SLOT_W + 50, h: WALL_FACE + 40 + rows * SLOT_H + 30 + lounge, cols };
 }
+// Decorations the company has unlocked, out of what the room asks for.
+const usable = (t: RoomTheme | undefined, level: number) => (t?.decor ?? []).filter((d) => DECOR[d] && DECOR[d].unlockAt <= level);
+const needsLounge = (t: RoomTheme | undefined, level: number) => usable(t, level).some((d) => DECOR[d].spot === "floor");
 
 export class World {
   scene: HTMLElement;
   root: HTMLElement;
   rooms: Room[] = [];
   desks = new Map<string, Desk>();
+  themes = new Map<string, RoomTheme>();
+  level = 0;
   freeDesks: Desk[] = [];
   private roomLayer: HTMLElement;
   private deskLayer: HTMLElement;
@@ -143,7 +151,7 @@ export class World {
       const extra = this.extra.get(id) ?? 0;
       const seated = seatOrder(id, threads.slice(0, max + extra), max + extra);
       const slots = Math.max(min + extra, Math.min(max + extra, seated.length));
-      const { w, h } = officeSize(slots);
+      const { w, h } = officeSize(slots, needsLounge(this.themes.get(id), this.level) ? LOUNGE : 0);
       return { id, kind, title, icon, threads: seated as WThread[], slots, w, h };
     };
     const top: Plan[] = [
@@ -179,7 +187,7 @@ export class World {
     this.size = { w: Math.max(topW, bottomW), h: y2 + bottomH };
     const plans = [...top, ...bottom];
 
-    const key = rooms.map((r, i) => `${r.id}:${plans[i].slots}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}`).join("|");
+    const key = rooms.map((r, i) => `${r.id}:${plans[i].slots}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|") + `:L${this.level}`;
     if (key !== this.lastKey) {
       this.lastKey = key;
       for (const kind of ["break", "queue"] as const) { this.ext[kind]?.destroy(); delete this.ext[kind]; }
@@ -193,7 +201,7 @@ export class World {
           const ext = make(el, r.w, r.h);
           ext.onSelect = (id) => this.onSelectThread(id);
           this.ext[r.kind as "break" | "queue"] = ext;
-        } else el.innerHTML = roomSvg(r, plans[i].slots);
+        } else el.innerHTML = roomSvg(r, plans[i].slots, this.themes.get(r.id), this.level);
         this.roomLayer.appendChild(el);
         r.el = el;
       });
@@ -213,7 +221,7 @@ export class World {
       (this.root.querySelector(".building-plate b") as HTMLElement).textContent = this.building;
       // the room sign is the handle for office options
       for (const r of rooms) {
-        if (r.kind !== "project" && r.kind !== "freelance") continue;
+        if (r.kind !== "project" && r.kind !== "freelance" && r.kind !== "main") continue;
         const hit = document.createElement("button");
         hit.type = "button";
         hit.className = "room-sign-hit";
@@ -417,9 +425,9 @@ export class World {
     this.flyTo({ x: -120, y: -170, w: right + 240, h: Math.max(this.size.h, p ? p.y + p.h : 0) + 290 }, 20);
   }
   showPark() { const p = this.outdoor?.park; if (p) { this.unfocus(false); this.flyTo({ x: p.x - 40, y: p.y - 40, w: p.w + 80, h: p.h + 80 }, 20); } }
-  showRoom(id: string) {
+  showRoom(id: string, insetRight = 0) {
     const r = this.rooms.find((q) => q.id === id);
-    if (r) { this.unfocus(false); this.flyTo({ x: r.x, y: r.y, w: r.w, h: r.h }, 30); }
+    if (r) { this.unfocus(false); this.flyTo({ x: r.x, y: r.y, w: r.w, h: r.h }, 30, 1, insetRight); }
   }
   showDesk(d: Desk) {
     this.unfocus(false);
@@ -489,7 +497,7 @@ function monogram(title: string) {
   return ((words[0]?.[0] || "?") + (words[1]?.[0] || "")).toUpperCase();
 }
 
-function roomSvg(r: Room, slots: number) {
+function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0) {
   const { w, h, kind, title, icon } = r;
   const pal = {
     main: { wall: "#ece6da", trim: "#d8cfbf", floor: "#c9a274", seam: "#b88f61", accent: "#ff9f5a" },
@@ -553,21 +561,28 @@ function roomSvg(r: Room, slots: number) {
     <rect x="${w - 300}" y="${WALL_FACE + 8}" width="56" height="34" rx="6" fill="#3a3f4f"/><rect x="${w - 292}" y="${WALL_FACE + 14}" width="20" height="10" rx="3" fill="#ff9f5a"/>
     <circle cx="${w - 200}" cy="${WALL_FACE + 26}" r="14" fill="#f6ecdc"/><circle cx="${w - 160}" cy="${WALL_FACE + 26}" r="14" fill="#f6ecdc"/>
     ${Array.from({ length: Math.floor(w / 46) }, (_, i) => `<circle cx="${20 + i * 46}" cy="${WALL_FACE + 14 + Math.sin(i * 0.9) * 6}" r="4" fill="#ffd27a" style="opacity:calc(0.5 + var(--lamp) * 0.5)"/>`).join("")}` : "";
+  // the room's furnishing: placed around the desks, never on them
+  let decorSvg: string | null = null;
+  const items = usable(theme, level);
+  if (items.length) {
+    const { cols } = officeSize(Math.max(1, slots));
+    const desks = Array.from({ length: slots }, (_, k) => ({ x: 70 + (k % cols) * SLOT_W, y: WALL_FACE + 40 + Math.floor(k / cols) * SLOT_H, w: UNIT_W, h: UNIT_H }));
+    const avoid = [{ x: 30, y: T, w: 148, h: WALL_FACE - T }, ...(kind === "main" ? [{ x: w - 112, y: T, w: 64, h: 66 }] : []), ...(kind === "freelance" ? [{ x: w - 340, y: WALL_FACE - 10, w: 310, h: 70 }] : [])];
+    decorSvg = placeDecor(items, w, h, WALL_FACE, desks, { avoid, wallTop: T }).map((p) => drawDecor(p.id, p.x, p.y, p.scale)).join("");
+  }
   return /* svg */ `
   <svg class="room-art" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">
     <defs>
       <linearGradient id="sky${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--sky1)"/><stop offset="1" style="stop-color:var(--sky2)"/></linearGradient>
       <radialGradient id="pool${uid}"><stop offset="0" stop-color="#ffe6b0" stop-opacity="0.28"/><stop offset="1" stop-color="#ffe6b0" stop-opacity="0"/></radialGradient>
     </defs>
-    <rect y="${WALL_FACE}" width="${w}" height="${h - WALL_FACE}" fill="${pal.floor}"/>
-    ${floor}
+    ${theme?.floor ? drawFloor(theme.floor, w, h, WALL_FACE) : `<rect y="${WALL_FACE}" width="${w}" height="${h - WALL_FACE}" fill="${pal.floor}"/>${floor}`}
     ${lamps.join("")}
     <rect y="${WALL_FACE}" width="${w}" height="18" fill="#000" opacity="0.07"/>
-    <rect width="${w}" height="${WALL_FACE}" fill="${pal.wall}"/>
-    <rect y="${WALL_FACE - 10}" width="${w}" height="10" fill="${pal.trim}"/>
+    ${theme?.wall ? drawWall(theme.wall, w, WALL_FACE) : `<rect width="${w}" height="${WALL_FACE}" fill="${pal.wall}"/><rect y="${WALL_FACE - 10}" width="${w}" height="10" fill="${pal.trim}"/>`}
     ${windows.join("")}
     ${signBox}${clock}${cafe}
-    ${plant(w - 60, h - 70)}${plant(52, h - 70, 0.85)}
+    ${decorSvg ?? `${plant(w - 60, h - 70)}${plant(52, h - 70, 0.85)}`}
     <rect width="${w}" height="${T}" fill="#3a3f4f"/>
     <rect width="${T}" height="${h}" fill="#3a3f4f"/>
     <rect x="${w - T}" width="${T}" height="${h}" fill="#3a3f4f"/>

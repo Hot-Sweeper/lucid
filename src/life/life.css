@@ -187,7 +187,7 @@
 .life-ch-ico { width: 16px; height: 16px; flex: none; display: grid; place-items: center; color: #8a91c4; }
 .life-ch-ico svg { width: 12px; height: 12px; fill: currentColor; }
 
-.life-ch-main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #222a5a; }
+.life-ch-main { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; background: #222a5a; }
 .life-ch-head { flex: none; height: 36px; display: flex; align-items: center; gap: 6px; padding: 0 12px; box-shadow: 0 1px 0 rgba(8, 10, 30, 0.3); white-space: nowrap; overflow: hidden; }
 .life-ch-head .life-ch-hash { width: 13px; height: 13px; color: #8a91c4; }
 .life-ch-head b { font-weight: 600; font-size: 11.5px; }
@@ -207,6 +207,12 @@
 .life-ch-mh span { font-size: 8.5px; color: #7d84b8; }
 .life-ch-mb p { margin: 1px 0 0; line-height: 1.45; color: #dfe3ff; overflow-wrap: anywhere; }
 .life-ch-meme { display: block; margin-top: 5px; border-radius: 8px; }
+.life-ch-gif { position: relative; width: max-content; margin-top: 5px; border-radius: 8px; overflow: hidden; background: #1b2246; }
+.life-ch-gif canvas, .life-ch-gp-th canvas { display: block; }
+.life-ch-giftag {
+  position: absolute; left: 5px; top: 5px; padding: 2px 3.5px 1.5px; border-radius: 3px;
+  background: rgba(12, 14, 36, 0.66); color: #f6ecdc; font-size: 7px; font-weight: 700; line-height: 1; letter-spacing: 0.03em;
+}
 .life-ch-rxs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .life-ch-rxs:empty { display: none; }
 .life-ch-rx { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 5px; background: #2b3470; }
@@ -239,6 +245,28 @@
 .life-ch-caret { display: none; flex: none; width: 1.5px; height: 13px; margin-left: 1px; background: #f6ecdc; animation: life-blink 1s steps(1) infinite; }
 .life-ch-input.focus .life-ch-caret { display: block; }
 .life-ch-input.focus:not(.has) .life-ch-caret { position: absolute; left: 0; margin: 0; }
+.life-ch-gifbtn {
+  flex: none; height: 14px; padding: 0 3px; display: grid; place-items: center; border-radius: 3px;
+  background: #8a91c4; color: #2b3470; font-size: 7.5px; font-weight: 700; letter-spacing: 0.02em; line-height: 1;
+  transition: background 0.2s;
+}
+.life-ch-gifbtn.on { background: #f6ecdc; }
+
+/* GIF picker, opened from the input bar */
+.life-ch-gp {
+  position: absolute; right: 12px; bottom: 50px; z-index: 3; width: 238px; padding: 7px;
+  display: flex; flex-direction: column; gap: 6px; border-radius: 9px;
+  background: #1b2246; box-shadow: 0 12px 28px rgba(5, 8, 25, 0.5);
+}
+.life-ch-gp-search { position: relative; height: 24px; display: flex; align-items: center; padding: 0 8px; border-radius: 6px; background: #141a33; font-size: 9.5px; white-space: pre; }
+.life-ch-gp-ph { position: absolute; left: 8px; color: #7d84b8; }
+.life-ch-gp-search.has .life-ch-gp-ph { opacity: 0; }
+.life-ch-gp-q { color: #eef0ff; }
+.life-ch-gp-search svg { width: 11px; height: 11px; margin-left: auto; fill: #7d84b8; }
+.life-ch-gp-grid { display: grid; grid-template-columns: repeat(3, 70px); gap: 6px; justify-content: space-between; }
+.life-ch-gp-th { position: relative; border-radius: 5px; overflow: hidden; transition: transform 0.2s, filter 0.2s; }
+.life-ch-gp-th .life-ch-giftag { display: none; }
+.life-ch-gp-th.hover { transform: scale(1.06); filter: brightness(1.12); z-index: 1; }
 
 .life-ch-members { width: 134px; flex: none; display: flex; flex-direction: column; gap: 2px; padding: 10px 7px; background: #1b2246; overflow: hidden; }
 .life-ch-mem { position: relative; display: flex; align-items: center; gap: 7px; padding: 4px 5px; border-radius: 6px; }

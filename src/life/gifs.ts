@@ -175,15 +175,19 @@ function boyfriend(c: Ctx, p: number) {
   hand(c, 100 + wave(p, 3) * 3, 120 - wb, 0, 5, WHITE);
   shoulder(c, 104, 95 - wb, 8, WHITE);
   shoulder(c, 144, 95 - wb, 8, WHITE);
-  head(c, 124 - L * 5, 64 - wb, 46, WHITE, {
-    eyes: L > 0.5 ? "pill" : "dot", open: 1 + L * 0.2, lx: lerp(0.8, -1, L), ly: L * -0.2,
-    turn: lerp(0.5, -0.85, L), mouth: L > 0.5 ? "o" : "smile", mo: 0.8, blush: L * 0.8,
-  }, lerp(0.04, -0.14, L));
+  head(c, 124 - L * 7, 66 - wb, 46, WHITE, {
+    eyes: L > 0.5 ? "pill" : "dot", open: 1 + L * 0.25, lx: lerp(0.8, -1, L), ly: L * -0.3,
+    turn: lerp(0.55, -1, L), mouth: L > 0.5 ? "o" : "smile", mo: 0.9, blush: L * 0.9,
+  }, lerp(0.06, -0.22, L));
+  if (L > 0.6) for (let i = 0; i < 2; i++) {
+    const q = (p * 3 + i * 0.5) % 1;
+    sparkle(c, 98 - q * 10, 52 - q * 8 + i * 14, 2.5 + 2 * Math.sin(q * Math.PI), "rgba(255,111,145,0.9)");
+  }
 
   vignette(c, 0.22);
-  caption(c, "new GPU", 50, 42, 14);
-  caption(c, "me", 124, 12, 14);
-  caption(c, "my old laptop", 202, 42, 13, { maxW: 70 });
+  caption(c, "new GPU", 50, 40, 15);
+  caption(c, "me", 124, 4, 15);
+  caption(c, "my old laptop", 200, 30, 14, { maxW: 72 });
 }
 
 // --- Drake ------------------------------------------------------------------------
@@ -212,10 +216,10 @@ function drake(c: Ctx, p: number) {
   clip(c, 0, 0, LW, 89);
   const shake = wave(p, 4) * 0.05;
   puffer(c, 50, 62);
-  const pa = { x: 88 + wave(p, 4) * 3, y: 36 };
-  const a1 = limb(c, { x: 78, y: 74 }, pa, 18, 18, -1, 12, "#f07a2a");
-  hand(c, a1.b.x, a1.b.y, -Math.PI / 2 + 0.2, 7, WHITE, "palm");
-  head(c, 44, 42, 44, WHITE, { eyes: "squeeze", turn: -0.75, lx: -0.6, mouth: "wavy" }, -0.2 + shake);
+  head(c, 42, 44, 44, WHITE, { eyes: "squeeze", turn: -0.8, lx: -0.6, mouth: "wavy" }, -0.22 + shake);
+  const pa = { x: 84 + wave(p, 4) * 3, y: 40 };
+  const a1 = limb(c, { x: 76, y: 76 }, pa, 18, 18, -1, 13, "#f07a2a");
+  hand(c, a1.b.x, a1.b.y - 2, -Math.PI / 2 + 0.15, 10, WHITE, "palm");
   c.restore();
 
   // yes
@@ -239,49 +243,50 @@ function buttons(c: Ctx, p: number) {
   // top: the choice
   clip(c, 0, 0, VW, 96);
   sky(c, "#323c80", "#1e2654", 0, 0, VW, 96);
-  rr(c, 18, 60, 204, 40, 12, lin(c, 0, 60, 0, 100, [[0, "#d6dbee"], [1, "#9aa3c8"]]));
+  rr(c, 12, 58, 216, 44, 12, lin(c, 0, 58, 0, 100, [[0, "#d6dbee"], [1, "#9aa3c8"]]));
   const labels = ["refactor", "ship it"];
-  [72, 168].forEach((bx, i) => {
-    oval(c, bx, 76, 30, 10, "#5d6499");
-    rr(c, bx - 26, 62, 52, 14, 0, "#c93a55");
-    oval(c, bx, 62, 26, 9, "#ff5d78");
-    oval(c, bx - 6, 59.5, 12, 3, "rgba(255,255,255,0.4)");
+  [68, 172].forEach((bx, i) => {
+    oval(c, bx, 82, 38, 11, "#5d6499");
+    rr(c, bx - 34, 66, 68, 16, 0, "#c93a55");
+    oval(c, bx, 66, 34, 11, "#ff5d78");
+    // the label taped across the button
     c.save();
-    c.translate(bx, 36);
-    c.rotate(i ? 0.06 : -0.05);
-    rr(c, -36, -12, 72, 24, 3, "#fbf3e2");
+    c.translate(bx, 70);
+    c.rotate(i ? 0.05 : -0.04);
+    rr(c, -34, -10, 68, 20, 3, "#fbf3e2");
     caption(c, labels[i], 0, 0, 13, { from: "middle", color: INK, shadow: false });
     c.restore();
   });
   // a hand that cannot decide
   const s = wave(p, 2);
-  const hx = 120 + 46 * Math.sign(s) * Math.pow(Math.abs(s), 0.45);
-  const hy = 50 + Math.abs(wave(p, 4)) * 2;
-  const ar = limb(c, { x: 250, y: 120 }, { x: hx + 12, y: hy + 4 }, 60, 60, -1, 12, WHITE.shade, WHITE.shell);
-  hand(c, ar.b.x - 4, ar.b.y, Math.PI / 2 + 0.45, 6.5, WHITE, "point");
-  sweat(c, hx - 8, hy - 8 + (p * 4 % 1) * 10, 2.2);
+  const hx = 120 + 52 * Math.sign(s) * Math.pow(Math.abs(s), 0.45);
+  const hy = 46 + Math.abs(wave(p, 4)) * 3;
+  const ar = limb(c, { x: hx + 26, y: -40 }, { x: hx + 4, y: hy - 14 }, 34, 34, 1, 18, WHITE.shade, WHITE.shell);
+  hand(c, ar.b.x, ar.b.y, Math.PI / 2 + 0.2, 13, WHITE, "point");
+  sweat(c, hx - 14, hy - 12 + (p * 4 % 1) * 10, 2.8);
   c.restore();
 
   // bottom: the sweating
   clip(c, 0, 98, VW, 82);
   sky(c, "#a9bce3", "#8095c8", 0, 98, VW, 82);
   rr(c, 160, 104, 70, 70, 8, "rgba(255,255,255,0.18)");
-  torso(c, 112, 182, 110, 40, WHITE);
-  head(c, 112, 150, 78, WHITE, { eyes: "sad", lx: 0.4, ly: -0.3, mouth: "wavy", blush: 0.3 }, wave(p, 4) * 0.02);
+  torso(c, 112, 172, 110, 40, WHITE);
+  head(c, 112, 140, 74, WHITE, { eyes: "sad", lx: 0.4, ly: -0.3, mouth: "wavy", blush: 0.3, noAntenna: true }, wave(p, 4) * 0.02);
   for (let i = 0; i < 4; i++) {
     const q = (p * 2 + i / 4) % 1;
-    const x = [76, 150, 84, 146][i];
-    if (q < 0.9) sweat(c, x, 120 + q * 34, 3.2);
+    const x = [74, 152, 80, 148][i];
+    if (q < 0.9) sweat(c, x, 116 + q * 40, 3.6);
   }
-  const wx = 112 + wave(p, 2) * 22;
-  const aw = limb(c, { x: 200, y: 200 }, { x: wx + 14, y: 122 }, 44, 44, 1, 12, WHITE.shade, WHITE.shell);
+  // dabbing the temple with a cloth
+  const wy = 122 + wave(p, 2) * 7;
+  const aw = limb(c, { x: 214, y: 196 }, { x: 160, y: wy + 6 }, 34, 34, 1, 13, WHITE.shade, WHITE.shell);
   c.save();
-  c.translate(wx, 116);
-  c.rotate(wave(p, 2) * 0.15);
-  rr(c, -14, -6, 30, 16, 4, "#f6ecdc");
-  rr(c, -14, -6, 30, 5, 2, "#e2cfb4");
+  c.translate(152, wy);
+  c.rotate(-0.5 + wave(p, 2) * 0.12);
+  rr(c, -10, -12, 22, 26, 5, "#f6ecdc");
+  rr(c, -10, -12, 22, 7, 3, "#e2cfb4");
   c.restore();
-  hand(c, aw.b.x, aw.b.y, 0, 6.5, WHITE);
+  hand(c, aw.b.x, aw.b.y, 0, 7, WHITE);
   c.restore();
   rr(c, 0, 96, VW, 2, 0, NAVY);
 }
@@ -311,7 +316,7 @@ function surprised(c: Ctx, p: number) {
   shoulder(c, 160, 141, 13, pal);
   head(c, 120, 94 - Math.min(1, pop) * 5, 70, pal, {
     eyes: on ? "wide" : "pill", open: on ? Math.max(0.5, 0.55 + pop * 0.62) : 1,
-    ly: on ? -0.1 : 0.55, mouth: on ? "o" : "flat", mo: Math.max(0.3, pop * 1.25), bulb: 0.4 + Math.min(1, pop) * 0.6,
+    ly: on ? -0.1 : 0.55, mouth: on ? "o" : "flat", mo: Math.max(0.3, pop * 1.7), bulb: 0.4 + Math.min(1, pop) * 0.6,
   });
   c.restore();
   // the monitor it is looking at
@@ -321,7 +326,7 @@ function surprised(c: Ctx, p: number) {
   rr(c, 194, 148, 22, 4, 2, "rgba(79,240,160,0.7)");
   rr(c, 194, 156, 16, 4, 2, "rgba(79,240,160,0.4)");
   vignette(c, 0.22);
-  caption(c, "the build passed on the first try", 120, 9, 16, { maxW: 224 });
+  caption(c, "the build passed\non the first try", 120, 8, 16);
 }
 
 // --- Stonks ------------------------------------------------------------------------
@@ -427,7 +432,7 @@ function galaxy(c: Ctx, p: number) {
     if (i >= 1) halo(c, cx, cy - 2, [0, 26, 36, 52][i] * pulse, glows[i], [0, 0.3, 0.5, 0.85][i]);
     const pal = tint(WHITE, { glow: glows[i] });
     const lift = i === 3 ? wave(p, 1) * 1.5 : 0;
-    head(c, cx, cy + lift, 26 + i * 1.5, pal, {
+    head(c, cx, cy + lift, 30 + i * 1.5, pal, {
       eyes: (["flat", "pill", "happy", "star"] as const)[i], bulb: [0, 0.6, 1, 1][i], open: i === 3 ? 1 + 0.15 * wave(p, 2) : 1,
     });
     if (i === 3) for (let s = 0; s < 4; s++) {
@@ -460,14 +465,14 @@ function yelling(c: Ctx, p: number) {
   const pt = { x: 112 + wave(p, 3) * 2, y: 106 + wave(p, 6) * 2 };
   const pa = limb(c, { x: 94 + sh, y: 134 }, pt, 16, 16, 1, 10, yp.shade, yp.shell);
   hand(c, pa.b.x, pa.b.y, -0.25, 6, yp, "point");
-  const mo = 0.55 + 0.45 * Math.abs(wave(p, 6));
-  head(c, 70 + sh, 96, 52, yp, { eyes: "angry", mouth: "open", mo, turn: 0.45, lx: 0.6, ly: -0.1, bulb: 0.6 + 0.4 * Math.abs(wave(p, 6)) }, 0.1 + wave(p, 6) * 0.03);
+  const mo = 0.8 + 0.8 * Math.abs(wave(p, 6));
+  head(c, 70 + sh, 94, 60, yp, { eyes: "angry", open: 0.8, mouth: "yell", mo, turn: 0.4, lx: 0.3, ly: -0.6, bulb: 0.6 + 0.4 * Math.abs(wave(p, 6)) }, 0.1 + wave(p, 6) * 0.03);
   for (let i = 0; i < 3; i++) {
     const a = -0.5 + i * 0.5, r0 = 33 + Math.abs(wave(p, 6)) * 3;
     line(c, [96 + Math.cos(a) * r0, 104 + Math.sin(a) * r0, 96 + Math.cos(a) * (r0 + 7), 104 + Math.sin(a) * (r0 + 7)], 2.6, "rgba(255,255,255,0.9)");
   }
   vignette(c, 0.25, 0, 0, LW, VH);
-  caption(c, "you used 2M tokens to say hi", LW / 2, 8, 13.5, { maxW: 110 });
+  caption(c, "you used 2M tokens to say hi", LW / 2 + 7, 8, 13.5, { maxW: 98 });
   c.restore();
 
   rr(c, LW, 0, 4, VH, 0, NAVY);
@@ -527,17 +532,18 @@ function pigeon(c: Ctx, p: number) {
     oval(c, 12, -7, 6, 4.5, "#ffe7a3", -0.4);
     c.restore();
   }
-  rr(c, -2, -11, 4, 24, 2, NAVY);
-  line(c, [0, -10, -5, -18], 1.4, NAVY);
-  line(c, [0, -10, 5, -18], 1.4, NAVY);
+  // its body is a semicolon
+  dot(c, 0, -8, 3.6, NAVY);
+  dot(c, 0, 3, 3.6, NAVY);
+  c.fillStyle = NAVY;
+  c.beginPath();
+  c.moveTo(1.5, 4);
+  c.quadraticCurveTo(2, 11, -3, 14);
+  c.quadraticCurveTo(-0.5, 9, -3, 4.5);
+  c.fill();
+  line(c, [0, -11, -5, -19], 1.4, NAVY);
+  line(c, [0, -11, 5, -19], 1.4, NAVY);
   c.restore();
-  // semicolon on the bug's wing, readable even mid flap
-  const sc = flap;
-  if (sc > 0.4) {
-    dot(c, bx + 12 * sc, by - 9, 1.6, NAVY);
-    dot(c, bx + 12 * sc, by - 4, 1.6, NAVY);
-    line(c, [bx + 12 * sc, by - 4, bx + 11 * sc, by - 1], 1.4, NAVY);
-  }
 
   caption(c, "a semicolon", 186, 26, 14);
   caption(c, "me", 30, 54, 15);
@@ -552,7 +558,7 @@ function pain(c: Ctx, p: number, f: number) {
   rr(c, 18, 54, 26, 32, 3, "#cfe6fb"); rr(c, 48, 54, 24, 32, 3, "#cfe6fb");
   rr(c, 204, 70, 22, 30, 5, "#c47a5a");
   dot(c, 208, 60, 12, "#6fbf86"); dot(c, 222, 54, 11, "#5aa873"); dot(c, 214, 46, 10, "#7ccc94");
-  const twitch = (p > 0.3 && p < 0.42) || (p > 0.7 && p < 0.78);
+  const twitch = (p > 0.18 && p < 0.36) || (p > 0.6 && p < 0.76);
   const j = twitch ? hash(f) : 0.5;
   const pal = WHITE;
   torso(c, 118, 126, 100, 56, pal);
@@ -572,12 +578,12 @@ function pain(c: Ctx, p: number, f: number) {
   sweat(c, 82, 74 + seg(p, 0.1, 0.9) * 8, 3.4);
   // thumbs up
   const tb = wave(p, 2) * 1.5;
-  const ta = limb(c, { x: 162, y: 142 }, { x: 186, y: 118 + tb }, 18, 18, 1, 13, pal.shade, pal.shell);
-  hand(c, ta.b.x, ta.b.y, 0, 8, pal, "thumb");
+  const ta = limb(c, { x: 162, y: 142 }, { x: 188, y: 120 + tb }, 18, 18, 1, 14, pal.shade, pal.shell);
+  hand(c, ta.b.x, ta.b.y, 0, 11, pal, "thumb");
   // coffee
-  const ma = limb(c, { x: 74, y: 142 }, { x: 54, y: 156 }, 14, 14, -1, 13, pal.shade, pal.shell);
-  mug(c, ma.b.x - 2, ma.b.y + 14, 22, "#ffffff", p);
-  hand(c, ma.b.x + 8, ma.b.y + 2, 0, 7, pal);
+  const ma = limb(c, { x: 74, y: 142 }, { x: 54, y: 128 }, 14, 14, -1, 14, pal.shade, pal.shell);
+  mug(c, ma.b.x - 4, ma.b.y + 12, 22, "#ffffff", p);
+  hand(c, ma.b.x + 7, ma.b.y, 0, 8, pal);
   vignette(c, 0.18);
   caption(c, "merging 47 conflicts", 120, 172, 17, { from: "bottom" });
 }
@@ -599,7 +605,7 @@ function success(c: Ctx, p: number) {
   head(c, 110 - pump * 1, 96 + pump * 1.5, 82, pal, { eyes: "angry", mouth: "grin", mo: 0.7 + pump * 0.3, ly: 0.1, lx: 0.3 }, 0.04 + pump * 0.03);
   const fy = 132 - pump * 16;
   const fa = limb(c, { x: 144, y: 146 }, { x: 170, y: fy }, 18, 18, 1, 14, pal.shade, pal.shell);
-  hand(c, fa.b.x, fa.b.y, -Math.PI / 2, 9, pal, "fist");
+  hand(c, fa.b.x, fa.b.y, -Math.PI / 2, 12, pal, "fist");
   for (let i = 0; i < 6; i++) {
     const q = (p * 2 + i / 6) % 1;
     dot(c, 166 + hash(i) * 10 + q * 3, fy + 8 + q * 40, 1.1, `rgba(200,150,80,${0.9 * (1 - q)})`);
@@ -650,7 +656,7 @@ function dance(c: Ctx, p: number) {
   arm(-1, aL);
   arm(1, aR);
   head(c, 120 + sx * 1.2, 62 + bob, 46, pal, { eyes: "happy", mouth: "grin", blush: 0.7 }, wave(p, 2) * 0.12);
-  caption(c, "when the tests go green", 120, 8, 17);
+  caption(c, "when the tests go green", 120, 173, 17, { from: "bottom" });
 }
 
 // --- Change my mind ------------------------------------------------------------
@@ -662,22 +668,22 @@ function changemind(c: Ctx, p: number) {
   rr(c, 0, 90, VW, 90, 0, lin(c, 0, 90, 0, 180, [[0, "#7fc68d"], [1, "#5ead73"]]));
   const pal = CREAM;
   const sip = env(p, 0.45, 0.56, 0.7, 0.8);
-  torso(c, 120, 94, 60, 40, pal);
-  head(c, 120, 72, 50, pal, { eyes: "smug", lx: -0.1, mouth: "smile", blush: sip * 0.5 }, -0.04 + wave(p, 1) * 0.02);
+  torso(c, 120, 90, 70, 40, pal);
+  head(c, 120, 64, 58, pal, { eyes: "smug", lx: -0.1, mouth: "smile", blush: sip * 0.5 }, -0.04 + wave(p, 1) * 0.02);
   // table and sign
-  rr(c, 36, 118, 168, 8, 3, "#efe7d8");
-  rr(c, 46, 126, 6, 54, 2, "#9a8f7c"); rr(c, 188, 126, 6, 54, 2, "#9a8f7c");
-  rr(c, 58, 124, 124, 50, 3, "#ffffff");
-  caption(c, "tabs are better than spaces", 120, 131, 10.5, { color: INK, shadow: false, maxW: 116 });
-  caption(c, "CHANGE MY MIND", 120, 152, 14.5, { color: INK, shadow: false, maxW: 120 });
+  rr(c, 24, 112, 192, 8, 3, "#efe7d8");
+  rr(c, 34, 120, 6, 60, 2, "#9a8f7c"); rr(c, 200, 120, 6, 60, 2, "#9a8f7c");
+  rr(c, 38, 118, 164, 52, 3, "#ffffff");
+  caption(c, "tabs are better than spaces", 120, 126, 11, { color: INK, shadow: false, maxW: 160, weight: 600 });
+  caption(c, "CHANGE MY MIND", 120, 146, 15.5, { color: INK, shadow: false, maxW: 170 });
   // mug and hands
-  const mx = lerp(166, 140, io(sip)), my = lerp(118, 90, io(sip));
-  mug(c, mx, my, 15, "#4fb6ff", sip < 0.05 ? p : -1);
-  const ra = limb(c, { x: 142, y: 106 }, { x: mx - 4, y: my - 7 }, 14, 14, 1, 10, pal.shade, pal.shell);
-  hand(c, ra.b.x, ra.b.y, 0, 6, pal);
-  const la = limb(c, { x: 98, y: 106 }, { x: 84, y: 116 }, 12, 12, -1, 10, pal.shade, pal.shell);
-  hand(c, la.b.x, la.b.y, 0, 6, pal);
-  shoulder(c, 98, 104, 8, pal); shoulder(c, 142, 104, 8, pal);
+  const mx = lerp(172, 144, io(sip)), my = lerp(112, 82, io(sip));
+  mug(c, mx, my, 16, "#4fb6ff", sip < 0.05 ? p : -1);
+  const ra = limb(c, { x: 146, y: 100 }, { x: mx - 5, y: my - 7 }, 15, 15, 1, 11, pal.shade, pal.shell);
+  hand(c, ra.b.x, ra.b.y, 0, 6.5, pal);
+  const la = limb(c, { x: 94, y: 100 }, { x: 78, y: 110 }, 13, 13, -1, 11, pal.shade, pal.shell);
+  hand(c, la.b.x, la.b.y, 0, 6.5, pal);
+  shoulder(c, 94, 99, 9, pal); shoulder(c, 146, 99, 9, pal);
   vignette(c, 0.15);
 }
 
@@ -705,7 +711,7 @@ function spiderman(c: Ctx, p: number) {
   one(0.5);
   c.restore();
   vignette(c, 0.3);
-  caption(c, "two agents editing the same file", 120, 173, 15.5, { from: "bottom", maxW: 226 });
+  caption(c, "two agents editing one file", 120, 173, 16, { from: "bottom", maxW: 230 });
 }
 
 // --- Side eye (monkey puppet) -------------------------------------------------------
@@ -721,10 +727,10 @@ function sideeye(c: Ctx, p: number) {
   torso(c, 116, 140, 120, 50, pal);
   shoulder(c, 68, 156, 16, pal);
   shoulder(c, 164, 156, 16, pal);
-  head(c, 116 + turn * 4, 100, 92, pal, { eyes: "dot", lx: dart, ly: -0.1 * dart, turn: turn * 0.6, mouth: "flat", blush: turn * 0.4 }, turn * 0.05);
+  head(c, 116 + turn * 4, 100, 92, pal, { eyes: "dot", open: 1 - dart * 0.15, lx: dart * 2.1, ly: -0.2 * dart, turn: turn * 0.6, mouth: "flat", blush: turn * 0.4 }, turn * 0.05);
   if (p > 0.62 && p < 0.9) sweat(c, 80 + turn * 6, 70 + seg(p, 0.62, 0.9) * 10, 4);
   vignette(c, 0.25);
-  caption(c, "when they ask if I read the docs", 120, 8, 16, { maxW: 226 });
+  caption(c, "when they ask\nif I read the docs", 120, 8, 16);
 }
 
 export const GIFS: GifInfo[] = [

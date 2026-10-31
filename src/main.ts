@@ -3,6 +3,8 @@ import "@fontsource-variable/jetbrains-mono";
 import "./styles.css";
 import "./office/office.css";
 import "./world/world.css";
+import "./decor/decor.css";
+import { openDecorate, type RoomTheme } from "./office/decorate";
 import { TopDownRobot } from "./world/seated";
 import { BreakRoom } from "./world/breakroom";
 import { QuestionLine } from "./world/queue";
@@ -255,13 +257,26 @@ function setupMenus() {
       },
     });
   };
+  const decorate = (room: { id: string; title: string }) => {
+    const SHEET = 372; // the decorate panel covers the right side of the view
+    world.showRoom(room.id, SHEET);
+    openDecorate({ title: room.title, theme: world.themes.get(room.id) ?? {}, level: world.level, onChange: async (t: RoomTheme) => {
+      world.themes.set(room.id, t); saveSettings();
+      await refresh();
+      world.showRoom(room.id, SHEET);   // the room may have grown a lounge
+    } });
+  };
+  (window as any).__decorate = decorate; // debug handle for test runs
   world.onRoomMenu = (room, x, y) => {
+    const deco = { label: "Decorate", run: () => decorate(room) };
+    if (room.kind === "main") { showMenu(x, y, room.title, [deco]); return; }
     if (room.kind === "freelance") {
-      showMenu(x, y, "Freelancers", [{ label: "Hide this office", run: () => { world.hidden.add("freelance"); saveSettings(); void refresh(); } }]);
+      showMenu(x, y, "Freelancers", [deco, { label: "Hide this office", run: () => { world.hidden.add("freelance"); saveSettings(); void refresh(); } }]);
       return;
     }
     const pid = room.id.slice(2);
     showMenu(x, y, room.title, [
+      deco,
       { label: "Hide this office", run: () => { world.hidden.add(pid); saveSettings(); void refresh(); } },
       { label: "Remove project from T3", danger: true, run: async () => {
         const ok = await confirmDialog(`Remove ${room.title} from T3?`,
@@ -303,13 +318,16 @@ $("update").addEventListener("click", async () => {
 
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
-const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme> } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));
+world.themes = new Map(Object.entries(settings.themes ?? {}));
+world.level = settings.level ?? 0;
 world.homes = new Map(Object.entries(settings.homes ?? {}));
 const saveSettings = () => {
   settings.hidden = [...world.hidden];
   settings.extra = Object.fromEntries(world.extra);
+  settings.themes = Object.fromEntries(world.themes);
   settings.homes = Object.fromEntries(world.homes);
   void api.settingsSave(JSON.stringify(settings));
   renderHidden();
@@ -332,6 +350,7 @@ setupMenus();
 const orch = new Orchestrator(api as any, world, () => settings.orch ?? null, (s) => { settings.orch = s; saveSettings(); });
 orch.onChange = renderOrch;
 (window as any).__orch = orch; // debug handle for test runs
+(window as any).__refresh = () => refresh();
 function renderOrch() {
   const s = settings.orch;
   const body = $("orch-body");
@@ -377,6 +396,7 @@ function renderCompany(shipped: { total: number; today: number }) {
   const prev = settings.level;
   if (prev != null && p.level > prev) celebrate(p.level);
   if (prev !== p.level) { settings.level = p.level; saveSettings(); }
+  if (world.level !== p.level) { world.level = p.level; void refresh(); }
 }
 function celebrate(level: number) {
   for (const d of world.desks.values()) d.robot.react("cheer");

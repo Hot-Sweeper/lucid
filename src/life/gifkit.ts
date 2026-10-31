@@ -154,7 +154,7 @@ export function caption(c: Ctx, s: string, x: number, y: number, px: number, o: 
 
 // --- robot ----------------------------------------------------------------------
 export type Eyes = "pill" | "dot" | "happy" | "wide" | "smug" | "angry" | "squeeze" | "flat" | "sad" | "star";
-export type Mouth = "none" | "o" | "smile" | "open" | "flat" | "grin" | "wavy";
+export type Mouth = "none" | "o" | "smile" | "open" | "flat" | "grin" | "wavy" | "yell";
 export type Face = {
   eyes?: Eyes; right?: Eyes;      // right overrides the right eye (viewer's right)
   lx?: number; ly?: number;       // look direction, -1..1
@@ -193,7 +193,7 @@ export function head(c: Ctx, x: number, y: number, s: number, pal: Pal, f: Face 
   rr(c, -s / 2, -hh / 2, s, hh, s * 0.36, lin(c, 0, -hh / 2, 0, hh / 2, [[0, pal.shell], [0.62, pal.shell], [1, pal.shade]]));
   rr(c, -s * 0.3 + turn * s * 0.08, -hh / 2 + s * 0.055, s * 0.36, s * 0.05, s * 0.025, "rgba(255,255,255,0.7)");
   // visor
-  const vx = turn * s * 0.13, vy = s * 0.05, vw = s * 0.78 * (1 - at * 0.2), vh = s * 0.5;
+  const vx = turn * s * 0.17, vy = s * 0.05, vw = s * 0.78 * (1 - at * 0.22), vh = s * 0.5;
   rr(c, vx - vw / 2, vy - vh / 2, vw, vh, s * 0.22, pal.visor);
   rr(c, vx - vw / 2 + s * 0.06, vy - vh / 2 + s * 0.04, vw - s * 0.12, s * 0.06, s * 0.03, "rgba(255,255,255,0.07)");
   // eyes
@@ -304,6 +304,12 @@ function mouth(c: Ctx, kind: Mouth, x: number, y: number, s: number, k: number, 
   switch (kind) {
     case "o": oval(c, x, y, s * 0.04 * k, s * 0.05 * k, col); break;
     case "open": rr(c, x - s * 0.09, y - s * 0.045 * k, s * 0.18, s * 0.09 * k + s * 0.01, s * 0.04, col); break;
+    case "yell": {
+      const h = s * (0.05 + 0.075 * k), w = s * 0.24;
+      rr(c, x - w / 2, y - h * 0.2, w, h, Math.min(h, w) * 0.45, col);
+      rr(c, x - w * 0.3, y + h * 0.45, w * 0.6, h * 0.22, h * 0.11, "rgba(20,10,30,0.45)");
+      break;
+    }
     case "smile":
       c.beginPath();
       c.moveTo(x - s * 0.08, y - s * 0.015);
@@ -381,10 +387,10 @@ export function hand(c: Ctx, x: number, y: number, ang: number, r: number, pal: 
       rr(c, -r * 0.85, -r * 0.85, r * 1.5, r * 1.2, r * 0.55, pal.shell);
       break;
     case "fist":
-      c.rotate(ang);
-      rr(c, -r, -r, r * 2, r * 2, r * 0.75, pal.shade);
-      rr(c, -r * 0.85, -r, r * 1.5, r * 1.4, r * 0.6, pal.shell);
-      rr(c, r * 0.35, -r * 0.7, r * 0.22, r * 1.3, r * 0.11, pal.shade);
+      // upright, knuckles on top, thumb across the front (ang is ignored)
+      rr(c, -r, -r * 0.85, r * 2, r * 1.85, r * 0.6, pal.shade);
+      for (let i = 0; i < 4; i++) dot(c, -r * 0.66 + i * r * 0.44, -r * 0.62, r * 0.3, pal.shell);
+      rr(c, -r * 0.92, -r * 0.08, r * 1.45, r * 0.56, r * 0.28, pal.shell);
       break;
   }
   c.restore();
