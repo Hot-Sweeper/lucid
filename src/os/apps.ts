@@ -2,116 +2,13 @@ import gsap from "gsap";
 import { WM } from "./wm";
 import { ICONS } from "./icons";
 import { highlight, langOf } from "./highlight";
-import { baseName, relPath, type Entry, type Hit, type Hunk } from "./classify";
+import { baseName, type Hunk } from "./classify";
 
 import { esc, el, typeInto } from "./typing";
 import { colorGitLine } from "./git";
 export { BrowserApp } from "./browser";
 
-// ---------------------------------------------------------------------------
-export class FilesApp {
-  private path = "";
-  constructor(private wm: WM) {}
-
-  private async ensure() {
-    const w = await this.wm.open("files");
-    if (!w.body.querySelector(".files")) {
-      w.body.innerHTML = `
-        <div class="files">
-          <div class="files-top"><div class="crumbs"></div><div class="search-box">${ICONS.files}<span class="q"></span></div></div>
-          <div class="files-list" role="list"></div>
-        </div>`;
-    }
-    return w;
-  }
-
-  private crumbs(w: HTMLElement, path: string, root: string | null) {
-    const rel = relPath(path, root);
-    const rootName = root ? baseName(root) : "";
-    const parts = (rel === path.replace(/\\/g, "/") ? rel.split("/") : [rootName, ...rel.split("/")]).filter(Boolean);
-    const c = w.querySelector(".crumbs") as HTMLElement;
-    c.innerHTML = parts.map((p) => `<span>${esc(p)}</span>`).join('<i aria-hidden="true">/</i>');
-    c.scrollLeft = c.scrollWidth;
-    return c;
-  }
-
-  async list(path: string, entries: Entry[], root: string | null) {
-    const wm = this.wm, e = wm.epoch;
-    const w = await this.ensure();
-    const list = w.body.querySelector(".files-list") as HTMLElement;
-    w.body.querySelector(".files")!.classList.remove("searching");
-    // Dig in: if the new folder is inside the old one, double-click through it.
-    const prev = this.path;
-    const sameTree = prev && path.replace(/\\/g, "/").toLowerCase().startsWith(prev.replace(/\\/g, "/").toLowerCase() + "/");
-    if (sameTree) {
-      const next = path.replace(/\\/g, "/").slice(prev.length + 1).split("/")[0];
-      const row = Array.from(list.querySelectorAll(".row")).find((r) => r.getAttribute("data-name")?.toLowerCase() === next.toLowerCase());
-      if (row) {
-        await wm.pointAt(row, 0.3, 0.5);
-        row.classList.add("hover");
-        await wm.click(true);
-      }
-    }
-    this.path = path;
-    const crumbs = this.crumbs(w.body, path, root);
-    gsap.fromTo(crumbs.lastElementChild, { opacity: 0, x: 10 }, { opacity: 1, x: 0, duration: 0.35, ease: "power2.out" });
-    const sorted = [...entries].sort((a, b) => Number(b.dir) - Number(a.dir) || a.name.localeCompare(b.name));
-    gsap.to(list.children, { opacity: 0, x: -8, duration: 0.15, stagger: 0.005 });
-    await wm.sleep(160, e);
-    list.innerHTML = sorted.length
-      ? sorted.map((x) => `<div class="row" role="listitem" data-name="${esc(x.name)}" title="${esc(x.path || x.name)}">${x.dir ? ICONS.folder : ICONS.file}<span class="n">${esc(x.name)}</span><span class="s">${x.size || ""}</span></div>`).join("")
-      : `<p class="empty">This folder is empty</p>`;
-    list.scrollTop = 0;
-    gsap.fromTo(list.children, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.3, stagger: Math.min(0.03, 0.6 / Math.max(1, sorted.length)), ease: "power2.out" });
-    // Skim the list like a person would.
-    const rows = Array.from(list.querySelectorAll(".row")).slice(0, 8);
-    for (const r of rows.filter((_, i) => i % 3 === 0)) {
-      await wm.pointAt(r, 0.35, 0.5, 300);
-      r.classList.add("hover");
-      await wm.sleep(180, e);
-      r.classList.remove("hover");
-    }
-    if (sorted.length > 12) {
-      wm.robot.setPose("read");
-      gsap.to(list, { scrollTop: list.scrollHeight, duration: Math.min(2.5, sorted.length * 0.05) / wm.speed, ease: "power1.inOut" });
-      await wm.sleep(Math.min(2500, sorted.length * 50), e);
-    }
-  }
-
-  async search(query: string, path: string, hits: Hit[], root: string | null) {
-    const wm = this.wm, e = wm.epoch;
-    const w = await this.ensure();
-    const box = w.body.querySelector(".search-box") as HTMLElement;
-    const files = w.body.querySelector(".files")!;
-    this.crumbs(w.body, path, root);
-    await wm.pointAt(box, 0.6, 0.5);
-    await wm.click();
-    box.classList.add("active");
-    await typeInto(wm, box.querySelector(".q") as HTMLElement, query, { budgetMs: 900 });
-    files.classList.add("searching");
-    const list = w.body.querySelector(".files-list") as HTMLElement;
-    const byFile = new Map<string, Hit[]>();
-    for (const h of hits) { const k = relPath(h.file, root); if (!byFile.has(k)) byFile.set(k, []); byFile.get(k)!.push(h); }
-    let re: RegExp | null = null;
-    try { re = query ? new RegExp(query.replace(/\\b/g, ""), "gi") : null; } catch { re = null; }
-    const mark = (t: string) => {
-      const s = esc(t.trim().slice(0, 160));
-      if (!re) return s;
-      try { return s.replace(re, (m) => `<mark>${m}</mark>`); } catch { return s; }
-    };
-    list.innerHTML = byFile.size
-      ? [...byFile.entries()].map(([f, hs]) => `
-          <div class="hit-file row" title="${esc(f)}">${ICONS.file}<span class="n">${esc(f)}</span><span class="s">${hs.length}</span></div>
-          ${hs.slice(0, 4).map((h) => `<div class="hit-line">${h.line ? `<b>${h.line}</b>` : ""}<code>${mark(h.text)}</code></div>`).join("")}`).join("")
-      : `<p class="empty">No matches for “${esc(query)}”</p>`;
-    list.scrollTop = 0;
-    gsap.fromTo(list.children, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.3, stagger: 0.025, ease: "power2.out" });
-    wm.robot.setPose("read");
-    const lines = Array.from(list.querySelectorAll(".hit-file")).slice(0, 4);
-    for (const l of lines) { await wm.pointAt(l, 0.3, 0.5, 260); await wm.sleep(260, e); }
-    box.classList.remove("active");
-  }
-}
+export { FilesApp } from "./files";
 
 // ---------------------------------------------------------------------------
 type Tab = { path: string; el: HTMLElement };

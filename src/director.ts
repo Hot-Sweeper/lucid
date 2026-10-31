@@ -647,6 +647,7 @@ export class Director {
       const body = text(done.data.output).replace(/^\s*\d+[\t→]/gm, "");
       this.onActivity(`Reading ${baseName(p)}`);
       this.stage.setGlow(GLOW.editor);
+      await this.files.openFile(p, root);
       await this.editor.read(p, body.split(/\r?\n/).slice(0, 1500), done.data.output?.file?.startLine || done.data.input?.offset || 1);
       return true;
     }
@@ -1124,6 +1125,7 @@ export class Director {
         } else if (act.kind === "read") {
           this.onActivity(`Reading ${baseName(act.path)}`);
           this.stage.setGlow(GLOW.editor);
+          await this.files.openFile(act.path, root);
           await this.editor.read(act.path, act.lines, act.start);
         } else {
           const h = await this.term.run(act.command);
