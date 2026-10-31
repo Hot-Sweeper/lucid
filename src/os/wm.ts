@@ -37,7 +37,9 @@ export class WM {
   cursorEl: HTMLElement;
   wins = new Map<AppId, Win>();
   onCursor?: (x: number, y: number) => void;
-  prefs: import("../office/roster").Prefs | null = null;
+  private _prefs: import("../office/roster").Prefs | null = null;
+  get prefs() { return this._prefs; }
+  set prefs(p) { this._prefs = p; if (this.dock) this.renderDock(false); }
   robotName = "unit";
   speed = 1;
   epoch = 0;
@@ -53,7 +55,7 @@ export class WM {
       <div class="os">
         <div class="wallpaper"><img class="wall-logo" alt=""></div>
         <div class="win-layer"></div>
-        <nav class="dock" aria-label="Apps">${DOCK.map((id) => `<div class="dock-item" data-app="${id}" title="${TITLES[id]}">${ICONS[id]}<i></i></div>`).join("")}</nav>
+        <nav class="dock" aria-label="Apps"></nav>
         <div class="os-clock" aria-hidden="true"></div>
         <div class="toast-layer"></div>
         <div class="cursor" aria-hidden="true"><svg viewBox="0 0 20 24" width="15" height="18"><path d="M2 1 L2 19 L7 14.5 L10.5 22 L13.5 20.6 L10 13.4 L16.5 13 Z" fill="#fff"/><path d="M3.6 4.4 L3.6 15.6 L7.4 12.3 L10.9 19.6 L11.6 19.3 L8.2 12 L12.8 11.7 Z" fill="#11142c"/></svg></div>
@@ -61,6 +63,7 @@ export class WM {
     this.root = screen.querySelector(".os")!;
     this.layer = screen.querySelector(".win-layer")!;
     this.dock = screen.querySelector(".dock")!;
+    this.renderDock(false);
     this.cursorEl = screen.querySelector(".cursor")!;
     gsap.set(this.cursorEl, { x: this.cursor.x, y: this.cursor.y });
     // the clock in the corner shows the real time
@@ -184,11 +187,14 @@ export class WM {
       }
       return w;
     }
-    const dockItem = this.dock.querySelector(`[data-app="${id}"]`)!;
-    // open it the way this robot usually does, now and then the other way
-    if (this.habit(this.prefs?.launch ?? "dock", { dock: 0.2, spotlight: 0.2 }) === "spotlight") await this.launch(TITLES[id]);
+    // open it the way this robot usually does, now and then the other way; apps that are not in
+    // the dock can only be found with Spotlight
+    const pinnedItem = this.dock.querySelector(`[data-app="${id}"]`) as HTMLElement | null;
+    if (!pinnedItem || this.habit(this.prefs?.launch ?? "dock", { dock: 0.2, spotlight: 0.2 }) === "spotlight") await this.launch(TITLES[id]);
     else {
-      await this.pointAt(dockItem, 0.5, 0.5);
+      await this.pointAt(pinnedItem, 0.5, 0.5);
+      // the dock may have shifted while the cursor travelled: land on the icon itself
+      await this.pointAt(pinnedItem, 0.5, 0.5, 90);
       await this.click();
     }
     this.check(e);
@@ -210,6 +216,7 @@ export class WM {
     w = { id, el, body: el.querySelector(".win-body")!, title: titleEl, lastUsed: Date.now() };
     this.wins.set(id, w);
     this.focus(id);
+    const dockItem = this.showInDock(id);
     dockItem.classList.add("running");
     const d = this.pos(dockItem);
     gsap.fromTo(el,
@@ -253,6 +260,67 @@ export class WM {
       }
       await this.sleep(150 + Math.random() * 250, e);
     }
+  }
+
+  // --- the dock: pinned apps, plus whatever is open right now ------------------
+  // Everyone has the basics; a robot also pins what it uses a lot (games for gamers, music for
+  // music lovers, its task app). Other apps show up while they are open and leave when closed.
+  pinned(): AppId[] {
+    const p = this.prefs, pins = new Set<AppId>(["files", "editor", "terminal", "browser", "chat"]);
+    if (p?.hobby === "gamer") pins.add("game");
+    if (p?.hobby === "musician") pins.add("beats");
+    if (p?.hobby === "chatter") pins.add("social");
+    if (p?.listens === "always") pins.add("music");
+    if (p?.tasks === "board" || p?.tasks === "checklist") pins.add("tasks");
+    return DOCK.filter((id) => pins.has(id));
+  }
+  private dockItem(id: AppId) {
+    const el = document.createElement("div");
+    el.className = "dock-item";
+    el.dataset.app = id;
+    el.title = TITLES[id];
+    el.innerHTML = `${ICONS[id]}<i></i>`;
+    return el;
+  }
+  private renderDock(animate: boolean) {
+    const want = [...this.pinned(), ...[...this.wins.keys()].filter((id) => !this.pinned().includes(id))];
+    const have = new Map([...this.dock.querySelectorAll<HTMLElement>(".dock-item")].map((el) => [el.dataset.app as AppId, el]));
+    for (const [id, el] of have) if (!want.includes(id)) el.remove();
+    want.forEach((id) => {
+      let el = have.get(id);
+      if (!el) { el = this.dockItem(id); if (animate) gsap.from(el, { width: 0, opacity: 0, scale: 0.4, duration: 0.3, ease: "back.out(2)" }); }
+      el.classList.toggle("running", this.wins.has(id));
+      this.dock.appendChild(el);
+    });
+  }
+  private showInDock(id: AppId) {
+    let el = this.dock.querySelector(`[data-app="${id}"]`) as HTMLElement | null;
+    if (!el) {
+      el = this.dockItem(id);
+      this.dock.appendChild(el);
+      gsap.from(el, { width: 0, opacity: 0, scale: 0.4, duration: 0.3, ease: "back.out(2)" });
+    }
+    return el;
+  }
+  private leaveDock(id: AppId) {
+    if (this.wins.has(id) || this.pinned().includes(id)) return;
+    const el = this.dock.querySelector(`[data-app="${id}"]`) as HTMLElement | null;
+    if (el) gsap.to(el, { width: 0, opacity: 0, scale: 0.4, marginLeft: -7, duration: 0.25, ease: "power2.in", onComplete: () => el.remove() });
+  }
+
+  /** Organised robots close windows they have not touched in a while; messy ones never do. */
+  async closeStale() {
+    const t = this.prefs?.tidiness ?? "normal";
+    if (t === "messy") return;
+    const maxAge = t === "tidy" ? 45000 : 150000;
+    const top = Math.max(...[...this.wins.values()].map((w) => Number(w.el.style.zIndex) || 0));
+    const stale = [...this.wins.values()].filter((w) => Date.now() - w.lastUsed > maxAge && Number(w.el.style.zIndex) !== top).sort((a, b) => a.lastUsed - b.lastUsed)[0];
+    if (!stale) return;
+    const e = this.epoch;
+    await this.pointAt(stale.el.querySelector(".win-x")!, 0.5, 0.5, 380);
+    await this.click();
+    this.check(e);
+    this.close(stale.id);
   }
 
   // --- placement -----------------------------------------------------------
@@ -441,12 +509,10 @@ export class WM {
     const w = this.wins.get(id);
     if (!w) return;
     this.wins.delete(id);
-    const dockItem = this.dock.querySelector(`[data-app="${id}"]`)!;
+    const dockItem = (this.dock.querySelector(`[data-app="${id}"]`) as HTMLElement | null) ?? this.dock;
     dockItem.classList.remove("running");
-    const f = w.el.getBoundingClientRect();
-    void f;
     const d = this.pos(dockItem), c = this.pos(w.el);
-    gsap.to(w.el, { opacity: 0, scale: 0.3, x: d.x - c.x, y: d.y - c.y, duration: 0.4, ease: "power3.in", onComplete: () => w.el.remove() });
+    gsap.to(w.el, { opacity: 0, scale: 0.3, x: d.x - c.x, y: d.y - c.y, duration: 0.4, ease: "power3.in", onComplete: () => { w.el.remove(); this.leaveDock(id); } });
   }
 
   closeAll() {
@@ -469,7 +535,7 @@ export class WM {
     gsap.killTweensOf(this.cursor);
     for (const w of this.wins.values()) w.el.remove();
     this.wins.clear();
-    for (const d of this.dock.querySelectorAll(".dock-item")) d.classList.remove("running");
+    this.renderDock(false);
     this.root.querySelector(".toast-layer")!.innerHTML = "";
   }
 }

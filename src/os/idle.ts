@@ -115,6 +115,8 @@ export class IdleLife {
       this.robot.setPose("rest");
       this.onActivity("Waiting for a task");
       if (Math.random() < 0.3) { this.robot.setPose("mouse"); await this.wm.fidget(); this.alive(tok); this.robot.setPose("rest"); }
+      // tidy up what it has not used in a while
+      else if (this.wm.wins.size && Math.random() < 0.3) { this.robot.setPose("mouse"); await this.wm.closeStale(); this.alive(tok); this.robot.setPose("rest"); }
       // or nudge a window that is still open somewhere else, just because
       else if (this.wm.wins.size && Math.random() < 0.2) {
         const wins = [...this.wm.wins.values()];

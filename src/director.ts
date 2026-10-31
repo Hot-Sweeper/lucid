@@ -382,6 +382,8 @@ export class Director {
           // Now and then, for no reason at all, a window gets dragged somewhere else, like
           // people do. Robots that let windows float do it more; never while catching up.
           if (!this.catchingUp && this.queue.length < 2 && this.wm.wins.size) {
+            // organised robots close what they have not used in a while
+            if (Math.random() < 0.35) await this.wm.closeStale();
             const habit = this.wm.prefs?.windows === "floating" ? 0.12 : this.wm.prefs?.windows === "tiler" ? 0.07 : 0.04;
             if (Math.random() < habit) {
               const wins = [...this.wm.wins.values()];
