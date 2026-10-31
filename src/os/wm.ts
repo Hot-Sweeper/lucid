@@ -113,6 +113,13 @@ export class WM {
   // Element position in screen coordinates from layout, so it stays right even when
   // the monitor is angled in 3D or the camera zooms.
   pos(el: Element, ax = 0.5, ay = 0.5) {
+    // Measure where the thing really is on screen (this includes CSS transforms such as the
+    // centred dock), so the cursor lands on exactly what the robot then clicks.
+    const s = this.root.getBoundingClientRect();
+    if (s.width > 0) {
+      const r = el.getBoundingClientRect(), k = s.width / SCREEN.w;
+      return { x: (r.left - s.left + r.width * ax) / k, y: (r.top - s.top + r.height * ay) / k };
+    }
     const h = el as HTMLElement;
     let x = 0, y = 0;
     let cur: HTMLElement | null = h;
