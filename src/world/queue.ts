@@ -43,7 +43,6 @@ export class QuestionLine implements RoomExtension {
     this.out = { x: w / 2, y: h + 70 };
     this.furnish();
     this.monitor = new BossMonitor(this.stage.layer, w / 2 - 170, DESK_Y);
-    this.monitor.onSelect = id => this.onSelect(id);
     const cx = w / 2;
     this.boss = new Boss(this.stage.layer, { seat: { x: cx, y: DESK_Y + 98 }, edge: DESK_Y + 56, z: DESK_Y + 158, monitorX: cx - 115, glow: this.$.glow, mark: this.$.mark });
     this.boss.onSelect = (id) => this.onSelect(id);
