@@ -319,3 +319,5 @@ app.on("before-quit", () => t3s.closeSock());
 
 // Office documents the agents wrote (docx, xlsx, pptx, csv...), read for the robots' office apps.
 require("./office.cjs").register(ipcMain);
+// Real Bitcoin candles and prices for the robots' Tradebot (cached, rate limited).
+require("./market.cjs").register(ipcMain);

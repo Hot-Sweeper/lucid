@@ -10,6 +10,8 @@ import { UacPrompt } from "./os/uac";
 import { harnessName } from "./office/brand";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, prettyTool } from "./os/apps";
 import { T3CodeApp } from "./harness/t3code";
+import { CodexApp } from "./os/codex";
+import { imageGenOf, imageResult, type ImageGen } from "./os/imagegen";
 import { classify, parseDiff, baseName, relPath, unwrap, type Entry } from "./os/classify";
 import { TasksApp, type TaskStep } from "./os/tasks";
 import { GitDeskApp, type DeskFile } from "./os/gitdesk";
@@ -99,7 +101,7 @@ export class Director {
   private lastRunStatus = "";
   private files: FilesApp; private editor: EditorApp; private term: TerminalApp;
   private uac: UacPrompt;
-  private browser: BrowserApp; private chat: T3CodeApp; private tool: ToolApp; private tasks: TasksApp;
+  private browser: BrowserApp; private codex: CodexApp; private chat: T3CodeApp; private tool: ToolApp; private tasks: TasksApp;
   private planSig = "";
   onActivity: (text: string) => void = () => {};
   private idleLife: IdleLife;
@@ -133,6 +135,7 @@ export class Director {
     // the thread itself plays out in T3 Code, the app it really lives in (stable or Nightly per robot)
     this.chat = new T3CodeApp(wm);
     this.tool = new ToolApp(wm);
+    this.codex = new CodexApp(wm);
     this.tasks = new TasksApp(wm);
     this.gitdesk = new GitDeskApp(wm);
     this.idleLife = new IdleLife(wm, robot, stage);
@@ -178,6 +181,7 @@ export class Director {
     const first = !this.info;
     this.info = info;
     this.chat.setInfo(info);
+    this.codex.setInfo(info);
     this.term.setCwd(info.root || null);
     const status = info.run?.status || "";
     if (status === "running" && this.idleLife.isActive) {
@@ -515,6 +519,15 @@ export class Director {
             if (Math.random() < habit) {
               const wins = [...this.wm.wins.values()];
               await this.wm.maybeShuffle(wins[Math.floor(Math.random() * wins.length)].id, 1);
+            }
+          }
+          // a song it is not in the mood for: open Botify and skip it
+          if (!this.catchingUp && !this.queue.length && this.music.playing && this.present() && Math.random() < 0.05) {
+            this.onActivity("Skipping a song");
+            if (await this.music.skip()) {
+              // and back to work: Botify goes away again
+              const w = this.wm.wins.get("music");
+              if (w) { await this.wm.pointAt(w.el.querySelector(".win-x")!, 0.5, 0.5, 380); await this.wm.click(); this.wm.close("music"); }
             }
           }
           const live = [...this.sessions.entries()].filter(([, s]) => !s.done);
@@ -1069,6 +1082,21 @@ export class Director {
     await this.wm.sleep(1100);
   }
 
+  // The picture is made in the Codex desktop app. The prompt and the finished file are read from the
+  // tool call itself, so the frame stays empty exactly as long as the call runs.
+  private async playImageGen(id: string, first: ImageGen) {
+    this.onActivity(first.edit ? "Editing an image in Codex" : "Generating an image in Codex");
+    this.stage.setGlow(GLOW.tool);
+    const state = () => {
+      const cur = this.get(id);
+      const res = imageResult(cur, fileUrl);
+      return { done: cur.status !== "running" && cur.status !== "pending" && !cur.data.streaming, failed: res.failed, sources: res.sources };
+    };
+    const latest = imageGenOf(this.get(id)) ?? first;
+    await this.codex.generate({ prompt: latest.prompt || first.prompt, size: latest.size ?? first.size, edit: first.edit, state, instant: this.catchingUp });
+    this.onActivity(first.edit ? "Edited an image" : "Generated an image");
+  }
+
   private async play(id: string) {
     const it = this.get(id);
     const tool = it.type === "dynamic_tool" ? String(it.data.toolName || "") : "";
@@ -1080,6 +1108,10 @@ export class Director {
     const root = this.info?.root || null;
     this.chat.activity(it);
     if (it.type !== "reasoning" && it.type !== "user_input_request") this.stage.say(null);
+
+    // Codex's image tool (or the imagegen skill in a command): the Codex app shows the picture being made
+    const ig = imageGenOf(it);
+    if (ig) { await this.playImageGen(id, ig); return; }
 
     switch (it.type) {
       case "user_message": {

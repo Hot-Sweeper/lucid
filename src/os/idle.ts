@@ -19,6 +19,7 @@ import { hangOutInChat } from "../life/chat";
 import "../life/life.css";
 import { officeIdle, officePick, OFFICE_IDLE_LINE } from "../office-apps/idle";
 import { chatOnBotsApp, browseTelegrid, scrollChirp, usePhone, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, browseInstaweb, scrollSpoolWeb, swipeSparkplug, PHONE_APP_DOING, type PhoneApp, type SoOpts } from "../social";
+import { useSteam, tradeOnTradebot } from "../leisure";
 import type { Prefs } from "../office/roster";
 
 // What the robot does when there is no work: tidy the desktop, play a game,
@@ -43,7 +44,7 @@ export class IdleLife {
   /** The robot's web browser, set by the director, for surfing when bored. */
   browser: { visit(target: string): Promise<void>; act(caption: string, title?: string, url?: string): Promise<void> } | null = null;
   /** The music app, set by the director. */
-  music: { playing: unknown; start(prefer?: number): Promise<number>; stop(): void } | null = null;
+  music: { playing: unknown; start(prefer?: number): Promise<number>; skip(): Promise<boolean>; stop(): void } | null = null;
 
   constructor(private wm: WM, private robot: Robot, private stage: Stage) {
     const scale = Number(new URLSearchParams(location.search).get("idleScale") || localStorage.getItem("lucid:idleScale") || 1);
@@ -203,6 +204,8 @@ export class IdleLife {
       calc: 0.3,
       weather: 0.35, time: 0.4,
       music: this.music && p?.listens !== "never" ? (p?.listens === "always" ? 1.2 : 0.5) + 1.2 * H("musician") : 0,
+      // already listening: not every song is the right one
+      skip: this.music?.playing ? 1.1 + (p?.listens === "always" ? 0.8 : 0) + 0.6 * H("musician") : 0,
       office: p?.office && p.office !== "none" ? (p.office === "suite" ? 1.6 : 1.3) : 0,
       ...IdleLife.interestWeights(p, H),
     };
@@ -338,8 +341,20 @@ export class IdleLife {
         if (bpm) (this.robot as any).setGroove?.(bpm);
         this.alive(tok);
         this.robot.setPose("rest");
-        await this.wait(25000 + Math.random() * 30000, tok);
+        // halfway through it often gets bored of the song
+        const stay = 25000 + Math.random() * 30000;
+        await this.wait(stay * 0.5, tok);
+        if (Math.random() < 0.45 && await this.music!.skip()) { this.alive(tok); this.robot.setPose("rest"); }
+        await this.wait(stay * 0.5, tok);
         return;
+      }
+      case "skip": {
+        this.onActivity("Skipping a song in Botify");
+        const bpm = await this.music!.skip();
+        this.alive(tok);
+        this.robot.setPose("rest");
+        if (bpm) await this.wait(1200, tok);
+        return this.closeWin("music", tok);
       }
       case "weather": {
         this.onActivity("Checking the weather");
@@ -389,6 +404,20 @@ export class IdleLife {
       case "instaweb": return this.socialApp("instaweb", "Scrolling Instabot on the web", browseInstaweb, tok);
       case "spoolweb": return this.socialApp("spoolweb", "Watching Spool clips on the desktop", scrollSpoolWeb, tok);
       case "sparkplug": return this.socialApp("sparkplug", "Swiping on Sparkplug", swipeSparkplug, tok, 40000);
+      case "steam": {
+        // the store, the library, a download and a launch: then the game itself runs on its desktop
+        this.onActivity("Browsing Steambot");
+        const w = await this.wm.open("steam");
+        this.alive(tok);
+        this.robot.setPose("mouse");
+        const g = this.wm.prefs?.games ?? { snake: 1, flappy: 1, dash: 1, chess: 1 };
+        const want = (key: string) => (key === "snake" ? g.snake : key === "flappy" ? g.flappy : key === "dash" ? g.dash : key === "chess" ? g.chess : 1);
+        const out = await useSteam(w.body, this.host(tok), { maxMs: 130000, me: this.wm.robotName, skill: 0.5 + Math.random() * 0.4, want });
+        this.alive(tok);
+        if (out.launch) await this.doActivity(out.launch, tok);
+        return this.closeWin("steam", tok);
+      }
+      case "trading": return this.socialApp("trading", "Trading bitcoin on Tradebot", tradeOnTradebot, tok, 60000);
     }
   }
 
@@ -455,6 +484,8 @@ export class IdleLife {
       instaweb: uses("instabot") ? 0.6 + 0.5 * H("chiller") : 0,
       spoolweb: uses("spool") ? 0.6 + 0.8 * H("watcher") : 0,
       sparkplug: uses("sparkplug") ? 0.5 + 0.5 * H("chatter") : 0,
+      steam: likes("steam") ? 1.7 + 1.0 * H("gamer") : 0.1 * H("gamer"),
+      trading: likes("trading") ? 1.5 : 0.06,
     };
   }
 

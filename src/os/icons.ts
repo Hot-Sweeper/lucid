@@ -29,6 +29,10 @@ export const ICONS: Record<string, string> = {
   // Notepad and vim: what a robot's code editor is called when it is not Studio
   editorPad: `<svg class="ico" viewBox="0 0 24 24"><rect x="4" y="2.5" width="16" height="19" rx="3" fill="#e8f1ff"/><rect x="4" y="2.5" width="16" height="4.6" rx="2" fill="#4aa3ff"/><rect x="7" y="10" width="10" height="1.7" rx=".85" fill="#9db4d6"/><rect x="7" y="13.4" width="10" height="1.7" rx=".85" fill="#9db4d6"/><rect x="7" y="16.8" width="6" height="1.7" rx=".85" fill="#9db4d6"/></svg>`,
   editorVim: `<svg class="ico" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" fill="#1d2b22"/><path d="M12 3.9 20.1 12 12 20.1 3.9 12Z" fill="#19a35a"/><path d="M8.4 8.7h2.2l1.4 4.4 1.4-4.4h2.2L13.1 16h-2.2Z" fill="#fff"/></svg>`,
+  // Steambot: a pale cloud-gear disc on dark slate
+  steam: `<svg class="ico" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5.5" fill="#1b2838"/><circle cx="12" cy="12" r="7.6" fill="#c7d5e0"/><circle cx="9" cy="14.6" r="2.3" fill="#1b2838"/><circle cx="14.6" cy="9.6" r="2.7" fill="none" stroke="#1b2838" stroke-width="1.5"/><path d="m10.5 13.6 2.9-2.7" stroke="#1b2838" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  // Tradebot: two candles on near black
+  trading: `<svg class="ico" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5.5" fill="#181a20"/><path d="M8.2 5.5v13M15.8 6.5v12" stroke="#848e9c" stroke-width="1.2" stroke-linecap="round"/><rect x="6.2" y="8.4" width="4" height="6.2" rx=".8" fill="#2ebd85"/><rect x="13.8" y="9.2" width="4" height="6.6" rx=".8" fill="#f6465d"/></svg>`,
   folder: `<svg class="ico" viewBox="0 0 24 24"><path d="M2 6.5A2.5 2.5 0 0 1 4.5 4h4.6l2.1 2.2h8.3A2.5 2.5 0 0 1 22 8.7v9.8A2.5 2.5 0 0 1 19.5 21h-15A2.5 2.5 0 0 1 2 18.5Z" fill="#ffb84d"/><path d="M2 10a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8.5a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 2 18.5Z" fill="#ffcf7a"/></svg>`,
   file: `<svg class="ico" viewBox="0 0 24 24"><path d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" fill="#c9d1ff"/><path d="M14 2v4a2 2 0 0 0 2 2h4Z" fill="#9aa6f0"/></svg>`,
 };

@@ -103,11 +103,11 @@ function hooked(ctx: Ctx, lt: number, dur: number, hook: () => void, scene: () =
 type Eyes = "open" | "wide" | "happy" | "closed" | "angry" | "shock" | "half";
 interface Host {
   body: string; visor?: string; eye?: string;
-  outfit?: "tee" | "hoodie" | "suit" | "coat"; cloth?: string; inner?: string; tie?: string;
+  outfit?: "tee" | "hoodie" | "suit" | "coat" | "shirt"; cloth?: string; inner?: string; tie?: string;
   eyes?: Eyes; mouth?: number; shape?: "bar" | "smile" | "o"; look?: number; tilt?: number; lean?: number;
   /** Hand targets in host units: origin at the bottom of the torso, about 90 units to the antenna tip. */
   handL?: [number, number]; handR?: [number, number]; pointL?: boolean; pointR?: boolean; mug?: boolean;
-  stache?: string; glasses?: boolean; hair?: string; headset?: boolean; phones?: string; beanie?: string; blush?: boolean;
+  stache?: string; glasses?: boolean; hair?: string; curls?: string; earring?: boolean; headset?: boolean; phones?: string; beanie?: string; blush?: boolean;
   head?: "box" | "toaster" | "puck"; toast?: number; antenna?: boolean;
 }
 
@@ -136,6 +136,13 @@ function bust(ctx: Ctx, x: number, y: number, s: number, p: Host) {
     const lap = shade(cloth, 0.12);
     poly(ctx, [[-10, -38], [-18, -31], [-12, -26], [-1.5, -6]], lap);
     poly(ctx, [[10, -38], [18, -31], [12, -26], [1.5, -6]], lap);
+  } else if (p.outfit === "shirt") {
+    // a collared shirt, top button open: undershirt in the gap, two collar flaps, a row of buttons
+    poly(ctx, [[-9, -38], [9, -38], [0, -15]], p.inner ?? "#23232b");
+    const flap = shade(cloth, 0.1);
+    poly(ctx, [[-10, -38.5], [-18, -31], [-12, -25.5], [-1.2, -13]], flap);
+    poly(ctx, [[10, -38.5], [18, -31], [12, -25.5], [1.2, -13]], flap);
+    for (const by of [-9, -1.5, 6]) circle(ctx, 0, by, 1.1, shade(cloth, -0.22));
   } else if (p.outfit === "coat") {
     poly(ctx, [[-10, -38], [10, -38], [0, -12]], p.inner ?? C.pink);
     const lap = shade(cloth, -0.08);
@@ -230,6 +237,22 @@ function bust(ctx: Ctx, x: number, y: number, s: number, p: Host) {
     }
   }
   if (p.blush) for (const sd of [-1, 1]) ellipse(ctx, sd * 16, ey + 12, 3.4, 1.8, 0, withAlpha(C.pink, 0.7));
+  if (p.curls && head === "box") {
+    // a dark mop: curls piled on top, a fringe that falls over the visor on one side
+    const c = p.curls;
+    ellipse(ctx, -19, -37, 10, 8.5, -0.4, shade(c, -0.1));
+    ellipse(ctx, 19, -37, 10, 8.5, 0.4, shade(c, -0.1));
+    ellipse(ctx, -9, -45, 13, 8, -0.2, c);
+    ellipse(ctx, 8, -45.5, 14, 8, 0.15, c);
+    ellipse(ctx, 0, -48, 11, 6, 0, shade(c, 0.08));
+    ellipse(ctx, -8, -34.5, 11, 4.6, -0.28, c);
+    ellipse(ctx, 6, -35.5, 9, 3.6, 0.2, shade(c, 0.06));
+    for (const [cx, cy, r] of [[-14, -46, 3], [-2, -50, 3.4], [10, -48, 3.2], [20, -42, 2.8]] as const) circle(ctx, cx, cy, r, shade(c, 0.3));
+  }
+  if (p.earring) {
+    ctx.beginPath(); ctx.arc(-24.4, -16, 2.2, 0, Math.PI * 2);
+    ctx.lineWidth = 1.2; ctx.strokeStyle = "#dfe3f5"; ctx.stroke();
+  }
   if (p.hair && head === "box") {
     ellipse(ctx, -15, -38, 9, 4.5, -0.4, shade(p.hair, -0.12));
     ellipse(ctx, -3, -41.5, 21, 7, -0.1, p.hair);
@@ -297,38 +320,68 @@ function face(ctx: Ctx, cx: number, headCy: number, headH: number, p: Host) {
 /** Screen point to host units, for aiming a hand at something on screen. */
 const local = (hx: number, hy: number, hs: number, px: number, py: number): [number, number] => [(px - hx) / hs, (py - hy) / hs];
 
-/** Thumbnail frame shared by most channels: big text, a prop and a reacting face. */
+/**
+ * Thumbnail frame shared by most channels, in the style of Theo's recent ones: a near black frame,
+ * one big clean sentence (white, the last line in an accent), a screenshot-like prop, and a face
+ * so large it is cut by the edge, eyes wide, a hand near the mouth. No tags, no arrows, no outlines.
+ */
 function thumbFrame(ctx: Ctx, w: number, h: number, lt: number, o: {
   bg: [string, string]; glowC: string; lines: [string, string]; tagBg: string; tagFg: string; host: Host;
   prop?: (x: number, y: number, size: number) => void; arrowC?: string; faceLeft?: boolean;
 }) {
   const s = Math.min(w, h) / 100, P = h > w * 1.05;
-  ctx.fillStyle = rad(ctx, w * (o.faceLeft ? 0.25 : 0.75), h * 0.45, Math.max(w, h) * 0.85, [[0, o.bg[0]], [1, o.bg[1]]]);
+  ctx.fillStyle = lin(ctx, 0, 0, w, h, [[0, "#131318"], [1, "#050507"]]);
   ctx.fillRect(0, 0, w, h);
-  const pop = backOut(seg(lt, 0.25, 0.6));
-  const wob = Math.sin(lt * 8) * 0.012;
+  const settle = easeOut(seg(lt, 0.05, 0.5));
   if (P) {
-    glow(ctx, w * 0.5, h * 0.78, w * 0.7, o.glowC, 0.45);
-    big(ctx, o.lines[0], w * 0.5, h * 0.11, 20 * s, "#ffffff", { align: "center", maxW: w * 0.9 });
-    tag(ctx, o.lines[1], w * 0.5, h * 0.215, 17 * s * pop, o.tagBg, o.tagFg, { align: "center", maxW: w * 0.92, rot: -0.04 + wob });
-    o.prop?.(w * 0.3, h * 0.45, 42 * s);
-    face(ctx, w * 0.58, h * 0.76, h * 0.26, o.host);
-    if (o.arrowC) arrow(ctx, w * 0.82, h * 0.52, w * 0.56, h * 0.44, 7 * s, o.arrowC);
+    glow(ctx, w * 0.62, h * 0.8, w * 0.8, o.glowC, 0.2);
+    big(ctx, o.lines[0], w * 0.07, h * 0.1, 19 * s, "#ffffff", { align: "left", maxW: w * 0.86, shadow: null });
+    big(ctx, o.lines[1], w * 0.07, h * 0.2, 19 * s, o.tagBg, { align: "left", maxW: w * 0.86, shadow: null });
+    o.prop?.(w * 0.3, h * 0.45, 40 * s);
+    face(ctx, w * 0.66, h * 0.86, h * 0.34 * (0.97 + settle * 0.03), o.host);
     return;
   }
-  const fx = o.faceLeft ? w * 0.24 : w * 0.76;
-  glow(ctx, fx, h * 0.5, h * 0.8, o.glowC, 0.5);
-  face(ctx, fx, h * 0.5, h * 0.66, o.host);
-  const tx = o.faceLeft ? w * 0.47 : w * 0.05;
-  big(ctx, o.lines[0], tx, h * 0.2, 20 * s, "#ffffff", { align: "left", maxW: w * 0.46 });
-  tag(ctx, o.lines[1], tx, h * 0.44, 19 * s * pop, o.tagBg, o.tagFg, { align: "left", maxW: w * 0.48, rot: -0.03 + wob });
-  const px = o.faceLeft ? w * 0.86 : w * 0.25;
-  o.prop?.(px, h * 0.76, 34 * s);
-  if (o.arrowC) {
-    const k = 1 + Math.sin(lt * 10) * 0.04;
-    if (o.faceLeft) arrow(ctx, w * 0.6, h * 0.82, w * 0.6 + (px - w * 0.6 - 20 * s) * k, h * 0.78, 7 * s, o.arrowC);
-    else arrow(ctx, w * 0.56, h * 0.72, w * 0.56 - (w * 0.56 - px - 20 * s) * k, h * 0.76, 7 * s, o.arrowC);
-  }
+  const fx = o.faceLeft ? w * 0.22 : w * 0.79;
+  glow(ctx, fx, h * 0.55, h * 0.75, o.glowC, 0.2);
+  const tx = o.faceLeft ? w * 0.45 : w * 0.05;
+  const t0 = big(ctx, o.lines[0], tx, h * 0.17, 21 * s, "#ffffff", { align: "left", maxW: w * 0.52, shadow: null });
+  big(ctx, o.lines[1], tx, h * 0.17 + t0 * 1.12, 21 * s, o.tagBg, { align: "left", maxW: w * 0.5, shadow: null });
+  o.prop?.(o.faceLeft ? w * 0.74 : w * 0.26, h * 0.7, 36 * s);
+  face(ctx, fx, h * 0.58, h * 0.64 * (0.97 + settle * 0.03), o.host);
+}
+
+/** Dark card in the style of a quoted post (name, handle, one big sentence, a views line) beside a huge reacting face. */
+function tweetThumb(ctx: Ctx, w: number, h: number, lt: number, o: { name: string; handle: string; lines: string[]; meta: string; glowC: string; host: Host }) {
+  const s = Math.min(w, h) / 100, P = h > w * 1.05;
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, w, h);
+  const settle = easeOut(seg(lt, 0.05, 0.5));
+  const cx = P ? w * 0.07 : w * 0.05, top = P ? h * 0.07 : h * 0.08, maxW = P ? w * 0.86 : w * 0.56;
+  // header: avatar, name with a check, handle
+  const ar = (P ? 5.6 : 6.4) * s, ax = cx + ar, ay = top + ar;
+  circle(ctx, ax, ay, ar, C.orange);
+  fillRR(ctx, ax - ar * 0.6, ay - ar * 0.32, ar * 1.2, ar * 0.62, ar * 0.25, "#141a33");
+  circle(ctx, ax - ar * 0.26, ay - ar * 0.02, ar * 0.13, C.mint);
+  circle(ctx, ax + ar * 0.26, ay - ar * 0.02, ar * 0.13, C.mint);
+  const nx = ax + ar * 1.5, ns = 5.4 * s;
+  text(ctx, o.name, nx, ay - ns * 0.62, ns, "#ffffff", { weight: 800, align: "left" });
+  ctx.font = `800 ${ns}px ${SANS}`;
+  const nw = ctx.measureText(o.name).width;
+  circle(ctx, nx + nw + ns * 0.8, ay - ns * 0.62, ns * 0.5, "#1d9bf0");
+  limb(ctx, [[nx + nw + ns * 0.55, ay - ns * 0.62], [nx + nw + ns * 0.75, ay - ns * 0.4], [nx + nw + ns * 1.08, ay - ns * 0.86]], ns * 0.12, "#ffffff");
+  text(ctx, o.handle, nx, ay + ns * 0.62, ns * 0.9, "#71767b", { weight: 500, align: "left" });
+  // the sentence, big and plain, as large as the card allows
+  let fs = (P ? 11 : 13.5) * s;
+  for (const l of o.lines) fs = Math.min(fs, fitSize(ctx, l, maxW, fs, 600));
+  // everything has to fit: header, the lines, the views under them
+  const room = h - (top + ar * 2) - 6 * s;
+  fs = Math.min(fs, room / (1.5 + o.lines.length * 1.25 + 0.7 + 0.8));
+  const y0 = top + ar * 2 + fs * 1.5;
+  o.lines.forEach((l, i) => text(ctx, l, cx, y0 + i * fs * 1.25, fs, "#ffffff", { weight: 600, align: "left" }));
+  text(ctx, o.meta, cx, y0 + o.lines.length * fs * 1.25 + fs * 0.7, 4.4 * s, "#71767b", { weight: 500, align: "left" });
+  if (P) { glow(ctx, w * 0.66, h * 0.86, w * 0.8, o.glowC, 0.18); face(ctx, w * 0.68, h * 0.88, h * 0.34 * (0.97 + settle * 0.03), o.host); return; }
+  glow(ctx, w * 0.8, h * 0.5, h * 0.7, o.glowC, 0.16);
+  face(ctx, w * 0.8, h * 0.58, h * 0.64 * (0.97 + settle * 0.03), o.host);
 }
 
 // ===================================================================================
@@ -340,20 +393,8 @@ interface TakeCfg {
   handle: string; post: string[]; key: number;
   verdict: string; vcolor: string; sponsor: string; slogan: string;
 }
-const TEO = { body: "#c7b3ff", eye: C.mint, outfit: "tee", cloth: "#16192c", hair: "#ffd77a" } satisfies Host;
-
-function grave(ctx: Ctx, x: number, y: number, size: number) {
-  ellipse(ctx, x, y + size * 0.48, size * 0.75, size * 0.12, 0, "#2e6b4a");
-  fillRR(ctx, x - size * 0.4, y - size * 0.5, size * 0.8, size, size * 0.38, lin(ctx, x, y - size * 0.5, x, y + size * 0.5, [[0, "#a9aecf"], [1, "#6c7199"]]));
-  fillRR(ctx, x - size * 0.4, y + size * 0.15, size * 0.8, size * 0.35, 0, "#6c7199");
-  text(ctx, "RIP", x, y - size * 0.12, size * 0.3, "#2a2f55", { weight: 800 });
-  fillRR(ctx, x - size * 0.22, y + size * 0.14, size * 0.44, size * 0.06, 2, "#2a2f55");
-}
-function semi(ctx: Ctx, x: number, y: number, size: number) {
-  glow(ctx, x, y, size * 0.8, C.orange, 0.35);
-  text(ctx, ";", x + size * 0.04, y + size * 0.06, size * 1.4, "rgba(5,7,25,0.6)", { weight: 800, mono: true });
-  text(ctx, ";", x, y, size * 1.4, "#ffd77a", { weight: 800, mono: true });
-}
+// The Theo look-alike: dark curly mop, an earring, a collared shirt, big surprised eyes. Robot, lilac, nobody's real face.
+const TEO = { body: "#c7b3ff", eye: C.mint, outfit: "shirt", cloth: "#d8ccb6", inner: "#2a2630", curls: "#2b1e26", earring: true } satisfies Host;
 
 function postCard(ctx: Ctx, r: Rect, handle: string, lines: string[], hi: number, key: number, ring: number) {
   fillRR(ctx, r.x, r.y, r.w, r.h, r.h * 0.07, "#1e2348");
@@ -387,9 +428,42 @@ function postCard(ctx: Ctx, r: Rect, handle: string, lines: string[], hi: number
   });
 }
 
+/**
+ * The host at his desk with a laptop: a strip of desk in front of him, the back of the laptop lid
+ * (the robot head mark glowing on it), a mug with a little steam. The hands are behind the lid.
+ */
+function deskLaptop(ctx: Ctx, hx: number, hs: number, s: number, w: number, h: number, lt: number) {
+  const dy = h - 8 * s;
+  fillRR(ctx, 0, dy, w, 8 * s + 2, 0, lin(ctx, 0, dy, 0, h, [[0, "#3a2d4a"], [1, "#241b32"]]));
+  fillRR(ctx, 0, dy, w, 0.7 * s, 0, "rgba(255,255,255,0.09)");
+  // the laptop, seen from behind: lid, a sliver of base, the mark
+  const lw = 40 * hs, lh = 23 * hs, lx = hx - lw / 2, ly = dy + 2.5 * s - lh;
+  ellipse(ctx, hx, dy + 3.4 * s, lw * 0.62, 1.7 * s, 0, "rgba(5,4,12,0.4)");
+  fillRR(ctx, lx - 1.5 * s, dy + 1.6 * s, lw + 3 * s, 1.5 * s, 0.6 * s, "#7d839c");
+  fillRR(ctx, lx, ly, lw, lh, 2.2 * s, lin(ctx, lx, ly, lx + lw, ly + lh, [[0, "#b9bed3"], [1, "#8c92ab"]]));
+  fillRR(ctx, lx + lw * 0.04, ly + lh * 0.05, lw * 0.92, lh * 0.06, s * 0.6, "rgba(255,255,255,0.28)");
+  const mx = hx, my = ly + lh * 0.5, mk = Math.min(lw, lh) * 0.2, pulse = 0.5 + Math.sin(lt * 2.4) * 0.12;
+  glow(ctx, mx, my, mk * 3, C.mint, pulse * 0.35);
+  fillRR(ctx, mx - mk * 1.2, my - mk * 0.7, mk * 2.4, mk * 1.5, mk * 0.5, "#2a2f55");
+  circle(ctx, mx - mk * 0.5, my + mk * 0.02, mk * 0.2, C.mint);
+  circle(ctx, mx + mk * 0.5, my + mk * 0.02, mk * 0.2, C.mint);
+  limb(ctx, [[mx, my - mk * 0.7], [mx, my - mk * 1.25]], mk * 0.12, "#2a2f55");
+  circle(ctx, mx, my - mk * 1.3, mk * 0.2, "#2a2f55");
+  // a mug on the right with steam
+  const gx = hx + 34 * hs, gy = dy + 1.5 * s;
+  ellipse(ctx, gx + s, gy + 1.2 * s, 5.6 * s, 1.6 * s, 0, "rgba(5,4,12,0.35)");
+  fillRR(ctx, gx - 4 * s, gy - 8.5 * s, 8 * s, 9 * s, 1.8 * s, C.cream);
+  ctx.beginPath(); ctx.arc(gx + 4 * s, gy - 4.3 * s, 2.4 * s, -Math.PI / 2, Math.PI / 2);
+  ctx.lineWidth = 1.2 * s; ctx.lineCap = "round"; ctx.strokeStyle = C.cream; ctx.stroke();
+  fillRR(ctx, gx - 3.2 * s, gy - 7.9 * s, 6.4 * s, 1.4 * s, 0.7 * s, "#6b3f2a");
+  for (let i = 0; i < 2; i++) {
+    const k = (lt * 0.5 + i * 0.5) % 1;
+    ellipse(ctx, gx + Math.sin(k * 6 + i * 2) * 1.6 * s, gy - 10 * s - k * 9 * s, 1.1 * s, 2.4 * s, 0, withAlpha(C.cream, 0.32 * (1 - k)));
+  }
+}
+
 function takeVideo(c: TakeCfg): VideoDef {
   const L = 14, HOOK = 1.7;
-  const prop = c.prop === "grave" ? grave : semi;
   return {
     id: c.id, title: c.title, channel: "t1.bot", views: c.views, durationLabel: c.dur, loop: L, thumbT: 0.95, color: "#c7b3ff",
     post: { user: "t1.bot", caption: `${c.hook[0]} ${c.hook[1].toLowerCase()} Full take on the channel`, funny: true },
@@ -397,10 +471,9 @@ function takeVideo(c: TakeCfg): VideoDef {
     draw(ctx, w, h, t) {
       const lt = loopT(t, L);
       hooked(ctx, lt, HOOK,
-        () => thumbFrame(ctx, w, h, lt, {
-          bg: ["#3a1240", "#0b0a18"], glowC: "#ff4b8b", lines: c.hook, tagBg: "#ffd23f", tagFg: "#15121f",
-          host: { ...TEO, eyes: "shock", shape: "o", mouth: 0.9, look: -0.5, tilt: 0.06, handR: [24, -66], handL: [-28, -64] },
-          prop: (x, y, sz) => prop(ctx, x, y, sz), arrowC: "#ff3b4e",
+        () => tweetThumb(ctx, w, h, lt, {
+          name: "t1.bot", handle: c.handle, lines: c.post, meta: c.views.replace("views", "Views"), glowC: "#c7b3ff",
+          host: { ...TEO, eyes: "shock", shape: "o", mouth: 0.7, look: -0.4, tilt: 0.05, handR: [7, -57], handL: [-30, 14] },
         }),
         () => {
           const st = stage(w, h, 1);
@@ -457,7 +530,10 @@ function takeVideo(c: TakeCfg): VideoDef {
           const keyY = r.y + r.h * 0.33 + c.key * r.h * 0.165;
           const aim = st.portrait ? local(hx, hy, hs, r.x + r.w * 0.6, r.y + r.h * 0.95) : local(hx, hy, hs, r.x + r.w * 0.96, keyY);
           const bob = Math.sin(lt * 3.1) * 0.03;
-          let p: Host = { ...TEO, mouth: talk(lt), look: st.portrait ? 0 : -0.7, tilt: bob, eyes: blink(lt) ? "closed" : "open" };
+          // hands on the keys behind the laptop (they move a little while he talks)
+          const typeL: [number, number] = [-13 + Math.sin(lt * 13) * 1.2, -6 - Math.max(0, Math.sin(lt * 19)) * 1.8];
+          const typeR: [number, number] = [13 + Math.sin(lt * 11 + 1) * 1.2, -6 - Math.max(0, Math.sin(lt * 17 + 2)) * 1.8];
+          let p: Host = { ...TEO, mouth: talk(lt), look: st.portrait ? 0 : -0.7, tilt: bob, eyes: blink(lt) ? "closed" : "open", handL: typeL, handR: typeR };
           if (reading) {
             if (pointing) p = { ...p, handL: aim, pointL: true };
             if (lt > 4.7 && lt < 5.5) p = { ...p, eyes: "wide", mouth: 0.2 };
@@ -470,6 +546,7 @@ function takeVideo(c: TakeCfg): VideoDef {
             p = { ...p, eyes: shrug > 0.5 ? "happy" : "open", shape: shrug > 0.5 ? "smile" : "bar", mouth: shrug > 0.5 ? 0.4 : talk(lt), handL: [lerp(-31, -42, shrug), lerp(18, -34, shrug)], handR: [lerp(31, 42, shrug), lerp(18, -34, shrug)], tilt: shrug * 0.1 };
           }
           bust(ctx, hx, hy - Math.abs(Math.sin(lt * 6.2)) * s * (reading ? 0.6 : 0.2), hs, p);
+          deskLaptop(ctx, hx, hs, s, w, h, lt);
           ctx.restore();
           if (zoom > 0) big(ctx, "WAIT.", w * 0.5, h * 0.2, 24 * s * backOut(seg(lt, 6.25, 6.5)), "#ffffff", { align: "center", rot: -0.05 });
         });

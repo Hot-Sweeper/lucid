@@ -35,7 +35,7 @@ export interface DeskRig {
   homeLeft: Pt;   // resting typing position of the left hand (on F)
   homeRight: Pt;  // resting typing position of the right hand (on J)
   mouse: Pt;      // resting mouse position
-  moveMouse(p: Pt): void;
+  moveMouse(p: Pt, turn?: number): void;   // the mouse slides to p and turns a little (degrees) with the hand's swing
   mug: Pt;
   moveMug(p: Pt | null, tilt?: number): void;          // null puts it back on the desk
   phoneRest: Pt;
