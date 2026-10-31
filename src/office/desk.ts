@@ -91,6 +91,8 @@ export class Desk implements DeskStage {
   // While something rises above the desk (a bubble, z letters, a held phone) the desk
   // comes to the front so nothing gets hidden behind a neighbor.
   baseZ = 0;
+  /** A bubble opened (the world checks it fits on screen). */
+  onSay: () => void = () => {};
   private lifts = new Set<string>();
   lift(reason: string, on: boolean) {
     if (on) this.lifts.add(reason); else this.lifts.delete(reason);
@@ -245,6 +247,7 @@ export class Desk implements DeskStage {
     b.className = `bubble show ${kind}`;
     b.innerHTML = `<p></p><span class="tail a"></span><span class="tail b"></span>`;
     b.querySelector("p")!.textContent = text;
+    this.onSay();
     if (!was) gsap.fromTo(b, { opacity: 0, y: 12, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.8)" });
   }
 

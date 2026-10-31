@@ -560,12 +560,49 @@ export class World {
     });
   }
 
-  // Desks outside the view are not painted at all; their robots keep working, nobody sees it.
-  private cull = new IntersectionObserver((es) => { for (const e of es) (e.target as HTMLElement).classList.toggle("culled", !e.isIntersecting); }, { rootMargin: "120px" });
+  // Desks and rooms outside the view are not painted at all; their robots keep working, nobody
+  // sees it. Worked out from the camera every time it moves (a browser visibility observer can
+  // miss a change and leave a desk hidden when it comes back into view).
+  private cullSet = new Set<HTMLElement>();
+  private cull = {
+    observe: (el: HTMLElement) => { this.cullSet.add(el); this.recull(); },
+    unobserve: (el: Element) => { this.cullSet.delete(el as HTMLElement); },
+  };
+  private recull() {
+    const box = this.sceneBox ?? (this.sceneBox = this.scene.getBoundingClientRect());
+    const s = this.cam.s || 1, m = 160 / s;
+    const x0 = -this.cam.x / s - m, y0 = -this.cam.y / s - m, x1 = x0 + box.width / s + 2 * m, y1 = y0 + box.height / s + 2 * m;
+    for (const el of this.cullSet) {
+      if (!el.isConnected) { this.cullSet.delete(el); continue; }
+      const st = el.style, desk = el.classList.contains("desk-unit");
+      const l = parseFloat(st.left) || 0, t = parseFloat(st.top) || 0;
+      const w = desk ? UNIT_W : parseFloat(st.width) || 0, h = desk ? UNIT_H : parseFloat(st.height) || 0;
+      const out = l + w < x0 || l > x1 || t + h < y0 || t > y1;
+      if (out !== el.classList.contains("culled")) el.classList.toggle("culled", out);
+    }
+    this.fitBubbles();
+  }
+  // A thought bubble opens to the right of the robot's head; when that side is off screen or under
+  // the side chat, it opens to the left instead.
+  private fitBubbles() {
+    const box = this.sceneBox;
+    if (!box) return;
+    const s = this.cam.s, right = box.width - this.panelWidth - 8;
+    for (const d of this.allDesks) {
+      const b = d.el.querySelector(".bubble.show") as HTMLElement | null;
+      if (!b) continue;
+      const left = parseFloat(d.el.style.left) || 0;
+      const rx = this.cam.x + (left + 248 + 214) * s;          // right edge when it opens to the right
+      const lx = this.cam.x + (left + 400 - 248 - 214) * s;    // left edge when it opens to the left
+      const flip = rx > right && lx > 8;
+      if (flip !== b.classList.contains("flip")) b.classList.toggle("flip", flip);
+    }
+  }
 
   private makeDesk(x: number, y: number) {
     const d = new Desk(this.deskLayer, x, y, this.services);
     this.cull.observe(d.el);
+    d.onSay = () => this.fitBubbles();
     d.director.attachDir = this.attachDir;
     d.director.childItems = (id, since) => (window as any).lucid.itemsSince(id, since);
     this.allDesks.add(d);
@@ -752,6 +789,7 @@ export class World {
   private apply() {
     this.clampCam();
     this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
+    this.recull();
     // While the zoom changes, the world is scaled as one finished picture instead of being redrawn
     // at every step (that redraw kept the graphics process busy most of the time); it is redrawn
     // sharp a moment after the zoom settles.

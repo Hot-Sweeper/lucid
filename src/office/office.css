@@ -57,6 +57,11 @@
 
 .desk-unit .bubble { position: absolute; left: 248px; top: 150px; width: 210px; padding: 9px 12px; background: #fbf8ff; color: #1b1f45; border-radius: 15px; font-size: 11px; line-height: 1.4; opacity: 0; display: none; pointer-events: none; box-shadow: 0 10px 22px rgba(20, 16, 40, 0.22); transform-origin: 0% 100%; z-index: 6; }
 .desk-unit .bubble.show { display: block; }
+/* opens to the left of the head when the right side is off screen or under the side chat */
+.desk-unit .bubble.flip { left: auto; right: 248px; transform-origin: 100% 100%; }
+.desk-unit .bubble.flip .tail.a { left: auto; right: -4px; }
+.desk-unit .bubble.flip .tail.b { left: auto; right: -16px; }
+.desk-unit .bubble.speak.flip .tail.a { right: -6px; border-radius: 3px 50% 50% 50%; transform: rotate(30deg); }
 .desk-unit .bubble p { margin: 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 .desk-unit .bubble .tail { position: absolute; background: inherit; border-radius: 50%; }
 .desk-unit .bubble.think .tail.a { width: 13px; height: 13px; left: -4px; bottom: 8px; }

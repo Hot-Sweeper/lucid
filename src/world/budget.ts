@@ -41,7 +41,8 @@ const lastSlot = new WeakMap<object, number>();
 /** Should this robot redraw its body now? Throttled robots all draw in the same frames, so the
  *  frames in between have nothing to repaint. */
 export function drawNow(owner: object, el: Element, now: number) {
-  if (visible.get(el) === false) return false;
+  // off screen: no redraw, except a slow one now and then in case the visibility news was missed
+  if (visible.get(el) === false && now - (lastDraw.get(owner) ?? 0) < 2000) return false;
   const fps = scale < 0.3 ? 12 : scale < 0.5 ? 20 : scale < 0.75 ? 30 : 60;
   if (fps < 60) {
     const slot = Math.floor(now / (1000 / fps));
