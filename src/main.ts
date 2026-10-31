@@ -118,7 +118,7 @@ function pushStatus(d: Desk) {
 }
 // Dev aid: keep the last errors where a debug run can read them.
 (window as any).__errs = [];
-window.addEventListener("error", (e) => (window as any).__errs.push(String(e.message)));
+window.addEventListener("error", (e) => (window as any).__errs.push(String(e.message) + " @ " + String(e.error?.stack || "").split("\n").slice(1, 4).join(" < ")));
 const origError = console.error.bind(console);
 console.error = (...a: any[]) => { (window as any).__errs.push(a.map(String).join(" ").slice(0, 300)); origError(...a); };
 

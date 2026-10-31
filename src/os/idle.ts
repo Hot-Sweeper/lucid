@@ -13,7 +13,7 @@ import "../life/life.css";
 
 const T = {
   tidyAfter: 4000,
-  gameAfter: 7000,
+  gameAfter: 1200,
   gameFor: 90000,
   lockAfterMs: 9 * 60 * 1000,
 };
@@ -96,7 +96,7 @@ export class IdleLife {
       this.alive(tok);
       this.robot.setPose("rest");
       this.onActivity("Waiting for a task");
-      await this.wait(2500 + Math.random() * 4500, tok);
+      await this.wait(600 + Math.random() * 1000, tok);
     }
     await this.lock(tok);
   }

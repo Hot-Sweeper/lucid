@@ -236,13 +236,60 @@ export class Director {
     this.stage.setGlow(GLOW.idle);
     if (running) {
       this.robot.setPose("think");
-      this.onActivity("Working");
+      this.onActivity("Thinking");
+      void this.busyWhileWaiting(this.wm.epoch);
       return;
     }
     this.robot.setPose("rest");
     // A thread that finished a while ago goes straight to the lock screen.
     const stale = this.lastEventAt > 0 && Date.now() - this.lastEventAt > 10 * 60 * 1000 && !new URLSearchParams(location.search).has("idleScale");
     this.idleLife.begin({ locked: stale });
+  }
+
+  // A run is going but the next step has not shown up yet (the model is thinking, a long
+  // command runs). Never sit in front of an empty screen: jot down where things stand in
+  // the notes, then look over the open windows now and then until new work arrives.
+  private busyToken = 0;
+  private async busyWhileWaiting(epoch: number) {
+    const tok = ++this.busyToken;
+    const still = () => tok === this.busyToken && epoch === this.wm.epoch && !this.queue.length && this.pumpEpoch === -1 && this.info?.run?.status === "running";
+    try {
+      await this.wm.sleep(1200, epoch);
+      if (!still()) return;
+      if (!this.wm.wins.size) {
+        const last = [...this.items.values()].reverse().find((i) => (i.type === "reasoning" || i.type === "assistant_message" || i.type === "user_message") && i.data?.text);
+        const text = last ? String(last.data.text) : `Working on ${this.info?.title || "the task"}`;
+        const notes = await this.openNotes();
+        if (!still()) return;
+        this.noteFor = new WeakMap();
+        await this.writeNote(notes, last?.type === "user_message" ? `Task: ${text}` : text);
+      }
+      for (let n = 0; n < 40 && still(); n++) {
+        await this.wm.sleep(5000 + Math.random() * 6000, epoch);
+        if (!still()) return;
+        const wins = [...this.wm.wins.values()];
+        const r = Math.random();
+        if (wins.length && r < 0.55) {
+          // glance at another window: click its title bar, maybe scroll a bit
+          const w = wins[Math.floor(Math.random() * wins.length)];
+          await this.wm.open(w.id);
+          const scroller = w.body.querySelector(".code, .term, .notes, .cp-list, pre") as HTMLElement | null;
+          if (scroller && still()) { await this.wm.pointAt(scroller, 0.5, 0.6, 400); gsap.to(scroller, { scrollTop: Math.random() * scroller.scrollHeight, duration: 1.2, ease: "power2.inOut" }); }
+          this.robot.setPose("read");
+        } else if (r < 0.75) {
+          await this.wm.maybeShuffle(wins.length ? wins[0].id : "notes", 1);
+          this.robot.setPose("think");
+        } else if (r < 0.9) {
+          this.onActivity("Sipping coffee while it thinks");
+          await this.robot.drink();
+          this.onActivity("Thinking");
+        } else {
+          this.robot.setPose("think");
+        }
+      }
+    } catch (err) {
+      if (!(err instanceof Cancelled)) console.error("busy filler", err);
+    }
   }
 
   // Wait until the item completes, or move on if newer work piles up.
