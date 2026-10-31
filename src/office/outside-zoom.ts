@@ -4,6 +4,7 @@
 // Two recent crops are retained for backtracking instead of rebuilding the same pixels.
 // The overview covers camera motion until an asynchronous sharp crop is ready.
 import { beginSystem, endSystem } from "../perf/metrics";
+import { setSvgAttribute } from "../perf/svg-write";
 import { outsideView, outsideProjection, outsideOverviewDensity } from "./outside-view";
 
 type Camera = { x: number; y: number; s: number };
@@ -30,10 +31,12 @@ class OutsideRaster {
   private overview = document.createElement("canvas");
   private overviewReady = false;
   private overviewDensity = 0;
+  private previewCrop: Crop | null = null;
+  private liveCrop: Crop | null = null;
+  private paintCount = 0;
+  private liveViewCount = 0;
   private sharp: HTMLCanvasElement | null = null;
   private live: SVGSVGElement | null;
-  private liveCrop: { x: number; y: number; w: number; h: number } | null = null;
-  private liveScale = 0;
   private crop: Crop | null = null;
   private history: { crop: Crop; canvas: HTMLCanvasElement }[] = [];
   private pending: Crop | null = null;
@@ -42,8 +45,6 @@ class OutsideRaster {
   private height = 0;
   private timer = 0;
   private dead = false;
-  private paintedSharp: HTMLCanvasElement | null = null;
-  private previewSignature = "";
   private urls = new Set<string>();
   private w: number;
   private h: number;
@@ -75,30 +76,30 @@ class OutsideRaster {
   update(cam: Camera, width: number, height: number) {
     const scaling = cam.s !== this.cam.s;
     const resizing = width !== this.width || height !== this.height;
+    if (!scaling && !resizing && cam.x === this.cam.x && cam.y === this.cam.y) return;
+    if (resizing) { this.previewCrop = null; this.liveCrop = null; }
     this.cam.x = cam.x; this.cam.y = cam.y; this.cam.s = cam.s;
     this.width = width; this.height = height;
     const view = outsideView(cam, width, height, parseFloat(this.layer.style.left), parseFloat(this.layer.style.top));
     if (view) {
       // The parent still pans with the world. An inverse camera plane keeps its
       // actual display boxes at viewport dimensions, rather than 25k world pixels.
-      this.plane.style.width = `${width}px`; this.plane.style.height = `${height}px`;
+      if (resizing) { this.plane.style.width = `${width}px`; this.plane.style.height = `${height}px`; }
       this.plane.style.transform = `translate(${view.x}px, ${view.y}px) scale(${1 / cam.s})`;
       if (this.live) {
-        const crop = this.liveCrop, pad = 64 / cam.s;
-        if (!crop || this.liveScale !== cam.s || resizing || crop.x > view.x - pad || crop.y > view.y - pad
-          || crop.x + crop.w < view.x + view.w + pad || crop.y + crop.h < view.y + view.h + pad) {
-          const margin = MARGIN / cam.s;
-          this.liveCrop = { x: view.x - margin, y: view.y - margin, w: view.w + 2 * margin, h: view.h + 2 * margin };
-          this.liveScale = cam.s;
-          const next = this.liveCrop;
-          this.live.setAttribute("viewBox", `${next.x} ${next.y} ${next.w} ${next.h}`);
-          this.live.setAttribute("width", String(width + 2 * MARGIN)); this.live.setAttribute("height", String(height + 2 * MARGIN));
+        // Keep an original-vector viewport with overscan. Moving it inside the
+        // clipped camera plane avoids rerasterizing the entire live SVG per pixel.
+        const current = { ...view, density: cam.s * (devicePixelRatio || 1) };
+        if (!this.covers(this.liveCrop, current)) {
+          const pad = MARGIN / cam.s;
+          this.liveCrop = { x: view.x - pad, y: view.y - pad, w: view.w + 2 * pad, h: view.h + 2 * pad, density: current.density };
+          this.live.setAttribute("viewBox", `${this.liveCrop.x} ${this.liveCrop.y} ${this.liveCrop.w} ${this.liveCrop.h}`);
+          this.liveViewCount++;
+          this.plane.dataset.liveViews = String(this.liveViewCount);
         }
-        const current = this.liveCrop!;
-        // Moving the bounded SVG viewport preserves its local coordinate system.
-        // Updating viewBox every pan invalidates all animated vector descendants.
-        this.live.style.transform = `translate(${(current.x - view.x) * cam.s}px, ${(current.y - view.y) * cam.s}px)`;
-        this.live.style.transformOrigin = "0 0";
+        const crop = this.liveCrop!;
+        setSvgAttribute(this.live, "width", String(crop.w * cam.s)); setSvgAttribute(this.live, "height", String(crop.h * cam.s));
+        this.live.style.transform = `translate(${(crop.x - view.x) * cam.s}px,${(crop.y - view.y) * cam.s}px)`;
       }
       this.paint();
     }
@@ -153,9 +154,9 @@ class OutsideRaster {
     const next = document.createElement("canvas");
     void this.raster(crop, next).then((ok) => {
       this.pending = null;
-      if (!ok) { next.width = next.height = 0; return; }
+      if (!ok) return;
       const current = this.view();
-      if (!current || Math.abs(current.density / crop.density - 1) > 0.01) { next.width = next.height = 0; if (!this.timer) this.sharpen(); return; }
+      if (!current || Math.abs(current.density / crop.density - 1) > 0.01) { if (!this.timer) this.sharpen(); return; }
       // Do not replace a usable image with a job the camera has already moved away from.
       if (this.covers(crop, current)) this.install(crop, next);
       else this.remember(crop, next);
@@ -172,6 +173,11 @@ class OutsideRaster {
   }
   private install(crop: Crop, canvas: HTMLCanvasElement) {
     if (this.crop && this.sharp) this.remember(this.crop, this.sharp);
+    canvas.className = "outside-detail";
+    canvas.setAttribute("aria-hidden", "true");
+    canvas.style.cssText = "position:absolute;left:0;top:0;pointer-events:none;visibility:hidden";
+    this.detail.replaceWith(canvas);
+    this.detail = canvas;
     this.sharp = canvas; this.crop = crop;
     this.paint();
   }
@@ -181,38 +187,39 @@ class OutsideRaster {
     const viewport = outsideView(this.cam, this.width, this.height, parseFloat(this.layer.style.left), parseFloat(this.layer.style.top));
     if (!viewport) return;
     const dpr = devicePixelRatio || 1;
-    const width = Math.max(1, Math.ceil(this.width * dpr)), height = Math.max(1, Math.ceil(this.height * dpr));
-    if (this.preview.width !== width || this.preview.height !== height) { this.preview.width = width; this.preview.height = height; this.previewSignature = ""; }
-    this.preview.style.width = `${this.width}px`; this.preview.style.height = `${this.height}px`;
-    const draw = (target: HTMLCanvasElement, source: HTMLCanvasElement, rect: { x: number; y: number; w: number; h: number }) => {
-      const ctx = target.getContext("2d")!, p = outsideProjection(rect, viewport, this.cam.s);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, this.width, this.height);
-      if (p) ctx.drawImage(source, p.sx * source.width / rect.w, p.sy * source.height / rect.h, p.sw * source.width / rect.w, p.sh * source.height / rect.h, p.dx, p.dy, p.dw, p.dh);
-      target.style.visibility = p ? "visible" : "hidden";
+    const place = (canvas: HTMLCanvasElement, crop: Crop) => {
+      canvas.style.width = `${crop.w * this.cam.s}px`; canvas.style.height = `${crop.h * this.cam.s}px`;
+      canvas.style.transform = `translate(${(crop.x - viewport.x) * this.cam.s}px,${(crop.y - viewport.y) * this.cam.s}px)`;
+      canvas.style.visibility = outsideProjection(crop, viewport, this.cam.s) ? "visible" : "hidden";
     };
+    if (this.overviewReady) {
+      const view = { ...viewport, density: this.cam.s * dpr };
+      if (!this.covers(this.previewCrop, view)) {
+        const pad = MARGIN / this.cam.s;
+        const crop = this.previewCrop = { x: view.x - pad, y: view.y - pad, w: view.w + 2 * pad, h: view.h + 2 * pad, density: view.density };
+        this.preview.width = Math.max(1, Math.ceil(crop.w * crop.density));
+        this.preview.height = Math.max(1, Math.ceil(crop.h * crop.density));
+        const ctx = this.preview.getContext("2d")!, p = outsideProjection({ x: 0, y: 0, w: this.w, h: this.h }, crop, this.cam.s);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (p) ctx.drawImage(this.overview, p.sx * this.overview.width / this.w, p.sy * this.overview.height / this.h, p.sw * this.overview.width / this.w, p.sh * this.overview.height / this.h, p.dx, p.dy, p.dw, p.dh);
+        this.paintCount++; this.plane.dataset.paints = String(this.paintCount);
+      }
+      place(this.preview, this.previewCrop!);
+    } else if (this.preview.style.visibility === "visible") {
+      // A source replacement may temporarily carry a viewport snapshot from the
+      // previous source, rather than a grounds crop. Preserve its DPR sizing.
+      this.preview.style.width = `${this.width}px`; this.preview.style.height = `${this.height}px`;
+      this.preview.style.transform = "";
+    }
     const needsSharp = this.cam.s * dpr > this.overviewDensity;
     let covered = false;
     if (this.sharp && this.crop && needsSharp) {
-      const crop = this.crop;
-      // The source already contains overscan. Upload it once, then let the compositor
-      // move those unchanged pixels during a pan instead of clearing and repainting
-      // two full-resolution viewport canvases on every pointer frame.
-      if (this.paintedSharp !== this.sharp) {
-        this.detail.width = this.sharp.width; this.detail.height = this.sharp.height;
-        this.detail.getContext("2d")!.drawImage(this.sharp, 0, 0);
-        this.paintedSharp = this.sharp;
-      }
-      const x = (crop.x - viewport.x) * this.cam.s, y = (crop.y - viewport.y) * this.cam.s;
-      this.detail.style.width = `${crop.w * this.cam.s}px`; this.detail.style.height = `${crop.h * this.cam.s}px`;
-      this.detail.style.transform = `translate(${x}px, ${y}px)`;
-      this.detail.style.transformOrigin = "0 0";
-      this.detail.style.willChange = "transform";
-      this.detail.style.visibility = outsideProjection(crop, viewport, this.cam.s) ? "visible" : "hidden";
+      place(this.detail, this.crop);
       this.detail.dataset.sourceDensity = String(this.crop.density);
       const current = this.view();
       this.detail.dataset.sharp = current && this.covers(this.crop, current) ? "1" : "0";
-      // Check actual coverage, not the renewal margin. The translucent soft edge of
-      // the grounds must not be composited twice over the lower-resolution preview.
+      const crop = this.crop;
+      // Do not composite translucent grounds twice where sharp pixels cover the view.
       covered = !!current && crop.x <= current.x + .01 && crop.y <= current.y + .01
         && crop.x + crop.w >= current.x + current.w - .01 && crop.y + crop.h >= current.y + current.h - .01;
     } else {
@@ -220,26 +227,24 @@ class OutsideRaster {
       this.detail.dataset.sourceDensity = ""; this.detail.dataset.sharp = "0";
     }
     if (covered) this.preview.style.visibility = "hidden";
-    else if (this.overviewReady) {
-      const signature = `${viewport.x},${viewport.y},${this.cam.s},${width},${height}`;
-      if (signature !== this.previewSignature || this.preview.style.visibility !== "visible") {
-        draw(this.preview, this.overview, { x: 0, y: 0, w: this.w, h: this.h });
-        this.previewSignature = signature;
-      }
-    }
   }
 
   snapshot() {
     if (!this.preview.width || !this.preview.height) return undefined;
-    const canvas = document.createElement("canvas"); canvas.width = this.preview.width; canvas.height = this.preview.height;
+    const dpr = devicePixelRatio || 1;
+    const canvas = document.createElement("canvas"); canvas.width = Math.max(1, Math.ceil(this.width * dpr)); canvas.height = Math.max(1, Math.ceil(this.height * dpr));
     const ctx = canvas.getContext("2d")!;
-    if (this.preview.style.visibility === "visible") ctx.drawImage(this.preview, 0, 0);
-    if (this.detail.style.visibility === "visible" && this.crop) {
-      const viewport = outsideView(this.cam, this.width, this.height, parseFloat(this.layer.style.left), parseFloat(this.layer.style.top));
-      const p = viewport && outsideProjection(this.crop, viewport, this.cam.s);
-      if (p) ctx.drawImage(this.detail, p.sx * this.detail.width / this.crop.w, p.sy * this.detail.height / this.crop.h,
-        p.sw * this.detail.width / this.crop.w, p.sh * this.detail.height / this.crop.h, p.dx * devicePixelRatio, p.dy * devicePixelRatio, p.dw * devicePixelRatio, p.dh * devicePixelRatio);
-    }
+    const viewport = outsideView(this.cam, this.width, this.height, parseFloat(this.layer.style.left), parseFloat(this.layer.style.top));
+    if (!viewport) return undefined;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const copy = (source: HTMLCanvasElement, crop: Crop | null) => {
+      if (!crop || source.style.visibility !== "visible") return;
+      const p = outsideProjection(crop, viewport, this.cam.s);
+      if (p) ctx.drawImage(source, p.sx * source.width / crop.w, p.sy * source.height / crop.h, p.sw * source.width / crop.w, p.sh * source.height / crop.h, p.dx, p.dy, p.dw, p.dh);
+    };
+    if (!this.previewCrop && this.preview.style.visibility === "visible") ctx.drawImage(this.preview, 0, 0, this.width, this.height);
+    else copy(this.preview, this.previewCrop);
+    copy(this.detail, this.crop);
     return canvas;
   }
 

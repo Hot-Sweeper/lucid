@@ -12,7 +12,7 @@ const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, 
 const ROW = ".th-row[data-id], .rail-th[data-id]";
 
 export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFor: (id: string) => ThreadRef | null,
-  office?: { zone(x: number, y: number): string | null; preview(room: string | null): void; place(id: string, room: string): boolean }) {
+  office?: { hold?(active: boolean): void; zone(x: number, y: number): string | null; preview(room: string | null): void; place(id: string, room: string): boolean }) {
   for (const box of containers) {
     box.addEventListener("pointerdown", (e) => start(e, box));
     // Logos and selected text otherwise start Chromium's native drag, which cancels
@@ -38,6 +38,7 @@ export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFo
     try { row.setPointerCapture(e.pointerId); } catch {}
 
     const begin = () => {
+      office?.hold?.(true);
       document.body.classList.add("th-dragging");
       window.getSelection()?.removeAllRanges();
       row.classList.add("th-dragsrc");
@@ -91,6 +92,7 @@ export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFo
       row.classList.remove("th-dragsrc");
       chat.dragOver(null, null);
       office?.preview(null);
+      if (ghost) office?.hold?.(false);
     };
 
     // nothing happens: the copy glides back to the row it came from

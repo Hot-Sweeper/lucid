@@ -820,3 +820,16 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .cp-plan li { padding: 4px 0; line-height: 1.45; overflow-wrap: anywhere; }
 .cp-plan li[data-status="completed"] { color: var(--ink-3); text-decoration: line-through; }
 .cp-plan li span { color: var(--ink-3); font-size: 11px; margin-right: 7px; }
+
+/* Office controls share the existing room list; only an active drop is outlined. */
+.room-list .room-list-row { display: flex; align-items: center; gap: 1px; min-width: 0; }
+.room-list .room-open { flex: 1; min-width: 0; width: auto; }
+.room-list .room-grab { flex: none; width: 28px; justify-content: center; padding: 7px 4px; cursor: grab; color: var(--ink-3); touch-action: none; }
+.room-list .room-fold { flex: none; width: 43px; justify-content: center; padding: 7px 3px; font-size: 11px; color: var(--ink-2); }
+.room-list .room-fold[aria-pressed="true"] { color: var(--ink); }
+.room-sign-hit[data-room-id]:not([data-room-id="main"]) { cursor: grab; touch-action: none; }
+.room-dragging, .room-dragging * { cursor: grabbing !important; user-select: none !important; }
+.room-drag-source { opacity: .65; }
+.room-drag-ghost { position: fixed; z-index: 1000000; pointer-events: none; max-width: min(280px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: hidden; padding: 8px 11px; white-space: pre-line; overflow-wrap: anywhere; border-radius: 6px; background: var(--panel, #202735); color: var(--ink); font: 12px/1.5 var(--font); box-shadow: 0 3px 14px #0004; }
+.room-drop-preview { position: fixed; z-index: 999999; box-sizing: border-box; pointer-events: none; overflow: hidden; border: 2px dashed var(--accent); border-left-style: solid; color: var(--ink); background: transparent; padding: 4px; font: 11px/1.3 var(--font); }
+.room-drop-preview.room-drop-after { border-left-style: dashed; border-right-style: solid; }

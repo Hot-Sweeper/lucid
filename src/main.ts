@@ -33,6 +33,8 @@ import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
 import { OfficeTodo, type RawTask } from "./office/todo";
 import { wireThreadDrag } from "./office/thread-drag";
+import { wireRoomDrag } from "./office/room-drag";
+import { movableRoom } from "./office/room-order";
 import type { ThreadRef } from "./office/thread-ref";
 import { foldButton, foldSection, setRail } from "./office/sidebar";
 import openaiLogo from "./assets/openai.svg";
@@ -141,12 +143,12 @@ let selectedDesk: Desk | null = null;
 (window as any).__world = world; // debug handle for test runs
 const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), conversationPage: (id, options) => (api as any).conversationPage(id, options), sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), t3: (window as any).lucidT3 });
 // the sidebar and the chat are columns beside the scene, so the camera always fits what is left (see World)
-world.onFocus = (d) => { if (d) { chat.open(d); chat.setView(world.focusMode); pushStatus(d); } };
+world.onFocus = (d) => { if (d) { world.revealThread(d.threadId); chat.open(d); chat.setView(world.focusMode); pushStatus(d); } };
 // a robot's question, answered from its chat (see openAnswer)
 const answer = new AnswerCard(chat, { pending: (id) => (window as any).lucid.pendingRequests(id), t3: (window as any).lucidT3, advice: (rid) => delegate.advice.get(rid) ?? null });
 (window as any).__answer = answer; // isolated answer-form fixture handle
 // a chat opened without a desk (questions room, follow chip) closes itself
-chat.onClose = () => { chat.close(); world.unfocus(); };
+chat.onClose = () => { chat.close(); world.unfocus(); world.revealThread(null); };
 chat.onToggleView = () => {
   const d = world.focusDesk;
   if (!d) return;
@@ -169,20 +171,50 @@ console.error = (...a: any[]) => { (window as any).__errs.push(a.map(String).joi
 // --- rooms --------------------------------------------------------------------------
 world.onRooms = (rooms: Room[]) => {
   const list = $("room-list");
-  const html = rooms.map((r) => `
-    <li><button type="button" data-room="${r.id}">
-      ${r.icon ? `<img src="${r.icon}" alt="">` : `<span class="dot ${r.kind}"></span>`}
-      <span class="rt">${esc(r.title)}</span><span class="rc">${r.threadIds.length || ""}</span>
-    </button></li>`).join("");
-  if (list.dataset.html !== html) { list.innerHTML = html; list.dataset.html = html; }
+  const ordered = [...rooms.filter((r) => !movableRoom(r.id)), ...world.orderRooms(rooms.filter((r) => movableRoom(r.id)))];
+  const html = ordered.map((r) => {
+    const office = ["main", "project", "freelance"].includes(r.kind);
+    const pin = office && world.isRoomExpanded(r.id);
+    return `<li class="room-list-row">
+      ${movableRoom(r.id) ? `<button type="button" class="room-grab" data-room-id="${esc(r.id)}" aria-label="Move ${esc(r.title)}" title="Drag to reorder ${esc(r.title)}. Click for move options."><svg viewBox="0 0 10 16" width="8" height="13" aria-hidden="true"><path d="M3 3h.01M7 3h.01M3 8h.01M7 8h.01M3 13h.01M7 13h.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>` : ""}
+      <button type="button" class="room-open" data-room="${esc(r.id)}" title="${esc(r.title)}${r.collapsed ? ": open quiet office" : ""}">
+        ${r.icon ? `<img src="${esc(r.icon)}" alt="">` : `<span class="dot ${r.kind}"></span>`}
+        <span class="rt">${esc(r.title)}</span><span class="rc">${r.threadIds.length || ""}</span>
+      </button>
+      ${office ? `<button type="button" class="room-fold" data-fold-room="${esc(r.id)}" aria-pressed="${!!pin}" aria-label="${pin ? "Auto-size" : "Keep open"} ${esc(r.title)}" title="${pin ? "Auto-size office. Active work stays visible." : "Keep office open"}">${pin ? "Auto" : r.collapsed ? "Open" : "Keep"}</button>` : ""}
+    </li>`;
+  }).join("");
+  if (list.dataset.html !== html) {
+    const focused = document.activeElement as HTMLElement | null;
+    const key = focused && list.contains(focused) ? { room: focused.dataset.room, grip: focused.dataset.roomId, fold: focused.dataset.foldRoom } : null;
+    list.innerHTML = html; list.dataset.html = html;
+    if (key) {
+      const selector = key.room ? `[data-room="${CSS.escape(key.room)}"]` : key.grip ? `.room-grab[data-room-id="${CSS.escape(key.grip)}"]` : key.fold ? `[data-fold-room="${CSS.escape(key.fold)}"]` : "";
+      if (selector) list.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
+    }
+  }
 };
 $("room-list").addEventListener("click", (e) => {
-  const b = (e.target as HTMLElement).closest("[data-room]") as HTMLElement | null;
+  const grip = (e.target as HTMLElement).closest<HTMLElement>(".room-grab[data-room-id]");
+  if (grip) { const room = world.rooms.find((r) => r.id === grip.dataset.roomId); if (room) { const b = grip.getBoundingClientRect(); world.onRoomMenu(room, b.left, b.bottom); } return; }
+  const fold = (e.target as HTMLElement).closest<HTMLElement>("[data-fold-room]");
+  if (fold) { const id = fold.dataset.foldRoom!; world.setRoomExpanded(id, !world.isRoomExpanded(id)); return; }
+  const b = (e.target as HTMLElement).closest<HTMLElement>("[data-room]");
   if (!b) return;
+  if (world.rooms.some((r) => r.id === b.dataset.room && ["main", "project", "freelance"].includes(r.kind))) world.setRoomExpanded(b.dataset.room!, true);
   world.showRoom(b.dataset.room!);
   // the questions room: answer the robot at the front of the line
   if (world.rooms.find((r) => r.id === b.dataset.room)?.kind === "queue") { const t = world.lastData?.threads.find((x) => x.question); if (t) openAnswer(t.id); }
 });
+$("room-list").addEventListener("contextmenu", (e) => {
+  const row = (e.target as HTMLElement).closest<HTMLElement>("li");
+  const id = row?.querySelector<HTMLElement>("[data-room]")?.dataset.room;
+  const room = world.rooms.find((r) => r.id === id);
+  if (!room || !["main", "project", "freelance"].includes(room.kind)) return;
+  e.preventDefault(); world.onRoomMenu(room, e.clientX, e.clientY);
+});
+wireRoomDrag({ scene: $("scene"), list: $("room-list"), rooms: () => world.orderRooms(world.rooms.filter((r) => movableRoom(r.id))),
+  hold: (active) => { if (active) world.stopCameraMotion(); world.setLayoutHeld(active); }, reorder: (id, before) => world.reorderRoom(id, before) });
 $("overview").addEventListener("click", () => world.overview());
 $("park").addEventListener("click", () => world.showPark());
 
@@ -288,6 +320,7 @@ async function refresh() {
 // --- office and desk options -------------------------------------------------------------
 function setupMenus() {
   world.onAddDesk = (room) => {
+    world.setRoomExpanded(room, true);
     world.extra.set(room, (world.extra.get(room) ?? 0) + 1);
     world.seats.get(room)?.push(null);
     saveSettings();
@@ -352,14 +385,25 @@ function setupMenus() {
   (window as any).__decorate = decorate; // debug handle for test runs
   world.onRoomMenu = (room, x, y) => {
     const deco = { label: "Decorate", run: () => decorate(room) };
-    if (room.kind === "main") { showMenu(x, y, room.title, [deco]); return; }
+    const policy = { label: world.isRoomExpanded(room.id) ? "Auto-size office" : "Keep office open", run: () => world.setRoomExpanded(room.id, !world.isRoomExpanded(room.id)) };
+    const order = world.orderRooms(world.rooms.filter((r) => movableRoom(r.id)));
+    const index = order.findIndex((r) => r.id === room.id);
+    const moveOffice = (before: string | null) => {
+      world.reorderRoom(room.id, before);
+      $("room-list").querySelector<HTMLElement>(`.room-grab[data-room-id="${CSS.escape(room.id)}"]`)?.focus({ preventScroll: true });
+    };
+    const moves = [
+      ...(index > 0 ? [{ label: "Move office earlier", run: () => moveOffice(order[index - 1].id) }] : []),
+      ...(index >= 0 && index < order.length - 1 ? [{ label: "Move office later", run: () => moveOffice(order[index + 2]?.id ?? null) }] : []),
+    ];
+    if (room.kind === "main") { showMenu(x, y, room.title, [deco, policy]); return; }
     if (room.kind === "freelance") {
-      showMenu(x, y, "Freelancers", [deco, { label: "Hide this office", run: () => { world.hidden.add("freelance"); saveSettings(); void refresh(); } }]);
+      showMenu(x, y, "Freelancers", [deco, policy, ...moves, { label: "Hide this office", run: () => { world.hidden.add("freelance"); saveSettings(); void refresh(); } }]);
       return;
     }
     const pid = room.id.slice(2);
     showMenu(x, y, room.title, [
-      deco,
+      deco, policy, ...moves,
       { label: "Hide this office", run: () => { world.hidden.add(pid); saveSettings(); void refresh(); } },
       { label: "Remove project from T3", danger: true, run: async () => {
         const ok = await confirmDialog(`Remove ${room.title} from T3?`,
@@ -410,8 +454,10 @@ mountEnvironments($("environment-body"), (fresh) => (api as any).environments(fr
     world.overview();
   }).catch((error: Error) => console.warn("Building could not be selected", error.message));
 });
-const settings: { seats?: Record<string, (string | null)[]>; hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { roomOrder?: string[]; expandedRooms?: string[]; seats?: Record<string, (string | null)[]>; hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
+world.roomOrder = Array.isArray(settings.roomOrder) ? settings.roomOrder.filter((id) => typeof id === "string" && movableRoom(id)) : [];
+world.expandedRooms = new Set(Array.isArray(settings.expandedRooms) ? settings.expandedRooms.filter((id) => typeof id === "string") : []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));
 world.themes = new Map(Object.entries(settings.themes ?? {}));
 world.level = settings.level ?? 0;
@@ -542,6 +588,8 @@ chat.setCollapsed(!!ui.chatTab, false);
 applyLayout();
 chat.onCollapse = (on, animate) => { ui.chatTab = on; saveSettings(); slideChat(animate); };
 const saveSettings = () => {
+  settings.roomOrder = [...world.roomOrder];
+  settings.expandedRooms = [...world.expandedRooms];
   settings.hidden = [...world.hidden];
   settings.extra = Object.fromEntries(world.extra);
   settings.themes = Object.fromEntries(world.themes);
@@ -551,6 +599,7 @@ const saveSettings = () => {
   renderHidden();
 };
 world.onLayoutChange = saveSettings;
+world.onRoomOrder = () => { saveSettings(); world.onRooms(world.rooms); };
 function renderHidden() {
   const box = $("hidden-offices");
   const ids = [...world.hidden];
@@ -782,6 +831,7 @@ watchDaily((p) => { world.eventName = p?.event?.name ?? ""; world.paintEvent(); 
 
 // "Chat" on the follow chip: the robot's desk if it has one, otherwise its conversation on its own
 function openDetachedChat(id: string, info?: ThreadInfo) {
+  world.revealThread(id);
   const t = world.lastData?.threads.find((x) => x.id === id);
   if (!t) return;
   const profile = world.roster.byThread(id);
@@ -798,6 +848,7 @@ world.onFollowChat = (id) => {
 
 // A walking robot clicked while a chat is open: the chat follows to that robot, the camera follows its walk
 world.onWatchChat = (id) => {
+  world.revealThread(id);
   const d = world.deskFor(id);
   if (d && !d.el.classList.contains("arriving")) { chat.open(d); chat.setView("desk"); pushStatus(d); return; }
   world.onFollowChat(id);
@@ -807,6 +858,7 @@ world.onWatchChat = (id) => {
 // has one, otherwise beside the questions room where it waits in line.
 const needsAnswer = (id: string) => !!world.lastData?.threads.find((t) => t.id === id)?.question;
 function openAnswer(id: string) {
+  world.revealThread(id);
   const d = world.deskFor(id);
   if (d && !d.el.classList.contains("arriving")) world.focusOn(d);
   else {
@@ -868,6 +920,7 @@ $("th-list").addEventListener("click", (e) => {
   if (b) openThread(b.dataset.id!);
 });
 function openThread(id: string) {
+  world.revealThread(id);
   if (needsAnswer(id)) { openAnswer(id); return; }
   const d = world.deskFor(id);
   if (d && !d.el.classList.contains("arriving")) { world.focusOn(d); return; }
@@ -922,6 +975,7 @@ function threadRef(id: string): ThreadRef | null {
   return { id, title: t.title || "Untitled thread", project: !p || p.scratch ? "No project" : p.title, provider: t.provider };
 }
 wireThreadDrag([$("th-list"), $("rail-list")], chat, threadRef, {
+  hold: (active) => { if (active) world.stopCameraMotion(); world.setLayoutHeld(active); },
   zone: (x, y) => {
     const button = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-room]");
     const room = button?.dataset.room;

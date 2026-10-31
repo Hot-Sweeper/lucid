@@ -5,6 +5,7 @@ import { drawFloor, drawWall, drawDecor, placeDecor, decorFootprint, DECOR } fro
 import { furniturePath, type Footprint } from "./navigation";
 import { officePlan, hallRoute, inHall, type OfficePlan } from "./floor-plan";
 import { buildingFootprint, footprintCovers } from "./building-footprint";
+import { hasOfficeWork, reserveRoomSeats, projectRoomSeats, physicalSeatIndices, reorderPhysicalSeats, layoutMeeting, FOLDED_OFFICE } from "./room-policy";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
 import { Walker, SIT_HEAD, pause, type Facing } from "../world/walker";
@@ -24,6 +25,7 @@ import { beginSystem, endSystem } from "../perf/metrics";
 import { cafeTiles, plankJoints } from "../perf/floor-paths";
 import { vectorOwner, releaseVectors } from "../perf/shared-vector";
 import { cacheStaticArt, updateStaticArt, invalidateStaticArt, destroyStaticArt } from "../perf/static-art";
+import { orderedRooms, moveRoomOrder, movableRoom } from "./room-order";
 
 // The whole building, seen fake top-down: rooms laid out on a floor plan, one shared camera.
 // Offices hold desks (one per thread). Desks live in one layer above the rooms, so a robot
@@ -40,7 +42,8 @@ export type WProject = { id: string; title: string; root: string; icon: string |
 export type WorldData = { projects: WProject[]; threads: WThread[]; models?: Record<string, string[]>; prices?: Record<string, { input: number; output: number }>; shipped?: { total: number; today: number } };
 
 export type RoomKind = "main" | "project" | "freelance" | "break" | "queue";
-export type Room = { id: string; kind: RoomKind; title: string; icon: string | null; x: number; y: number; w: number; h: number; el: HTMLElement; threadIds: string[] };
+export type Room = { id: string; kind: RoomKind; title: string; icon: string | null; x: number; y: number; w: number; h: number; el: HTMLElement; threadIds: string[]; collapsed: boolean };
+type PhysicalRoomPlan = { id: string; kind: RoomKind; title: string; icon: string | null; threads: (WThread | null)[]; slots: number; w: number; h: number; collapsed: boolean };
 
 export interface RoomExtension {
   el: HTMLElement;
@@ -156,6 +159,17 @@ export class World {
       if (path) pts.push(...path); else blocked = true;
     };
     const startOut = this.outside(p), endOut = !toRoom;   // the park, or away
+    const meeting = this.physicalLayoutHeld && this.layoutParticipants.has(id) ? this.pendingMeeting : null;
+    if (meeting) {
+      if (meeting.outside) {
+        if (!startOut) { throughHall(this.entrance()); pts.push(this.parkDoor); }
+        pts.push({ x: meeting.x, y: meeting.y });
+      } else {
+        if (startOut) pts.push(this.parkDoor, this.entrance());
+        throughHall(meeting);
+      }
+      return { pts, desk: null as Desk | null, deskAt: null as Pt | null, blocked, revision: this.layoutRevision, rendezvous: true };
+    }
     if (startOut && !endOut) pts.push(this.parkDoor, this.entrance());
     if (!startOut && endOut) { throughHall(this.entrance()); pts.push(this.parkDoor); }
     let deskAt: Pt | null = null;
@@ -165,7 +179,7 @@ export class World {
       if (desk) { deskAt = this.deskPos(desk); pts.push(...this.toSeat(toRoom, deskAt)); }
       else pts.push(inn);
     } else if (to !== "park") pts.push({ x: this.parkDoor.x + 110, y: this.parkDoor.y });   // away down the path
-    return { pts, desk, deskAt, blocked, revision: this.layoutRevision };
+    return { pts, desk, deskAt, blocked, revision: this.layoutRevision, rendezvous: false };
   }
 
   private spawn(t: { id: string; provider: string; model?: string | null }, at: Pt, face: Facing, outdoors = this.outside(at)) {
@@ -210,12 +224,13 @@ export class World {
   }
 
   private furniture(r: Room): Footprint[] {
+    if (r.collapsed) return [];
     const blocks: Footprint[] = [];
     for (const d of this.slotDesks.values()) if (d.room === r.id) {
       const p = this.deskPos(d);
       blocks.push({ x: p.x + 34, y: p.y + 180, w: 332, h: 88 }, { x: p.x + 164, y: p.y + 285, w: 72, h: 64 });
     }
-    const slots = this.seats.get(r.id)?.length ?? 0;
+    const slots = this.physicalPlans.find((p) => p.id === r.id)?.slots ?? 0;
     for (const p of officeDecor(r, slots, this.themes.get(r.id), this.level)) {
       const b = decorFootprint(p); if (b) blocks.push({ ...b, x: b.x + r.x, y: b.y + r.y });
     }
@@ -289,6 +304,15 @@ export class World {
       if (!cur || this.trips.get(t.id) !== trip) return;
       w = cur;
       const end = plan.pts[plan.pts.length - 1];
+      if (plan.rendezvous) {
+        this.reconcilePhysicalLayout();
+        await Promise.resolve();
+        if (this.trips.get(t.id) !== trip) return;
+        if (plan.revision === this.layoutRevision && this.physicalLayoutHeld && (!end || Math.hypot(w.x - end.x, w.y - end.y) <= 8)) await this.waitForRoute(plan.revision);
+        if (this.trips.get(t.id) !== trip) return;
+        plan = this.route({ x: w.x, y: w.y }, t.id, to);
+        continue;
+      }
       const d = plan.desk, moved = !!d && (this.desks.get(t.id) !== d || !d.el.isConnected || Math.hypot(this.deskPos(d).x - plan.deskAt!.x, this.deskPos(d).y - plan.deskAt!.y) > 1);
       if (plan.revision === this.layoutRevision && !moved && (!end || Math.hypot(w.x - end.x, w.y - end.y) <= 8)) {
         if (d) {
@@ -328,6 +352,7 @@ export class World {
     this.trips.delete(t.id);
     this.transit.delete(t.id);
     this.pushExt();
+    this.reconcilePhysicalLayout();
   }
 
   /** A room's walker reached its door on the way out (world coordinates): the hall walker takes over. */
@@ -466,6 +491,18 @@ export class World {
   onSelect: (d: Desk | null) => void = () => {};
   onSelectThread: (id: string) => void = () => {};
   onRooms: (rooms: Room[]) => void = () => {};
+  roomOrder: string[] = [];
+  onRoomOrder: (order: string[]) => void = () => {};
+  orderRooms<T extends { id: string }>(rooms: T[]) { return orderedRooms(rooms, this.roomOrder); }
+  reorderRoom(id: string, before: string | null) {
+    const current = this.orderRooms(this.rooms.filter((r) => movableRoom(r.id))).map((r) => r.id);
+    const next = moveRoomOrder(this.roomOrder, current, id, before);
+    if (!next) return false;
+    this.roomOrder = next;
+    if (this.lastData) this.update(this.lastData);
+    this.onRoomOrder([...next]);
+    return true;
+  }
   ext: Partial<Record<"break" | "queue", RoomExtension>> = {};
   extFactory: Partial<Record<"break" | "queue", (host: HTMLElement, w: number, h: number) => RoomExtension>> = {};
   private lastKey = "";
@@ -473,6 +510,41 @@ export class World {
   private placed = new Map<string, { room: string; pending?: { room: string; since: number } }>();
   seats = new Map<string, (string | null)[]>();   // persistent reservations, including robots on a break
   private slotDesks = new Map<string, Desk>();              // "room#index" -> desk standing there
+  expandedRooms = new Set<string>();
+  private revealedThread: string | null = null;
+  private layoutHeld = false;
+  private physicalPlans: PhysicalRoomPlan[] = [];
+  private physicalLayoutHeld = false;
+  private layoutParticipants = new Set<string>();
+  private pendingMeeting: ReturnType<typeof layoutMeeting> | null = null;
+  private layoutUpdateQueued = false;
+  isRoomExpanded(id: string) { return this.expandedRooms.has(id); }
+  setRoomExpanded(id: string, expanded: boolean) {
+    if (expanded) this.expandedRooms.add(id); else this.expandedRooms.delete(id);
+    if (this.lastData) this.update(this.lastData);
+    this.onLayoutChange();
+  }
+  revealThread(id: string | null) {
+    if (this.revealedThread === id) return;
+    this.revealedThread = id;
+    const t = this.lastData?.threads.find((t) => t.id === id);
+    if (t) { const home = this.homeForThread(t, this.lastData!.projects); this.hidden.delete(home.startsWith("p:") ? home.slice(2) : home); }
+    if (this.lastData) this.update(this.lastData);
+  }
+  setLayoutHeld(held: boolean) {
+    const was = this.layoutHeld; this.layoutHeld = held;
+    if (was && !held && this.lastData) this.update(this.lastData);
+  }
+  private homeForThread(t: WThread, projects: WProject[]) {
+    const saved = this.homes.get(t.id), p = projects.find((p) => p.id === t.projectId);
+    return saved === "main" || saved === "freelance" || (saved?.startsWith("p:") && projects.some((p) => p.id === saved.slice(2)))
+      ? saved : (!p || p.scratch ? "freelance" : `p:${p.id}`);
+  }
+  private reconcilePhysicalLayout(force = false) {
+    if ((!this.physicalLayoutHeld && !force) || this.layoutUpdateQueued) return;
+    this.layoutUpdateQueued = true;
+    queueMicrotask(() => { this.layoutUpdateQueued = false; if (this.lastData) this.update(this.lastData); });
+  }
 
   // A robot only changes rooms once the new state has lasted a while, so brief flickers
   // (a turn that shows as queued, a status refresh) never make desks jump around.
@@ -482,7 +554,7 @@ export class World {
     if (cur.room === want) { cur.pending = undefined; return want; }
     // questions and new work never wait: the robot heads over right away
     // and an answered robot that is working again leaves the question line at once
-    const urgent = want === "queue" || (t.runStatus === "running" && (cur.room === "break" || cur.room === "queue"));
+    const urgent = want === "queue" || ((hasOfficeWork(t) || this.revealedThread === t.id) && (cur.room === "break" || cur.room === "queue")) || (want === "break" && !hasOfficeWork(t) && this.revealedThread !== t.id);
     if (urgent) { this.placed.set(t.id, { room: want }); return want; }
     if (!cur.pending || cur.pending.room !== want) cur.pending = { room: want, since: Date.now() };
     if (Date.now() - cur.pending.since > 20000) { this.placed.set(t.id, { room: want }); return want; }
@@ -509,47 +581,46 @@ export class World {
   // --- layout -------------------------------------------------------------------
   update(data: WorldData) {
     this.lastData = data;
-    if (this.deskDragActive) return; // live refresh must never replace a desk under the pointer
+    if (this.deskDragActive || this.layoutHeld) return; // no physical layout changes under any held drag
     const seatsBefore = JSON.stringify([...this.seats]);
     const byProject = new Map(data.projects.map((p) => [p.id, p]));
+    const byThread = new Map(data.threads.map((t) => [t.id, t]));
+    const previousPhysical = new Map(this.physicalPlans.flatMap((p) => p.threads.flatMap((t) => t ? [[t.id, p.id] as const] : [])));
+    const retiringIds = new Set([...this.desks].filter(([id, desk]) => {
+      if (this.roomOf.get(id) !== desk.room) return false;
+      const t = byThread.get(id);
+      return !t || (!!t.question && desk.room !== "queue") || (!hasOfficeWork(t) && this.revealedThread !== id) || this.homeForThread(t, data.projects) !== desk.room;
+    }).map(([id]) => id));
+    const indoorJourney = [...this.transit.values()].some((w) => !this.outside(w));
+    const wasHeld = this.physicalLayoutHeld;
+    let holdPhysical = this.hasLayout && this.physicalPlans.length > 0 && (retiringIds.size > 0 || indoorJourney || this.exits.size > 0 || this.layoutParticipants.size > 0);
+    const classifiedRoom = new Map<string, string>();
     const queue: WThread[] = [], main: WThread[] = [], brk: WThread[] = [], rest: WThread[] = [];
     const perProject = new Map<string, WThread[]>();
     const freelance: WThread[] = [];
+    const heldPark: WThread[] = [];
     const residents = new Map<string, WThread[]>();
     let orchT: WThread | null = null;
     for (const t of data.threads) {
       if (t.id === this.orchThread) { orchT = t; continue; }   // no desk: it has the chair in the questions room
-      // A scheduled robot with a long wait until its next run spends it in the break room;
-      // with a short wait it stays at its desk and kills time there.
-      const wait = t.schedule?.nextRunAt ? Date.parse(t.schedule.nextRunAt) - Date.now() : null;
-      const p = byProject.get(t.projectId);
-      const savedHome = this.homes.get(t.id);
-      const home = savedHome === "main" || savedHome === "freelance" || (savedHome?.startsWith("p:") && byProject.has(savedHome.slice(2)))
-        ? savedHome : (!p || p.scratch ? "freelance" : `p:${p.id}`);
-      // A break changes where the robot is, never who owns its furniture.
-      if (!t.settled || t.runStatus === "running" || t.pinned || this.homes.has(t.id) || this.seats.get(home)?.includes(t.id)) {
-        if (!residents.has(home)) residents.set(home, []);
-        residents.get(home)!.push(t);
-      }
-      // A robot without work takes breaks: after 10 quiet minutes it spends about a third of
-      // every half hour in the break room (each on its own rhythm), and comes back for work.
-      const quietFor = Date.now() - Date.parse(t.updatedAt);
-      const watched = this.focusDesk?.threadId === t.id || this.selected?.threadId === t.id;
-      let rhythm = 0;
-      for (const ch of t.id) rhythm = (rhythm * 31 + ch.charCodeAt(0)) % 997;
-      const onBreak = !watched && !t.settled && !t.question && t.runStatus !== "running" && quietFor > 10 * 60 * 1000
-        && (Math.floor(Date.now() / 60000) + rhythm) % 30 < 11;
-      const want = t.question ? "queue"
-        : onBreak ? "break"
-        : t.runStatus === "running" || t.pinned ? home
-        : wait != null && wait > 15 * 60 * 1000 ? "break"
-        : wait != null ? home
-        : t.settled ? "break" : home;
-      const room = this.settleRoom(t, want);
+      const home = this.homeForThread(t, data.projects);
+      // Keep historical reservations without keeping their computers and room floor alive.
+      if (!residents.has(home)) residents.set(home, []);
+      residents.get(home)!.push(t);
+      const want = t.question ? "queue" : hasOfficeWork(t) || this.revealedThread === t.id ? home : "break";
+      // Existing actors finish their old-floor journey first. A newly started robot
+      // waits in its current room until its physical desk can safely be opened.
+      const currentRoom = this.roomOf.get(t.id) ?? null;
+      const barrier = wasHeld && !retiringIds.has(t.id) && !this.transit.has(t.id) && !this.exits.has(t.id);
+      const deferred = (barrier && want !== currentRoom) || (holdPhysical && want !== "queue" && want !== "break" && !previousPhysical.has(t.id));
+      const room = deferred ? this.roomOf.get(t.id) ?? null : this.settleRoom(t, want);
+      if (!room) continue;
+      classifiedRoom.set(t.id, room);
       if (room === "queue") queue.push(t);
       else if (room === "main") main.push(t);
       else if (room === "break") { if (!t.settled) brk.unshift(t); else brk.push(t); }   // visitors on a break get a spot first
       else if (room === "freelance") freelance.push(t);
+      else if (room === "park") heldPark.push(t);
       else {
         const pid = room.slice(2);
         if (!perProject.has(pid)) perProject.set(pid, []);
@@ -562,51 +633,79 @@ export class World {
       // a robot hired at a specific desk sits exactly there
       const ps = this.pendingSeat;
       if (ps && ps.room === roomId && ps.threadId && list.some((t) => t.id === ps.threadId)) {
-        while (prev.length <= ps.index) prev.push(null);
+        const physical = this.physicalPlans.find((p) => p.id === roomId);
+        const priorIds = physical ? Array.from({ length: physical.slots }, (_, i) => physical.threads[i]?.id ?? null) : [];
+        const index = physicalSeatIndices(prev, priorIds)[ps.index] ?? prev.length;
+        while (prev.length <= index) prev.push(null);
         const old = prev.indexOf(ps.threadId);
         if (old >= 0) prev[old] = null;
-        const displaced = prev[ps.index];
-        prev[ps.index] = ps.threadId;
+        const displaced = prev[index];
+        prev[index] = ps.threadId;
         if (displaced && displaced !== ps.threadId) prev.push(displaced);
         this.pendingSeat = null;
       }
-      const ids = new Set(list.map((t) => t.id));
-      const seen = new Set<string>();
-      const seats: (string | null)[] = prev.map((id) => {
-        if (!id || !ids.has(id) || seen.has(id)) return null;
-        seen.add(id); return id;
-      });
-      for (const t of [...list].sort((a, b) => a.id.localeCompare(b.id))) {
-        if (seats.includes(t.id)) continue;
-        const free = seats.indexOf(null);
-        if (free >= 0) seats[free] = t.id; else seats.push(t.id);
-      }
+      const seats = reserveRoomSeats(prev, list.map((t) => t.id));
       // Keep holes and trailing slots. Compacting them silently changes everyone else's seat.
       this.seats.set(roomId, seats);
       const byId = new Map(list.map((t) => [t.id, t]));
       return seats.map((id) => (id ? byId.get(id) ?? null : null));
     };
-    type Plan = { id: string; kind: RoomKind; title: string; icon: string | null; threads: (WThread | null)[]; slots: number; w: number; h: number };
-    const office = (id: string, kind: RoomKind, title: string, icon: string | null, threads: WThread[], min: number): Plan => {
+    type Plan = PhysicalRoomPlan;
+    const office = (id: string, kind: RoomKind, title: string, icon: string | null, threads: WThread[]): Plan => {
       const extra = this.extra.get(id) ?? 0;
-      const seated = seatOrder(id, residents.get(id) ?? threads);
-      const slots = Math.max(min + extra, seated.length);
-      while (this.seats.get(id)!.length < slots) this.seats.get(id)!.push(null);
-      const { w, h } = officeSize(slots, needsLounge(this.themes.get(id), this.level) ? LOUNGE : 0);
-      return { id, kind, title, icon, threads: seated, slots, w, h };
+      const reserved = residents.get(id) ?? threads;
+      seatOrder(id, reserved);
+      const projection = projectRoomSeats(this.seats.get(id)!, reserved, this.expandedRooms.has(id), this.revealedThread, extra);
+      const { slots, collapsed } = projection;
+      const { w, h } = collapsed ? FOLDED_OFFICE : officeSize(slots, needsLounge(this.themes.get(id), this.level) ? LOUNGE : 0);
+      return { id, kind, title, icon, threads: projection.threads, slots, w, h, collapsed };
     };
-    const top: Plan[] = [
-      { id: "queue", kind: "queue", title: "Questions for you", icon: null, threads: queue, slots: 0, w: 720, h: 800 },
-      office("main", "main", "Main office", null, main, 3),
-      { id: "break", kind: "break", title: "Break room", icon: null, threads: brk.slice(0, 8), slots: 0, w: 1900, h: 800 },
+    let top: Plan[] = [
+      { id: "queue", kind: "queue", title: "Questions for you", icon: null, threads: queue, slots: 0, w: 720, h: 800, collapsed: false },
+      office("main", "main", "Main office", null, main),
+      { id: "break", kind: "break", title: "Break room", icon: null, threads: brk.slice(0, 8), slots: 0, w: 1900, h: 800, collapsed: false },
     ];
-    const bottom: Plan[] = [];
+    let bottom: Plan[] = [];
     for (const p of [...data.projects].filter((p) => !p.scratch).sort((a, b) => a.id.localeCompare(b.id))) {
       const pid = p.id, list = perProject.get(pid) ?? [];
       if (this.hidden.has(pid)) continue;
-      bottom.push(office(`p:${pid}`, "project", p.title, p.icon, list, 2));
+      bottom.push(office(`p:${pid}`, "project", p.title, p.icon, list));
     }
-    if (!this.hidden.has("freelance")) bottom.push(office("freelance", "freelance", "Freelancers", null, freelance, 2));
+    if (!this.hidden.has("freelance")) bottom.push(office("freelance", "freelance", "Freelancers", null, freelance));
+    bottom = this.orderRooms(bottom);
+    const policyKey = (plans: Plan[]) => plans.map((p) => `${p.id}:${p.w}:${p.h}:${p.slots}:${p.slots ? p.threads.map((t) => t?.id ?? "").join(",") : ""}`).join("|");
+    const desiredPlans = [...top, ...bottom];
+    const physicalChange = policyKey(desiredPlans) !== policyKey(this.physicalPlans);
+    const desiredFloor = officePlan(top, bottom, HALL, GAP);
+    const oldMeeting = this.pendingMeeting;
+    if (holdPhysical && physicalChange) {
+      for (const id of retiringIds) this.layoutParticipants.add(id);
+      for (const id of this.exits.keys()) this.layoutParticipants.add(id);
+      for (const [id, walker] of this.transit) if (!this.outside(walker)) this.layoutParticipants.add(id);
+      for (const id of this.layoutParticipants) if (!this.transit.has(id) && !this.exits.has(id) && !retiringIds.has(id)) this.layoutParticipants.delete(id);
+      this.pendingMeeting = layoutMeeting(this.floorPlan, desiredFloor, HALL);
+      const meeting = this.pendingMeeting;
+      const ready = [...this.layoutParticipants].every((id) => {
+        const actor = this.transit.get(id);
+        return !!actor && !this.exits.has(id) && Math.hypot(actor.x - meeting.x, actor.y - meeting.y) <= 8;
+      });
+      if (ready) holdPhysical = false;
+    } else holdPhysical = false;
+    this.physicalLayoutHeld = holdPhysical;
+    if (!holdPhysical) { this.layoutParticipants.clear(); this.pendingMeeting = null; }
+    const meetingChanged = oldMeeting?.x !== this.pendingMeeting?.x || oldMeeting?.y !== this.pendingMeeting?.y;
+    if (wasHeld !== holdPhysical || meetingChanged) {
+      this.layoutRevision++;
+      for (const walker of this.transit.values()) walker.stop();
+      this.wakeRoutes();
+    }
+    if (holdPhysical) {
+      const latest = new Map([...top, ...bottom].map((p) => [p.id, p]));
+      const held = this.physicalPlans.map((p) => ({ ...p, title: latest.get(p.id)?.title ?? p.title, icon: latest.get(p.id)?.icon ?? p.icon,
+        threads: p.threads.map((t) => t ? byThread.get(t.id) ?? t : null) }));
+      top = held.filter((p) => p.kind === "queue" || p.kind === "main" || p.kind === "break");
+      bottom = held.filter((p) => p.kind === "project" || p.kind === "freelance");
+    }
 
     // Full-size project offices in stable columns, joined by real cross halls.
     const rooms: Room[] = [];
@@ -622,7 +721,8 @@ export class World {
     const brkShown = brk.filter((t) => restingIds.has(t.id)).slice(0, 8);
     const idsOf = (r: Plan) => r.threads.filter((t): t is WThread => !!t).map((t) => t.id);
     const plans = [...top, ...bottom];
-    for (const r of plans) rooms.push({ id: r.id, kind: r.kind, title: r.title, icon: r.icon, ...floorPlan.rooms.get(r.id)!, el: null as any, threadIds: idsOf(r) });
+    for (const r of plans) rooms.push({ id: r.id, kind: r.kind, title: r.title, icon: r.icon, ...floorPlan.rooms.get(r.id)!, el: null as any, threadIds: idsOf(r), collapsed: r.collapsed });
+    this.physicalPlans = plans.map((p) => ({ ...p, threads: [...p.threads] }));
     this.size = floorPlan.size;
     const geometryKey = rooms.map((r) => `${r.id}:${r.x}:${r.y}:${r.w}:${r.h}`).join("|");
     if (geometryKey !== this.geometryKey) {
@@ -652,7 +752,8 @@ export class World {
         }
         if (old) { this.cull.unobserve(old.el);releaseRoomVectors(old.el);old.el.remove();oldRooms.delete(r.id); }
         const el = document.createElement("div");
-        el.className = `room room-${r.kind}`;
+        el.className = `room room-${r.kind}${r.collapsed ? " room-folded" : ""}`;
+        el.dataset.roomId = r.id;
         el.style.cssText = `left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px`;
         const make = r.kind === "break" || r.kind === "queue" ? this.extFactory[r.kind] : undefined;
         if (make) {
@@ -712,10 +813,20 @@ export class World {
         const hit = document.createElement("button");
         hit.type = "button";
         hit.className = "room-sign-hit";
-        hit.title = `${r.title} office options`;
+        hit.dataset.roomId = r.id;
+        if (r.collapsed) hit.style.width = `${r.w - 120}px`;
+        hit.title = `${r.title}${r.collapsed ? ": open office or drag to rearrange" : ": office options or drag to rearrange"}`;
         hit.setAttribute("aria-label", `${r.title} office options`);
         hit.addEventListener("click", (e) => { e.stopPropagation(); this.onRoomMenu(r, e.clientX, e.clientY); });
         r.el.appendChild(hit);
+        if (r.collapsed) {
+          const open = document.createElement("button");
+          open.type = "button"; open.className = "room-reopen-hit";
+          open.setAttribute("aria-label", `Open ${r.title} office`); open.title = `Open ${r.title} office`;
+          open.style.cssText = `position:absolute;left:${r.kind === "main" ? r.w / 2 - 34 : r.w - 78}px;top:${r.kind === "main" ? r.h - 68 : 12}px;width:68px;height:${r.kind === "main" ? 68 : 102}px;border:0;background:transparent;cursor:pointer`;
+          open.addEventListener("click", (e) => { e.stopPropagation(); this.setRoomExpanded(r.id, true); this.showRoom(r.id); });
+          r.el.appendChild(open);
+        }
       }
       this.paintClock();
     } else rooms.forEach((r, i) => (r.el = this.rooms[i]?.el ?? r.el));
@@ -737,9 +848,10 @@ export class World {
     const desksBefore = new Map<string, Pt>();
     for (const [id, d] of this.desks) if (!d.el.classList.contains("arriving")) desksBefore.set(id, this.deskPos(d));
     const nowRoom = new Map<string, string>();
-    const atWork = new Set([...main, ...freelance, ...[...perProject.values()].flat()].map((t) => t.id));
-    for (const s of slots) if (s.t && atWork.has(s.t.id)) nowRoom.set(s.t.id, s.key.split("#")[0]);
+    for (const s of slots) if (s.t && classifiedRoom.get(s.t.id) === s.key.split("#")[0]) nowRoom.set(s.t.id, s.key.split("#")[0]);
+    if (holdPhysical) for (const [id, room] of classifiedRoom) if ((room === "main" || room === "freelance" || room.startsWith("p:")) && previousPhysical.has(id) && previousPhysical.get(id) !== room) nowRoom.set(id, room);
     brkShown.forEach((t) => nowRoom.set(t.id, "break"));
+    heldPark.forEach((t) => nowRoom.set(t.id, "park"));
     queue.forEach((t) => nowRoom.set(t.id, "queue"));
     if (!this.outdoorsWet) brk.slice(8, 14).forEach((t) => { if (!nowRoom.has(t.id)) nowRoom.set(t.id, "park"); });
     const first = !this.hasLayout;
@@ -806,10 +918,13 @@ export class World {
     const wet = this.outdoorsWet;
     this.park.wet = wet;
     this.park.rainSoon = wet && !["rain", "drizzle", "storm", "snow"].includes(this.weather?.kind ?? "");
-    this.extLists = { brk: brkShown.map(info), queue: queue.map((t) => ({ ...info(t), question: t.question })), park: wet ? [] : brk.slice(8, 14).map(info), orch: orchT ? { ...info(orchT), running: orchT.runStatus === "running" } : null };
+    const parkVisitors = [...new Map([...heldPark, ...brk.slice(8, 14)].map((t) => [t.id, t])).values()];
+    this.extLists = { brk: brkShown.map(info), queue: queue.map((t) => ({ ...info(t), question: t.question })), park: wet ? [] : parkVisitors.map(info), orch: orchT ? { ...info(orchT), running: orchT.runStatus === "running" } : null };
     this.pushExt();
+    this.recull();
     this.onRooms(rooms);
     if (JSON.stringify([...this.seats]) !== seatsBefore) this.onLayoutChange();
+    if (wasHeld && !holdPhysical) this.reconcilePhysicalLayout(true);
   }
 
   private allDesks = new Set<Desk>();
@@ -990,7 +1105,7 @@ export class World {
         if (!active) return;
         const order = commit ? arrange(target) : original;
         order.forEach((desk, i) => { this.slotDesks.set(entries[i][0], desk); this.slideDesk(desk, positions[i]); });
-        if (commit) this.seats.set(d.room, order.map((desk) => desk.threadId));
+        if (commit) this.seats.set(d.room, reorderPhysicalSeats(this.seats.get(d.room) ?? [], original.map((desk) => desk.threadId), order.map((desk) => desk.threadId)));
         preview?.remove(); d.el.classList.remove("desk-grabbed"); document.body.classList.remove("desk-dragging");
         this.deskDragActive = false;
         // Capture phase also suppresses monitor and toy click handlers on release.
@@ -1031,6 +1146,8 @@ export class World {
     const room = this.roomById(roomId), t = this.lastData?.threads.find((t) => t.id === id);
     if (!room || !t || id === this.orchThread || !["main", "project", "freelance"].includes(room.kind)) return false;
     this.homes.set(id, roomId);
+    this.revealedThread = id;
+    this.expandedRooms.add(roomId);
     for (const [r, seats] of this.seats) if (r !== roomId) this.seats.set(r, seats.map((seat) => seat === id ? null : seat));
     // User placement takes effect immediately. Questions can still take the robot to the queue.
     this.placed.set(id, { room: t.question ? "queue" : roomId });
@@ -1126,6 +1243,12 @@ export class World {
   }
 
   // --- camera -------------------------------------------------------------------
+  /** Direct manipulation takes ownership from an earlier fly-to or followed actor. */
+  stopCameraMotion() {
+    this.stopFollow();
+    this.frame = null;
+    gsap.killTweensOf(this.cam);
+  }
   private dragged = false;
   private camera() {
     const s = this.scene;
@@ -1141,24 +1264,48 @@ export class World {
       this.cam.s = ns; this.cam.x = px - wx * ns; this.cam.y = py - wy * ns;
       this.applySoon();
     }, { passive: false });
-    let start: { x: number; y: number; cx: number; cy: number } | null = null;
-    // the middle button pans too: claim it, or Chromium starts its own autoscroll and fights the pan
-    s.addEventListener("mousedown", (e) => { if (e.button === 1) e.preventDefault(); });
-    s.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0 && e.button !== 1) return;
-      if (e.button === 1) e.preventDefault();
-      start = { x: e.clientX, y: e.clientY, cx: this.cam.x, cy: this.cam.y };
+    let start: { id: number; button: number; x: number; y: number; cx: number; cy: number } | null = null;
+    const endPan = (e?: PointerEvent) => {
+      if (!start || e && e.pointerId !== start.id) return;
+      const id = start.id;
+      start = null;
+      s.classList.remove("panning");
+      try { if (s.hasPointerCapture(id)) s.releasePointerCapture(id); } catch { /* window already lost capture */ }
+      setTimeout(() => (this.dragged = false), 0);
+    };
+    const beginPan = (e: PointerEvent) => {
+      if (start || e.button !== 0 && e.button !== 1) return;
+      if (e.button === 1) {
+        e.preventDefault(); e.stopPropagation();
+        // Capture at the scene before desks/apps see middle-down. Crossing their
+        // controls during a camera drag must not start hover, focus or app drags.
+        try { s.setPointerCapture(e.pointerId); } catch { /* synthetic/offscreen pointer */ }
+      }
+      start = { id: e.pointerId, button: e.button, x: e.clientX, y: e.clientY, cx: this.cam.x, cy: this.cam.y };
       this.dragged = false;
+    };
+    // the middle button pans too: claim it, or Chromium starts its own autoscroll and fights the pan
+    s.addEventListener("mousedown", (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } }, true);
+    s.addEventListener("pointerdown", (e) => { if (e.button === 1) beginPan(e); }, true);
+    s.addEventListener("pointerdown", (e) => {
+      if (e.button === 0) beginPan(e);
     });
     window.addEventListener("pointermove", (e) => {
-      if (!start) return;
+      if (!start || e.pointerId !== start.id) return;
+      if (!(e.buttons & (start.button === 1 ? 4 : 1))) { endPan(e); return; }
+      if (start.button === 1) { e.preventDefault(); e.stopPropagation(); }
       const dx = e.clientX - start.x, dy = e.clientY - start.y;
       if (!this.dragged && Math.hypot(dx, dy) < 5) return;
       if (!this.dragged) { this.dragged = true; s.classList.add("panning"); this.stopFollow(); this.frame = null; gsap.killTweensOf(this.cam); }
       this.cam.x = start.cx + dx; this.cam.y = start.cy + dy;
       this.applySoon();
-    });
-    window.addEventListener("pointerup", () => { start = null; s.classList.remove("panning"); setTimeout(() => (this.dragged = false), 0); });
+    }, true);
+    window.addEventListener("pointerup", endPan, true);
+    window.addEventListener("pointercancel", endPan, true);
+    s.addEventListener("lostpointercapture", endPan);
+    window.addEventListener("blur", () => endPan());
+    document.addEventListener("visibilitychange", () => { if (document.hidden) endPan(); });
+    s.addEventListener("auxclick", (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } }, true);
     s.addEventListener("click", (e) => {
       if (this.dragged || (e.target as HTMLElement).closest(".desk-unit")) return;
       // little things to click on in the world (fountain, pond)
@@ -1199,13 +1346,11 @@ export class World {
     }).observe(s);
   }
 
-  // Mice report movement up to 1000 times a second; the camera is drawn once per frame, so the
-  // work (camera, culling, bubbles, focus check) runs at most once per frame too.
+  // Coalesce fast mouse input into one commit on the display's next animation frame.
+  // A separate 60 Hz deadline skips uneven display frames on high-refresh monitors.
+  // Camera, culling, bubbles and focus work run together at most once per display frame.
   private applyQueued = 0;
-  private applyDue = 0;
-  private flushCamera = (now: number) => {
-    if (now < this.applyDue - .5) { this.applyQueued = requestAnimationFrame(this.flushCamera); return; }
-    this.applyDue = now - this.applyDue > 1000 / 60 ? now + 1000 / 60 : this.applyDue + 1000 / 60;
+  private flushCamera = () => {
     this.applyQueued = 0;
     this.apply(); this.keepFocus();
   };
@@ -1312,6 +1457,7 @@ export class World {
   }
   showPark() { const p = this.outdoor?.park; if (p) { this.unfocus(false); this.flyTo({ x: p.x - 40, y: p.y - 40, w: p.w + 80, h: p.h + 80 }, 20); } }
   showRoom(id: string, insetRight = 0) {
+    if (this.rooms.find((r) => r.id === id)?.collapsed) this.setRoomExpanded(id, true);
     this.stopFollow();
     const r = this.rooms.find((q) => q.id === id);
     if (r) { this.unfocus(false); this.flyTo({ x: r.x, y: r.y, w: r.w, h: r.h }, 30, 1, insetRight); }
@@ -1443,6 +1589,23 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0, owner?:st
     break: { wall: "#e6eadf", trim: "#d0d6c5", floor: "#c9a274", seam: "#b88f61", accent: "#4ff0a0" },
     queue: { wall: "#ebe4ef", trim: "#d6cddd", floor: "#c9a274", seam: "#b88f61", accent: "#b07cff" },
   }[kind];
+  if (r.collapsed) {
+    const doorX = kind === "main" ? w / 2 - 30 : w - 74, doorY = kind === "main" ? h - 64 : 16;
+    return `<svg class="room-art" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">
+      <rect width="${w}" height="${h}" fill="${pal.floor}"/>
+      <rect width="${w}" height="${WALL_FACE}" fill="${pal.wall}"/><rect width="${w}" height="16" fill="${pal.trim}"/>
+      <rect x="16" y="16" width="${w - 32}" height="${WALL_FACE - 16}" fill="${pal.wall}"/>
+      <rect x="30" y="26" width="${w - 140}" height="68" rx="8" fill="#fff" opacity="0.94"/>
+      ${icon ? `<image href="${icon}" x="40" y="37" width="46" height="46" preserveAspectRatio="xMidYMid meet"/>` : `<rect x="40" y="37" width="46" height="46" rx="10" fill="${pal.accent}"/><text x="63" y="68" text-anchor="middle" font-size="19" fill="#fff" font-family="var(--font)">${esc(monogram(title))}</text>`}
+      <foreignObject x="98" y="35" width="${w - 218}" height="52"><div xmlns="http://www.w3.org/1999/xhtml" class="room-name">${esc(title)}</div></foreignObject>
+      <rect x="${doorX - 4}" y="${doorY - 4}" width="68" height="${kind === "main" ? 68 : 102}" rx="4" fill="${pal.trim}"/>
+      <rect x="${doorX}" y="${doorY}" width="60" height="${kind === "main" ? 64 : 94}" rx="3" fill="#887461"/>
+      <rect x="${doorX + 7}" y="${doorY + 8}" width="46" height="${kind === "main" ? 43 : 72}" rx="2" fill="#9b8771"/>
+      <circle cx="${doorX + 49}" cy="${doorY + 48}" r="3" fill="#ffd27a"/>
+      <text x="26" y="147" font-size="18" fill="#554b42" font-family="var(--font)">Quiet office</text>
+      <rect y="${h - 12}" width="${w}" height="12" fill="${pal.trim}"/>
+    </svg>`;
+  }
   const uid = Math.random().toString(36).slice(2, 8);
   const T = 16; // wall top thickness
   // floor: planks seen from above (or terracotta tiles in the freelancer cafe)

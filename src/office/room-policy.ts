@@ -1,0 +1,69 @@
+export type ActivityThread = { id: string; runStatus: string | null; question?: string | null };
+const ACTIVE = new Set(["running", "queued", "queue", "waiting", "starting", "preparing", "pending", "waitingforapproval", "awaitingapproval", "approvalpending", "awaitinginput", "waitingforinput", "waitingforuser"]);
+
+export function hasOfficeWork(thread: ActivityThread) {
+  return !!thread.question || ACTIVE.has((thread.runStatus ?? "").toLowerCase().replace(/[\s_-]/g, ""));
+}
+
+// Reservations are durable. Physical desks are only a projection of current work
+// and the one historical thread the person deliberately opened.
+export function reserveRoomSeats(previous: (string | null)[], ids: string[]) {
+  const wanted = new Set(ids), seen = new Set<string>();
+  const seats = previous.map((id) => {
+    if (!id || !wanted.has(id) || seen.has(id)) return null;
+    seen.add(id); return id;
+  });
+  for (const id of [...wanted].sort()) if (!seen.has(id)) {
+    const free = seats.indexOf(null);
+    if (free >= 0) seats[free] = id; else seats.push(id);
+    seen.add(id);
+  }
+  return seats;
+}
+
+export function projectRoomSeats<T extends ActivityThread>(reservations: (string | null)[], threads: T[], expanded: boolean, revealed: string | null, extra = 0) {
+  const byId = new Map(threads.map((t) => [t.id, t]));
+  const visible = reservations.flatMap((id) => {
+    const t = id ? byId.get(id) : null;
+    return t && (hasOfficeWork(t) || t.id === revealed) ? [t] : [];
+  });
+  const slots = expanded ? Math.max(1, visible.length) + Math.max(0, extra) : visible.length;
+  const eligible = new Map(visible.map((t) => [t.id, t]));
+  let free = slots - visible.length;
+  const physical: (T | null)[] = [];
+  for (const id of reservations) {
+    if (id && eligible.has(id)) physical.push(eligible.get(id)!);
+    else if (!id && free > 0) { physical.push(null); free--; }
+  }
+  while (free-- > 0) physical.push(null);
+  return { threads: physical, slots, collapsed: slots === 0 };
+}
+
+export function physicalSeatIndices(reservations: (string | null)[], physical: (string | null)[]) {
+  const visible = new Set(physical.filter((id): id is string => !!id));
+  let free = physical.filter((id) => !id).length;
+  const indices = reservations.flatMap((id, index) => {
+    if (id && visible.has(id)) return [index];
+    if (!id && free > 0) { free--; return [index]; }
+    return [];
+  });
+  let next = reservations.length;
+  while (indices.length < physical.length) indices.push(next++);
+  return indices;
+}
+
+export function reorderPhysicalSeats(reservations: (string | null)[], before: (string | null)[], after: (string | null)[]) {
+  const result = [...reservations], indices = physicalSeatIndices(reservations, before);
+  indices.forEach((index, i) => { while (result.length <= index) result.push(null); result[index] = after[i] ?? null; });
+  return result;
+}
+
+export const FOLDED_OFFICE = { w: 420, h: 180 };
+
+export function layoutMeeting(old: { topH: number; size: { w: number } }, next: { topH: number; size: { w: number } }, hall = 150) {
+  const low = Math.max(old.topH, next.topH) + 40, high = Math.min(old.topH, next.topH) + hall - 40;
+  if (low <= high) return { x: Math.min(old.size.w, next.size.w) / 2, y: (low + high) / 2, outside: false };
+  // No shared hall floor, for example a much taller main office. Leave by the
+  // old entrance and wait beyond both buildings before using the new entrance.
+  return { x: Math.max(old.size.w, next.size.w) + 140, y: old.topH + hall / 2, outside: true };
+}

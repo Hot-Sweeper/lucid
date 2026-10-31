@@ -362,8 +362,9 @@ function world(limit = 40) {
       const qp = q ? safeJson(q.p) : null;
       question = qp?.questions?.map((x) => x.question).join(" ") || (approvalStmt.get(r.id) ? "Needs your approval" : "Needs your answer");
     }
-    // T3 can show a live turn as "queued"; recent activity is the most honest signal.
-    const busy = r.runStatus === "running" || r.runStatus === "queued" || (r.lastItemAt && Date.now() - Date.parse(r.lastItemAt) < 90000);
+    // Explicit completion wins over recent output. Activity is only a fallback
+    // for native sessions that have no projected run state yet.
+    const busy = r.runStatus === "running" || r.runStatus === "queued" || (!r.runStatus && r.lastItemAt && Date.now() - Date.parse(r.lastItemAt) < 90000);
     return {
       id: r.id, projectId: r.projectId, title: r.title, updatedAt: r.updatedAt, provider: r.provider, runStatus: busy ? "running" : r.runStatus,
       pinned: !!p.pinnedAt, settled, question, model: p.modelSelection?.model || null,
