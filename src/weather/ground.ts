@@ -7,7 +7,7 @@
 // while the puddles dry.
 
 import type { Weather } from "./types";
-import type { Grounds, Rect } from "../office/grounds";
+import { PARK_K, type Grounds, type Rect } from "../office/grounds";
 import { Shapes, fill, mix, n1, rnd } from "../office/outdoor-art";
 
 export type GroundWx = {
@@ -95,8 +95,13 @@ export function puddleSpots(G: Grounds, building: Rect, park: Rect, entranceY: n
     if (inside(building, 90) || inside(park, 40) || inside(w, 60) || (G.forecourt && inside(G.forecourt, 80)) || (G.plaza && Math.hypot(x - G.plaza.x, y - G.plaza.y) < G.plaza.r + 60)) continue;
     put(x, y, 22 + q() * 18, 2); n++;
   }
-  // the park: on its paths and in hollows of the lawn, away from the pond, fountain, benches and beds
-  const cx = park.x + park.w / 2, cy = park.y + park.h / 2;
+  // the park: on its paths and in hollows of the lawn, away from the pond, fountain, benches and beds.
+  // The park is drawn on a plan PARK_K times smaller (outside.ts): place them on the plan, then scale out.
+  const from = out.length;
+  const pcx = park.x + park.w / 2, pcy = park.y + park.h / 2;
+  const cx = pcx, cy = pcy;
+  park = { x: pcx - park.w / PARK_K / 2, y: pcy - park.h / PARK_K / 2, w: park.w / PARK_K, h: park.h / PARK_K };
+  entranceY = pcy + (entranceY - pcy) / PARK_K;
   for (const y of [park.y + 130, park.y + 260, cy + 190, cy + 330, park.y + park.h - 110]) put(cx + (q() - 0.5) * 10, y, 13 + q() * 7, 1, 90 + q() * 20 - 10);
   for (const t of [0.22, 0.5, 0.78]) {
     const u = 1 - t, x0 = park.x, y0 = entranceY;
@@ -112,6 +117,7 @@ export function puddleSpots(G: Grounds, building: Rect, park: Rect, entranceY: n
     if (blocked(x, y) || Math.abs(y - entranceY) < 50) continue;
     put(x, y, 20 + q() * 18, 2); n++;
   }
+  for (const d of out.slice(from)) { d.x = pcx + (d.x - pcx) * PARK_K; d.y = pcy + (d.y - pcy) * PARK_K; d.r *= PARK_K; }
   return out;
 }
 

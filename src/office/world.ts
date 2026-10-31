@@ -10,7 +10,7 @@ import { GEOM } from "./rig";
 import { SHOP_W, SHOP_H, type ShopFront } from "./shopfront";
 import { mountWeather, applySkyTint, type WeatherLayer, type Weather } from "../weather/effects";
 import { outdoorLook, seasonPalette } from "../weather/season";
-import { outsideSvg, backdropColor, groundsLayout, PARK_W, type Grounds } from "./outside";
+import { outsideSvg, backdropColor, groundsLayout, PARK_W, PARK_H, type Grounds } from "./outside";
 import { groundWx, groundSig, isWet, puddleSpots, type Puddle } from "../weather/ground";
 import { gearFor } from "../weather/gear";
 import { ambientPlant } from "./ambient";
@@ -404,9 +404,10 @@ export class World {
       // the outdoors: grass and trees around the building, a park beside the entrance
       // the shop sits just past the entrance, south of the path; the park lies beyond it
       const entY = topH + HALL / 2;
-      this.shopRect = { x: this.size.w + 150, y: entY + 110, w: SHOP_W, h: SHOP_H };
+      this.shopRect = { x: this.size.w + 190, y: entY + 190, w: SHOP_W, h: SHOP_H };
       this.shopFront?.place(this.shopRect.x, this.shopRect.y);
-      const park = { x: this.size.w + 150 + SHOP_W + 180, y: Math.max(-200, entY - 520), w: PARK_W, h: 1040 };
+      // the park's middle stays level with the entrance (or with y 320 for a short building)
+      const park = { x: this.size.w + 190 + SHOP_W + 260, y: Math.max(320, entY) - PARK_H / 2, w: PARK_W, h: PARK_H };
       // the grounds round it (grounds.ts): lawn, hedge and a tree belt that fades into the backdrop
       const building = { x: 0, y: 0, w: this.size.w, h: this.size.h };
       this.grounds = groundsLayout({ building, entranceY: entY, park, shop: this.shopRect });

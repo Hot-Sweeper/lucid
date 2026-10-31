@@ -4,6 +4,7 @@ import { dailyConvo, dailyLine } from "./daily";
 import { CONVOS, THOUGHTS, pickFresh } from "../content";
 import { makeInteractive, whenFree, popWord, splash } from "./interact";
 import { dress, type Gear } from "../weather/gear";
+import { PARK_K as K } from "./grounds";
 
 // The park next to the building. Robots whose work finished a while ago (the break room only
 // holds the most recent ones) spend their time out here: they stroll the paths, sit on the
@@ -48,19 +49,21 @@ export class Park {
     const prev = this.geo;
     this.geo = { park: { ...park }, door: { ...door } };
     const cx = park.x + park.w / 2, cy = park.y + park.h / 2;
+    // the park is drawn on a plan K times smaller than the world: offsets below are plan units
+    const at = (dx: number, dy: number) => ({ x: cx + dx * K, y: cy + dy * K });
     const bench = (bx: number, by: number, k: string): Spot[] => [
-      { key: `${k}a`, x: bx + 36, y: by + 30, face: "down", kind: "bench", taken: null },
-      { key: `${k}b`, x: bx + 70, y: by + 30, face: "down", kind: "bench", taken: null },
+      { key: `${k}a`, ...at(bx + 36, by + 30), face: "down", kind: "bench", taken: null },
+      { key: `${k}b`, ...at(bx + 70, by + 30), face: "down", kind: "bench", taken: null },
     ];
     const old = new Map(this.spots.map((s) => [s.key, s.taken]));
     this.spots = [
-      ...bench(cx - 150, cy - 110, "b1"), ...bench(cx + 80, cy + 110, "b2"), ...bench(cx - 150, cy + 120, "b3"),
-      { key: "pond1", x: cx + 210, y: cy + 26, face: "up", kind: "pond", taken: null },
-      { key: "pond2", x: cx + 320, y: cy + 30, face: "up", kind: "pond", taken: null },
-      { key: "pond3", x: cx + 40, y: cy - 150, face: "right", kind: "pond", taken: null },
-      { key: "fount", x: cx - 20, y: cy + 100, face: "up", kind: "fountain", taken: null },
-      { key: "pic1", x: cx - 345, y: cy + 362, face: "right", kind: "picnic", taken: null },
-      { key: "pic2", x: cx - 282, y: cy + 352, face: "left", kind: "picnic", taken: null },
+      ...bench(-150, -110, "b1"), ...bench(80, 110, "b2"), ...bench(-150, 120, "b3"),
+      { key: "pond1", ...at(210, 26), face: "up", kind: "pond", taken: null },
+      { key: "pond2", ...at(320, 30), face: "up", kind: "pond", taken: null },
+      { key: "pond3", ...at(40, -150), face: "right", kind: "pond", taken: null },
+      { key: "fount", ...at(-20, 100), face: "up", kind: "fountain", taken: null },
+      { key: "pic1", ...at(-345, 362), face: "right", kind: "picnic", taken: null },
+      { key: "pic2", ...at(-282, 352), face: "left", kind: "picnic", taken: null },
     ];
     for (const s of this.spots) s.taken = old.get(s.key) ?? null;
     for (const v of this.vis.values()) if (v.spot) v.spot = this.spots.find((s) => s.key === v.spot!.key) ?? null;
@@ -122,8 +125,8 @@ export class Park {
   // never across the pond, benches or beds), and only the last few steps over the grass.
   private route(from: { x: number; y: number }, to: { x: number; y: number }) {
     const p = this.geo!.park, cx = p.x + p.w / 2, cy = p.y + p.h / 2;
-    const R = 92;                                   // stay this far from the fountain's middle
-    const yTop = p.y + 40, yBot = p.y + p.h - 40, xLeft = p.x + 20;
+    const R = 92 * K;                               // stay this far from the fountain's middle
+    const yTop = p.y + 40 * K, yBot = p.y + p.h - 40 * K, xLeft = p.x + 20;
     // nearest point on the paths: the east-west path (y = cy, west of the fountain) or the north-south one (x = cx)
     const onPath = (q: { x: number; y: number }) => {
       const h = { seg: "h" as const, x: Math.max(xLeft, Math.min(cx - R, q.x)), y: cy };
@@ -160,13 +163,13 @@ export class Park {
     const g = this.geo;
     if (!g) return false;
     const cx = g.park.x + g.park.w / 2, cy = g.park.y + g.park.h / 2;
-    if (Math.hypot(x - cx, y - cy) < 72) {
-      splash(this.layer, cx, cy - 6, 16);
-      popWord(this.layer, cx, cy - 40, pick(["Splash!", "Sploosh", "*fountain noises*"]), "#bfe8ff");
+    if (Math.hypot(x - cx, y - cy) < 72 * K) {
+      splash(this.layer, cx, cy - 6 * K, 16);
+      popWord(this.layer, cx, cy - 40 * K, pick(["Splash!", "Sploosh", "*fountain noises*"]), "#bfe8ff");
       return true;
     }
-    const px = cx + 260, py = cy - 120;
-    if (((x - px) / 190) ** 2 + ((y - py) / 120) ** 2 < 1) {
+    const px = cx + 260 * K, py = cy - 120 * K;
+    if (((x - px) / (190 * K)) ** 2 + ((y - py) / (120 * K)) ** 2 < 1) {
       popWord(this.layer, x, y - 10, pick(["Quack!", "Quack quack", "QUACK", "quack?"]), "#ffe9a8");
       const ring = document.createElement("i");
       ring.className = "pond-ring";
@@ -180,8 +183,8 @@ export class Park {
   private strollPoint() {
     const p = this.geo!.park, cx = p.x + p.w / 2, cy = p.y + p.h / 2;
     return pick([
-      { x: cx, y: p.y + 110 + Math.random() * 120 }, { x: cx, y: p.y + p.h - 130 - Math.random() * 120 },
-      { x: cx - 220 - Math.random() * 200, y: cy + 4 }, { x: cx + 6, y: cy + 160 + Math.random() * 120 },
+      { x: cx, y: p.y + (110 + Math.random() * 120) * K }, { x: cx, y: p.y + p.h - (130 + Math.random() * 120) * K },
+      { x: cx - (220 + Math.random() * 200) * K, y: cy + 4 }, { x: cx + 6, y: cy + (160 + Math.random() * 120) * K },
     ]);
   }
 

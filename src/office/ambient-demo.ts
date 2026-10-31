@@ -1,7 +1,7 @@
 import "@fontsource-variable/lexend";
 import "./office.css";
 import "../decor/decor.css";
-import { outsideSvg, PARK_W } from "./outside";
+import { outsideSvg, PARK_W, PARK_H } from "./outside";
 import { ambientPlant } from "./ambient";
 import { drawDecor, drawWall, placeDecor, seasonalDecor, DECOR, type DecorId } from "../decor/decor";
 import type { Season } from "../weather/season";
@@ -97,7 +97,7 @@ const ROOMS: FakeRoom[] = [
 ];
 const B = { x: 0, y: 0, w: 5640, h: topH + HALL + 580 };
 const entranceY = topH + HALL / 2;
-const park = { x: B.w + 300, y: Math.max(-200, entranceY - 520), w: PARK_W, h: 1040 };
+const park = { x: B.w + 300, y: Math.max(320, entranceY) - PARK_H / 2, w: PARK_W, h: PARK_H };
 const out = { ox: -2400, oy: -2200, w: B.w + 300 + PARK_W + 4800, h: Math.max(B.h, park.y + park.h) + 4400 };
 
 const scene = document.createElement("div");

@@ -1,6 +1,6 @@
 import "@fontsource-variable/lexend";
 import "../office/office.css";
-import { outsideSvg, PARK_W } from "../office/outside";
+import { outsideSvg, PARK_W, PARK_H } from "../office/outside";
 import { mountWeather, applySkyTint } from "./effects";
 import { outdoorLook } from "./season";
 import type { Season, Weather, WeatherKind } from "./types";
@@ -44,7 +44,7 @@ document.head.appendChild(css);
 const B = { x: 0, y: 0, w: 2400, h: 1500 };
 const topH = 700, HALL = 150;
 const entranceY = topH + HALL / 2;
-const park = { x: B.w + 300, y: Math.max(-200, entranceY - 520), w: PARK_W, h: 1040 };
+const park = { x: B.w + 300, y: Math.max(320, entranceY) - PARK_H / 2, w: PARK_W, h: PARK_H };
 const out = { ox: -2400, oy: -2200, w: B.w + 300 + PARK_W + 4800, h: Math.max(B.h, park.y + park.h) + 4400 };
 
 const scene = document.createElement("div");

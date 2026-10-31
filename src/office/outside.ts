@@ -7,7 +7,7 @@
 
 import { seasonPalette, type Season } from "../weather/season";
 import { Grove, Shapes, SNOW, bushInto, fill, mix, n1, n2, rnd, seedAt, timing, treeInto, type Look } from "./outdoor-art";
-import { groundsLayout, FADE, MEADOW, type Grounds, type Rect } from "./grounds";
+import { groundsLayout, FADE, MEADOW, PARK_K, PARK_BASE_W, PARK_BASE_H, type Grounds, type Rect } from "./grounds";
 import { puddleSvg, snowman, sprinkler, weatherPal, type GroundWx, type Puddle } from "../weather/ground";
 import "./ambient.css";
 import "../weather/weather.css";
@@ -15,7 +15,9 @@ import "./outside-zoom";
 
 export { groundsLayout, type Grounds } from "./grounds";
 
-export const PARK_W = 1300;
+export const PARK_W = PARK_BASE_W * PARK_K, PARK_H = PARK_BASE_H * PARK_K;
+/** Lamps, at the same scale as the robots. */
+const LAMP_K = 1.7;
 
 // One of the park's big trees, with its own sway: the crown top leans, bare branches twist round the trunk.
 // `still` (fallen leaves, shadow, lower crown) goes into the still image, only `live` sways.
@@ -86,11 +88,12 @@ function picnic(x: number, y: number, L: Look) {
 // A lamp seen from above: the post's head stays in the still image; the light it gives at
 // night (glow and bulb) is live, all lamps together in two paths whose opacity follows --lamp.
 function lampHead(x: number, y: number) {
-  return `<circle cx="${x + 3}" cy="${y + 4}" r="9" fill="#1f2a1a" opacity="0.25"/><circle cx="${x}" cy="${y}" r="8" fill="#3a3f4f"/>`;
+  const k = LAMP_K;
+  return `<circle cx="${n1(x + 3 * k)}" cy="${n1(y + 4 * k)}" r="${n1(9 * k)}" fill="#1f2a1a" opacity="0.25"/><circle cx="${n1(x)}" cy="${n1(y)}" r="${n1(8 * k)}" fill="#3a3f4f"/>`;
 }
 function lampLights(spots: [number, number][]) {
   const glow = new Shapes(), bulb = new Shapes();
-  for (const [x, y] of spots) { glow.ellipse(x, y, 70, 52, ""); bulb.circle(x, y, 4.5, ""); }
+  for (const [x, y] of spots) { glow.ellipse(x, y, 70 * LAMP_K, 52 * LAMP_K, ""); bulb.circle(x, y, 4.5 * LAMP_K, ""); }
   const d = (sh: Shapes) => String(sh).match(/ d="([^"]*)"/)?.[1] ?? "";
   return `<path d="${d(glow)}" fill="#ffe6b0" style="opacity:calc(var(--lamp, 0) * (0.32 + var(--fog, 0) * 0.25))"/>
     <path d="${d(bulb)}" fill="#fff3c9" style="opacity:calc(0.35 + var(--lamp, 0) * 0.65)"/>`;
@@ -164,6 +167,9 @@ const DUCK: Record<Exclude<DuckKind, "chick">, { body: string; wing: string; tai
   white: { body: "#f6f3ec", wing: "#e3ddd1", tail: "#e3ddd1", head: "#fbf9f4" },
   hen: { body: "#b39070", wing: "#8f6f50", tail: "#7a5c42", head: "#9a7a5a" },
 };
+// Animals inside the park are drawn on the park's plan, which is shown PARK_K times bigger:
+// shrink them back so a duck or a bird stays small next to a robot.
+const SMALL = n2(1.15 / PARK_K);
 // A duck from above, facing +x. `tucked` is a duck resting with its head drawn in.
 function duck(kind: DuckKind, tucked = false, shadow = "#1f3a4a") {
   if (kind === "chick") {
@@ -186,12 +192,12 @@ function ducks(cx: number, cy: number, L: Look, frozen: boolean) {
     if (L.snow >= 0.85) return "";
     const q = rnd(77);
     return ([[-118, 46, 20, "mallard"], [-88, 62, -150, "hen"]] as const).map(([dx, dy, a, k]) =>
-      `<g transform="translate(${cx + dx} ${cy + dy}) rotate(${a})"><g class="amb-sit" style="${timing(q, 4, 0.3)}">${duck(k, true, "#5a7f99")}</g></g>`).join("");
+      `<g transform="translate(${cx + dx} ${cy + dy}) rotate(${a}) scale(${SMALL})"><g class="amb-sit" style="${timing(q, 4, 0.3)}">${duck(k, true, "#5a7f99")}</g></g>`).join("");
   }
   const q = rnd(L.season === "winter" ? 31 : 17);
   const wake = (k: number) => `<path d="M${-12 * k} ${-3 * k} Q${-24 * k} ${-8 * k} ${-38 * k} ${-14 * k} M${-12 * k} ${3 * k} Q${-24 * k} ${8 * k} ${-38 * k} ${14 * k}" stroke="#e8f8ff" stroke-width="${n2(1.8 * Math.max(0.7, k))}" fill="none" stroke-linecap="round"/>`;
   const one = (kind: DuckKind, d: string, dur: number, at: number) =>
-    `<g ${along(d, dur, at)}>${wake(kind === "chick" ? 0.45 : 1)}<g class="amb-rock" style="${timing(q, 2.6, 0.3)}">${duck(kind)}</g></g>`;
+    `<g ${along(d, dur, at)} transform="scale(${SMALL})">${wake(kind === "chick" ? 0.45 : 1)}<g class="amb-rock" style="${timing(q, 2.6, 0.3)}">${duck(kind)}</g></g>`;
   const kinds: DuckKind[] = L.season === "winter" ? ["mallard", "hen"] : L.season === "spring" ? ["hen", "mallard"] : ["mallard", "white", "hen"];
   let s = "";
   kinds.forEach((kind, i) => {
@@ -206,7 +212,7 @@ function ducks(cx: number, cy: number, L: Look, frozen: boolean) {
 
 function butterfly(color: string, q: () => number) {
   const shade = color === "#ffffff" ? "#e8e3d8" : mix(color, "#000000", 0.16);
-  return `<g><g class="amb-flap" style="animation-duration:${n2(0.16 + q() * 0.1)}s">
+  return `<g transform="scale(${SMALL})"><g class="amb-flap" style="animation-duration:${n2(0.16 + q() * 0.1)}s">
     <ellipse cx="1.5" cy="-4.6" rx="4" ry="5" fill="${color}"/><ellipse cx="1.5" cy="4.6" rx="4" ry="5" fill="${color}"/>
     <ellipse cx="-3" cy="-3.6" rx="3" ry="3.8" fill="${shade}"/><ellipse cx="-3" cy="3.6" rx="3" ry="3.8" fill="${shade}"/></g>
     <ellipse cx="0" cy="0" rx="5.5" ry="1.2" fill="#3a3f4f"/></g>`;
@@ -328,16 +334,18 @@ function drawGrounds(G: Grounds, L: Look, o: OutsideOpts) {
   const base = new Shapes(1800), low = new Shapes(1800), trees = new Grove(1800), top = new Shapes(1800);
   let treeN = 0;
   const tree = (x: number, y: number, r: number, light = false) => { treeInto(trees, x, y, r, treeN % 3, L, 500 + treeN, light); treeN++; };
-  const planter = (x: number, y: number, r = 22) => Z(low, 1).circle(x, y, r - 2.5, `fill="${mix("#6b5646", SNOW, snow * 0.8)}" stroke="${mix("#b3a893", SNOW, snow * 0.6)}" stroke-width="5"`);
+  const planter = (x: number, y: number, r = 38) => Z(low, 1).circle(x, y, r - 4, `fill="${mix("#6b5646", SNOW, snow * 0.8)}" stroke="${mix("#b3a893", SNOW, snow * 0.6)}" stroke-width="8"`);
   const hedgeRect = (x: number, y: number, w: number, h: number) => {
     if (w <= 0 || h <= 0) return;
-    Z(low, 1).rect(x, y, w, h, fill(hedge[1]), 9);
-    Z(low, 2).rect(x + 3, y + 2, w - 6, h * 0.55, fill(mix(hedge[2], SNOW, snow * 0.85)), 7);
+    Z(low, 1).rect(x, y, w, h, fill(hedge[1]), 14);
+    Z(low, 2).rect(x + 5, y + 3, w - 10, h * 0.55, fill(mix(hedge[2], SNOW, snow * 0.85)), 11);
   };
+  // a bench for two robots, (x, y) its top left corner
+  const BW = 130, BH = 42;
   const bench = (x: number, y: number) => {
-    Z(low, 0).rect(x + 3, y + 5, 64, 22, fill(shadowC, 0.2), 4);
-    Z(low, 1).rect(x, y, 64, 22, fill(snow > 0.3 ? mix("#b9854c", SNOW, snow * 0.7) : "#b9854c"), 4);
-    Z(low, 2).rect(x, y, 64, 8, fill("#a4723f"), 3);
+    Z(low, 0).rect(x + 5, y + 8, BW, BH, fill(shadowC, 0.2), 6);
+    Z(low, 1).rect(x, y, BW, BH, fill(snow > 0.3 ? mix("#b9854c", SNOW, snow * 0.7) : "#b9854c"), 6);
+    Z(low, 2).rect(x, y, BW, 15, fill("#a4723f"), 5);
   };
   const rr = (r: Rect, d: number, rad: number) => { const x = r.x + d, y = r.y + d, w = r.w - 2 * d, h = r.h - 2 * d, k = Math.max(4, rad);
     return `M${n1(x + k)} ${n1(y)}H${n1(x + w - k)}A${k} ${k} 0 0 1 ${n1(x + w)} ${n1(y + k)}V${n1(y + h - k)}A${k} ${k} 0 0 1 ${n1(x + w - k)} ${n1(y + h)}H${n1(x + k)}A${k} ${k} 0 0 1 ${n1(x)} ${n1(y + h - k)}V${n1(y + k)}A${k} ${k} 0 0 1 ${n1(x + k)} ${n1(y)}Z`; };
@@ -365,14 +373,14 @@ function drawGrounds(G: Grounds, L: Look, o: OutsideOpts) {
   }
 
   // --- the hedge round the lawn -------------------------------------------------------------------
-  const hd = rr(LW, 16, 140);
-  const hedgeSvg = `<path d="${hd}" fill="none" stroke="${shadowC}" stroke-width="38" opacity="0.2" transform="translate(6 9)"/>
-    <path d="${hd}" fill="none" stroke="${mix(hedge[0], SNOW, snow * 0.5)}" stroke-width="36"/>
-    <path d="${hd}" fill="none" stroke="${mix(hedge[2], SNOW, snow * 0.85)}" stroke-width="16" transform="translate(-3 -4)"/>`;
+  const hd = rr(LW, 26, 140);
+  const hedgeSvg = `<path d="${hd}" fill="none" stroke="${shadowC}" stroke-width="58" opacity="0.2" transform="translate(9 13)"/>
+    <path d="${hd}" fill="none" stroke="${mix(hedge[0], SNOW, snow * 0.5)}" stroke-width="56"/>
+    <path d="${hd}" fill="none" stroke="${mix(hedge[2], SNOW, snow * 0.85)}" stroke-width="24" transform="translate(-5 -6)"/>`;
 
   // --- the woodland round the clearing: flat overlapping crowns, a ragged edge, fading out ------
   const canopy = new Shapes(1800), qw = rnd(909), cols = woodsPal(L);
-  const STEP = 116;
+  const STEP = 150;
   for (let y = B.y + 40; y < B.y + B.h; y += STEP * 0.86) {
     const row = Math.round((y - B.y) / STEP);
     for (let x = B.x + (row % 2 ? STEP / 2 : 0); x < B.x + B.w; x += STEP) {
@@ -383,7 +391,7 @@ function drawGrounds(G: Grounds, L: Look, o: OutsideOpts) {
       // the season's trees grow in clumps among the evergreens (a slow wave decides where)
       const clump = Math.sin(tx * 0.0031 + Math.cos(ty * 0.0043) * 2.2) + Math.sin(ty * 0.0057 - tx * 0.0013) * 0.7;
       const ever = clump < 0.15 || qw() < 0.25;
-      const r = 58 + qw() * 34, g = ever ? cols[cols.length - 1 - (qw() < 0.5 ? 1 : 0)] : cols[Math.floor(qw() * (cols.length - 2))];
+      const r = 75 + qw() * 44, g = ever ? cols[cols.length - 1 - (qw() < 0.5 ? 1 : 0)] : cols[Math.floor(qw() * (cols.length - 2))];
       if (out < edge) continue;
       // far in the fade nothing shows anyway
       if (Math.min(tx - B.x, B.x + B.w - tx, ty - B.y, B.y + B.h - ty) < FADE * 0.25) continue;
@@ -407,48 +415,61 @@ function drawGrounds(G: Grounds, L: Look, o: OutsideOpts) {
   const gw = G.walk;
   Z(base, 1).rect(gw.x, gw.y, gw.w, gw.h, `fill="url(#lc-pave)"`, 30);
   if (G.forecourt) Z(base, 1).rect(G.forecourt.x, G.forecourt.y, G.forecourt.w, G.forecourt.h, `fill="url(#lc-pave)"`, 14);
+  // planted trees along both edges; between them on the north edge a bench or a lamp, and two
+  // benches on the shop's forecourt either side of its door
   const walkTrees: [number, number][] = [];
-  for (let x = gw.x + 150; x < gw.x + gw.w - 90; x += 165) {
-    if (!(G.plazaPath && Math.abs(x - G.plazaPath.x - 30) < 80)) walkTrees.push([x, gw.y - 6]);
-    if (!shop || x < shop.x - 60 || x > shop.x + shop.w + 60) walkTrees.push([x + 80, gw.y + gw.h + 6]);
-    else if (x + 80 < shop.x + shop.w - 60) bench(x + 48, gw.y + gw.h - 4);
+  const lampsAt: [number, number][] = [];
+  const PSTEP = 300, pathX = G.plazaPath ? G.plazaPath.x + G.plazaPath.w / 2 : -1e9;
+  const north: number[] = [];
+  for (let x = gw.x + 160; x < gw.x + gw.w - 120; x += PSTEP) if (Math.abs(x - pathX) > 120) north.push(x);
+  let slot = 0;
+  north.forEach((x, i) => {
+    walkTrees.push([x, gw.y - 30]);
+    const m = x + PSTEP / 2;
+    if (i === north.length - 1 || Math.abs(m - pathX) < 150 || m > gw.x + gw.w - 150) return;
+    if (slot++ % 2 === 0) bench(m - BW / 2, gw.y - BH - 26); else lampsAt.push([m, gw.y - 50]);
+  });
+  for (let x = gw.x + 160 + PSTEP / 2; x < gw.x + gw.w - 120; x += PSTEP)
+    if (!shop || x < shop.x - 90 || x > shop.x + shop.w + 90) walkTrees.push([x, gw.y + gw.h + 8]);
+  if (shop) {
+    for (const f of [0.22, 0.78]) bench(shop.x + shop.w * f - BW / 2, gw.y + gw.h + 16);
+    lampsAt.push([shop.x + shop.w + 40, gw.y + gw.h + 44]);
   }
-  for (const [x, y] of walkTrees) planter(x, y, 22);
-  for (let x = gw.x + 210; x < gw.x + gw.w - 140; x += 330) if (!(G.plazaPath && Math.abs(x + 32 - G.plazaPath.x - 30) < 90)) bench(x, gw.y - 40);
+  for (const [x, y] of walkTrees) planter(x, y);
 
   // --- the round plaza: a big tree inside a ring bench, a path down to the walk ------------------
   const pz = G.plaza;
   if (pz && G.plazaPath) {
     Z(base, 0).rect(G.plazaPath.x, G.plazaPath.y, G.plazaPath.w, G.plazaPath.h, fill(pathC));
     Z(base, 2).circle(pz.x, pz.y, pz.r, `fill="url(#lc-pave)"`);
-    Z(low, 0).circle(pz.x + 4, pz.y + 6, 72, `fill="none" stroke="${shadowC}" stroke-width="16" opacity="0.2"`);
-    Z(low, 1).circle(pz.x, pz.y, 72, `fill="none" stroke="${snow > 0.3 ? mix("#b9854c", SNOW, snow * 0.7) : "#b9854c"}" stroke-width="16"`);
-    Z(base, 3).circle(pz.x, pz.y, 60, fill(mix(L.season === "autumn" ? "#6f7d45" : "#5b8f4e", SNOW, snow * 0.8)));
+    Z(low, 0).circle(pz.x + 6, pz.y + 9, 128, `fill="none" stroke="${shadowC}" stroke-width="30" opacity="0.2"`);
+    Z(low, 1).circle(pz.x, pz.y, 128, `fill="none" stroke="${snow > 0.3 ? mix("#b9854c", SNOW, snow * 0.7) : "#b9854c"}" stroke-width="30"`);
+    Z(base, 3).circle(pz.x, pz.y, 106, fill(mix(L.season === "autumn" ? "#6f7d45" : "#5b8f4e", SNOW, snow * 0.8)));
     if (!fl.covered && fl.colors.length) for (let i = 0; i < 14 * fl.density; i++) {
       const a = (i / (14 * fl.density)) * Math.PI * 2;
-      Z(base, 4).circle(pz.x + Math.cos(a) * 50, pz.y + Math.sin(a) * 50, 5, fill(fl.colors[i % fl.colors.length]));
+      Z(base, 4).circle(pz.x + Math.cos(a) * 88, pz.y + Math.sin(a) * 88, 8, fill(fl.colors[i % fl.colors.length]));
     }
   }
 
   // --- a kitchen garden of raised beds on the south lawn ----------------------------------------
-  const kg = { x: b.x + b.w - 760, y: b.y + b.h + 110 };
-  if (LW.y + LW.h - kg.y > 170) {
+  const KG = 1.4, kg = { x: b.x + b.w - 1060, y: b.y + b.h + 130 };
+  if (LW.y + LW.h - kg.y > 130 + 84 * KG) {
     const qv = rnd(33), winter = L.season === "winter", soil = mix("#7a5a3a", SNOW, snow * 0.8);
     for (let i = 0; i < 3; i++) {
-      const x = kg.x + i * 230, y = kg.y;
-      Z(low, 0).rect(x + 5, y + 7, 190, 84, fill(shadowC, 0.2), 8);
-      Z(low, 1).rect(x, y, 190, 84, fill(mix("#b9854c", SNOW, snow * 0.6)), 8);
-      Z(low, 2).rect(x + 8, y + 8, 174, 68, fill(soil), 5);
+      const x = kg.x + i * 230 * KG, y = kg.y;
+      Z(low, 0).rect(x + 7, y + 10, 190 * KG, 84 * KG, fill(shadowC, 0.2), 11);
+      Z(low, 1).rect(x, y, 190 * KG, 84 * KG, fill(mix("#b9854c", SNOW, snow * 0.6)), 11);
+      Z(low, 2).rect(x + 11, y + 11, 174 * KG, 68 * KG, fill(soil), 7);
       if (winter || snow >= 0.95) continue;
       for (let row = 0; row < 3; row++) for (let k = 0; k < 6; k++) {
-        const cx = x + 24 + k * 28, cy = y + 22 + row * 21;
-        Z(low, 3).circle(cx, cy, 8 + qv() * 2, fill(mix(L.season === "autumn" ? "#8a8f3c" : "#5f9e4f", SNOW, snow * 0.75)));
-        if (i === 1 && L.season === "summer" && qv() < 0.4) Z(low, 4).circle(cx + 3, cy + 2, 3.4, fill("#e2626b"));
-        if (i === 2 && L.season === "autumn" && qv() < 0.3) Z(low, 4).circle(cx + 2, cy + 3, 6, fill("#e8892f"));
+        const cx = x + (24 + k * 28) * KG, cy = y + (22 + row * 21) * KG;
+        Z(low, 3).circle(cx, cy, (8 + qv() * 2) * KG, fill(mix(L.season === "autumn" ? "#8a8f3c" : "#5f9e4f", SNOW, snow * 0.75)));
+        if (i === 1 && L.season === "summer" && qv() < 0.4) Z(low, 4).circle(cx + 4, cy + 3, 3.4 * KG, fill("#e2626b"));
+        if (i === 2 && L.season === "autumn" && qv() < 0.3) Z(low, 4).circle(cx + 3, cy + 4, 6 * KG, fill("#e8892f"));
       }
     }
-    Z(low, 1).rect(kg.x + 700, kg.y + 22, 34, 44, fill("#4f8f8a"), 6);   // a watering can
-    Z(low, 2).circle(kg.x + 717, kg.y + 30, 7, fill("#6fb2ad"));
+    Z(low, 1).rect(kg.x + 700 * KG, kg.y + 22 * KG, 34 * KG, 44 * KG, fill("#4f8f8a"), 8);   // a watering can
+    Z(low, 2).circle(kg.x + 717 * KG, kg.y + 30 * KG, 7 * KG, fill("#6fb2ad"));
   }
 
   // --- trees on the lawn round the building ---------------------------------------------------
@@ -456,40 +477,40 @@ function drawGrounds(G: Grounds, L: Look, o: OutsideOpts) {
   const nRow = Math.max(2, Math.round(b.w / 700));
   for (let i = 0; i < nRow; i++) {
     const x = b.x + (b.w * (i + 0.5)) / nRow;
-    lawnTrees.push([x, b.y - 175, 40 + (i % 3) * 4]);
-    lawnTrees.push([x + 120, b.y + b.h + 185, 42 + ((i + 1) % 3) * 4]);
+    lawnTrees.push([x, b.y - 210, 74 + (i % 3) * 7]);
+    lawnTrees.push([x + 120, b.y + b.h + 215, 76 + ((i + 1) % 3) * 7]);
   }
-  lawnTrees.push([b.x - 170, b.y + b.h * 0.3, 44], [b.x - 175, b.y + b.h * 0.78, 42], [gw.x + 90, LW.y + 130, 44], [p.x - 140, LW.y + 150, 40],
-    [p.x + p.w + 160, p.y + 120, 42], [p.x + p.w + 150, p.y + p.h - 100, 46], [p.x + 160, LW.y + LW.h - 120, 42], [p.x + p.w - 220, LW.y + LW.h - 130, 38]);
-  if (shop) lawnTrees.push([shop.x - 140, shop.y + shop.h + 120, 40], [shop.x + shop.w + 120, shop.y + shop.h + 110, 44]);
+  lawnTrees.push([b.x - 200, b.y + b.h * 0.3, 80], [b.x - 205, b.y + b.h * 0.78, 76], [gw.x + 120, LW.y + 170, 80], [p.x - 170, LW.y + 190, 72],
+    [p.x + p.w + 190, p.y + 160, 76], [p.x + p.w + 180, p.y + p.h - 140, 82], [p.x + 220, LW.y + LW.h - 150, 76], [p.x + p.w - 280, LW.y + LW.h - 160, 70]);
+  if (shop) lawnTrees.push([shop.x - 170, shop.y + shop.h + 150, 72], [shop.x + shop.w + 150, shop.y + shop.h + 140, 80]);
   const hit = (x: number, y: number, r: Rect, pad: number) => x > r.x - pad && x < r.x + r.w + pad && y > r.y - pad && y < r.y + r.h + pad;
   for (const [x, y, r] of lawnTrees) {
-    if (!hit(x, y, LW, -60)) continue;
-    if (hit(x, y, b, 70) || hit(x, y, p, 50) || hit(x, y, gw, 60) || (shop && hit(x, y, shop, 70)) || (G.forecourt && hit(x, y, G.forecourt, 50))) continue;
-    if (pz && Math.hypot(x - pz.x, y - pz.y) < pz.r + 70) continue;
-    if (hit(x, y, { x: kg.x, y: kg.y, w: 740, h: 84 }, 60)) continue;
+    if (!hit(x, y, LW, -90)) continue;
+    if (hit(x, y, b, 100) || hit(x, y, p, 80) || hit(x, y, gw, 90) || (shop && hit(x, y, shop, 110)) || (G.forecourt && hit(x, y, G.forecourt, 80))) continue;
+    if (pz && Math.hypot(x - pz.x, y - pz.y) < pz.r + 100) continue;
+    if (hit(x, y, { x: kg.x, y: kg.y, w: 740 * KG, h: 84 * KG }, 90)) continue;
     if (o.avoid?.some((a) => hit(x, y, a, 40))) continue;
     tree(x, y, r);
   }
   // a hedge round the shop's lot (not along its front)
   if (shop) {
-    hedgeRect(shop.x - 46, shop.y + 40, 18, shop.h - 20);
-    hedgeRect(shop.x + shop.w + 28, shop.y + 40, 18, shop.h - 20);
-    hedgeRect(shop.x - 46, shop.y + shop.h + 40, shop.w + 92, 18);
+    hedgeRect(shop.x - 70, shop.y + 60, 30, shop.h - 20);
+    hedgeRect(shop.x + shop.w + 40, shop.y + 60, 30, shop.h - 20);
+    hedgeRect(shop.x - 70, shop.y + shop.h + 60, shop.w + 140, 30);
   }
 
   // --- what sways: the walk's trees and the plaza tree (live) ----------------------------------
   const ox = o.ox, oy = o.oy;
   const sway = [new Grove(), new Grove(), new Grove()];
-  walkTrees.forEach(([x, y], i) => treeInto(sway[i % 3], x - ox, y - oy, 30 + (i % 3) * 3, i % 3, L, 900 + i));
-  if (pz) treeInto(sway[1], pz.x - ox, pz.y - oy, 56, 0, L, 77);
+  walkTrees.forEach(([x, y], i) => treeInto(sway[i % 3], x - ox, y - oy, 54 + (i % 3) * 5, i % 3, L, 900 + i));
+  if (pz) treeInto(sway[1], pz.x - ox, pz.y - oy, 96, 0, L, 77);
   const qs2 = rnd(1234);
   const stillLocal = sway.map((Gr) => `${Gr.under}${Gr.still()}`).join("");
   const live = sway.map((Gr) => `<g class="amb-tree" style="${timing(qs2, 7, 0.35, `;--a:${n2(1.4 + qs2() * 1)}px`)}">${Gr.moving()}</g>`).join("");
-  const lamps: [number, number][] = [[gw.x + 120 - ox, gw.y - 40 - oy], [gw.x + gw.w * 0.55 - ox, gw.y + gw.h + 40 - oy]];
-  if (pz) lamps.push([pz.x + 104 - ox, pz.y - 70 - oy]);
+  const lamps: [number, number][] = lampsAt.map(([x, y]) => [x - ox, y - oy]);
+  if (pz) lamps.push([pz.x + 150 - ox, pz.y - 110 - oy]);
 
-  const snowmen = o.wx?.snowmen && pz ? snowman(pz.x - 190, pz.y + 30, 7) : "";
+  const snowmen = o.wx?.snowmen && pz ? snowman(pz.x - 300, pz.y + 40, 7) : "";
   return {
     ground: `<g transform="translate(${-ox} ${-oy})">${ground}${base}</g>`,
     still: `<g transform="translate(${-ox} ${-oy})"><g>${hedgeSvg}</g>${low}${trees.all()}${top}${snowmen}</g>${stillLocal}${lamps.map(([x, y]) => lampHead(x, y)).join("")}`,
@@ -533,8 +554,13 @@ export function outsideSvg(o: OutsideOpts) {
   const shop = o.shop ?? o.avoid?.[0] ?? null;
   const G = o.grounds ?? groundsLayout({ building: b, entranceY: o.entranceY, park: p, shop });
   const grounds = drawGrounds(G, L, { ...o, shop });
-  // the park: pond, paths, benches, lamps, flower beds, a few big trees
-  const pcx = X(p.x + p.w / 2), pcy = Y(p.y + p.h / 2);
+  // the park: pond, paths, benches, lamps, flower beds, a few big trees. It is laid out on its
+  // plan (PARK_BASE_W x PARK_BASE_H round the same middle) and drawn PARK_K times bigger, so its
+  // furniture is at the robots' scale; inPark() wraps plan drawing in that one transform.
+  const pcx = X(p.x + p.w / 2), pcy = Y(p.y + p.h / 2), K = PARK_K;
+  const pw = p.w / K, ph = p.h / K, px0 = pcx - pw / 2, py0 = pcy - ph / 2, pey = pcy + (Y(o.entranceY) - pcy) / K;
+  const inPark = (svg: string) => `<g transform="translate(${n2(pcx)} ${n2(pcy)}) scale(${K}) translate(${n2(-pcx)} ${n2(-pcy)})">${svg}</g>`;
+  const toWorld = ([x, y]: [number, number]): [number, number] => [pcx + (x - pcx) * K, pcy + (y - pcy) * K];
   const path = mix(pal.path, SNOW, snow * 0.55), plaza = mix(pal.plaza, SNOW, snow * 0.45);
   const fountainWater = frozen ? "#d3ebf5" : season === "winter" ? "#86bcd4" : "#8fc9e2";
   // the fountain is switched off for the winter
@@ -543,7 +569,7 @@ export function outsideSvg(o: OutsideOpts) {
   // months (hiding at night and in strong wind), fireflies glow on summer nights
   const ql = rnd(2024);
   const entrancePath = (t: number): [number, number, number] => {
-    const P = [[X(p.x), Y(o.entranceY)], [pcx - 300, Y(o.entranceY)], [pcx - 200, pcy], [pcx, pcy]];
+    const P = [[px0, pey], [pcx - 300, pey], [pcx - 200, pcy], [pcx, pcy]];
     const at = (i: number, u: number) => (1 - u) ** 3 * P[0][i] + 3 * (1 - u) ** 2 * u * P[1][i] + 3 * (1 - u) * u * u * P[2][i] + u ** 3 * P[3][i];
     return [at(0, t), at(1, t), (Math.atan2(at(1, t + 0.01) - at(1, t), at(0, t + 0.01) - at(0, t)) * 180) / Math.PI];
   };
@@ -552,7 +578,7 @@ export function outsideSvg(o: OutsideOpts) {
   ];
   const birds = `<g style="opacity:calc(1.4 - var(--night, 0) * 4.5)">${birdSpots.map(([x, y, a, k]) => {
     const t = timing(ql, 14, 0.25);
-    return `<g transform="translate(${n2(x)} ${n2(y)}) rotate(${n2(a)})"><g class="amb-occ" style="${timing(ql, 75, 0.3)}">${bird(k, t)}</g></g>`;
+    return `<g transform="translate(${n2(x)} ${n2(y)}) rotate(${n2(a)}) scale(${SMALL})"><g class="amb-occ" style="${timing(ql, 75, 0.3)}">${bird(k, t)}</g></g>`;
   }).join("")}</g>`;
   let fliers = "";
   if (season === "spring" || season === "summer") {
@@ -571,7 +597,7 @@ export function outsideSvg(o: OutsideOpts) {
     for (let g = 0; g < 2; g++) {
       const dots = new Shapes();
       for (let i = 0; i < 8; i++) {
-        const x = X(p.x) + 70 + ql() * (p.w - 140), y = Y(p.y) + 70 + ql() * (p.h - 140);
+        const x = px0 + 70 + ql() * (pw - 140), y = py0 + 70 + ql() * (ph - 140);
         dots.circle(x, y, 9, fill("#fff3a0", 0.3)); dots.circle(x, y, 2.6, fill("#fffde6"));
       }
       ff += `<g class="amb-ffly" style="${timing(ql, 9, 0.35, `;--fx:${n2((ql() - 0.5) * 50)}px;--fy:${n2((ql() - 0.5) * 40)}px`)}"><g class="amb-blink" style="${timing(ql, 3, 0.4)}">${dots}</g></g>`;
@@ -579,33 +605,34 @@ export function outsideSvg(o: OutsideOpts) {
     fliers += `<g style="opacity:calc((var(--lamp, 0) - 0.45) * 2)">${ff}</g>`;
   }
   // the park: its ground and furniture stay still, the rest lives
-  const parkTrees = [tree(X(p.x) + 110, Y(p.y) + 110, 64, 0, L, 1), tree(X(p.x + p.w) - 120, Y(p.y + p.h) - 120, 70, 1, L, 2), tree(pcx - 320, pcy - 200, 58, 2, L, 3), tree(X(p.x + p.w) - 110, Y(p.y) + 300, 54, 0, L, 4)];
+  const parkTrees = [tree(px0 + 110, py0 + 110, 64, 0, L, 1), tree(px0 + pw - 120, py0 + ph - 120, 70, 1, L, 2), tree(pcx - 320, pcy - 200, 58, 2, L, 3), tree(px0 + pw - 110, py0 + 300, 54, 0, L, 4)];
   const bushes = [bush(pcx - 470, pcy + 230, 40, L), bush(pcx - 200, pcy + 420, 34, L), bush(pcx + 420, pcy + 220, 38, L), bush(pcx + 470, pcy + 260, 30, L)];
-  const parkLamps: [number, number][] = [[pcx - 60, pcy - 170], [pcx + 60, pcy + 190], [X(p.x) + 120, Y(o.entranceY) - 110]];
+  // the lamps stand at the robots' scale, so they are placed in world terms, outside the plan
+  const parkLamps = ([[pcx - 60, pcy - 170], [pcx + 60, pcy + 190], [px0 + 120, pey - 110]] as [number, number][]).map(toWorld);
   const beds = [flowers(pcx - 330, pcy + 170, 190, 46, 3, L), flowers(pcx + 120, pcy - 300, 160, 40, 5, L), flowers(pcx + 160, pcy + 330, 210, 44, 9, L)];
   const parkGround = `
-    <rect x="${X(p.x)}" y="${Y(p.y)}" width="${p.w}" height="${p.h}" rx="60" fill="${mix(pal.park[0], SNOW, snow >= 0.95 ? 0.8 : snow * 0.45)}"/>
-    <rect x="${X(p.x) + 14}" y="${Y(p.y) + 14}" width="${p.w - 28}" height="${p.h - 28}" rx="50" fill="${mix(pal.park[1], SNOW, snow >= 0.95 ? 0.85 : snow * 0.45)}"/>
-    ${snowPatches(X(p.x) + 90, Y(p.y) + 90, p.w - 180, p.h - 180, snow, 99)}
-    <path d="M${X(p.x)} ${Y(o.entranceY)} C ${pcx - 300} ${Y(o.entranceY)} ${pcx - 200} ${pcy} ${pcx} ${pcy}" stroke="${path}" stroke-width="44" fill="none" stroke-linecap="round"/>
-    <path d="M${pcx} ${Y(p.y) + 40} L${pcx} ${Y(p.y + p.h) - 40}" stroke="${path}" stroke-width="36" fill="none" stroke-linecap="round"/>
+    <rect x="${px0}" y="${py0}" width="${pw}" height="${ph}" rx="60" fill="${mix(pal.park[0], SNOW, snow >= 0.95 ? 0.8 : snow * 0.45)}"/>
+    <rect x="${px0 + 14}" y="${py0 + 14}" width="${pw - 28}" height="${ph - 28}" rx="50" fill="${mix(pal.park[1], SNOW, snow >= 0.95 ? 0.85 : snow * 0.45)}"/>
+    ${snowPatches(px0 + 90, py0 + 90, pw - 180, ph - 180, snow, 99)}
+    <path d="M${px0} ${pey} C ${pcx - 300} ${pey} ${pcx - 200} ${pcy} ${pcx} ${pcy}" stroke="${path}" stroke-width="44" fill="none" stroke-linecap="round"/>
+    <path d="M${pcx} ${py0 + 40} L${pcx} ${py0 + ph - 40}" stroke="${path}" stroke-width="36" fill="none" stroke-linecap="round"/>
     ${pond(pcx + 260, pcy - 120, L, frozen)}
     <circle cx="${pcx}" cy="${pcy}" r="70" fill="${plaza}"/><circle cx="${pcx}" cy="${pcy}" r="52" fill="${fountainWater}"/><circle cx="${pcx}" cy="${pcy}" r="16" fill="${plaza}"/>
     ${bench(pcx - 150, pcy - 110, L)}${bench(pcx + 80, pcy + 110, L)}${bench(pcx - 150, pcy + 120, L)}
     ${beds.map((b) => b.bed).join("")}
     ${picnic(pcx - 380, pcy + 300, L)}
-    ${bushes.map((q) => q.still).join("")}${parkLamps.map(([x, y]) => lampHead(x, y)).join("")}
+    ${bushes.map((q) => q.still).join("")}
     ${o.wx?.snowmen ? snowman(pcx - 260, pcy - 360, 1) + snowman(pcx + 520, pcy + 60, 2) : ""}`;
-  const park = `
+  const park = `${inPark(`
     ${pondShine(pcx + 260, pcy - 120, frozen)}${ducks(pcx + 260, pcy - 120, L, frozen)}
     ${jet}
     ${beds.map((b) => b.blooms).join("")}
     ${bushes.map((q) => q.live).join("")}
-    ${lampLights([...parkLamps, ...grounds.lamps])}
     ${birds}
     ${parkTrees.map((q) => q.live).join("")}
-    ${fliers}
-    ${o.wx?.hot ? `<g style="opacity:calc(1.2 - var(--lamp, 0) * 2)">${sprinkler(pcx - 430, pcy - 260, 1)}${sprinkler(pcx + 420, pcy + 420, 2)}${sprinkler(X(G.walk.x) + 260, Y(G.walk.y) - 170, 3)}</g>` : ""}`;
+    ${fliers}`)}
+    ${lampLights([...parkLamps, ...grounds.lamps])}
+    ${o.wx?.hot ? `<g style="opacity:calc(1.2 - var(--lamp, 0) * 2)">${inPark(sprinkler(pcx - 430, pcy - 260, 1) + sprinkler(pcx + 420, pcy + 420, 2))}${sprinkler(X(G.walk.x) + 260, Y(G.walk.y) - 230, 3)}</g>` : ""}`;
   // the building: thick outer wall, a shadow, an entrance with steps toward the park
   const bx = X(b.x), by = Y(b.y);
   const shell = `
@@ -617,10 +644,10 @@ export function outsideSvg(o: OutsideOpts) {
   const still = `<defs>${patterns(L)}</defs>
     ${grounds.ground}
     ${shell}
-    ${parkGround}
+    ${inPark(parkGround)}${parkLamps.map(([x, y]) => lampHead(x, y)).join("")}
     ${o.wx && o.puddles ? `<g transform="translate(${-ox} ${-oy})">${puddleSvg(o.puddles, o.wx, { x: ox, y: oy, w, h })}</g>` : ""}
     ${grounds.still}
-    ${parkTrees.map((q) => q.still).join("")}`;
+    ${inPark(parkTrees.map((q) => q.still).join(""))}`;
   const live = `${grounds.live}${park}`;
   const layer = o.layer ?? "all";
   const open = `<svg class="outside season-${season}${layer === "live" ? " outside-live" : ""}" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true"`;

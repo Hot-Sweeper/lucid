@@ -21,7 +21,15 @@ export type Grounds = {
 };
 
 /** Lawn between the buildings and the hedge. */
-export const MARGIN = 240;
+export const MARGIN = 340;
+/**
+ * The park and the shop are drawn at the same scale as the rooms (a robot at scale 0.42 fits a
+ * bench seat, a tree crown is far bigger than a robot). The park's drawing is laid out on a
+ * 1300 x 1040 plan and shown PARK_K times bigger; the shop on a 680 x 420 plan, SHOP_K times bigger.
+ */
+export const PARK_K = 1.8;
+export const PARK_BASE_W = 1300, PARK_BASE_H = 1040;
+export const SHOP_K = 1.6;
 /** Meadow between the hedge and the woodland. */
 export const MEADOW = 90;
 /** Woodland beyond the meadow, at least this deep on every side. */
@@ -42,12 +50,12 @@ export function groundsLayout(o: { building: Rect; entranceY: number; park: Rect
   const e = MEADOW + WOODS;
   const bw = lawn.w + 2 * e, bh = Math.max(lawn.h + 2 * e, Math.round(bw / ASPECT));
   const bounds = { x: x0 - e, y: Math.round(y0 + lawn.h / 2 - bh / 2), w: bw, h: bh };
-  const walk = { x: b.x + b.w + 36, y: ey - 62, w: p.x - (b.x + b.w + 36) + 40, h: 124 };
+  const walk = { x: b.x + b.w + 36, y: ey - 80, w: p.x - (b.x + b.w + 36) + 40, h: 160 };
   const forecourt = shop ? { x: shop.x - 30, y: walk.y + walk.h - 30, w: shop.w + 60, h: shop.y - (walk.y + walk.h) + 50 } : null;
   // the plaza sits on the lawn north of the walk, halfway between the building and the park
   const gx = Math.round((b.x + b.w + p.x) / 2);
   const room = walk.y - y0;
-  const plaza = room > 460 ? { x: gx, y: walk.y - Math.min(330, room / 2), r: 130 } : null;
-  const plazaPath = plaza ? { x: gx - 30, y: plaza.y, w: 60, h: walk.y - plaza.y + 10 } : null;
+  const plaza = room > 720 ? { x: gx, y: walk.y - Math.min(470, room / 2), r: 220 } : null;
+  const plazaPath = plaza ? { x: gx - 45, y: plaza.y, w: 90, h: walk.y - plaza.y + 10 } : null;
   return { bounds, lawn, walk, forecourt, plaza, plazaPath };
 }
