@@ -295,7 +295,9 @@ const attention: VideoDef = {
     ctx.fillStyle = lin(ctx, 0, 0, 0, h, [[0, "#1b2246"], [1, "#141a33"]]);
     ctx.fillRect(0, 0, w, h);
     for (let i = 0; i < 6; i++) glow(ctx, hash(i) * w, hash(i + 3) * h, 40 * s, i % 2 ? C.lilac : C.sky, 0.08);
-    const qi = Math.floor(t / 2) % 4, f = smooth(seg(t % 2, 0, 0.5));
+    // the clock can read slightly negative (or NaN) at the start of a loop; keep the index valid
+    const tt = Number.isFinite(t) ? Math.max(0, t) : 0;
+    const qi = Math.floor(tt / 2) % 4, f = smooth(seg(tt % 2, 0, 0.5));
     const prev = ATT[(qi + 3) % 4], cur = ATT[qi];
     const wts = cur.map((v, i) => lerp(prev[i], v, f));
     const q = QIDX[qi];

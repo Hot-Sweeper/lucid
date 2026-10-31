@@ -27,8 +27,10 @@ const REST_L = { x: HX - 20 * U, y: TABLE_FRONT - 5 }, REST_R = { x: HX + 20 * U
 const IDLE_L = { x: HX - 32 * U, y: TABLE_FRONT - 10 }, IDLE_R = { x: HX + 32 * U, y: TABLE_FRONT - 10 };
 const FOLD_BONE = 53 * U;
 const LAP_L = { x: ORIGIN.x - 15 * U, y: ORIGIN.y + 42 * U }, LAP_R = { x: ORIGIN.x + 15 * U, y: ORIGIN.y + 42 * U };
-const PHONE_HOLD = { x: HX - 58 * U - 45, y: HY - 84 * U };   // top-left of the held phone (45x90 at 0.3 scale)
-const PHONE_W = 45, PHONE_H = 90;
+const PHONE_W = 36, PHONE_H = 72;                               // the held phone: 150x300 at 0.24 scale
+// Over the left shoulder: the phone's right edge tucks just behind the head, top at eye level.
+const PHONE_HOLD = { x: HX - 80, y: HY - 52 };   // beside the head, only its edge tucked behind it, above the desk plate
+const PHONE_TILT = 7;
 const LEFT_KEYS = "qwertasdfgzxcvb12345";
 const RIGHT_KEYS = "yuiophjklnm,.67890 ";
 
@@ -59,7 +61,7 @@ export class TopDownRobot implements SeatedRobot {
   private mugP: Pt | null = null;
   private mugTilt = { v: 0 };
   private phoneP: Pt | null = null;
-  private phoneTilt = { v: -6 };
+  private phoneTilt = { v: 0 };
   private swipeP = { x: 0, y: 0, on: 0 };
   private thumb: SVGSVGElement;
   private busy = false;
@@ -447,8 +449,8 @@ export class TopDownRobot implements SeatedRobot {
         .to(this.fold, { l: 0, r: 1, duration: 0.5 }, 0.1)
         .add(() => (this.phoneShown = true), 0.62)
         .to(ph, { x: PHONE_HOLD.x, y: PHONE_HOLD.y, duration: 0.75, ease: "power2.inOut" }, 0.65)
-        .add(() => { this.front.l = true; this.layerArms(); }, 0.8)
-        .to(r, { bx: -2, yaw: -0.28, rot: -5, hy: 3, hx: -2, lean: 0.05, duration: 0.7, ease: "power2.inOut" }, 0.7)
+        .fromTo(this.phoneTilt, { v: 0 }, { v: PHONE_TILT, duration: 0.75, ease: "power2.inOut" }, 0.65)
+        .to(r, { bx: -2, yaw: -0.12, rot: -7, hy: 2, hx: -2, lean: -0.08, duration: 0.7, ease: "power2.inOut" }, 0.7)
         .to(this.swipeP, { on: 1, duration: 0.3 }, 1.3);
       await done(tl);
       this.busy = false;
@@ -461,8 +463,8 @@ export class TopDownRobot implements SeatedRobot {
       const tl = gsap.timeline();
       tl.to(this.swipeP, { on: 0, duration: 0.2 }, 0)
         .to(r, { bx: -6, yaw: 0, rot: 0, hy: 0, hx: 0, duration: 0.6, ease: "power2.inOut" }, 0)
-        .add(() => { this.front.l = false; this.layerArms(); }, 0.25)
         .to(ph, { x: rest.x - PHONE_W / 2, y: rest.y - PHONE_H / 2, duration: 0.6, ease: "power2.inOut" }, 0)
+        .to(this.phoneTilt, { v: 0, duration: 0.6, ease: "power2.inOut" }, 0)
         .add(() => { this.phoneP = null; this.phoneShown = false; this.desk.showPhone(null); }, 0.62)
         .to(this.gripL, { w: 0, duration: 0.5, ease: "power2.inOut" }, 0.62)
         .to(r, { lx: REST_L.x, ly: REST_L.y, bx: 0, duration: 0.5, ease: "power2.inOut" }, 0.62)
@@ -477,9 +479,9 @@ export class TopDownRobot implements SeatedRobot {
   swipe() {
     if (!this.phoneP) return;
     gsap.timeline()
-      .to(this.swipeP, { y: -24, x: -4, duration: 0.22, ease: "power2.inOut" })
+      .to(this.swipeP, { y: -20, x: 2, duration: 0.2, ease: "power2.inOut" })
       .to(this.swipeP, { y: 0, x: 0, duration: 0.3, ease: "power2.out" });
-    gsap.fromTo(this.phoneTilt, { v: -8 }, { v: -6, duration: 0.5, ease: "power2.out" });
+    gsap.fromTo(this.phoneTilt, { v: PHONE_TILT + 2 }, { v: PHONE_TILT, duration: 0.5, ease: "power2.out" });
   }
 
   // ---- turning around -------------------------------------------------------------------
@@ -565,8 +567,14 @@ export class TopDownRobot implements SeatedRobot {
     R = { x: lerp(R.x, mouseHand.x, this.mouseW.v), y: lerp(R.y, mouseHand.y, this.mouseW.v) };
     if (this.mugP) R = { x: lerp(R.x, this.mugP.x + 12 * U, this.gripR.w), y: lerp(R.y, this.mugP.y - 1, this.gripR.w) };
     else if (this.gripR.w > 0) R = { x: lerp(R.x, this.desk.mug.x + 12 * U, this.gripR.w), y: lerp(R.y, this.desk.mug.y - 1, this.gripR.w) };
-    const phoneHand = this.phoneP ? { x: this.phoneP.x + PHONE_W / 2, y: this.phoneP.y + PHONE_H + 2 } : this.desk.phoneRest;
+    // Both hands hold the phone at its lower corners: the left one in front, the right one
+    // reaching across behind the head.
+    const phoneHand = this.phoneP ? { x: this.phoneP.x + 9, y: this.phoneP.y + PHONE_H - 4 } : this.desk.phoneRest;
     L = { x: lerp(L.x, phoneHand.x, this.gripL.w), y: lerp(L.y, phoneHand.y, this.gripL.w) };
+    if (this.phoneP && this.phoneShown) {
+      const rh = { x: this.phoneP.x + PHONE_W - 2, y: this.phoneP.y + PHONE_H - 10 };
+      R = { x: lerp(R.x, rh.x, this.gripL.w * 0.9), y: lerp(R.y, rh.y, this.gripL.w * 0.9) };
+    }
 
     const shrug = r.shrug;
     const sL = { x: SH_L.x + bx, y: SH_L.y + by - breathPx - shrug };
@@ -598,8 +606,8 @@ export class TopDownRobot implements SeatedRobot {
     // fingers over the held phone
     const tg = this.thumb.firstElementChild as SVGGElement;
     if (this.phoneP && this.phoneShown) {
-      const tx = this.phoneP.x + PHONE_W - 10 + this.swipeP.x, ty = this.phoneP.y + PHONE_H - 22 + this.swipeP.y;
-      tg.setAttribute("transform", `translate(${tx.toFixed(1)} ${ty.toFixed(1)}) rotate(-28)`);
+      const tx = this.phoneP.x + 15 + this.swipeP.x, ty = this.phoneP.y + PHONE_H - 15 + this.swipeP.y;
+      tg.setAttribute("transform", `translate(${tx.toFixed(1)} ${ty.toFixed(1)}) rotate(${(PHONE_TILT + 24).toFixed(0)}) scale(0.8)`);
       tg.setAttribute("opacity", String(this.swipeP.on));
     } else tg.setAttribute("opacity", "0");
   };

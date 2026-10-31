@@ -72,7 +72,7 @@ export class Desk implements DeskStage {
     this.el = el;
     this.monitor = el.querySelector(".monitor")!;
     this.screen = el.querySelector(".screen")!;
-    gsap.set(el.querySelector(".phone-held"), { scale: 0.3, transformOrigin: "0 0" });
+    gsap.set(el.querySelector(".phone-held"), { scale: 0.24, transformOrigin: "0 0" });
     this.indexKeys();
     this.robot = robotFactory(el.querySelector(".robot-host") as HTMLElement, this.rig());
     this.wm = new WM(this.screen, this.robot);

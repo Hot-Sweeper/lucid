@@ -17,7 +17,7 @@
 .hall::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 46px; margin-top: -23px; background: #8f6d5a; opacity: 0.55; border-radius: 6px; }
 .desk-unit { position: absolute; width: 400px; height: 380px; cursor: pointer; }
 .desk-unit > svg, .robot-host > svg { position: absolute; left: 0; top: 0; width: 400px; height: 380px; overflow: visible; pointer-events: none; }
-.robot-host { position: absolute; inset: 0; pointer-events: none; }
+.robot-host { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
 .desk-unit .key { fill: #5a6177; transition: fill 0.12s; }
 .desk-unit .key.down { fill: #9fe8ff; }
 
@@ -33,7 +33,7 @@
 .desk-glow { position: absolute; left: 20px; top: 40px; width: 360px; height: 240px; pointer-events: none; --glow: #4fb6ff;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 45%, transparent), transparent); opacity: calc(0.1 + var(--night) * 1.8); }
 
-.desk-plate { position: absolute; left: 12px; top: 262px; max-width: 120px; display: flex; align-items: center; gap: 5px; padding: 3px 7px;
+.desk-plate { position: absolute; z-index: 3; left: 12px; top: 262px; max-width: 120px; display: flex; align-items: center; gap: 5px; padding: 3px 7px;
   background: rgba(255, 255, 255, 0.93); border-radius: 6px; color: #2d3142; font: 500 10px/1.2 var(--font); box-shadow: 0 3px 8px rgba(40, 30, 20, 0.15); z-index: 2; }
 .desk-plate img { width: 11px; height: 11px; flex: none; }
 .desk-plate span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -61,7 +61,7 @@
 .desk-unit .bubble.speak .tail.b { display: none; }
 .desk-unit .zz { position: absolute; left: 0; top: 0; font: 600 18px var(--font); color: #8f9ad6; pointer-events: none; z-index: 6; }
 
-.phone-held { position: absolute; left: 0; top: 0; width: 150px; height: 300px; border-radius: 22px; background: #1a1d2e; padding: 8px; box-sizing: border-box; display: none; box-shadow: 0 10px 20px rgba(10, 12, 30, 0.35); z-index: 5; }
+.phone-held { position: absolute; left: 0; top: 0; width: 150px; height: 300px; border-radius: 22px; background: #1a1d2e; padding: 8px; box-sizing: border-box; display: none; box-shadow: 0 10px 20px rgba(10, 12, 30, 0.35); z-index: 4; }
 .phone-held.on { display: block; }
 .phone-screen { width: 100%; height: 100%; border-radius: 15px; overflow: hidden; background: #0e1233; position: relative; }
 
