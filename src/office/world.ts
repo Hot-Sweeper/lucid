@@ -178,7 +178,7 @@ export class World {
     // The outdoors is one big drawing with tens of thousands of shapes. As live page elements
     // they made every frame slow, so it is shown as a single image (its CSS animations still run).
     const layer = this.root.querySelector(".outside-layer") as HTMLElement;
-    const svg = outsideSvg({ ...this.outArgs, ...look }).replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
+    const svg = outsideSvg({ ...this.outArgs, ...look, layer: "still" }).replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
     const css = [...document.styleSheets].flatMap((sh) => { try { return [...sh.cssRules].map((r) => r.cssText).filter((t) => /\.outside|@keyframes|--lamp|--night/.test(t)); } catch { return []; } }).join("\n");
     const vars = getComputedStyle(this.root);
     const root = `svg{--lamp:${vars.getPropertyValue("--lamp") || 0};--night:${vars.getPropertyValue("--night") || 0};--wind:${vars.getPropertyValue("--wind") || 0.3}}`;
@@ -188,7 +188,7 @@ export class World {
     const withCss = svg.replace(/(<svg[^>]*>)/, `$1<style>${root}\n${animate ? css : css.replace(/animation[^;}]*;?/g, "")}</style>`);
     if (this.outUrl) URL.revokeObjectURL(this.outUrl);
     this.outUrl = URL.createObjectURL(new Blob([withCss], { type: "image/svg+xml" }));
-    layer.innerHTML = `<img class="outside-img" src="${this.outUrl}" alt="" draggable="false" style="display:block;width:100%;height:100%">`;
+    layer.innerHTML = `<img class="outside-img" src="${this.outUrl}" alt="" draggable="false" style="display:block;width:100%;height:100%">` + outsideSvg({ ...this.outArgs, ...look, layer: "live" });
     this.scene.style.setProperty("--scene-ground", seasonPalette(look.season).ground);
   }
   level = 0;

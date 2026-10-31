@@ -1,0 +1,158 @@
+/* Ambient life for the outdoors (src/office/outside.ts) and the offices (src/office/ambient.ts).
+   Only CSS transform and opacity loops on SVG groups; durations and delays are written per element
+   into the SVG, so neighbours never move in step. Nothing here is needed for the scene to look right.
+   Every animated SVG element costs main-thread time on every frame, so the many trees share a few
+   sway groups and the flowers of a bed nod in three groups (see outside.ts).
+
+   Inputs read from .world:
+     --wind   0 (still) to 1 (storm): tree, bush and flower amplitude; insects hide in strong wind
+     --night  the night tint (0 day, about 0.3 night): birds and butterflies go to bed
+     --lamp   lamp light (0 day, 1 night): lamp glow, fireflies
+     --stars  0 day, 1 night: window clouds fade at night */
+
+/* --- trees, bushes, flowers ------------------------------------------------------------------ */
+
+/* the tops of the crowns lean with the wind while their bases stay: reads as height from above */
+.amb-tree { animation: amb-sway 7s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+@keyframes amb-sway {
+  from { transform: translate(calc(var(--a, 2px) * (-0.35 - var(--wind, 0.2) * 0.4)), calc(var(--a, 2px) * 0.2)); }
+  to { transform: translate(calc(var(--a, 2px) * (0.55 + var(--wind, 0.2) * 2.6)), calc(var(--a, 2px) * -0.3)); }
+}
+
+/* bare winter branches twist a little around the trunk (transform-origin is set per tree) */
+.amb-bare { animation: amb-twist 8s ease-in-out infinite alternate; transform-box: view-box; }
+@keyframes amb-twist {
+  from { transform: rotate(calc(-0.5deg - var(--wind, 0.2) * 1deg)); }
+  to { transform: rotate(calc(0.6deg + var(--wind, 0.2) * 2.4deg)); }
+}
+
+.amb-bush { animation: amb-rustle 3.6s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+@keyframes amb-rustle {
+  from { transform: rotate(calc(-0.8deg - var(--wind, 0.2) * 1.5deg)) scale(1); }
+  to { transform: rotate(calc(0.9deg + var(--wind, 0.2) * 2.5deg)) scale(1.025); }
+}
+
+/* a group of flowers in a bed nods in the breeze */
+.amb-fl { animation: amb-bob 2.8s ease-in-out infinite alternate; }
+@keyframes amb-bob {
+  from { transform: translate(calc(-0.6px - var(--wind, 0.2) * 1.5px), 0.6px); }
+  to { transform: translate(calc(0.8px + var(--wind, 0.2) * 2.5px), -0.6px); }
+}
+
+/* --- park lamps ----------------------------------------------------------------------------- */
+
+.amb-glow { animation: amb-breathe 4.6s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+@keyframes amb-breathe { from { transform: scale(0.93); } to { transform: scale(1.06); } }
+
+/* --- fountain -------------------------------------------------------------------------------- */
+
+/* a droplet leaves the jet, rises toward us (grows), falls back into the basin (shrinks) */
+.amb-drop { animation: amb-drop 1.5s linear infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes amb-drop {
+  0% { transform: translate(var(--r0, 9px), 0) scale(0.5); opacity: 0; animation-timing-function: ease-out; }
+  8% { opacity: 0.95; }
+  45% { transform: translate(calc((var(--r0, 9px) + var(--r1, 38px)) * 0.5), 0) scale(1.35); animation-timing-function: ease-in; }
+  92% { opacity: 0.9; }
+  100% { transform: translate(var(--r1, 38px), 0) scale(0.6); opacity: 0; }
+}
+/* where it lands, a ring spreads (same duration and delay as its droplet, so they stay in step) */
+.amb-ripple { animation: amb-ripple 1.5s ease-out infinite; transform-box: fill-box; transform-origin: center; opacity: 0; }
+@keyframes amb-ripple {
+  0% { transform: scale(0.3); opacity: 0.85; }
+  60% { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+.amb-ring { animation: amb-ring 3.2s ease-out infinite; transform-box: fill-box; transform-origin: center; opacity: 0; }
+@keyframes amb-ring {
+  0% { transform: scale(0.35); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+/* --- animals --------------------------------------------------------------------------------- */
+
+/* anything that travels along a path: offset-path is written per element */
+.amb-path { animation: amb-path 60s linear infinite; offset-rotate: auto; }
+@keyframes amb-path { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+
+/* a paddling duck rocks a little */
+.amb-rock { animation: amb-rock 2.6s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+@keyframes amb-rock { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }
+/* a duck sitting on the ice breathes */
+.amb-sit { animation: amb-sit 4s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+@keyframes amb-sit { from { transform: scale(1); } to { transform: scale(1.05, 1.03); } }
+
+/* shown only part of the time, so creatures come and go */
+.amb-occ { animation: amb-occ 50s linear infinite; opacity: 0; }
+@keyframes amb-occ {
+  0% { opacity: 0; }
+  5%, 42% { opacity: 1; }
+  48%, 100% { opacity: 0; }
+}
+
+.amb-flap { animation: amb-flap 0.24s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+@keyframes amb-flap { from { transform: scale(1, 1); } to { transform: scale(1, 0.22); } }
+
+/* dragonflies dart, hover, dart */
+.amb-dart { animation: amb-dart 24s ease-in-out infinite; offset-rotate: auto; }
+@keyframes amb-dart {
+  0%, 10% { offset-distance: 0%; }
+  16%, 30% { offset-distance: 17%; }
+  36%, 46% { offset-distance: 36%; }
+  52%, 62% { offset-distance: 55%; }
+  68%, 80% { offset-distance: 77%; }
+  88%, 100% { offset-distance: 100%; }
+}
+.amb-buzz { animation: amb-buzz 0.09s linear infinite alternate; }
+@keyframes amb-buzz { from { opacity: 0.35; } to { opacity: 0.85; } }
+
+/* a bird hops along, pecks twice, turns around, hops back and pecks again */
+.amb-hop { animation: amb-hop 14s linear infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes amb-hop {
+  0%, 8% { transform: translate(0, 0) rotate(0deg) scale(1); }
+  10% { transform: translate(5px, 0) rotate(0deg) scale(1.2); }
+  12%, 20% { transform: translate(10px, 0) rotate(0deg) scale(1); }
+  22% { transform: translate(15px, -1px) rotate(0deg) scale(1.2); }
+  24%, 27%, 29%, 31%, 33%, 42% { transform: translate(20px, -2px) rotate(0deg) scale(1); }
+  28%, 32% { transform: translate(22px, -2px) rotate(0deg) scale(0.96); }
+  46%, 52% { transform: translate(20px, -2px) rotate(180deg) scale(1); }
+  54% { transform: translate(15px, -1px) rotate(180deg) scale(1.2); }
+  56%, 64% { transform: translate(10px, 0) rotate(180deg) scale(1); }
+  66% { transform: translate(5px, 0) rotate(180deg) scale(1.2); }
+  68%, 72%, 74%, 92% { transform: translate(0, 0) rotate(180deg) scale(1); }
+  73% { transform: translate(-2px, 0) rotate(180deg) scale(0.96); }
+  96%, 100% { transform: translate(0, 0) rotate(360deg) scale(1); }
+}
+
+.amb-ffly { animation: amb-drift 9s ease-in-out infinite alternate; }
+@keyframes amb-drift { from { transform: translate(0, 0); } to { transform: translate(var(--fx, 10px), var(--fy, -8px)); } }
+.amb-blink { animation: amb-blink 3s ease-in-out infinite; }
+@keyframes amb-blink {
+  0%, 100% { opacity: 0.15; }
+  40%, 60% { opacity: 1; }
+}
+
+/* --- offices --------------------------------------------------------------------------------- */
+
+/* potted plants: the leaves turn a little around the pot */
+.amb-plant { animation: amb-plant 5.5s ease-in-out infinite alternate; transform-box: view-box; transform-origin: 0 0; }
+@keyframes amb-plant { from { transform: rotate(-2.2deg) scale(1); } to { transform: rotate(2.6deg) scale(1.02); } }
+
+/* a cloud drifting past a window (--d is the distance across, set per window) */
+.amb-cloud { animation: amb-cloud 90s linear infinite; }
+@keyframes amb-cloud { from { transform: translateX(0); } to { transform: translateX(var(--d, 300px)); } }
+
+/* the wall clock's second hand ticks once a second; its delay syncs it with the real seconds */
+.clock-s { animation: amb-tick 60s steps(60, end) infinite; transform-box: view-box; transform-origin: 0 0; }
+@keyframes amb-tick { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* --- reduced motion: every decorative loop stops ------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .amb-tree, .amb-bare, .amb-bush, .amb-fl, .amb-glow, .amb-path, .amb-rock, .amb-sit, .amb-flap,
+  .amb-dart, .amb-buzz, .amb-hop, .amb-ffly, .amb-blink, .amb-plant, .amb-cloud, .amb-occ,
+  .amb-drop, .amb-ripple, .amb-ring, .clock-s {
+    animation: none !important;
+  }
+  /* things that only make sense while moving are hidden instead of frozen mid-air */
+  .amb-drop, .amb-ripple, .amb-ring, .amb-occ, .clock-s { display: none; }
+}

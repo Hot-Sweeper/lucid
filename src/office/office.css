@@ -444,3 +444,6 @@
 /* a robot on its way to this desk: the chair waits empty until it arrives */
 .desk-unit.arriving .robot-host { opacity: 0; }
 .hall-walker { cursor: pointer; }
+
+.outside-layer { overflow: hidden; }
+.outside-layer .outside-live { position: absolute; left: 0; top: 0; pointer-events: none; }

@@ -14,7 +14,9 @@
 
 export type FloorId = "wood" | "oak" | "carpet" | "tiles" | "concrete" | "terrazzo";
 export type WallId = "warm" | "cool" | "mint" | "lilac" | "dusk" | "brick";
-export type DecorId = "plants" | "rug" | "posters" | "bookshelf" | "coffee" | "water" | "arcade" | "aquarium" | "neon" | "beanbags" | "pingpong" | "trophies";
+export type DecorId = "plants" | "rug" | "posters" | "bookshelf" | "coffee" | "water" | "arcade" | "aquarium" | "neon" | "beanbags" | "pingpong" | "trophies"
+  | "pumpkins" | "leafwreath" | "xmastree" | "stringlights" | "snowglobe" | "tulips" | "kite" | "deskfan" | "palm" | "beachposter";
+export type DecorSeason = "spring" | "summer" | "autumn" | "winter";
 type Spot = "wall" | "corner" | "floor";
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -36,7 +38,8 @@ export const WALLS: Record<WallId, { name: string; face: string; trim: string }>
   brick: { name: "Brick", face: "#c47a5a", trim: "#e6dccb" },
 };
 
-export const DECOR: Record<DecorId, { name: string; unlockAt: number; spot: Spot }> = {
+// Seasonal items (with `season`) are sold only in their season; they need no company level.
+export const DECOR: Record<DecorId, { name: string; unlockAt: number; spot: Spot; season?: DecorSeason }> = {
   plants: { name: "Potted plants", unlockAt: 0, spot: "corner" },
   rug: { name: "Rug", unlockAt: 0, spot: "floor" },
   posters: { name: "Robot posters", unlockAt: 1, spot: "wall" },
@@ -49,12 +52,24 @@ export const DECOR: Record<DecorId, { name: string; unlockAt: number; spot: Spot
   neon: { name: "Neon sign", unlockAt: 9, spot: "wall" },
   aquarium: { name: "Aquarium", unlockAt: 10, spot: "corner" },
   pingpong: { name: "Ping pong table", unlockAt: 10, spot: "floor" },
+  pumpkins: { name: "Pumpkins", unlockAt: 0, spot: "corner", season: "autumn" },
+  leafwreath: { name: "Leaf wreath", unlockAt: 0, spot: "wall", season: "autumn" },
+  xmastree: { name: "Christmas tree", unlockAt: 0, spot: "corner", season: "winter" },
+  stringlights: { name: "String lights", unlockAt: 0, spot: "wall", season: "winter" },
+  snowglobe: { name: "Snow globe", unlockAt: 0, spot: "corner", season: "winter" },
+  tulips: { name: "Tulip planter", unlockAt: 0, spot: "corner", season: "spring" },
+  kite: { name: "Kite", unlockAt: 0, spot: "wall", season: "spring" },
+  deskfan: { name: "Standing fan", unlockAt: 0, spot: "corner", season: "summer" },
+  palm: { name: "Potted palm", unlockAt: 0, spot: "corner", season: "summer" },
+  beachposter: { name: "Beach poster", unlockAt: 0, spot: "wall", season: "summer" },
 };
 
-/** Every decoration, in unlock order. */
+/** Every decoration, seasonal ones included, in unlock order. */
 export const DECOR_IDS = (Object.keys(DECOR) as DecorId[]).sort((a, b) => DECOR[a].unlockAt - DECOR[b].unlockAt);
-/** Decorations unlocked at a company level (0..10). */
-export function unlockedDecor(level: number): DecorId[] { return DECOR_IDS.filter((id) => DECOR[id].unlockAt <= level); }
+/** The regular (non-seasonal) decorations unlocked at a company level (0..10). */
+export function unlockedDecor(level: number): DecorId[] { return DECOR_IDS.filter((id) => !DECOR[id].season && DECOR[id].unlockAt <= level); }
+/** Seasonal decorations, all of them or those of one season. */
+export function seasonalDecor(season?: DecorSeason): DecorId[] { return DECOR_IDS.filter((id) => DECOR[id].season && (!season || DECOR[id].season === season)); }
 
 // ---------------------------------------------------------------------------------------------
 // small helpers
@@ -74,6 +89,9 @@ const line = (d: string, color: string, width: number, o?: number) =>
   `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"${op(o)}/>`;
 const SH = "#2b1d10"; // shadow tint, as used by desks and plants in world.ts
 const nightGlow = (base: number) => ` style="opacity:calc(${base} + var(--lamp, 0.15) * ${f(1 - base)})"`;
+// A loop's own pivot (in item pixels) and a random start, so several items never move in step.
+const pivot = (x: number, y: number, dur?: number) =>
+  ` style="transform-origin:${f(x)}px ${f(y)}px;animation-delay:${f(-Math.random() * 6)}s${dur ? `;animation-duration:${f(dur)}s` : ""}"`;
 const FONT = ` style="font-family:var(--font, system-ui, sans-serif)"`;
 
 function rng(seed: number) {
@@ -267,7 +285,7 @@ function plants() {
     ${ell(46, -20, 11, 2.6, "#5a3b2a")}
     ${[[-50, 13], [-20, 15], [10, 15], [40, 13], [70, 11], [-80, 10]].map(([a, l]) => leaf(46, -20, a, l, 5.5, "#7fd4a6", "#62bf8d")).join("")}
     ${leaf(46, -20, -5, 9, 4, "#9be6bd", "#7fd4a6")}`;
-  return pot + back + mid + front + small;
+  return `${pot}<g class="dc-sway"${pivot(0, -35)}>${back + mid + front}</g>${small}`;
 }
 
 function rug() {
@@ -642,11 +660,251 @@ function pingpong() {
     ${rect(-3, y0 - 14, 6, 8, "#3a3f4f", 2)}${rect(-3, y0 + D - 4, 6, 8, "#3a3f4f", 2)}`;
 }
 
-const ART: Record<DecorId, () => string> = { plants, rug, posters, bookshelf, coffee, water, arcade, aquarium, neon, beanbags, pingpong, trophies };
+// ---------------------------------------------------------------------------------------------
+// seasonal decorations (DECOR[id].season)
+
+const LIGHTS = ["#ffd27a", "#ff6f91", "#4fb6ff", "#4ff0a0", "#ff9f5a", "#b07cff"];
+// A small light bulb that twinkles and glows brighter at night; (x, y) is the bulb's center.
+const bulb = (x: number, y: number, c: string, r = 2.4) =>
+  `<g class="dc-twinkle" style="animation-delay:${f(-Math.random() * 2.4)}s;animation-duration:${f(1.8 + Math.random() * 1.4)}s">${circ(x, y, r * 2.4, c, undefined, ` fill-opacity="0.32"${nightGlow(0.08)}`)}${circ(x, y, r, c)}${circ(x - r * 0.3, y - r * 0.3, r * 0.34, "#ffffff", 0.75)}</g>`;
+
+// A pumpkin on the floor: ribbed halves, a light middle, a stem. (cx, base) is its bottom center.
+function pumpkin(cx: number, base: number, w: number, h: number, tones: [string, string, string], stem = "#6b8f3a") {
+  const ry = h / 2, cy = base - ry, top = base - h;
+  return `
+    ${ell(cx + 3, base + 1, w * 0.56, 4, SH, 0.18)}
+    ${ell(cx - w * 0.27, cy, w * 0.27, ry * 0.93, tones[0])}${ell(cx + w * 0.27, cy, w * 0.27, ry * 0.93, tones[0])}
+    ${ell(cx - w * 0.13, cy, w * 0.28, ry, tones[1])}${ell(cx + w * 0.13, cy, w * 0.28, ry, tones[1])}
+    ${ell(cx, cy, w * 0.19, ry * 1.01, tones[2])}
+    ${ell(cx + w * 0.32, cy + ry * 0.08, w * 0.16, ry * 0.78, "#000000", 0.08)}
+    ${ell(cx - w * 0.19, cy - ry * 0.42, w * 0.06, ry * 0.28, "#ffffff", 0.22)}
+    ${path(`M${f(cx - 2.2)} ${f(top + 2)} Q${f(cx - 3)} ${f(top - 5)} ${f(cx + 1.5)} ${f(top - 8)} L${f(cx + 4)} ${f(top - 6)} Q${f(cx + 1)} ${f(top - 3)} ${f(cx + 2.4)} ${f(top + 2)} Z`, stem)}`;
+}
+
+function pumpkins() {
+  const g = uid("p");
+  // the carved face of the front pumpkin: dark cut-outs by day, a flickering candle glow at night
+  const face = (fill: string) => [
+    "M-13 -24 L-6 -24 L-9.5 -30.5 Z", "M2 -24 L9 -24 L5.5 -30.5 Z", "M-4.2 -19 L0.2 -19 L-2 -22.6 Z",
+    "M-15 -15 Q-2 -4 11 -15 L8 -13 L5 -15.6 L2 -12.6 L-1 -15.6 L-4 -12.6 L-7 -15.6 L-10 -13 Z",
+  ].map((d) => path(d, fill)).join("");
+  const fallen = [[-50, 4, 30, "#c95a3c"], [46, 6, -20, "#e2b941"], [-36, 9, 70, "#e08a3c"]]
+    .map(([x, y, a, c]) => ell(x as number, y as number, 4.4, 2.2, c as string, 0.9, ` transform="rotate(${a} ${x} ${y})"`)).join("");
+  return `
+    <defs><radialGradient id="${g}"><stop offset="0" stop-color="#ffb347" stop-opacity="0.5"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient></defs>
+    <g${nightGlow(0)}>${ell(-2, -8, 62, 26, `url(#${g})`)}</g>
+    ${fallen}
+    ${pumpkin(-20, -8, 56, 42, ["#d9692a", "#ec7f34", "#f6974a"])}
+    ${pumpkin(35, -1, 32, 24, ["#e2a23a", "#efb64a", "#f8cb67"], "#7a8f3a")}
+    ${pumpkin(-2, 0, 50, 38, ["#e06f2c", "#f2873a", "#ff9f5a"])}
+    ${face("#7a3412")}
+    <g${nightGlow(0.12)}><g class="dc-flicker">${face("#ffd27a")}</g></g>`;
+}
+
+function leafwreath() {
+  const cy = -58, R = 17;
+  const tones = [["#e2622f", "#c9512a"], ["#f2a03c", "#d98a2e"], ["#e8c14a", "#cfa83a"], ["#b5452e", "#9a3a26"], ["#c97a3a", "#ad6630"]];
+  const ring = (n: number, r: number, len: number, wid: number, off: number, tilt: number) => Array.from({ length: n }, (_, i) => {
+    const th = ((i + off) / n) * Math.PI * 2, t = tones[(i * 3 + Math.round(off * 2)) % tones.length];
+    return leaf(Math.cos(th) * r, cy + Math.sin(th) * r, (th * 180) / Math.PI + 90 + tilt, len, wid, t[0], t[1]);
+  }).join("");
+  const acorn = (x: number, y: number, a: number) => `<g transform="rotate(${a} ${x} ${y})">${ell(x, y + 1.2, 2.8, 3.6, "#b07a40")}${ell(x - 0.8, y, 0.9, 1.6, "#ffffff", 0.25)}${ell(x, y - 2, 3.3, 1.9, "#6b4f3a")}${rect(x - 0.5, y - 5, 1, 2.4, "#6b4f3a")}</g>`;
+  return `
+    ${line(`M0 -92 L-6 ${cy - R - 3} M0 -92 L6 ${cy - R - 3}`, "#c9763a", 1.6)}${circ(0, -92, 1.9, "#4a5063")}
+    <circle cx="0" cy="${cy + 2}" r="${R}" fill="none" stroke="#000000" stroke-opacity="0.08" stroke-width="8"/>
+    <circle cx="0" cy="${cy}" r="${R}" fill="none" stroke="#8a6a48" stroke-width="7"/>
+    ${ring(16, R, 13, 6, 0, 28)}${ring(12, R - 1, 10, 5, 0.5, 34)}
+    ${acorn(10, cy + R + 1, -20)}${acorn(15, cy + R - 4, 15)}${acorn(5, cy + R + 3, 5)}
+    ${path(`M0 ${cy - R - 3} L-7 ${cy - R - 7} L-7 ${cy - R + 1} Z`, "#c9452e")}${path(`M0 ${cy - R - 3} L7 ${cy - R - 7} L7 ${cy - R + 1} Z`, "#b03c28")}${circ(0, cy - R - 3, 2, "#e2622f")}`;
+}
+
+function xmastree() {
+  const tiers: [number, number, number][] = [[-80, -24, 52], [-104, -58, 42], [-128, -86, 32], [-150, -110, 21]]; // top, bottom, half width
+  const tier = ([top, bot, hw]: [number, number, number], i: number) => {
+    const full = `M0 ${top} L${hw} ${bot} Q${f(hw * 0.5)} ${bot + 5} 0 ${bot + 2} Q${f(-hw * 0.5)} ${bot + 5} ${-hw} ${bot} Z`;
+    const right = `M0 ${top} L${hw} ${bot} Q${f(hw * 0.5)} ${bot + 5} 0 ${bot + 2} Z`;
+    return (i ? path(full, "#1f5e40", 0.55, ` transform="translate(0 4)"`) : "") + path(full, "#3f9b6e") + path(right, "#358a60");
+  };
+  // a garland of lights draped across each tier
+  const garland = ([top, bot, hw]: [number, number, number], i: number) => {
+    const k = 0.66, y0 = top + (bot - top) * k, w = hw * k, n = Math.max(3, Math.round(hw / 9));
+    const a = [-w, y0 - 4], c = [0, y0 + 9], b = [w, y0 + 3];
+    let s = line(`M${f(a[0])} ${f(a[1])} Q${f(c[0])} ${f(c[1])} ${f(b[0])} ${f(b[1])}`, "#ffe6ad", 1, 0.55);
+    for (let j = 0; j < n; j++) {
+      const t = (j + 0.5) / n, u = 1 - t;
+      s += bulb(u * u * a[0] + 2 * u * t * c[0] + t * t * b[0], u * u * a[1] + 2 * u * t * c[1] + t * t * b[1], LIGHTS[(j + i * 2) % LIGHTS.length], 2.3);
+    }
+    return s;
+  };
+  const ball = (x: number, y: number, c: string) => circ(x, y, 4.4, c) + circ(x + 1.4, y + 1, 2.6, "#000000", 0.12) + circ(x - 1.4, y - 1.4, 1.3, "#ffffff", 0.6) + rect(x - 1.2, y - 6, 2.4, 2, "#ffd27a", 0.6);
+  return `
+    ${ell(3, 1, 50, 7, SH, 0.2)}
+    ${rect(-5, -30, 10, 8, "#8f6a47")}
+    ${tiers.map(tier).join("")}
+    ${ball(-24, -38, "#e2626b")}${ball(20, -44, "#ffd27a")}${ball(-12, -66, "#b07cff")}${ball(16, -92, "#e2626b")}${ball(-9, -118, "#4fb6ff")}${ball(30, -32, "#4fb6ff")}
+    ${tiers.map(garland).join("")}
+    ${path("M-15 -22 H15 L12 0 H-12 Z", "#e2626b")}${path("M5 -22 H15 L12 0 H4 Z", "#c94f5a")}${rect(-17, -26, 34, 6, "#f07a82", 3)}
+    ${rect(-48, -17, 22, 17, "#4fb6ff", 2)}${rect(-32, -17, 6, 17, "#3a96e0", 2)}${rect(-38.5, -17, 3, 17, "#ffd27a")}${ell(-40.5, -18.5, 3.6, 2.2, "#ffd27a")}${ell(-33.5, -18.5, 3.6, 2.2, "#ffd27a")}
+    ${rect(28, -13, 19, 13, "#ffd27a", 2)}${rect(42, -13, 5, 13, "#f0bf5f", 2)}${rect(36, -13, 2.6, 13, "#ff6f91")}${ell(34.5, -14.4, 3, 1.9, "#ff6f91")}${ell(40, -14.4, 3, 1.9, "#ff6f91")}
+    <g${nightGlow(0.15)}>${circ(0, -152, 17, "#ffd27a", undefined, ` fill-opacity="0.3"`)}</g>
+    <g class="dc-star"${pivot(0, -152)}>${path(star(0, -152, 11), "#ffd27a")}${path(star(0, -152, 5.5), "#fff3cf", 0.75)}</g>`;
+}
+
+function stringlights() {
+  const sags: [number[], number[], number[]][] = [[[-54, -86], [-27, -62], [0, -84]], [[0, -84], [27, -62], [54, -86]]];
+  let wire = "", bulbs = "", k = 0;
+  for (const [a, c, b] of sags) {
+    wire += `M${a[0]} ${a[1]} Q${c[0]} ${c[1]} ${b[0]} ${b[1]} `;
+    for (const t of [0.14, 0.38, 0.62, 0.86]) {
+      const u = 1 - t, x = u * u * a[0] + 2 * u * t * c[0] + t * t * b[0], y = u * u * a[1] + 2 * u * t * c[1] + t * t * b[1];
+      bulbs += rect(x - 1.4, y - 0.5, 2.8, 3.2, "#3a3f4f", 0.8) + bulb(x, y + 5.6, LIGHTS[k++ % LIGHTS.length], 2.6);
+    }
+  }
+  return `${line(wire, "#000000", 1.6, 0.08).replace("<path", `<path transform="translate(1 2)"`)}${line(wire, "#3a3f4f", 1.3)}
+    ${circ(-54, -86, 1.9, "#4a5063")}${circ(0, -84, 1.9, "#4a5063")}${circ(54, -86, 1.9, "#4a5063")}${bulbs}`;
+}
+
+function snowglobe() {
+  const flakes = [[-8, -88], [4, -92], [10, -84], [-3, -80], [7, -76], [-11, -78], [1, -86], [-5, -93], [12, -91]]
+    .map(([x, y], i) => circ(x, y, 0.9 + (i % 3) * 0.25, "#ffffff", 0.95, ` class="dc-flake" style="animation-delay:${f(-i * 0.47)}s"`)).join("");
+  return `
+    ${ell(3, 1, 26, 5, SH, 0.2)}
+    ${ell(0, -3, 15, 4, "#8f6a47")}${ell(0, -4.5, 12.5, 3, "#a87e54")}
+    ${rect(-3, -50, 6, 46, "#a87e54")}${rect(0.6, -50, 2.4, 46, "#8f6a47")}
+    ${rect(-27, -56, 54, 7, "#b48a5e", 3)}${ell(0, -56, 27, 5, "#d7b48a")}${ell(-8, -57, 10, 1.6, "#ffffff", 0.16)}
+    ${ell(1, -57, 14, 2.6, SH, 0.18)}
+    ${path("M-13 -57 L13 -57 L10.5 -65 L-10.5 -65 Z", "#b5452e")}${path("M5 -57 L13 -57 L10.5 -65 L4 -65 Z", "#9a3a26")}${rect(-12, -62, 24, 2.2, "#ffd27a", 1)}
+    ${circ(0, -82, 18, "#dff1fb")}
+    ${ell(0, -68, 13.5, 5, "#ffffff")}
+    ${path("M-6 -88 L-1 -72 L-11 -72 Z", "#3f9b6e")}${path("M-6 -88 L-1 -72 L-6 -72 Z", "#358a60")}${rect(-7, -72, 2, 3, "#8f6a47")}
+    ${rect(2, -76, 8, 7, "#e9edf5", 2)}${rect(2, -84, 8, 7, "#e9edf5", 2.2)}${rect(3.2, -82.6, 5.6, 3, "#3a3f4f", 1.2)}
+    ${circ(4.6, -81.1, 0.7, "#4ff0a0")}${circ(7.4, -81.1, 0.7, "#4ff0a0")}${rect(1.6, -77, 8.8, 1.8, "#e2626b", 0.9)}${rect(8.4, -77, 1.8, 4, "#e2626b", 0.9)}
+    ${flakes}
+    <circle cx="0" cy="-82" r="18" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="1.2"/>
+    ${line("M-12.5 -90 A14 14 0 0 1 -3 -96", "#ffffff", 2.4, 0.7)}${circ(9, -94, 1.4, "#ffffff", 0.6)}`;
+}
+
+function tulips() {
+  const cols = [["#ff6f91", "#e8557a"], ["#ffd27a", "#f0bf5f"], ["#e2626b", "#c94f5a"], ["#b07cff", "#9562e8"], ["#ff9f5a", "#f07f3a"], ["#f7a6c4", "#e88fb0"], ["#ffffff", "#e9e4da"]];
+  const xs = [-34, -23, -12, -1, 10, 21, 32], hs = [44, 54, 47, 58, 46, 55, 41];
+  const flowers = xs.map((x, i) => {
+    const h = hs[i], bend = i % 2 ? 3 : -3, tx = x + bend, ty = -28 - h, [c, s] = cols[i];
+    const cup = `M${tx - 6} ${ty} C${tx - 7.5} ${ty - 8} ${tx - 5} ${ty - 12} ${tx - 3.5} ${ty - 13} L${tx - 1.5} ${ty - 9} L${tx} ${ty - 14} L${tx + 1.5} ${ty - 9} L${tx + 3.5} ${ty - 13} C${tx + 5} ${ty - 12} ${tx + 7.5} ${ty - 8} ${tx + 6} ${ty} Q${tx} ${ty + 4} ${tx - 6} ${ty} Z`;
+    const half = `M${tx} ${ty - 14} L${tx + 1.5} ${ty - 9} L${tx + 3.5} ${ty - 13} C${tx + 5} ${ty - 12} ${tx + 7.5} ${ty - 8} ${tx + 6} ${ty} Q${tx + 3} ${ty + 2.4} ${tx} ${ty + 2.4} Z`;
+    return `<g class="dc-sway"${pivot(x, -28, 4.5 + (i % 3) * 0.7)}>
+      ${line(`M${x} -28 Q${f(x + bend * 0.2)} ${f(-28 - h * 0.5)} ${tx} ${ty + 1}`, "#3f9b6e", 2.2)}
+      ${leaf(x, -28, i % 2 ? 16 : -16, 20 + (i % 3) * 3, 4.6, "#53b884", "#47a674")}
+      ${path(cup, c)}${path(half, s)}${ell(tx - 2.6, ty - 6, 1.1, 3, "#ffffff", 0.3)}</g>`;
+  }).join("");
+  return `
+    ${ell(3, 1, 50, 7, SH, 0.2)}
+    ${ell(0, -29, 43, 3.4, "#5a3b2a")}
+    ${flowers}
+    ${rect(-44, -27, 88, 27, "#f1ece3", 3)}${rect(22, -27, 22, 27, "#ddd6ca", 3)}${rect(22, -27, 8, 27, "#ddd6ca")}
+    ${rect(-44, -12, 88, 3, "#000000", 0, 0.04)}
+    ${rect(-47, -31, 94, 6, "#f8f5ef", 3)}`;
+}
+
+function kite() {
+  const d = "M0 -90 L19 -70 L0 -36 L-19 -70 Z";
+  const bow = (x: number, y: number, c: string) => path(`M${x} ${y} L${x - 3.6} ${y - 2.4} L${x - 3.6} ${y + 2.4} Z M${x} ${y} L${x + 3.6} ${y - 2.4} L${x + 3.6} ${y + 2.4} Z`, c) + circ(x, y, 1, c);
+  return `${circ(0, -92, 1.9, "#4a5063")}
+    <g transform="rotate(-14 0 -66)">
+      ${path(d, "#000000", 0.09, ` transform="translate(2 3)"`)}
+      ${path("M0 -90 L-19 -70 L0 -70 Z", "#ff6f91")}${path("M0 -90 L19 -70 L0 -70 Z", "#ffd27a")}
+      ${path("M-19 -70 L0 -36 L0 -70 Z", "#4fb6ff")}${path("M19 -70 L0 -36 L0 -70 Z", "#ff9f5a")}
+      ${path("M0 -90 L-19 -70 L-15 -70 L0 -85 Z", "#ffffff", 0.25)}
+      ${line("M0 -89 L0 -37 M-18 -70 L18 -70", "#8f6a47", 1.2, 0.85)}
+      <g class="dc-tail"${pivot(0, -36)}>
+        ${line("M0 -36 C7 -31 -5 -27 2 -22 C8 -18 1 -15 6 -12", "#3a3f4f", 1)}
+        ${bow(3, -31, "#ff6f91")}${bow(1, -24, "#4fb6ff")}${bow(4.5, -17, "#ffd27a")}
+      </g>
+    </g>`;
+}
+
+function deskfan() {
+  const H = -108;
+  const spokes = Array.from({ length: 12 }, (_, i) => { const a = (i / 12) * Math.PI * 2; return `M${f(Math.cos(a) * 6)} ${f(H + Math.sin(a) * 6)} L${f(Math.cos(a) * 29)} ${f(H + Math.sin(a) * 29)}`; }).join(" ");
+  const blade = (a: number) => `<g transform="rotate(${a})">${path("M0 0 C-9 -6 -10 -22 0 -25.5 C10 -22 9 -6 0 0 Z", "#7cc6ff")}${path("M0 0 C9 -6 10 -22 0 -25.5 C3 -18 3 -8 0 0 Z", "#a8dcff")}</g>`;
+  return `
+    ${ell(2, 1, 26, 5, SH, 0.2)}
+    ${ell(0, -4, 22, 6, "#3a3f4f")}${ell(0, -6, 20, 5, "#4a5063")}${ell(-6, -7.5, 7, 1.6, "#ffffff", 0.12)}
+    ${rect(-2.5, -86, 5, 82, "#c9cfdb", 2)}${rect(0.6, -86, 1.9, 82, "#a9b0bf", 1)}
+    ${rect(-6, -92, 12, 10, "#4a5063", 3)}
+    <g class="dc-turn"${pivot(0, H)}>
+      ${circ(0, H, 30, "#ffffff", 0.14)}
+      ${circ(0, H, 25, "#7cc6ff", 0.14)}
+      <g transform="translate(0 ${H})"><g class="dc-spin">${blade(0)}${blade(120)}${blade(240)}</g></g>
+      ${circ(0, H, 6, "#ff6f91")}${circ(-1.6, H - 1.6, 2, "#ffffff", 0.45)}
+      <g fill="none" stroke="#c9cfdb"><circle cx="0" cy="${H}" r="20" stroke-width="1" stroke-opacity="0.55"/><circle cx="0" cy="${H}" r="11" stroke-width="1" stroke-opacity="0.45"/>
+        <path d="${spokes}" stroke-width="0.8" stroke-opacity="0.4"/><circle cx="0" cy="${H}" r="29" stroke-width="2.6"/></g>
+    </g>`;
+}
+
+function palm() {
+  const cx = 2, cy = -100; // where the fronds leave the trunk
+  // one frond: an arching midrib with leaflets on both sides
+  const frond = (a: number, L: number, droop: number, c: string, s: string) => {
+    const r = (a * Math.PI) / 180;
+    const tip = [cx + Math.cos(r) * L, cy + Math.sin(r) * L * 0.6 + droop], ctl = [cx + Math.cos(r) * L * 0.55, cy + Math.sin(r) * L * 0.75 - 16];
+    const at = (t: number) => { const u = 1 - t; return [u * u * cx + 2 * u * t * ctl[0] + t * t * tip[0], u * u * cy + 2 * u * t * ctl[1] + t * t * tip[1]]; };
+    let out = line(`M${cx} ${cy} Q${f(ctl[0])} ${f(ctl[1])} ${f(tip[0])} ${f(tip[1])}`, s, 2.4);
+    for (let t = 0.14; t < 0.96; t += 0.135) {
+      const [x, y] = at(t), [x2, y2] = at(Math.min(1, t + 0.02));
+      const dir = (Math.atan2(y2 - y, x2 - x) * 180) / Math.PI, len = 19 * (1 - t * 0.6);
+      out += leaf(x, y, dir + 90 - 42, len, 4.4, c, s) + leaf(x, y, dir + 90 + 42, len, 4.4, s, c);
+    }
+    return out;
+  };
+  let trunk = "";
+  for (let k = 0; k < 7; k++) {
+    const y0 = -34 - k * 9.6, x = k * k * 0.05;
+    trunk += path(`M${f(x - 5)} ${f(y0)} L${f(x + 5)} ${f(y0)} L${f(x + 4.2)} ${f(y0 - 10.4)} L${f(x - 4.2)} ${f(y0 - 10.4)} Z`, k % 2 ? "#a87e54" : "#b88d60") + rect(x + 1.2, y0 - 10.4, 3, 10.4, "#000000", 0, 0.1);
+  }
+  return `
+    ${ell(4, 1, 36, 7, SH, 0.2)}
+    ${trunk}
+    <g class="dc-sway"${pivot(cx, cy, 6.5)}>
+      ${frond(-150, 54, 16, "#2f7f58", "#276d4b")}${frond(-30, 56, 16, "#2f7f58", "#276d4b")}${frond(-90, 42, 0, "#3f9b6e", "#358a60")}
+      ${frond(-178, 58, 30, "#53b884", "#47a674")}${frond(-2, 58, 30, "#53b884", "#47a674")}${frond(-118, 50, 6, "#5cc48e", "#4fb380")}${frond(-62, 50, 6, "#5cc48e", "#4fb380")}
+      ${circ(cx - 4, cy + 3, 4, "#8f6a47")}${circ(cx + 4, cy + 4, 4, "#7a5a3c")}${circ(cx, cy + 6, 3.6, "#a87e54")}
+    </g>
+    ${path("M-22 -34 H22 L18 -3 Q17.5 0 15 0 H-15 Q-17.5 0 -18 -3 Z", "#d9b27c")}${path("M7 -34 H22 L18 -3 Q17.5 0 15 0 H5 Z", "#c49a63")}
+    ${rect(-21, -26, 42, 3, "#b8874f", 0, 0.6)}${rect(-20, -15, 39, 3, "#b8874f", 0, 0.6)}
+    ${rect(-25, -40, 50, 8, "#e6c48f", 4)}${rect(6, -40, 19, 8, "#d4b07a", 4)}${ell(0, -37.5, 20, 3.4, "#5a3b2a")}`;
+}
+
+function beachposter() {
+  const x0 = -38, y0 = -90, W = 76, H = 56;
+  return `
+    ${rect(x0 + 1, y0 + 2, W, H, "#000000", 3, 0.08)}
+    ${rect(x0, y0, W, H, "#8fd6ff", 3)}
+    ${circ(22, -78, 10, "#ffd27a", 0.3)}${circ(22, -78, 7, "#ffd27a")}
+    ${rect(x0, -66, W, 10, "#4fb6ff")}${rect(x0, -66, W, 1.6, "#c4ecff")}${rect(x0 + 8, -61, 14, 1.2, "#c4ecff", 0.6, 0.8)}${rect(x0 + 44, -59, 10, 1.2, "#c4ecff", 0.6, 0.8)}
+    ${path(`M${x0} -57 Q0 -60 ${x0 + W} -56 V-44 H${x0} Z`, "#ffe3a3")}
+    ${line("M-27 -46 Q-30 -60 -24 -74", "#8f6a47", 2.4)}
+    ${[-70, -30, 10, 50, 90].map((a, i) => leaf(-24, -74, a, 11, 3, i % 2 ? "#3f9b6e" : "#53b884", i % 2 ? "#358a60" : "#47a674")).join("")}
+    ${line("M15 -46 L19 -65", "#3a3f4f", 1.2)}
+    ${path("M6 -63 Q18 -77 32 -67 Z", "#ff6f91")}${path("M15 -65 Q19 -74 23 -69 L24 -66 Z", "#ffffff", 0.9)}
+    ${rect(-12, -51, 25, 6, "#4fb6ff", 1.5)}${rect(-7, -51, 3, 6, "#ffffff", 0, 0.8)}${rect(3, -51, 3, 6, "#ffffff", 0, 0.8)}
+    ${rect(-8, -54, 11, 5, "#e9edf5", 2)}${rect(3, -57.5, 7.5, 6.5, "#e9edf5", 2)}${rect(4, -55.8, 5.6, 2.2, "#3a3f4f", 1)}
+    ${line("M6.7 -57.5 L6.7 -60", "#a9b0bf", 0.8)}${circ(6.7, -60.6, 1, "#ff6f91")}
+    ${rect(x0, -44, W, 10, "#ff6f91", 3)}${rect(x0, -44, W, 4, "#ff6f91")}
+    <text x="0" y="-36.8" text-anchor="middle" font-size="6" font-weight="700" letter-spacing="0.4" fill="#ffffff"${FONT}>OUT OF OFFICE</text>
+    ${circ(0, -90, 2.2, "#ff9f5a")}${circ(-0.7, -90.7, 0.8, "#ffffff", 0.6)}`;
+}
+
+const ART: Record<DecorId, () => string> = {
+  plants, rug, posters, bookshelf, coffee, water, arcade, aquarium, neon, beanbags, pingpong, trophies,
+  pumpkins, leafwreath, xmastree, stringlights, snowglobe, tulips, kite, deskfan, palm, beachposter,
+};
 
 // Natural size multiplier per item, and its drawn extent around the anchor at scale 1
 // (before the multiplier): [x0, y0, x1, y1]. Used for placement and collision.
-const NAT: Record<DecorId, number> = { plants: 1.2, rug: 1.1, posters: 1.04, bookshelf: 1.25, coffee: 1.25, water: 1.3, arcade: 1.3, aquarium: 1.3, neon: 1, beanbags: 1.3, pingpong: 1.2, trophies: 1.08 };
+const NAT: Record<DecorId, number> = {
+  plants: 1.2, rug: 1.1, posters: 1.04, bookshelf: 1.25, coffee: 1.25, water: 1.3, arcade: 1.3, aquarium: 1.3, neon: 1, beanbags: 1.3, pingpong: 1.2, trophies: 1.08,
+  pumpkins: 1.15, leafwreath: 1, xmastree: 0.94, stringlights: 1, snowglobe: 1.2, tulips: 1.15, kite: 1, deskfan: 1.15, palm: 1.12, beachposter: 1.04,
+};
 const BOX: Record<DecorId, [number, number, number, number]> = {
   plants: [-70, -124, 62, 10],
   rug: [-155, -76, 155, 79],
@@ -660,9 +918,19 @@ const BOX: Record<DecorId, [number, number, number, number]> = {
   beanbags: [-90, -36, 92, 38],
   pingpong: [-122, -78, 122, 88],
   trophies: [-50, -84, 50, -18],
+  pumpkins: [-56, -60, 58, 9],
+  leafwreath: [-34, -94, 34, -24],
+  xmastree: [-54, -169, 54, 8],
+  stringlights: [-58, -92, 58, -56],
+  snowglobe: [-28, -101, 30, 7],
+  tulips: [-50, -103, 53, 8],
+  kite: [-28, -95, 34, -9],
+  deskfan: [-31, -140, 31, 6],
+  palm: [-62, -142, 66, 8],
+  beachposter: [-40, -93, 40, -32],
 };
 // How far a standing item reaches back from its front edge (its floor depth), so it can stand against the north wall.
-const DEPTH: Partial<Record<DecorId, number>> = { plants: 16, bookshelf: 14, coffee: 26, water: 12, arcade: 20, aquarium: 18 };
+const DEPTH: Partial<Record<DecorId, number>> = { plants: 16, bookshelf: 14, coffee: 26, water: 12, arcade: 20, aquarium: 18, pumpkins: 22, xmastree: 24, snowglobe: 12, tulips: 14, deskfan: 14, palm: 18 };
 
 /** One decoration drawn at (x, y) as its anchor. See the conventions at the top of the file. */
 export function drawDecor(id: DecorId, x: number, y: number, scale = 1): string {
@@ -739,9 +1007,11 @@ export function placeDecor(items: DecorId[], w: number, h: number, wallFace: num
   const range = (a: number, b: number, step: number) => { const out: number[] = []; for (let v = a; v <= b + 0.01; v += step) out.push(v); return out; };
   const k = (id: DecorId, s: number) => s * NAT[id];
   const xsFor = (id: DecorId, step: number) => (s: number) => range(T + 4 - BOX[id][0] * k(id, s), w - T - 4 - BOX[id][2] * k(id, s), step);
+  // the items of one spot in placing order: the listed ones first, then any others (seasonal ones) as asked for
+  const ofSpot = (spot: Spot, first: DecorId[]) => [...first.filter((i) => want.includes(i)), ...want.filter((i) => DECOR[i]?.spot === spot && !first.includes(i))];
 
   // 1. wall items: centered in the widest free stretch of wall, shrinking a little to fit narrow gaps
-  for (const id of (["neon", "posters", "trophies"] as DecorId[]).filter((i) => want.includes(i))) {
+  for (const id of ofSpot("wall", ["neon", "posters", "trophies"])) {
     put(id, (_x, _y, _s, b) => {
       if (wins.some((wn) => hit(b, wn, 3))) return null;
       let left = b.x0 - T, right = w - T - b.x1;
@@ -773,7 +1043,7 @@ export function placeDecor(items: DecorId[], w: number, h: number, wallFace: num
     const lo = Math.max(wallFace + (DEPTH[id] ?? 12) * kk + 2, T + 2 - BOX[id][1] * kk);
     return range(lo, h - T - 4 - BOX[id][3] * kk, 6);
   };
-  for (const id of (["aquarium", "arcade", "bookshelf", "coffee", "water", "plants"] as DecorId[]).filter((i) => want.includes(i))) {
+  for (const id of ofSpot("corner", ["aquarium", "arcade", "bookshelf", "coffee", "water", "plants"])) {
     put(id, (_x, y, s, b) => {
       if (hit(b, door, 0)) return null;
       const back = y - (DEPTH[id] ?? 12) * k(id, s);

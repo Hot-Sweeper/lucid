@@ -45,6 +45,59 @@
   100% { transform: translateX(1.5px); }
 }
 
+/* leaves, tulips and palm fronds turn a little around their base (the pivot is set per item) */
+.dc-sway { animation: dc-sway 5.5s ease-in-out infinite alternate; transform-box: view-box; }
+@keyframes dc-sway {
+  from { transform: rotate(-2deg); }
+  to { transform: rotate(2.4deg); }
+}
+
+/* fairy lights on the Christmas tree and the string lights */
+.dc-twinkle { animation: dc-twinkle 2.2s ease-in-out infinite; }
+@keyframes dc-twinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.dc-star { animation: dc-star 3.2s ease-in-out infinite; transform-box: view-box; }
+@keyframes dc-star {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.08) rotate(5deg); }
+}
+
+/* the standing fan: blades spin, the head turns slowly from side to side */
+.dc-spin { animation: dc-spin 0.45s linear infinite; transform-box: view-box; transform-origin: 0 0; }
+@keyframes dc-spin { to { transform: rotate(360deg); } }
+.dc-turn { animation: dc-turn 7s ease-in-out infinite alternate; transform-box: view-box; }
+@keyframes dc-turn {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0.78); }
+}
+
+/* the candle inside the carved pumpkin */
+.dc-flicker { animation: dc-flicker 2.6s linear infinite; }
+@keyframes dc-flicker {
+  0%, 100% { opacity: 1; }
+  18% { opacity: 0.8; }
+  22% { opacity: 0.96; }
+  50% { opacity: 0.72; }
+  56% { opacity: 1; }
+  78% { opacity: 0.86; }
+}
+
+/* the kite's tail swings, snow falls inside the snow globe */
+.dc-tail { animation: dc-tail 3.4s ease-in-out infinite alternate; transform-box: view-box; }
+@keyframes dc-tail {
+  from { transform: rotate(-7deg); }
+  to { transform: rotate(7deg); }
+}
+.dc-flake { animation: dc-flake 4.2s linear infinite; }
+@keyframes dc-flake {
+  0% { transform: translateY(-3px); opacity: 0; }
+  15%, 80% { opacity: 1; }
+  100% { transform: translateY(7px); opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .dc-steam, .dc-bubble, .dc-fish, .dc-neon, .dc-neon-heart, .dc-screen { animation: none; }
+  .dc-steam, .dc-bubble, .dc-fish, .dc-neon, .dc-neon-heart, .dc-screen,
+  .dc-sway, .dc-twinkle, .dc-star, .dc-spin, .dc-turn, .dc-flicker, .dc-tail, .dc-flake { animation: none; }
 }
