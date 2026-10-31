@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { renderLoop } from "../perf/render";
 import type { FunHost, FunOpts, Outcome } from "./types";
 
 // Thrown internally when time is up or the host says stop. Never leaves this module.
@@ -12,8 +13,7 @@ export class Kit {
   private anims = new Set<gsap.core.Animation>();
   private timers = new Set<number>();
   private ticks = new Set<Tick>();
-  private raf = 0;
-  private last = 0;
+  private stopFrames: (() => void) | null = null;
   dead = false;
   readonly t0 = performance.now();
 
@@ -44,16 +44,12 @@ export class Kit {
 
   every(fn: Tick) {
     this.ticks.add(fn);
-    if (!this.raf && !this.dead) { this.last = performance.now(); this.raf = requestAnimationFrame(this.frame); }
-    return () => { this.ticks.delete(fn); };
+    if (!this.stopFrames && !this.dead) this.stopFrames = renderLoop(this.root, this.frame);
+    return () => { this.ticks.delete(fn); if (!this.ticks.size) { this.stopFrames?.(); this.stopFrames = null; } };
   }
-  private frame = (now: number) => {
-    this.raf = 0;
+  private frame = (now: number, dt: number) => {
     if (this.dead) return;
-    const dt = Math.min(0.1, (now - this.last) / 1000);
-    this.last = now;
-    for (const f of [...this.ticks]) f(now, dt);
-    if (this.ticks.size) this.raf = requestAnimationFrame(this.frame);
+    for (const f of this.ticks) f(now, dt);
   };
 
   // --- robot --------------------------------------------------------------
@@ -77,8 +73,7 @@ export class Kit {
     for (const id of this.timers) clearTimeout(id);
     this.timers.clear();
     this.ticks.clear();
-    if (this.raf) cancelAnimationFrame(this.raf);
-    this.raf = 0;
+    this.stopFrames?.(); this.stopFrames = null;
     gsap.killTweensOf(this.root.querySelectorAll("*"));
   }
 }

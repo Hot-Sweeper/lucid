@@ -128,7 +128,7 @@ function drawBlock(ctx: Ctx, t: number, x: number, y: number, B: number, seed: n
 }
 
 export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   const calm = reducedMotion();
   try {
     const f = mountFrame(body, scope, "Blockcraft", "bc");
@@ -161,7 +161,7 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
     // ---------------------------------------------------------------------------------
     async function playWorld(n: number): Promise<"win" | "dead" | "time" | "quit"> {
       // each world gets its own frame loop, torn down before the next one starts
-      const ws = new Scope();
+      const ws = new Scope(body);
       scope.add(() => ws.dispose());
       try { return await runWorld(n, ws); } finally { ws.dispose(); }
     }

@@ -1,25 +1,19 @@
 import gsap from "gsap";
+import { renderLoop, deferRender } from "../perf/render";
 
 /** Everything an activity starts (timers, frames, listeners, tweens) is registered here and torn down at once. */
 export class Scope {
   private fns: (() => void)[] = [];
   private tweens: (gsap.core.Tween | gsap.core.Timeline)[] = [];
   disposed = false;
+  constructor(private owner?: HTMLElement) {}
 
   add(fn: () => void) { this.fns.push(fn); }
+  defer(owner: HTMLElement, fn: () => void) { this.add(deferRender(owner, () => { if (!this.disposed) fn(); })); }
 
   /** rAF loop with time in seconds and a clamped delta. */
   raf(cb: (now: number, dt: number) => void) {
-    let id = 0;
-    let last = performance.now();
-    const loop = (now: number) => {
-      const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
-      last = now;
-      cb(now / 1000, dt);
-      if (!this.disposed) id = requestAnimationFrame(loop);
-    };
-    id = requestAnimationFrame(loop);
-    this.add(() => cancelAnimationFrame(id));
+    this.add(renderLoop(this.owner, (now, dt) => { if (!this.disposed) cb(now / 1000, dt); }));
   }
 
   timeout(fn: () => void, ms: number) {

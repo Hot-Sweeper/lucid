@@ -122,7 +122,7 @@ function generate(seed: number): Level {
 }
 
 export async function playDash(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   try {
     const view = mountGame(body, scope, "Dash", "dash");
     const { ctx, w, h } = view;

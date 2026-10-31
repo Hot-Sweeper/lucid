@@ -1,5 +1,6 @@
 import gsap from "gsap";
 import { watch, unwatch, drawNow, sinceDraw } from "./budget";
+import { beginSystem, endSystem } from "../perf/metrics";
 import type { Expression, RobotLook } from "../office/rig";
 import { bind, brandFor, clamp, defsSvg, eyesSvg, headSideSvg, headSvg, lerp, paintBrand, paintLook, uid, type BrandKind } from "./parts";
 
@@ -988,6 +989,7 @@ export class Walker {
     // walking goes on every frame; the body is redrawn less often when off screen or tiny
     dt = sinceDraw(this, now);
     if (!drawNow(this, this.svg, now)) return;
+    const started = beginSystem();
     const st = this.st, t = now / 1000;
     const side = this.facing === "left" || this.facing === "right";
     const back = this.facing === "up";
@@ -1110,8 +1112,8 @@ export class Walker {
         this.handR.x = sc.x; this.handR.y = sc.y - jump;
         if (this.card.classList.contains("on")) {
           const mx = this.facing === "left" ? 1120 - sc.x : sc.x;
-          this.el.style.setProperty("--hx", `${((mx - FEET.x) * this.s).toFixed(1)}px`);
-          this.el.style.setProperty("--hy", `${((sc.y - jump - FEET.y) * this.s).toFixed(1)}px`);
+          this.card.style.setProperty("--hx", `${((mx - FEET.x) * this.s).toFixed(1)}px`);
+          this.card.style.setProperty("--hy", `${((sc.y - jump - FEET.y) * this.s).toFixed(1)}px`);
         }
       }
     }
@@ -1153,8 +1155,13 @@ export class Walker {
     // overlays follow the head
     this.headPx = (hy - jump) * this.s;
     const bobPx = `${this.headPx.toFixed(1)}px`;
-    if (bobPx !== this.lastBob) { this.lastBob = bobPx; this.el.style.setProperty("--bob", bobPx); }
+    // An inherited variable on the actor root invalidated every SVG descendant each
+    // frame. Only the battery uses this offset, so update that small overlay itself.
+    if (this.battery.classList.contains("on")) {
+      if (bobPx !== this.lastBob) { this.lastBob = bobPx; this.battery.style.setProperty("--bob", bobPx); }
+    } else this.lastBob = "";
     if (this.bubble.classList.contains("on")) this.placeBubble();
+    endSystem("robots", started);
   };
   private footZ = { l: 0, r: 0 };
   private lastBob = "";

@@ -1,6 +1,7 @@
 import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import "./styles.css";
+import { beginSystem, endSystem } from "./perf/metrics";
 import "./office/office.css";
 import "./office/panels.css";
 import "./world/world.css";
@@ -801,6 +802,7 @@ let thSig = "";
 function renderThreads() {
   const data = world.lastData;
   if (!data || document.body.classList.contains("th-dragging")) return;   // never swap rows out from under a drag
+  const started = beginSystem();
   renderRail();
   const q = (($("th-q") as HTMLInputElement).value || "").trim().toLowerCase();
   const projects = new Map(data.projects.map((p) => [p.id, p]));
@@ -828,9 +830,10 @@ function renderThreads() {
     </button></li>`;
   }).join("");
   const sig = rows + q;
-  if (sig === thSig) return;
+  if (sig === thSig) { endSystem("ui", started); return; }
   thSig = sig;
   $("th-list").innerHTML = rows || `<li class="th-empty">No threads match.</li>`;
+  endSystem("ui", started);
 }
 $("th-q").addEventListener("input", renderThreads);
 $("th-list").addEventListener("click", (e) => {

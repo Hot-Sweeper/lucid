@@ -1,94 +1,174 @@
-// Zooming without lag. The outdoors is one big vector image (.outside-img); every time the camera's
-// scale changes the browser redraws it at the new scale, which costs tens of milliseconds a frame.
-// So once the image has loaded, a bitmap copy of it is made (about 3200 px wide, drawn once in idle
-// time). While the scale keeps changing the copy stands in for the image (stretching a bitmap is
-// nearly free), and the sharp image comes back as soon as the zoom settles.
-// Zoomed out far enough that the copy is as sharp as the screen, the copy simply stays: panning
-// then never makes the browser redraw parts of the vector image either.
-//
-// Importing this module is enough: it watches for new .outside-img elements and for camera changes
-// on their .world, like ambient.ts does for rooms. Nothing runs per frame.
+// Never hand Chromium a grounds-sized SVG image. At close zoom it rasterized that image
+// repeatedly during middle-button pans, stalling the GPU for hundreds of milliseconds.
+// Keep a small overview bitmap and rasterize only viewport crops at screen density.
+// Two recent crops are retained for backtracking instead of rebuilding the same pixels.
+// The overview covers camera motion until an asynchronous sharp crop is ready.
+import { beginSystem, endSystem } from "../perf/metrics";
 
-const QUICK_W = 3200;       // the copy's width in pixels (height follows the image)
-const SETTLE_MS = 220;      // the sharp image returns this long after the last scale change
+type Camera = { x: number; y: number; s: number };
+type Crop = { x: number; y: number; w: number; h: number; density: number };
+const caches = new WeakMap<HTMLElement, OutsideRaster>();
+const PREVIEW_WIDTH = 3200;
+const MARGIN = 256; // screen pixels of overscan, so ordinary pans reuse the same crop
+const SETTLE_MS = 220;
 
-const scaleOf = (el: HTMLElement) => {
-  const m = /scale\(([-\d.e]+)/.exec(el.style.transform);
-  return m ? Number(m[1]) : 1;
-};
-const idle = (f: () => void) => ("requestIdleCallback" in window ? (window as any).requestIdleCallback(f, { timeout: 1500 }) : setTimeout(f, 200));
-
-function prepare(img: HTMLImageElement) {
-  const layer = img.parentElement;
-  if (!layer || img.dataset.quick) return;
-  img.dataset.quick = "1";
-  // a new drawing: show it sharp until its own copy is ready
-  layer.classList.remove("zooming");
-  const cv = document.createElement("canvas");
-  cv.className = "outside-quick";
-  cv.setAttribute("aria-hidden", "true");
-  cv.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;visibility:hidden";
-  img.after(cv);
-  const draw = () => {
-    if (!img.isConnected || !img.naturalWidth) return;
-    const k = Math.min(1, QUICK_W / img.naturalWidth);
-    cv.width = Math.max(1, Math.round(img.naturalWidth * k));
-    cv.height = Math.max(1, Math.round(img.naturalHeight * k));
-    const g = cv.getContext("2d");
-    if (!g) return;
-    g.drawImage(img, 0, 0, cv.width, cv.height);
-    cv.dataset.ready = "1";
-    const world = img.closest(".world") as HTMLElement | null;
-    if (world) check(world);
-  };
-  if (img.complete && img.naturalWidth) idle(draw);
-  else img.addEventListener("load", () => idle(draw), { once: true });
-  watchCamera(img.closest(".world") as HTMLElement | null);
+export function paintOutside(layer: HTMLElement, svg: string) {
+  caches.get(layer)?.destroy();
+  const cache = new OutsideRaster(layer, svg);
+  caches.set(layer, cache);
 }
 
-// Is the bitmap copy at least as sharp as the screen at this camera scale? Then it can stay.
-function sharpEnough(layer: Element, s: number) {
-  const cv = layer.querySelector<HTMLCanvasElement>("canvas.outside-quick[data-ready]");
-  const img = layer.querySelector<HTMLImageElement>("img.outside-img");
-  if (!cv || !img?.naturalWidth) return false;
-  return s * (devicePixelRatio || 1) <= (cv.width / img.naturalWidth) * 1.15;
-}
-const settled = new WeakMap<HTMLElement, () => void>();
-function check(world: HTMLElement) { settled.get(world)?.(); }
-
-const watched = new WeakSet<HTMLElement>();
-function watchCamera(world: HTMLElement | null) {
-  if (!world || watched.has(world)) return;
-  watched.add(world);
-  let last = scaleOf(world), timer = 0;
-  const settle = () => {
-    const s = scaleOf(world);
-    world.querySelectorAll(".outside-layer").forEach((l) => l.classList.toggle("zooming", sharpEnough(l, s)));
-  };
-  settled.set(world, settle);
-  new MutationObserver(() => {
-    const s = scaleOf(world);
-    if (Math.abs(s - last) < 1e-6) return;
-    last = s;
-    const layer = world.querySelector(".outside-layer");
-    if (layer?.querySelector("canvas.outside-quick[data-ready]")) layer.classList.add("zooming");
-    clearTimeout(timer);
-    timer = window.setTimeout(settle, SETTLE_MS);
-  }).observe(world, { attributes: true, attributeFilter: ["style"] });
+export function updateOutside(layer: HTMLElement | null, cam: Camera, width: number, height: number) {
+  if (layer) caches.get(layer)?.update(cam, width, height);
 }
 
-if (typeof document !== "undefined" && typeof MutationObserver !== "undefined") {
-  const check = (n: Node) => {
-    if (!(n instanceof Element)) return;
-    if (n.classList.contains("outside-img")) prepare(n as HTMLImageElement);
-    else if (n.classList.contains("outside-layer") || n.classList.contains("world")) n.querySelectorAll<HTMLImageElement>("img.outside-img").forEach(prepare);
-  };
-  new MutationObserver((list) => {
-    for (const m of list) {
-      for (const n of m.addedNodes) check(n);
-      // world.ts swaps the image by setting the layer's innerHTML
-      if (m.target instanceof Element && m.target.classList.contains("outside-layer")) m.target.querySelectorAll<HTMLImageElement>("img.outside-img").forEach(prepare);
+class OutsideRaster {
+  private preview = document.createElement("canvas");
+  private detail = document.createElement("canvas");
+  private crop: Crop | null = null;
+  private history: { crop: Crop; canvas: HTMLCanvasElement }[] = [];
+  private pending: Crop | null = null;
+  private cam: Camera = { x: 0, y: 0, s: 0 };
+  private width = 0;
+  private height = 0;
+  private timer = 0;
+  private dead = false;
+  private urls = new Set<string>();
+  private w: number;
+  private h: number;
+  constructor(private layer: HTMLElement, private svg: string) {
+    this.w = parseFloat(layer.style.width);
+    this.h = parseFloat(layer.style.height);
+    this.preview.className = "outside-quick";
+    this.detail.className = "outside-detail";
+    for (const cv of [this.preview, this.detail]) {
+      cv.setAttribute("aria-hidden", "true");
+      cv.style.cssText = "position:absolute;left:0;top:0;pointer-events:none;visibility:hidden";
     }
-  }).observe(document.documentElement, { childList: true, subtree: true });
-  document.querySelectorAll<HTMLImageElement>("img.outside-img").forEach(prepare);
+    this.preview.style.width = "100%";
+    this.preview.style.height = "100%";
+    layer.prepend(this.preview, this.detail);
+    const density = Math.min(1, PREVIEW_WIDTH / this.w);
+    void this.raster({ x: 0, y: 0, w: this.w, h: this.h, density }, this.preview).then((ok) => {
+      if (ok) this.preview.style.visibility = "visible";
+    });
+  }
+
+  update(cam: Camera, width: number, height: number) {
+    const scaling = cam.s !== this.cam.s;
+    const resizing = width !== this.width || height !== this.height;
+    this.cam.x = cam.x; this.cam.y = cam.y; this.cam.s = cam.s;
+    this.width = width; this.height = height;
+    if (scaling || resizing) {
+      clearTimeout(this.timer);
+      // Keep the old crop in place while scaling. Only render at the final resolution.
+      this.timer = window.setTimeout(() => { this.timer = 0; this.sharpen(); }, SETTLE_MS);
+    } else if (!this.timer) this.sharpen();
+  }
+
+  private view(): Crop | null {
+    const { x, y, s } = this.cam;
+    if (!(s > 0) || !this.width || !this.height) return null;
+    const left = -x / s - parseFloat(this.layer.style.left);
+    const top = -y / s - parseFloat(this.layer.style.top);
+    const x0 = Math.max(0, left), y0 = Math.max(0, top);
+    const x1 = Math.min(this.w, left + this.width / s), y1 = Math.min(this.h, top + this.height / s);
+    if (x1 <= x0 || y1 <= y0) return null;
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0, density: s * devicePixelRatio };
+  }
+
+  private covers(crop: Crop | null, view: Crop) {
+    if (!crop || Math.abs(crop.density / view.density - 1) > 0.01) return false;
+    // Renew before the viewport reaches the crop's edge. Grounds edges need no overscan.
+    const pad = 64 / this.cam.s;
+    const epsilon = 0.01; // avoid repeated jobs from float rounding at the grounds' edges
+    return crop.x <= Math.max(0, view.x - pad) + epsilon && crop.y <= Math.max(0, view.y - pad) + epsilon
+      && crop.x + crop.w >= Math.min(this.w, view.x + view.w + pad) - epsilon
+      && crop.y + crop.h >= Math.min(this.h, view.y + view.h + pad) - epsilon;
+  }
+
+  private sharpen() {
+    if (this.dead || !this.layer.isConnected) return;
+    const view = this.view();
+    if (!view || view.density <= Math.min(1, PREVIEW_WIDTH / this.w)) {
+      this.detail.style.visibility = "hidden";
+      return;
+    }
+    if (this.covers(this.crop, view)) { this.detail.style.visibility = "visible"; return; }
+    const cached = this.history.findIndex((entry) => this.covers(entry.crop, view));
+    if (cached >= 0) {
+      const entry = this.history.splice(cached, 1)[0];
+      this.install(entry.crop, entry.canvas);
+      return;
+    }
+    if (this.pending) return; // one raster job at a time, never one per pointer event
+    const pad = MARGIN / this.cam.s;
+    const x = Math.max(0, view.x - pad), y = Math.max(0, view.y - pad);
+    const crop = { x, y, w: Math.min(this.w, view.x + view.w + pad) - x, h: Math.min(this.h, view.y + view.h + pad) - y, density: view.density };
+    this.pending = crop;
+    // Paint off-DOM, then replace the old pixels atomically, without flashing a blank buffer.
+    const next = document.createElement("canvas");
+    void this.raster(crop, next).then((ok) => {
+      this.pending = null;
+      if (!ok) return;
+      const current = this.view();
+      if (!current || Math.abs(current.density / crop.density - 1) > 0.01) { if (!this.timer) this.sharpen(); return; }
+      next.className = "outside-detail";
+      next.setAttribute("aria-hidden", "true");
+      next.style.cssText = `position:absolute;left:${crop.x}px;top:${crop.y}px;width:${crop.w}px;height:${crop.h}px;pointer-events:none`;
+      // Do not replace a usable image with a job the camera has already moved away from.
+      if (this.covers(crop, current)) this.install(crop, next);
+      else this.remember(crop, next);
+      if (!this.timer) this.sharpen();
+    });
+  }
+
+  private remember(crop: Crop, canvas: HTMLCanvasElement) {
+    this.history.push({ crop, canvas });
+    if (this.history.length > 2) {
+      const old = this.history.shift()!;
+      old.canvas.width = old.canvas.height = 0;
+    }
+  }
+  private install(crop: Crop, canvas: HTMLCanvasElement) {
+    const old = this.detail;
+    old.replaceWith(canvas);
+    if (this.crop) this.remember(this.crop, old);
+    this.detail = canvas; this.crop = crop;
+    canvas.style.visibility = "visible";
+  }
+
+  private async raster(crop: Crop, canvas: HTMLCanvasElement) {
+    const width = Math.max(1, Math.ceil(crop.w * crop.density));
+    const height = Math.max(1, Math.ceil(crop.h * crop.density));
+    // Change the SVG viewport itself. Cropping a giant <img> with drawImage still asks
+    // Chromium to allocate its enormous intrinsic raster before applying the crop.
+    const svg = this.svg.replace(/<svg\b[^>]*>/, (root) => root
+      .replace(/\bviewBox="[^"]*"/, `viewBox="${crop.x} ${crop.y} ${crop.w} ${crop.h}"`)
+      .replace(/\bwidth="[^"]*"/, `width="${width}"`)
+      .replace(/\bheight="[^"]*"/, `height="${height}"`));
+    const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+    this.urls.add(url);
+    try {
+      const img = new Image(); img.src = url;
+      await img.decode();
+      if (this.dead || !this.layer.isConnected) return false;
+      const started = beginSystem();
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+      endSystem("scenery", started);
+      return true;
+    } catch { return false; }
+    finally { URL.revokeObjectURL(url); this.urls.delete(url); }
+  }
+
+  destroy() {
+    this.dead = true;
+    clearTimeout(this.timer);
+    for (const url of this.urls) URL.revokeObjectURL(url);
+    this.urls.clear();
+    this.preview.remove(); this.detail.remove();
+    for (const entry of this.history) entry.canvas.width = entry.canvas.height = 0;
+    this.history.length = 0;
+  }
 }

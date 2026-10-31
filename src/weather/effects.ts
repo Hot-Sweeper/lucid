@@ -1,4 +1,5 @@
 import { outdoorLook } from "./season";
+import { beginSystem, endSystem } from "../perf/metrics";
 import type { Season, Weather, WeatherKind } from "./types";
 export type { Weather, WeatherKind, Season } from "./types";
 
@@ -29,7 +30,7 @@ export type WeatherLayer = {
   /** Who walks outdoors right now (read every frame, so keep it cheap: no page measuring). */
   setSteppers(fn: (() => Stepper[]) | null): void;
   /** The camera moved: where the world sits on screen and its zoom. Avoids measuring the page every frame. */
-  setCamera(cam: { x: number; y: number; s: number }, scene: { left: number; top: number; width: number; height: number }, worldW: number): void;
+  setCamera(cam: { x: number; y: number; s: number }, scene: { left: number; top: number; width: number; height: number }, worldW: number, worldH?: number): void;
   destroy(): void;
 };
 
@@ -181,6 +182,7 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   let cam: { x: number; y: number; s: number } | null = null;
   let sceneBox: { left: number; top: number; width: number; height: number } | null = null;
   let hostW = 1;
+  let indoors = false;
   function measure() {
     let hr: { left: number; top: number; width: number }, s: number, clip: { left: number; top: number; right: number; bottom: number };
     if (cam && sceneBox) {
@@ -528,13 +530,14 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   // --- the loop ------------------------------------------------------------------------------
   function frame(now: number) {
     raf = 0;
-    if (dead || document.hidden) return;
+    if (dead || document.hidden || indoors) return;
+    const started = beginSystem();
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0.016;
     last = now;
     const slow = reduce.matches;
     clock += dt;
     // the sky changes slowly: redraw it at 30 fps (4 fps when motion is reduced)
-    if (clock - skyAt > (slow ? 0.25 : 1 / 30) || skyAt < 0) { drawSky(clock); skyAt = clock; }
+    if (clock - skyAt > (slow ? 0.25 : 1 / 12) || skyAt < 0) { drawSky(clock); skyAt = clock; }
     const rain = R.rain, snow = R.snow;
     const printing = ground.prints && !!steppers;
     if (!printing && prints.length) { prints.length = 0; lastStep.clear(); }
@@ -561,12 +564,13 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
       if (clock > nextFlash) { flash(); nextFlash = clock + 5 + r() * 12; }
     }
     // nothing falling: only the slow sky moves, so 30 fps is plenty
-    schedule(slow ? 250 : busy || R.lightning ? 15 : 33);
+    endSystem("weather", started);
+    schedule(slow ? 250 : cam && cam.s < .3 ? 80 : busy || R.lightning ? 30 : 70);
   }
   let fallDirty = false;
   let timer = 0;
   function schedule(delay = 0) {
-    if (raf || timer || dead || document.hidden) return;
+    if (raf || timer || dead || document.hidden || indoors) return;
     if (delay) timer = window.setTimeout(() => { timer = 0; raf = requestAnimationFrame(frame); }, delay);
     else raf = requestAnimationFrame(frame);
   }
@@ -577,7 +581,18 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
 
   const layer: WeatherLayer = {
     onFlash: null,
-    setCamera(c, sc, w) { cam = { ...c }; sceneBox = { ...sc }; hostW = w || 1; },
+    setCamera(c, sc, w, h) {
+      if (cam) { cam.x = c.x; cam.y = c.y; cam.s = c.s; } else cam = { ...c };
+      if (sceneBox) Object.assign(sceneBox, sc); else sceneBox = { ...sc };
+      hostW = w || 1;
+      const x = -c.x / c.s, y = -c.y / c.s;
+      const inside = h != null && x >= 0 && y >= 0 && x + sc.width / c.s <= w && y + sc.height / c.s <= h;
+      if (inside !== indoors) {
+        indoors = inside; root.style.visibility = inside ? "hidden" : "";
+        if (inside) { cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; }
+        else { last = 0; skyAt = -1; schedule(); }
+      }
+    },
     setGround(p, rs) { puddlesW = p; pavedW = rs; toLocal(); },
     setSteppers(fn) { steppers = fn; schedule(); },
     flash,

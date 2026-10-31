@@ -47,7 +47,7 @@ type Slide = { el: HTMLElement; canvas: HTMLCanvasElement; ctx: CanvasRenderingC
 
 /** variant "shorts": the same feed under a BotTube Shorts style player (thumbs, Subscribe, red bar). */
 export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: FunOpts & { variant?: "shorts" }): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(screen);
   const shorts = opts.variant === "shorts";
   const start = performance.now();
   try {

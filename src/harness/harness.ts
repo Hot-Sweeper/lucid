@@ -5,6 +5,7 @@
 // flavour. The robot's habit (prefs.subagents) picks which one it drives.
 import { logoSvg } from "./logos";
 import gsap from "gsap";
+import { renderLoop, renderFps, presentationFrame } from "../perf/render";
 import type { AppId } from "../os/wm";
 import type { Robot } from "../robot";
 import { ICONS } from "../os/icons";
@@ -528,7 +529,7 @@ class Session implements HarnessSession {
   }
 
   // --- visibility ------------------------------------------------------------
-  get live() { return this.view.isConnected && this.app.activeSession === this && !reduced(); }
+  get live() { return this.view.isConnected && this.app.activeSession === this && renderFps(this.view) > 0 && !reduced(); }
 
   follow(ms = 650) {
     if (!this.stick) return;
@@ -544,6 +545,7 @@ class Session implements HarnessSession {
 
   /** Called from the app ticker. Returns true while it still has work to do. */
   tick(now: number): boolean {
+    if (!this.view.isConnected || this.app.activeSession !== this || !renderFps(this.view)) return this.state === "running" || !!this.streamLine;
     let busy = false;
     const st = this.streamLine;
     if (st && st.shown < st.target.length) {
@@ -925,6 +927,7 @@ export class HarnessApp {
   private win: { el: HTMLElement; body: HTMLElement; title: HTMLElement } | null = null;
   private chain: Promise<unknown> = Promise.resolve();
   private ticking = false;
+  private stopTick: (() => void) | null = null;
   private resize: ResizeObserver;
 
   constructor(private wm: HarnessHost) {
@@ -1032,6 +1035,7 @@ export class HarnessApp {
 
   /** Forget all sessions (for example when the robot switches to another thread). */
   reset() {
+    this.stopTick?.(); this.stopTick = null; this.ticking = false;
     for (const s of this.sessions.values()) { s.view.remove(); s.tab.remove(); }
     this.sessions.clear();
     this.active = null;
@@ -1044,7 +1048,7 @@ export class HarnessApp {
   wake() {
     if (this.ticking) return;
     this.ticking = true;
-    gsap.ticker.add(this.tick);
+    this.stopTick = renderLoop(this.root, this.tick);
   }
 
   /** @internal */
@@ -1053,11 +1057,10 @@ export class HarnessApp {
     this.refreshSides();
   }
 
-  private tick = () => {
-    const now = performance.now();
+  private tick = (now: number) => {
     let busy = false;
     for (const s of this.sessions.values()) if (s.tick(now)) busy = true;
-    if (!busy) { gsap.ticker.remove(this.tick); this.ticking = false; }
+    if (!busy) { this.stopTick?.(); this.stopTick = null; this.ticking = false; }
   };
 
   private serial<T>(fn: () => Promise<T>): Promise<T> {
@@ -1184,18 +1187,19 @@ export class HarnessApp {
     const start = performance.now();
     try {
       while (shown < text.length) {
-        await new Promise((r) => requestAnimationFrame(r));
+        await presentationFrame(target);
         wm.check(e);
         const elapsed = (performance.now() - start) * wm.speed;
         const jitter = 0.85 + Math.random() * 0.3;
-        const next = Math.min(text.length, Math.max(shown + 1, Math.floor((elapsed / 1000) * cps * jitter)));
+        const next = Math.min(text.length, Math.max(shown, Math.floor((elapsed / 1000) * cps * jitter)));
         if (next !== shown) {
-          for (let i = shown; i < next; i++) wm.robot.pressKey(text[i] === "\n" ? "Enter" : text[i]);
+          if (renderFps(target)) for (let i = shown; i < next; i++) wm.robot.pressKey(text[i] === "\n" ? "Enter" : text[i]);
           shown = next;
-          target.textContent = text.slice(0, shown);
+          if (renderFps(target)) target.textContent = text.slice(0, shown);
         }
       }
     } finally {
+      target.textContent = text.slice(0, shown);
       wm.robot.setTyping(false);
     }
   }

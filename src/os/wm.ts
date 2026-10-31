@@ -2,6 +2,7 @@ import gsap from "gsap";
 import type { SeatedRobot as Robot } from "../office/rig";
 const SCREEN = { w: 820, h: 461 };
 import { ICONS } from "./icons";
+import { wakeRender, renderFps } from "../perf/render";
 
 export class Cancelled extends Error {}
 
@@ -70,6 +71,9 @@ export class WM {
   private z = 10;
   private cursor = { x: SCREEN.w * 0.55, y: SCREEN.h * 0.5 };
   robot: Robot;
+  private clockTimer = 0;
+  private cursorX!: (x: number) => void;
+  private cursorY!: (y: number) => void;
 
   constructor(screen: HTMLElement, robot: Robot) {
     this.robot = robot;
@@ -88,11 +92,13 @@ export class WM {
     this.renderDock(false);
     this.cursorEl = screen.querySelector(".cursor")!;
     gsap.set(this.cursorEl, { x: this.cursor.x, y: this.cursor.y });
+    this.cursorX = gsap.quickSetter(this.cursorEl, "x", "px") as (x: number) => void;
+    this.cursorY = gsap.quickSetter(this.cursorEl, "y", "px") as (y: number) => void;
     // the clock in the corner shows the real time
     const clock = this.root.querySelector(".os-clock") as HTMLElement;
     const paint = () => { clock.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); };
     paint();
-    window.setInterval(paint, 15000);
+    this.clockTimer = window.setInterval(() => { if (this.root.isConnected) paint(); }, 15000);
   }
 
   setWallpaper(css: string) {
@@ -122,6 +128,8 @@ export class WM {
     const bend = (Math.random() - 0.5) * Math.min(80, dist * 0.25);
     const mx = (from.x + x) / 2 - ((y - from.y) / (dist || 1)) * bend, my = (from.y + y) / 2 + ((x - from.x) / (dist || 1)) * bend;
     const p = { t: 0 };
+    let paintedAt = 0;
+    const paint = () => { this.cursorX(this.cursor.x); this.cursorY(this.cursor.y); };
     this.robot.setPose("mouse");
     await new Promise<void>((resolve) => {
       gsap.to(p, {
@@ -130,12 +138,14 @@ export class WM {
           const t = p.t, u = 1 - t;
           this.cursor.x = u * u * from.x + 2 * u * t * mx + t * t * x;
           this.cursor.y = u * u * from.y + 2 * u * t * my + t * t * y;
-          gsap.set(this.cursorEl, { x: this.cursor.x, y: this.cursor.y });
+          const now = performance.now(), fps = renderFps(this.root);
+          if (!fps || now - paintedAt < 1000 / fps - 1) return;
+          paintedAt = now; paint();
           // the physical mouse on the desk moves with the cursor, every frame
           this.robot.mouseTo(this.cursor.x / SCREEN.w, this.cursor.y / SCREEN.h);
           this.onCursor?.(this.cursor.x, this.cursor.y);
         },
-        onComplete: () => resolve(),
+        onComplete: () => { paint(); this.robot.mouseTo(this.cursor.x / SCREEN.w, this.cursor.y / SCREEN.h); resolve(); },
       });
       this.robot.lookAt(x / SCREEN.w, y / SCREEN.h);
     });
@@ -398,7 +408,12 @@ export class WM {
   }
 
   // --- placement -----------------------------------------------------------
-  private frameOf(w: Win): Frame { return { x: w.el.offsetLeft, y: w.el.offsetTop, w: w.el.offsetWidth, h: w.el.offsetHeight }; }
+  private frameOf(w: Win): Frame {
+    // The window manager owns these coordinates. Reading layout after a tween's writes
+    // forced style/layout across the entire office, even for a distant robot's cursor.
+    const s = w.el.style;
+    return { x: parseFloat(s.left), y: parseFloat(s.top), w: parseFloat(s.width), h: parseFloat(s.height) };
+  }
   private jitter(b: Frame) {
     const H = SCREEN.h - 50;
     return { x: Math.max(4, Math.min(SCREEN.w - b.w - 4, b.x + Math.round((Math.random() - 0.5) * 60))), y: Math.max(4, Math.min(H - b.h, b.y + Math.round((Math.random() - 0.5) * 30))) };
@@ -441,13 +456,15 @@ export class WM {
     const r = this.frameOf(w);
     const grab = { x: this.cursor.x - r.x, y: this.cursor.y - r.y };
     w.el.classList.add("dragging");
+    for (const other of this.wins.values()) { other.el.dataset.renderHidden = "0"; other.el.classList.remove("render-hidden"); }
+    wakeRender();
     this.robot.click();
     const move = this.moveTo(to.x + grab.x, to.y + grab.y, 520);
     const follow = () => { w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
     gsap.ticker.add(follow);
-    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); }
+    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); this.syncOcclusion(); }
     this.check(e);
-    if (to.w !== r.w || to.h !== r.h) gsap.to(w.el, { left: to.x, top: to.y, width: to.w, height: to.h, duration: 0.3 / this.speed, ease: "power2.out" });
+    if (to.w !== r.w || to.h !== r.h) gsap.to(w.el, { left: to.x, top: to.y, width: to.w, height: to.h, duration: 0.3 / this.speed, ease: "power2.out", onComplete: () => this.syncOcclusion() });
   }
   // drag to a screen edge: the window snaps to that half, like on a real desktop
   async snap(id: AppId, side: "left" | "right") {
@@ -529,7 +546,7 @@ export class WM {
     const e = this.epoch;
     const bar = w.el.querySelector(".win-bar")!;
     await this.pointAt(bar, 0.4, 0.5, 360);
-    const r = { x: w.el.offsetLeft, y: w.el.offsetTop, w: w.el.offsetWidth, h: w.el.offsetHeight };
+    const r = this.frameOf(w);
     const nx = Math.max(4, Math.min(SCREEN.w - r.w - 4, r.x + (Math.random() - 0.5) * 220));
     const ny = Math.max(4, Math.min(SCREEN.h - 50 - r.h, r.y + (Math.random() - 0.5) * 70));
     const grab = { x: this.cursor.x - r.x, y: this.cursor.y - r.y };
@@ -538,7 +555,7 @@ export class WM {
     const move = this.moveTo(nx + grab.x, ny + grab.y, 600);
     const follow = () => { w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
     gsap.ticker.add(follow);
-    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); }
+    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); this.syncOcclusion(); }
     this.check(e);
   }
 
@@ -548,6 +565,22 @@ export class WM {
     w.el.style.zIndex = String(++this.z);
     w.lastUsed = Date.now();
     for (const o of this.wins.values()) o.el.classList.toggle("focused", o === w);
+    this.syncOcclusion();
+  }
+
+  private syncOcclusion() {
+    for (const w of this.wins.values()) {
+      const f = this.frameOf(w), z = Number(w.el.style.zIndex);
+      let hidden = false;
+      for (const other of this.wins.values()) {
+        if (other === w || Number(other.el.style.zIndex) <= z) continue;
+        const o = this.frameOf(other);
+        if (o.x <= f.x && o.y <= f.y && o.x + o.w >= f.x + f.w && o.y + o.h >= f.y + f.h) { hidden = true; break; }
+      }
+      w.el.dataset.renderHidden = hidden ? "1" : "0";
+      w.el.classList.toggle("render-hidden", hidden);
+    }
+    wakeRender();
   }
 
   touch(id: AppId) {
@@ -596,6 +629,7 @@ export class WM {
     const w = this.wins.get(id);
     if (!w) return;
     this.wins.delete(id);
+    this.syncOcclusion();
     const dockItem = (this.dock.querySelector(`[data-app="${id}"]`) as HTMLElement | null) ?? this.dock;
     dockItem.classList.remove("running");
     const d = this.pos(dockItem), c = this.pos(w.el);
@@ -640,6 +674,8 @@ export class WM {
     this.renderDock(false);
     this.root.querySelector(".toast-layer")!.innerHTML = "";
   }
+
+  destroy() { clearInterval(this.clockTimer); this.reset(); }
 }
 
 function overlap(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) {

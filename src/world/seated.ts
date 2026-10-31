@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { prettyModel } from "../harness/themes";
 import { watch, unwatch, drawNow, sinceDraw } from "./budget";
+import { beginSystem, endSystem } from "../perf/metrics";
 import { GEOM, PHONE_SCALE, UNIT, type DeskRig, type Expression, type Pose, type Pt, type Reaction, type RobotLook, type SeatedRobot } from "../office/rig";
 import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, solveArm, uid, type BrandKind, type ArmMemo } from "./seated-parts";
 import { accessoryInfo, accessorySvg, blushSvg, BUILD_SHAPE, hatInfo, hatSvg, lookMotion, paintLookColors, resolveLook, stepLookMotion, styledEyes, type FullLook, type LookMotion } from "./look";
@@ -757,10 +758,11 @@ export class TopDownRobot implements SeatedRobot {
   // ---- per frame ----------------------------------------------------------------------------
   private frame = () => {
     const r = this.rig, now = performance.now();
-    this.autoType(now);
     // off screen or tiny (zoomed out): redraw less often, or not at all
     const dt = sinceDraw(this, now);
     if (!drawNow(this, this.el, now)) return;
+    const started = beginSystem();
+    this.autoType(now);
     if (this.pose === "type") {
       // a hand that has not typed for a moment drifts back to its home key
       for (const side of ["l", "r"] as const) {
@@ -937,6 +939,7 @@ export class TopDownRobot implements SeatedRobot {
       tg.setAttribute("transform", `translate(${tx.toFixed(1)} ${ty.toFixed(1)}) rotate(${(PHONE_TILT + 24).toFixed(0)}) scale(${(0.8 * K).toFixed(3)})`);
       tg.setAttribute("opacity", String(this.swipeP.on));
     } else tg.setAttribute("opacity", "0");
+    endSystem("robots", started);
   };
 
   // Auto typing (setTyping): words of a few letters with a space between them, uneven finger

@@ -1,4 +1,5 @@
 import type { WM } from "./wm";
+import { presentationFrame, renderFps } from "../perf/render";
 
 export const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 export const el = (html: string) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstElementChild as HTMLElement; };
@@ -14,15 +15,15 @@ export async function typeInto(wm: WM, target: HTMLElement, text: string, opts: 
   const start = performance.now();
   try {
     while (shown < text.length) {
-      await new Promise((r) => requestAnimationFrame(r));
+      await presentationFrame(target);
       wm.check(e);
       const elapsed = (performance.now() - start) * wm.speed;
       const jitter = 0.85 + Math.random() * 0.3;
-      const next = Math.min(text.length, Math.max(shown + 1, Math.floor((elapsed / 1000) * cps * jitter)));
+      const next = Math.min(text.length, Math.max(shown, Math.floor((elapsed / 1000) * cps * jitter)));
       if (next !== shown) {
-        for (let i = shown; i < next; i++) wm.robot.pressKey(text[i] === "\n" ? "Enter" : text[i]);
+        if (renderFps(target)) for (let i = shown; i < next; i++) wm.robot.pressKey(text[i] === "\n" ? "Enter" : text[i]);
         shown = next;
-        target.innerHTML = render(text.slice(0, shown)) + '<span class="caret"></span>';
+        if (renderFps(target)) target.innerHTML = render(text.slice(0, shown)) + '<span class="caret"></span>';
       }
     }
   } finally {

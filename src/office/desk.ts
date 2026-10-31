@@ -7,6 +7,7 @@ import { emptyChairSvg } from "../world/seated";
 import { playHandoff } from "../world/handoff";
 import { logoFor, brandFor } from "./brand";
 import { WALLPAPERS, HOBBY_LABEL, type RobotProfile } from "./roster";
+import { releaseRenderView } from "../perf/render";
 
 // One workstation, seen fake top-down: the desk surface from above, the monitor and the
 // robot as upright figures. The robot sits south of the desk with its back to us, the
@@ -44,6 +45,7 @@ export class Desk implements DeskStage {
   el: HTMLElement;
   monitor: HTMLElement;
   screen: HTMLElement;
+  bubble: HTMLElement;
   robot: SeatedRobot;
   wm: WM;
   director: Director;
@@ -77,6 +79,7 @@ export class Desk implements DeskStage {
     this.el = el;
     this.monitor = el.querySelector(".monitor")!;
     this.screen = el.querySelector(".screen")!;
+    this.bubble = el.querySelector(".bubble")!;
     gsap.set(el.querySelector(".phone-held"), { scale: PHONE_SCALE, transformOrigin: "0 0" });
     this.indexKeys();
     this.robot = robotFactory(el.querySelector(".robot-host") as HTMLElement, this.rig());
@@ -133,13 +136,17 @@ export class Desk implements DeskStage {
     this.label(thread?.title ?? "Free desk", thread?.provider ?? null);
   }
 
+  private labelSig = "";
   private label(title: string, provider: string | null) {
+    const who = this.profile ? (this.profile.role ? `${this.profile.name}, ${this.profile.role}` : this.profile.name) : "";
+    const sig = JSON.stringify([title, provider, who, this.model, this.profile?.prefs.hobby]);
+    if (sig === this.labelSig) return;
+    this.labelSig = sig;
     const plate = this.el.querySelector(".desk-plate") as HTMLElement;
     const img = plate.querySelector("img") as HTMLImageElement;
     const logo = logoFor(provider, "light");
     img.hidden = !logo;
     if (logo) img.src = logo;
-    const who = this.profile ? (this.profile.role ? `${this.profile.name}, ${this.profile.role}` : this.profile.name) : "";
     plate.querySelector("span")!.innerHTML = who ? `<b></b> <i></i>` : `<i></i>`;
     if (who) plate.querySelector("b")!.textContent = who;
     plate.querySelector("i")!.textContent = title;
@@ -239,7 +246,7 @@ export class Desk implements DeskStage {
 
   // --- DeskStage -------------------------------------------------------------
   say(text: string | null, kind: "think" | "speak" = "think") {
-    const b = this.el.querySelector(".bubble") as HTMLElement;
+    const b = this.bubble;
     if (!text) {
       if (b.classList.contains("show")) gsap.to(b, { opacity: 0, y: 8, scale: 0.96, duration: 0.25, ease: "power2.in", onComplete: () => { b.classList.remove("show"); this.lift("bubble", false); } });
       return;
@@ -393,6 +400,8 @@ export class Desk implements DeskStage {
   destroy() {
     this.director.reset();
     this.robot.destroy();
+    this.wm.destroy();
+    releaseRenderView(this.screen);
     window.clearInterval(this.zTimer);
     this.el.remove();
   }

@@ -5,6 +5,7 @@ import { Marked } from "marked";
 import DOMPurify from "dompurify";
 import { highlight } from "../os/highlight";
 import { type ThreadRef, refBlock, stripRefs, summarize } from "./thread-ref";
+import { beginSystem, endSystem } from "../perf/metrics";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
@@ -568,6 +569,7 @@ export class ChatPanel {
     if (id !== this.threadId) return;
     // the thread's model can change elsewhere too (T3 itself); check now and then
     if (this.paired && !this.saving && Date.now() - this.selAt > 4000) void this.loadSelection();
+    const started = beginSystem();
     const list = this.el.querySelector(".cp-list") as HTMLElement;
     const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
     let added = 0;
@@ -575,6 +577,7 @@ export class ChatPanel {
     // Queued messages wait in their own section at the bottom, in the order the robot takes them.
     const queued = msgs.filter((m) => m.role === "user" && m.run === "queued").sort((a, b) => (a.queue ?? 99) - (b.queue ?? 99));
     const timeline = msgs.filter((m) => !(m.role === "user" && m.run === "queued"));
+    const timelineIds = new Set(timeline.map((m) => m.id));
     this.renderQueue(queued);
     this.setPlan(this.desk?.planSteps || []);
     const signature = JSON.stringify(timeline);
@@ -651,8 +654,10 @@ export class ChatPanel {
     list.querySelectorAll(".cp-msg.pending").forEach((e) => list.appendChild(e));
     const typing = list.querySelector(".cp-typing");
     if (typing) list.appendChild(typing);
-    this.pending = this.pending.filter((p) => !texts.has(p.text) && Date.now() - p.at < 60000);
-    this.renderPending();
+    const pending = this.pending.filter((p) => !texts.has(p.text) && Date.now() - p.at < 60000);
+    const pendingChanged = pending.length !== this.pending.length;
+    this.pending = pending;
+    if (pendingChanged) this.renderPending();
     if (!list.children.length) list.innerHTML = `<p class="cp-empty">No messages yet. Say hello.</p>`;
     else list.querySelector(".cp-empty")?.remove();
     if (nearBottom || initial) list.scrollTop = list.scrollHeight;

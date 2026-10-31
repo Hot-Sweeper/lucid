@@ -83,7 +83,7 @@ const item = (v: VideoDef, i: number) => `
   </div>`;
 
 export async function watchTube(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   const start = performance.now();
   try {
     const site = new Site(body, scope, host, "fun-tube", `

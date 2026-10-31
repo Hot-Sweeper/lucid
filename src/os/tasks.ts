@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { presentationFrame, renderFps } from "../perf/render";
 import { WM, Cancelled } from "./wm";
 import "./tasks.css";
 
@@ -432,14 +433,15 @@ export class TasksApp {
     const start = performance.now();
     try {
       while (shown < text.length) {
-        await new Promise((r) => requestAnimationFrame(r));
+        await presentationFrame(target);
         wm.check(e);
         const want = Math.floor(((performance.now() - start) * wm.speed / 1000) * cps * (0.85 + Math.random() * 0.3));
-        const nxt = Math.min(text.length, Math.max(shown + 1, want));
+        const nxt = Math.min(text.length, Math.max(shown, want));
+        if (nxt === shown) continue;
         // one key per frame is plenty for the hands; the text itself keeps up exactly
-        wm.robot.pressKey(text[nxt - 1]);
+        if (renderFps(target)) wm.robot.pressKey(text[nxt - 1]);
         shown = nxt;
-        target.innerHTML = esc(text.slice(0, shown)) + '<span class="caret"></span>';
+        if (renderFps(target)) target.innerHTML = esc(text.slice(0, shown)) + '<span class="caret"></span>';
       }
     } finally {
       target.textContent = text.slice(0, shown);

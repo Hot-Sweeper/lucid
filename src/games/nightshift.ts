@@ -215,7 +215,7 @@ const SLOTS: Record<Room, [number, number, number][]> = {
 };
 
 export async function playNightShift(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   const calm = reducedMotion();
   try {
     const f = mountFrame(body, scope, "Night Shift", "ns");

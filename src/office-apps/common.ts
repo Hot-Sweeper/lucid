@@ -3,9 +3,9 @@
 import gsap from "gsap";
 import type { WM } from "../os/wm";
 import { esc } from "../os/typing";
+import { presentationFrame, renderFps } from "../perf/render";
 
 export const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-const frame = () => new Promise<void>((r) => (document.hidden ? setTimeout(r, 16) : requestAnimationFrame(() => r())));
 
 /**
  * Type `text` at `cps` characters a second (scaled by wm.speed), calling paint(n) with how much is
@@ -18,14 +18,14 @@ export async function typeWith(wm: WM, text: string, cps: number, paint: (n: num
   const start = performance.now();
   try {
     while (shown < text.length) {
-      await frame();
+      await presentationFrame(wm.root);
       wm.check(e);
       const elapsed = (performance.now() - start) * wm.speed;
       const next = Math.min(text.length, Math.floor((elapsed / 1000) * cps * (0.88 + Math.random() * 0.24)));
       if (next <= shown) continue;
-      for (let i = shown; i < next; i++) wm.robot.pressKey(text[i] === "\n" ? "Enter" : text[i]);
+      if (renderFps(wm.root)) for (let i = shown; i < next; i++) wm.robot.pressKey(text[i] === "\n" ? "Enter" : text[i]);
       shown = next;
-      paint(shown, true);
+      if (renderFps(wm.root)) paint(shown, true);
     }
   } finally {
     paint(shown, false);

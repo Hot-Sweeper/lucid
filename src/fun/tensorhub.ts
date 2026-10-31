@@ -386,7 +386,7 @@ function thComments(v: VideoDef): Comment[] {
 const calm = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export async function browseTensorHub(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   const start = performance.now();
   try {
     const site = new Site(body, scope, host, "fun-th", `
