@@ -21,7 +21,7 @@ import { Roster, type RobotProfile } from "./roster";
 // keeps its computer and state when it moves to another room.
 
 export type WThread = {
-  id: string; projectId: string; title: string; updatedAt: string; provider: string;
+  id: string; projectId: string; title: string; updatedAt: string; createdAt?: string | null; provider: string;
   runStatus: string | null; pinned: boolean; settled: boolean; question: string | null; model: string | null;
   schedule?: { nextRunAt: string | null; everyMs: number | null } | null;
   folder?: string | null;

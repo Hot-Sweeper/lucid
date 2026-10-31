@@ -513,7 +513,7 @@
 .th-row:hover { background: rgba(255, 255, 255, 0.05); }
 .th-row.on { background: rgba(255, 255, 255, 0.07); }
 .th-row:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
-.th-top { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-3); }
+.th-top { display: flex; align-items: center; gap: 7px; min-height: 18px; font-size: 12.5px; color: var(--ink-3); }
 .th-top img { width: 15px; height: 15px; border-radius: 4px; object-fit: contain; flex: none; }
 .th-mono { width: 15px; height: 15px; border-radius: 4px; flex: none; display: grid; place-items: center; font: 700 7.5px var(--font); background: #5a2340; color: #ff9fc6; }
 .th-none { width: 13px; height: 13px; flex: none; border: 1.5px dashed var(--ink-3); border-radius: 3px; }
@@ -527,8 +527,8 @@
 .th-ago { flex: none; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 @keyframes th-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .th-st.work i { animation: none; } }
-.th-title { font-size: 14px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
-.th-row:not(.on) .th-title { font-weight: 500; color: var(--ink-2, var(--ink)); }
+.th-title { font-size: 14px; font-weight: 600; line-height: 1.3; min-height: 2.6em; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.th-row:not(.on) .th-title { color: var(--ink-2, var(--ink)); }
 .th-pin { color: var(--accent); font-size: 9px; margin-right: 5px; vertical-align: 2px; }
 .th-bot { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3); min-height: 15px; }
 .th-sub { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

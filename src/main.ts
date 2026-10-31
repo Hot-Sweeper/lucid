@@ -31,6 +31,7 @@ import { logoFor, harnessName } from "./office/brand";
 import { wireThreadDrag } from "./office/thread-drag";
 import type { ThreadRef } from "./office/thread-ref";
 import { foldButton, foldSection, setRail } from "./office/sidebar";
+import { orderThreads, updateThreadRows } from "./office/thread-list";
 import openaiLogo from "./assets/openai.svg";
 import claudeLogo from "./assets/claude.svg";
 
@@ -747,9 +748,8 @@ function renderThreads() {
   renderRail();
   const q = (($("th-q") as HTMLInputElement).value || "").trim().toLowerCase();
   const projects = new Map(data.projects.map((p) => [p.id, p]));
-  const list = [...data.threads]
+  const list = orderThreads(data.threads)
     .filter((t) => !q || t.title.toLowerCase().includes(q) || (projects.get(t.projectId)?.title ?? "").toLowerCase().includes(q))
-    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
     .slice(0, 60);
   const rows = list.map((t) => {
     const p = projects.get(t.projectId);
@@ -764,16 +764,16 @@ function renderThreads() {
     const logo = logoFor(t.provider);
     const sub = t.branch || (p?.scratch ? "" : "");
     const host = !p || p.scratch ? world.building : "";
-    return `<li><button type="button" class="th-row ${t.runStatus === "running" ? "on" : ""}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}`)}">
+    return { id: t.id, html: `<li><button type="button" class="th-row ${t.runStatus === "running" ? "on" : ""}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}`)}">
       <span class="th-top">${icon}<span class="th-proj">${esc(proj)}</span>${state}</span>
       <span class="th-title">${t.pinned ? '<span class="th-pin" aria-label="Pinned">●</span>' : ""}${esc(t.title)}</span>
       <span class="th-bot"><span class="th-sub">${esc(sub || host)}</span>${robot ? `<span class="th-bot-name">${esc(robot.name)}</span>` : ""}${logo ? `<img class="th-logo" src="${logo}" alt="">` : ""}</span>
-    </button></li>`;
-  }).join("");
-  const sig = rows + q;
+    </button></li>` };
+  });
+  const sig = rows.map((r) => r.html).join("") + q;
   if (sig === thSig) return;
   thSig = sig;
-  $("th-list").innerHTML = rows || `<li class="th-empty">No threads match.</li>`;
+  updateThreadRows($("th-list"), rows);
 }
 $("th-q").addEventListener("input", renderThreads);
 $("th-list").addEventListener("click", (e) => {
@@ -797,24 +797,24 @@ function renderRail() {
   const data = world.lastData;
   if (!data || !ui.rail || document.body.classList.contains("th-dragging")) return;
   const projects = new Map(data.projects.map((p) => [p.id, p]));
-  const list = [...data.threads]
-    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+  const list = orderThreads(data.threads)
     .slice(0, 40);
-  const html = list.map((t) => {
+  const rows = list.map((t) => {
     const p = projects.get(t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
     const [st, said] = t.question ? ["ask", "needs input"] : t.runStatus === "running" ? ["work", "working"]
       : t.lastStatus === "failed" ? ["fail", "failed"] : t.unseen && t.lastStatus === "completed" ? ["done", "done"] : ["", ""];
     const logo = logoFor(t.provider);
     const name = `${t.title}, ${proj}${said ? `, ${said}` : ""}`;
-    return `<li><button type="button" class="rail-th${t.id === chat.threadId ? " cur" : ""}" data-id="${esc(t.id)}" aria-label="${esc(name)}" title="${esc(`${t.title}
+    return { id: t.id, html: `<li><button type="button" class="rail-th${t.id === chat.threadId ? " cur" : ""}" data-id="${esc(t.id)}" aria-label="${esc(name)}" title="${esc(`${t.title}
 ${proj}${said ? ` · ${said[0].toUpperCase()}${said.slice(1)}` : ""}`)}">`
       + (logo ? `<img src="${logo}" alt="">` : `<span class="rail-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`)
-      + (st ? `<i class="rail-st ${st}" aria-hidden="true"></i>` : "") + `</button></li>`;
-  }).join("");
+      + (st ? `<i class="rail-st ${st}" aria-hidden="true"></i>` : "") + `</button></li>` };
+  });
+  const html = rows.map((r) => r.html).join("");
   if (html === railSig) return;
   railSig = html;
-  $("rail-list").innerHTML = html;
+  updateThreadRows($("rail-list"), rows);
 }
 $("rail-list").addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest(".rail-th") as HTMLElement | null;

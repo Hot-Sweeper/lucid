@@ -318,7 +318,7 @@ function world(limit = 40) {
     // T3 can show a live turn as "queued"; recent activity is the most honest signal.
     const busy = r.runStatus === "running" || r.runStatus === "queued" || (r.lastItemAt && Date.now() - Date.parse(r.lastItemAt) < 90000);
     return {
-      id: r.id, projectId: r.projectId, title: r.title, updatedAt: r.updatedAt, provider: r.provider, runStatus: busy ? "running" : r.runStatus,
+      id: r.id, projectId: r.projectId, title: r.title, updatedAt: r.updatedAt, createdAt: p.createdAt || null, provider: r.provider, runStatus: busy ? "running" : r.runStatus,
       pinned: !!p.pinnedAt, settled, question, model: p.modelSelection?.model || null,
       schedule: schedules.get(r.id) || null,
       folder: p.worktreePath || null,
