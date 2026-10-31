@@ -80,7 +80,9 @@ export class Wallet {
     const s = this.state();
     const before = this.earned;
     const today = dayKey();
-    if (!Object.keys(s.ledger).length) s.ledger.welcome = Math.max(0, u.windows.week.costUsd - u.windows.today.costUsd);
+    // the week before today counts once, as a welcome; restored if the ledger ever lost it
+    const pastDays = Object.keys(s.ledger).some((k) => /^\d{4}-\d{2}-\d{2}$/.test(k) && k !== today);
+    if (s.ledger.welcome == null && !pastDays) s.ledger.welcome = Math.max(0, u.windows.week.costUsd - u.windows.today.costUsd);
     // new work since the last reading, with the boost that is active right now
     const delta = Math.max(0, u.windows.today.costUsd - (s.ledger[today] ?? 0));
     const boost = boostNow(this.level);

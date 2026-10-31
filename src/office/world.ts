@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { setZoom } from "../world/budget";
 import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
 import { drawFloor, drawWall, drawDecor, placeDecor, DECOR } from "../decor/decor";
 import type { RoomTheme } from "./decorate";
@@ -364,6 +365,7 @@ export class World {
     if (key !== this.lastKey) {
       this.lastKey = key;
       for (const kind of ["break", "queue"] as const) { this.ext[kind]?.destroy(); delete this.ext[kind]; }
+      for (const old of this.roomLayer.children) this.cull.unobserve(old);
       this.roomLayer.innerHTML = "";
       rooms.forEach((r, i) => {
         const el = document.createElement("div");
@@ -376,6 +378,7 @@ export class World {
           this.ext[r.kind as "break" | "queue"] = ext;
         } else el.innerHTML = roomSvg(r, plans[i].slots, this.themes.get(r.id), this.level);
         this.roomLayer.appendChild(el);
+        this.cull.observe(el);
         r.el = el;
       });
       const hall = this.root.querySelector(".hall") as HTMLElement;
@@ -699,14 +702,19 @@ export class World {
   }
 
   private sceneBox: DOMRect | null = null;
+  private near: boolean | null = null;
   private far = false;
   private apply() {
     this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
+    setZoom(this.cam.s, this.cam.x, this.cam.y);
     // the weather follows the camera without measuring the page (which is slow every frame)
     if (this.fx) { this.sceneBox ??= this.scene.getBoundingClientRect(); this.fx.setCamera(this.cam, this.sceneBox, this.size.w); }
     // zoomed far out the screens are too small to read: show their glow instead of drawing them
     const far = this.cam.s < 0.3;
     if (far !== this.far) { this.far = far; this.scene.classList.toggle("far", far); }
+    // small looping details (steam, swaying plants, birds) only move when you are close enough to see them
+    const near = this.cam.s >= 0.6;
+    if (near !== this.near) { this.near = near; this.scene.classList.toggle("near", near); }
   }
 
   flyTo(rect: { x: number; y: number; w: number; h: number }, pad = 40, d = 1, insetRight = 0) {

@@ -7,6 +7,13 @@ const updater = require("./updater.cjs");
 
 const DEV_URL = process.env.LUCID_DEV_URL;
 if (process.env.LUCID_SHOT) {
+  // Test runs get their own copy of the settings, so they never overwrite the real app's
+  // (two apps saving the same file lose each other's changes, like the coin ledger).
+  const real = app.getPath("userData");
+  const test = path.join(app.getPath("temp"), "lucid-test-profile");
+  require("node:fs").mkdirSync(test, { recursive: true });
+  try { require("node:fs").copyFileSync(path.join(real, "settings.json"), path.join(test, "settings.json")); } catch {}
+  app.setPath("userData", test);
   // keep animating even though the window is off-screen
   app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion");
   app.commandLine.appendSwitch("disable-renderer-backgrounding");
@@ -39,6 +46,48 @@ function createWindow() {
   if (process.env.LUCID_IDLE_SCALE) query.idleScale = process.env.LUCID_IDLE_SCALE;
   if (DEV_URL) win.loadURL(DEV_URL + "?" + new URLSearchParams(query));
   else win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query });
+  // Debug aid: LUCID_TRACE=file records a 5 second performance trace (style, layout, paint,
+  // compositing per frame) after 8 seconds, for chrome://tracing or a summary script.
+  if (process.env.LUCID_TRACE) {
+    const fs = require("node:fs");
+    setTimeout(async () => {
+      const dbg = win.webContents.debugger;
+      dbg.attach("1.3");
+      const chunks = [];
+      dbg.on("message", async (_e, method, params) => {
+        if (method === "Tracing.dataCollected") chunks.push(...params.value);
+        if (method === "Tracing.tracingComplete") { fs.writeFileSync(process.env.LUCID_TRACE, JSON.stringify({ traceEvents: chunks })); app.quit(); }
+      });
+      await dbg.sendCommand("Tracing.start", { transferMode: "ReportEvents", traceConfig: { includedCategories: ["devtools.timeline", "disabled-by-default-devtools.timeline", "disabled-by-default-devtools.timeline.frame", "blink", "cc", "viz", "gpu", "__metadata"] } });
+      setTimeout(() => dbg.sendCommand("Tracing.end"), 5000);
+    }, 8000);
+  }
+  if (process.env.LUCID_LAYERS) {
+    const fs = require("node:fs");
+    setTimeout(async () => {
+      const dbg = win.webContents.debugger;
+      dbg.attach("1.3");
+      dbg.on("message", (_e, method, params) => {
+        if (method === "LayerTree.layerTreeDidChange" && params.layers && !dbg.done) {
+          dbg.done = true;
+          (async () => {
+            const out = {};
+            for (const l of params.layers) {
+              let reasons = [], node = "";
+              try { reasons = (await dbg.sendCommand("LayerTree.compositingReasons", { layerId: l.layerId })).compositingReasonIds || []; } catch {}
+              if (l.backendNodeId) try { const n = (await dbg.sendCommand("DOM.describeNode", { backendNodeId: l.backendNodeId })).node; const i = (n.attributes || []).indexOf("class"); node = n.nodeName + "." + (i >= 0 ? n.attributes[i + 1] : ""); } catch {}
+              const k = reasons.join(",") + " @ " + node.split(" ")[0];
+              out[k] = (out[k] || 0) + 1;
+            }
+            fs.writeFileSync(process.env.LUCID_LAYERS, JSON.stringify(out, null, 1));
+            app.quit();
+          })();
+        }
+      });
+      await dbg.sendCommand("DOM.enable");
+      await dbg.sendCommand("LayerTree.enable");
+    }, 9000);
+  }
   // Debug aid: LUCID_PROFILE=file records a 4 second CPU profile after 5 seconds.
   if (process.env.LUCID_PROFILE) {
     const fs = require("node:fs");

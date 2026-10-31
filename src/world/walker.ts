@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { watch, unwatch, drawNow, sinceDraw } from "./budget";
 import type { Expression, RobotLook } from "../office/rig";
 import { bind, brandFor, clamp, defsSvg, eyesSvg, headSideSvg, headSvg, lerp, paintBrand, paintLook, uid, type BrandKind } from "./parts";
 
@@ -204,6 +205,7 @@ export class Walker {
     if (!still) this.scheduleLife();
     this.face("down");
     gsap.ticker.add(this.frame);
+    watch(this.svg);
     this.place();
   }
 
@@ -867,10 +869,13 @@ export class Walker {
 
   private frame = () => {
     const now = performance.now();
-    const dt = Math.min(0.05, (now - this.last) / 1000);
+    let dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
     if (!this.svg.isConnected) return;
     this.moveStep(dt);
+    // walking goes on every frame; the body is redrawn less often when off screen or tiny
+    dt = sinceDraw(this, now);
+    if (!drawNow(this, this.svg, now)) return;
     const st = this.st, t = now / 1000;
     const side = this.facing === "left" || this.facing === "right";
     const back = this.facing === "up";
@@ -1074,6 +1079,7 @@ export class Walker {
   destroy() {
     this.stop();
     gsap.ticker.remove(this.frame);
+    unwatch(this.svg);
     this.clearAct();
     for (const l of this.loops) l.kill();
     this.blinkCall?.kill();

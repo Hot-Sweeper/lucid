@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { watch, unwatch, drawNow, sinceDraw } from "./budget";
 import { GEOM, UNIT, type DeskRig, type Expression, type Pose, type Pt, type Reaction, type RobotLook, type SeatedRobot } from "../office/rig";
 import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, solveArm, uid, type BrandKind } from "./seated-parts";
 import { accessoryInfo, accessorySvg, blushSvg, BUILD_SHAPE, hatInfo, hatSvg, lookMotion, paintLookColors, resolveLook, stepLookMotion, styledEyes, type FullLook, type LookMotion } from "./look";
@@ -134,6 +135,7 @@ export class TopDownRobot implements SeatedRobot {
     this.scheduleShift();
     this.setPose("rest");
     gsap.ticker.add(this.frame);
+    watch(this.el);
   }
 
   get brandName() { return this.brand; }
@@ -730,10 +732,12 @@ export class TopDownRobot implements SeatedRobot {
   }
 
   // ---- per frame ----------------------------------------------------------------------------
-  private frame = (_time: number, deltaMs: number) => {
+  private frame = () => {
     const r = this.rig, now = performance.now();
-    const dt = clamp((deltaMs || 16.7) / 1000, 0.001, 1 / 20);
     this.autoType(now);
+    // off screen or tiny (zoomed out): redraw less often, or not at all
+    const dt = sinceDraw(this, now);
+    if (!drawNow(this, this.el, now)) return;
     if (this.pose === "type") {
       // a hand that has not typed for a moment drifts back to its home key
       for (const side of ["l", "r"] as const) {
@@ -974,6 +978,7 @@ export class TopDownRobot implements SeatedRobot {
 
   destroy() {
     gsap.ticker.remove(this.frame);
+    unwatch(this.el);
     for (const a of this.loops) a.kill();
     for (const a of [this.poseAnim, this.reactTl, this.antTl, this.swTl, this.hpTl, this.blinkCall, this.shiftCall]) a?.kill();
     for (const s of ["l", "r"] as const) this.liftTl[s]?.kill();

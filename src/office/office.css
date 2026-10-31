@@ -622,8 +622,16 @@
 .cp-queue { background: #241f3a; box-shadow: inset 0 0 0 1px rgba(255, 210, 122, 0.18); }
 
 /* performance: skip painting what nobody can see */
-.desk-unit.culled > * { visibility: hidden; }
+/* desks and rooms off screen skip style, layout and paint entirely (their robots keep working),
+   and so do screens too small to read when zoomed out */
+.desk-unit.culled > *, .room.culled > * { visibility: hidden; content-visibility: hidden; }
+.scene.far .monitor .os { content-visibility: hidden; }
+/* Looping decorations each need their own graphics layer, and so does everything drawn over them:
+   zoomed out they are too small to see, so they rest (sways) or step out of view (movers). */
+.scene:not(.near) :is(.mug-steam path, .amb-tree, .amb-bare, .amb-bush, .amb-fl, .amb-glow, .amb-plant, .amb-rock, .amb-sit, .amb-blink, .amb-flap, .amb-buzz, .amb-cloud) { animation: none; }
+.scene:not(.near) :is(.amb-drop, .amb-ripple, .amb-ring, .amb-path, .amb-occ, .amb-dart, .amb-hop, .amb-ffly) { animation: none; visibility: hidden; }
 .scene.far .monitor .os { visibility: hidden; }
+.scene.far .world * { animation-play-state: paused !important; }
 .scene.far .monitor .screen { background: linear-gradient(160deg, #2b6a6a, #1d3d63); }
 
 /* milestones */
