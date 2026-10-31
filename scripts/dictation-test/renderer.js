@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
 let state = 'loading', stream, context, source, capture, mute, chunks = [], limit, generation = 0;
+let flushDone;
 function status(text, error = false) { $('status').textContent = text; $('status').classList.toggle('error', error); }
 function setState(next) {
   state = next;
@@ -19,6 +20,7 @@ async function load() {
 }
 async function release() {
   clearTimeout(limit);
+  flushDone?.(); flushDone = null;
   stream?.getTracks().forEach(track => track.stop()); stream = null;
   source?.disconnect(); capture?.disconnect(); mute?.disconnect();
   source = capture = mute = null;
@@ -37,7 +39,11 @@ async function record() {
     capture = new AudioWorkletNode(context, 'dictation-capture');
     mute = context.createGain(); mute.gain.value = 0;
     chunks = [];
-    capture.port.onmessage = event => { if (state === 'recording' && mine === generation) chunks.push(event.data); };
+    capture.port.onmessage = event => {
+      if (mine !== generation) return;
+      if (event.data?.type === 'flushed') { flushDone?.(); return; }
+      if (event.data instanceof Float32Array && (state === 'recording' || flushDone)) chunks.push(event.data);
+    };
     source.connect(capture); capture.connect(mute); mute.connect(context.destination);
     setState('recording'); status('Recording. Click Stop when finished. Maximum two minutes.');
     limit = setTimeout(() => stop(false), 119000);
@@ -50,6 +56,11 @@ async function stop(discard) {
   if (state !== 'recording') return;
   const rate = context.sampleRate;
   setState('transcribing');
+  if (!discard) await new Promise(resolve => {
+    const timer = setTimeout(() => { flushDone = null; resolve(); }, 1000);
+    flushDone = () => { clearTimeout(timer); flushDone = null; resolve(); };
+    capture.port.postMessage('flush');
+  });
   const recorded = chunks; chunks = [];
   ++generation;
   await release();

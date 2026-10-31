@@ -55,7 +55,7 @@ class Model:
  def __init__(self,*a,**k): self.device=types.SimpleNamespace(description='CPU',kind='cpu')
  def __enter__(self): return self
  def __exit__(self,*a): pass
- def session(self): return self
+ def session(self,**kwargs): return self
  def run(self,pcm): return types.SimpleNamespace(text=${JSON.stringify(german)})
 sys.modules['transcribe_cpp']=types.SimpleNamespace(Model=Model)
 runpy.run_path(${JSON.stringify(path.resolve(__dirname, 'dictation-worker.py'))},run_name='__main__')`;
@@ -82,12 +82,12 @@ async function composer() {
   }
   const form = new Element(), input = new Element(), send = new Element(), tools = new Element();
   form.querySelector = selector => ({ textarea: input, '.cp-send': send, '.cp-tools': tools, '.cp-hint': new Element() })[selector];
-  let owner = 'first', stopped = 0, runResolve, runs = 0, cancelled = 0, capture;
+  let owner = 'first', stopped = 0, runResolve, runs = 0, cancelled = 0, capture, loads = 0;
   const opened = () => ({ getTracks: () => [{ stop: () => { stopped++; } }] });
   let getUserMedia = async () => opened();
   const window = new EventTarget();
   window.setTimeout = setTimeout; window.clearTimeout = clearTimeout;
-  window.lucidDictation = { load: async () => ({}), run: () => { runs++; return new Promise(resolve => { runResolve = resolve; }); }, cancel: async () => { cancelled++; } };
+  window.lucidDictation = { load: async () => { loads++; assert(stopped > 0, 'microphone must be released before model loading'); return {}; }, run: () => { runs++; return new Promise(resolve => { runResolve = resolve; }); }, cancel: async () => { cancelled++; } };
   class Audio {
     sampleRate = 16000; state = 'running'; audioWorklet = { addModule: async () => {} };
     resume() { return Promise.resolve(); }
@@ -95,7 +95,17 @@ async function composer() {
     createMediaStreamSource() { return { connect() {}, disconnect() {} }; }
     createGain() { return { gain: { value: 0 }, connect() {}, disconnect() {} }; }
   }
-  class Worklet { port = {}; constructor() { capture = this; } connect() {} disconnect() {} }
+  class Worklet {
+    port = { postMessage: value => {
+      assert.equal(value, 'flush');
+      queueMicrotask(() => {
+        this.port.onmessage({ data: new Float32Array(256) });
+        this.port.onmessage({ data: { type: 'flushed' } });
+      });
+    } };
+    constructor() { capture = this; }
+    connect() {} disconnect() {}
+  }
   class Offline {
     constructor(_n, length) { this.pcm = new Float32Array(length); }
     createBuffer() { return { getChannelData: () => this.pcm }; }
@@ -110,9 +120,11 @@ async function composer() {
   input.value = 'Existing draft'; input.selectionStart = input.selectionEnd = input.value.length;
   button.onclick(); await tick();
   assert(controller.active()); assert(send.disabled);
+  assert.equal(loads, 0, 'starting recording must not initialize CPU/GPU model');
   const submit = new Event('submit', { cancelable: true }); form.dispatchEvent(submit); assert(submit.defaultPrevented);
   capture.port.onmessage({ data: new Float32Array(8000) });
   button.onclick(); await tick(); assert.equal(runs, 1);
+  assert.equal(loads, 1, 'load only after Stop');
   runResolve({ text: german }); await tick();
   assert.equal(input.value, 'Existing draft ' + german); assert(!send.disabled); assert(!controller.active()); assert.equal(stopped, 1);
   // A late result must not land in another thread or overwrite its draft.
@@ -126,4 +138,28 @@ async function composer() {
   assert(!controller.active()); assert(!send.disabled); assert.equal(stopped, 3); assert(cancelled >= 2);
 }
 
-(async () => { await protocol(); windowsEncoding(); await composer(); console.log('PASS: German legacy-codepage round trip, split UTF-8 pipes, CPU fallback, cancellation, microphone cleanup, draft insertion and thread isolation.'); })().catch(error => { console.error(error); process.exitCode = 1; });
+function batchedCapture() {
+  let Capture;
+  const messages = [];
+  class Processor {
+    port = { postMessage: (data, transfer) => {
+      if (data instanceof Float32Array) assert.equal(transfer[0], data.buffer);
+      messages.push(data);
+    } };
+  }
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'dictation-test/capture-worklet.js'), 'utf8'), {
+    AudioWorkletProcessor: Processor, Float32Array, registerProcessor: (_name, implementation) => { Capture = implementation; },
+  });
+  const capture = new Capture();
+  for (let offset = 0; offset < 48000; offset += 128) capture.process([[Float32Array.from({ length: 128 }, (_, i) => offset + i)]]);
+  assert.equal(messages.length, 11, 'one batched message per 4096 samples');
+  capture.port.onmessage({ data: 'flush' });
+  assert.equal(messages.at(-1).type, 'flushed');
+  const pcm = messages.filter(message => message instanceof Float32Array);
+  assert.equal(pcm.length, 12);
+  const values = pcm.flatMap(chunk => [...chunk]);
+  assert.equal(values.length, 48000, 'flush must preserve the entire audio tail');
+  values.forEach((value, index) => assert.equal(value, index));
+}
+
+(async () => { await protocol(); windowsEncoding(); batchedCapture(); await composer(); console.log('PASS: German encoding, CPU fallback, deferred model loading, batched capture with lossless tail flush, cancellation, microphone cleanup, draft insertion and thread isolation.'); })().catch(error => { console.error(error); process.exitCode = 1; });

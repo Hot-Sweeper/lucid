@@ -23,7 +23,7 @@ export function attachDictation(form: HTMLFormElement, owner: () => string | nul
   let generation = 0, stream: MediaStream | null = null, context: AudioContext | null = null;
   let source: MediaStreamAudioSourceNode | null = null, capture: AudioWorkletNode | null = null, gain: GainNode | null = null;
   let chunks: Float32Array[] = [], limit = 0, previousSendDisabled = false;
-  let loading: Promise<unknown> | null = null;
+  let flushDone: (() => void) | null = null;
   const message = (text: string) => { note.textContent = text; note.hidden = !text; };
   function state(next: typeof phase) {
     phase = next;
@@ -34,6 +34,7 @@ export function attachDictation(form: HTMLFormElement, owner: () => string | nul
   }
   async function release() {
     window.clearTimeout(limit);
+    flushDone?.(); flushDone = null;
     stream?.getTracks().forEach(track => track.stop()); stream = null;
     source?.disconnect(); capture?.disconnect(); gain?.disconnect();
     source = capture = gain = null;
@@ -49,9 +50,17 @@ export function attachDictation(form: HTMLFormElement, owner: () => string | nul
   }
   async function finish() {
     if (phase !== 'recording' || !context) return;
-    const mine = generation, thread = owner(), rate = context.sampleRate, recorded = chunks; chunks = [];
+    const mine = generation, thread = owner(), rate = context.sampleRate;
     state('transcribing'); message('Transcribing on this computer...');
     try {
+      // Drain the final partial batch before disconnecting the audio graph.
+      await new Promise<void>(resolve => {
+        const timer = window.setTimeout(() => { flushDone = null; resolve(); }, 1000);
+        flushDone = () => { window.clearTimeout(timer); flushDone = null; resolve(); };
+        capture!.port.postMessage('flush');
+      });
+      if (mine !== generation) return;
+      const recorded = chunks; chunks = [];
       await release();
       const length = recorded.reduce((sum, chunk) => sum + chunk.length, 0);
       if (length < rate * .3) throw new Error('The recording was too short. Try again.');
@@ -62,7 +71,9 @@ export function attachDictation(form: HTMLFormElement, owner: () => string | nul
       for (const chunk of recorded) { channel.set(chunk, offset); offset += chunk.length; }
       const audio = offline.createBufferSource(); audio.buffer = buffer; audio.connect(offline.destination); audio.start();
       const rendered = await offline.startRendering();
-      await loading;
+      // Recording must not compete with model initialization or shader compilation.
+      if (mine !== generation || thread !== owner()) return;
+      await api!.load('auto');
       if (mine !== generation || thread !== owner()) return;
       const result = await api!.run(new Uint8Array(rendered.getChannelData(0).buffer));
       if (mine !== generation || thread !== owner()) return;
@@ -84,8 +95,6 @@ export function attachDictation(form: HTMLFormElement, owner: () => string | nul
     const mine = ++generation;
     previousSendDisabled = send.disabled;
     state('starting'); message('Opening microphone...');
-    // Attach rejection handling immediately, including cancellation during microphone permission.
-    loading = api!.load('auto'); loading.catch(() => {});
     try {
       const opened = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
       if (mine !== generation) { opened.getTracks().forEach(track => track.stop()); return; }
@@ -99,11 +108,14 @@ export function attachDictation(form: HTMLFormElement, owner: () => string | nul
       capture = new AudioWorkletNode(context, 'dictation-capture');
       gain = context.createGain(); gain.gain.value = 0;
       chunks = [];
-      capture.port.onmessage = event => { if (mine === generation && phase === 'recording') chunks.push(event.data); };
+      capture.port.onmessage = event => {
+        if (mine !== generation) return;
+        if (event.data?.type === 'flushed') { flushDone?.(); return; }
+        if (event.data instanceof Float32Array && (phase === 'recording' || flushDone)) chunks.push(event.data);
+      };
       source.connect(capture); capture.connect(gain); gain.connect(context.destination);
       state('recording'); message('Recording. Click Stop when finished. Escape cancels.');
       limit = window.setTimeout(() => void finish(), 119000);
-      loading.catch(error => { if (mine === generation && phase === 'recording') { cancel(); message(error.message); } });
     } catch (error) {
       if (mine !== generation) return;
       await release(); state('idle');

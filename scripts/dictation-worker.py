@@ -18,10 +18,11 @@ def main():
     import transcribe_cpp
 
     started = time.perf_counter()
+    threads = min(4, os.cpu_count() or 1)
     with transcribe_cpp.Model(str(root / "parakeet-ultra-Q8_0.gguf"), backend=sys.argv[1]) as model:
-        with model.session() as session:
+        with model.session(n_threads=threads) as session:
             emit({"type": "ready", "device": model.device.description, "backend": model.device.kind,
-                  "loadMs": round((time.perf_counter() - started) * 1000)})
+                  "loadMs": round((time.perf_counter() - started) * 1000), "threads": threads})
             for line in sys.stdin:
                 try:
                     request = json.loads(line)
