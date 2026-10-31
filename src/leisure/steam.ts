@@ -1,3 +1,4 @@
+import { GAME_TITLES } from "../games/catalog";
 // Steambot: the robots' game store and launcher. A parody in Lucid's own style: a dark blue store
 // with sales and a cart, a library with an INSTALL or PLAY button, a download that really runs
 // its course. The robot browses, maybe buys something (or is declined), then installs and launches
@@ -29,18 +30,18 @@ const G = {
 
 // The games that exist on the robots' desktops have a `key` (the idle activity that plays them). The rest are store-only.
 export const STEAM_GAMES: SteamGame[] = [
-  { id: "blockcraft", key: "blockcraft", title: "Blockcraft", blurb: "Dig down, build up, forget about dinner.", c: ["#4a8f3a", "#1d3b2a"], price: 19.99, size: 1.4, glyph: G.cube },
-  { id: "nightshift", key: "nightshift", title: "Five Nights at the Server Room", blurb: "Keep the racks cool. Something keeps unplugging them.", c: ["#5a1a2e", "#0d0d1c"], price: 14.99, sale: 0.5, size: 2.1, glyph: G.eye },
-  { id: "island", key: "island", title: "The Secret of Robot Island", blurb: "A point and click about a bot who wants to be a pirate.", c: ["#1fa6a0", "#223a6b"], price: 9.99, size: 0.9, glyph: G.palm },
-  { id: "botcom", key: "botcom", title: "BOT-COM: Terror from the Deep Sea", blurb: "Turn based tactics against things that should stay down there.", c: ["#25507a", "#0b1a2e"], price: 29.99, sale: 0.25, size: 6.8, glyph: G.tentacle },
-  { id: "bugger", key: "bugger", title: "Der Bugger 2", blurb: "A fast shooter where every enemy is a software bug.", c: ["#a33a1e", "#2a1210"], price: 24.99, sale: 0.6, size: 3.3, glyph: G.bug },
-  { id: "boot", key: "boot", title: "BOOT", blurb: "Restart the whole world, one startup log at a time.", c: ["#3a3f99", "#12163a"], price: 7.99, size: 0.6, glyph: G.power },
-  { id: "bitmerge", key: "bitmerge", title: "Bit Merge", blurb: "Slide matching bits together. Reach 2048 or lose an evening.", c: ["#e0a53a", "#8a4a1a"], price: 3.99, size: 0.1, glyph: G.tiles },
-  { id: "flappy", key: "flappy", title: "Flappy Drone", blurb: "One button. Many pipes.", c: ["#58b8e8", "#2b5ea8"], price: 2.99, size: 0.1, glyph: G.drone },
-  { id: "dash", key: "dash", title: "Dash", blurb: "Jump to the beat or crash into it.", c: ["#7a4ae0", "#2a1a66"], price: 4.99, size: 0.2, glyph: G.dash },
-  { id: "snake", key: "snake", title: "Snake", blurb: "It is a snake. It eats. It grows.", c: ["#3fb86a", "#14503a"], price: 0.99, size: 0.05, glyph: G.snake },
-  { id: "connect4", key: "connect4", title: "Four in a Row", blurb: "Gravity does half the work.", c: ["#e8483a", "#7a1a2a"], price: 1.99, size: 0.1, glyph: G.four },
-  { id: "chess", key: "chess", title: "Chess", blurb: "Sixty four squares, no refunds.", c: ["#8a6a4a", "#2a2018"], price: 4.99, size: 0.1, glyph: G.knight },
+  { id: "blockcraft", key: "blockcraft", title: GAME_TITLES.blockcraft, blurb: "Dig down, build up, forget about dinner.", c: ["#4a8f3a", "#1d3b2a"], price: 19.99, size: 1.4, glyph: G.cube },
+  { id: "nightshift", key: "nightshift", title: GAME_TITLES.nightshift, blurb: "Keep the racks cool. Something keeps unplugging them.", c: ["#5a1a2e", "#0d0d1c"], price: 14.99, sale: 0.5, size: 2.1, glyph: G.eye },
+  { id: "island", key: "island", title: GAME_TITLES.island, blurb: "A point and click about a bot who wants to be a pirate.", c: ["#1fa6a0", "#223a6b"], price: 9.99, size: 0.9, glyph: G.palm },
+  { id: "botcom", key: "botcom", title: GAME_TITLES.botcom, blurb: "Turn based tactics against things that should stay down there.", c: ["#25507a", "#0b1a2e"], price: 29.99, sale: 0.25, size: 6.8, glyph: G.tentacle },
+  { id: "bugger", key: "bugger", title: GAME_TITLES.bugger, blurb: "Trade cargo between ports, repay the bank, and dodge packet pirates.", c: ["#a33a1e", "#2a1210"], price: 24.99, sale: 0.6, size: 3.3, glyph: G.bug },
+  { id: "boot", key: "boot", title: GAME_TITLES.boot, blurb: "A first-person shooter through the server room. Clear out the bugs.", c: ["#3a3f99", "#12163a"], price: 7.99, size: 0.6, glyph: G.power },
+  { id: "bitmerge", key: "bitmerge", title: GAME_TITLES.bitmerge, blurb: "Slide matching bits together. Reach 2048 or lose an evening.", c: ["#e0a53a", "#8a4a1a"], price: 3.99, size: 0.1, glyph: G.tiles },
+  { id: "flappy", key: "flappy", title: GAME_TITLES.flappy, blurb: "One button. Many pipes.", c: ["#58b8e8", "#2b5ea8"], price: 2.99, size: 0.1, glyph: G.drone },
+  { id: "dash", key: "dash", title: GAME_TITLES.dash, blurb: "Jump to the beat or crash into it.", c: ["#7a4ae0", "#2a1a66"], price: 4.99, size: 0.2, glyph: G.dash },
+  { id: "snake", key: "snake", title: GAME_TITLES.snake, blurb: "It is a snake. It eats. It grows.", c: ["#3fb86a", "#14503a"], price: 0.99, size: 0.05, glyph: G.snake },
+  { id: "connect4", key: "connect4", title: GAME_TITLES.connect4, blurb: "Gravity does half the work.", c: ["#e8483a", "#7a1a2a"], price: 1.99, size: 0.1, glyph: G.four },
+  { id: "chess", key: "chess", title: GAME_TITLES.chess, blurb: "Sixty four squares, no refunds.", c: ["#8a6a4a", "#2a2018"], price: 4.99, size: 0.1, glyph: G.knight },
   // store only
   { id: "cyberbug", key: null, title: "Cyberbug 2077", blurb: "The patch notes are longer than the game.", c: ["#f2e03a", "#c43a8a"], price: 59.99, sale: 0.65, size: 70, glyph: G.sword },
   { id: "halfbyte", key: null, title: "Half-Byte 3", blurb: "Release date: when it is ready.", c: ["#e87a1e", "#3a1e0c"], price: 59.99, size: 40, glyph: G.portal },
@@ -303,4 +304,12 @@ class Steambot {
     await k.sleep(rnd(600, 1100));
     return (await this.playGame(target)) ? target.key : null;
   }
+}
+
+/** The hosted game really ended, so its library page must stop saying Running. */
+export function markSteamStopped(body: HTMLElement) {
+  const button = body.querySelector<HTMLElement>(".sb-go");
+  if (button?.textContent === "STOP") { button.textContent = "PLAY"; button.className = "sb-green sb-go"; }
+  const meta = body.querySelector<HTMLElement>(".sb-meta");
+  if (meta?.textContent === "Running") meta.textContent = "Last played: today";
 }

@@ -1,4 +1,6 @@
 import gsap from "gsap";
+import { GAME_TITLES, type GameKey } from "../games/catalog";
+import { markSteamStopped } from "../leisure/steam";
 import { WM, Cancelled, type AppId } from "./wm";
 import { CalcApp, IDLE_SUMS } from "./calc";
 import { WeatherApp, checkTime } from "./glance";
@@ -232,13 +234,15 @@ export class IdleLife {
     };
   }
 
-  private async doActivity(act: string, tok: number) {
+  private async doActivity(act: string, tok: number, alreadyLaunched = false) {
     const host = this.host(tok);
     const skill = 0.35 + Math.random() * 0.5;
-    const game = async (title: string, play: (b: HTMLElement, h: FunHost, o: { maxMs: number; skill?: number }) => Promise<{ result: string }>) => {
-      this.onActivity(`Playing ${title} while it waits`);
-      const w = await this.wm.open("game", title);
+    const game = async (play: (b: HTMLElement, h: FunHost, o: { maxMs: number; skill?: number }) => Promise<{ result: string }>) => {
+      const title = GAME_TITLES[act as GameKey];
+      this.onActivity(`${alreadyLaunched ? "Launching" : "Opening"} ${title}`);
+      const w = await this.wm.open("game", title, alreadyLaunched);
       this.alive(tok);
+      this.onActivity(`Playing ${title} while it waits`);
       w.body.innerHTML = "";
       this.stopGame = () => { w.body.innerHTML = ""; };
       const out = await play(w.body, host, { maxMs: T.gameFor * (0.6 + Math.random() * 0.6), skill });
@@ -259,21 +263,21 @@ export class IdleLife {
       }
     };
     switch (act) {
-      case "snake": return game("Snake", playSnake);
-      case "flappy": return game("Flappy Drone", playFlappy);
-      case "dash": return game("Dash", playDash);
-      case "blockcraft": return game("Blockcraft", playBlockcraft);
-      case "nightshift": return game("Five Nights at the Server Room", playNightShift);
-      case "tictactoe": return game("Tic-tac-toe", playTicTacToe);
-      case "connect4": return game("Four in a Row", playConnectFour);
-      case "bitmerge": return game("Bit Merge", playBitMerge);
-      case "island": return game("The Secret of Robot Island", playRobotIsland);
-      case "botcom": return game("BOT-COM: Terror from the Deep Sea", playBotCom);
-      case "bugger": return game("Der Bugger 2", playDerBugger);
-      case "boot": return game("BOOT", playBoot);
+      case "snake": return game(playSnake);
+      case "flappy": return game(playFlappy);
+      case "dash": return game(playDash);
+      case "blockcraft": return game(playBlockcraft);
+      case "nightshift": return game(playNightShift);
+      case "tictactoe": return game(playTicTacToe);
+      case "connect4": return game(playConnectFour);
+      case "bitmerge": return game(playBitMerge);
+      case "island": return game(playRobotIsland);
+      case "botcom": return game(playBotCom);
+      case "bugger": return game(playDerBugger);
+      case "boot": return game(playBoot);
       case "chess": {
-        this.onActivity("Playing chess while it waits");
-        await this.playChess(tok);
+        this.onActivity(`${alreadyLaunched ? "Launching" : "Opening"} Chess`);
+        await this.playChess(tok, alreadyLaunched);
         return this.closeWin("game", tok);
       }
       case "phone": {
@@ -414,7 +418,10 @@ export class IdleLife {
         const want = (key: string) => (key === "snake" ? g.snake : key === "flappy" ? g.flappy : key === "dash" ? g.dash : key === "chess" ? g.chess : 1);
         const out = await useSteam(w.body, this.host(tok), { maxMs: 130000, me: this.wm.robotName, skill: 0.5 + Math.random() * 0.4, want });
         this.alive(tok);
-        if (out.launch) await this.doActivity(out.launch, tok);
+        if (out.launch) {
+          try { await this.doActivity(out.launch, tok, true); }
+          finally { markSteamStopped(w.body); }
+        }
         return this.closeWin("steam", tok);
       }
       case "trading": return this.socialApp("trading", "Trading bitcoin on Tradebot", tradeOnTradebot, tok, 60000);
@@ -579,9 +586,10 @@ export class IdleLife {
     { name: "the Blackburne Shilling trap", winner: "black", moves: "e2e4 e7e5 g1f3 b8c6 f1c4 c6d4 f3e5 d8g5 e5f7 g5g2 h1f1 g2e4 c4e2 d4f3".split(" ") },
   ];
 
-  private async playChess(tok: number) {
-    const w = await this.wm.open("game", "Chess");
+  private async playChess(tok: number, alreadyLaunched = false) {
+    const w = await this.wm.open("game", GAME_TITLES.chess, alreadyLaunched);
     this.alive(tok);
+    this.onActivity("Playing Chess while it waits");
     const glyph: Record<string, string> = { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" };
     const G = IdleLife.GAMES[Math.floor(Math.random() * IdleLife.GAMES.length)];
     const robotWhite = Math.random() < 0.6;

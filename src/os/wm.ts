@@ -218,16 +218,22 @@ export class WM {
       if (title) w.title.textContent = title;
       return w;
     }
-    const p = this.openNow(id, title, clicked);
+    // A game is a specific application. Do not search for the shared window slot
+    // "Games", or click a shortcut still named after a different game.
+    const newGame = id === "game" && !!title && title !== this.titleOf(id);
+    if (id === "game" && title) this.brandApp(id, { title });
+    const p = this.openNow(id, title, clicked, newGame);
     this.opening.set(id, p);
     try { return await p; } finally { if (this.opening.get(id) === p) this.opening.delete(id); }
   }
   private opening = new Map<AppId, Promise<Win>>();
 
-  private async openNow(id: AppId, title?: string, clicked = false): Promise<Win> {
+  private async openNow(id: AppId, title?: string, clicked = false, newGame = false): Promise<Win> {
     const e = this.epoch;
     let w = this.wins.get(id);
     if (w) {
+      if (newGame && !clicked) { await this.launch(id); this.check(e); }
+      if (newGame) w.body.replaceChildren();
       if (title) w.title.textContent = title;
       if (clicked) this.focus(id);
       else if (Number(w.el.style.zIndex) !== this.z) {
@@ -245,7 +251,7 @@ export class WM {
     // the dock can only be found with Spotlight
     const pinnedItem = this.dock.querySelector(`[data-app="${id}"]`) as HTMLElement | null;
     if (clicked) { /* already on its way */ }
-    else if (!pinnedItem || this.habit(this.prefs?.launch ?? "dock", { dock: 0.2, spotlight: 0.2 }) === "spotlight") await this.launch(this.titleOf(id));
+    else if (newGame || !pinnedItem || this.habit(this.prefs?.launch ?? "dock", { dock: 0.2, spotlight: 0.2 }) === "spotlight") await this.launch(id);
     else {
       await this.pointAt(pinnedItem, 0.5, 0.5);
       // the dock may have shifted while the cursor travelled: land on the icon itself
@@ -511,11 +517,14 @@ export class WM {
   }
 
   // Open an app by typing its name into the launcher, like a keyboard person would.
-  private async launch(name: string) {
+  private async launch(id: AppId) {
+    const name = this.titleOf(id);
     const e = this.epoch;
     const bar = document.createElement("div");
     bar.className = "launcher";
-    bar.innerHTML = `<span class="l-q"></span><span class="caret"></span>`;
+    bar.innerHTML = `<div class="l-search"><span class="l-q"></span><span class="caret"></span></div><div class="l-result" hidden>${this.iconOf(id)}<span></span><small>Open</small></div>`;
+    const result = bar.querySelector<HTMLElement>(".l-result")!;
+    result.querySelector("span")!.textContent = name;
     this.root.appendChild(bar);
     gsap.fromTo(bar, { opacity: 0, y: -10, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.25, ease: "power2.out" });
     this.robot.setTyping(true);
@@ -526,6 +535,7 @@ export class WM {
         await this.sleep(70 + Math.random() * 70, e);
         q.textContent += ch;
         this.robot.pressKey(ch);
+        result.hidden = (q.textContent?.length || 0) < 2;
       }
       await this.sleep(160, e);
       this.robot.pressKey("Enter");
