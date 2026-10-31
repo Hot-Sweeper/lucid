@@ -1,5 +1,6 @@
 import { Walker, type Facing } from "../world/walker";
 import { JOKES, LAUGHS, shuffled } from "../world/jokes";
+import { dailyConvo, dailyLine } from "./daily";
 
 // The park next to the building. Robots whose work finished a while ago (the break room only
 // holds the most recent ones) spend their time out here: they stroll the paths, sit on the
@@ -116,7 +117,7 @@ export class Park {
       this.release(v);
       const a = this.strollPoint(), b = this.strollPoint();
       await v.w.walkPath([a, b]);
-      if (Math.random() < 0.3) v.w.say(pick(PARK_THOUGHTS), 2600);
+      if (Math.random() < 0.3) v.w.say((Math.random() < 0.4 ? dailyLine() : null) ?? pick(PARK_THOUGHTS), 2800);
       return;
     }
     this.take(v, s);
@@ -130,15 +131,20 @@ export class Park {
       const mate = [...this.vis.values()].find((o) => o !== v && o.spot && o.spot.kind === s.kind && o.spot.key.slice(0, 2) === s.key.slice(0, 2) && !o.busy);
       if (mate && Math.random() < 0.7) {
         v.busy = mate.busy = true;
-        const [a, b] = this.joke();
-        v.w.say(a, 2600); await wait(2.8);
-        if (v.alive && mate.alive) { mate.w.say(b, 3000); await wait(3.2); }
+        // today's chatter from the orchestrator first now and then, otherwise a classic
+        const lines = (Math.random() < 0.5 ? dailyConvo() : null) ?? this.joke();
+        for (let i = 0; i < lines.length; i++) {
+          const who = i % 2 === 0 ? v : mate;
+          if (!v.alive || !mate.alive) break;
+          who.w.say(lines[i], 2400 + lines[i].length * 25);
+          await wait(2.6 + lines[i].length * 0.025);
+        }
         if (v.alive) { v.w.do("laugh", { keep: true }); v.w.say(pick(LAUGHS), 1600); }
         v.busy = mate.busy = false;
       }
     } else if (s.kind === "pond") {
       v.w.do("idle");
-      if (Math.random() < 0.35) { await wait(2); if (v.alive) v.w.say(pick(PARK_THOUGHTS), 2600); }
+      if (Math.random() < 0.35) { await wait(2); if (v.alive) v.w.say((Math.random() < 0.4 ? dailyLine() : null) ?? pick(PARK_THOUGHTS), 2800); }
     } else {
       v.w.do("wave");
       await wait(1.5);

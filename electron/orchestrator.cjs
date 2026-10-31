@@ -35,6 +35,11 @@ memory.md, and reply with one short line saying what you added or changed, or "N
    \`"${cli}" thread send <thread id> -\`
 4. Reply with one line: "OK" or what you sent.
 
+## When Lucid asks for the daily dialog pack
+Write \`dialogs.json\` in this folder exactly in the shape Lucid asks for, with short, kind,
+funny lines for the robots to say to each other. Write the file directly; do not read code,
+run commands or browse. Reply with one line.
+
 ## Cost
 You run on a smaller model on purpose. If a review needs heavy work, describe it in your
 feedback to the robot instead of doing it yourself. Prefer smaller models for helpers.
@@ -63,8 +68,13 @@ function ensureFolder(dir) {
   return { dir, memory: mem };
 }
 
+// Today's dialog pack, written by the orchestrator once a day (see Orchestrator.daily in the app).
+function readDialogs(dir) {
+  try { return JSON.parse(fs.readFileSync(path.join(dir, "dialogs.json"), "utf8")); } catch { return null; }
+}
+
 function readMemory(dir) {
   try { return fs.readFileSync(path.join(dir, "memory.md"), "utf8"); } catch { return ""; }
 }
 
-module.exports = { ensureFolder, readMemory };
+module.exports = { ensureFolder, readMemory, readDialogs };

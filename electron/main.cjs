@@ -103,6 +103,8 @@ ipcMain.handle("project:add", (_e, o) => t3.addProject(o));
 // --- orchestrator -----------------------------------------------------------------
 const orch = require("./orchestrator.cjs");
 const ORCH_DIR = path.join(require("node:os").homedir(), "T3 Projects", "Lucid Orchestrator");
+// keep the orchestrator's instructions current (they gain new duties over time)
+try { if (require("node:fs").existsSync(ORCH_DIR)) orch.ensureFolder(ORCH_DIR); } catch {}
 ipcMain.handle("orch:init", async (_e, { provider = "claudeAgent", model = "claude-sonnet-5-5" } = {}) => {
   const { dir } = orch.ensureFolder(ORCH_DIR);
   const norm = (s) => String(s || "").replace(/[\/]+$/, "").toLowerCase();
@@ -117,6 +119,7 @@ ipcMain.handle("orch:init", async (_e, { provider = "claudeAgent", model = "clau
   return { threadId, projectId: project.id, dir };
 });
 ipcMain.handle("orch:memory", () => orch.readMemory(ORCH_DIR));
+ipcMain.handle("orch:dialogs", () => orch.readDialogs(ORCH_DIR));
 ipcMain.handle("orch:dir", () => ORCH_DIR);
 ipcMain.handle("t3:user-messages", (_e, since, exclude) => t3.userMessagesSince(since, exclude));
 ipcMain.handle("project:remove", (_e, o) => t3.removeProject(o));

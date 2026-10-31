@@ -4,7 +4,7 @@ import type { World, WThread } from "./world";
 // Your stand-in. It learns your preferences from what you tell robots, keeps them in its
 // notebook (memory.md), and when reviews are on, checks finished work for you.
 
-export type OrchState = { threadId: string; projectId: string; dir: string; review: boolean; seenUntil: string; lastSentAt: number; learned: number; reviewed: Record<string, number> };
+export type OrchState = { threadId: string; projectId: string; dir: string; review: boolean; seenUntil: string; lastSentAt: number; learned: number; reviewed: Record<string, number>; dialogsAsked?: string };
 type Api = {
   orchInit(o?: { provider?: string; model?: string }): Promise<{ threadId: string; projectId: string; dir: string }>;
   orchMemory(): Promise<string>;
@@ -21,6 +21,41 @@ export class Orchestrator {
 
   constructor(private api: Api, private world: World, private get: () => OrchState | null, private set: (s: OrchState | null) => void) {
     setInterval(() => void this.learn(), 60000);
+    // once a day: fresh lines for the robots, about you and each other
+    window.setTimeout(() => void this.daily(), 90000);
+    setInterval(() => void this.daily(), 60 * 60 * 1000);
+  }
+
+  // Ask the orchestrator for today's dialog pack: about 40 short lines on a cheap model,
+  // drawn from what it knows about you (memory.md) and what the robots worked on today.
+  async daily() {
+    const s = this.get();
+    if (!s) return;
+    const today = new Date().toLocaleDateString("en-CA");
+    if (s.dialogsAsked === today) return;
+    const have = await (window as any).lucid.orchDialogs?.().catch(() => null);
+    if (have?.date === today) { this.set({ ...s, dialogsAsked: today }); return; }
+    const names = [...new Set(this.world.roster.robots.map((r) => r.name))].slice(0, 16).join(", ");
+    const topics = (this.world.lastData?.threads ?? [])
+      .filter((t) => t.title && Date.now() - Date.parse(t.updatedAt) < 36 * 3600 * 1000)
+      .slice(0, 10).map((t) => `- ${t.title}`).join("\n");
+    const message = `Daily dialog pack for the robots (${today}). Write it to dialogs.json in your folder and reply "Done". Keep it cheap: write the file directly, no tools besides that.
+
+Shape (JSON): {"date":"${today}","convos":[["line","reply","..."]],"ceo":["..."],"gossip":["..."],"botcord":[{"channel":"general","user":"name","text":"..."}]}
+- convos: 12 short back-and-forths (2 to 4 lines each) robots have in the break room or park, some about today's work, some about the CEO (the user), some about each other
+- ceo: 8 single lines robots say about the CEO, affectionate teasing using what memory.md says about how the user works
+- gossip: 8 single lines about other robots by name
+- botcord: 10 chat messages for the robots' Discord-like app
+
+Robot names: ${names || "Bolt, Mochi, Pixel"}
+Today's work:
+${topics || "- (quiet day)"}
+
+Rules: lines under 70 characters, kind and funny, PG, no em dashes or en dashes, no secrets or personal data.`;
+    try {
+      await this.api.sendMessage({ threadId: s.threadId, message });
+      this.set({ ...s, dialogsAsked: today });
+    } catch (err) { console.error("daily dialogs failed", err); }
   }
 
   get state() { return this.get(); }

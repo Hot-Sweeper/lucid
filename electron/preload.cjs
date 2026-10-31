@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("lucid", {
   addProject: (o) => ipcRenderer.invoke("project:add", o),
   orchInit: (o) => ipcRenderer.invoke("orch:init", o),
   orchMemory: () => ipcRenderer.invoke("orch:memory"),
+  orchDialogs: () => ipcRenderer.invoke("orch:dialogs"),
   userMessagesSince: (since, exclude) => ipcRenderer.invoke("t3:user-messages", since, exclude),
   removeProject: (o) => ipcRenderer.invoke("project:remove", o),
   host: () => ipcRenderer.invoke("app:host"),
