@@ -724,12 +724,14 @@ export class World {
       const wx = (px - this.cam.x) / this.cam.s, wy = (py - this.cam.y) / this.cam.s;
       gsap.killTweensOf(this.cam);
       this.cam.s = ns; this.cam.x = px - wx * ns; this.cam.y = py - wy * ns;
-      this.apply();
-      this.keepFocus();
+      this.applySoon();
     }, { passive: false });
     let start: { x: number; y: number; cx: number; cy: number } | null = null;
+    // the middle button pans too: claim it, or Chromium starts its own autoscroll and fights the pan
+    s.addEventListener("mousedown", (e) => { if (e.button === 1) e.preventDefault(); });
     s.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 && e.button !== 1) return;
+      if (e.button === 1) e.preventDefault();
       start = { x: e.clientX, y: e.clientY, cx: this.cam.x, cy: this.cam.y };
       this.dragged = false;
     });
@@ -740,8 +742,7 @@ export class World {
       if (!this.dragged) { this.dragged = true; s.classList.add("panning"); this.stopFollow(); }
       gsap.killTweensOf(this.cam);
       this.cam.x = start.cx + dx; this.cam.y = start.cy + dy;
-      this.apply();
-      this.keepFocus();
+      this.applySoon();
     });
     window.addEventListener("pointerup", () => { start = null; s.classList.remove("panning"); setTimeout(() => (this.dragged = false), 0); });
     s.addEventListener("click", (e) => {
@@ -763,9 +764,18 @@ export class World {
     new ResizeObserver(() => { this.sceneBox = null; this.apply(); }).observe(s);
   }
 
+  // Mice report movement up to 1000 times a second; the camera is drawn once per frame, so the
+  // work (camera, culling, bubbles, focus check) runs at most once per frame too.
+  private applyQueued = 0;
+  private applySoon() {
+    if (this.applyQueued) return;
+    this.applyQueued = requestAnimationFrame(() => { this.applyQueued = 0; this.apply(); this.keepFocus(); });
+  }
   private sceneBox: DOMRect | null = null;
   private near: boolean | null = null;
   private lastScale = 0;
+  private lastX = 0;
+  private lastY = 0;
   private zooming = false;
   private zoomEnd = 0;
   private far = false;
@@ -793,8 +803,10 @@ export class World {
     // While the zoom changes, the world is scaled as one finished picture instead of being redrawn
     // at every step (that redraw kept the graphics process busy most of the time); it is redrawn
     // sharp a moment after the zoom settles.
-    if (this.cam.s !== this.lastScale) {
-      this.lastScale = this.cam.s;
+    // Panning too: a moving picture is just slid by the graphics card (and stays sharp), instead
+    // of the whole office being repainted every frame.
+    if (this.cam.s !== this.lastScale || this.cam.x !== this.lastX || this.cam.y !== this.lastY) {
+      this.lastScale = this.cam.s; this.lastX = this.cam.x; this.lastY = this.cam.y;
       if (!this.zooming) { this.zooming = true; this.root.classList.add("zooming"); }
       window.clearTimeout(this.zoomEnd);
       this.zoomEnd = window.setTimeout(() => { this.zooming = false; this.root.classList.remove("zooming"); }, 180);
@@ -860,7 +872,11 @@ export class World {
   private keepFocus() {
     const d = this.focusDesk;
     if (!d) return;
-    const r = d.el.getBoundingClientRect(), s = this.scene.getBoundingClientRect();
+    // worked out from the camera, without measuring the page (that forced a full layout per mouse move)
+    const s = this.sceneBox ?? (this.sceneBox = this.scene.getBoundingClientRect());
+    const c = this.cam, dl = parseFloat(d.el.style.left) || 0, dt = parseFloat(d.el.style.top) || 0;
+    const left = s.left + c.x + dl * c.s, top = s.top + c.y + dt * c.s, w = UNIT_W * c.s, h = UNIT_H * c.s;
+    const r = { left, top, right: left + w, bottom: top + h, width: w, height: h };
     const visW = Math.max(0, Math.min(r.right, s.right - this.panelWidth) - Math.max(r.left, s.left));
     const visH = Math.max(0, Math.min(r.bottom, s.bottom) - Math.max(r.top, s.top));
     const shown = (visW * visH) / Math.max(1, r.width * r.height);
