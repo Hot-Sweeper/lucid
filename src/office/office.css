@@ -124,7 +124,7 @@
 .pp-cap { flex: none; margin: 0 8px 8px; padding: 5px 8px; border-radius: 8px; background: rgba(27, 31, 69, 0.88); color: #fff; font-size: 8.5px; text-align: center; }
 
 /* chat beside the robot's screen */
-.chat-panel { grid-column: 3; grid-row: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.chat-panel { position: relative; grid-column: 3; grid-row: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .chat-panel.tabbed { display: none; }
 /* with no robot selected the panel stays, and says how to pick one */
 .cp-empty { flex: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 8px; padding: 24px 28px; min-height: 0; }

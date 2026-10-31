@@ -881,16 +881,24 @@ export class ChatPanel {
       menu.appendChild(b);
     }
     this.el.appendChild(menu);
-    // above the button, kept inside the panel
-    const pr = this.el.getBoundingClientRect(), ar = anchor.getBoundingClientRect();
-    menu.style.maxHeight = `${Math.max(120, ar.top - pr.top - 16)}px`;
-    menu.style.bottom = `${pr.bottom - ar.top + 6}px`;
-    menu.style.left = `${Math.max(8, Math.min(ar.left - pr.left, pr.width - menu.offsetWidth - 8))}px`;
+    // The panel is the menu's containing block. Re-anchor when resizing either panel
+    // moves the button, or when the model controls wrap onto another line.
+    const position = () => {
+      const pr = this.el.getBoundingClientRect(), ar = anchor.getBoundingClientRect();
+      menu.style.maxHeight = `${Math.max(0, ar.top - pr.top - 16)}px`;
+      menu.style.bottom = `${pr.bottom - ar.top + 6}px`;
+      menu.style.left = `${Math.max(8, Math.min(ar.left - pr.left, pr.width - menu.offsetWidth - 8))}px`;
+    };
+    position();
+    const resize = new ResizeObserver(position);
+    resize.observe(this.el);
+    resize.observe(this.el.querySelector(".cp-model")!);
     anchor.setAttribute("aria-expanded", "true");
     const opts = [...menu.children] as HTMLButtonElement[];
     (opts.find((o) => o.getAttribute("aria-selected") === "true") ?? opts[0])?.focus();
     gsap.fromTo(menu, { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.14 });
     const done = (refocus: boolean) => {
+      resize.disconnect();
       menu.remove();
       anchor.setAttribute("aria-expanded", "false");
       window.removeEventListener("keydown", onKey, true);
