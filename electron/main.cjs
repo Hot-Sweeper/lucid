@@ -332,3 +332,6 @@ app.on("before-quit", () => t3s.closeSock());
 require("./office.cjs").register(ipcMain);
 // Real Bitcoin candles and prices for the robots' Tradebot (cached, rate limited).
 require("./market.cjs").register(ipcMain);
+
+// Offline dictation uses the local computer, including for remote-building chats.
+require("./dictation.cjs").register({ ipcMain, app, window: () => win });

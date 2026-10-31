@@ -7,6 +7,7 @@ import { highlight } from "../os/highlight";
 import { type ThreadRef, refBlock, stripRefs, summarize } from "./thread-ref";
 import { beginSystem, endSystem } from "../perf/metrics";
 import { HistoryWindow, type HistoryCursor, type HistoryPage } from "./history-window";
+import { attachDictation } from "./dictation";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
@@ -144,6 +145,7 @@ export class ChatPanel {
   private queueCleanups = new Set<() => void>();
   private resizeComposer: () => void = () => {};
   private stopComposerTyping: () => void = () => {};
+  private dictation = { cancel() {} };
   private previews = new WeakMap<File, string>();
   // T3 session: the model bar and the queue actions need Lucid to be paired with T3
   private paired = false;
@@ -267,6 +269,7 @@ export class ChatPanel {
   private tabLabel = "Chat";
 
   setCollapsed(on: boolean, animate = true) {
+    if (on) this.dictation.cancel();
     if (!on && !this.isOpen) { this.onChooseThread(); return; }
     if (on === this.collapsed) return;
     this.collapsed = on;
@@ -357,6 +360,7 @@ export class ChatPanel {
     this.el.querySelector(".cp-view")!.addEventListener("click", () => this.onToggleView());
     const form = this.el.querySelector(".cp-form") as HTMLFormElement;
     const ta = form.querySelector("textarea")!;
+    this.dictation = attachDictation(form, () => this.threadId);
     // the box grows with what you type, up to about 40% of the panel, then scrolls
     const grow = () => {
       ta.style.height = "auto";
@@ -494,7 +498,7 @@ export class ChatPanel {
     // opened again while it was sliding out (you clicked another robot): it stays
     if (this.closing) { this.closing = false; gsap.killTweensOf(this.el); gsap.set(this.el, { clearProps: "x,opacity" }); }
     const same = !!desk.threadId && this.threadId === desk.threadId;
-    if (!same) { this.stopComposerTyping(); this.saveDraft(); for (const clean of [...this.queueCleanups]) clean(); }
+    if (!same) { this.dictation.cancel(); this.stopComposerTyping(); this.saveDraft(); for (const clean of [...this.queueCleanups]) clean(); }
     this.desk = desk;
     this.setPlan(desk.planSteps || []);
     if (!same) {
@@ -541,6 +545,7 @@ export class ChatPanel {
   }
 
   close() {
+    this.dictation.cancel();
     if (!this.isOpen) return;
     this.stopComposerTyping(); this.saveDraft();
     for (const clean of [...this.queueCleanups]) clean();

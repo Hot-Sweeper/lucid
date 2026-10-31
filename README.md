@@ -39,6 +39,32 @@ npm run typecheck
 npm run build
 ```
 
+## Offline dictation (Windows setup)
+
+Run `Setup Dictation.cmd` once with Python installed. It installs an isolated
+transcribe.cpp runtime and downloads the checksum-verified Parakeet Ultra Q8 model
+to `%LOCALAPPDATA%\Lucid\dictation` (about 740 MB for the model).
+
+In a robot's chat, click **Dictate**, speak English or German, then click **Stop**.
+The transcript is inserted at the cursor in your draft. Review and send it yourself.
+Escape, switching threads, or closing the chat cancels dictation. Recognition runs
+locally, with automatic GPU selection and a CPU fallback. The worker unloads after
+five minutes of inactivity. Audio is not saved or sent to a service.
+
+For a separate microphone trial, open `Test Dictation.cmd`, click **Record**, then
+click
+**Stop and transcribe**. The test starts in CPU mode. The device selector can also
+try automatic GPU acceleration. After setup, recognition runs offline. The model
+stays loaded while the test window is open; closing it releases the worker.
+
+This is a separate microphone trial. Text is editable and can be copied, but is
+not automatically sent to a robot. Recordings and transcripts are not saved by
+the trial. See `scripts/dictation-test/NOTICE.txt` for model attribution.
+
+`node scripts/verify-dictation.cjs` runs protocol and composer regressions without
+starting Electron, a microphone, or a native speech runtime. It requires Python
+to check German text under a Windows legacy output encoding.
+
 ## How it reads T3 Code
 
 T3 Code stores every agent action in `~/.t3/userdata/statev2.sqlite`. Lucid opens that file **read-only** and polls it for new or changed events in the selected thread (`electron/t3.cjs`). Starting threads and sending messages go through T3's own `t3` CLI. Lucid never writes to T3's database.

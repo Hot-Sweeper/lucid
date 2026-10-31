@@ -1,0 +1,17 @@
+Parakeet Ultra Q8_0
+
+Original base model: NVIDIA Parakeet TDT 0.6B v3
+https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3
+
+Post-trained model: Moondream Parakeet Ultra
+https://huggingface.co/moondream/parakeet-ultra
+
+Q8_0 conversion: handy-computer
+https://huggingface.co/handy-computer/parakeet-ultra-gguf
+Modification: model weights quantized to Q8_0 for local inference.
+
+Model license: Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+
+Local runtime: transcribe.cpp, MIT license
+https://github.com/handy-computer/transcribe.cpp

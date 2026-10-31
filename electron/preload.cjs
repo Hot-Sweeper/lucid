@@ -85,3 +85,14 @@ contextBridge.exposeInMainWorld("lucidMarket", {
   price: (symbol) => ipcRenderer.invoke("market:price", symbol),
 });
 contextBridge.exposeInMainWorld("lucidDocs", { read: (p) => ipcRenderer.invoke("doc:read", p) });
+
+const dictationCall = (channel) => async (value) => {
+  const result = await ipcRenderer.invoke(`dictation:${channel}`, value);
+  if (!result?.ok) throw new Error(result?.error || 'Dictation did not answer. Try again.');
+  return result.value;
+};
+contextBridge.exposeInMainWorld('lucidDictation', {
+  load: dictationCall('load'),
+  run: dictationCall('run'),
+  cancel: dictationCall('cancel'),
+});
