@@ -305,6 +305,17 @@ export class World {
       w = cur;
       const end = plan.pts[plan.pts.length - 1];
       if (plan.rendezvous) {
+        await whenFree(w);
+        if (this.transit.get(t.id) !== w || this.trips.get(t.id) !== trip) return;
+        if (end && Math.hypot(w.x - end.x, w.y - end.y) > 8) {
+          // A blocked aisle or an interrupted drag is not a completed handoff.
+          // Yield before retrying so a failed leg cannot starve input and frames
+          // with travel/update microtasks, and keep the existing actor and trip.
+          await pause(0.1);
+          if (this.transit.get(t.id) !== w || this.trips.get(t.id) !== trip) return;
+          plan = this.route({ x: w.x, y: w.y }, t.id, to);
+          continue;
+        }
         this.reconcilePhysicalLayout();
         await Promise.resolve();
         if (this.trips.get(t.id) !== trip) return;
