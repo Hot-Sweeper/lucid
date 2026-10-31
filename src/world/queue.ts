@@ -52,7 +52,7 @@ export class QuestionLine implements RoomExtension {
         if ((t.model ?? "") !== q.w.model) q.w.setModel(t.model);
         continue;
       }
-      const w = new Walker(this.stage.layer, { id: t.id, provider: t.provider, model: t.model ?? undefined, name: t.name ?? t.title, scale: SCALE });
+      const w = new Walker(this.stage.layer, { id: t.id, provider: t.provider, model: t.model ?? undefined, name: t.name ?? t.title, scale: SCALE, look: (t as any).look });
       w.setPos(this.out.x, this.out.y + this.line.length * 20);
       w.face("up");
       w.setCard(text);

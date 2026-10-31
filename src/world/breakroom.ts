@@ -204,7 +204,7 @@ export class BreakRoom implements RoomExtension {
         if (t.name && t.name !== r.w.name) r.w.setName(t.name);
         return;
       }
-      const w = new Walker(this.stage.layer, { id: t.id, provider: t.provider, model: t.model ?? undefined, name: t.name ?? t.title, scale: SCALE });
+      const w = new Walker(this.stage.layer, { id: t.id, provider: t.provider, model: t.model ?? undefined, name: t.name ?? t.title, scale: SCALE, look: (t as any).look });
       w.setPos(this.doorOut.x + (i % 2 ? 14 : -14), this.doorOut.y + i * 30);
       w.face("up");
       w.el.addEventListener("click", (e) => { e.stopPropagation(); this.onSelect(t.id); });

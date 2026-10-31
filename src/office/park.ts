@@ -13,7 +13,7 @@ type Rect = { x: number; y: number; w: number; h: number };
 type Spot = { key: string; x: number; y: number; face: Facing; kind: "bench" | "pond" | "fountain" | "picnic"; taken: string | null };
 type Visitor = { t: ParkThread; w: Walker; spot: Spot | null; alive: boolean; busy: boolean };
 
-const SCALE = 0.3;
+const SCALE = 0.42;   // same size as in the break room and the hallway
 const MAX = 6;
 const wait = (s: number) => new Promise<void>((r) => window.setTimeout(r, s * 1000));
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
@@ -76,7 +76,7 @@ export class Park {
     for (const v of [...this.vis.values()]) if (!ids.has(v.t.id)) void this.leave(v);
     for (const t of want) {
       if (this.vis.has(t.id)) continue;
-      const w = new Walker(this.layer, { id: t.id, provider: t.provider, name: t.name ?? undefined, model: t.model ?? undefined, scale: SCALE });
+      const w = new Walker(this.layer, { id: t.id, provider: t.provider, name: t.name ?? undefined, model: t.model ?? undefined, scale: SCALE, look: (t as any).look });
       w.el.title = t.name ? `${t.name}: ${t.title}` : t.title;
       const v: Visitor = { t, w, spot: null, alive: true, busy: false };
       makeInteractive(w, { bounds: () => this.geo?.park ?? null, onOpen: () => this.onSelect(t.id), onLanded: () => { this.release(v); } });

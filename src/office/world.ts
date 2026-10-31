@@ -472,7 +472,7 @@ export class World {
       this.walk(m.t, m.from, fromDesk, m.to, delay);
     }
     // robots that finished longer ago than the break room's latest eight go out to the park
-    const info = (t: WThread) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name });
+    const info = (t: WThread) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name, look: this.roster.byThread(t.id)?.look });
     // in rain, storms or snow nobody stays in the park
     const wet = ["rain", "drizzle", "storm", "snow"].includes(this.weather?.kind ?? "");
     this.park.wet = wet;
