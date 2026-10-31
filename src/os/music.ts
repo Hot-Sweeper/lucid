@@ -28,6 +28,55 @@ export const PLAYLISTS: Playlist[] = [
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const cover = (p: Playlist, size: number) => `<div class="bf-cover" style="width:${size}px;height:${size}px;background:linear-gradient(135deg, ${p.colors[0]}, ${p.colors[1]})"><svg viewBox="0 0 40 40" width="${size * 0.5}" height="${size * 0.5}" aria-hidden="true"><rect x="9" y="11" width="22" height="19" rx="7" fill="#fff" opacity="0.9"/><circle cx="16" cy="20" r="2.6" fill="${p.colors[1]}"/><circle cx="24" cy="20" r="2.6" fill="${p.colors[1]}"/><rect x="19" y="4" width="2" height="7" rx="1" fill="#fff" opacity="0.9"/><circle cx="20" cy="4" r="2.4" fill="#fff"/></svg></div>`;
+// Album art for one song, like the real app shows bottom left: every track has its own cover,
+// in its playlist's style (a sunset over a grid for synthwave, a rainy window for lo-fi...).
+// a color with its hue turned by some degrees
+function hue(hex: string, deg: number) {
+  const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, bl = (n & 255) / 255;
+  const mx = Math.max(r, g, bl), mn = Math.min(r, g, bl), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return hex;
+  const sat = d / (1 - Math.abs(2 * l - 1));
+  let h = mx === r ? ((g - bl) / d) % 6 : mx === g ? (bl - r) / d + 2 : (r - g) / d + 4;
+  h = (h * 60 + deg + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * sat, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+  const [R, G, B] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return "#" + [R, G, B].map((v) => Math.round((v + m) * 255).toString(16).padStart(2, "0")).join("");
+}
+const hashOf = (s: string) => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
+export function albumArt(p: Playlist, t: Track, size: number) {
+  const h = hashOf(t.title + t.artist), r = (n: number) => ((h >>> n) & 255) / 255;
+  // each song shifts its playlist's colors a little, so covers in one playlist differ
+  const turn = Math.round(r(11) * 70 - 35), a = hue(p.colors[0], turn), b = hue(p.colors[1], turn / 2), id = `al${h.toString(36)}`;
+  const tilt = Math.round(r(3) * 40 - 20);
+  const style = PLAYLISTS.indexOf(p) % 5;
+  let art = "";
+  if (style === 0) {   // lo-fi: a rainy window, a moon and a little plant
+    art = `<rect x="7" y="6" width="26" height="22" rx="2" fill="#1d1b3a" opacity="0.55"/><path d="M20 6v22M7 17h26" stroke="${b}" stroke-width="1.4" opacity="0.7"/>`
+      + `<circle cx="${12 + r(5) * 16}" cy="${10 + r(7) * 4}" r="3" fill="#fff4cc"/>`
+      + [0, 1, 2, 3, 4].map((i) => `<path d="M${9 + i * 5 + r(i) * 2} ${8 + (i % 2) * 6}l-1 3" stroke="#cfe3ff" stroke-width="0.8" opacity="0.7"/>`).join("")
+      + `<rect x="${10 + r(9) * 16}" y="27" width="6" height="5" rx="1" fill="#e28b5c"/><path d="M${13 + r(9) * 16} 27c-2-3-1-6 0-7 1 1 2 4 0 7" fill="#7ad39a"/>`;
+  } else if (style === 1) {   // synthwave: a striped sun over a neon grid
+    art = `<circle cx="20" cy="${19 + r(4) * 3}" r="10" fill="url(#${id}s)"/>`
+      + [0, 1, 2].map((i) => `<rect x="9" y="${20 + i * 3}" width="22" height="1.2" fill="${b}"/>`).join("")
+      + `<rect x="0" y="27" width="40" height="13" fill="#1a0f3d"/>`
+      + [0, 1, 2, 3, 4, 5, 6].map((i) => `<path d="M20 27L${-10 + i * 10} 40" stroke="#ff4fd8" stroke-width="0.6"/>`).join("")
+      + [30, 33.5, 37.5].map((y) => `<path d="M0 ${y}h40" stroke="#ff4fd8" stroke-width="0.6"/>`).join("");
+  } else if (style === 2) {   // deep focus: calm rings, slightly off centre
+    const cx = 14 + r(2) * 12, cy = 14 + r(6) * 12;
+    art = [16, 12, 8, 4].map((rad, i) => `<circle cx="${cx}" cy="${cy}" r="${rad}" fill="none" stroke="#fff" stroke-width="${0.6 + i * 0.3}" opacity="${0.25 + i * 0.18}"/>`).join("")
+      + `<circle cx="${cx}" cy="${cy}" r="1.6" fill="#fff"/>`;
+  } else if (style === 3) {   // robot rock: a lightning bolt over hard stripes
+    art = [0, 1, 2, 3].map((i) => `<rect x="-10" y="${4 + i * 10}" width="60" height="4" fill="#000" opacity="0.25" transform="rotate(${tilt} 20 20)"/>`).join("")
+      + `<path d="M23 4 12 22h7l-3 14 13-20h-8z" fill="#ffd23f" stroke="#2a2a2e" stroke-width="1" transform="rotate(${Math.round(tilt / 3)} 20 20)"/>`;
+  } else {   // hype mode: a bold burst and confetti
+    art = `<path d="${Array.from({ length: 16 }, (_, i) => { const ang = (i / 16) * Math.PI * 2, rr = i % 2 ? 7 : 15; return `${i ? "L" : "M"}${(20 + Math.cos(ang) * rr).toFixed(1)} ${(20 + Math.sin(ang) * rr).toFixed(1)}`; }).join("")}Z" fill="#fff" opacity="0.92" transform="rotate(${tilt} 20 20)"/>`
+      + [0, 1, 2, 3, 4].map((i) => `<rect x="${4 + r(i * 3) * 30}" y="${4 + r(i * 5) * 30}" width="2.4" height="1.2" fill="${i % 2 ? "#2b1a6a" : "#ff2d78"}" transform="rotate(${i * 37} 20 20)"/>`).join("");
+  }
+  return `<svg class="bf-art" viewBox="0 0 40 40" width="${size}" height="${size}" aria-hidden="true"><defs>`
+    + `<linearGradient id="${id}" x1="0" y1="0" x2="${r(1) > 0.5 ? 1 : 0}" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient>`
+    + `<linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe066"/><stop offset="1" stop-color="#ff3d8b"/></linearGradient></defs>`
+    + `<rect width="40" height="40" fill="url(#${id})"/>${art}</svg>`;
+}
 const secs = (len: string) => { const [m, s] = len.split(":").map(Number); return m * 60 + s; };
 const clock = (n: number) => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, "0")}`;
 
@@ -101,7 +150,7 @@ export class MusicApp {
   // Now playing, bottom left: cover of what plays, title, artist, and the green "added" check.
   private showNow(b: HTMLElement) {
     const p = this.playing!, t = this.track();
-    (b.querySelector(".bf-now") as HTMLElement).innerHTML = `${cover(p, 38)}<div><b>${esc(t.title)}</b><i>${esc(t.artist)}</i></div>${I.added}`;
+    (b.querySelector(".bf-now") as HTMLElement).innerHTML = `${albumArt(p, t, 40)}<div><b>${esc(t.title)}</b><i>${esc(t.artist)}</i></div>${I.added}`;
     (b.querySelector(".bf-len") as HTMLElement).textContent = t.len;
     b.style.setProperty("--beat", `${(60 / p.bpm).toFixed(3)}s`);
     this.paintState(b);
