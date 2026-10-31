@@ -504,9 +504,19 @@ export class Director {
         const imgs: { path: string; name: string }[] = (d.attachments || [])
           .filter((a: any) => a.type === "image" && (a.path || a.id))
           .map((a: any) => ({ path: a.path || `${this.attachDir}${a.id}.${(a.mimeType || "image/png").split("/")[1].replace("jpeg", "jpg")}`, name: a.name || "image" }));
-        await this.chat.user(d.text || "", imgs.map((i) => fileUrl(i.path)));
+        // files attached from Lucid's side chat are listed at the end of the text
+        let said = String(d.text || "");
+        const listed = said.match(/\n*Attached:\n((?:- (?:image|file): .+(?:\n|$))+)\s*$/);
+        if (listed) {
+          said = said.slice(0, listed.index).trim();
+          for (const line of listed[1].trim().split("\n")) {
+            const mm = line.match(/^- image: (.+)$/);
+            if (mm) imgs.push({ path: mm[1].trim(), name: mm[1].trim().split(/[\\/]/).pop()!.replace(/^\d+-/, "") });
+          }
+        }
+        await this.chat.user(said, imgs.map((i) => fileUrl(i.path)));
         this.robot.setPose("read");
-        await this.wm.sleep(Math.min(3200, 800 + (d.text || "").length * 12));
+        await this.wm.sleep(Math.min(3200, 800 + said.length * 12));
         for (const img of imgs.slice(0, 2)) {
           this.onActivity(`Looking at ${img.name}`);
           await this.tool.picture(img.name, fileUrl(img.path));

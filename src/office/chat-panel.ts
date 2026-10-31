@@ -241,8 +241,8 @@ export class ChatPanel {
     for (const p of this.pending) {
       const el = document.createElement("div");
       el.className = "cp-msg you pending";
-      el.innerHTML = `<div class="cp-text"></div><time>Sending</time>`;
-      el.querySelector(".cp-text")!.textContent = p.text;
+      const view = this.render({ id: "pending", role: "user", at: new Date().toISOString(), streaming: false, text: p.text, attachments: [] });
+      el.innerHTML = view.replace(/<time>[^<]*<\/time>$/, "<time>Sending</time>");
       list.appendChild(el);
     }
     list.scrollTop = list.scrollHeight;
