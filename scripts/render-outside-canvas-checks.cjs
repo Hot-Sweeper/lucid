@@ -90,7 +90,7 @@ module.exports = async ({ js, wc, wait, out }) => {
         const scratchBounded=scratchBuffers.every(c=>tileBuffers.length?c.width>0&&c.height>0&&c.width<=512&&c.height<=512:c.width===backing.width&&c.height===backing.height);
         const bounded=tilesCover&&scratchBounded&&cacheBounded&&(reused?backing.width===previous.width&&backing.height===previous.height&&tilePixels===previous.tilePixels:backing.width<=maxWidth&&backing.height<=maxHeight);
         const sharp=crop.density>=scale*dpr*(1-1e-9),covered=crop.x<=view.x+1e-9&&crop.y<=view.y+1e-9&&crop.x+crop.w>=view.x+view.w-1e-9&&crop.y+crop.h>=view.y+view.h-1e-9;
-        const transform=new DOMMatrix(retained.style.transform),expectedScale=scale*dpr/crop.density;
+        const transform=new DOMMatrix(retained.style.transform),expectedScale=scale/crop.density;
         const mappingError=Math.max(Math.abs(transform.e-(crop.x-view.x)*scale),Math.abs(transform.f-(crop.y-view.y)*scale),Math.abs(parseFloat(retained.style.width)*transform.a-crop.w*scale),Math.abs(parseFloat(retained.style.height)*transform.d-crop.h*scale),Math.abs(transform.a-expectedScale),Math.abs(transform.d-expectedScale),Math.abs(transform.b),Math.abs(transform.c));
         const output={supported:true,view,scale,width,height,dpr,crop,backing,viewportPixels:{width:W,height:H},scratchBuffers,tileBuffers,corePixels,tilePixels,tilesCover,history,historyPixels,cachedPixels,cacheBounded,bytes,reused,bounded,sharp,covered,mappingError,initialBackingLimit:{width:maxWidth,height:maxHeight},backgrounds:[]};
         known.set(signature,{width:backing.width,height:backing.height,tilePixels});

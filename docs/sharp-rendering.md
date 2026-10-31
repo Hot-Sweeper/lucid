@@ -2,6 +2,35 @@
 
 The rendering changes preserve the existing artwork, live app content and logical game coordinates.
 
+## Zoom snapshot correction, 2026-10-31
+
+The reduced screen tiers previously used fixed .4x and .25x raster sizes. Those
+buffers stretched beyond their source resolution near the tier cutoffs. Their
+cache also survived display-density changes, and a newly maximized window could
+stretch its original smaller snapshot until its content refresh was due.
+
+Reduced views now allocate enough pixels for the largest reduced monitor width
+at the current device pixel ratio. Same-tier zoom reuses that sufficient buffer;
+a display-density increase or a window resize rebuilds it. The logical monitor
+width determines the allocation, independently of opening animations. Ordinary
+content refreshes stay throttled and all apps keep their original DOM and state.
+
+Outdoor tile CSS coordinates now use source pixels independently of display DPI.
+Changing display density refreshes the camera layer even when the camera itself
+has not moved. Static room and tile surfaces no longer request permanent
+compositor promotion; scaling permits the original SVG edges to rerasterize.
+
+Controlled native evidence is in `E:/Lucid-validation/sharp-quality-final` and
+`E:/Lucid-validation/sharp-scenery-performance-final`. Eight zoom levels from
+.65x through 5x, DPI changes 2/1.25/2, and all 45
+outdoor mapping/pixel/retention checks passed. Screenshots use the real WM with
+deterministic test content. The pan/zoom check uses actual CDP middle-button and
+wheel input in an isolated instance with native occlusion disabled. It still
+recorded occasional long frames, so this is not evidence of zero lag or a
+guaranteed physical display frame rate. Production delivery must separately
+verify its loaded asset. Original artwork with intentional soft lines or
+pixel-art resolution is unchanged.
+
 Live game, Botflix and GIF canvases follow the actual camera scale and display pixel ratio. Density buckets round upward, and a density increase bypasses ordinary screen cadence so the next display frame redraws at the new resolution. Small reversals retain sufficient pixels. Only explicitly registered, complete-redraw buffers resize; static posters and thumbnails keep their original pixels. Drawing transforms, styles, dashes and shadow distances survive resizing.
 
 Nested canvases created before their message enters the document rebind to their actual screen on attachment. This fixes a native Botcord failure where a visible GIF retained a 400-pixel buffer at high zoom. Resizing also bypasses internal game and media frame gates so it cannot leave an empty buffer.

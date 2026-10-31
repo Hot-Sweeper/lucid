@@ -255,8 +255,8 @@ export class OutsideVectorCanvas {
     const crop = this.crop!;
     // Keep the surface's layout size stable. Resizing its CSS box on every
     // wheel event makes Chromium rebuild large graphics tiles despite cached pixels.
-    const baseScale = crop.density / dpr, factor = scale / baseScale;
-    const cssWidth = `${this.canvas.width / dpr}px`, cssHeight = `${this.canvas.height / dpr}px`;
+    const factor = scale / crop.density;
+    const cssWidth = `${this.canvas.width}px`, cssHeight = `${this.canvas.height}px`;
     if (this.canvas.style.width !== cssWidth) this.canvas.style.width = cssWidth;
     if (this.canvas.style.height !== cssHeight) this.canvas.style.height = cssHeight;
     this.canvas.style.transform = `translate(${(crop.x - view.x) * scale}px,${(crop.y - view.y) * scale}px) scale(${factor})`;
@@ -278,13 +278,13 @@ export class OutsideVectorCanvas {
         let tile = this.tiles[index++];
         if (!tile) {
           tile = { canvas: document.createElement('canvas'), x, y, core: { x, y, w: cw, h: ch } };
-          tile.canvas.style.cssText = 'position:absolute;pointer-events:none;contain:strict;will-change:transform';
+          tile.canvas.style.cssText = 'position:absolute;pointer-events:none;contain:strict';
           this.tiles.push(tile); this.element.append(tile.canvas);
         }
         tile.x = x - left; tile.y = y - top; tile.core = { x, y, w: cw, h: ch };
         if (tile.canvas.width !== tw) tile.canvas.width = tw;
         if (tile.canvas.height !== th) tile.canvas.height = th;
-        tile.canvas.style.cssText = `position:absolute;pointer-events:none;contain:strict;will-change:transform;left:${tile.x / dpr}px;top:${tile.y / dpr}px;width:${tw / dpr}px;height:${th / dpr}px`;
+        tile.canvas.style.cssText = `position:absolute;pointer-events:none;contain:strict;left:${tile.x}px;top:${tile.y}px;width:${tw}px;height:${th}px`;
         const ctx = tile.canvas.getContext('2d', { willReadFrequently: true });
         if (!ctx) return false;
         ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, tw, th);

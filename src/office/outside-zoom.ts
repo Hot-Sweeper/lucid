@@ -49,6 +49,7 @@ class OutsideRaster {
   private cam: Camera = { x: 0, y: 0, s: 0 };
   private width = 0;
   private height = 0;
+  private dpr = 0;
   private timer = 0;
   private dead = false;
   private urls = new Set<string>();
@@ -94,11 +95,12 @@ class OutsideRaster {
 
   update(cam: Camera, width: number, height: number) {
     const scaling = cam.s !== this.cam.s;
-    const resizing = width !== this.width || height !== this.height;
+    const resizing = width !== this.width || height !== this.height || this.dpr !== (devicePixelRatio || 1);
     if (!scaling && !resizing && cam.x === this.cam.x && cam.y === this.cam.y) return;
     if (resizing) { this.previewCrop = null; this.liveCrop = null; }
     this.cam.x = cam.x; this.cam.y = cam.y; this.cam.s = cam.s;
     this.width = width; this.height = height;
+    this.dpr = devicePixelRatio || 1;
     const view = outsideView(cam, width, height, parseFloat(this.layer.style.left), parseFloat(this.layer.style.top));
     if (view) {
       // The parent still pans with the world. An inverse camera plane keeps its

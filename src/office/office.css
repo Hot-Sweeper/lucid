@@ -695,7 +695,9 @@
 .desk-unit, .room, .robot-host { contain: layout style; }
 /* Keep animated vectors on local surfaces. Permanent promotion of every in-world
    app window otherwise creates overlapping layers for whole scrolling histories. */
-.room, .world-seated, .world-walker-svg, .desk-unit > svg { will-change: transform; }
+/* Static rooms and desks share the camera layer. Promoting each one retains
+   redundant textures and can exhaust compositor resources in large offices. */
+.world-seated, .world-walker-svg { will-change: transform; }
 .monitor .screen { contain: strict; }
 .monitor .win { contain: layout paint style; will-change: auto; }
 .hall.hall-network { contain: strict; }
@@ -812,6 +814,9 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 
 /* Reuse pixels during pans; let live text and vectors rerasterize during zoom. */
 .world.zooming:not(.scaling) { will-change: transform; }
+/* Keep SVG artwork at the current display density while zooming. A permanently
+   promoted local surface otherwise magnifies its previous raster beside sharp HTML. */
+.world.scaling :is(.room, .world-seated, .world-walker-svg, .desk-unit > svg) { will-change: auto; }
 
 .cp-plan { flex: none; margin: 0 16px 8px; color: var(--ink-2); font-size: 12px; }
 .cp-plan[hidden] { display: none; }

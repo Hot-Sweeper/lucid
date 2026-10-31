@@ -20,6 +20,10 @@ if(!process.versions.electron){
           const gpuInfo=await app.getGPUInfo('complete');
           fs.writeFileSync(path.join(out,'gpu-active.json'),JSON.stringify({features:app.getGPUFeatureStatus(),info:gpuInfo},null,2));
           await win.webContents.executeJavaScript(`(()=>{const w=window.__world;w.stopCameraMotion();w.cam=${JSON.stringify(state.cam)};w.apply()})()`);
+          if(process.env.LUCID_AB_SHARPNESS==='1'){
+            await require('./render-zoom-sharpness-checks.cjs')({js:code=>win.webContents.executeJavaScript(code),wc:win.webContents,wait:ms=>new Promise(r=>setTimeout(r,ms)),out});
+            app.exit(0);return;
+          }
           if(process.env.LUCID_AB_CANVAS_CHECKS==='1'){
             await require('./render-outside-canvas-checks.cjs')({js:code=>win.webContents.executeJavaScript(code),wc:win.webContents,wait:ms=>new Promise(r=>setTimeout(r,ms)),out});
             if(process.env.LUCID_AB_CHECKS_ONLY==='1'){app.exit(0);return}

@@ -53,8 +53,16 @@ mutation(toastLayer,'childList',[toast]);assert.equal(toast.style['--detail-mark
 // Each queue task may capture at most one window.
 let job=[...timers][0];timers.delete(job[0]);job[1].fn();assert.equal(canvases,1);drain();assert.equal(canvases,2);
 const baseCanvas=a.w.querySelector('.screen-detail').firstChild;
-const density=Number(baseCanvas.dataset.sourceDensity);
-api.setScreenDetail(host,true,330);drain();assert.equal(a.w.querySelector('.screen-detail').firstChild,baseCanvas,'Same-tier zoom reuses maximum-tier density');
+// A window can maximize immediately after opening. Its old-sized snapshot must
+// not stretch for the ordinary 750ms content cadence.
+a.w.style.width='800px';a.w.offsetWidth=800;
+mutation(a.w);
+assert.ok([...timers.values()].some(t=>t.due===now),'Window resize bypasses content refresh throttle');
+drain();
+assert.ok(a.w.querySelector('.screen-detail').firstChild.width>baseCanvas.width,'Resizing repaints enough source pixels');
+const resizedCanvas=a.w.querySelector('.screen-detail').firstChild;
+const density=Number(resizedCanvas.dataset.sourceDensity);
+api.setScreenDetail(host,true,330);drain();assert.equal(a.w.querySelector('.screen-detail').firstChild,resizedCanvas,'Same-tier zoom reuses maximum-tier density');
 window.devicePixelRatio=2;api.setScreenDetail(host,true,330);drain();
 assert.ok(Number(a.w.querySelector('.screen-detail').firstChild.dataset.sourceDensity)>density,'DPR upgrade creates sharper backing pixels');
 api.setScreenDetail(host,true,250);drain();

@@ -1,9 +1,11 @@
-import { screenDetail, type ScreenDetail } from './screen-detail-budget';
+import { screenDetail, SCREEN_DETAIL_WIDTHS, type ScreenDetail } from './screen-detail-budget';
+import { paintDetailScene } from './detail-scene';
 import './screen-detail.css';
 
 type Reduced = Exclude<ScreenDetail, 'full'>;
-type State = { host: HTMLElement; tier: ScreenDetail; visible: boolean; observer: MutationObserver };
-type Cache = { views: Map<Reduced, Node[]>; lastPaint: number };
+type State = { host: HTMLElement; tier: ScreenDetail; visible: boolean; logicalWidth: number; dpr: number; observer: MutationObserver };
+type Cached = { nodes: Node[]; dpr: number; logicalWidth: number };
+type Cache = { views: Map<Reduced, Cached>; lastPaint: number; width: number; height: number };
 const states = new WeakMap<HTMLElement, State>();
 const caches = new WeakMap<HTMLElement, Cache>();
 const pending = new Map<HTMLElement, { state: State; due: number }>();
@@ -39,7 +41,7 @@ function syncShell(host: HTMLElement) {
 
 function cacheFor(win: HTMLElement) {
   let cache = caches.get(win);
-  if (!cache) { cache = { views: new Map(), lastPaint: -Infinity }; caches.set(win, cache); }
+  if (!cache) { cache = { views: new Map(), lastPaint: -Infinity, width: 0, height: 0 }; caches.set(win, cache); }
   return cache;
 }
 function overlayFor(win: HTMLElement) {
@@ -50,9 +52,10 @@ function overlayFor(win: HTMLElement) {
   }
   return overlay;
 }
-function showCached(win: HTMLElement, tier: Reduced) {
-  const nodes = cacheFor(win).views.get(tier);
-  if (!nodes) return false;
+function showCached(win: HTMLElement, tier: Reduced, state: State) {
+  const cached = cacheFor(win).views.get(tier);
+  if (!cached || tier !== 'icon' && cached.dpr / cached.logicalWidth < state.dpr / state.logicalWidth) return false;
+  const nodes = cached.nodes;
   const overlay = overlayFor(win);
   if (overlay.firstChild !== nodes[0]) overlay.replaceChildren(...nodes);
   win.dataset.detailReady = '1';
@@ -60,7 +63,7 @@ function showCached(win: HTMLElement, tier: Reduced) {
 }
 function enqueue(win: HTMLElement, state: State, transition = false) {
   if (!state.visible || state.tier === 'full' || win.dataset.renderHidden === '1') return;
-  if (showCached(win, state.tier)) { pending.delete(win); return; }
+  if (showCached(win, state.tier, state)) { pending.delete(win); return; }
   const interval = state.tier === 'lines' ? 750 : 1500;
   const due = transition ? 0 : cacheFor(win).lastPaint + interval;
   const previous = pending.get(win);
@@ -85,12 +88,12 @@ function flush() {
     if (!win.isConnected || !state.visible || state.tier === 'full' || win.dataset.renderHidden === '1') { pending.delete(win); continue; }
     if (job.due > now) { soonest = Math.min(soonest, job.due); continue; }
     pending.delete(win);
-    if (!showCached(win, state.tier)) {
-      paint(win, state.tier);
+    if (!showCached(win, state.tier, state)) {
+      paint(win, state.tier, state);
       const overlay = win.querySelector<HTMLElement>(':scope > .screen-detail');
       if (overlay?.firstChild) {
         const cache = cacheFor(win);
-        cache.views.set(state.tier, Array.from(overlay.childNodes)); cache.lastPaint = now;
+        cache.views.set(state.tier, { nodes: Array.from(overlay.childNodes), dpr: state.dpr, logicalWidth: state.logicalWidth }); cache.lastPaint = now;
       }
     }
     if (pending.size) timer = window.setTimeout(flush, 16);
@@ -102,7 +105,7 @@ function flush() {
 /** Automatic geometry-based LOD shared by all current and future WM apps.
  * Keep the source DOM mounted for robot targeting and application continuity.
  */
-export function setScreenDetail(host: HTMLElement, visible: boolean, width: number) {
+export function setScreenDetail(host: HTMLElement, visible: boolean, width: number, logicalWidth = 0) {
   let state = states.get(host);
   if (!state) {
     const observer = new MutationObserver(records => {
@@ -131,17 +134,24 @@ export function setScreenDetail(host: HTMLElement, visible: boolean, width: numb
       if (shellChanged && state!.tier !== 'full') syncShell(host);
       for (const [win, shell] of changed) {
         const cache = cacheFor(win);
+        // WM resizing changes inline dimensions. Do not stretch an old capture
+        // until the normal content-refresh throttle expires, or measure on zoom.
+        const width = parseFloat(win.style.width), height = parseFloat(win.style.height);
+        const resized = cache.width > 0 && (width > 0 && width !== cache.width || height > 0 && height !== cache.height);
         cache.views.delete('lines'); cache.views.delete('shapes');
         if (shell) cache.views.delete('icon');
-        enqueue(win, state!);
+        if (resized) overlayFor(win).replaceChildren();
+        enqueue(win, state!, resized);
       }
     });
-    state = { host, tier: 'full', visible, observer }; states.set(host, state);
+    state = { host, tier: 'full', visible, logicalWidth: logicalWidth || host.clientWidth || host.offsetWidth || 820, dpr: window.devicePixelRatio || 1, observer }; states.set(host, state);
     observer.observe(host, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class', 'style', 'src', 'data-render-hidden'] });
   }
   const tier = screenDetail(width);
   const transition = tier !== state.tier, appeared = visible && !state.visible;
-  state.tier = tier; state.visible = visible;
+  const dpr = window.devicePixelRatio || 1, nextWidth = logicalWidth || state.logicalWidth;
+  const sharper = dpr / nextWidth > state.dpr / state.logicalWidth;
+  state.tier = tier; state.visible = visible; state.logicalWidth = nextWidth; state.dpr = dpr;
   // Tier is a presentation choice even when drawing is paused (arriving/away
   // robots can leave an onscreen desktop behind). Never leave those at full text.
   if (tier === 'full') {
@@ -153,7 +163,7 @@ export function setScreenDetail(host: HTMLElement, visible: boolean, width: numb
   if (host.dataset.screenDetail !== tier) host.dataset.screenDetail = tier;
   if (transition) syncShell(host);
   if (!visible) { for (const [win, job] of pending) if (job.state === state) pending.delete(win); return; }
-  if (transition || appeared) host.querySelectorAll<HTMLElement>('.win').forEach(win => enqueue(win, state!, true));
+  if (transition || appeared || sharper) host.querySelectorAll<HTMLElement>('.win').forEach(win => enqueue(win, state!, true));
 }
 export function releaseScreenDetail(host: HTMLElement) {
   const state = states.get(host);
@@ -178,9 +188,10 @@ function appIcon(win: HTMLElement, width: number, height: number, overview: bool
   return badge;
 }
 
-function paint(win: HTMLElement, tier: ScreenDetail) {
+function paint(win: HTMLElement, tier: ScreenDetail, state: State) {
   const width = win.offsetWidth, height = win.offsetHeight, bounds = win.getBoundingClientRect();
   if (!width || !height || !bounds.width || !bounds.height) return;
+  const cache = cacheFor(win); cache.width = width; cache.height = height;
   const overlay = overlayFor(win);
   if (tier === 'icon') {
     const surface = document.createElement('div'); surface.className = 'screen-detail-surface';
@@ -195,9 +206,12 @@ function paint(win: HTMLElement, tier: ScreenDetail) {
     overlay.replaceChildren(surface); win.dataset.detailReady = '1'; return;
   }
   const canvas = document.createElement('canvas');
-  // Bounded raster size independent of the full app's canvas density.
-  const scale = tier === 'lines' ? .4 : .25;
+  // Both raster tiers cover the largest reduced view. A transition can keep
+  // showing the previous shapes while its queued line view is built, still sharp.
+  const required = SCREEN_DETAIL_WIDTHS.lines / state.logicalWidth * state.dpr;
+  const scale = 2 ** (Math.ceil(Math.log2(Math.max(required, 1 / 1024)) * 4) / 4);
   canvas.width = Math.ceil(width * scale); canvas.height = Math.ceil(height * scale);
+  canvas.dataset.sourceDensity = String(scale);
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   ctx.scale(scale, scale);
@@ -218,6 +232,7 @@ function paint(win: HTMLElement, tier: ScreenDetail) {
       ctx.fillStyle = style.backgroundColor;
       ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, Math.min(parseFloat(style.borderRadius) || 0, r.w / 2, r.h / 2)); ctx.fill();
     }
+    if (paintDetailScene(ctx, el, r, tier)) { ctx.restore(); return; }
     if (['svg', 'IMG', 'CANVAS', 'VIDEO'].includes(el.tagName)) {
       ctx.fillStyle = style.color; ctx.globalAlpha = .18; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.restore(); return;
     }

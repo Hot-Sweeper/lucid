@@ -16,10 +16,10 @@ const io = typeof IntersectionObserver === "undefined" ? null : new Intersection
     const s = surfaces.get(e.target as HTMLElement);
     if (s && !s.explicit) {
       s.visible = e.isIntersecting; s.fps = screenFrameRate(e.boundingClientRect.width);
-      setScreenDetail(s.el, s.visible, e.boundingClientRect.width);
       // Observer delivery is outside drawing. A standalone/phone surface supplies
       // its logical width here; draw callbacks never force a layout measurement.
-      const logicalWidth = s.el.clientWidth;
+      const logicalWidth = e.isIntersecting ? s.el.clientWidth : 0;
+      setScreenDetail(s.el, s.visible, e.boundingClientRect.width, logicalWidth);
       if (logicalWidth > 0) s.scale = e.boundingClientRect.width / logicalWidth;
     }
   }
@@ -32,7 +32,7 @@ function surface(el: HTMLElement) {
 }
 export function setRenderView(el: HTMLElement, visible: boolean, screenWidth: number, logicalWidth = 820) {
   const s = surface(el), fps = screenFrameRate(screenWidth);
-  setScreenDetail(el, visible, screenWidth);
+  setScreenDetail(el, visible, screenWidth, logicalWidth);
   const changed = !s.explicit || s.visible !== visible || s.fps !== fps;
   const scale = screenWidth / logicalWidth, densityChanged = s.scale !== scale;
   s.explicit = true; s.visible = visible; s.fps = fps;
