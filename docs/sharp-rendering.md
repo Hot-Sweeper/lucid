@@ -17,7 +17,7 @@ Evidence is local under `C:/Users/tim/.t3/lucid-performance-recovery`:
 - `combined-sharp-checks`: real game canvases at .23, .65, 2 and 5x; rapid reversals; an emulated display-density change; static art comparisons; immediate native-vector fallback; camera capture/cancellation; room arrangement; actor fairness; screen occlusion; chat freshness and activity sizing. These checks passed without renderer errors.
 - `media-attachment-fixed`: production Botflix hero, modal and video plus Botcord GIFs at four camera scales, repeated reversals, changing media pixels, actual channel text and cleanup. All checks passed.
 - `media-final/results.json`: the crowded synthetic fixture has 23 desks and 14 walkers with real screen apps. The heaviest distant-app sample still contains frames above the 16.7 ms target. These samples do not establish zero lag or an unbroken display frame rate.
-- `final-interface`: combined conversation rail, retained draft, sidebar search and empty-task validation checks. The fixture does not send messages or create tasks.
+- `final-interface-only`: combined conversation rail, retained draft, sidebar search and empty-task validation checks. The fixture does not send messages or create tasks.
 
 The original performance baseline is preserved separately in `baseline-dist`. Foreground delivery measurements must verify the actually loaded asset and must reject hidden or occluded runs. RequestAnimationFrame timing is not a direct physical-display FPS measurement.
 

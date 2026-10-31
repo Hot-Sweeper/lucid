@@ -11,7 +11,7 @@ module.exports = async ({ js, wc, wait, out, setMessages }) => {
     try{d.wm.check(d.wm.epoch-1)}catch(error){window.__fixtureCancelled=error.constructor}
     // A collapsed chat exposes more of the world. Keep the indoor weather check
     // wholly inside this office rather than including a strip of lawn at its edge.
-    window.__centerCheckDesk=(scale=Math.max(2,w.scene.clientWidth/350,w.scene.clientHeight/300))=>{w.cam={s:scale,x:w.scene.clientWidth/2-(parseFloat(d.el.style.left)+200)*scale,y:w.scene.clientHeight/2-(parseFloat(d.el.style.top)+160)*scale};w.apply()};
+    window.__centerCheckDesk=(scale=Math.max(2,w.scene.clientWidth/350,w.scene.clientHeight/300))=>{w.stopCameraMotion();w.frame=null;w.cam={s:scale,x:w.scene.clientWidth/2-(parseFloat(d.el.style.left)+200)*scale,y:w.scene.clientHeight/2-(parseFloat(d.el.style.top)+160)*scale};w.apply()};
     window.__centerCheckDesk();d.wm.speed=20;
     void d.director.idleLife.doActivity('nightshift',d.director.idleLife.token).catch(e=>{if(!(e instanceof window.__fixtureCancelled))console.error(e)});
     window.__lucidPerf.enable(true);
