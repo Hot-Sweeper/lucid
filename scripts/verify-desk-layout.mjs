@@ -84,11 +84,13 @@ const evaluation = `
     w.update = next => { if (next.projects.some(p => p.id === 'a')) update(next); };
     const row = document.createElement('button'); row.className = 'th-row'; row.dataset.id = 'a1'; row.textContent = 'Desk a1';
     document.getElementById('th-list').prepend(row);
-    const rr = row.getBoundingClientRect(), mainButton = document.querySelector('[data-room="main"]'), mr = mainButton.getBoundingClientRect();
+    row.scrollIntoView({block:'center'}); w.showRoom('main'); await wait(1100);
+    const rr = row.getBoundingClientRect(), mr = w.scene.getBoundingClientRect();
     const rowEvent = (type,x,y) => row.dispatchEvent(new PointerEvent(type,{bubbles:true,button:0,pointerId:78,clientX:x,clientY:y}));
-    rowEvent('pointerdown',rr.left+20,rr.top+12); rowEvent('pointermove',mr.left+40,mr.top+12);
+    const dropX=mr.left+mr.width/2, dropY=mr.top+mr.height/2;
+    rowEvent('pointerdown',rr.left+20,rr.top+12); rowEvent('pointermove',dropX,dropY);
     assert(!!document.querySelector('.office-drop-preview') && document.body.classList.contains('th-dragging'), 'sidebar drag previews office membership drop');
-    rowEvent('pointerup',mr.left+40,mr.top+12); row.remove(); await wait(350);
+    rowEvent('pointerup',dropX,dropY); row.remove(); await wait(350);
     assert(w.homes.get('a1') === 'main' && w.rooms.find(r => r.id === 'main').threadIds.includes('a1'), 'main membership follows the user drop');
     saveLayout(); await wait(100);
     assert(JSON.parse(window.lucid.settingsLoad()).homes.a1 === 'main', 'user-selected main membership persists in Electron settings');

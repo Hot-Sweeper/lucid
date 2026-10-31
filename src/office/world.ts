@@ -1065,7 +1065,7 @@ export class World {
     const thread = this.lastData?.threads.find((t) => t.id === id);
     const where = el.closest(".room-break") ? "In the break room" : el.closest(".room-queue") ? (id === this.orchThread ? "At your desk" : "Waiting with a question") : el.closest(".park-layer") ? "In the park" : el.closest(".shopfront") ? "Running the shop" : "Walking";
     const bubble = (el.parentElement?.querySelector(`.world-say[data-for="${CSS.escape(id)}"]`) as HTMLElement | null)?.textContent || "";
-    const name = id === "shopkeeper" ? "Shopkeeper" : robot?.name ?? "Robot";
+    const name = id === "shopkeeper" ? "Shopkeeper" : id === this.orchThread ? "Orchestrator" : robot?.name ?? "Robot";
     const sub = [where, thread?.title].filter(Boolean).join(" · ");
     const sig = name + sub + bubble;
     if (!force && sig === this.chipSig) return;
@@ -1124,11 +1124,9 @@ export class World {
     this.root.addEventListener("click", (e) => {
       const el = (e.target as HTMLElement).closest(".world-walker") as HTMLElement | null;
       if (!el || this.dragged) return;
-      // with a chat open, the chat moves along to the robot you clicked
-      const chatOpen = !!this.focusDesk;
       this.follow(el);
       const id = el.dataset.id;
-      if (chatOpen && id) this.onWatchChat(id);
+      if (id) this.onWatchChat(id);
     }, true);
     // The sidebar and the chat sit beside the scene, so the scene is exactly the visible area. When a panel
     // changes width the view adapts to it: a framed view (a desk, a room, the whole building) is fitted to

@@ -572,16 +572,14 @@ export class ChatPanel {
     const started = beginSystem();
     const list = this.el.querySelector(".cp-list") as HTMLElement;
     const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
-    let added = 0;
     const initial = this.shown.size === 0;
     // Queued messages wait in their own section at the bottom, in the order the robot takes them.
     const queued = msgs.filter((m) => m.role === "user" && m.run === "queued").sort((a, b) => (a.queue ?? 99) - (b.queue ?? 99));
     const timeline = msgs.filter((m) => !(m.role === "user" && m.run === "queued"));
-    const timelineIds = new Set(timeline.map((m) => m.id));
     this.renderQueue(queued);
     this.setPlan(this.desk?.planSteps || []);
     const signature = JSON.stringify(timeline);
-    if (signature === this.timelineSig) return;
+    if (signature === this.timelineSig) { endSystem("chat", started); return; }
     this.timelineSig = signature;
     const ids = new Set(timeline.map((m) => m.id));
     for (const id of [...this.shown.keys()]) {
@@ -598,7 +596,6 @@ export class ChatPanel {
         el.className = m.role === "event" ? "cp-event" : `cp-msg ${m.role === "user" ? "you" : "bot"}`;
         el.dataset.id = m.id;
         this.shown.set(m.id, el);
-        if (!initial) added++;
       }
       const sig = JSON.stringify(m);
       if (el.dataset.sig !== sig) {
@@ -662,6 +659,7 @@ export class ChatPanel {
     else list.querySelector(".cp-empty")?.remove();
     if (nearBottom || initial) list.scrollTop = list.scrollHeight;
     else if (anchor?.isConnected && anchorY != null) list.scrollTop += anchor.getBoundingClientRect().top - anchorY;
+    endSystem("chat", started);
   }
 
   showPlan() { const plan = this.el.querySelector<HTMLDetailsElement>(".cp-plan")!; plan.open = true; plan.querySelector("summary")!.focus({ preventScroll: true }); }
@@ -678,7 +676,7 @@ export class ChatPanel {
 
   private renderEvent(m: Msg) {
     const e = m.event!;
-    const modelName = (s?: string) => (s || "").replace(/^claude-/, "").replace(/^gpt-/, "").replace(/-(\d)-(\d)/, "$1.$2").replace(/^([a-z])/, (c) => c.toUpperCase());
+    const modelName = (s?: string) => (s || "").replace(/^claude-/, "").replace(/^gpt-/, "").replace(/-(\d)-(\d)/, " $1.$2").replace(/-/g, " ").replace(/\b[a-z]/g, (c) => c.toUpperCase());
     const selection = (s?: { provider?: string; model?: string }) => {
       if (!s) return "";
       const logo = s.provider ? logoFor(s.provider) : null;

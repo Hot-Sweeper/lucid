@@ -275,7 +275,7 @@ export class Desk implements DeskStage {
     button.type = "button";
     button.className = "desk-plan";
     button.setAttribute("aria-label", `Open plan, ${done} of ${steps.length} steps complete`);
-    button.innerHTML = `<b>Plan</b><span>${done} of ${steps.length} complete</span><span class="plan-lines" aria-hidden="true"></span><small>View steps</small>`;
+    button.innerHTML = `<b>Plan</b><span>${done} / ${steps.length}</span><small>Open</small>`;
     button.title = steps.map((s) => `${/completed|done/.test(s.status) ? "Done" : /progress|running/.test(s.status) ? "Doing" : "To do"}: ${s.text}`).join("\n");
     li.appendChild(button); list.appendChild(li);
   }

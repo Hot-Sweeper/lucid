@@ -106,7 +106,10 @@ if (!process.versions.electron) {
         }
         fs.writeFileSync(path.join(out, "results.json"), JSON.stringify(results, null, 2));
         if (process.env.LUCID_PERF_CHECKS) await require("./render-checks.cjs")({ js, wc, wait, out, threads });
-        if (process.env.LUCID_SYSTEM_CHECKS) await require("./render-system-checks.cjs")({ js, wc, wait, out, setMessages: (next) => { messages = next; } });
+        if (process.env.LUCID_SYSTEM_CHECKS) {
+          await js("window.__lucidPerf.enable(false)");
+          await require("./render-system-checks.cjs")({ js, wc, wait, out, setMessages: (next) => { messages = next; } });
+        }
         app.quit();
       } catch (error) { console.error(error); app.exit(1); }
     });

@@ -262,7 +262,7 @@ async function refresh() {
     for (const d of world.desks.values()) {
       d.onActivity = (t) => { if (d === world.focusDesk) pushStatus(d); if (d === selectedDesk) { const a = $("focus-activity"); if (a.textContent !== t) { a.textContent = t; gsap.fromTo(a, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.3 }); } } };
     }
-    const ids = [...world.desks.keys()].sort();
+    const ids = [...new Set([...world.desks.keys(), ...(world.orchThread ? [world.orchThread] : []), ...(chat.threadId ? [chat.threadId] : [])])].sort();
     const key = ids.join(",");
     if (key !== watched) { watched = key; await api.watchSet(ids); }
     if (firstLoad) {
@@ -470,10 +470,11 @@ const makeGrip = (cls: "left" | "right", label: string, key: "sideW" | "chatW", 
     const up = () => {
       g.classList.remove("grabbing");
       document.body.classList.remove("col-resizing");
-      g.removeEventListener("pointermove", move); g.removeEventListener("pointerup", up); g.removeEventListener("pointercancel", up);
+      window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", up); window.removeEventListener("blur", up);
+      if (g.hasPointerCapture(e.pointerId)) g.releasePointerCapture(e.pointerId);
       saveSettings();
     };
-    g.addEventListener("pointermove", move); g.addEventListener("pointerup", up); g.addEventListener("pointercancel", up);
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up); window.addEventListener("blur", up);
   });
   g.addEventListener("dblclick", () => { ui[key] = undefined; applyLayout(); saveSettings(); });
   g.addEventListener("keydown", (e) => {
@@ -762,7 +763,8 @@ world.onFollowChat = (id) => {
   if (d) { world.focusOn(d); return; }
   const t = world.lastData?.threads.find((x) => x.id === id);
   if (!t) return;
-  chat.open({ threadId: id, info: { id, title: t.title, provider: t.provider }, profile: world.roster.byThread(id) } as any);
+  const profile = world.roster.byThread(id);
+  chat.open({ threadId: id, info: { id, title: t.title, provider: t.provider }, profile: id === world.orchThread ? { ...profile, name: "Orchestrator" } : profile } as any);
   chat.setStatus(t.runStatus === "running" ? "Working" : t.question ? "Needs your answer" : "Idle", t.runStatus === "running" ? "working" : t.question ? "waiting" : "idle");
 };
 

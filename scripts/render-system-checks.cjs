@@ -44,7 +44,7 @@ module.exports = async ({ js, wc, wait, out, setMessages }) => {
   await wait(500);
 
   const message = { id: "cache-check", role: "assistant", at: "2026-10-31T12:00:00Z", streaming: false, text: "**first**", attachments: [] };
-  setMessages(Array.from({length:100},(_,i)=>({...message,id:`cache-${i}`,text:`${message.text} ${i} ${'A long paragraph. '.repeat(15)}`})));
+  setMessages(Array.from({length:100},(_,i)=>({...message,id:`cache-${i}`,role:i%2?'assistant':'user',text:`${message.text} ${i} ${'A long paragraph. '.repeat(15)}`})));
   await js("window.__chat.open(window.__checkDesk)"); await wait(700);
   await js(`{const c=window.__chat,render=c.render.bind(c);window.__markdownRenders=0;c.render=m=>{window.__markdownRenders++;return render(m)};const list=c.el.querySelector('.cp-list');list.scrollTop=150;window.__chatScroll=list.scrollTop}`);
   await js("window.__chat.refresh()");
