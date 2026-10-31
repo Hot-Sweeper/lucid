@@ -54,6 +54,7 @@ export class Director {
     this.tasks = new TasksApp(wm);
     this.idleLife = new IdleLife(wm, robot, stage);
     this.idleLife.browser = this.browser;
+    this.idleLife.hold = () => this.waitingForUser;
     this.music = new MusicApp(wm);
     this.idleLife.music = this.music;
     this.harness = new HarnessApp(wm as any);
@@ -227,6 +228,32 @@ export class Director {
     (this.robot as any).setGroove?.(bpm);
   }
 
+  // You are typing to this robot in Lucid's side chat. It drops what it is doing for fun,
+  // opens its Messages app and watches your message come in, instead of wandering off.
+  private userTypingAt = 0;
+  private get waitingForUser() { return Date.now() - this.userTypingAt < 8000; }
+  userTyping(on: boolean) {
+    if (on) {
+      const fresh = !this.waitingForUser;
+      this.userTypingAt = Date.now();
+      // real work keeps going; only the chat app shows the typing
+      if (this.pumpEpoch !== -1) { if (this.wm.isOpen("chat")) void this.chat.youTyping(true).catch(() => {}); return; }
+      if (!fresh) return;
+      this.busyToken++;
+      if (this.idleLife.isActive) this.idleLife.stop();
+      this.onActivity("Watching you type");
+      this.robot.setPose("read");
+      void this.chat.youTyping(true).catch(() => {});
+      return;
+    }
+    void this.chat.youTyping(false).catch(() => {});
+    this.userTypingAt = Date.now() - 2000;   // a short grace period in case the message is on its way
+    const epoch = this.wm.epoch;
+    window.setTimeout(() => {
+      if (epoch === this.wm.epoch && this.pumpEpoch === -1 && !this.queue.length && !this.waitingForUser) this.idle();
+    }, 6500);
+  }
+
   private async pump() {
     if (this.pumpEpoch === this.wm.epoch) return;
     const epoch = (this.pumpEpoch = this.wm.epoch);
@@ -272,6 +299,7 @@ export class Director {
 
   private idle() {
     this.wasIdle = true;
+    if (this.waitingForUser) { this.robot.setPose("read"); this.onActivity("Watching you type"); void this.chat.youTyping(true).catch(() => {}); return; }
     if (this.phoneUp) { this.mobile = false; void this.phone(false); }
     // Helpers still at work: wait for them and look in on them now and then.
     const live = [...this.sessions.entries()].filter(([, s]) => !s.done);
@@ -307,7 +335,7 @@ export class Director {
   private busyToken = 0;
   private async busyWhileWaiting(epoch: number) {
     const tok = ++this.busyToken;
-    const still = () => tok === this.busyToken && epoch === this.wm.epoch && !this.queue.length && this.pumpEpoch === -1 && this.info?.run?.status === "running";
+    const still = () => tok === this.busyToken && epoch === this.wm.epoch && !this.queue.length && this.pumpEpoch === -1 && this.info?.run?.status === "running" && !this.waitingForUser;
     try {
       await this.wm.sleep(1200, epoch);
       if (!still()) return;

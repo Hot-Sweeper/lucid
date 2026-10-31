@@ -48,8 +48,11 @@ export class IdleLife {
 
   get isActive() { return this.active; }
 
+  /** While this says so (you are typing to the robot), it does not start anything for fun. */
+  hold: () => boolean = () => false;
+
   begin(opts: { locked?: boolean } = {}) {
-    if (this.active) return;
+    if (this.active || this.hold()) return;
     this.active = true;
     const tok = ++this.token;
     this.run(tok, opts).catch((err) => { if (!(err instanceof Cancelled)) console.error("idle failed", err); });

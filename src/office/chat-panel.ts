@@ -60,6 +60,8 @@ export class ChatPanel {
   private timer = 0;
   onClose: () => void = () => {};
   onToggleView: () => void = () => {};
+  /** You started or stopped typing a message to this robot. */
+  onTyping: (on: boolean) => void = () => {};
   private pending: { text: string; at: number }[] = [];
   private files: File[] = [];
   private previews = new WeakMap<File, string>();
@@ -127,6 +129,16 @@ export class ChatPanel {
       ta.style.overflowY = ta.scrollHeight > max ? "auto" : "hidden";
     };
     ta.addEventListener("input", grow);
+    // let the robot know you are typing (and when you stop)
+    let typingTimer = 0, typingOn = false;
+    const setTyping = (on: boolean) => { if (on !== typingOn) { typingOn = on; this.onTyping(on); } };
+    ta.addEventListener("input", () => {
+      window.clearTimeout(typingTimer);
+      if (!ta.value.trim()) { setTyping(false); return; }
+      setTyping(true);
+      typingTimer = window.setTimeout(() => setTyping(false), 6000);
+    });
+    form.addEventListener("submit", () => { window.clearTimeout(typingTimer); typingOn = false; }, true);
     // attachments: the paperclip, pasting, or dropping files onto the panel
     const fileInput = form.querySelector(".cp-fileinput") as HTMLInputElement;
     form.querySelector(".cp-attach")!.addEventListener("click", () => fileInput.click());

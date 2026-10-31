@@ -548,3 +548,6 @@ $("th-list").addEventListener("click", (e) => {
 });
 setInterval(renderThreads, 3000);
 window.setTimeout(renderThreads, 1500);
+
+// you typing in the side chat: the robot sees it in its Messages app and waits for you
+chat.onTyping = (on) => { const id = chat.threadId; if (id) world.deskFor(id)?.director.userTyping(on); };

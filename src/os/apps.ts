@@ -432,6 +432,7 @@ export class ChatApp {
 
   async user(text: string, images: string[] = []) {
     const chat = await this.ensure();
+    chat.querySelector(".msg.typing")?.remove();
     const b = el(`<div class="msg you">${images.length ? `<div class="msg-imgs">${images.slice(0, 4).map((src) => `<img src="${src}" alt="">`).join("")}</div>` : ""}<p></p></div>`);
     b.querySelector("p")!.innerHTML = md(text.slice(0, 1200));
     if (!text) b.querySelector("p")!.remove();
@@ -467,6 +468,21 @@ export class ChatApp {
       wm.robot.setTyping(false);
     }
     p.innerHTML = md(getText().text);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  // You are typing in the side chat: your bubble with bouncing dots appears in its Messages app.
+  async youTyping(on: boolean) {
+    if (!on) {
+      const t = this.wm.wins.get("chat")?.body.querySelector(".msg.typing") as HTMLElement | null;
+      if (t) gsap.to(t, { opacity: 0, duration: 0.2, onComplete: () => t.remove() });
+      return;
+    }
+    const chat = await this.ensure();
+    if (chat.querySelector(".msg.typing")) return;
+    const b = el(`<div class="msg you typing"><p><span class="tdots"><i></i><i></i><i></i></span></p></div>`);
+    chat.appendChild(b);
+    gsap.fromTo(b, { opacity: 0, y: 10, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(1.7)", transformOrigin: "100% 100%" });
     chat.scrollTop = chat.scrollHeight;
   }
 
