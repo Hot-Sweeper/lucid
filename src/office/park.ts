@@ -84,6 +84,8 @@ export class Park {
     this.started = true;
   }
   private started = false;
+  /** Bad weather: the park empties, everyone goes back into the building. */
+  wet = false;
 
   private freeSpot(kind?: Spot["kind"]) {
     const free = this.spots.filter((s) => !s.taken && (!kind || s.kind === kind));
@@ -91,6 +93,36 @@ export class Park {
   }
   private take(v: Visitor, s: Spot) { this.release(v); s.taken = v.t.id; v.spot = s; }
   private release(v: Visitor) { if (v.spot && v.spot.taken === v.t.id) v.spot.taken = null; v.spot = null; }
+  // Walk like a person in a park: onto the nearest path, along the paths (around the fountain,
+  // never across the pond, benches or beds), and only the last few steps over the grass.
+  private route(from: { x: number; y: number }, to: { x: number; y: number }) {
+    const p = this.geo!.park, cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+    const R = 92;                                   // stay this far from the fountain's middle
+    const yTop = p.y + 40, yBot = p.y + p.h - 40, xLeft = p.x + 20;
+    // nearest point on the paths: the east-west path (y = cy, west of the fountain) or the north-south one (x = cx)
+    const onPath = (q: { x: number; y: number }) => {
+      const h = { seg: "h" as const, x: Math.max(xLeft, Math.min(cx - R, q.x)), y: cy };
+      const vy = Math.max(yTop, Math.min(yBot, q.y));
+      const v = { seg: "v" as const, x: cx, y: Math.abs(vy - cy) < R ? cy + (vy < cy ? -R : R) : vy };
+      return Math.hypot(q.x - h.x, q.y - h.y) <= Math.hypot(q.x - v.x, q.y - v.y) ? h : v;
+    };
+    const a = onPath(from), b = onPath(to);
+    const pts: { x: number; y: number }[] = [a];
+    if (a.seg !== b.seg) {
+      // switch paths around the fountain ring, on the side we are heading to
+      const side = (a.seg === "v" ? a.y : b.y) < cy ? -1 : 1;
+      if (a.seg === "h") pts.push({ x: cx - R, y: cy }, { x: cx - R * 0.7, y: cy + side * R * 0.7 }, { x: cx, y: cy + side * R });
+      else pts.push({ x: cx, y: cy + side * R }, { x: cx - R * 0.7, y: cy + side * R * 0.7 }, { x: cx - R, y: cy });
+    } else if (a.seg === "v" && (a.y - cy) * (b.y - cy) < 0) {
+      // north to south on the same path: go around the fountain on the west side
+      const s1 = a.y < cy ? -1 : 1;
+      pts.push({ x: cx, y: cy + s1 * R }, { x: cx - R, y: cy }, { x: cx, y: cy - s1 * R });
+    }
+    pts.push(b, to);
+    return pts;
+  }
+  private go(v: Visitor, to: { x: number; y: number }) { return v.w.walkPath(this.route({ x: v.w.x, y: v.w.y }, to)); }
+
   private strollPoint() {
     const p = this.geo!.park, cx = p.x + p.w / 2, cy = p.y + p.h / 2;
     return pick([
@@ -101,7 +133,7 @@ export class Park {
 
   private async life(v: Visitor, arriving: boolean) {
     const g = this.geo!;
-    if (arriving) await v.w.walkPath([{ x: g.park.x + 30, y: g.door.y }, this.strollPoint()]);
+    if (arriving) { await v.w.walkPath([{ x: g.park.x + 30, y: g.door.y }]); await this.go(v, this.strollPoint()); }
     while (v.alive && !this.dead) {
       try { await this.activity(v); } catch { /* left mid-way */ }
       if (!v.alive || this.dead) return;
@@ -115,13 +147,13 @@ export class Park {
     const s = kind === "stroll" ? null : this.freeSpot(kind);
     if (!s) {
       this.release(v);
-      const a = this.strollPoint(), b = this.strollPoint();
-      await v.w.walkPath([a, b]);
+      await this.go(v, this.strollPoint());
+      if (v.alive) await this.go(v, this.strollPoint());
       if (Math.random() < 0.3) v.w.say((Math.random() < 0.4 ? dailyLine() : null) ?? pick(PARK_THOUGHTS), 2800);
       return;
     }
     this.take(v, s);
-    await v.w.walkTo(s.x, s.y);
+    await this.go(v, { x: s.x, y: s.y });
     if (!v.alive) return;
     v.w.face(s.face);
     const stay = 10 + Math.random() * 16;
@@ -160,9 +192,9 @@ export class Park {
     this.release(v);
     this.vis.delete(v.t.id);
     v.w.calm();
-    v.w.say("Back to work!", 1400);
+    v.w.say(this.wet ? pick(["It's raining, inside!", "Nope, too wet.", "My circuits hate rain.", "Race you to the door!"]) : "Back to work!", 1600);
     const g = this.geo;
-    if (g) await v.w.walkPath([{ x: g.park.x + 30, y: g.door.y }, g.door]).catch(() => {});
+    if (g) { await this.go(v, { x: g.park.x + 30, y: g.door.y }).catch(() => {}); await v.w.walkPath([g.door]).catch(() => {}); }
     v.w.destroy();
   }
 

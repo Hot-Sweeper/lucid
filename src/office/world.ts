@@ -163,7 +163,9 @@ export class World {
   private lookSig = "";
   private outUrl = "";
   setWeather(w: Weather | null) {
+    const was = this.weather?.kind;
     this.weather = w;
+    if (was !== w?.kind && this.lastData) this.update(this.lastData);   // the park empties or fills
     this.redrawOutside();
     this.daylight();
   }
@@ -411,7 +413,7 @@ export class World {
     for (const s of slots) if (s.t) nowRoom.set(s.t.id, s.key.split("#")[0]);
     brkShown.forEach((t) => nowRoom.set(t.id, "break"));
     queue.forEach((t) => nowRoom.set(t.id, "queue"));
-    brk.slice(8, 14).forEach((t) => { if (!nowRoom.has(t.id)) nowRoom.set(t.id, "park"); });
+    if (!["rain", "drizzle", "storm", "snow"].includes(this.weather?.kind ?? "")) brk.slice(8, 14).forEach((t) => { if (!nowRoom.has(t.id)) nowRoom.set(t.id, "park"); });
     const first = this.roomOf.size === 0;
     const moving: { t: WThread; from: string; to: string }[] = [];
     for (const t of data.threads) {
@@ -463,7 +465,10 @@ export class World {
     }
     // robots that finished longer ago than the break room's latest eight go out to the park
     const info = (t: WThread) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name });
-    this.extLists = { brk: brkShown.map(info), queue: queue.map((t) => ({ ...info(t), question: t.question })), park: brk.slice(8, 14).map(info) };
+    // in rain, storms or snow nobody stays in the park
+    const wet = ["rain", "drizzle", "storm", "snow"].includes(this.weather?.kind ?? "");
+    this.park.wet = wet;
+    this.extLists = { brk: brkShown.map(info), queue: queue.map((t) => ({ ...info(t), question: t.question })), park: wet ? [] : brk.slice(8, 14).map(info) };
     this.pushExt();
     this.onRooms(rooms);
   }
