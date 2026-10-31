@@ -951,7 +951,11 @@ export class TopDownRobot implements SeatedRobot {
     const kk = lerp(clamp(ext / 0.8, 0.55, Math.max(1, ext * 1.01)), 1, fd);
     const shorten = front ? lerp(0.75, 0.85, this.hp.grip) : 1;   // in front of the body the arm also points at us: foreshorten it
     up *= lerp(1, kk, shorten); fo *= lerp(1, kk, shorten);
-    const { e, t: h } = solveArm(s, t, up, fo, out, 1.4, front ? lerp(0.4, -0.6, this.hp.grip) : lerp(-0.2, -1.2, fd), this.armMemo[k]);
+    // The mouse hand reaches out to the side: its elbow goes out and down beside the body, never
+    // up behind the head (where only the forearm would show, poking out of the ear).
+    let down = front ? lerp(0.4, -0.6, this.hp.grip) : lerp(-0.2, -1.2, fd);
+    if (k === "R" && !front) down = lerp(down, 1.4, this.mouseW.v);
+    const { e, t: h } = solveArm(s, t, up, fo, out, 1.4, down, this.armMemo[k]);
     const hy = h.y - lift * 4 * U;
     const f = (n: number) => n.toFixed(1);
     this.$["arm" + k + "Up"].setAttribute("d", `M${f(s.x)} ${f(s.y)} L${f(e.x)} ${f(e.y)}`);
