@@ -34,8 +34,10 @@ const AGO = ["2 days ago", "1 week ago", "3 weeks ago", "5 hours ago", "1 month 
 
 function comments(v: VideoDef): Comment[] {
   const seed = v.id.length * 13 + v.id.charCodeAt(1);
-  const out: Comment[] = [];
-  for (let i = 0; i < 6; i++) {
+  const out: Comment[] = (v.comments ?? []).map((text, i) => ({
+    name: `@${NAMES[(seed + i * 5) % NAMES.length]}`, text, likes: String(Math.floor(200 + hash(seed + i * 3) * 4000)), color: COLORS[(seed + i) % COLORS.length],
+  }));
+  for (let i = out.length; i < 6; i++) {
     const n = Math.floor(hash(seed + i * 7) * NAMES.length), m = Math.floor(hash(seed + i * 11 + 3) * TEXTS.length);
     out.push({ name: `@${NAMES[n]}`, text: TEXTS[(m + i) % TEXTS.length], likes: String(Math.floor(5 + hash(seed + i) * 900)), color: COLORS[(n + i) % COLORS.length] });
   }
@@ -46,7 +48,7 @@ const item = (v: VideoDef, i: number) => `
   <div class="fun-tb-item" data-id="${v.id}">
     <div class="fun-tb-thumb"><canvas data-v="${v.id}"></canvas></div>
     <div class="fun-tb-meta">
-      <span class="fun-av" style="background:${COLORS[i % COLORS.length]}" aria-hidden="true"><i></i><i></i></span>
+      <span class="fun-av" style="background:${v.color ?? COLORS[i % COLORS.length]}" aria-hidden="true"><i></i><i></i></span>
       <div><b>${esc(v.title)}</b><span>${esc(v.channel)}</span><span>${esc(v.views)}<i aria-hidden="true"></i>${AGO[i % AGO.length]}</span></div>
     </div>
   </div>`;
@@ -71,7 +73,9 @@ export async function watchTube(body: HTMLElement, host: FunHost, opts: FunOpts)
     };
 
     const watch = (v: VideoDef) => {
-      const recs = feed.filter((x) => x.id !== v.id).slice(0, 6);
+      // more from the same channel first, like the real thing
+      const others = feed.filter((x) => x.id !== v.id);
+      const recs = [...others.filter((x) => x.channel === v.channel), ...others.filter((x) => x.channel !== v.channel)].slice(0, 6);
       const subs = `${(1 + hash(v.id.length) * 40).toFixed(1)}K subscribers`;
       site.page.innerHTML = `
         <div class="fun-tb-watch">
@@ -80,7 +84,7 @@ export async function watchTube(body: HTMLElement, host: FunHost, opts: FunOpts)
               <div class="fun-tb-ctrl"><div class="fun-tb-bar"><i></i></div><span class="fun-tb-time"></span></div>
             </div>
             <h3 class="fun-tb-title">${esc(v.title)}</h3>
-            <div class="fun-tb-chan"><span class="fun-av" style="background:${COLORS[v.id.length % COLORS.length]}" aria-hidden="true"><i></i><i></i></span><div><b>${esc(v.channel)}</b><span>${subs}</span></div><span class="fun-tb-views">${esc(v.views)}</span></div>
+            <div class="fun-tb-chan"><span class="fun-av" style="background:${v.color ?? COLORS[v.id.length % COLORS.length]}" aria-hidden="true"><i></i><i></i></span><div><b>${esc(v.channel)}</b><span>${subs}</span></div><span class="fun-tb-views">${esc(v.views)}</span></div>
             <div class="fun-tb-cms"><h4>Comments</h4>${commentsHtml(comments(v))}</div>
           </div>
           <aside class="fun-tb-recs">${recs.map((r) => `

@@ -2,6 +2,7 @@ import {
   C, type Ctx, circle, core, drawBot, drawGPU, ellipse, fillRR, glow, lin, limb, loopFade, mix, poly, rad, rr, shade, shadow, text, withAlpha, wrap,
 } from "./draw";
 import { backOut, clamp, easeIn, easeInOut, easeOut, hash, lerp, seg, smooth } from "./util";
+import { PARODY_VIDEOS } from "./parody";
 
 export interface VideoDef {
   id: string;
@@ -14,6 +15,12 @@ export interface VideoDef {
   /** Time used for the thumbnail frame. */
   thumbT?: number;
   draw(ctx: CanvasRenderingContext2D, w: number, h: number, t: number): void;
+  /** Channel avatar color in the feed. */
+  color?: string;
+  /** Handle and caption when the video shows up in the phone feed. */
+  post?: { user: string; caption: string; funny?: boolean };
+  /** Channel-specific comments shown first under the video. */
+  comments?: string[];
 }
 
 // --- small shared pieces -----------------------------------------------------------
@@ -819,7 +826,7 @@ const arm: VideoDef = {
   },
 };
 
-export const VIDEOS: VideoDef[] = [dance, roomba, unbox, attention, pancakes, drones, catVac, servers, laundry, chat, baby, arm];
+export const VIDEOS: VideoDef[] = [dance, roomba, unbox, attention, pancakes, drones, catVac, servers, laundry, chat, baby, arm, ...PARODY_VIDEOS];
 
 /** One still frame of a video with its duration in the corner. */
 export function drawThumbnail(v: VideoDef, ctx: CanvasRenderingContext2D, w: number, h: number) {

@@ -48,7 +48,7 @@ export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: F
     let idx = 0;
 
     const makeSlide = (v: VideoDef): Slide => {
-      const p = POSTS[v.id] ?? { user: v.channel.toLowerCase().replace(/\s+/g, "."), caption: v.title };
+      const p = POSTS[v.id] ?? v.post ?? { user: v.channel.toLowerCase().replace(/\s+/g, "."), caption: v.title };
       const seed = v.id.length * 31 + v.id.charCodeAt(0);
       const likes = Math.round(2000 + hash(seed) * 480000);
       const el = html(`
@@ -152,7 +152,7 @@ export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: F
       next = null;
     };
 
-    const funny = () => !!POSTS[cur.v.id]?.funny;
+    const funny = () => !!(POSTS[cur.v.id] ?? cur.v.post)?.funny;
     for (;;) {
       if (host.stopped || performance.now() - start > opts.maxMs) return { result: "done" };
       const watch = 2600 + Math.random() * 3800;

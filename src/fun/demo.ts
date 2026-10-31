@@ -172,16 +172,21 @@ startAll();
 
 // Video gallery: every procedural video in landscape and portrait.
 if (!only || only.includes("videos")) {
-  const gal = root.querySelector(".d-videos") as HTMLElement;
-  const all = [...VIDEOS, ...TENSOR_VIDEOS];
+  const galEl = root.querySelector(".d-videos") as HTMLElement;
+  // ?gal=parody (or a comma list of ids) filters the gallery; ?gw=556&gh=313 sets the landscape size; ?portrait=0 skips phone shapes
+  const gal = params.get("gal");
+  const pool = [...VIDEOS, ...TENSOR_VIDEOS];
+  const all = !gal ? pool : gal === "parody" ? pool.filter((v) => v.id.startsWith("p-")) : pool.filter((v) => gal.split(",").includes(v.id));
+  const GW = Number(params.get("gw") || 240), GH = Number(params.get("gh") || 135);
+  const sizes = params.get("portrait") === "0" ? [[GW, GH]] : [[GW, GH], [76, 135]];
   const items: { ctx: CanvasRenderingContext2D; v: (typeof all)[number]; w: number; h: number }[] = [];
   for (const v of all) {
-    for (const [w, h] of [[240, 135], [76, 135]]) {
+    for (const [w, h] of sizes) {
       const fig = document.createElement("figure");
       const c = document.createElement("canvas");
       fig.appendChild(c);
       if (w > 100) { const cap = document.createElement("figcaption"); cap.textContent = v.title; fig.appendChild(cap); }
-      gal.appendChild(fig);
+      galEl.appendChild(fig);
       items.push({ ctx: fitCanvas(c, w, h), v, w, h });
     }
   }
