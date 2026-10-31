@@ -3,6 +3,7 @@ import { JOKES, LAUGHS, shuffled } from "../world/jokes";
 import { dailyConvo, dailyLine } from "./daily";
 import { CONVOS, THOUGHTS, pickFresh } from "../content";
 import { makeInteractive, whenFree, popWord, splash } from "./interact";
+import { dress, type Gear } from "../weather/gear";
 
 // The park next to the building. Robots whose work finished a while ago (the break room only
 // holds the most recent ones) spend their time out here: they stroll the paths, sit on the
@@ -78,6 +79,7 @@ export class Park {
       if (this.vis.has(t.id)) continue;
       const w = new Walker(this.layer, { id: t.id, provider: t.provider, name: t.name ?? undefined, model: t.model ?? undefined, scale: SCALE, look: (t as any).look });
       w.el.title = t.name ? `${t.name}: ${t.title}` : t.title;
+      dress(w.el, this.gear);
       const v: Visitor = { t, w, spot: null, alive: true, busy: false };
       makeInteractive(w, { bounds: () => this.geo?.park ?? null, onOpen: () => this.onSelect(t.id), onLanded: () => { this.release(v); } });
       this.vis.set(t.id, v);
@@ -94,6 +96,21 @@ export class Park {
   wet = false;
   /** Dry for now, but rain is on its way. */
   rainSoon = false;
+  /** What everyone out here wears for the weather (umbrella, scarf, sun hat), see weather/gear.ts. */
+  private gear: Gear = null;
+  private leaving = new Set<Walker>();
+  setGear(g: Gear) {
+    this.gear = g;
+    for (const v of this.vis.values()) dress(v.w.el, g);
+    for (const w of this.leaving) dress(w.el, g);   // caught by the rain on the way in: up go the umbrellas
+  }
+  /** Everyone walking about out here (for footprints in the snow). */
+  steppers() {
+    const out: { id: string; x: number; y: number }[] = [];
+    for (const v of this.vis.values()) out.push({ id: v.t.id, x: v.w.x, y: v.w.y });
+    for (const w of this.leaving) out.push({ id: w.id, x: w.x, y: w.y });
+    return out;
+  }
 
   private freeSpot(kind?: Spot["kind"]) {
     const free = this.spots.filter((s) => !s.taken && (!kind || s.kind === kind));
@@ -228,11 +245,13 @@ export class Park {
     v.alive = false;
     this.release(v);
     this.vis.delete(v.t.id);
+    this.leaving.add(v.w);
     v.w.calm();
     v.w.say(this.rainSoon ? pick(["Rain's coming, pack up!", "Those clouds look wet.", "Grab the blanket, rain!", "Inside before it pours!"])
       : this.wet ? pick(["It's raining, inside!", "Nope, too wet.", "My circuits hate rain.", "Race you to the door!"]) : "Back to work!", 1600);
     const g = this.geo;
     if (g) { await this.go(v, { x: g.park.x + 30, y: g.door.y }).catch(() => {}); await v.w.walkPath([g.door]).catch(() => {}); }
+    this.leaving.delete(v.w);
     v.w.destroy();
   }
 

@@ -10,7 +10,9 @@ import { GEOM } from "./rig";
 import { SHOP_W, SHOP_H, type ShopFront } from "./shopfront";
 import { mountWeather, applySkyTint, type WeatherLayer, type Weather } from "../weather/effects";
 import { outdoorLook, seasonPalette } from "../weather/season";
-import { outsideSvg, cityLayout, PARK_W, type CityLayout } from "./outside";
+import { outsideSvg, backdropColor, groundsLayout, PARK_W, type Grounds } from "./outside";
+import { groundWx, groundSig, isWet, puddleSpots, type Puddle } from "../weather/ground";
+import { gearFor } from "../weather/gear";
 import { ambientPlant } from "./ambient";
 import { Roster, type RobotProfile } from "./roster";
 
@@ -177,8 +179,21 @@ export class World {
     const w = this.weather;
     return ["rain", "drizzle", "storm", "snow"].includes(w?.kind ?? "") || (w?.rainSoonMin != null && w.rainSoonMin <= 20);
   }
+  // When it last rained and how hard: the puddles dry up over the next 20 minutes (remembered across launches).
+  private dry: { at: number; level: number } | null = (() => { try { return JSON.parse(localStorage.getItem("lucid:wx:dry") || "null"); } catch { return null; } })();
+  private puddles: Puddle[] = [];
+  /** How the weather leaves the ground right now (puddles, frost, heat, snowmen). */
+  ground() {
+    const look = outdoorLook(new Date(), this.weather);
+    return { look, g: groundWx(this.weather, look.snowCover, this.dry) };
+  }
   setWeather(w: Weather | null) {
     const was = `${this.weather?.kind}|${this.outdoorsWet}`;
+    if (isWet(w) || isWet(this.weather)) {
+      // still raining, or it just stopped: the puddles start drying from now
+      this.dry = { at: Date.now(), level: isWet(w) ? (w!.kind === "drizzle" ? 0.5 : 1) : this.dry?.level ?? 1 };
+      try { localStorage.setItem("lucid:wx:dry", JSON.stringify(this.dry)); } catch { /* private mode */ }
+    }
     this.weather = w;
     if (was !== `${w?.kind}|${this.outdoorsWet}` && this.lastData) this.update(this.lastData);   // the park empties or fills
     this.redrawOutside();
@@ -186,15 +201,16 @@ export class World {
   }
   private redrawOutside(force = false) {
     if (!this.outArgs) return;
-    const look = outdoorLook(new Date(), this.weather);
-    const sig = JSON.stringify(look);
+    const { look, g } = this.ground();
+    // puddles, frost and heat are part of the drawing, in coarse steps, so it is redrawn only when they change class
+    const sig = JSON.stringify(look) + groundSig(g);
     if (!force && sig === this.lookSig) return;
     this.lookSig = sig;
-    // The outdoors (the city, the walk and the park) is one big drawing of several thousand shapes.
+    // The outdoors (the grounds, the walk and the park) is one drawing of a few thousand shapes.
     // As live page elements they would make every frame slow, so it is shown as a single image;
-    // only the small "live" layer (cars, lights, animals, swaying trees) stays page elements.
+    // only the small "live" layer (lamps, animals, swaying trees) stays page elements.
     const layer = this.root.querySelector(".outside-layer") as HTMLElement;
-    const svg = outsideSvg({ ...this.outArgs, ...look, layer: "still" }).replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
+    const svg = outsideSvg({ ...this.outArgs, ...look, wx: g, puddles: this.puddles, layer: "still" }).replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
     const css = [...document.styleSheets].flatMap((sh) => { try { return [...sh.cssRules].map((r) => r.cssText).filter((t) => /\.outside|@keyframes|--lamp|--night/.test(t)); } catch { return []; } }).join("\n");
     const vars = getComputedStyle(this.root);
     const root = `svg{--lamp:${vars.getPropertyValue("--lamp") || 0};--night:${vars.getPropertyValue("--night") || 0};--wind:${vars.getPropertyValue("--wind") || 0.3}}`;
@@ -204,8 +220,10 @@ export class World {
     const withCss = svg.replace(/(<svg[^>]*>)/, `$1<style>${root}\n${animate ? css : css.replace(/animation[^;}]*;?/g, "")}</style>`);
     if (this.outUrl) URL.revokeObjectURL(this.outUrl);
     this.outUrl = URL.createObjectURL(new Blob([withCss], { type: "image/svg+xml" }));
-    layer.innerHTML = `<img class="outside-img" src="${this.outUrl}" alt="" draggable="false" style="display:block;width:100%;height:100%">` + outsideSvg({ ...this.outArgs, ...look, layer: "live" });
-    this.scene.style.setProperty("--scene-ground", seasonPalette(look.season).ground);
+    (window as any).__outBytes = withCss.length;   // debug: size of the still image
+    layer.innerHTML = `<img class="outside-img" src="${this.outUrl}" alt="" draggable="false" style="display:block;width:100%;height:100%">` + outsideSvg({ ...this.outArgs, ...look, wx: g, layer: "live" });
+    // the scene behind the drawing has the backdrop's colour, so the soft edge never shows
+    this.scene.style.setProperty("--scene-ground", backdropColor({ ...look, wx: g }));
   }
   level = 0;
   freeDesks: Desk[] = [];
@@ -389,19 +407,25 @@ export class World {
       this.shopRect = { x: this.size.w + 150, y: entY + 110, w: SHOP_W, h: SHOP_H };
       this.shopFront?.place(this.shopRect.x, this.shopRect.y);
       const park = { x: this.size.w + 150 + SHOP_W + 180, y: Math.max(-200, entY - 520), w: PARK_W, h: 1040 };
-      // the city around it (src/city): streets, neighbours and empty plots; the outdoors covers the whole city
+      // the grounds round it (grounds.ts): lawn, hedge and a tree belt that fades into the backdrop
       const building = { x: 0, y: 0, w: this.size.w, h: this.size.h };
-      this.city = cityLayout({ building, entranceY: entY, park, shop: this.shopRect });
-      const cb = this.city.bounds;
+      this.grounds = groundsLayout({ building, entranceY: entY, park, shop: this.shopRect });
+      const cb = this.grounds.bounds;
       const out = { ox: cb.x, oy: cb.y, w: cb.w, h: cb.h };
       this.outdoor = { x: out.ox, y: out.oy, w: out.w, h: out.h, park };
       this.park.setGeometry(park, { x: this.size.w + 66, y: topH + HALL / 2 + 20 });
       const layer = this.root.querySelector(".outside-layer") as HTMLElement;
       layer.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px`;
-      this.outArgs = { ...out, building, entranceY: entY, park, shop: this.shopRect, city: this.city };
+      this.outArgs = { ...out, building, entranceY: entY, park, shop: this.shopRect, grounds: this.grounds };
+      this.puddles = puddleSpots(this.grounds, building, park, entY);
       this.redrawOutside(true);
-      const wr = { ...this.outdoor, entranceY: topH + HALL / 2 };
+      // the weather reaches well past the drawn grounds, so rain and cloud never stop at an edge
+      const reach = Math.max(3000, cb.w * 0.6);
+      const wr = { x: out.ox - reach, y: out.oy - reach, w: out.w + 2 * reach, h: out.h + 2 * reach, park, entranceY: topH + HALL / 2 };
       if (this.fx) this.fx.resize(wr); else { this.fx = mountWeather(this.root, wr); this.apply(); }
+      // puddles ripple in the rain, the paving shimmers in the heat, walkers leave prints in the snow
+      this.fx.setGround(this.puddles, [this.grounds.walk]);
+      this.fx.setSteppers(() => this.park.steppers());
       // the shop has a roof: keep it above the rain
       if (this.shopFront) this.root.insertBefore(this.shopFront.el, this.root.querySelector(".building-plate"));
       const shade = this.root.querySelector(".night-shade") as HTMLElement;
@@ -591,7 +615,7 @@ export class World {
       if (desk && !desk.el.classList.contains("arriving")) this.showDesk(desk);
       return;
     }
-    const r = el.getBoundingClientRect(), s = this.scene.getBoundingClientRect();
+    const r = el.getBoundingClientRect(), s = (this.sceneBox ??= this.scene.getBoundingClientRect());
     const cx = r.left + r.width / 2 - s.left, cy = r.top + r.height / 2 - s.top;
     const W = this.scene.clientWidth - this.panelWidth * 0, H = this.scene.clientHeight;
     const target = Math.max(0.9, Math.min(1.6, this.cam.s));
@@ -704,7 +728,25 @@ export class World {
   private sceneBox: DOMRect | null = null;
   private near: boolean | null = null;
   private far = false;
+  // The camera stays on the grounds: it cannot zoom out past the whole drawing, and the view never
+  // drifts off it (when the view is wider or taller than the grounds, they stay centred that way).
+  private clampCam() {
+    const g = this.grounds?.bounds;
+    if (!g) return;
+    const box = (this.sceneBox ??= this.scene.getBoundingClientRect());
+    const W = box.width, H = box.height;
+    if (!W || !H) return;
+    // zooming out stops when the lawn and a strip of woods fill the view; the rest of the woods is only there for wide windows
+    const l = this.grounds!.lawn, pad = 260;
+    const c = this.cam, min = Math.max(Math.min(W / g.w, H / g.h), Math.min(W / (l.w + 2 * pad), H / (l.h + 2 * pad)));
+    if (c.s < min) { const k = min / c.s; c.x = W / 2 - (W / 2 - c.x) * k; c.y = H / 2 - (H / 2 - c.y) * k; c.s = min; }
+    const fit = (t: number, size: number, lo: number, len: number) =>
+      len * c.s <= size ? (size - len * c.s) / 2 - lo * c.s : Math.min(-lo * c.s, Math.max(size - (lo + len) * c.s, t));
+    c.x = fit(c.x, W, g.x, g.w);
+    c.y = fit(c.y, H, g.y, g.h);
+  }
   private apply() {
+    this.clampCam();
     this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
     setZoom(this.cam.s, this.cam.x, this.cam.y);
     // the weather follows the camera without measuring the page (which is slow every frame)
@@ -738,8 +780,8 @@ export class World {
   onDeskMenu: (desk: Desk, x: number, y: number) => void = () => {};
   building = "This PC";
   outdoor: { x: number; y: number; w: number; h: number; park: { x: number; y: number; w: number; h: number } } | null = null;
-  /** The city around the office: streets, blocks and the empty plots (city.plots, stable ids) the game can build on. */
-  city: CityLayout | null = null;
+  /** The office's grounds: lawn, walk, plaza and the drawn outdoor bounds the camera stays within. */
+  grounds: Grounds | null = null;
   orchThread = "";
   attachDir = "";
 
@@ -823,8 +865,14 @@ export class World {
     st.setProperty("--night", String(night)); st.setProperty("--city", String(v.city));
     // the grass beyond the drawn outdoors darkens with the same night tint
     this.root.parentElement?.style.setProperty("--scene-night", String(night));
-    const look = outdoorLook(now, this.weather);
-    this.fx?.set(this.weather, { night: v.night, season: look.season, frozen: look.frozen });
+    const { look, g } = this.ground();
+    this.fx?.set(this.weather, { night: v.night, season: look.season, frozen: look.frozen, ground: { puddles: g.puddles, hot: g.hot, prints: look.snowCover >= 0.3 } });
+    // the real wind sways the trees (ambient.css), fog puts halos round the lamps, frost rims the windows
+    const w = this.weather;
+    st.setProperty("--wind", (w ? Math.min(1, Math.max(0.1, w.windKmh / 55, w.kind === "storm" ? 0.85 : 0)) : 0.2).toFixed(2));
+    st.setProperty("--fog", w?.kind === "fog" ? "1" : "0");
+    st.setProperty("--frost", g.frost ? "1" : "0");
+    this.park.setGear(gearFor(w));
     this.redrawOutside();
     this.paintClock();
   }
@@ -873,6 +921,8 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0) {
       <rect x="${wx - 6}" y="${T + 14}" width="${ww + 12}" height="${WALL_FACE - T - 30}" rx="6" fill="${pal.trim}"/>
       <rect x="${wx}" y="${T + 20}" width="${ww}" height="${WALL_FACE - T - 42}" rx="3" fill="url(#sky${uid})"/>
       <g style="opacity:var(--stars)">${Array.from({ length: 7 }, (_, k) => `<circle cx="${wx + 8 + ((k * 61) % (ww - 16))}" cy="${T + 26 + ((k * 23) % 30)}" r="${k % 3 ? 1 : 1.6}" fill="#fff"/>`).join("")}</g>
+      <g style="opacity:var(--frost, 0)"><rect x="${wx}" y="${T + 20}" width="${ww}" height="${WALL_FACE - T - 42}" rx="3" fill="url(#frost${uid})"/>
+        <path d="M${wx + 3} ${T + 34}l9 -5l-4 -6M${wx + 10} ${T + 24}l6 7M${wx + ww - 4} ${WALL_FACE - 26}l-10 -4l3 -7M${wx + ww - 14} ${WALL_FACE - 23}l-4 -8" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.9"/></g>
       <rect x="${wx + ww / 2 - 2}" y="${T + 20}" width="4" height="${WALL_FACE - T - 42}" fill="${pal.trim}"/>
       <rect x="${wx - 10}" y="${WALL_FACE - 14}" width="${ww + 20}" height="6" rx="3" fill="${pal.trim}"/>`);
   }
@@ -916,6 +966,7 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0) {
   <svg class="room-art" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">
     <defs>
       <linearGradient id="sky${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--sky1)"/><stop offset="1" style="stop-color:var(--sky2)"/></linearGradient>
+      <radialGradient id="frost${uid}" r="0.75"><stop offset="0.45" stop-color="#eef6fb" stop-opacity="0"/><stop offset="0.85" stop-color="#eef6fb" stop-opacity="0.75"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.95"/></radialGradient>
       <radialGradient id="pool${uid}"><stop offset="0" stop-color="#ffe6b0" stop-opacity="0.28"/><stop offset="1" stop-color="#ffe6b0" stop-opacity="0"/></radialGradient>
     </defs>
     ${theme?.floor && ownsItem(`floor:${theme.floor}`) ? drawFloor(theme.floor, w, h, WALL_FACE) : `<rect y="${WALL_FACE}" width="${w}" height="${h - WALL_FACE}" fill="${pal.floor}"/>${floor}`}

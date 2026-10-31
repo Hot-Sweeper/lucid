@@ -1,7 +1,8 @@
-// Drawing helpers shared by the outdoors (src/office/outside.ts) and the city (draw.ts):
+// Drawing helpers for the outdoors (src/office/outside.ts) and the weather on the ground:
 // seeded randomness, colour mixing, merged flat shapes and the trees seen from above.
 
 import type { Season, SeasonPalette } from "../weather/season";
+import type { GroundWx } from "../weather/ground";
 
 export const rnd = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 export const SNOW = "#eef4f8";
@@ -24,7 +25,7 @@ export function timing(q: () => number, dur: number, spread = 0.3, extra = "") {
 export const seedAt = (x: number, y: number) => rnd(Math.abs(Math.round(x * 7.31 + y * 13.7)) % 2147483646 + 1);
 
 /** What one drawing pass needs to know about the season. */
-export type Look = { pal: SeasonPalette; snow: number; season: Season };
+export type Look = { pal: SeasonPalette; snow: number; season: Season; /** what the weather does to the ground (wet, frost, heat) */ wx?: GroundWx };
 
 export const fill = (c: string, o?: number) => `fill="${c}"${o == null ? "" : ` opacity="${o}"`}`;
 // stroke widths are rounded to half pixels, so branches of similar trees share a path
@@ -32,7 +33,7 @@ export const stroke = (c: string, w: number, o?: number) => `fill="none" stroke=
 
 /**
  * Many flat shapes collected into one path per look (fill, stroke, opacity). Every svg element
- * costs time, so a whole city of trees drawn as a few dozen paths stays cheap. With a `cell` size
+ * costs time, so a belt of trees drawn as a few dozen paths stays cheap. With a `cell` size
  * the shapes are also grouped by area, so the browser can skip the paths far from what it draws.
  */
 export class Shapes {
@@ -128,7 +129,7 @@ export function litter(G: Grove, x: number, y: number, r: number, seed: number, 
 /**
  * Adds one tree to a grove; returns whether it stands bare. `seed` keeps each tree's seasonal
  * variant stable between redraws, `shade` picks its colours. `light` draws a cheaper tree for the
- * city's streets: fewer fallen leaves, blossoms and branches.
+ * tree belt round the grounds: fewer fallen leaves, blossoms and branches.
  */
 export function treeInto(G: Grove, x: number, y: number, r: number, shade: number, L: Look, seed = shade + 1, light = false) {
   const q = rnd(seed * 104729 + 1)();

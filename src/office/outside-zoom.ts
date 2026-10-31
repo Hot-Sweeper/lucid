@@ -2,7 +2,9 @@
 // scale changes the browser redraws it at the new scale, which costs tens of milliseconds a frame.
 // So once the image has loaded, a bitmap copy of it is made (about 3200 px wide, drawn once in idle
 // time). While the scale keeps changing the copy stands in for the image (stretching a bitmap is
-// nearly free), and the sharp image comes back as soon as the zoom settles. Panning never swaps.
+// nearly free), and the sharp image comes back as soon as the zoom settles.
+// Zoomed out far enough that the copy is as sharp as the screen, the copy simply stays: panning
+// then never makes the browser redraw parts of the vector image either.
 //
 // Importing this module is enough: it watches for new .outside-img elements and for camera changes
 // on their .world, like ambient.ts does for rooms. Nothing runs per frame.
@@ -20,6 +22,8 @@ function prepare(img: HTMLImageElement) {
   const layer = img.parentElement;
   if (!layer || img.dataset.quick) return;
   img.dataset.quick = "1";
+  // a new drawing: show it sharp until its own copy is ready
+  layer.classList.remove("zooming");
   const cv = document.createElement("canvas");
   cv.className = "outside-quick";
   cv.setAttribute("aria-hidden", "true");
@@ -34,11 +38,23 @@ function prepare(img: HTMLImageElement) {
     if (!g) return;
     g.drawImage(img, 0, 0, cv.width, cv.height);
     cv.dataset.ready = "1";
+    const world = img.closest(".world") as HTMLElement | null;
+    if (world) check(world);
   };
   if (img.complete && img.naturalWidth) idle(draw);
   else img.addEventListener("load", () => idle(draw), { once: true });
   watchCamera(img.closest(".world") as HTMLElement | null);
 }
+
+// Is the bitmap copy at least as sharp as the screen at this camera scale? Then it can stay.
+function sharpEnough(layer: Element, s: number) {
+  const cv = layer.querySelector<HTMLCanvasElement>("canvas.outside-quick[data-ready]");
+  const img = layer.querySelector<HTMLImageElement>("img.outside-img");
+  if (!cv || !img?.naturalWidth) return false;
+  return s * (devicePixelRatio || 1) <= (cv.width / img.naturalWidth) * 1.15;
+}
+const settled = new WeakMap<HTMLElement, () => void>();
+function check(world: HTMLElement) { settled.get(world)?.(); }
 
 const watched = new WeakSet<HTMLElement>();
 function watchCamera(world: HTMLElement | null) {
@@ -46,8 +62,10 @@ function watchCamera(world: HTMLElement | null) {
   watched.add(world);
   let last = scaleOf(world), timer = 0;
   const settle = () => {
-    world.querySelectorAll(".outside-layer.zooming").forEach((l) => l.classList.remove("zooming"));
+    const s = scaleOf(world);
+    world.querySelectorAll(".outside-layer").forEach((l) => l.classList.toggle("zooming", sharpEnough(l, s)));
   };
+  settled.set(world, settle);
   new MutationObserver(() => {
     const s = scaleOf(world);
     if (Math.abs(s - last) < 1e-6) return;

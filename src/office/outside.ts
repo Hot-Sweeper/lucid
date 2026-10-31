@@ -1,37 +1,36 @@
-// The outdoors around the building, seen from above: a green city (src/city) with streets,
-// tree-lined avenues, neighbouring rooftops and empty plots, the office on its own block, a
-// planted walk from the entrance past the shop to a small park with a pond, benches and lamps.
+// The office's grounds, seen from above: a lawn round the building inside a trimmed hedge, a
+// planted walk from the entrance past the shop to a small park with a pond, benches and lamps,
+// a round plaza, and a belt of trees and meadow that fades softly into the backdrop.
 // The look follows the season (leaf colours, blossoms, bare trees, flower beds) and how much
 // snow lies. The layout never changes with the season: the park robots walk to the same
 // benches, pond and picnic spots all year.
 
 import { seasonPalette, type Season } from "../weather/season";
-import { Grove, Shapes, SNOW, bushInto, fill, mix, n2, rnd, seedAt, timing, treeInto, type Look } from "../city/art";
-import { cityLayout, type CityLayout, type Rect } from "../city/layout";
-import { drawCity } from "../city/draw";
+import { Grove, Shapes, SNOW, bushInto, fill, mix, n1, n2, rnd, seedAt, timing, treeInto, type Look } from "./outdoor-art";
+import { groundsLayout, FADE, MEADOW, type Grounds, type Rect } from "./grounds";
+import { puddleSvg, snowman, sprinkler, weatherPal, type GroundWx, type Puddle } from "../weather/ground";
 import "./ambient.css";
-import "../city/zoom";
+import "../weather/weather.css";
+import "./outside-zoom";
 
-export { cityLayout, PLOT_IDS, STREET, type CityLayout, type Plot, type Street, type Block, type Crossing, type DriveLoop } from "../city/layout";
+export { groundsLayout, type Grounds } from "./grounds";
 
 export const PARK_W = 1300;
 
-/** Shape counts of the last city drawn (for tuning and tests). */
-export let lastStats: Record<string, number> = {};
-
 // One of the park's big trees, with its own sway: the crown top leans, bare branches twist round the trunk.
+// `still` (fallen leaves, shadow, lower crown) goes into the still image, only `live` sways.
 function tree(x: number, y: number, r: number, shade: number, L: Look, seed = shade + 1) {
   const G = new Grove(), bare = treeInto(G, x, y, r, shade, L, seed), q = seedAt(x, y);
   const sway = bare ? `class="amb-bare" style="${timing(q, 8, 0.3, `;transform-origin:${n2(x)}px ${n2(y)}px`)}"`
     : `class="amb-tree" style="${timing(q, 7, 0.3, `;--a:${n2(r * (0.035 + q() * 0.025))}px`)}"`;
-  return `<g>${G.under}${G.still()}<g ${sway}>${G.moving()}</g></g>`;
+  return { still: `${G.under}${G.still()}`, live: `<g ${sway}>${G.moving()}</g>` };
 }
 
-// A park bush that rustles on its own.
+// A park bush that rustles on its own (its shadow stays in the still image).
 function bush(x: number, y: number, r: number, L: Look) {
   const G = new Grove();
   bushInto(G, x, y, r, L);
-  return `${G.shadow}<g class="amb-bush" style="${timing(seedAt(x, y), 3.6, 0.35)}">${G.low}${G.top}</g>`;
+  return { still: `${G.shadow}`, live: `<g class="amb-bush" style="${timing(seedAt(x, y), 3.6, 0.35)}">${G.low}${G.top}</g>` };
 }
 
 // A flower bed: the bed itself stays, the flowers on it nod (bed and blooms are drawn apart).
@@ -63,11 +62,10 @@ function flowers(x: number, y: number, w: number, h: number, seed: number, L: Lo
     const q = rnd(seed + 99);
     for (let i = 0; i < ((w * h) / 220) * (f.density - 1); i++) fl.push([x + 8 + q() * (w - 16), y + 7 + q() * (h - 14), 2.4 + q() * 1.6, f.colors[Math.floor(q() * f.colors.length)]]);
   }
-  // the flowers nod in three groups (runs of the random walk, so each group is spread over the bed),
-  // each group drawn as one path per colour
-  const qt = rnd(seed * 31 + 5), n = Math.ceil(fl.length / 3);
+  // the bed's flowers nod together, drawn as one path per colour
+  const qt = rnd(seed * 31 + 5), n = fl.length;
   const group = (part: typeof fl) => { const sh = new Shapes(); for (const [cx, cy, rr, c] of part) sh.circle(cx, cy, rr, fill(c)); return String(sh); };
-  return { bed: s, blooms: [0, 1, 2].map((k) => `<g class="amb-fl" style="${timing(qt, 2.8, 0.3)}">${group(fl.slice(k * n, k * n + n))}</g>`).join("") };
+  return { bed: s, blooms: [0].map((k) => `<g class="amb-fl" style="${timing(qt, 2.8, 0.3)}">${group(fl.slice(k * n, k * n + n))}</g>`).join("") };
 }
 
 function bench(x: number, y: number, L: Look) {
@@ -85,10 +83,17 @@ function picnic(x: number, y: number, L: Look) {
     <rect x="${x + 72}" y="${y + 18}" width="34" height="24" rx="5" fill="#b9854c"/><rect x="${x + 76}" y="${y + 14}" width="26" height="6" rx="3" fill="#8a5f33"/>
     <circle cx="${x + 30}" cy="${y + 62}" r="9" fill="#ffd27a"/><circle cx="${x + 52}" cy="${y + 66}" r="7" fill="#ff9f5a"/></g>`;
 }
-function lamp(x: number, y: number) {
-  return `<g><ellipse class="amb-glow" cx="${x}" cy="${y}" rx="70" ry="52" fill="#ffe6b0" style="opacity:calc(var(--lamp) * 0.32);${timing(seedAt(x, y), 4.6, 0.25)}"/>
-    <circle cx="${x + 3}" cy="${y + 4}" r="9" fill="#1f2a1a" opacity="0.25"/><circle cx="${x}" cy="${y}" r="8" fill="#3a3f4f"/>
-    <circle cx="${x}" cy="${y}" r="4.5" fill="#fff3c9" style="opacity:calc(0.35 + var(--lamp) * 0.65)"/></g>`;
+// A lamp seen from above: the post's head stays in the still image; the light it gives at
+// night (glow and bulb) is live, all lamps together in two paths whose opacity follows --lamp.
+function lampHead(x: number, y: number) {
+  return `<circle cx="${x + 3}" cy="${y + 4}" r="9" fill="#1f2a1a" opacity="0.25"/><circle cx="${x}" cy="${y}" r="8" fill="#3a3f4f"/>`;
+}
+function lampLights(spots: [number, number][]) {
+  const glow = new Shapes(), bulb = new Shapes();
+  for (const [x, y] of spots) { glow.ellipse(x, y, 70, 52, ""); bulb.circle(x, y, 4.5, ""); }
+  const d = (sh: Shapes) => String(sh).match(/ d="([^"]*)"/)?.[1] ?? "";
+  return `<path d="${d(glow)}" fill="#ffe6b0" style="opacity:calc(var(--lamp, 0) * (0.32 + var(--fog, 0) * 0.25))"/>
+    <path d="${d(bulb)}" fill="#fff3c9" style="opacity:calc(0.35 + var(--lamp, 0) * 0.65)"/>`;
 }
 
 // The pond's moving glint (it pulses, so it is drawn with the live parts).
@@ -122,7 +127,7 @@ function pond(cx: number, cy: number, L: Look, frozen: boolean) {
 function spray(cx: number, cy: number) {
   const q = rnd(4711);
   let s = "";
-  for (let i = 0, n = 10; i < n; i++) {
+  for (let i = 0, n = 6; i < n; i++) {
     const a = (i / n) * 360 + q() * 22, r1 = 31 + q() * 11;
     const t = timing(q, 1.5, 0.18);
     s += `<g transform="translate(${n2(cx)} ${n2(cy)}) rotate(${n2(a)})">
@@ -184,7 +189,7 @@ function ducks(cx: number, cy: number, L: Look, frozen: boolean) {
       `<g transform="translate(${cx + dx} ${cy + dy}) rotate(${a})"><g class="amb-sit" style="${timing(q, 4, 0.3)}">${duck(k, true, "#5a7f99")}</g></g>`).join("");
   }
   const q = rnd(L.season === "winter" ? 31 : 17);
-  const wake = (k: number) => `<g><path d="M${-12 * k} ${-3 * k} Q${-24 * k} ${-8 * k} ${-38 * k} ${-14 * k} M${-12 * k} ${3 * k} Q${-24 * k} ${8 * k} ${-38 * k} ${14 * k}" stroke="#e8f8ff" stroke-width="${n2(1.8 * Math.max(0.7, k))}" fill="none" stroke-linecap="round"/></g>`;
+  const wake = (k: number) => `<path d="M${-12 * k} ${-3 * k} Q${-24 * k} ${-8 * k} ${-38 * k} ${-14 * k} M${-12 * k} ${3 * k} Q${-24 * k} ${8 * k} ${-38 * k} ${14 * k}" stroke="#e8f8ff" stroke-width="${n2(1.8 * Math.max(0.7, k))}" fill="none" stroke-linecap="round"/>`;
   const one = (kind: DuckKind, d: string, dur: number, at: number) =>
     `<g ${along(d, dur, at)}>${wake(kind === "chick" ? 0.45 : 1)}<g class="amb-rock" style="${timing(q, 2.6, 0.3)}">${duck(kind)}</g></g>`;
   const kinds: DuckKind[] = L.season === "winter" ? ["mallard", "hen"] : L.season === "spring" ? ["hen", "mallard"] : ["mallard", "white", "hen"];
@@ -205,12 +210,6 @@ function butterfly(color: string, q: () => number) {
     <ellipse cx="1.5" cy="-4.6" rx="4" ry="5" fill="${color}"/><ellipse cx="1.5" cy="4.6" rx="4" ry="5" fill="${color}"/>
     <ellipse cx="-3" cy="-3.6" rx="3" ry="3.8" fill="${shade}"/><ellipse cx="-3" cy="3.6" rx="3" ry="3.8" fill="${shade}"/></g>
     <ellipse cx="0" cy="0" rx="5.5" ry="1.2" fill="#3a3f4f"/></g>`;
-}
-
-function dragonfly(q: () => number) {
-  const wing = (a: number, x: number, sy: number) => `<ellipse cx="${x}" cy="${sy * 6.5}" rx="2.2" ry="6.5" fill="#e6f7ff" transform="rotate(${a * sy} ${x} 0)"/>`;
-  return `<g class="amb-buzz" style="animation-duration:${n2(0.07 + q() * 0.04)}s">${wing(-14, 1.5, -1)}${wing(-14, 1.5, 1)}${wing(12, -2.5, -1)}${wing(12, -2.5, 1)}</g>
-    <rect x="-13" y="-1" width="16" height="2" rx="1" fill="#2f86d6"/><circle cx="4.5" cy="0" r="2.4" fill="#3a8fd0"/>`;
 }
 
 type BirdKind = "sparrow" | "blackbird" | "tit";
@@ -246,19 +245,19 @@ function snowPatches(x0: number, y0: number, w: number, h: number, cover: number
   return `<g fill="${SNOW}" opacity="0.88">${s}</g>`;
 }
 
+
 /**
  * Which part of the outdoors to draw:
  * - "all" (default): everything in one svg, animated parts included.
- * - "still": what never moves: the city (streets, sidewalks, crosswalks, street trees, rooftops,
- *   plots, hedges), the building shell, the green walk and the park's lawn, paths, pond, fountain
- *   basin, benches, flower beds and picnic blanket. No animation and nothing that depends on the
- *   hour, so it can be shown as one static image. Well under 8000 shapes.
- * - "live": what moves or lights up at night (robot cars and scooters, street lamp glow, lit
- *   skylights, the data center's blinking lights, plot signs, the green walk's and the park's trees,
- *   flowers, the pond's glint, ducks, fountain spray, park lamps, birds and insects), as a
- *   transparent svg of the same size with `position:absolute;left:0;top:0`, to lay over the
- *   "still" one as live page elements. It stays light (under 600 elements): trees share a few sway
- *   groups and similar shapes are merged into one path.
+ * - "still": what never moves: the meadow and its soft edge, the tree belt, the hedge, the lawn,
+ *   the building shell, the walk, the plaza, the park's lawn, paths, pond, fountain basin,
+ *   benches, flower beds, picnic blanket, puddles and snowmen. No animation and nothing that
+ *   depends on the hour, so it can be shown as one static image.
+ * - "live": what moves or lights up at night (the walk's and the park's trees, flowers, the
+ *   pond's glint, ducks, fountain spray, lamps, birds and insects), as a transparent svg of the
+ *   same size with `position:absolute;left:0;top:0`, to lay over the "still" one as live page
+ *   elements. It stays light (about 150 elements): trees share a few sway groups and similar
+ *   shapes are merged into one path.
  * "still" under "live" looks like "all".
  */
 export type OutsideLayer = "all" | "still" | "live";
@@ -273,36 +272,267 @@ export type OutsideOpts = {
   entranceY: number;
   park: Rect;
   season?: Season; snowCover?: number; frozen?: boolean;
-  /** Extra areas kept free of the campus lawn trees (other buildings). */
+  /** Extra areas kept free of lawn trees (other buildings). */
   avoid?: Rect[];
   /** Which part to draw, see OutsideLayer. Default "all". */
   layer?: OutsideLayer;
   /** The shop building's rect. Without it, the first `avoid` rect is taken for the shop. */
   shop?: Rect | null;
-  /** A city layout from cityLayout() with the same building, park and shop (saves computing it again). */
-  city?: CityLayout;
+  /** A layout from groundsLayout() with the same building, park and shop (saves computing it again). */
+  grounds?: Grounds;
+  /** What the weather does to the ground (puddles, frost, heat, snowmen); see weather/ground.ts. */
+  wx?: GroundWx;
+  /** Where puddles form (puddleSpots), drawn when wx has puddles. */
+  puddles?: Puddle[];
 };
 
-/** The city layout outsideSvg draws for these options: streets, blocks, plots, car loops and the suggested outdoor bounds. */
-export function outsideLayout(o: Pick<OutsideOpts, "building" | "entranceY" | "park" | "shop" | "avoid" | "city">): CityLayout {
-  return o.city ?? cityLayout({ building: o.building, entranceY: o.entranceY, park: o.park, shop: o.shop ?? o.avoid?.[0] ?? null });
+/** The season palette as the weather and the snow leave it. */
+function lookFor(o: Pick<OutsideOpts, "season" | "snowCover" | "wx">): Look {
+  const season = o.season ?? "summer";
+  const snow = Math.max(0, Math.min(1, o.snowCover ?? 0));
+  const pal0 = weatherPal(seasonPalette(season), o.wx, snow);
+  // shadows on snow look cool blue-grey, not green
+  const pal = snow > 0 ? { ...pal0, shadow: mix(pal0.shadow, "#3a4a68", snow) } : pal0;
+  return { pal, snow, season, wx: o.wx };
+}
+
+/** The woodland's crown colours (dark, mid, light): the season's trees with evergreens among them. */
+function woodsPal(L: Look) {
+  return [...L.pal.trees, ["#2f5f4a", "#3d7259", "#558a6c"], ["#2a5644", "#376651", "#4d7f63"]];
+}
+
+/**
+ * The calm colour round the grounds, where the woodland fades out: the deep shade under the
+ * canopy (pale blue-grey under snow). The scene behind the outdoors uses it too, so the edge of
+ * the drawing never shows.
+ */
+export function backdropColor(o: Pick<OutsideOpts, "season" | "snowCover" | "wx">) {
+  const L = lookFor(o);
+  return mix("#1e3b33", "#a9b8c6", L.snow * 0.7);
+}
+
+// set the drawing order for the next shapes (see Shapes.z)
+const Z = (s: Shapes, z: number) => { s.z = z; return s; };
+
+/** The grounds without the park: woodland, meadow, hedge, lawn, walk, plaza, kitchen garden, shop lot and lawn trees. */
+function drawGrounds(G: Grounds, L: Look, o: OutsideOpts) {
+  const { pal, snow } = L;
+  const b = o.building, p = o.park, shop = o.shop ?? o.avoid?.[0] ?? null;
+  const lawnC = mix(pal.ground, SNOW, snow >= 0.95 ? 0.8 : snow * 0.45);
+  const back = backdropColor(o);
+  const meadow = mix(lawnC, back, 0.28);
+  const paveC = mix(pal.plaza, SNOW, snow * 0.5), pathC = mix(pal.path, SNOW, snow * 0.55);
+  const hedge = pal.bush, shadowC = pal.shadow;
+  const B = G.bounds, LW = G.lawn;
+
+  const base = new Shapes(1800), low = new Shapes(1800), trees = new Grove(1800), top = new Shapes(1800);
+  let treeN = 0;
+  const tree = (x: number, y: number, r: number, light = false) => { treeInto(trees, x, y, r, treeN % 3, L, 500 + treeN, light); treeN++; };
+  const planter = (x: number, y: number, r = 22) => Z(low, 1).circle(x, y, r - 2.5, `fill="${mix("#6b5646", SNOW, snow * 0.8)}" stroke="${mix("#b3a893", SNOW, snow * 0.6)}" stroke-width="5"`);
+  const hedgeRect = (x: number, y: number, w: number, h: number) => {
+    if (w <= 0 || h <= 0) return;
+    Z(low, 1).rect(x, y, w, h, fill(hedge[1]), 9);
+    Z(low, 2).rect(x + 3, y + 2, w - 6, h * 0.55, fill(mix(hedge[2], SNOW, snow * 0.85)), 7);
+  };
+  const bench = (x: number, y: number) => {
+    Z(low, 0).rect(x + 3, y + 5, 64, 22, fill(shadowC, 0.2), 4);
+    Z(low, 1).rect(x, y, 64, 22, fill(snow > 0.3 ? mix("#b9854c", SNOW, snow * 0.7) : "#b9854c"), 4);
+    Z(low, 2).rect(x, y, 64, 8, fill("#a4723f"), 3);
+  };
+  const rr = (r: Rect, d: number, rad: number) => { const x = r.x + d, y = r.y + d, w = r.w - 2 * d, h = r.h - 2 * d, k = Math.max(4, rad);
+    return `M${n1(x + k)} ${n1(y)}H${n1(x + w - k)}A${k} ${k} 0 0 1 ${n1(x + w)} ${n1(y + k)}V${n1(y + h - k)}A${k} ${k} 0 0 1 ${n1(x + w - k)} ${n1(y + h)}H${n1(x + k)}A${k} ${k} 0 0 1 ${n1(x)} ${n1(y + h - k)}V${n1(y + k)}A${k} ${k} 0 0 1 ${n1(x + k)} ${n1(y)}Z`; };
+
+  // --- ground: the woodland floor, the meadow round the hedge, the lawn inside it ---------------
+  const clear = { x: LW.x - MEADOW, y: LW.y - MEADOW, w: LW.w + 2 * MEADOW, h: LW.h + 2 * MEADOW };
+  const floor = mix(back, meadow, 0.35);
+  let ground = `<rect x="${B.x}" y="${B.y}" width="${B.w}" height="${B.h}" fill="${floor}"/>
+    <path d="${rr(clear, -30, 260)}" fill="${mix(meadow, floor, 0.5)}"/><path d="${rr(clear, 0, 240)}" fill="${meadow}"/>
+    <path d="${rr(LW, 0, 150)}" fill="${lawnC}"/>
+    <path d="${rr(clear, 0, 240)}" fill="url(#lc-grass)"/>`;
+  if (snow > 0 && snow < 0.95) ground += `<rect x="${B.x}" y="${B.y}" width="${B.w}" height="${B.h}" fill="url(#lc-snow)" opacity="${n2(Math.min(1, snow * 1.4) * 0.9)}"/>`;
+
+  // wild flowers in the meadow in the warm months
+  const fl = pal.flowers, qf = rnd(61);
+  const onRing = (a: number, d: number): [number, number] => {
+    const W = LW.w, H = LW.h;
+    return a < W ? [LW.x + a, LW.y - d] : a < W + H ? [LW.x + W + d, LW.y + a - W] : a < 2 * W + H ? [LW.x + W - (a - W - H), LW.y + H + d] : [LW.x - d, LW.y + H - (a - 2 * W - H)];
+  };
+  if (!fl.covered && fl.colors.length) {
+    for (let i = 0; i < 90 * fl.density; i++) {
+      const [x, y] = onRing(qf() * 2 * (LW.w + LW.h), 30 + qf() * (MEADOW - 30));
+      Z(base, 0).circle(x, y, 3 + qf() * 2, fill(fl.colors[i % fl.colors.length], 0.9));
+    }
+  }
+
+  // --- the hedge round the lawn -------------------------------------------------------------------
+  const hd = rr(LW, 16, 140);
+  const hedgeSvg = `<path d="${hd}" fill="none" stroke="${shadowC}" stroke-width="38" opacity="0.2" transform="translate(6 9)"/>
+    <path d="${hd}" fill="none" stroke="${mix(hedge[0], SNOW, snow * 0.5)}" stroke-width="36"/>
+    <path d="${hd}" fill="none" stroke="${mix(hedge[2], SNOW, snow * 0.85)}" stroke-width="16" transform="translate(-3 -4)"/>`;
+
+  // --- the woodland round the clearing: flat overlapping crowns, a ragged edge, fading out ------
+  const canopy = new Shapes(1800), qw = rnd(909), cols = woodsPal(L);
+  const STEP = 116;
+  for (let y = B.y + 40; y < B.y + B.h; y += STEP * 0.86) {
+    const row = Math.round((y - B.y) / STEP);
+    for (let x = B.x + (row % 2 ? STEP / 2 : 0); x < B.x + B.w; x += STEP) {
+      const tx = x + (qw() - 0.5) * STEP * 0.8, ty = y + (qw() - 0.5) * STEP * 0.8;
+      // how far outside the clearing, against a wobbly edge
+      const dx = Math.max(clear.x - tx, tx - (clear.x + clear.w), 0), dy = Math.max(clear.y - ty, ty - (clear.y + clear.h), 0);
+      const out = Math.hypot(dx, dy), edge = 40 + Math.sin(tx * 0.011 + ty * 0.007) * 30 + qw() * 40;
+      // the season's trees grow in clumps among the evergreens (a slow wave decides where)
+      const clump = Math.sin(tx * 0.0031 + Math.cos(ty * 0.0043) * 2.2) + Math.sin(ty * 0.0057 - tx * 0.0013) * 0.7;
+      const ever = clump < 0.15 || qw() < 0.25;
+      const r = 58 + qw() * 34, g = ever ? cols[cols.length - 1 - (qw() < 0.5 ? 1 : 0)] : cols[Math.floor(qw() * (cols.length - 2))];
+      if (out < edge) continue;
+      // far in the fade nothing shows anyway
+      if (Math.min(tx - B.x, B.x + B.w - tx, ty - B.y, B.y + B.h - ty) < FADE * 0.25) continue;
+      if (out < edge + 160) Z(canopy, 0).ellipse(tx + r * 0.3, ty + r * 0.45, r * 1.02, r * 0.68, fill(shadowC, 0.3));
+      Z(canopy, 1).circle(tx, ty, r, fill(g[0]));
+      Z(canopy, 2).circle(tx - r * 0.24, ty - r * 0.2, r * 0.7, fill(mix(g[1], SNOW, snow * 0.6)));
+      if (qw() < 0.3) Z(canopy, 3).circle(tx - r * 0.36, ty - r * 0.36, r * 0.32, fill(mix(g[2], SNOW, snow * 0.9)));
+    }
+  }
+  // the fade: rings of the backdrop colour, each a little further in, stacked into a soft edge
+  let fade = "";
+  const RINGS = 10;
+  for (let i = 0; i < RINGS; i++) {
+    const d = FADE * (1 - i / RINGS);
+    fade += `<path fill-rule="evenodd" d="M${B.x - 2} ${B.y - 2}h${B.w + 4}v${B.h + 4}h${-B.w - 4}Z${rr(B, d, 500 - d)}" fill="${back}" opacity="0.28"/>`;
+  }
+  fade += `<path fill-rule="evenodd" d="M${B.x - 2} ${B.y - 2}h${B.w + 4}v${B.h + 4}h${-B.w - 4}Z${rr(B, FADE * 0.08, 480)}" fill="${back}"/>`;
+  ground += `${canopy}${fade}`;
+
+  // --- the walk: paving, planters with trees, benches; the shop's forecourt opens off it -------
+  const gw = G.walk;
+  Z(base, 1).rect(gw.x, gw.y, gw.w, gw.h, `fill="url(#lc-pave)"`, 30);
+  if (G.forecourt) Z(base, 1).rect(G.forecourt.x, G.forecourt.y, G.forecourt.w, G.forecourt.h, `fill="url(#lc-pave)"`, 14);
+  const walkTrees: [number, number][] = [];
+  for (let x = gw.x + 150; x < gw.x + gw.w - 90; x += 165) {
+    if (!(G.plazaPath && Math.abs(x - G.plazaPath.x - 30) < 80)) walkTrees.push([x, gw.y - 6]);
+    if (!shop || x < shop.x - 60 || x > shop.x + shop.w + 60) walkTrees.push([x + 80, gw.y + gw.h + 6]);
+    else if (x + 80 < shop.x + shop.w - 60) bench(x + 48, gw.y + gw.h - 4);
+  }
+  for (const [x, y] of walkTrees) planter(x, y, 22);
+  for (let x = gw.x + 210; x < gw.x + gw.w - 140; x += 330) if (!(G.plazaPath && Math.abs(x + 32 - G.plazaPath.x - 30) < 90)) bench(x, gw.y - 40);
+
+  // --- the round plaza: a big tree inside a ring bench, a path down to the walk ------------------
+  const pz = G.plaza;
+  if (pz && G.plazaPath) {
+    Z(base, 0).rect(G.plazaPath.x, G.plazaPath.y, G.plazaPath.w, G.plazaPath.h, fill(pathC));
+    Z(base, 2).circle(pz.x, pz.y, pz.r, `fill="url(#lc-pave)"`);
+    Z(low, 0).circle(pz.x + 4, pz.y + 6, 72, `fill="none" stroke="${shadowC}" stroke-width="16" opacity="0.2"`);
+    Z(low, 1).circle(pz.x, pz.y, 72, `fill="none" stroke="${snow > 0.3 ? mix("#b9854c", SNOW, snow * 0.7) : "#b9854c"}" stroke-width="16"`);
+    Z(base, 3).circle(pz.x, pz.y, 60, fill(mix(L.season === "autumn" ? "#6f7d45" : "#5b8f4e", SNOW, snow * 0.8)));
+    if (!fl.covered && fl.colors.length) for (let i = 0; i < 14 * fl.density; i++) {
+      const a = (i / (14 * fl.density)) * Math.PI * 2;
+      Z(base, 4).circle(pz.x + Math.cos(a) * 50, pz.y + Math.sin(a) * 50, 5, fill(fl.colors[i % fl.colors.length]));
+    }
+  }
+
+  // --- a kitchen garden of raised beds on the south lawn ----------------------------------------
+  const kg = { x: b.x + b.w - 760, y: b.y + b.h + 110 };
+  if (LW.y + LW.h - kg.y > 170) {
+    const qv = rnd(33), winter = L.season === "winter", soil = mix("#7a5a3a", SNOW, snow * 0.8);
+    for (let i = 0; i < 3; i++) {
+      const x = kg.x + i * 230, y = kg.y;
+      Z(low, 0).rect(x + 5, y + 7, 190, 84, fill(shadowC, 0.2), 8);
+      Z(low, 1).rect(x, y, 190, 84, fill(mix("#b9854c", SNOW, snow * 0.6)), 8);
+      Z(low, 2).rect(x + 8, y + 8, 174, 68, fill(soil), 5);
+      if (winter || snow >= 0.95) continue;
+      for (let row = 0; row < 3; row++) for (let k = 0; k < 6; k++) {
+        const cx = x + 24 + k * 28, cy = y + 22 + row * 21;
+        Z(low, 3).circle(cx, cy, 8 + qv() * 2, fill(mix(L.season === "autumn" ? "#8a8f3c" : "#5f9e4f", SNOW, snow * 0.75)));
+        if (i === 1 && L.season === "summer" && qv() < 0.4) Z(low, 4).circle(cx + 3, cy + 2, 3.4, fill("#e2626b"));
+        if (i === 2 && L.season === "autumn" && qv() < 0.3) Z(low, 4).circle(cx + 2, cy + 3, 6, fill("#e8892f"));
+      }
+    }
+    Z(low, 1).rect(kg.x + 700, kg.y + 22, 34, 44, fill("#4f8f8a"), 6);   // a watering can
+    Z(low, 2).circle(kg.x + 717, kg.y + 30, 7, fill("#6fb2ad"));
+  }
+
+  // --- trees on the lawn round the building ---------------------------------------------------
+  const lawnTrees: [number, number, number][] = [];
+  const nRow = Math.max(2, Math.round(b.w / 700));
+  for (let i = 0; i < nRow; i++) {
+    const x = b.x + (b.w * (i + 0.5)) / nRow;
+    lawnTrees.push([x, b.y - 175, 40 + (i % 3) * 4]);
+    lawnTrees.push([x + 120, b.y + b.h + 185, 42 + ((i + 1) % 3) * 4]);
+  }
+  lawnTrees.push([b.x - 170, b.y + b.h * 0.3, 44], [b.x - 175, b.y + b.h * 0.78, 42], [gw.x + 90, LW.y + 130, 44], [p.x - 140, LW.y + 150, 40],
+    [p.x + p.w + 160, p.y + 120, 42], [p.x + p.w + 150, p.y + p.h - 100, 46], [p.x + 160, LW.y + LW.h - 120, 42], [p.x + p.w - 220, LW.y + LW.h - 130, 38]);
+  if (shop) lawnTrees.push([shop.x - 140, shop.y + shop.h + 120, 40], [shop.x + shop.w + 120, shop.y + shop.h + 110, 44]);
+  const hit = (x: number, y: number, r: Rect, pad: number) => x > r.x - pad && x < r.x + r.w + pad && y > r.y - pad && y < r.y + r.h + pad;
+  for (const [x, y, r] of lawnTrees) {
+    if (!hit(x, y, LW, -60)) continue;
+    if (hit(x, y, b, 70) || hit(x, y, p, 50) || hit(x, y, gw, 60) || (shop && hit(x, y, shop, 70)) || (G.forecourt && hit(x, y, G.forecourt, 50))) continue;
+    if (pz && Math.hypot(x - pz.x, y - pz.y) < pz.r + 70) continue;
+    if (hit(x, y, { x: kg.x, y: kg.y, w: 740, h: 84 }, 60)) continue;
+    if (o.avoid?.some((a) => hit(x, y, a, 40))) continue;
+    tree(x, y, r);
+  }
+  // a hedge round the shop's lot (not along its front)
+  if (shop) {
+    hedgeRect(shop.x - 46, shop.y + 40, 18, shop.h - 20);
+    hedgeRect(shop.x + shop.w + 28, shop.y + 40, 18, shop.h - 20);
+    hedgeRect(shop.x - 46, shop.y + shop.h + 40, shop.w + 92, 18);
+  }
+
+  // --- what sways: the walk's trees and the plaza tree (live) ----------------------------------
+  const ox = o.ox, oy = o.oy;
+  const sway = [new Grove(), new Grove(), new Grove()];
+  walkTrees.forEach(([x, y], i) => treeInto(sway[i % 3], x - ox, y - oy, 30 + (i % 3) * 3, i % 3, L, 900 + i));
+  if (pz) treeInto(sway[1], pz.x - ox, pz.y - oy, 56, 0, L, 77);
+  const qs2 = rnd(1234);
+  const stillLocal = sway.map((Gr) => `${Gr.under}${Gr.still()}`).join("");
+  const live = sway.map((Gr) => `<g class="amb-tree" style="${timing(qs2, 7, 0.35, `;--a:${n2(1.4 + qs2() * 1)}px`)}">${Gr.moving()}</g>`).join("");
+  const lamps: [number, number][] = [[gw.x + 120 - ox, gw.y - 40 - oy], [gw.x + gw.w * 0.55 - ox, gw.y + gw.h + 40 - oy]];
+  if (pz) lamps.push([pz.x + 104 - ox, pz.y - 70 - oy]);
+
+  const snowmen = o.wx?.snowmen && pz ? snowman(pz.x - 190, pz.y + 30, 7) : "";
+  return {
+    ground: `<g transform="translate(${-ox} ${-oy})">${ground}${base}</g>`,
+    still: `<g transform="translate(${-ox} ${-oy})"><g>${hedgeSvg}</g>${low}${trees.all()}${top}${snowmen}</g>${stillLocal}${lamps.map(([x, y]) => lampHead(x, y)).join("")}`,
+    live,
+    lamps,
+    trees: treeN,
+  };
+}
+
+function patterns(L: Look) {
+  const { pal, snow } = L;
+  const tuftOp = pal.tuftOpacity * (1 - snow);
+  const qg = rnd(7);
+  let tufts = "";
+  for (let i = 0; i < 9; i++) tufts += `M${n1(6 + qg() * 128)} ${n1(8 + qg() * 124)}l2 -6l2 6`;
+  const qs = rnd(321);
+  let lumps = "";
+  for (let i = 0; i < 7; i++) {
+    const x = qs() * 700, y = qs() * 700, size = 30 + qs() * 60;
+    for (let j = 0, m = 3 + Math.floor(qs() * 3); j < m; j++) {
+      const a = qs() * Math.PI * 2, d = qs() * size, cx = x + Math.cos(a) * d * 1.4, cy = y + Math.sin(a) * d * 0.6;
+      const rx = size * (0.5 + qs() * 0.5), ry = size * (0.35 + qs() * 0.25);
+      // drawn again across the tile edges so the pattern wraps without seams
+      for (const [dx, dy] of [[0, 0], [-700, 0], [0, -700], [700, 0], [0, 700]]) if (cx + dx + rx > 0 && cx + dx - rx < 700 && cy + dy + ry > 0 && cy + dy - ry < 700)
+        lumps += `<ellipse cx="${n1(cx + dx)}" cy="${n1(cy + dy)}" rx="${n1(rx)}" ry="${n1(ry)}"/>`;
+    }
+  }
+  const paveC = mix(pal.plaza, SNOW, snow * 0.5);
+  return `
+    <pattern id="lc-grass" width="140" height="140" patternUnits="userSpaceOnUse"><path d="${tufts}" stroke="${pal.tuft}" stroke-width="1.6" fill="none" stroke-linecap="round" opacity="${n2(0.5 * tuftOp)}"/></pattern>
+    <pattern id="lc-snow" width="700" height="700" patternUnits="userSpaceOnUse"><g fill="${SNOW}">${lumps}</g></pattern>
+    <pattern id="lc-pave" width="44" height="44" patternUnits="userSpaceOnUse"><rect width="44" height="44" fill="${paveC}"/><path d="M0 0.75H44M0.75 0V44" stroke="${mix(paveC, "#7a6a50", 0.16)}" stroke-width="1.5"/></pattern>`;
 }
 
 export function outsideSvg(o: OutsideOpts) {
   const { ox, oy, w, h, building: b, park: p } = o;
-  const season = o.season ?? "summer";
-  const snow = Math.max(0, Math.min(1, o.snowCover ?? 0));
+  const L = lookFor(o);
+  const { season, snow, pal } = L;
   const frozen = o.frozen ?? (season === "winter" && snow >= 0.4);
-  // shadows on snow look cool blue-grey, not green
-  const pal0 = seasonPalette(season);
-  const pal = snow > 0 ? { ...pal0, shadow: mix(pal0.shadow, "#3a4a68", snow) } : pal0;
-  const L: Look = { pal, snow, season };
-  const ground = mix(pal.ground, SNOW, snow >= 0.95 ? 0.8 : snow * 0.45);
   const X = (x: number) => x - ox, Y = (y: number) => y - oy;
-  const C = outsideLayout(o);
   const shop = o.shop ?? o.avoid?.[0] ?? null;
-  const city = drawCity(C, L, { ox, oy, w, h }, { building: b, entranceY: o.entranceY, park: p, shop, frozen });
-  lastStats = city.stats;
+  const G = o.grounds ?? groundsLayout({ building: b, entranceY: o.entranceY, park: p, shop });
+  const grounds = drawGrounds(G, L, { ...o, shop });
   // the park: pond, paths, benches, lamps, flower beds, a few big trees
   const pcx = X(p.x + p.w / 2), pcy = Y(p.y + p.h / 2);
   const path = mix(pal.path, SNOW, snow * 0.55), plaza = mix(pal.plaza, SNOW, snow * 0.45);
@@ -318,7 +548,7 @@ export function outsideSvg(o: OutsideOpts) {
     return [at(0, t), at(1, t), (Math.atan2(at(1, t + 0.01) - at(1, t), at(0, t + 0.01) - at(0, t)) * 180) / Math.PI];
   };
   const birdSpots: [number, number, number, BirdKind][] = [
-    [pcx - 8, pcy + 220, 90, "sparrow"], [pcx + 6, pcy - 340, -90, "tit"], [...entrancePath(0.42), "blackbird"], [pcx - 360, pcy + 412, 186, "sparrow"],
+    [pcx - 8, pcy + 220, 90, "sparrow"], [pcx + 6, pcy - 340, -90, "tit"], [...entrancePath(0.42), "blackbird"],
   ];
   const birds = `<g style="opacity:calc(1.4 - var(--night, 0) * 4.5)">${birdSpots.map(([x, y, a, k]) => {
     const t = timing(ql, 14, 0.25);
@@ -327,26 +557,20 @@ export function outsideSvg(o: OutsideOpts) {
   let fliers = "";
   if (season === "spring" || season === "summer") {
     // butterflies round the flower beds
-    const beds = [[pcx - 235, pcy + 193], [pcx - 235, pcy + 193], [pcx + 265, pcy + 352], [pcx + 265, pcy + 352], [pcx + 200, pcy - 280]];
-    const cols = ["#ffd27a", "#ffffff", "#ff9f5a", "#b07cff", "#4fb6ff"];
+    const beds = [[pcx - 235, pcy + 193], [pcx + 265, pcy + 352]];
+    const cols = ["#ffd27a", "#4fb6ff"];
     fliers += beds.map(([x, y], i) => {
       const path = loop(x, y, 170, 110, ql, 6, i % 2 ? 1 : -1);
       return `<g class="amb-occ" style="${timing(ql, 55, 0.3)}"><g ${along(path.d, path.len / (16 + ql() * 8), ql())}>${butterfly(cols[i], ql)}</g></g>`;
     }).join("");
   }
-  if (season === "summer") {
-    fliers += [0, 1].map((i) => {
-      const path = loop(pcx + 260, pcy - 120, 160, 92, ql, 6, i ? 1 : -1);
-      return `<g ${along(path.d, 20 + ql() * 10, ql(), "amb-dart")}>${dragonfly(ql)}</g>`;
-    }).join("");
-  }
   fliers = fliers ? `<g style="opacity:calc(1.4 - var(--night, 0) * 3.4 - var(--wind, 0.2) * 2)">${fliers}</g>` : "";
   if (season === "summer") {
-    // six swarms of five, each drifting and blinking in its own rhythm, spread over the whole park
+    // two swarms of eight, each drifting and blinking in its own rhythm, spread over the park
     let ff = "";
-    for (let g = 0; g < 6; g++) {
+    for (let g = 0; g < 2; g++) {
       const dots = new Shapes();
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 8; i++) {
         const x = X(p.x) + 70 + ql() * (p.w - 140), y = Y(p.y) + 70 + ql() * (p.h - 140);
         dots.circle(x, y, 9, fill("#fff3a0", 0.3)); dots.circle(x, y, 2.6, fill("#fffde6"));
       }
@@ -355,6 +579,9 @@ export function outsideSvg(o: OutsideOpts) {
     fliers += `<g style="opacity:calc((var(--lamp, 0) - 0.45) * 2)">${ff}</g>`;
   }
   // the park: its ground and furniture stay still, the rest lives
+  const parkTrees = [tree(X(p.x) + 110, Y(p.y) + 110, 64, 0, L, 1), tree(X(p.x + p.w) - 120, Y(p.y + p.h) - 120, 70, 1, L, 2), tree(pcx - 320, pcy - 200, 58, 2, L, 3), tree(X(p.x + p.w) - 110, Y(p.y) + 300, 54, 0, L, 4)];
+  const bushes = [bush(pcx - 470, pcy + 230, 40, L), bush(pcx - 200, pcy + 420, 34, L), bush(pcx + 420, pcy + 220, 38, L), bush(pcx + 470, pcy + 260, 30, L)];
+  const parkLamps: [number, number][] = [[pcx - 60, pcy - 170], [pcx + 60, pcy + 190], [X(p.x) + 120, Y(o.entranceY) - 110]];
   const beds = [flowers(pcx - 330, pcy + 170, 190, 46, 3, L), flowers(pcx + 120, pcy - 300, 160, 40, 5, L), flowers(pcx + 160, pcy + 330, 210, 44, 9, L)];
   const parkGround = `
     <rect x="${X(p.x)}" y="${Y(p.y)}" width="${p.w}" height="${p.h}" rx="60" fill="${mix(pal.park[0], SNOW, snow >= 0.95 ? 0.8 : snow * 0.45)}"/>
@@ -366,16 +593,19 @@ export function outsideSvg(o: OutsideOpts) {
     <circle cx="${pcx}" cy="${pcy}" r="70" fill="${plaza}"/><circle cx="${pcx}" cy="${pcy}" r="52" fill="${fountainWater}"/><circle cx="${pcx}" cy="${pcy}" r="16" fill="${plaza}"/>
     ${bench(pcx - 150, pcy - 110, L)}${bench(pcx + 80, pcy + 110, L)}${bench(pcx - 150, pcy + 120, L)}
     ${beds.map((b) => b.bed).join("")}
-    ${picnic(pcx - 380, pcy + 300, L)}`;
+    ${picnic(pcx - 380, pcy + 300, L)}
+    ${bushes.map((q) => q.still).join("")}${parkLamps.map(([x, y]) => lampHead(x, y)).join("")}
+    ${o.wx?.snowmen ? snowman(pcx - 260, pcy - 360, 1) + snowman(pcx + 520, pcy + 60, 2) : ""}`;
   const park = `
     ${pondShine(pcx + 260, pcy - 120, frozen)}${ducks(pcx + 260, pcy - 120, L, frozen)}
     ${jet}
     ${beds.map((b) => b.blooms).join("")}
-    ${bush(pcx - 470, pcy + 230, 40, L)}${bush(pcx - 200, pcy + 420, 34, L)}${bush(pcx + 420, pcy + 220, 38, L)}${bush(pcx + 470, pcy + 260, 30, L)}
-    ${lamp(pcx - 60, pcy - 170)}${lamp(pcx + 60, pcy + 190)}${lamp(X(p.x) + 120, Y(o.entranceY) - 110)}
+    ${bushes.map((q) => q.live).join("")}
+    ${lampLights([...parkLamps, ...grounds.lamps])}
     ${birds}
-    ${tree(X(p.x) + 110, Y(p.y) + 110, 64, 0, L, 1)}${tree(X(p.x + p.w) - 120, Y(p.y + p.h) - 120, 70, 1, L, 2)}${tree(pcx - 320, pcy - 200, 58, 2, L, 3)}${tree(X(p.x + p.w) - 110, Y(p.y) + 300, 54, 0, L, 4)}
-    ${fliers}`;
+    ${parkTrees.map((q) => q.live).join("")}
+    ${fliers}
+    ${o.wx?.hot ? `<g style="opacity:calc(1.2 - var(--lamp, 0) * 2)">${sprinkler(pcx - 430, pcy - 260, 1)}${sprinkler(pcx + 420, pcy + 420, 2)}${sprinkler(X(G.walk.x) + 260, Y(G.walk.y) - 170, 3)}</g>` : ""}`;
   // the building: thick outer wall, a shadow, an entrance with steps toward the park
   const bx = X(b.x), by = Y(b.y);
   const shell = `
@@ -384,13 +614,14 @@ export function outsideSvg(o: OutsideOpts) {
     <rect x="${bx - 14}" y="${by - 14}" width="${b.w + 28}" height="${b.h + 28}" rx="12" fill="${mix("#5d6373", SNOW, snow * 0.85)}"/>
     <rect x="${bx + b.w - 4}" y="${Y(o.entranceY) - 60}" width="40" height="120" fill="#b9a27e"/>
     <rect x="${bx + b.w + 36}" y="${Y(o.entranceY) - 70}" width="60" height="140" rx="10" fill="${plaza}"/>`;
-  const still = `<defs>${city.defs}</defs>
-    <rect width="${w}" height="${h}" fill="${ground}"/>
-    ${city.ground}
+  const still = `<defs>${patterns(L)}</defs>
+    ${grounds.ground}
     ${shell}
     ${parkGround}
-    ${city.still}`;
-  const live = `${city.live}${park}`;
+    ${o.wx && o.puddles ? `<g transform="translate(${-ox} ${-oy})">${puddleSvg(o.puddles, o.wx, { x: ox, y: oy, w, h })}</g>` : ""}
+    ${grounds.still}
+    ${parkTrees.map((q) => q.still).join("")}`;
+  const live = `${grounds.live}${park}`;
   const layer = o.layer ?? "all";
   const open = `<svg class="outside season-${season}${layer === "live" ? " outside-live" : ""}" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true"`;
   if (layer === "still") return `${open}>${still}</svg>`;

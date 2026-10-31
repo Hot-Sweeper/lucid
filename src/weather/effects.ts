@@ -12,12 +12,22 @@ export type { Weather, WeatherKind, Season } from "./types";
 
 type Rect = { x: number; y: number; w: number; h: number };
 export type OutdoorRect = Rect & { park?: Rect; entranceY?: number };
-export type WeatherOpts = { night: number; season?: Season; frozen?: boolean };
+export type WeatherOpts = { night: number; season?: Season; frozen?: boolean;
+  /** What lies on the ground: puddles left (0 to 1), heat over the paving, snow that takes footprints. */
+  ground?: { puddles: number; hot: boolean; prints: boolean } };
+/** A puddle (world coordinates) that rain ripples; `keep` above the puddle level means it has dried up. */
+export type PuddleSpot = { x: number; y: number; r: number; keep: number };
+/** Someone walking outdoors (world coordinates), for footprints in the snow. */
+export type Stepper = { id: string; x: number; y: number };
 export type WeatherLayer = {
   set(w: Weather | null, opts: WeatherOpts): void;
   resize(rect: OutdoorRect): void;   // the building grew and the outdoors moved
   onFlash: ((strength: number) => void) | null; // lightning, e.g. to light up the window skies
   flash(): void;                     // a lightning flash right now (storms also flash on their own)
+  /** Puddles that ripple in the rain and the paving that shimmers in the heat (world coordinates). */
+  setGround(puddles: PuddleSpot[], paved: Rect[]): void;
+  /** Who walks outdoors right now (read every frame, so keep it cheap: no page measuring). */
+  setSteppers(fn: (() => Stepper[]) | null): void;
   /** The camera moved: where the world sits on screen and its zoom. Avoids measuring the page every frame. */
   setCamera(cam: { x: number; y: number; s: number }, scene: { left: number; top: number; width: number; height: number }, worldW: number): void;
   destroy(): void;
@@ -150,6 +160,14 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   let raf = 0, last = 0, clock = 0, skyAt = -1, nextFlash = 0, dead = false;
   let view: { x: number; y: number; w: number; h: number; k: number } | null = null;
   const ripples: Ripple[] = [];
+  // the ground: puddles and paving (relative to the outdoor rect), footprints in the snow
+  let ground = { puddles: 0, hot: false, prints: false };
+  let puddlesW: PuddleSpot[] = [], pavedW: Rect[] = [], pud: PuddleSpot[] = [], roads: Rect[] = [];
+  const toLocal = () => { pud = puddlesW.map((p) => ({ ...p, x: p.x - rect.x, y: p.y - rect.y })); roads = pavedW.map((q) => ({ ...q, x: q.x - rect.x, y: q.y - rect.y })); };
+  let steppers: (() => Stepper[]) | null = null;
+  type Print = { x: number; y: number; a: number; born: number };
+  const prints: Print[] = [];
+  const lastStep = new Map<string, { x: number; y: number; side: number }>();
   const drifts: Drift[] = [];
   const r = rnd(1234);
 
@@ -349,6 +367,17 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
       if (vis(Wk.x0, Wk.y) || vis(Wk.x1, Wk.y)) for (let i = chance(5 * amount); i > 0; i--)
         ripples.push({ x: Wk.x0 + r() * (Wk.x1 - Wk.x0), y: Wk.y + (r() - 0.5) * 34, born: t, size: 0.45, kind: 1 });
     }
+    // rain rings on the puddles that are on screen
+    if (pud.length && ground.puddles > 0) {
+      for (const p of pud) {
+        if (p.keep > ground.puddles + 0.2 || !vis(p.x, p.y)) continue;
+        for (let i = chance(1.4 * amount * (p.r / 20)); i > 0; i--) {
+          const a = r() * Math.PI * 2, d = Math.sqrt(r()) * p.r * 0.5;
+          ripples.push({ x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.6, born: t, size: clamp(p.r / 30, 0.3, 0.75), kind: 1 });
+        }
+        if (ripples.length > 260) return;
+      }
+    }
     // faint splashes on the grass wherever you look
     const area = Math.max(0, Math.min(v.x + v.w, rect.w) - Math.max(v.x, 0)) * Math.max(0, Math.min(v.y + v.h, rect.h) - Math.max(v.y, 0));
     for (let i = chance(Math.min(80, (area / 40000) * amount)); i > 0; i--)
@@ -381,7 +410,9 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   // leaves in autumn, petals in spring: a few drifting pieces around what is on screen
   function stepDrifts(t: number, dt: number, v: NonNullable<typeof view>) {
     const petals = season === "spring";
-    const want = season === "autumn" || petals ? Math.round(clamp((v.w * v.h) / 70000, 6, petals ? 46 : 34) * (R.snow > 0 ? 0 : R.rain > 1 ? 0.6 : 1)) : 0;
+    // a windy day sends more leaves flying
+    const gust = 1 + clamp((windKmh - 18) / 25, 0, 1);
+    const want = season === "autumn" || petals ? Math.round(clamp((v.w * v.h) / 70000, 6, petals ? 46 : 34) * gust * (R.snow > 0 ? 0 : R.rain > 1 ? 0.6 : 1)) : 0;
     const wind = windX * (12 + windKmh * 2.2);
     for (let i = drifts.length - 1; i >= 0; i--) {
       const d = drifts[i];
@@ -421,6 +452,73 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
     fg.globalAlpha = 1;
   }
 
+  // footprints: every walker outdoors leaves a print every half stride; they fade over half a minute
+  const PRINT_LIFE = 30;
+  function stepPrints(t: number) {
+    const list = steppers?.() ?? [];
+    for (const p of list) {
+      const x = p.x - rect.x, y = p.y - rect.y, l = lastStep.get(p.id);
+      if (!l) { lastStep.set(p.id, { x, y, side: 1 }); continue; }
+      const d = Math.hypot(x - l.x, y - l.y);
+      if (d > 60) { l.x = x; l.y = y; continue; }   // picked up and put down elsewhere
+      if (d < 15) continue;
+      const nx = (y - l.y) / d, ny = -(x - l.x) / d;
+      l.side = -l.side;
+      prints.push({ x: x + nx * 4 * l.side, y: y + ny * 4 * l.side, a: Math.atan2(y - l.y, x - l.x), born: t });
+      l.x = x; l.y = y;
+    }
+    while (prints.length && (prints.length > 500 || t - prints[0].born > PRINT_LIFE)) prints.shift();
+    return list;
+  }
+  function drawPrints(t: number, v: NonNullable<typeof view>, walkers: Stepper[]) {
+    if (!prints.length) return;
+    fg.fillStyle = "#8d9fb6";
+    const s = Math.max(1, v.k * 0.6);
+    // in three age buckets, so they fade without a fill call per print; none right under someone's feet
+    for (let b = 0; b < 3; b++) {
+      fg.beginPath();
+      let any = false;
+      for (const p of prints) {
+        const age = (t - p.born) / PRINT_LIFE;
+        if (Math.min(2, Math.floor(age * 3)) !== b || p.x < v.x || p.x > v.x + v.w || p.y < v.y || p.y > v.y + v.h) continue;
+        // this canvas lies over the robots: skip prints a robot is standing on or in front of
+        if (walkers.some((w) => { const dy = p.y - (w.y - rect.y); return Math.abs(w.x - rect.x - p.x) < 18 && dy > -74 && dy < 9; })) continue;
+        fg.moveTo(p.x + 3.4 * s, p.y); fg.ellipse(p.x, p.y, 3.4 * s, 2 * s, p.a, 0, Math.PI * 2);
+        any = true;
+      }
+      if (any) { fg.globalAlpha = [0.5, 0.32, 0.16][b]; fg.fill(); }
+    }
+    fg.globalAlpha = 1;
+  }
+
+  // heat shimmer: faint wavy bright ribbons over the paving, breathing in and out
+  function drawShimmer(t: number, v: NonNullable<typeof view>) {
+    if (v.k > 3.2) return;   // zoomed far out it cannot be seen anyway
+    fg.strokeStyle = "#fff6e0";
+    fg.lineWidth = 7 * Math.max(1, v.k * 0.7);
+    fg.lineCap = "round";
+    const step = Math.max(18, v.k * 10);
+    let n = 0;
+    for (const q of roads) {
+      if (q.x > v.x + v.w || q.x + q.w < v.x || q.y > v.y + v.h || q.y + q.h < v.y) continue;
+      const along = q.w > q.h;
+      const a0 = along ? Math.max(q.x, v.x) : Math.max(q.y, v.y), a1 = along ? Math.min(q.x + q.w, v.x + v.w) : Math.min(q.y + q.h, v.y + v.h);
+      for (let k = 0; k < 3 && n < 40; k++, n++) {
+        const off = (along ? q.y : q.x) + (along ? q.h : q.w) * (0.22 + k * 0.28);
+        const ph = k * 2.1 + (along ? q.y : q.x) * 0.01;
+        fg.globalAlpha = 0.05 + 0.05 * Math.max(0, Math.sin(t * 0.9 + ph));
+        fg.beginPath();
+        for (let a = a0; a <= a1; a += step) {
+          const w = Math.sin(a * 0.045 + t * 2.4 + ph) * 2.6 + Math.sin(a * 0.013 - t * 1.1) * 1.8;
+          if (a === a0) { if (along) fg.moveTo(a, off + w); else fg.moveTo(off + w, a); }
+          else if (along) fg.lineTo(a, off + w); else fg.lineTo(off + w, a);
+        }
+        fg.stroke();
+      }
+    }
+    fg.globalAlpha = 1;
+  }
+
   function flash() {
     const k = clamp(0.3 + opts.night * 1.2, 0.3, 0.65);
     flashEl.animate([{ opacity: 0 }, { opacity: k, offset: 0.06 }, { opacity: k * 0.15, offset: 0.22 }, { opacity: k * 0.8, offset: 0.32 }, { opacity: 0 }], { duration: 800, easing: "ease-out" });
@@ -438,7 +536,9 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
     // the sky changes slowly: redraw it at 30 fps (4 fps when motion is reduced)
     if (clock - skyAt > (slow ? 0.25 : 1 / 30) || skyAt < 0) { drawSky(clock); skyAt = clock; }
     const rain = R.rain, snow = R.snow;
-    const busy = rain > 0 || snow > 0 || season === "autumn" || season === "spring";
+    const printing = ground.prints && !!steppers;
+    if (!printing && prints.length) { prints.length = 0; lastStep.clear(); }
+    const busy = rain > 0 || snow > 0 || season === "autumn" || season === "spring" || ground.hot || printing;
     view = busy ? measure() : null;
     if (view || fallDirty) {
       fg.setTransform(1, 0, 0, 1, 0, 0);
@@ -451,6 +551,8 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
       // with reduced motion the falling things hold still: a static texture
       const tp = slow ? 0 : clock;
       if (rain > 0) { if (!slow) spawnRipples(clock, dt, v, rain); drawRain(tp, v, rain); drawRipples(clock, v); }
+      if (ground.hot && !slow) drawShimmer(clock, v);
+      if (printing) drawPrints(clock, v, slow ? [] : stepPrints(clock));
       if (snow > 0) drawSnow(tp, v, snow);
       if (!slow) stepDrifts(clock, dt, v); else { drifts.length = 0; }
     }
@@ -476,12 +578,15 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   const layer: WeatherLayer = {
     onFlash: null,
     setCamera(c, sc, w) { cam = { ...c }; sceneBox = { ...sc }; hostW = w || 1; },
+    setGround(p, rs) { puddlesW = p; pavedW = rs; toLocal(); },
+    setSteppers(fn) { steppers = fn; schedule(); },
     flash,
     set(w, o) {
       weather = w;
       opts = { ...o };
       const look = outdoorLook(new Date(), w);
       season = o.season ?? look.season;
+      ground = o.ground ?? { puddles: 0, hot: false, prints: false };
       frozen = o.frozen ?? look.frozen;
       R = RECIPES[w?.kind ?? "clear"];
       windKmh = w?.windKmh ?? 8;
@@ -495,7 +600,8 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
     resize(next) {
       rect = { ...next };
       geo = parkGeo();
-      ripples.length = 0; drifts.length = 0;
+      toLocal();
+      ripples.length = 0; drifts.length = 0; prints.length = 0; lastStep.clear();
       place();
       skyAt = -1;
       schedule();

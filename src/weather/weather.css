@@ -1,0 +1,23 @@
+/* Weather on the ground and on the robots (src/weather/ground.ts, gear.ts). Only transform and
+   opacity loops on a handful of small SVG groups. */
+
+/* a lawn sprinkler's jet swings back and forth */
+.wx-sprinkle { animation: wx-sprinkle 3s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: 0% 50%; }
+@keyframes wx-sprinkle { from { transform: rotate(-70deg); } to { transform: rotate(70deg); } }
+
+/* an umbrella bobs gently in the robot's hand (origin: the hand, low on the shaft) */
+.wx-umb { animation: wx-umb 2.4s ease-in-out infinite alternate; transform-origin: 602px 760px; }
+@keyframes wx-umb { from { transform: rotate(-3deg); } to { transform: rotate(4deg); } }
+
+/* breath in the cold: a little cloud now and then, drifting off and fading */
+.wx-puff { animation: wx-puff 3.4s ease-out infinite; transform-box: fill-box; transform-origin: 0% 50%; opacity: 0; }
+@keyframes wx-puff {
+  0%, 55% { opacity: 0; transform: translate(0, 0) scale(0.4); }
+  64% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(22px, 10px) scale(1.7); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wx-sprinkle, .wx-umb { animation: none !important; }
+  .wx-puff { display: none; }
+}
