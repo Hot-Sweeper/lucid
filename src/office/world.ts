@@ -757,11 +757,18 @@ export class World {
     for (const d of this.allDesks) {
       const b = d.el.querySelector(".bubble.show") as HTMLElement | null;
       if (!b) continue;
-      const left = parseFloat(d.el.style.left) || 0;
-      const rx = this.cam.x + (left + 248 + 214) * s;          // right edge when it opens to the right
-      const lx = this.cam.x + (left + 400 - 248 - 214) * s;    // left edge when it opens to the left
-      const flip = rx > right && lx > 8;
+      const left = parseFloat(d.el.style.left) || 0, BW = 234;  // bubble width with its padding
+      const l0 = this.cam.x + (left + 248) * s, r0 = l0 + BW * s;          // opening to the right
+      const r1 = this.cam.x + (left + 400 - 248) * s, l1 = r1 - BW * s;    // opening to the left
+      let flip = false, shift = 0;
+      if (r0 > right) {
+        if (l1 >= 8) flip = true;
+        // zoomed in close neither side fits: slide it along until it is all in view
+        else shift = Math.max(0, Math.min((r0 - right) / s, (l0 - 8) / s));
+      }
       if (flip !== b.classList.contains("flip")) b.classList.toggle("flip", flip);
+      const want = shift ? `${(248 - shift).toFixed(0)}px` : "";
+      if (b.style.left !== want) b.style.left = want;
     }
   }
 
@@ -1057,7 +1064,8 @@ export class World {
     this.stopFollow();
     this.focusDesk = d;
     this.focusMode = "desk";
-    this.flyTo({ x: parseFloat(d.el.style.left) - 10, y: parseFloat(d.el.style.top) - 6, w: UNIT_W + 20, h: UNIT_H + 12 }, 18, 0.85, this.panelWidth);
+    // the frame includes the project tag that sits above the monitor
+    this.flyTo({ x: parseFloat(d.el.style.left) - 10, y: parseFloat(d.el.style.top) - 32, w: UNIT_W + 20, h: UNIT_H + 38 }, 18, 0.85, this.panelWidth);
     this.scene.classList.add("screen-mode");
     this.onFocus(d);
   }
@@ -1067,7 +1075,8 @@ export class World {
     this.focusDesk = d;
     this.focusMode = "screen";
     const m = GEOM.screen;
-    this.flyTo({ x: parseFloat(d.el.style.left) + m.x, y: parseFloat(d.el.style.top) + m.y, w: m.w, h: m.h }, 22, 0.9, this.panelWidth);
+    const tag = Math.max(0, m.y + 32);   // keep the project tag above the monitor in view
+    this.flyTo({ x: parseFloat(d.el.style.left) + m.x, y: parseFloat(d.el.style.top) + m.y - tag, w: m.w, h: m.h + tag }, 22, 0.9, this.panelWidth);
     this.scene.classList.add("screen-mode");
     this.onFocus(d);
   }
