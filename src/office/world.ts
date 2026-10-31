@@ -543,12 +543,88 @@ export class World {
 
   deskFor(threadId: string) { return this.desks.get(threadId) ?? null; }
 
+  // --- following a walking robot with the camera -----------------------------------
+  // Click a robot that is walking around (break room, park, hallway, shop) and the camera
+  // stays on it as it goes about its business. Panning, zooming or Esc lets go.
+  private followEl: HTMLElement | null = null;
+  private followChip: HTMLElement | null = null;
+  private followTick = () => {
+    const el = this.followEl;
+    if (!el || !el.isConnected) {
+      // it walked out of view into another room: pick it up again if it is somewhere else
+      const id = el?.dataset.id;
+      const again = id ? (this.root.querySelector(`.world-walker[data-id="${CSS.escape(id)}"]`) as HTMLElement | null) : null;
+      if (again) { this.followEl = again; return; }
+      const desk = id ? this.desks.get(id) : null;
+      this.stopFollow();
+      if (desk && !desk.el.classList.contains("arriving")) this.showDesk(desk);
+      return;
+    }
+    const r = el.getBoundingClientRect(), s = this.scene.getBoundingClientRect();
+    const cx = r.left + r.width / 2 - s.left, cy = r.top + r.height / 2 - s.top;
+    const W = this.scene.clientWidth - this.panelWidth * 0, H = this.scene.clientHeight;
+    const target = Math.max(0.9, Math.min(1.6, this.cam.s));
+    if (Math.abs(this.cam.s - target) > 0.01) {
+      const k = this.cam.s + (target - this.cam.s) * 0.08;
+      this.cam.x = cx - ((cx - this.cam.x) / this.cam.s) * k; this.cam.y = cy - ((cy - this.cam.y) / this.cam.s) * k; this.cam.s = k;
+    }
+    this.cam.x += (W / 2 - cx) * 0.1;
+    this.cam.y += (H * 0.55 - cy) * 0.1;
+    this.apply();
+    this.paintFollowChip();
+  };
+  follow(el: HTMLElement) {
+    if (this.focusDesk) this.unfocus(false);
+    this.select(null);
+    gsap.killTweensOf(this.cam);
+    this.followEl = el;
+    gsap.ticker.remove(this.followTick);
+    gsap.ticker.add(this.followTick);
+    if (!this.followChip) {
+      const c = document.createElement("div");
+      c.className = "follow-chip";
+      c.innerHTML = `<span class="fc-dot"></span><span class="fc-text"><b></b><i></i></span><button type="button" class="fc-chat">Chat</button><button type="button" class="fc-stop" aria-label="Stop following">Stop</button>`;
+      c.querySelector(".fc-stop")!.addEventListener("click", () => this.stopFollow());
+      c.querySelector(".fc-chat")!.addEventListener("click", () => { const id = this.followEl?.dataset.id; if (id) this.onFollowChat(id); });
+      this.scene.parentElement!.appendChild(c);
+      this.followChip = c;
+    }
+    this.followChip.hidden = false;
+    this.paintFollowChip(true);
+  }
+  /** "Chat" on the follow chip: open the conversation of the robot being followed. */
+  onFollowChat: (threadId: string) => void = () => {};
+  stopFollow() {
+    gsap.ticker.remove(this.followTick);
+    this.followEl = null;
+    if (this.followChip) this.followChip.hidden = true;
+  }
+  private chipSig = "";
+  private paintFollowChip(force = false) {
+    const c = this.followChip, el = this.followEl;
+    if (!c || !el) return;
+    const id = el.dataset.id || "";
+    const robot = this.roster.byThread(id);
+    const thread = this.lastData?.threads.find((t) => t.id === id);
+    const where = el.closest(".room-break") ? "In the break room" : el.closest(".room-queue") ? "Waiting with a question" : el.closest(".park-layer") ? "In the park" : el.closest(".shopfront") ? "Running the shop" : "Walking";
+    const bubble = (el.parentElement?.querySelector(`.world-say[data-for="${CSS.escape(id)}"]`) as HTMLElement | null)?.textContent || "";
+    const name = id === "shopkeeper" ? "Shopkeeper" : robot?.name ?? "Robot";
+    const sub = [where, thread?.title].filter(Boolean).join(" · ");
+    const sig = name + sub + bubble;
+    if (!force && sig === this.chipSig) return;
+    this.chipSig = sig;
+    c.querySelector("b")!.textContent = name;
+    c.querySelector("i")!.textContent = sub;
+    (c.querySelector(".fc-chat") as HTMLElement).hidden = !thread;
+  }
+
   // --- camera -------------------------------------------------------------------
   private dragged = false;
   private camera() {
     const s = this.scene;
     s.addEventListener("wheel", (e) => {
       e.preventDefault();
+      this.stopFollow();
       if (this.focusDesk) this.unfocus(false);
       const r = s.getBoundingClientRect();
       const px = e.clientX - r.left, py = e.clientY - r.top;
@@ -568,7 +644,7 @@ export class World {
       if (!start) return;
       const dx = e.clientX - start.x, dy = e.clientY - start.y;
       if (!this.dragged && Math.hypot(dx, dy) < 5) return;
-      if (!this.dragged) { this.dragged = true; s.classList.add("panning"); if (this.focusDesk) this.unfocus(false); }
+      if (!this.dragged) { this.dragged = true; s.classList.add("panning"); this.stopFollow(); if (this.focusDesk) this.unfocus(false); }
       gsap.killTweensOf(this.cam);
       this.cam.x = start.cx + dx; this.cam.y = start.cy + dy;
       this.apply();
@@ -581,7 +657,15 @@ export class World {
       if (this.park.hit((e.clientX - r.left) / z, (e.clientY - r.top) / z)) return;
       this.select(null);
     });
-    window.addEventListener("keydown", (e) => { if (e.key === "Escape" && this.focusDesk) { e.preventDefault(); this.unfocus(); } });
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && this.followEl) { e.preventDefault(); this.stopFollow(); return; }
+      if (e.key === "Escape" && this.focusDesk) { e.preventDefault(); this.unfocus(); }
+    });
+    // clicking any walking robot (also one that was just thrown) makes the camera follow it
+    this.root.addEventListener("click", (e) => {
+      const el = (e.target as HTMLElement).closest(".world-walker") as HTMLElement | null;
+      if (el && !this.dragged) this.follow(el);
+    }, true);
     new ResizeObserver(() => this.apply()).observe(s);
   }
 
@@ -621,16 +705,19 @@ export class World {
   }
   showPark() { const p = this.outdoor?.park; if (p) { this.unfocus(false); this.flyTo({ x: p.x - 40, y: p.y - 40, w: p.w + 80, h: p.h + 80 }, 20); } }
   showRoom(id: string, insetRight = 0) {
+    this.stopFollow();
     const r = this.rooms.find((q) => q.id === id);
     if (r) { this.unfocus(false); this.flyTo({ x: r.x, y: r.y, w: r.w, h: r.h }, 30, 1, insetRight); }
   }
   showDesk(d: Desk) {
+    this.stopFollow();
     this.unfocus(false);
     this.flyTo({ x: parseFloat(d.el.style.left) - 20, y: parseFloat(d.el.style.top) - 40, w: UNIT_W + 40, h: UNIT_H + 60 }, 30);
   }
 
   // Bring a whole desk close (robot, desk and screen), with the chat beside it.
   focusOn(d: Desk) {
+    this.stopFollow();
     this.focusDesk = d;
     this.focusMode = "desk";
     this.flyTo({ x: parseFloat(d.el.style.left) - 10, y: parseFloat(d.el.style.top) - 6, w: UNIT_W + 20, h: UNIT_H + 12 }, 18, 0.85, this.panelWidth);

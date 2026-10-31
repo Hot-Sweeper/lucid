@@ -474,3 +474,13 @@ setInterval(pollWeather, 20 * 60 * 1000);
 
 // the orchestrator's daily pack: today's event goes on the building sign
 watchDaily((p) => { world.eventName = p?.event?.name ?? ""; world.paintEvent(); });
+
+// "Chat" on the follow chip: the robot's desk if it has one, otherwise its conversation on its own
+world.onFollowChat = (id) => {
+  const d = world.deskFor(id);
+  if (d) { world.focusOn(d); return; }
+  const t = world.lastData?.threads.find((x) => x.id === id);
+  if (!t) return;
+  chat.open({ threadId: id, info: { id, title: t.title, provider: t.provider }, profile: world.roster.byThread(id) } as any);
+  chat.setStatus("Off work right now", "idle");
+};
