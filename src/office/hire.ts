@@ -1,6 +1,10 @@
 import gsap from "gsap";
-import { HOBBY_LABEL, type RobotProfile } from "./roster";
-import { brandFor, logoFor, harnessName } from "./brand";
+import { HOBBY_LABEL, Roster, type RobotProfile } from "./roster";
+import { brandFor, harnessName } from "./brand";
+import type { RobotLook } from "./rig";
+import { portraitSvg } from "../world/look";
+import { PALETTES } from "../world/seated-parts";
+import { openCustomize, savedLevel } from "./customize";
 
 // The hiring screen: pick who sits at a free desk (a free teammate or a new hire),
 // which model it runs, and what it should do.
@@ -16,23 +20,9 @@ export const BUILTIN_ROLES: Role[] = [
 type Project = { id: string; title: string };
 
 const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const SHELL: Record<string, [string, string]> = { codex: ["#f2f4fa", "#c9cee3"], claude: ["#f6ecdc", "#e2cfb4"], grok: ["#2a2a2e", "#151517"], generic: ["#c9d3e6", "#9aa7c2"] };
-
-// A small head portrait: the back of the robot's head with its logo, like at the desk.
-export function avatar(provider: string, accent = "#ff9f5a", size = 56) {
-  const b = brandFor(provider), [shell, shade] = SHELL[b] ?? SHELL.generic, logo = logoFor(provider);
-  const mask = b === "codex";
-  const id = Math.random().toString(36).slice(2, 8);
-  return `<svg class="av" viewBox="0 0 64 64" width="${size}" height="${size}" aria-hidden="true">
-    <defs><linearGradient id="g${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0.6" stop-color="${shell}"/><stop offset="1" stop-color="${shade}"/></linearGradient>
-    ${logo && mask ? `<mask id="m${id}" maskContentUnits="userSpaceOnUse"><image href="${logo}" x="22" y="24" width="20" height="20"/></mask>` : ""}</defs>
-    <rect x="30.5" y="4" width="3" height="10" rx="1.5" fill="${shade}"/><circle cx="32" cy="5" r="4" fill="${accent}"/>
-    <circle cx="10" cy="34" r="6" fill="${shade}"/><circle cx="54" cy="34" r="6" fill="${shade}"/>
-    <rect x="10" y="12" width="44" height="40" rx="15" fill="url(#g${id})"/>
-    <path d="M18 18 Q30 13 42 15" stroke="#fff" stroke-opacity=".6" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-    ${logo ? (mask ? `<rect x="22" y="24" width="20" height="20" fill="${shade === "#151517" ? "#fff" : "#8f98bd"}" mask="url(#m${id})"/>` : `<image href="${logo}" x="23" y="25" width="18" height="18"/>`)
-      : `<rect x="24" y="26" width="16" height="16" rx="4" fill="${shade}"/><rect x="28" y="30" width="8" height="8" rx="2" fill="${shell}"/>`}
-  </svg>`;
+// A small portrait: the robot's face with its hat, eyes, tint and colors.
+export function avatar(provider: string, look: RobotLook = {}, size = 66) {
+  return portraitSvg(look, PALETTES[brandFor(provider)], { size });
 }
 
 export function openHire(opts: {
@@ -45,19 +35,22 @@ export function openHire(opts: {
   onNewRole: (r: Role) => void;
   projects: Project[] | null;                  // asked only when the office is not a project's own
   onHire: (c: HireChoice) => Promise<void>;
+  level?: number;                              // company level, unlocks rare looks in the customize dialog
 }) {
   const wrap = document.createElement("div");
   wrap.className = "dialog-wrap hire-wrap";
   const cands = [
-    ...opts.team.map((r) => ({ key: r.id, robotId: r.id as string | null, provider: r.provider, name: r.name, note: `${r.prefs?.hobby ? `${HOBBY_LABEL[r.prefs.hobby]}, ` : ""}${r.jobs} ${r.jobs === 1 ? "job" : "jobs"} done`, accent: r.look.accent })),
-    ...opts.providers.map((p) => ({ key: `new:${p}`, robotId: null, provider: p, name: `New ${harnessName(p)} robot`, note: "Fresh hire", accent: "#ff9f5a" })),
+    ...opts.team.map((r) => ({ key: r.id, robotId: r.id as string | null, provider: r.provider, name: r.name, note: `${r.prefs?.hobby ? `${HOBBY_LABEL[r.prefs.hobby]}, ` : ""}${r.jobs} ${r.jobs === 1 ? "job" : "jobs"} done`, look: r.look, custom: false, draftName: "" })),
+    ...opts.providers.map((p) => ({ key: `new:${p}`, robotId: null, provider: p, name: `New ${harnessName(p)} robot`, note: "Fresh hire", look: { accent: "#ff9f5a" } as RobotLook, custom: false, draftName: "" })),
   ];
+  const card = (c: (typeof cands)[number], on: boolean) =>
+    `<button type="button" role="radio" aria-checked="${on}" class="cand" data-k="${esc(c.key)}">${avatar(c.provider, c.look)}<b>${esc(c.name)}</b><span>${esc(c.note)}</span></button>`;
   wrap.innerHTML = `
     <form class="dialog hire" role="dialog" aria-modal="true" aria-labelledby="hire-title">
       <h2 id="hire-title">Who works at this desk?</h2>
       <p class="hire-sub">${esc(opts.roomTitle)}, desk ${opts.seat + 1}</p>
       <div class="hire-cands" role="radiogroup" aria-label="Robot">
-        ${cands.map((c, i) => `<button type="button" role="radio" aria-checked="${i === 0}" class="cand" data-k="${esc(c.key)}">${avatar(c.provider, c.accent)}<b>${esc(c.name)}</b><span>${esc(c.note)}</span></button>`).join("")}
+        ${cands.map((c, i) => `<div class="cand-cell">${card(c, i === 0)}<button type="button" class="cand-edit" data-edit="${esc(c.key)}" aria-label="Customize ${esc(c.name)}">Customize</button></div>`).join("")}
       </div>
       <div class="hire-row"><span class="hire-label">Model <i class="hire-hint">price per million tokens in and out</i></span><div class="chips" role="radiogroup" aria-label="Model"></div></div>
       <div class="hire-row"><span class="hire-label">Role</span><div class="chips roles" role="radiogroup" aria-label="Role"></div>
@@ -87,6 +80,31 @@ export function openHire(opts: {
       : `<span class="hire-none">Its usual model</span>`;
   };
   renderModels();
+  // Customize a candidate: teammates are saved right away, a fresh hire keeps its look until it is hired.
+  const level = opts.level ?? savedLevel();
+  form.querySelector(".hire-cands")!.addEventListener("click", (e) => {
+    const ed = (e.target as HTMLElement).closest(".cand-edit") as HTMLElement | null;
+    if (!ed) return;
+    e.stopPropagation();
+    const c = cands.find((x) => x.key === ed.dataset.edit)!;
+    openCustomize({
+      name: c.robotId || c.draftName ? c.draftName || c.name : "", provider: c.provider, look: c.look, level,
+      namePlaceholder: c.robotId ? undefined : "A random name",
+      onSave: (look, name) => {
+        if (c.robotId) {
+          const roster = Roster.current;
+          if (!roster) throw new Error("the team list is not loaded yet");
+          roster.setLook(c.robotId, look);
+          roster.rename(c.robotId, name);
+        } else { c.custom = true; c.draftName = name; }
+        c.look = look;
+        if (name) c.name = name;
+        const cell = ed.parentElement!, old = cell.querySelector(".cand")!;
+        old.outerHTML = card(c, old.getAttribute("aria-checked") === "true");
+        ed.setAttribute("aria-label", `Customize ${c.name}`);
+      },
+    });
+  }, true);
   form.querySelector(".hire-cands")!.addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest(".cand") as HTMLElement | null;
     if (!b) return;
@@ -136,7 +154,7 @@ export function openHire(opts: {
     form.querySelectorAll(".chips.proj [data-p]").forEach((x) => x.setAttribute("aria-checked", String(x === b)));
   });
   const close = () => { window.removeEventListener("keydown", onKey, true); gsap.to(wrap, { opacity: 0, duration: 0.15, onComplete: () => wrap.remove() }); };
-  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopImmediatePropagation(); close(); } };
+  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && [...document.querySelectorAll(".dialog-wrap")].pop() === wrap) { e.stopImmediatePropagation(); close(); } };
   window.addEventListener("keydown", onKey, true);
   wrap.addEventListener("click", (e) => { if (e.target === wrap || (e.target as HTMLElement).closest('[data-a="cancel"]')) close(); });
   form.addEventListener("submit", async (e) => {
@@ -149,9 +167,11 @@ export function openHire(opts: {
     btn.disabled = true;
     msg.textContent = `${pick.name} is walking over…`;
     try {
+      if (!pick.robotId && pick.custom) Roster.current?.prepareHire(pick.provider, pick.look, pick.draftName);
       await opts.onHire({ robotId: pick.robotId, provider: pick.provider, model, projectId: project, task, role });
       close();
     } catch (err: any) {
+      Roster.current?.prepareHire(null);
       msg.textContent = `Could not start: ${err?.message || err}. Your task text is still here.`;
       btn.disabled = false;
     }

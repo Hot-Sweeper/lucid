@@ -518,6 +518,71 @@
 @keyframes cp-dot { 0%, 60%, 100% { transform: translateY(0); opacity: 0.45; } 30% { transform: translateY(-4px); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .cp-typing .dots i { animation: none; opacity: 0.8; } }
 
+/* customize a robot: live preview on the left, options on the right */
+.dialog.cz { width: min(880px, calc(100vw - 40px)); height: min(640px, calc(100vh - 40px)); display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 22px; }
+.cz-left { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.cz-stage { position: relative; width: 300px; height: 312px; flex: none; border-radius: 14px; overflow: hidden; background: #c49a6c; cursor: pointer; }
+.cz-scene { position: absolute; left: 0; top: 0; width: 400px; height: 410px; transform-origin: 0 0; }
+.cz-desk { position: absolute; left: 0; top: 0; width: 400px; height: 410px; display: block; }
+.cz-key { fill: #5a6177; transition: fill 0.12s; }
+.cz-key.down { fill: #9fe8ff; }
+.cz-view { justify-content: center; }
+.cz-view button { align-items: center; }
+.cz-right { display: flex; flex-direction: column; gap: 12px; min-height: 0; min-width: 0; }
+.cz h2 { margin: 0; }
+.cz-name { display: flex; flex-direction: column; gap: 6px; }
+.cz-name input { background: var(--night); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; color: var(--ink); font-size: 14px; outline: none; }
+.cz-name input:focus { border-color: rgba(255, 159, 90, 0.55); }
+.cz-tabs button { align-items: center; padding: 7px 14px; }
+.cz-tabs button[aria-selected="true"] { background: var(--night-3); color: var(--ink); box-shadow: inset 0 0 0 1.5px rgba(255, 159, 90, 0.7); }
+.cz-panel { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 2px 4px 2px 2px; }
+.cz-row { display: flex; flex-direction: column; gap: 7px; }
+.cz-note { font-size: 12px; color: var(--ink-3); }
+.cz-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.cz-tiles.wide { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
+.cz-tiles.small { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+.cz-tile { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px 7px; border: 0; border-radius: 12px; background: rgba(255, 255, 255, 0.05); color: var(--ink-2); cursor: pointer; }
+.cz-tile:hover { background: rgba(255, 255, 255, 0.09); }
+.cz-tile[aria-checked="true"] { background: rgba(255, 159, 90, 0.16); box-shadow: inset 0 0 0 2px rgba(255, 159, 90, 0.7); color: var(--ink); }
+.cz-tile b { font-size: 11.5px; font-weight: 500; line-height: 1.25; text-align: center; }
+.cz-tile:disabled { cursor: default; background: rgba(255, 255, 255, 0.025); }
+.cz-tile:disabled .cz-art { opacity: 0.35; filter: grayscale(1); }
+.cz-tile:disabled b { color: var(--ink-3); }
+.cz-art { display: block; flex: none; }
+.cz-lock { font-size: 10.5px; color: var(--accent-2); }
+.chips button .cz-lock { margin-left: 4px; }
+.chips button:disabled { cursor: default; opacity: 0.55; }
+.cz-sw { display: flex; flex-wrap: wrap; gap: 6px; }
+.cz-sw button { width: 34px; height: 34px; padding: 4px; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }
+.cz-sw button span { display: block; width: 100%; height: 100%; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
+.cz-sw button:hover { background: rgba(255, 255, 255, 0.08); }
+.cz-sw button[aria-checked="true"] { box-shadow: inset 0 0 0 2px var(--accent); }
+.cz-range { display: flex; align-items: center; gap: 12px; max-width: 320px; }
+.cz-range output { font-size: 13px; color: var(--ink-2); min-width: 4ch; font-variant-numeric: tabular-nums; }
+.cz-range input { flex: 1; appearance: none; -webkit-appearance: none; height: 22px; background: transparent; cursor: pointer; }
+.cz-range input::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.14); }
+.cz-range input::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -6px; border-radius: 50%; background: var(--accent); }
+.cz-range input:focus-visible { outline: none; }
+.cz-range input:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(255, 159, 90, 0.4); }
+.cz-actions { align-items: center; }
+.cz-msg { flex: 1; font-size: 12.5px; color: var(--ink-3); text-align: right; min-width: 0; }
+.cz button:focus-visible, .cz-tile:focus-visible, .cand-edit:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+@media (max-width: 760px) {
+  .dialog.cz { grid-template-columns: 1fr; height: calc(100vh - 40px); overflow-y: auto; }
+  .cz-left { align-items: center; }
+  .cz-panel { overflow: visible; }
+}
+
+/* hiring screen: a customize link under each candidate */
+.cand-cell { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
+.cand-cell .cand { flex: 1; }
+.cand-cell .cand-edit { visibility: hidden; }
+.cand-cell:has(.cand[aria-checked="true"]) .cand-edit { visibility: visible; }
+.cand-edit { align-self: center; border: 0; background: none; color: var(--accent-2); font-size: 12px; padding: 2px 8px; border-radius: 7px; cursor: pointer; }
+.cand-edit:hover { background: rgba(255, 255, 255, 0.06); }
+.cz-val { font-style: normal; color: var(--ink-2); margin-left: 4px; }
+.hire-cands { max-height: 300px; }
+
 /* project sign over the monitor in shared rooms */
 .desk-proj { position: absolute; z-index: 3; left: 200px; top: -20px; transform: translateX(-50%); max-width: 280px; display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px; border-radius: 999px; background: rgba(255, 255, 255, 0.95); color: #2d3142; font: 600 12px/1.2 var(--font); box-shadow: 0 4px 10px rgba(40, 30, 20, 0.18); white-space: nowrap; }
 .desk-proj[hidden] { display: none; }

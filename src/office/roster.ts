@@ -1,5 +1,6 @@
 import type { RobotLook } from "./rig";
 import { brandFor, type BrandKind } from "./brand";
+import { migrateLook, randomLook } from "../world/look";
 
 // The team. Robots are persistent workers: hired once with a name, a look and habits,
 // then assigned to threads. When a thread settles, its robot becomes free and the next
@@ -48,7 +49,6 @@ export const WALLPAPERS = [
   "linear-gradient(200deg, #b07cff 0%, #5a3fa0 45%, #1b1640 100%)",
   "radial-gradient(120% 100% at 50% 110%, #ffcf7a 0%, #e0708a 40%, #2a2f6a 100%)",
 ];
-const ACCENTS = ["#ff9f5a", "#4ff0a0", "#4fb6ff", "#ff6f91", "#b07cff", "#ffd27a"];
 const MUGS = ["#ff8a65", "#4fb6ff", "#4ff0a0", "#ffd27a", "#b07cff", "#f6ecdc"];
 const NAMES = [
   "Pip", "Bolt", "Nova", "Widget", "Sprocket", "Echo", "Byte", "Cog", "Juno", "Pixel", "Ratchet", "Volt",
@@ -77,18 +77,48 @@ function hobbyFor(p: Prefs, id: string): Hobby {
 }
 
 export class Roster {
+  /** The office's roster, for dialogs that are opened without one (the hiring screen). */
+  static current: Roster | null = null;
   robots: RobotProfile[] = [];
+  // A look and name picked in the hiring screen for a robot that is not hired yet.
+  private draft: { brand: BrandKind; look: RobotLook; name: string } | null = null;
 
   private saveTimer = 0;
   constructor() {
+    Roster.current = this;
     const api = (window as any).lucid;
     try { this.robots = JSON.parse(api?.rosterLoad?.() || localStorage.getItem(KEY) || "[]"); } catch { this.robots = []; }
+    let migrated = false;
     for (const r of this.robots) {
       if (r.prefs && !r.prefs.tasks) r.prefs.tasks = tasksFor(r.id || r.name || "");
       if (r.prefs && !r.prefs.hobby) r.prefs.hobby = hobbyFor(r.prefs, r.id || r.name || "");
       if (r.prefs && !r.prefs.listens) { const x = idHash((r.id || r.name || "") + "music"); r.prefs.listens = x < 0.35 ? "always" : x < 0.7 ? "sometimes" : "never"; r.look.headphones = false; }
       if (r.prefs && !r.prefs.windows) { const x = idHash((r.id || r.name || "") + "win"); r.prefs.windows = x < 0.25 ? "fullscreen" : x < 0.6 ? "tiler" : "floating"; }
+      // Robots hired before hats and builds existed get their extras from their id: unique, and the same every launch.
+      if (!r.look) r.look = {};
+      if (r.look.build === undefined) { r.look = migrateLook(r.look, r.id || r.name || ""); migrated = true; }
     }
+    if (migrated) this.save();
+  }
+
+  /** Saves a new look (from the customize dialog). */
+  setLook(id: string, look: RobotLook) {
+    const r = this.robots.find((x) => x.id === id);
+    if (!r) return;
+    r.look = { ...look, headphones: r.look?.headphones ?? false };
+    this.save();
+  }
+
+  rename(id: string, name: string) {
+    const r = this.robots.find((x) => x.id === id), n = name.trim().slice(0, 32);
+    if (!r || !n) return;
+    r.name = n;
+    this.save();
+  }
+
+  /** The next fresh hire of this harness gets this look and name (null clears it). */
+  prepareHire(provider: string | null, look?: RobotLook, name?: string) {
+    this.draft = provider && look ? { brand: brandFor(provider), look, name: (name ?? "").trim().slice(0, 32) } : null;
   }
 
   private save() {
@@ -154,19 +184,16 @@ export class Roster {
   private hire(threadId: string, provider: string): RobotProfile {
     const used = new Set(this.robots.map((r) => r.name));
     const free = NAMES.filter((n) => !used.has(n));
-    const name = free.length ? pick(free) : `${pick(NAMES)} ${this.robots.length + 1}`;
+    const draft = this.draft && this.draft.brand === brandFor(provider) ? this.draft : null;
+    if (draft) this.draft = null;
+    const name = draft?.name || (free.length ? pick(free) : `${pick(NAMES)} ${this.robots.length + 1}`);
     const w = () => Math.round((0.2 + Math.random()) * 10) / 10;
     return {
       id: `bot-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
       name,
       brand: brandFor(provider),
       provider,
-      look: {
-        accent: pick(ACCENTS),
-        antennaTip: pick(["ball", "ball", "star", "heart", "ring"] as const),
-        headphones: false,   // they put them on when the music starts
-        sticker: pick(["none", "none", "bolt", "star", "heart", "smile"] as const),
-      },
+      look: { ...(draft?.look ?? randomLook()), headphones: false },   // headphones go on when the music starts
       prefs: {
         editor: pick(["studio", "studio", "pad", "vim"] as const),
         wallpaper: Math.floor(Math.random() * WALLPAPERS.length),

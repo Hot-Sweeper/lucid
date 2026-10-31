@@ -5,9 +5,13 @@ import "./world.css";
 import { UNIT, type Pose, type RobotLook } from "../office/rig";
 import { TopDownRobot } from "./seated";
 import { DemoDesk } from "./demo-desk";
+import { ACCESSORIES, BUILDS, EYES, HATS, HEAD_SIZES, randomLook, seeded, STICKERS, TINTS } from "./look";
 
 // Seated robot test bench. URL params:
 //   scene=play|grid|typing|mouse|phone|drink|notice|celebrate|headphones|think|rest|sleep
+//   scene=looks                 12 varied random looks (seeded), cropped to the robots
+//   seed=N hat= acc= eyes= build= head=   look overrides for single scenes
+//   scene=hats&view=front|back  every hat; scene=accs&view=front|back every accessory; scene=eyes every eye style
 //   brand=codex|claudeAgent|grok|other
 //   scale=2                     desk zoom (single scenes)
 //   raf=0                       drive animations by timers (hidden capture windows)
@@ -16,7 +20,9 @@ import { DemoDesk } from "./demo-desk";
 const qs = new URLSearchParams(location.search);
 const SCENE = qs.get("scene") || "play";
 const BRAND = qs.get("brand") || "claudeAgent";
-const SCALE = Number(qs.get("scale") || (SCENE === "grid" ? 1 : 2));
+const GALLERY = ["looks", "hats", "accs", "eyes"].includes(SCENE);
+const SCALE = Number(qs.get("scale") || (SCENE === "grid" ? 1 : GALLERY ? 1.25 : 2));
+const VIEW = qs.get("view") || "back";
 
 const style = document.createElement("style");
 style.textContent = `
@@ -44,6 +50,11 @@ style.textContent = `
   .sd-controls button { border: 0; background: #2e3577; color: #fff; padding: 7px 11px; border-radius: 8px; cursor: pointer; font: 500 12px var(--font); }
   .sd-controls button:hover { background: #3c45a0; }
   .sd-controls button[aria-pressed="true"] { background: #5a64d0; }
+  .sd-controls select { background: #2e3577; color: #fff; border: 0; border-radius: 8px; padding: 6px 8px; font: 500 12px var(--font); }
+  .sd-controls label { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; color: #b9bfe6; }
+  .sd-crop { position: relative; overflow: hidden; }
+  .sd-crop .sd-floor { position: absolute; }
+  .sd-tag { position: absolute; left: 6px; bottom: 4px; font: 500 11px var(--font); color: #2b1d10; background: rgba(255,255,255,0.7); padding: 1px 6px; border-radius: 6px; z-index: 9; }
 `;
 document.head.appendChild(style);
 
@@ -67,11 +78,30 @@ function station(scale: number, lookIdx = 0) {
   floor.className = "sd-floor";
   floor.style.cssText = `width:${UNIT.w * scale}px;height:${(UNIT.h + 20) * scale}px`;
   floor.innerHTML = `<div class="sd-zoom" style="width:${UNIT.w}px;height:${UNIT.h + 20}px;transform:scale(${scale})"></div>`;
-  root.appendChild(floor);
+  if (GALLERY) {
+    // only the robot and the desk edge: x 96..304, y 150..400
+    const crop = document.createElement("div");
+    crop.className = "sd-crop";
+    crop.style.cssText = `width:${208 * scale}px;height:${236 * scale}px`;
+    floor.style.left = `${-96 * scale}px`; floor.style.top = `${-150 * scale}px`;
+    crop.appendChild(floor);
+    root.appendChild(crop);
+  } else root.appendChild(floor);
   const desk = new DemoDesk(floor.firstElementChild as HTMLElement);
   const robot = new TopDownRobot(desk.host, desk.rig) as Bot;
   const [brand, model, look] = SCENE === "grid" ? LOOKS[lookIdx % LOOKS.length] : [BRAND, LOOKS.find((l) => l[0] === BRAND)?.[1] ?? "qwen-coder-4", LOOKS.find((l) => l[0] === BRAND)?.[2] ?? LOOKS[3][2]];
   robot.setBrand(brand); robot.setModel(model); robot.setLook(look);
+  // look overrides for single scenes: seed=N (a random look), hat=, acc=, eyes=, build=, head=
+  if (!GALLERY && SCENE !== "grid" && [...qs.keys()].some((k) => ["seed", "hat", "acc", "eyes", "build", "head"].includes(k))) {
+    const l: RobotLook = { ...look, ...(qs.has("seed") ? randomLook(seeded("demo-look-" + qs.get("seed")), 10) : {}) };
+    if (qs.has("hat")) l.hat = qs.get("hat") as RobotLook["hat"];
+    if (qs.has("acc")) l.accessory = qs.get("acc") as RobotLook["accessory"];
+    if (qs.has("eyes")) l.eyes = qs.get("eyes") as RobotLook["eyes"];
+    if (qs.has("build")) l.build = qs.get("build") as RobotLook["build"];
+    if (qs.has("head")) l.head = Number(qs.get("head"));
+    l.headphones = false;
+    robot.setLook(l);
+  }
   api.robots.push(robot);
   return { desk, robot };
 }
@@ -112,7 +142,39 @@ function measureFps() {
   gsap.ticker.add(probeEnd);
 }
 
+function tag(robot: Bot, text: string) {
+  const crop = (robot.el as Element).closest(".sd-crop");
+  if (crop) crop.insertAdjacentHTML("beforeend", `<span class="sd-tag">${text}</span>`);
+}
+
+async function gallery() {
+  const brands = ["claudeAgent", "codex", "grok", "opencode"];
+  const front = VIEW === "front";
+  const items: [string, RobotLook][] =
+    SCENE === "looks" ? Array.from({ length: 12 }, (_, i) => [brands[i % 4], randomLook(seeded("demo-look-" + i), 10)] as [string, RobotLook])
+    : SCENE === "hats" ? HATS.map((h, i) => [brands[i % 4], { accent: ["#ff9f5a", "#4fb6ff", "#ff6f91", "#4ff0a0", "#b07cff", "#ffd27a"][i % 6], hat: h.id }] as [string, RobotLook])
+    : SCENE === "accs" ? ACCESSORIES.map((a, i) => [brands[i % 4], { accent: ["#e2434b", "#4fb6ff", "#ff9f5a", "#4ff0a0", "#b07cff"][i % 5], accessory: a.id, build: (["slim", "regular", "sturdy"] as const)[i % 3] }] as [string, RobotLook])
+    : EYES.map((e, i) => [brands[i % 4], { eyes: e.id, blush: i % 3 === 0 }] as [string, RobotLook]);
+  const labels = SCENE === "hats" ? HATS.map((h) => h.label) : SCENE === "accs" ? ACCESSORIES.map((a) => a.label) : SCENE === "eyes" ? EYES.map((e) => e.label) : [];
+  root.style.width = `${(SCENE === "looks" ? 4 : Math.min(6, items.length)) * 208 * SCALE}px`;
+  items.forEach(([brand, look], i) => {
+    const { desk, robot } = station(SCALE);
+    robot.setBrand(brand);
+    robot.setModel(["claude-opus-5-5", "gpt-5.5-codex", "grok-5", "qwen-coder-4"][i % 4]);
+    robot.setLook(look);
+    if (labels[i]) tag(robot, labels[i]);
+    if (front || SCENE === "eyes") robot.setPose("ask");
+    else if (SCENE === "looks" && i % 4 === 3) robot.setPose("ask");
+    else if (SCENE === "looks" && (i === 1 || i === 6 || i === 8)) void typeLoop(desk, robot, 8 + i);
+    else if (SCENE === "looks" && i === 4) void phoneLoop(robot);
+    else if (SCENE === "looks" && i === 9) void mouseLoop(robot);
+    else robot.setPose(i % 3 === 0 ? "rest" : "idle");
+  });
+  api.shots = [2600];
+}
+
 async function run() {
+  if (GALLERY) { await gallery(); return; }
   if (SCENE === "grid") {
     const bots = Array.from({ length: 6 }, (_, i) => station(SCALE, i));
     const [a, b, c, d, e, f] = bots;
@@ -175,6 +237,28 @@ async function run() {
       btn("groove", () => { bpm = bpm ? 0 : 112; robot.setGroove?.(bpm); });
       for (const r of ["cheer", "angry", "laugh", "surprised", "shy"] as const) btn(r, () => robot.react(r));
       btn("wake", () => robot.wake());
+      // look picker
+      const bar2 = document.createElement("div");
+      bar2.className = "sd-controls";
+      root.appendChild(bar2);
+      let look: RobotLook = { ...(LOOKS.find((l) => l[0] === BRAND)?.[2] ?? {}) };
+      const selects: Record<string, HTMLSelectElement> = {};
+      const sel = (key: keyof RobotLook, opts: { id: string | number; label: string }[]) => {
+        const l = document.createElement("label");
+        l.textContent = String(key);
+        const s = document.createElement("select");
+        s.innerHTML = opts.map((o) => `<option value="${o.id}">${o.label}</option>`).join("");
+        s.onchange = () => { look = { ...look, [key]: key === "head" ? Number(s.value) : s.value }; robot.setLook(look); };
+        l.appendChild(s); bar2.appendChild(l); selects[key] = s;
+      };
+      sel("build", BUILDS); sel("head", HEAD_SIZES.map((h) => ({ id: h, label: String(h) })));
+      sel("hat", HATS); sel("accessory", ACCESSORIES); sel("eyes", EYES); sel("tint", TINTS); sel("sticker", STICKERS);
+      const sync = () => { for (const [k, s] of Object.entries(selects)) s.value = String((look as any)[k] ?? s.options[0].value); };
+      sync();
+      const b2 = document.createElement("button");
+      b2.textContent = "randomize look";
+      b2.onclick = () => { look = randomLook(Math.random, 10); robot.setLook(look); sync(); };
+      bar2.appendChild(b2);
       (window as any).robot = robot;
     }
   }

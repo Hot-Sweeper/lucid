@@ -14,6 +14,7 @@ import { World, type Room, type WorldData } from "./office/world";
 import { ChatPanel } from "./office/chat-panel";
 import { showMenu, confirmDialog } from "./office/menus";
 import { openHire, BUILTIN_ROLES, type Role } from "./office/hire";
+import { openCustomizeFor } from "./office/customize";
 import { Orchestrator, type OrchState } from "./office/orchestrator";
 import { progress } from "./office/progress";
 import { mountStats } from "./stats/stats";
@@ -305,6 +306,7 @@ function setupMenus() {
     const items: any[] = [
       { label: "Look at its screen", run: () => world.focusScreen(d) },
       { label: "Go to its desk", run: () => world.showDesk(d) },
+      { label: "Customize robot", run: () => openCustomizeFor(d, world.roster, world.level) },
     ];
     if (d.room === "freelance" && d.folder) {
       items.push({ input: "Turn this work into a project", placeholder: "Project name", value: (d.info?.title || "").slice(0, 40), submit: "Create project",

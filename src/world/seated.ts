@@ -1,6 +1,8 @@
 import gsap from "gsap";
 import { GEOM, UNIT, type DeskRig, type Expression, type Pose, type Pt, type Reaction, type RobotLook, type SeatedRobot } from "../office/rig";
-import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, solveArm, uid, type BrandKind } from "./seated-parts";
+import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, solveArm, uid, type BrandKind } from "./seated-parts";
+import { accessoryInfo, accessorySvg, blushSvg, BUILD_SHAPE, hatInfo, hatSvg, lookMotion, paintLookColors, resolveLook, stepLookMotion, styledEyes, type FullLook, type LookMotion } from "./look";
+import { tierFor } from "../office/tier";
 
 // The v0 robot, seated on the south side of its desk, seen from behind and above.
 // The head is the original v0 head (v0 coordinates, scaled by S); the body is a slim, tapered
@@ -16,9 +18,7 @@ const U = S / 0.58;                                       // relative to the siz
 const ORIGIN = { x: (SH.left.x + SH.right.x) / 2, y: (SH.left.y + SH.right.y) / 2 }; // v0 (560, 748)
 const HEAD_DROP = (GEOM.head.y - 2 - (ORIGIN.y - 89 * S)) / S; // tucks the head toward GEOM.head (the steep view hides the neck)
 const MAP = `translate(${ORIGIN.x} ${ORIGIN.y}) scale(${S}) translate(-560 -748)`;
-const SHOULDER = 50;                                      // v0 half shoulder width: slimmer than the original 60
-const SH_L = { x: ORIGIN.x - SHOULDER * S, y: ORIGIN.y };
-const SH_R = { x: ORIGIN.x + SHOULDER * S, y: ORIGIN.y };
+const SHOULDER = 50;                                      // v0 half shoulder width of the regular build: slimmer than the original 60
 // Back view: the upper arm hangs down toward the floor, so from up here it reads short and the
 // elbow stays tucked at the side; the forearm reaches forward over the desk. Facing the camera the
 // forearm is the foreshortened one.
@@ -105,6 +105,12 @@ export class TopDownRobot implements SeatedRobot {
   private spokes: SVGElement[] = [];
   private lastBase = NaN;
   private lastSw = "";
+  private look: FullLook = resolveLook();
+  private hasLook = false;
+  private shoulder = SHOULDER;                    // v0 half shoulder width for the current build
+  private motion: LookMotion = { sway: [], spin: [] };
+  private sway = { v: 0, vel: 0, lastBx: 0 };
+  private modelName: string | null = null;
 
   constructor(host: HTMLElement, private desk: DeskRig) {
     const id = this.id;
@@ -138,25 +144,54 @@ export class TopDownRobot implements SeatedRobot {
     paintBrand(this.el, this.$, this.brand);
     paintBrand(this.thumb, {}, this.brand);
     this.glow = getComputedStyle(this.el).getPropertyValue("--glow").trim() || this.el.style.getPropertyValue("--glow");
+    if (this.hasLook) this.applyColors();
+  }
+
+  // Tint, glow and fabric colour on top of the brand palette (also on the phone thumb).
+  private applyColors() {
+    this.glow = paintLookColors(this.el, PALETTES[this.brand], this.look);
+    paintLookColors(this.thumb, PALETTES[this.brand], this.look);
   }
 
   setModel(name: string | null) {
     const t = this.$.model as SVGTextElement, plate = this.$.plate;
+    this.modelName = name;
     if (!name) { this.$.nameplate.style.display = "none"; return; }
     this.$.nameplate.style.display = "";
     const label = name.length > 22 ? name.slice(0, 21) + "…" : name;
     t.textContent = label;
     // The back is slim now: the plate stays inside it and long names are condensed to fit.
-    const w = clamp(label.length * 6.2 + 14, 40, 92);
+    const w = clamp(label.length * 6.2 + 14, 40, 92 * BUILD_SHAPE[this.look.build].kx);
     plate.setAttribute("x", String(560 - w / 2));
     plate.setAttribute("width", String(w));
     if (label.length * 6.2 > w - 10) { t.setAttribute("textLength", String(w - 10)); t.setAttribute("lengthAdjust", "spacingAndGlyphs"); }
     else t.removeAttribute("textLength");
     (this.$.nameTitle as SVGTitleElement).textContent = name;
+    // Stronger models look a touch more distinguished: a gold rim and a rank pip on the plate
+    // for flagship models, a silver rim for standard ones, nothing extra for light ones.
+    const tier = tierFor(name);
+    plate.style.stroke = tier === "flagship" ? "#ffcf5a" : tier === "standard" ? "rgba(200, 210, 235, 0.9)" : "";
+    plate.style.strokeWidth = tier === "light" ? "" : tier === "flagship" ? "2.4" : "1.4";
+    let pip = this.$.nameplate.querySelector(".tier-pip") as SVGPathElement | null;
+    if (!pip) {
+      pip = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pip.setAttribute("class", "tier-pip");
+      this.$.nameplate.appendChild(pip);
+    }
+    const px = 560 - w / 2 - 9, py = Number(plate.getAttribute("y") || 0) + Number(plate.getAttribute("height") || 14) / 2;
+    pip.setAttribute("d", `M${px} ${py - 5} L${px + 5} ${py} L${px} ${py + 5} L${px - 5} ${py} Z`);
+    pip.setAttribute("fill", "#ffcf5a");
+    pip.style.display = tier === "flagship" ? "" : "none";
+    this.el.dataset.tier = tier;
   }
 
   setLook(look: RobotLook) {
+    this.look = resolveLook(look);
+    this.hasLook = true;
     paintLook(this.el, this.$, look);
+    this.applyColors();
+    this.renderLook();
+    if (this.modelName) this.setModel(this.modelName);
     if (look.headphones !== undefined && look.headphones !== this.hp.on) {
       this.hpTl?.kill();
       this.fitting = false;
@@ -164,6 +199,40 @@ export class TopDownRobot implements SeatedRobot {
       Object.assign(this.hp, { y: 0, sx: 1, sy: 1, o: look.headphones ? 1 : 0, grip: 0 });
     }
   }
+
+  // Hat, accessory, build and face extras for the side we are looking at.
+  private renderLook() {
+    const L = this.look, view = this.facing ? "front" : "back";
+    const hat = hatInfo(L.hat), head = this.$.head, lift = this.$.antennaLift;
+    this.$.hat.innerHTML = hatSvg(L.hat, view);
+    // the antenna pokes out of low hats (drawn over them), sits on top of tall ones or hides under them
+    if (hat.antenna === "through") { if (lift.nextSibling !== this.$.phones) head.insertBefore(lift, this.$.phones); }
+    else if (head.firstChild !== lift) head.insertBefore(lift, head.firstChild);
+    lift.style.display = hat.antenna === "hide" ? "none" : "";
+    lift.setAttribute("transform", hat.antenna === "lift" ? `translate(0 ${-(hat.lift ?? 0)})` : "");
+    const acc = accessorySvg(L.accessory, view);
+    this.$.accUnder.innerHTML = acc.under;
+    this.$.accPack.innerHTML = acc.pack;
+    this.$.accOver.innerHTML = acc.over;
+    this.$.vents.style.display = accessoryInfo(L.accessory).covers ? "none" : "";
+    const b = BUILD_SHAPE[L.build];
+    this.shoulder = b.shoulder;
+    const wide = `translate(560 0) scale(${b.kx} 1) translate(-560 0)`;
+    this.$.shellG.setAttribute("transform", wide);
+    this.$.accOverG.setAttribute("transform", wide);
+    this.$.shL.setAttribute("transform", `translate(${SHOULDER - b.shoulder} 0)`);
+    this.$.shR.setAttribute("transform", `translate(${b.shoulder - SHOULDER} 0)`);
+    for (const k of ["L", "R"]) {
+      this.$[`arm${k}Up`].setAttribute("stroke-width", f(19 * S * b.arm));
+      this.$[`arm${k}Fo`].setAttribute("stroke-width", f(15 * S * b.arm));
+    }
+    this.$.blush.innerHTML = L.blush ? blushSvg() : "";
+    this.$.blush.style.display = L.blush ? "" : "none";
+    this.$.eyes.innerHTML = this.eyesFor(this.expr);
+    this.motion = lookMotion(this.el);
+  }
+
+  private eyesFor(e: Expression) { return styledEyes(this.look.eyes, e) ?? eyesSvg(e); }
 
   // ---- poses --------------------------------------------------------------------------
   setPose(p: Pose) {
@@ -347,7 +416,7 @@ export class TopDownRobot implements SeatedRobot {
   setExpression(e: Expression) {
     const changed = e !== this.expr;
     this.expr = e;
-    const paint = () => { this.$.eyes.innerHTML = eyesSvg(e); };
+    const paint = () => { this.$.eyes.innerHTML = this.eyesFor(e); };
     if (!changed || !this.facing) { paint(); return; }
     gsap.timeline()
       .to([this.$.eyes, this.$.eyeLight], { scaleY: 0.1, duration: 0.07, transformOrigin: "50% 50%" })
@@ -647,6 +716,7 @@ export class TopDownRobot implements SeatedRobot {
     show("backrest", !on); show("seatBack", !on); show("seatFront", on); show("legs", on);
     this.front.l = on || this.fitting; this.front.r = on || this.fitting;
     this.layerArms();
+    this.renderLook();
     gsap.to(this.rig, { upper: on ? 60 * S : UPPER, fore: on ? 72 * S : FORE, duration: 0.35, ease: "power2.out" });
   }
 
@@ -719,7 +789,7 @@ export class TopDownRobot implements SeatedRobot {
     const hdx = r.hx;
     const hdy = r.hy - breath * 1.15 + jig - shrug * 0.6 + gNod * 5 + ant * 3.5 - pv * 2.5;
     const rot = r.rot + (this.rig.lx - this.rig.rx + 108) * 0.015 + this.shift.r * calm + gSway * 3 + pv * 5 * this.ponder.side;
-    const scale = 1 + (r.lean + pv * 0.08) * 0.06;
+    const scale = (1 + (r.lean + pv * 0.08) * 0.06) * this.look.head;
 
     // hands
     let L: Pt = { x: r.lx, y: r.ly }, R: Pt = { x: r.rx, y: r.ry };
@@ -755,8 +825,8 @@ export class TopDownRobot implements SeatedRobot {
       const fl = !inHead(L), fr = !inHead(R);
       if (fl !== this.front.l || fr !== this.front.r) { this.front.l = fl; this.front.r = fr; this.layerArms(); }
     }
-    const sL = { x: SH_L.x + bx, y: SH_L.y + by - breathPx - shrug };
-    const sR = { x: SH_R.x + bx, y: SH_R.y + by - breathPx - shrug };
+    const sL = { x: ORIGIN.x - this.shoulder * S + bx, y: ORIGIN.y + by - breathPx - shrug };
+    const sR = { x: ORIGIN.x + this.shoulder * S + bx, y: ORIGIN.y + by - breathPx - shrug };
     const hover = pv * 0.45;
     this.drawArm("L", sL, L, -1, this.lift.l + hover, this.press.l, -6 * (1 - this.gripL.w) * (this.pose === "type" ? 1 : 0));
     this.drawArm("R", sR, R, 1, this.lift.r + hover * (1 - this.mouseW.v), this.press.r, flexR + 6 * (1 - this.mouseW.v) * (this.pose === "type" ? 1 : 0));
@@ -806,6 +876,17 @@ export class TopDownRobot implements SeatedRobot {
     const stretch = clamp(1 + (headY - sp.ty) / 70, 0.82, 1.22);
     this.$.antenna.setAttribute("transform", `rotate(${(lagAngle + idle).toFixed(2)} 560 610) translate(560 610) scale(1 ${stretch.toFixed(3)}) translate(-560 -610)`);
 
+    // the hat slides with the turn and lags a touch behind fast head moves; fabric sways with the body
+    if (this.look.hat !== "none") this.$.hat.setAttribute("transform", `translate(${(yaw * -9).toFixed(2)} ${(clamp(headY - sp.ty, -6, 6) * 0.25).toFixed(2)}) rotate(${(lagAngle * 0.14).toFixed(2)} 560 612)`);
+    if (this.motion.sway.length || this.motion.spin.length) {
+      const sw = this.sway, v = (bx - sw.lastBx) / dt;
+      sw.lastBx = bx;
+      const target = clamp(-v * 0.03 + swing * 0.12 + gSway * 0.25 + (lagAngle / 38) * 0.6, -1.4, 1.4);
+      sw.vel += (55 * (target - sw.v) - 6.5 * sw.vel) * dt;
+      sw.v += sw.vel * dt;
+      stepLookMotion(this.motion, now, sw.v);
+    }
+
     // chair swivel
     const swKey = `${r.sw.toFixed(3)}`;
     if (swKey !== this.lastSw) {
@@ -842,7 +923,7 @@ export class TopDownRobot implements SeatedRobot {
 
   /** A point given in head v0 coordinates, in desk coordinates for the current frame. */
   private headPoint(vx: number, vy: number, bx: number, by: number, hdx: number, hdy: number, rot: number): Pt {
-    const a = (rot * Math.PI) / 180, dx = vx - 560, dy = vy - 715;
+    const hs = this.look.head, a = (rot * Math.PI) / 180, dx = (vx - 560) * hs, dy = (vy - 715) * hs;
     const x = 560 + dx * Math.cos(a) - dy * Math.sin(a) + hdx;
     const y = 715 + dx * Math.sin(a) + dy * Math.cos(a) + hdy + HEAD_DROP;
     return { x: ORIGIN.x + bx + (x - 560) * S, y: ORIGIN.y + by + (y - 748) * S };
@@ -965,12 +1046,14 @@ const ROBOT = (id: string) => /* svg */ `
     <g data-r="torso">
       <ellipse cx="560" cy="742" rx="92" ry="22" fill="url(#${id}-sh)"/>
       <rect x="547" y="700" width="26" height="42" rx="9" fill="var(--deep)"/>
+      <g data-r="shellG"><g data-r="accUnder"></g>
       <path d="M503 752 C503 735 517 727 534 727 L586 727 C603 727 617 735 617 752 C617 786 607 812 601 838 L519 838 C513 812 503 786 503 752 Z" fill="var(--shade)"/>
       <path d="M509 754 C509 740 520 733 535 733 L583 733 C596 733 606 740 606 754 C606 783 597 807 592 830 L527 830 C522 807 509 783 509 754 Z" fill="var(--shell)"/>
       <path d="M598 748 C600 776 594 800 588 822" fill="none" stroke="var(--shade)" stroke-width="5" stroke-linecap="round" opacity="0.55"/>
+      <g data-r="accPack"></g></g>
       <g data-r="backPlate">
-        <rect x="541" y="750" width="38" height="5" rx="2.5" fill="var(--shade)"/>
-        <rect x="544" y="760" width="32" height="5" rx="2.5" fill="var(--shade)"/>
+        <g data-r="vents"><rect x="541" y="750" width="38" height="5" rx="2.5" fill="var(--shade)"/>
+        <rect x="544" y="760" width="32" height="5" rx="2.5" fill="var(--shade)"/></g>
         <g data-r="nameplate" style="display:none">
           <title data-r="nameTitle"></title>
           <rect data-r="plate" x="518" y="774" width="84" height="16" rx="6" fill="var(--shade)"/>
@@ -983,7 +1066,8 @@ const ROBOT = (id: string) => /* svg */ `
         <circle cx="560" cy="771" r="5" fill="var(--glow)"/>
         <circle cx="546" cy="764" r="2.2" fill="var(--deep)"/><circle cx="574" cy="764" r="2.2" fill="var(--deep)"/>
       </g>
-      ${shoulder(560 - SHOULDER)}${shoulder(560 + SHOULDER)}
+      <g data-r="shL">${shoulder(560 - SHOULDER)}</g><g data-r="shR">${shoulder(560 + SHOULDER)}</g>
+      <g data-r="accOverG"><g data-r="accOver"></g></g>
     </g>
     <g data-r="seatFront" style="display:none">
       <rect x="${f(CX - BW / 2 - 2)}" y="${f(HIP_Y - 10 * U)}" width="${f(BW + 4)}" height="${f(26 * U)}" rx="${f(13 * U)}" fill="#4a5063"/>

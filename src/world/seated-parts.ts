@@ -3,6 +3,7 @@ import claudeLogo from "../assets/claude.svg";
 import grokLogo from "./assets/grok.svg";
 import { brandFor, type BrandKind } from "../office/brand";
 import type { Expression, Pt, RobotLook } from "../office/rig";
+import { stickerSvg as lookSticker } from "./look";
 
 // Drawing pieces of the seated desk robot. Started as a copy of parts.ts (the walker and the
 // break room keep using that file), so the desk robot can evolve on its own. Everything is in
@@ -81,11 +82,11 @@ const cup = (side: -1 | 1) => {
 /** The whole head in v0 coordinates: antenna, ears, back of the head with the logo, the face and headphones. */
 export function headSvg(id: string) {
   return /* svg */ `
-    <g data-r="antenna"><g data-r="antennaDroop">
+    <g data-r="antennaLift"><g data-r="antenna"><g data-r="antennaDroop">
       <rect x="556.5" y="570" width="7" height="40" rx="3.5" fill="var(--deep)"/>
       <circle data-r="antennaGlow" cx="560" cy="566" r="26" fill="url(#${id}-ag)" opacity="0.9"/>
       <g data-r="tip" transform="translate(560 566)">${antennaTipSvg("ball")}</g>
-    </g></g>
+    </g></g></g>
     <g data-r="earL"><circle cx="486" cy="656" r="17" fill="var(--ear, var(--deep))"/><circle cx="484" cy="654" r="10" fill="var(--shade)"/></g>
     <g data-r="earR"><circle cx="634" cy="656" r="17" fill="var(--ear, var(--deep))"/><circle cx="636" cy="654" r="10" fill="var(--shade)"/></g>
     <g data-r="back">
@@ -113,12 +114,14 @@ export function headSvg(id: string) {
       <path d="M520 636 C534 630 556 629 572 631" stroke="#ffffff" stroke-opacity="0.12" stroke-width="5" stroke-linecap="round" fill="none"/>
       <g data-r="eyeLight"><ellipse cx="540" cy="657" rx="22" ry="27" fill="url(#${id}-eg)"/><ellipse cx="580" cy="657" rx="22" ry="27" fill="url(#${id}-eg)"/></g>
       <g data-r="eyes"></g>
+      <g data-r="blush" style="display:none"></g>
       <g data-r="faceLogo">
         <rect data-r="faceMasked" x="551" y="606" width="18" height="18" fill="var(--logo)" mask="url(#${id}-fm)" opacity="0.8"/>
         <image data-r="facePlain" x="551" y="606" width="18" height="18" opacity="0.75"/>
         <g data-r="faceChip">${chip(560, 615, 0.32, "var(--logo)")}</g>
       </g>
     </g>
+    <g data-r="hat"></g>
     <g data-r="phones" style="display:none">
       <path d="M481 640 C478 604 506 589 560 589 C614 589 642 604 639 640" fill="none" stroke="#2c3040" stroke-width="12" stroke-linecap="round"/>
       <path d="M481 640 C478 604 506 589 560 589 C614 589 642 604 639 640" fill="none" stroke="var(--hp)" stroke-width="8" stroke-linecap="round"/>
@@ -148,20 +151,8 @@ export function antennaTipSvg(kind: RobotLook["antennaTip"] = "ball") {
   }
 }
 
-export function stickerSvg(kind: RobotLook["sticker"]) {
-  switch (kind) {
-    case "bolt":
-      return `<rect x="-11" y="-13" width="22" height="26" rx="7" fill="#fbfbfb"/><path d="M2 -10 L-6 2 L0 2 L-3 10 L6 -3 L0 -3 Z" fill="#ffc531"/>`;
-    case "star":
-      return `<circle r="12" fill="#fbfbfb"/><polygon points="0,-8.5 2.4,-2.8 8.5,-2.6 3.8,1.4 5.3,7.4 0,4 -5.3,7.4 -3.8,1.4 -8.5,-2.6 -2.4,-2.8" fill="#ff9f5a" stroke="#ff9f5a" stroke-width="1.5" stroke-linejoin="round"/>`;
-    case "heart":
-      return `<path d="M0 12 C-20 0 -14 -17 0 -8 C14 -17 20 0 0 12 Z" fill="#fbfbfb"/><path d="M0 7.5 C-12 0 -8 -10 0 -4.5 C8 -10 12 0 0 7.5 Z" fill="#ff6f91"/>`;
-    case "smile":
-      return `<circle r="12" fill="#fbfbfb"/><circle r="9" fill="#ffd23f"/><circle cx="-3" cy="-2" r="1.4" fill="#3a3f4f"/><circle cx="3" cy="-2" r="1.4" fill="#3a3f4f"/><path d="M-4 2 Q0 6 4 2" stroke="#3a3f4f" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
-    default:
-      return "";
-  }
-}
+/** Stickers live in look.ts now (shared with the walker and the portraits). */
+export function stickerSvg(kind: RobotLook["sticker"]) { return lookSticker(kind); }
 
 /** Eyes on the visor for an expression. */
 export function eyesSvg(e: Expression, xs: number[] = [540, 580], cy = 657) {
