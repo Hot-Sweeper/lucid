@@ -161,6 +161,7 @@ export class WM {
         await this.pointAt(w.el.querySelector(".win-bar")!, 0.6, 0.5, 380);
         await this.click();
         this.focus(id);
+        if (this.covered(id) > 0.45 && Math.random() < 0.55) await this.dragTo(id, this.bestSpot(this.frameOf(w), id));
       }
       return w;
     }
@@ -172,10 +173,11 @@ export class WM {
     }
     this.check(e);
     this.trim(id);
-    const base = this.frameHint[id] ?? FRAMES[id];
-    // windows never land in exactly the same spot twice
-    const jx = Math.round((Math.random() - 0.5) * 50), jy = Math.round((Math.random() - 0.5) * 24);
-    const f = { ...base, x: Math.max(4, Math.min(SCREEN.w - base.w - 4, base.x + jx)), y: Math.max(4, Math.min(SCREEN.h - 50 - base.h, base.y + jy)) };
+    const base0 = this.frameHint[id] ?? FRAMES[id];
+    // a little variety in size, then the spot that overlaps the open windows least
+    const k = 0.92 + Math.random() * 0.12;
+    const base = { ...base0, w: Math.min(SCREEN.w - 8, Math.round(base0.w * k)), h: Math.min(SCREEN.h - 58, Math.round(base0.h * (0.96 + Math.random() * 0.06))) };
+    const f = this.wins.size ? this.bestSpot(base) : { ...base, ...this.jitter(base) };
     const el = document.createElement("section");
     el.className = `win app-${id}`;
     el.style.cssText = `left:${f.x}px;top:${f.y}px;width:${f.w}px;height:${f.h}px`;
@@ -193,7 +195,94 @@ export class WM {
       { opacity: 1, scale: 1, x: 0, y: 0, duration: 0.55 / this.speed, ease: "expo.out", transformOrigin: "50% 50%" });
     gsap.fromTo(el.querySelector(".win-body"), { opacity: 0 }, { opacity: 1, duration: 0.4 / this.speed, delay: 0.15 / this.speed });
     await this.sleep(260, e);
+    // now and then: snap two windows side by side, or go full screen to focus
+    const r = Math.random();
+    if (this.wins.size >= 2 && r < 0.12) await this.snap(id, f.x + f.w / 2 < SCREEN.w / 2 ? "left" : "right").catch(rethrow);
+    else if ((id === "editor" || id === "browser") && r > 0.93) await this.maximize(id).catch(rethrow);
     return w;
+  }
+
+  // --- placement -----------------------------------------------------------
+  private frameOf(w: Win): Frame { return { x: w.el.offsetLeft, y: w.el.offsetTop, w: w.el.offsetWidth, h: w.el.offsetHeight }; }
+  private jitter(b: Frame) {
+    const H = SCREEN.h - 50;
+    return { x: Math.max(4, Math.min(SCREEN.w - b.w - 4, b.x + Math.round((Math.random() - 0.5) * 60))), y: Math.max(4, Math.min(H - b.h, b.y + Math.round((Math.random() - 0.5) * 30))) };
+  }
+  // how much of a window is hidden under windows in front of it (0..1)
+  private covered(id: AppId) {
+    const w = this.wins.get(id);
+    if (!w) return 0;
+    const f = this.frameOf(w), z = Number(w.el.style.zIndex);
+    let hidden = 0;
+    for (const o of this.wins.values()) if (o !== w && Number(o.el.style.zIndex) > z) hidden += overlap(f, this.frameOf(o));
+    return Math.min(1, hidden / (f.w * f.h));
+  }
+  // The spot for a window of this size that overlaps the others least, preferring its usual
+  // place a little, with some randomness so the desktop never looks the same twice.
+  private bestSpot(size: Frame, skip?: AppId): Frame {
+    const H = SCREEN.h - 50;
+    const others = [...this.wins.values()].filter((o) => o.id !== skip).map((o) => this.frameOf(o));
+    const xs = new Set<number>([4, SCREEN.w - size.w - 4, Math.round((SCREEN.w - size.w) / 2)]);
+    const ys = new Set<number>([4, H - size.h, Math.round((H - size.h) / 2)]);
+    for (let i = 1; i < 8; i++) xs.add(Math.round(4 + ((SCREEN.w - size.w - 8) * i) / 8));
+    for (let i = 1; i < 4; i++) ys.add(Math.round(4 + ((H - size.h - 4) * i) / 4));
+    let best: Frame = { ...size }, bestScore = Infinity;
+    for (const x of xs) for (const y of ys) {
+      if (x < 4 || y < 4 || x + size.w > SCREEN.w - 4 || y + size.h > H) continue;
+      const f = { x, y, w: size.w, h: size.h };
+      const cover = others.reduce((s, o) => s + overlap(f, o), 0) / (size.w * size.h);
+      const score = cover * 100 + Math.hypot(x - size.x, y - size.y) / 60 + Math.random() * 9;
+      if (score < bestScore) { bestScore = score; best = f; }
+    }
+    return best;
+  }
+  // grab the title bar and drag the window to a new frame (resizing on drop if needed)
+  async dragTo(id: AppId, to: Frame) {
+    const w = this.wins.get(id);
+    if (!w) return;
+    const e = this.epoch;
+    const bar = w.el.querySelector(".win-bar")!;
+    await this.pointAt(bar, 0.35, 0.5, 340);
+    const r = this.frameOf(w);
+    const grab = { x: this.cursor.x - r.x, y: this.cursor.y - r.y };
+    w.el.classList.add("dragging");
+    this.robot.click();
+    const move = this.moveTo(to.x + grab.x, to.y + grab.y, 520);
+    const follow = () => { w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
+    gsap.ticker.add(follow);
+    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); }
+    this.check(e);
+    if (to.w !== r.w || to.h !== r.h) gsap.to(w.el, { left: to.x, top: to.y, width: to.w, height: to.h, duration: 0.3 / this.speed, ease: "power2.out" });
+  }
+  // drag to a screen edge: the window snaps to that half, like on a real desktop
+  async snap(id: AppId, side: "left" | "right") {
+    const H = SCREEN.h - 50;
+    const half = { x: side === "left" ? 4 : Math.round(SCREEN.w / 2) + 2, y: 4, w: Math.round(SCREEN.w / 2) - 6, h: H - 4 };
+    await this.dragTo(id, { ...half, w: this.frameOf(this.wins.get(id)!).w, h: this.frameOf(this.wins.get(id)!).h, x: side === "left" ? 2 : SCREEN.w - this.frameOf(this.wins.get(id)!).w - 2 });
+    const w = this.wins.get(id);
+    if (!w) return;
+    const flash = document.createElement("div");
+    flash.className = "snap-hint";
+    flash.style.cssText = `left:${half.x}px;top:${half.y}px;width:${half.w}px;height:${half.h}px`;
+    this.layer.appendChild(flash);
+    gsap.fromTo(flash, { opacity: 0 }, { opacity: 1, duration: 0.15, yoyo: true, repeat: 1, onComplete: () => flash.remove() });
+    gsap.to(w.el, { left: half.x, top: half.y, width: half.w, height: half.h, duration: 0.32 / this.speed, ease: "power3.out" });
+    // the window on the other side fills the rest, if there is one
+    const other = [...this.wins.values()].filter((o) => o.id !== id).sort((a, b) => b.lastUsed - a.lastUsed)[0];
+    if (other && Math.random() < 0.7) {
+      const rest = { x: side === "left" ? Math.round(SCREEN.w / 2) + 2 : 4, y: 4, w: half.w, h: half.h };
+      gsap.to(other.el, { left: rest.x, top: rest.y, width: rest.w, height: rest.h, duration: 0.36 / this.speed, ease: "power3.out", delay: 0.12 / this.speed });
+    }
+    await this.sleep(380);
+  }
+  // double-click the title bar: full screen
+  async maximize(id: AppId) {
+    const w = this.wins.get(id);
+    if (!w) return;
+    await this.pointAt(w.el.querySelector(".win-bar")!, 0.5, 0.5, 340);
+    await this.click(true);
+    gsap.to(w.el, { left: 4, top: 4, width: SCREEN.w - 8, height: SCREEN.h - 58, duration: 0.32 / this.speed, ease: "power3.out" });
+    await this.sleep(360);
   }
 
   // Open an app by typing its name into the launcher, like a keyboard person would.
@@ -223,8 +312,12 @@ export class WM {
 
   // Now and then a window gets dragged somewhere else on the screen.
   async maybeShuffle(id: AppId, chance = 0.18) {
-    const w = this.wins.get(id);
-    if (!w || Math.random() > chance) return;
+    const w0 = this.wins.get(id);
+    if (!w0 || Math.random() > chance) return;
+    const pick = Math.random();
+    if (pick < 0.35) return this.dragTo(id, this.bestSpot(this.frameOf(w0), id));
+    if (pick < 0.5 && this.wins.size >= 2) return this.snap(id, Math.random() < 0.5 ? "left" : "right");
+    const w = w0;
     const e = this.epoch;
     const bar = w.el.querySelector(".win-bar")!;
     await this.pointAt(bar, 0.4, 0.5, 360);
@@ -296,3 +389,11 @@ export class WM {
     this.root.querySelector(".toast-layer")!.innerHTML = "";
   }
 }
+
+function overlap(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) {
+  const x = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+  const y = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+  return x * y;
+}
+// window moves are optional: a reset (Cancelled) still has to stop the scene
+function rethrow(err: unknown) { if (err instanceof Cancelled) throw err; }
