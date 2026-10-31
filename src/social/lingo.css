@@ -1,0 +1,41 @@
+/* Lingobot: bright white lesson screen, chunky green buttons, word tiles with a soft base. */
+.so-lg { display: flex; flex-direction: column; background: #fff; color: #3c3c3c; font-weight: 500; }
+.so-lg-top { flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 16px 6px; }
+.so-lg-x { width: 10px; height: 10px; position: relative; }
+.so-lg-x::before, .so-lg-x::after { content: ""; position: absolute; left: 4px; top: -1px; width: 2px; height: 12px; border-radius: 1px; background: #afafaf; transform: rotate(45deg); }
+.so-lg-x::after { transform: rotate(-45deg); }
+.so-lg-prog { flex: 1; height: 10px; border-radius: 5px; background: #e5e5e5; overflow: hidden; }
+.so-lg-prog i { display: block; height: 100%; border-radius: 5px; background: #58cc02; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.08); }
+.so-lg-hp { display: flex; align-items: center; gap: 3px; color: #ff4b4b; font-weight: 700; }
+.so-lg-hp svg { width: 13px; height: 13px; fill: #ff4b4b; }
+.so-lg-main { flex: 1; min-height: 0; padding: 6px 22px; display: flex; flex-direction: column; gap: 10px; }
+.so-lg-main h4 { margin: 0; font-size: 14px; font-weight: 700; color: #3c3c3c; }
+.so-lg-ask { display: flex; align-items: flex-end; gap: 8px; }
+.so-lg-owl svg { width: 60px; height: 60px; }
+.so-lg-owl.big svg { width: 84px; height: 84px; }
+.so-lg-bub { position: relative; display: flex; align-items: center; gap: 6px; padding: 8px 11px; border-radius: 12px; box-shadow: inset 0 0 0 2px #e5e5e5; font-size: 11px; margin-bottom: 18px; }
+.so-lg-flag { display: flex; width: 14px; height: 10px; border-radius: 2px; overflow: hidden; flex: none; }
+.so-lg-flag i { flex: 1; }
+.so-lg-line { min-height: 32px; display: flex; flex-wrap: wrap; gap: 5px; align-content: flex-start; padding: 4px 0 6px; box-shadow: inset 0 -2px 0 #e5e5e5, 0 -2px 0 #e5e5e5; }
+.so-lg-bank { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.so-lg-tile { padding: 5px 10px; border-radius: 9px; background: #fff; box-shadow: inset 0 0 0 2px #e5e5e5, 0 2px 0 #e5e5e5; font-size: 10.5px; transition: background 0.2s, color 0.2s; }
+.so-lg-tile.gone { background: #e5e5e5; color: transparent; box-shadow: none; }
+.so-lg-foot { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 22px; box-shadow: 0 -2px 0 #e5e5e5; min-height: 54px; }
+.so-lg-foot div { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.so-lg-foot div span { font-size: 10px; font-weight: 500; }
+.so-lg-check { margin-left: auto; padding: 8px 26px; border-radius: 12px; background: #e5e5e5; color: #afafaf; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; font-size: 10px; }
+.so-lg-check.ready { background: #58cc02; color: #fff; box-shadow: 0 3px 0 #46a302; }
+.so-lg-foot.good { background: #d7ffb8; box-shadow: none; color: #58a700; }
+.so-lg-foot.bad { background: #ffdfe0; box-shadow: none; color: #ea2b2b; }
+.so-lg-foot.bad .so-lg-check { background: #ff4b4b; box-shadow: 0 3px 0 #ea2b2b; }
+.so-lg-done { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; }
+.so-lg-done h3 { margin: 0; font-size: 17px; color: #3c3c3c; font-weight: 800; }
+.so-lg-stats { display: flex; gap: 10px; }
+.so-lg-stats div { display: flex; flex-direction: column; width: 92px; border-radius: 12px; overflow: hidden; background: #ffc800; }
+.so-lg-stats small { padding: 3px 0; color: #fff; font-weight: 700; font-size: 9px; }
+.so-lg-stats b { display: flex; align-items: center; justify-content: center; gap: 3px; margin: 0 2px 2px; padding: 6px 0; border-radius: 10px; background: #fff; color: #b07800; font-size: 14px; }
+.so-lg-stats .fire { background: #ff9600; }
+.so-lg-stats .fire b { color: #c45f00; }
+.so-lg-stats svg { width: 14px; height: 14px; }
+.so-lg-stats i { font-style: normal; font-variant-numeric: tabular-nums; }
+.so-lg-done p { margin: 0; color: #777; }

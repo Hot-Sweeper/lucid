@@ -1,0 +1,55 @@
+/* Instabot: a light photo feed with story rings, made for the phone screen. */
+.so-ig { display: flex; flex-direction: column; background: #fff; color: #111; }
+.so-ig-top { flex: none; height: 28px; display: flex; align-items: center; justify-content: space-between; padding: 5px 8px 0; }
+.so-ig-top b { font-size: 12px; font-weight: 600; letter-spacing: -0.02em; font-style: italic; }
+.so-ig-top span { display: flex; gap: 7px; }
+.so-ig-top svg { width: 11px; height: 11px; fill: #111; }
+.so-ig-feed { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+.so-ig-stories { display: flex; gap: 6px; padding: 4px 6px 6px; box-shadow: 0 1px 0 #efefef; }
+.so-ig-st { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 26px; }
+.so-ig-st i { width: 26px; height: 26px; padding: 2px; border-radius: 50%; background: linear-gradient(45deg, #ffb84d, #ff4f7b 55%, #b04fff); display: block; }
+.so-ig-st i svg { width: 100%; height: 100%; border-radius: 50%; box-shadow: 0 0 0 1.5px #fff; }
+.so-ig-st.me i { background: #dbdbdb; }
+.so-ig-st small { font-size: 5.5px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30px; }
+.so-ig-post { padding-bottom: 6px; position: relative; }
+.so-ig-post header { display: flex; align-items: center; gap: 5px; padding: 5px 6px; }
+.so-ig-post header .so-av { width: 15px; height: 15px; }
+.so-ig-post header b { flex: 1; font-size: 7px; font-weight: 600; }
+.so-ig-post header i { font-style: normal; color: #555; }
+.so-ig-ph { position: relative; overflow: hidden; }
+.so-ig-ph canvas { display: block; }
+.so-ig-big { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; pointer-events: none; }
+.so-ig-big svg { width: 100%; height: 100%; fill: #fff; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3)); }
+.so-ig-acts { display: flex; gap: 7px; padding: 5px 6px 2px; }
+.so-ig-acts span svg { width: 11px; height: 11px; fill: #111; }
+.so-ig-acts .a-save { margin-left: auto; }
+.so-ig-acts .a-like.on svg { fill: #ff3040; }
+.so-ig-acts .a-save.on svg { fill: #111; }
+.so-ig-likes { padding: 0 6px; font-size: 6.5px; }
+.so-ig-likes b { font-weight: 600; }
+.so-ig-cap { margin: 1px 6px 0; font-size: 6.5px; overflow-wrap: anywhere; }
+.so-ig-cap b { font-weight: 600; }
+.so-ig-more { display: block; padding: 1px 6px 0; color: #8e8e8e; font-size: 6px; }
+.so-ig-nav { flex: none; height: 24px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -1px 0 #efefef; background: #fff; }
+.so-ig-nav svg { width: 11px; height: 11px; fill: #8e8e8e; }
+.so-ig-nav .on svg { fill: #111; }
+.so-ig-fx { position: absolute; inset: 0; pointer-events: none; }
+.so-ig-story, .so-ig-reel { position: absolute; inset: 0; z-index: 5; background: #000; color: #fff; overflow: hidden; }
+.so-ig-story canvas, .so-ig-reel canvas { position: absolute; left: 0; top: 0; }
+.so-ig-bars { position: absolute; left: 5px; right: 5px; top: 6px; display: flex; gap: 2px; z-index: 2; }
+.so-ig-bars i { flex: 1; height: 1.5px; border-radius: 1px; background: rgba(255, 255, 255, 0.4); overflow: hidden; }
+.so-ig-bars s { display: block; height: 100%; background: #fff; transform: scaleX(0); transform-origin: 0 50%; }
+.so-ig-story header { position: absolute; left: 6px; top: 11px; display: flex; align-items: center; gap: 4px; z-index: 2; font-size: 6.5px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+.so-ig-story header .so-av { width: 13px; height: 13px; }
+.so-ig-story p { position: absolute; left: 50%; top: 42%; transform: translateX(-50%); margin: 0; padding: 2px 6px; border-radius: 3px; background: #fff; color: #111; font-weight: 600; font-size: 8px; white-space: nowrap; z-index: 2; }
+.so-ig-story footer { position: absolute; left: 6px; right: 6px; bottom: 7px; display: flex; align-items: center; gap: 5px; z-index: 2; }
+.so-ig-story footer span { flex: 1; padding: 3px 7px; border-radius: 10px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6); font-size: 6px; }
+.so-ig-story footer svg { width: 10px; height: 10px; fill: #fff; }
+.so-ig-reel header { position: absolute; left: 7px; top: 8px; font-weight: 600; font-size: 9px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+.so-ig-rside { position: absolute; right: 5px; bottom: 34px; display: flex; flex-direction: column; gap: 8px; align-items: center; z-index: 2; }
+.so-ig-rside span { display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 5.5px; }
+.so-ig-rside svg { width: 12px; height: 12px; fill: #fff; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4)); }
+.so-ig-rinfo { position: absolute; left: 6px; right: 26px; bottom: 9px; display: grid; grid-template-columns: auto 1fr; gap: 1px 4px; align-items: center; z-index: 2; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.so-ig-rinfo .so-av { width: 13px; height: 13px; }
+.so-ig-rinfo b { font-size: 6.5px; }
+.so-ig-rinfo p { grid-column: 1 / -1; margin: 0; font-size: 6px; }

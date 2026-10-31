@@ -34,6 +34,9 @@ contextBridge.exposeInMainWorld("lucid", {
   startThread: (opts) => ipcRenderer.invoke("t3:start", opts),
   sendMessage: (opts) => ipcRenderer.invoke("t3:send", opts),
   peek: (url) => ipcRenderer.invoke("web:peek", url),
+  siteFetch: (url, as) => ipcRenderer.invoke("site:fetch", url, as),
+  webSearch: (q) => ipcRenderer.invoke("web:search", q),
+  gitInfo: (root) => ipcRenderer.invoke("git:info", root),
   image: (p) => ipcRenderer.invoke("fs:image", p),
   readText: (p) => ipcRenderer.invoke("fs:text", p),
   onItems: on("t3:items"),
@@ -59,3 +62,6 @@ contextBridge.exposeInMainWorld("lucidT3", {
   steer: t3s("t3s:steer"),
   setModel: t3s("t3s:setModel"),
 });
+
+// Office documents for the robots' Botword, Cellsheet and Slidedeck: { ok, doc } or { ok: false, error }.
+contextBridge.exposeInMainWorld("lucidDocs", { read: (p) => ipcRenderer.invoke("doc:read", p) });

@@ -1,0 +1,17 @@
+/* Sketchpad: a cream paint app with a colour column and a white page. */
+.so-dw { display: flex; flex-direction: column; background: #efe7da; color: #3a2f25; }
+.so-dw-top { flex: none; height: 32px; display: flex; align-items: center; gap: 12px; padding: 0 10px; background: #f8f2e9; }
+.so-dw-top b { font-size: 11px; font-weight: 600; }
+.so-dw-tools { display: flex; gap: 3px; }
+.so-dw-tools span { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; color: #7a6a58; transition: background 0.2s, color 0.2s; }
+.so-dw-tools span.on { background: #3a2f25; color: #fff5e6; }
+.so-dw-tools svg { width: 13px; height: 13px; fill: currentColor; }
+.so-dw-name { margin-left: auto; color: #8a7a68; font-family: var(--mono); font-size: 9px; }
+.so-dw-mid { flex: 1; min-height: 0; display: flex; gap: 10px; padding: 10px; }
+.so-dw-pal { flex: none; display: grid; grid-template-columns: repeat(2, 18px); grid-auto-rows: 18px; gap: 5px; align-content: start; }
+.so-dw-pal span { border-radius: 50%; transition: transform 0.2s, box-shadow 0.2s; }
+.so-dw-pal span.on { transform: scale(1.15); box-shadow: 0 0 0 2px #efe7da, 0 0 0 3.5px #3a2f25; }
+.so-dw-paper { flex: 1; min-width: 0; position: relative; border-radius: 4px; background: #fff; box-shadow: 0 2px 8px rgba(58, 47, 37, 0.15); overflow: hidden; }
+.so-dw-paper canvas { position: absolute; left: 0; top: 0; }
+.so-dw-status { flex: none; height: 20px; display: flex; align-items: center; padding: 0 10px; color: #8a7a68; font-family: var(--mono); font-size: 8.5px; }
+.so-dw-toast { position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); padding: 5px 10px; border-radius: 8px; background: #3a2f25; color: #fff5e6; white-space: nowrap; }

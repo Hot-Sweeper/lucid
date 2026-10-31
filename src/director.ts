@@ -7,17 +7,54 @@ import { IdleLife } from "./os/idle";
 import { HarnessApp, harnessKind, THEMES, type HarnessSession, type SubagentEvent } from "./harness/harness";
 import { fileUrl } from "./office/chat-panel";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ChatApp, ToolApp, prettyTool } from "./os/apps";
-import { classify, parseDiff, baseName, type Entry } from "./os/classify";
+import { classify, parseDiff, baseName, relPath, unwrap, type Entry } from "./os/classify";
 import { TasksApp, type TaskStep } from "./os/tasks";
+import { GitDeskApp, type DeskFile } from "./os/gitdesk";
+import { gitPlan, gitFacts, isGitWork, type GitPlan, type GitStep, type GitFacts } from "./os/git";
+import { cleanQuery, hostOf, type Result } from "./os/sites";
+import type { PrInfo } from "./os/browser";
 import type { SeatedRobot as Robot } from "./office/rig";
 import type { DeskStage as Stage } from "./office/desk";
+import { OfficeSuite, OFFICE_GLOW, officeActivity, officeKind, officeTargets, resolveIn } from "./office-apps";
 
 export type Item = { id: string; runId: string | null; ordinal: number; type: string; status: string; updatedAt: string; data: any };
 export type ThreadInfo = { id: string; title: string; provider: string; model?: string | null; effort?: string | null; projectTitle?: string; root?: string; run?: { id: string; status: string } | null; error?: string };
 
 const GLOW: Record<string, string> = {
-  editor: "#6f7dff", terminal: "#4ff0a0", browser: "#4fd2ff", chat: "#ff7aa8", files: "#ffbf5a", tool: "#b07cff", think: "#9d8cff", idle: "#4fb6ff", tasks: "#4fd8c0",
+  editor: "#6f7dff", terminal: "#4ff0a0", browser: "#4fd2ff", chat: "#ff7aa8", files: "#ffbf5a", tool: "#b07cff", think: "#9d8cff", idle: "#4fb6ff", tasks: "#4fd8c0", git: "#a37cff",
 };
+
+const isUrl = (s: string) => /^https?:\/\//i.test(s);
+// What a web item did: searched, opened pages, or looked for a word on a page ("'term' in url").
+function webKind(pats: string[]): { kind: "find"; term: string; url: string | null } | { kind: "open"; urls: string[] } | { kind: "search"; queries: string[] } {
+  const last = pats[pats.length - 1] || "";
+  const fm = last.match(/^'(.+)'(?: in (https?:\/\/\S+))?$/);
+  if (fm && pats.length >= 2) return { kind: "find", term: fm[1], url: fm[2] || pats.find(isUrl) || null };
+  const urls = pats.filter(isUrl);
+  if (urls.length && urls.length === pats.length) return { kind: "open", urls: [...new Set(urls)] };
+  return { kind: "search", queries: [...new Set(pats.filter((p) => !isUrl(p)))] };
+}
+// Search results from a WebSearch tool's text output: JSON {title, url} pairs or markdown links.
+function linksIn(text: string): Result[] {
+  const out: Result[] = [];
+  for (const m of text.matchAll(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"url"\s*:\s*"(https?:\/\/[^"]+)"/g)) out.push({ title: JSON.parse(`"${m[1]}"`), url: m[2] });
+  if (!out.length) for (const m of text.matchAll(/\[([^\]]{3,160})\]\((https?:\/\/[^)\s]+)\)/g)) out.push({ title: m[1], url: m[2] });
+  return out.slice(0, 8);
+}
+function gitActivity(steps: GitStep[]) {
+  const ops = steps.map((s) => s.op);
+  const m = steps.find((s) => s.op === "merge") as { branch: string } | undefined;
+  const c = steps.find((s) => s.op === "checkout") as { branch: string; create: boolean } | undefined;
+  if (ops.includes("pr-create")) return "Opening a pull request";
+  if (ops.includes("pr-merge")) return "Merging the pull request";
+  if (ops.includes("commit") && ops.includes("push")) return "Committing and pushing";
+  if (ops.includes("commit")) return "Committing its changes";
+  if (ops.includes("push")) return "Pushing to GitHub";
+  if (ops.includes("pull")) return "Pulling the latest changes";
+  if (m) return `Merging ${m.branch}`;
+  if (c) return c.create ? `Creating branch ${c.branch}` : `Switching to ${c.branch}`;
+  return "Fetching from GitHub";
+}
 
 // Reasoning effort from a T3 model selection: [{ id: "effort", value }], { effort }, Codex's "reasoningEffort"...
 function effortOf(o: any): string | undefined {
@@ -86,6 +123,7 @@ export class Director {
     this.chat = new ChatApp(wm);
     this.tool = new ToolApp(wm);
     this.tasks = new TasksApp(wm);
+    this.gitdesk = new GitDeskApp(wm);
     this.idleLife = new IdleLife(wm, robot, stage);
     this.idleLife.browser = this.browser;
     this.idleLife.hold = () => this.waitingForUser;
@@ -116,6 +154,9 @@ export class Director {
     this.stage.setPlan([]);
     this.tasks.reset();
     this.planSig = "";
+    this.changed.clear();
+    this.committed = [];
+    this._office?.reset();
     this.robot.setPose("rest");
   }
 
@@ -531,13 +572,23 @@ export class Director {
     };
     if (/^(bash|powershell|shell|run_command)$/i.test(base)) {
       const cmd = this.get(id).data.input?.command || "";
+      if (await this.playGit(id, cmd)) return true;
       this.onActivity("Running a command");
       this.stage.setGlow(GLOW.terminal);
       const h = await this.term.run(cmd);
       this.robot.setPose("read");
       const done = await this.settle(id);
       await h.finish(text(done.data.output), done.data.output?.exitCode ?? null);
+      await this.officeFollowUp(cmd, text(done.data.output), done.data.output?.exitCode ?? null);
       await this.wm.sleep(500);
+      return true;
+    }
+    if (/^(Write|Edit|MultiEdit)$/.test(base) && officeKind(this.get(id).data.input?.file_path)) {
+      // Claude wrote or edited a document (a csv, say): show it in the office app
+      const done = await this.settle(id, 20000);
+      const inp = done.data.input || {};
+      const added = base === "Edit" ? inp.new_string : base === "MultiEdit" ? (inp.edits || []).map((x: any) => x?.new_string || "").join("\n") : undefined;
+      await this.playOffice(String(inp.file_path), base === "Write" ? "add" : "update", { text: base === "Write" && typeof inp.content === "string" ? inp.content : null, added: typeof added === "string" ? added : undefined });
       return true;
     }
     if (base === "Read") {
@@ -575,10 +626,18 @@ export class Director {
       return true;
     }
     if (base === "WebFetch" || base === "WebSearch") {
-      const t = this.get(id).data.input?.url || this.get(id).data.input?.query || "the web";
+      const it = this.get(id);
+      const inp = it.data.input || {};
       this.stage.setGlow(GLOW.browser);
-      this.onActivity(base === "WebFetch" ? "Reading a web page" : "Searching the web");
-      await this.browser.visit(t);
+      if (base === "WebFetch" && inp.url) {
+        this.onActivity(`Reading ${hostOf(String(inp.url)) || "a web page"}`);
+        await this.browser.open(String(inp.url), { instant: this.catchingUp });
+        return true;
+      }
+      const done = await this.settle(id, 20000);
+      const q = String(inp.query || "");
+      this.onActivity(q ? `Searching the web for “${cleanQuery(q).slice(0, 60)}”` : "Searching the web");
+      await this.browser.search(q || "the web", { results: linksIn(outText(done.data.output)), instant: this.catchingUp, then: this.nextPages(it) });
       return true;
     }
     if (base === "TodoWrite") {
@@ -648,7 +707,21 @@ export class Director {
       await this.phonePage(url, done.data.output?.title || null, browserActs[base] || "Loading");
       return true;
     }
-    if (base === "preview_navigate") return false; // a normal visit, handled by the caller
+    // T3's preview browser: each of its tabs is a tab in the robot's browser, with the real title
+    if (base === "preview_navigate" || base === "preview_open" || base === "preview_snapshot") {
+      const done = await this.settle(id, 15000);
+      const out = done.data.output || {};
+      const inp = done.data.input || {};
+      const url = String((out.url && !/^chrome-error:/.test(out.url) ? out.url : "") || inp.url || "");
+      const tabId = out.tabId || inp.tabId;
+      if (/^https?:/.test(url) && (base !== "preview_snapshot" || out.visibleText)) {
+        this.stage.setGlow(GLOW.browser);
+        this.onActivity(base === "preview_snapshot" ? "Reading the page" : base === "preview_open" ? "Opening a tab" : `Visiting ${hostOf(url)}`);
+        await this.browser.open(url, { instant: this.catchingUp, title: out.title || undefined, text: base === "preview_snapshot" ? String(out.visibleText) : undefined, key: tabId ? `pv:${tabId}` : undefined });
+        return true;
+      }
+      if (base === "preview_navigate") return false; // a normal visit, handled by the caller
+    }
     if (browserActs[base]) {
       this.onActivity(browserActs[base]);
       this.stage.setGlow(GLOW.browser);
@@ -658,6 +731,195 @@ export class Director {
     }
     if (base === "t3_preview_close") { this.wm.close("browser"); return true; }
     return false;
+  }
+
+  // --- the web ------------------------------------------------------------------
+  /** The pages it read right after a search: the next web items (fetches, opened URLs) until another search. */
+  private nextPages(it: Item): string[] {
+    const later = [...this.items.values()].filter((x) => x.ordinal > it.ordinal && x.runId === it.runId).sort((a, b) => a.ordinal - b.ordinal).slice(0, 16);
+    const urls: string[] = [];
+    for (const x of later) {
+      if (x.type === "web_search") {
+        const w = webKind((x.data.patterns || []).map(String));
+        if (w.kind === "search") break;
+        if (w.kind === "open") for (const u of w.urls) if (!urls.includes(u)) urls.push(u);
+      } else if (x.type === "dynamic_tool" && /(^|__|\.)WebFetch$/.test(String(x.data.toolName || ""))) {
+        const u = String(x.data.input?.url || "");
+        if (isUrl(u) && !urls.includes(u)) urls.push(u);
+      } else if (x.type === "dynamic_tool" && /(^|__|\.)WebSearch$/.test(String(x.data.toolName || ""))) break;
+      if (urls.length >= 4) break;
+    }
+    return urls;
+  }
+
+  // A web item: a search (results page, then the pages it read open in tabs), a page, or find in page.
+  private async playWeb(it: Item) {
+    const d = it.data;
+    const pats: string[] = [...(d.patterns || []), ...(d.query ? [d.query] : [])].map(String).filter(Boolean);
+    const instant = this.catchingUp;
+    if (!pats.length) { await this.wm.sleep(300); return; }
+    const w = webKind(pats);
+    if (w.kind === "find") {
+      this.onActivity(`Looking for “${w.term.slice(0, 40)}” on the page`);
+      await this.browser.find(w.term, w.url, { instant });
+      return;
+    }
+    if (w.kind === "open") {
+      for (const u of w.urls.slice(0, 3)) { this.onActivity(`Reading ${hostOf(u)}`); await this.browser.open(u, { instant }); }
+      return;
+    }
+    const results: Result[] = (d.results || []).filter((r: any) => r?.url && r?.title).map((r: any) => ({ url: String(r.url), title: String(r.title), snippet: r.snippet ? String(r.snippet).slice(0, 240) : undefined }));
+    const queries = w.queries.slice(0, 2);
+    const then = this.nextPages(it);
+    for (const [i, q] of queries.entries()) {
+      this.onActivity(`Searching the web for “${cleanQuery(q).slice(0, 60)}”`);
+      await this.browser.search(q, { results: i === 0 && results.length ? results : null, instant, then: i === queries.length - 1 ? then : [] });
+    }
+  }
+
+  // --- git and GitHub -------------------------------------------------------------
+  private gitdesk: GitDeskApp;
+  /** Files changed since the last commit it showed (repo-relative path to status and latest diff). */
+  private changed = new Map<string, { status: DeskFile["status"]; diff?: string }>();
+  private committed: DeskFile[] = [];
+
+  private noteChange(path: string, op: string | undefined, diff: string) {
+    const rel = relPath(path, this.info?.root || null);
+    const prev = this.changed.get(rel);
+    const added = op === "add" || /^--- \/dev\/null/m.test(diff);
+    this.changed.set(rel, { status: added || prev?.status === "new" ? "new" : op === "delete" ? "deleted" : "modified", diff: diff || prev?.diff });
+  }
+
+  private repoInfo(): Promise<any> {
+    const root = this.info?.root;
+    const api = (window as any).lucid;
+    if (!root || !api?.gitInfo) return Promise.resolve(null);
+    return Promise.resolve(api.gitInfo(root)).then((r: any) => (r?.ok ? r : null)).catch(() => null);
+  }
+
+  private cmdResult(it: Item) {
+    const d = it.data;
+    const output = it.type === "command_execution" ? String(d.output || "") : outText(d.output);
+    const exit = it.type === "command_execution" ? d.exitCode ?? null : d.output?.exitCode ?? (d.output?.isError ? 1 : null);
+    return { output, exit: exit as number | null, ok: exit == null || exit === 0 };
+  }
+
+  private commitFiles(plan: GitPlan, f: GitFacts, fallback: { code: string; path: string }[] | null): DeskFile[] {
+    const root = this.info?.root || null;
+    const explicit = plan.steps.flatMap((s) => (s.op === "add" && !s.all ? s.paths : [])).map((p) => relPath(p, root).replace(/^\.\//, "").replace(/\/$/, ""));
+    const wanted = (p: string) => !explicit.length || explicit.some((e) => p === e || p.startsWith(e + "/"));
+    const out = new Map<string, DeskFile>();
+    for (const s of f.stat) out.set(s.path, { path: s.path, status: "modified", adds: s.adds, dels: s.dels });
+    for (const [p, c] of this.changed) if (wanted(p)) out.set(p, { ...out.get(p), path: p, status: c.status, diff: c.diff });
+    for (const e of explicit) if (![...out.keys()].some((p) => p === e || p.startsWith(e + "/"))) out.set(e, { path: e, status: "modified" });
+    if (!out.size && fallback) for (const c of fallback) out.set(c.path, { path: c.path, status: /\?|A/.test(c.code) ? "new" : /D/.test(c.code) ? "deleted" : "modified" });
+    return [...out.values()];
+  }
+
+  private prFiles(f: GitFacts) {
+    const count = (diff?: string) => { let a = 0, dd = 0; for (const h of parseDiff(diff || "")) for (const l of h.lines) { if (l.kind === "+") a++; else if (l.kind === "-") dd++; } return [a, dd]; };
+    if (f.stat.length) return f.stat.map((s) => ({ path: s.path, adds: s.adds, dels: s.dels }));
+    const src = this.committed.length ? this.committed : [...this.changed].map(([path, c]) => ({ path, status: c.status, diff: c.diff } as DeskFile));
+    return src.map((x) => { const [a, dd] = x.adds != null ? [x.adds, x.dels ?? 0] : count(x.diff); return { path: x.path, adds: a, dels: dd }; });
+  }
+
+  /**
+   * Git work looks like git work: terminal robots type it and get the real output (in git's
+   * colours), app robots do it in GitHub Desktop; pull requests open on GitHub in the browser.
+   */
+  private async playGit(id: string, command: string): Promise<boolean> {
+    const plan = gitPlan(command);
+    if (!plan || !plan.steps.some(isGitWork)) return false;
+    const instant = this.catchingUp;
+    const it = this.get(id);
+    const repo = await this.repoInfo();
+    const f0 = gitFacts(this.cmdResult(it).output);
+    const repoName: string | null = f0.repo || repo?.repo || null;
+    const shown = repoName ? repoName.split("/")[1] : baseName(this.info?.root || "repository");
+    let branch: string = f0.commit?.branch || f0.pushRef?.split(" -> ")[0] || repo?.branch || "main";
+    const done = this.settle(id).then((x) => this.cmdResult(x));
+    const desktop = (this.wm.prefs?.git ?? "cli") === "desktop" && !plan.other.length;
+    const prStep = plan.steps.find((s) => s.op === "pr-create" || s.op === "pr-merge") || null;
+    this.onActivity(gitActivity(plan.steps) + (desktop ? " in GitHub Desktop" : ""));
+    if (!desktop) {
+      this.stage.setGlow(GLOW.terminal);
+      const h = await this.term.run(unwrap(command));
+      this.robot.setPose("read");
+      const r = await done;
+      await h.finish(r.output, r.exit);
+      const f = gitFacts(r.output);
+      if (plan.steps.some((s) => s.op === "commit") && r.ok) { this.committed = this.commitFiles(plan, f, null); this.changed.clear(); }
+      if ((prStep && r.ok) || f.prUrl) {
+        await this.wm.sleep(500);
+        if (!instant) await this.term.clickLink(/github\.com\/.+\/pull\//);
+        await this.showPr(prStep, f, plan, repoName, branch, false, Promise.resolve(r));
+      }
+      await this.wm.sleep(500);
+      return true;
+    }
+    this.stage.setGlow(GLOW.git);
+    const waits = plan.steps.some((s) => ["push", "pull", "fetch", "merge", "pr-create", "pr-merge"].includes(s.op));
+    for (const s of plan.steps) {
+      if (s.op === "checkout") { await this.gitdesk.branchTo({ repo: shown, branch, to: s.branch, create: s.create, known: repo?.branch ? [repo.branch] : [], instant }); branch = s.branch; }
+      else if (s.op === "commit") {
+        const files = this.commitFiles(plan, f0, instant ? null : repo?.changes || null);
+        await this.gitdesk.commit({ repo: shown, branch, files, message: s.message || f0.commit?.subject || "Update files", instant, done: waits ? undefined : done });
+        this.committed = files;
+        this.changed.clear();
+      }
+      else if (s.op === "push") await this.gitdesk.push({ repo: shown, branch, publish: s.upstream, done, instant, prUrl: (out) => gitFacts(out).prUrl });
+      else if (s.op === "pull" || s.op === "fetch") await this.gitdesk.fetch({ repo: shown, branch, pull: s.op === "pull", done, instant });
+      else if (s.op === "merge") await this.gitdesk.merge({ repo: shown, branch, from: s.branch, done, instant });
+      else if (s.op === "pr-create" || s.op === "pr-merge") await this.showPr(s, f0, plan, repoName, branch, true, done);
+    }
+    // a push that printed a pull request link: it opens the link in the browser
+    const r = await done;
+    const f = gitFacts(r.output);
+    if (!prStep && f.prUrl && r.ok) await this.showPr(null, f, plan, repoName, branch, false, Promise.resolve(r));
+    return true;
+  }
+
+  private async showPr(step: GitStep | null, f: GitFacts, plan: GitPlan, repoName: string | null, branch: string, click: boolean, result: Promise<{ ok: boolean; output: string }>) {
+    const instant = this.catchingUp;
+    const repo = repoName || `local/${baseName(this.info?.root || "repository")}`;
+    const create = step?.op === "pr-create" ? step : null;
+    const numberOf = (ff: GitFacts) => ff.prNumber ?? (step?.op === "pr-merge" ? step.number : null);
+    const commit = plan.steps.find((s) => s.op === "commit") as { message: string } | undefined;
+    const info: PrInfo = {
+      repo, number: numberOf(f),
+      title: create?.title || commit?.message.split("\n")[0] || f.commit?.subject || this.info?.title || "Changes",
+      body: create?.body || "", base: create?.base || f.pushRef?.split(" -> ")[1] || "main", head: create?.head || branch,
+      user: this.wm.robotName, commits: null, files: this.prFiles(f),
+    };
+    if (info.base === info.head) info.base = "main";
+    this.stage.setGlow(GLOW.browser);
+    const done = result.then((r) => ({ ok: r.ok, number: numberOf(gitFacts(r.output)) ?? info.number }));
+    if (step?.op === "pr-create") { this.onActivity("Opening a pull request on GitHub"); await this.browser.pullRequest("create", info, { instant, done, click }); }
+    else if (step?.op === "pr-merge") { this.onActivity("Merging the pull request on GitHub"); await this.browser.pullRequest("merge", info, { instant, done, click }); }
+    else if (f.prUrl && /\/pull\/\d+/.test(f.prUrl)) { this.onActivity("Checking the pull request on GitHub"); await this.browser.pullRequest("view", info, { instant }); }
+    else if (f.prUrl) { this.onActivity("Looking at the new branch on GitHub"); await this.browser.pullRequest("compare", info, { instant }); }
+  }
+
+  // --- office documents: Botword, Cellsheet, Slidedeck ---------------------------------
+  private _office: OfficeSuite | null = null;
+  private get office() { return (this._office ??= new OfficeSuite(this.wm)); }
+
+  /** A document the agent wrote or changed: the robot opens the matching office app and types or fills in what is new. */
+  private async playOffice(path: string, op: string | undefined, o: { diff?: string; text?: string | null; added?: string } = {}) {
+    const kind = officeKind(path);
+    if (!kind) return false;
+    const file = resolveIn(path, this.info?.root || null);
+    this.onActivity(officeActivity(file, op));
+    this.stage.setGlow(OFFICE_GLOW[kind]);
+    this.robot.setPose("mouse");
+    await this.office.show(file, { op, diff: o.diff, text: o.text, added: o.added, instant: this.catchingUp });
+    return true;
+  }
+
+  /** After a command that obviously wrote documents (python-docx, openpyxl, pandas to_excel, a csv redirect), show them. */
+  private async officeFollowUp(command: string, output: string, exit: number | null | undefined) {
+    if (exit != null && exit !== 0) return;
+    for (const f of officeTargets(String(command), String(output))) { await this.wm.sleep(300); await this.playOffice(f, "add"); }
   }
 
   private async phone(on: boolean) {
@@ -772,6 +1034,7 @@ export class Director {
         return;
       }
       case "command_execution": {
+        if (await this.playGit(id, d.input || "")) return;
         const pre = classify(d.input || "", "", root || "");
         if (pre.kind === "terminal") {
           this.onActivity("Running a command");
@@ -780,6 +1043,7 @@ export class Director {
           this.robot.setPose("read");
           const done = await this.settle(id);
           await h.finish(done.data.output || "", done.data.exitCode);
+          await this.officeFollowUp(done.data.input || d.input || "", done.data.output || "", done.data.exitCode);
           await this.wm.sleep(600);
           return;
         }
@@ -800,6 +1064,7 @@ export class Director {
         } else {
           const h = await this.term.run(act.command);
           await h.finish(done.data.output || "", done.data.exitCode);
+          await this.officeFollowUp(done.data.input || "", done.data.output || "", done.data.exitCode);
         }
         return;
       }
@@ -816,6 +1081,8 @@ export class Director {
           this.onActivity(`${verb} ${baseName(name)}`);
           if (ch.operation === "delete") { await this.editor.removed(name); continue; }
           const own = sameFile(name, first) ? dd.diffStr || dd.diff || dd.unifiedDiff || "" : "";
+          this.noteChange(name, ch.operation, own);
+          if (officeKind(name)) { await this.playOffice(name, ch.operation, { diff: own }); continue; }
           if (own) { await this.editor.diff(name, parseDiff(own)); continue; }
           // The event only carries one file's text; read the others from disk as they are now.
           const text = await this.readText(name);
@@ -828,11 +1095,7 @@ export class Director {
       case "web_search": {
         this.stage.setGlow(GLOW.browser);
         const done = await this.settle(id, 20000);
-        const targets: string[] = [...new Set<string>((done.data.patterns || []).concat(done.data.query ? [done.data.query] : []))].slice(0, 3);
-        for (const t of targets.length ? targets : ["the web"]) {
-          this.onActivity(/^https?:/.test(t) ? `Visiting ${new URL(t).hostname}` : `Searching the web`);
-          await this.browser.visit(t);
-        }
+        await this.playWeb(done);
         return;
       }
       case "dynamic_tool": {

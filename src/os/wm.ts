@@ -5,7 +5,7 @@ import { ICONS } from "./icons";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -24,9 +24,22 @@ const FRAMES: Record<AppId, Frame> = {
   calc: { x: 560, y: 60, w: 236, h: 330 },
   music: { x: 110, y: 18, w: 600, h: 386 },
   weather: { x: 470, y: 40, w: 320, h: 260 },
+  gitdesk: { x: 70, y: 14, w: 680, h: 384 },
+  botword: { x: 70, y: 10, w: 680, h: 396 },
+  cellsheet: { x: 40, y: 10, w: 740, h: 396 },
+  slidedeck: { x: 50, y: 10, w: 720, h: 396 },
+  botsapp: { x: 90, y: 16, w: 620, h: 380 },
+  telegrid: { x: 80, y: 14, w: 640, h: 384 },
+  chirp: { x: 100, y: 10, w: 620, h: 392 },
+  doodle: { x: 110, y: 14, w: 600, h: 380 },
+  crossword: { x: 160, y: 20, w: 500, h: 360 },
+  solitaire: { x: 110, y: 10, w: 600, h: 392 },
+  stocks: { x: 110, y: 18, w: 600, h: 370 },
+  mail: { x: 80, y: 12, w: 660, h: 384 },
+  lingo: { x: 200, y: 12, w: 420, h: 384 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "music", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "GitHub Desktop", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo"];
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 
@@ -272,6 +285,13 @@ export class WM {
     if (p?.hobby === "chatter") pins.add("social");
     if (p?.listens === "always") pins.add("music");
     if (p?.tasks === "board" || p?.tasks === "checklist") pins.add("tasks");
+    // robots that like office apps keep their favourites in the dock
+    if (p?.office === "writer" || p?.office === "suite") pins.add("botword");
+    if (p?.office === "numbers" || p?.office === "suite") pins.add("cellsheet");
+    if (p?.office === "slides" || p?.office === "suite") pins.add("slidedeck");
+    // favourite pastime apps, and the messengers and feeds it uses most, live in the dock too
+    for (const a of p?.apps ?? []) pins.add(a);
+    for (const a of (p?.socials ?? []).slice(0, 2)) if (a === "botsapp" || a === "telegrid" || a === "chirp") pins.add(a);
     return DOCK.filter((id) => pins.has(id));
   }
   private dockItem(id: AppId) {

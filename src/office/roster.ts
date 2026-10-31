@@ -9,6 +9,11 @@ import { migrateLook, randomLook } from "../world/look";
 export type Editor = "studio" | "pad" | "vim";
 export type Game = "snake" | "flappy" | "dash" | "chess";
 export type TasksStyle = "board" | "checklist" | "sticky";
+// Office fans use Botword, Cellsheet or Slidedeck when bored and keep their favourites in the dock.
+export type OfficeTaste = "none" | "writer" | "numbers" | "slides" | "suite";
+// Pastime apps on the monitor, and the social apps a robot uses (desktop and phone). Each robot has its own mix.
+export type FunApp = "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo";
+export type SocialApp = "botsapp" | "telegrid" | "chirp" | "instabot" | "snapbot" | "shorts";
 // What a robot mostly does with free time. Gamers game, musicians make beats, chatters hang
 // out with friends, watchers watch videos, chillers sip coffee and scroll.
 export type Hobby = "gamer" | "musician" | "chatter" | "watcher" | "chiller";
@@ -29,6 +34,10 @@ export interface Prefs {
   launch: "dock" | "spotlight";                    // how it usually opens apps
   switching: "click" | "dock" | "alttab";          // how it usually gets back to an open window
   tidiness: "tidy" | "normal" | "messy";           // how many windows it lets pile up
+  git: "cli" | "desktop";                          // commits and pushes in the terminal, or in a GitHub Desktop style app
+  office?: OfficeTaste;                            // which office apps it likes (none for most robots)
+  apps?: FunApp[];                                 // favourite pastime apps (pinned in the dock)
+  socials?: SocialApp[];                           // social apps it uses; it never opens the others
 }
 export interface RobotProfile {
   id: string;
@@ -68,6 +77,45 @@ function idHash(id: string) {
   return (h % 1000) / 1000;
 }
 function tasksFor(id: string) { return tasksFrom(idHash(id)); }
+const officeFrom = (x: number): OfficeTaste => (x < 0.6 ? "none" : x < 0.72 ? "writer" : x < 0.83 ? "numbers" : x < 0.92 ? "slides" : "suite");
+// A robot's interests: two or three pastime apps and two to four social apps, nudged by its hobby.
+// \`r\` is Math.random for new hires, or a generator seeded from the id so old robots migrate the same way every launch.
+export function interestsFrom(r: () => number, hobby: Hobby): { apps: FunApp[]; socials: SocialApp[] } {
+  const H = (k: Hobby) => (hobby === k ? 1 : 0);
+  const odds: Record<SocialApp, number> = {
+    botsapp: 0.5 + 0.3 * H("chatter"),
+    telegrid: 0.28 + 0.2 * H("gamer"),
+    chirp: 0.38 + 0.25 * H("chiller"),
+    instabot: 0.32 + 0.2 * (H("chiller") + H("chatter")),
+    snapbot: 0.22 + 0.25 * H("chatter"),
+    shorts: 0.3 + 0.4 * H("watcher"),
+  };
+  const all = Object.keys(odds) as SocialApp[];
+  let socials = all.map((a) => [a, r()] as const).filter(([a, x]) => x < odds[a]).sort((a, b) => a[1] - b[1]).map(([a]) => a);
+  while (socials.length < 2) { const a = all[Math.floor(r() * all.length)]; if (!socials.includes(a)) socials.push(a); }
+  socials = socials.slice(0, 4);
+  const like: Record<FunApp, number> = {
+    doodle: 1 + 1.5 * H("musician") + H("chiller"),
+    crossword: 1 + H("chiller") + 0.5 * H("gamer"),
+    solitaire: 1 + 1.5 * H("gamer"),
+    stocks: 0.7 + 0.8 * H("watcher"),
+    mail: 0.8 + H("chatter"),
+    lingo: 1 + 0.6 * H("chatter") + 0.6 * H("watcher"),
+  };
+  const apps: FunApp[] = [];
+  const want = r() < 0.3 ? 3 : 2;
+  while (apps.length < want) {
+    const pool = (Object.keys(like) as FunApp[]).filter((a) => !apps.includes(a));
+    let x = r() * pool.reduce((t, a) => t + like[a], 0);
+    apps.push(pool.find((a) => (x -= like[a]) <= 0) ?? pool[0]);
+  }
+  return { apps, socials };
+}
+function seeded(key: string) {
+  let a = 7;
+  for (const ch of key) a = Math.imul(a ^ ch.charCodeAt(0), 0x5bd1e995) >>> 0;
+  return () => { a = (a + 0x6d2b79f5) >>> 0; let t = Math.imul(a ^ (a >>> 15), a | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
 const hobbyFrom = (x: number): Hobby => (x < 0.3 ? "gamer" : x < 0.45 ? "musician" : x < 0.65 ? "chatter" : x < 0.85 ? "watcher" : "chiller");
 // Older robots get a hobby from their existing habits, so their personality stays recognisable.
 function hobbyFor(p: Prefs, id: string): Hobby {
@@ -95,6 +143,9 @@ export class Roster {
     for (const r of this.robots) {
       if (r.prefs && !r.prefs.tasks) r.prefs.tasks = tasksFor(r.id || r.name || "");
       if (r.prefs && !r.prefs.hobby) r.prefs.hobby = hobbyFor(r.prefs, r.id || r.name || "");
+      if (r.prefs && !r.prefs.git) { r.prefs.git = idHash((r.id || r.name || "") + "git") < 0.45 ? "desktop" : "cli"; migrated = true; }
+      if (r.prefs && !r.prefs.office) { r.prefs.office = officeFrom(idHash((r.id || r.name || "") + "office")); migrated = true; }
+      if (r.prefs && !r.prefs.socials) { Object.assign(r.prefs, interestsFrom(seeded((r.id || r.name || "") + "interests"), r.prefs.hobby)); migrated = true; }
       if (r.prefs && !r.prefs.launch) {
         const x = idHash((r.id || r.name || "") + "habits");
         r.prefs.launch = x < 0.35 ? "spotlight" : "dock";
@@ -197,6 +248,7 @@ export class Roster {
     if (draft) this.draft = null;
     const name = draft?.name || (free.length ? pick(free) : `${pick(NAMES)} ${this.robots.length + 1}`);
     const w = () => Math.round((0.2 + Math.random()) * 10) / 10;
+    const hobby = hobbyFrom(Math.random());
     return {
       id: `bot-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
       name,
@@ -213,12 +265,15 @@ export class Roster {
         social: Math.round(Math.random() * 10) / 10,
         mug: pick(MUGS),
         tasks: tasksFrom(Math.random()),
-        hobby: hobbyFrom(Math.random()),
+        hobby,
         windows: pick(["fullscreen", "tiler", "tiler", "floating", "floating"] as const),
         listens: pick(["always", "sometimes", "sometimes", "never", "never"] as const),
         launch: pick(["dock", "dock", "spotlight"] as const),
         switching: pick(["click", "click", "dock", "alttab"] as const),
         tidiness: pick(["tidy", "normal", "normal", "messy"] as const),
+        git: Math.random() < 0.45 ? "desktop" : "cli",
+        office: officeFrom(Math.random()),
+        ...interestsFrom(Math.random, hobby),
       },
       hiredAt: Date.now(),
       threadId,

@@ -4,36 +4,9 @@ import { ICONS } from "./icons";
 import { highlight, langOf } from "./highlight";
 import { baseName, relPath, type Entry, type Hit, type Hunk } from "./classify";
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const el = (html: string) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstElementChild as HTMLElement; };
-
-// Typing helper: types text into a target, char by char, faster for long text.
-async function typeInto(wm: WM, target: HTMLElement, text: string, opts: { cps?: number; budgetMs?: number; render?: (s: string) => string } = {}) {
-  const e = wm.epoch;
-  const budget = opts.budgetMs ?? 1600;
-  const cps = Math.max(opts.cps ?? 38, text.length / (budget / 1000));
-  const render = opts.render ?? esc;
-  wm.robot.setTyping(true);
-  let shown = 0;
-  const start = performance.now();
-  try {
-    while (shown < text.length) {
-      await new Promise((r) => requestAnimationFrame(r));
-      wm.check(e);
-      const elapsed = (performance.now() - start) * wm.speed;
-      const jitter = 0.85 + Math.random() * 0.3;
-      const next = Math.min(text.length, Math.max(shown + 1, Math.floor((elapsed / 1000) * cps * jitter)));
-      if (next !== shown) {
-        for (let i = shown; i < next; i++) wm.robot.pressKey(text[i] === "\n" ? "Enter" : text[i]);
-        shown = next;
-        target.innerHTML = render(text.slice(0, shown)) + '<span class="caret"></span>';
-      }
-    }
-  } finally {
-    target.innerHTML = render(text.slice(0, shown));
-    wm.robot.setTyping(false);
-  }
-}
+import { esc, el, typeInto } from "./typing";
+import { colorGitLine } from "./git";
+export { BrowserApp } from "./browser";
 
 // ---------------------------------------------------------------------------
 export class FilesApp {
@@ -299,8 +272,10 @@ export class TerminalApp {
         while (ls.length && !ls[ls.length - 1].trim()) ls.pop();
         const tail = ls.length > 160 ? [`… ${ls.length - 160} earlier lines`, ...ls.slice(-160)] : ls;
         const chunk = Math.max(1, Math.ceil(tail.length / 24));
+        // git and gh output gets the colours a real terminal shows
+        const paint = /(^|[\s;&|(])(git|gh)(\.exe)?\s/.test(command) ? (l: string) => colorGitLine(esc(l)) : esc;
         for (let i = 0; i < tail.length; i += chunk) {
-          out.insertAdjacentHTML("beforeend", tail.slice(i, i + chunk).map((l) => esc(l)).join("\n") + "\n");
+          out.insertAdjacentHTML("beforeend", tail.slice(i, i + chunk).map((l) => paint(l)).join("\n") + "\n");
           term.scrollTop = term.scrollHeight;
           await wm.sleep(35, e);
         }
@@ -309,106 +284,18 @@ export class TerminalApp {
       },
     };
   }
-}
 
-// ---------------------------------------------------------------------------
-export class BrowserApp {
-  private tabs: { key: string; el: HTMLElement }[] = [];
-  constructor(private wm: WM, private peek: (url: string) => Promise<any>) {}
-
-  private async ensure() {
-    const w = await this.wm.open("browser");
-    if (!w.body.querySelector(".browser")) {
-      w.body.innerHTML = `
-        <div class="browser">
-          <div class="b-tabs" role="tablist"></div>
-          <div class="b-bar"><span class="b-addr"></span></div>
-          <div class="b-progress"><i></i></div>
-          <div class="b-page"></div>
-        </div>`;
-      this.tabs = [];
-    }
-    return w.body.querySelector(".browser") as HTMLElement;
-  }
-
-  // Show an in-page action (click, script, snapshot) on the robot's browser.
-  async act(caption: string, title?: string, url?: string) {
-    const wm = this.wm, e = wm.epoch;
-    const b = await this.ensure();
-    const page = b.querySelector(".b-page") as HTMLElement;
-    if (url && !this.tabs.length) {
-      const t = el(`<div class="b-tab on" role="tab"><span class="fav"></span><span class="tt"></span></div>`);
-      t.querySelector(".tt")!.textContent = title || url;
-      b.querySelector(".b-tabs")!.appendChild(t);
-      this.tabs.push({ key: url, el: t });
-      (b.querySelector(".b-addr") as HTMLElement).textContent = url.replace(/^https?:\/\//, "");
-      if (!page.innerHTML.trim()) page.innerHTML = `<div class="b-search"><div class="b-q">${esc(title || url)}</div></div>`;
-    }
-    const chip = el(`<div class="b-action"></div>`);
-    chip.textContent = caption;
-    page.parentElement!.appendChild(chip);
-    await wm.pointAt(page, 0.3 + Math.random() * 0.4, 0.3 + Math.random() * 0.4, 360);
-    if (/Click/.test(caption)) await wm.click();
-    gsap.fromTo(chip, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" });
-    await wm.sleep(900, e);
-    gsap.to(chip, { opacity: 0, duration: 0.3, onComplete: () => chip.remove() });
-  }
-
-  async visit(target: string) {
-    const wm = this.wm, e = wm.epoch;
-    const b = await this.ensure();
-    const isUrl = /^https?:\/\//i.test(target);
-    const label = isUrl ? new URL(target).hostname.replace(/^www\./, "") : target;
-    const tabsEl = b.querySelector(".b-tabs") as HTMLElement;
-    let tab = this.tabs.find((t) => t.key === target);
-    if (!tab) {
-      const t = el(`<div class="b-tab" role="tab"><span class="fav"></span><span class="tt"></span></div>`);
-      t.querySelector(".tt")!.textContent = label;
-      tabsEl.appendChild(t);
-      gsap.fromTo(t, { width: 0, opacity: 0 }, { width: "auto", opacity: 1, duration: 0.35, ease: "power2.out" });
-      tab = { key: target, el: t };
-      this.tabs.push(tab);
-      if (this.tabs.length > 4) this.tabs.shift()!.el.remove();
-    }
-    for (const t of this.tabs) t.el.classList.toggle("on", t === tab);
-    const addr = b.querySelector(".b-addr") as HTMLElement;
-    await wm.pointAt(addr, 0.4, 0.5);
-    await wm.click();
-    addr.classList.add("editing");
-    await typeInto(wm, addr, isUrl ? target.replace(/^https?:\/\//, "") : target, { budgetMs: 1000 });
-    addr.classList.remove("editing");
-    const page = b.querySelector(".b-page") as HTMLElement;
-    const prog = b.querySelector(".b-progress") as HTMLElement;
-    prog.classList.add("loading");
-    gsap.to(page, { opacity: 0.3, duration: 0.2 });
-    if (!isUrl) {
-      page.innerHTML = `<div class="b-search"><div class="b-q">${esc(target)}</div><p class="muted">Searching the web for this</p></div>`;
-      prog.classList.remove("loading");
-      gsap.to(page, { opacity: 1, duration: 0.3 });
-      await wm.sleep(900, e);
-      return;
-    }
-    const res = await this.peek(target).catch(() => null);
-    wm.check(e);
-    prog.classList.remove("loading");
-    if (res?.ok && (res.title || res.blocks?.length)) {
-      tab.el.querySelector(".tt")!.textContent = res.title || label;
-      page.innerHTML = `<article class="b-article">
-          <p class="b-host">${esc(label)}</p>
-          <h1>${esc(res.title || label)}</h1>
-          ${res.description ? `<p class="b-desc">${esc(res.description)}</p>` : ""}
-          ${(res.blocks || []).map((x: any) => x.tag === "pre" ? `<pre>${esc(x.text)}</pre>` : x.tag.startsWith("h") ? `<h2>${esc(x.text)}</h2>` : `<p>${esc(x.text)}</p>`).join("")}
-        </article>`;
-    } else {
-      page.innerHTML = `<div class="b-search"><div class="b-q">${esc(label)}</div><p class="muted">${esc(res?.error ? "This page could not be loaded here." : "Opened this page.")}</p></div>`;
-    }
-    page.scrollTop = 0;
-    gsap.fromTo(page, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" });
-    wm.robot.setPose("read");
-    await wm.pointAt(page, 0.6, 0.5, 400);
-    const dur = Math.min(3.5, 1 + (page.scrollHeight / 400));
-    gsap.to(page, { scrollTop: Math.max(0, page.scrollHeight - page.clientHeight), duration: dur / wm.speed, ease: "power1.inOut", delay: 0.4 / wm.speed });
-    await wm.sleep(dur * 1000 + 400, e);
+  /** Ctrl+click the last link printed in the terminal (a pull request URL, say). */
+  async clickLink(match: RegExp = /github\.com/) {
+    const term = this.wm.wins.get("terminal")?.body.querySelector(".term");
+    const links = term ? Array.from(term.querySelectorAll(".g-url")).filter((l) => match.test(l.textContent || "")) : [];
+    const link = links[links.length - 1];
+    if (!link) return false;
+    await this.wm.pointAt(link, 0.4, 0.5, 360);
+    link.classList.add("hover");
+    this.wm.robot.pressKey("Control");
+    await this.wm.click();
+    return true;
   }
 }
 

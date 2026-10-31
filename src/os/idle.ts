@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { WM, Cancelled } from "./wm";
+import { WM, Cancelled, type AppId } from "./wm";
 import { CalcApp, IDLE_SUMS } from "./calc";
 import { WeatherApp, checkTime } from "./glance";
 import { playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge, playRobotIsland, playBotCom, playDerBugger, playBoot } from "../games";
@@ -17,6 +17,9 @@ import "../fun/fun.css";
 import { makeBeat } from "../life/beats";
 import { hangOutInChat } from "../life/chat";
 import "../life/life.css";
+import { officeIdle, officePick, OFFICE_IDLE_LINE } from "../office-apps/idle";
+import { chatOnBotsApp, browseTelegrid, scrollChirp, usePhone, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, PHONE_APP_DOING, type PhoneApp, type SoOpts } from "../social";
+import type { Prefs } from "../office/roster";
 
 // What the robot does when there is no work: tidy the desktop, play a game,
 // and finally lock the screen and doze off. Any new work stops it at once.
@@ -140,7 +143,7 @@ export class IdleLife {
     const weights: Record<string, number> = {
       snake: games * g.snake, flappy: games * g.flappy, dash: games * g.dash, chess: games * 0.8 * g.chess,
       blockcraft: games * 1.1, nightshift: games * 0.8, tictactoe: games * 0.5, connect4: games * 0.5, bitmerge: games * 0.6,
-      phone: (p?.phone === "tube" ? 0.4 : 1) * (0.6 + 1.6 * H("chiller") + 1.2 * H("watcher")),
+      phone: (p?.phone === "tube" ? 0.4 : 1) * (0.6 + 1.6 * H("chiller") + 1.2 * H("watcher")) * (1 + 0.2 * (p?.socials?.length ?? 0)),
       tube: (p?.phone === "tube" ? 1 : 0.4) * (0.4 + 2.4 * H("watcher")),
       tensorhub: 0.05 + 0.1 * H("watcher"),
       botflix: 0.3 + 1.6 * H("watcher") + 0.4 * H("chiller"),
@@ -152,6 +155,8 @@ export class IdleLife {
       calc: 0.3,
       weather: 0.35, time: 0.4,
       music: this.music && p?.listens !== "never" ? (p?.listens === "always" ? 1.2 : 0.5) + 1.2 * H("musician") : 0,
+      office: p?.office && p.office !== "none" ? (p.office === "suite" ? 1.6 : 1.3) : 0,
+      ...IdleLife.interestWeights(p, H),
     };
     for (const r of recent) if (weights[r] != null) weights[r] *= r === recent[0] ? 0 : 0.25;
     const total = Object.values(weights).reduce((a, b) => a + b, 0);
@@ -222,11 +227,13 @@ export class IdleLife {
       case "phone": {
         const screen = this.stage.phoneScreen;
         if (!screen) return;
-        this.onActivity("Scrolling clips on its phone");
+        // the phone opens the robot's own apps: its feeds and messengers, or its usual clips
+        const apps = this.phoneApps();
+        this.onActivity(PHONE_APP_DOING[apps[0]] ?? "Scrolling clips on its phone");
         await this.robot.holdPhone(true);
         this.phoneUp = true;
         screen.innerHTML = "";
-        try { await watchPhoneFeed(screen, host, { maxMs: 40000 + Math.random() * 50000 }); }
+        try { await usePhone(screen, host, { maxMs: 40000 + Math.random() * 50000, me: this.wm.robotName, skill, apps, onApp: (a) => this.onActivity(PHONE_APP_DOING[a]) }); }
         finally { if (tok === this.token) { await this.robot.holdPhone(false); this.phoneUp = false; } }
         return;
       }
@@ -313,6 +320,23 @@ export class IdleLife {
         this.onActivity("Stretching");
         this.robot.setPose("stretch");
         return this.wait(2600, tok);
+      case "office": {
+        // office fans: a silly spreadsheet, a memo, or a slide deck
+        const what = officePick(this.wm.prefs?.office);
+        if (!what) return;
+        this.onActivity(OFFICE_IDLE_LINE[what]);
+        this.robot.setPose("mouse");
+        return officeIdle(this.wm, what);
+      }
+      case "botsapp": return this.socialApp("botsapp", "Texting the family on BotsApp", chatOnBotsApp, tok);
+      case "telegrid": return this.socialApp("telegrid", "Reading Telegrid channels", browseTelegrid, tok);
+      case "chirp": return this.socialApp("chirp", "Scrolling Chirp", scrollChirp, tok);
+      case "doodle": return this.socialApp("doodle", "Doodling in Sketchpad", doodleInSketchpad, tok, 45000);
+      case "crossword": return this.socialApp("crossword", "Doing the mini crossword", solveCrossword, tok, 45000);
+      case "solitaire": return this.socialApp("solitaire", "Playing Solitaire", playSolitaire, tok, 45000);
+      case "stocks": return this.socialApp("stocks", "Watching GPU stocks", watchStocks, tok, 30000);
+      case "mail": return this.socialApp("mail", "Clearing its inbox", checkMail, tok, 30000);
+      case "lingo": return this.socialApp("lingo", "Keeping its Lingobot streak alive", learnWithLingobot, tok, 45000);
       case "messages": {
         this.onActivity("Checking for new messages");
         await this.wm.open("chat");
@@ -368,7 +392,45 @@ export class IdleLife {
     return this.closeWin("browser", tok);
   }
 
-  private async closeWin(id: "game" | "browser" | "chat" | "beats" | "social" | "calc" | "weather", tok: number) {
+  // --- social apps and pastimes ----------------------------------------------------
+  // Only the apps this robot actually uses get a weight, and those strongly: a robot that
+  // does not use Snapbot never opens it, a crossword fan does crosswords.
+  static interestWeights(p: Prefs | null, H: (k: string) => number): Record<string, number> {
+    const uses = (a: string) => !!p?.socials?.includes(a as never);
+    const likes = (a: string) => !!p?.apps?.includes(a as never);
+    return {
+      botsapp: uses("botsapp") ? 0.9 + 1.0 * H("chatter") : 0,
+      telegrid: uses("telegrid") ? 0.7 + 0.5 * H("gamer") : 0,
+      chirp: uses("chirp") ? 0.8 + 0.6 * H("chiller") : 0,
+      doodle: likes("doodle") ? 1.6 : 0,
+      crossword: likes("crossword") ? 1.6 : 0,
+      solitaire: likes("solitaire") ? 1.5 + 1.0 * H("gamer") : 0,
+      stocks: likes("stocks") ? 1.3 : 0,
+      lingo: likes("lingo") ? 1.5 : 0,
+      mail: likes("mail") ? 1.3 : 0.1,
+    };
+  }
+
+  /** The phone apps this robot uses: its social apps, plus clips if that is its habit. */
+  private phoneApps(): PhoneApp[] {
+    const p = this.wm.prefs;
+    const apps: PhoneApp[] = [...(p?.socials ?? [])];
+    if (p?.phone !== "tube" || !apps.length) apps.push("spool");
+    return apps;
+  }
+
+  /** A 30 to 90 second session in a social or pastime app window, then close it. */
+  private async socialApp(id: AppId, line: string, run: (b: HTMLElement, h: FunHost, o: SoOpts) => Promise<unknown>, tok: number, minMs = 35000) {
+    this.onActivity(line);
+    const w = await this.wm.open(id);
+    this.alive(tok);
+    this.robot.setPose("mouse");
+    await run(w.body, this.host(tok), { maxMs: minMs + Math.random() * (90000 - minMs), me: this.wm.robotName, skill: 0.45 + Math.random() * 0.45 });
+    this.alive(tok);
+    return this.closeWin(id, tok);
+  }
+
+  private async closeWin(id: AppId, tok: number) {
     const w = this.wm.wins.get(id);
     if (!w) return;
     await this.wm.pointAt(w.el.querySelector(".win-x")!, 0.5, 0.5, 380);

@@ -8,6 +8,7 @@ const ICON = {
   heart: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.2c-.4 0-.8-.1-1.1-.4C6.1 16.9 2.5 13.6 2.5 9.3 2.5 6.2 4.9 3.8 7.9 3.8c1.7 0 3.2.8 4.1 2.1.9-1.3 2.4-2.1 4.1-2.1 3 0 5.4 2.4 5.4 5.5 0 4.3-3.6 7.6-8.4 11.5-.3.3-.7.4-1.1.4z"/></svg>`,
   talk: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2c5.1 0 9.3 3.5 9.3 7.9s-4.2 7.9-9.3 7.9c-1 0-2-.1-2.9-.4l-3.9 2.1c-.6.3-1.3-.2-1.2-.9l.5-3.3c-1.8-1.4-2.8-3.3-2.8-5.4 0-4.4 4.2-7.9 9.3-7.9z"/><circle cx="8" cy="11.2" r="1.3" fill="#141a33"/><circle cx="12" cy="11.2" r="1.3" fill="#141a33"/><circle cx="16" cy="11.2" r="1.3" fill="#141a33"/></svg>`,
   share: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.6 3.6c0-.8.9-1.2 1.5-.7l7.2 6.6c.4.4.4 1 0 1.4l-7.2 6.6c-.6.5-1.5.1-1.5-.7v-3.4c-4.7 0-7.9 1.5-10.3 4.8-.4.5-1.2.2-1.1-.4.9-5.7 4.4-9.5 11.4-10.2V3.6z"/></svg>`,
+  thumb: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 10.5h3.8V21H2.5Zm5.3 10.5V10.2l4.6-7c.9-1.3 3-.6 2.9 1l-.4 4.3h5.2c1.6 0 2.8 1.6 2.3 3.1l-2.4 7.6A2.6 2.6 0 0 1 17.5 21Z"/></svg>`,
   burst: `<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="fun-hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9fb4"/><stop offset="1" stop-color="#ff6f91"/></linearGradient></defs><path fill="url(#fun-hg)" d="M12 21.2c-.4 0-.8-.1-1.1-.4C6.1 16.9 2.5 13.6 2.5 9.3 2.5 6.2 4.9 3.8 7.9 3.8c1.7 0 3.2.8 4.1 2.1.9-1.3 2.4-2.1 4.1-2.1 3 0 5.4 2.4 5.4 5.5 0 4.3-3.6 7.6-8.4 11.5-.3.3-.7.4-1.1.4z"/></svg>`,
 };
 
@@ -44,15 +45,17 @@ function feedOrder() {
 
 type Slide = { el: HTMLElement; canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; v: VideoDef; t0: number; likes: number; liked: boolean; bar: HTMLElement };
 
-export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
+/** variant "shorts": the same feed under a BotTube Shorts style player (thumbs, Subscribe, red bar). */
+export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: FunOpts & { variant?: "shorts" }): Promise<Outcome> {
   const scope = new Scope();
+  const shorts = opts.variant === "shorts";
   const start = performance.now();
   try {
     screen.innerHTML = "";
     const root = html(`
-      <div class="fun-phone">
+      <div class="fun-phone${shorts ? " fun-ph-shorts" : ""}">
         <div class="fun-ph-track"></div>
-        <div class="fun-ph-top"><span class="fun-ph-mark" aria-hidden="true"></span><span class="fun-ph-brand">Spool</span></div>
+        <div class="fun-ph-top"><span class="fun-ph-mark" aria-hidden="true"></span><span class="fun-ph-brand">${shorts ? "Shorts" : "Spool"}</span></div>
         <div class="fun-ph-fx"></div>
       </div>`);
     screen.appendChild(root);
@@ -72,11 +75,11 @@ export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: F
           <div class="fun-ph-shade"></div>
           <div class="fun-ph-side">
             <span class="fun-ph-av" aria-hidden="true"><i></i><i></i></span>
-            <span class="fun-ph-act fun-ph-like">${ICON.heart}<b class="fun-ph-likes"></b></span>
+            <span class="fun-ph-act fun-ph-like">${shorts ? ICON.thumb : ICON.heart}<b class="fun-ph-likes"></b></span>${shorts ? `<span class="fun-ph-act fun-ph-dis">${ICON.thumb}<b>Dislike</b></span>` : ""}
             <span class="fun-ph-act">${ICON.talk}<b>${fmt(Math.round(likes * (0.01 + hash(seed + 1) * 0.03)))}</b></span>
             <span class="fun-ph-act">${ICON.share}<b>${fmt(Math.round(likes * (0.004 + hash(seed + 2) * 0.02)))}</b></span>
           </div>
-          <div class="fun-ph-info"><b class="fun-ph-user"></b><p class="fun-ph-cap"></p></div>
+          <div class="fun-ph-info"><b class="fun-ph-user"></b>${shorts ? `<span class="fun-ph-sub">Subscribe</span>` : ""}<p class="fun-ph-cap"></p></div>
           <div class="fun-ph-prog"><i></i></div>
         </div>`);
       el.querySelector(".fun-ph-user")!.textContent = `@${p.user}`;
@@ -120,7 +123,7 @@ export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: F
       host.thumb?.("doubleTap");
       touch(x, y, true);
       await host.sleep(240);
-      const heart = html(`<span class="fun-ph-burst">${ICON.burst}</span>`);
+      const heart = html(`<span class="fun-ph-burst">${shorts ? ICON.thumb : ICON.burst}</span>`);
       heart.style.left = `${x}px`;
       heart.style.top = `${y}px`;
       fx.appendChild(heart);

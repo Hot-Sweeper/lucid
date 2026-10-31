@@ -62,32 +62,6 @@ function createWindow() {
       setTimeout(() => dbg.sendCommand("Tracing.end"), 5000);
     }, 8000);
   }
-  if (process.env.LUCID_LAYERS) {
-    const fs = require("node:fs");
-    setTimeout(async () => {
-      const dbg = win.webContents.debugger;
-      dbg.attach("1.3");
-      dbg.on("message", (_e, method, params) => {
-        if (method === "LayerTree.layerTreeDidChange" && params.layers && !dbg.done) {
-          dbg.done = true;
-          (async () => {
-            const out = {};
-            for (const l of params.layers) {
-              let reasons = [], node = "";
-              try { reasons = (await dbg.sendCommand("LayerTree.compositingReasons", { layerId: l.layerId })).compositingReasonIds || []; } catch {}
-              if (l.backendNodeId) try { const n = (await dbg.sendCommand("DOM.describeNode", { backendNodeId: l.backendNodeId })).node; const i = (n.attributes || []).indexOf("class"); node = n.nodeName + "." + (i >= 0 ? n.attributes[i + 1] : ""); } catch {}
-              const k = reasons.join(",") + " @ " + node.split(" ")[0];
-              out[k] = (out[k] || 0) + 1;
-            }
-            fs.writeFileSync(process.env.LUCID_LAYERS, JSON.stringify(out, null, 1));
-            app.quit();
-          })();
-        }
-      });
-      await dbg.sendCommand("DOM.enable");
-      await dbg.sendCommand("LayerTree.enable");
-    }, 9000);
-  }
   // Debug aid: LUCID_PROFILE=file records a 4 second CPU profile after 5 seconds.
   if (process.env.LUCID_PROFILE) {
     const fs = require("node:fs");
@@ -243,6 +217,9 @@ ipcMain.handle("web:peek", async (_e, url) => {
   }
 });
 
+// GitHub, Hugging Face and Wikipedia data, web search results and read-only git facts.
+require("./sites.cjs").register(ipcMain, (url, opts) => net.fetch(url, opts));
+
 // Images the agent looked at, sent as data URLs (common image types only, max 12 MB).
 ipcMain.handle("fs:image", async (_e, p) => {
   try {
@@ -319,3 +296,6 @@ ipcMain.handle("t3s:edit", t3sWrap((o) => t3s.editQueued(o.threadId, o.runId, o.
 ipcMain.handle("t3s:steer", t3sWrap((o) => t3s.steerNow(o.threadId, o.queuedRunId, o.targetRunId)));
 ipcMain.handle("t3s:setModel", t3sWrap((o) => t3s.setThreadModel(o.threadId, o.selection)));
 app.on("before-quit", () => t3s.closeSock());
+
+// Office documents the agents wrote (docx, xlsx, pptx, csv...), read for the robots' office apps.
+require("./office.cjs").register(ipcMain);

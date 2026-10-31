@@ -1,0 +1,12 @@
+/* The robot's phone home screen. */
+.so-home { display: flex; flex-direction: column; color: #fff; background: radial-gradient(120% 80% at 20% 0%, #5a4fd0 0%, #2a2f6a 55%, #161a45 100%); }
+.so-home header { flex: none; height: 18px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 7px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.so-home header i { width: 11px; height: 5.5px; border-radius: 1.5px; background: #fff; opacity: 0.85; }
+.so-home-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px 4px; padding: 14px 8px; }
+.so-home-app { display: flex; flex-direction: column; align-items: center; gap: 2px; transition: transform 0.15s; }
+.so-home-app.down { transform: scale(0.86); }
+.so-home-app .ico { width: 24px; height: 24px; display: block; filter: drop-shadow(0 2px 3px rgba(5, 7, 25, 0.3)); }
+.so-home-app small { font-size: 5.5px; color: #eef0ff; white-space: nowrap; max-width: 30px; overflow: hidden; text-overflow: ellipsis; }
+.so-home-bar { position: absolute; left: 50%; bottom: 4px; width: 40px; height: 2.5px; margin-left: -20px; border-radius: 2px; background: rgba(255, 255, 255, 0.7); z-index: 20; }
+.so-home-win { position: absolute; inset: 0; display: none; overflow: hidden; background: #000; z-index: 10; }
+.so-home-win.on { display: block; }

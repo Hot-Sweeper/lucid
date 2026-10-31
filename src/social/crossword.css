@@ -1,0 +1,25 @@
+/* Crossbot: newspaper-clean mini crossword. White grid, yellow cursor, blue word. */
+.so-cw { display: flex; flex-direction: column; background: #fff; color: #121212; }
+.so-cw-top { flex: none; height: 30px; display: flex; align-items: center; gap: 10px; padding: 0 12px; box-shadow: 0 1px 0 #e6e6e6; }
+.so-cw-top b { font-size: 11.5px; font-weight: 700; }
+.so-cw-top span { color: #6b6b6b; }
+.so-cw-top time { margin-left: auto; font-family: var(--mono); font-size: 10px; font-variant-numeric: tabular-nums; }
+.so-cw-bar { flex: none; display: flex; align-items: center; gap: 8px; margin: 8px 12px 0; padding: 6px 10px; border-radius: 4px; background: #dcefff; min-height: 26px; }
+.so-cw-bar b { font-weight: 700; }
+.so-cw-mid { flex: 1; min-height: 0; display: flex; gap: 14px; padding: 10px 12px; }
+.so-cw-grid { flex: none; width: min(220px, 48%); aspect-ratio: 1; display: grid; gap: 2px; padding: 2px; background: #121212; align-self: flex-start; }
+.so-cw-cell { position: relative; background: #fff; display: grid; place-items: center; transition: background 0.15s; }
+.so-cw-cell.word { background: #a7d8ff; }
+.so-cw-cell.cur { background: #ffda00; }
+.so-cw-cell small { position: absolute; left: 3px; top: 1px; font-size: 7.5px; color: #333; }
+.so-cw-cell b { font-size: 22px; font-weight: 600; text-transform: uppercase; }
+.so-cw-clues { flex: 1; min-width: 0; overflow: hidden; }
+.so-cw-clues h5 { margin: 0 0 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #333; }
+.so-cw-clues ol { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.so-cw-clues li { display: flex; gap: 6px; padding: 3px 6px; border-radius: 3px; transition: background 0.15s, color 0.15s; }
+.so-cw-clues li b { flex: none; width: 10px; font-weight: 700; }
+.so-cw-clues li.on { background: #dcefff; }
+.so-cw-clues li.done { color: #9a9a9a; }
+.so-cw-win { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 20px; border-radius: 10px; background: #fff; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18); }
+.so-cw-win b { font-size: 14px; }
+.so-cw-win span { color: #6b6b6b; }

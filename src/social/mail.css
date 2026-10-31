@@ -1,0 +1,37 @@
+/* Botmail: a calm light mail client. Red for the brand, blue for selection. */
+.so-ml { display: grid; grid-template-columns: 112px 210px 1fr; background: #f6f8fc; color: #1f1f1f; }
+.so-ml-nav { display: flex; flex-direction: column; gap: 1px; padding: 8px 6px; }
+.so-ml-logo { padding: 2px 8px 8px; color: #d93a48; font-size: 12px; font-weight: 700; }
+.so-ml-new { align-self: flex-start; margin: 0 0 8px 2px; padding: 7px 14px; border-radius: 12px; background: #c2e7ff; font-weight: 600; }
+.so-ml-f { display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; border-radius: 12px; }
+.so-ml-f b { font-weight: 400; }
+.so-ml-f.on { background: #d3e3fd; }
+.so-ml-f.on b { font-weight: 700; }
+.so-ml-f i { font-style: normal; font-size: 8.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.so-ml-list { overflow: hidden; background: #fff; border-radius: 10px 0 0 10px; margin: 6px 0 6px; }
+.so-ml-row { display: flex; gap: 7px; padding: 7px 9px; box-shadow: 0 1px 0 #f0f2f5; transition: background 0.2s; overflow: hidden; }
+.so-ml-row .so-av { width: 22px; height: 22px; }
+.so-ml-row > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.so-ml-row.on { background: #e8f0fe; }
+.so-ml-l1 { display: flex; justify-content: space-between; gap: 6px; }
+.so-ml-l1 b { font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.so-ml-l1 time { color: #5f6368; font-size: 8px; flex: none; }
+.so-ml-subj { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.so-ml-row small { color: #5f6368; font-size: 8.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.so-ml-row.unread .so-ml-l1 b, .so-ml-row.unread .so-ml-subj, .so-ml-row.unread time { font-weight: 700; color: #1f1f1f; }
+.so-ml-pane { background: #fff; margin: 6px 6px 6px 1px; border-radius: 0 10px 10px 0; padding: 12px 16px; overflow: hidden; display: flex; flex-direction: column; gap: 8px; position: relative; }
+.so-ml-pane h3 { margin: 0; font-size: 13px; font-weight: 500; }
+.so-ml-from { display: flex; align-items: center; gap: 8px; }
+.so-ml-from .so-av { width: 26px; height: 26px; }
+.so-ml-from div { display: flex; flex-direction: column; }
+.so-ml-from small { color: #5f6368; font-size: 8.5px; }
+.so-ml-warn { padding: 6px 9px; border-radius: 6px; background: #fce8e6; color: #a50e0e; font-size: 9px; }
+.so-ml-body { margin: 0; line-height: 1.5; }
+.so-ml-acts { display: flex; gap: 6px; margin-top: 2px; }
+.so-ml-acts span { padding: 4px 11px; border-radius: 12px; background: #f1f3f4; color: #3c4043; font-weight: 500; }
+.so-ml-reply { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 8px; background: #f6f8fc; }
+.so-ml-reply small { color: #5f6368; }
+.so-ml-reply p { margin: 0; min-height: 14px; }
+.so-ml-send { align-self: flex-start; padding: 4px 14px; border-radius: 12px; background: #0b57d0; color: #fff; font-weight: 600; }
+.so-ml-empty, .so-ml-zero { margin: auto; color: #8a8f98; text-align: center; display: flex; flex-direction: column; gap: 3px; padding-top: 30%; }
+.so-ml-zero b { color: #1f1f1f; font-size: 12px; }
