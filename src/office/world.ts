@@ -41,7 +41,9 @@ function officeSize(slots: number, lounge = 0) {
   return { w: 70 + cols * SLOT_W + 50, h: WALL_FACE + 40 + rows * SLOT_H + 30 + lounge, cols };
 }
 // Decorations the company has unlocked, out of what the room asks for.
-const usable = (t: RoomTheme | undefined, level: number) => (t?.decor ?? []).filter((d) => DECOR[d] && DECOR[d].unlockAt <= level);
+// Things in a room only show once they are unlocked and bought.
+let ownsItem: (key: string) => boolean = () => true;
+const usable = (t: RoomTheme | undefined, level: number) => (t?.decor ?? []).filter((d) => DECOR[d] && DECOR[d].unlockAt <= level && ownsItem(`decor:${d}`));
 const needsLounge = (t: RoomTheme | undefined, level: number) => usable(t, level).some((d) => DECOR[d].spot === "floor");
 
 export class World {
@@ -50,6 +52,7 @@ export class World {
   rooms: Room[] = [];
   desks = new Map<string, Desk>();
   themes = new Map<string, RoomTheme>();
+  set owns(f: (key: string) => boolean) { ownsItem = f; }
   park: Park;
   level = 0;
   freeDesks: Desk[] = [];
@@ -194,7 +197,7 @@ export class World {
     this.size = { w: Math.max(topW, bottomW), h: y2 + bottomH };
     const plans = [...top, ...bottom];
 
-    const key = rooms.map((r, i) => `${r.id}:${plans[i].slots}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|") + `:L${this.level}`;
+    const key = rooms.map((r, i) => `${r.id}:${plans[i].slots}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|") + `:L${this.level}:${[...this.themes.values()].map((t) => [...(t.decor ?? []), t.floor, t.wall].filter((k) => k).map((k) => (ownsItem(`decor:${k}`) || ownsItem(`floor:${k}`) || ownsItem(`wall:${k}`) ? 1 : 0)).join("")).join("")}`;
     if (key !== this.lastKey) {
       this.lastKey = key;
       for (const kind of ["break", "queue"] as const) { this.ext[kind]?.destroy(); delete this.ext[kind]; }
@@ -586,10 +589,10 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0) {
       <linearGradient id="sky${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--sky1)"/><stop offset="1" style="stop-color:var(--sky2)"/></linearGradient>
       <radialGradient id="pool${uid}"><stop offset="0" stop-color="#ffe6b0" stop-opacity="0.28"/><stop offset="1" stop-color="#ffe6b0" stop-opacity="0"/></radialGradient>
     </defs>
-    ${theme?.floor ? drawFloor(theme.floor, w, h, WALL_FACE) : `<rect y="${WALL_FACE}" width="${w}" height="${h - WALL_FACE}" fill="${pal.floor}"/>${floor}`}
+    ${theme?.floor && ownsItem(`floor:${theme.floor}`) ? drawFloor(theme.floor, w, h, WALL_FACE) : `<rect y="${WALL_FACE}" width="${w}" height="${h - WALL_FACE}" fill="${pal.floor}"/>${floor}`}
     ${lamps.join("")}
     <rect y="${WALL_FACE}" width="${w}" height="18" fill="#000" opacity="0.07"/>
-    ${theme?.wall ? drawWall(theme.wall, w, WALL_FACE) : `<rect width="${w}" height="${WALL_FACE}" fill="${pal.wall}"/><rect y="${WALL_FACE - 10}" width="${w}" height="10" fill="${pal.trim}"/>`}
+    ${theme?.wall && ownsItem(`wall:${theme.wall}`) ? drawWall(theme.wall, w, WALL_FACE) : `<rect width="${w}" height="${WALL_FACE}" fill="${pal.wall}"/><rect y="${WALL_FACE - 10}" width="${w}" height="10" fill="${pal.trim}"/>`}
     ${windows.join("")}
     ${signBox}${clock}${cafe}
     ${decorSvg ?? `${plant(w - 60, h - 70)}${plant(52, h - 70, 0.85)}`}

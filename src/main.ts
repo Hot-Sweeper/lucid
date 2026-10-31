@@ -17,6 +17,7 @@ import { openHire, BUILTIN_ROLES, type Role } from "./office/hire";
 import { Orchestrator, type OrchState } from "./office/orchestrator";
 import { progress } from "./office/progress";
 import { mountStats } from "./stats/stats";
+import { Wallet, openShop, coinIcon, type WalletState } from "./office/shop";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
@@ -66,6 +67,7 @@ document.getElementById("app")!.innerHTML = `
     </header>
 
     <section class="company" id="company" aria-live="polite"></section>
+    <section class="wallet" id="wallet"><span class="wl-coins">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></span><button type="button" class="wl-shop" id="open-shop">Shop</button></section>
 
     <section class="rooms">
       <h3>Rooms</h3>
@@ -263,7 +265,7 @@ function setupMenus() {
   const decorate = (room: { id: string; title: string }) => {
     const SHEET = 372; // the decorate panel covers the right side of the view
     world.showRoom(room.id, SHEET);
-    openDecorate({ title: room.title, theme: world.themes.get(room.id) ?? {}, level: world.level, onChange: async (t: RoomTheme) => {
+    openDecorate({ title: room.title, theme: world.themes.get(room.id) ?? {}, level: world.level, wallet, onChange: async (t: RoomTheme) => {
       world.themes.set(room.id, t); saveSettings();
       await refresh();
       world.showRoom(room.id, SHEET);   // the room may have grown a lounge
@@ -321,7 +323,7 @@ $("update").addEventListener("click", async () => {
 
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
-const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme> } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));
 world.themes = new Map(Object.entries(settings.themes ?? {}));
@@ -418,4 +420,26 @@ checkUpdate();
 setInterval(checkUpdate, 60 * 1000);
 
 // tokens, plan limits and cost from the harness logs
-mountStats(document.getElementById("usage-body")!, () => (window as any).lucid.usage());
+// Coins: the robots' API-priced spend pays for things in the shop.
+const wallet = new Wallet(() => settings.wallet, (s) => { settings.wallet = s; saveSettings(); });
+world.owns = (key) => wallet.owns(key);
+const paintWallet = (gained = 0) => {
+  const b = $("wl-bal");
+  b.textContent = wallet.balance.toLocaleString();
+  if (gained > 0 && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const f = document.createElement("span");
+    f.className = "wl-gain";
+    f.textContent = `+${gained.toLocaleString()}`;
+    $("wallet").appendChild(f);
+    gsap.fromTo(f, { y: 0, opacity: 1 }, { y: -22, opacity: 0, duration: 1.4, ease: "power2.out", onComplete: () => f.remove() });
+    gsap.fromTo(".wl-coins .coin-ico", { rotateY: 0 }, { rotateY: 360, duration: 0.6, ease: "power2.out" });
+  }
+};
+wallet.onChange = (_bal, gained) => paintWallet(gained);
+paintWallet();
+$("open-shop").addEventListener("click", () => openShop({ wallet, level: world.level, onBought: () => void refresh() }));
+mountStats(document.getElementById("usage-body")!, async () => {
+  const u = await (window as any).lucid.usage();
+  if (u?.windows) wallet.observe(u);
+  return u;
+});
