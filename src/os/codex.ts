@@ -6,6 +6,7 @@ import { logoSvg } from "../harness/logos";
 import { typeInto, esc } from "./typing";
 import { ratioOf } from "./imagegen";
 import "./codex.css";
+import { followPromptScroll } from "./prompt-scroll";
 
 // The Codex desktop app on the robot's monitor, shown when its thread makes a picture. The robot
 // types the real prompt into the composer, sends it, and waits while the picture is made; the
@@ -104,13 +105,16 @@ export class CodexApp {
     if (!o.instant) {
       await wm.pointAt(typed, 0.3, 0.5, 420);
       await wm.click();
-      const follow = window.setInterval(() => { typed.scrollTop = typed.scrollHeight; }, 50);
-      try { await typeInto(wm, typed, prompt, { budgetMs: Math.min(4200, 900 + prompt.length * 12) }); } finally { window.clearInterval(follow); }
-      await wm.sleep(260, e);
-      await wm.pointAt(send, 0.5, 0.5, 320);
-      send.classList.add("on");
-      await wm.click();
-      wm.check(e);
+      const follow = followPromptScroll(typed, () => wm.epoch === e && root.contains(typed));
+      try {
+        await typeInto(wm, typed, prompt, { budgetMs: Math.min(4200, 900 + prompt.length * 12) });
+        follow.finish();
+        await wm.sleep(260, e);
+        await wm.pointAt(send, 0.5, 0.5, 320);
+        send.classList.add("on");
+        await wm.click();
+        wm.check(e);
+      } finally { follow.cancel(); }
     }
     typed.textContent = "";
     send.classList.remove("on");
