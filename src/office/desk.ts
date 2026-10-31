@@ -8,6 +8,10 @@ import { playHandoff } from "../world/handoff";
 import { logoFor, brandFor } from "./brand";
 import { WALLPAPERS, HOBBY_LABEL, type RobotProfile } from "./roster";
 import { releaseRenderView } from "../perf/render";
+import { DeferredRobot } from "../perf/deferred-robot";
+import type { KeyRect } from "../perf/keyboard-path";
+import { sharedVector, vectorOwner, releaseVectors } from "../perf/shared-vector";
+import { cacheStaticArt } from "../perf/static-art";
 
 // One workstation, seen fake top-down: the desk surface from above, the monitor and the
 // robot as upright figures. The robot sits south of the desk with its back to us, the
@@ -47,13 +51,17 @@ export class Desk implements DeskStage {
   screen: HTMLElement;
   bubble: HTMLElement;
   robot: SeatedRobot;
+  private deferredRobot: DeferredRobot;
   wm: WM;
   director: Director;
   threadId: string | null = null;
   info: ThreadInfo | null = null;
   onActivity: (t: string) => void = () => {};
   activity = "";
-  private keys = new Map<string, SVGRectElement>();
+  private keys = new Map<string, KeyRect>();
+  private pressedKeys = new Map<string, { el: SVGRectElement; animation: Animation; timer: number }>();
+  private vectorOwner = vectorOwner("desk");
+  private disposeStaticArt: () => void = () => {};
   private keyCenters = new Map<string, Pt & { hand: "left" | "right" }>();
   private zTimer = 0;
 
@@ -81,8 +89,10 @@ export class Desk implements DeskStage {
     this.screen = el.querySelector(".screen")!;
     this.bubble = el.querySelector(".bubble")!;
     gsap.set(el.querySelector(".phone-held"), { scale: PHONE_SCALE, transformOrigin: "0 0" });
-    this.indexKeys();
-    this.robot = robotFactory(el.querySelector(".robot-host") as HTMLElement, this.rig());
+    const robotHost = el.querySelector(".robot-host") as HTMLElement;
+    this.deferredRobot = new DeferredRobot(robotHost, () => robotFactory(robotHost, this.rig()));
+    this.robot = this.deferredRobot;
+    this.disposeStaticArt = cacheStaticArt(el.querySelector<SVGSVGElement>(".desk-table")!);
     this.wireToys();
     this.wm = new WM(this.screen, this.robot);
     this.director = new Director(this.wm, this.robot, this, services.peek, services.image, services.readText);
@@ -114,6 +124,7 @@ export class Desk implements DeskStage {
   assign(thread: { id: string; title: string; provider: string; model?: string | null } | null, profile: RobotProfile | null = null) {
     if (this.threadId === (thread?.id ?? null)) return;
     this.director.reset();
+    this.clearKeys();
     this.threadId = thread?.id ?? null;
     this.profile = profile;
     this.model = thread?.model ?? null;
@@ -121,6 +132,7 @@ export class Desk implements DeskStage {
     this.handoffBusy = false;
     this.lastBrand = null;
     if (thread) {
+      this.deferredRobot.mount();
       this.robot.setBrand(thread.provider);
       this.robot.setModel?.(this.model);
       if (profile) {
@@ -132,7 +144,7 @@ export class Desk implements DeskStage {
       }
       const logo = logoFor(thread.provider);
       if (logo) this.wm.setWallpaperLogo(logo);
-    }
+    } else this.deferredRobot.destroy();
     this.label(thread?.title ?? "Free desk", thread?.provider ?? null);
   }
 
@@ -309,9 +321,24 @@ export class Desk implements DeskStage {
   }
 
   // --- the robot's reach ---------------------------------------------------------
-  private indexKeys() {
-    for (const k of this.el.querySelectorAll<SVGRectElement>("[data-key]")) this.keys.set(k.dataset.key!, k);
+  private pressKey(key: string) {
+    const name=this.norm(key),geometry=this.keys.get(name);
+    if(!geometry)return;
+    let active=this.pressedKeys.get(name);
+    if(!active){
+      const el=document.createElementNS("http://www.w3.org/2000/svg","rect");
+      el.dataset.key=name;for(const [key,value]of Object.entries({x:geometry.x,y:geometry.y,width:geometry.w,height:geometry.h,rx:geometry.r}))el.setAttribute(key,String(value));el.setAttribute("fill","#9fe8ff");
+      this.el.querySelector(".keys")!.appendChild(el);
+      const animation=el.animate([{opacity:0},{opacity:1}],{duration:120,fill:"both"});
+      active={el,animation,timer:0};this.pressedKeys.set(name,active);
+      animation.onfinish=()=>{if(animation.playbackRate<0){el.remove();this.pressedKeys.delete(name)}};
+    }else{
+      window.clearTimeout(active.timer);active.animation.playbackRate=1;active.animation.play();
+    }
+    const pressed=active;
+    pressed.timer=window.setTimeout(()=>{pressed.animation.reverse()},110);
   }
+  private clearKeys(){for(const k of this.pressedKeys.values()){window.clearTimeout(k.timer);k.animation.cancel();k.el.remove()}this.pressedKeys.clear()}
 
   private norm(key: string) {
     if (KEY_ALIASES[key]) return KEY_ALIASES[key];
@@ -331,10 +358,7 @@ export class Desk implements DeskStage {
         return me.keyCenters.get(k) ?? me.keyCenters.get(" ") ?? null;
       },
       pressKey(key: string) {
-        const el = me.keys.get(me.norm(key));
-        if (!el) return;
-        el.classList.add("down");
-        setTimeout(() => el.classList.remove("down"), 110);
+        me.pressKey(key);
       },
       homeLeft: { ...me.keyCenters.get("f")! },
       homeRight: { ...me.keyCenters.get("j")! },
@@ -362,14 +386,16 @@ export class Desk implements DeskStage {
       [...row].forEach((ch, c) => {
         const x = kb.x + c * colW + 1.2, y = kb.y + 2 + r * rowH + 0.8;
         this.keyCenters.set(ch, { x: x + colW / 2 - 1.2, y: y + rowH / 2 - 0.8, hand: c < 6 ? "left" : "right" });
-        keys.push(`<rect class="key" data-key="${ch === "\n" ? "\n" : ch.replace(/"/g, "&quot;")}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(colW - 2.4).toFixed(1)}" height="${(rowH - 1.6).toFixed(1)}" rx="1.6"/>`);
+        const geometry={x:Number(x.toFixed(1)),y:Number(y.toFixed(1)),w:Number((colW-2.4).toFixed(1)),h:Number((rowH-1.6).toFixed(1)),r:1.6};
+        this.keys.set(ch,geometry);keys.push(`<rect x="${geometry.x}" y="${geometry.y}" width="${geometry.w}" height="${geometry.h}" rx="${geometry.r}" fill="#5a6177"/>`);
       });
     });
     const sy = kb.y + 2 + 4 * rowH + 0.6;
     this.keyCenters.set(" ", { x: kb.x + kb.w / 2, y: sy + 2.5, hand: "right" });
-    keys.push(`<rect class="key" data-key=" " x="${kb.x + colW * 3}" y="${sy}" width="${colW * 6}" height="5" rx="2"/>`);
+    const space={x:kb.x+colW*3,y:sy,w:colW*6,h:5,r:2};this.keys.set(" ",space);keys.push(`<rect x="${space.x}" y="${space.y}" width="${space.w}" height="${space.h}" rx="${space.r}" fill="#5a6177"/>`);
     return /* svg */ `
     <svg class="desk-table" viewBox="0 0 ${UNIT.w} ${UNIT.h}" aria-hidden="true">
+      ${sharedVector(`
       <ellipse cx="${t.x + t.w / 2}" cy="${t.y + t.h + t.front + 8}" rx="${t.w / 2 + 6}" ry="12" fill="#2b1d10" opacity="0.18"/>
       <rect x="${t.x}" y="${t.y + t.h - 4}" width="${t.w}" height="${t.front + 4}" rx="6" fill="#b48a5e"/>
       <rect x="${t.x}" y="${t.y}" width="${t.w}" height="${t.h}" rx="8" fill="#d7b48a"/>
@@ -379,7 +405,8 @@ export class Desk implements DeskStage {
       <rect x="${st.x - 7}" y="${st.top}" width="14" height="${st.base - st.top - 2}" fill="#3a3f4f"/>
       <g class="papers"><rect x="96" y="194" width="38" height="30" rx="3" fill="#f4f1ea" transform="rotate(-7 115 209)"/><rect x="100" y="197" width="38" height="30" rx="3" fill="#fbf9f4" transform="rotate(5 119 212)"/></g>
       <rect x="${kb.x - 5}" y="${kb.y - 3}" width="${kb.w + 10}" height="${kb.h + 7}" rx="7" fill="#2e3242"/>
-      <g class="keys">${keys.join("")}</g>
+      `,this.vectorOwner)}
+      <g class="keys">${sharedVector(keys.join(""),this.vectorOwner,"key")}</g>
       <rect x="${m.x - 24}" y="${m.y - 22}" width="48" height="44" rx="10" fill="#4a5063" opacity="0.55"/>
       <g data-d="mouse"><ellipse cx="${m.x}" cy="${m.y}" rx="9" ry="12" fill="#2e3242"/><ellipse cx="${m.x}" cy="${m.y - 3}" rx="6" ry="7" fill="#4a5063"/><rect x="${m.x - 0.75}" y="${m.y - 11}" width="1.5" height="6" fill="#2e3242"/></g>
       <g data-d="phone"><rect x="${ph.x - 11}" y="${ph.y - 19}" width="22" height="38" rx="5" fill="#22263a"/><rect x="${ph.x - 9}" y="${ph.y - 16}" width="18" height="32" rx="3" fill="#353b58"/></g>
@@ -393,14 +420,17 @@ export class Desk implements DeskStage {
         <ellipse cx="${mug.x - 2}" cy="${mug.y - 12}" rx="3" ry="1.2" fill="#8a4a32"/>
         <g class="mug-steam"><path d="M${mug.x - 3} ${mug.y - 16} q-3 -5 0 -9 q3 -4 0 -9" /><path d="M${mug.x + 3} ${mug.y - 15} q-3 -5 0 -9 q3 -4 0 -8" /></g>
       </g>
-      ${emptyChairSvg()}
+      ${sharedVector(emptyChairSvg(),this.vectorOwner,"empty-chair")}
     </svg>`;
   }
 
   destroy() {
+    this.disposeStaticArt();
+    this.clearKeys();
     this.director.reset();
     this.robot.destroy();
     this.wm.destroy();
+    releaseVectors(this.vectorOwner);
     releaseRenderView(this.screen);
     window.clearInterval(this.zTimer);
     this.el.remove();

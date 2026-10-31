@@ -106,7 +106,7 @@ export function headSvg(id: string) {
       </g>
       <g data-r="sticker" transform="translate(606 692) rotate(-14)"></g>
     </g>
-    <g data-r="face" opacity="0">
+    <g data-r="face" opacity="0" style="display:none">
       <rect x="490" y="600" width="140" height="118" rx="44" fill="url(#${id}-hs)"/>
       <rect x="490" y="600" width="140" height="118" rx="44" fill="url(#${id}-rim)"/>
       <path d="M512 618 C530 606 560 604 586 608" stroke="#ffffff" stroke-opacity="0.45" stroke-width="6" stroke-linecap="round" fill="none"/>

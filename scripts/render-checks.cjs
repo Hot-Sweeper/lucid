@@ -56,7 +56,7 @@ module.exports = async function checks({ js, wc, wait, out, threads }) {
     await wait(20);
   }
   await wait(1200);
-  result.sharpness = await js(`{const cv=document.querySelector('.outside-detail'),r=cv?.getBoundingClientRect();({scale:window.__world.cam.s,dpr:devicePixelRatio,width:cv?.width,height:cv?.height,screenWidth:r?.width,pixelsPerCssPixel:r?.width?cv.width/r.width:0,settled:!window.__world.root.classList.contains('zooming'),errors:window.__errs})}`);
+  result.sharpness = await js(`{const cv=document.querySelector('.outside-detail'),r=cv?.getBoundingClientRect();({scale:window.__world.cam.s,dpr:devicePixelRatio,width:cv?.width,height:cv?.height,screenWidth:r?.width,pixelsPerCssPixel:r?.width?cv.width/r.width:0,sourceDensity:Number(cv?.dataset.sourceDensity),sharp:cv?.dataset.sharp==='1',settled:!window.__world.root.classList.contains('zooming'),errors:window.__errs})}`);
   await shot("park-zoom-settled");
   // Repeated zoom direction changes must not accumulate canvases or apply a stale crop.
   for (let i = 0; i < 20; i++) {
@@ -68,6 +68,6 @@ module.exports = async function checks({ js, wc, wait, out, threads }) {
   fs.writeFileSync(path.join(out, "checks.json"), JSON.stringify(result, null, 2));
   console.log("checks", JSON.stringify(result));
   if (result.heldExit.actors !== 1 || !result.heldExit.waiting || result.arrival.waiting || result.arrival.traveling || result.arrival.duplicates.length) throw Error("Robot handoff regression");
-  if (result.sharpness.width && (result.sharpness.pixelsPerCssPixel < result.sharpness.dpr * .99 || !result.sharpness.settled)) throw Error("Zoom raster is not sharp at device resolution");
+  if (result.sharpness.width && (result.sharpness.pixelsPerCssPixel < result.sharpness.dpr * .99 || !result.sharpness.settled || !result.sharpness.sharp || Math.abs(result.sharpness.sourceDensity/result.sharpness.scale/result.sharpness.dpr-1)>.01)) throw Error("Zoom raster is not sharp at device resolution");
   if (result.cacheNodes.preview !== 1 || result.cacheNodes.detail !== 1 || result.cacheNodes.errors.length) throw Error("Raster lifecycle regression");
 };

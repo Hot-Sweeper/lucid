@@ -639,9 +639,12 @@ function claudeLimits(now) {
 }
 
 // ---------------------------------------------------------------- API
+let providerLimitsReader = null;
+function setProviderLimitsReader(reader) { providerLimitsReader = reader; }
 
 async function compute() {
   const errors = [];
+  const reportedLimits = providerLimitsReader ? Promise.resolve().then(providerLimitsReader).catch(() => ({ providers: [], error: "T3 limits could not be refreshed." })) : null;
   const now = Date.now();
   let windows = { last5h: emptyTotals(), today: emptyTotals(), week: emptyTotals() };
   const limits = { codex: null, claude: null };
@@ -651,7 +654,8 @@ async function compute() {
   try { windows = aggregate(now, errors); } catch (err) { errors.push(`Totals failed: ${err.message || err}`); }
   try { limits.codex = codexLimits(now); } catch (err) { errors.push(`Codex limits failed: ${err.message || err}`); }
   try { limits.claude = claudeLimits(now); } catch (err) { errors.push(`Claude limits failed: ${err.message || err}`); }
-  return { updatedAt: new Date(now).toISOString(), windows, limits, errors };
+  const usage = { updatedAt: new Date(now).toISOString(), windows, limits, errors };
+  return reportedLimits ? require("./provider-limits.cjs").mergeProviderLimits(usage, await reportedLimits) : usage;
 }
 
 async function getUsage() {
@@ -662,4 +666,4 @@ async function getUsage() {
   return inflight;
 }
 
-module.exports = { getUsage };
+module.exports = { getUsage, setProviderLimitsReader };

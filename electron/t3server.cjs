@@ -166,12 +166,13 @@ async function ensurePaired({ force = false } = {}) {
 }
 
 // HTTP with the session. A 401 means expired or revoked: pair again once, then give up.
-async function authed(pathname, init = {}, retried = false) {
-  const c = await ensurePaired();
+async function authed(pathname, init = {}, retried = false, pairedOnly = false) {
+  const c = pairedOnly ? await loadCred() : await ensurePaired();
+  if (!c) throw new T3ServerError("Connect Lucid to T3 Code to read subscription limits.", "not-paired");
   const { origin } = server();
-  const res = await fetch(origin + pathname, { ...init, headers: { ...(init.headers || {}), authorization: `Bearer ${c.token}` } });
+  const res = await fetch(origin + pathname, { ...(pairedOnly ? { signal: AbortSignal.timeout(2000) } : {}), ...init, headers: { ...(init.headers || {}), authorization: `Bearer ${c.token}` } });
   if (res.status === 401 || res.status === 403) {
-    if (res.status === 401 && !retried) {
+    if (res.status === 401 && !retried && !pairedOnly) {
       forgetCred();
       await ensurePaired({ force: true });
       return authed(pathname, init, true);
@@ -200,9 +201,9 @@ function closeSock() {
   s.pending.clear();
 }
 
-async function connect() {
+async function connect({ pairedOnly = false } = {}) {
   if (sock) return sock.ready;
-  const { ticket } = await authed("/api/auth/websocket-ticket/rpc", { method: "POST" });
+  const { ticket } = await authed("/api/auth/websocket-ticket/rpc", { method: "POST" }, false, pairedOnly);
   const { ws: base } = server();
   const ws = new WebSocket(`${base}/ws?orchestrationProtocol=${PROTOCOL}&wsTicket=${encodeURIComponent(ticket)}`);
   ws.binaryType = "arraybuffer";
@@ -265,8 +266,8 @@ function friendly(s) {
   return s.replace(/\b(run|thread|message|node|command):[^\s.,)]+/g, "this item").slice(0, 240);
 }
 
-async function call(tag, payload, { timeout = 15_000 } = {}) {
-  const s = await connect();
+async function call(tag, payload, { timeout = 15_000, pairedOnly = false } = {}) {
+  const s = await connect({ pairedOnly });
   const id = String(nextId++);
   clearTimeout(idleTimer);
   const result = new Promise((resolve, reject) => {
@@ -339,10 +340,45 @@ function setThreadModel(threadId, { providerInstanceId, model, options }) {
 }
 
 let providerCache = null;
+let usageLimitsCache = null, usageLimitsRead = null, usageLimitsRetryAt = 0;
+function rememberUsageLimits(config) {
+  // Keep only usage fields. Account identifiers and authentication metadata never
+  // leave the main process through the usage bridge.
+  const providers = (config?.providers || []).filter(p => p && p.enabled !== false && p.installed !== false).map(p => ({
+    instanceId: p.instanceId, driver: p.driver, name: p.displayName || p.instanceId,
+    usageLimits: p.usageLimits ? { checkedAt: p.usageLimits.checkedAt, windows: (p.usageLimits.windows || []).map(w => ({ id: w.id, kind: w.kind, label: w.label, usedPercent: w.usedPercent, resetsAt: w.resetsAt, windowDurationMins: w.windowDurationMins })), unavailable: p.usageLimits.unavailable ? { reason: p.usageLimits.unavailable.reason, message: p.usageLimits.unavailable.message } : undefined } : null,
+  }));
+  usageLimitsCache = { at: Date.now(), providers };
+  return { providers, fetchedAt: new Date(usageLimitsCache.at).toISOString(), source: "T3 Code" };
+}
+
+/** Read T3's supported provider snapshots through an existing paired connection. */
+async function usageLimits() {
+  if (usageLimitsCache && Date.now() - usageLimitsCache.at < 20000) return { providers: usageLimitsCache.providers, fetchedAt: new Date(usageLimitsCache.at).toISOString(), source: "T3 Code" };
+  if (Date.now() < usageLimitsRetryAt) return { providers: usageLimitsCache?.providers || [], error: "T3 limits could not be refreshed.", source: "T3 Code" };
+  if (usageLimitsRead) return usageLimitsRead;
+  usageLimitsRead = (async () => {
+    let timer;
+    try {
+      // Reading limits must never initiate pairing, prompt, or restart a provider.
+      if (!await loadCred()) return { providers: [], error: "Connect Lucid to T3 Code to read subscription limits.", source: "T3 Code" };
+      const config = await Promise.race([
+        call("server.getConfig", {}, { timeout: 2000, pairedOnly: true }),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new T3ServerError("T3 limits did not answer in time.", "timeout")), 2500); }),
+      ]);
+      return rememberUsageLimits(config);
+    } catch {
+      usageLimitsRetryAt = Date.now() + 30000;
+      return { providers: usageLimitsCache?.providers || [], error: "T3 limits could not be refreshed.", source: "T3 Code" };
+    } finally { clearTimeout(timer); usageLimitsRead = null; }
+  })();
+  return usageLimitsRead;
+}
 /** Harnesses T3 offers right now, with their models and each model's options (effort, fast mode). */
 async function listProviders({ fresh = false } = {}) {
   if (!fresh && providerCache && Date.now() - providerCache.at < 60_000) return providerCache.list;
   const config = await call("server.getConfig", {});
+  rememberUsageLimits(config);
   const list = (config?.providers || [])
     .filter((p) => p && p.enabled !== false && p.availability !== "unavailable")
     .map((p) => ({
@@ -398,7 +434,7 @@ async function status({ connect = false, threadId = null } = {}) {
 }
 
 module.exports = {
-  ensurePaired, status, dispatch, call, listProviders, selection,
+  ensurePaired, status, dispatch, call, listProviders, selection, usageLimits,
   reorderQueued, cancelQueued, editQueued, steerNow, setThreadModel, respondToRequest,
   setStorePath, closeSock, T3ServerError,
 };

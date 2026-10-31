@@ -13,7 +13,14 @@ const ROW = ".th-row[data-id], .rail-th[data-id]";
 
 export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFor: (id: string) => ThreadRef | null,
   office?: { zone(x: number, y: number): string | null; preview(room: string | null): void; place(id: string, room: string): boolean }) {
-  for (const box of containers) box.addEventListener("pointerdown", (e) => start(e, box));
+  for (const box of containers) {
+    box.addEventListener("pointerdown", (e) => start(e, box));
+    // Logos and selected text otherwise start Chromium's native drag, which cancels
+    // pointer capture while our row copy is moving to the chat.
+    box.addEventListener("dragstart", (e) => {
+      if ((e.target as HTMLElement).closest(ROW)) e.preventDefault();
+    }, true);
+  }
 
   function start(e: PointerEvent, _box: HTMLElement) {
     if (e.button !== 0 || e.pointerType === "touch") return;   // touch scrolls the list; the menu or R key references instead

@@ -22,6 +22,7 @@ import { openCustomizeFor } from "./office/customize";
 import { Orchestrator, type OrchState } from "./office/orchestrator";
 import { progress } from "./office/progress";
 import { mountStats } from "./stats/stats";
+import { mountEnvironments } from "./office/environments";
 import { Wallet, openShop, coinIcon, boostNow, luckyHour, type WalletState } from "./office/shop";
 import { ShopFront } from "./office/shopfront";
 import { watchDaily } from "./office/daily";
@@ -94,6 +95,7 @@ document.getElementById("app")!.innerHTML = `
       <div class="fold-body" id="fold-todo"><div id="td-body"></div></div>
     </section>
 
+    <div id="environment-body"></div>
     <section class="rooms">
       <div class="sec-head"><h3>Rooms</h3>${foldButton("rooms", "rooms")}</div>
       <div class="fold-body" id="fold-rooms">
@@ -137,11 +139,12 @@ world.extFactory.break = (h, w, hh) => new BreakRoom(h, w, hh);
 world.extFactory.queue = (h, w, hh) => new QuestionLine(h, w, hh);
 let selectedDesk: Desk | null = null;
 (window as any).__world = world; // debug handle for test runs
-const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), t3: (window as any).lucidT3 });
+const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), conversationPage: (id, options) => (api as any).conversationPage(id, options), sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), t3: (window as any).lucidT3 });
 // the sidebar and the chat are columns beside the scene, so the camera always fits what is left (see World)
 world.onFocus = (d) => { if (d) { chat.open(d); chat.setView(world.focusMode); pushStatus(d); } };
 // a robot's question, answered from its chat (see openAnswer)
 const answer = new AnswerCard(chat, { pending: (id) => (window as any).lucid.pendingRequests(id), t3: (window as any).lucidT3, advice: (rid) => delegate.advice.get(rid) ?? null });
+(window as any).__answer = answer; // isolated answer-form fixture handle
 // a chat opened without a desk (questions room, follow chip) closes itself
 chat.onClose = () => { chat.close(); world.unfocus(); };
 chat.onToggleView = () => {
@@ -399,6 +402,14 @@ $("update").addEventListener("click", async () => {
 
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
+mountEnvironments($("environment-body"), (fresh) => (api as any).environments(fresh), (id) => {
+  void (api as any).selectEnvironment(id).then((building: { label: string }) => {
+    world.building = building.label;
+    const label = world.root.querySelector(".building-plate b");
+    if (label) label.textContent = building.label;
+    world.overview();
+  }).catch((error: Error) => console.warn("Building could not be selected", error.message));
+});
 const settings: { seats?: Record<string, (string | null)[]>; hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));

@@ -1,0 +1,10 @@
+.environments { margin: 18px 0; }
+.environment-list { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.environment-row { display: flex; flex-direction: column; gap: 2px; width: 100%; min-width: 0; padding: 6px 0; border: 0; background: none; color: var(--ink-2); text-align: left; cursor: pointer; font: inherit; }
+.environment-row b { color: var(--ink); font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.environment-row span, .environment-note { color: var(--ink-3); font-size: 12px; line-height: 1.45; }
+.environment-row:disabled { cursor: default; }
+.environment-row:enabled:hover b { color: var(--accent); }
+.environment-row:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+.environment-note { margin: 5px 0 0; overflow-wrap: anywhere; }
+.environments [hidden] { display: none !important; }

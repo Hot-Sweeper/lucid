@@ -4,9 +4,9 @@ import type { Season, Weather, WeatherKind } from "./types";
 export type { Weather, WeatherKind, Season } from "./types";
 
 // The weather over the outdoors: rain, snow, fog, cloud shadows, lightning, falling leaves and
-// petals. Two canvases, both children of the world element so they pan and zoom with it:
-//  - "sky": cloud shadows, fog banks and the overcast tint. Huge soft shapes, so it covers the
-//    whole outdoor rect at a tiny resolution and lets the browser smooth the upscale.
+// petals. The world-space sky texture stays off-DOM. Two viewport-sized canvases
+// preserve its mapping and the falling particles without enormous compositor layers:
+//  - "sky": cloud shadows, fog banks and the overcast tint, sampled from the original texture.
 //  - "fall": rain, snow, splashes, leaves. Small sharp things, so it only covers the part of
 //    the world currently on screen (plus a margin) at a reduced pixel density, and follows the
 //    camera by changing its own transform. Its drawing work scales with the screen, not the world.
@@ -125,10 +125,11 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   root.className = "weather-layer";
   root.setAttribute("aria-hidden", "true");
   const sky = document.createElement("canvas");
+  const skyView = document.createElement("canvas");
   const fall = document.createElement("canvas");
   const flashEl = document.createElement("div");
   flashEl.className = "weather-flash";
-  root.append(sky, fall);
+  root.append(skyView, fall);
   // above the outdoors and the park robots, below the building's rooms and the night shade
   const plate = host.querySelector(":scope > .building-plate");
   if (plate) host.insertBefore(root, plate); else host.appendChild(root);
@@ -136,19 +137,22 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   const shade = host.querySelector(":scope > .night-shade");
   if (shade) shade.after(flashEl); else host.appendChild(flashEl);
   const place = () => {
-    const pos = `position:absolute;left:${rect.x}px;top:${rect.y}px;width:${rect.w}px;height:${rect.h}px;pointer-events:none;`;
+    const pos = "position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;transform-origin:0 0;";
     root.style.cssText = pos + "overflow:clip;";
     flashEl.style.cssText = pos + "background:#e4ecff;opacity:0;";
     // sky canvas: whole outdoor rect at about 1/16 resolution
     const k = Math.min(1 / 16, 640 / rect.w);
     sky.width = Math.max(8, Math.round(rect.w * k)); sky.height = Math.max(8, Math.round(rect.h * k));
-    sky.style.cssText = `position:absolute;left:0;top:0;width:${rect.w}px;height:${rect.h}px;`;
+    skyView.style.cssText = "position:absolute;left:0;top:0;";
     fall.style.cssText = "position:absolute;left:0;top:0;transform-origin:0 0;";
     fallXf = "";
+    planeStyle = "";
   };
   let fallXf = "";
+  let planeStyle = "";
   place();
   const sg = sky.getContext("2d")!;
+  const vg = skyView.getContext("2d")!;
   const fg = fall.getContext("2d")!;
 
   // state
@@ -183,6 +187,45 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   let sceneBox: { left: number; top: number; width: number; height: number } | null = null;
   let hostW = 1;
   let indoors = false;
+  let plane = { x: 0, y: 0, s: 1, w: 0, h: 0, q: 1 };
+  function presentSky() {
+    if (!plane.w || !plane.h) return;
+    vg.setTransform(1, 0, 0, 1, 0, 0);
+    vg.clearRect(0, 0, skyView.width, skyView.height);
+    vg.setTransform(plane.q, 0, 0, plane.q, 0, 0);
+    vg.drawImage(sky, plane.x + rect.x * plane.s, plane.y + rect.y * plane.s, rect.w * plane.s, rect.h * plane.s);
+  }
+  function presentFall(v: NonNullable<typeof view>) {
+    const xf = `translate(${(plane.x + (rect.x + v.x) * plane.s).toFixed(3)}px,${(plane.y + (rect.y + v.y) * plane.s).toFixed(3)}px) scale(${(v.k * plane.s).toFixed(7)})`;
+    if (xf !== fallXf) { fall.style.transform = xf; fallXf = xf; }
+  }
+  function updatePresentation() {
+    let c = cam, sc = sceneBox;
+    if (!c || !sc) {
+      const hr = host.getBoundingClientRect(), sr = (host.parentElement ?? document.documentElement).getBoundingClientRect();
+      c = { x: hr.left - sr.left, y: hr.top - sr.top, s: host.offsetWidth ? hr.width / host.offsetWidth : 1 };
+      sc = sr;
+    }
+    if (!(c.s > 0) || !sc.width || !sc.height) return;
+    plane.x = c.x; plane.y = c.y; plane.s = c.s; plane.w = sc.width; plane.h = sc.height;
+    plane.q = Math.min(devicePixelRatio || 1, 1.5, Math.sqrt(1.6e6 / (sc.width * sc.height)));
+    const bw = Math.max(1, Math.round(sc.width * plane.q)), bh = Math.max(1, Math.round(sc.height * plane.q));
+    if (skyView.width !== bw || skyView.height !== bh) { skyView.width = bw; skyView.height = bh; }
+    const top = clamp(c.y + rect.y * c.s, 0, sc.height), left = clamp(c.x + rect.x * c.s, 0, sc.width);
+    const right = sc.width - clamp(c.x + (rect.x + rect.w) * c.s, 0, sc.width), bottom = sc.height - clamp(c.y + (rect.y + rect.h) * c.s, 0, sc.height);
+    const xf = `translate(${-c.x / c.s}px,${-c.y / c.s}px) scale(${1 / c.s})`;
+    const signature = `${xf}|${sc.width}|${sc.height}|${top}|${right}|${bottom}|${left}`;
+    if (signature !== planeStyle) {
+      planeStyle = signature;
+      for (const el of [root, flashEl]) {
+        el.style.width = `${sc.width}px`; el.style.height = `${sc.height}px`; el.style.transform = xf;
+        el.style.clipPath = `inset(${top}px ${right}px ${bottom}px ${left}px)`;
+      }
+      skyView.style.width = `${sc.width}px`; skyView.style.height = `${sc.height}px`;
+      presentSky();
+      if (view) presentFall(view);
+    }
+  }
   function measure() {
     let hr: { left: number; top: number; width: number }, s: number, clip: { left: number; top: number; right: number; bottom: number };
     if (cam && sceneBox) {
@@ -215,8 +258,7 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
     const k = ww / fall.width; // world units per canvas pixel
     const v = { x: vx, y: vy, w: ww, h: fall.height * k, k };
     if (v.x > rect.w || v.y > rect.h || v.x + v.w < 0 || v.y + v.h < 0) return null;
-    const xf = `translate(${v.x.toFixed(1)}px,${v.y.toFixed(1)}px) scale(${k.toFixed(5)})`;
-    if (xf !== fallXf) { fall.style.transform = xf; fallXf = xf; }
+    presentFall(v);
     return v;
   }
 
@@ -266,6 +308,7 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
       }
     }
     sg.globalAlpha = 1;
+    presentSky();
   }
 
   // rain: three depth layers, each a tile of streaks repeated across the view
@@ -536,6 +579,7 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
     last = now;
     const slow = reduce.matches;
     clock += dt;
+    updatePresentation();
     // the sky changes slowly: redraw it at 30 fps (4 fps when motion is reduced)
     if (clock - skyAt > (slow ? 0.25 : 1 / 12) || skyAt < 0) { drawSky(clock); skyAt = clock; }
     const rain = R.rain, snow = R.snow;
@@ -582,8 +626,10 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   const layer: WeatherLayer = {
     onFlash: null,
     setCamera(c, sc, w, h) {
-      if (cam) { cam.x = c.x; cam.y = c.y; cam.s = c.s; } else cam = { ...c };
-      if (sceneBox) Object.assign(sceneBox, sc); else sceneBox = { ...sc };
+      if (cam) { cam.x = c.x; cam.y = c.y; cam.s = c.s; } else cam = { x: c.x, y: c.y, s: c.s };
+      // DOMRect coordinates are getters, so spreading one silently drops them.
+      if (sceneBox) { sceneBox.left = sc.left; sceneBox.top = sc.top; sceneBox.width = sc.width; sceneBox.height = sc.height; }
+      else sceneBox = { left: sc.left, top: sc.top, width: sc.width, height: sc.height };
       hostW = w || 1;
       const x = -c.x / c.s, y = -c.y / c.s;
       const inside = h != null && x >= 0 && y >= 0 && x + sc.width / c.s <= w && y + sc.height / c.s <= h;
@@ -592,6 +638,7 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
         if (inside) { cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; }
         else { last = 0; skyAt = -1; schedule(); }
       }
+      if (!indoors) updatePresentation();
     },
     setGround(p, rs) { puddlesW = p; pavedW = rs; toLocal(); },
     setSteppers(fn) { steppers = fn; schedule(); },

@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { watch, unwatch, drawNow, sinceDraw } from "./budget";
 import { beginSystem, endSystem } from "../perf/metrics";
+import { setSvgAttribute } from "../perf/svg-write";
 import type { Expression, RobotLook } from "../office/rig";
 import { bind, brandFor, clamp, defsSvg, eyesSvg, headSideSvg, headSvg, lerp, paintBrand, paintLook, uid, type BrandKind } from "./parts";
 
@@ -183,6 +184,7 @@ export class Walker {
   private layer = { l: "", r: "", legs: "" };
   private dangling = false;
   private last = performance.now();
+  private glowPulse = { opacity: 0.9 };
 
   constructor(parent: Element, opts: WalkerOptions) {
     this.id = opts.id;
@@ -217,7 +219,7 @@ export class Walker {
     this.setExpression("neutral");
     const still = reduced();
     this.loops.push(gsap.to(this.st, { breath: 1, duration: rnd(2, 2.6), ease: "sine.inOut", yoyo: true, repeat: -1, delay: Math.random() * 2 }));
-    if (!still) this.loops.push(gsap.to([this.$.antennaGlow, this.$.sideGlow], { opacity: 0.5, duration: 1.5, ease: "sine.inOut", yoyo: true, repeat: -1 }));
+    if (!still) this.loops.push(gsap.to(this.glowPulse, { opacity: 0.5, duration: 1.5, ease: "sine.inOut", yoyo: true, repeat: -1 }));
     this.scheduleBlink();
     if (!still) this.scheduleLife();
     this.face("down");
@@ -262,6 +264,7 @@ export class Walker {
     show("fbHead", fb); show("sideHead", !fb);
     show("backPlate", dir === "up"); show("chest", dir === "down");
     this.$.face.setAttribute("opacity", dir === "down" ? "1" : "0");
+    show("face", dir === "down"); show("back", dir !== "down");
     this.$.flip.setAttribute("transform", dir === "left" ? "translate(1120 0) scale(-1 1)" : "");
     // far limbs in the side view are a shade darker
     for (const k of ["l", "r"] as const) {
@@ -990,6 +993,9 @@ export class Walker {
     dt = sinceDraw(this, now);
     if (!drawNow(this, this.svg, now)) return;
     const started = beginSystem();
+    const pulse = this.glowPulse.opacity.toFixed(4);
+    setSvgAttribute(this.$.antennaGlow, "opacity", pulse);
+    setSvgAttribute(this.$.sideGlow, "opacity", pulse);
     const st = this.st, t = now / 1000;
     const side = this.facing === "left" || this.facing === "right";
     const back = this.facing === "up";

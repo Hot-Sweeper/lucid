@@ -77,7 +77,7 @@ module.exports = async ({ js, wc, wait, out }) => {
       f.startTrade=()=>{idle.active=true;const tok=++idle.token;f.trade=idle.doActivity('trading',tok).catch(e=>{if(e.constructor.name!=='Cancelled')f.tradeError=String(e)})};
       f.stopTrade=()=>{idle.stop();f.d.wm.reset()};f.startTrade();
     }`);
-    await until(`window.__screenDetails.d.wm.root.querySelector('.tb-pair small')?.textContent==='Live price, Fixture public feed'`, 'Tradebot did not consume the supplied candle response');
+    await until(`window.__screenDetails.d.wm.root.querySelector('.tb-pair small')?.textContent==='Live price, Fixture public feed' && window.__screenDetails.d.wm.root.querySelector('.tb-px')?.textContent.includes('12,345.67')`, 'Tradebot did not present the supplied candle response and price');
     result.market = await js(`{const r=window.__screenDetails.d.wm.root;({note:r.querySelector('.tb-pair small').textContent,price:r.querySelector('.tb-px').textContent,canvas:r.querySelector('.tb-chart canvas').width,fictional:r.querySelector('.tb-fic').textContent})}`);
     check(result.market.price.includes('12,345.67') && result.market.canvas > 0 && result.market.fictional === 'Fictional coins', 'Tradebot uses supplied feed prices and identifies its fictional market section');
     check(result.marketRequests.some(r => r.method === 'klines' && r.symbol === 'BTCUSDT' && r.interval === '1m'), 'Tradebot requests Bitcoin candles for the actual timeframe');

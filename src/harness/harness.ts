@@ -6,6 +6,7 @@
 import { logoSvg } from "./logos";
 import gsap from "gsap";
 import { renderLoop, renderFps, presentationFrame } from "../perf/render";
+import { scheduleLayout } from "./layout";
 import type { AppId } from "../os/wm";
 import type { Robot } from "../robot";
 import { ICONS } from "../os/icons";
@@ -553,19 +554,22 @@ class Session implements HarnessSession {
       const step = Math.max(1, Math.round(remaining / 18));
       st.shown = Math.min(st.target.length, st.shown + step);
       st.inner.textContent = st.target.slice(0, st.shown);
-      st.msg.classList.toggle("hx-over", st.inner.offsetHeight > st.msg.clientHeight + 1);
+      scheduleLayout(st.msg, () => {
+        const over = st.inner.offsetHeight > st.msg.clientHeight + 1;
+        return () => st.msg.classList.toggle("hx-over", over);
+      });
       this.follow(300);
       busy = true;
     }
     if (now < this.followUntil && this.stick) {
       const s = this.scroller;
-      const target = s.scrollHeight - s.clientHeight;
-      if (!this.live) s.scrollTop = target;
-      else {
-        const d = target - s.scrollTop;
-        s.scrollTop = Math.abs(d) < 0.8 ? target : s.scrollTop + d * 0.24;
-      }
-      this.lastAutoTop = s.scrollTop;
+      scheduleLayout(s, () => {
+        if (!this.stick || this.app.activeSession !== this || !renderFps(this.view)) return null;
+        const target = Math.max(0, s.scrollHeight - s.clientHeight), top = s.scrollTop, d = target - top;
+        if (Math.abs(d) < 0.5) return null;
+        const next = !this.live || Math.abs(d) < 0.8 ? target : top + d * 0.24;
+        return () => { if (this.stick) { this.lastAutoTop = next; s.scrollTop = next; } };
+      });
       busy = true;
     }
     if (this.state === "running") {

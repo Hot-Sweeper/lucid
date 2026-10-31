@@ -6,12 +6,13 @@ import DOMPurify from "dompurify";
 import { highlight } from "../os/highlight";
 import { type ThreadRef, refBlock, stripRefs, summarize } from "./thread-ref";
 import { beginSystem, endSystem } from "../perf/metrics";
+import { HistoryWindow, type HistoryCursor, type HistoryPage } from "./history-window";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
 
 type Msg = {
-  id: string; role: string; at: string; streaming: boolean; text: string; run?: string | null; queue?: number | null;
+  id: string; role: string; at: string; orderAt?: string; sourceOrder?: number; streaming: boolean; text: string; run?: string | null; queue?: number | null;
   attachments: { type: string; name: string; mime: string; size: number; path: string | null }[];
   // queued messages only: their run, the live turn they can be steered into, and what T3 allows
   event?: { kind: "compaction" | "handoff" | "harness" | "model"; status?: string; from?: { provider?: string; model?: string }; to?: { provider?: string; model?: string } };
@@ -35,6 +36,7 @@ export type T3Api = {
 };
 type Api = {
   conversation(id: string): Promise<Msg[]>;
+  conversationPage?(id: string, options?: { before?: HistoryCursor | null }): Promise<HistoryPage<Msg>>;
   sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
   saveAttachment(name: string, data: Uint8Array): Promise<string>;
   t3?: T3Api;
@@ -126,6 +128,9 @@ export class ChatPanel {
   private groups = new Map<string, HTMLElement>();
   private timelineSig = "";
   private loadingHistory = false;
+  private history = new HistoryWindow<Msg>();
+  private historyGeneration = 0;
+  private loadingOlder = false;
   onClose: () => void = () => {};
   onToggleView: () => void = () => {};
   /** You started or stopped typing a message to this robot. */
@@ -458,6 +463,7 @@ export class ChatPanel {
     ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); } });
     this.el.querySelector(".cp-list")!.addEventListener("click", (e) => {
       const t = e.target as HTMLElement;
+      if (t.closest(".cp-history-more")) { void this.loadEarlier(); return; }
       const img = t.closest(".cp-att img") as HTMLImageElement | null;
       if (img) this.zoom(img.src);
       // copy a code block
@@ -499,6 +505,7 @@ export class ChatPanel {
       this.renderChips();
       this.resizeComposer();
       this.typingOn = false;
+      this.history = new HistoryWindow<Msg>(); this.historyGeneration++; this.loadingOlder = false;
       this.shown.clear(); this.groups.clear(); this.timelineSig = ""; (this.el.querySelector(".cp-list") as HTMLElement).innerHTML = "";
       this.sel = null; this.queueHold = 0; this.closeMenu();
       (this.el.querySelector(".cp-queue ol") as HTMLElement).dataset.sig = "";
@@ -536,6 +543,7 @@ export class ChatPanel {
     this.el.classList.remove("open");
     this.closeMenu();
     this.desk = null;
+    this.historyGeneration++;
     this.tabLabel = "Chat";
     (this.tab.querySelector("span") as HTMLElement).textContent = "Chat";
     this.tab.setAttribute("aria-label", "Show chat");
@@ -609,22 +617,70 @@ export class ChatPanel {
     if (!id) return;
     if (this.loadingHistory) { this.refreshSoon(100); return; }
     this.loadingHistory = true;
-    let msgs: Msg[];
-    try { msgs = await this.api.conversation(id); }
+    const generation = this.historyGeneration;
+    let page: HistoryPage<Msg>;
+    try { page = this.api.conversationPage ? await this.api.conversationPage(id) : { messages: await this.api.conversation(id), cursor: null, hasMore: false }; }
     catch { this.refreshSoon(2000); return; }
     finally { this.loadingHistory = false; }
-    if (id !== this.threadId) return;
+    if (id !== this.threadId || generation !== this.historyGeneration) return;
+    this.renderHistory(this.history.update(page));
+  }
+
+  private async loadEarlier() {
+    const id = this.threadId, cursor = this.history.cursor;
+    if (!id || !cursor || !this.history.hasMore || this.loadingOlder || !this.api.conversationPage) return;
+    const generation = this.historyGeneration;
+    this.loadingOlder = true;
+    this.historyButton();
+    try {
+      const page = await this.api.conversationPage(id, { before: cursor });
+      if (id !== this.threadId || generation !== this.historyGeneration) return;
+      this.renderHistory(this.history.update(page, true), true);
+    } catch {
+      if (id === this.threadId && generation === this.historyGeneration) {
+        const button = this.historyButton();
+        button.textContent = "Could not load earlier messages. Retry";
+      }
+    } finally {
+      if (generation === this.historyGeneration) {
+        this.loadingOlder = false;
+        const button = this.el.querySelector<HTMLButtonElement>(".cp-history-more");
+        if (button) { button.disabled = false; if (button.textContent === "Loading earlier messages...") this.historyButton(); }
+      }
+    }
+  }
+
+  private historyButton() {
+    const list = this.el.querySelector<HTMLElement>(".cp-list")!;
+    let button = list.querySelector<HTMLButtonElement>(".cp-history-more");
+    if (!button) {
+      button = document.createElement("button");
+      button.type = "button";
+      button.className = "cp-history-more ghost";
+      list.prepend(button);
+    }
+    button.hidden = !this.history.hasMore;
+    button.disabled = this.loadingOlder;
+    button.textContent = this.loadingOlder ? "Loading earlier messages..." : "Load earlier messages";
+    return button;
+  }
+
+  private renderHistory(msgs: Msg[], preservePosition = false) {
+    const id = this.threadId;
+    if (!id) return;
     // the thread's model can change elsewhere too (T3 itself); check now and then
     if (this.paired && !this.saving && Date.now() - this.selAt > 4000) void this.loadSelection();
     const started = beginSystem();
     const list = this.el.querySelector(".cp-list") as HTMLElement;
-    const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+    const nearBottom = !preservePosition && list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+    const oldHeight = list.scrollHeight;
     const initial = this.shown.size === 0;
     // Queued messages wait in their own section at the bottom, in the order the robot takes them.
     const queued = msgs.filter((m) => m.role === "user" && m.run === "queued").sort((a, b) => (a.queue ?? 99) - (b.queue ?? 99));
     const timeline = msgs.filter((m) => !(m.role === "user" && m.run === "queued"));
     this.renderQueue(queued);
     this.setPlan(this.desk?.planSteps || []);
+    const historyButton = this.historyButton();
     const signature = JSON.stringify(timeline);
     if (signature === this.timelineSig) { endSystem("chat", started); return; }
     this.timelineSig = signature;
@@ -632,7 +688,8 @@ export class ChatPanel {
     for (const id of [...this.shown.keys()]) {
       if (!ids.has(id)) { this.shown.get(id)!.remove(); this.shown.delete(id); }
     }
-    const anchor = !nearBottom ? [...list.querySelectorAll<HTMLElement>(".cp-msg")].find((e) => e.getBoundingClientRect().bottom > list.getBoundingClientRect().top) : null;
+    const listTop = list.getBoundingClientRect().top;
+    const anchor = !nearBottom ? [...list.querySelectorAll<HTMLElement>(".cp-msg,.cp-event")].find((e) => e.getClientRects().length && e.getBoundingClientRect().bottom > listTop) : null;
     const anchorY = anchor?.getBoundingClientRect().top;
     list.querySelector(".cp-empty:not(.cp-notice)")?.remove();
     const batches: { key: string; role: string; messages: Msg[] }[] = [];
@@ -664,7 +721,7 @@ export class ChatPanel {
       else batches.push({ key: m.id, role: m.role, messages: [m] });
     }
     const activeGroups = new Set<string>();
-    let previous: HTMLElement | null = null;
+    let previous: HTMLElement | null = historyButton;
     for (const batch of batches) {
       let row: HTMLElement;
       if (batch.role === "event") row = this.shown.get(batch.key)!;
@@ -702,10 +759,11 @@ export class ChatPanel {
     const pendingChanged = pending.length !== this.pending.length;
     this.pending = pending;
     if (pendingChanged) this.renderPending(false);
-    if (!list.children.length) list.innerHTML = `<p class="cp-empty">No messages yet. Say hello.</p>`;
-    else list.querySelector(".cp-empty:not(.cp-notice)")?.remove();
-    if (nearBottom || initial) list.scrollTop = list.scrollHeight;
+    if (!timeline.length && !list.querySelector(".cp-msg.pending,.cp-typing,.cp-empty")) list.insertAdjacentHTML("beforeend", `<p class="cp-empty">No messages yet. Say hello.</p>`);
+    else if (timeline.length) list.querySelector(".cp-empty:not(.cp-notice)")?.remove();
+    if (nearBottom || (initial && !preservePosition)) list.scrollTop = list.scrollHeight;
     else if (anchor?.isConnected && anchorY != null) list.scrollTop += anchor.getBoundingClientRect().top - anchorY;
+    else if (preservePosition) list.scrollTop += list.scrollHeight - oldHeight;
     endSystem("chat", started);
   }
 

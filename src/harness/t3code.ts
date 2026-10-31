@@ -11,6 +11,8 @@ import { harnessKind, prettyModel, effortWord } from "./themes";
 import { logoSvg } from "./logos";
 import { ICONS } from "../os/icons";
 import "./t3code.css";
+import { scheduleLayout } from "./layout";
+import { presentationFrame, renderFps } from "../perf/render";
 
 export type T3Channel = "stable" | "nightly";
 
@@ -89,6 +91,7 @@ export interface T3Host {
   open(id: AppId, title?: string, clicked?: boolean): Promise<{ el: HTMLElement; body: HTMLElement; title: HTMLElement }>;
   brandApp?(id: AppId, o: { title?: string; icon?: string }): void;
   sleep(ms: number, epoch?: number): Promise<void>;
+  check?(epoch: number): void;
 }
 
 export interface T3Info { id?: string; title?: string; provider?: string; model?: string | null; effort?: string | null; projectTitle?: string; root?: string; run?: { status: string } | null }
@@ -321,7 +324,10 @@ export class T3CodeApp {
   // --- the conversation --------------------------------------------------------------------
   private stick() {
     const s = this.scroller;
-    requestAnimationFrame(() => { s.scrollTop = s.scrollHeight; });
+    scheduleLayout(s, () => {
+      const target = Math.max(0, s.scrollHeight - s.clientHeight);
+      return Math.abs(target - s.scrollTop) < 0.5 ? null : () => { s.scrollTop = target; };
+    });
   }
 
   private appear(el: HTMLElement, from: gsap.TweenVars = { opacity: 0, y: 8 }) {
@@ -371,17 +377,25 @@ export class T3CodeApp {
     p.className = "t3-msg";
     this.feed.append(p);
     let shown = 0;
+    let painted = "";
     wm.robot.setTyping(true);
     try {
       for (;;) {
         const { text, done } = getText();
         if (shown < text.length) {
           shown = Math.min(text.length, shown + Math.max(3, Math.ceil((text.length - shown) / 30)));
-          p.innerHTML = md(text.slice(0, shown));
-          this.stick();
-          await wm.sleep(30, e);
+          if (renderFps(p)) {
+            painted = text.slice(0, shown);
+            p.innerHTML = md(painted);
+            this.stick();
+          }
+          await presentationFrame(p);
+          if (wm.check) wm.check(e); else await wm.sleep(0, e);
         } else if (done) break;
-        else await wm.sleep(120, e);
+        else {
+          if (renderFps(p) && painted !== text) { painted = text; p.innerHTML = md(text); this.stick(); }
+          await wm.sleep(120, e);
+        }
       }
     } finally {
       wm.robot.setTyping(false);

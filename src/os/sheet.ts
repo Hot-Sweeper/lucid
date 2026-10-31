@@ -3,30 +3,44 @@
 // from the pixels themselves: the layout whose neighbouring frames overlap most is the real one.
 import gsap from "gsap";
 import type { WM } from "./wm";
+import { analysisSize, sheetAnalysisBudget } from "./sheet-analysis";
 
 export type Sheet = { cols: number; rows: number; frames: number; fw: number; fh: number; fps: number; score: number };
 
-const WORK = 960;     // the image is analysed at most this wide
 const GRID = 24;      // every frame is sampled on a 24 x 24 grid
 
 const NAME_HINT = /(sheet|sprite|frames?|strip|atlas|anim|walk|run|cycle|idle|tiles?)/i;
+// Keep metadata, not decoded full-resolution images. Data URLs change when a local file does.
+const analysed = new Map<string, Sheet | null>();
+let cacheBytes = 0;
+function remember(key: string, value: Sheet | null) {
+  const bytes = key.length * 2;
+  if (bytes > 8 * 1024 * 1024) return;
+  if (analysed.has(key)) { cacheBytes -= key.length * 2; analysed.delete(key); }
+  while (analysed.size >= 8 || cacheBytes + bytes > 16 * 1024 * 1024) {
+    const oldest = analysed.keys().next().value;
+    if (oldest === undefined) break;
+    cacheBytes -= oldest.length * 2; analysed.delete(oldest);
+  }
+  analysed.set(key, value); cacheBytes += bytes;
+}
 
 type Mask = { w: number; h: number; fg: Uint8Array; rgb: Uint8ClampedArray };
 
 function load(src: string) {
   return new Promise<HTMLImageElement>((ok, no) => {
     const img = new Image();
-    img.onload = () => ok(img);
-    img.onerror = () => no(new Error("image failed to load"));
+    const timer = setTimeout(() => { img.onload = img.onerror = null; no(new Error("image load timed out")); }, 9000);
+    img.onload = () => { clearTimeout(timer); ok(img); };
+    img.onerror = () => { clearTimeout(timer); no(new Error("image failed to load")); };
     img.src = src;
   });
 }
 
 // What is figure and what is background: the colour that fills the image border is background
 // (or transparency, for transparent PNGs).
-function maskOf(img: HTMLImageElement): Mask {
-  const k = Math.min(1, WORK / img.naturalWidth);
-  const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
+async function maskOf(img: HTMLImageElement, checkpoint: () => Promise<void>): Promise<Mask> {
+  const { w, h } = analysisSize(img.naturalWidth, img.naturalHeight);
   const c = document.createElement("canvas");
   c.width = w; c.height = h;
   const g = c.getContext("2d", { willReadFrequently: true })!;
@@ -44,6 +58,7 @@ function maskOf(img: HTMLImageElement): Mask {
   const bg = bgKey === -1 ? null : [((bgKey >> 8) & 15) * 17, ((bgKey >> 4) & 15) * 17, (bgKey & 15) * 17];
   const fg = new Uint8Array(w * h);
   for (let p = 0, i = 0; p < w * h; p++, i += 4) {
+    if (p % (w * 32) === 0) await checkpoint();
     if (rgb[i + 3] < 32) continue;
     if (!bg) { fg[p] = 1; continue; }
     if (Math.abs(rgb[i] - bg[0]) + Math.abs(rgb[i + 1] - bg[1]) + Math.abs(rgb[i + 2] - bg[2]) > 54) fg[p] = 1;
@@ -89,16 +104,31 @@ function touchesEdge(c: Cell) {
 }
 
 /** The frame layout of an image, or null when it is just a picture. */
-export async function detectSheet(src: string, name: string): Promise<{ img: HTMLImageElement; sheet: Sheet } | null> {
+export async function detectSheet(src: string, name: string, valid: () => boolean = () => true): Promise<{ img: HTMLImageElement; sheet: Sheet } | null> {
+  const checkpoint = sheetAnalysisBudget(valid);
+  await checkpoint();
   const img = await load(src);
+  await checkpoint();
   const W = img.naturalWidth, H = img.naturalHeight;
   const hinted = NAME_HINT.test(name);
   // only wide or tall strips are worth a look, unless the name says it is a sheet
   if (!hinted && Math.max(W / H, H / W) < 2.4) return null;
   if (W < 48 || H < 16 || W * H > 36_000_000) return null;
-  const m = maskOf(img);
+  const key = `${hinted ? "hint" : "strip"}:${src}`;
+  const finish = (sheet: Sheet | null) => {
+    if (!sheet) return null;
+    const fps = Number(name.match(/(\d{1,3})\s*fps/i)?.[1]);
+    return { img, sheet: { ...sheet, fps: fps >= 1 && fps <= 60 ? fps : sheet.frames <= 4 ? 6 : sheet.frames <= 12 ? 10 : 12 } };
+  };
+  if (analysed.has(key)) {
+    const cached = analysed.get(key)!;
+    analysed.delete(key); analysed.set(key, cached);
+    return finish(cached);
+  }
+  const m = await maskOf(img, checkpoint);
   const found: Sheet[] = [];
   for (let rows = 1; rows <= 8; rows++) for (let cols = 1; cols <= 32; cols++) {
+    await checkpoint();
     const total = cols * rows;
     if (total < 3 || total > 64) continue;
     const aspect = W / cols / (H / rows);
@@ -114,14 +144,13 @@ export async function detectSheet(src: string, name: string): Promise<{ img: HTM
     s = (s / (used - 1)) * (1 - 0.5 * (clipped / used));
     found.push({ cols, rows, frames: used, fw: W / cols, fh: H / rows, fps: 10, score: s });
   }
-  if (!found.length) return null;
+  if (!found.length) { remember(key, null); return null; }
   const top = Math.max(...found.map((c) => c.score));
   // two frames merged look alike too, a frame cut in half does not: at near equal scores the finer cut wins
   const best = found.filter((c) => c.score >= top - 0.03).sort((a, b) => b.frames - a.frames)[0];
-  if (best.score < (hinted ? 0.42 : 0.6)) return null;
-  const fps = Number(name.match(/(\d{1,3})\s*fps/i)?.[1]);
-  best.fps = fps >= 1 && fps <= 60 ? fps : best.frames <= 4 ? 6 : best.frames <= 12 ? 10 : 12;
-  return { img, sheet: best };
+  const result = best.score < (hinted ? 0.42 : 0.6) ? null : best;
+  remember(key, result);
+  return finish(result);
 }
 
 const PLAY = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15c0 .8.9 1.3 1.6.8l11-7.5c.6-.4.6-1.2 0-1.6l-11-7.5C7.9 3.2 7 3.7 7 4.5Z" fill="currentColor"/></svg>`;

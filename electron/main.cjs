@@ -111,6 +111,13 @@ ${typeof out === "string" ? out : JSON.stringify(out, null, 1)}
 const send = (channel, payload) => { if (win && !win.isDestroyed()) win.webContents.send(channel, payload); };
 
 ipcMain.handle("t3:projects", () => t3.listProjects());
+const environments = require("./environments.cjs");
+ipcMain.handle("environment:list", (_e, fresh) => environments.getEnvironments({ fresh: fresh === true }));
+ipcMain.handle("environment:select", async (_e, id) => {
+  await environments.requireLocalEnvironment(id);
+  const inventory = await environments.getEnvironments();
+  return inventory.buildings.find(building => building.id === inventory.localId);
+});
 ipcMain.handle("t3:threads", () => t3.listThreads());
 // Watch exactly this set of threads (one per desk in the open office).
 ipcMain.handle("t3:watch-set", (_e, ids) => {
@@ -161,7 +168,9 @@ ipcMain.handle("t3:resolved-since", (_e, since) => t3.resolvedRequestsSince(sinc
 ipcMain.handle("t3:user-messages", (_e, since, exclude) => t3.userMessagesSince(since, exclude));
 ipcMain.handle("project:remove", (_e, o) => t3.removeProject(o));
 ipcMain.handle("app:host", () => require("node:os").hostname());
-ipcMain.handle("usage:get", () => require("./usage.cjs").getUsage());
+const usage = require("./usage.cjs");
+usage.setProviderLimitsReader(() => require("./t3server.cjs").usageLimits());
+ipcMain.handle("usage:get", () => usage.getUsage());
 // Files attached in the side chat are saved where agents can open them by path.
 ipcMain.handle("attach:save", async (_e, { name, data }) => {
   const dir = path.join(require("node:os").homedir(), ".t3", "userdata", "lucid-attachments");
@@ -185,6 +194,7 @@ const ROSTER = path.join(app.getPath("userData"), "roster.json");
 ipcMain.on("roster:load", (e) => { try { e.returnValue = require("node:fs").readFileSync(ROSTER, "utf8"); } catch { e.returnValue = "[]"; } });
 ipcMain.handle("roster:save", (_e, json) => require("node:fs").promises.writeFile(ROSTER, json));
 ipcMain.handle("t3:conversation", (_e, id) => t3.conversation(id));
+ipcMain.handle("t3:conversation-page", (_e, id, options) => t3.conversationPage(id, options));
 ipcMain.handle("t3:pending-requests", (_e, id) => t3.pendingRequests(id));
 ipcMain.handle("t3:request-outcome", (_e, threadId, requestId) => { try { return t3.requestOutcome(threadId, requestId); } catch { return null; } });
 ipcMain.handle("t3:thread-info", (_e, id) => { try { return t3.threadInfo(id); } catch { return null; } });

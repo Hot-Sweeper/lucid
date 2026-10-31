@@ -9,10 +9,12 @@ if (!process.versions.electron) {
   const {app} = require('electron');
   app.setPath('userData',path.join(app.getPath('appData'),'lucid'));
   const out = process.argv[2], wait = ms=>new Promise(r=>setTimeout(r,ms));
-  const t3 = require('../electron/t3.cjs'), realConversation=t3.conversation;
+  const t3 = require('../electron/t3.cjs'), realConversation=t3.conversation, realConversationPage=t3.conversationPage;
   let fixture = null;
   t3.conversation = id => fixture || realConversation(id);
-  app.on('browser-window-created',(_e,win)=>win.webContents.once('did-finish-load',async()=>{
+  t3.conversationPage = (id, options) => fixture ? {messages:fixture,cursor:null,hasMore:false} : realConversationPage(id, options);
+  let checkedWindow = false;
+  app.on('browser-window-created',(_e,win)=>{if(checkedWindow)return;checkedWindow=true;win.webContents.once('did-finish-load',async()=>{
     const wc=win.webContents, checks=[];
     const js=code=>wc.executeJavaScript(code), check=(ok,message)=>{if(!ok)throw Error(message);checks.push(message);};
     const capture=async name=>fs.writeFileSync(path.join(out,name+'.png'),(await wc.capturePage()).toPNG());
@@ -31,7 +33,7 @@ if (!process.versions.electron) {
       for(const side of ['left','right']){
         const before=await js(`{const e=document.querySelector('.grip.${side}'),r=e.getBoundingClientRect();({x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2),width:document.querySelector('${side==='left'?'#side-panel':'.chat-panel'}').getBoundingClientRect().width})}`);
         wc.sendInputEvent({type:'mouseDown',button:'left',clickCount:1,x:before.x,y:before.y});
-        for(let i=1;i<=6;i++){wc.sendInputEvent({type:'mouseMove',button:'left',buttons:['left'],x:before.x+(side==='left'?1:-1)*i*10,y:before.y});await wait(20);}
+        for(let i=1;i<=6;i++){wc.sendInputEvent({type:'mouseMove',button:'left',modifiers:['leftbuttondown'],x:before.x+(side==='left'?1:-1)*i*10,y:before.y});await wait(20);}
         wc.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,x:before.x+(side==='left'?60:-60),y:before.y});await wait(350);
         const width=await js(`document.querySelector('${side==='left'?'#side-panel':'.chat-panel'}').getBoundingClientRect().width`);
         console.log('resize',side,{before,width},await js(`({grabbing:document.body.classList.contains('col-resizing'),ui:JSON.parse(window.lucid.settingsLoad()).ui})`));
@@ -41,7 +43,7 @@ if (!process.versions.electron) {
       check(await js(`{const c=document.querySelector('.follow-chip').getBoundingClientRect(),s=document.querySelector('.scene').getBoundingClientRect();c.left>=s.left && c.right<=s.right}`),'follow controls stay inside the scene beside the chat');
       const time='2026-10-31T12:29:';
       fixture=[{id:'u',role:'user',at:time+'00Z',text:'Check the real app.',attachments:[]},...['First progress update.','Second progress update.','Finished result.'].map((text,i)=>({id:'a'+i,role:'assistant',at:time+(10+i)+'Z',text,attachments:[]})),{id:'event',role:'event',at:time+'20Z',text:'',attachments:[],event:{kind:'compaction',status:'completed'}},{id:'next',role:'assistant',at:time+'21Z',text:'After compaction.',attachments:[]}];
-      await js('window.__world.onFollowChat(window.__world.orchThread)');await wait(700);
+      await js('window.__chat.close();window.__world.onFollowChat(window.__world.orchThread)');await wait(700);
       check(await js(`document.querySelectorAll('.cp-group.bot').length===2 && document.querySelector('.cp-group.bot .cp-earlier summary').textContent==='2 earlier updates'`),'same-minute updates collapse and a compaction breaks grouping');
       await js(`document.querySelector('.cp-group.bot .cp-earlier summary').click()`);
       check(await js(`document.querySelector('.cp-group.bot details').open && document.querySelector('.cp-group.bot .cp-earlier-body').innerText.includes('First progress update.')`),'earlier updates expand without losing content');
@@ -57,7 +59,7 @@ if (!process.versions.electron) {
         const a={threadId:'fixture-chat-a',info:{title:'Fixture A',provider:'codex'},profile:{name:'A'}},b={threadId:'fixture-chat-b',info:{title:'Fixture B',provider:'codex'},profile:{name:'B'}};
         const tick=()=>new Promise(r=>setTimeout(r,40));let release;
         try{
-          api.conversation=async()=>[];api.t3=undefined;
+          api.conversationPage=undefined;api.conversation=async()=>[];api.t3=undefined;
           api.saveAttachment=()=>new Promise(r=>{release=r});
           api.sendMessage=async(o)=>{sent.push(o);return{ok:true}};
           c.open(a);ta.value='A attachment';c.addFiles([new File(['fixture'],'fixture.txt',{type:'text/plain'})]);form.requestSubmit();await tick();
@@ -97,6 +99,6 @@ if (!process.versions.electron) {
       fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({checks},null,2));
       console.log(JSON.stringify({out,checks}));app.exit(0);
     }catch(error){await capture('failure').catch(()=>{});fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({checks,error:String(error)},null,2));console.error(out,error);app.exit(1);}
-  }));
+  });});
   require('../electron/main.cjs');
 }

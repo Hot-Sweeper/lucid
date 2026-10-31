@@ -42,6 +42,9 @@ module.exports = async ({ js, wc, wait, out, setMessages }) => {
   result.distant = result.screenScales[1];
   await js("window.__centerCheckDesk()"); await wait(250);
   await js(`(async()=>{const wm=window.__checkDesk.wm,w=await wm.open('notes','Covered-game check',true);Object.assign(w.el.style,{left:'0px',top:'0px',width:'820px',height:'461px',zIndex:String(++wm.z)});wm.syncOcclusion()})()`);
+  // Opening surfaces remain translucent until their real entrance animation ends.
+  for (let i=0;i<30 && !await js("window.__checkDesk.wm.wins.get('game').el.classList.contains('render-hidden')");i++) await wait(50);
+  assert(await js("window.__checkDesk.wm.wins.get('game').el.classList.contains('render-hidden')"), "Opaque covering window did not hide the game");
   result.covered = await sample();
   assert(result.covered.calls === 0, "Fully covered app still renders");
   await js("window.__checkDesk.wm.focus('game')");
@@ -114,10 +117,13 @@ module.exports = async ({ js, wc, wait, out, setMessages }) => {
   await wait(1500);
   result.robotFairness = await js("window.__robotChecks.map(item=>{item.observer.disconnect();return item.count})");
   assert(result.robotFairness.length >= 8 && result.robotFairness.every(n=>n>0), "Visible robot starvation in shared budget");
-  await js("{const actor=window.__world.ext.queue.line.find(q=>q.alive).w;window.__overlayActor=actor;actor.do('hold-card');actor.battery.classList.add('on')}");
+  // Use a fresh real walker so a question-room controller cannot dismiss its
+  // battery halfway through the overlay geometry assertion.
+  await js("{const w=window.__world,source=w.ext.queue.line.find(q=>q.alive).w,actor=new source.constructor(w.root,{id:'overlay-fixture',scale:.42});actor.setPos((w.scene.clientWidth/2-w.cam.x)/w.cam.s,(w.scene.clientHeight/2-w.cam.y)/w.cam.s);window.__overlayActor=actor;actor.do('hold-card');actor.battery.classList.add('on')}");
   await wait(700);
-  result.overlays = await js(`{const w=window.__overlayActor,c=getComputedStyle(w.card),b=getComputedStyle(w.battery);const x=w.facing==='left'?1120-w.handR.x:w.handR.x;({cardError:Math.abs(parseFloat(c.left)-(x-560)*w.s),batteryError:Math.abs(parseFloat(b.bottom)-((935-560)*w.s+14-w.headPx)),rootBob:w.el.style.getPropertyValue('--bob')})}`);
+  result.overlays = await js(`{const w=window.__overlayActor,c=getComputedStyle(w.card),b=getComputedStyle(w.battery);const x=w.facing==='left'?1120-w.handR.x:w.handR.x;({cardError:Math.abs(parseFloat(c.left)-(x-560)*w.s),batteryError:Math.abs(parseFloat(b.bottom)-((935-560)*w.s+14-w.headPx)),rootBob:w.el.style.getPropertyValue('--bob'),scale:w.s,head:w.headPx,cssHead:b.getPropertyValue('--head-top'),cssBob:b.getPropertyValue('--bob'),bottom:b.bottom,connected:w.el.isConnected})}`);
   assert(result.overlays.cardError < .2 && result.overlays.batteryError < .2 && !result.overlays.rootBob, "Localized overlay geometry regression");
+  await js("window.__overlayActor.destroy();delete window.__overlayActor");
   result.errors = await js("window.__errs");
   assert(result.disabled && !result.errors.length, "Diagnostics cleanup or renderer error regression");
   fs.writeFileSync(path.join(out, "system-checks.json"), JSON.stringify(result,null,2));

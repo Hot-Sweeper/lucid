@@ -9,6 +9,7 @@ import { seasonPalette, type Season } from "../weather/season";
 import { Grove, Shapes, SNOW, bushInto, fill, mix, n1, n2, rnd, seedAt, timing, treeInto, type Look } from "./outdoor-art";
 import { groundsLayout, FADE, MEADOW, PARK_K, PARK_BASE_W, PARK_BASE_H, type Grounds, type Rect } from "./grounds";
 import { puddleSvg, snowman, sprinkler, weatherPal, type GroundWx, type Puddle } from "../weather/ground";
+import type { BuildingFootprint } from "./building-footprint";
 import "./ambient.css";
 import "../weather/weather.css";
 
@@ -274,6 +275,8 @@ export type OutsideLayer = "all" | "still" | "live";
 export type OutsideOpts = {
   ox: number; oy: number; w: number; h: number;
   building: Rect;
+  /** Actual occupied rooms and corridors. The bounding rect still anchors the grounds. */
+  footprint?: BuildingFootprint;
   entranceY: number;
   park: Rect;
   season?: Season; snowCover?: number; frozen?: boolean;
@@ -634,10 +637,15 @@ export function outsideSvg(o: OutsideOpts) {
     ${o.wx?.hot ? `<g style="opacity:calc(1.2 - var(--lamp, 0) * 2)">${inPark(sprinkler(pcx - 430, pcy - 260, 1) + sprinkler(pcx + 420, pcy + 420, 2))}${sprinkler(X(G.walk.x) + 260, Y(G.walk.y) - 230, 3)}</g>` : ""}`;
   // the building: thick outer wall, a shadow, an entrance with steps toward the park
   const bx = X(b.x), by = Y(b.y);
-  const shell = `
+  const shellBody = o.footprint ? `<g transform="translate(${-ox} ${-oy})">
+    <path d="${o.footprint.path}" transform="translate(24 34)" fill="#1f2a1a" opacity="0.32"/>
+    <path d="${o.footprint.path}" fill="${mix("#4a4f5c", "#c9d3dc", snow * 0.8)}" stroke="${mix("#4a4f5c", "#c9d3dc", snow * 0.8)}" stroke-width="44" stroke-linejoin="round"/>
+    <path d="${o.footprint.path}" fill="${mix("#5d6373", SNOW, snow * 0.85)}" stroke="${mix("#5d6373", SNOW, snow * 0.85)}" stroke-width="28" stroke-linejoin="round"/>
+    </g>` : `
     <rect x="${bx + 24}" y="${by + 34}" width="${b.w}" height="${b.h}" rx="14" fill="#1f2a1a" opacity="0.32"/>
     <rect x="${bx - 22}" y="${by - 22}" width="${b.w + 44}" height="${b.h + 44}" rx="16" fill="${mix("#4a4f5c", "#c9d3dc", snow * 0.8)}"/>
-    <rect x="${bx - 14}" y="${by - 14}" width="${b.w + 28}" height="${b.h + 28}" rx="12" fill="${mix("#5d6373", SNOW, snow * 0.85)}"/>
+    <rect x="${bx - 14}" y="${by - 14}" width="${b.w + 28}" height="${b.h + 28}" rx="12" fill="${mix("#5d6373", SNOW, snow * 0.85)}"/>`;
+  const shell = `${shellBody}
     <rect x="${bx + b.w - 4}" y="${Y(o.entranceY) - 60}" width="40" height="120" fill="#b9a27e"/>
     <rect x="${bx + b.w + 36}" y="${Y(o.entranceY) - 70}" width="60" height="140" rx="10" fill="${plaza}"/>`;
   const still = `<defs>${patterns(L)}</defs>

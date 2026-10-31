@@ -14,9 +14,14 @@ export type Limit = {
   resetsAt: string | null;
   /** The reset time has passed since this reading; the current value is unknown. */
   stale?: boolean;
+  staleReason?: string;
+  labelIsComplete?: boolean;
 };
 
 export type HarnessLimits = {
+  harness?: string;
+  name?: string;
+  source?: string;
   primary: Limit | null;
   secondary: Limit | null;
   plan?: string;
@@ -39,7 +44,8 @@ export type Totals = {
 export type Usage = {
   updatedAt: string;
   windows: { last5h: Totals; today: Totals; week: Totals };
-  limits: { codex: HarnessLimits | null; claude: HarnessLimits | null };
+  limits: Record<string, HarnessLimits | null>;
+  limitSource?: { source: string; status: string; detail: string };
   errors: string[];
 };
 
@@ -195,28 +201,28 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>): { ref
   }
 
   function renderLimits(u: Usage) {
-    const wanted: { key: string; harness: string; limit: Limit }[] = [];
-    for (const harness of ["codex", "claude"] as const) {
-      const h = u.limits[harness];
+    const wanted: { key: string; harness: string; name: string; source: string; limit: Limit }[] = [];
+    for (const [group, h] of Object.entries(u.limits)) {
       if (!h) continue;
+      const harness = h.harness || group;
       const list = [...(h.windows || [h.primary, h.secondary].filter((l): l is Limit => !!l))];
       list.sort((a, b) => (a.windowMinutes ?? 0) - (b.windowMinutes ?? 0));
-      list.forEach((l, i) => wanted.push({ key: `${harness}:${l.id || `${l.pool || "legacy"}:${i}`}`, harness, limit: l }));
+      list.forEach((l, i) => wanted.push({ key: `${group}:${l.id || `${l.pool || "legacy"}:${i}`}`, harness, name: h.name || harnessName(harness), source: h.source || "Local logs", limit: l }));
     }
     const keep = new Set(wanted.map((w) => w.key));
     for (const [k, r] of limitRows) if (!keep.has(k)) { r.root.remove(); limitRows.delete(k); }
     wanted.forEach((w, i) => {
       const r = limitRow(w.key, w.harness);
       const l = w.limit;
-      setText(r.name, `${harnessName(w.harness)} ${l.label ? `${l.label} ` : ""}${windowName(l.windowMinutes).toLowerCase()}`);
+      setText(r.name, `${w.name} ${l.labelIsComplete && l.label ? l.label : `${l.label ? `${l.label} ` : ""}${windowName(l.windowMinutes).toLowerCase()}`}`);
       r.name.title = r.name.textContent || "";
       const known = typeof l.usedPercent === "number" && Number.isFinite(l.usedPercent);
       const pct = known ? Math.max(0, Math.min(100, l.usedPercent!)) : 0;
-      r.root.title = l.observedAt ? `Reported ${new Date(l.observedAt).toLocaleString()}` : "";
+      r.root.title = `${w.source}${l.observedAt ? `, reported ${new Date(l.observedAt).toLocaleString()}` : ""}`;
       if (l.stale) {
         r.fill.style.width = "0%";
         setText(r.pct, "");
-        setText(r.reset, "no reading since reset");
+        setText(r.reset, l.staleReason || "no reading since reset");
         r.root.classList.add("st-stale");
       } else if (!known) {
         r.fill.style.width = "0%";
@@ -233,9 +239,11 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>): { ref
       if (limitsBox.children[i] !== r.root) limitsBox.insertBefore(r.root, limitsBox.children[i] || null);
     });
     limitsBox.hidden = wanted.length === 0;
-    const unavailable = (["codex", "claude"] as const).filter((h) => !u.limits[h]).map(harnessName);
-    setText(limitsNote, unavailable.length ? `${unavailable.join(" and ")} limits unavailable in local logs` : "");
-    limitsNote.hidden = !unavailable.length;
+    const available = new Set(wanted.map(w => w.harness));
+    const unavailable = (["codex", "claude"] as const).filter((h) => !available.has(h)).map(harnessName);
+    const missing = unavailable.length ? `${unavailable.join(" and ")} limits unavailable${u.limitSource ? "" : " in local logs"}` : "";
+    setText(limitsNote, [u.limitSource?.detail, missing].filter(Boolean).join(" "));
+    limitsNote.hidden = !limitsNote.textContent;
   }
 
   function renderModels(t: Totals) {

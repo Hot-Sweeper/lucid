@@ -18,6 +18,12 @@
 /* ---------- a desk (fake top-down) ---------- */
 .hall { position: absolute; left: 0; background: repeating-linear-gradient(90deg, #a9a294 0 64px, #a29b8d 64px 128px); }
 .hall::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 46px; margin-top: -23px; background: #8f6d5a; opacity: 0.55; border-radius: 6px; }
+.hall.hall-network { background: none; pointer-events: none; }
+.hall.hall-network::after { display: none; }
+.hall-strip { position: absolute; background: repeating-linear-gradient(90deg, #a9a294 0 64px, #a29b8d 64px 128px); }
+.hall-strip::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 46px; margin-top: -23px; background: #8f6d5a; opacity: 0.55; border-radius: 6px; }
+.hall-strip-vertical { background: repeating-linear-gradient(0deg, #a9a294 0 64px, #a29b8d 64px 128px); }
+.hall-strip-vertical::after { left: 50%; right: auto; top: 0; bottom: 0; width: 46px; height: auto; margin: 0 0 0 -23px; }
 .desk-unit { position: absolute; width: 400px; height: 380px; cursor: pointer; }
 .desk-unit > svg, .robot-host > svg { position: absolute; left: 0; top: 0; width: 400px; height: 380px; overflow: visible; pointer-events: none; }
 .robot-host { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
@@ -687,6 +693,12 @@
 .desk-unit.culled *, .room.culled *, .screen.render-paused * { animation-play-state: paused !important; }
 .win.render-hidden .win-body { visibility: hidden; content-visibility: hidden; }
 .desk-unit, .room, .robot-host { contain: layout style; }
+/* Keep animated vectors on local surfaces. Permanent promotion of every in-world
+   app window otherwise creates overlapping layers for whole scrolling histories. */
+.room, .world-seated, .world-walker-svg, .desk-unit > svg { will-change: transform; }
+.monitor .screen { contain: strict; }
+.monitor .win { contain: layout paint style; will-change: auto; }
+.hall.hall-network { contain: strict; }
 .outside-live.culled { visibility: hidden; }
 .outside-live.culled *, .amb-offscreen, .amb-offscreen * { animation-play-state: paused !important; }
 

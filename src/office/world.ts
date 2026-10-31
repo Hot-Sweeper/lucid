@@ -3,6 +3,8 @@ import { setZoom } from "../world/budget";
 import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
 import { drawFloor, drawWall, drawDecor, placeDecor, decorFootprint, DECOR } from "../decor/decor";
 import { furniturePath, type Footprint } from "./navigation";
+import { officePlan, hallRoute, inHall, type OfficePlan } from "./floor-plan";
+import { buildingFootprint, footprintCovers } from "./building-footprint";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
 import { Walker, SIT_HEAD, pause, type Facing } from "../world/walker";
@@ -19,6 +21,9 @@ import { Roster, type RobotProfile } from "./roster";
 import { paintOutside, updateOutside } from "./outside-zoom";
 import { setRenderView } from "../perf/render";
 import { beginSystem, endSystem } from "../perf/metrics";
+import { cafeTiles, plankJoints } from "../perf/floor-paths";
+import { vectorOwner, releaseVectors } from "../perf/shared-vector";
+import { cacheStaticArt, updateStaticArt, invalidateStaticArt, destroyStaticArt } from "../perf/static-art";
 
 // The whole building, seen fake top-down: rooms laid out on a floor plan, one shared camera.
 // Offices hold desks (one per thread). Desks live in one layer above the rooms, so a robot
@@ -54,6 +59,7 @@ const SLOT_W = UNIT_W + 20, SLOT_H = UNIT_H + 20;
 const GAP = 40, HALL = 150;
 const IN_FRONT = 300000;  // stacking bias for a walker getting into or out of a chair (desks raise themselves up to 100000 + y)
 const WALK_SCALE = 0.42;   // every walking robot (hall, rooms, park) and the desk robots (seated.ts) share this size
+const releaseRoomVectors=(el:HTMLElement)=>{destroyStaticArt(el);for(const node of [el,...el.querySelectorAll<HTMLElement>("[data-vector-owner]")])if(node.dataset.vectorOwner)releaseVectors(node.dataset.vectorOwner)};
 
 const LOUNGE = 230;      // extra floor below the desks for a rug, beanbags or a ping pong table
 function officeSize(slots: number, lounge = 0) {
@@ -83,6 +89,12 @@ export class World {
   // arriving one over at the same point, so nobody pops in or out. New robots come in from
   // outside through the entrance; outdoors a robot walks in the park layer (under the night tint).
   private topH = 0;
+  private floorPlan: OfficePlan = officePlan([], []);
+  private footprint = buildingFootprint([]);
+  private viewIndoors = false;
+  private geometryKey = "";
+  private layoutRevision = 0;
+  private routeWaiters = new Set<() => void>();
   private roomOf = new Map<string, string>();          // thread -> room id at the last update ("park" too)
   private transit = new Map<string, Walker>();
   private trips = new Map<string, object>();           // the journey a robot in transit is on (a newer one replaces it)
@@ -98,7 +110,7 @@ export class World {
       const x = r.x + r.w / 2;
       return [{ x, y: r.y + r.h + 34 }, { x, y: r.y + r.h - 40 }];
     }
-    const x = r.x + r.w - 46;           // bottom row: door in the north wall, right corner
+    const x = r.x + r.w - 46;           // project office: door in the north wall, right corner
     return [{ x, y: r.y - 34 }, { x, y: r.y + WALL_FACE + 16 }];
   }
   private entrance() { return { x: this.size.w - 6, y: this.hallY }; }
@@ -115,31 +127,45 @@ export class World {
   private walkBounds(r: Room): Footprint { return { x: r.x + 20, y: r.y + WALL_FACE + 10, w: r.w - 40, h: r.h - WALL_FACE - 30 }; }
   private outside(p: Pt) { return p.x > this.size.w; }
   /** From any point to the hall (nothing when it is already outdoors), through the room's door. */
-  private wayOut(p: Pt): Pt[] {
+  private wayOut(p: Pt): Pt[] | null {
     if (this.outside(p)) return [];
-    if (p.y >= this.topH - 10 && p.y <= this.topH + HALL + 10) return [{ x: p.x, y: this.hallY }];
+    if (inHall(this.floorPlan, p)) return [];
     const r = this.rooms.find((q) => p.x >= q.x && p.x <= q.x + q.w && p.y >= q.y && p.y <= q.y + q.h);
-    if (!r) return [{ x: p.x, y: this.hallY }];
+    if (!r) return null;
     const [out, inn] = this.door(r);
-    return [{ x: p.x, y: inn.y }, inn, out, { x: out.x, y: this.hallY }];
+    return [{ x: p.x, y: inn.y }, inn, out];
+  }
+  private wakeRoutes() { for (const wake of this.routeWaiters) wake(); }
+  private waitForRoute(revision: number) {
+    if (revision !== this.layoutRevision) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const wake = () => { this.routeWaiters.delete(wake); this.scene.removeEventListener("pointerup", wake); resolve(); };
+      this.routeWaiters.add(wake);
+      this.scene.addEventListener("pointerup", wake, { once: true });
+    });
   }
   /** The whole way from `p` to where the robot is going (see `travel`). */
-  private route(p: Pt, id: string, to: string | null): { pts: Pt[]; desk: Desk | null; deskAt: Pt | null } {
-    const pts = this.wayOut(p);
+  private route(p: Pt, id: string, to: string | null) {
+    const departure = this.wayOut(p), pts = departure ?? [];
     const toRoom = this.roomById(to);
     const owned = this.desks.get(id);
     const desk = toRoom && owned?.room === to ? owned : null;
+    let blocked = departure === null;
+    const throughHall = (target: Pt) => {
+      const path = hallRoute(this.floorPlan, pts.at(-1) ?? p, target);
+      if (path) pts.push(...path); else blocked = true;
+    };
     const startOut = this.outside(p), endOut = !toRoom;   // the park, or away
     if (startOut && !endOut) pts.push(this.parkDoor, this.entrance());
-    if (!startOut && endOut) pts.push(this.entrance(), this.parkDoor);
+    if (!startOut && endOut) { throughHall(this.entrance()); pts.push(this.parkDoor); }
     let deskAt: Pt | null = null;
     if (toRoom) {
       const [out, inn] = this.door(toRoom);
-      pts.push({ x: out.x, y: this.hallY }, out);
+      throughHall(out);
       if (desk) { deskAt = this.deskPos(desk); pts.push(...this.toSeat(toRoom, deskAt)); }
       else pts.push(inn);
     } else if (to !== "park") pts.push({ x: this.parkDoor.x + 110, y: this.parkDoor.y });   // away down the path
-    return { pts, desk, deskAt };
+    return { pts, desk, deskAt, blocked, revision: this.layoutRevision };
   }
 
   private spawn(t: { id: string; provider: string; model?: string | null }, at: Pt, face: Facing, outdoors = this.outside(at)) {
@@ -155,11 +181,11 @@ export class World {
   }
 
   /** Walks a list of points; at the entrance the robot steps from the hall layer to the outdoors layer or back. */
-  private async walkLegs(t: WThread, pts: Pt[], trip: object) {
+  private async walkLegs(t: WThread, pts: Pt[], trip: object, revision = this.layoutRevision) {
     let i = 0;
     while (i < pts.length) {
       const w = this.transit.get(t.id);
-      if (!w || this.trips.get(t.id) !== trip) return;
+      if (!w || this.trips.get(t.id) !== trip || revision !== this.layoutRevision) return;
       const out = this.outside(pts[i]);
       if (out !== (w.el.parentElement === this.park.layer)) {
         // through the entrance: the same robot, now drawn in the other layer
@@ -168,7 +194,7 @@ export class World {
         continue;
       }
       // Re-plan each leg against the actual furniture, including bought decorations.
-      while (this.deskDragActive || this.slidingDesks.size) { await pause(0.1); if (this.trips.get(t.id) !== trip) return; }
+      while (this.deskDragActive || this.slidingDesks.size) { await pause(0.1); if (this.trips.get(t.id) !== trip || revision !== this.layoutRevision) return; }
       const j = i + 1, from = { x: w.x, y: w.y }, goal = pts[i];
       const room = this.rooms.find((r) => ["main", "project", "freelance"].includes(r.kind) &&
         from.x >= r.x && from.x <= r.x + r.w && from.y >= r.y && from.y <= r.y + r.h &&
@@ -176,7 +202,7 @@ export class World {
       const path = room ? furniturePath(from, goal, this.furniture(room), this.walkBounds(room)) : [goal];
       if (!path) return; // stay put and let travel retry, never walk through a blocked aisle
       await w.walkPath(path);
-      if (this.transit.get(t.id) !== w || this.trips.get(t.id) !== trip) return;
+      if (this.transit.get(t.id) !== w || this.trips.get(t.id) !== trip || revision !== this.layoutRevision) return;
       const last = pts[j - 1];
       if (Math.hypot(w.x - last.x, w.y - last.y) > 8) return;   // picked up on the way: the caller plans again
       i = j;
@@ -207,6 +233,7 @@ export class World {
   private async travel(t: WThread, from: { seat: Pt; room: string | null } | { at: Pt; face: Facing } | { outside: true } | { walker: Walker }, to: string | null) {
     const trip = {};
     this.trips.set(t.id, trip);
+    this.wakeRoutes();
     let w: Walker;
     if ("walker" in from) {
       w = from.walker; w.stop(); w.zBias = 0;
@@ -225,10 +252,11 @@ export class World {
       if (r) {
         // out of the chair the way it came in: a step to the side, then down the aisles to the door
         const back = this.toSeat(r, from.seat).reverse();
-        await this.walkLegs(t, back.slice(0, 2), trip);
+        const revision = this.layoutRevision;
+        await this.walkLegs(t, back.slice(0, 2), trip, revision);
         if (this.trips.get(t.id) !== trip || this.transit.get(t.id) !== w) return;
         w.zBias = 0;
-        await this.walkLegs(t, back.slice(2), trip);
+        if (revision === this.layoutRevision) await this.walkLegs(t, back.slice(2), trip, revision);
         if (this.trips.get(t.id) !== trip) return;
         w = this.transit.get(t.id) ?? w;
       } else w.zBias = 0;
@@ -240,22 +268,40 @@ export class World {
     let plan = this.route({ x: w.x, y: w.y }, t.id, to);
     while (this.trips.get(t.id) === trip) {
       if (this.trips.get(t.id) !== trip) return;
+      if (plan.blocked) {
+        await this.waitForRoute(plan.revision);
+        const current = this.transit.get(t.id);
+        if (!current || this.trips.get(t.id) !== trip) return;
+        plan = this.route({ x: current.x, y: current.y }, t.id, to);
+        continue;
+      }
       // the last steps (beside the chair, into it) are drawn over the desk, whatever raised it
       const near = plan.desk ? 2 : 0, n = plan.pts.length;
       const w0 = this.transit.get(t.id);
       if (w0) w0.zBias = 0;
-      await this.walkLegs(t, plan.pts.slice(0, n - near), trip);
+      await this.walkLegs(t, plan.pts.slice(0, n - near), trip, plan.revision);
       const at = this.transit.get(t.id), mid = plan.pts[n - near - 1];
-      if (near && at && this.trips.get(t.id) === trip && (!mid || Math.hypot(at.x - mid.x, at.y - mid.y) <= 8)) {
+      if (near && at && this.trips.get(t.id) === trip && plan.revision === this.layoutRevision && (!mid || Math.hypot(at.x - mid.x, at.y - mid.y) <= 8)) {
         at.zBias = IN_FRONT;
-        await this.walkLegs(t, plan.pts.slice(n - near), trip);
+        await this.walkLegs(t, plan.pts.slice(n - near), trip, plan.revision);
       }
       const cur = this.transit.get(t.id);
       if (!cur || this.trips.get(t.id) !== trip) return;
       w = cur;
       const end = plan.pts[plan.pts.length - 1];
       const d = plan.desk, moved = !!d && (this.desks.get(t.id) !== d || !d.el.isConnected || Math.hypot(this.deskPos(d).x - plan.deskAt!.x, this.deskPos(d).y - plan.deskAt!.y) > 1);
-      if (!moved && (!end || Math.hypot(w.x - end.x, w.y - end.y) <= 8)) break;
+      if (plan.revision === this.layoutRevision && !moved && (!end || Math.hypot(w.x - end.x, w.y - end.y) <= 8)) {
+        if (d) {
+          w.face("up"); w.do("sit");
+          await pause(0.55);
+          if (this.trips.get(t.id) !== trip) return;
+          // A room may grow during the sitting animation, too. Keep the same trip
+          // and walk to its current chair before revealing the seated actor.
+          const seatMoved = this.desks.get(t.id) !== d || !d.el.isConnected || Math.hypot(this.deskPos(d).x - plan.deskAt!.x, this.deskPos(d).y - plan.deskAt!.y) > 1;
+          if (plan.revision === this.layoutRevision && !seatMoved) break;
+          w.calm();
+        } else break;
+      }
       await whenFree(w);
       await pause(0.1);
       plan = this.route({ x: w.x, y: w.y }, t.id, to);
@@ -265,11 +311,6 @@ export class World {
     const done = w;
     if (desk) {
       // It turns and sits; switch actors in the same frame, in the same chair.
-      done.face("up");
-      done.do("sit");
-      await pause(0.55);
-      // An update can reroute the same walker while it is sitting down. The old trip must
-      // not reveal a desk robot or destroy the walker now owned by the newer trip.
       if (this.trips.get(t.id) !== trip) return;
       desk.el.classList.remove("arriving");
       done.destroy();
@@ -567,11 +608,12 @@ export class World {
     }
     if (!this.hidden.has("freelance")) bottom.push(office("freelance", "freelance", "Freelancers", null, freelance, 2));
 
-    // Floor plan: top row, a hallway, then project offices.
+    // Full-size project offices in stable columns, joined by real cross halls.
     const rooms: Room[] = [];
-    let x = 0;
-    const topH = Math.max(...top.map((r) => r.h));
+    const floorPlan = officePlan(top, bottom, HALL, GAP);
+    const topH = floorPlan.topH;
     this.topH = topH;
+    this.floorPlan = floorPlan;
     // Robots: working threads get one (reusing free teammates first), resting ones keep theirs.
     const working = [...queue, ...main, ...freelance, ...[...perProject.values()].flat()];
     this.roster.assign(working, new Set(brk.map((t) => t.id)), new Set(data.threads.map((t) => t.id)));
@@ -579,14 +621,19 @@ export class World {
     const restingIds = new Set(resting.map((r) => r.thread));
     const brkShown = brk.filter((t) => restingIds.has(t.id)).slice(0, 8);
     const idsOf = (r: Plan) => r.threads.filter((t): t is WThread => !!t).map((t) => t.id);
-    for (const r of top) { rooms.push({ id: r.id, kind: r.kind, title: r.title, icon: r.icon, x, y: topH - r.h, w: r.w, h: r.h, el: null as any, threadIds: idsOf(r) }); x += r.w + GAP; }
-    const topW = x - GAP;
-    x = 0;
-    const y2 = topH + HALL;
-    for (const r of bottom) { rooms.push({ id: r.id, kind: r.kind, title: r.title, icon: r.icon, x, y: y2, w: r.w, h: r.h, el: null as any, threadIds: idsOf(r) }); x += r.w + GAP; }
-    const bottomW = Math.max(0, x - GAP), bottomH = bottom.length ? Math.max(...bottom.map((r) => r.h)) : 0;
-    this.size = { w: Math.max(topW, bottomW), h: y2 + bottomH };
     const plans = [...top, ...bottom];
+    for (const r of plans) rooms.push({ id: r.id, kind: r.kind, title: r.title, icon: r.icon, ...floorPlan.rooms.get(r.id)!, el: null as any, threadIds: idsOf(r) });
+    this.size = floorPlan.size;
+    const geometryKey = rooms.map((r) => `${r.id}:${r.x}:${r.y}:${r.w}:${r.h}`).join("|");
+    if (geometryKey !== this.geometryKey) {
+      this.geometryKey = geometryKey;
+      this.footprint = buildingFootprint([...rooms, ...floorPlan.halls]);
+      this.layoutRevision++;
+      // Old waypoints can now lie inside a moved room. Stop at the same position;
+      // each existing trip resumes through current corridors and furniture only.
+      for (const walker of this.transit.values()) walker.stop();
+      this.wakeRoutes();
+    }
 
     const key = rooms.map((r, i) => `${r.id}:${plans[i].slots}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|") + `:L${this.level}:${[...this.themes.values()].map((t) => [...(t.decor ?? []), t.floor, t.wall].filter((k) => k).map((k) => (ownsItem(`decor:${k}`) || ownsItem(`floor:${k}`) || ownsItem(`wall:${k}`) ? 1 : 0)).join("")).join("")}`;
     if (key !== this.lastKey) {
@@ -603,7 +650,7 @@ export class World {
           oldRooms.delete(r.id);
           return;
         }
-        if (old) { this.cull.unobserve(old.el); old.el.remove(); oldRooms.delete(r.id); }
+        if (old) { this.cull.unobserve(old.el);releaseRoomVectors(old.el);old.el.remove();oldRooms.delete(r.id); }
         const el = document.createElement("div");
         el.className = `room room-${r.kind}`;
         el.style.cssText = `left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px`;
@@ -613,14 +660,17 @@ export class World {
           ext.onSelect = (id) => this.onSelectThread(id);
           ext.onExit = (id, at, face) => this.handOver(id, { x: at.x + r.x, y: at.y + r.y }, face);
           this.ext[r.kind as "break" | "queue"] = ext;
-        } else el.innerHTML = roomSvg(r, plans[i].slots, this.themes.get(r.id), this.level);
+        } else {el.dataset.vectorOwner=vectorOwner("room");el.innerHTML=roomSvg(r,plans[i].slots,this.themes.get(r.id),this.level,el.dataset.vectorOwner)}
         this.roomLayer.appendChild(el);
+        const art=el.querySelector<SVGSVGElement>(":scope > .room-art");if(art)cacheStaticArt(art);
         this.cull.observe(el);
         r.el = el;
       });
-      for (const old of oldRooms.values()) { this.cull.unobserve(old.el); old.el.remove(); }
+      for (const old of oldRooms.values()) { this.cull.unobserve(old.el);releaseRoomVectors(old.el);old.el.remove(); }
       const hall = this.root.querySelector(".hall") as HTMLElement;
-      hall.style.cssText = `top:${topH}px;height:${HALL}px;width:${this.size.w}px`;
+      hall.classList.add("hall-network");
+      hall.style.cssText = `top:0;height:${this.size.h}px;width:${this.size.w}px`;
+      hall.innerHTML = floorPlan.halls.map((h) => `<div class="hall-strip${h.axis === "y" ? " hall-strip-vertical" : ""}" style="left:${h.x}px;top:${h.y}px;width:${h.w}px;height:${h.h}px"></div>`).join("");
       // the outdoors: grass and trees around the building, a park beside the entrance
       // the shop sits just past the entrance, south of the path; the park lies beyond it
       const entY = topH + HALL / 2;
@@ -638,7 +688,7 @@ export class World {
       this.park.setGeometry(park, this.parkDoor);
       const layer = this.root.querySelector(".outside-layer") as HTMLElement;
       layer.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px`;
-      this.outArgs = { ...out, building, entranceY: entY, park, shop: this.shopRect, grounds: this.grounds };
+      this.outArgs = { ...out, building, footprint: this.footprint, entranceY: entY, park, shop: this.shopRect, grounds: this.grounds };
       this.puddles = puddleSpots(this.grounds, building, park, entY);
       this.redrawOutside(true);
       // the weather reaches well past the drawn grounds, so rain and cloud never stop at an edge
@@ -820,8 +870,8 @@ export class World {
       setRenderView(d.screen, shown, 276 * s);
     }
     const vx = -this.cam.x / s, vy = -this.cam.y / s;
-    const inside = vx >= 0 && vy >= 0 && vx + box.width / s <= this.size.w && vy + box.height / s <= this.size.h;
-    this.root.querySelector(".outside-live")?.classList.toggle("culled", inside);
+    this.viewIndoors = footprintCovers(this.footprint, { x: vx, y: vy, w: box.width / s, h: box.height / s });
+    this.root.querySelector(".outside-live")?.classList.toggle("culled", this.viewIndoors);
     this.fitBubbles();
   }
   // A thought bubble opens to the right of the robot's head; when that side is off screen or under
@@ -1206,8 +1256,9 @@ export class World {
     setZoom(this.cam.s, this.cam.x, this.cam.y);
     const box = this.sceneBox ??= this.scene.getBoundingClientRect();
     updateOutside(this.root.querySelector(".outside-layer"), this.cam, box.width, box.height);
+    updateStaticArt(this.cam,box.width,box.height);
     // the weather follows the camera without measuring the page (which is slow every frame)
-    if (this.fx) { this.sceneBox ??= this.scene.getBoundingClientRect(); this.fx.setCamera(this.cam, this.sceneBox, this.size.w, this.size.h); }
+    if (this.fx) { this.sceneBox ??= this.scene.getBoundingClientRect(); this.fx.setCamera(this.cam, this.sceneBox, this.size.w, this.viewIndoors ? this.size.h : undefined); }
     // small looping details (steam, swaying plants, birds) only move when you are close enough to see them
     const near = this.cam.s >= 1;
     if (near !== this.near) { this.near = near; this.scene.classList.toggle("near", near); }
@@ -1358,6 +1409,7 @@ export class World {
     this.park.setGear(gearFor(w));
     this.redrawOutside();
     this.paintClock();
+    invalidateStaticArt();
   }
 
   private paintClock() {
@@ -1382,7 +1434,7 @@ function officeDecor(r: Room, slots: number, theme?: RoomTheme, level = 0) {
   return placeDecor(usable(theme, level), w, h, WALL_FACE, desks, { avoid, wallTop: T });
 }
 
-function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0) {
+function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0, owner?:string) {
   const { w, h, kind, title, icon } = r;
   const pal = {
     main: { wall: "#ece6da", trim: "#d8cfbf", floor: "#c9a274", seam: "#b88f61", accent: "#ff9f5a" },
@@ -1395,12 +1447,8 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0) {
   const T = 16; // wall top thickness
   // floor: planks seen from above (or terracotta tiles in the freelancer cafe)
   const floor = kind === "freelance"
-    ? Array.from({ length: Math.ceil(w / 48) * Math.ceil(h / 48) }, (_, i) => { const cx = (i % Math.ceil(w / 48)) * 48, cy = WALL_FACE + Math.floor(i / Math.ceil(w / 48)) * 48; return `<rect x="${cx + 1}" y="${cy + 1}" width="46" height="46" rx="3" fill="${(i + Math.floor(i / Math.ceil(w / 48))) % 2 ? pal.floor : pal.seam}" opacity="0.9"/>`; }).join("")
-    : Array.from({ length: Math.ceil((h - WALL_FACE) / 26) }, (_, i) => {
-        const y = WALL_FACE + i * 26, off = (i * 97) % 180;
-        return `<rect x="0" y="${y + 25}" width="${w}" height="1.2" fill="${pal.seam}" opacity="0.55"/>` +
-          Array.from({ length: Math.ceil(w / 180) + 1 }, (_, k) => `<rect x="${k * 180 - off}" y="${y}" width="1.2" height="25" fill="${pal.seam}" opacity="0.5"/>`).join("");
-      }).join("");
+    ? cafeTiles(w, h, WALL_FACE, pal.floor, pal.seam,owner)
+    : plankJoints(w, h, WALL_FACE, pal.seam,owner);
   // windows on the north wall face
   const windows: string[] = [];
   const hallDoor = kind === "project" || kind === "freelance";

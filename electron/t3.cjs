@@ -13,11 +13,16 @@ const T3_HOME = process.env.T3CODE_HOME || path.join(os.homedir(), ".t3");
 const DB_PATH = path.join(T3_HOME, "userdata", "statev2.sqlite");
 const CLI = path.join(T3_HOME, "bin", process.platform === "win32" ? "t3.cmd" : "t3");
 
-let db = null;
+let db = null, dbIdentity = "", checkDbAt = 0;
 function getDb() {
-  if (db) return db;
+  if (db && Date.now() < checkDbAt) return db;
   if (!fs.existsSync(DB_PATH)) throw new Error(`T3 Code data not found at ${DB_PATH}. Open T3 Code once, then try again.`);
+  const stat = fs.statSync(DB_PATH), identity = `${stat.dev}:${stat.ino}:${stat.birthtimeMs}`;
+  checkDbAt = Date.now() + 15000;
+  if (db && identity === dbIdentity) return db;
+  if (db) db.close();
   db = new DatabaseSync(DB_PATH, { readOnly: true });
+  dbIdentity = identity;
   return db;
 }
 
@@ -95,8 +100,8 @@ function officeTasks() {
     // helper reports and system notes are not things you asked for
     if (m && (m.delegatedCompletion || m.notification)) continue;
     const raw = String(m?.text || "");
-    if (/^s*(Delegated task node:|<task-notification>|New messages the user wrote to robots)/.test(raw) || /delegated-task:command/.test(raw.slice(0, 200))) continue;
-    const files = (raw.match(/^s*-s*(image|file):/gim) || []).length + (m?.attachments?.length || 0);
+    if (/^\s*(Delegated task node:|<task-notification>|New messages the user wrote to robots)/.test(raw) || /delegated-task:command/.test(raw.slice(0, 200))) continue;
+    const files = (raw.match(/^\s*-\s*(image|file):/gim) || []).length + (m?.attachments?.length || 0);
     let steps = null;
     if (r.status === "running") {
       // Codex writes a plan item, Claude calls TodoWrite
@@ -167,29 +172,8 @@ function itemsSince(threadId, since) {
 }
 
 // Watch one thread. Calls onItems with new or changed items.
-function watchThread(threadId, onItems, onInfo, { backlog = 14 } = {}) {
-  let since = "";
-  let lastInfo = "";
-  const seen = new Map();
-  const initial = recentItems(threadId, backlog);
-  for (const it of initial) { seen.set(it.id, it.updatedAt); if (it.updatedAt > since) since = it.updatedAt; }
-  onItems(initial, true);
-  const tick = () => {
-    try {
-      const fresh = itemsSince(threadId, since).filter((it) => seen.get(it.id) !== it.updatedAt);
-      for (const it of fresh) { seen.set(it.id, it.updatedAt); if (it.updatedAt > since) since = it.updatedAt; }
-      if (fresh.length) onItems(fresh, false);
-      const info = threadInfo(threadId);
-      const key = JSON.stringify(info);
-      if (key !== lastInfo) { lastInfo = key; onInfo(info); }
-    } catch (err) {
-      onInfo({ error: String(err.message || err) });
-    }
-  };
-  tick();
-  const timer = setInterval(tick, 350);
-  return () => clearInterval(timer);
-}
+const itemWatcher = require("./watch-items.cjs").createItemWatcher({ getDb, normalize, threadInfo });
+function watchThread(...args) { return itemWatcher.watch(...args); }
 
 // --- CLI actions -----------------------------------------------------------
 
@@ -283,25 +267,40 @@ function readIcon(file) {
     if (!st.isFile() || st.size > 2 * 1024 * 1024) return null;
     const type = MIME[path.extname(file).slice(1).toLowerCase()];
     if (!type) return null;
-    return `data:${type};base64,${fs.readFileSync(file).toString("base64")}`;
+    return `lucid-file://local/${encodeURIComponent(path.resolve(file))}?v=${st.mtimeMs}-${st.size}`;
   } catch {
     return null;
   }
 }
 
 // The project's own logo or favicon, if it has one.
+const iconPaths = new Map();
 function projectIcon(root, faviconPath) {
   if (!root) return null;
+  const key = `${root}\0${faviconPath || ""}`, cached = iconPaths.get(key);
+  if (cached && cached.until > Date.now()) {
+    if (!cached.file) return null;
+    const url = readIcon(cached.file);
+    if (url) return url;
+  }
+  const found = (file) => {
+    const url = file ? readIcon(file) : null;
+    if (url || !file) {
+      iconPaths.set(key, { file, until: Date.now() + 30000 });
+      while (iconPaths.size > 256) iconPaths.delete(iconPaths.keys().next().value);
+    }
+    return url;
+  };
   if (faviconPath) {
-    const d = readIcon(path.isAbsolute(faviconPath) ? faviconPath : path.join(root, faviconPath));
+    const d = found(path.isAbsolute(faviconPath) ? faviconPath : path.join(root, faviconPath));
     if (d) return d;
   }
   try {
     const cfg = safeJson(fs.readFileSync(path.join(root, "t3.json"), "utf8"));
-    if (cfg?.iconPath) { const d = readIcon(path.join(root, cfg.iconPath)); if (d) return d; }
+    if (cfg?.iconPath) { const d = found(path.join(root, cfg.iconPath)); if (d) return d; }
   } catch {}
-  for (const c of ICON_CANDIDATES) { const d = readIcon(path.join(root, c)); if (d) return d; }
-  return null;
+  for (const c of ICON_CANDIDATES) { const d = found(path.join(root, c)); if (d) return d; }
+  return found(null);
 }
 
 function office(projectId, limit = 6) {
@@ -336,12 +335,12 @@ function world(limit = 40) {
                      coalesce(t.provider_instance_id, t.default_provider) as provider,
                      (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as runStatus,
                      (select json_extract(r.payload_json, '$.startedAt') from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as runStartedAt,
-                     (select count(*) from orchestration_v2_projection_runtime_requests q where q.thread_id = t.thread_id and q.status not in ('resolved','cancelled','expired','failed')) as pending,
-                     (select max(i.updated_at) from orchestration_v2_projection_turn_items i where i.thread_id = t.thread_id) as lastItemAt
+                     (select count(*) from orchestration_v2_projection_runtime_requests q where q.thread_id = t.thread_id and q.status not in ('resolved','cancelled','expired','failed')) as pending
               from orchestration_v2_projection_threads t
               where t.archived_at is null and t.deleted_at is null and t.thread_id not like 'thread:%'
               order by t.updated_at desc limit ?`)
     .all(limit);
+  const latestActivity = itemWatcher.latestActivity(rows.map(r => r.id));
   const questionStmt = db.prepare(`select payload_json as p from orchestration_v2_projection_turn_items
                                    where thread_id = ? and type = 'user_input_request' and status in ('running','pending','waiting') order by ordinal desc limit 1`);
   const approvalStmt = db.prepare(`select 1 from orchestration_v2_projection_runtime_requests where thread_id = ? and kind != 'user_input' and status not in ('resolved','cancelled','expired','failed') limit 1`);
@@ -354,6 +353,7 @@ function world(limit = 40) {
     }
   } catch {}
   const threads = rows.map((r) => {
+    r.lastItemAt = latestActivity.get(r.id);
     const p = safeJson(r.payload) || {};
     const settled = p.settledOverride === "settled" || (!!p.settledAt && !p.unsettledAt && p.settledOverride !== "unsettled");
     let question = null;
@@ -425,56 +425,10 @@ function attachmentPath(a) {
 
 // The chat between you and one robot, oldest first, with attachments resolved to files.
 function conversation(threadId, limit = 80) {
-  const rows = getDb()
-    .prepare("select message_id as id, role, created_at as at, streaming, payload_json as p from orchestration_v2_projection_messages where thread_id = ? order by created_at desc, rowid desc limit ?")
-    .all(threadId, limit)
-    .reverse();
-  // Queued messages are often older than the newest messages (they wait while the robot
-  // replies to others), so they are loaded on their own: the whole queue, however old.
-  const queuedRuns = getDb().prepare("select run_id as runId, status, ordinal, payload_json as p from orchestration_v2_projection_runs where thread_id = ? and status = 'queued'").all(threadId);
-  const have = new Set(rows.map((r) => r.id));
-  const missing = queuedRuns.map((q) => safeJson(q.p)?.userMessageId).filter((id) => id && !have.has(id));
-  if (missing.length) {
-    const extra = getDb()
-      .prepare(`select message_id as id, role, created_at as at, streaming, payload_json as p from orchestration_v2_projection_messages where thread_id = ? and message_id in (${missing.map(() => "?").join(",")})`)
-      .all(threadId, ...missing);
-    rows.unshift(...extra.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0)));
-  }
-  const runs = new Map();
-  const started = new Map();
-  const queuePos = new Map();
-  const queueRun = new Map();
-  const queued = [];
-  let liveRunId = null;
-  const recent = getDb().prepare("select run_id as runId, status, ordinal, payload_json as p from orchestration_v2_projection_runs where thread_id = ? and status != 'queued' order by ordinal desc limit 60").all(threadId);
-  for (const run of [...queuedRuns.sort((a, b) => b.ordinal - a.ordinal), ...recent].sort((a, b) => b.ordinal - a.ordinal)) {
-    const rp = safeJson(run.p);
-    if (rp?.userMessageId) runs.set(rp.userMessageId, run.status);
-    if (rp?.userMessageId && rp.startedAt) started.set(rp.userMessageId, rp.startedAt);
-    if (run.status === "queued" && rp?.userMessageId) queued.push({ id: rp.userMessageId, runId: run.runId, ordinal: run.ordinal, pos: rp.queuePosition ?? run.ordinal });
-    // the turn a queued message can be steered into
-    if (!liveRunId && ["running", "starting", "preparing"].includes(run.status)) liveRunId = run.runId;
-  }
-  // T3 delivers by queuePosition (set when you reorder), then by ordinal
-  queued.sort((a, b) => a.pos - b.pos || a.ordinal - b.ordinal).forEach((q, i) => { queuePos.set(q.id, i + 1); queueRun.set(q.id, q.runId); });
-  // A message that waited in the queue belongs where the robot picked it up, not where it was
-  // typed, so it never lands behind replies that came while it waited. Ties keep the
-  // database order, so messages with the same timestamp stay in the order they were written.
-  const key = (r) => (r.role === "user" && started.get(r.id) > r.at ? started.get(r.id) : r.at);
-  const ordered = rows.map((r, i) => ({ r, i, k: key(r) })).sort((a, b) => (a.k < b.k ? -1 : a.k > b.k ? 1 : a.i - b.i)).map((x) => x.r);
-  const messages = ordered.map((r) => {
-    const p = safeJson(r.p) || {};
-    return {
-      id: r.id, role: r.role, at: r.at, orderAt: key(r), streaming: !!r.streaming, text: p.text || "", run: runs.get(r.id) || null, queue: queuePos.get(r.id) || null,
-      // queued messages: their run, the live turn to steer into, and whether T3 lets you change them
-      ...(queueRun.has(r.id) ? { queueRunId: queueRun.get(r.id), steerTarget: liveRunId, queueFixed: !!(p.delegatedCompletion || p.notification), queueGuest: !!p.context?.guest } : {}),
-      attachments: (p.attachments || []).map((a) => ({ type: a.type, name: a.name, mime: a.mimeType, size: a.sizeBytes, path: attachmentPath(a) })),
-    };
-  });
-  const since = messages.find((m) => m.run !== "queued")?.orderAt;
-  const events = require("./chat-history.cjs").historyEvents(getDb(), threadId, since);
-  const rank = (m) => m.role === "user" ? 0 : m.role === "event" ? 1 : 2;
-  return [...messages, ...events].sort((a, b) => a.orderAt.localeCompare(b.orderAt) || rank(a) - rank(b));
+  return require("./conversation.cjs").readConversation(getDb(), threadId, { limit }, attachmentPath).messages;
+}
+function conversationPage(threadId, options = {}) {
+  return require("./conversation.cjs").readConversation(getDb(), threadId, options, attachmentPath);
 }
 
 // Messages you wrote to robots since a moment, newest last (the orchestrator learns from them).
@@ -572,4 +526,4 @@ function requestOutcome(threadId, requestId) {
   return { status: row.status, decision: safeJson(row.p)?.decision || null };
 }
 
-module.exports = { officeTasks, requestContext, repliesSince, resolvedRequestsSince, requestOutcome, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
+module.exports = { officeTasks, requestContext, repliesSince, resolvedRequestsSince, requestOutcome, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, conversationPage, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };

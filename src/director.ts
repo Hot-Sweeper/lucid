@@ -13,6 +13,7 @@ import { T3CodeApp } from "./harness/t3code";
 import { CodexApp } from "./os/codex";
 import { imageGenOf, imageResult, type ImageGen } from "./os/imagegen";
 import { ImageRefreshGate, type ImageRefresh, type ImageState } from "./os/image-refresh";
+import { scheduleLayout } from "./harness/layout";
 import { classify, parseDiff, baseName, relPath, unwrap, type Entry } from "./os/classify";
 import { TasksApp, type TaskStep } from "./os/tasks";
 import { GitDeskApp, type DeskFile } from "./os/gitdesk";
@@ -330,11 +331,11 @@ export class Director {
       for (let i = 0; i < rest.length; i += 3) {
         p.textContent = done + rest.slice(0, i + 3);
         this.robot.pressKey(rest[i] || " ");
-        box.scrollTop = box.scrollHeight;
+        scheduleLayout(box, () => { const target = Math.max(0, box.scrollHeight - box.clientHeight); return Math.abs(target - box.scrollTop) < 0.5 ? null : () => { box.scrollTop = target; }; });
         await new Promise((r) => setTimeout(r, 22 / this.wm.speed));
       }
     } else p.textContent = clean;
-    box.scrollTop = box.scrollHeight;
+    scheduleLayout(box, () => { const target = Math.max(0, box.scrollHeight - box.clientHeight); return Math.abs(target - box.scrollTop) < 0.5 ? null : () => { box.scrollTop = target; }; });
   }
 
   /**

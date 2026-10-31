@@ -70,3 +70,23 @@ test("equal-duration pools keep separate stable rows; missing/stale percentages 
   assert.match(rows[1].textContent, /81%/);
   mounted.destroy(); assert.equal(f.host.children.length, 0);
 });
+
+test("official provider instances retain separate names, rows and source timestamps", async () => {
+  const f = fixture(), at = "2026-10-31T12:00:00Z";
+  let data = { updatedAt: at, windows: { today: totals, week: totals, last5h: totals }, errors: [], limitSource: { source: "T3 Code", status: "current", detail: "" }, limits: {
+    codex: null, claude: null,
+    "t3:personal": { harness: "codex", name: "Personal Codex", source: "T3 Code", observedAt: at, windows: [{ id: "personal:session", label: "5 hour", labelIsComplete: true, usedPercent: 20, windowMinutes: 300, observedAt: at }] },
+    "t3:work": { harness: "codex", name: "Work Codex", source: "T3 Code", observedAt: at, windows: [{ id: "work:session", label: "5 hour", labelIsComplete: true, usedPercent: 80, windowMinutes: 300, observedAt: at }] },
+    "t3:claude": { harness: "claude", name: "Claude", source: "T3 Code", observedAt: at, windows: [{ id: "claude:weekly", label: "Weekly", labelIsComplete: true, usedPercent: 70, windowMinutes: 10080, observedAt: at, stale: true, staleReason: "T3 reading is out of date" }] },
+  } };
+  const mounted = f.mount(f.host, async () => data); await tick();
+  const rows = find(f.host, "st-limit");
+  assert.equal(rows.length, 3);
+  assert.match(rows[0].textContent, /Personal Codex 5 hour.*20%/);
+  assert.match(rows[1].textContent, /Work Codex 5 hour.*80%/);
+  assert.match(rows[0].title, /T3 Code, reported/);
+  assert.match(rows[2].textContent, /T3 reading is out of date/);
+  assert.doesNotMatch(find(f.host, "st-limit-note")[0].textContent, /limits unavailable/);
+  data.limits["t3:work"].windows[0].usedPercent = 81; mounted.refresh(); await tick();
+  assert.equal(find(f.host, "st-limit")[1], rows[1]); mounted.destroy();
+});

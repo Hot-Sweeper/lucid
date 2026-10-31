@@ -24,6 +24,13 @@ if (!process.versions.electron) {
   // The existing screenshot path derives its isolated profile from app.getPath("temp").
   // Give each run a fresh one, including its roster, to avoid cross-run state and cache locks.
   app.setPath("temp", out);
+  if(process.env.LUCID_REAL_WORLD === "1") {
+    const actual=path.join(app.getPath('appData'),'lucid');
+    app.setPath('userData',actual);
+    const profile=path.join(out,'profile');fs.mkdirSync(profile,{recursive:true});
+    try{fs.copyFileSync(path.join(actual,'roster.json'),path.join(profile,'roster.json'));}catch{}
+    process.env.LUCID_SHOT_PROFILE=profile;
+  }
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const projects = Array.from({ length: 4 }, (_, i) => ({ id: `perf-p${i}`, title: `Rendering ${i + 1}`, root: `C:/perf/${i}`, icon: null, scratch: false }));
   const threads = Array.from({ length: 31 }, (_, i) => ({
@@ -33,20 +40,31 @@ if (!process.versions.electron) {
     question: i >= 26 ? "Can you review this change?" : null, model: null,
   }));
   let messages = Array.from({length:200},(_,i)=>({id:`perf-msg${i}`,role:i%2?'assistant':'user',at:new Date(1800000000000+i*1000).toISOString(),streaming:false,text:`Message ${i}: **Rendering update**\n\n${'A paragraph about the office and the measured frame budget. '.repeat(4)}\n\n\`\`\`ts\nconst frame = 16.7;\n\`\`\``,attachments:[]}));
+  let profilingWindow = false;
   app.on("browser-window-created", (_e, win) => {
+    // Real browser previews create short-lived capture windows. Profile only Lucid.
+    if (profilingWindow) return;
+    profilingWindow = true;
     win.webContents.once("did-finish-load", async () => {
       try {
         const wc = win.webContents, dbg = wc.debugger;
         dbg.attach("1.3");
-        const js = (code) => wc.executeJavaScript(code);
+        const js = async (code) => {
+          try { return await wc.executeJavaScript(code); }
+          catch (error) { console.error("Failed fixture expression:", code.slice(0, 200)); throw error; }
+        };
         await wait(6500);
+        if (process.env.LUCID_REAL_WORLD !== "1") await js("window.__chat.api.conversationPage=undefined");
+        if (process.env.LUCID_STATIC_ART_OFF) await js("window.__staticArt.enable(false)");
         if (process.env.LUCID_PERF_CSS) await js(`{const s=document.createElement('style');s.textContent=${JSON.stringify(process.env.LUCID_PERF_CSS)};document.head.append(s)}`);
         await dbg.sendCommand("Performance.enable");
         if (process.env.LUCID_PERF_CPU) await dbg.sendCommand("Emulation.setCPUThrottlingRate", { rate: Number(process.env.LUCID_PERF_CPU) });
-        const suite = process.env.LUCID_PERF_SUITE;
-        let scenes = suite ? [["idle", .65, 2100, 480], ["many", .23, 2100, 850], ["zoomed", 2, 1460, 430], ["panning", .65, 2100, 480], ["apps-many", .65, 2100, 480], ["apps-far", .23, 2100, 850], ["apps-close", 2, 1460, 430], ["chat", 2, 1460, 430], ["rain", .65, 2100, 480]] : [["overview", .23, 2100, 850], ["office", .65, 2100, 480], ["close", 2, 1460, 430]];
+        const suite = process.env.LUCID_PERF_SUITE, real = process.env.LUCID_REAL_WORLD === "1";
+        let scenes = real ? [["overview",0,0,0],["panning",0,0,0],["office",.65,0,0],["close",2,0,0],["chat",2,0,0],["rain",0,0,0]] : suite ? [["idle", .65, 2100, 480], ["many", .23, 2100, 850], ["zoomed", 2, 1460, 430], ["panning", .65, 2100, 480], ["apps-many", .65, 2100, 480], ["apps-far", .23, 2100, 850], ["apps-close", 2, 1460, 430], ["chat", 2, 1460, 430], ["rain", .65, 2100, 480]] : [["overview", .23, 2100, 850], ["office", .65, 2100, 480], ["close", 2, 1460, 430]];
         if (process.env.LUCID_PERF_SCENES) scenes = scenes.filter(([name]) => process.env.LUCID_PERF_SCENES.split(",").includes(name));
         const tracing = process.env.LUCID_PERF_TRACE !== "0";
+        let layerNodes=[];
+        if(process.env.LUCID_LAYER_CHECKS){dbg.on('message',(_e,m,p)=>{if(m==='LayerTree.layerTreeDidChange')layerNodes=p.layers||[]});await dbg.sendCommand('LayerTree.enable');}
         let chatTimer, appsStarted = false;
         const results = [];
         for (const [name, scale, cx, cy] of (process.env.LUCID_PERF_CHECKS_ONLY ? [] : scenes)) {
@@ -57,8 +75,9 @@ if (!process.versions.electron) {
           }
           if (name === "chat") { await js(`window.__chat.open(window.__world.desks.values().next().value)`); chatTimer = setInterval(() => { void js("window.__chat.refresh()"); }, 750); }
           if (name === "rain") { clearInterval(chatTimer); await js(`{window.__chat.close();const w=window.__world;w.weather={...w.weather,kind:'rain',rainMm:3};w.daylight();}`); }
-          await js(`{const w=window.__world,d=w.desks.get('perf-t0'); w.stopFollow();
-            const close=${JSON.stringify(["zoomed", "apps-close", "chat"].includes(name))};
+          if(real && !scale) await js(`{const w=window.__world,p=w.outdoor?.park,right=p?p.x+p.w:w.size.w;w.stopFollow();w.unfocus(false);w.frame=null;w.cam=w.fitTarget({x:-120,y:-170,w:right+240,h:Math.max(w.size.h,p?p.y+p.h:0)+290},20,w.scene.clientWidth,w.scene.clientHeight);w.apply()}`);
+          else await js(`{const w=window.__world,d=${real ? "[...w.desks.values()].find(d=>!d.el.classList.contains('arriving'))||w.desks.values().next().value" : "w.desks.get('perf-t0')"}; w.stopFollow();
+            const close=${JSON.stringify(real || ["zoomed", "apps-close", "chat"].includes(name))};
             const cx=close?parseFloat(d.el.style.left)+200:${cx},cy=close?parseFloat(d.el.style.top)+100:${cy};
             w.cam={s:${scale},x:w.scene.clientWidth/2-cx*${scale},y:w.scene.clientHeight/2-cy*${scale}}; w.apply();}`);
           await wait(1200);
@@ -74,18 +93,18 @@ if (!process.versions.electron) {
           const before = await dbg.sendCommand("Performance.getMetrics");
           await js(`window.__frames=[]; window.__record=true; {let last=performance.now(); const frame=t=>{if(!window.__record)return; window.__frames.push(t-last);last=t;requestAnimationFrame(frame)};requestAnimationFrame(frame)}`);
           const point = await js(`{const r=window.__world.scene.getBoundingClientRect(); ({x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)})}`);
-          const pan = !suite || name === "panning";
+          const pan = real ? name === "panning" : !suite || name === "panning";
           if (pan) wc.sendInputEvent({ type: "mouseDown", button: "middle", clickCount: 1, ...point });
           const started = Date.now();
           while (Date.now() - started < 4000) {
             const t = (Date.now() - started) / 1000;
-            if (pan) wc.sendInputEvent({ type: "mouseMove", button: "middle", buttons: ["middle"], x: point.x + Math.round(Math.sin(t * 2.4) * Number(process.env.LUCID_PERF_PAN || 180)), y: point.y + Math.round(Math.sin(t * 3.2) * 80) });
+            if (pan) wc.sendInputEvent({ type: "mouseMove", button: "middle", modifiers: ["middlebuttondown"], x: point.x + Math.round(Math.sin(t * 2.4) * Number(process.env.LUCID_PERF_PAN || 180)), y: point.y + Math.round(Math.sin(t * 3.2) * 80) });
             await wait(8);
           }
           if (pan) wc.sendInputEvent({ type: "mouseUp", button: "middle", clickCount: 1, ...point });
           const after = await dbg.sendCommand("Performance.getMetrics");
           const profile = tracing ? (await dbg.sendCommand("Profiler.stop")).profile : null;
-          const stats = await js(`{window.__record=false; const a=window.__frames.slice(1).sort((a,b)=>a-b); const w=window.__world; ({frames:a.length,mean:a.reduce((s,x)=>s+x,0)/a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)],over33:a.filter(x=>x>33.4).length,desks:w.desks.size,walkers:document.querySelectorAll('.world-walker').length,canvases:document.querySelectorAll('canvas').length,scale:w.cam.s,systems:window.__lucidPerf?.snapshot(),errors:window.__errs})}`);
+          const stats = await js(`{window.__record=false; const a=window.__frames.slice(1).sort((a,b)=>a-b); const w=window.__world; ({frames:a.length,mean:a.reduce((s,x)=>s+x,0)/a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)],over33:a.filter(x=>x>33.4).length,desks:w.desks.size,projects:w.lastData?.projects.length,dom:document.querySelectorAll('*').length,svg:document.querySelectorAll('svg *').length,hidden:document.hidden,walkers:document.querySelectorAll('.world-walker').length,canvases:document.querySelectorAll('canvas').length,scale:w.cam.s,systems:window.__lucidPerf?.snapshot(),errors:window.__errs})}`);
           if ((name === "apps-close" || name === "apps-far") && (!stats.systems?.systems.apps.calls || !await js(`!!window.__world.desks.get('perf-t0').wm.wins.get('game')?.body.children.length`))) throw Error(`${name} must measure actual live game content`);
           if (tracing) {
           const complete = new Promise((resolve) => {
@@ -100,6 +119,7 @@ if (!process.versions.electron) {
           }
           dbg.removeListener("message", onTrace);
           const deltas = Object.fromEntries(after.metrics.filter((m) => /Duration|Count/.test(m.name)).map((m) => [m.name, m.value - (before.metrics.find((x) => x.name === m.name)?.value || 0)]));
+          stats.staticArt = await js("window.__staticArt?.stats()");
           results.push({ name, ...stats, deltas });
           if (tracing) {
             fs.writeFileSync(path.join(out, `${name}-trace.json`), JSON.stringify({ traceEvents: trace }));
@@ -107,6 +127,15 @@ if (!process.versions.electron) {
           }
           await wait(500);
           fs.writeFileSync(path.join(out, `${name}.png`), (await wc.capturePage()).toPNG());
+          if(process.env.LUCID_LAYER_CHECKS&&name==='overview'){
+            const details=[];
+            for(const layer of layerNodes.filter(l=>l.drawsContent).sort((a,b)=>b.width*b.height-a.width*a.height).slice(0,25)){
+              let node=null;
+              if(layer.backendNodeId){const r=await dbg.sendCommand('DOM.describeNode',{backendNodeId:layer.backendNodeId,depth:0}).catch(()=>null);if(r){const a=r.node.attributes||[],attrs={};for(let i=0;i<a.length;i+=2)if(['class','id'].includes(a[i]))attrs[a[i]]=a[i+1];node={tag:r.node.nodeName,...attrs}}}
+              details.push({width:layer.width,height:layer.height,node,reasons:(await dbg.sendCommand('LayerTree.compositingReasons',{layerId:layer.layerId}).catch(()=>null))?.compositingReasons});
+            }
+            fs.writeFileSync(path.join(out,'largest-layers.json'),JSON.stringify(details,null,2));
+          }
           console.log(JSON.stringify(results.at(-1)));
         }
         fs.writeFileSync(path.join(out, "results.json"), JSON.stringify(results, null, 2));
@@ -117,16 +146,29 @@ if (!process.versions.electron) {
         }
         if (process.env.LUCID_BEHAVIOR_CHECKS) await require("./render-behavior-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_SCREEN_DETAILS_CHECKS) await require("./render-screen-details-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_FLOOR_CHECKS) await require("./render-floor-checks.cjs")({ js, out });
+        if (process.env.LUCID_PREFERENCE_CHECKS) await require("./render-preference-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_INTERACTION_CHECKS) await require("./render-interaction-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_VIEWPORT_CHECKS) await require("./render-viewport-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_STATIC_ART_CHECKS) await require("./render-static-art-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_COMPACT_CHECKS) {
+          const compact = await require("./compact-layout-checks.cjs")({ js });
+          fs.writeFileSync(path.join(out, "compact-layout-checks.json"), JSON.stringify(compact, null, 2));
+          console.log("compactLayoutChecks", JSON.stringify(compact));
+        }
+        if (process.env.LUCID_HISTORY_CHECKS) await require("./render-history-pagination-checks.cjs")({ js, wc, wait, out });
         app.quit();
       } catch (error) { console.error(error); app.exit(1); }
     });
   });
   require("../electron/main.cjs");
   // Isolated fixture, with no real thread subscriptions or writes to T3.
+  if(process.env.LUCID_REAL_WORLD !== "1") {
   ipcMain.removeHandler("t3:world");
   ipcMain.handle("t3:world", () => ({ projects, threads }));
   ipcMain.removeHandler("t3:watch-set");
   ipcMain.handle("t3:watch-set", () => true);
   ipcMain.removeHandler("t3:conversation");
   ipcMain.handle("t3:conversation", () => messages);
+  }
 }
