@@ -132,6 +132,7 @@ export class ChatPanel {
   private historyGeneration = 0;
   private loadingOlder = false;
   onClose: () => void = () => {};
+  onChooseThread: () => void = () => {};
   onToggleView: () => void = () => {};
   /** You started or stopped typing a message to this robot. */
   onTyping: (on: boolean) => void = () => {};
@@ -266,6 +267,7 @@ export class ChatPanel {
   private tabLabel = "Chat";
 
   setCollapsed(on: boolean, animate = true) {
+    if (!on && !this.isOpen) { this.onChooseThread(); return; }
     if (on === this.collapsed) return;
     this.collapsed = on;
     const el = this.el, tab = this.tab;
@@ -346,9 +348,10 @@ export class ChatPanel {
     this.tab.setAttribute("aria-expanded", "false");
     this.tab.setAttribute("aria-label", "Show chat");
     this.tab.title = "Show the chat";
-    this.tab.innerHTML = `<img alt="" hidden><span>Chat</span><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    this.tab.innerHTML = `<svg class="cp-rail-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5H9l-5.5 4V6A1.5 1.5 0 0 1 5 4.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 9h8M8 13h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><img alt="" hidden><span>Chat</span><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     host.appendChild(this.tab);
     this.tab.addEventListener("click", () => this.setCollapsed(false));
+    this.tab.title = "Choose a thread to chat";
     this.el.querySelectorAll(".cp-hide").forEach((b) => b.addEventListener("click", () => this.setCollapsed(true)));
     this.el.querySelector(".cp-close")!.addEventListener("click", () => this.onClose());
     this.el.querySelector(".cp-view")!.addEventListener("click", () => this.onToggleView());
@@ -530,6 +533,7 @@ export class ChatPanel {
       // the empty panel becomes this robot's chat: its parts settle in one after another
       if (!this.collapsed) gsap.from([...this.el.children].filter((c) => !c.classList.contains("cp-empty")), { opacity: 0, y: 8, duration: 0.32, ease: "power2.out", stagger: 0.04, clearProps: "opacity,y" });
     }
+    this.setCollapsed(false);
     this.refresh();
     this.renderPending(false);
     if (!same && this.sendErrors.has(this.threadId!)) this.note(this.sendErrors.get(this.threadId!)!);
@@ -547,7 +551,9 @@ export class ChatPanel {
     this.tabLabel = "Chat";
     (this.tab.querySelector("span") as HTMLElement).textContent = "Chat";
     this.tab.setAttribute("aria-label", "Show chat");
-    this.tab.title = "Show the chat";
+    this.tab.title = "Choose a thread to chat";
+    (this.tab.querySelector("img") as HTMLImageElement).hidden = true;
+    this.setCollapsed(true);
     const empty = this.el.querySelector(".cp-empty") as HTMLElement;
     gsap.fromTo(empty, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out", clearProps: "opacity" });
   }

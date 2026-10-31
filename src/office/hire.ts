@@ -62,6 +62,7 @@ export function openHire(opts: {
     </form>`;
   document.body.appendChild(wrap);
   const form = wrap.querySelector("form") as HTMLFormElement;
+  const taskInput = form.querySelector(".hire-task textarea") as HTMLTextAreaElement;
   let pick = cands[0];
   let model: string | null = null;
   const chips = form.querySelector(".chips:not(.proj)") as HTMLElement;
@@ -159,10 +160,9 @@ export function openHire(opts: {
   wrap.addEventListener("click", (e) => { if (e.target === wrap || (e.target as HTMLElement).closest('[data-a="cancel"]')) close(); });
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const ta = form.querySelector("textarea") as HTMLTextAreaElement;
     const msg = form.querySelector(".hire-msg") as HTMLElement;
-    const task = ta.value.trim();
-    if (!task) { msg.textContent = "Give it a task first."; ta.focus(); return; }
+    const task = taskInput.value.trim();
+    if (!task) { msg.textContent = "Give it a task first."; taskInput.focus(); return; }
     const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
     btn.disabled = true;
     msg.textContent = `${pick.name} is walking over…`;
@@ -178,5 +178,5 @@ export function openHire(opts: {
   });
   gsap.fromTo(form, { opacity: 0, y: 14, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(1.6)" });
   gsap.from(form.querySelectorAll(".cand"), { opacity: 0, y: 10, duration: 0.3, stagger: 0.04, delay: 0.1 });
-  (form.querySelector("textarea") as HTMLTextAreaElement).focus();
+  taskInput.focus();
 }

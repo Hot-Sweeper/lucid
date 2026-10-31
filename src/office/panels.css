@@ -115,3 +115,28 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .th-search input { width: 100%; min-width: 0; }
 .th-head .sec-fold { margin-left: auto; }
 .room-links { flex-wrap: wrap; gap: 2px 16px; }
+
+/* Threads own the sidebar; occasional office tools share one disclosure. */
+.panel { gap: 16px; }
+.panel > .threads { flex: 1 0 auto; }
+.panel .th-list { max-height: none; overflow: visible; }
+.panel .th-row { padding: 8px 10px; gap: 2px; border-radius: 6px; }
+.panel .th-row:not(:hover):not(:focus-within):not(.on) .th-bot { opacity: 0; }
+.panel .th-title { font-size: 13px; }
+.panel .th-top { font-size: 11px; }
+.panel .sec-fold { min-width: 28px; min-height: 28px; justify-content: center; margin: -3px 0; }
+.panel .sec-fold > span { display: none; }
+.panel .focus:has(#focus-body[hidden]) { display: none; }
+.sidebar-extras { flex: none; border-top: 1px solid rgba(255,255,255,.07); padding-top: 8px; }
+.sidebar-extras > summary { cursor: pointer; color: var(--ink-2); padding: 8px 2px; font-size: 12px; }
+.sidebar-extras > summary:hover { color: var(--ink); }
+.sidebar-extras > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sidebar-extras-body { display: flex; flex-direction: column; gap: 18px; padding: 12px 0 4px; }
+
+/* A matching right rail, with the current conversation always within reach. */
+.cp-tab { width: 64px; background: var(--night-2); padding: 18px 5px 14px; gap: 14px; overflow: hidden; }
+.cp-tab:hover { background: color-mix(in srgb, var(--night-2) 90%, white); }
+.cp-tab .cp-rail-icon { flex: none; padding: 8px; box-sizing: content-box; border-radius: 8px; background: rgba(255,255,255,.06); }
+.cp-tab > span { font-size: 12px; max-height: calc(100dvh - 160px); }
+.cp-tab > svg:last-child { margin-top: auto; flex: none; }
+.cp-tab img { object-fit: contain; }

@@ -134,6 +134,17 @@ document.getElementById("app")!.innerHTML = `
   <main class="scene" id="scene"></main>
   <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button></div>`;
 
+// Keep threads in front and put occasional office controls behind one disclosure.
+const extras = document.createElement("details");
+extras.className = "sidebar-extras";
+extras.innerHTML = '<summary>Office & tools</summary><div class="sidebar-extras-body"></div>';
+const extrasBody = extras.querySelector("div")!;
+for (const selector of ["#environment-body", ".rooms", "#orch", "#usage", "#company", "#wallet"]) {
+  const section = document.querySelector(selector);
+  if (section) extrasBody.appendChild(section);
+}
+$("side-panel").appendChild(extras);
+
 // robots in the original design, plus the break room and the question line
 useRobot((host, rig) => new TopDownRobot(host, rig));
 const world = new World($("scene"), { peek: (u) => api.peek(u), image: (p) => api.image(p), readText: (p) => api.readText(p) });
@@ -143,12 +154,26 @@ let selectedDesk: Desk | null = null;
 (window as any).__world = world; // debug handle for test runs
 const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), conversationPage: (id, options) => (api as any).conversationPage(id, options), sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), t3: (window as any).lucidT3 });
 // the sidebar and the chat are columns beside the scene, so the camera always fits what is left (see World)
-world.onFocus = (d) => { if (d) { world.revealThread(d.threadId); chat.open(d); chat.setView(world.focusMode); pushStatus(d); } };
+world.onFocus = (d) => { if (d) { world.revealThread(d.threadId); chat.open(d); chat.setView(world.focusMode); pushStatus(d); } else { chat.setCollapsed(true); } };
 // a robot's question, answered from its chat (see openAnswer)
 const answer = new AnswerCard(chat, { pending: (id) => (window as any).lucid.pendingRequests(id), t3: (window as any).lucidT3, advice: (rid) => delegate.advice.get(rid) ?? null });
 (window as any).__answer = answer; // isolated answer-form fixture handle
 // a chat opened without a desk (questions room, follow chip) closes itself
 chat.onClose = () => { chat.close(); world.unfocus(); world.revealThread(null); };
+chat.onChooseThread = () => {
+  toggleRail(false, false);
+  const search = $("th-q") as HTMLInputElement;
+  folded.delete("threads");
+  ui.folded = [...folded];
+  foldSection("threads", true, false);
+  search.focus();
+  saveSettings();
+};
+// A click in the office folds the conversation without losing its draft or selection.
+$("scene").addEventListener("click", (e) => {
+  const target = e.target as HTMLElement;
+  if (!target.closest(".desk-unit, .world-walker, button, input, textarea, a")) chat.setCollapsed(true);
+});
 chat.onToggleView = () => {
   const d = world.focusDesk;
   if (!d) return;
@@ -467,11 +492,11 @@ world.seats = new Map(Object.entries(settings.seats ?? {}).filter(([, seats]) =>
 // --- folding the sidebar, its sections and the chat (remembered in settings.ui) ------------
 settings.ui ??= {};
 const ui = settings.ui;
-const folded = new Set(ui.folded ?? []);
+const folded = new Set(ui.folded ?? ["todo", "company", "usage", "orch"]);
 const appEl = $("app") as HTMLElement;
 // Panel widths: you drag the inner edge of the sidebar or the chat. Small windows shrink the chat first, then
 // the sidebar, so the office always keeps room.
-const SIDE = { min: 240, max: 520, def: 300, rail: 64 }, CHAT = { min: 340, max: 760, tab: 44 }, SCENE_MIN = 380;
+const SIDE = { min: 240, max: 520, def: 300, rail: 64 }, CHAT = { min: 340, max: 760, tab: 64 }, SCENE_MIN = 380;
 const chatDefault = () => Math.round(Math.min(560, Math.max(400, innerWidth * 0.32)));
 const clampTo = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const widths = () => {
@@ -584,7 +609,7 @@ window.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "b") { e.preventDefault(); toggleRail(!ui.rail); saveSettings(); }
 });
 if (ui.rail) toggleRail(true, false);
-chat.setCollapsed(!!ui.chatTab, false);
+chat.setCollapsed(true, false);
 applyLayout();
 chat.onCollapse = (on, animate) => { ui.chatTab = on; saveSettings(); slideChat(animate); };
 const saveSettings = () => {
