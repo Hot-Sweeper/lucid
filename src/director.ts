@@ -6,6 +6,8 @@ import { MusicApp } from "./os/music";
 import { IdleLife } from "./os/idle";
 import { HarnessApp, harnessKind, THEMES, type HarnessSession, type SubagentEvent } from "./harness/harness";
 import { fileUrl } from "./office/chat-panel";
+import { UacPrompt } from "./os/uac";
+import { harnessName } from "./office/brand";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, prettyTool } from "./os/apps";
 import { T3CodeApp } from "./harness/t3code";
 import { classify, parseDiff, baseName, relPath, unwrap, type Entry } from "./os/classify";
@@ -96,6 +98,7 @@ export class Director {
   private info: ThreadInfo | null = null;
   private lastRunStatus = "";
   private files: FilesApp; private editor: EditorApp; private term: TerminalApp;
+  private uac: UacPrompt;
   private browser: BrowserApp; private chat: T3CodeApp; private tool: ToolApp; private tasks: TasksApp;
   private planSig = "";
   onActivity: (text: string) => void = () => {};
@@ -120,6 +123,12 @@ export class Director {
     this.files = new FilesApp(wm);
     this.editor = new EditorApp(wm);
     this.term = new TerminalApp(wm);
+    // the permission prompt: real approvals only, read from T3 itself
+    const lucid = () => (window as any).lucid;
+    this.uac = new UacPrompt(wm, {
+      pending: async (id) => (await lucid()?.pendingRequests?.(id)) ?? [],
+      outcome: async (threadId, requestId) => (await lucid()?.requestOutcome?.(threadId, requestId)) ?? null,
+    });
     this.browser = new BrowserApp(wm, peek);
     // the thread itself plays out in T3 Code, the app it really lives in (stable or Nightly per robot)
     this.chat = new T3CodeApp(wm);
@@ -144,6 +153,7 @@ export class Director {
     this.helperHints.clear();
     this.harness.reset();
     this.chat.reset();
+    this.uac.reset();
     this.mobile = false;
     if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
     this.lastEventAt = 0;
@@ -214,6 +224,16 @@ export class Director {
       if (t > this.lastEventAt) this.lastEventAt = t;
       this.items.set(it.id, it);
       this.chat.update(it);   // a work row already in T3 Code follows its item (Running, then Ran)
+      // An approval is not a scene: the robot is stuck until it is answered, so the prompt comes up
+      // on its screen at once, whatever else it is playing, and only while T3 really has it open.
+      if (it.type === "approval_request") {
+        this.played.add(it.id);
+        const open = it.status !== "completed" && it.status !== "failed" && it.status !== "cancelled";
+        if (open && this.info?.id) {
+          void this.uac.sync(this.info.id, String(it.data?.requestId || ""), { name: this.wm.robotName || "This robot", harness: harnessName(this.info.provider) }).then(() => { if (this.uac.isUp) this.onActivity("Waiting for your approval"); });
+        }
+        continue;
+      }
       if (SKIP.has(it.type) || this.played.has(it.id) || this.queue.includes(it.id)) continue;
       // On first open, replay only the latest turn so you see what the robot is doing now.
       if (initial && it.runId !== latestRun) { this.played.add(it.id); continue; }

@@ -471,4 +471,13 @@ function pendingRequests(threadId) {
   });
 }
 
-module.exports = { pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
+// How a request ended: its status and, for an approval, what was decided (accept, decline, ...).
+function requestOutcome(threadId, requestId) {
+  const row = getDb()
+    .prepare("select status, payload_json as p from orchestration_v2_projection_runtime_requests where thread_id = ? and runtime_request_id = ?")
+    .get(threadId, requestId);
+  if (!row) return null;
+  return { status: row.status, decision: safeJson(row.p)?.decision || null };
+}
+
+module.exports = { requestOutcome, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };

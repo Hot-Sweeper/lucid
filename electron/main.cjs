@@ -172,6 +172,7 @@ ipcMain.on("roster:load", (e) => { try { e.returnValue = require("node:fs").read
 ipcMain.handle("roster:save", (_e, json) => require("node:fs").promises.writeFile(ROSTER, json));
 ipcMain.handle("t3:conversation", (_e, id) => t3.conversation(id));
 ipcMain.handle("t3:pending-requests", (_e, id) => t3.pendingRequests(id));
+ipcMain.handle("t3:request-outcome", (_e, threadId, requestId) => { try { return t3.requestOutcome(threadId, requestId); } catch { return null; } });
 ipcMain.handle("t3:thread-info", (_e, id) => { try { return t3.threadInfo(id); } catch { return null; } });
 ipcMain.handle("t3:items-since", (_e, id, since) => (since ? t3.itemsSince(id, since) : t3.recentItems(id, 60)));
 ipcMain.handle("t3:attach-dir", () => require("node:path").join(process.env.T3CODE_HOME || require("node:path").join(require("node:os").homedir(), ".t3"), "userdata", "attachments") + require("node:path").sep);

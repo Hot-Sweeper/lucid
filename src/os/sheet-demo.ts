@@ -4,12 +4,15 @@
 //   ?scene=photo      a wide picture that is not a sheet: stays a still picture
 //   ?scene=page&url=  a real page (a dev server, say) drawn by a real browser; needs the Electron shell
 //   ?scene=html       HTML a robot wrote, drawn as a real page
+//   ?scene=uac        the permission prompt, with sample approvals standing in for T3 (never shown in the real app)
+//   ?scene=icons      every app icon at dock size and window bar size, with its name
 //   ?scene=director   a desk played by the real Director: it reads sheet.png, tests a page on localhost, renders HTML
 import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import "../styles.css";
 import "../office/office.css";
 import { WM } from "./wm";
+import { UacPrompt } from "./uac";
 import { ToolApp } from "./apps";
 import { BrowserApp } from "./browser";
 import { WALLPAPERS } from "../office/roster";
@@ -30,7 +33,7 @@ const stub = () => ({ setPose() {}, mouseTo() {}, lookAt() {}, click() {}, press
 const el = document.createElement("div");
 el.className = "d-screen";
 el.style.transform = `scale(${Number(qs.get("zoom")) || Math.min(innerWidth / 820, innerHeight / 461)})`;
-if (scene !== "director") document.getElementById("sd-demo")!.appendChild(el);
+if (scene !== "director" && scene !== "icons") document.getElementById("sd-demo")!.appendChild(el);
 const wm = new WM(el, stub());
 wm.prefs = { windows: "floating", tidiness: "normal", launch: "dock", switching: "click" } as any;
 wm.robotName = "Pip";
@@ -104,10 +107,50 @@ async function directorScene() {
   }
 }
 
+// Sample approvals in place of T3: one is approved after a few seconds, a risky one is declined.
+async function uacScene() {
+  let open: any[] = [];
+  const decided = new Map<string, string>();
+  const uac = new UacPrompt(wm, {
+    pending: async () => open,
+    outcome: async (_t, id) => ({ status: "resolved", decision: decided.get(id) ?? null }),
+  });
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  await wait(1500);
+  wm.open("browser").catch(() => {});
+  await wait(1500);
+  const a = { id: "r1", type: "approval", requestKind: "command", prompt: "node -e \"console.log('lucid-approval-test')\"", detail: "This command requires approval", options: [{ decision: "decline", label: "Decline", warning: null }, { decision: "accept", label: "Approve", warning: null }] };
+  open = [a];
+  await uac.sync("t", "r1", { name: "Pip", harness: "Claude" });
+  await wait(5000);
+  decided.set("r1", "accept"); open = [];
+  await wait(3500);
+  const b = { id: "r2", type: "approval", requestKind: "command", prompt: "rm -rf C:\Users\me\.t3\scratch\lucid-shots-orch\*", detail: "Dangerous rm operation on statically-unresolvable target", options: [{ decision: "decline", label: "Decline", warning: null }, { decision: "accept", label: "Approve", warning: null }] };
+  open = [b];
+  await uac.sync("t", "r2", { name: "Pip", harness: "Claude" });
+  await wait(5000);
+  decided.set("r2", "decline"); open = [];
+}
+
+function iconsScene() {
+  const ids = ["files", "editor", "editorPad", "editorVim", "terminal", "browser", "photos", "player", "tool", "t3code", "harness", "gitdesk", "notes", "tasks", "calc", "weather", "music", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "doodle", "crossword", "solitaire", "stocks", "mail", "lingo", "folder", "file"];
+  const titles = wm as any;
+  const box = document.createElement("div");
+  box.style.cssText = "display:grid;grid-template-columns:repeat(6,150px);gap:14px 10px;padding:18px;width:1000px;color:#eef;font:12px var(--font)";
+  for (const id of ids) {
+    const svg = (wm.iconOf(id as any) ?? "") || "<b style='color:#f66'>MISSING</b>";
+    const title = (id === "editorPad" ? "Notepad" : id === "editorVim" ? "vim" : titles.titleOf(id)) ?? id;
+    box.insertAdjacentHTML("beforeend", `<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start"><div style="display:flex;gap:10px;align-items:center"><span style="width:44px;height:44px;display:block">${svg}</span><span class="win-bar" style="width:auto;display:flex;gap:6px;align-items:center;padding:3px 8px;border-radius:6px;background:#2e3577;font-size:11px"><span style="width:16px;height:16px;display:block">${svg}</span></span></div><span>${title} <span style="opacity:.5">${id}</span></span></div>`);
+  }
+  document.getElementById("sd-demo")!.appendChild(box);
+}
+
 async function main() {
   try {
     const tool = new ToolApp(wm);
-    if (scene === "director") await directorScene();
+    if (scene === "icons") iconsScene();
+    else if (scene === "uac") await uacScene();
+    else if (scene === "director") await directorScene();
     else if (scene === "sheet") { const u = sheetOf(8, 1, 96, "#ffffff"); await tool.picture("sheet.png", u, async () => u); }
     else if (scene === "grid") { const u = sheetOf(4, 3, 64, null); await tool.picture("walk-cycle.png", u, async () => u); }
     else if (scene === "photo") { const u = photo(); await tool.picture("skyline.png", u, async () => u); }

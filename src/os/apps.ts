@@ -123,6 +123,8 @@ export class EditorApp {
   private async ensure(path: string) {
     const ed = this.wm.prefs?.editor ?? "studio";
     const appName = ed === "pad" ? "Notepad" : ed === "vim" ? "vim" : "Studio";
+    // Notepad and vim have their own icons (dock, window bar and app switcher)
+    this.wm.brandApp("editor", { icon: ed === "pad" ? ICONS.editorPad : ed === "vim" ? ICONS.editorVim : ICONS.editor });
     const w = await this.wm.open("editor", `${baseName(path)}  ${appName}`);
     if (!w.body.querySelector(".editor")) {
       w.body.innerHTML = `<div class="editor ed-${ed}"><div class="tabs" role="tablist"></div><div class="code-wrap"><div class="code"></div></div>${ed === "vim" ? `<div class="vim-bar"><b>-- INSERT --</b><span></span></div>` : ""}</div>`;
@@ -315,19 +317,17 @@ export class ToolApp {
    * `data` reads the picture as a data URL so its pixels can be analysed.
    */
   async picture(name: string, src: string | null, data?: () => Promise<string | null>) {
-    // work out whether it is a sheet while the window opens
+    // a sheet opens in the player, a picture in Photos: find out which before the window opens
     const probe = src && data
       ? data().then((d) => (d ? detectSheet(d, name).then((f) => f && { f, d }) : null)).catch(() => null)
       : Promise.resolve(null);
-    const w = await this.wm.open("tool", name);
     const sheet = await probe;
     if (sheet) {
-      // a player needs room: the robot drags the window bigger
-      const h = Math.min(this.wm.height - 12, 300 + Math.round(Math.min(90, sheet.f.sheet.fh / sheet.f.sheet.fw * 120)));
-      await this.wm.dragTo("tool", { x: Math.round((this.wm.width - 520) / 2), y: 10, w: 520, h }).catch(() => {});
+      const w = await this.wm.open("player", name);
       await playSheet(this.wm, w.body, sheet.f, sheet.d, { width: 520 - 24 });
       return;
     }
+    const w = await this.wm.open("photos", name);
     w.body.innerHTML = src
       ? `<div class="pic"><img alt="${esc(name)}"></div>`
       : `<div class="tool"><h3>${esc(name)}</h3><p class="muted">This image could not be shown.</p></div>`;
