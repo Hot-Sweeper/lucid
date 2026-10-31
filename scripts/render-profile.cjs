@@ -112,7 +112,7 @@ if (!process.versions.electron) {
           if (pan) wc.sendInputEvent({ type: "mouseUp", button: "middle", clickCount: 1, ...point });
           const after = await dbg.sendCommand("Performance.getMetrics");
           const profile = tracing ? (await dbg.sendCommand("Profiler.stop")).profile : null;
-          const stats = await js(`{window.__record=false; const a=window.__frames.slice(1).sort((a,b)=>a-b); const w=window.__world; ({frames:a.length,mean:a.reduce((s,x)=>s+x,0)/a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)],over33:a.filter(x=>x>33.4).length,desks:w.desks.size,projects:w.lastData?.projects.length,dom:document.querySelectorAll('*').length,svg:document.querySelectorAll('svg *').length,hidden:document.hidden,walkers:document.querySelectorAll('.world-walker').length,canvases:document.querySelectorAll('canvas').length,scale:w.cam.s,systems:window.__lucidPerf?.snapshot(),errors:window.__errs})}`);
+          const stats = await js(`{window.__record=false; const a=window.__frames.slice(1).sort((a,b)=>a-b); const w=window.__world; ({frames:a.length,mean:a.reduce((s,x)=>s+x,0)/a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)],p99:a[Math.floor(a.length*.99)],max:a.at(-1),over16:a.filter(x=>x>16.7).length,over33:a.filter(x=>x>33.4).length,over100:a.filter(x=>x>100).length,desks:w.desks.size,projects:w.lastData?.projects.length,dom:document.querySelectorAll('*').length,svg:document.querySelectorAll('svg *').length,hidden:document.hidden,walkers:document.querySelectorAll('.world-walker').length,canvases:document.querySelectorAll('canvas').length,scale:w.cam.s,systems:window.__lucidPerf?.snapshot(),errors:window.__errs})}`);
           if ((name === "apps-close" || name === "apps-far") && (!stats.systems?.systems.apps.calls || !await js(`!!window.__world.desks.get('perf-t0').wm.wins.get('game')?.body.children.length`))) throw Error(`${name} must measure actual live game content`);
           if (tracing) {
           const complete = new Promise((resolve) => {
@@ -161,6 +161,7 @@ if (!process.versions.electron) {
         if (process.env.LUCID_VIEWPORT_CHECKS) await require("./render-viewport-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_STATIC_ART_CHECKS) await require("./render-static-art-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_CANVAS_CHECKS) await require("./render-canvas-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_MEDIA_CANVAS_CHECKS) await require("./render-media-canvas-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_COMPACT_CHECKS) {
           const compact = await require("./compact-layout-checks.cjs")({ js });
           fs.writeFileSync(path.join(out, "compact-layout-checks.json"), JSON.stringify(compact, null, 2));

@@ -19,6 +19,7 @@ module.exports = async ({ js, wc, wait, out }) => {
       if(!d)throw Error('Adaptive canvas checks require isolated perf-t0 fixture');
       window.__canvasCheck={d,cam:{...w.cam},prefs:d.wm.prefs,speed:d.wm.speed,errors:[],run:null};
       const f=window.__canvasCheck;
+      try{d.wm.check(d.wm.epoch-1)}catch(error){f.cancelled=error.constructor}
       f.onError=e=>f.errors.push(e.error?.stack||e.reason?.stack||e.message||String(e.reason));
       window.addEventListener('error',f.onError);window.addEventListener('unhandledrejection',f.onError);
       for(const desk of w.desks.values())desk.director.reset();
@@ -34,7 +35,7 @@ module.exports = async ({ js, wc, wait, out }) => {
         return {scale:w.cam.s,backing:{width:c.width,height:c.height},display:{width:r.width,height:r.height},densityX:c.width/r.width,densityY:c.height/r.height,dpr:devicePixelRatio,opaque,colors:colors.size,visible:!d.screen.classList.contains('render-paused'),fps:Number(d.screen.dataset.renderFps)};
       };
       f.stop=async()=>{d.director.idleLife.stop();if(f.run)await f.run;d.wm.reset();f.run=null};
-      f.start=game=>{const idle=d.director.idleLife;idle.active=true;const token=++idle.token;f.run=idle.doActivity(game,token,true).catch(e=>{if(e.constructor.name!=='Cancelled')f.errors.push(String(e))})};
+      f.start=game=>{const idle=d.director.idleLife;idle.active=true;const token=++idle.token;f.run=idle.doActivity(game,token,true).catch(e=>{if(!(e instanceof f.cancelled))f.errors.push(e.stack||String(e))})};
       f.center(2);
     }`);
     for (const [game, selector] of [
