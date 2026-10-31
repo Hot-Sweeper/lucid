@@ -1,6 +1,12 @@
 import gsap from "gsap";
 import { WM, Cancelled } from "./wm";
 import { CalcApp, IDLE_SUMS } from "./calc";
+import { SEARCHES as SEARCH_LINES, GAME_LINES, pickFresh } from "../content";
+const nextSearch = pickFresh(SEARCH_LINES, "lucid:searches");
+const gameLine = (kind: string, game?: string) => {
+  const pool = GAME_LINES.filter((l) => l.kind === kind && (!l.game || l.game === game));
+  return pool.length ? pool[Math.floor(Math.random() * pool.length)].text : null;
+};
 import type { SeatedRobot as Robot } from "../office/rig";
 import type { DeskStage as Stage } from "../office/desk";
 import { playSnake, playFlappy, playDash, watchPhoneFeed, watchTube, browseTensorHub, type FunHost } from "../fun";
@@ -160,6 +166,11 @@ export class IdleLife {
       this.stopGame = () => { w.body.innerHTML = ""; };
       const out = await play(w.body, host, { maxMs: T.gameFor * (0.6 + Math.random() * 0.6), skill });
       this.alive(tok);
+      // a word about how it went
+      const r = String(out.result || "");
+      const kind = r === "ragequit" ? "ragequit" : /win|won|cleared|record/i.test(r) ? "win" : /lose|lost|dead|crash|over/i.test(r) ? "lose" : "close";
+      const said = gameLine(kind, title.toLowerCase().includes("snake") ? "snake" : undefined);
+      if (said) { this.stage.say(said, "speak"); window.setTimeout(() => this.stage.say(null), 2600); }
       if (out.result === "ragequit") {
         // slam it shut
         this.onActivity(`Rage quit ${title}`);
@@ -283,7 +294,7 @@ export class IdleLife {
       this.alive(tok);
       if (i === 1 && Math.random() < 0.6) {
         this.onActivity("Googling something");
-        await b.visit(SEARCHES[Math.floor(Math.random() * SEARCHES.length)]);
+        await b.visit(Math.random() < 0.8 ? nextSearch() : SEARCHES[Math.floor(Math.random() * SEARCHES.length)]);
         this.alive(tok);
       }
       const [what, url] = order[i];
@@ -447,6 +458,8 @@ export class IdleLife {
     }
     const won = (G.winner === "white") === robotWhite;
     status.textContent = won ? `Checkmate! The robot wins (${G.name})` : `Checkmated by ${G.name}`;
+    const quip = gameLine(won ? "win" : "lose", "chess");
+    if (quip) { this.stage.say(quip, "speak"); window.setTimeout(() => this.stage.say(null), 2600); }
     gsap.fromTo(status, { scale: 1.2 }, { scale: 1, duration: 0.5, ease: "back.out(3)" });
     if (won) this.robot.setPose("celebrate");
     else { this.robot.react(Math.random() < 0.5 ? "angry" : "shy"); }

@@ -1,3 +1,4 @@
+import { TUBE_COMMENTS, BOTCORD_USERS } from "../content";
 import type { FunHost, FunOpts, Outcome } from "./host";
 import { VIDEOS, type VideoDef } from "./videos";
 import { Scope, esc, hash } from "./util";
@@ -29,6 +30,9 @@ const TEXTS = [
   "The ending made my LEDs flicker.",
   "Showed this to my toaster. It finally understands me.",
 ];
+TEXTS.push(...TUBE_COMMENTS);
+NAMES.push(...BOTCORD_USERS.slice(0, 40));
+
 const COLORS = ["#ff9f5a", "#4fb6ff", "#4ff0a0", "#b07cff", "#ff6f91", "#f6ecdc"];
 const AGO = ["2 days ago", "1 week ago", "3 weeks ago", "5 hours ago", "1 month ago", "4 days ago"];
 

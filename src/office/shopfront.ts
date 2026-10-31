@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { Walker } from "../world/walker";
 import { makeInteractive } from "./interact";
+import { SHOP_LINES } from "../content";
 import { CATALOG, itemPreview, coinIcon, seasonalNow, type Wallet, type ShopItem } from "./shop";
 import { seasonFor } from "../weather/season";
 
@@ -45,7 +46,11 @@ export class ShopFront {
     this.render();
   }
 
-  private line() { return pick(KEEPER_LINES[seasonFor()] ?? ["Welcome in!"]); }
+  private line() {
+    const season = seasonFor();
+    const pool = SHOP_LINES.filter((l) => (l.kind === "greet" || l.kind === "browse" || l.kind === "seasonal") && (!l.season || l.season === season)).map((l) => l.text);
+    return Math.random() < 0.3 ? pick(KEEPER_LINES[season] ?? ["Welcome in!"]) : pick(pool.length ? pool : ["Welcome in!"]);
+  }
 
   // Redraw when what is for sale changes (a purchase, a new level, a new season).
   render() {

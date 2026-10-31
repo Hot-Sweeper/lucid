@@ -1,3 +1,5 @@
+import { BOTCORD_CHANNELS, BOTCORD_THREADS, BOTCORD_MESSAGES, pickFresh } from "../content";
+import { dailyBotcord } from "../office/daily";
 import type { FunHost, FunOpts, Outcome } from "./types";
 import { Kit, runApp, rnd, chance, pick, shuffle, h, esc, canvas } from "./util";
 import { drawMeme, type MemeKind } from "./memes";
@@ -26,13 +28,8 @@ const FRIENDS: Record<string, User> = {
   cache_money: { name: "cache_money", color: "#ffc48a", face: 5, status: "off" },
 };
 
-const CHANNELS: { id: string; topic: string }[] = [
-  { id: "general", topic: "Robot small talk" },
-  { id: "memes", topic: "Quality content only" },
-  { id: "gpu-talk", topic: "Heat and hardware" },
-  { id: "bug-hunt", topic: "It was the cache. It is always the cache" },
-  { id: "coffee-break", topic: "No work talk, mostly" },
-];
+const SHOWN = ["general", "memes", "help", "gaming", "bug-hunt", "gpu-talk", "coffee-break", "wins", "ceo-watch"];
+const CHANNELS: { id: string; topic: string }[] = SHOWN.map((id) => BOTCORD_CHANNELS.find((c) => c.id === id) ?? { id, topic: "" });
 
 const SEED: Record<string, Line[]> = {
   general: [
@@ -236,8 +233,31 @@ const PICK_SCENES: Omit<Scene, "pos">[] = [
 const GIF_W = 200, THUMB_W = 70;
 
 // One round of conversation: all the chatter, some GIFs, and once in a while the robot posts one.
+// the big content pack and today's messages from the orchestrator, cast with the usual friends
+const nextThread = pickFresh(BOTCORD_THREADS, "lucid:botcord:threads");
+const nextMsg = pickFresh(BOTCORD_MESSAGES, "lucid:botcord:msgs");
+const chanOf = (c: string) => (SHOWN.includes(c) ? c : "general");
+function packScenes(): Omit<Scene, "pos">[] {
+  const names = Object.keys(FRIENDS);
+  const out: Omit<Scene, "pos">[] = [];
+  for (let i = 0; i < 6; i++) {
+    const th = nextThread();
+    const cast = shuffle([...names]).slice(0, 3);
+    out.push({ chan: chanOf(th.channel), lines: th.lines.map((l) => ({ u: cast[l.by % cast.length], t: l.text, rx: l.rx as any })) });
+  }
+  for (let i = 0; i < 8; i++) {
+    const m = nextMsg();
+    out.push({ chan: chanOf(m.channel), lines: [{ u: names[Math.floor(Math.random() * names.length)], t: m.text, rx: m.rx as any }] });
+  }
+  for (let i = 0; i < 3; i++) {
+    const d = dailyBotcord();
+    if (d) out.push({ chan: chanOf(d.channel ?? "general"), lines: [{ u: names[Math.floor(Math.random() * names.length)], t: d.text }] });
+  }
+  return out;
+}
+
 function deck(): Scene[] {
-  const all = [...SCENES, ...shuffle([...GIF_SCENES]).slice(0, 6), ...shuffle([...PICK_SCENES]).slice(0, 2)];
+  const all = [...shuffle([...SCENES]).slice(0, 10), ...packScenes(), ...shuffle([...GIF_SCENES]).slice(0, 6), ...shuffle([...PICK_SCENES]).slice(0, 2)];
   return shuffle(all.map((s) => ({ ...s, pos: 0 })));
 }
 
@@ -330,7 +350,7 @@ class Botcord {
     for (const c of CHANNELS) {
       // older chatter, a few minutes apart, oldest first
       let ago = rnd(30, 70) * 60000;
-      this.hist.set(c.id, SEED[c.id].map((l) => { ago -= rnd(1, ago / 4) ; return this.mkMsg(l, Math.max(60000, ago)); }));
+      this.hist.set(c.id, (SEED[c.id] ?? seedFor(c.id)).map((l) => { ago -= rnd(1, ago / 4) ; return this.mkMsg(l, Math.max(60000, ago)); }));
     }
     this.build();
     this.renderList(false);
@@ -747,4 +767,10 @@ class Botcord {
       if (chance(0.3)) this.backgroundPost();
     }
   }
+}
+
+// Channels without hand-written history start with a few lines from the content pack.
+function seedFor(chan: string): Line[] {
+  const names = Object.keys(FRIENDS);
+  return BOTCORD_MESSAGES.filter((m) => m.channel === chan).slice(0, 4).map((m, i) => ({ u: names[(i * 2 + chan.length) % names.length], t: m.text }));
 }

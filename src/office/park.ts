@@ -1,6 +1,7 @@
 import { Walker, type Facing } from "../world/walker";
 import { JOKES, LAUGHS, shuffled } from "../world/jokes";
 import { dailyConvo, dailyLine } from "./daily";
+import { CONVOS, THOUGHTS, pickFresh } from "../content";
 import { makeInteractive, whenFree, popWord, splash } from "./interact";
 
 // The park next to the building. Robots whose work finished a while ago (the break room only
@@ -16,6 +17,9 @@ const SCALE = 0.3;
 const MAX = 6;
 const wait = (s: number) => new Promise<void>((r) => window.setTimeout(r, s * 1000));
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+// lots of lines, shown without repeats until they run out (remembered across launches)
+const nextConvo = pickFresh(CONVOS, "lucid:park:convos");
+const nextThought = pickFresh(THOUGHTS.filter((t) => !t.place || t.place === "park" || t.place === "bench"), "lucid:park:thoughts");
 const PARK_THOUGHTS = ["Nice out today.", "The ducks are back.", "No merge conflicts out here.", "Fresh air. Well, fresh packets.", "I could get used to this.", "Is that a real tree or a sprite?"];
 
 export class Park {
@@ -180,7 +184,7 @@ export class Park {
       this.release(v);
       await this.go(v, this.strollPoint());
       if (v.alive) await this.go(v, this.strollPoint());
-      if (Math.random() < 0.3) v.w.say((Math.random() < 0.4 ? dailyLine() : null) ?? pick(PARK_THOUGHTS), 2800);
+      if (Math.random() < 0.3) v.w.say((Math.random() < 0.3 ? dailyLine() : null) ?? nextThought().text, 2800);
       return;
     }
     this.take(v, s);
@@ -195,7 +199,7 @@ export class Park {
       if (mate && Math.random() < 0.7) {
         v.busy = mate.busy = true;
         // today's chatter from the orchestrator first now and then, otherwise a classic
-        const lines = (Math.random() < 0.5 ? dailyConvo() : null) ?? this.joke();
+        const lines = (Math.random() < 0.35 ? dailyConvo() : null) ?? (Math.random() < 0.8 ? [...nextConvo().lines] : this.joke());
         for (let i = 0; i < lines.length; i++) {
           const who = i % 2 === 0 ? v : mate;
           if (!v.alive || !mate.alive) break;
@@ -207,7 +211,7 @@ export class Park {
       }
     } else if (s.kind === "pond") {
       v.w.do("idle");
-      if (Math.random() < 0.35) { await wait(2); if (v.alive) v.w.say((Math.random() < 0.4 ? dailyLine() : null) ?? pick(PARK_THOUGHTS), 2800); }
+      if (Math.random() < 0.35) { await wait(2); if (v.alive) v.w.say((Math.random() < 0.3 ? dailyLine() : null) ?? nextThought().text, 2800); }
     } else {
       v.w.do("wave");
       await wait(1.5);
