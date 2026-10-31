@@ -100,7 +100,7 @@ export class BrowserApp {
   }
 
   // Fetch and render a page into its tab (in the background when the tab is not in front).
-  private load(b: HTMLElement, t: Tab, url: string, o: { title?: string; text?: string; prState?: PrData["state"] } = {}) {
+  private load(b: HTMLElement, t: Tab, url: string, o: { title?: string; text?: string; prState?: PrData["state"]; real?: boolean; html?: string } = {}) {
     const e = this.wm.epoch;
     t.url = url;
     t.key = t.key.startsWith("pv:") ? t.key : urlKey(url);
@@ -139,7 +139,7 @@ export class BrowserApp {
   }
 
   /** Open a URL: switch to its tab if it is open, click it on a search page, follow a link, or type it. */
-  async open(url: string, o: { instant?: boolean; title?: string; text?: string; key?: string; newTab?: boolean; read?: boolean } = {}): Promise<Tab> {
+  async open(url: string, o: { instant?: boolean; title?: string; text?: string; key?: string; newTab?: boolean; read?: boolean; real?: boolean; html?: string } = {}): Promise<Tab> {
     const wm = this.wm;
     const instant = !!o.instant;
     const b = await this.ensure();
@@ -148,7 +148,7 @@ export class BrowserApp {
     if (t) {
       await this.clickTab(b, t, instant);
       if (t.loading) await t.loading;
-      else if (!t.view || urlKey(t.url) !== urlKey(url) || o.text) { await this.typeAddress(b, shortUrl(url), instant); await this.load(b, t, url, o); }
+      else if (!t.view || urlKey(t.url) !== urlKey(url) || o.text || o.html != null || (o.real && t.view.site !== "shot")) { await this.typeAddress(b, shortUrl(url), instant); await this.load(b, t, url, o); }
       wm.check(wm.epoch);
       if (o.read !== false) await this.read(t, instant);
       return t;
@@ -292,7 +292,7 @@ export class BrowserApp {
   async act(caption: string, title?: string, url?: string) {
     const wm = this.wm, e = wm.epoch;
     const b = await this.ensure();
-    if (url && /^https?:/.test(url) && !this.active) await this.open(url, { title, read: false, instant: true });
+    if (url && /^https?:/.test(url) && !this.active) await this.open(url, { title, read: false, instant: true, real: true });
     const page = this.active?.page || this.q(b, ".b-pages");
     const chip = el(`<div class="b-action"></div>`);
     chip.textContent = caption;
@@ -305,7 +305,7 @@ export class BrowserApp {
   }
 
   /** Old entry point: a URL opens, anything else is searched. */
-  async visit(target: string, o: { instant?: boolean } = {}) {
+  async visit(target: string, o: { instant?: boolean; real?: boolean } = {}) {
     if (/^https?:\/\//i.test(target)) await this.open(target, o);
     else await this.search(target, o);
   }

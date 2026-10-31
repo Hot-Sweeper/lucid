@@ -860,6 +860,8 @@ export class World {
   }
   /** "Chat" on the follow chip: open the conversation of the robot being followed. */
   onFollowChat: (threadId: string) => void = () => {};
+  /** You clicked another robot while a chat was open: the chat switches to it without moving the camera. */
+  onWatchChat: (threadId: string) => void = () => {};
   stopFollow() {
     gsap.ticker.remove(this.followTick);
     this.followEl = null;
@@ -932,7 +934,12 @@ export class World {
     // clicking any walking robot (also one that was just thrown) makes the camera follow it
     this.root.addEventListener("click", (e) => {
       const el = (e.target as HTMLElement).closest(".world-walker") as HTMLElement | null;
-      if (el && !this.dragged) this.follow(el);
+      if (!el || this.dragged) return;
+      // with a chat open, the chat moves along to the robot you clicked
+      const chatOpen = !!this.focusDesk;
+      this.follow(el);
+      const id = el.dataset.id;
+      if (chatOpen && id) this.onWatchChat(id);
     }, true);
     new ResizeObserver(() => { this.sceneBox = null; this.apply(); }).observe(s);
   }

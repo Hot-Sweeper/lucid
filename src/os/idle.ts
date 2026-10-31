@@ -196,7 +196,7 @@ export class IdleLife {
       tensorhub: 0.05 + 0.1 * H("watcher"),
       botflix: 0.3 + 1.6 * H("watcher") + 0.4 * H("chiller"),
       island: games * 0.6, botcom: games * 0.5, bugger: games * 0.45, boot: games * 0.7,
-      coffee: 0.6 + 0.8 * H("chiller"), stretch: 0.3 + 0.3 * H("chiller"), messages: 0.4,
+      coffee: 0.6 + 0.8 * H("chiller"), stretch: 0.3 + 0.3 * H("chiller"),
       beats: H("musician") ? 2.6 : (p?.music ?? 0) >= 0.8 ? 0.25 : 0,
       social: 0.25 * (p?.social ?? 0.4) + 2.4 * H("chatter"),
       browse: this.browser ? 0.7 + 0.9 * H("chiller") + 0.4 * H("watcher") : 0,
@@ -385,14 +385,6 @@ export class IdleLife {
       case "stocks": return this.socialApp("stocks", "Watching GPU stocks", watchStocks, tok, 30000);
       case "mail": return this.socialApp("mail", "Clearing its inbox", checkMail, tok, 30000);
       case "lingo": return this.socialApp("lingo", "Keeping its Lingobot streak alive", learnWithLingobot, tok, 45000);
-      case "messages": {
-        this.onActivity("Checking for new messages");
-        await this.wm.open("chat");
-        this.alive(tok);
-        this.robot.setPose("read");
-        await this.wait(1800, tok);
-        return this.closeWin("chat", tok);
-      }
     }
   }
 

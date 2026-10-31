@@ -1,3 +1,5 @@
+import { spice, spiceAll } from "./emoji";
+
 // Social and desktop app content: family chats, channels, posts, captions, mail and lessons.
 // Wholesome and silly. No real people, no real brands.
 
@@ -298,3 +300,10 @@ export const CROSSWORDS: { grid: string[]; across: string[]; down: string[] }[] 
     across: ["What a robot writes all day", "Where the pizza goes", "Good ___ (helping a fellow bot)", "Odds and ___"],
     down: ["Source ___", "It preheats", "Kind act", "Finishes"] },
 ];
+
+// People text with emojis, so do robots: family chats, channel posts, group chat and comments
+for (const s of FAMILY_SCENES) spiceAll(s.lines, (l) => (l.kind === "forward" ? undefined : l.t), (l, t) => { l.t = t; });
+for (const c of TG_CHANNELS) spiceAll(c.posts, (p) => p.t, (p, t) => { p.t = t; }, 0.5);
+TG_GROUP.lines.forEach((l, i) => { TG_GROUP.lines[i] = [l[0], spice(l[1], 0.8)]; });
+SNAP_CAPTIONS.forEach((c, i) => { SNAP_CAPTIONS[i] = spice(c, 0.9); });
+INSTA_COMMENTS.forEach((c, i) => { INSTA_COMMENTS[i] = spice(c, 0.9); });

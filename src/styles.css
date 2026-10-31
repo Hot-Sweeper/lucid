@@ -249,6 +249,22 @@ textarea::placeholder { color: var(--ink-3); }
 .pic { height: 100%; display: grid; place-items: center; background: #11143a; padding: 8px; }
 .pic img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
 
+/* a sprite sheet playing like a video: stage, controls, filmstrip */
+.sheet { height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 10px; background: #11143a; }
+.sh-stage { flex: 1; min-height: 0; display: grid; place-items: center; border-radius: 8px; background: #0b0d28; overflow: hidden; }
+.sh-stage canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+.sh-stage canvas.px { image-rendering: pixelated; }
+.sh-ctrl { flex: none; display: flex; align-items: center; gap: 10px; }
+.sh-play { flex: none; width: 24px; height: 24px; padding: 5px; border: 0; border-radius: 50%; background: var(--accent); color: #2a1407; display: grid; place-items: center; }
+.sh-play svg { width: 100%; height: 100%; }
+.sh-bar { flex: 1; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.2); overflow: hidden; }
+.sh-bar i { display: block; height: 100%; background: var(--accent); transform-origin: 0 50%; }
+.sh-time { flex: none; min-width: 44px; text-align: right; font-size: 10px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.sh-time b { font-weight: 500; color: #fff; }
+.sh-strip { flex: none; display: flex; gap: 3px; justify-content: center; align-items: center; min-height: 40px; }
+.sh-f { flex: none; border-radius: 3px; background-color: #0b0d28; background-repeat: no-repeat; opacity: 0.5; transition: opacity 0.12s; }
+.sh-f.on { opacity: 1; box-shadow: 0 0 0 1.5px var(--accent); }
+
 /* idle: lock screen, games, naps */
 .lock { position: absolute; inset: 0; z-index: 9500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   background: radial-gradient(120% 90% at 30% 10%, #3a3f99 0%, #1e2262 50%, #101334 100%); color: #fff; }

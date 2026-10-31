@@ -218,6 +218,9 @@ ipcMain.handle("web:peek", async (_e, url) => {
   }
 });
 
+// A real picture of a page the robot opened to test it (its dev server, or HTML it rendered).
+ipcMain.handle("web:shot", (_e, req) => require("./pageshot.cjs").shot(req));
+
 // GitHub, Hugging Face and Wikipedia data, web search results and read-only git facts.
 require("./sites.cjs").register(ipcMain, (url, opts) => net.fetch(url, opts));
 

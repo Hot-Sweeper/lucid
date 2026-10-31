@@ -436,7 +436,10 @@ export class ChatPanel {
   get isOpen() { return this.el.classList.contains("open"); }
   get threadId() { return this.desk?.threadId ?? null; }
 
+  private closing = false;
   open(desk: Desk) {
+    // opened again while it was sliding out (you clicked another robot): it stays
+    if (this.closing) { this.closing = false; gsap.killTweensOf(this.el); gsap.set(this.el, { clearProps: "x,opacity" }); }
     const same = this.desk === desk;
     this.desk = desk;
     if (!same) {
@@ -478,7 +481,10 @@ export class ChatPanel {
       const tab = this.tab;
       this.el.classList.remove("open");
       gsap.to(tab, { x: 44, opacity: 0, duration: 0.22, ease: "power2.in", onComplete: () => { tab.hidden = true; gsap.set(tab, { clearProps: "x,opacity" }); } });
-    } else gsap.to(this.el, { x: 40, opacity: 0, duration: 0.3, ease: "power2.in", onComplete: () => this.el.classList.remove("open") });
+    } else {
+      this.closing = true;
+      gsap.to(this.el, { x: 40, opacity: 0, duration: 0.3, ease: "power2.in", onComplete: () => { this.closing = false; this.el.classList.remove("open"); } });
+    }
     this.closeMenu();
     this.desk = null;
   }

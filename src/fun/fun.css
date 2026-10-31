@@ -71,6 +71,9 @@
 .fun-tb-meta span i, .fun-th-item span i, .fun-th-main p i { display: inline-block; width: 2.5px; height: 2.5px; border-radius: 50%; background: currentColor; vertical-align: middle; margin: 0 5px; opacity: 0.8; }
 .fun-tb-watch { display: grid; grid-template-columns: minmax(0, 1fr) 216px; gap: 16px; padding: 2px 16px 24px; }
 .fun-tb-player { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #0e1233; }
+/* the title and the channel under the video must fit in the window: the player gives up width, not the channel name */
+.fun-tube .fun-site-page, .fun-th .fun-site-page { container-type: size; }
+.fun-tube .fun-tb-player, .fun-th .fun-tb-player { width: min(100%, calc((100cqh - 86px) * 16 / 9)); }
 .fun-tb-player canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .fun-tb-ctrl { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 10px; padding: 18px 10px 7px; background: linear-gradient(180deg, rgba(10, 12, 35, 0), rgba(10, 12, 35, 0.6)); }
 .fun-tb-bar { flex: 1; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.25); overflow: hidden; }

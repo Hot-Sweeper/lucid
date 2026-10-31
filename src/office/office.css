@@ -118,6 +118,8 @@
 .pp-body h4 { margin: 0 0 6px; font-size: 13px; line-height: 1.25; }
 .pp-body p { margin: 0 0 6px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .pp-body p.h2, .pp-body p.h3 { font-weight: 600; font-size: 10px; }
+.pp-body:has(.pp-shot) { padding: 0; background: #fff; }
+.pp-shot { display: block; width: 100%; height: auto; }
 .pp-skel { height: 34px; border-radius: 6px; background: #e3e5f3; margin-bottom: 6px; }
 .pp-skel.s { height: 14px; width: 70%; }
 .pp-cap { flex: none; margin: 0 8px 8px; padding: 5px 8px; border-radius: 8px; background: rgba(27, 31, 69, 0.88); color: #fff; font-size: 8.5px; text-align: center; }
@@ -178,7 +180,6 @@
 .cp-chip button:hover { background: rgba(255, 255, 255, 0.1); color: var(--ink); }
 .cp-drop { position: absolute; inset: 4px 8px 10px; display: grid; place-items: center; border-radius: 16px; border: 2px dashed rgba(255, 159, 90, 0.8); background: rgba(18, 21, 58, 0.94); font-weight: 600; color: #ffd27a; pointer-events: none; }
 .cp-drop[hidden] { display: none; }
-.scene.screen-mode .desk-unit:not(.selected) { pointer-events: none; }
 .monitor { cursor: zoom-in; }
 .desk-unit.empty .monitor { cursor: default; }
 

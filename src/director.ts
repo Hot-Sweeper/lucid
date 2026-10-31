@@ -641,7 +641,7 @@ export class Director {
         this.onActivity(`Looking at ${baseName(p)}`);
         this.stage.setGlow(GLOW.tool);
         const src = fileUrl(done.data.viewedImagePath || p);
-        await this.tool.picture(baseName(p), src);
+        await this.tool.picture(baseName(p), src, () => this.image(done.data.viewedImagePath || p));
         return true;
       }
       const body = text(done.data.output).replace(/^\s*\d+[\t→]/gm, "");
@@ -760,7 +760,7 @@ export class Director {
       if (/^https?:/.test(url) && (base !== "preview_snapshot" || out.visibleText)) {
         this.stage.setGlow(GLOW.browser);
         this.onActivity(base === "preview_snapshot" ? "Reading the page" : base === "preview_open" ? "Opening a tab" : `Visiting ${hostOf(url)}`);
-        await this.browser.open(url, { instant: this.catchingUp, title: out.title || undefined, text: base === "preview_snapshot" ? String(out.visibleText) : undefined, key: tabId ? `pv:${tabId}` : undefined });
+        await this.browser.open(url, { instant: this.catchingUp, title: out.title || undefined, text: base === "preview_snapshot" ? String(out.visibleText) : undefined, key: tabId ? `pv:${tabId}` : undefined, real: true });
         return true;
       }
       if (base === "preview_navigate") return false; // a normal visit, handled by the caller
@@ -773,6 +773,20 @@ export class Director {
       return true;
     }
     if (base === "t3_preview_close") { this.wm.close("browser"); return true; }
+    // HTML the robot wrote and rendered to look at it: the browser draws that very page
+    if (base === "html_render" || base === "html_preview") {
+      const inp = this.get(id).data.input || {};
+      const html = typeof inp.html === "string" && /</.test(inp.html) ? inp.html : null;
+      if (html) {
+        const title = String(inp.title || "").trim();
+        let key = 0;
+        for (let i = 0; i < html.length; i++) key = (Math.imul(key, 31) + html.charCodeAt(i)) | 0;
+        this.stage.setGlow(GLOW.browser);
+        this.onActivity(title ? `Looking at “${title.slice(0, 50)}” in the browser` : "Looking at the page it built");
+        await this.browser.open("about:blank", { instant: this.catchingUp, title: title || undefined, html, key: `html:${key}`, newTab: true });
+        return true;
+      }
+    }
     return false;
   }
 
@@ -988,7 +1002,13 @@ export class Director {
       const body = page.querySelector(".pp-body") as HTMLElement;
       body.innerHTML = `<h4></h4><div class="pp-skel"></div><div class="pp-skel s"></div><div class="pp-skel"></div>`;
       body.querySelector("h4")!.textContent = title || host;
-      if (/^https?:/.test(url) && !/^https?:\/\/(127\.0\.0\.1|localhost)/.test(url)) {
+      // the page as a phone shows it: drawn by a real browser at phone width
+      const shot = /^https?:/.test(url) ? await (window as any).lucid?.shot?.({ url, width: 390 }).catch(() => null) : null;
+      if (shot?.ok && shot.image) {
+        body.innerHTML = `<img class="pp-shot" alt="" draggable="false">`;
+        (body.querySelector("img") as HTMLImageElement).src = shot.image;
+        if (shot.title) (page.querySelector(".pp-url") as HTMLElement).textContent = host;
+      } else if (/^https?:/.test(url) && !/^https?:\/\/(127\.0\.0\.1|localhost)/.test(url)) {
         const res = await this.peekFn(url).catch(() => null);
         if (res?.ok) {
           body.innerHTML = `<h4></h4>${(res.blocks || []).slice(0, 8).map((b: any) => `<p class="${b.tag}"></p>`).join("")}`;
@@ -1060,7 +1080,7 @@ export class Director {
         await this.wm.sleep(Math.min(3200, 800 + said.length * 12));
         for (const img of imgs.slice(0, 2)) {
           this.onActivity(`Looking at ${img.name}`);
-          await this.tool.picture(img.name, fileUrl(img.path));
+          await this.tool.picture(img.name, fileUrl(img.path), () => this.image(img.path));
         }
         return;
       }
@@ -1169,7 +1189,8 @@ export class Director {
         if (typeof url === "string" && /^https?:/.test(url)) {
           this.onActivity(`Visiting ${new URL(url).hostname}`);
           this.stage.setGlow(GLOW.browser);
-          await this.browser.visit(url);
+          // an app on its own machine (a dev server being tested) is drawn as the real page
+          await this.browser.visit(url, { real: /^https?:\/\/(localhost|127\.|0\.0\.0\.0|\[::1\])/i.test(url) });
           return;
         }
         this.onActivity(`Using ${prettyTool(name).action}`);

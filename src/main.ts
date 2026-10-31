@@ -641,6 +641,13 @@ world.onFollowChat = (id) => {
   chat.setStatus("Off work right now", "idle");
 };
 
+// A walking robot clicked while a chat is open: the chat follows to that robot, the camera follows its walk
+world.onWatchChat = (id) => {
+  const d = world.deskFor(id);
+  if (d) { chat.open(d); chat.setView("desk"); pushStatus(d); return; }
+  world.onFollowChat(id);
+};
+
 // A robot waiting for your answer: its chat opens with the answer card focused. At its desk if it
 // has one, otherwise beside the questions room where it waits in line.
 const needsAnswer = (id: string) => !!world.lastData?.threads.find((t) => t.id === id)?.question;
@@ -712,7 +719,11 @@ function openThread(id: string) {
   if (d && !d.el.classList.contains("arriving")) { world.focusOn(d); return; }
   // not at a desk: follow it wherever it is (break room, questions, park, walking)
   const el = document.querySelector(`.world-walker[data-id="${CSS.escape(id)}"]`) as HTMLElement | null;
-  if (el) world.follow(el);
+  if (el) {
+    const chatOpen = !!world.focusDesk;
+    world.follow(el);
+    if (chatOpen) world.onWatchChat(id);   // an open chat moves along to this robot
+  }
 }
 setInterval(renderThreads, 3000);
 window.setTimeout(renderThreads, 1500);

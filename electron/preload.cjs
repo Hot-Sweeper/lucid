@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld("lucid", {
   startThread: (opts) => ipcRenderer.invoke("t3:start", opts),
   sendMessage: (opts) => ipcRenderer.invoke("t3:send", opts),
   peek: (url) => ipcRenderer.invoke("web:peek", url),
+  shot: (req) => ipcRenderer.invoke("web:shot", req),
   siteFetch: (url, as) => ipcRenderer.invoke("site:fetch", url, as),
   webSearch: (q) => ipcRenderer.invoke("web:search", q),
   gitInfo: (root) => ipcRenderer.invoke("git:info", root),
