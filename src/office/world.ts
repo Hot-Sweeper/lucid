@@ -312,7 +312,7 @@ export class World {
     const top: Plan[] = [
       { id: "queue", kind: "queue", title: "Questions for you", icon: null, threads: queue, slots: 0, w: 720, h: 800 },
       office("main", "main", "Main office", null, main, 3, 6),
-      { id: "break", kind: "break", title: "Break room", icon: null, threads: brk.slice(0, 8), slots: 0, w: 1200, h: 800 },
+      { id: "break", kind: "break", title: "Break room", icon: null, threads: brk.slice(0, 8), slots: 0, w: 1900, h: 800 },
     ];
     const bottom: Plan[] = [];
     for (const [pid, list] of perProject) {

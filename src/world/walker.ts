@@ -9,7 +9,9 @@ import { bind, brandFor, clamp, defsSvg, eyesSvg, headSideSvg, headSvg, lerp, pa
 export type Facing = "up" | "down" | "left" | "right";
 export type Activity =
   | "idle" | "talk" | "laugh" | "eat" | "drink" | "charge" | "nap" | "wave" | "wait"
-  | "hold-card" | "sit" | "explain" | "listen";
+  | "hold-card" | "sit" | "explain" | "listen"
+  // group games: ping pong stance, gamepad, chin scratch, cheering, sulking, watching a film
+  | "ready" | "play" | "think" | "cheer" | "sulk" | "watch";
 
 export interface WalkerOptions { id: string; provider: string; name?: string; model?: string; scale?: number; look?: RobotLook }
 
@@ -22,9 +24,10 @@ const HIP_SIDE = { x: 560, y: 846 };
 const UPPER = 46, FORE = 44;
 const SPEED = 110; // px per second
 const HANG_A = 0.42, HANG_B = -0.22; // arms hanging slightly out, clear of the torso
+const READY = { a: 1.05, b: 0.95 };     // ping pong: paddle up in front
 
 type ArmPose = { a: number; b: number };
-export type Prop = "none" | "mug" | "bowl" | "spoon" | "card" | "wrist";
+export type Prop = "none" | "mug" | "bowl" | "spoon" | "card" | "wrist" | "paddle" | "pad" | "popcorn" | "ball";
 
 const PROPS: Record<Prop, string> = {
   none: "",
@@ -33,6 +36,14 @@ const PROPS: Record<Prop, string> = {
   spoon: `<rect x="-3" y="-44" width="6" height="40" rx="3" fill="#d8dde8"/><ellipse cx="0" cy="-48" rx="8" ry="10" fill="#e6eaf2"/>`,
   card: "",
   wrist: `<rect x="-15" y="-34" width="30" height="20" rx="6" fill="var(--visor)"/><rect class="world-wrist" x="-10" y="-30" width="20" height="12" rx="3" fill="var(--glow)"/>`,
+  paddle: `<rect x="-6" y="-14" width="12" height="30" rx="5" fill="#a8774f"/><circle cx="0" cy="-36" r="25" fill="#2b2f3d"/><circle cx="0" cy="-37" r="22" fill="#e2483d"/><ellipse cx="-7" cy="-45" rx="8" ry="5" fill="#ff8a7a" opacity="0.6"/>`,
+  // held in the right hand, reaching across to the left hand
+  pad: `<rect x="-62" y="-14" width="70" height="28" rx="13" fill="#3a3f4f"/><rect x="-60" y="-13" width="66" height="10" rx="5" fill="#4a5063"/>
+    <circle cx="-48" cy="0" r="6" fill="#262a36"/><circle cx="-6" cy="-4" r="4" fill="#ff6f91"/><circle cx="-14" cy="4" r="4" fill="#4fb6ff"/><circle cx="-27" cy="-2" r="2.5" fill="var(--glow)"/>`,
+  popcorn: `<path d="M-26 -28 L26 -28 L19 22 Q0 28 -19 22 Z" fill="#fff6e8"/>
+    <path d="M-17 -28 L-12 24 L-4 25 L-8 -28 Z M8 -28 L4 25 L12 24 L17 -28 Z" fill="#e2483d"/>
+    <circle cx="-17" cy="-32" r="9" fill="#fff3c4"/><circle cx="-3" cy="-37" r="10" fill="#ffe9a0"/><circle cx="12" cy="-33" r="9" fill="#fff3c4"/><circle cx="21" cy="-28" r="7" fill="#ffd27a"/><circle cx="3" cy="-28" r="8" fill="#fff8de"/>`,
+  ball: `<circle cx="0" cy="-10" r="10" fill="#fffdf6"/><circle cx="-3" cy="-13" r="3.5" fill="#fff" opacity="0.9"/>`,
 };
 
 const sleep = (sec: number) => new Promise<void>((r) => gsap.delayedCall(sec, r));
@@ -215,7 +226,8 @@ export class Walker {
     gsap.to(this.st, { ...l, ...r, duration: 0.3, ease: "power2.out", overwrite: "auto" });
   }
 
-  do(activity: Activity, opts: { card?: string; keep?: boolean } = {}) {
+  /** `seated` keeps the robot sitting (laughing on a couch, thinking at a chess table). */
+  do(activity: Activity, opts: { card?: string; keep?: boolean; seated?: boolean } = {}) {
     this.activity = activity;
     this.act?.kill();
     this.act = null;
@@ -233,8 +245,10 @@ export class Walker {
       const tick = () => { fn(); this.actTimers.push(gsap.delayedCall(every(), tick)); };
       this.actTimers.push(gsap.delayedCall(0.3 + Math.random() * 0.6, tick));
     };
-    to({ ...base, sit: activity === "sit" || activity === "nap" || activity === "eat" ? st.sit : 0, dim: 0 });
+    const seated = opts.seated || activity === "watch";
+    to({ ...base, sit: seated ? 1 : activity === "sit" || activity === "nap" || activity === "eat" ? st.sit : 0, dim: 0 });
     if (activity !== "laugh" && activity !== "nap" && (this.expr === "laugh" || this.expr === "sleepy")) this.setExpression("neutral");
+    if (activity !== "sulk" && activity !== "cheer" && (this.expr === "angry" || this.expr === "happy")) this.setExpression("neutral");
 
     switch (activity) {
       case "idle":
@@ -332,8 +346,128 @@ export class Walker {
         to({ sit: 1, la: 0.2, lb: 1.1, ra: 0.2, rb: 1.1 }, 0.6);
         loop(() => gsap.timeline().to(st, { tilt: pick([-5, 5, 0]), duration: 0.8, ease: "sine.inOut" }), () => 3 + Math.random() * 3);
         break;
+      case "ready": // ping pong stance: knees bent, paddle up and forward, bouncing on the toes
+        this.setProps("none", "paddle");
+        to({ sit: 0.14, la: 0.75, lb: 1.1, ra: READY.a, rb: READY.b }, 0.35);
+        this.act = this.bounce();
+        break;
+      case "play": { // gamepad in both hands, thumbs never rest
+        this.setProps("none", "pad");
+        to({ la: 0.36, lb: 1.78, ra: 0.36, rb: 1.78 }, 0.4);
+        const thumbs = () => {
+          if (this.activity !== "play") return;
+          const k = Math.random() < 0.5 ? "lb" : "rb";
+          this.actTimers.push(gsap.delayedCall(0.08 + (Math.random() * 0.18) / this.mashRate, thumbs));
+          gsap.timeline().to(st, { [k]: 1.62 + Math.random() * 0.1, nod: 2 * this.mashRate, duration: 0.05 }).to(st, { [k]: 1.78, nod: 0, duration: 0.07 });
+        };
+        this.actTimers.push(gsap.delayedCall(0.4, thumbs));
+        loop(() => gsap.timeline().to(st, { sway: pick([-0.8, 0.8, -0.4, 0.4]), duration: 0.3, ease: "sine.inOut" }).to(st, { sway: 0, duration: 0.4, ease: "sine.inOut" }, "+=0.3"), () => 1.2 + Math.random() * 1.6);
+        break;
+      }
+      case "think": // scratch the chin
+        to({ ra: 0.42, rb: 2.35, rFwd: 0.55, la: 0.3, lb: 1.3, tilt: 6 }, 0.5);
+        this.act = gsap.to(st, { rb: 2.2, duration: 0.16, yoyo: true, repeat: -1, repeatDelay: 0.5, ease: "sine.inOut", delay: 0.5 });
+        loop(() => gsap.timeline().to(st, { tilt: pick([-6, 8]), duration: 0.9, ease: "sine.inOut" }), () => 2 + Math.random() * 2);
+        break;
+      case "cheer":
+        this.setExpression("happy");
+        to({ la: 2.65, lb: 0.25, ra: 2.65, rb: 0.25 }, 0.25);
+        this.act = gsap.timeline({ repeat: 2 })
+          .to(st, { jump: 1, duration: 0.17, ease: "power2.out" }).to(st, { jump: 0, duration: 0.24, ease: "power2.in" })
+          .to(st, { la: 2.4, ra: 2.4, duration: 0.12, yoyo: true, repeat: 1 }, 0);
+        break;
+      case "sulk":
+        this.setExpression("angry");
+        to({ nod: 7, tilt: -7, shrug: 4, la: 0.1, ra: 0.1, lb: 0, rb: 0 }, 0.5);
+        loop(() => { this.puff(); return gsap.timeline().to(st, { shrug: 8, duration: 0.4 }).to(st, { shrug: 3, duration: 0.6 }); }, () => 2.4 + Math.random() * 2);
+        break;
+      case "watch": // sitting, eyes on the screen; munches if holding popcorn
+        if (this.propL === "popcorn") to({ la: 0.25, lb: 1.8, ra: 0.2, rb: 1.1 }, 0.6);
+        else to({ la: 0.2, lb: 1.1, ra: 0.2, rb: 1.1 }, 0.6);
+        loop(() => {
+          if (this.propL === "popcorn") return this.munch();
+          return gsap.timeline().to(st, { tilt: pick([-5, 5]), duration: 1, ease: "sine.inOut" }).to(st, { tilt: 0, duration: 1, ease: "sine.inOut" }, "+=1.5");
+        }, () => 2.4 + Math.random() * 2.4);
+        break;
     }
   }
+
+  /** How hard the thumbs work in "play" (1 normal, 2.5 button mashing). */
+  mashRate = 1;
+
+  private bounce() { return gsap.to(this.st, { jump: 0.1, duration: 0.26, yoyo: true, repeat: -1, ease: "sine.inOut" }); }
+
+  /** Hand into the popcorn, then to the mouth. */
+  munch() {
+    const st = this.st;
+    return gsap.timeline().to(st, { ra: 0.5, rb: 1.9, duration: 0.3, ease: "power2.inOut" })
+      .to(st, { ra: 0.4, rb: 2.45, rFwd: 1, nod: 3, duration: 0.35, ease: "power2.inOut" })
+      .to(st, { nod: 0, duration: 0.15, yoyo: true, repeat: 1 })
+      .to(st, { ra: 0.2, rb: 1.1, rFwd: 0, duration: 0.35, ease: "power2.inOut" });
+  }
+
+  /** Reach sideways into a neighbor's popcorn (`dir` -1 left, 1 right on screen), then eat it. */
+  reachOver(dir: -1 | 1) {
+    const st = this.st, k = dir < 0 ? "l" : "r";
+    return gsap.timeline().to(st, { [k + "a"]: 1.25, [k + "b"]: 0.2, sway: dir * 0.9, duration: 0.45, ease: "power2.out" })
+      .to(st, { [k + "b"]: 0.45, duration: 0.12, yoyo: true, repeat: 1 })
+      .to(st, { [k + "a"]: 0.4, [k + "b"]: 2.4, [k + "Fwd"]: 1, sway: 0, duration: 0.45, ease: "power2.inOut" })
+      .to(st, { [k + "a"]: 0.2, [k + "b"]: 1.1, [k + "Fwd"]: 0, duration: 0.35 }, "+=0.25");
+  }
+
+  /** Ping pong forehand; the paddle meets the ball `contact` seconds from now. */
+  swing(contact = 0.2) {
+    const st = this.st;
+    const back = Math.max(0.05, contact - 0.1);
+    this.act?.kill();
+    this.act = null;
+    st.jump = 0;
+    return gsap.timeline()
+      .to(st, { ra: 0.1, rb: 0.3, lean: -6, duration: back, ease: "power2.out" })
+      .to(st, { ra: 1.9, rb: 0.5, lean: 7, duration: 0.1, ease: "power3.in" })
+      .to(st, { ra: READY.a, rb: READY.b, lean: 0, duration: 0.35, ease: "power2.inOut" }, "+=0.06")
+      .add(() => { if (this.activity === "ready" && !this.act) this.act = this.bounce(); });
+  }
+
+  /** A whiff: the swing goes through empty air. */
+  whiff() {
+    const st = this.st;
+    this.act?.kill();
+    this.act = null;
+    return gsap.timeline().to(st, { ra: 2.2, rb: 0.2, lean: 10, duration: 0.12, ease: "power3.in" })
+      .to(st, { ra: READY.a, rb: READY.b, lean: 0, duration: 0.45, ease: "power2.inOut" }, "+=0.25");
+  }
+
+  /** Bend down to pick something up from the floor. */
+  pickUp() {
+    const st = this.st;
+    return gsap.timeline().to(st, { sit: 0.55, ra: 0.6, rb: 0.2, rFwd: 0.6, nod: 6, duration: 0.3, ease: "power2.inOut" })
+      .to(st, { sit: 0, ra: HANG_A, rb: HANG_B, rFwd: 0, nod: 0, duration: 0.35, ease: "power2.inOut" }, "+=0.15");
+  }
+
+  /** Hold the right hand out and shake it (pair with the robot opposite). */
+  shake() {
+    const st = this.st;
+    return gsap.timeline().to(st, { ra: 1.3, rb: 0.5, rFwd: 0.4, duration: 0.35, ease: "power2.out" })
+      .to(st, { rb: 0.25, duration: 0.14, yoyo: true, repeat: 5, ease: "sine.inOut" })
+      .to(st, { ra: HANG_A, rb: HANG_B, rFwd: 0, duration: 0.4, ease: "power2.inOut" });
+  }
+
+  /** Flinch at something scary: arms up in front of the face, a little jump. */
+  flinch() {
+    const st = this.st;
+    this.setExpression("surprised");
+    this.hop();
+    return gsap.timeline().to(st, { la: 1.0, lb: 2.2, ra: 1.0, rb: 2.2, lFwd: 0.6, rFwd: 0.6, duration: 0.15, ease: "power3.out" })
+      .to(st, { la: 0.2, lb: 1.1, ra: 0.2, rb: 1.1, lFwd: 0, rFwd: 0, duration: 0.5, ease: "power2.inOut" }, "+=0.7");
+  }
+
+  /** Floor position of the right hand (for things held or hit with it). */
+  handPoint() {
+    const mx = this.facing === "left" ? 1120 - this.handR.x : this.handR.x;
+    return { x: this.x + (mx - FEET.x) * this.s, y: this.y + (this.handR.y - FEET.y) * this.s };
+  }
+  private handR = { x: 600, y: 840 };
 
   /** Reach forward with the right hand (taps a bell, presses a button), then return. */
   poke() {
@@ -367,9 +501,11 @@ export class Walker {
     this.$.sideEyes.innerHTML = side; this.$.sideEyesGlow.innerHTML = side;
   }
 
-  say(text: string | null, ms?: number) {
+  /** Speech bubble; `think` draws it as a thought cloud instead. */
+  say(text: string | null, ms?: number, think = false) {
     this.sayTimer?.kill();
     const b = this.bubble, p = b.querySelector("p")!;
+    if (text) b.classList.toggle("think", think);
     if (!text) {
       if (b.classList.contains("on")) gsap.to(p, { opacity: 0, y: 6, duration: 0.2, ease: "power2.in", onComplete: () => b.classList.remove("on") });
       return;
@@ -506,6 +642,7 @@ export class Walker {
       this.$["hand" + k].setAttribute("transform", `translate(${hand.x.toFixed(1)} ${hand.y.toFixed(1)})`);
       this.$["prop" + k.toUpperCase()].setAttribute("transform", `translate(${hand.x.toFixed(1)} ${hand.y.toFixed(1)})`);
       if (k === "r") {
+        this.handR.x = hand.x; this.handR.y = hand.y;
         const mx = this.facing === "left" ? 1120 - hand.x : hand.x;
         this.el.style.setProperty("--hx", `${((mx - FEET.x) * this.s).toFixed(1)}px`);
         this.el.style.setProperty("--hy", `${((hand.y - FEET.y) * this.s).toFixed(1)}px`);

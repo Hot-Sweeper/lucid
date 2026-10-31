@@ -1,3 +1,4 @@
+import gsap from "gsap";
 import { uid } from "./parts";
 
 // Shared pieces for the top-down rooms: the shell (floor, north wall face, dark wall tops,
@@ -10,6 +11,21 @@ export const T = 16;       // wall top thickness
 export const DOOR = 120;   // door gap in the south wall
 
 export type Pt = { x: number; y: number };
+
+export const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** Keeps the tweens and timelines of a piece of furniture so destroy() can kill them all. */
+export class Anims {
+  private set = new Set<gsap.core.Animation>();
+  add<A extends gsap.core.Animation>(a: A): A {
+    if (this.set.size > 48) for (const x of this.set) if (!x.isActive() && x.progress() === 1) this.set.delete(x);
+    this.set.add(a);
+    return a;
+  }
+  /** A promise for an animation that never settles if the animation is killed. */
+  run(a: gsap.core.Animation) { return new Promise<void>((res) => { this.add(a); a.eventCallback("onComplete", () => res()); }); }
+  kill() { for (const a of this.set) a.kill(); this.set.clear(); }
+}
 export type Palette = { wall: string; trim: string; floor: string; seam: string; accent: string };
 
 export const PAL = {

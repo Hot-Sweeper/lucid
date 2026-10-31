@@ -71,6 +71,7 @@ function section(title: string, w: number, h: number, scale = 1) {
 const sleep = (s: number) => new Promise<void>((r) => gsap.delayedCall(s, r));
 const api: Record<string, unknown> = {};
 (window as any).worldDemo = api;
+api.gsap = gsap; // for leak checks from capture scripts
 
 // ---- seated robot ---------------------------------------------------------------------
 if (want("desk")) {
@@ -158,8 +159,8 @@ if (want("walkers")) {
 // ---- break room with five residents -------------------------------------------------------------
 const ROOM_SCALE = Number(qs.get("roomScale") || (ONLY ? 1 : 0.75));
 if (want("break")) {
-  const sec = section("Break room", 1200, 800, ROOM_SCALE);
-  const room = new BreakRoom(sec.stage, 1200, 800);
+  const sec = section("Break room", 1900, 800, ROOM_SCALE);
+  const room = new BreakRoom(sec.stage, 1900, 800);
   api.breakRoom = room;
   const residents = [
     { id: "t1", provider: "codex", title: "Refactor the auth module", model: "gpt-5.5-codex", name: "Pixel" },
@@ -167,12 +168,18 @@ if (want("break")) {
     { id: "t3", provider: "grok", title: "Benchmark the parser", model: "grok-5", name: "Volt" },
     { id: "t4", provider: "opencode", title: "Fix flaky tests", model: "qwen-coder-4", name: "Sprocket" },
     { id: "t5", provider: "claudeAgent", title: "Update dependencies", model: "claude-sonnet-5-5", name: "Mochi" },
+    { id: "t6", provider: "codex", title: "Write the docs", model: "gpt-5.5-codex-mini", name: "Nib" },
   ];
-  room.setThreads(residents);
+  const crowd = Number(qs.get("crowd") || 5);
+  room.setThreads(residents.slice(0, crowd));
   room.onSelect = (id) => (sec.status.textContent = `Selected ${residents.find((r) => r.id === id)?.name ?? id}`);
   const btn = (label: string, fn: () => void) => { const b = document.createElement("button"); b.textContent = label; b.onclick = fn; sec.controls.appendChild(b); };
+  btn("Ping pong", () => room.play("pingpong"));
+  btn("Chess", () => room.play("chess"));
+  btn("Console", () => room.play("console"));
+  btn("Movie night", () => room.play("movie"));
   btn("One leaves", () => room.setThreads(residents.slice(0, 4)));
-  btn("All five", () => room.setThreads(residents));
+  btn("All six", () => room.setThreads(residents));
   btn("Night", () => { const r = document.documentElement.style; r.setProperty("--sky1", "#0b1030"); r.setProperty("--sky2", "#262c62"); r.setProperty("--stars", "1"); r.setProperty("--lamp", "1"); });
   btn("Day", () => { const r = document.documentElement.style; r.setProperty("--sky1", "#6fb2ee"); r.setProperty("--sky2", "#d4ecfb"); r.setProperty("--stars", "0"); r.setProperty("--lamp", "0.15"); });
 }

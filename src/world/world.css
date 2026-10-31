@@ -11,6 +11,10 @@
 .world-say p { position: absolute; left: 0; bottom: 0; translate: -50% 0; transform-origin: 50% 100%; margin: 0; width: max-content; max-width: 25ch; padding: 7px 11px; background: #fffaf3; color: #2d3142;
   border-radius: 13px; font: 500 12px/1.35 var(--font); box-shadow: 0 8px 18px rgba(40, 28, 14, 0.2); overflow-wrap: break-word; text-wrap: pretty; }
 .world-say p::after { content: ""; position: absolute; left: calc(50% - 7px); bottom: -6px; width: 14px; height: 14px; background: inherit; border-radius: 3px; transform: rotate(45deg); }
+/* thought bubble: a cloud with two little puffs instead of the tail */
+.world-say.think p { border-radius: 18px; font-style: italic; color: #4a5063; }
+.world-say.think p::after { left: calc(50% - 5px); bottom: -11px; width: 10px; height: 10px; border-radius: 50%; transform: none; }
+.world-say.think p::before { content: ""; position: absolute; left: calc(50% + 4px); bottom: -19px; width: 6px; height: 6px; border-radius: 50%; background: inherit; }
 .world-card { position: absolute; left: var(--hx); top: var(--hy); transform: translate(-14px, -100%); display: none; width: 132px; padding: 8px 10px 9px;
   background: #fffdf7; color: #2d3142; border-radius: 7px; box-shadow: 0 8px 16px rgba(40, 28, 14, 0.22); font: 500 11px/1.3 var(--font); pointer-events: none; }
 .world-card.on { display: block; }
@@ -38,3 +42,7 @@
 .world-spark i:nth-child(4) { rotate: 180deg; background: #4ff0a0; }
 .world-spark i:nth-child(5) { rotate: 240deg; }
 .world-spark i:nth-child(6) { rotate: 300deg; background: #ff6f91; }
+
+/* ---------- break room games ---------- */
+.world-ppball { position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%; background: #fffdf6; pointer-events: none; }
+.world-ppshadow { position: absolute; left: -4.5px; top: -2px; width: 9px; height: 4px; border-radius: 50%; background: #1b1f2e; pointer-events: none; }

@@ -1,13 +1,23 @@
 import gsap from "gsap";
 import { Walker } from "./walker";
 import { JOKES, LAUGHS, WINDOW_THOUGHTS, shuffled } from "./jokes";
-import { PAL, Paths, RoomStage, WALL, plantSvg, posterArt, windowArt, type Pt } from "./room";
+import { Anims, PAL, Paths, RoomStage, WALL, plantSvg, posterArt, reducedMotion, windowArt, type Pt } from "./room";
+import { PingPong } from "./pingpong";
+import { ChessTable, GAMES, type ChessGame } from "./chess";
+import { Arcade, type GameEvent } from "./arcade";
+import { MovieCorner, type Beat } from "./movie";
 import type { Facing } from "./walker";
 
-// The break room, seen top-down: a kitchen counter on the north wall (fridge, sink, microwave,
-// coffee machine), a dining table, a couch on a rug, three charging docks, a nap pod and a
-// beanbag. Residents walk in through the door and live a little life loop: microwave a meal
-// and eat it, make coffee, charge, nap, look out of the window, chat and tell robot jokes.
+// The break room, seen top-down. West: a kitchen counter on the north wall (fridge, sink,
+// microwave, coffee machine), a dining table, three charging docks and a nap pod. Middle: a
+// couch on a rug under the windows, a beanbag, and the door in the south wall. East, the games
+// wing: a ping pong table, a chess table, a TV with a game console and a couch, and a movie
+// corner with a roll-down screen, beanbags, a projector and a popcorn machine.
+// Residents walk in through the door and live a little life loop: microwave a meal and eat it,
+// make coffee, charge, nap, look out of the window, chat and tell robot jokes, and play games
+// together. Group games use a host and join pattern: the host recruits free robots (pulling
+// ones that are only idling) and waits for them; anyone leaving ends the game cleanly.
+// The room is laid out for 1900 x 800; the games wing hugs the east wall, the door is at w / 2.
 
 export type BreakThread = { id: string; provider: string; title: string; question?: string | null; model?: string | null; name?: string | null };
 
@@ -21,39 +31,131 @@ export interface RoomExtension {
 const SCALE = 0.42;
 const MAX = 8;
 type Spot = { key: string; x: number; y: number; face: Facing; sit?: boolean; via?: Pt[]; taken: string | null };
-type Kind = "microwave" | "coffee" | "charge" | "nap" | "window" | "fridge" | "chat";
-const WEIGHTS: Record<Kind, number> = { microwave: 3, coffee: 3, charge: 2, nap: 1.5, window: 1.5, fridge: 0.8, chat: 3.2 };
-const COOLDOWN: Record<Kind, number> = { microwave: 55, coffee: 35, charge: 60, nap: 75, window: 25, fridge: 45, chat: 18 };
+export type GroupKind = "pingpong" | "chess" | "console" | "movie";
+type Kind = "microwave" | "coffee" | "charge" | "nap" | "window" | "fridge" | "chat" | GroupKind;
+const WEIGHTS: Record<Kind, number> = { microwave: 3, coffee: 3, charge: 2, nap: 1.5, window: 1.5, fridge: 0.8, chat: 3.2, pingpong: 2.4, chess: 1.6, console: 2.4, movie: 1.5 };
+const COOLDOWN: Record<Kind, number> = { microwave: 55, coffee: 35, charge: 60, nap: 75, window: 25, fridge: 45, chat: 18, pingpong: 80, chess: 140, console: 70, movie: 160 };
+/** After a game ends, how long its corner rests before anyone starts it again (seconds). */
+const REST: Record<GroupKind, number> = { pingpong: 15, chess: 25, console: 15, movie: 90 };
+const GROUPS: GroupKind[] = ["pingpong", "chess", "console", "movie"];
 
 type Resident = {
   id: string; w: Walker; alive: boolean; busy: boolean; nextAt: number; last: Kind | null;
   cool: Partial<Record<Kind, number>>; spot: Spot | null;
+  /** Idling (wandering, at the window): a group game may pull it away. */
+  soft: boolean;
+  /** Invited to a group game; joins it as soon as it is free. */
+  pull: Group | null;
+  /** Cuts the current idle wait short when pulled. */
+  interrupt: (() => void) | null;
+  group: Group | null;
 };
 
+const ENDED = new Error("group ended");
+
+/** One running group game: who plays, who watches, and timers that stop when it ends. */
+class Group {
+  alive = true;
+  open = true;                 // still taking players
+  players: Resident[] = [];
+  extras: Resident[] = [];     // spectators
+  recruits = new Set<Resident>();
+  arrived = new Set<Resident>();
+  lostOne = false;             // someone left in the middle
+  started = false;             // the movie is rolling: it goes on without whoever leaves
+  onArrive: (r: Resident) => void = () => {};
+  readonly done: Promise<void>;
+  private finish!: () => void;
+  private stops = new Set<(e: Error) => void>();
+  private calls = new Set<gsap.core.Tween>();
+
+  constructor(readonly kind: GroupKind, readonly host: Resident, readonly seats: string[], readonly extraSeats: string[]) {
+    this.done = new Promise((r) => (this.finish = r));
+  }
+
+  /** Wait inside the game; rejects as soon as the game ends. */
+  wait(sec: number) {
+    if (!this.alive) return Promise.reject(ENDED);
+    return new Promise<void>((res, rej) => {
+      const c = gsap.delayedCall(sec, () => { this.calls.delete(c); this.stops.delete(rej); res(); });
+      this.calls.add(c);
+      this.stops.add(rej);
+    });
+  }
+
+  /** Await a walk or an animation, but bail out if the game ends meanwhile. */
+  until<T>(p: Promise<T>) {
+    if (!this.alive) return Promise.reject(ENDED);
+    return new Promise<T>((res, rej) => {
+      this.stops.add(rej);
+      p.then((v) => { this.stops.delete(rej); if (this.alive) res(v); else rej(ENDED); }, (e) => { this.stops.delete(rej); rej(e); });
+    });
+  }
+
+  /** Run something later, unless the game is over by then. */
+  later(sec: number, fn: () => void) {
+    const c = gsap.delayedCall(sec, () => { this.calls.delete(c); if (this.alive) fn(); });
+    this.calls.add(c);
+  }
+
+  /** Still here and part of this game. */
+  has(r: Resident) { return r.alive && r.group === this; }
+  get here() { return this.players.filter((r) => this.has(r) && this.arrived.has(r)); }
+
+  end() {
+    if (!this.alive) return;
+    this.alive = false;
+    for (const c of this.calls) c.kill();
+    this.calls.clear();
+    for (const s of this.stops) s(ENDED);
+    this.stops.clear();
+    this.finish();
+  }
+}
+
 const DOCKS = [150, 260, 370];
-const DOOR_IN = { x: 600, y: 750 }, DOOR_OUT = { x: 600, y: 860 };
+const SALTY = ["Edge ball!", "The net moved.", "Lag.", "That was out. Probably.", "Sun in my sensors.", "My paddle needs a firmware update."];
+const pickOne = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
 export class BreakRoom implements RoomExtension {
   el: HTMLElement;
   onSelect: (id: string) => void = () => {};
+  /** Where robots walk in (just inside the door) and appear from (outside it). */
+  readonly doorIn: Pt;
+  readonly doorOut: Pt;
   private stage: RoomStage;
   private paths: Paths;
   private spots: Record<string, Spot> = {};
   private res = new Map<string, Resident>();
   private timer = 0;
   private $: Record<string, SVGElement> = {};
-  private anims: gsap.core.Animation[] = [];
+  private anims: gsap.core.Animation[] = [];   // idle loops, paused while the room is empty
+  private fx = new Anims();                       // machines at work
+  private calls = new Set<gsap.core.Tween>();
   private joke = shuffled(JOKES);
   private laugh = shuffled(LAUGHS);
   private thought = shuffled(WINDOW_THOUGHTS);
   private busyThings = new Set<string>();
   // A robot that wants to chat waits at a chat spot; the next robot that frees up joins it.
   private host: { r: Resident; pair: [string, string]; guest: Resident | null; arrived: boolean; over: Promise<void>; end: () => void } | null = null;
+  private groups: Partial<Record<GroupKind, Group>> = {};
+  private rested: Partial<Record<GroupKind, number>> = {};
+  private force: GroupKind | null = null;
+  private lastGame: ChessGame | null = null;
+  private nextGame: ChessGame | null = null;
+  private pp!: PingPong;
+  private chessT!: ChessTable;
+  private arcade!: Arcade;
+  private movie!: MovieCorner;
+  private dead = false;
 
   constructor(host: HTMLElement, readonly w: number, readonly h: number) {
-    this.stage = new RoomStage(host, w, h, { wall: "#e6eadf", trim: "#d0d6c5", floor: PAL.floor, seam: PAL.seam, accent: PAL.mint }, wallArt(), "world-break");
+    this.doorIn = { x: w / 2, y: h - 50 };
+    this.doorOut = { x: w / 2, y: h + 60 };
+    this.stage = new RoomStage(host, w, h, { wall: "#e6eadf", trim: "#d0d6c5", floor: PAL.floor, seam: PAL.seam, accent: PAL.mint }, wallArt(w), "world-break");
     this.el = this.stage.el;
     this.furnish();
+    const gx = (x: number) => x + w - 1900;   // the games wing hugs the east wall
     const S = (key: string, x: number, y: number, face: Facing, extra: Partial<Spot> = {}) => (this.spots[key] = { key, x, y, face, taken: null, ...extra });
     S("microwave", 372, 216, "up"); S("coffee", 470, 216, "up"); S("fridge", 80, 228, "up");
     S("window1", 730, 196, "up"); S("window2", 930, 196, "up");
@@ -61,15 +163,30 @@ export class BreakRoom implements RoomExtension {
     S("seatS1", 300, 502, "up", { sit: true }); S("seatS2", 420, 502, "up", { sit: true });
     S("couch1", 812, 402, "down", { sit: true }); S("couch2", 912, 402, "down", { sit: true });
     DOCKS.forEach((x, i) => S(`dock${i}`, x, 716, "down", { via: [{ x: x + 52, y: 748 }] }));
-    S("pod", 1090, 716, "down", { sit: true, via: [{ x: 990, y: 700 }, { x: 1090, y: 762 }] });
-    S("beanbag", 1112, 452, "down", { sit: true });
+    S("pod", 550, 716, "down", { sit: true, via: [{ x: 666, y: 744 }, { x: 550, y: 764 }] });
+    S("beanbag", 1040, 466, "down", { sit: true });
     S("chatA1", 556, 296, "right"); S("chatA2", 650, 296, "left");
     S("chatB1", 700, 626, "right"); S("chatB2", 792, 626, "left");
+    // games wing
+    const [ppA, ppB] = this.pp.ends;
+    S("ppA", ppA.x, ppA.y, "right"); S("ppB", ppB.x, ppB.y, "left");
+    const cs = this.chessT.seats;
+    S("chessW", cs.w.x, cs.w.y, "right", { sit: true }); S("chessB", cs.b.x, cs.b.y, "left", { sit: true });
+    S("chessS1", cs.watch[0].x, cs.watch[0].y, "down"); S("chessS2", cs.watch[1].x, cs.watch[1].y, "down");
+    const [g1, g2] = this.arcade.seats;
+    S("gameP1", g1.x, g1.y, "up", { sit: true, via: [{ x: g1.x - 84, y: g1.y - 6 }] });
+    S("gameP2", g2.x, g2.y, "up", { sit: true, via: [{ x: g2.x + 76, y: g2.y + 68 }, { x: g2.x + 76, y: g2.y - 6 }] });
+    S("gameS", this.arcade.watch.x, this.arcade.watch.y, "up");
+    this.movie.seats.forEach((s, i) => S(`movie${i}`, s.x, s.y, "up", { sit: true, via: [{ x: s.x, y: s.y + 46 }] }));
+    S("popcorn", this.movie.popcornSpot.x, this.movie.popcornSpot.y, "up");
+    const D = this.doorIn;
     this.paths = new Paths({
       n1: { x: 120, y: 252 }, n2: { x: 380, y: 252 }, n3: { x: 600, y: 252 }, n4: { x: 830, y: 252 }, n5: { x: 1050, y: 252 },
-      w1: { x: 190, y: 566 }, w2: { x: 430, y: 566 }, c1: { x: 600, y: 566 }, door: DOOR_IN,
-      r1: { x: 680, y: 452 }, e1: { x: 860, y: 640 }, e2: { x: 1050, y: 600 },
-    }, [["n1", "n2"], ["n2", "n3"], ["n3", "n4"], ["n4", "n5"], ["n1", "w1"], ["w1", "w2"], ["w2", "c1"], ["c1", "n3"], ["c1", "door"], ["c1", "r1"], ["r1", "n3"], ["c1", "e1"], ["r1", "e1"], ["e1", "e2"], ["e2", "n5"]]);
+      w1: { x: 190, y: 548 }, w2: { x: 430, y: 548 }, c1: { x: 690, y: 548 }, d1: { x: D.x, y: 548 }, door: D,
+      r1: { x: 680, y: 452 }, e1: { x: 860, y: 640 },
+      k1: { x: gx(1112), y: 330 }, m1: { x: gx(1118), y: 520 }, m2: { x: gx(1290), y: 452 }, m3: { x: gx(1478), y: 488 }, m4: { x: gx(1580), y: 528 }, m5: { x: gx(1850), y: 540 },
+    }, [["n1", "n2"], ["n2", "n3"], ["n3", "n4"], ["n4", "n5"], ["n1", "w1"], ["w1", "w2"], ["w2", "c1"], ["c1", "n3"], ["c1", "d1"], ["d1", "door"], ["c1", "r1"], ["r1", "n3"],
+      ["c1", "e1"], ["d1", "e1"], ["e1", "door"], ["n5", "k1"], ["k1", "m1"], ["d1", "m1"], ["m1", "m2"], ["m2", "m3"], ["m3", "m4"], ["m4", "m5"]]);
     this.idleMachines();
     this.timer = window.setInterval(() => this.tick(), 400);
   }
@@ -88,31 +205,57 @@ export class BreakRoom implements RoomExtension {
         return;
       }
       const w = new Walker(this.stage.layer, { id: t.id, provider: t.provider, model: t.model ?? undefined, name: t.name ?? t.title, scale: SCALE });
-      w.setPos(DOOR_OUT.x + (i % 2 ? 14 : -14), DOOR_OUT.y + i * 30);
+      w.setPos(this.doorOut.x + (i % 2 ? 14 : -14), this.doorOut.y + i * 30);
       w.face("up");
       w.el.addEventListener("click", (e) => { e.stopPropagation(); this.onSelect(t.id); });
-      const res: Resident = { id: t.id, w, alive: true, busy: true, nextAt: 0, last: null, cool: {}, spot: null };
+      const res: Resident = { id: t.id, w, alive: true, busy: true, nextAt: 0, last: null, cool: {}, spot: null, soft: false, pull: null, interrupt: null, group: null };
       this.res.set(t.id, res);
       // stagger arrivals so they don't all squeeze through the door at once
-      gsap.delayedCall(i * 1.1, async () => {
+      this.later(i * 1.1, async () => {
         if (!res.alive) return;
-        await w.walkTo(DOOR_IN.x, DOOR_IN.y);
+        await w.walkTo(this.doorIn.x, this.doorIn.y);
         res.busy = false;
         res.nextAt = performance.now() + 300;
       });
     });
+    this.pauseIdle(want.length === 0);
+  }
+
+  /** Start a group game as soon as a resident is free (for the demo page). `game` picks a chess game by name. */
+  play(kind: GroupKind, opts: { game?: string } = {}) {
+    this.force = kind;
+    this.rested[kind] = 0;
+    if (kind === "chess") this.nextGame = GAMES.find((x) => x.name === opts.game) ?? null;
   }
 
   private async leave(r: Resident) {
     r.alive = false;
+    r.interrupt = null;
+    if (r.pull) { r.pull.recruits.delete(r); r.pull = null; }
+    if (r.group) this.lost(r.group, r);
     this.release(r);
     r.w.say(null);
     r.w.calm();
     r.w.hold("none", "none");
-    await r.w.walkPath(this.paths.route({ x: r.w.x, y: r.w.y }, DOOR_IN));
-    await r.w.walkTo(DOOR_OUT.x, DOOR_OUT.y + 30);
+    r.w.mashRate = 1;
+    await r.w.walkPath(this.paths.route({ x: r.w.x, y: r.w.y }, this.doorIn));
+    await r.w.walkTo(this.doorOut.x, this.doorOut.y + 30);
     r.w.destroy();
     if (this.res.get(r.id) === r) this.res.delete(r.id);
+  }
+
+  /** A member walked out (its thread went back to work). Two-player games end; the movie goes on. */
+  private lost(g: Group, r: Resident) {
+    g.recruits.delete(r);
+    g.arrived.delete(r);
+    if (g.extras.includes(r)) { g.extras = g.extras.filter((x) => x !== r); return; }
+    if (g.kind === "movie" && (r !== g.host || g.started)) {
+      g.players = g.players.filter((x) => x !== r);
+      if (!g.players.some((x) => x.alive)) g.end();
+      return;
+    }
+    g.lostOne = true;
+    g.end();
   }
 
   private tick() {
@@ -136,10 +279,33 @@ export class BreakRoom implements RoomExtension {
     r.w.face(s.face);
   }
 
+  /** Robots that could join a game now: free, or only idling. */
+  private available(except: Resident) {
+    return [...this.res.values()].filter((o) => o !== except && o.alive && !o.group && !o.pull && (!o.busy || o.soft) && this.host?.r !== o && this.host?.guest !== o);
+  }
+
   private async live(r: Resident) {
     r.busy = true;
     const now = performance.now() / 1000;
     const ok = (k: Kind) => k !== r.last && (r.cool[k] ?? 0) <= now;
+    // invited to a game, or a game nearby has room
+    const invited = r.pull;
+    if (invited) {
+      r.pull = null;
+      invited.recruits.delete(r);
+      if (invited.alive) { await this.joinGroup(invited, r).catch(() => {}); this.done(r); return; }
+    }
+    for (const kind of GROUPS) {
+      const g = this.groups[kind];
+      if (!g || !g.alive || !ok(kind)) continue;
+      const seat = g.open && g.seats.some((k) => this.free(k));
+      const watch = g.extraSeats.some((k) => this.free(k));
+      if ((seat && Math.random() < (kind === "movie" ? 0.7 : 0.5)) || (watch && Math.random() < 0.3)) {
+        await this.joinGroup(g, r).catch(() => {});
+        this.done(r);
+        return;
+      }
+    }
     const h = this.host;
     if (h && h.r !== r && h.r.alive && !h.guest && ok("chat") && Math.random() < 0.85) {
       h.guest = r;
@@ -156,18 +322,25 @@ export class BreakRoom implements RoomExtension {
     if (ok("nap") && this.freeOf(["pod", "beanbag"])) options.push("nap");
     if (ok("window") && this.freeOf(["window1", "window2"])) options.push("window");
     if (ok("fridge") && this.free("fridge")) options.push("fridge");
-    const partner = [...this.res.values()].find((o) => o !== r && o.alive && !o.busy && (o.cool.chat ?? 0) <= now && o.last !== "chat");
+    const partner = [...this.res.values()].find((o) => o !== r && o.alive && !o.busy && !o.pull && (o.cool.chat ?? 0) <= now && o.last !== "chat");
     if (ok("chat") && !this.host && this.chatSpots()) options.push("chat");
+    // two or more robots free (this one included): a group game can start
+    const others = this.available(r).length;
+    const startable = (k: GroupKind) => !this.groups[k] && (this.rested[k] ?? 0) <= now && others >= 1;
+    for (const k of GROUPS) if (ok(k) && startable(k)) options.push(k);
     let kind: Kind | null = null;
+    if (this.force && startable(this.force)) { kind = this.force; this.force = null; }
     const total = options.reduce((s, k) => s + WEIGHTS[k], 0);
     let roll = Math.random() * total;
-    for (const k of options) { roll -= WEIGHTS[k]; if (roll <= 0) { kind = k; break; } }
+    if (!kind) for (const k of options) { roll -= WEIGHTS[k]; if (roll <= 0) { kind = k; break; } }
     try {
       if (!kind) { await this.wander(r); }
       else {
         r.last = kind;
         r.cool[kind] = now + COOLDOWN[kind];
-        if (kind === "chat" && partner) {
+        if ((GROUPS as Kind[]).includes(kind)) {
+          await this.runGroup(kind as GroupKind, r);
+        } else if (kind === "chat" && partner) {
           partner.busy = true;
           partner.last = "chat";
           partner.cool.chat = now + COOLDOWN.chat;
@@ -180,18 +353,33 @@ export class BreakRoom implements RoomExtension {
           await run.call(this, r);
         }
       }
-    } catch { /* a resident that left mid-activity just stops */ }
+    } catch { /* a resident that left mid-activity (or was pulled into a game) just stops */ }
+    r.soft = false;
+    r.interrupt = null;
     this.done(r);
   }
 
   private done(r: Resident) {
     if (!r.alive) return;
     r.busy = false;
-    r.nextAt = performance.now() + 400 + Math.random() * 1200;
+    r.group = null;
+    r.soft = false;
+    r.nextAt = performance.now() + (r.pull ? 0 : 400 + Math.random() * 1200);
+  }
+
+  /** A delayed call that destroy() can cancel. */
+  private later(sec: number, fn: () => void) {
+    const c = gsap.delayedCall(sec, () => { this.calls.delete(c); fn(); });
+    this.calls.add(c);
+    return c;
   }
 
   private wait(sec: number, r: Resident) {
-    return new Promise<void>((res, rej) => gsap.delayedCall(sec, () => (r.alive ? res() : rej(new Error("left")))));
+    return new Promise<void>((res, rej) => {
+      const stop = () => { c.kill(); this.calls.delete(c); r.interrupt = null; rej(new Error("pulled")); };
+      const c = this.later(sec, () => { if (r.interrupt === stop) r.interrupt = null; if (r.alive) res(); else rej(new Error("left")); });
+      if (r.soft) { if (r.pull) stop(); else r.interrupt = stop; }
+    });
   }
 
   private async stand(r: Resident) {
@@ -200,6 +388,7 @@ export class BreakRoom implements RoomExtension {
 
   // ---- activities ---------------------------------------------------------------------------------
   private async wander(r: Resident) {
+    r.soft = true;
     const p = { x: 520 + Math.random() * 200, y: 300 + Math.random() * 60 };
     this.release(r);
     await r.w.walkPath(this.paths.route({ x: r.w.x, y: r.w.y }, p));
@@ -232,7 +421,7 @@ export class BreakRoom implements RoomExtension {
     r.w.do("sit", { keep: true });
     await this.wait(0.7, r);
     r.w.do("eat");
-    if (Math.random() < 0.5) gsap.delayedCall(2, () => r.alive && r.w.activity === "eat" && r.w.say(pickOne(["Leftover pixels. Still good.", "Mmm, fresh bytes.", "Five stars, would reheat."])));
+    if (Math.random() < 0.5) this.later(2, () => r.alive && r.w.activity === "eat" && r.w.say(pickOne(["Leftover pixels. Still good.", "Mmm, fresh bytes.", "Five stars, would reheat."])));
     await this.wait(9 + Math.random() * 6, r);
     r.w.calm();
     r.w.hold("none", "none");
@@ -254,7 +443,7 @@ export class BreakRoom implements RoomExtension {
       if (s.sit) { r.w.do("sit", { keep: true }); await this.wait(0.6, r); }
     }
     r.w.do("drink");
-    if (Math.random() < 0.4) gsap.delayedCall(2.5, () => r.alive && r.w.say(pickOne(["Coffee: the original bootloader.", "Ahh. Warm fans.", "Caffeine loaded."])));
+    if (Math.random() < 0.4) this.later(2.5, () => r.alive && r.w.say(pickOne(["Coffee: the original bootloader.", "Ahh. Warm fans.", "Caffeine loaded."])));
     await this.wait(8 + Math.random() * 5, r);
     r.w.calm();
     r.w.hold("none", "none");
@@ -282,7 +471,7 @@ export class BreakRoom implements RoomExtension {
     await this.wait(0.8, r);
     r.w.do("nap");
     if (key === "pod") gsap.to(this.$.podGlow, { opacity: 0.9, duration: 1.5 });
-    await this.wait(14 + Math.random() * 8, r).finally(() => { if (key === "pod") gsap.to(this.$.podGlow, { opacity: 0.25, duration: 1 }); });
+    await this.wait(14 + Math.random() * 8, r).finally(() => { if (key === "pod" && !this.dead) gsap.to(this.$.podGlow, { opacity: 0.25, duration: 1 }); });
     r.w.do("sit");
     r.w.setExpression("surprised");
     r.w.hop();
@@ -294,8 +483,9 @@ export class BreakRoom implements RoomExtension {
     await this.stand(r);
     const key = this.freeOf(["window1", "window2"])!;
     await this.goTo(r, this.reserve(r, key));
+    r.soft = true;
     r.w.do("idle");
-    if (Math.random() < 0.55) gsap.delayedCall(1.5, () => r.alive && r.w.say(this.thought()));
+    if (Math.random() < 0.55) this.later(1.5, () => r.alive && !r.group && r.w.say(this.thought()));
     await this.wait(6 + Math.random() * 4, r);
   }
 
@@ -305,11 +495,13 @@ export class BreakRoom implements RoomExtension {
     r.w.poke();
     gsap.to(this.$.fridgeDoor, { scaleX: 0.12, duration: 0.45, ease: "power2.out", transformOrigin: "0% 50%" });
     gsap.to(this.$.fridgeLight, { opacity: 1, duration: 0.3 });
-    await this.wait(1.6, r);
+    await this.wait(1.6, r).finally(() => { if (!r.alive && !this.dead) { gsap.to(this.$.fridgeDoor, { scaleX: 1, duration: 0.4 }); gsap.to(this.$.fridgeLight, { opacity: 0, duration: 0.3 }); } });
     r.w.say(pickOne(["Out of RAM again.", "Who ate my cookies? Browser cookies.", "Still no snacks with extra cache."]));
-    await this.wait(1.4, r);
-    gsap.to(this.$.fridgeDoor, { scaleX: 1, duration: 0.4, ease: "power2.in" });
-    gsap.to(this.$.fridgeLight, { opacity: 0, duration: 0.3, delay: 0.3 });
+    await this.wait(1.4, r).finally(() => {
+      if (this.dead) return;
+      gsap.to(this.$.fridgeDoor, { scaleX: 1, duration: 0.4, ease: "power2.in" });
+      gsap.to(this.$.fridgeLight, { opacity: 0, duration: 0.3, delay: 0.3 });
+    });
     await this.wait(0.8, r);
   }
 
@@ -392,6 +584,433 @@ export class BreakRoom implements RoomExtension {
     this.release(a); this.release(b);
   }
 
+  // ---- group games: hosting, recruiting, joining -----------------------------------------------------
+  private async runGroup(kind: GroupKind, host: Resident) {
+    const seats = { pingpong: ["ppA", "ppB"], chess: Math.random() < 0.5 ? ["chessW", "chessB"] : ["chessB", "chessW"], console: ["gameP1", "gameP2"], movie: ["movie1", "movie2", "movie0", "movie3"] }[kind];
+    const extras = { pingpong: [], chess: ["chessS1", "chessS2"], console: ["gameS"], movie: [] }[kind];
+    if (!seats.every((k) => this.free(k) || kind === "movie")) return;
+    const g = new Group(kind, host, seats, extras);
+    this.groups[kind] = g;
+    host.group = g;
+    g.players.push(host);
+    try {
+      await this.stand(host);
+      await ({ pingpong: this.pingpong, chess: this.chess, console: this.console, movie: this.movieNight } as Record<GroupKind, (g: Group) => Promise<void>>)[kind].call(this, g);
+    } catch { /* the game ended early */ }
+    finally {
+      const all = [...g.players, ...g.extras];
+      for (const r of g.recruits) if (r.pull === g) r.pull = null;
+      g.end();
+      if (this.groups[kind] === g) delete this.groups[kind];
+      this.rested[kind] = performance.now() / 1000 + REST[kind];
+      if (!this.dead) {
+        this.resetCorner(kind);
+        const stay = all.filter((r) => r.alive && r.group === g);
+        if (g.lostOne && stay.length && kind !== "movie") stay[0].w.say(pickOne(["Hey, we were not done!", "Rage quit?", "I win by default, then."]));
+        for (const r of stay) { r.w.calm(); r.w.hold("none", "none"); r.w.mashRate = 1; this.release(r); }
+      }
+    }
+  }
+
+  /** Put a game's corner back to rest. */
+  private resetCorner(kind: GroupKind) {
+    if (kind === "pingpong") this.pp.hide();
+    else if (kind === "console") this.arcade.standby();
+    else if (kind === "chess") void this.chessT.setup();
+    else void this.movie.stop();
+  }
+
+  /** Invite up to `n` robots that are free or only idling. */
+  private recruit(g: Group, n: number) {
+    const pool = this.available(g.host).sort((a, b) => Number(a.busy) - Number(b.busy) || Math.random() - 0.5);
+    for (const o of pool.slice(0, n)) {
+      o.pull = g;
+      g.recruits.add(o);
+      if (o.busy) o.interrupt?.();
+      else o.nextAt = 0;
+    }
+  }
+
+  /** The host walks to its seat. */
+  private async seatHost(g: Group) {
+    const key = g.seats.find((k) => this.free(k))!;
+    const s = this.reserve(g.host, key);
+    await g.until(this.goTo(g.host, s));
+    g.arrived.add(g.host);
+  }
+
+  /** Wait until `need` players sit down; invite more while waiting. Resolves false on timeout. */
+  private async gather(g: Group, need: number, timeout: number) {
+    for (let t = 0; t < timeout; t += 0.4) {
+      if (g.here.length >= need) return true;
+      const coming = g.players.length + g.recruits.size;
+      if (coming < need && t > 1) this.recruit(g, need - coming);
+      await g.wait(0.4);
+    }
+    return g.here.length >= need;
+  }
+
+  private async joinGroup(g: Group, r: Resident) {
+    const now = performance.now() / 1000;
+    const key = (g.open && g.seats.find((k) => this.free(k))) || g.extraSeats.find((k) => this.free(k));
+    if (!key || !g.alive) return;
+    const extra = g.extraSeats.includes(key);
+    r.group = g;
+    (extra ? g.extras : g.players).push(r);
+    r.last = g.kind;
+    r.cool[g.kind] = now + COOLDOWN[g.kind];
+    await this.stand(r);
+    const s = this.reserve(r, key);
+    if (!extra && Math.random() < 0.4) r.w.say(pickOne(["I'm in!", "Count me in.", "Oh, yes."]), 1200);
+    await g.until(this.goTo(r, s));
+    g.arrived.add(r);
+    g.onArrive(r);
+    if (extra) {
+      // spectators watch for a while, then wander off
+      await Promise.race([g.done, this.wait(20 + Math.random() * 20, r)]);
+      g.extras = g.extras.filter((x) => x !== r);
+      g.arrived.delete(r);
+      if (r.alive) { r.w.calm(); this.release(r); }
+      return;
+    }
+    await g.done;
+  }
+
+  /** Small helper: an animation as a promise the game can abandon. */
+  private anim(g: Group, a: gsap.core.Animation) {
+    return g.until(new Promise<void>((res) => { a.eventCallback("onComplete", () => res()); }));
+  }
+
+  // ---- ping pong -------------------------------------------------------------------------------------
+  private async pingpong(g: Group) {
+    const host = g.host;
+    host.w.say(pickOne(["Ping pong, anyone?", "Who wants to lose at ping pong?", "Paddles up!"]), 1800);
+    this.recruit(g, 1);
+    await this.seatHost(g);
+    host.w.do("ready");
+    if (!(await this.gather(g, 2, 16))) { host.w.say(pickOne(["Nobody? I'll practice my serve.", "Fine. Air ping pong."]), 1800); await g.wait(1.5); return; }
+    g.open = false;
+    let P = this.ppOrder(g);
+    for (const p of P) { p.w.face(p.spot!.face); p.w.do("ready"); }
+    await g.wait(0.6);
+    for (let game = 0; game < 2; game++) {
+      const score = [0, 0];
+      this.pp.setScore(0, 0);
+      let serves = 0, server: 0 | 1 = Math.random() < 0.5 ? 0 : 1;
+      const skill = [0.8 + Math.random() * 0.4, 0.8 + Math.random() * 0.4];
+      while (score[0] < 5 && score[1] < 5) {
+        const { won, fetcher } = await this.rally(g, P, server, skill);
+        score[won]++;
+        this.pp.setScore(score[0], score[1]);
+        const W = P[won], L = P[won ? 0 : 1];
+        if (Math.random() < 0.3) W.w.say(pickOne(["Yes!", "Point!", "Too easy.", "Boom."]), 1200);
+        else if (Math.random() < 0.3) L.w.say(pickOne(SALTY), 1500);
+        if (score[0] < 5 && score[1] < 5) await this.fetchBall(g, fetcher);
+        else this.pp.hide();
+        if (++serves % 2 === 0) server = server ? 0 : 1;
+        await g.wait(0.6);
+      }
+      const won = score[0] >= 5 ? 0 : 1;
+      const W = P[won], L = P[won ? 0 : 1];
+      W.w.do("cheer");
+      W.w.say(pickOne(["Undefeated!", "Too fast for you.", "Five! Read it and weep."]), 2000);
+      if (Math.random() < 0.5) {
+        L.w.do("sulk");
+        await g.wait(0.8);
+        L.w.say(pickOne(SALTY), 2000);
+        await g.wait(2.6);
+      } else {
+        // good sports: meet at the net for a high five
+        await g.wait(1.2);
+        const ny = this.pp.cy + 92;
+        await g.until(Promise.all([P[0].w.walkPath([{ x: P[0].w.x, y: ny }, { x: this.pp.net - 22, y: ny }]), P[1].w.walkPath([{ x: P[1].w.x, y: ny }, { x: this.pp.net + 22, y: ny }])]));
+        P[0].w.face("right"); P[1].w.face("left");
+        P[0].w.calm(); P[1].w.calm();
+        P[0].w.highFive(); P[1].w.highFive();
+        L.w.say(pickOne(["Good game.", "Rematch later.", "You got lucky."]), 1600);
+        await g.wait(1.6);
+        await g.until(Promise.all(P.map((p) => p.w.walkPath([{ x: p.w.x, y: ny }, { x: p.spot!.x, y: ny }, { x: p.spot!.x, y: p.spot!.y }]))));
+      }
+      if (game === 1 || Math.random() < 0.55) break;
+      // rematch: swap ends, walking around the table
+      L.w.say(pickOne(["Rematch. Switch sides.", "Again! Other side."]), 1600);
+      const [a, b] = P;
+      const sa = a.spot!, sb = b.spot!;
+      this.release(a); this.release(b);
+      sb.taken = a.id; a.spot = sb; sa.taken = b.id; b.spot = sa;
+      const y1 = this.pp.cy + 84, y2 = this.pp.cy + 104;
+      await g.until(Promise.all([
+        a.w.walkPath([{ x: a.w.x, y: y1 }, { x: sb.x, y: y1 }, { x: sb.x, y: sb.y }]),
+        b.w.walkPath([{ x: b.w.x, y: y2 }, { x: sa.x, y: y2 }, { x: sa.x, y: sa.y }]),
+      ]));
+      P = this.ppOrder(g);
+      for (const p of P) { p.w.face(p.spot!.face); p.w.do("ready"); }
+      await g.wait(0.8);
+    }
+    await g.wait(1.2);
+  }
+
+  private ppOrder(g: Group): [Resident, Resident] {
+    const [a, b] = g.here;
+    return a.spot?.key === "ppA" ? [a, b] : [b, a];
+  }
+
+  /** One rally. Resolves with the side that won the point and who has to fetch the ball. */
+  private async rally(g: Group, P: [Resident, Resident], server: 0 | 1, skill: number[]): Promise<{ won: 0 | 1; fetcher: Resident }> {
+    const pp = this.pp;
+    const row = (k: number) => pp.row(k as 0 | 1);
+    const S = P[server];
+    S.w.do("ready");
+    await g.wait(0.5 + Math.random() * 0.5);
+    g.later(0.28, () => S.w.swing(0.22));
+    await g.until(pp.toss(S.w.handPoint(), row(server)));
+    let from = server, hits = 0, dur = 1.0;
+    for (;;) {
+      const to = from ? 0 : 1;
+      const A = P[from], B = P[to];
+      const a = A.w.handPoint();
+      const b = { x: B.w.x - (a.x - A.w.x), y: B.w.y + (a.y - A.w.y) };
+      const pMiss = hits === 0 ? 0.05 : Math.min(0.55, (0.06 + hits * 0.035) / skill[to]);
+      if (Math.random() < pMiss) {
+        const kind = Math.random() < 0.55 ? "pass" : Math.random() < 0.5 ? "net" : "long";
+        if (kind === "pass") g.later(dur * 0.95, () => B.w.whiff());
+        const rest = await g.until(pp.miss(kind, a, b, row(from), row(to), dur));
+        const loser = kind === "pass" ? to : from;
+        if (kind === "net" && Math.random() < 0.5) A.w.say(pickOne(["Net!", "Argh, the net."]), 1200);
+        if (kind === "pass" && Math.random() < 0.4) B.w.say(pickOne(["Whoa.", "Too fast!", "Didn't see it."]), 1200);
+        // whoever is on the side the ball rolled to fetches it
+        return { won: loser ? 0 : 1, fetcher: rest.x < pp.net ? P[0] : P[1] };
+      }
+      g.later(Math.max(0, dur - 0.2), () => B.w.swing(0.2));
+      await g.until(pp.shot(a, b, row(from), row(to), dur, hits === 0));
+      hits++;
+      from = to;
+      dur = Math.max(0.42, dur - 0.05);
+    }
+  }
+
+  private async fetchBall(g: Group, r: Resident) {
+    const at = this.pp.at, home = r.spot!;
+    await g.wait(0.3);
+    r.w.calm();
+    const side = r.w.x < at.x ? -1 : 1;
+    await g.until(r.w.walkTo(at.x + side * 18, at.y));
+    r.w.face(side < 0 ? "right" : "left");
+    await this.anim(g, r.w.pickUp());
+    this.pp.hide();
+    r.w.hold("ball", "paddle");
+    if (Math.random() < 0.25) r.w.say(pickOne(["Got it.", "Rolled under everything.", "Why is it always me?"]), 1300);
+    await g.until(r.w.walkTo(home.x, home.y));
+    r.w.face(home.face);
+    r.w.do("ready");
+  }
+
+  // ---- chess ----------------------------------------------------------------------------------------
+  private async chess(g: Group) {
+    const host = g.host, t = this.chessT;
+    g.onArrive = (r) => { if (g.extras.includes(r)) { r.w.face("down"); r.w.do("listen"); } };
+    host.w.say(pickOne(["Chess, anyone?", "Fancy a game of chess?", "I'll go easy on you. Chess?"]), 1800);
+    this.recruit(g, 1);
+    await this.seatHost(g);
+    host.w.do("sit");
+    if (!(await this.gather(g, 2, 16))) { host.w.say("Guess I'll play myself.", 1600); await g.wait(1.5); return; }
+    g.open = false;
+    const [p, q] = g.here;
+    const W = p.spot?.key === "chessW" ? p : q, B = W === p ? q : p;
+    W.w.do("sit"); B.w.do("sit");
+    await g.until(t.setup());
+    const pool = GAMES.filter((x) => x !== this.lastGame);
+    const game = this.nextGame ?? pickOne(pool);
+    this.nextGame = null;
+    this.lastGame = game;
+    const spectators = () => g.extras.filter((r) => g.has(r) && g.arrived.has(r));
+    for (let i = 0; i < game.moves.length; i++) {
+      const mover = i % 2 ? B : W, other = i % 2 ? W : B;
+      const book = i < 8;
+      let think = book ? 0.6 + Math.random() * 0.8 : 1.2 + Math.random() * 2.4;
+      if (!book && Math.random() < 0.25) {
+        mover.w.do("think", { seated: true });
+        think += 1.5;
+      }
+      if (!book && Math.random() < 0.12) mover.w.say(pickOne(["Hmm.", "If I go there...", "Calculating.", "Sixteen moves ahead."]), 1600, true);
+      await g.wait(think);
+      if (mover.w.activity === "think") { mover.w.do("sit"); await g.wait(0.3); }
+      mover.w.poke();
+      await g.wait(0.18);
+      const res = await g.until(t.move(game.moves[i]));
+      if (res.capture) {
+        if (Math.random() < 0.3) other.w.say(pickOne(["Hey!", "I needed that.", "Rude."]), 1200);
+        for (const s of spectators()) if (Math.random() < 0.5) { s.w.say(pickOne(["Ooh!", "Ouch.", "Spicy."]), 1100); s.w.hop(); }
+      }
+      if (Math.random() < 0.1) other.w.do("think", { seated: true });
+      else if (other.w.activity !== "sit") other.w.do("sit");
+    }
+    const winner = game.winner === "w" ? W : B, loser = winner === W ? B : W, loserWhite = loser === W;
+    if (game.result === "mate") {
+      winner.w.say("Checkmate.", 1800);
+      t.flashKing(loserWhite);
+      await g.wait(1.6);
+    } else {
+      loser.w.do("think", { seated: true });
+      await g.wait(1.8);
+      loser.w.do("sit");
+      loser.w.say(pickOne(["I resign.", "Okay. I resign.", "That's lost. I resign."]), 1800);
+      await g.wait(0.8);
+    }
+    loser.w.poke();
+    await g.wait(0.2);
+    await g.until(t.tip(loserWhite));
+    await g.wait(0.6);
+    const watcher = spectators()[0];
+    (watcher ?? winner).w.say(game.quip, 2600);
+    if (watcher) watcher.w.do("cheer");
+    await g.wait(1.4);
+    W.w.calm(); B.w.calm();
+    await g.wait(0.4);
+    if (Math.random() < 0.65) {
+      W.w.face("right"); B.w.face("left");
+      W.w.shake(); B.w.shake();
+      loser.w.say(pickOne(["Good game.", "Well played.", "Again tomorrow?"]), 1600);
+    } else {
+      winner.w.do("cheer");
+      loser.w.do("sulk");
+      loser.w.say(pickOne(["I blundered on purpose.", "My opening book is outdated.", "Best of three?"]), 1800);
+    }
+    await g.wait(2.6);
+  }
+
+  // ---- game console ---------------------------------------------------------------------------------
+  private async console(g: Group) {
+    const host = g.host;
+    g.onArrive = (r) => { if (g.extras.includes(r)) { r.w.face("up"); r.w.do("idle"); } };
+    host.w.say(pickOne(["Robo Kart, anyone?", "One round. Loser makes coffee.", "Who wants to get destroyed? On the TV."]), 1800);
+    this.recruit(g, 1);
+    await this.seatHost(g);
+    host.w.do("sit");
+    if (!(await this.gather(g, 2, 16))) { host.w.say("Single player it is.", 1500); await g.wait(1.5); return; }
+    g.open = false;
+    const [p, q] = g.here;
+    const P: [Resident, Resident] = p.spot?.key === "gameP1" ? [p, q] : [q, p];
+    for (const r of P) r.w.do("play", { seated: true });
+    await g.until(this.arcade.boot());
+    const rounds = Math.random() < 0.45 ? 2 : 1;
+    for (let round = 0; round < rounds; round++) {
+      const watcher = () => g.extras.find((r) => g.has(r) && g.arrived.has(r));
+      const ev = (e: GameEvent) => {
+        if (!g.alive) return;
+        const by = P[e.by], vs = P[e.by ? 0 : 1];
+        if (e.type === "hit" || e.type === "big" || e.type === "boost") {
+          by.w.mashRate = 2.5;
+          g.later(0.7, () => (by.w.mashRate = 1));
+        }
+        if (e.type === "big" && Math.random() < 0.5) vs.w.say(pickOne(["No no no!", "Cheap move!", "How?!"]), 1100);
+        if (e.type === "spin" && Math.random() < 0.6) by.w.say(pickOne(["Banana?!", "Who put that there?", "My kart!"]), 1200);
+        if (e.type === "overtake" && Math.random() < 0.4) by.w.say(pickOne(["See ya!", "Coming through!", "Bye!"]), 1000);
+        const wt = watcher();
+        if (wt && (e.type === "big" || e.type === "spin") && Math.random() < 0.5) { wt.w.do("laugh", { keep: true }); g.later(1.6, () => wt.w.activity === "laugh" && wt.w.do("idle")); }
+      };
+      const brands: [typeof p.w.brand, typeof p.w.brand] = [P[0].w.brand, P[1].w.brand];
+      const won = await g.until(Math.random() < 0.5 ? this.arcade.fight(brands, ev) : this.arcade.race(brands, ev));
+      const W = P[won], L = P[won ? 0 : 1];
+      W.w.do("cheer");
+      W.w.say(pickOne(["GG!", "Undefeated on this couch!", "Too easy. GG."]), 1800);
+      if (Math.random() < 0.6) {
+        L.w.do("sulk", { seated: true });
+        await g.wait(0.6);
+        L.w.say(pickOne(["My controller is broken.", "Lag!", "I was letting you win.", "The sun was in my eyes. Indoors."]), 2000);
+      } else {
+        L.w.do("laugh", { seated: true });
+      }
+      const wt = watcher();
+      if (wt) { wt.w.do(Math.random() < 0.5 ? "laugh" : "cheer"); }
+      await g.wait(3);
+      if (round + 1 < rounds) {
+        L.w.say(pickOne(["Rematch. Now.", "Best of three!", "Again!"]), 1400);
+        for (const r of P) r.w.do("play", { seated: true });
+        await g.wait(1);
+      }
+    }
+    this.arcade.standby();
+    await g.wait(0.8);
+  }
+
+  // ---- movie night ----------------------------------------------------------------------------------
+  private async movieNight(g: Group) {
+    const host = g.host, mv = this.movie;
+    host.w.say(pickOne(["Movie night! Who's in?", "Movie time. I'm making popcorn.", "New trailer dropped. Movie night!"]), 2000);
+    this.recruit(g, 3);
+    // popcorn first
+    const pop = this.reserve(host, "popcorn");
+    await g.until(this.goTo(host, pop));
+    host.w.poke();
+    await g.until(mv.popcorn());
+    host.w.hold("popcorn", "none");
+    host.w.hop();
+    const watch = (r: Resident) => { if (g.has(r)) r.w.do("watch", { keep: true }); };
+    g.onArrive = (r) => { r.w.do("sit"); g.later(0.6, () => watch(r)); };
+    await this.seatHost(g);
+    host.w.do("sit", { keep: true });
+    g.later(0.6, () => watch(host));
+    if (!(await this.gather(g, 2, 18))) { host.w.say("More popcorn for me, then.", 1600); await g.wait(1.5); return; }
+    await g.wait(1);
+    g.started = true;
+    await g.until(mv.start());
+    const viewers = () => g.players.filter((r) => g.has(r) && g.arrived.has(r));
+    let sleeper: Resident | null = null;
+    const awake = () => viewers().filter((r) => r !== sleeper);
+    const beat = (b: Beat) => {
+      if (!g.alive) return;
+      const vs = awake();
+      if (b === "gasp" || b === "scare") {
+        vs.forEach((r, i) => g.later(i * 0.08, () => { if (!g.has(r)) return; r.w.flinch(); g.later(1.4, () => g.has(r) && r.w.setExpression("neutral")); }));
+        const loud = pickOne(vs);
+        if (loud) loud.w.say(b === "scare" ? pickOne(["AAH!", "Nope. Nope.", "Who approved this?"]) : pickOne(["Whoa!", "That bug is huge.", "Oh no."]), 1300);
+      } else if (b === "laugh") {
+        vs.forEach((r) => { r.w.do("laugh", { seated: true, keep: true }); g.later(1.9, () => watch(r)); });
+        const one = pickOne(vs);
+        if (one) one.w.say(pickOne(["Turn it off and on again!", "Ha! v2.0!", "Classic fix."]), 1500);
+      } else if (b === "aww") {
+        vs.slice(0, 2).forEach((r, i) => g.later(i * 0.5, () => { if (!g.has(r)) return; r.w.setExpression("happy"); r.w.say(pickOne(["Aww.", "A toaster!", "They're perfect."]), 1300); g.later(2, () => g.has(r) && r.w.setExpression("neutral")); }));
+      } else if (b === "credits") {
+        g.open = false;
+        if (sleeper && g.has(sleeper)) {
+          const s = sleeper;
+          sleeper = null;
+          s.w.do("sit", { keep: true });
+          s.w.setExpression("surprised");
+          s.w.hop();
+          s.w.say(pickOne(["Wait, is it over?", "I was resting my eyes.", "Best movie ever. Probably."]), 2000);
+          g.later(1.6, () => { if (g.has(s)) { s.w.setExpression("neutral"); watch(s); } });
+        }
+        g.later(2.6, () => { const c = pickOne(awake()); if (c) c.w.say(pickOne(["Ten out of ten.", "The toaster carried.", "Better than the book.", "I cried at the toaster part."]), 2200); });
+      }
+    };
+    const film = mv.play(beat);
+    let ended = false;
+    void film.then(() => (ended = true));
+    // during the film: someone dozes off, neighbours steal popcorn
+    for (let t = 0; !ended; t += 1) {
+      await g.wait(1);
+      const vs = viewers();
+      if (!vs.length) break;
+      if (t === 15 && !sleeper && vs.length > 1) {
+        sleeper = pickOne(vs.filter((r) => r.w.activity === "watch")) ?? null;
+        if (sleeper) sleeper.w.do("nap", { keep: true });
+      }
+      const holder = vs.find((r) => r === host);
+      if (holder && t % 6 === 3) {
+        const near = vs.filter((r) => r !== holder && r !== sleeper && Math.abs(r.w.x - holder.w.x) < 90 && r.w.activity === "watch");
+        const n = pickOne(near);
+        if (n) n.w.reachOver(holder.w.x < n.w.x ? -1 : 1);
+      }
+    }
+    await g.until(film);
+    await g.wait(0.6);
+    void mv.stop();
+    for (const r of viewers()) { r.w.calm(); r.w.setExpression("neutral"); }
+    await g.wait(1.2);
+  }
+
   // ---- machines ---------------------------------------------------------------------------------------
   private idleMachines() {
     const clock = () => {
@@ -401,10 +1020,13 @@ export class BreakRoom implements RoomExtension {
     };
     clock();
     this.anims.push(gsap.to({}, { duration: 20, repeat: -1, onRepeat: clock }));
-    this.anims.push(gsap.to(this.$.plantA, { rotation: 2, transformOrigin: "50% 100%", duration: 3.2, yoyo: true, repeat: -1, ease: "sine.inOut" }));
-    this.anims.push(gsap.to(this.$.podGlow, { opacity: 0.25, duration: 0.1 }));
+    if (!reducedMotion()) this.anims.push(gsap.to(this.$.plantA, { rotation: 2, transformOrigin: "50% 100%", duration: 3.2, yoyo: true, repeat: -1, ease: "sine.inOut" }));
+    gsap.set(this.$.podGlow, { opacity: 0.25 });
     for (let i = 0; i < 3; i++) this.$[`dockFill${i}`].setAttribute("width", "0");
   }
+
+  /** Nobody in the room: decorative loops stop. */
+  private pauseIdle(idle: boolean) { for (const a of this.anims) a.paused(idle); }
 
   private runMicrowave(secs: number) {
     this.busyThings.add("microwave");
@@ -424,13 +1046,14 @@ export class BreakRoom implements RoomExtension {
         .fromTo($.mwDing, { opacity: 1, scale: 0.6, transformOrigin: "50% 50%" }, { opacity: 0, scale: 1.4, duration: 0.7, ease: "power2.out" }, secs)
         .to($.mwDigits, { opacity: 0, duration: 0.15, yoyo: true, repeat: 3, ease: "steps(1)" }, secs + 0.1)
         .to({}, { duration: 0.4 });
+      this.fx.add(tl);
     }).then(() => { const d = new Date(); $.mwDigits.textContent = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`; gsap.set($.mwDigits, { opacity: 1 }); });
   }
 
   private brew() {
     const $ = this.$;
     return new Promise<void>((resolve) => {
-      gsap.timeline({ onComplete: resolve })
+      this.fx.add(gsap.timeline({ onComplete: resolve })
         .to($.cmLight, { fill: PAL.mint, duration: 0.2 })
         .fromTo($.cmStream, { scaleY: 0, transformOrigin: "50% 0%" }, { scaleY: 1, duration: 0.4 })
         .fromTo($.cmCup, { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0.2)
@@ -438,11 +1061,12 @@ export class BreakRoom implements RoomExtension {
         .to($.cmStream, { scaleY: 0, transformOrigin: "50% 100%", duration: 0.3 }, 3.2)
         .to($.cmLight, { fill: "#ff9f5a", duration: 0.2 }, 3.4)
         .to($.cmCup, { opacity: 0, duration: 0.2 }, 3.6)
-        .to($.cmSteam.children, { opacity: 0, duration: 0.3 }, 3.6);
+        .to($.cmSteam.children, { opacity: 0, duration: 0.3 }, 3.6));
     });
   }
 
   private dock(i: number, on: boolean) {
+    if (this.dead) return;
     const fill = this.$[`dockFill${i}`], cable = this.$[`dockCable${i}`], glow = this.$[`dockGlow${i}`];
     gsap.killTweensOf(fill);
     if (on) {
@@ -459,15 +1083,18 @@ export class BreakRoom implements RoomExtension {
   // ---- furniture ------------------------------------------------------------------------------------------
   private furnish() {
     const st = this.stage;
+    const gx = (x: number) => x + this.w - 1900;
     const keep = (svg: SVGSVGElement) => { for (const n of svg.querySelectorAll("[data-b]")) this.$[(n as SVGElement).dataset.b!] = n as SVGElement; };
     // rug and floor pads (flat on the floor)
     keep(st.prop(0, WALL, this.w, this.h - WALL, 1, /* svg */ `
       <ellipse cx="860" cy="${470 - WALL}" rx="210" ry="118" fill="#ff6f91" opacity="0.28"/>
       <ellipse cx="860" cy="${470 - WALL}" rx="180" ry="96" fill="#ff9f5a" opacity="0.22"/>
       <ellipse cx="860" cy="${470 - WALL}" rx="120" ry="58" fill="#ffd27a" opacity="0.18"/>
+      <rect x="${gx(1118)}" y="${262 - WALL}" width="244" height="150" rx="18" fill="#3c6f9e" opacity="0.55"/>
+      ${[0, 1, 2, 3, 4].map((i) => `<rect x="${gx(1130)}" y="${276 + i * 26 - WALL}" width="220" height="7" rx="3.5" fill="#5a8fc0" opacity="0.6"/>`).join("")}
       ${DOCKS.map((x) => `<ellipse cx="${x}" cy="${716 - WALL}" rx="38" ry="13" fill="#3a3f4f" opacity="0.55"/><ellipse cx="${x}" cy="${714 - WALL}" rx="30" ry="9" fill="${PAL.mint}" opacity="0.18"/>`).join("")}
       ${DOCKS.map((x, i) => `<ellipse data-b="dockGlow${i}" cx="${x}" cy="${714 - WALL}" rx="34" ry="11" fill="${PAL.mint}" opacity="0"/>`).join("")}
-      <ellipse cx="1090" cy="${760 - WALL}" rx="80" ry="16" fill="#2b1d10" opacity="0.14"/>`));
+      <ellipse cx="550" cy="${760 - WALL}" rx="80" ry="16" fill="#2b1d10" opacity="0.14"/>`));
     // fridge
     keep(st.prop(30, 16, 96, 172, 186, /* svg */ `
       <ellipse cx="48" cy="168" rx="46" ry="5" fill="#2b1d10" opacity="0.18"/>
@@ -523,9 +1150,8 @@ export class BreakRoom implements RoomExtension {
       <rect x="12" y="84" width="40" height="4" rx="2" fill="#2a2e3b"/>
       <g data-b="cmSteam"><path d="M28 58 q-5 -8 0 -16 q5 -8 0 -16" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity="0"/>
         <path d="M36 58 q5 -8 0 -16 q-5 -8 0 -16" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity="0"/></g>`));
-    // tall plant by the kitchen, plant in corners
+    // tall plant by the kitchen, plant in the corner
     keep(st.prop(552, 70, 90, 110, 182, `<g data-b="plantA">${plantSvg(1)}</g>`));
-    st.prop(1104, 116, 90, 104, 220, plantSvg(0.95));
     st.prop(22, 688, 90, 104, 790, plantSvg(1));
     // dining table: chairs north (behind diners facing down), table, chairs south (in front of diners facing up)
     const chairN = (x: number) => st.prop(x - 34, 316, 68, 62, 350, `
@@ -573,31 +1199,46 @@ export class BreakRoom implements RoomExtension {
       <circle cx="60" cy="80" r="5" fill="#2a2e3b"/>
       <path data-b="dockCable${i}" d="M60 80 C60 100 86 98 78 116" stroke="#2a2e3b" stroke-width="5" fill="none" stroke-linecap="round" opacity="0"/>
       <ellipse cx="60" cy="94" rx="20" ry="5" fill="#2b1d10" opacity="0.18"/>`)));
-    // nap pod: shell behind the sleeper, rim in front
-    keep(st.prop(1006, 552, 168, 180, 640, /* svg */ `
+    // nap pod next to the docks (the resting corner): shell behind the sleeper, rim in front
+    keep(st.prop(466, 552, 168, 180, 640, /* svg */ `
       <ellipse cx="84" cy="96" rx="80" ry="92" fill="#e9edf3"/>
       <ellipse cx="84" cy="104" rx="64" ry="76" fill="#2c3352"/>
       <ellipse data-b="podGlow" cx="84" cy="104" rx="60" ry="72" fill="${PAL.blue}" opacity="0.25"/>
       <ellipse cx="84" cy="150" rx="56" ry="22" fill="#4fb6ff" opacity="0.35"/>
       <rect x="40" y="18" width="50" height="5" rx="2.5" fill="#fff" opacity="0.6"/>
       <circle cx="84" cy="30" r="4" fill="${PAL.mint}"/>`));
-    st.prop(1006, 700, 168, 76, 760, /* svg */ `
+    st.prop(466, 700, 168, 76, 760, /* svg */ `
       <path d="M4 8 Q84 52 164 8 L164 40 Q84 84 4 40 Z" fill="#dfe4ec"/>
       <path d="M4 8 Q84 52 164 8" stroke="#fff" stroke-width="4" fill="none" opacity="0.7"/>
       <ellipse cx="84" cy="66" rx="70" ry="8" fill="#2b1d10" opacity="0.15"/>`);
-    // beanbag
-    st.prop(1056, 412, 112, 64, 440, /* svg */ `
+    // beanbag between the lounge and the games
+    st.prop(984, 426, 112, 64, 454, /* svg */ `
       <ellipse cx="56" cy="54" rx="54" ry="8" fill="#2b1d10" opacity="0.18"/>
       <path d="M8 42 C2 14 28 2 56 4 C86 2 110 16 104 42 C100 56 14 58 8 42 Z" fill="${PAL.orange}"/>
       <path d="M22 30 C26 18 44 12 60 14" stroke="#ffc08a" stroke-width="6" fill="none" stroke-linecap="round"/>`);
+    // the games wing
+    this.arcade = new Arcade(st, gx(1240), WALL);
+    this.movie = new MovieCorner(st, gx(1655), gx(1440));
+    this.pp = new PingPong(st, gx(1270), 622, { x0: gx(1000), x1: gx(1530), y0: 566, y1: 770 });
+    this.chessT = new ChessTable(st, gx(1700), 650);
+    void this.chessT.setup();
   }
 
   destroy() {
+    this.dead = true;
     window.clearInterval(this.timer);
+    for (const g of Object.values(this.groups)) g?.end();
     for (const a of this.anims) a.kill();
+    this.fx.kill();
+    for (const c of this.calls) c.kill();
+    this.calls.clear();
     for (const r of this.res.values()) { r.alive = false; r.w.destroy(); }
     this.res.clear();
     gsap.killTweensOf(Object.values(this.$));
+    this.pp.destroy();
+    this.chessT.destroy();
+    this.arcade.destroy();
+    this.movie.destroy();
     this.stage.destroy();
   }
 }
@@ -606,10 +1247,10 @@ function brandKind(provider: string) {
   const p = provider.toLowerCase();
   return p.includes("claude") ? "claude" : p.includes("codex") || p.includes("openai") ? "codex" : p.includes("grok") ? "grok" : "generic";
 }
-const pickOne = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
-function wallArt() {
+function wallArt(w: number) {
   const pal = { wall: "#e6eadf", trim: "#d0d6c5", floor: PAL.floor, seam: PAL.seam, accent: PAL.mint };
+  const gx = (x: number) => x + w - 1900;
   return /* svg */ `
     <rect x="130" y="22" width="190" height="44" rx="6" fill="#c9b49a"/>
     <rect x="134" y="26" width="88" height="36" rx="4" fill="#d9c6ac"/><rect x="228" y="26" width="88" height="36" rx="4" fill="#d9c6ac"/>
@@ -619,12 +1260,13 @@ function wallArt() {
     ${posterArt(560, 24, 72, 66, "#2c3352", "#ffffff", ["There is", "no place", "like", "127.0.0.1"])}
     ${windowArt(660, 150, pal)}
     ${windowArt(860, 150, pal)}
-    <g transform="translate(1044 54)">
+    <g transform="translate(1062 54)">
       <circle r="22" fill="#fff"/><circle r="18.5" fill="#f6f2ea"/>
       ${Array.from({ length: 12 }, (_, i) => `<rect x="-0.8" y="-17" width="1.6" height="${i % 3 ? 2.5 : 4.5}" fill="#3a3f4f" transform="rotate(${i * 30})"/>`).join("")}
       <rect class="clock-h" x="-1.5" y="-10" width="3" height="12" rx="1.5" fill="#3a3f4f" transform="rotate(300)"/>
       <rect class="clock-m" x="-1" y="-15" width="2" height="17" rx="1" fill="#3a3f4f" transform="rotate(60)"/>
       <circle r="2.2" fill="${PAL.mint}"/>
     </g>
-    ${posterArt(1078, 22, 92, 70, "#ffe08a", "#3a3f4f", ["Have you tried", "turning it off", "and on again?"])}`;
+    ${posterArt(gx(1350), 22, 92, 70, "#ffe08a", "#3a3f4f", ["Have you tried", "turning it off", "and on again?"])}
+    ${windowArt(gx(1560), 190, pal)}`;
 }
