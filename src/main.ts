@@ -21,6 +21,8 @@ import { mountStats } from "./stats/stats";
 import { Wallet, openShop, coinIcon, type WalletState } from "./office/shop";
 import { ShopFront } from "./office/shopfront";
 import { watchDaily } from "./office/daily";
+import { MILESTONES, check as checkMs, celebrateMilestone, openMilestones, type Stats as MsStats } from "./office/milestones";
+import { CATALOG } from "./office/shop";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
@@ -334,7 +336,7 @@ $("update").addEventListener("click", async () => {
 
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
-const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));
 world.themes = new Map(Object.entries(settings.themes ?? {}));
@@ -401,6 +403,8 @@ renderOrch();
 
 // --- company progress ------------------------------------------------------------------------
 let lastCompany = "";
+let lastShipped: { total: number; today: number } | null = null;
+let walletReady: Wallet | null = null;   // set once the coin wallet exists (startup order)
 function renderCompany(shipped: { total: number; today: number }) {
   const p = progress(shipped.total);
   const key = `${shipped.total}:${shipped.today}`;
@@ -409,7 +413,11 @@ function renderCompany(shipped: { total: number; today: number }) {
   $("company").innerHTML = `
     <div class="co-top"><b>Level ${p.level}</b><span>${p.level >= 10 ? "Top level" : `${p.to - shipped.total} runs to level ${p.level + 1}`}</span></div>
     <div class="co-bar" role="progressbar" aria-valuemin="${p.from}" aria-valuemax="${p.to}" aria-valuenow="${shipped.total}"><i style="width:${Math.round(p.frac * 100)}%"></i></div>
-    <p class="co-sub">${shipped.total} runs shipped, ${shipped.today} today</p>`;
+    <p class="co-sub">${shipped.total} runs shipped, ${shipped.today} today</p>
+    <button type="button" class="link-btn co-ms" id="open-ms">Milestones <span id="ms-count"></span></button>`;
+  $("open-ms").addEventListener("click", () => openMilestones(milestoneStats(shipped), new Set(settings.milestones ?? [])));
+  lastShipped = shipped;
+  checkMilestones(shipped);
   const prev = settings.level;
   if (prev != null && p.level > prev) celebrate(p.level);
   if (prev !== p.level) { settings.level = p.level; saveSettings(); }
@@ -434,6 +442,8 @@ setInterval(checkUpdate, 60 * 1000);
 // tokens, plan limits and cost from the harness logs
 // Coins: the robots' API-priced spend pays for things in the shop.
 const wallet = new Wallet(() => settings.wallet, (s) => { settings.wallet = s; saveSettings(); });
+walletReady = wallet;
+window.setTimeout(() => { if (lastShipped) checkMilestones(lastShipped); }, 0);
 world.owns = (key) => wallet.owns(key);
 const paintWallet = (gained = 0) => {
   const b = $("wl-bal");
@@ -551,3 +561,35 @@ window.setTimeout(renderThreads, 1500);
 
 // you typing in the side chat: the robot sees it in its Messages app and waits for you
 chat.onTyping = (on) => { const id = chat.threadId; if (id) world.deskFor(id)?.director.userTyping(on); };
+
+// --- milestones: rewards for real work, paid in coins ----------------------------------------
+function milestoneStats(shipped: { total: number; today: number }): MsStats {
+  const wallet = walletReady!;
+  const data = world.lastData;
+  const week = Date.now() - 7 * 864e5;
+  const projects = new Set((data?.threads ?? []).filter((t) => Date.parse(t.updatedAt) > week && data?.projects.find((p) => p.id === t.projectId && !p.scratch)).map((t) => t.projectId));
+  const h = new Date().getHours();
+  const night = (h < 6 || h >= 22) && (data?.threads ?? []).some((t) => t.runStatus === "running");
+  if (night) settings.nightRuns = true;
+  return {
+    shipped: shipped.total, today: shipped.today, level: world.level, robots: world.roster.robots.length, projects: projects.size,
+    spentUsd: wallet.spentUsd, coinsEarned: wallet.earned, itemsOwned: CATALOG.filter((c) => c.price > 0 && wallet.owns(c.key)).length,
+    hats: world.roster.robots.filter((r) => (r.look as any).hat && (r.look as any).hat !== "none").length, nightRuns: !!settings.nightRuns,
+  };
+}
+function checkMilestones(shipped: { total: number; today: number }) {
+  if (!walletReady) return;
+  const wallet = walletReady;
+  const seen = new Set(settings.milestones ?? []);
+  const fresh = checkMs(milestoneStats(shipped), seen);
+  // the first time this runs, past achievements are counted quietly (no flood of toasts)
+  const quiet = settings.milestones === undefined;
+  fresh.forEach((m, i) => {
+    seen.add(m.id);
+    wallet.grant(m.id, m.coins);
+    if (!quiet) window.setTimeout(() => celebrateMilestone(m), i * 1800);
+  });
+  if (fresh.length || quiet) { settings.milestones = [...seen]; saveSettings(); }
+  const el = document.getElementById("ms-count");
+  if (el) el.textContent = `${seen.size}/${MILESTONES.length}`;
+}

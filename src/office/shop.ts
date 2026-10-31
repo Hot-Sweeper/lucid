@@ -40,6 +40,16 @@ export class Wallet {
     return s ? { ledger: { ...s.ledger }, spent: s.spent ?? 0, owned: [...(s.owned ?? [])] } : { ledger: {}, spent: 0, owned: [] };
   }
   get earned() { return Math.floor(Object.values(this.state().ledger).reduce((a, b) => a + b, 0) * COINS_PER_DOLLAR); }
+  /** Dollars of AI work at API prices (rewards excluded). */
+  get spentUsd() { return Object.entries(this.state().ledger).filter(([k]) => !k.startsWith("bonus:")).reduce((a, [, v]) => a + v, 0); }
+  /** Pay out a one-time reward (milestones). */
+  grant(key: string, coins: number) {
+    const s = this.state();
+    if (s.ledger[`bonus:${key}`] != null) return;
+    s.ledger[`bonus:${key}`] = coins / COINS_PER_DOLLAR;
+    this.set(s);
+    this.onChange(this.balance, coins);
+  }
   get balance() { return this.earned - this.state().spent; }
   owns(key: string) { const it = CATALOG.find((c) => c.key === key); return !!it && (it.price === 0 || this.state().owned.includes(key)); }
 
