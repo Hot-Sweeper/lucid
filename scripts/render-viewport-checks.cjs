@@ -11,6 +11,7 @@ module.exports=async({js,wc,wait,out})=>{
       const near=(a,b)=>Math.abs(a-b)<.08;
       if(!row.sameLive||row.mappingError>.08||!near(row.plane.left,0)||!near(row.plane.top,0)||!near(row.plane.w,row.box.w)||!near(row.plane.h,row.box.h)||!near(row.weather.left,0)||!near(row.weather.top,0)||!near(row.weather.w,row.box.w)||!near(row.weather.h,row.box.h))throw Error('Viewport presentation lost camera alignment');
       if(row.quick.width>Math.ceil(row.box.w*row.dpr)||row.quick.height>Math.ceil(row.box.h*row.dpr)||row.weatherBuffers.some(c=>c.width*c.height>1.61e6)||Object.values(row.counts).some(n=>n!==1)||row.errors.length)throw Error('Viewport buffers or lifecycle exceeded bounds');
+      if(row.detail.width>Math.ceil((row.box.w+512)*row.dpr)+1||row.detail.height>Math.ceil((row.box.h+512)*row.dpr)+1)throw Error('Sharp outdoor crop exceeded viewport overscan bounds');
       if(scale>=2&&(!row.detail.sharp||Math.abs(row.detail.sourceDensity/row.scale/row.dpr-1)>.01))throw Error('Visible outdoor source is not sharp at actual camera DPR');
       if(scale===.23||scale===3.932)fs.writeFileSync(path.join(out,`viewport-${scale}.png`),(await wc.capturePage()).toPNG());
     }
