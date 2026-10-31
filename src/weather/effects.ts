@@ -18,6 +18,8 @@ export type WeatherLayer = {
   resize(rect: OutdoorRect): void;   // the building grew and the outdoors moved
   onFlash: ((strength: number) => void) | null; // lightning, e.g. to light up the window skies
   flash(): void;                     // a lightning flash right now (storms also flash on their own)
+  /** The camera moved: where the world sits on screen and its zoom. Avoids measuring the page every frame. */
+  setCamera(cam: { x: number; y: number; s: number }, scene: { left: number; top: number; width: number; height: number }, worldW: number): void;
   destroy(): void;
 };
 
@@ -156,11 +158,24 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   const FOGS = Array.from({ length: 44 }, (_, i) => ({ img: blobSprite(i * 53 + 11, "rgba(238,242,246,1)", 96), u: r(), v: r(), s: 0.8 + r() * 0.9, sp: 0.6 + r() * 0.8 }));
 
   // --- the camera: which part of the outdoors is on screen ---------------------------------
+  // Measuring the page forces the browser to lay out every element, every frame; with lots of
+  // animated robots that was the main cost of rain. The world tells us its camera instead.
+  let cam: { x: number; y: number; s: number } | null = null;
+  let sceneBox: { left: number; top: number; width: number; height: number } | null = null;
+  let hostW = 1;
   function measure() {
-    const hr = host.getBoundingClientRect();
-    const s = host.offsetWidth > 0 ? hr.width / host.offsetWidth : 1;
+    let hr: { left: number; top: number; width: number }, s: number, clip: { left: number; top: number; right: number; bottom: number };
+    if (cam && sceneBox) {
+      s = cam.s;
+      hr = { left: sceneBox.left + cam.x, top: sceneBox.top + cam.y, width: hostW * s };
+      clip = { left: sceneBox.left, top: sceneBox.top, right: sceneBox.left + sceneBox.width, bottom: sceneBox.top + sceneBox.height };
+    } else {
+      const r0 = host.getBoundingClientRect();
+      s = host.offsetWidth > 0 ? r0.width / host.offsetWidth : 1;
+      hr = r0;
+      clip = (host.parentElement ?? document.documentElement).getBoundingClientRect();
+    }
     if (!(s > 0)) return null;
-    const clip = (host.parentElement ?? document.documentElement).getBoundingClientRect();
     const x0 = Math.max(clip.left, 0), y0 = Math.max(clip.top, 0);
     const x1 = Math.min(clip.right, innerWidth), y1 = Math.min(clip.bottom, innerHeight);
     if (x1 <= x0 || y1 <= y0) return null;
@@ -444,7 +459,7 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
       if (clock > nextFlash) { flash(); nextFlash = clock + 5 + r() * 12; }
     }
     // nothing falling: only the slow sky moves, so 30 fps is plenty
-    schedule(slow ? 250 : busy || R.lightning ? 0 : 33);
+    schedule(slow ? 250 : busy || R.lightning ? 15 : 33);
   }
   let fallDirty = false;
   let timer = 0;
@@ -460,6 +475,7 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
 
   const layer: WeatherLayer = {
     onFlash: null,
+    setCamera(c, sc, w) { cam = { ...c }; sceneBox = { ...sc }; hostW = w || 1; },
     flash,
     set(w, o) {
       weather = w;

@@ -389,7 +389,7 @@ export class World {
         avoid: [{ x: this.shopRect.x - 20, y: this.shopRect.y - 60, w: SHOP_W + 40, h: SHOP_H + 80 }] };
       this.redrawOutside(true);
       const wr = { ...this.outdoor, entranceY: topH + HALL / 2 };
-      if (this.fx) this.fx.resize(wr); else this.fx = mountWeather(this.root, wr);
+      if (this.fx) this.fx.resize(wr); else { this.fx = mountWeather(this.root, wr); this.apply(); }
       // the shop has a roof: keep it above the rain
       if (this.shopFront) this.root.insertBefore(this.shopFront.el, this.root.querySelector(".building-plate"));
       const shade = this.root.querySelector(".night-shade") as HTMLElement;
@@ -441,7 +441,7 @@ export class World {
     }
     this.roomOf = nowRoom;
     this.addTiles(plans, rooms);
-    for (const [id, d] of this.desks) if (!wanted.has(id)) { if (this.selected === d) this.select(null); d.destroy(); this.allDesks.delete(d); this.desks.delete(id); for (const [k, v] of this.slotDesks) if (v === d) this.slotDesks.delete(k); }
+    for (const [id, d] of this.desks) if (!wanted.has(id)) { if (this.selected === d) this.select(null); this.cull.unobserve(d.el); d.destroy(); this.allDesks.delete(d); this.desks.delete(id); for (const [k, v] of this.slotDesks) if (v === d) this.slotDesks.delete(k); }
     const slotKeys = new Set(slots.map((s) => s.key));
     for (const k of [...this.slotDesks.keys()]) if (!slotKeys.has(k)) this.slotDesks.delete(k);
     this.freeDesks = [];
@@ -475,7 +475,7 @@ export class World {
     }
     // desks whose seat disappeared are retired properly (their robot and computer stop)
     const inUse = new Set(this.slotDesks.values());
-    for (const d of this.allDesks) if (!inUse.has(d)) { this.allDesks.delete(d); if (this.selected === d) this.select(null); d.destroy(); }
+    for (const d of this.allDesks) if (!inUse.has(d)) { this.allDesks.delete(d); if (this.selected === d) this.select(null); this.cull.unobserve(d.el); d.destroy(); }
     for (const m of moving) {
       const desk = this.desks.get(m.t.id);
       if (desk) desk.el.classList.add("arriving");
@@ -522,8 +522,12 @@ export class World {
     });
   }
 
+  // Desks outside the view are not painted at all; their robots keep working, nobody sees it.
+  private cull = new IntersectionObserver((es) => { for (const e of es) (e.target as HTMLElement).classList.toggle("culled", !e.isIntersecting); }, { rootMargin: "120px" });
+
   private makeDesk(x: number, y: number) {
     const d = new Desk(this.deskLayer, x, y, this.services);
+    this.cull.observe(d.el);
     d.director.attachDir = this.attachDir;
     d.director.childItems = (id, since) => (window as any).lucid.itemsSince(id, since);
     this.allDesks.add(d);
@@ -681,11 +685,18 @@ export class World {
       const el = (e.target as HTMLElement).closest(".world-walker") as HTMLElement | null;
       if (el && !this.dragged) this.follow(el);
     }, true);
-    new ResizeObserver(() => this.apply()).observe(s);
+    new ResizeObserver(() => { this.sceneBox = null; this.apply(); }).observe(s);
   }
 
+  private sceneBox: DOMRect | null = null;
+  private far = false;
   private apply() {
     this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
+    // the weather follows the camera without measuring the page (which is slow every frame)
+    if (this.fx) { this.sceneBox ??= this.scene.getBoundingClientRect(); this.fx.setCamera(this.cam, this.sceneBox, this.size.w); }
+    // zoomed far out the screens are too small to read: show their glow instead of drawing them
+    const far = this.cam.s < 0.3;
+    if (far !== this.far) { this.far = far; this.scene.classList.toggle("far", far); }
   }
 
   flyTo(rect: { x: number; y: number; w: number; h: number }, pad = 40, d = 1, insetRight = 0) {

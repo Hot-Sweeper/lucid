@@ -612,3 +612,8 @@
 .cp-more:hover { color: var(--ink); }
 /* the queue box is solid, nothing from the office shows through */
 .cp-queue { background: #241f3a; box-shadow: inset 0 0 0 1px rgba(255, 210, 122, 0.18); }
+
+/* performance: skip painting what nobody can see */
+.desk-unit.culled > * { visibility: hidden; }
+.scene.far .monitor .os { visibility: hidden; }
+.scene.far .monitor .screen { background: linear-gradient(160deg, #2b6a6a, #1d3d63); }
