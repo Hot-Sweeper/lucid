@@ -37,6 +37,7 @@ class Element {
   getAttribute(k){return this.attributes[k]??null;}
   attachShadow(){this.shadowRoot=new Element('shadow');return this.shadowRoot;}
   append(...children){for(const c of children){c.remove();c.parent=this;this.children.push(c);}}
+  insertBefore(child,before){child.remove();child.parent=this;this.children.splice(this.children.indexOf(before),0,child);}
   remove(){if(this.parent){this.parent.children=this.parent.children.filter(c=>c!==this);this.parent=null;}}
   replaceWith(other){const parent=this.parent,index=parent.children.indexOf(this);other.remove();parent.children[index]=other;other.parent=parent;this.parent=null;}
   querySelector(selector){return this.children.find(c=>selector==='.outside-live'&&c.className==='outside-live')||this.children.map(c=>c.querySelector(selector)).find(Boolean)||null;}
@@ -49,12 +50,15 @@ const layer=new Element('div');layer.connected=true;layer.style={width:'25827px'
 const live=new Element('svg');live.className='outside-live';layer.append(live);
 const urls=new Set(),fakeURL={createObjectURL(){const url='fixture:'+Math.random();urls.add(url);return url;},revokeObjectURL(url){urls.delete(url);}};
 class Image { async decode(){} }
-const api=new Function('document','window','clearTimeout','devicePixelRatio','Image','URL','Blob','beginSystem','endSystem','outsideView','outsideProjection','outsideOverviewDensity','setSvgAttribute','DOMParser',
-  `${await compile('../src/office/outside-zoom.ts')};return {paintOutside,updateOutside,caches}`)(document,window,id=>timers.delete(id),1.5,Image,fakeURL,Blob,()=>0,()=>{},outsideView,outsideProjection,outsideOverviewDensity,setSvgAttribute,DOMParser);
+// Exercise the independent SVG/image fallback when a source has unsupported
+// features. The actual retained renderer is covered by native pixel comparisons.
+class UnsupportedVector { canvas=new Element('canvas');element=this.canvas;available=false;constructor(){this.canvas.className='outside-vector-canvas'}draw(){return false}destroy(){this.canvas.remove()} }
+const api=new Function('document','window','clearTimeout','devicePixelRatio','Image','URL','Blob','beginSystem','endSystem','outsideView','outsideProjection','outsideOverviewDensity','setSvgAttribute','DOMParser','OutsideVectorCanvas',
+  `${await compile('../src/office/outside-zoom.ts')};return {paintOutside,updateOutside,caches}`)(document,window,id=>timers.delete(id),1.5,Image,fakeURL,Blob,()=>0,()=>{},outsideView,outsideProjection,outsideOverviewDensity,setSvgAttribute,DOMParser,UnsupportedVector);
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 api.paintOutside(layer,'<svg viewBox="0 0 25827 16662" width="25827" height="16662"></svg>');
 api.updateOutside(layer,{x:25,y:385,s:.042028},1285,837);await settle();
-const cache=api.caches.get(layer),canvasNodes=()=>layer.children.flatMap(c=>c.children).filter(c=>c.kind==='canvas');
+const cache=api.caches.get(layer),canvasNodes=()=>layer.children.flatMap(c=>c.children).filter(c=>c.kind==='canvas'&&c.className!=='outside-vector-canvas');
 assert.equal(canvasNodes().length,2);
 assert.equal(cache.preview.width,2696);assert.equal(cache.preview.height,2024);
 assert.equal(cache.preview.style.width,'1797px');assert.equal(cache.preview.style.height,'1349px');

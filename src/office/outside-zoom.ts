@@ -2,10 +2,12 @@
 // repeatedly during middle-button pans, stalling the GPU for hundreds of milliseconds.
 // Keep a small overview bitmap and rasterize only viewport crops at screen density.
 // Two recent crops are retained for backtracking instead of rebuilding the same pixels.
-// Original bounded vectors cover camera motion until a full-density crop is ready.
+// Retained geometry paints small sharp tiles during camera motion. Unsupported
+// sources retain the bounded native SVG and settled image fallback below.
 import { beginSystem, endSystem } from "../perf/metrics";
 import { setSvgAttribute } from "../perf/svg-write";
 import { outsideView, outsideProjection, outsideOverviewDensity } from "./outside-view";
+import { OutsideVectorCanvas } from "./outside-canvas";
 
 type Camera = { x: number; y: number; s: number };
 type Crop = { x: number; y: number; w: number; h: number; density: number };
@@ -33,6 +35,7 @@ class OutsideRaster {
   private overviewDensity = 0;
   private nativeHost = document.createElement("div");
   private native: SVGSVGElement;
+  private vector: OutsideVectorCanvas | null = null;
   private nativeCrop: Crop | null = null;
   private previewCrop: Crop | null = null;
   private liveCrop: Crop | null = null;
@@ -76,6 +79,9 @@ class OutsideRaster {
     this.plane.append(this.preview, this.detail, this.nativeHost);
     if (this.live) this.plane.append(this.live);
     layer.append(this.plane);
+    // Build retained geometry after mounting. No scene traversal or image decode
+    // is needed on later wheel events, and hidden paths can be culled correctly.
+    window.setTimeout(() => { if (!this.dead && this.layer.isConnected) this.prepareVector(); }, 0);
     if (fallback) { this.preview.width = fallback.width; this.preview.height = fallback.height; this.preview.getContext("2d")!.drawImage(fallback, 0, 0); this.preview.style.visibility = "visible"; }
     const density = this.overviewDensity = outsideOverviewDensity(this.w, this.h);
     void this.raster({ x: 0, y: 0, w: this.w, h: this.h, density }, this.overview).then((ok) => {
@@ -146,6 +152,7 @@ class OutsideRaster {
 
   private sharpen() {
     if (this.dead || !this.layer.isConnected) return;
+    if (this.vector?.available) return;
     const view = this.view();
     if (!view || view.density <= this.overviewDensity) {
       this.detail.style.visibility = "hidden";
@@ -210,6 +217,18 @@ class OutsideRaster {
       && this.crop.x <= current.x + .01 && this.crop.y <= current.y + .01
       && this.crop.x + this.crop.w >= current.x + current.w - .01 && this.crop.y + this.crop.h >= current.y + current.h - .01;
     const overview = this.overviewReady && this.overviewDensity >= density * (1 - 1e-9);
+    if (current && !overview) {
+      const vector = this.prepareVector();
+      if (vector.draw(viewport, this.cam.s, this.width, this.height, dpr)) {
+        vector.element.style.display = "";
+        vector.element.dataset.sharp = "1";
+        this.nativeHost.style.display = "none";
+        this.preview.style.visibility = this.detail.style.visibility = "hidden";
+        this.plane.dataset.presentation = "vector-canvas";
+        return;
+      }
+    }
+    if (this.vector) this.vector.element.style.display = "none";
     if (current && !sharp && !overview) {
       // Never magnify an undersized bitmap or leave an uncovered strip while the
       // asynchronous crop is pending. The original vectors remain screen-bounded.
@@ -261,7 +280,17 @@ class OutsideRaster {
     this.detail.dataset.sourceDensity = ""; this.detail.dataset.sharp = "0";
   }
 
+  private prepareVector() {
+    if (!this.vector) {
+      this.vector = new OutsideVectorCanvas(this.native);
+      this.vector.element.style.display = "none";
+      this.plane.insertBefore(this.vector.element, this.nativeHost);
+    }
+    return this.vector;
+  }
+
   snapshot() {
+    if (this.vector && this.vector.element.style.display !== "none") return undefined;
     if (this.nativeHost.style.display !== "none") return undefined;
     if (!this.preview.width || !this.preview.height) return undefined;
     const dpr = devicePixelRatio || 1;
@@ -313,6 +342,7 @@ class OutsideRaster {
     for (const url of this.urls) URL.revokeObjectURL(url);
     this.urls.clear();
     this.plane.remove();
+    this.vector?.destroy(); this.vector = null;
     this.overview.width = this.overview.height = 0;
     if (this.sharp) this.sharp.width = this.sharp.height = 0;
     for (const entry of this.history) entry.canvas.width = entry.canvas.height = 0;
