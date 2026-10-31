@@ -6,6 +6,7 @@
 // composer with its model and effort. Nightly paints the night sky artwork behind the sidebar header.
 // Notes and sources: RESEARCH.md, "T3 Code".
 import gsap from "gsap";
+import { peerDelivery } from "./conversations";
 import type { AppId } from "../os/wm";
 import { harnessKind, prettyModel, effortWord } from "./themes";
 import { logoSvg } from "./logos";
@@ -85,7 +86,9 @@ export interface T3Host {
   epoch: number;
   prefs?: { t3?: T3Channel } | null;
   robotName?: string;
-  robot: { setTyping(on: boolean): void; setPose(p: any): void };
+  robot: { setTyping(on: boolean): void; setPose(p: any): void; pressKey?(key: string): void };
+  pointAt?(element: HTMLElement, x?: number, y?: number, ms?: number): Promise<void>;
+  click?(double?: boolean): Promise<void>;
   open(id: AppId, title?: string, clicked?: boolean): Promise<{ el: HTMLElement; body: HTMLElement; title: HTMLElement }>;
   brandApp?(id: AppId, o: { title?: string; icon?: string }): void;
   sleep(ms: number, epoch?: number): Promise<void>;
@@ -164,6 +167,7 @@ export class T3CodeApp {
   private info: T3Info = {};
   private group: { el: HTMLElement; rows: HTMLElement; head: HTMLElement; start: number } | null = null;
   private rows = new Map<string, Row>();
+  private peerRows = new Map<string, HTMLElement>();
   private runStart = 0;
   private running = false;
   private timer = 0;
@@ -255,7 +259,7 @@ export class T3CodeApp {
 
   reset() {
     this.feed.replaceChildren();
-    this.rows.clear();
+    this.rows.clear(); this.peerRows.clear();
     this.group = null;
     this.running = false;
     window.clearInterval(this.timer);
@@ -346,7 +350,7 @@ export class T3CodeApp {
   }
 
   /** The robot's reply streams into the thread while it types. */
-  async assistant(getText: () => { text: string; done: boolean }) {
+  async assistant(getText: () => { text: string; done: boolean }, _at?: string) {
     const wm = this.wm, e = wm.epoch;
     await this.ensure();
     this.closeGroup();
@@ -373,6 +377,46 @@ export class T3CodeApp {
       else p.remove();
       this.stick();
     }
+  }
+
+  /** A real message to or from another robot, kept in T3 Code. */
+  async peerMessage(text: string, peer: string, o: { outgoing?: boolean; itemId?: string; done?: Promise<"sending" | "sent" | "failed"> } = {}) {
+    const epoch = this.wm.epoch;
+    const result = o.done?.catch(() => "failed" as const);
+    await this.ensure(); this.closeGroup();
+    if (o.outgoing) {
+      this.comp.classList.add("has-peer-draft");
+      await this.wm.pointAt?.(this.compText.parentElement!, .35, .5, 240);
+      this.wm.robot.setTyping(true);
+      try {
+        const step = Math.max(1, Math.ceil(text.length / 24));
+        for (let shown = step; ; shown += step) {
+          const end = Math.min(text.length, shown); this.compText.textContent = text.slice(0, end);
+          this.wm.robot.pressKey?.(text[end - 1] || " ");
+          if (end === text.length) break;
+          await this.wm.sleep(30, epoch);
+        }
+        await this.wm.pointAt?.(this.send, .5, .5, 220); await this.wm.click?.();
+      } finally {
+        this.wm.robot.setTyping(false);
+        if (this.wm.epoch === epoch) { this.compText.textContent = ""; this.comp.classList.remove("has-peer-draft"); }
+      }
+    }
+    const row = document.createElement("section"); row.className = "t3-peer";
+    row.innerHTML = `<header>${IC.bot}<b></b><span></span></header><div></div>`;
+    row.querySelector("b")!.textContent = `${o.outgoing ? "To" : "From"} ${peer}`;
+    row.querySelector("div")!.innerHTML = md(text);
+    const status = row.querySelector("header span")!;
+    if (o.done) status.textContent = "Sending";
+    if (o.itemId) this.peerRows.set(o.itemId, row);
+    this.feed.append(row); this.appear(row); this.stick();
+    if (result) {
+      const delivered = await result;
+      if (this.wm.epoch !== epoch) return;
+      status.textContent = delivered === "sending" ? "Sending" : delivered === "sent" ? "Sent" : "Not sent";
+      row.classList.toggle("failed", delivered === "failed");
+    }
+    await this.wm.sleep(350);
   }
 
   /** You are typing to this robot: dots in the thread's composer. */
@@ -450,6 +494,8 @@ export class T3CodeApp {
 
   /** New state of an item that already has a row; items without one are left alone. */
   update(it: { id: string; type: string; status?: string; data?: any }) {
+    const peer = this.peerRows.get(it.id);
+    if (peer) { const state = peerDelivery(it); peer.querySelector("header span")!.textContent = state === "sending" ? "Sending" : state === "sent" ? "Sent" : "Not sent"; peer.classList.toggle("failed", state === "failed"); }
     const row = this.rows.get(it.id);
     if (!row || it.type === "reasoning") return;
     const r = this.describe(it);

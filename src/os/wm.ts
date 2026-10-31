@@ -40,7 +40,7 @@ const FRAMES: Record<AppId, Frame> = {
   lingo: { x: 200, y: 12, w: 420, h: 384 },
   t3code: { x: 60, y: 10, w: 700, h: 396 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "GitHub Desktop", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", t3code: "T3 Code" };
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Lucid Chat", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "GitHub Desktop", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", t3code: "T3 Code" };
 const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "t3code", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo"];
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };

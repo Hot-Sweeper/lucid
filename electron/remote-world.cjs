@@ -59,7 +59,7 @@ class RemoteWorld {
     const runs = [...p.runs].sort((a, b) => b.ordinal - a.ordinal);
     const queued = runs.filter((r) => r.status === "queued").sort((a, b) => (a.queuePosition ?? a.ordinal) - (b.queuePosition ?? b.ordinal)).map((r) => ({ id: r.id, text: p.messages.find((m) => m.id === r.userMessageId)?.text?.slice(0, 140) || "(attachment)" }));
     return { id, title: t.title, provider: t.providerInstanceId, model: t.modelSelection?.model, effort: effort(t.modelSelection?.options), root: project?.workspaceRoot, projectTitle: project?.title,
-      queued, run: runs[0] ? { id: runs[0].id, status: runs[0].status } : null };
+      queued, run: runs[0] ? { id: runs[0].id, status: runs[0].status, audience: p.messages.find((m) => m.id === runs[0].userMessageId)?.senderThreadId || p.messages.find((m) => m.id === runs[0].userMessageId)?.createdBy === "agent" ? "agent" : "user" } : null };
   }
   async items(id, since = "", count = 60) {
     const p = await this.projection(id);

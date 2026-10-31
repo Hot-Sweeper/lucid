@@ -7,6 +7,9 @@ import { IdleLife } from "./os/idle";
 import { HarnessApp, harnessKind, THEMES, type HarnessSession, type SubagentEvent } from "./harness/harness";
 import { fileUrl } from "./office/chat-panel";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, prettyTool } from "./os/apps";
+import { Roster } from "./office/roster";
+import { UserChatApp } from "./os/user-chat";
+import { messageAudience, peerToolMessage, peerDelivery } from "./harness/conversations";
 import { T3CodeApp } from "./harness/t3code";
 import { NotesApp } from "./os/notes";
 import { classify, parseDiff, baseName, relPath, unwrap, type Entry } from "./os/classify";
@@ -20,7 +23,7 @@ import type { DeskStage as Stage } from "./office/desk";
 import { OfficeSuite, OFFICE_GLOW, officeActivity, officeKind, officeTargets, resolveIn } from "./office-apps";
 
 export type Item = { id: string; runId: string | null; ordinal: number; type: string; status: string; updatedAt: string; data: any };
-export type ThreadInfo = { id: string; title: string; provider: string; model?: string | null; effort?: string | null; projectTitle?: string; root?: string; run?: { id: string; status: string } | null; queued?: { id: string; text: string }[]; error?: string };
+export type ThreadInfo = { id: string; title: string; provider: string; model?: string | null; effort?: string | null; projectTitle?: string; root?: string; run?: { id: string; status: string; audience?: "agent" | "user" } | null; queued?: { id: string; text: string }[]; error?: string };
 
 const GLOW: Record<string, string> = {
   editor: "#6f7dff", terminal: "#4ff0a0", browser: "#4fd2ff", chat: "#ff7aa8", files: "#ffbf5a", tool: "#b07cff", think: "#9d8cff", idle: "#4fb6ff", tasks: "#4fd8c0", git: "#a37cff",
@@ -97,7 +100,7 @@ export class Director {
   private info: ThreadInfo | null = null;
   private lastRunStatus = "";
   private files: FilesApp; private editor: EditorApp; private term: TerminalApp;
-  private browser: BrowserApp; private chat: T3CodeApp; private tool: ToolApp; private tasks: TasksApp;
+  private browser: BrowserApp; private chat: T3CodeApp; private userChat: UserChatApp; private tool: ToolApp; private tasks: TasksApp;
   private notes: NotesApp;
   private lastNoteAt = -Infinity;
   private planSig = "";
@@ -118,6 +121,7 @@ export class Director {
   childInfo: (threadId: string) => Promise<ThreadInfo | null> = async (id) => (window as any).lucid?.threadInfo?.(id) ?? null;
   attachDir = "";
   private lastEventAt = 0;
+  private audiences = new Map<string, "agent" | "user">();
 
   constructor(private wm: WM, private robot: Robot, private stage: Stage, peek: (url: string) => Promise<any>, private image: (path: string) => Promise<string | null>, private readText: (path: string) => Promise<string | null>) {
     this.files = new FilesApp(wm);
@@ -126,6 +130,7 @@ export class Director {
     this.browser = new BrowserApp(wm, peek);
     // the thread itself plays out in T3 Code, the app it really lives in (stable or Nightly per robot)
     this.chat = new T3CodeApp(wm);
+    this.userChat = new UserChatApp(wm);
     this.tool = new ToolApp(wm);
     this.tasks = new TasksApp(wm);
     this.notes = new NotesApp(wm);
@@ -147,7 +152,7 @@ export class Director {
     this.helperOf.clear();
     this.helperHints.clear();
     this.harness.reset();
-    this.chat.reset();
+    this.chat.reset(); this.userChat.reset(); this.audiences.clear();
     this.notes.reset(); this.lastNoteAt = -Infinity;
     this.mobile = false;
     if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
@@ -172,7 +177,8 @@ export class Director {
     if (info.error) return;
     const first = !this.info;
     this.info = info;
-    this.chat.setInfo(info);
+    this.chat.setInfo(info); this.userChat.setInfo(info);
+    if (info.run?.id && info.run.audience) this.audiences.set(info.run.id, info.run.audience);
     this.term.setCwd(info.root || null);
     const status = info.run?.status || "";
     if (status === "running" && this.idleLife.isActive) {
@@ -441,14 +447,14 @@ export class Director {
   /** The desk robot is in its chair (not walking back to it). Set by the desk. */
   present: () => boolean = () => true;
   private seesChat() {
-    return this.present() && !this.idleLife.asleep && !this.idleLife.holdingPhone && !this.phoneUp && this.wm.isFront("t3code");
+    return this.present() && !this.idleLife.asleep && !this.idleLife.holdingPhone && !this.phoneUp && this.wm.isFront("chat");
   }
   userTyping(on: boolean) {
     if (on) {
       if (!this.seesChat()) return;
       const fresh = !this.waitingForUser;
       this.userTypingAt = Date.now();
-      void this.chat.youTyping(true).catch(() => {});
+      void this.userChat.youTyping(true).catch(() => {});
       // real work keeps going; only the bubble shows the typing
       if (!fresh || this.pumpEpoch !== -1) return;
       this.busyToken++;
@@ -457,7 +463,7 @@ export class Director {
       this.robot.setPose("read");
       return;
     }
-    void this.chat.youTyping(false).catch(() => {});
+    void this.userChat.youTyping(false).catch(() => {});
     if (!this.waitingForUser) return;   // it never saw you typing
     this.userTypingAt = Date.now() - 2000;   // a short grace period in case the message is on its way
     const epoch = this.wm.epoch;
@@ -521,7 +527,7 @@ export class Director {
 
   private idle() {
     this.wasIdle = true;
-    if (this.waitingForUser) { this.robot.setPose("read"); this.onActivity("Watching you type"); void this.chat.youTyping(true).catch(() => {}); return; }
+    if (this.waitingForUser) { this.robot.setPose("read"); this.onActivity("Watching you type"); void this.userChat.youTyping(true).catch(() => {}); return; }
     if (this.phoneUp) { this.mobile = false; void this.phone(false); }
     // Helpers still at work: wait for them and look in on them now and then.
     const live = [...this.sessions.entries()].filter(([, s]) => !s.done);
@@ -742,6 +748,15 @@ export class Director {
       this.helperHints.set(child, hint);
       await this.openHelper(id, { child, prompt: String(inp.task || inp.prompt || inp.title || "Help with this"), title: String(inp.title || "Subtask"), ...hint });
       return true;
+    }
+    const toolItem = this.get(id), peer = peerToolMessage(name, toolItem.data.input || {});
+    if (peer) {
+      const epoch = this.wm.epoch;
+      const info = await this.childInfo(peer.target).catch(() => null); this.wm.check(epoch);
+      this.onActivity("Messaging another robot in T3 Code"); this.stage.setGlow(GLOW.chat);
+      const done = this.settle(id).then(peerDelivery);
+      const name = Roster.current?.byThread(peer.target)?.name || info?.title || (!/^(?:thread:|mcp:|[a-f0-9]{8}-)/i.test(peer.target) ? peer.target.split("/").filter(Boolean).at(-1) : null) || "another robot";
+      await this.chat.peerMessage(peer.text, name, { outgoing: true, itemId: id, done }); return true;
     }
     const browserActs: Record<string, string> = {
       preview_click: "Clicking on the page", preview_evaluate: "Running a script on the page", preview_snapshot: "Reading the page",
@@ -1040,15 +1055,26 @@ export class Director {
 
     switch (it.type) {
       case "user_message": {
+        const audience = messageAudience(d);
+        if (it.runId) this.audiences.set(it.runId, audience);
+        const app = audience === "agent" ? "t3code" : "chat";
+        if (audience === "agent") {
+          this.onActivity("Reading a message from another robot"); this.stage.setGlow(GLOW.chat);
+          const epoch = this.wm.epoch;
+          const peer = d.senderThreadId ? await this.childInfo(d.senderThreadId).catch(() => null) : null;
+          this.wm.check(epoch);
+          if (this.idleLife.pending) await this.idleLife.rouse();
+          await this.chat.peerMessage(String(d.text || ""), Roster.current?.byThread(d.senderThreadId)?.name || peer?.title || "another robot"); return;
+        }
         // A new message pops up as a notification; the robot notices it, reads it, and
         // looks at any image you attached before getting to work.
         // Asleep, it hears the notification, wakes up, stretches and unlocks first. Busy in
         // another app, it looks up, then clicks the notification or goes to Messages its usual way.
         const dozing = this.idleLife.pending && this.idleLife.asleep;
-        const watching = !dozing && this.wm.isFront("t3code");
+        const watching = !dozing && this.wm.isFront(app);
         this.onActivity(dozing ? "Waking up" : "Reading your message");
         this.stage.setGlow(GLOW.chat);
-        const note = this.wm.toast("New message from you", "t3code", dozing ? 7 : 2.8);
+        const note = this.wm.toast("New message from you", app, dozing ? 7 : 2.8);
         if (dozing) await this.idleLife.rouse();
         else {
           this.robot.setPose(watching ? "read" : "notice");
@@ -1057,7 +1083,7 @@ export class Director {
         }
         this.onActivity("Reading your message");
         let clicked = false;
-        if (!this.wm.isFront("t3code") && note.isConnected && Math.random() < (dozing ? 0.65 : 0.4)) {
+        if (!this.wm.isFront(app) && note.isConnected && Math.random() < (dozing ? 0.65 : 0.4)) {
           this.robot.setPose("mouse");
           await this.wm.pointAt(note, 0.45, 0.5, 420);
           await this.wm.click();
@@ -1066,7 +1092,7 @@ export class Director {
         }
         const imgs: { path: string; name: string }[] = (d.attachments || [])
           .filter((a: any) => a.type === "image" && (a.path || a.id))
-          .map((a: any) => ({ path: a.path || `${this.attachDir}${a.id}.${(a.mimeType || "image/png").split("/")[1].replace("jpeg", "jpg")}`, name: a.name || "image" }));
+          .map((a: any) => ({ path: a.path || (this.attachDir ? `${this.attachDir}${a.id}.${(a.mimeType || "image/png").split("/")[1].replace("jpeg", "jpg")}` : "t3-attachment:" + encodeURIComponent(JSON.stringify({ id: a.id, name: a.name || "image", mime: a.mimeType }))), name: a.name || "image" }));
         // files attached from Lucid's side chat are listed at the end of the text
         let said = String(d.text || "");
         const listed = said.match(/\n*Attached:\n((?:- (?:image|file): .+(?:\n|$))+)\s*$/);
@@ -1077,7 +1103,7 @@ export class Director {
             if (mm) imgs.push({ path: mm[1].trim(), name: mm[1].trim().split(/[\\/]/).pop()!.replace(/^\d+-/, "") });
           }
         }
-        await this.chat.user(said, imgs.map((i) => fileUrl(i.path)), clicked);
+        await this.userChat.user(said, imgs.map((i) => fileUrl(i.path)), clicked, d.createdAt || it.updatedAt);
         this.robot.setPose("read");
         await this.wm.sleep(Math.min(3200, 800 + said.length * 12));
         for (const img of imgs.slice(0, 2)) {
@@ -1115,12 +1141,14 @@ export class Director {
         return;
       }
       case "assistant_message": {
-        this.onActivity("Writing to you");
+        const peerReply = it.runId ? this.audiences.get(it.runId) === "agent" : false;
+        this.onActivity(peerReply ? "Replying to another robot in T3 Code" : "Writing to you");
         this.stage.setGlow(GLOW.chat);
-        await this.chat.assistant(() => {
+        const target = peerReply ? this.chat : this.userChat;
+        await target.assistant(() => {
           const cur = this.get(id);
           return { text: cur.data.text || "", done: !(cur.status === "running" || cur.data.streaming) };
-        });
+        }, d.createdAt || it.updatedAt);
         await this.wm.sleep(500);
         return;
       }
@@ -1213,12 +1241,12 @@ export class Director {
         this.stage.setGlow(GLOW.chat);
         this.robot.setPose("ask");
         this.stage.say(q, "speak");
-        await this.chat.note(q, "ask");
+        await this.userChat.note(q, "ask", d.createdAt || it.updatedAt);
         const done = await this.settle(id, 30 * 60 * 1000);
         const answer = done.data.questionAnswer?.answers ? Object.values(done.data.questionAnswer.answers).join("\n") : "";
         this.stage.say(null);
         this.robot.setPose("rest");
-        if (answer) await this.chat.user(String(answer));
+        if (answer) await this.userChat.user(String(answer), [], false, it.updatedAt);
         return;
       }
       case "subagent": {
@@ -1255,7 +1283,7 @@ export class Director {
       }
       case "error": {
         this.wm.toast(d.message || d.text || "Something failed in this run", "tool");
-        await this.chat.note(d.message || d.text || "The run hit an error.", "error");
+        await this.userChat.note(d.message || d.text || "The run hit an error.", "error", it.updatedAt);
         return;
       }
       default:

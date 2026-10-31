@@ -64,3 +64,7 @@ test('uploaded files are native T3 attachments, without unusable local file path
   await remote.sendMessage({ threadId: thread.id, message: 'Review this.\n\nAttached:\n- image: ' + ref });
   assert.deepEqual(command.attachments, [attachment]); assert.equal(command.text, 'Review this.'); assert.equal(remote.uploads.size, 0);
 });
+test('the remote run audience comes from its actual initiating message', async () => {
+  const { remote } = fixture({ runs: [{ id: 'run', ordinal: 1, status: 'running', userMessageId: 'agent-msg' }], messages: [{ id: 'agent-msg', createdBy: 'agent', senderThreadId: 'sender', text: 'A real peer request' }] });
+  assert.equal((await remote.threadInfo(thread.id)).run.audience, 'agent');
+});

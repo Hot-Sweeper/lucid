@@ -87,6 +87,8 @@ function threadInfo(threadId) {
     .map((r) => ({ id: r.id, pos: safeJson(r.p)?.queuePosition ?? r.ordinal, ordinal: r.ordinal, text: queuedText(safeJson(r.mp)) }))
     .sort((a, b) => a.pos - b.pos || a.ordinal - b.ordinal)
     .map(({ id, text }) => ({ id, text }));
+  const runPayload = safeJson(run?.payload) || {};
+  const origin = runPayload.userMessageId ? safeJson(getDb().prepare("select payload_json as p from orchestration_v2_projection_messages where message_id = ?").get(runPayload.userMessageId)?.p) : null;
   return {
     id: t.id,
     queued,
@@ -96,7 +98,7 @@ function threadInfo(threadId) {
     effort: effortOf(payload.modelSelection?.options),
     projectTitle: t.projectTitle,
     root: t.root,
-    run: run ? { id: run.id, status: run.status } : null,
+    run: run ? { id: run.id, status: run.status, audience: origin?.senderThreadId || origin?.createdBy === "agent" ? "agent" : "user" } : null,
   };
 }
 

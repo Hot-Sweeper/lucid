@@ -133,3 +133,11 @@
   .t3-spin, .t3-dots i, .t3-wr.live .t3-v { animation: none; }
   .t3-wr.live .t3-v { color: var(--ink); background: none; }
 }
+.t3-peer { padding:8px 10px; border-radius:8px; background:var(--card); }
+.t3-peer > header { display:flex; align-items:center; gap:6px; margin-bottom:5px; color:var(--muted); font-size:10px; }
+.t3-peer > header b { font-weight:500; overflow-wrap:anywhere; }
+.t3-peer > header span { margin-left:auto; font-size:9px; flex:none; }
+.t3-peer > div { font-size:11px; line-height:1.5; overflow-wrap:anywhere; }
+.t3-peer.failed > header span { color:var(--err); }
+.t3-comp.has-peer-draft .t3-ph { display:none; }
+.t3-comp.has-peer-draft .t3-typed { display:block; max-height:70px; overflow-y:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
