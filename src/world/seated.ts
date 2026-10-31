@@ -1,7 +1,7 @@
 import gsap from "gsap";
 import { prettyModel } from "../harness/themes";
 import { watch, unwatch, drawNow, sinceDraw } from "./budget";
-import { GEOM, UNIT, type DeskRig, type Expression, type Pose, type Pt, type Reaction, type RobotLook, type SeatedRobot } from "../office/rig";
+import { GEOM, PHONE_SCALE, UNIT, type DeskRig, type Expression, type Pose, type Pt, type Reaction, type RobotLook, type SeatedRobot } from "../office/rig";
 import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, solveArm, uid, type BrandKind, type ArmMemo } from "./seated-parts";
 import { accessoryInfo, accessorySvg, blushSvg, BUILD_SHAPE, hatInfo, hatSvg, lookMotion, paintLookColors, resolveLook, stepLookMotion, styledEyes, type FullLook, type LookMotion } from "./look";
 import { tierFor } from "../office/tier";
@@ -15,7 +15,12 @@ import { tierFor } from "../office/tier";
 
 // Everything is derived from GEOM, so the robot follows the desk contract.
 const SH = GEOM.shoulders;
-const S = (SH.right.x - SH.left.x) / 120;                 // v0 art scale (v0 shoulders were 120 apart)
+// v0 art scale: the same as every walking robot (hallway, break room, park), so a robot looks
+// the same size sitting at its desk as it does walking in. The rig scales around the shoulder
+// point; the hands still reach the desk props, which keep their desk coordinates.
+export const SEATED_SCALE = 0.42;
+const S = SEATED_SCALE;
+const K = S / 0.5;                                        // relative to the size the desk props were tuned at
 const U = S / 0.58;                                       // relative to the size the details were tuned at
 const ORIGIN = { x: (SH.left.x + SH.right.x) / 2, y: (SH.left.y + SH.right.y) / 2 }; // v0 (560, 748)
 const HEAD_DROP = (GEOM.head.y - 2 - (ORIGIN.y - 89 * S)) / S; // tucks the head toward GEOM.head (the steep view hides the neck)
@@ -35,9 +40,9 @@ const REST_L = { x: HX - 20 * U, y: TABLE_FRONT - 5 }, REST_R = { x: HX + 20 * U
 const IDLE_L = { x: HX - 32 * U, y: TABLE_FRONT - 10 }, IDLE_R = { x: HX + 32 * U, y: TABLE_FRONT - 10 };
 const FOLD_BONE = 53 * U;
 const LAP_L = { x: ORIGIN.x - 15 * U, y: ORIGIN.y + 42 * U }, LAP_R = { x: ORIGIN.x + 15 * U, y: ORIGIN.y + 42 * U };
-const PHONE_W = 36, PHONE_H = 72;                               // the held phone: 150x300 at 0.24 scale
+const PHONE_W = 150 * PHONE_SCALE, PHONE_H = 300 * PHONE_SCALE;   // the held phone: a 150x300 element (rig.ts PHONE_SCALE)
 // Over the left shoulder: the phone's right edge tucks just behind the head, top at eye level.
-const PHONE_HOLD = { x: HX - 80, y: HY - 52 };   // beside the head, only its edge tucked behind it, above the desk plate
+const PHONE_HOLD = { x: HX - 80 * K, y: HY - 52 * K };   // beside the head, only its edge tucked behind it, above the desk plate
 const PHONE_TILT = 7;
 const LEFT_KEYS = "qwertasdfgzxcvb12345";
 const RIGHT_KEYS = "yuiophjklnm,.67890 ";
@@ -505,7 +510,7 @@ export class TopDownRobot implements SeatedRobot {
         this.reactTl?.kill();
         this.reactTl = gsap.timeline()
           .to(r, { lx: P(-64, -54).x, ly: P(-64, -54).y, rx: P(64, -54).x, ry: P(64, -54).y, duration: 0.22, ease: "back.out(2)", overwrite: "auto" })
-          .to(r, { ly: 204, ry: 204, duration: 0.14, yoyo: true, repeat: 3, ease: "sine.inOut" })
+          .to(r, { ly: P(0, -78).y, ry: P(0, -78).y, duration: 0.14, yoyo: true, repeat: 3, ease: "sine.inOut" })
           .to(r, { ...h, duration: 0.4, ease: "power2.inOut" });
         this.pulseAntenna("#4ff0a0");
         this.kickAntenna(120, 80);
@@ -690,9 +695,18 @@ export class TopDownRobot implements SeatedRobot {
   swipe() {
     if (!this.phoneP) return;
     gsap.timeline()
-      .to(this.swipeP, { y: -20, x: 2, duration: 0.2, ease: "power2.inOut" })
+      .to(this.swipeP, { y: -20 * K, x: 2 * K, duration: 0.2, ease: "power2.inOut" })
       .to(this.swipeP, { y: 0, x: 0, duration: 0.3, ease: "power2.out" });
     gsap.fromTo(this.phoneTilt, { v: PHONE_TILT + 2 }, { v: PHONE_TILT, duration: 0.5, ease: "power2.out" });
+  }
+
+  /** The thumb hops to a spot of the held phone's screen (0..1 across and down), e.g. a key it types. Negative: back to rest. */
+  thumbAt(nx: number, ny: number) {
+    if (!this.phoneP) return;
+    const rest = nx < 0;
+    // the thumb rests near the bottom left corner; its tip lands a little below the key's centre
+    const x = rest ? 0 : nx * PHONE_W - 15 * K, y = rest ? 0 : (ny - 1) * PHONE_H + 15 * K + 3 * K;
+    gsap.to(this.swipeP, { x, y, duration: rest ? 0.3 : 0.07, ease: "power2.out", overwrite: "auto" });
   }
 
   // ---- turning around: a chair swivel ---------------------------------------------------------
@@ -806,10 +820,10 @@ export class TopDownRobot implements SeatedRobot {
     else if (this.gripR.w > 0) R = { x: lerp(R.x, this.desk.mug.x + 12 * U, this.gripR.w), y: lerp(R.y, this.desk.mug.y - 1, this.gripR.w) };
     // Both hands hold the phone at its lower corners: the left one in front, the right one
     // reaching across behind the head.
-    const phoneHand = this.phoneP ? { x: this.phoneP.x + 9, y: this.phoneP.y + PHONE_H - 4 } : this.desk.phoneRest;
+    const phoneHand = this.phoneP ? { x: this.phoneP.x + 9 * K, y: this.phoneP.y + PHONE_H - 4 * K } : this.desk.phoneRest;
     L = { x: lerp(L.x, phoneHand.x, this.gripL.w), y: lerp(L.y, phoneHand.y, this.gripL.w) };
     if (this.phoneP && this.phoneShown) {
-      const rh = { x: this.phoneP.x + PHONE_W - 2, y: this.phoneP.y + PHONE_H - 10 };
+      const rh = { x: this.phoneP.x + PHONE_W - 2 * K, y: this.phoneP.y + PHONE_H - 10 * K };
       R = { x: lerp(R.x, rh.x, this.gripL.w * 0.9), y: lerp(R.y, rh.y, this.gripL.w * 0.9) };
     }
     // headphones: the hands hold the cups
@@ -828,7 +842,7 @@ export class TopDownRobot implements SeatedRobot {
     // Facing us, a hand that is still inside the head's outline (on its way from the desk) passes
     // behind the head instead of across the face.
     if (this.facing && !this.fitting) {
-      const inHead = (p: Pt) => Math.abs(p.x - HX - bx) < 38 && p.y > HY + by - 34 && p.y < HY + by + 28;
+      const inHead = (p: Pt) => Math.abs(p.x - HX - bx) < 38 * K && p.y > HY + by - 34 * K && p.y < HY + by + 28 * K;
       const fl = !inHead(L), fr = !inHead(R);
       if (fl !== this.front.l || fr !== this.front.r) { this.front.l = fl; this.front.r = fr; this.layerArms(); }
     }
@@ -906,8 +920,8 @@ export class TopDownRobot implements SeatedRobot {
     // fingers over the held phone
     const tg = this.thumb.firstElementChild as SVGGElement;
     if (this.phoneP && this.phoneShown) {
-      const tx = this.phoneP.x + 15 + this.swipeP.x, ty = this.phoneP.y + PHONE_H - 15 + this.swipeP.y;
-      tg.setAttribute("transform", `translate(${tx.toFixed(1)} ${ty.toFixed(1)}) rotate(${(PHONE_TILT + 24).toFixed(0)}) scale(0.8)`);
+      const tx = this.phoneP.x + 15 * K + this.swipeP.x, ty = this.phoneP.y + PHONE_H - 15 * K + this.swipeP.y;
+      tg.setAttribute("transform", `translate(${tx.toFixed(1)} ${ty.toFixed(1)}) rotate(${(PHONE_TILT + 24).toFixed(0)}) scale(${(0.8 * K).toFixed(3)})`);
       tg.setAttribute("opacity", String(this.swipeP.on));
     } else tg.setAttribute("opacity", "0");
   };
@@ -1030,6 +1044,20 @@ const chairBase = () => {
     <rect x="${f(CX - 4.5 * U)}" y="${f(BACK_TOP + BH - 8)}" width="${f(9 * U)}" height="${f(BASE_Y - BACK_TOP - BH + 8)}" rx="3" fill="#3a3f4f"/>
     ${out.join("")}<ellipse cx="${CX}" cy="${f(BASE_Y)}" rx="${f(7.5 * U)}" ry="${f(3.4 * U)}" fill="#4a5063"/>`;
 };
+const SEAT_BACK = `<rect x="${f(CX - BW / 2 - 2)}" y="${f(BACK_TOP - 16 * U)}" width="${f(BW + 4)}" height="${f(24 * U)}" rx="${f(12 * U)}" fill="#3a3f4f"/>`;
+const BACKREST = `<rect x="${f(CX - 7 * U)}" y="${f(BACK_TOP + BH - 6)}" width="${f(14 * U)}" height="${f(10 * U)}" rx="3" fill="#3a3f4f"/>
+      <rect x="${f(CX - BW / 2)}" y="${f(BACK_TOP)}" width="${f(BW)}" height="${f(BH)}" rx="${f(16 * U)}" fill="#4a5063"/>
+      <rect x="${f(CX - BW / 2 + 7 * U)}" y="${f(BACK_TOP + 4 * U)}" width="${f(BW - 14 * U)}" height="${f(BH - 11 * U)}" rx="${f(11 * U)}" fill="#565d73"/>
+      <rect x="${f(CX - BW / 2 + 16 * U)}" y="${f(BACK_TOP + 7 * U)}" width="${f(BW * 0.55)}" height="${f(3.5 * U)}" rx="${f(1.75 * U)}" fill="#ffffff" opacity="0.13"/>`;
+/** The chair alone, for a desk with nobody at it (desk coordinates; drawn once, nothing moves). */
+export function emptyChairSvg() {
+  const spokes: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * TAU + Math.PI / 2, x = CX + Math.cos(a) * 46 * U, y = BASE_Y + Math.sin(a) * 10 * U;
+    spokes.push(`<path d="M${CX} ${f(BASE_Y)} L${f(x)} ${f(y)}" stroke="#3a3f4f" stroke-width="${f(6 * U)}" stroke-linecap="round"/><ellipse cx="${f(x)}" cy="${f(y + 4 * U)}" rx="${f(4.6 * U)}" ry="${f(3.8 * U)}" fill="#2a2e3b"/>`);
+  }
+  return `<g class="empty-chair">${chairBase().replace(/<(path|ellipse) data-spoke[^>]*\/>/g, "")}${spokes.join("")}${SEAT_BACK}${BACKREST}</g>`;
+}
 const HIP_Y = ORIGIN.y + 36 * U, FOOT_Y = BASE_Y + 2 * U;
 const leg = (side: number) => {
   const hx = CX + side * 12 * U, kx = CX + side * 14 * U;
@@ -1053,7 +1081,7 @@ const ROBOT = (id: string) => /* svg */ `
   <ellipse data-r="shadowL" rx="${f(8.5 * U)}" ry="${f(4.2 * U)}" fill="#2b1d10" opacity="0"/>
   <ellipse data-r="shadowR" rx="${f(8.5 * U)}" ry="${f(4.2 * U)}" fill="#2b1d10" opacity="0"/>
   <g data-r="body">
-    <g data-r="seatBack"><rect x="${f(CX - BW / 2 - 2)}" y="${f(BACK_TOP - 16 * U)}" width="${f(BW + 4)}" height="${f(24 * U)}" rx="${f(12 * U)}" fill="#3a3f4f"/></g>
+    <g data-r="seatBack">${SEAT_BACK}</g>
     <g data-r="armsBack">${arm("L")}${arm("R")}</g>
     <g data-r="torso">
       <ellipse cx="560" cy="742" rx="92" ry="22" fill="url(#${id}-sh)"/>
@@ -1088,10 +1116,7 @@ const ROBOT = (id: string) => /* svg */ `
     <g data-r="legs" style="display:none">${leg(-1)}${leg(1)}</g>
     <g data-r="headRoot"><g data-r="head">${headSvg(id)}</g></g>
     <g data-r="backrest">
-      <rect x="${f(CX - 7 * U)}" y="${f(BACK_TOP + BH - 6)}" width="${f(14 * U)}" height="${f(10 * U)}" rx="3" fill="#3a3f4f"/>
-      <rect x="${f(CX - BW / 2)}" y="${f(BACK_TOP)}" width="${f(BW)}" height="${f(BH)}" rx="${f(16 * U)}" fill="#4a5063"/>
-      <rect x="${f(CX - BW / 2 + 7 * U)}" y="${f(BACK_TOP + 4 * U)}" width="${f(BW - 14 * U)}" height="${f(BH - 11 * U)}" rx="${f(11 * U)}" fill="#565d73"/>
-      <rect x="${f(CX - BW / 2 + 16 * U)}" y="${f(BACK_TOP + 7 * U)}" width="${f(BW * 0.55)}" height="${f(3.5 * U)}" rx="${f(1.75 * U)}" fill="#ffffff" opacity="0.13"/>
+      ${BACKREST}
     </g>
     <g data-r="armsFront"></g>
   </g>

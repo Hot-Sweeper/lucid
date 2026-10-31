@@ -4,9 +4,9 @@ import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
 import { drawFloor, drawWall, drawDecor, placeDecor, DECOR } from "../decor/decor";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
-import { Walker } from "../world/walker";
+import { Walker, SIT_HEAD, pause, type Facing } from "../world/walker";
 import { makeInteractive, whenFree } from "./interact";
-import { GEOM } from "./rig";
+import { GEOM, type Pt } from "./rig";
 import { SHOP_W, SHOP_H, type ShopFront } from "./shopfront";
 import { mountWeather, applySkyTint, type WeatherLayer, type Weather } from "../weather/effects";
 import { outdoorLook, seasonPalette } from "../weather/season";
@@ -37,6 +37,10 @@ export interface RoomExtension {
   el: HTMLElement;
   setThreads(list: { id: string; provider: string; title: string; question?: string | null }[]): void;
   onSelect: (id: string) => void;
+  /** A leaving robot reached the door (room coordinates); true when the hall walker takes it from there. */
+  onExit?: (id: string, at: Pt, face: Facing) => boolean;
+  /** The next time this robot joins, its walker starts at this point (room coordinates), where the hall walker stopped. */
+  enterFrom?(id: string, at: Pt): void;
   destroy(): void;
 }
 
@@ -44,6 +48,8 @@ const WALL_FACE = 110;   // north wall face height
 const COLS = 3;
 const SLOT_W = UNIT_W + 20, SLOT_H = UNIT_H + 20;
 const GAP = 40, HALL = 150;
+const IN_FRONT = 300000;  // stacking bias for a walker getting into or out of a chair (desks raise themselves up to 100000 + y)
+const WALK_SCALE = 0.42;   // every walking robot (hall, rooms, park) and the desk robots (seated.ts) share this size
 
 const LOUNGE = 230;      // extra floor below the desks for a rug, beanbags or a ping pong table
 function officeSize(slots: number, lounge = 0) {
@@ -66,16 +72,24 @@ export class World {
   park: Park;
 
   // --- robots walking between rooms --------------------------------------------------------
-  // When a robot changes rooms it gets up and walks: out of its room's door, along the hall,
-  // in through the other door. Until it arrives it is not shown at the destination.
+  // A robot that changes rooms gets up and walks: out through its room's door, along the hall,
+  // in through the other door and down the aisles between the desks to its chair, where it sits
+  // down and the desk robot takes over on the spot. The break room, the question line and the
+  // park have walkers of their own: they hand a leaving robot over at their door and take an
+  // arriving one over at the same point, so nobody pops in or out. New robots come in from
+  // outside through the entrance; outdoors a robot walks in the park layer (under the night tint).
   private topH = 0;
   private roomOf = new Map<string, string>();          // thread -> room id at the last update ("park" too)
   private transit = new Map<string, Walker>();
-  private extLists: { brk: any[]; queue: any[]; park: any[] } = { brk: [], queue: [], park: [] };
+  private trips = new Map<string, object>();           // the journey a robot in transit is on (a newer one replaces it)
+  private known = new Map<string, WThread>();          // every thread at the last update, for robots whose thread went away
+  private exits = new Map<string, { t: WThread; to: string | null; timer: number }>();   // waiting for its room to hand it over at the door
+  private parkDoor: Pt = { x: 0, y: 0 };
+  private extLists: { brk: any[]; queue: any[]; park: any[]; orch?: any } = { brk: [], queue: [], park: [] };
   private get hallY() { return this.topH + HALL / 2; }
-  private roomById(id: string) { return this.rooms.find((r) => r.id === id) ?? null; }
+  private roomById(id: string | null) { return id ? this.rooms.find((r) => r.id === id) ?? null : null; }
   // the door on the hall side of a room: [just outside in the hall, just inside the room]
-  private door(r: Room): [{ x: number; y: number }, { x: number; y: number }] {
+  private door(r: Room): [Pt, Pt] {
     if (r.y + r.h <= this.topH + 1) {   // top row: door in the south wall
       const x = r.x + r.w / 2;
       return [{ x, y: r.y + r.h + 34 }, { x, y: r.y + r.h - 40 }];
@@ -83,65 +97,209 @@ export class World {
     const x = r.x + r.w - 46;           // bottom row: door in the north wall, right corner
     return [{ x, y: r.y - 34 }, { x, y: r.y + WALL_FACE + 16 }];
   }
-  // from a spot inside a room to the hall (walking around the desks, along the edges)
-  private exitPath(r: Room, from: { x: number; y: number }) {
-    const [out, inn] = this.door(r);
-    const top = r.y + r.h <= this.topH + 1;
-    const pts = top
-      ? [{ x: from.x, y: r.y + r.h - 40 }, inn, out]
-      : [{ x: from.x, y: r.y + r.h - 34 }, { x: inn.x, y: r.y + r.h - 34 }, inn, out];
-    return [...pts, { x: out.x, y: this.hallY }];
-  }
-  private enterPath(r: Room, to: { x: number; y: number }) { return this.exitPath(r, to).reverse().slice(1).concat([to]); }
-  private chairOf(d: Desk) { return { x: parseFloat(d.el.style.left) + GEOM.chair.x, y: parseFloat(d.el.style.top) + GEOM.chair.y + 50 }; }
   private entrance() { return { x: this.size.w - 6, y: this.hallY }; }
-
-  private walk(t: { id: string; provider: string; model?: string | null }, from: string, fromPt: { x: number; y: number } | null, to: string, delay: number) {
-    const prev = this.transit.get(t.id);
-    const start = prev ? { x: prev.x, y: prev.y } : null;
-    prev?.destroy();
-    const profile = this.roster.byThread(t.id);
-    const w = new Walker(this.deskLayer, { id: t.id, provider: t.provider, name: profile?.name, model: t.model ?? undefined, scale: 0.42, look: profile?.look });
-    w.el.classList.add("hall-walker");
-    makeInteractive(w, { bounds: () => ({ x: 0, y: 0, w: this.size.w, h: this.size.h }), onOpen: () => this.onSelectThread(t.id) });
-    this.transit.set(t.id, w);
-    const fromRoom = this.roomById(from);
-    // where it sets off: its old chair, its old room's door (break room, questions), or the park
-    const path: { x: number; y: number }[] = [];
-    if (start) path.push({ x: start.x, y: this.hallY });
-    else if (fromRoom && fromPt) path.push(...this.exitPath(fromRoom, fromPt));
-    else if (fromRoom) path.push(...this.door(fromRoom).slice(0, 1), { x: this.door(fromRoom)[0].x, y: this.hallY });
-    else path.push(this.entrance());
-    const first = start ?? (fromPt ?? path[0]);
-    w.setPos(first.x, first.y);
-    w.el.style.opacity = "0";
-    const arrive = async () => {
-      const toRoom = this.roomById(to);
-      const desk = this.desks.get(t.id);
-      if (desk && toRoom) path.push({ x: this.door(toRoom)[0].x, y: this.hallY }, ...this.enterPath(toRoom, this.chairOf(desk)));
-      else if (toRoom) path.push({ x: this.door(toRoom)[0].x, y: this.hallY }, this.door(toRoom)[0]);
-      else path.push(this.entrance());
-      await w.walkPath(path);
-      // picked up and dropped somewhere on the way: back to the hall, then on to where it was going
-      const end = path[path.length - 1];
-      for (let tries = 0; tries < 4 && this.transit.get(t.id) === w && Math.hypot(w.x - end.x, w.y - end.y) > 8; tries++) {
-        await whenFree(w);
-        const rest = path.slice(path.findIndex((p) => Math.abs(p.y - this.hallY) < 2 && Math.abs(p.x - end.x) < 400) >= 0 ? path.findIndex((p) => Math.abs(p.y - this.hallY) < 2 && Math.abs(p.x - end.x) < 400) : path.length - 1);
-        await w.walkPath([{ x: w.x, y: this.hallY }, ...rest]);
+  /** Where a walker sits so its head is where the desk robot's head is (desk at `d`, world coordinates). */
+  private seatAt(d: Pt) { return { x: d.x + GEOM.chair.x, y: d.y + GEOM.head.y - 2 + SIT_HEAD * WALK_SCALE }; }
+  private deskPos(d: Desk) { return { x: parseFloat(d.el.style.left), y: parseFloat(d.el.style.top) }; }
+  // From just inside the door to the seat of the desk at `d`, along the free aisles: one runs
+  // below every row of desks, others between the columns of tables and along the east wall.
+  private toSeat(r: Room, d: Pt): Pt[] {
+    const [, inn] = this.door(r);
+    const seat = this.seatAt(d), rowY = d.y + UNIT_H + 10;
+    const pts: Pt[] = [inn];
+    if (r.y + r.h <= this.topH + 1) {
+      // door in the south wall: up to the aisle below the last row, then up between two columns
+      const rows = Math.max(1, Math.floor((r.h - WALL_FACE - 70) / SLOT_H));
+      const lastY = r.y + WALL_FACE + 40 + (rows - 1) * SLOT_H + UNIT_H + 10;
+      pts.push({ x: inn.x, y: lastY });
+      if (Math.abs(lastY - rowY) > 2) {
+        const ax = Math.abs(d.x - 10 - inn.x) <= Math.abs(d.x + UNIT_W + 10 - inn.x) ? d.x - 10 : d.x + UNIT_W + 10;
+        pts.push({ x: ax, y: lastY }, { x: ax, y: rowY });
       }
-    };
-    window.setTimeout(async () => {
-      if (this.transit.get(t.id) !== w) return;
-      gsap.to(w.el, { opacity: 1, duration: 0.25 });
-      try { await arrive(); } catch { /* replaced */ }
-      if (this.transit.get(t.id) !== w) return;
-      this.transit.delete(t.id);
-      w.destroy();
-      // it has arrived: sit down at the desk, or join the room
-      const desk = this.desks.get(t.id);
-      if (desk) { desk.el.classList.remove("arriving"); gsap.fromTo(desk.el.querySelector(".robot-host"), { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "back.out(1.6)" }); }
-      this.pushExt();
-    }, delay);
+    } else pts.push({ x: inn.x, y: rowY });   // door in the north wall's east corner: down along the east wall
+    // round the chair to its side, then step in front of the desk and sit (never through the chair back)
+    const bx = seat.x + (inn.x < seat.x ? -1 : 1) * 62;
+    pts.push({ x: bx, y: rowY }, { x: bx, y: seat.y }, seat);
+    return pts;
+  }
+  private outside(p: Pt) { return p.x > this.size.w; }
+  /** From any point to the hall (nothing when it is already outdoors), through the room's door. */
+  private wayOut(p: Pt): Pt[] {
+    if (this.outside(p)) return [];
+    if (p.y >= this.topH - 10 && p.y <= this.topH + HALL + 10) return [{ x: p.x, y: this.hallY }];
+    const r = this.rooms.find((q) => p.x >= q.x && p.x <= q.x + q.w && p.y >= q.y && p.y <= q.y + q.h);
+    if (!r) return [{ x: p.x, y: this.hallY }];
+    const [out, inn] = this.door(r);
+    return [{ x: p.x, y: inn.y }, inn, out, { x: out.x, y: this.hallY }];
+  }
+  /** The whole way from `p` to where the robot is going (see `travel`). */
+  private route(p: Pt, id: string, to: string | null): { pts: Pt[]; desk: Desk | null; deskAt: Pt | null } {
+    const pts = this.wayOut(p);
+    const toRoom = this.roomById(to);
+    const desk = toRoom ? this.desks.get(id) ?? null : null;
+    const startOut = this.outside(p), endOut = !toRoom;   // the park, or away
+    if (startOut && !endOut) pts.push(this.parkDoor, this.entrance());
+    if (!startOut && endOut) pts.push(this.entrance(), this.parkDoor);
+    let deskAt: Pt | null = null;
+    if (toRoom) {
+      const [out, inn] = this.door(toRoom);
+      pts.push({ x: out.x, y: this.hallY }, out);
+      if (desk) { deskAt = this.deskPos(desk); pts.push(...this.toSeat(toRoom, deskAt)); }
+      else pts.push(inn);
+    } else if (to !== "park") pts.push({ x: this.parkDoor.x + 110, y: this.parkDoor.y });   // away down the path
+    return { pts, desk, deskAt };
+  }
+
+  private spawn(t: { id: string; provider: string; model?: string | null }, at: Pt, face: Facing, outdoors = this.outside(at)) {
+    const profile = this.roster.byThread(t.id);
+    const out = outdoors;
+    const w = new Walker(out ? this.park.layer : this.deskLayer, { id: t.id, provider: t.provider, name: profile?.name, model: t.model ?? undefined, scale: WALK_SCALE, look: profile?.look });
+    w.el.classList.add("hall-walker");
+    makeInteractive(w, { bounds: () => (out ? this.outdoor : null) ?? { x: 0, y: 0, w: this.size.w, h: this.size.h }, onOpen: () => this.onSelectThread(t.id) });
+    w.setPos(at.x, at.y);
+    w.face(face);
+    this.transit.set(t.id, w);
+    return w;
+  }
+
+  /** Walks a list of points; at the entrance the robot steps from the hall layer to the outdoors layer or back. */
+  private async walkLegs(t: WThread, pts: Pt[], trip: object) {
+    let i = 0;
+    while (i < pts.length) {
+      const w = this.transit.get(t.id);
+      if (!w || this.trips.get(t.id) !== trip) return;
+      const out = this.outside(pts[i]);
+      if (out !== (w.el.parentElement === this.park.layer)) {
+        // through the entrance: the same robot, now drawn in the other layer
+        this.spawn(t, { x: w.x, y: w.y }, w.facing, out);
+        w.destroy();
+        continue;
+      }
+      let j = i;
+      while (j < pts.length && this.outside(pts[j]) === out) j++;
+      await w.walkPath(pts.slice(i, j));
+      if (this.transit.get(t.id) !== w || this.trips.get(t.id) !== trip) return;
+      const last = pts[j - 1];
+      if (Math.hypot(w.x - last.x, w.y - last.y) > 8) return;   // picked up on the way: the caller plans again
+      i = j;
+    }
+  }
+
+  /**
+   * One robot's walk to `to` (a room id, "park", or null: it leaves the building). It sets off
+   * from its chair (`seat`: where its desk stood), from the point a room handed it over at,
+   * from wherever it is walking right now, or from outside (a new robot).
+   */
+  private async travel(t: WThread, from: { seat: Pt; room: string | null } | { at: Pt; face: Facing } | { outside: true } | { walker: Walker }, to: string | null) {
+    const trip = {};
+    this.trips.set(t.id, trip);
+    let w: Walker;
+    if ("walker" in from) { w = from.walker; w.stop(); w.zBias = 0; }
+    else if ("seat" in from) {
+      // the desk robot gets up: its walking self takes over, sitting in the same chair
+      w = this.spawn(t, this.seatAt(from.seat), "up");
+      w.sitNow();
+      w.zBias = IN_FRONT;   // over its desk until it is out of the chair
+      await pause(0.25);
+      if (this.trips.get(t.id) !== trip) return;
+      w.calm();
+      await pause(0.35);
+      const r = this.roomById(from.room);
+      if (r) {
+        // out of the chair the way it came in: a step to the side, then down the aisles to the door
+        const back = this.toSeat(r, from.seat).reverse();
+        await this.walkLegs(t, back.slice(0, 2), trip);
+        if (this.trips.get(t.id) !== trip || this.transit.get(t.id) !== w) return;
+        w.zBias = 0;
+        await this.walkLegs(t, back.slice(2), trip);
+        if (this.trips.get(t.id) !== trip) return;
+        w = this.transit.get(t.id) ?? w;
+      } else w.zBias = 0;
+    } else if ("at" in from) w = this.spawn(t, from.at, from.face);
+    else {
+      w = this.spawn(t, { x: this.parkDoor.x + 110, y: this.parkDoor.y }, "left");
+      gsap.fromTo(w.el, { opacity: 0 }, { opacity: 1, duration: 0.4 });
+    }
+    let plan = this.route({ x: w.x, y: w.y }, t.id, to);
+    for (let tries = 0; tries < 5; tries++) {
+      if (this.trips.get(t.id) !== trip) return;
+      // the last steps (beside the chair, into it) are drawn over the desk, whatever raised it
+      const near = plan.desk ? 2 : 0, n = plan.pts.length;
+      const w0 = this.transit.get(t.id);
+      if (w0) w0.zBias = 0;
+      await this.walkLegs(t, plan.pts.slice(0, n - near), trip);
+      const at = this.transit.get(t.id), mid = plan.pts[n - near - 1];
+      if (near && at && this.trips.get(t.id) === trip && (!mid || Math.hypot(at.x - mid.x, at.y - mid.y) <= 8)) {
+        at.zBias = IN_FRONT;
+        await this.walkLegs(t, plan.pts.slice(n - near), trip);
+      }
+      const cur = this.transit.get(t.id);
+      if (!cur || this.trips.get(t.id) !== trip) return;
+      w = cur;
+      const end = plan.pts[plan.pts.length - 1];
+      const d = plan.desk, moved = !!d && (this.desks.get(t.id) !== d || !d.el.isConnected || Math.hypot(this.deskPos(d).x - plan.deskAt!.x, this.deskPos(d).y - plan.deskAt!.y) > 1);
+      if (!moved && (!end || Math.hypot(w.x - end.x, w.y - end.y) <= 8)) break;
+      await whenFree(w);
+      plan = this.route({ x: w.x, y: w.y }, t.id, to);
+    }
+    if (this.trips.get(t.id) !== trip) return;
+    this.trips.delete(t.id);
+    this.transit.delete(t.id);
+    const desk = plan.desk && this.desks.get(t.id) === plan.desk ? plan.desk : null;
+    const done = w;
+    if (desk) {
+      // it turns to the desk and sits down; the desk robot fades in on the same spot
+      done.face("up");
+      done.do("sit");
+      await pause(0.55);
+      desk.el.classList.remove("arriving");
+      gsap.to(done.el, { opacity: 0, duration: 0.25, onComplete: () => done.destroy() });
+    } else if (to && to !== "park") {
+      // the room's own walker takes over just inside the door
+      const r = this.roomById(to), ext = this.ext[to as "break" | "queue"];
+      if (r && ext?.enterFrom) ext.enterFrom(t.id, { x: done.x - r.x, y: done.y - r.y });
+      done.destroy();
+    } else if (to === "park") done.destroy();   // the park's own walker steps out of the same door
+    else gsap.to(done.el, { opacity: 0, duration: 0.4, onComplete: () => done.destroy() });
+    this.pushExt();
+  }
+
+  /** A room's walker reached its door on the way out (world coordinates): the hall walker takes over. */
+  private handOver(id: string, at: Pt, face: Facing) {
+    const ex = this.exits.get(id);
+    if (!ex) return false;
+    window.clearTimeout(ex.timer);
+    this.exits.delete(id);
+    void this.travel(ex.t, { at, face }, ex.to);
+    return true;
+  }
+
+  /** A robot changes rooms (`to` null: its thread is gone and it leaves the building). */
+  private move(t: WThread, from: string | null, to: string | null, seat: Pt | null) {
+    const desk = to ? this.desks.get(t.id) : undefined;
+    if (desk) desk.el.classList.add("arriving");
+    const ex = this.exits.get(t.id);
+    if (ex) { ex.t = t; ex.to = to; return; }                 // still walking out of its room: it goes on from the door
+    const cur = this.transit.get(t.id);
+    if (cur) { void this.travel(t, { walker: cur }, to); return; }
+    if (seat) { void this.travel(t, { seat, room: from }, to); return; }
+    if (from === "break" || from === "queue" || from === "park") {
+      // the room walks it to its door first and hands it over there (handOver)
+      const r = this.roomById(from);
+      const timer = window.setTimeout(() => {
+        // the room never had it on show: it steps out of that door
+        const e = this.exits.get(t.id);
+        if (!e) return;
+        this.exits.delete(t.id);
+        void this.travel(e.t, { at: r ? this.door(r)[0] : this.parkDoor, face: "down" }, e.to);
+        const w = this.transit.get(t.id);
+        if (w) gsap.fromTo(w.el, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+      }, 15000);
+      this.exits.set(t.id, { t, to, timer });
+      return;
+    }
+    const r = this.roomById(from);
+    void this.travel(t, r ? { at: this.door(r)[1], face: "down" } : { outside: true }, to);
   }
 
   // break room, question line and park only show robots that are actually there
@@ -149,6 +307,7 @@ export class World {
     const here = (l: any[]) => l.filter((x) => !this.transit.has(x.id));
     this.ext.break?.setThreads(here(this.extLists.brk) as any);
     this.ext.queue?.setThreads(here(this.extLists.queue) as any);
+    (this.ext.queue as any)?.setBoss?.(this.extLists.orch ?? null);   // the orchestrator sits behind the questions desk
     this.park.setThreads(here(this.extLists.park));
   }
   // the shop building between the office and the park
@@ -265,6 +424,7 @@ export class World {
     this.park = new Park(worldEl);
     worldEl.insertBefore(this.park.layer, worldEl.querySelector(".building-plate"));
     this.park.onSelect = (id) => this.onSelectThread(id);
+    this.park.onExit = (id, at, face) => this.handOver(id, at, face);
     this.root = scene.querySelector(".world")!;
     this.roomLayer = scene.querySelector(".room-layer")!;
     this.deskLayer = scene.querySelector(".desk-layer")!;
@@ -280,7 +440,9 @@ export class World {
     const queue: WThread[] = [], main: WThread[] = [], brk: WThread[] = [], rest: WThread[] = [];
     const perProject = new Map<string, WThread[]>();
     const freelance: WThread[] = [];
+    let orchT: WThread | null = null;
     for (const t of data.threads) {
+      if (t.id === this.orchThread) { orchT = t; continue; }   // no desk: it has the chair in the questions room
       // A scheduled robot with a long wait until its next run spends it in the break room;
       // with a short wait it stays at its desk and kills time there.
       const wait = t.schedule?.nextRunAt ? Date.parse(t.schedule.nextRunAt) - Date.now() : null;
@@ -393,6 +555,7 @@ export class World {
         if (make) {
           const ext = make(el, r.w, r.h);
           ext.onSelect = (id) => this.onSelectThread(id);
+          ext.onExit = (id, at, face) => this.handOver(id, { x: at.x + r.x, y: at.y + r.y }, face);
           this.ext[r.kind as "break" | "queue"] = ext;
         } else el.innerHTML = roomSvg(r, plans[i].slots, this.themes.get(r.id), this.level);
         this.roomLayer.appendChild(el);
@@ -414,7 +577,8 @@ export class World {
       const cb = this.grounds.bounds;
       const out = { ox: cb.x, oy: cb.y, w: cb.w, h: cb.h };
       this.outdoor = { x: out.ox, y: out.oy, w: out.w, h: out.h, park };
-      this.park.setGeometry(park, { x: this.size.w + 66, y: topH + HALL / 2 + 20 });
+      this.parkDoor = { x: this.size.w + 66, y: topH + HALL / 2 + 20 };
+      this.park.setGeometry(park, this.parkDoor);
       const layer = this.root.querySelector(".outside-layer") as HTMLElement;
       layer.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px`;
       this.outArgs = { ...out, building, entranceY: entY, park, shop: this.shopRect, grounds: this.grounds };
@@ -463,19 +627,27 @@ export class World {
     });
     const wanted = new Set(slots.filter((s) => s.t).map((s) => s.t!.id));
     // where every robot is right now, so a robot changing rooms can walk over
-    const chairsBefore = new Map<string, { x: number; y: number }>();
-    for (const [id, d] of this.desks) chairsBefore.set(id, this.chairOf(d));
+    const desksBefore = new Map<string, Pt>();
+    for (const [id, d] of this.desks) if (!d.el.classList.contains("arriving")) desksBefore.set(id, this.deskPos(d));
     const nowRoom = new Map<string, string>();
     for (const s of slots) if (s.t) nowRoom.set(s.t.id, s.key.split("#")[0]);
     brkShown.forEach((t) => nowRoom.set(t.id, "break"));
     queue.forEach((t) => nowRoom.set(t.id, "queue"));
     if (!this.outdoorsWet) brk.slice(8, 14).forEach((t) => { if (!nowRoom.has(t.id)) nowRoom.set(t.id, "park"); });
     const first = this.roomOf.size === 0;
-    const moving: { t: WThread; from: string; to: string }[] = [];
-    for (const t of data.threads) {
-      const from = this.roomOf.get(t.id), to = nowRoom.get(t.id);
-      if (!first && from && to && from !== to) moving.push({ t, from, to });
+    const moving: { t: WThread; from: string | null; to: string | null }[] = [];
+    if (!first) {
+      for (const t of data.threads) {
+        if (t.id === this.orchThread) continue;   // the orchestrator has the chair in the questions room (boss.ts)
+        const from = this.roomOf.get(t.id) ?? null, to = nowRoom.get(t.id) ?? null;
+        if (from !== to) moving.push({ t, from, to });   // a new robot comes in from outside; one with no place left goes out
+      }
+      for (const [id, from] of this.roomOf) {
+        const t = this.known.get(id);
+        if (!nowRoom.has(id) && t && id !== this.orchThread && !data.threads.some((x) => x.id === id)) moving.push({ t, from, to: null });   // its thread is gone
+      }
     }
+    this.known = new Map(data.threads.map((t) => [t.id, t]));
     this.roomOf = nowRoom;
     this.addTiles(plans, rooms);
     for (const [id, d] of this.desks) if (!wanted.has(id)) { if (this.selected === d) this.select(null); this.cull.unobserve(d.el); d.destroy(); this.allDesks.delete(d); this.desks.delete(id); for (const [k, v] of this.slotDesks) if (v === d) this.slotDesks.delete(k); }
@@ -513,22 +685,16 @@ export class World {
     // desks whose seat disappeared are retired properly (their robot and computer stop)
     const inUse = new Set(this.slotDesks.values());
     for (const d of this.allDesks) if (!inUse.has(d)) { this.allDesks.delete(d); if (this.selected === d) this.select(null); this.cull.unobserve(d.el); d.destroy(); }
-    for (const m of moving) {
-      const desk = this.desks.get(m.t.id);
-      if (desk) desk.el.classList.add("arriving");
-      // leaving a desk: get up at once; leaving the break room, questions or park: walk out of
-      // that room by itself first, then come down the hall
-      const fromDesk = chairsBefore.get(m.t.id) ?? null;
-      const delay = fromDesk ? 0 : m.from === "park" ? 7000 : 3200;
-      this.walk(m.t, m.from, fromDesk, m.to, delay);
-    }
+    // leaving a desk: it gets up from its chair; leaving the break room, questions or park: that
+    // room walks it to its door and hands it over there
+    for (const m of moving) this.move(m.t, m.from, m.to, desksBefore.get(m.t.id) ?? null);
     // robots that finished longer ago than the break room's latest eight go out to the park
     const info = (t: WThread) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name, look: this.roster.byThread(t.id)?.look });
     // in rain, storms or snow nobody stays in the park
     const wet = this.outdoorsWet;
     this.park.wet = wet;
     this.park.rainSoon = wet && !["rain", "drizzle", "storm", "snow"].includes(this.weather?.kind ?? "");
-    this.extLists = { brk: brkShown.map(info), queue: queue.map((t) => ({ ...info(t), question: t.question })), park: wet ? [] : brk.slice(8, 14).map(info) };
+    this.extLists = { brk: brkShown.map(info), queue: queue.map((t) => ({ ...info(t), question: t.question })), park: wet ? [] : brk.slice(8, 14).map(info), orch: orchT ? { ...info(orchT), running: orchT.runStatus === "running" } : null };
     this.pushExt();
     this.onRooms(rooms);
   }
@@ -699,7 +865,7 @@ export class World {
     const id = el.dataset.id || "";
     const robot = this.roster.byThread(id);
     const thread = this.lastData?.threads.find((t) => t.id === id);
-    const where = el.closest(".room-break") ? "In the break room" : el.closest(".room-queue") ? "Waiting with a question" : el.closest(".park-layer") ? "In the park" : el.closest(".shopfront") ? "Running the shop" : "Walking";
+    const where = el.closest(".room-break") ? "In the break room" : el.closest(".room-queue") ? (id === this.orchThread ? "At your desk" : "Waiting with a question") : el.closest(".park-layer") ? "In the park" : el.closest(".shopfront") ? "Running the shop" : "Walking";
     const bubble = (el.parentElement?.querySelector(`.world-say[data-for="${CSS.escape(id)}"]`) as HTMLElement | null)?.textContent || "";
     const name = id === "shopkeeper" ? "Shopkeeper" : robot?.name ?? "Robot";
     const sub = [where, thread?.title].filter(Boolean).join(" · ");

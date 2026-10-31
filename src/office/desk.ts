@@ -1,8 +1,9 @@
 import gsap from "gsap";
 import { WM } from "../os/wm";
 import { Director, type ThreadInfo } from "../director";
-import { GEOM, UNIT, type DeskRig, type Pt, type SeatedRobot } from "./rig";
+import { GEOM, PHONE_SCALE, UNIT, type DeskRig, type Pt, type SeatedRobot } from "./rig";
 import { StubRobot } from "./stub-robot";
+import { emptyChairSvg } from "../world/seated";
 import { playHandoff } from "../world/handoff";
 import { logoFor, brandFor } from "./brand";
 import { WALLPAPERS, HOBBY_LABEL, type RobotProfile } from "./roster";
@@ -76,7 +77,7 @@ export class Desk implements DeskStage {
     this.el = el;
     this.monitor = el.querySelector(".monitor")!;
     this.screen = el.querySelector(".screen")!;
-    gsap.set(el.querySelector(".phone-held"), { scale: 0.24, transformOrigin: "0 0" });
+    gsap.set(el.querySelector(".phone-held"), { scale: PHONE_SCALE, transformOrigin: "0 0" });
     this.indexKeys();
     this.robot = robotFactory(el.querySelector(".robot-host") as HTMLElement, this.rig());
     this.wireToys();
@@ -388,6 +389,7 @@ export class Desk implements DeskStage {
         <ellipse cx="${mug.x - 2}" cy="${mug.y - 12}" rx="3" ry="1.2" fill="#8a4a32"/>
         <g class="mug-steam"><path d="M${mug.x - 3} ${mug.y - 16} q-3 -5 0 -9 q3 -4 0 -9" /><path d="M${mug.x + 3} ${mug.y - 15} q-3 -5 0 -9 q3 -4 0 -8" /></g>
       </g>
+      ${emptyChairSvg()}
     </svg>`;
   }
 

@@ -21,10 +21,12 @@ export type Activity =
   | "idle" | "talk" | "laugh" | "eat" | "drink" | "charge" | "nap" | "wave" | "wait"
   | "hold-card" | "sit" | "explain" | "listen"
   // group games: ping pong stance, gamepad, chin scratch, cheering, sulking, watching a film
-  | "ready" | "play" | "think" | "cheer" | "sulk" | "watch";
+  | "ready" | "play" | "think" | "cheer" | "sulk" | "watch"
+  // seated behind a desk, facing the room, hands on the keyboard
+  | "type";
 
 export interface WalkerOptions { id: string; provider: string; name?: string; model?: string; scale?: number; look?: RobotLook }
-export type Prop = "none" | "mug" | "bowl" | "spoon" | "card" | "wrist" | "paddle" | "pad" | "popcorn" | "ball";
+export type Prop = "none" | "mug" | "bowl" | "spoon" | "card" | "wrist" | "paddle" | "pad" | "popcorn" | "ball" | "stamp";
 
 // ---- skeleton (v0 units) ------------------------------------------------------------------------
 const FEET = { x: 560, y: 935 };              // floor point between the feet
@@ -37,11 +39,13 @@ const UPPER = 43, FORE = 41;                  // arm bones
 const THIGH = 38, SHIN = 37;                  // leg bones
 const K = 0.38;                               // depth (toward the camera) to screen y
 const SIT_DROP = 36, CROUCH_DROP = 15;
+/** From the feet up to the middle of the head of a walker sitting on a chair, in v0 units (times the scale for px). */
+export const SIT_HEAD = FEET.y - 659 - SIT_DROP + 21;   // the head rides on the neck a little above the art's middle
 const SPEED = 105;                            // px per second (in the parent's coordinates)
 const STEP = 25;                              // half a step, v0 units
 const TAU = Math.PI * 2;
 // which activities can be done sitting down (they keep the current seat)
-const SEATABLE = new Set<Activity>(["sit", "nap", "eat", "drink", "talk", "listen", "laugh", "think", "play", "watch", "explain"]);
+const SEATABLE = new Set<Activity>(["sit", "nap", "eat", "drink", "talk", "listen", "laugh", "think", "play", "watch", "explain", "type"]);
 
 type V3 = { x: number; y: number; z: number };
 type P2 = { x: number; y: number };
@@ -58,6 +62,8 @@ const CHIN = H(-44, -36, 26), CROSS_L = H(-44, 36, 22), CROSS_R = H(-46, 30, 27)
 const READY_R = H(10, 30, 32, -24), READY_L = H(4, 40, 24);
 const PAD = H(-30, 50, 28), PAD_SIT = H(-30, 60, 30);
 const POP_STAND = H(-38, 46, 24), POP_SIT = H(-40, 64, 30), INTO_POP = H(-60, 34, 32);
+// at a desk, facing the camera: hands on the keyboard, the rubber stamp over the paper beside it
+const KEYS = H(-16, 40, 60), STAMP_UP = H(40, 14, 50, 0), STAMP_DOWN = H(44, 62, 70, 0);
 
 const PROPS: Record<Prop, string> = {
   none: "",
@@ -81,6 +87,9 @@ const PROPS: Record<Prop, string> = {
     <path d="M-13 -40 L-10 1 L-3 2 L-6 -40 Z M6 -40 L3 2 L10 1 L13 -40 Z" fill="#e2483d"/>
     <circle cx="-13" cy="-43" r="7" fill="#fff3c4"/><circle cx="-2" cy="-47" r="8" fill="#ffe9a0"/><circle cx="10" cy="-44" r="7" fill="#fff3c4"/><circle cx="16" cy="-39" r="5.5" fill="#ffd27a"/><circle cx="3" cy="-40" r="6.5" fill="#fff8de"/>`,
   ball: `<circle cx="3" cy="-11" r="7.5" fill="#fffdf6"/><circle cx="1" cy="-13.5" r="2.6" fill="#fff" opacity="0.9"/>`,
+  // a rubber stamp gripped by its knob, the pad pointing down
+  stamp: `<g><rect x="-5" y="-6" width="10" height="20" rx="3" fill="#a8774f"/><circle cx="0" cy="-6" r="8" fill="#c08a5c"/>
+    <rect x="-13" y="13" width="26" height="8" rx="2.5" fill="#3a3f4f"/><rect x="-12" y="20" width="24" height="3.5" rx="1.5" fill="#e2483d"/></g>`,
 };
 // props drawn over the mitten (held from below); the rest are gripped, so the mitten covers them
 const OVER = new Set<Prop>(["bowl", "popcorn", "ball"]);
@@ -116,6 +125,7 @@ function ik3(s: V3, t: V3, A: number, B: number, pole: V3, stretch = 1.15) {
 }
 
 const f1 = (n: number) => n.toFixed(1);
+const headSize = (look: RobotLook) => Math.min(1.15, Math.max(0.9, look.head ?? 1));
 
 export class Walker {
   el: HTMLDivElement;
@@ -127,8 +137,11 @@ export class Walker {
   model: string;
   facing: Facing = "down";
   activity: Activity = "idle";
-  /** How hard the thumbs work in "play" (1 normal, 2.5 button mashing). */
+  /** How hard the thumbs work in "play" (1 normal, 2.5 button mashing); also typing speed. */
   mashRate = 1;
+  /** Added to the stacking order (a robot sitting behind a desk is drawn over it, see `setDeskEdge`). */
+  zBias = 0;
+  private deskEdge: number | null = null;
   private s: number;
   private svg: SVGSVGElement;
   private $: Record<string, SVGElement> = {};
@@ -197,7 +210,7 @@ export class Walker {
     this.battery = el.querySelector(".world-battery")!;
     el.style.setProperty("--head-top", `${((FEET.y - 560) * this.s).toFixed(1)}px`);
     paintBrand(this.svg, this.$, this.brand);
-    if (opts.look) paintLook(this.svg, this.$, opts.look);
+    if (opts.look) { paintLook(this.svg, this.$, opts.look); this.headK = headSize(opts.look); }
     this.setModel(this.model);
     this.updateTitle();
     this.setExpression("neutral");
@@ -213,7 +226,9 @@ export class Walker {
   }
 
   setBrand(provider: string) { this.brand = brandFor(provider); paintBrand(this.svg, this.$, this.brand); }
-  setLook(look: RobotLook) { paintLook(this.svg, this.$, look); }
+  setLook(look: RobotLook) { paintLook(this.svg, this.$, look); this.headK = headSize(look); }
+  /** The robot's own head size (look.head), the same as at its desk. */
+  private headK = 1;
   setName(name: string) { this.name = name; this.updateTitle(); }
   setModel(model: string | null | undefined) {
     this.model = model ?? "";
@@ -234,7 +249,7 @@ export class Walker {
 
   private place() {
     this.el.style.transform = `translate(${this.x.toFixed(1)}px, ${this.y.toFixed(1)}px)`;
-    this.el.style.zIndex = String(Math.round(this.y) + (this.st.sit > 0.5 ? -2 : 0));
+    this.el.style.zIndex = String(Math.round(this.y) + this.zBias + (this.st.sit > 0.5 ? -2 : 0));
   }
 
   face(dir: Facing) {
@@ -276,6 +291,9 @@ export class Walker {
   }
 
   stop() { this.gen++; this.finishMove(true); }
+
+  /** Already sitting, without the motion (a desk robot getting up hands over to its walking self). */
+  sitNow() { this.do("sit"); gsap.killTweensOf(this.st, "sit"); this.st.sit = 1; }
 
   private go(list: P2[]): Promise<void> {
     this.finishMove();
@@ -391,7 +409,7 @@ export class Walker {
     this.clearAct();
     if (!opts.keep) this.setProps("none", "none");
     const st = this.st;
-    const seated = !!opts.seated || activity === "watch" || activity === "nap" || (activity === "sit");
+    const seated = !!opts.seated || activity === "watch" || activity === "nap" || activity === "sit" || activity === "type";
     const sit = seated ? 1 : SEATABLE.has(activity) ? st.sit : 0;
     const base = { lu: 0, ru: 0, lak: 0, rak: 0, nod: 0, tilt: 0, shrug: 0, roll: 0, sway: 0, bx: 0, crouch: 0, bounce: 0, laugh: 0, chew: 0, mash: 0, wave: 0, tap: 0, kick: 0, look: 0, lookY: 0, deep: 0, glowPulse: 0 };
     const to = (v: Record<string, number>, d = 0.45, ease = "power2.inOut") => gsap.to(st, { ...v, duration: d, ease, overwrite: "auto" });
@@ -574,6 +592,12 @@ export class Walker {
           return TL().to(st, { shrug: 9, nod: 4, duration: 0.35, ease: "power2.out" }).to(st, { shrug: 4, nod: 7, duration: 0.6 })
             .to(st, { tap: seatedNow() ? 0 : 1, duration: 0.1 }, 0).to(st, { tap: 0, duration: 0.2 }, 0.5);
         }, () => rnd(2.2, 4));
+        break;
+      case "type": // typing in bursts; `mashRate` sets the pace
+        to({ sit: 1, ...arm("l", KEYS), ...arm("r", KEYS), lean: 2, nod: 2, lookY: 0.5 }, 0.5);
+        if (reduced()) break;
+        loop(() => TL().to(st, { mash: 1, nod: 3, duration: 0.15 })
+          .to(st, { mash: 0, nod: 2, duration: 0.25 }, `+=${rnd(0.8, 2.6) * Math.min(1.6, this.mashRate)}`), () => rnd(1.4, 3.6) / this.mashRate, 0.3);
         break;
       case "watch": // sitting, eyes on the screen; munches if holding popcorn
         to({ sit: 1, lean: 3 }, 0.6);
@@ -763,6 +787,72 @@ export class Walker {
     gsap.to(this.st, { look: d * 0.8, duration: 0.35, ease: "power2.out", overwrite: "auto" });
   }
 
+  /** Sitting behind a desk whose far edge is at floor y `edge`: the body is hidden below that
+   *  line (the desk top covers the lap), legs and floor shadow go, and the robot is drawn over
+   *  the desk so its hands rest on it. Null stands it up again. */
+  setDeskEdge(edge: number | null, zBias = 0) {
+    this.deskEdge = edge;
+    this.zBias = edge == null ? 0 : zBias;
+    let clip = this.svg.querySelector("clipPath.desk-edge") as SVGClipPathElement | null;
+    if (edge == null) { this.$.lower.removeAttribute("clip-path"); clip?.remove(); this.$.shadow.style.display = ""; this.place(); return; }
+    if (!clip) {
+      const ns = "http://www.w3.org/2000/svg";
+      clip = document.createElementNS(ns, "clipPath") as SVGClipPathElement;
+      clip.classList.add("desk-edge");
+      clip.id = uid("edge");
+      clip.setAttribute("clipPathUnits", "userSpaceOnUse");
+      clip.appendChild(document.createElementNS(ns, "rect"));
+      this.svg.querySelector("defs")!.appendChild(clip);
+    }
+    const y = FEET.y + (edge - this.y) / this.s;
+    const r = clip.firstElementChild!;
+    r.setAttribute("x", "0"); r.setAttribute("y", "0"); r.setAttribute("width", "1120"); r.setAttribute("height", y.toFixed(1));
+    this.$.lower.setAttribute("clip-path", `url(#${clip.id})`);
+    this.$.shadow.style.display = "none";
+    this.place();
+  }
+
+  /** Eyes and head turn somewhere for a moment (`look` -1 left to 1 right, `lookY` -1 up to 1 down), then come back. */
+  glance(look: number, lookY: number, hold = 1.2) {
+    const st = this.st, back = this.activity === "type" ? 0.5 : 0;
+    return TL().to(st, { look: clamp(look, -1, 1), lookY: clamp(lookY, -1, 1), tilt: look * 3, duration: 0.25, ease: "power2.out" })
+      .to(st, { look: 0, lookY: back, tilt: 0, duration: 0.4, ease: "power2.inOut" }, `+=${hold}`);
+  }
+
+  /** A friendly hello from the desk: hand up, a little wave and a nod, then back to work. */
+  greet() {
+    const st = this.st, typing = this.activity === "type";
+    if (this.expr === "neutral") { this.setExpression("happy"); gsap.delayedCall(1.8, () => this.expr === "happy" && this.setExpression("neutral")); }
+    const home = typing ? KEYS : null;
+    return TL()
+      .to(st, { mash: 0, duration: 0.1 })
+      .to(st, { rx: 20, ry: -38, rz: 26, rr: 14, ru: 1, wave: 1, nod: 4, roll: -2, duration: 0.3, ease: "back.out(1.7)" }, 0)
+      .to(st, { nod: 0, duration: 0.3, ease: "sine.inOut" }, 0.35)
+      .to(st, { wave: 0, roll: 0, ...(home ? { rx: home.x, ry: home.y, rz: home.z, rr: 0 } : { ru: 0 }), duration: 0.45, ease: "power2.inOut" }, "+=0.9");
+  }
+
+  /** A short "yes" nod. */
+  nodYes() {
+    return TL().to(this.st, { nod: 6, duration: 0.14, ease: "sine.inOut", yoyo: true, repeat: 3 });
+  }
+
+  /** Pick up the rubber stamp, press it down beside the keyboard (`onHit` at contact), put it away. */
+  stamp(onHit: () => void = () => {}) {
+    const st = this.st, keep = this.propL;
+    this.setProps(keep, "stamp");
+    const pose = (p: Hand) => ({ rx: p.x, ry: p.y, rz: p.z, rr: p.r ?? 0, ru: 1 });
+    return TL()
+      .to(st, { mash: 0, ...pose(STAMP_UP), look: 0.6, lookY: 1, nod: 4, duration: 0.35, ease: "power2.out" })
+      .to(st, { ry: STAMP_UP.y - 8, duration: 0.18, ease: "sine.out" })
+      .to(st, { ...pose(STAMP_DOWN), lean: 5, shrug: 3, duration: 0.11, ease: "power3.in" })
+      .add(onHit)
+      .to(st, { sq: 0.12, duration: 0.05 })
+      .to(st, { sq: 0, duration: 0.3, ease: "elastic.out(1, 0.4)" })
+      .to(st, { ...pose(STAMP_UP), lean: 2, shrug: 0, duration: 0.3, ease: "power2.out" }, "+=0.12")
+      .add(() => { if (this.propR === "stamp") this.setProps(keep, "none"); })
+      .to(st, { ...pose(KEYS), look: 0, lookY: 0.5, nod: 2, duration: 0.4, ease: "power2.inOut" });
+  }
+
   setCard(text: string) { this.card.querySelector("span")!.textContent = text; this.card.title = text; }
 
   setExpression(e: Expression) {
@@ -932,7 +1022,7 @@ export class Walker {
     const legsFront = !side && !back && st.sit > 0.5;
     const legKey = legsFront ? "front" : "back";
     if (legKey !== this.layer.legs) { this.layer.legs = legKey; (legsFront ? this.$.legsFront : this.$.legsBack).appendChild(this.$.legs); }
-    this.$.legs.style.display = st.sit > 0.9 && back ? "none" : "";
+    this.$.legs.style.display = (st.sit > 0.9 && back) || this.deskEdge != null ? "none" : "";
     const swingFoot = { l: fl, r: fr };
     for (const k of ["l", "r"] as const) {
       const sgn = k === "l" ? -1 : 1;
@@ -1017,7 +1107,7 @@ export class Walker {
     const hx = neck.x - NECK.x + st.look * (side ? 0 : 2);
     const hy = neck.y - NECK.y + (bob - this.headLag) * 0.8 + st.nod + chew * 2.4 + fwd * 1.1 - laugh * 0.8;
     const tilt = st.tilt + laugh * 2.5 + st.look * (side ? 0 : 3) + dSway * 6 - rot * 0.35 + (side ? st.lookY * -4 : 0);
-    this.attr(this.$.head, "transform", `translate(${f1(hx)} ${f1(hy)}) rotate(${tilt.toFixed(2)} 560 715)`);
+    this.attr(this.$.head, "transform", `translate(${f1(hx)} ${f1(hy)}) rotate(${tilt.toFixed(2)} 560 715)${this.headK === 1 ? "" : ` translate(560 715) scale(${this.headK}) translate(-560 -715)`}`);
     this.attr(this.$.look, "transform", `translate(${f1(st.look * 8)} ${f1(st.lookY * 5)})`);
     this.attr(this.$.sideLook, "transform", `translate(${f1(Math.abs(st.look) * -2)} ${f1(st.lookY * 5)})`);
     this.attr(this.$.shadow, "rx", f1((54 - st.jump * 14 - dangle * 10) * (1 + st.sit * 0.1)));
@@ -1143,7 +1233,7 @@ const WALKER_SVG = (id: string, s: number) => /* svg */ `
   <defs>${defsSvg(id)}</defs>
   <ellipse data-r="shadow" cx="${FEET.x}" cy="${FEET.y + 1}" rx="54" ry="12" fill="#2b1d10" opacity="0.22"/>
   <g data-r="flip"><g data-r="rig">
-    <g data-r="legsBack"><g data-r="legs">${limb("leg", "l")}${footSvg("l")}${limb("leg", "r")}${footSvg("r")}</g></g>
+    <g data-r="lower"><g data-r="legsBack"><g data-r="legs">${limb("leg", "l")}${footSvg("l")}${limb("leg", "r")}${footSvg("r")}</g></g>
     <g data-r="body">
       <g data-r="armsBack"></g>
       <rect x="547" y="700" width="26" height="42" rx="9" fill="var(--deep)"/>
@@ -1176,7 +1266,7 @@ const WALKER_SVG = (id: string, s: number) => /* svg */ `
         <circle cx="586" cy="774" r="5" fill="var(--glow)" opacity="0.85"/>
         ${cap(566)}
       </g>
-    </g>
+    </g></g>
     <g data-r="head">
       <g data-r="fbHead">${headSvg(id)}</g>
       ${headSideSvg(id)}

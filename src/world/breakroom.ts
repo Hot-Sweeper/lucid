@@ -28,6 +28,10 @@ export interface RoomExtension {
   el: HTMLElement;
   setThreads(list: BreakThread[]): void;
   onSelect: (id: string) => void;
+  /** A leaving robot reached the door (room coordinates); true when the hall walker takes it from there. */
+  onExit?: (id: string, at: Pt, face: Facing) => boolean;
+  /** The next time this robot joins, its walker starts at this point (room coordinates), where the hall walker stopped. */
+  enterFrom?(id: string, at: Pt): void;
   destroy(): void;
 }
 
@@ -156,6 +160,10 @@ const pickOne = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 export class BreakRoom implements RoomExtension {
   el: HTMLElement;
   onSelect: (id: string) => void = () => {};
+  onExit?: (id: string, at: Pt, face: Facing) => boolean;
+  private entries = new Map<string, Pt>();
+  private opened = false;   // had residents before (later arrivals walk in through the door)
+  enterFrom(id: string, at: Pt) { this.entries.set(id, { ...at }); }
   /** Where robots walk in (just inside the door) and appear from (outside it). */
   readonly doorIn: Pt;
   readonly doorOut: Pt;
@@ -351,7 +359,14 @@ export class BreakRoom implements RoomExtension {
         return;
       }
       const w = new Walker(this.stage.layer, { id: t.id, provider: t.provider, model: t.model ?? undefined, name: t.name ?? t.title, scale: SCALE, look: (t as any).look });
-      w.setPos(this.doorOut.x + (i % 2 ? 14 : -14), this.doorOut.y + i * 30);
+      // a robot that just walked down the hall carries on from where it stopped
+      const entry = this.entries.get(t.id);
+      this.entries.delete(t.id);
+      // when the app opens, everyone is already in here, spread over the floor
+      const here = !entry && !this.opened ? this.freePoint({ x: 280 + ((i * 397) % Math.max(1, this.w - 560)), y: 420 + (i % 3) * 110 }) : null;
+      if (entry) w.setPos(entry.x, entry.y);
+      else if (here) w.setPos(here.x, here.y);
+      else w.setPos(this.doorOut.x + (i % 2 ? 14 : -14), this.doorOut.y + i * 30);
       w.face("up");
       const res: Resident = { id: t.id, w, alive: true, busy: true, nextAt: 0, last: null, cool: {}, spot: null, soft: false, pull: null, interrupt: null, group: null, held: false, stops: new Set(), doing: null, resume: null, mate: null };
       // a toy: pick it up, carry it, fling it; double-click opens its thread
@@ -363,13 +378,14 @@ export class BreakRoom implements RoomExtension {
       });
       this.res.set(t.id, res);
       // stagger arrivals so they don't all squeeze through the door at once
-      this.later(i * 1.1, async () => {
+      this.later(entry || here ? 0 : i * 1.1, async () => {
         if (!res.alive) return;
-        await w.walkTo(this.doorIn.x, this.doorIn.y);
+        if (!here) await w.walkTo(this.doorIn.x, this.doorIn.y);
         res.busy = false;
         res.nextAt = performance.now() + 300;
       });
     });
+    if (want.length) this.opened = true;
     this.pauseIdle(want.length === 0);
   }
 
@@ -394,7 +410,8 @@ export class BreakRoom implements RoomExtension {
     await whenFree(r.w);
     r.held = false;
     await r.w.walkPath(this.plan({ x: r.w.x, y: r.w.y }, this.doorIn));
-    await r.w.walkTo(this.doorOut.x, this.doorOut.y + 30);
+    // at the door the hall walker takes over on the same spot; otherwise it walks out by itself
+    if (this.dead || !this.onExit?.(r.id, { x: r.w.x, y: r.w.y }, r.w.facing)) await r.w.walkTo(this.doorOut.x, this.doorOut.y + 30);
     r.w.destroy();
     if (this.res.get(r.id) === r) this.res.delete(r.id);
   }

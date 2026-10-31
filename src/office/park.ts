@@ -27,6 +27,8 @@ const PARK_THOUGHTS = ["Nice out today.", "The ducks are back.", "No merge confl
 export class Park {
   layer: HTMLElement;
   onSelect: (id: string) => void = () => {};
+  /** A leaving robot reached the building door; true when the world's walker takes it from there. */
+  onExit: ((id: string, at: { x: number; y: number }, face: Facing) => boolean) | null = null;
   private vis = new Map<string, Visitor>();
   private spots: Spot[] = [];
   private geo: { park: Rect; door: { x: number; y: number } } | null = null;
@@ -255,6 +257,7 @@ export class Park {
     const g = this.geo;
     if (g) { await this.go(v, { x: g.park.x + 30, y: g.door.y }).catch(() => {}); await v.w.walkPath([g.door]).catch(() => {}); }
     this.leaving.delete(v.w);
+    if (!this.dead) this.onExit?.(v.t.id, { x: v.w.x, y: v.w.y }, v.w.facing);
     v.w.destroy();
   }
 

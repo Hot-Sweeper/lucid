@@ -28,6 +28,7 @@
 .desk-unit.empty .screen > * { display: none; }
 .desk-unit.empty .screen { background: #0c0f22; }
 .desk-unit.empty .robot-host, .desk-unit.empty .bubble, .desk-unit.empty .desk-notes, .desk-unit.empty .desk-glow { display: none; }
+.desk-unit:not(.empty) .empty-chair { display: none; }   /* a free desk keeps its chair; a robot at the desk brings its own (it swivels) */
 .desk-unit.empty { cursor: default; }
 
 .desk-glow { position: absolute; left: 20px; top: 40px; width: 360px; height: 240px; pointer-events: none; --glow: #4fb6ff;
@@ -458,7 +459,9 @@
 .shop-note { grid-column: 1 / -1; margin: 0 0 4px; font-size: 13px; color: var(--ink-3); }
 
 /* a robot on its way to this desk: the chair waits empty until it arrives */
-.desk-unit.arriving .robot-host { opacity: 0; }
+.robot-host .world-seated :is([data-r=torso], [data-r=headRoot], [data-r=armsBack], [data-r=armsFront], [data-r=legs], [data-r=shadowL], [data-r=shadowR]) { transition: opacity 0.25s ease; }
+.desk-unit.arriving .robot-host .world-seated :is([data-r=torso], [data-r=headRoot], [data-r=armsBack], [data-r=armsFront], [data-r=legs], [data-r=shadowL], [data-r=shadowR]),
+.desk-unit.arriving .world-thumb, .desk-unit.arriving .phone-held, .desk-unit.arriving .bubble { opacity: 0 !important; }
 .hall-walker { cursor: pointer; }
 
 .outside-layer { overflow: hidden; }
@@ -636,9 +639,10 @@
 .scene.far .monitor .os { content-visibility: hidden; }
 /* Looping decorations each need their own graphics layer, and so does everything drawn over them:
    zoomed out they are too small to see, so they rest (sways) or step out of view (movers). */
-.scene:not(.near) :is(.mug-steam path, .amb-tree, .amb-bare, .amb-bush, .amb-fl, .amb-glow, .amb-plant, .amb-rock, .amb-sit, .amb-blink, .amb-flap, .amb-buzz, .amb-cloud) { animation: none; }
+.scene:not(.near) :is(.mug-steam path, .amb-tree, .amb-bare, .amb-bush, .amb-fl, .amb-glow, .amb-plant, .amb-rock, .amb-sit, .amb-blink, .amb-flap, .amb-buzz, .amb-cloud, .bf-eqb i) { animation: none; }
 .scene:not(.near) :is(.amb-drop, .amb-ripple, .amb-ring, .amb-path, .amb-occ, .amb-dart, .amb-hop, .amb-ffly) { animation: none; visibility: hidden; }
 .scene.far .monitor .os { visibility: hidden; }
+/* zoomed far out, small looping decorations (steam, swaying plants, drifting cloud shadows) hold still: too small to see, costly to repaint */
 .scene.far .world * { animation-play-state: paused !important; }
 .scene.far .monitor .screen { background: linear-gradient(160deg, #2b6a6a, #1d3d63); }
 
@@ -748,6 +752,7 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .wl-boost { flex: none; margin-right: auto; cursor: help; padding: 3px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: #3a2508; background: #8ef0b4; font-variant-numeric: tabular-nums; }
 .wl-boost[hidden] { display: none; }
 .wl-boost.hot { background: #ffd27a; box-shadow: 0 0 12px rgba(255, 210, 122, 0.6); }
+.cm-error.calm { color: var(--ink-3); }
 
 /* while zooming, the world is scaled as a finished picture (see World.apply) */
 .world.zooming { will-change: transform; }

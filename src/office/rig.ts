@@ -24,6 +24,9 @@ export const GEOM = {
   bubble: { x: 252, y: 150 },                           // speech and thought bubbles anchor (top-left)
 };
 
+/** Size of the phone a seated robot holds up (a 150x300 element), matched to the robot's size. */
+export const PHONE_SCALE = 0.2;
+
 export interface DeskRig {
   /** Center of a key in desk-unit coordinates and which hand types it. Keys: single characters, " ", "Enter", "Backspace", "ArrowUp/Down/Left/Right". */
   keyPos(key: string): (Pt & { hand: Hand }) | null;
