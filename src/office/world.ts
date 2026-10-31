@@ -727,6 +727,9 @@ export class World {
 
   private sceneBox: DOMRect | null = null;
   private near: boolean | null = null;
+  private lastScale = 0;
+  private zooming = false;
+  private zoomEnd = 0;
   private far = false;
   // The camera stays on the grounds: it cannot zoom out past the whole drawing, and the view never
   // drifts off it (when the view is wider or taller than the grounds, they stay centred that way).
@@ -748,6 +751,15 @@ export class World {
   private apply() {
     this.clampCam();
     this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
+    // While the zoom changes, the world is scaled as one finished picture instead of being redrawn
+    // at every step (that redraw kept the graphics process busy most of the time); it is redrawn
+    // sharp a moment after the zoom settles.
+    if (this.cam.s !== this.lastScale) {
+      this.lastScale = this.cam.s;
+      if (!this.zooming) { this.zooming = true; this.root.classList.add("zooming"); }
+      window.clearTimeout(this.zoomEnd);
+      this.zoomEnd = window.setTimeout(() => { this.zooming = false; this.root.classList.remove("zooming"); }, 180);
+    }
     setZoom(this.cam.s, this.cam.x, this.cam.y);
     // the weather follows the camera without measuring the page (which is slow every frame)
     if (this.fx) { this.sceneBox ??= this.scene.getBoundingClientRect(); this.fx.setCamera(this.cam, this.sceneBox, this.size.w); }
