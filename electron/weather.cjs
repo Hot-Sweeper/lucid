@@ -11,7 +11,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const WEATHER_TTL = 20 * 60 * 1000;
+const WEATHER_TTL = 10 * 60 * 1000;
 const PLACE_TTL = 24 * 60 * 60 * 1000;
 const STALE_OK = 3 * 60 * 60 * 1000;
 const BERLIN = { lat: 52.52, lon: 13.405, place: "Berlin", source: "fallback" };
@@ -104,15 +104,29 @@ async function fetchWeather() {
   const p = await locate();
   const url = "https://api.open-meteo.com/v1/forecast"
     + `?latitude=${p.lat.toFixed(3)}&longitude=${p.lon.toFixed(3)}`
-    + "&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day,cloud_cover"
+    + "&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day,cloud_cover,precipitation,snowfall"
+    + "&minutely_15=precipitation,weather_code&past_minutely_15=1&forecast_minutely_15=4"
     + "&daily=sunrise,sunset&timezone=auto&forecast_days=1&wind_speed_unit=kmh";
   const j = await fetchJson(url);
   const c = j.current;
   if (!c || num(c.temperature_2m) == null) throw new Error("open-meteo: no current weather in the answer");
   const off = j.utc_offset_seconds || 0;
   const code = num(c.weather_code);
+  // The "current" code often lags behind real rain. The 15-minute data is finer: any rain
+  // measured now upgrades a dry code, and rain in the next hour is reported as rainSoonMin.
+  let kind = kindFor(code);
+  const m = j.minutely_15 || {};
+  const slots = (m.time || []).map((t, i) => ({ at: Date.parse(toIso(t, off) || ""), mm: num(m.precipitation?.[i]) ?? 0, kind: kindFor(num(m.weather_code?.[i])) }));
+  const now = Date.now();
+  const cur = slots.filter((s) => s.at <= now && now - s.at < 15 * 60 * 1000)[0];
+  const mmNow = Math.max(num(c.precipitation) ?? 0, cur ? cur.mm : 0);
+  if ((kind === "clear" || kind === "clouds") && mmNow > 0) kind = (num(c.snowfall) ?? 0) > 0 ? "snow" : mmNow >= 0.5 ? "rain" : "drizzle";
+  const wetKind = (k) => k === "rain" || k === "drizzle" || k === "storm" || k === "snow";
+  const next = slots.find((s) => s.at > now && s.at - now < 60 * 60 * 1000 && (s.mm > 0 || wetKind(s.kind)));
   return {
-    kind: kindFor(code),
+    kind,
+    precipMm: mmNow,
+    rainSoonMin: !wetKind(kind) && next ? Math.max(1, Math.round((next.at - now) / 60000)) : undefined,
     tempC: Math.round(c.temperature_2m * 10) / 10,
     windKmh: Math.round(num(c.wind_speed_10m) ?? 0),
     isDay: c.is_day === 1,

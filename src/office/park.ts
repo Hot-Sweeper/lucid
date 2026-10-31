@@ -92,6 +92,8 @@ export class Park {
   private started = false;
   /** Bad weather: the park empties, everyone goes back into the building. */
   wet = false;
+  /** Dry for now, but rain is on its way. */
+  rainSoon = false;
 
   private freeSpot(kind?: Spot["kind"]) {
     const free = this.spots.filter((s) => !s.taken && (!kind || s.kind === kind));
@@ -227,7 +229,8 @@ export class Park {
     this.release(v);
     this.vis.delete(v.t.id);
     v.w.calm();
-    v.w.say(this.wet ? pick(["It's raining, inside!", "Nope, too wet.", "My circuits hate rain.", "Race you to the door!"]) : "Back to work!", 1600);
+    v.w.say(this.rainSoon ? pick(["Rain's coming, pack up!", "Those clouds look wet.", "Grab the blanket, rain!", "Inside before it pours!"])
+      : this.wet ? pick(["It's raining, inside!", "Nope, too wet.", "My circuits hate rain.", "Race you to the door!"]) : "Back to work!", 1600);
     const g = this.geo;
     if (g) { await this.go(v, { x: g.park.x + 30, y: g.door.y }).catch(() => {}); await v.w.walkPath([g.door]).catch(() => {}); }
     v.w.destroy();

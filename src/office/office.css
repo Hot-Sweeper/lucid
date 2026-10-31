@@ -430,7 +430,15 @@
 .dc-sw button.for-sale::after { content: ""; position: absolute; right: 3px; top: 3px; width: 9px; height: 9px; border-radius: 50%; background: #ffd27a; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25); }
 .dc-bal { margin: 14px 0 0; font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
 
-.wx { margin-left: 10px; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wx { margin-left: 10px; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; border: 0; background: none; font-family: inherit; padding: 3px 6px; border-radius: 8px; cursor: pointer; }
+.wx:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
+.wx:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.wx.fixed { color: #ffd27a; }
+.wx-menu { position: fixed; z-index: 320; min-width: 190px; display: flex; flex-direction: column; padding: 6px; border-radius: 12px; background: #241f3a; box-shadow: 0 14px 34px rgba(5, 8, 30, 0.5); }
+.wx-menu p { margin: 4px 8px 6px; font-size: 12px; color: var(--ink-3); }
+.wx-menu button { border: 0; background: none; text-align: left; font: inherit; font-size: 13.5px; color: var(--ink); padding: 7px 10px; border-radius: 8px; cursor: pointer; }
+.wx-menu button:hover, .wx-menu button:focus-visible { background: rgba(255, 255, 255, 0.08); outline: none; }
+.wx-menu button[aria-checked="true"] { color: #ffd27a; }
 
 /* the shop building */
 .shopfront { position: absolute; cursor: pointer; }
