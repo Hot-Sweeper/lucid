@@ -225,7 +225,7 @@ async function refresh() {
     orch.observe(data.threads);
     void delegate.observe(data.threads, data.projects);
     renderCompany(data.shipped ?? { total: 0, today: 0 });
-    if (settings.orch) { world.orchThread = settings.orch.threadId; world.homes.set(settings.orch.threadId, "main"); }
+    if (settings.orch) world.orchThread = settings.orch.threadId;
     world.update(data);
     for (const d of world.desks.values()) {
       d.onActivity = (t) => { if (d === world.focusDesk) pushStatus(d); if (d === selectedDesk) { const a = $("focus-activity"); if (a.textContent !== t) { a.textContent = t; gsap.fromTo(a, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.3 }); } } };
@@ -249,19 +249,26 @@ async function refresh() {
 function setupMenus() {
   world.onAddDesk = (room) => {
     world.extra.set(room, (world.extra.get(room) ?? 0) + 1);
+    world.seats.get(room)?.push(null);
     saveSettings();
     void refresh();
   };
   world.onFreeDeskMenu = (d, slot, x, y) => {
     const room = slot.split("#")[0];
     const extra = world.extra.get(room) ?? 0;
-    showMenu(x, y, "Free desk", [
-      { label: "Hire someone for this desk", run: () => world.onFreeDesk(d, slot, x, y) },
-      ...(extra > 0 ? [{ label: "Remove this desk", danger: true, run: () => { world.extra.set(room, extra - 1); saveSettings(); void refresh(); } }] : []),
+    showMenu(x, y, room === "main" ? "Drag a thread here from the sidebar" : "Free desk", [
+      ...(room === "main" ? [] : [{ label: "Hire someone for this desk", run: () => world.onFreeDesk(d, slot, x, y) }]),
+      ...(extra > 0 ? [{ label: "Remove this desk", danger: true, run: () => {
+        const seats = world.seats.get(room);
+        const index = Number(slot.split("#")[1]);
+        if (seats?.[index] === null) seats.splice(index, 1);
+        world.extra.set(room, extra - 1); saveSettings(); void refresh();
+      } }] : []),
     ]);
   };
   world.onFreeDesk = (_d, slot, _x, _y) => {
     const [room, idx] = slot.split("#");
+    if (room === "main") { showMenu(_x, _y, "Drag a thread here from the sidebar", []); return; }
     const data = world.lastData;
     if (!data) return;
     const r = world.rooms.find((q) => q.id === room);
@@ -355,12 +362,13 @@ $("update").addEventListener("click", async () => {
 
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
-const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { seats?: Record<string, (string | null)[]>; hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));
 world.themes = new Map(Object.entries(settings.themes ?? {}));
 world.level = settings.level ?? 0;
 world.homes = new Map(Object.entries(settings.homes ?? {}));
+world.seats = new Map(Object.entries(settings.seats ?? {}).filter(([, seats]) => Array.isArray(seats)));
 
 // --- folding the sidebar, its sections and the chat (remembered in settings.ui) ------------
 settings.ui ??= {};
@@ -483,9 +491,11 @@ const saveSettings = () => {
   settings.extra = Object.fromEntries(world.extra);
   settings.themes = Object.fromEntries(world.themes);
   settings.homes = Object.fromEntries(world.homes);
+  settings.seats = Object.fromEntries(world.seats);
   void api.settingsSave(JSON.stringify(settings));
   renderHidden();
 };
+world.onLayoutChange = saveSettings;
 function renderHidden() {
   const box = $("hidden-offices");
   const ids = [...world.hidden];
@@ -841,7 +851,15 @@ function threadRef(id: string): ThreadRef | null {
   const p = data!.projects.find((x) => x.id === t.projectId);
   return { id, title: t.title || "Untitled thread", project: !p || p.scratch ? "No project" : p.title, provider: t.provider };
 }
-wireThreadDrag([$("th-list"), $("rail-list")], chat, threadRef);
+wireThreadDrag([$("th-list"), $("rail-list")], chat, threadRef, {
+  zone: (x, y) => {
+    const button = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-room]");
+    const room = button?.dataset.room;
+    return room && world.rooms.some((r) => r.id === room && ["main", "project", "freelance"].includes(r.kind)) ? room : world.threadDropZone(x, y);
+  },
+  preview: (room) => world.previewThreadDrop(room),
+  place: (id, room) => world.placeThread(id, room),
+});
 function referenceInChat(id: string, x: number, y: number) {
   const ref = threadRef(id);
   if (!ref) return;

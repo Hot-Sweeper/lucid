@@ -10,7 +10,7 @@ if (process.env.LUCID_SHOT) {
   // Test runs get their own copy of the settings, so they never overwrite the real app's
   // (two apps saving the same file lose each other's changes, like the coin ledger).
   const real = app.getPath("userData");
-  const test = path.join(app.getPath("temp"), "lucid-test-profile");
+  const test = process.env.LUCID_SHOT_PROFILE || path.join(app.getPath("temp"), "lucid-test-profile");
   require("node:fs").mkdirSync(test, { recursive: true });
   try { require("node:fs").copyFileSync(path.join(real, "settings.json"), path.join(test, "settings.json")); } catch {}
   app.setPath("userData", test);
@@ -91,8 +91,9 @@ function createWindow() {
     const timer = setInterval(async () => {
       const img = await win.webContents.capturePage();
       fs.writeFileSync(path.join(process.env.LUCID_SHOT, `shot-${String(++n).padStart(2, "0")}.png`), img.toPNG());
-      if (process.env.LUCID_EVAL) {
-        const out = await win.webContents.executeJavaScript(process.env.LUCID_EVAL).catch((e) => String(e));
+      if (process.env.LUCID_EVAL || process.env.LUCID_EVAL_FILE) {
+        const code = process.env.LUCID_EVAL_FILE ? fs.readFileSync(process.env.LUCID_EVAL_FILE, "utf8") : process.env.LUCID_EVAL;
+        const out = await win.webContents.executeJavaScript(code).catch((e) => String(e));
         fs.appendFileSync(path.join(process.env.LUCID_SHOT, "eval.log"), `--- ${n}
 ${typeof out === "string" ? out : JSON.stringify(out, null, 1)}
 `);
