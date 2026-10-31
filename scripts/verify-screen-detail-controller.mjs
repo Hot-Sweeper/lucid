@@ -105,3 +105,29 @@ assert.ok(css.includes('[data-screen-detail] .os-clock { visibility: hidden; }')
 assert.ok(css.includes('[data-screen-detail] .toast span { position: relative; visibility: hidden; }'));
 
 console.log(JSON.stringify({cursorCaptures:0,typingWindowsRefreshed:1,iconCanvasAllocations:0,iconTypingLayoutReads:0,cachedTierLayoutReads:0,newAppsInherit:true,offscreenCaptures:0}));
+
+// First-time transitions across a busy office must yield rather than walking every
+// app in one task. Subsequent forward/reverse transitions reuse those exact nodes.
+const busyHost=new Element('screen'),busyLayer=new Element('win-layer');busyHost.append(busyLayer);
+const busyWins=[];
+for(let i=0;i<8;i++) {
+  const win=new Element('win'),bar=new Element('win-bar'),body=new Element('win-body');
+  for(let j=0;j<480;j++)body.append(new Element('row'));
+  win.append(bar,body);busyLayer.append(win);busyWins.push(win);
+}
+const coldReads=reads;api.setScreenDetail(busyHost,true,250);assert.equal(reads,coldReads,'Cold boundary changes perform no synchronous layout reads');
+let maxReadsPerTask=0,tasks=0;
+while(timers.size){const [id,job]=[...timers].sort((a,b)=>a[1].due-b[1].due)[0];timers.delete(id);now=Math.max(now,job.due);const before=reads;job.fn();maxReadsPerTask=Math.max(maxReadsPerTask,reads-before);assert.ok(++tasks<100);}
+assert.ok(tasks>8,'Large apps are captured across multiple cooperative tasks');
+assert.ok(maxReadsPerTask<=140,`Bounded capture reads per task, got ${maxReadsPerTask}`);
+for(const width of [190,140,190,250]){api.setScreenDetail(busyHost,true,width);drain();}
+const warmReads=reads,warmCanvases=canvases;
+for(let i=0;i<100;i++)for(const width of [190,140,190,250,400,250])api.setScreenDetail(busyHost,true,width);
+drain();assert.equal(reads,warmReads,'600 cached boundary reversals must do zero layout/style reads');assert.equal(canvases,warmCanvases,'Warm reversals allocate zero canvases');
+const retained=busyWins[0].querySelector('.screen-detail').firstChild;
+const observer=observers.at(-1);
+observer.cb([{target:busyWins[0].querySelector('.win-body').children[0],type:'characterData'}]);
+assert.equal(busyWins[0].querySelector('.screen-detail').firstChild,retained,'Dirty content keeps its prior snapshot visible until refresh');drain();
+const beforeMove=reads;busyWins[0].style.transform='translateX(20px)';observer.cb([{target:busyWins[0],type:'attributes',attributeName:'style'}]);drain();assert.equal(reads,beforeMove,'Composited window motion does not invalidate any app capture');
+api.releaseScreenDetail(busyHost);drain();
+console.log(JSON.stringify({coldCaptureTasks:tasks,maxLayoutStyleReadsPerTask:maxReadsPerTask,warmBoundaryChanges:600,warmLayoutReads:0,warmCanvasAllocations:0,staleViewRetained:true,windowMotionRecaptures:0}));

@@ -4,12 +4,14 @@ import './screen-detail.css';
 
 type Reduced = Exclude<ScreenDetail, 'full'>;
 type State = { host: HTMLElement; tier: ScreenDetail; visible: boolean; logicalWidth: number; dpr: number; observer: MutationObserver };
-type Cached = { nodes: Node[]; dpr: number; logicalWidth: number };
-type Cache = { views: Map<Reduced, Cached>; lastPaint: number; width: number; height: number };
+type Cached = { nodes: Node[]; dpr: number; logicalWidth: number; revision: number };
+type Capture = { run: Generator<void, void, void>; bounds: DOMRect; tier: Reduced; revision: number; dpr: number; logicalWidth: number };
+type Cache = { views: Map<Reduced, Cached>; lastPaint: number; width: number; height: number; revision: number; iconRevision: number; shellStyle: string };
 const states = new WeakMap<HTMLElement, State>();
 const caches = new WeakMap<HTMLElement, Cache>();
-const pending = new Map<HTMLElement, { state: State; due: number }>();
-let timer = 0;
+const pending = new Map<HTMLElement, { state: State; due: number; capture?: Capture }>();
+let timer = 0, idle = 0;
+const CAPTURE_NODES = 64, CAPTURE_MS = 2;
 
 // Derive simplified shell marks from existing SVG artwork, never per-app profiles.
 const shellIcons = new WeakMap<HTMLElement, string>();
@@ -41,7 +43,7 @@ function syncShell(host: HTMLElement) {
 
 function cacheFor(win: HTMLElement) {
   let cache = caches.get(win);
-  if (!cache) { cache = { views: new Map(), lastPaint: -Infinity, width: 0, height: 0 }; caches.set(win, cache); }
+  if (!cache) { cache = { views: new Map(), lastPaint: -Infinity, width: 0, height: 0, revision: 0, iconRevision: 0, shellStyle: '' }; caches.set(win, cache); }
   return cache;
 }
 function overlayFor(win: HTMLElement) {
@@ -58,8 +60,9 @@ function showCached(win: HTMLElement, tier: Reduced, state: State) {
   const nodes = cached.nodes;
   const overlay = overlayFor(win);
   if (overlay.firstChild !== nodes[0]) overlay.replaceChildren(...nodes);
-  win.dataset.detailReady = '1';
-  return true;
+  if (win.dataset.detailReady !== '1') win.dataset.detailReady = '1';
+  // Retain the last valid view during refresh instead of rebuilding in a camera event.
+  return cached.revision === (tier === 'icon' ? cacheFor(win).iconRevision : cacheFor(win).revision);
 }
 function enqueue(win: HTMLElement, state: State, transition = false) {
   if (!state.visible || state.tier === 'full' || win.dataset.renderHidden === '1') return;
@@ -67,19 +70,20 @@ function enqueue(win: HTMLElement, state: State, transition = false) {
   const interval = state.tier === 'lines' ? 750 : 1500;
   const due = transition ? 0 : cacheFor(win).lastPaint + interval;
   const previous = pending.get(win);
-  pending.set(win, { state, due: Math.min(previous?.due ?? Infinity, due) });
+  pending.set(win, { state, due: Math.min(previous?.due ?? Infinity, due), capture: previous?.capture?.tier === state.tier ? previous.capture : undefined });
   // A zoom transition must not wait behind a throttled content refresh.
   if (transition && timer) { clearTimeout(timer); timer = 0; }
   pump();
 }
 function pump() {
-  if (timer || !pending.size || document.hidden) return;
-  timer = window.setTimeout(flush, 0);
+  if (timer || idle || !pending.size || document.hidden) return;
+  if (window.requestIdleCallback) idle = window.requestIdleCallback(flush, { timeout: 80 });
+  else timer = window.setTimeout(() => flush(), 0);
 }
-// Global work queue: never synchronously snapshot an entire office on a zoom tick.
-// At most one window is measured per task, with cached tiers restored immediately.
-function flush() {
-  timer = 0;
+function later(ms: number) { timer = window.setTimeout(() => { timer = 0; pump(); }, ms); }
+// Cold captures yield between nodes; a large app cannot monopolize a wheel frame.
+function flush(deadline?: IdleDeadline) {
+  timer = idle = 0;
   if (document.hidden) return;
   let soonest = Infinity;
   const now = performance.now();
@@ -87,19 +91,38 @@ function flush() {
     const { state } = job;
     if (!win.isConnected || !state.visible || state.tier === 'full' || win.dataset.renderHidden === '1') { pending.delete(win); continue; }
     if (job.due > now) { soonest = Math.min(soonest, job.due); continue; }
-    pending.delete(win);
-    if (!showCached(win, state.tier, state)) {
-      paint(win, state.tier, state);
+    if (showCached(win, state.tier, state)) { pending.delete(win); pump(); return; }
+    let capture = job.capture;
+    if (!capture || capture.tier !== state.tier || capture.dpr / capture.logicalWidth < state.dpr / state.logicalWidth) {
+      const cache = cacheFor(win);
+      capture = { run: null!, bounds: win.getBoundingClientRect(), tier: state.tier,
+        revision: state.tier === 'icon' ? cache.iconRevision : cache.revision, dpr: state.dpr, logicalWidth: state.logicalWidth };
+      capture.run = paint(win, state.tier, state, capture); job.capture = capture;
+    }
+    // Re-normalize after camera moves between idle chunks.
+    capture.bounds = win.getBoundingClientRect();
+    const until = performance.now() + Math.min(CAPTURE_MS, Math.max(.5, deadline?.timeRemaining() ?? CAPTURE_MS));
+    let complete = false;
+    for (let nodes = 0; nodes < CAPTURE_NODES; nodes++) {
+      if (nodes && performance.now() >= until) break;
+      if (capture.run.next().done) { complete = true; break; }
+    }
+    if (complete) {
+      pending.delete(win);
       const overlay = win.querySelector<HTMLElement>(':scope > .screen-detail');
       if (overlay?.firstChild) {
         const cache = cacheFor(win);
-        cache.views.set(state.tier, { nodes: Array.from(overlay.childNodes), dpr: state.dpr, logicalWidth: state.logicalWidth }); cache.lastPaint = now;
+        cache.views.set(capture.tier, { nodes: Array.from(overlay.childNodes), dpr: capture.dpr,
+          logicalWidth: capture.logicalWidth, revision: capture.revision }); cache.lastPaint = now;
+        if (capture.revision !== (capture.tier === 'icon' ? cache.iconRevision : cache.revision)) enqueue(win, state);
       }
+    } else {
+      pending.delete(win); pending.set(win, job); // round-robin across visible apps
     }
-    if (pending.size) timer = window.setTimeout(flush, 16);
+    if (pending.size) pump();
     return;
   }
-  if (pending.size && Number.isFinite(soonest)) timer = window.setTimeout(flush, Math.max(16, soonest - now));
+  if (pending.size && Number.isFinite(soonest)) later(Math.max(16, soonest - now));
 }
 
 /** Automatic geometry-based LOD shared by all current and future WM apps.
@@ -109,12 +132,12 @@ export function setScreenDetail(host: HTMLElement, visible: boolean, width: numb
   let state = states.get(host);
   if (!state) {
     const observer = new MutationObserver(records => {
-      const changed = new Map<HTMLElement, boolean>();
+      const changed = new Map<HTMLElement, { shell: boolean; motionOnly: boolean }>();
       let shellChanged = false;
       for (const record of records) {
         // Newly opened windows are reported on the shared layer, outside .win.
         if (record.type === 'childList') for (const node of record.addedNodes) {
-          if (node instanceof HTMLElement && node.matches('.win')) changed.set(node, true);
+          if (node instanceof HTMLElement && node.matches('.win')) changed.set(node, { shell: true, motionOnly: false });
         }
         const target = record.target instanceof Element ? record.target : record.target.parentElement;
         if (!target || target.closest('.screen-detail')) continue;
@@ -129,18 +152,22 @@ export function setScreenDetail(host: HTMLElement, visible: boolean, width: numb
         const body = win.querySelector('.win-body');
         // The icon tier depends only on the shell, body surface and app icon.
         const shell = !body?.contains(target) || target === body || target.parentElement === body && record.type === 'attributes';
-        changed.set(win, (changed.get(win) ?? false) || shell);
+        const previous = changed.get(win);
+        changed.set(win, { shell: (previous?.shell ?? false) || shell, motionOnly: (previous?.motionOnly ?? true) && record.target === win && record.type === 'attributes' && record.attributeName === 'style' });
       }
       if (shellChanged && state!.tier !== 'full') syncShell(host);
-      for (const [win, shell] of changed) {
+      for (const [win, { shell, motionOnly }] of changed) {
         const cache = cacheFor(win);
+        const shellStyle = [win.style.width, win.style.height, win.style.background, win.style.backgroundColor, win.style.color, win.style.borderRadius].join('|');
+        if (motionOnly && cache.shellStyle === shellStyle) continue;
+        cache.shellStyle = shellStyle;
         // WM resizing changes inline dimensions. Do not stretch an old capture
         // until the normal content-refresh throttle expires, or measure on zoom.
         const width = parseFloat(win.style.width), height = parseFloat(win.style.height);
         const resized = cache.width > 0 && (width > 0 && width !== cache.width || height > 0 && height !== cache.height);
-        cache.views.delete('lines'); cache.views.delete('shapes');
-        if (shell) cache.views.delete('icon');
-        if (resized) overlayFor(win).replaceChildren();
+        cache.revision++;
+        if (shell) cache.iconRevision++;
+        if (resized) { cache.views.clear(); pending.delete(win); overlayFor(win).replaceChildren(); }
         enqueue(win, state!, resized);
       }
     });
@@ -188,11 +215,12 @@ function appIcon(win: HTMLElement, width: number, height: number, overview: bool
   return badge;
 }
 
-function paint(win: HTMLElement, tier: ScreenDetail, state: State) {
+function* paint(win: HTMLElement, tier: ScreenDetail, state: State, capture: Capture): Generator<void, void, void> {
   const width = win.offsetWidth, height = win.offsetHeight, bounds = win.getBoundingClientRect();
   if (!width || !height || !bounds.width || !bounds.height) return;
   const cache = cacheFor(win); cache.width = width; cache.height = height;
-  const overlay = overlayFor(win);
+  cache.shellStyle = [win.style.width, win.style.height, win.style.background, win.style.backgroundColor, win.style.color, win.style.borderRadius].join('|');
+  const overlay = win.querySelector<HTMLElement>(':scope > .screen-detail');
   if (tier === 'icon') {
     const surface = document.createElement('div'); surface.className = 'screen-detail-surface';
     surface.style.backgroundColor = getComputedStyle(win).backgroundColor;
@@ -203,7 +231,7 @@ function paint(win: HTMLElement, tier: ScreenDetail, state: State) {
     }
     const icon = appIcon(win, width, height, true);
     if (icon) surface.append(icon);
-    overlay.replaceChildren(surface); win.dataset.detailReady = '1'; return;
+    overlayFor(win).replaceChildren(surface); win.dataset.detailReady = '1'; return;
   }
   const canvas = document.createElement('canvas');
   // Both raster tiers cover the largest reduced view. A transition can keep
@@ -216,12 +244,13 @@ function paint(win: HTMLElement, tier: ScreenDetail, state: State) {
   if (!ctx) return;
   ctx.scale(scale, scale);
   ctx.fillStyle = getComputedStyle(win).backgroundColor; ctx.fillRect(0, 0, width, height);
-  const sx = width / bounds.width, sy = height / bounds.height;
-  const rect = (r: DOMRect) => ({ x: (r.left - bounds.left) * sx, y: (r.top - bounds.top) * sy, w: r.width * sx, h: r.height * sy });
+  const rect = (r: DOMRect) => ({ x: (r.left - capture.bounds.left) * width / capture.bounds.width, y: (r.top - capture.bounds.top) * height / capture.bounds.height, w: r.width * width / capture.bounds.width, h: r.height * height / capture.bounds.height });
   const colored = (color: string) => color !== 'transparent' && color !== 'rgba(0, 0, 0, 0)';
   let count = 0;
-  const walk = (el: Element, clip: { x: number; y: number; w: number; h: number }) => {
-    if (++count > (tier === 'lines' ? 450 : 250) || el === overlay) return;
+  const walk = function* (el: Element, clip: { x: number; y: number; w: number; h: number }): Generator<void, void, void> {
+    if (count >= (tier === 'lines' ? 450 : 250) || el === overlay) return;
+    yield;
+    count++;
     const style = getComputedStyle(el);
     if (style.display === 'none' || style.opacity === '0') return;
     const r = rect(el.getBoundingClientRect());
@@ -244,14 +273,18 @@ function paint(win: HTMLElement, tier: ScreenDetail, state: State) {
     }
     const nextClip = /hidden|clip|auto|scroll/.test(style.overflow + style.overflowY) ? { x: Math.max(clip.x, r.x), y: Math.max(clip.y, r.y), w: Math.max(0, Math.min(clip.x + clip.w, r.x + r.w) - Math.max(clip.x, r.x)), h: Math.max(0, Math.min(clip.y + clip.h, r.y + r.h) - Math.max(clip.y, r.y)) } : clip;
     ctx.globalAlpha = 1;
-    for (const child of el.children) walk(child, nextClip);
+    for (const child of el.children) {
+      if (count >= (tier === 'lines' ? 450 : 250)) break;
+      yield* walk(child, nextClip);
+    }
     ctx.restore();
   };
-  walk(win, { x: 0, y: 0, w: width, h: height });
-  overlay.replaceChildren(canvas);
+  yield* walk(win, { x: 0, y: 0, w: width, h: height });
+  const layer = overlayFor(win);
+  layer.replaceChildren(canvas);
   if (tier === 'shapes') {
     const icon = appIcon(win, width, height, false);
-    if (icon) overlay.append(icon);
+    if (icon) layer.append(icon);
   }
   win.dataset.detailReady = '1';
 }
