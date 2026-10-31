@@ -110,6 +110,14 @@ export class IdleLife {
       this.robot.setPose("rest");
       this.onActivity("Waiting for a task");
       if (Math.random() < 0.3) { this.robot.setPose("mouse"); await this.wm.fidget(); this.alive(tok); this.robot.setPose("rest"); }
+      // or nudge a window that is still open somewhere else, just because
+      else if (this.wm.wins.size && Math.random() < 0.2) {
+        const wins = [...this.wm.wins.values()];
+        this.robot.setPose("mouse");
+        await this.wm.maybeShuffle(wins[Math.floor(Math.random() * wins.length)].id, 1);
+        this.alive(tok);
+        this.robot.setPose("rest");
+      }
       await this.wait(600 + Math.random() * 1000, tok);
     }
     await this.lock(tok);
