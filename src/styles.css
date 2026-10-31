@@ -23,7 +23,7 @@ button, textarea, input { font: inherit; color: inherit; }
 ::-webkit-scrollbar-thumb:hover { background-color: rgba(185, 191, 230, 0.32); }
 ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
 
-#app { display: grid; grid-template-columns: 300px 1fr; height: 100vh; }
+#app { position: relative; display: grid; grid-template-columns: var(--side, 300px) minmax(0, 1fr) var(--chat, 460px); grid-template-rows: minmax(0, 1fr); height: 100vh; overflow: hidden; }
 
 /* ---------------- panel ---------------- */
 .panel { display: flex; flex-direction: column; gap: 22px; padding: 20px 16px 0; background: var(--night-2); min-height: 0; }

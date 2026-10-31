@@ -8,7 +8,8 @@
 .room-name { font: 600 12px/1.25 var(--font); color: #3a3f4f; text-align: center; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .night-shade { position: absolute; inset: 0; background: #0b1030; opacity: calc(var(--night) * 0.9); pointer-events: none; }
 
-.zoom-ui { position: fixed; right: 18px; bottom: 16px; z-index: 50; }
+.zoom-ui { grid-column: 2; grid-row: 1; align-self: end; justify-self: end; margin: 0 18px 16px 0; position: relative; z-index: 50; pointer-events: none; }
+.zoom-ui button { pointer-events: auto; }
 .zoom-ui button { border: 0; background: rgba(20, 26, 51, 0.85); backdrop-filter: blur(8px); color: var(--ink); padding: 9px 14px; border-radius: 10px; cursor: pointer; font-size: 14px; }
 .zoom-ui button:hover { background: rgba(37, 45, 92, 0.95); }
 
@@ -37,10 +38,10 @@
 .desk-plate { position: absolute; z-index: 3; left: 12px; top: 262px; max-width: 150px; display: flex; align-items: center; gap: 5px; padding: 3px 7px;
   background: rgba(255, 255, 255, 0.93); border-radius: 6px; color: #2d3142; font: 500 10px/1.2 var(--font); box-shadow: 0 3px 8px rgba(40, 30, 20, 0.15); z-index: 2; }
 .desk-plate img { width: 11px; height: 11px; flex: none; }
-/* the name on one line, the thread title on up to two below it (all of it in the tooltip) */
+/* the name on one line, the thread title on up to three below it (all of it in the tooltip) */
 .desk-plate span { display: flex; flex-direction: column; min-width: 0; }
 .desk-plate span b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.desk-plate span i { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.desk-plate span i { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; }
 .desk-unit.empty .desk-plate { opacity: 0.55; }
 
 .desk-unit.selected::before { content: ""; position: absolute; left: 0; right: 0; top: 170px; bottom: 0; border-radius: 40px;
@@ -123,9 +124,15 @@
 .pp-cap { flex: none; margin: 0 8px 8px; padding: 5px 8px; border-radius: 8px; background: rgba(27, 31, 69, 0.88); color: #fff; font-size: 8.5px; text-align: center; }
 
 /* chat beside the robot's screen */
-.chat-panel { position: fixed; right: 14px; top: 14px; bottom: 14px; width: clamp(440px, 36vw, 640px); z-index: 60; display: none; flex-direction: column;
-  background: rgba(22, 27, 58, 0.97); border-radius: 18px; box-shadow: 0 24px 60px rgba(5, 8, 30, 0.55); overflow: hidden; }
-.chat-panel.open { display: flex; }
+.chat-panel { grid-column: 3; grid-row: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.chat-panel.tabbed { display: none; }
+/* with no robot selected the panel stays, and says how to pick one */
+.cp-empty { flex: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 8px; padding: 24px 28px; min-height: 0; }
+.cp-empty p { margin: 0; max-width: 30ch; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
+.cp-empty p b { font-size: 15px; font-weight: 600; color: var(--ink); }
+.cp-empty .cp-hide { margin-top: 10px; }
+.chat-panel:not(.open) > :not(.cp-empty) { display: none; }
+.chat-panel.open > .cp-empty { display: none; }
 .cp-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 14px 14px 12px 16px; }
 .cp-logo { width: 20px; height: 20px; flex: none; }
 .cp-who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -520,7 +527,7 @@
 .th-ago { flex: none; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 @keyframes th-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .th-st.work i { animation: none; } }
-.th-title { font-size: 14px; font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.th-title { font-size: 14px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .th-row:not(.on) .th-title { font-weight: 500; color: var(--ink-2, var(--ink)); }
 .th-pin { color: var(--accent); font-size: 9px; margin-right: 5px; vertical-align: 2px; }
 .th-bot { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3); min-height: 15px; }
@@ -603,12 +610,13 @@
 .hire-cands { max-height: 300px; }
 
 /* project sign over the monitor in shared rooms */
-.desk-proj { position: absolute; z-index: 3; left: 200px; top: -20px; transform: translateX(-50%); max-width: 280px; display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px; border-radius: 999px; background: rgba(255, 255, 255, 0.95); color: #2d3142; font: 600 12px/1.2 var(--font); box-shadow: 0 4px 10px rgba(40, 30, 20, 0.18); white-space: nowrap; }
+/* the tag sits on the monitor's top edge and grows upward; a long project name wraps to a second line before it is cut (the tooltip has all of it) */
+.desk-proj { position: absolute; z-index: 3; left: 200px; top: 6px; transform: translate(-50%, -100%); width: max-content; max-width: 380px; display: flex; align-items: center; gap: 6px; padding: 4px 11px 4px 5px; border-radius: 15px; background: rgba(255, 255, 255, 0.95); color: #2d3142; font: 600 12px/1.25 var(--font); box-shadow: 0 4px 10px rgba(40, 30, 20, 0.18); }
 .desk-proj[hidden] { display: none; }
 .desk-proj img { width: 16px; height: 16px; border-radius: 4px; object-fit: contain; flex: none; }
 .desk-proj .dp-mono { width: 16px; height: 16px; border-radius: 4px; flex: none; display: grid; place-items: center; font: 700 8px var(--font); background: #ff9f5a; color: #fff; }
 .desk-proj .dp-mono[hidden] { display: none; }
-.desk-proj b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.desk-proj b { font-weight: 600; min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .desk-unit.empty .desk-proj { display: none; }
 
 /* chat panel fixes: messages never grow past the panel; long code scrolls inside its block */
