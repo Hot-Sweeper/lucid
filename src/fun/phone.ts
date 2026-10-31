@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import type { FunHost, FunOpts, Outcome } from "./host";
 import { VIDEOS, type VideoDef } from "./videos";
+import { DANCE_VIDEOS } from "./dance";
 import { Scope, fitCanvas, measure, html, hash } from "./util";
 
 const ICON = {
@@ -27,6 +28,20 @@ const POSTS: Record<string, { user: string; caption: string; funny?: boolean }> 
 
 const fmt = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(n >= 1e5 ? 0 : 1)}K` : String(n));
 
+/** Shuffled feed where dance trends come up often: about every third slide until they run out. */
+function feedOrder() {
+  const shuffle = <T,>(a: T[]) => a.map((v) => [Math.random(), v] as const).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
+  const dances = shuffle(VIDEOS.filter((v) => DANCE_VIDEOS.includes(v)));
+  const rest = shuffle(VIDEOS.filter((v) => !DANCE_VIDEOS.includes(v)));
+  const out: VideoDef[] = [];
+  let slot = Math.floor(Math.random() * 3);
+  while (dances.length || rest.length) {
+    out.push((slot % 3 === 0 && dances.length) || !rest.length ? dances.shift()! : rest.shift()!);
+    slot++;
+  }
+  return out;
+}
+
 type Slide = { el: HTMLElement; canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; v: VideoDef; t0: number; likes: number; liked: boolean; bar: HTMLElement };
 
 export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
@@ -44,7 +59,7 @@ export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: F
     const { w, h } = measure(root, 150, 300);
     const track = root.querySelector(".fun-ph-track") as HTMLElement;
     const fx = root.querySelector(".fun-ph-fx") as HTMLElement;
-    const order = [...VIDEOS].sort(() => Math.random() - 0.5);
+    const order = feedOrder();
     let idx = 0;
 
     const makeSlide = (v: VideoDef): Slide => {

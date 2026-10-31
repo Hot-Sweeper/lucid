@@ -3,6 +3,7 @@ import {
 } from "./draw";
 import { backOut, clamp, easeIn, easeInOut, easeOut, hash, lerp, seg, smooth } from "./util";
 import { PARODY_VIDEOS } from "./parody";
+import { DANCE_VIDEOS } from "./dance";
 
 export interface VideoDef {
   id: string;
@@ -826,7 +827,7 @@ const arm: VideoDef = {
   },
 };
 
-export const VIDEOS: VideoDef[] = [dance, roomba, unbox, attention, pancakes, drones, catVac, servers, laundry, chat, baby, arm, ...PARODY_VIDEOS];
+export const VIDEOS: VideoDef[] = [dance, roomba, unbox, attention, pancakes, drones, catVac, servers, laundry, chat, baby, arm, ...PARODY_VIDEOS, ...DANCE_VIDEOS];
 
 /** One still frame of a video with its duration in the corner. */
 export function drawThumbnail(v: VideoDef, ctx: CanvasRenderingContext2D, w: number, h: number) {

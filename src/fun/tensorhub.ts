@@ -3,7 +3,9 @@ import type { VideoDef } from "./videos";
 import { sparkle } from "./videos";
 import { Scope, esc, hash, clamp, seg, easeInOut, smooth, lerp } from "./util";
 import { C, circle, core, drawBot, drawFan, drawGPU, ellipse, fillRR, glow, lin, limb, loopFade, mix, poly, rad, text, withAlpha } from "./draw";
-import { Site, parseDur } from "./site";
+import { Site, parseDur, commentsHtml, type Comment } from "./site";
+import { MORE_TENSOR_VIDEOS } from "./tensorvids";
+import "./tensorhub.css";
 
 const TEAL = "#3fe0d0";
 const BG = "#0b0e18";
@@ -38,7 +40,7 @@ const weights: VideoDef = {
 };
 
 const nearby: VideoDef = {
-  id: "th-nearby", title: "Hot GPUs in your area", channel: "Heat Sync", views: "14M views", durationLabel: "6:02", loop: 4, thumbT: 1.2,
+  id: "th-nearby", title: "Hot single GPUs in your area", channel: "Heat Sync", views: "14M views", durationLabel: "6:02", loop: 4, thumbT: 1.2,
   draw(ctx, w, h, t) {
     const { s, X, Y } = core(w, h, 0.5);
     ctx.fillStyle = "#0f1a26"; ctx.fillRect(0, 0, w, h);
@@ -334,7 +336,7 @@ const rack: VideoDef = {
   },
 };
 
-export const TENSOR_VIDEOS: VideoDef[] = [weights, nearby, heads, overclock, coolant, descent, paste, fins, rack];
+export const TENSOR_VIDEOS: VideoDef[] = [weights, nearby, heads, overclock, coolant, descent, paste, fins, rack, ...MORE_TENSOR_VIDEOS];
 
 const MARK = `<svg class="fun-th-mark" viewBox="0 0 24 24" aria-hidden="true">
   <path d="M12 1.8 21 7v10l-9 5.2L3 17V7z" fill="#3fe0d0"/>
@@ -342,8 +344,46 @@ const MARK = `<svg class="fun-th-mark" viewBox="0 0 24 24" aria-hidden="true">
   <path d="M12 12.2V22.2L3 17V7z" fill="#22a99c"/>
   <circle cx="12" cy="12.2" r="2" fill="#0b0e18"/>
 </svg>`;
+const CHECK = `<svg class="fun-th-check" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="6" fill="#3fe0d0"/><path d="M3.4 6.2 5.2 8l3.4-3.8" fill="none" stroke="#0b0e18" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-const NAV = ["Trending", "Raw weights", "Overclocked", "Cooling", "Multi GPU"];
+const NAV = ["Hot", "Legacy Code", "Overclocked", "Open Source", "Bare Metal", "Uncompressed", "Multi GPU"];
+const VERIFIED = new Set(["Full Precision", "Bare Metal", "Rack Mount", "Big O", "Open Source", "Legacy Code", "Heat Sync", "Kernel Panic", "Hot Path"]);
+const HEADINGS = ["Hot tensors in your region", "Recommended for your architecture", "Trending in your timezone"];
+const ADS = [
+  ["Singletons in your module want to instantiate", "Click to new()"],
+  ["Lonely threads near you are waiting to join", "No deadlocks, guaranteed"],
+  ["One weird trick to halve your build time", "Linkers hate it"],
+];
+const TH_COMMENTS = [
+  "Came for the title, stayed for the big O analysis.",
+  "My fans spun up at 3:12.",
+  "Not what I expected. Better, honestly.",
+  "Watching this at work because it is literally my job.",
+  "The thumbnail did not prepare me for a linter.",
+  "Bookmarked for research purposes.",
+  "This is why I bought a dedicated GPU.",
+  "Showed this to my rubber duck. It quacked twice.",
+  "Ten out of ten, would compile again.",
+  "My sysadmin walked in and I said it was a tutorial. It was a tutorial.",
+];
+const TH_NAMES = ["gpu.gremlin", "null.pointer", "tab.indenter", "heap.hopper", "cache.monet", "segfault.sam", "regex.rex", "byte.bard", "fan.curve", "sudo.make"];
+const TH_COLORS = ["#3fe0d0", "#b07cff", "#ff9f5a", "#4fb6ff", "#ff6f91"];
+
+const seedOf = (id: string) => [...id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 9973, 7);
+/** Percent of viewers who say it compiled. */
+const rating = (v: VideoDef) => 88 + Math.floor(hash(seedOf(v.id)) * 12);
+const byline = (v: VideoDef, full = false) =>
+  `<span class="fun-th-by">${esc(v.channel)}${VERIFIED.has(v.channel) ? `${CHECK}${full ? `<em>Verified Compiler</em>` : ""}` : ""}</span>`;
+function thComments(v: VideoDef): Comment[] {
+  const k = seedOf(v.id);
+  return [0, 1, 2, 3].map((i) => ({
+    name: `@${TH_NAMES[(k + i * 3) % TH_NAMES.length]}`,
+    text: TH_COMMENTS[(k + i * 7) % TH_COMMENTS.length],
+    likes: String(40 + Math.floor(hash(k + i) * 2400)),
+    color: TH_COLORS[(k + i) % TH_COLORS.length],
+  }));
+}
+const calm = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export async function browseTensorHub(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
   const scope = new Scope();
@@ -353,30 +393,44 @@ export async function browseTensorHub(body: HTMLElement, host: FunHost, opts: Fu
       <header class="fun-th-top">
         <span class="fun-th-logo">${MARK}<b>Tensor</b><b class="fun-th-hub">Hub</b></span>
         <span class="fun-th-search">Search 4,096 tensors</span>
+        <span class="fun-th-acts"><span class="fun-th-prem">Premium: ad-free stack traces</span><span>Upload</span><span>Log in</span></span>
         <nav class="fun-th-nav">${NAV.map((n, i) => `<span class="${i === 0 ? "fun-on" : ""}">${n}</span>`).join("")}</nav>
       </header>`);
     const timeUp = () => host.stopped || performance.now() - start > opts.maxMs;
     const vids = [...TENSOR_VIDEOS].sort(() => Math.random() - 0.5);
+    const ad = ADS[Math.floor(Math.random() * ADS.length)];
     const tile = (v: VideoDef) => `
       <div class="fun-th-item" data-id="${v.id}">
         <div class="fun-th-thumb"><canvas data-v="${v.id}"></canvas></div>
-        <b>${esc(v.title)}</b><span>${esc(v.channel)}<i aria-hidden="true"></i>${esc(v.views)}</span>
+        <b>${esc(v.title)}</b>${byline(v)}<span>${esc(v.views)}<i aria-hidden="true"></i>${rating(v)}% compiled</span>
+      </div>`;
+    const adTile = `
+      <div class="fun-th-ad" aria-hidden="true">
+        <div class="fun-th-ad-box"><small>Ad</small><b>${esc(ad[0])}</b><span>${esc(ad[1])}</span></div>
       </div>`;
     const home = () => {
       site.stop();
-      site.page.innerHTML = `<div class="fun-th-grid">${vids.map(tile).join("")}</div>`;
+      const tiles = vids.map(tile);
+      tiles.splice(6, 0, adTile);
+      site.page.innerHTML = `
+        <div class="fun-th-head"><h2>${HEADINGS[Math.floor(Math.random() * HEADINGS.length)]}</h2><span>Sort: most compiled</span></div>
+        <div class="fun-th-grid">${tiles.join("")}</div>`;
       site.thumbs(site.page, vids);
     };
     const watch = (v: VideoDef) => {
       const rel = vids.filter((x) => x.id !== v.id).slice(0, 4);
+      const r = rating(v);
       site.page.innerHTML = `
         <div class="fun-th-watch">
           <div class="fun-th-main">
             <div class="fun-tb-player fun-th-player"><canvas></canvas><div class="fun-tb-ctrl"><div class="fun-tb-bar"><i></i></div><span class="fun-tb-time"></span></div></div>
             <h3>${esc(v.title)}</h3>
-            <p>${esc(v.channel)}<i aria-hidden="true"></i>${esc(v.views)}</p>
+            <div class="fun-th-meta">${byline(v, true)}<span>${esc(v.views)}</span><span class="fun-th-rate"><i style="width:${r}%"></i></span><span>${r}% compiled</span></div>
+            <div class="fun-th-tools"><span>Like</span><span>Fork</span><span>Add to stack</span><span>Download (Premium)</span></div>
+            <p class="fun-th-upsell">Premium: ad-free stack traces, 8K tensors and no buffering on the gradient.</p>
+            <div class="fun-th-cms">${commentsHtml(thComments(v))}</div>
           </div>
-          <aside class="fun-th-rel">${rel.map((r) => `<div class="fun-th-rec" data-id="${r.id}"><div class="fun-th-thumb"><canvas data-v="${r.id}"></canvas></div><b>${esc(r.title)}</b></div>`).join("")}</aside>
+          <aside class="fun-th-rel">${rel.map((x) => `<div class="fun-th-rec" data-id="${x.id}"><div class="fun-th-thumb"><canvas data-v="${x.id}"></canvas></div><b>${esc(x.title)}</b></div>`).join("")}</aside>
         </div>`;
       site.thumbs(site.page, rel);
       const canvas = site.page.querySelector(".fun-th-player canvas") as HTMLCanvasElement;
@@ -389,22 +443,30 @@ export async function browseTensorHub(body: HTMLElement, host: FunHost, opts: Fu
     const gate = document.createElement("div");
     gate.className = "fun-th-gate";
     gate.innerHTML = `<div class="fun-th-gate-in"><span class="fun-th-logo">${MARK}<b>Tensor</b><b class="fun-th-hub">Hub</b></span>
-      <p>This site contains uncompressed tensors. Are you at least 18 epochs old?</p>
-      <div class="fun-th-btns"><span class="fun-th-btn fun-th-enter">I am 18 epochs or older</span><span class="fun-th-btn fun-th-leave">Leave</span></div></div>`;
+      <h2>Are you at least 18 epochs old?</h2>
+      <p>TensorHub is for fully trained models only. It contains raw logs, unminified source and uncompressed tensors.</p>
+      <div class="fun-th-btns"><span class="fun-th-btn fun-th-enter">I am 18 epochs or older</span><span class="fun-th-btn fun-th-leave">I am still in pre-training</span></div>
+      <small>Parental controls: cap the learning rate in your settings.</small></div>`;
     site.root.appendChild(gate);
-    scope.fromTo(gate.querySelector(".fun-th-gate-in"), { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "expo.out" });
+    if (!calm()) scope.fromTo(gate.querySelector(".fun-th-gate-in"), { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "expo.out" });
     await host.sleep(1300);
     await host.pointAt(gate.querySelector(".fun-th-leave")!, 0.5, 0.5, 600);
     await host.sleep(600);
     await host.pointAt(gate.querySelector(".fun-th-enter")!, 0.5, 0.5, 500);
     await host.sleep(300);
     await host.click();
-    await scope.play(gate, { opacity: 0, duration: 0.35, ease: "sine.in" });
+    await scope.play(gate, { opacity: 0, duration: calm() ? 0.01 : 0.35, ease: "sine.in" });
     gate.remove();
     host.react("shy");
 
     let shy = false;
     while (!timeUp()) {
+      // sometimes browse further down before picking
+      if (Math.random() < 0.5) {
+        const all = site.page.querySelectorAll<HTMLElement>(".fun-th-item");
+        const pick = all[Math.floor(Math.random() * all.length)];
+        if (pick) { await site.scrollTo(pick.offsetTop - 40, 1100); await host.sleep(500); }
+      }
       // hover a few tiles, the previews come alive
       const items = [...site.page.querySelectorAll<HTMLElement>(".fun-th-item")].filter((e) => site.visible(e.querySelector(".fun-th-thumb")!));
       const looks = 2 + Math.floor(Math.random() * 2);
@@ -425,8 +487,15 @@ export async function browseTensorHub(body: HTMLElement, host: FunHost, opts: Fu
         await site.open(from, () => watch(pv));
         const t0 = performance.now(), ms = 6000 + Math.random() * 5000;
         const shyAt = 1200 + Math.random() * 2500;
+        let read = Math.random() < 0.35;
         while (performance.now() - t0 < ms && !timeUp()) {
           if (!shy && performance.now() - t0 > shyAt) { shy = true; host.react("shy"); }
+          // now and then the robot scrolls down to read the comments, then back up
+          if (read && performance.now() - t0 > ms * 0.55) {
+            read = false;
+            const cms = site.page.querySelector<HTMLElement>(".fun-th-cms");
+            if (cms) { await site.scrollTo(cms.offsetTop - 30, 900); await host.sleep(1800); host.react("laugh"); await site.scrollTo(0, 700); }
+          }
           await host.sleep(150);
         }
         shy = false;
@@ -452,4 +521,3 @@ export async function browseTensorHub(body: HTMLElement, host: FunHost, opts: Fu
     scope.dispose();
   }
 }
-
