@@ -203,7 +203,7 @@ export class WM {
     // open it the way this robot usually does, now and then the other way; apps that are not in
     // the dock can only be found with Spotlight
     const pinnedItem = this.dock.querySelector(`[data-app="${id}"]`) as HTMLElement | null;
-    if (!pinnedItem || this.habit(this.prefs?.launch ?? "dock", { dock: 0.2, spotlight: 0.2 }) === "spotlight") await this.launch(TITLES[id]);
+    if (!pinnedItem || this.habit(this.prefs?.launch ?? "dock", { dock: 0.2, spotlight: 0.2 }) === "spotlight") await this.launch(this.titleOf(id));
     else {
       await this.pointAt(pinnedItem, 0.5, 0.5);
       // the dock may have shifted while the cursor travelled: land on the icon itself
@@ -222,9 +222,9 @@ export class WM {
     const el = document.createElement("section");
     el.className = `win app-${id}`;
     el.style.cssText = `left:${f.x}px;top:${f.y}px;width:${f.w}px;height:${f.h}px`;
-    el.innerHTML = `<header class="win-bar">${ICONS[id]}<span class="win-title"></span><span class="win-x" aria-hidden="true"></span></header><div class="win-body"></div>`;
+    el.innerHTML = `<header class="win-bar">${this.iconOf(id)}<span class="win-title"></span><span class="win-x" aria-hidden="true"></span></header><div class="win-body"></div>`;
     const titleEl = el.querySelector(".win-title") as HTMLElement;
-    titleEl.textContent = title || TITLES[id];
+    titleEl.textContent = title || this.titleOf(id);
     this.layer.appendChild(el);
     w = { id, el, body: el.querySelector(".win-body")!, title: titleEl, lastUsed: Date.now() };
     this.wins.set(id, w);
@@ -275,6 +275,27 @@ export class WM {
     }
   }
 
+  // --- app names and icons --------------------------------------------------
+  // Most apps have a fixed name and icon; the harness app takes the name and logo of the
+  // harness the robot actually uses (Claude, Codex, OpenCode...), in the dock, Spotlight,
+  // the window bar and the app switcher.
+  private appTitles: Partial<Record<AppId, string>> = {};
+  private appIcons: Partial<Record<AppId, string>> = {};
+  titleOf(id: AppId) { return this.appTitles[id] ?? TITLES[id]; }
+  iconOf(id: AppId) { return this.appIcons[id] ?? ICONS[id]; }
+  brandApp(id: AppId, o: { title?: string; icon?: string }) {
+    if (o.title) this.appTitles[id] = o.title;
+    if (o.icon) this.appIcons[id] = o.icon;
+    const item = this.dock?.querySelector(`[data-app="${id}"]`) as HTMLElement | null;
+    if (item) {
+      item.title = this.titleOf(id);
+      const old = item.firstElementChild;
+      const tmp = document.createElement("div");
+      tmp.innerHTML = this.iconOf(id);
+      if (old && tmp.firstElementChild && old.tagName.toLowerCase() !== "i") old.replaceWith(tmp.firstElementChild);
+    }
+  }
+
   // --- the dock: pinned apps, plus whatever is open right now ------------------
   // Everyone has the basics; a robot also pins what it uses a lot (games for gamers, music for
   // music lovers, its task app). Other apps show up while they are open and leave when closed.
@@ -298,8 +319,8 @@ export class WM {
     const el = document.createElement("div");
     el.className = "dock-item";
     el.dataset.app = id;
-    el.title = TITLES[id];
-    el.innerHTML = `${ICONS[id]}<i></i>`;
+    el.title = this.titleOf(id);
+    el.innerHTML = `${this.iconOf(id)}<i></i>`;
     return el;
   }
   private renderDock(animate: boolean) {
@@ -508,8 +529,8 @@ export class WM {
     const order = [...this.wins.values()].sort((a, b) => b.lastUsed - a.lastUsed);
     const strip = document.createElement("div");
     strip.className = "alttab";
-    strip.innerHTML = order.map((w) => `<div class="at-item" data-id="${w.id}">${ICONS[w.id]}<span></span></div>`).join("");
-    order.forEach((w, i) => { (strip.children[i].querySelector("span") as HTMLElement).textContent = w.title.textContent || TITLES[w.id]; });
+    strip.innerHTML = order.map((w) => `<div class="at-item" data-id="${w.id}">${this.iconOf(w.id)}<span></span></div>`).join("");
+    order.forEach((w, i) => { (strip.children[i].querySelector("span") as HTMLElement).textContent = w.title.textContent || this.titleOf(w.id); });
     this.root.appendChild(strip);
     gsap.fromTo(strip, { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.15 });
     const target = Math.max(1, order.findIndex((w) => w.id === id));
@@ -542,7 +563,7 @@ export class WM {
   async toast(text: string, icon: AppId = "chat") {
     const t = document.createElement("div");
     t.className = "toast";
-    t.innerHTML = `${ICONS[icon]}<span></span>`;
+    t.innerHTML = `${this.iconOf(icon)}<span></span>`;
     t.querySelector("span")!.textContent = text;
     this.root.querySelector(".toast-layer")!.appendChild(t);
     gsap.timeline({ onComplete: () => t.remove() })

@@ -3,6 +3,7 @@
 // brief into a session tab, and the tab streams the helper's real activity.
 // Each harness comes in a terminal (CLI/TUI) flavour and, where one exists, a desktop app
 // flavour. The robot's habit (prefs.subagents) picks which one it drives.
+import { logoSvg } from "./logos";
 import gsap from "gsap";
 import type { AppId } from "../os/wm";
 import type { Robot } from "../robot";
@@ -68,6 +69,8 @@ export interface HarnessHost {
   speed: number;
   robot: Pick<Robot, "pressKey" | "setTyping" | "setPose">;
   open(id: AppId, title?: string): Promise<{ el: HTMLElement; body: HTMLElement; title: HTMLElement }>;
+  /** Give an app the name and icon of what it really is (the harness's own name and logo). */
+  brandApp?(id: AppId, o: { title?: string; icon?: string }): void;
   pointAt(el: Element, ax?: number, ay?: number, ms?: number): Promise<void>;
   click(double?: boolean): Promise<void>;
   sleep(ms: number, epoch?: number): Promise<void>;
@@ -155,6 +158,22 @@ function fmtElapsed(ms: number) {
 
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+
+/** The name in the dock and Spotlight: the app's own name ("Claude Code" in a terminal). */
+function dockTitle(kind: HarnessKind, flavor: Flavor, label?: string) {
+  const t = THEMES[kind];
+  if (kind === "generic") return label || "Agent";
+  return flavor === "cli" ? t.name : (t.app || t.name);
+}
+
+/** The app icon: a terminal for terminal harnesses, the official logo on a dark tile for apps. */
+function appIcon(kind: HarnessKind, flavor: Flavor) {
+  if (flavor === "cli") return ICONS.terminal;
+  const logo = logoSvg(kind);
+  if (!logo) return HARNESS_ICON;
+  const inner = logo.replace(' width="100%" height="100%"', ' x="4" y="4" width="16" height="16"');
+  return `<svg class="ico" viewBox="0 0 24 24" style="color:#fff"><rect width="24" height="24" rx="6" fill="#1d1f26"/>${inner}</svg>`;
+}
 
 /** Window title: the command in a terminal, the app name for a desktop app. */
 function windowTitle(kind: HarnessKind, flavor: Flavor, label?: string) {
@@ -901,6 +920,7 @@ export class HarnessApp {
   private newBtn: HTMLElement;
   private views: HTMLElement;
   private sessions = new Map<string, Session>();
+  private kindShown: HarnessKind = "generic";
   private active: Session | null = null;
   private win: { el: HTMLElement; body: HTMLElement; title: HTMLElement } | null = null;
   private chain: Promise<unknown> = Promise.resolve();
@@ -1050,6 +1070,9 @@ export class HarnessApp {
     const shown = this.active ?? s;
     const kind = shown?.kind ?? opts?.kind ?? "generic";
     const flavor = shown?.flavor ?? resolveFlavor(kind, opts?.flavor);
+    // the dock, Spotlight and the window show the real harness, not a generic "Agents" app
+    this.kindShown = kind;
+    this.wm.brandApp?.(HARNESS_APP_ID as unknown as AppId, { title: dockTitle(kind, flavor, shown?.label ?? opts?.label), icon: appIcon(kind, flavor) });
     const w = await this.wm.open(HARNESS_APP_ID as unknown as AppId, windowTitle(kind, flavor, shown?.label ?? opts?.label));
     this.win = w;
     this.dressWindow(flavor);
@@ -1067,10 +1090,10 @@ export class HarnessApp {
     w.el.classList.toggle("hx-host-cli", flavor === "cli");
     w.el.classList.toggle("hx-host-app", flavor === "app");
     const ico = w.el.querySelector(".win-bar svg");
-    const want = flavor === "cli" ? "terminal" : "harness";
+    const want = flavor === "cli" ? "terminal" : `app-${this.kindShown}`;
     if (ico && (ico as HTMLElement).dataset?.hx !== want) {
       const tmp = document.createElement("div");
-      tmp.innerHTML = want === "terminal" ? ICONS.terminal : HARNESS_ICON;
+      tmp.innerHTML = appIcon(this.kindShown, flavor);
       const svg = tmp.firstElementChild as SVGElement;
       svg.dataset.hx = want;
       ico.replaceWith(svg);
