@@ -238,7 +238,7 @@ const GIF_W = 200, THUMB_W = 70;
 // One round of conversation: all the chatter, some GIFs, and once in a while the robot posts one.
 function deck(): Scene[] {
   const all = [...SCENES, ...shuffle([...GIF_SCENES]).slice(0, 6), ...shuffle([...PICK_SCENES]).slice(0, 2)];
-  return [...PICK_SCENES.slice(1, 2), ...shuffle(all)].map((s) => ({ ...s, pos: 0 })); // TEMPTEST
+  return shuffle(all.map((s) => ({ ...s, pos: 0 })));
 }
 
 const KEYS_NEAR: Record<string, string> = {
@@ -623,7 +623,8 @@ class Botcord {
     fill(typeof query === "string" ? others.slice(0, 6) : trending);
     const close = () => {
       btn.classList.remove("on");
-      this.k.to(gp, { opacity: 0, y: 6, duration: 0.2, ease: "power2.in", onComplete: () => gp.remove() });
+      if (this.k.over) gp.remove(); // interrupted: no time for a fade
+      else this.k.to(gp, { opacity: 0, y: 6, duration: 0.2, ease: "power2.in", onComplete: () => gp.remove() });
     };
     try {
       this.k.fromTo(gp, { opacity: 0, y: 8, scale: 0.97, transformOrigin: "88% 100%" }, { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: "expo.out" });

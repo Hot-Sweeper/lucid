@@ -15,7 +15,8 @@ export type GifKind =
 
 // p: loop phase 0..1, f: frame number at 30 fps (for jittery bits)
 type Draw = (c: Ctx, p: number, f: number) => void;
-export type GifInfo = { kind: GifKind; dur: number; tags: string[]; draw: Draw };
+// poster: the moment (0..1 of the loop) shown when motion is reduced
+export type GifInfo = { kind: GifKind; dur: number; poster: number; tags: string[]; draw: Draw };
 
 const NAVY = "#141a33", INK = "#1d1a2e", PAPER = "#fbf6ee";
 
@@ -472,7 +473,7 @@ function yelling(c: Ctx, p: number) {
     line(c, [96 + Math.cos(a) * r0, 104 + Math.sin(a) * r0, 96 + Math.cos(a) * (r0 + 7), 104 + Math.sin(a) * (r0 + 7)], 2.6, "rgba(255,255,255,0.9)");
   }
   vignette(c, 0.25, 0, 0, LW, VH);
-  caption(c, "you used 2M tokens to say hi", LW / 2 + 7, 8, 13.5, { maxW: 98 });
+  caption(c, "you used 2M\ntokens on hi", LW / 2 + 7, 8, 13.5);
   c.restore();
 
   rr(c, LW, 0, 4, VH, 0, NAVY);
@@ -499,7 +500,7 @@ function yelling(c: Ctx, p: number) {
   const hop = Math.max(0, wave(p, 1, 0.1));
   coin(cx - 12, 146 - hop * 6);
   vignette(c, 0.25, RX, 0, RW, VH);
-  caption(c, "it was a thorough hi", cx, 8, 13.5, { maxW: 108 });
+  caption(c, "it was a\nthorough hi", cx, 8, 13.5);
   c.restore();
 }
 
@@ -734,23 +735,24 @@ function sideeye(c: Ctx, p: number) {
 }
 
 export const GIFS: GifInfo[] = [
-  { kind: "fine", dur: 3.2, tags: ["fine", "fire", "prod"], draw: fine },
-  { kind: "boyfriend", dur: 3.6, tags: ["gpu", "new", "distracted"], draw: boyfriend },
-  { kind: "drake", dur: 2.4, tags: ["ci", "nope", "yes"], draw: drake },
-  { kind: "buttons", dur: 2.8, tags: ["ship", "choice", "sweat"], draw: buttons },
-  { kind: "surprised", dur: 2.6, tags: ["build", "shock", "wow"], draw: surprised },
-  { kind: "stonks", dur: 3.4, tags: ["stonks", "tokens", "up"], draw: stonks },
-  { kind: "galaxy", dur: 3.0, tags: ["brain", "debug", "smart"], draw: galaxy },
-  { kind: "yelling", dur: 2.4, tags: ["tokens", "yell", "hi"], draw: yelling },
-  { kind: "pigeon", dur: 3.0, tags: ["bug", "is this", "semicolon"], draw: pigeon },
-  { kind: "pain", dur: 2.8, tags: ["merge", "pain", "fine"], draw: pain },
-  { kind: "success", dur: 1.8, tags: ["yes", "rate limit", "win"], draw: success },
-  { kind: "dance", dur: 2.0, tags: ["green", "dance", "tests"], draw: dance },
-  { kind: "changemind", dur: 3.6, tags: ["tabs", "debate", "mind"], draw: changemind },
-  { kind: "spiderman", dur: 2.4, tags: ["same", "merge", "agents"], draw: spiderman },
-  { kind: "sideeye", dur: 3.2, tags: ["docs", "awkward", "look"], draw: sideeye },
+  { kind: "fine", dur: 3.2, poster: 0.1, tags: ["fine", "fire", "prod"], draw: fine },
+  { kind: "boyfriend", dur: 3.6, poster: 0.5, tags: ["gpu", "new", "distracted"], draw: boyfriend },
+  { kind: "drake", dur: 2.4, poster: 0.3, tags: ["ci", "nope", "yes"], draw: drake },
+  { kind: "buttons", dur: 2.8, poster: 0.1, tags: ["ship", "choice", "sweat"], draw: buttons },
+  { kind: "surprised", dur: 2.6, poster: 0.6, tags: ["build", "shock", "wow"], draw: surprised },
+  { kind: "stonks", dur: 3.4, poster: 0.8, tags: ["stonks", "tokens", "up"], draw: stonks },
+  { kind: "galaxy", dur: 3.0, poster: 0.5, tags: ["brain", "debug", "smart"], draw: galaxy },
+  { kind: "yelling", dur: 2.4, poster: 0.25, tags: ["tokens", "yell", "hi"], draw: yelling },
+  { kind: "pigeon", dur: 3.0, poster: 0.3, tags: ["bug", "is this", "semicolon"], draw: pigeon },
+  { kind: "pain", dur: 2.8, poster: 0.25, tags: ["merge", "pain", "fine"], draw: pain },
+  { kind: "success", dur: 1.8, poster: 0.25, tags: ["yes", "rate limit", "win"], draw: success },
+  { kind: "dance", dur: 2.0, poster: 0.3, tags: ["green", "dance", "tests"], draw: dance },
+  { kind: "changemind", dur: 3.6, poster: 0.2, tags: ["tabs", "debate", "mind"], draw: changemind },
+  { kind: "spiderman", dur: 2.4, poster: 0.25, tags: ["same", "merge", "agents"], draw: spiderman },
+  { kind: "sideeye", dur: 3.2, poster: 0.4, tags: ["docs", "awkward", "look"], draw: sideeye },
 ];
 export const GIF = Object.fromEntries(GIFS.map((g) => [g.kind, g])) as Record<GifKind, GifInfo>;
+export const posterTime = (kind: GifKind) => GIF[kind].poster * GIF[kind].dur;
 
 // Draws one frame. The context must already be scaled to the 240x180 virtual space.
 export function drawGifFrame(c: Ctx, kind: GifKind, t: number) {

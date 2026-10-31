@@ -1,5 +1,5 @@
 import { VW, VH, setFamily, setPxScale } from "./gifkit";
-import { drawGifFrame, type GifKind } from "./gifs";
+import { drawGifFrame, posterTime, type GifKind } from "./gifs";
 
 // Plays meme GIFs on canvases. One frame loop drives every canvas; a canvas is
 // skipped while scrolled out of view and dropped once it leaves the DOM. When
@@ -14,7 +14,6 @@ const rafSched: Sched = (fn) => {
 };
 
 const DPR = 2;
-const STILL_AT = 0.9; // seconds into the loop shown when motion is reduced
 
 export class GifReel {
   private items = new Map<Element, Item>();
@@ -79,7 +78,7 @@ export class GifReel {
   };
 
   private paint(it: Item, now: number, force: boolean) {
-    const t = this.freeze ?? (this.still ? STILL_AT : (now - it.t0) / 1000);
+    const t = this.freeze ?? (this.still ? posterTime(it.kind) : (now - it.t0) / 1000);
     const frame = Math.floor(t * it.fps);
     if (!force && frame === it.frame) return;
     it.frame = frame;
