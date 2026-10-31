@@ -82,7 +82,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
       if(coldThread)stats.openAction={threadId:coldThread,dispatchMs:actionMs};
       stats.longTasks=await js(`{window.__liveLongObserver?.disconnect();document.removeEventListener('visibilitychange',window.__liveVisibility);({count:window.__liveLongTasks.length,max:Math.max(0,...window.__liveLongTasks.map(e=>e.duration)),visibilityLost:window.__liveVisibilityLost})}`);
       stats.canvasPixels=await js(`{const canvases=[...document.querySelectorAll('canvas')];({count:canvases.length,pixels:canvases.reduce((n,c)=>n+c.width*c.height,0),appLoops:window.__lucidPerf.render?.()})}`);
-      if (stats.hidden || stats.longTasks.visibilityLost || !stats.frames) throw Error('Foreground measurement invalidated because Lucid was hidden or produced no frames');
+      if (stats.hidden || stats.longTasks.visibilityLost || !stats.frames) {
+        fs.writeFileSync(path.join(out, `${name}-rejected.json`), JSON.stringify(stats, null, 2));
+        throw Error('Foreground measurement invalidated because Lucid was hidden or produced no frames');
+      }
       const deltas = Object.fromEntries(after.metrics.filter(m => /Duration|Count/.test(m.name)).map(m => [m.name, m.value - (before.metrics.find(x => x.name === m.name)?.value || 0)]));
       results.push({ name, ...stats, deltas, layers:layerSummary });
       if (tracing) {
