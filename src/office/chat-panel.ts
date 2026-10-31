@@ -322,6 +322,14 @@ export class ChatPanel {
         el.innerHTML = html;
       }
       el.dataset.sig = `${m.text.length}:${m.streaming}:${m.run}`;
+      // very long messages of yours fold, with a toggle to read them in full
+      if (m.role === "user" && m.text.length > 700 && !el.querySelector(".cp-more")) {
+        el.classList.add("long");
+        const more = document.createElement("button");
+        more.type = "button"; more.className = "cp-more"; more.textContent = "Show all";
+        more.addEventListener("click", () => { const open = el!.classList.toggle("open"); more.textContent = open ? "Show less" : "Show all"; });
+        el.appendChild(more);
+      }
       // keep every message in conversation order, also ones that were already on screen
       const want: Element | null = prevEl ? prevEl.nextElementSibling : list.firstElementChild;
       if (want !== el) list.insertBefore(el, want);

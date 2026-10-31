@@ -591,3 +591,24 @@
 .desk-proj .dp-mono[hidden] { display: none; }
 .desk-proj b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .desk-unit.empty .desk-proj { display: none; }
+
+/* chat panel fixes: messages never grow past the panel; long code scrolls inside its block */
+.chat-panel { background: #161b3a; }
+.cp-list { overflow-x: hidden; }
+.cp-msg { min-width: 0; max-width: 86%; }
+.cp-msg.bot { max-width: 100%; }
+.cp-msg > * { max-width: 100%; min-width: 0; }
+.cp-text { min-width: 0; max-width: 100%; box-sizing: border-box; overflow: hidden; }
+.cp-text pre, .cp-text .md-code, .cp-text .md-table { max-width: 100%; }
+.cp-text .md-code pre { overflow-x: auto; }
+.cp-text code { overflow-wrap: anywhere; word-break: break-word; }
+.cp-text img { max-width: 100%; height: auto; }
+/* your long messages fold to a preview with a toggle */
+.cp-msg.you.long .cp-text { max-height: 240px; position: relative; }
+.cp-msg.you.long .cp-text::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: linear-gradient(to bottom, transparent, var(--accent)); pointer-events: none; }
+.cp-msg.you.long.open .cp-text { max-height: none; }
+.cp-msg.you.long.open .cp-text::after { display: none; }
+.cp-more { align-self: flex-end; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 12px; cursor: pointer; padding: 0 4px; }
+.cp-more:hover { color: var(--ink); }
+/* the queue box is solid, nothing from the office shows through */
+.cp-queue { background: #241f3a; box-shadow: inset 0 0 0 1px rgba(255, 210, 122, 0.18); }
