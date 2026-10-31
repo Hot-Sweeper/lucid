@@ -645,6 +645,11 @@
 /* zoomed far out, small looping decorations (steam, swaying plants, drifting cloud shadows) hold still: too small to see, costly to repaint */
 .scene.far .world * { animation-play-state: paused !important; }
 .scene.far .monitor .screen { background: linear-gradient(160deg, #2b6a6a, #1d3d63); }
+.desk-unit.culled *, .room.culled *, .screen.render-paused * { animation-play-state: paused !important; }
+.win.render-hidden .win-body { visibility: hidden; content-visibility: hidden; }
+.desk-unit, .room, .robot-host { contain: layout style; }
+.outside-live.culled { visibility: hidden; }
+.outside-live.culled *, .amb-offscreen, .amb-offscreen * { animation-play-state: paused !important; }
 
 /* milestones */
 .co-ms { margin-top: 6px; font-size: 13px; }

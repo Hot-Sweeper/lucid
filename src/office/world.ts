@@ -13,9 +13,11 @@ import { outdoorLook, seasonPalette } from "../weather/season";
 import { outsideSvg, backdropColor, groundsLayout, PARK_W, PARK_H, type Grounds } from "./outside";
 import { groundWx, groundSig, isWet, puddleSpots, type Puddle } from "../weather/ground";
 import { gearFor } from "../weather/gear";
-import { ambientPlant } from "./ambient";
+import { ambientPlant, watchOutdoorAmbient } from "./ambient";
 import { Roster, type RobotProfile } from "./roster";
 import { paintOutside, updateOutside } from "./outside-zoom";
+import { setRenderView } from "../perf/render";
+import { beginSystem, endSystem } from "../perf/metrics";
 
 // The whole building, seen fake top-down: rooms laid out on a floor plan, one shared camera.
 // Offices hold desks (one per thread). Desks live in one layer above the rooms, so a robot
@@ -388,6 +390,7 @@ export class World {
     const withCss = svg.replace(/(<svg[^>]*>)/, `$1<style>${root}\n${animate ? css : css.replace(/animation[^;}]*;?/g, "")}</style>`);
     (window as any).__outBytes = withCss.length;   // debug: size of the still image
     layer.innerHTML = outsideSvg({ ...this.outArgs, ...look, wx: g, layer: "live" });
+    watchOutdoorAmbient(layer);
     paintOutside(layer, withCss);
     const box = this.sceneBox ??= this.scene.getBoundingClientRect();
     updateOutside(layer, this.cam, box.width, box.height);
@@ -712,7 +715,11 @@ export class World {
   private allDesks = new Set<Desk>();
   roster = new Roster();
   // "+" tiles: add a desk to an office.
+  private tileSig = "";
   private addTiles(plans: { id: string; kind: RoomKind; slots: number }[], rooms: Room[]) {
+    const sig = rooms.map((r, i) => [r.id, r.title, r.x, r.y, r.w, r.h, plans[i].slots, this.extra.get(r.id) ?? 0].join("|")).join(";");
+    if (sig === this.tileSig) return;
+    this.tileSig = sig;
     this.deskLayer.querySelectorAll(".add-desk").forEach((e) => e.remove());
     plans.forEach((p, i) => {
       if (!p.slots || p.kind === "queue" || p.kind === "break") return;
@@ -756,6 +763,15 @@ export class World {
       const out = l + w < x0 || l > x1 || t + h < y0 || t > y1;
       if (out !== el.classList.contains("culled")) el.classList.toggle("culled", out);
     }
+    for (const d of this.allDesks) {
+      const left = this.cam.x + (parseFloat(d.el.style.left) + 54) * s;
+      const top = this.cam.y + (parseFloat(d.el.style.top) + 4) * s;
+      const shown = !!d.threadId && s >= .3 && left < box.width && left + 292 * s > 0 && top < box.height && top + 172 * s > 0;
+      setRenderView(d.screen, shown, 276 * s);
+    }
+    const vx = -this.cam.x / s, vy = -this.cam.y / s;
+    const inside = vx >= 0 && vy >= 0 && vx + box.width / s <= this.size.w && vy + box.height / s <= this.size.h;
+    this.root.querySelector(".outside-live")?.classList.toggle("culled", inside);
     this.fitBubbles();
   }
   // A thought bubble opens to the right of the robot's head; when that side is off screen or under
@@ -765,8 +781,8 @@ export class World {
     if (!box) return;
     const s = this.cam.s, right = box.width - this.panelWidth - 8;
     for (const d of this.allDesks) {
-      const b = d.el.querySelector(".bubble.show") as HTMLElement | null;
-      if (!b) continue;
+      const b = d.bubble;
+      if (!b.classList.contains("show")) continue;
       const left = parseFloat(d.el.style.left) || 0, BW = 234;  // bubble width with its padding
       const l0 = this.cam.x + (left + 248) * s, r0 = l0 + BW * s;          // opening to the right
       const r1 = this.cam.x + (left + 400 - 248) * s, l1 = r1 - BW * s;    // opening to the left
@@ -922,8 +938,7 @@ export class World {
       if (!start) return;
       const dx = e.clientX - start.x, dy = e.clientY - start.y;
       if (!this.dragged && Math.hypot(dx, dy) < 5) return;
-      if (!this.dragged) { this.dragged = true; s.classList.add("panning"); this.stopFollow(); }
-      gsap.killTweensOf(this.cam);
+      if (!this.dragged) { this.dragged = true; s.classList.add("panning"); this.stopFollow(); gsap.killTweensOf(this.cam); }
       this.cam.x = start.cx + dx; this.cam.y = start.cy + dy;
       this.applySoon();
     });
@@ -950,9 +965,16 @@ export class World {
   // Mice report movement up to 1000 times a second; the camera is drawn once per frame, so the
   // work (camera, culling, bubbles, focus check) runs at most once per frame too.
   private applyQueued = 0;
+  private applyDue = 0;
+  private flushCamera = (now: number) => {
+    if (now < this.applyDue - .5) { this.applyQueued = requestAnimationFrame(this.flushCamera); return; }
+    this.applyDue = now - this.applyDue > 1000 / 60 ? now + 1000 / 60 : this.applyDue + 1000 / 60;
+    this.applyQueued = 0;
+    this.apply(); this.keepFocus();
+  };
   private applySoon() {
     if (this.applyQueued) return;
-    this.applyQueued = requestAnimationFrame(() => { this.applyQueued = 0; this.apply(); this.keepFocus(); });
+    this.applyQueued = requestAnimationFrame(this.flushCamera);
   }
   private sceneBox: DOMRect | null = null;
   private near: boolean | null = null;
@@ -980,6 +1002,7 @@ export class World {
     c.y = fit(c.y, H, g.y, g.h);
   }
   private apply() {
+    const started = beginSystem();
     this.clampCam();
     this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
     this.recull();
@@ -998,13 +1021,14 @@ export class World {
     const box = this.sceneBox ??= this.scene.getBoundingClientRect();
     updateOutside(this.root.querySelector(".outside-layer"), this.cam, box.width, box.height);
     // the weather follows the camera without measuring the page (which is slow every frame)
-    if (this.fx) { this.sceneBox ??= this.scene.getBoundingClientRect(); this.fx.setCamera(this.cam, this.sceneBox, this.size.w); }
+    if (this.fx) { this.sceneBox ??= this.scene.getBoundingClientRect(); this.fx.setCamera(this.cam, this.sceneBox, this.size.w, this.size.h); }
     // zoomed far out the screens are too small to read: show their glow instead of drawing them
     const far = this.cam.s < 0.3;
     if (far !== this.far) { this.far = far; this.scene.classList.toggle("far", far); }
     // small looping details (steam, swaying plants, birds) only move when you are close enough to see them
-    const near = this.cam.s >= 0.6;
+    const near = this.cam.s >= 1;
     if (near !== this.near) { this.near = near; this.scene.classList.toggle("near", near); }
+    endSystem("camera", started);
   }
 
   /** Moves the view at once (a side panel changing width keeps the office still on screen). */

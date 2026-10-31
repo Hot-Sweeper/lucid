@@ -534,7 +534,7 @@ const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 // ---- the game ------------------------------------------------------------------------------
 
 export async function playDerBugger(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   try {
     const f = mountFrame(body, scope, "Der Bugger 2: Merchant of the Data Age", "db");
     const S = new Session(host, opts, { base: 0.32, step: 0.15, calm: 0.1 });

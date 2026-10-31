@@ -388,7 +388,7 @@ const ITEMS: Record<ItemId, { name: string; draw: (ctx: Ctx) => void }> = {
 interface Hot { name: string; x: number; y: number; w: number; h: number; walk?: number; face?: 1 | -1; ax?: number; ay?: number; el?: HTMLElement }
 
 export async function playRobotIsland(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   const calm = reducedMotion();
   try {
     const f = mountFrame(body, scope, "The Secret of Robot Island", "ri");

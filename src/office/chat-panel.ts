@@ -5,6 +5,7 @@ import { Marked } from "marked";
 import DOMPurify from "dompurify";
 import { highlight } from "../os/highlight";
 import { type ThreadRef, refBlock, stripRefs, summarize } from "./thread-ref";
+import { beginSystem, endSystem } from "../perf/metrics";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
@@ -120,6 +121,7 @@ export class ChatPanel {
   el: HTMLElement;
   private desk: Desk | null = null;
   private shown = new Map<string, HTMLElement>();
+  private messageSignatures = new Map<string, string>();
   private timer = 0;
   onClose: () => void = () => {};
   onToggleView: () => void = () => {};
@@ -440,7 +442,7 @@ export class ChatPanel {
     const same = this.desk === desk;
     this.desk = desk;
     if (!same) {
-      this.shown.clear(); (this.el.querySelector(".cp-list") as HTMLElement).innerHTML = "";
+      this.shown.clear(); this.messageSignatures.clear(); (this.el.querySelector(".cp-list") as HTMLElement).innerHTML = "";
       this.sel = null; this.queueHold = 0; this.closeMenu();
       (this.el.querySelector(".cp-queue ol") as HTMLElement).dataset.sig = "";
       void this.loadT3();
@@ -550,31 +552,35 @@ export class ChatPanel {
     if (id !== this.threadId) return;
     // the thread's model can change elsewhere too (T3 itself); check now and then
     if (this.paired && !this.saving && Date.now() - this.selAt > 4000) void this.loadSelection();
+    const started = beginSystem();
     const list = this.el.querySelector(".cp-list") as HTMLElement;
     const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
     let added = 0;
     // Queued messages wait in their own section at the bottom, in the order the robot takes them.
     const queued = msgs.filter((m) => m.role === "user" && m.run === "queued").sort((a, b) => (a.queue ?? 99) - (b.queue ?? 99));
     const timeline = msgs.filter((m) => !(m.role === "user" && m.run === "queued"));
+    const timelineIds = new Set(timeline.map((m) => m.id));
     this.renderQueue(queued);
     for (const id of [...this.shown.keys()]) {
-      if (!timeline.some((m) => m.id === id)) { this.shown.get(id)!.remove(); this.shown.delete(id); }
+      if (!timelineIds.has(id)) { this.shown.get(id)!.remove(); this.shown.delete(id); this.messageSignatures.delete(id); }
     }
     list.querySelector(".cp-empty")?.remove();
     let prevEl: HTMLElement | null = null;
     for (const m of timeline) {
       let el = this.shown.get(m.id);
-      const html = this.render(m);
+      // Compare source content before parsing Markdown and sanitizing HTML. Include actual
+      // text and attachment metadata: same-length edits must update, too.
+      const sig = JSON.stringify([m.text, m.role, m.at, m.streaming, m.run, m.attachments]);
       if (!el) {
         el = document.createElement("div");
         el.className = `cp-msg ${m.role === "user" ? "you" : "bot"}`;
-        el.innerHTML = html;
+        el.innerHTML = this.render(m);
         this.shown.set(m.id, el);
         if (this.shown.size > msgs.length - 6) gsap.fromTo(el, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out", delay: added++ * 0.05 });
-      } else if (el.dataset.sig !== `${m.text.length}:${m.streaming}:${m.run}`) {
-        el.innerHTML = html;
+      } else if (this.messageSignatures.get(m.id) !== sig) {
+        el.innerHTML = this.render(m);
       }
-      el.dataset.sig = `${m.text.length}:${m.streaming}:${m.run}`;
+      this.messageSignatures.set(m.id, sig);
       // very long messages of yours fold, with a toggle to read them in full
       if (m.role === "user" && m.text.length > 700 && !el.querySelector(".cp-more")) {
         el.classList.add("long");
@@ -593,11 +599,14 @@ export class ChatPanel {
     list.querySelectorAll(".cp-msg.pending").forEach((e) => list.appendChild(e));
     const typing = list.querySelector(".cp-typing");
     if (typing) list.appendChild(typing);
-    this.pending = this.pending.filter((p) => !texts.has(p.text) && Date.now() - p.at < 60000);
-    this.renderPending();
+    const pending = this.pending.filter((p) => !texts.has(p.text) && Date.now() - p.at < 60000);
+    const pendingChanged = pending.length !== this.pending.length;
+    this.pending = pending;
+    if (pendingChanged) this.renderPending();
     if (!list.children.length) list.innerHTML = `<p class="cp-empty">No messages yet. Say hello.</p>`;
     else list.querySelector(".cp-empty")?.remove();
     if (nearBottom || added) list.scrollTop = list.scrollHeight;
+    endSystem("chat", started);
   }
 
   private render(m: Msg) {

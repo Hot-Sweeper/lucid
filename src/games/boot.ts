@@ -944,7 +944,7 @@ function hudBg() {
 // ---- the game --------------------------------------------------------------------------------
 
 export async function playBoot(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   try {
     const f = mountFrame(body, scope, "BOOT", "bt");
     const S = new Session(host, opts, { base: 0.3, step: 0.15, calm: 0.1 });

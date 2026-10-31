@@ -91,7 +91,7 @@ function bestDir(g: Grid): Dir | null {
 }
 
 export async function playBitMerge(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   try {
     const f = mountFrame(body, scope, "Bit Merge", "mg");
     const S = new Session(host, opts, { base: 0.3, step: 0.15, calm: 0.08 });

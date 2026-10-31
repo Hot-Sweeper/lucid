@@ -1,7 +1,9 @@
 // Never hand Chromium a grounds-sized SVG image. At close zoom it rasterized that image
 // repeatedly during middle-button pans, stalling the GPU for hundreds of milliseconds.
-// Keep a small overview bitmap and rasterize only the visible rectangle at screen density.
+// Keep a small overview bitmap and rasterize only viewport crops at screen density.
+// Two recent crops are retained for backtracking instead of rebuilding the same pixels.
 // The overview covers camera motion until an asynchronous sharp crop is ready.
+import { beginSystem, endSystem } from "../perf/metrics";
 
 type Camera = { x: number; y: number; s: number };
 type Crop = { x: number; y: number; w: number; h: number; density: number };
@@ -24,6 +26,7 @@ class OutsideRaster {
   private preview = document.createElement("canvas");
   private detail = document.createElement("canvas");
   private crop: Crop | null = null;
+  private history: { crop: Crop; canvas: HTMLCanvasElement }[] = [];
   private pending: Crop | null = null;
   private cam: Camera = { x: 0, y: 0, s: 0 };
   private width = 0;
@@ -54,7 +57,8 @@ class OutsideRaster {
   update(cam: Camera, width: number, height: number) {
     const scaling = cam.s !== this.cam.s;
     const resizing = width !== this.width || height !== this.height;
-    this.cam = { ...cam }; this.width = width; this.height = height;
+    this.cam.x = cam.x; this.cam.y = cam.y; this.cam.s = cam.s;
+    this.width = width; this.height = height;
     if (scaling || resizing) {
       clearTimeout(this.timer);
       // Keep the old crop in place while scaling. Only render at the final resolution.
@@ -91,6 +95,12 @@ class OutsideRaster {
       return;
     }
     if (this.covers(this.crop, view)) { this.detail.style.visibility = "visible"; return; }
+    const cached = this.history.findIndex((entry) => this.covers(entry.crop, view));
+    if (cached >= 0) {
+      const entry = this.history.splice(cached, 1)[0];
+      this.install(entry.crop, entry.canvas);
+      return;
+    }
     if (this.pending) return; // one raster job at a time, never one per pointer event
     const pad = MARGIN / this.cam.s;
     const x = Math.max(0, view.x - pad), y = Math.max(0, view.y - pad);
@@ -106,11 +116,26 @@ class OutsideRaster {
       next.className = "outside-detail";
       next.setAttribute("aria-hidden", "true");
       next.style.cssText = `position:absolute;left:${crop.x}px;top:${crop.y}px;width:${crop.w}px;height:${crop.h}px;pointer-events:none`;
-      this.detail.replaceWith(next);
-      this.detail = next;
-      this.crop = crop;
+      // Do not replace a usable image with a job the camera has already moved away from.
+      if (this.covers(crop, current)) this.install(crop, next);
+      else this.remember(crop, next);
       if (!this.timer) this.sharpen();
     });
+  }
+
+  private remember(crop: Crop, canvas: HTMLCanvasElement) {
+    this.history.push({ crop, canvas });
+    if (this.history.length > 2) {
+      const old = this.history.shift()!;
+      old.canvas.width = old.canvas.height = 0;
+    }
+  }
+  private install(crop: Crop, canvas: HTMLCanvasElement) {
+    const old = this.detail;
+    old.replaceWith(canvas);
+    if (this.crop) this.remember(this.crop, old);
+    this.detail = canvas; this.crop = crop;
+    canvas.style.visibility = "visible";
   }
 
   private async raster(crop: Crop, canvas: HTMLCanvasElement) {
@@ -128,8 +153,10 @@ class OutsideRaster {
       const img = new Image(); img.src = url;
       await img.decode();
       if (this.dead || !this.layer.isConnected) return false;
+      const started = beginSystem();
       canvas.width = width; canvas.height = height;
       canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+      endSystem("scenery", started);
       return true;
     } catch { return false; }
     finally { URL.revokeObjectURL(url); this.urls.delete(url); }
@@ -141,5 +168,7 @@ class OutsideRaster {
     for (const url of this.urls) URL.revokeObjectURL(url);
     this.urls.clear();
     this.preview.remove(); this.detail.remove();
+    for (const entry of this.history) entry.canvas.width = entry.canvas.height = 0;
+    this.history.length = 0;
   }
 }

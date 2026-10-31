@@ -85,7 +85,7 @@ function chooseCol(b: Cell[], me: Cell, depth: number, slip: number): number {
 }
 
 export async function playConnectFour(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   try {
     const f = mountFrame(body, scope, "Four in a Row", "c4");
     const S = new Session(host, opts, { base: 0.35, step: 0.15, calm: 0.1 });

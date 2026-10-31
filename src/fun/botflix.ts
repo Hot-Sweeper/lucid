@@ -116,8 +116,7 @@ class Botflix {
     const dt = clamp((ms - this.lastMs) / 1000, 0, 0.25);
     this.lastMs = ms;
     this.tickPlayer(ms, dt);
-    // draw only while the app is actually on screen
-    if (!this.root.isConnected || this.root.offsetWidth === 0 || document.visibilityState === "hidden") return;
+    // Visibility and cadence are handled by the shared screen scheduler.
     for (let i = 0; i < 3 && this.paint.length; i++) this.paint.shift()!();
     if (this.home && this.page) this.home.classList.toggle("fun-bf-scrolled", this.page.scrollTop > 6);
     for (const L of this.lives) {
@@ -149,6 +148,9 @@ class Botflix {
 
   /** Paint still art into a canvas, cached per show, kind and size. */
   still(c: HTMLCanvasElement, show: ShowDef, kind: "tile" | "poster" | "ep", ep = 0) {
+    this.scope.defer(c, () => this.paintStill(c, show, kind, ep));
+  }
+  private paintStill(c: HTMLCanvasElement, show: ShowDef, kind: "tile" | "poster" | "ep", ep: number) {
     const w = c.parentElement?.clientWidth || 128, h = c.parentElement?.clientHeight || 72;
     const ctx = fitCanvas(c, w, h);
     const key = `${show.id}|${kind}|${ep}|${w}x${h}`;
@@ -722,7 +724,7 @@ const f0 = (P: Play) => P.pos / P.dur;
 // the activity
 // ======================================================================================
 export async function watchBotflix(body: HTMLElement, host: FunHost, opts: BotflixOpts): Promise<{ result: "done" | "closed" }> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   const start = performance.now();
   const left = () => opts.maxMs - (performance.now() - start);
   const timeUp = () => host.stopped || left() <= 0;

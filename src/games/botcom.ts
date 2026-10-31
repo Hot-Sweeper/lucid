@@ -311,7 +311,7 @@ const bodyOff = (u: Unit) => (u.kind === "diver" ? 15 : u.kind === "squid" ? 20 
 // ---- the game ---------------------------------------------------------------------------
 
 export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   try {
     const f = mountFrame(body, scope, "BOT-COM: Terror from the Deep Sea", "bx");
     const S = new Session(host, opts, { base: 0.3, step: 0.15, calm: 0.1 });
