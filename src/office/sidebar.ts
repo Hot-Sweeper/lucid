@@ -33,14 +33,15 @@ export function foldSection(key: string, open: boolean, animate = true) {
   }
 }
 
-const WIDE = 300, RAIL = 64;
+const RAIL = 64;
 
 /**
  * Folds the sidebar into the rail or opens it again. `onWidth` gets the change in sidebar
  * width every frame, so the office view can hold still while the space beside it grows.
  */
-export function setRail(on: boolean, o: { app: HTMLElement; panel: HTMLElement; rail: HTMLElement; animate?: boolean; onWidth?: (delta: number) => void; done?: () => void }) {
+export function setRail(on: boolean, o: { app: HTMLElement; panel: HTMLElement; rail: HTMLElement; animate?: boolean; wide?: () => number; onWidth?: (delta: number) => void; done?: () => void }) {
   const { app, panel, rail } = o;
+  const WIDE = o.wide?.() ?? 300;
   const parts = [...panel.children] as HTMLElement[];
   const items = () => [...rail.querySelectorAll(".rail-show, .rail-coins, .rail-th")] as HTMLElement[];
   gsap.killTweensOf([app, panel, rail, ...parts, ...items()]);

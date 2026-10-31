@@ -239,8 +239,10 @@ export class ChatPanel {
 
   // --- folding the chat into a tab on the right edge ------------------------------------
   collapsed = false;
-  /** The chat was folded into its edge tab, or opened again from it. */
-  onCollapse: (collapsed: boolean) => void = () => {};
+  /** The chat was folded into its edge tab, or opened again from it. The page animates the column. */
+  onCollapse: (collapsed: boolean, animate: boolean) => void = () => {};
+  /** The width the chat takes when it is open (the page owns it: you drag it wider or narrower). */
+  wide: () => number = () => 440;
   private tab!: HTMLButtonElement;
   private tabLabel = "Chat";
 
@@ -249,29 +251,27 @@ export class ChatPanel {
     this.collapsed = on;
     const el = this.el, tab = this.tab;
     const still = !animate || matchMedia("(prefers-reduced-motion: reduce)").matches;
-    (el.querySelector(".cp-hide") as HTMLElement).setAttribute("aria-expanded", String(!on));
+    el.querySelectorAll(".cp-hide").forEach((b) => b.setAttribute("aria-expanded", String(!on)));
     tab.setAttribute("aria-expanded", String(!on));
     gsap.killTweensOf([el, tab]);
-    if (!this.isOpen) { el.classList.toggle("tabbed", on); this.onCollapse(on); return; }
     this.closeMenu();
-    const slide = Math.max(0, el.offsetWidth - 40);
+    const hadFocus = !!document.activeElement && (el.contains(document.activeElement) || document.activeElement === tab);
+    // while the column narrows or widens, the panel keeps its width and is clipped by the window edge
+    const pin = (w: number) => { el.style.width = `${w}px`; el.style.justifySelf = "start"; };
+    const unpin = () => { el.style.width = ""; el.style.justifySelf = ""; };
     if (on) {
-      // the panel slides into the right edge, where its tab appears
-      const done = () => { el.classList.add("tabbed"); gsap.set(el, { clearProps: "x,opacity" }); tab.hidden = false; };
-      if (still) { done(); gsap.set(tab, { clearProps: "x,opacity" }); }
-      else gsap.timeline()
-        .to(el, { x: slide, opacity: 0, duration: 0.34, ease: "power3.in" })
-        .add(done)
-        .fromTo(tab, { x: 44, opacity: 0 }, { x: 0, opacity: 1, duration: 0.26, ease: "power3.out" }, "-=0.06");
-      if (document.activeElement && el.contains(document.activeElement)) tab.focus({ preventScroll: true });
+      const w = el.offsetWidth || this.wide();
+      const done = () => { unpin(); el.classList.add("tabbed"); gsap.set(el, { clearProps: "opacity" }); tab.hidden = false; if (hadFocus) tab.focus({ preventScroll: true }); if (!still) gsap.fromTo(tab, { x: 24, opacity: 0 }, { x: 0, opacity: 1, duration: 0.24, ease: "power3.out", clearProps: "x,opacity" }); };
+      if (still) done();
+      else { pin(w); gsap.to(el, { opacity: 0, duration: 0.26, ease: "power2.in", onComplete: done }); }
     } else {
-      // the tab slides away and the panel comes back out of the edge
+      // the tab steps aside and the panel comes back out of the right edge
       tab.hidden = true;
       el.classList.remove("tabbed");
-      if (!still) gsap.fromTo(el, { x: slide, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: "power3.out", clearProps: "x" });
-      (el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
+      if (!still) { pin(this.wide()); gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out", delay: 0.08, onComplete: unpin }); }
+      if (hadFocus) (el.querySelector(this.isOpen ? "textarea" : ".cp-hide") as HTMLElement).focus({ preventScroll: true });
     }
-    this.onCollapse(on);
+    this.onCollapse(on, !still);
   }
 
   constructor(host: HTMLElement, private api: Api) {
@@ -279,6 +279,11 @@ export class ChatPanel {
     this.el.className = "chat-panel";
     this.el.setAttribute("aria-label", "Chat with this robot");
     this.el.innerHTML = `
+      <div class="cp-empty">
+        <p><b>No robot selected</b></p>
+        <p>Click a robot or its desk, or a thread in the sidebar, to chat with it here.</p>
+        <button type="button" class="cp-hide ghost" aria-expanded="true" title="Hide the chat for more room. It stays as a tab on the right edge.">Hide chat</button>
+      </div>
       <header class="cp-head">
         <img class="cp-logo" alt="">
         <div class="cp-who"><b></b><span></span></div>
@@ -319,10 +324,12 @@ export class ChatPanel {
     this.tab.className = "cp-tab";
     this.tab.hidden = true;
     this.tab.setAttribute("aria-expanded", "false");
-    this.tab.innerHTML = `<img alt="" hidden><span></span><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    this.tab.setAttribute("aria-label", "Show chat");
+    this.tab.title = "Show the chat";
+    this.tab.innerHTML = `<img alt="" hidden><span>Chat</span><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     host.appendChild(this.tab);
     this.tab.addEventListener("click", () => this.setCollapsed(false));
-    this.el.querySelector(".cp-hide")!.addEventListener("click", () => this.setCollapsed(true));
+    this.el.querySelectorAll(".cp-hide").forEach((b) => b.addEventListener("click", () => this.setCollapsed(true)));
     this.el.querySelector(".cp-close")!.addEventListener("click", () => this.onClose());
     this.el.querySelector(".cp-view")!.addEventListener("click", () => this.onToggleView());
     const form = this.el.querySelector(".cp-form") as HTMLFormElement;
@@ -458,15 +465,10 @@ export class ChatPanel {
     const tabLogo = this.tab.querySelector("img") as HTMLImageElement;
     tabLogo.hidden = !logo;
     if (logo) tabLogo.src = logo;
-    if (!this.isOpen && this.collapsed) {
-      // folded: the chat stays a tab on the edge until you open it
-      this.el.classList.add("open", "tabbed");
-      this.tab.hidden = false;
-      gsap.killTweensOf(this.tab);
-      gsap.fromTo(this.tab, { x: 44, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: "power3.out" });
-    } else if (!this.isOpen) {
+    if (!this.isOpen) {
       this.el.classList.add("open");
-      gsap.fromTo(this.el, { x: 40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "power3.out" });
+      // the empty panel becomes this robot's chat: its parts settle in one after another
+      if (!this.collapsed) gsap.from([...this.el.children].filter((c) => !c.classList.contains("cp-empty")), { opacity: 0, y: 8, duration: 0.32, ease: "power2.out", stagger: 0.04, clearProps: "opacity,y" });
     }
     this.refresh();
     (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
@@ -474,13 +476,15 @@ export class ChatPanel {
 
   close() {
     if (!this.isOpen) return;
-    if (this.collapsed) {
-      const tab = this.tab;
-      this.el.classList.remove("open");
-      gsap.to(tab, { x: 44, opacity: 0, duration: 0.22, ease: "power2.in", onComplete: () => { tab.hidden = true; gsap.set(tab, { clearProps: "x,opacity" }); } });
-    } else gsap.to(this.el, { x: 40, opacity: 0, duration: 0.3, ease: "power2.in", onComplete: () => this.el.classList.remove("open") });
+    this.el.classList.remove("open");
     this.closeMenu();
     this.desk = null;
+    this.tabLabel = "Chat";
+    (this.tab.querySelector("span") as HTMLElement).textContent = "Chat";
+    this.tab.setAttribute("aria-label", "Show chat");
+    this.tab.title = "Show the chat";
+    const empty = this.el.querySelector(".cp-empty") as HTMLElement;
+    gsap.fromTo(empty, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out", clearProps: "opacity" });
   }
 
   setView(mode: "desk" | "screen") {

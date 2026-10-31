@@ -846,6 +846,7 @@ export class World {
     this.paintFollowChip();
   };
   follow(el: HTMLElement) {
+    this.frame = null;
     if (this.focusDesk) this.unfocus(false);
     this.select(null);
     gsap.killTweensOf(this.cam);
@@ -899,6 +900,7 @@ export class World {
       this.stopFollow();
       const r = s.getBoundingClientRect();
       const px = e.clientX - r.left, py = e.clientY - r.top;
+      this.frame = null;
       const ns = Math.min(5, Math.max(0.08, this.cam.s * Math.exp(-e.deltaY * 0.0015)));
       const wx = (px - this.cam.x) / this.cam.s, wy = (py - this.cam.y) / this.cam.s;
       gsap.killTweensOf(this.cam);
@@ -918,7 +920,7 @@ export class World {
       if (!start) return;
       const dx = e.clientX - start.x, dy = e.clientY - start.y;
       if (!this.dragged && Math.hypot(dx, dy) < 5) return;
-      if (!this.dragged) { this.dragged = true; s.classList.add("panning"); this.stopFollow(); }
+      if (!this.dragged) { this.dragged = true; s.classList.add("panning"); this.stopFollow(); this.frame = null; }
       gsap.killTweensOf(this.cam);
       this.cam.x = start.cx + dx; this.cam.y = start.cy + dy;
       this.applySoon();
@@ -940,7 +942,25 @@ export class World {
       const el = (e.target as HTMLElement).closest(".world-walker") as HTMLElement | null;
       if (el && !this.dragged) this.follow(el);
     }, true);
-    new ResizeObserver(() => { this.sceneBox = null; this.apply(); }).observe(s);
+    // The sidebar and the chat sit beside the scene, so the scene is exactly the visible area. When a panel
+    // changes width the view adapts to it: a framed view (a desk, a room, the whole building) is fitted to
+    // the new area again, and a freely panned view keeps what is at its centre in the centre.
+    let last = { w: s.clientWidth, h: s.clientHeight };
+    new ResizeObserver(() => {
+      this.sceneBox = null;
+      const w = s.clientWidth, h = s.clientHeight;
+      if (last.w && last.h && w && h && (w !== last.w || h !== last.h)) {
+        if (this.frame) {
+          gsap.killTweensOf(this.cam);
+          this.fit(this.frame.rect, this.frame.pad, w, h);
+        } else if (!this.followEl) {
+          this.cam.x += (w - last.w) / 2; this.cam.y += (h - last.h) / 2;
+        }
+      }
+      last = { w, h };
+      this.apply();
+      this.keepFocus();
+    }).observe(s);
   }
 
   // Mice report movement up to 1000 times a second; the camera is drawn once per frame, so the
@@ -1004,11 +1024,21 @@ export class World {
   /** Moves the view at once (a side panel changing width keeps the office still on screen). */
   panBy(dx: number, dy = 0) { this.cam.x += dx; this.cam.y += dy; this.sceneBox = null; this.apply(); }
 
+  /** The view the camera is fitted to (a desk, a room, the building); a resize fits it again. */
+  private frame: { rect: { x: number; y: number; w: number; h: number }; pad: number } | null = null;
+  private fitTarget(rect: { x: number; y: number; w: number; h: number }, pad: number, W: number, H: number) {
+    const s = Math.min((W - pad * 2) / rect.w, (H - pad * 2) / rect.h, 6);
+    return { s, x: W / 2 - (rect.x + rect.w / 2) * s, y: H / 2 - (rect.y + rect.h / 2) * s };
+  }
+  private fit(rect: { x: number; y: number; w: number; h: number }, pad: number, W: number, H: number) {
+    Object.assign(this.cam, this.fitTarget(rect, pad, W, H));
+  }
+
   flyTo(rect: { x: number; y: number; w: number; h: number }, pad = 40, d = 1, insetRight = 0) {
     const W = this.scene.clientWidth - insetRight, H = this.scene.clientHeight;
     if (!W || !H) return;
-    const s = Math.min((W - pad * 2) / rect.w, (H - pad * 2) / rect.h, 6);
-    gsap.to(this.cam, { s, x: W / 2 - (rect.x + rect.w / 2) * s, y: H / 2 - (rect.y + rect.h / 2) * s, duration: d, ease: "power3.inOut", onUpdate: () => this.apply() });
+    this.frame = { rect, pad };
+    gsap.to(this.cam, { ...this.fitTarget(rect, pad, W, H), duration: d, ease: "power3.inOut", onUpdate: () => this.apply() });
   }
   onFocus: (d: Desk | null) => void = () => {};
   panelWidth = 0;
@@ -1066,12 +1096,20 @@ export class World {
     if (shown < 0.25 || deskShare < 0.12) this.unfocus(false);
   }
 
+  /** Where the desk's project tag sits, in the desk's own coordinates (it is centred above the monitor and grows upward). */
+  private tagFrame(d: Desk) {
+    const el = d.el.querySelector(".desk-proj") as HTMLElement | null;
+    const w = el && !el.hidden ? el.offsetWidth : 0, h = el && !el.hidden ? el.offsetHeight : 0;
+    return { l: 200 - w / 2, r: 200 + w / 2, top: h ? Math.min(-32, 6 - h - 14) : -32 };
+  }
+
   focusOn(d: Desk) {
     this.stopFollow();
     this.focusDesk = d;
     this.focusMode = "desk";
-    // the frame includes the project tag that sits above the monitor
-    this.flyTo({ x: parseFloat(d.el.style.left) - 10, y: parseFloat(d.el.style.top) - 32, w: UNIT_W + 20, h: UNIT_H + 38 }, 18, 0.85, this.panelWidth);
+    // the frame includes the project tag that sits above the monitor, however long its name is
+    const tag = this.tagFrame(d), x0 = Math.min(-10, tag.l - 6), x1 = Math.max(UNIT_W + 10, tag.r + 6);
+    this.flyTo({ x: parseFloat(d.el.style.left) + x0, y: parseFloat(d.el.style.top) + tag.top, w: x1 - x0, h: UNIT_H - tag.top + 6 }, 18, 0.85, this.panelWidth);
     this.scene.classList.add("screen-mode");
     this.onFocus(d);
   }
@@ -1081,8 +1119,9 @@ export class World {
     this.focusDesk = d;
     this.focusMode = "screen";
     const m = GEOM.screen;
-    const tag = Math.max(0, m.y + 32);   // keep the project tag above the monitor in view
-    this.flyTo({ x: parseFloat(d.el.style.left) + m.x, y: parseFloat(d.el.style.top) + m.y - tag, w: m.w, h: m.h + tag }, 22, 0.9, this.panelWidth);
+    // keep the project tag above the monitor in view, all of it
+    const tag = this.tagFrame(d), x0 = Math.min(m.x, tag.l - 6), x1 = Math.max(m.x + m.w, tag.r + 6), y0 = Math.min(m.y, tag.top);
+    this.flyTo({ x: parseFloat(d.el.style.left) + x0, y: parseFloat(d.el.style.top) + y0, w: x1 - x0, h: m.y + m.h - y0 }, 22, 0.9, this.panelWidth);
     this.scene.classList.add("screen-mode");
     this.onFocus(d);
   }

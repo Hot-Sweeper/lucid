@@ -130,10 +130,7 @@ world.extFactory.queue = (h, w, hh) => new QuestionLine(h, w, hh);
 let selectedDesk: Desk | null = null;
 (window as any).__world = world; // debug handle for test runs
 const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), t3: (window as any).lucidT3 });
-// the chat panel is about a third of the window wide; the camera leaves room for it
-const panelSpace = () => (chat.collapsed ? 52 : Math.min(640, Math.max(440, innerWidth * 0.36)) + 28);
-world.panelWidth = panelSpace();
-window.addEventListener("resize", () => (world.panelWidth = panelSpace()));
+// the sidebar and the chat are columns beside the scene, so the camera always fits what is left (see World)
 world.onFocus = (d) => { if (d) { chat.open(d); chat.setView(world.focusMode); pushStatus(d); } else chat.close(); };
 // a robot's question, answered from its chat (see openAnswer)
 const answer = new AnswerCard(chat, { pending: (id) => (window as any).lucid.pendingRequests(id), t3: (window as any).lucidT3, advice: (rid) => delegate.advice.get(rid) ?? null });
@@ -358,7 +355,7 @@ $("update").addEventListener("click", async () => {
 
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
-const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[] } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));
 world.themes = new Map(Object.entries(settings.themes ?? {}));
@@ -370,13 +367,89 @@ settings.ui ??= {};
 const ui = settings.ui;
 const folded = new Set(ui.folded ?? []);
 const appEl = $("app") as HTMLElement;
-appEl.style.setProperty("--side", "300px");
-// the office view holds still while the sidebar changes width, and fits the chat again when it folds
-const refit = () => {
-  world.panelWidth = panelSpace();
-  const d = world.focusDesk;
-  if (d) { if (world.focusMode === "screen") world.focusScreen(d); else world.focusOn(d); }
+// Panel widths: you drag the inner edge of the sidebar or the chat. Small windows shrink the chat first, then
+// the sidebar, so the office always keeps room.
+const SIDE = { min: 240, max: 520, def: 300, rail: 64 }, CHAT = { min: 340, max: 760, tab: 44 }, SCENE_MIN = 380;
+const chatDefault = () => Math.round(Math.min(560, Math.max(400, innerWidth * 0.32)));
+const clampTo = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+const widths = () => {
+  let side = ui.rail ? SIDE.rail : clampTo(ui.sideW ?? SIDE.def, SIDE.min, SIDE.max);
+  let chatW = chat.collapsed ? CHAT.tab : clampTo(ui.chatW ?? chatDefault(), CHAT.min, CHAT.max);
+  let over = side + chatW + SCENE_MIN - innerWidth;
+  if (over > 0 && !chat.collapsed) { const cut = Math.min(over, chatW - CHAT.min); chatW -= cut; over -= cut; }
+  if (over > 0 && !ui.rail) side -= Math.min(over, side - SIDE.min);
+  return { side, chat: chatW };
 };
+chat.wide = () => widths().chat;
+let chatTween: gsap.core.Tween | null = null;
+const applyLayout = () => {
+  const w = widths();
+  chatTween?.kill(); chatTween = null;
+  if (!appEl.classList.contains("rail-moving")) appEl.style.setProperty("--side", `${w.side}px`);
+  appEl.style.setProperty("--chat", `${w.chat}px`);
+  appEl.classList.toggle("chat-folded", chat.collapsed);
+  for (const [g, v, lo, hi] of [[sideGrip, w.side, SIDE.min, SIDE.max], [chatGrip, w.chat, CHAT.min, CHAT.max]] as const) {
+    g.setAttribute("aria-valuenow", String(Math.round(v))); g.setAttribute("aria-valuemin", String(lo)); g.setAttribute("aria-valuemax", String(hi));
+  }
+};
+// folding the chat: the column glides to its tab or back, and the camera fits the area as it changes
+const slideChat = (animate: boolean) => {
+  const to = widths().chat;
+  appEl.classList.toggle("chat-folded", chat.collapsed);
+  chatTween?.kill();
+  if (!animate) { chatTween = null; appEl.style.setProperty("--chat", `${to}px`); return; }
+  chatTween = gsap.to(appEl, { "--chat": `${to}px`, duration: chat.collapsed ? 0.34 : 0.4, ease: "power3.inOut", onComplete: () => { chatTween = null; } });
+};
+// the draggable edges (highlighted only while grabbed; arrow keys and a double-click work too)
+const makeGrip = (cls: "left" | "right", label: string, key: "sideW" | "chatW", range: { min: number; max: number }, def: () => number) => {
+  const g = document.createElement("div");
+  g.className = `grip ${cls}`;
+  g.tabIndex = 0;
+  g.setAttribute("role", "separator");
+  g.setAttribute("aria-orientation", "vertical");
+  g.setAttribute("aria-label", label);
+  g.title = "Drag to resize. Double-click to reset.";
+  appEl.appendChild(g);
+  const dir = cls === "left" ? 1 : -1;
+  const other = () => (cls === "left" ? widths().chat : widths().side);
+  const set = (w: number) => {
+    // never wider than leaves the office room
+    const hi = Math.max(range.min, Math.min(range.max, innerWidth - SCENE_MIN - other()));
+    ui[key] = Math.round(clampTo(w, range.min, hi));
+    applyLayout();
+  };
+  const now = () => (cls === "left" ? widths().side : widths().chat);
+  g.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    g.setPointerCapture(e.pointerId);
+    const x0 = e.clientX, w0 = now();
+    g.classList.add("grabbing");
+    document.body.classList.add("col-resizing");
+    const move = (ev: PointerEvent) => set(w0 + dir * (ev.clientX - x0));
+    const up = () => {
+      g.classList.remove("grabbing");
+      document.body.classList.remove("col-resizing");
+      g.removeEventListener("pointermove", move); g.removeEventListener("pointerup", up); g.removeEventListener("pointercancel", up);
+      saveSettings();
+    };
+    g.addEventListener("pointermove", move); g.addEventListener("pointerup", up); g.addEventListener("pointercancel", up);
+  });
+  g.addEventListener("dblclick", () => { ui[key] = undefined; applyLayout(); saveSettings(); });
+  g.addEventListener("keydown", (e) => {
+    const step = e.shiftKey ? 96 : 24;
+    const d = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+    if (!d) return;
+    e.preventDefault();
+    set(now() + dir * d);
+    saveSettings();
+  });
+  return g;
+};
+const sideGrip = makeGrip("left", "Resize the sidebar", "sideW", SIDE, () => SIDE.def);
+const chatGrip = makeGrip("right", "Resize the chat", "chatW", CHAT, chatDefault);
+window.addEventListener("resize", applyLayout);
+applyLayout();
 $("side-panel").addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest("[data-fold]") as HTMLElement | null;
   if (!b) return;
@@ -393,7 +466,8 @@ const toggleRail = (on: boolean, animate = true) => {
   $("rail-show").setAttribute("aria-expanded", String(!on));
   if (on) renderRail();
   const hadFocus = document.activeElement === $("side-hide") || document.activeElement === $("rail-show");
-  setRail(on, { app: appEl, panel: $("side-panel"), rail: $("side-rail"), animate, onWidth: (dx) => world.panBy(dx), done: () => { if (hadFocus) $(on ? "rail-show" : "side-hide").focus(); } });
+  appEl.classList.add("rail-moving");
+  setRail(on, { app: appEl, panel: $("side-panel"), rail: $("side-rail"), animate, wide: () => widths().side, done: () => { appEl.classList.remove("rail-moving"); applyLayout(); if (hadFocus) $(on ? "rail-show" : "side-hide").focus(); } });
 };
 $("side-hide").addEventListener("click", () => { toggleRail(true); saveSettings(); });
 $("rail-show").addEventListener("click", () => { toggleRail(false); saveSettings(); });
@@ -402,8 +476,8 @@ window.addEventListener("keydown", (e) => {
 });
 if (ui.rail) toggleRail(true, false);
 chat.setCollapsed(!!ui.chatTab, false);
-chat.onCollapse = (on) => { ui.chatTab = on; saveSettings(); refit(); };
-world.panelWidth = panelSpace();
+applyLayout();
+chat.onCollapse = (on, animate) => { ui.chatTab = on; saveSettings(); slideChat(animate); };
 const saveSettings = () => {
   settings.hidden = [...world.hidden];
   settings.extra = Object.fromEntries(world.extra);
@@ -662,7 +736,7 @@ function openAnswer(id: string) {
   else {
     world.stopFollow();
     const room = world.rooms.find((r) => r.kind === "queue");
-    if (room) world.showRoom(room.id, world.panelWidth);
+    if (room) world.showRoom(room.id);
     // leaving a focused desk starts closing the chat; open it fresh instead
     gsap.killTweensOf(chat.el);
     chat.el.classList.remove("open");
@@ -702,7 +776,7 @@ function renderThreads() {
     const logo = logoFor(t.provider);
     const sub = t.branch || (p?.scratch ? "" : "");
     const host = !p || p.scratch ? world.building : "";
-    return `<li><button type="button" class="th-row ${t.runStatus === "running" ? "on" : ""}" data-id="${esc(t.id)}">
+    return `<li><button type="button" class="th-row ${t.runStatus === "running" ? "on" : ""}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}`)}">
       <span class="th-top">${icon}<span class="th-proj">${esc(proj)}</span>${state}</span>
       <span class="th-title">${t.pinned ? '<span class="th-pin" aria-label="Pinned">●</span>' : ""}${esc(t.title)}</span>
       <span class="th-bot"><span class="th-sub">${esc(sub || host)}</span>${robot ? `<span class="th-bot-name">${esc(robot.name)}</span>` : ""}${logo ? `<img class="th-logo" src="${logo}" alt="">` : ""}</span>
