@@ -1,5 +1,6 @@
 import gsap from "gsap";
 import { Walker } from "../world/walker";
+import { makeInteractive } from "./interact";
 import { CATALOG, itemPreview, coinIcon, seasonalNow, type Wallet, type ShopItem } from "./shop";
 import { seasonFor } from "../weather/season";
 
@@ -118,6 +119,11 @@ export class ShopFront {
       this.keeper = new Walker(this.el.querySelector(".sf-keeper")!, { id: "shopkeeper", provider: "generic", name: "Shopkeeper", scale: 0.34 });
       this.keeper.setPos(SHOP_W / 2 - 20, SHOP_H - 28);
       this.keeper.face("up");
+      makeInteractive(this.keeper, {
+        bounds: () => ({ x: 20, y: WALL + 20, w: SHOP_W - 40, h: SHOP_H - WALL - 30 }),
+        onPoke: () => window.setTimeout(() => this.keeper?.say(this.line(), 2000), 1500),
+        onLanded: () => { const k = this.keeper; if (k) void k.walkPath([{ x: SHOP_W / 2 - 20, y: SHOP_H - 28 }]).then(() => k.face("up")); },
+      });
       this.loop();
     }
   }

@@ -1,6 +1,7 @@
 import { Walker, type Facing } from "../world/walker";
 import { JOKES, LAUGHS, shuffled } from "../world/jokes";
 import { dailyConvo, dailyLine } from "./daily";
+import { makeInteractive, whenFree, popWord, splash } from "./interact";
 
 // The park next to the building. Robots whose work finished a while ago (the break room only
 // holds the most recent ones) spend their time out here: they stroll the paths, sit on the
@@ -74,6 +75,7 @@ export class Park {
       const w = new Walker(this.layer, { id: t.id, provider: t.provider, name: t.name ?? undefined, model: t.model ?? undefined, scale: SCALE });
       w.el.title = t.name ? `${t.name}: ${t.title}` : t.title;
       const v: Visitor = { t, w, spot: null, alive: true, busy: false };
+      makeInteractive(w, { bounds: () => this.geo?.park ?? null, onOpen: () => this.onSelect(t.id), onLanded: () => { this.release(v); } });
       this.vis.set(t.id, v);
       // on first load everyone is already out here; later arrivals walk over from the door
       const first = this.vis.size <= want.length && !this.started;
@@ -121,7 +123,36 @@ export class Park {
     pts.push(b, to);
     return pts;
   }
-  private go(v: Visitor, to: { x: number; y: number }) { return v.w.walkPath(this.route({ x: v.w.x, y: v.w.y }, to)); }
+  // walk there; if someone picks it up on the way, it gets its bearings and sets off again
+  private async go(v: Visitor, to: { x: number; y: number }) {
+    for (let tries = 0; tries < 4 && v.alive; tries++) {
+      await whenFree(v.w);
+      await v.w.walkPath(this.route({ x: v.w.x, y: v.w.y }, to));
+      if (Math.hypot(v.w.x - to.x, v.w.y - to.y) < 8) return;
+    }
+  }
+
+  // Clicks on the park itself: the fountain splashes, the ducks quack.
+  hit(x: number, y: number) {
+    const g = this.geo;
+    if (!g) return false;
+    const cx = g.park.x + g.park.w / 2, cy = g.park.y + g.park.h / 2;
+    if (Math.hypot(x - cx, y - cy) < 72) {
+      splash(this.layer, cx, cy - 6, 16);
+      popWord(this.layer, cx, cy - 40, pick(["Splash!", "Sploosh", "*fountain noises*"]), "#bfe8ff");
+      return true;
+    }
+    const px = cx + 260, py = cy - 120;
+    if (((x - px) / 190) ** 2 + ((y - py) / 120) ** 2 < 1) {
+      popWord(this.layer, x, y - 10, pick(["Quack!", "Quack quack", "QUACK", "quack?"]), "#ffe9a8");
+      const ring = document.createElement("i");
+      ring.className = "pond-ring";
+      ring.style.cssText = `left:${x}px;top:${y}px`;
+      this.layer.appendChild(ring);
+      return true;
+    }
+    return false;
+  }
 
   private strollPoint() {
     const p = this.geo!.park, cx = p.x + p.w / 2, cy = p.y + p.h / 2;

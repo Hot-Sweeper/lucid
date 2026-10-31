@@ -4,6 +4,7 @@ import { drawFloor, drawWall, drawDecor, placeDecor, DECOR } from "../decor/deco
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
 import { Walker } from "../world/walker";
+import { makeInteractive, whenFree } from "./interact";
 import { GEOM } from "./rig";
 import { SHOP_W, SHOP_H, type ShopFront } from "./shopfront";
 import { mountWeather, applySkyTint, type WeatherLayer, type Weather } from "../weather/effects";
@@ -98,7 +99,7 @@ export class World {
     const profile = this.roster.byThread(t.id);
     const w = new Walker(this.deskLayer, { id: t.id, provider: t.provider, name: profile?.name, model: t.model ?? undefined, scale: 0.42, look: profile?.look });
     w.el.classList.add("hall-walker");
-    w.el.addEventListener("click", (e) => { e.stopPropagation(); this.onSelectThread(t.id); });
+    makeInteractive(w, { bounds: () => ({ x: 0, y: 0, w: this.size.w, h: this.size.h }), onOpen: () => this.onSelectThread(t.id) });
     this.transit.set(t.id, w);
     const fromRoom = this.roomById(from);
     // where it sets off: its old chair, its old room's door (break room, questions), or the park
@@ -117,6 +118,13 @@ export class World {
       else if (toRoom) path.push({ x: this.door(toRoom)[0].x, y: this.hallY }, this.door(toRoom)[0]);
       else path.push(this.entrance());
       await w.walkPath(path);
+      // picked up and dropped somewhere on the way: back to the hall, then on to where it was going
+      const end = path[path.length - 1];
+      for (let tries = 0; tries < 4 && this.transit.get(t.id) === w && Math.hypot(w.x - end.x, w.y - end.y) > 8; tries++) {
+        await whenFree(w);
+        const rest = path.slice(path.findIndex((p) => Math.abs(p.y - this.hallY) < 2 && Math.abs(p.x - end.x) < 400) >= 0 ? path.findIndex((p) => Math.abs(p.y - this.hallY) < 2 && Math.abs(p.x - end.x) < 400) : path.length - 1);
+        await w.walkPath([{ x: w.x, y: this.hallY }, ...rest]);
+      }
     };
     window.setTimeout(async () => {
       if (this.transit.get(t.id) !== w) return;
@@ -566,7 +574,13 @@ export class World {
       this.apply();
     });
     window.addEventListener("pointerup", () => { start = null; s.classList.remove("panning"); setTimeout(() => (this.dragged = false), 0); });
-    s.addEventListener("click", (e) => { if (!this.dragged && !(e.target as HTMLElement).closest(".desk-unit")) this.select(null); });
+    s.addEventListener("click", (e) => {
+      if (this.dragged || (e.target as HTMLElement).closest(".desk-unit")) return;
+      // little things to click on in the world (fountain, pond)
+      const r = this.root.getBoundingClientRect(), z = r.width / (this.root.offsetWidth || 1);
+      if (this.park.hit((e.clientX - r.left) / z, (e.clientY - r.top) / z)) return;
+      this.select(null);
+    });
     window.addEventListener("keydown", (e) => { if (e.key === "Escape" && this.focusDesk) { e.preventDefault(); this.unfocus(); } });
     new ResizeObserver(() => this.apply()).observe(s);
   }

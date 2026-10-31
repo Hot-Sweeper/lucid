@@ -65,6 +65,9 @@ export class Desk implements DeskStage {
       <div class="monitor"><div class="screen"></div><div class="screen-glare"></div></div>
       <ol class="desk-notes" aria-label="Plan"></ol>
       <div class="robot-host"></div>
+      <button type="button" class="poke poke-head" aria-label="Poke the robot" style="left:${GEOM.head.x - 34}px;top:${GEOM.head.y - 46}px"></button>
+      <button type="button" class="poke poke-mug" aria-label="Hand it its coffee" style="left:${GEOM.mug.x - 16}px;top:${GEOM.mug.y - 20}px"></button>
+      <button type="button" class="poke poke-phone" aria-label="Buzz its phone" style="left:${GEOM.phoneRest.x - 16}px;top:${GEOM.phoneRest.y - 24}px"></button>
       <div class="desk-plate"><img alt=""><span></span></div>
       <div class="phone-held"><div class="phone-screen"></div></div>
       <div class="bubble" role="status"></div>`;
@@ -75,6 +78,7 @@ export class Desk implements DeskStage {
     gsap.set(el.querySelector(".phone-held"), { scale: 0.24, transformOrigin: "0 0" });
     this.indexKeys();
     this.robot = robotFactory(el.querySelector(".robot-host") as HTMLElement, this.rig());
+    this.wireToys();
     this.wm = new WM(this.screen, this.robot);
     this.director = new Director(this.wm, this.robot, this, services.peek, services.image, services.readText);
     this.director.onActivity = (t) => { this.activity = t; this.onActivity(t); };
@@ -181,6 +185,33 @@ export class Desk implements DeskStage {
     this.say(null);
     this.lift("handoff", false);
     this.handoffBusy = false;
+  }
+
+  // Little desk toys: poke the robot, nudge its coffee, buzz its phone.
+  private pokes = 0;
+  private pokeTimer = 0;
+  private wireToys() {
+    const lines = ["Hey!", "I'm working here!", "Yes, CEO?", "That tickles.", "Boop.", "Almost done, promise.", "Did you need something?"];
+    const grumpy = ["Okay, okay!", "Stop poking me.", "I will tell HR.", "Poke limit reached."];
+    const stop = (e: Event) => { e.stopPropagation(); e.preventDefault(); };
+    this.el.querySelector(".poke-head")!.addEventListener("click", (e) => {
+      stop(e);
+      if (!this.threadId) return;
+      this.pokes++;
+      window.clearTimeout(this.pokeTimer);
+      this.pokeTimer = window.setTimeout(() => (this.pokes = 0), 3000);
+      const angry = this.pokes >= 4;
+      this.robot.react(angry ? "angry" : (["surprised", "laugh", "shy"] as const)[Math.floor(Math.random() * 3)]);
+      this.say((angry ? grumpy : lines)[Math.floor(Math.random() * (angry ? grumpy : lines).length)], "speak");
+      window.setTimeout(() => this.say(null), 1800);
+    });
+    this.el.querySelector(".poke-mug")!.addEventListener("click", (e) => { stop(e); if (this.threadId) void this.robot.drink(); });
+    this.el.querySelector(".poke-phone")!.addEventListener("click", (e) => {
+      stop(e);
+      const ph = this.el.querySelector("[data-d=phone]") as SVGGElement | null;
+      if (ph) gsap.fromTo(ph, { x: -2 }, { x: 2, duration: 0.05, repeat: 9, yoyo: true, clearProps: "x" });
+      if (this.threadId) { this.robot.react("surprised"); this.say(["Bzzz!", "Who is texting me?", "Probably spam."][Math.floor(Math.random() * 3)], "speak"); window.setTimeout(() => this.say(null), 1600); }
+    });
   }
 
   // --- DeskStage -------------------------------------------------------------
