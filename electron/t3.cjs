@@ -255,6 +255,7 @@ function world(limit = 40) {
     .prepare(`select t.thread_id as id, t.project_id as projectId, t.title, t.updated_at as updatedAt, t.payload_json as payload,
                      coalesce(t.provider_instance_id, t.default_provider) as provider,
                      (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as runStatus,
+                     (select json_extract(r.payload_json, '$.startedAt') from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as runStartedAt,
                      (select count(*) from orchestration_v2_projection_runtime_requests q where q.thread_id = t.thread_id and q.status not in ('resolved','cancelled','expired','failed')) as pending,
                      (select max(i.updated_at) from orchestration_v2_projection_turn_items i where i.thread_id = t.thread_id) as lastItemAt
               from orchestration_v2_projection_threads t
@@ -287,6 +288,9 @@ function world(limit = 40) {
       pinned: !!p.pinnedAt, settled, question, model: p.modelSelection?.model || null,
       schedule: schedules.get(r.id) || null,
       folder: p.worktreePath || null,
+      // for the T3-style thread list
+      branch: p.branch || null, lastStatus: r.runStatus || null, runStartedAt: r.runStartedAt || null,
+      unseen: !!(r.updatedAt && (!p.lastVisitedAt || Date.parse(r.updatedAt) > Date.parse(p.lastVisitedAt))),
     };
   });
   const projects = db

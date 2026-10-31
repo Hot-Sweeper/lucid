@@ -71,6 +71,11 @@ document.getElementById("app")!.innerHTML = `
     <section class="company" id="company" aria-live="polite"></section>
     <section class="wallet" id="wallet"><span class="wl-coins">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></span><button type="button" class="wl-shop" id="open-shop">Shop</button></section>
 
+    <section class="threads">
+      <div class="th-head"><h3>Threads</h3><label class="th-search"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label></div>
+      <ol class="th-list" id="th-list"></ol>
+    </section>
+
     <section class="rooms">
       <h3>Rooms</h3>
       <ul id="room-list" class="room-list"></ul>
@@ -124,6 +129,8 @@ function pushStatus(d: Desk) {
   const run = d.info?.run?.status;
   const state = d.info && (d.info as any).question ? "waiting" : run === "running" || run === "queued" ? "working" : "idle";
   chat.setStatus(d.activity || (state === "working" ? "Working" : "Waiting for a task"), state as any);
+  // while the robot types its reply in its Messages app, you see it typing here too
+  chat.setTyping(/^Writing to you/.test(d.activity || ""), d.profile?.name ?? "It");
 }
 // Dev aid: keep the last errors where a debug run can read them.
 (window as any).__errs = [];
@@ -212,7 +219,7 @@ async function refresh() {
       else requestAnimationFrame(() => world.overview());
     }
   } catch (err) {
-    console.error("world refresh failed", err);
+    console.error("world refresh failed", err, String((err as any)?.stack || "").split("\n").slice(1, 3).join(" < "));
   }
 }
 
@@ -484,3 +491,57 @@ world.onFollowChat = (id) => {
   chat.open({ threadId: id, info: { id, title: t.title, provider: t.provider }, profile: world.roster.byThread(id) } as any);
   chat.setStatus("Off work right now", "idle");
 };
+
+// --- the thread list, like T3 Code's sidebar --------------------------------------------
+const ago = (iso?: string | null) => {
+  if (!iso) return "";
+  const m = Math.max(0, (Date.now() - Date.parse(iso)) / 60000);
+  return m < 1 ? "now" : m < 60 ? `${Math.floor(m)}m` : m < 1440 ? `${Math.floor(m / 60)}h` : `${Math.floor(m / 1440)}d`;
+};
+let thSig = "";
+function renderThreads() {
+  const data = world.lastData;
+  if (!data) return;
+  const q = (($("th-q") as HTMLInputElement).value || "").trim().toLowerCase();
+  const projects = new Map(data.projects.map((p) => [p.id, p]));
+  const list = [...data.threads]
+    .filter((t) => !q || t.title.toLowerCase().includes(q) || (projects.get(t.projectId)?.title ?? "").toLowerCase().includes(q))
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+    .slice(0, 60);
+  const rows = list.map((t) => {
+    const p = projects.get(t.projectId);
+    const proj = !p || p.scratch ? "No project" : p.title;
+    const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
+    const state = t.question ? `<span class="th-st ask">Needs input</span>`
+      : t.runStatus === "running" ? `<span class="th-st work"><i></i>Working ${ago(t.runStartedAt || t.updatedAt)}</span>`
+      : t.lastStatus === "failed" ? `<span class="th-st fail">Failed</span>`
+      : t.unseen && t.lastStatus === "completed" ? `<span class="th-st done">Done</span>`
+      : `<span class="th-ago">${ago(t.updatedAt)}</span>`;
+    const robot = world.roster.byThread(t.id);
+    const logo = logoFor(t.provider);
+    const sub = t.branch || (p?.scratch ? "" : "");
+    const host = !p || p.scratch ? world.building : "";
+    return `<li><button type="button" class="th-row ${t.runStatus === "running" ? "on" : ""}" data-id="${esc(t.id)}">
+      <span class="th-top">${icon}<span class="th-proj">${esc(proj)}</span>${state}</span>
+      <span class="th-title">${t.pinned ? '<span class="th-pin" aria-label="Pinned">●</span>' : ""}${esc(t.title)}</span>
+      <span class="th-bot"><span class="th-sub">${esc(sub || host)}</span>${robot ? `<span class="th-bot-name">${esc(robot.name)}</span>` : ""}${logo ? `<img class="th-logo" src="${logo}" alt="">` : ""}</span>
+    </button></li>`;
+  }).join("");
+  const sig = rows + q;
+  if (sig === thSig) return;
+  thSig = sig;
+  $("th-list").innerHTML = rows || `<li class="th-empty">No threads match.</li>`;
+}
+$("th-q").addEventListener("input", renderThreads);
+$("th-list").addEventListener("click", (e) => {
+  const b = (e.target as HTMLElement).closest(".th-row") as HTMLElement | null;
+  if (!b) return;
+  const id = b.dataset.id!;
+  const d = world.deskFor(id);
+  if (d && !d.el.classList.contains("arriving")) { world.focusOn(d); return; }
+  // not at a desk: follow it wherever it is (break room, questions, park, walking)
+  const el = document.querySelector(`.world-walker[data-id="${CSS.escape(id)}"]`) as HTMLElement | null;
+  if (el) world.follow(el);
+});
+setInterval(renderThreads, 3000);
+window.setTimeout(renderThreads, 1500);

@@ -235,6 +235,30 @@ export class ChatPanel {
     if (span.textContent !== text) { span.textContent = text; gsap.fromTo(span, { opacity: 0.3 }, { opacity: 1, duration: 0.3 }); }
   }
 
+  // "Bolt is typing" with bouncing dots, at the bottom of the conversation
+  private typingOn = false;
+  setTyping(on: boolean, who = "It") {
+    const list = this.el.querySelector(".cp-list") as HTMLElement;
+    let t = list.querySelector(".cp-typing") as HTMLElement | null;
+    if (on === this.typingOn && (!on || t)) { if (t) list.appendChild(t); return; }
+    this.typingOn = on;
+    if (on) {
+      if (!t) {
+        t = document.createElement("div");
+        t.className = "cp-typing";
+        t.setAttribute("role", "status");
+        t.innerHTML = `<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="who"></span>`;
+      }
+      (t.querySelector(".who") as HTMLElement).textContent = `${who} is typing`;
+      list.appendChild(t);
+      gsap.fromTo(t, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.25 });
+      const near = list.scrollHeight - list.scrollTop - list.clientHeight < 140;
+      if (near) list.scrollTop = list.scrollHeight;
+    } else if (t) {
+      gsap.to(t, { opacity: 0, duration: 0.2, onComplete: () => t!.remove() });
+    }
+  }
+
   private renderPending() {
     const list = this.el.querySelector(".cp-list") as HTMLElement;
     list.querySelectorAll(".cp-msg.pending").forEach((e) => e.remove());
@@ -294,6 +318,8 @@ export class ChatPanel {
     // pending bubbles disappear once the real message shows up
     const texts = new Set(msgs.filter((m) => m.role === "user").map((m) => m.text.trim()));
     list.querySelectorAll(".cp-msg.pending").forEach((e) => list.appendChild(e));
+    const typing = list.querySelector(".cp-typing");
+    if (typing) list.appendChild(typing);
     this.pending = this.pending.filter((p) => !texts.has(p.text) && Date.now() - p.at < 60000);
     this.renderPending();
     if (!list.children.length) list.innerHTML = `<p class="cp-empty">No messages yet. Say hello.</p>`;

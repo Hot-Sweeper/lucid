@@ -22,6 +22,7 @@ export type WThread = {
   runStatus: string | null; pinned: boolean; settled: boolean; question: string | null; model: string | null;
   schedule?: { nextRunAt: string | null; everyMs: number | null } | null;
   folder?: string | null;
+  branch?: string | null; lastStatus?: string | null; runStartedAt?: string | null; unseen?: boolean;
 };
 export type WProject = { id: string; title: string; root: string; icon: string | null; scratch: boolean };
 export type WorldData = { projects: WProject[]; threads: WThread[]; models?: Record<string, string[]>; prices?: Record<string, { input: number; output: number }>; shipped?: { total: number; today: number } };
