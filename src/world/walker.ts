@@ -253,6 +253,9 @@ export class Walker {
 
   setPos(x: number, y: number) { this.x = x; this.y = y; this.place(); }
 
+  /** Hurry to assigned work; leisure and departures retain the walking gait. */
+  setRunning(on: boolean) { this.speed = on ? 240 : SPEED; }
+
   private place() {
     this.el.style.transform = `translate(${this.x.toFixed(1)}px, ${this.y.toFixed(1)}px)`;
     this.el.style.zIndex = String(Math.round(this.y) + this.zBias + (this.st.sit > 0.5 ? -2 : 0));
@@ -358,7 +361,9 @@ export class Walker {
     const strideWant = 0.35 + 0.65 * Math.min(1, this.v / this.speed);
     st.stride += (strideWant - st.stride) * Math.min(1, dt * 10);
     // feet stay planted: half a cycle covers 2 * STEP * stride of floor
-    st.phase += ((this.v / this.s) / (4 * STEP * Math.max(0.3, st.stride))) * TAU * dt;
+    const run = this.speed > SPEED ? clamp((this.v - SPEED * 0.7) / (240 - SPEED * 0.7), 0, 1) : 0;
+    const stance = 0.5 - run * 0.16;
+    st.phase += ((this.v / this.s) / (2 * STEP * (1 + run * 0.65) / stance * Math.max(0.3, st.stride))) * TAU * dt;
     if (m.i >= m.pts.length) {
       this.mv = null;
       this.v = 0;
@@ -1005,15 +1010,18 @@ export class Walker {
 
     // walk cycle: contact, down, passing, up (two bobs per cycle); feet planted in stance
     const stride = st.stride * (1 - dangle);
+    const run = reduced() ? 0 : (this.speed > SPEED ? clamp((this.v - SPEED * 0.7) / (240 - SPEED * 0.7), 0, 1) : 0);
     const u0 = ((st.phase / TAU) % 1 + 1) % 1;
     const foot = (off: number) => {
       const u = (u0 + off) % 1;
-      if (u < 0.5) { const s = u / 0.5; return { z: STEP * (1 - 2 * s), lift: 0, rot: lerp(8, -16, s * s) }; }
-      const s = (u - 0.5) / 0.5, e = s * s * (3 - 2 * s);
-      return { z: -STEP + 2 * STEP * e, lift: Math.sin(Math.PI * Math.pow(s, 0.8)) * 13, rot: lerp(-22, 10, e) };
+      const stance = 0.5 - run * 0.16, reach = STEP * (1 + run * 0.65);
+      if (u < stance) { const s = u / stance; return { z: reach * (1 - 2 * s), lift: 0, rot: lerp(8, -16 - run * 12, s * s) }; }
+      const s = (u - stance) / (1 - stance), e = s * s * (3 - 2 * s);
+      return { z: -reach + 2 * reach * e, lift: Math.sin(Math.PI * Math.pow(s, 0.8)) * (13 + run * 22), rot: lerp(-22 - run * 16, 10, e) };
     };
     const fl = foot(0), fr = foot(0.5);
-    const bob = stride * 4.2 * Math.cos(TAU * 2 * (u0 - 0.1));
+    // A lower running hip keeps the longer planted leg within its real reach.
+    const bob = stride * ((4.2 + run * 4) * Math.cos(TAU * 2 * (u0 - 0.1)) + run * 16);
     const weight = side ? 0 : -stride * 4.5 * Math.sin(TAU * u0);   // over the standing foot
 
     // procedural layers
@@ -1029,7 +1037,7 @@ export class Walker {
     const drop = st.sit * SIT_DROP + st.crouch * CROUCH_DROP - bounce * 3.5 + bob;
     const bx = weight + (st.sway + dSway) * 5 + st.bx;
     const by = drop - laugh * 1.8;
-    const walkLean = stride * 5;
+    const walkLean = stride * (5 + run * 10);
     const rot = side ? st.lean + walkLean : st.roll + weight * 0.5 + dSway * 4 + laugh * 0.8;
     const fwd = side ? 0 : (back ? -1 : 1) * (st.lean + walkLean * 0.4) * 0.55;   // forward lean seen from the front
     const upper = -breath * 0.45 - st.shrug * 0.3;
@@ -1086,6 +1094,7 @@ export class Walker {
       rest.z += legZ * sw;
       rest.y -= Math.abs(legZ) * sw * 0.12;
       rest.x += stride * (free ? 3 : 0);
+      if (free) { rest.y -= run * 36; rest.z += run * (14 + legZ * 0.3); }
       const u = (st as any)[k + "u"] as number;
       const tg = { x: lerp(rest.x, (st as any)[k + "x"], u), y: lerp(rest.y, (st as any)[k + "y"], u), z: lerp(rest.z, (st as any)[k + "z"], u) };
       let pr = lerp(rest.r ?? 0, (st as any)[k + "r"], u);

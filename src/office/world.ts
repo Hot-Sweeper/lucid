@@ -5,7 +5,7 @@ import { drawFloor, drawWall, drawDecor, placeDecor, decorFootprint, DECOR } fro
 import { furniturePath, type Footprint } from "./navigation";
 import { officePlan, hallRoute, inHall, type OfficePlan } from "./floor-plan";
 import { buildingFootprint, footprintCovers } from "./building-footprint";
-import { hasOfficeWork, reserveRoomSeats, projectRoomSeats, physicalSeatIndices, reorderPhysicalSeats, layoutMeeting, FOLDED_OFFICE } from "./room-policy";
+import { hasOfficeWork, reserveRoomSeats, projectRoomSeats, physicalSeatIndices, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, FOLDED_OFFICE } from "./room-policy";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
 import { Walker, SIT_HEAD, pause, type Facing } from "../world/walker";
@@ -159,7 +159,7 @@ export class World {
       if (path) pts.push(...path); else blocked = true;
     };
     const startOut = this.outside(p), endOut = !toRoom;   // the park, or away
-    const meeting = this.physicalLayoutHeld && this.layoutParticipants.has(id) ? this.pendingMeeting : null;
+    const meeting = this.physicalLayoutHeld && this.layoutParticipants.has(id) ? this.meetingSpots.get(id) ?? this.pendingMeeting : null;
     if (meeting) {
       if (meeting.outside) {
         if (!startOut) { throughHall(this.entrance()); pts.push(this.parkDoor); }
@@ -194,7 +194,7 @@ export class World {
   private spawn(t: { id: string; provider: string; model?: string | null }, at: Pt, face: Facing, outdoors = this.outside(at)) {
     const profile = this.roster.byThread(t.id);
     const out = outdoors;
-    const w = new Walker(out ? this.park.layer : this.deskLayer, { id: t.id, provider: t.provider, name: profile?.name, model: t.model ?? undefined, scale: WALK_SCALE, look: profile?.look, speed: 300 });
+    const w = new Walker(out ? this.park.layer : this.deskLayer, { id: t.id, provider: t.provider, name: profile?.name, model: t.model ?? undefined, scale: WALK_SCALE, look: profile?.look });
     w.el.classList.add("hall-walker");
     makeInteractive(w, { bounds: () => (out ? this.outdoor : null) ?? { x: 0, y: 0, w: this.size.w, h: this.size.h }, onOpen: () => this.onSelectThread(t.id) });
     w.setPos(at.x, at.y);
@@ -224,6 +224,8 @@ export class World {
         goal.x >= r.x && goal.x <= r.x + r.w && goal.y >= r.y && goal.y <= r.y + r.h);
       const path = room ? furniturePath(from, goal, this.furniture(room), this.walkBounds(room)) : [goal];
       if (!path) return; // stay put and let travel retry, never walk through a blocked aisle
+      const current = this.lastData?.threads.find((thread) => thread.id === t.id) ?? t;
+      w.setRunning(hasOfficeWork(current) && !current.question && !!this.desks.get(t.id)?.el.classList.contains("arriving"));
       await w.walkPath(path);
       if (this.transit.get(t.id) !== w || this.trips.get(t.id) !== trip || revision !== this.layoutRevision) return;
       const last = pts[j - 1];
@@ -540,6 +542,7 @@ export class World {
   private physicalLayoutHeld = false;
   private layoutParticipants = new Set<string>();
   private pendingMeeting: ReturnType<typeof layoutMeeting> | null = null;
+  private meetingSpots = new Map<string, ReturnType<typeof layoutMeeting>>();
   private layoutUpdateQueued = false;
   isRoomExpanded(id: string) { return this.expandedRooms.has(id); }
   setRoomExpanded(id: string, expanded: boolean) {
@@ -701,22 +704,24 @@ export class World {
     const physicalChange = policyKey(desiredPlans) !== policyKey(this.physicalPlans);
     const desiredFloor = officePlan(top, bottom, HALL, GAP);
     const oldMeeting = this.pendingMeeting;
+    const oldSpots = JSON.stringify([...this.meetingSpots]);
     if (holdPhysical && physicalChange) {
       for (const id of retiringIds) this.layoutParticipants.add(id);
       for (const id of this.exits.keys()) this.layoutParticipants.add(id);
       for (const [id, walker] of this.transit) if (!this.outside(walker)) this.layoutParticipants.add(id);
       for (const id of this.layoutParticipants) if (!this.transit.has(id) && !this.exits.has(id) && !retiringIds.has(id)) this.layoutParticipants.delete(id);
       this.pendingMeeting = layoutMeeting(this.floorPlan, desiredFloor, HALL);
-      const meeting = this.pendingMeeting;
+      this.meetingSpots = layoutWaitingSpots(this.floorPlan, desiredFloor, [...this.layoutParticipants], HALL);
       const ready = [...this.layoutParticipants].every((id) => {
         const actor = this.transit.get(id);
+        const meeting = this.meetingSpots.get(id)!;
         return !!actor && !this.exits.has(id) && Math.hypot(actor.x - meeting.x, actor.y - meeting.y) <= 8;
       });
       if (ready) holdPhysical = false;
     } else holdPhysical = false;
     this.physicalLayoutHeld = holdPhysical;
-    if (!holdPhysical) { this.layoutParticipants.clear(); this.pendingMeeting = null; }
-    const meetingChanged = oldMeeting?.x !== this.pendingMeeting?.x || oldMeeting?.y !== this.pendingMeeting?.y;
+    if (!holdPhysical) { this.layoutParticipants.clear(); this.pendingMeeting = null; this.meetingSpots.clear(); }
+    const meetingChanged = oldMeeting?.x !== this.pendingMeeting?.x || oldMeeting?.y !== this.pendingMeeting?.y || oldSpots !== JSON.stringify([...this.meetingSpots]);
     if (wasHeld !== holdPhysical || meetingChanged) {
       this.layoutRevision++;
       for (const walker of this.transit.values()) walker.stop();
@@ -935,6 +940,10 @@ export class World {
     // leaving a desk: it gets up from its chair; leaving the break room, questions or park: that
     // room walks it to its door and hands it over there
     for (const m of moving) this.move(m.t, m.from, m.to, desksBefore.get(m.t.id) ?? null);
+    for (const [id, walker] of this.transit) {
+      const thread = byThread.get(id);
+      walker.setRunning(!!thread && hasOfficeWork(thread) && !thread.question && !!this.desks.get(id)?.el.classList.contains("arriving"));
+    }
     // robots that finished longer ago than the break room's latest eight go out to the park
     const info = (t: WThread) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name, look: this.roster.byThread(t.id)?.look });
     // in rain, storms or snow nobody stays in the park

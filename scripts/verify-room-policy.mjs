@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 const load = async (name) => { const source = await transformWithOxc(await readFile(new URL(`../src/office/${name}.ts`, import.meta.url), 'utf8'), `${name}.ts`); return import('data:text/javascript;base64,' + Buffer.from(source.code).toString('base64')); };
-const { hasOfficeWork, reserveRoomSeats, projectRoomSeats, reorderPhysicalSeats, physicalSeatIndices, layoutMeeting, FOLDED_OFFICE } = await load('room-policy');
+const { hasOfficeWork, reserveRoomSeats, projectRoomSeats, reorderPhysicalSeats, physicalSeatIndices, layoutMeeting, layoutWaitingSpots, FOLDED_OFFICE } = await load('room-policy');
 const { officePlan, hallRoute, inHall } = await load('floor-plan');
 const thread = (id, runStatus = null, question = null) => ({ id, runStatus, question, pinned: true, settled: false });
 for (const status of ['running', 'queued', 'waiting', 'starting', 'preparing', 'pending', 'waiting_for_approval', 'awaiting-approval', 'Waiting For Input']) assert.equal(hasOfficeWork(thread('x', status)), true, status);
@@ -39,6 +39,16 @@ const previousFloor = officePlan([{ id: 'main', w: 1380, h: 800 }], [{ id: 'a', 
 for (const topH of [180, 800, 840, 980, 2180]) for (const width of [420, 1380, 4590]) {
   const nextFloor = officePlan([{ id: 'main', w: width, h: topH }], [{ id: 'a', ...FOLDED_OFFICE }]);
   const point = layoutMeeting(previousFloor, nextFloor);
+  for (const count of [3, 12, 80]) {
+    const ids = Array.from({length:count}, (_,i)=>'robot'+i);
+    const spots = layoutWaitingSpots(previousFloor, nextFloor, ids);
+    assert.deepEqual([...spots], [...layoutWaitingSpots(previousFloor, nextFloor, [...ids].reverse())], 'refresh order preserves waiting places');
+    for (const [id, a] of spots) {
+      if (!a.outside) assert(inHall(previousFloor,a) && inHall(nextFloor,a), 'waiting spot survives both floor plans');
+      else assert(a.x > Math.max(previousFloor.size.w,nextFloor.size.w), 'overflow waits beyond both buildings');
+      for (const [other,b] of spots) if (id!==other) assert(Math.hypot(a.x-b.x,a.y-b.y)>=76, 'waiting robots never share a spot');
+    }
+  }
   if (point.outside) {
     assert.ok(point.x > previousFloor.size.w + 100 && point.x > nextFloor.size.w + 100, 'fallback meeting is outside both current and future walls');
     assert.equal(point.y, previousFloor.hallY, 'outdoor meeting follows the old entrance path');

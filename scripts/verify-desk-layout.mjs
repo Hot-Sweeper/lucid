@@ -50,6 +50,18 @@ const evaluation = `
     assert(JSON.stringify(w.rooms.map(r => [r.id,r.x,r.y,r.w,r.h])) === rooms, 'refresh order preserves room geometry');
     assert([...identity].every(([id,d]) => w.desks.get(id) === d), 'refresh preserves desk and computer identity');
     window.__deskDuplicates=[];window.__deskCounting=true;
+    const waitingFailures=[];
+    const checkWaiting=()=>{
+      if(!window.__deskCounting)return;
+      const spots=[...w.meetingSpots.values()];
+      for(let i=0;i<spots.length;i++)for(let j=i+1;j<spots.length;j++)
+        if(Math.hypot(spots[i].x-spots[j].x,spots[i].y-spots[j].y)<76)waitingFailures.push('shared waiting spot');
+      for(const[id,actor]of w.transit)if(actor.speed>105){
+        const t=w.lastData.threads.find(t=>t.id===id);
+        if(!t||t.question||!w.desks.get(id)?.el.classList.contains('arriving'))waitingFailures.push('running without assigned work');
+      }
+      requestAnimationFrame(checkWaiting);
+    };requestAnimationFrame(checkWaiting);
     const sample=()=>{if(!window.__deskCounting)return;const counts=new Map();for(const el of w.root.querySelectorAll('.world-walker'))counts.set(el.dataset.id,(counts.get(el.dataset.id)||0)+1);for(const[id,d]of w.desks)if(!d.el.classList.contains('arriving'))counts.set(id,(counts.get(id)||0)+1);for(const[id,n]of counts)if(n>1&&window.__deskDuplicates.length<20)window.__deskDuplicates.push({id,n});requestAnimationFrame(sample)};requestAnimationFrame(sample);
     // Exercise pointer handlers, including preview, neighbor motion, cancellation and persistence.
     w.showRoom('p:a'); await wait(1100);
@@ -137,7 +149,7 @@ const evaluation = `
         for (let i=1; i<route.length; i++) {
           const a = route[i-1], b = route[i];
           // Expose routing through walkLegs with a harmless recorder walker.
-          const mock = { x:a.x, y:a.y, el:document.createElement('div'), facing:'up', walkPath:async pts => { for (const pt of pts) { assert(!w.furniture(room).some(r => {
+          const mock = { x:a.x, y:a.y, el:document.createElement('div'), facing:'up', setRunning:()=>{}, walkPath:async pts => { for (const pt of pts) { assert(!w.furniture(room).some(r => {
             const padded={x:r.x-15,y:r.y-7,w:r.w+30,h:r.h+14};
             let lo=0,hi=1; for(const [p,q] of [[mock.x-pt.x,mock.x-padded.x],[pt.x-mock.x,padded.x+padded.w-mock.x],[mock.y-pt.y,mock.y-padded.y],[pt.y-mock.y,padded.y+padded.h-mock.y]]) { if(p===0){if(q<0)return false;continue;} const t=q/p; if(p<0)lo=Math.max(lo,t);else hi=Math.min(hi,t);if(lo>hi)return false; } return true;
           }), 'approach segment avoids furniture ' + (++segments)); mock.x=pt.x;mock.y=pt.y; } } };
@@ -170,6 +182,7 @@ const evaluation = `
     window.__endDeskPreview = () => { desk.el.dispatchEvent(new PointerEvent('pointercancel',{bubbles:true,pointerId:77})); window.__endDeskPreview=null; };
     window.__deskCounting=false;
     assert(window.__deskDuplicates.length===0,'native transfers never show duplicate robot actors');
+    assert(waitingFailures.length===0,'native waiting places stay separate and only assigned workers run');
     window.__deskCheck = { ok:true, checks, segments, approaches };
   } catch (error) { window.__deskCounting=false; window.__deskCheck = {ok:false,error:String(error),stack:error.stack,checks}; }
   return window.__deskCheck;

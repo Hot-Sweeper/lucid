@@ -67,3 +67,14 @@ export function layoutMeeting(old: { topH: number; size: { w: number } }, next: 
   // old entrance and wait beyond both buildings before using the new entrance.
   return { x: Math.max(old.size.w, next.size.w) + 140, y: old.topH + hall / 2, outside: true };
 }
+
+/** Separate, stable waiting places on floor that survives the layout change. */
+export function layoutWaitingSpots(old: { topH: number; size: { w: number } }, next: { topH: number; size: { w: number } }, ids: string[], hall = 150) {
+  const meeting = layoutMeeting(old, next, hall), width = Math.min(old.size.w, next.size.w);
+  const spacing = 76, capacity = Math.max(0, Math.floor((width - 80) / spacing) + 1);
+  const outside = meeting.outside || ids.length > capacity;
+  const start = outside ? Math.max(old.size.w, next.size.w) + 140 : (width - (ids.length - 1) * spacing) / 2;
+  return new Map([...ids].sort().map((id, i) => [id, {
+    x: start + i * spacing, y: outside ? old.topH + hall / 2 : meeting.y, outside,
+  }]));
+}

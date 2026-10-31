@@ -11,7 +11,9 @@ const method = (start, end) => {
 };
 const navigation = await transformWithOxc(await readFile(new URL('../src/office/navigation.ts', import.meta.url), 'utf8'), 'navigation.ts');
 const { furniturePath } = await import('data:text/javascript;base64,' + Buffer.from(navigation.code).toString('base64'));
+const policy = await transformWithOxc(await readFile(new URL('../src/office/room-policy.ts', import.meta.url), 'utf8'), 'room-policy.ts');
 const source = `
+  ${policy.code}
   const gsap={killTweensOf(){}};
   const whenFree=w=>globalThis.__rendezvousAudit.whenFree(w);
   const pause=seconds=>new Promise(resolve=>setTimeout(resolve,seconds*1000));
@@ -35,7 +37,7 @@ async function verify(dragged) {
   const deskLayer = {}, parkLayer = {};
   const walker = {
     ...start, el: { style: {}, parentElement: deskLayer }, zBias: 0,
-    stop() {},
+    stop() {}, setRunning(on) { assert.equal(on, false, 'break-room journey never runs'); },
     async walkPath(points) {
       assert.equal(blocked, false, 'blocked aisle never becomes a direct walking shortcut');
       assert.equal(world.transit.get(id), walker, 'the original walker owns the resumed route');
@@ -53,7 +55,8 @@ async function verify(dragged) {
   world.layoutRevision = 1;
   world.physicalLayoutHeld = true;
   world.layoutUpdateQueued = false;
-  world.lastData = {};
+  world.lastData = { threads: [] };
+  world.desks = new Map();
   world.deskDragActive = false;
   world.slidingDesks = new Set();
   world.park = { layer: parkLayer };
@@ -104,4 +107,22 @@ async function verify(dragged) {
 }
 
 const results = [await verify(false), await verify(true)];
+// Use the actual leg executor and policy to check task intent, including status
+// changes while a journey's original thread snapshot is still marked running.
+for (const [runStatus, question, assigned, expected] of [
+  ['running',null,true,true], ['queued',null,true,true],
+  ['running',null,false,false], ['completed',null,true,false],
+  ['running','Permission needed',true,false], [null,null,true,false],
+]) {
+  const world = new AuditWorld(), trip = {}, id='intent';
+  let running;
+  const actor={x:0,y:0,el:{parentElement:{}},setRunning:on=>running=on,walkPath:async()=>{actor.x=20;}};
+  world.transit=new Map([[id,actor]]);world.trips=new Map([[id,trip]]);
+  world.layoutRevision=1;world.rooms=[];world.park={layer:{}};
+  world.outside=()=>false;world.slidingDesks=new Set();
+  world.lastData={threads:[{id,runStatus,question}]};
+  world.desks=new Map(assigned?[[id,{el:{classList:{contains:()=>true}}}]]:[]);
+  await world.walkLegs({id,runStatus:'running'},[{x:20,y:0}],trip);
+  assert.equal(running,expected,'run only toward assigned work: '+JSON.stringify({runStatus,question,assigned}));
+}
 console.log(JSON.stringify({ ok: true, methods: ['World.travel', 'World.walkLegs', 'World.reconcilePhysicalLayout'], results }));
