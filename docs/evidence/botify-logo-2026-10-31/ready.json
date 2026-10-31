@@ -1,0 +1,31 @@
+{
+  "status": "source-frozen, private verified, not promoted",
+  "at": "2026-10-31T17:22:01.100Z",
+  "files": {
+    "src/os/icons.ts": "9bb847eae432697fbd7d62bd04be0700046706af32a8e8473d4ca01ad9b478c9",
+    "src/assets/botify.svg": "a8de432e779211eee2f373fd7fdcc9bbb7c2d22de0c41a5413abc3ef64d9ea05"
+  },
+  "validation": {
+    "command": "npm run verify:update",
+    "passed": true,
+    "frozen": "E:/Lucid-validation/botify-verified-TEf5dq",
+    "basis": "E:\\T3 Projects\\Lucid\\.lucid-update-CymUkC",
+    "manifestSHA256": "755ff90aeff482ef5c457cfe586efcace177ba5aadb1511ea26a24dbdfc0405b",
+    "build": "index-CZBntqcC.js",
+    "scopeNote": "Known-complete private snapshot plus only Botify logo files. This does not validate newer concurrent shared features or install this build."
+  },
+  "visual": {
+    "artifact": "E:/Lucid-validation/botify-logo/icon-sizes.png",
+    "sizes": [
+      14,
+      22,
+      44,
+      128
+    ],
+    "kind": "Isolated native SVG icon sheet, visually inspected"
+  },
+  "source": "https://developer.spotify.com/images/guidelines/design/2024-spotify-logo-icon.zip",
+  "deliveryOwner": "<t3-thread://v2/35311fd2-1ff1-4b03-ba2f-301e3b5966eb/mcp:3130550d-c575-4b15-bd8f-a49d11da816d>",
+  "sharedDistChanged": false,
+  "productionRestarted": false
+}
