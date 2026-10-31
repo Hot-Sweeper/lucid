@@ -1,3 +1,4 @@
+import { setScreenDetail, releaseScreenDetail } from "./screen-detail";
 import { beginSystem, endSystem } from "./metrics";
 import { screenFrameRate } from "./screen-budget";
 
@@ -15,6 +16,7 @@ const io = typeof IntersectionObserver === "undefined" ? null : new Intersection
     const s = surfaces.get(e.target as HTMLElement);
     if (s && !s.explicit) {
       s.visible = e.isIntersecting; s.fps = screenFrameRate(e.boundingClientRect.width);
+      setScreenDetail(s.el, s.visible, e.boundingClientRect.width);
       // Observer delivery is outside drawing. A standalone/phone surface supplies
       // its logical width here; draw callbacks never force a layout measurement.
       const logicalWidth = s.el.clientWidth;
@@ -30,6 +32,7 @@ function surface(el: HTMLElement) {
 }
 export function setRenderView(el: HTMLElement, visible: boolean, screenWidth: number, logicalWidth = 820) {
   const s = surface(el), fps = screenFrameRate(screenWidth);
+  setScreenDetail(el, visible, screenWidth);
   const changed = !s.explicit || s.visible !== visible || s.fps !== fps;
   const scale = screenWidth / logicalWidth, densityChanged = s.scale !== scale;
   s.explicit = true; s.visible = visible; s.fps = fps;
@@ -41,7 +44,7 @@ export function setRenderView(el: HTMLElement, visible: boolean, screenWidth: nu
   }
   else if (densityChanged) wake();
 }
-export function releaseRenderView(el: HTMLElement) { io?.unobserve(el); surfaces.delete(el); }
+export function releaseRenderView(el: HTMLElement) { releaseScreenDetail(el); io?.unobserve(el); surfaces.delete(el); }
 export function wakeRender() { wake(); }
 function contextFor(owner: HTMLElement) {
   let context = contexts.get(owner);
@@ -99,6 +102,9 @@ function loopFrameRate(l: Loop) {
     l.win = l.owner.closest<HTMLElement>(".win"); l.parent = l.owner.parentElement; l.bound = true;
   }
   if (l.win?.dataset.renderHidden === "1" || l.surface?.visible === false) return 0;
+  // Reduced window geometry is refreshed by the shared LOD layer. Keep app
+  // logic alive while skipping continuous canvas paints hidden by that layer.
+  if (!l.once && l.win && l.surface?.el.dataset.screenDetail) return 0;
   // Continuous loops are already bound to their screen. Only a deferred thumbnail has
   // its own IntersectionObserver surface in addition to its containing desktop.
   return Math.min(l.surface?.fps ?? 60, l.once && l.owner ? renderFps(l.owner) : 60);

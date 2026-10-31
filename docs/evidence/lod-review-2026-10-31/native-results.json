@@ -1,0 +1,713 @@
+[
+  {
+    "version": "before",
+    "app": "files",
+    "requested": "full",
+    "tier": "full",
+    "cam": 1.6,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "visible",
+    "iconCount": 0,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 638,
+      "y": 327.7000427246094,
+      "width": 451.60595703125,
+      "height": 258.2687225341797,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-camera-ablation/loaded-baseline/assets/index-Bp8mDvs_.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "before",
+    "app": "files",
+    "requested": "shapes",
+    "tier": "shapes",
+    "cam": 0.65,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "hidden",
+    "iconCount": 0,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 761.5,
+      "y": 392.29998779296875,
+      "width": 189.40234375,
+      "height": 110.85921478271484,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-camera-ablation/loaded-baseline/assets/index-Bp8mDvs_.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "before",
+    "app": "files",
+    "requested": "icon",
+    "tier": "icon",
+    "cam": 0.3,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "hidden",
+    "iconCount": 1,
+    "iconSize": 6.462483882904053,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 736.6000366210938,
+      "y": 416.10003662109375,
+      "width": 92.80110931396484,
+      "height": 56.550376892089844,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-camera-ablation/loaded-baseline/assets/index-Bp8mDvs_.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "before",
+    "app": "files",
+    "requested": "restored",
+    "tier": "full",
+    "cam": 1.6,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "visible",
+    "iconCount": 1,
+    "iconSize": 34.466796875,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 638,
+      "y": 327.7000427246094,
+      "width": 451.60595703125,
+      "height": 258.2687225341797,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-camera-ablation/loaded-baseline/assets/index-Bp8mDvs_.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "before",
+    "app": "tasks",
+    "requested": "full",
+    "tier": "full",
+    "cam": 1.6,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "visible",
+    "iconCount": 0,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 638,
+      "y": 327.7000427246094,
+      "width": 451.60595703125,
+      "height": 258.2687225341797,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-camera-ablation/loaded-baseline/assets/index-Bp8mDvs_.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "before",
+    "app": "tasks",
+    "requested": "shapes",
+    "tier": "shapes",
+    "cam": 0.65,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "hidden",
+    "iconCount": 0,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 761.5,
+      "y": 392.29998779296875,
+      "width": 189.40234375,
+      "height": 110.85921478271484,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-camera-ablation/loaded-baseline/assets/index-Bp8mDvs_.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "before",
+    "app": "tasks",
+    "requested": "icon",
+    "tier": "icon",
+    "cam": 0.3,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "hidden",
+    "iconCount": 1,
+    "iconSize": 6.4625654220581055,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 736.6000366210938,
+      "y": 416.10003662109375,
+      "width": 92.80110931396484,
+      "height": 56.550376892089844,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-camera-ablation/loaded-baseline/assets/index-Bp8mDvs_.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "before",
+    "app": "tasks",
+    "requested": "restored",
+    "tier": "full",
+    "cam": 1.6,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "visible",
+    "iconCount": 1,
+    "iconSize": 34.466880798339844,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 638,
+      "y": 327.7000427246094,
+      "width": 451.60595703125,
+      "height": 258.2687225341797,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-camera-ablation/loaded-baseline/assets/index-Bp8mDvs_.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "before",
+    "app": "music",
+    "requested": "full",
+    "tier": "full",
+    "cam": 1.6,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "visible",
+    "iconCount": 0,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 638,
+      "y": 327.7000427246094,
+      "width": 451.60595703125,
+      "height": 258.2687225341797,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-camera-ablation/loaded-baseline/assets/index-Bp8mDvs_.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "before",
+    "app": "music",
+    "requested": "shapes",
+    "tier": "shapes",
+    "cam": 0.65,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "hidden",
+    "iconCount": 0,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 761.5,
+      "y": 392.29998779296875,
+      "width": 189.40234375,
+      "height": 110.85921478271484,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-camera-ablation/loaded-baseline/assets/index-Bp8mDvs_.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "before",
+    "app": "music",
+    "requested": "icon",
+    "tier": "icon",
+    "cam": 0.3,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "hidden",
+    "iconCount": 1,
+    "iconSize": 6.4625654220581055,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 736.6000366210938,
+      "y": 416.10003662109375,
+      "width": 92.80110931396484,
+      "height": 56.550376892089844,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-camera-ablation/loaded-baseline/assets/index-Bp8mDvs_.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "before",
+    "app": "music",
+    "requested": "restored",
+    "tier": "full",
+    "cam": 1.6,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "visible",
+    "iconCount": 1,
+    "iconSize": 34.466880798339844,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 638,
+      "y": 327.7000427246094,
+      "width": 451.60595703125,
+      "height": 258.2687225341797,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-camera-ablation/loaded-baseline/assets/index-Bp8mDvs_.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "after",
+    "app": "files",
+    "requested": "full",
+    "tier": "full",
+    "cam": 1.6,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "visible",
+    "iconCount": 0,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 638,
+      "y": 327.7000427246094,
+      "width": 451.60595703125,
+      "height": 258.2687225341797,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-lod-review-20261031/after/assets/index-CpXzjJTd.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "after",
+    "app": "files",
+    "requested": "shapes",
+    "tier": "shapes",
+    "cam": 0.65,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "hidden",
+    "iconCount": 1,
+    "iconSize": 26.883056640625,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 761.5,
+      "y": 392.29998779296875,
+      "width": 189.40234375,
+      "height": 110.85921478271484,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-lod-review-20261031/after/assets/index-CpXzjJTd.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "after",
+    "app": "files",
+    "requested": "icon",
+    "tier": "icon",
+    "cam": 0.3,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "hidden",
+    "iconCount": 1,
+    "iconSize": 16.28466796875,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 736.6000366210938,
+      "y": 416.10003662109375,
+      "width": 92.80110931396484,
+      "height": 56.550376892089844,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-lod-review-20261031/after/assets/index-CpXzjJTd.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "after",
+    "app": "files",
+    "requested": "restored",
+    "tier": "full",
+    "cam": 1.6,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "visible",
+    "iconCount": 1,
+    "iconSize": 0,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 638,
+      "y": 327.7000427246094,
+      "width": 451.60595703125,
+      "height": 258.2687225341797,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-lod-review-20261031/after/assets/index-CpXzjJTd.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "after",
+    "app": "tasks",
+    "requested": "full",
+    "tier": "full",
+    "cam": 1.6,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "visible",
+    "iconCount": 0,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 638,
+      "y": 327.7000427246094,
+      "width": 451.60595703125,
+      "height": 258.2687225341797,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-lod-review-20261031/after/assets/index-CpXzjJTd.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "after",
+    "app": "tasks",
+    "requested": "shapes",
+    "tier": "shapes",
+    "cam": 0.65,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "hidden",
+    "iconCount": 1,
+    "iconSize": 28.00439453125,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 761.5,
+      "y": 392.29998779296875,
+      "width": 189.40234375,
+      "height": 110.85921478271484,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-lod-review-20261031/after/assets/index-CpXzjJTd.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "after",
+    "app": "tasks",
+    "requested": "icon",
+    "tier": "icon",
+    "cam": 0.3,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "hidden",
+    "iconCount": 1,
+    "iconSize": 17.77197265625,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 736.6000366210938,
+      "y": 416.10003662109375,
+      "width": 92.80110931396484,
+      "height": 56.550376892089844,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-lod-review-20261031/after/assets/index-CpXzjJTd.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "after",
+    "app": "tasks",
+    "requested": "restored",
+    "tier": "full",
+    "cam": 1.6,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "visible",
+    "iconCount": 1,
+    "iconSize": 0,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 638,
+      "y": 327.7000427246094,
+      "width": 451.60595703125,
+      "height": 258.2687225341797,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-lod-review-20261031/after/assets/index-CpXzjJTd.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "after",
+    "app": "music",
+    "requested": "full",
+    "tier": "full",
+    "cam": 1.6,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "visible",
+    "iconCount": 0,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 638,
+      "y": 327.7000427246094,
+      "width": 451.60595703125,
+      "height": 258.2687225341797,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-lod-review-20261031/after/assets/index-CpXzjJTd.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "after",
+    "app": "music",
+    "requested": "shapes",
+    "tier": "shapes",
+    "cam": 0.65,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "hidden",
+    "iconCount": 1,
+    "iconSize": 28.004314422607422,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 761.5,
+      "y": 392.29998779296875,
+      "width": 189.40234375,
+      "height": 110.85921478271484,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-lod-review-20261031/after/assets/index-CpXzjJTd.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "after",
+    "app": "music",
+    "requested": "icon",
+    "tier": "icon",
+    "cam": 0.3,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "hidden",
+    "iconCount": 1,
+    "iconSize": 17.77197265625,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 736.6000366210938,
+      "y": 416.10003662109375,
+      "width": 92.80110931396484,
+      "height": 56.550376892089844,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-lod-review-20261031/after/assets/index-CpXzjJTd.js"
+    ],
+    "errors": []
+  },
+  {
+    "version": "after",
+    "app": "music",
+    "requested": "restored",
+    "tier": "full",
+    "cam": 1.6,
+    "hidden": false,
+    "bodyPreserved": true,
+    "childPreserved": true,
+    "contentPreserved": true,
+    "bodyVisibility": "visible",
+    "iconCount": 1,
+    "iconSize": 0,
+    "loops": {
+      "loops": 0,
+      "active": 0,
+      "pendingImages": 0
+    },
+    "clip": {
+      "x": 638,
+      "y": 327.7000427246094,
+      "width": 451.60595703125,
+      "height": 258.2687225341797,
+      "scale": 1
+    },
+    "assets": [
+      "file:///C:/Users/tim/.t3/lucid-lod-review-20261031/after/assets/index-CpXzjJTd.js"
+    ],
+    "errors": []
+  }
+]

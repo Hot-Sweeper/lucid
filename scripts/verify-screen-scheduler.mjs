@@ -21,8 +21,8 @@ class Element {
 const document = { hidden: false, addEventListener() {} };
 const window = { devicePixelRatio: 1 };
 class Observer { constructor(callback) { io = callback; } observe() {} unobserve() {} }
-const scheduler = new Function('document','window','IntersectionObserver','requestAnimationFrame','beginSystem','endSystem','reportError','screenFrameRate',
-  `${code};return {setRenderView,renderLoop,deferRender,renderFps}`)(document, window, Observer, callback => { nextFrame = callback; return 1; }, () => -1, () => {}, error => { throw error; }, screenFrameRate);
+const scheduler = new Function('document','window','IntersectionObserver','requestAnimationFrame','beginSystem','endSystem','reportError','screenFrameRate','setScreenDetail','releaseScreenDetail',
+  `${code};return {setRenderView,renderLoop,deferRender,renderFps}`)(document, window, Observer, callback => { nextFrame = callback; return 1; }, () => -1, () => {}, error => { throw error; }, screenFrameRate, () => {}, () => {});
 let now = 0;
 const frame = () => { now += 1000 / 60; const callback = nextFrame; nextFrame = null; callback?.(now); };
 const frames = (n) => { for (let i=0;i<n;i++) frame(); };
@@ -91,3 +91,14 @@ for(let i=0;i<65;i++) { const before=count;frame();counts.push(count-before); }
 assert.ok(Math.max(...counts.slice(2)) < 12, `Screen clocks should be staggered, peak ${Math.max(...counts.slice(2))}`);
 for(const stop of stops)stop();
 console.log(JSON.stringify({tinyVisibleHz:20,closeHz:60,offscreenPaused:true,coveredPaused:true,reparentingResumed:true,tinyThumbnailBuilt:true,highRefreshDraws,highRefreshChecks,staggeredPeak:Math.max(...counts.slice(2))}));
+// LOD pauses expensive window drawing without changing logical frame budgets.
+const lodScreen = new Element('screen'), lodWin = new Element('win', lodScreen), lodCanvas = new Element('canvas', lodWin);
+scheduler.setRenderView(lodScreen, true, 600);
+let lodDraws = 0;
+const stopLod = scheduler.renderLoop(lodCanvas, () => lodDraws++);
+frames(5); assert.ok(lodDraws > 0);
+lodScreen.dataset.screenDetail = 'shapes'; frames(5);
+const lodPaused = lodDraws; frames(20); assert.equal(lodDraws, lodPaused);
+delete lodScreen.dataset.screenDetail;
+scheduler.setRenderView(lodScreen, true, 610); frames(5);
+assert.ok(lodDraws > lodPaused, 'Zooming in resumes the same canvas loop'); stopLod();

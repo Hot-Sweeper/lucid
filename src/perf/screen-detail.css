@@ -1,0 +1,11 @@
+.screen-detail { position: absolute; inset: 0; pointer-events: none; overflow: hidden; visibility: visible; display: none; }
+.screen-detail > canvas { width: 100%; height: 100%; display: block; }
+[data-screen-detail] .win[data-detail-ready] > :not(.screen-detail) { visibility: hidden !important; }
+[data-screen-detail] .win[data-detail-ready] > :not(.screen-detail) * { visibility: hidden !important; }
+.screen-detail-icon { position: absolute; inset: 26px 0 0; display: grid; place-items: center; }
+.screen-detail-icon > * { width: var(--screen-detail-icon-size); height: var(--screen-detail-icon-size); object-fit: contain; }
+.screen-detail-icon-overview { inset: 0; }
+[data-screen-detail] .win { box-shadow: none; }
+
+.screen-detail-surface { position: absolute; inset: 0; }
+[data-screen-detail] .screen-detail { display: block; }
