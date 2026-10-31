@@ -148,6 +148,13 @@ export class World {
     worldEl.insertBefore(sf.el, worldEl.querySelector(".building-plate"));
     if (this.shopRect) sf.place(this.shopRect.x, this.shopRect.y);
   }
+  // today's office event from the orchestrator, on the building's name sign
+  eventName = "";
+  paintEvent() {
+    const b = this.root.querySelector(".building-plate b") as HTMLElement | null;
+    if (!b) return;
+    b.textContent = this.eventName ? `${this.building}  ·  Today: ${this.eventName}` : this.building;
+  }
   showShop() { const r = this.shopRect; if (r) { this.unfocus(false); this.flyTo({ x: r.x - 60, y: r.y - 80, w: r.w + 120, h: r.h + 140 }, 20); } }
   // real weather and the season shape the outdoors and the light
   weather: Weather | null = null;
@@ -369,6 +376,7 @@ export class World {
       this.root.style.width = `${this.size.w}px`;
       this.root.style.height = `${this.size.h}px`;
       (this.root.querySelector(".building-plate b") as HTMLElement).textContent = this.building;
+      this.paintEvent();
       // the room sign is the handle for office options
       for (const r of rooms) {
         if (r.kind !== "project" && r.kind !== "freelance" && r.kind !== "main") continue;

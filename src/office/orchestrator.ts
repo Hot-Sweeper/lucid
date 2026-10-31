@@ -41,11 +41,13 @@ export class Orchestrator {
       .slice(0, 10).map((t) => `- ${t.title}`).join("\n");
     const message = `Daily dialog pack for the robots (${today}). Write it to dialogs.json in your folder and reply "Done". Keep it cheap: write the file directly, no tools besides that.
 
-Shape (JSON): {"date":"${today}","convos":[["line","reply","..."]],"ceo":["..."],"gossip":["..."],"botcord":[{"channel":"general","user":"name","text":"..."}]}
+Shape (JSON): {"date":"${today}","convos":[["line","reply","..."]],"ceo":["..."],"gossip":["..."],"botcord":[{"channel":"general","user":"name","text":"..."}],"trending":[{"title":"...","channel":"...","views":"1.2M views"}],"event":{"name":"...","blurb":"..."}}
 - convos: 12 short back-and-forths (2 to 4 lines each) robots have in the break room or park, some about today's work, some about the CEO (the user), some about each other
 - ceo: 8 single lines robots say about the CEO, affectionate teasing using what memory.md says about how the user works
 - gossip: 8 single lines about other robots by name
 - botcord: 10 chat messages for the robots' Discord-like app
+- trending: 6 made-up trending robot video titles with silly channel names (riff on today's work or tech news robots would care about)
+- event: one small office event for today, like "Robot karaoke night" or "Pizza Friday", with a one-line blurb
 
 Robot names: ${names || "Bolt, Mochi, Pixel"}
 Today's work:

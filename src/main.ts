@@ -19,6 +19,7 @@ import { progress } from "./office/progress";
 import { mountStats } from "./stats/stats";
 import { Wallet, openShop, coinIcon, type WalletState } from "./office/shop";
 import { ShopFront } from "./office/shopfront";
+import { watchDaily } from "./office/daily";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
@@ -470,3 +471,6 @@ async function pollWeather() {
 }
 void pollWeather();
 setInterval(pollWeather, 20 * 60 * 1000);
+
+// the orchestrator's daily pack: today's event goes on the building sign
+watchDaily((p) => { world.eventName = p?.event?.name ?? ""; world.paintEvent(); });
