@@ -1,116 +1,24 @@
-// The outdoors around the building, seen from above: grass, trees, a path from the
-// entrance, and a small park next door with a pond, benches and lamps. The look follows the
-// season (leaf colours, blossoms, bare trees, flower beds) and how much snow lies.
-// The layout never changes with the season: the park robots walk to the same benches, pond
-// and picnic spots all year.
+// The outdoors around the building, seen from above: a green city (src/city) with streets,
+// tree-lined avenues, neighbouring rooftops and empty plots, the office on its own block, a
+// planted walk from the entrance past the shop to a small park with a pond, benches and lamps.
+// The look follows the season (leaf colours, blossoms, bare trees, flower beds) and how much
+// snow lies. The layout never changes with the season: the park robots walk to the same
+// benches, pond and picnic spots all year.
 
-import { seasonPalette, type Season, type SeasonPalette } from "../weather/season";
+import { seasonPalette, type Season } from "../weather/season";
+import { Grove, Shapes, SNOW, bushInto, fill, mix, n2, rnd, seedAt, timing, treeInto, type Look } from "../city/art";
+import { cityLayout, type CityLayout, type Rect } from "../city/layout";
+import { drawCity } from "../city/draw";
 import "./ambient.css";
+import "../city/zoom";
+
+export { cityLayout, PLOT_IDS, STREET, type CityLayout, type Plot, type Street, type Block, type Crossing, type DriveLoop } from "../city/layout";
 
 export const PARK_W = 1300;
 
-const rnd = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-const SNOW = "#eef4f8";
+/** Shape counts of the last city drawn (for tuning and tests). */
+export let lastStats: Record<string, number> = {};
 
-function mix(a: string, b: string, t: number) {
-  if (t <= 0) return a;
-  if (t >= 1) return b;
-  const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-  const x = p(a), y = p(b);
-  return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("");
-}
-
-// Ambient motion (ambient.css). Every animated element costs main-thread time each frame, so the
-// hundreds of trees share a handful of sway groups (PHASES), while the park's few creatures get
-// their own loops. Durations and negative delays are seeded, so a redraw keeps the same timing.
-const n2 = (v: number) => (Math.round(v * 100) / 100).toString();
-function timing(q: () => number, dur: number, spread = 0.3, extra = "") {
-  const d = dur * (1 - spread + q() * spread * 2);
-  return `animation-duration:${n2(d)}s;animation-delay:${n2(-q() * d)}s${extra}`;
-}
-const seedAt = (x: number, y: number) => rnd(Math.abs(Math.round(x * 7.31 + y * 13.7)) % 2147483646 + 1);
-const PHASES = 10;
-
-// What one drawing pass needs to know about the season.
-type Look = { pal: SeasonPalette; snow: number; season: Season };
-
-// Many flat shapes collected into one path per look (fill, stroke, opacity): an animated svg costs
-// time per element on every frame, so a forest drawn as a few dozen paths stays cheap.
-class Shapes {
-  private m = new Map<string, string[]>();
-  add(attrs: string, d: string) { const a = this.m.get(attrs); if (a) a.push(d); else this.m.set(attrs, [d]); }
-  circle(cx: number, cy: number, r: number, attrs: string) { this.add(attrs, `M${n2(cx - r)} ${n2(cy)}a${n2(r)} ${n2(r)} 0 1 0 ${n2(2 * r)} 0a${n2(r)} ${n2(r)} 0 1 0 ${n2(-2 * r)} 0`); }
-  ellipse(cx: number, cy: number, rx: number, ry: number, attrs: string) { this.add(attrs, `M${n2(cx - rx)} ${n2(cy)}a${n2(rx)} ${n2(ry)} 0 1 0 ${n2(2 * rx)} 0a${n2(rx)} ${n2(ry)} 0 1 0 ${n2(-2 * rx)} 0`); }
-  toString() { return [...this.m].map(([a, d]) => `<path ${a} d="${d.join("")}"/>`).join(""); }
-}
-// One sway group's drawing, back to front: shadows and lower crowns stay, the rest leans.
-class Grove {
-  shadow = new Shapes(); low = new Shapes(); top = new Shapes(); snow = new Shapes(); hi = new Shapes(); bloom = new Shapes();
-  under = "";
-  still() { return `${this.shadow}${this.low}`; }
-  moving() { return `${this.top}${this.snow}${this.hi}${this.bloom}`; }
-}
-const fill = (c: string, o?: number) => `fill="${c}"${o == null ? "" : ` opacity="${o}"`}`;
-// stroke widths are rounded to half pixels, so branches of similar trees share a path
-const stroke = (c: string, w: number, o?: number) => `fill="none" stroke="${c}" stroke-width="${Math.max(1, Math.round(w * 2) / 2)}" stroke-linecap="round"${o == null ? "" : ` opacity="${o}"`}`;
-
-function crown(G: Grove, x: number, y: number, r: number, g: string[], L: Look) {
-  const s = L.snow;
-  G.shadow.ellipse(x + r * 0.35, y + r * 0.55, r * 1.05, r * 0.7, fill(L.pal.shadow, 0.28));
-  G.low.circle(x, y, r, fill(g[0]));
-  G.top.circle(x - r * 0.25, y - r * 0.2, r * 0.72, fill(mix(g[1], SNOW, s * 0.55)));
-  G.hi.circle(x - r * 0.38, y - r * 0.38, r * 0.36, fill(mix(g[2], SNOW, s * 0.9)));
-}
-
-// A leafless tree from above: a trunk with branches spreading out like a star.
-function bareTree(G: Grove, x: number, y: number, r: number, seed: number, L: Look) {
-  const q = rnd(seed * 7919 + 13);
-  const n = 6 + Math.floor(q() * 3);
-  const sx = r * 0.3, sy = r * 0.45;
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 + q() * 0.6, len = r * (0.7 + q() * 0.3);
-    const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;
-    const mx = x + Math.cos(a) * len * 0.55, my = y + Math.sin(a) * len * 0.55;
-    const b = a + (q() < 0.5 ? 0.6 : -0.6), bl = len * 0.42;
-    const d = (ox: number, oy: number) => `M${n2(x + ox)} ${n2(y + oy)}L${n2(ex + ox)} ${n2(ey + oy)}M${n2(mx + ox)} ${n2(my + oy)}l${n2(Math.cos(b) * bl)} ${n2(Math.sin(b) * bl)}`;
-    G.shadow.add(stroke(L.pal.shadow, r * 0.09, 0.2), d(sx, sy));
-    G.top.add(stroke(L.pal.branch, r * 0.09), d(0, 0));
-    if (L.snow > 0) G.snow.add(stroke(SNOW, r * 0.05, 0.4 + L.snow * 0.6), `M${n2(x + Math.cos(a) * len * 0.25 - 1.5)} ${n2(y + Math.sin(a) * len * 0.25 - 2)}L${n2(ex - Math.cos(a) * 4 - 1.5)} ${n2(ey - Math.sin(a) * 4 - 2)}`);
-  }
-  G.hi.circle(x, y, r * 0.14, fill(mix(L.pal.branch, "#3e3128", 0.3)));
-  if (L.snow > 0) G.hi.circle(x - 2, y - 2, r * 0.09, fill(SNOW, L.snow));
-}
-
-function blossoms(G: Grove, x: number, y: number, r: number, seed: number, cols: string[]) {
-  const q = rnd(seed * 4241 + 7);
-  for (let i = 0, n = Math.round(10 + r * 0.25); i < n; i++) {
-    const a = q() * Math.PI * 2, d = Math.sqrt(q()) * r * 0.85;
-    const cx = x + Math.cos(a) * d - r * 0.12, cy = y + Math.sin(a) * d - r * 0.1, rr = 2.6 + q() * 2.8;
-    G.bloom.circle(cx, cy, rr, fill(cols[Math.floor(q() * cols.length)]));
-  }
-}
-
-function litter(x: number, y: number, r: number, seed: number, cols: string[]) {
-  const q = rnd(seed * 911 + 3);
-  let s = "";
-  for (let i = 0; i < 14; i++) {
-    const a = q() * Math.PI * 2, d = r * (0.85 + q() * 0.9);
-    s += `<ellipse cx="${x + Math.cos(a) * d}" cy="${y + Math.sin(a) * d * 0.9 + r * 0.2}" rx="${3 + q() * 2}" ry="${1.8 + q()}" transform="rotate(${q() * 180} ${x + Math.cos(a) * d} ${y + Math.sin(a) * d * 0.9 + r * 0.2})" fill="${cols[Math.floor(q() * cols.length)]}" opacity="0.85"/>`;
-  }
-  return s;
-}
-
-// Adds one tree to a grove; returns whether it stands bare. `seed` keeps each tree's seasonal
-// variant stable between redraws, `shade` picks its colours.
-function treeInto(G: Grove, x: number, y: number, r: number, shade: number, L: Look, seed = shade + 1) {
-  const q = rnd(seed * 104729 + 1)();
-  const pal = L.pal;
-  if (pal.litter.length) G.under += litter(x, y, r, seed, pal.litter);
-  if (q < pal.bare) { bareTree(G, x, y, r, seed, L); return true; }
-  crown(G, x, y, r, pal.trees[(shade + (L.season === "autumn" ? seed : 0)) % pal.trees.length], L);
-  if (q > 1 - pal.blossom.share) blossoms(G, x, y, r, seed, pal.blossom.colors);
-  return false;
-}
 // One of the park's big trees, with its own sway: the crown top leans, bare branches twist round the trunk.
 function tree(x: number, y: number, r: number, shade: number, L: Look, seed = shade + 1) {
   const G = new Grove(), bare = treeInto(G, x, y, r, shade, L, seed), q = seedAt(x, y);
@@ -119,13 +27,6 @@ function tree(x: number, y: number, r: number, shade: number, L: Look, seed = sh
   return `<g>${G.under}${G.still()}<g ${sway}>${G.moving()}</g></g>`;
 }
 
-function bushInto(G: Grove, x: number, y: number, r: number, L: Look) {
-  const [a, b, c] = L.pal.bush;
-  G.shadow.ellipse(x + 4, y + 5, r * 1.1, r * 0.7, fill(L.pal.shadow, 0.22));
-  G.low.circle(x - r * 0.4, y, r * 0.7, fill(a));
-  G.low.circle(x + r * 0.4, y + 2, r * 0.65, fill(b));
-  G.top.circle(x, y - r * 0.3, r * 0.62, fill(mix(c, SNOW, L.snow * 0.85)));
-}
 // A park bush that rustles on its own.
 function bush(x: number, y: number, r: number, L: Look) {
   const G = new Grove();
@@ -151,20 +52,22 @@ function flowers(x: number, y: number, w: number, h: number, seed: number, L: Lo
   }
   const bed = L.season === "autumn" ? "#6f7d45" : "#5b8f4e";
   const s = `${rim}<rect x="${x + 3}" y="${y + 3}" width="${w - 6}" height="${h - 6}" rx="${(h - 6) / 2}" fill="${mix(bed, SNOW, L.snow * 0.8)}"/>`;
-  const fl: string[] = [];
+  const fl: [number, number, number, string][] = [];
   // the same random walk as always, so summer looks exactly as before; sparser seasons skip some
   for (let i = 0; i < (w * h) / 220; i++) {
     const cx = x + 8 + r() * (w - 16), cy = y + 7 + r() * (h - 14), rr = 2.4 + r() * 1.6, c = r();
     if (((i * 0.618) % 1) >= f.density) continue;
-    fl.push(`<circle cx="${cx}" cy="${cy}" r="${rr}" fill="${f.colors[Math.floor(c * f.colors.length)]}"/>`);
+    fl.push([cx, cy, rr, f.colors[Math.floor(c * f.colors.length)]]);
   }
   if (f.density > 1) {
     const q = rnd(seed + 99);
-    for (let i = 0; i < ((w * h) / 220) * (f.density - 1); i++) fl.push(`<circle cx="${x + 8 + q() * (w - 16)}" cy="${y + 7 + q() * (h - 14)}" r="${2.4 + q() * 1.6}" fill="${f.colors[Math.floor(q() * f.colors.length)]}"/>`);
+    for (let i = 0; i < ((w * h) / 220) * (f.density - 1); i++) fl.push([x + 8 + q() * (w - 16), y + 7 + q() * (h - 14), 2.4 + q() * 1.6, f.colors[Math.floor(q() * f.colors.length)]]);
   }
-  // the flowers nod in three groups (runs of the random walk, so each group is spread over the bed)
+  // the flowers nod in three groups (runs of the random walk, so each group is spread over the bed),
+  // each group drawn as one path per colour
   const qt = rnd(seed * 31 + 5), n = Math.ceil(fl.length / 3);
-  return { bed: s, blooms: [0, 1, 2].map((k) => `<g class="amb-fl" style="${timing(qt, 2.8, 0.3)}">${fl.slice(k * n, k * n + n).join("")}</g>`).join("") };
+  const group = (part: typeof fl) => { const sh = new Shapes(); for (const [cx, cy, rr, c] of part) sh.circle(cx, cy, rr, fill(c)); return String(sh); };
+  return { bed: s, blooms: [0, 1, 2].map((k) => `<g class="amb-fl" style="${timing(qt, 2.8, 0.3)}">${group(fl.slice(k * n, k * n + n))}</g>`).join("") };
 }
 
 function bench(x: number, y: number, L: Look) {
@@ -346,14 +249,16 @@ function snowPatches(x0: number, y0: number, w: number, h: number, cover: number
 /**
  * Which part of the outdoors to draw:
  * - "all" (default): everything in one svg, animated parts included.
- * - "still": what never moves (grass, snow, fallen leaves, the building shell, the park's lawn,
- *   paths, pond, fountain basin, benches, flower beds and picnic blanket). No animation at all, so
- *   it can be shown as one static image.
- * - "live": what moves (all trees and bushes, flowers, the pond's glint, ducks, fountain spray,
- *   lamps, birds and insects), as a transparent svg of the same size with
- *   `position:absolute;left:0;top:0`, to lay over the "still" one as live page elements. It stays
- *   light (a few hundred elements, about 130 to 200 animations): the trees share PHASES sway groups
- *   and are drawn as a few merged paths per group.
+ * - "still": what never moves: the city (streets, sidewalks, crosswalks, street trees, rooftops,
+ *   plots, hedges), the building shell, the green walk and the park's lawn, paths, pond, fountain
+ *   basin, benches, flower beds and picnic blanket. No animation and nothing that depends on the
+ *   hour, so it can be shown as one static image. Well under 8000 shapes.
+ * - "live": what moves or lights up at night (robot cars and scooters, street lamp glow, lit
+ *   skylights, the data center's blinking lights, plot signs, the green walk's and the park's trees,
+ *   flowers, the pond's glint, ducks, fountain spray, park lamps, birds and insects), as a
+ *   transparent svg of the same size with `position:absolute;left:0;top:0`, to lay over the
+ *   "still" one as live page elements. It stays light (under 600 elements): trees share a few sway
+ *   groups and similar shapes are merged into one path.
  * "still" under "live" looks like "all".
  */
 export type OutsideLayer = "all" | "still" | "live";
@@ -362,17 +267,28 @@ export type OutsideLayer = "all" | "still" | "live";
 // the outdoor svg is placed at (ox, oy) and is (w x h) big.
 // season: defaults to "summer" (the original look). snowCover: 0 (none) to 1 (fully white).
 // frozen: whether the pond is iced over; defaults to winter with at least some snow.
-export function outsideSvg(o: {
+export type OutsideOpts = {
   ox: number; oy: number; w: number; h: number;
-  building: { x: number; y: number; w: number; h: number };
+  building: Rect;
   entranceY: number;
-  park: { x: number; y: number; w: number; h: number };
+  park: Rect;
   season?: Season; snowCover?: number; frozen?: boolean;
-  /** Extra areas kept free of trees and bushes (other buildings, like the shop). */
-  avoid?: { x: number; y: number; w: number; h: number }[];
+  /** Extra areas kept free of the campus lawn trees (other buildings). */
+  avoid?: Rect[];
   /** Which part to draw, see OutsideLayer. Default "all". */
   layer?: OutsideLayer;
-}) {
+  /** The shop building's rect. Without it, the first `avoid` rect is taken for the shop. */
+  shop?: Rect | null;
+  /** A city layout from cityLayout() with the same building, park and shop (saves computing it again). */
+  city?: CityLayout;
+};
+
+/** The city layout outsideSvg draws for these options: streets, blocks, plots, car loops and the suggested outdoor bounds. */
+export function outsideLayout(o: Pick<OutsideOpts, "building" | "entranceY" | "park" | "shop" | "avoid" | "city">): CityLayout {
+  return o.city ?? cityLayout({ building: o.building, entranceY: o.entranceY, park: o.park, shop: o.shop ?? o.avoid?.[0] ?? null });
+}
+
+export function outsideSvg(o: OutsideOpts) {
   const { ox, oy, w, h, building: b, park: p } = o;
   const season = o.season ?? "summer";
   const snow = Math.max(0, Math.min(1, o.snowCover ?? 0));
@@ -383,37 +299,10 @@ export function outsideSvg(o: {
   const L: Look = { pal, snow, season };
   const ground = mix(pal.ground, SNOW, snow >= 0.95 ? 0.8 : snow * 0.45);
   const X = (x: number) => x - ox, Y = (y: number) => y - oy;
-  const r = rnd(7);
-  let grass = "";
-  const tuftOp = pal.tuftOpacity * (1 - snow);
-  for (let i = 0; i < (w * h) / 5200; i++) {
-    const x = r() * w, y = r() * h, op = (0.35 + r() * 0.3) * tuftOp;
-    if (op > 0.02) grass += `<path d="M${x} ${y} l2 -6 l2 6" stroke="${pal.tuft}" stroke-width="1.6" fill="none" opacity="${op}" stroke-linecap="round"/>`;
-  }
-  // trees around the building, never on it, the path or the park
-  const blocked = (x: number, y: number, pad: number) =>
-    (x > b.x - pad && x < b.x + b.w + pad && y > b.y - pad && y < b.y + b.h + pad) ||
-    (x > p.x - pad && x < p.x + p.w + pad && y > p.y - pad && y < p.y + p.h + pad) ||
-    (y > o.entranceY - 120 && y < o.entranceY + 120 && x > b.x + b.w - 40 && x < p.x + 40) ||
-    (o.avoid ?? []).some((a) => x > a.x - pad && x < a.x + a.w + pad && y > a.y - pad && y < a.y + a.h + pad);
-  // Each tree joins one of PHASES sway groups: per group, the still bases first, then the leaning
-  // tops. Trees of different groups still overlap each other naturally, and the whole forest costs
-  // only PHASES animations however many trees there are.
-  const groves = Array.from({ length: PHASES }, () => new Grove());
-  const rt = rnd(42);
-  for (let i = 0, n = Math.round((w * h) / 52000); i < n; i++) {
-    const x = ox + rt() * w, y = oy + rt() * h, rr = 34 + rt() * 34;
-    if (blocked(x, y, rr + 60)) continue;
-    const k = i % PHASES;
-    if (rt() < 0.25) {
-      bushInto(groves[k], X(x), Y(y), rr * 0.6, L);
-    } else {
-      treeInto(groves[k], X(x), Y(y), rr, Math.floor(rt() * 3), L, i + 11);
-    }
-  }
-  const qp = rnd(99);
-  const trees = groves.map((G) => `${G.still()}<g class="amb-tree" style="${timing(qp, 7, 0.35, `;--a:${n2(1.5 + qp() * 1.1)}px`)}">${G.moving()}</g>`).join("");
-  const litterAll = groves.map((G) => G.under).join("");
+  const C = outsideLayout(o);
+  const shop = o.shop ?? o.avoid?.[0] ?? null;
+  const city = drawCity(C, L, { ox, oy, w, h }, { building: b, entranceY: o.entranceY, park: p, shop, frozen });
+  lastStats = city.stats;
   // the park: pond, paths, benches, lamps, flower beds, a few big trees
   const pcx = X(p.x + p.w / 2), pcy = Y(p.y + p.h / 2);
   const path = mix(pal.path, SNOW, snow * 0.55), plaza = mix(pal.plaza, SNOW, snow * 0.45);
@@ -456,10 +345,10 @@ export function outsideSvg(o: {
     // six swarms of five, each drifting and blinking in its own rhythm, spread over the whole park
     let ff = "";
     for (let g = 0; g < 6; g++) {
-      let dots = "";
+      const dots = new Shapes();
       for (let i = 0; i < 5; i++) {
         const x = X(p.x) + 70 + ql() * (p.w - 140), y = Y(p.y) + 70 + ql() * (p.h - 140);
-        dots += `<circle cx="${n2(x)}" cy="${n2(y)}" r="9" fill="#fff3a0" opacity="0.3"/><circle cx="${n2(x)}" cy="${n2(y)}" r="2.6" fill="#fffde6"/>`;
+        dots.circle(x, y, 9, fill("#fff3a0", 0.3)); dots.circle(x, y, 2.6, fill("#fffde6"));
       }
       ff += `<g class="amb-ffly" style="${timing(ql, 9, 0.35, `;--fx:${n2((ql() - 0.5) * 50)}px;--fy:${n2((ql() - 0.5) * 40)}px`)}"><g class="amb-blink" style="${timing(ql, 3, 0.4)}">${dots}</g></g>`;
     }
@@ -483,7 +372,7 @@ export function outsideSvg(o: {
     ${jet}
     ${beds.map((b) => b.blooms).join("")}
     ${bush(pcx - 470, pcy + 230, 40, L)}${bush(pcx - 200, pcy + 420, 34, L)}${bush(pcx + 420, pcy + 220, 38, L)}${bush(pcx + 470, pcy + 260, 30, L)}
-    ${lamp(pcx - 60, pcy - 170)}${lamp(pcx + 60, pcy + 190)}${lamp(X(p.x) + 120, Y(o.entranceY) - 60)}
+    ${lamp(pcx - 60, pcy - 170)}${lamp(pcx + 60, pcy + 190)}${lamp(X(p.x) + 120, Y(o.entranceY) - 110)}
     ${birds}
     ${tree(X(p.x) + 110, Y(p.y) + 110, 64, 0, L, 1)}${tree(X(p.x + p.w) - 120, Y(p.y + p.h) - 120, 70, 1, L, 2)}${tree(pcx - 320, pcy - 200, 58, 2, L, 3)}${tree(X(p.x + p.w) - 110, Y(p.y) + 300, 54, 0, L, 4)}
     ${fliers}`;
@@ -494,18 +383,17 @@ export function outsideSvg(o: {
     <rect x="${bx - 22}" y="${by - 22}" width="${b.w + 44}" height="${b.h + 44}" rx="16" fill="${mix("#4a4f5c", "#c9d3dc", snow * 0.8)}"/>
     <rect x="${bx - 14}" y="${by - 14}" width="${b.w + 28}" height="${b.h + 28}" rx="12" fill="${mix("#5d6373", SNOW, snow * 0.85)}"/>
     <rect x="${bx + b.w - 4}" y="${Y(o.entranceY) - 60}" width="40" height="120" fill="#b9a27e"/>
-    <rect x="${bx + b.w + 36}" y="${Y(o.entranceY) - 70}" width="60" height="140" rx="10" fill="${plaza}"/>
-    <rect x="${bx + b.w + 96}" y="${Y(o.entranceY) - 22}" width="${X(p.x) - bx - b.w - 96}" height="44" fill="${path}"/>`;
-  const still = `
+    <rect x="${bx + b.w + 36}" y="${Y(o.entranceY) - 70}" width="60" height="140" rx="10" fill="${plaza}"/>`;
+  const still = `<defs>${city.defs}</defs>
     <rect width="${w}" height="${h}" fill="${ground}"/>
-    ${snowPatches(0, 0, w, h, snow, 321, { x: X(p.x), y: Y(p.y), w: p.w, h: p.h })}
-    ${grass}
-    ${litterAll}
+    ${city.ground}
     ${shell}
-    ${parkGround}`;
+    ${parkGround}
+    ${city.still}`;
+  const live = `${city.live}${park}`;
   const layer = o.layer ?? "all";
   const open = `<svg class="outside season-${season}${layer === "live" ? " outside-live" : ""}" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true"`;
   if (layer === "still") return `${open}>${still}</svg>`;
-  if (layer === "live") return `${open} style="position:absolute;left:0;top:0">${park}${trees}</svg>`;
-  return `${open}>${still}${park}${trees}</svg>`;
+  if (layer === "live") return `${open} style="position:absolute;left:0;top:0">${live}</svg>`;
+  return `${open}>${still}${live}</svg>`;
 }

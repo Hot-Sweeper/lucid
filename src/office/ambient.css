@@ -156,3 +156,9 @@
   /* things that only make sense while moving are hidden instead of frozen mid-air */
   .amb-drop, .amb-ripple, .amb-ring, .amb-occ, .clock-s { display: none; }
 }
+
+/* --- zooming (src/city/zoom.ts) ------------------------------------------------------------- */
+
+/* while the camera's scale changes, a bitmap copy stands in for the big outdoor image */
+.outside-layer.zooming .outside-img { visibility: hidden; }
+.outside-layer.zooming .outside-quick { visibility: visible !important; }

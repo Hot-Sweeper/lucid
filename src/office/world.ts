@@ -9,7 +9,7 @@ import { GEOM } from "./rig";
 import { SHOP_W, SHOP_H, type ShopFront } from "./shopfront";
 import { mountWeather, applySkyTint, type WeatherLayer, type Weather } from "../weather/effects";
 import { outdoorLook, seasonPalette } from "../weather/season";
-import { outsideSvg, PARK_W } from "./outside";
+import { outsideSvg, cityLayout, PARK_W, type CityLayout } from "./outside";
 import { ambientPlant } from "./ambient";
 import { Roster, type RobotProfile } from "./roster";
 
@@ -184,8 +184,9 @@ export class World {
     const sig = JSON.stringify(look);
     if (!force && sig === this.lookSig) return;
     this.lookSig = sig;
-    // The outdoors is one big drawing with tens of thousands of shapes. As live page elements
-    // they made every frame slow, so it is shown as a single image (its CSS animations still run).
+    // The outdoors (the city, the walk and the park) is one big drawing of several thousand shapes.
+    // As live page elements they would make every frame slow, so it is shown as a single image;
+    // only the small "live" layer (cars, lights, animals, swaying trees) stays page elements.
     const layer = this.root.querySelector(".outside-layer") as HTMLElement;
     const svg = outsideSvg({ ...this.outArgs, ...look, layer: "still" }).replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
     const css = [...document.styleSheets].flatMap((sh) => { try { return [...sh.cssRules].map((r) => r.cssText).filter((t) => /\.outside|@keyframes|--lamp|--night/.test(t)); } catch { return []; } }).join("\n");
@@ -380,13 +381,16 @@ export class World {
       this.shopRect = { x: this.size.w + 150, y: entY + 110, w: SHOP_W, h: SHOP_H };
       this.shopFront?.place(this.shopRect.x, this.shopRect.y);
       const park = { x: this.size.w + 150 + SHOP_W + 180, y: Math.max(-200, entY - 520), w: PARK_W, h: 1040 };
-      const out = { ox: -2400, oy: -2200, w: park.x - this.size.w + PARK_W + this.size.w + 4800, h: Math.max(this.size.h, park.y + park.h) + 4400 };
+      // the city around it (src/city): streets, neighbours and empty plots; the outdoors covers the whole city
+      const building = { x: 0, y: 0, w: this.size.w, h: this.size.h };
+      this.city = cityLayout({ building, entranceY: entY, park, shop: this.shopRect });
+      const cb = this.city.bounds;
+      const out = { ox: cb.x, oy: cb.y, w: cb.w, h: cb.h };
       this.outdoor = { x: out.ox, y: out.oy, w: out.w, h: out.h, park };
       this.park.setGeometry(park, { x: this.size.w + 66, y: topH + HALL / 2 + 20 });
       const layer = this.root.querySelector(".outside-layer") as HTMLElement;
       layer.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px`;
-      this.outArgs = { ...out, building: { x: 0, y: 0, w: this.size.w, h: this.size.h }, entranceY: topH + HALL / 2, park,
-        avoid: [{ x: this.shopRect.x - 20, y: this.shopRect.y - 60, w: SHOP_W + 40, h: SHOP_H + 80 }] };
+      this.outArgs = { ...out, building, entranceY: entY, park, shop: this.shopRect, city: this.city };
       this.redrawOutside(true);
       const wr = { ...this.outdoor, entranceY: topH + HALL / 2 };
       if (this.fx) this.fx.resize(wr); else { this.fx = mountWeather(this.root, wr); this.apply(); }
@@ -720,6 +724,8 @@ export class World {
   onDeskMenu: (desk: Desk, x: number, y: number) => void = () => {};
   building = "This PC";
   outdoor: { x: number; y: number; w: number; h: number; park: { x: number; y: number; w: number; h: number } } | null = null;
+  /** The city around the office: streets, blocks and the empty plots (city.plots, stable ids) the game can build on. */
+  city: CityLayout | null = null;
   orchThread = "";
   attachDir = "";
 
