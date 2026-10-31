@@ -311,9 +311,14 @@ function md(text: string) {
 export class ChatApp {
   constructor(private wm: WM) {}
 
+  // The conversation on top, a message box with a send button below it (like any messenger).
   private async ensure() {
     const w = await this.wm.open("chat");
-    if (!w.body.querySelector(".chat")) w.body.innerHTML = `<div class="chat"></div>`;
+    if (!w.body.querySelector(".chat-compose")) {
+      const old = w.body.querySelector(".chat");
+      w.body.innerHTML = `<div class="chat-app"><div class="chat"></div><div class="chat-compose"><div class="cc-field"><span class="cc-ph">Message</span><div class="cc-text"></div></div><span class="cc-send" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12 20 4l-4 16-4-6.5L4 12Z" fill="currentColor"/></svg></span></div></div>`;
+      if (old) w.body.querySelector(".chat")!.replaceWith(old);
+    }
     return w.body.querySelector(".chat") as HTMLElement;
   }
 
@@ -329,15 +334,30 @@ export class ChatApp {
     await this.wm.sleep(500);
   }
 
-  // Robot writes its reply. `getText` is polled so streaming replies keep growing.
+  // Robot writes its reply into the message box (it grows with the text), then sends it:
+  // a click on the send button, or now and then just Enter. `getText` is polled so streaming
+  // replies keep growing while it types.
   async assistant(getText: () => { text: string; done: boolean }) {
     const wm = this.wm, e = wm.epoch;
     const chat = await this.ensure();
-    const b = el(`<div class="msg bot"><p></p></div>`);
-    chat.appendChild(b);
-    gsap.fromTo(b, { opacity: 0, y: 14, scale: 0.92 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "back.out(1.7)", transformOrigin: "0% 100%" });
-    const p = b.querySelector("p") as HTMLElement;
-    let shown = 0;
+    const box = chat.parentElement!.querySelector(".chat-compose") as HTMLElement;
+    const field = box.querySelector(".cc-text") as HTMLElement, send = box.querySelector(".cc-send") as HTMLElement;
+    let shown = 0, sent = false;
+    const post = () => {
+      if (sent) return;
+      sent = true;
+      const text = getText().text;
+      field.textContent = "";
+      box.classList.remove("has-text");
+      if (!text.trim()) return;
+      const b = el(`<div class="msg bot"><p></p></div>`);
+      b.querySelector("p")!.innerHTML = md(text);
+      chat.appendChild(b);
+      gsap.fromTo(b, { opacity: 0, y: 26, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.42, ease: "back.out(1.6)", transformOrigin: "0% 100%" });
+      gsap.fromTo(send, { scale: 0.8 }, { scale: 1, duration: 0.35, ease: "back.out(3)" });
+      chat.scrollTop = chat.scrollHeight;
+    };
+    await wm.pointAt(field, 0.3, 0.5, 260).catch(() => {});
     wm.robot.setTyping(true);
     try {
       for (;;) {
@@ -345,17 +365,21 @@ export class ChatApp {
         if (shown < text.length) {
           const step = Math.max(2, Math.ceil((text.length - shown) / 40));
           shown = Math.min(text.length, shown + step);
-          p.innerHTML = md(text.slice(0, shown)) + '<span class="caret"></span>';
-          chat.scrollTop = chat.scrollHeight;
+          field.textContent = text.slice(0, shown);
+          box.classList.add("has-text");
+          field.scrollTop = field.scrollHeight;
           await wm.sleep(28, e);
         } else if (done) break;
         else await wm.sleep(120, e);
       }
+      // a short look over the draft, then send
+      await wm.sleep(250, e);
+      if (Math.random() < 0.3) { wm.robot.pressKey("Enter"); await wm.sleep(90, e); }
+      else { await wm.pointAt(send, 0.5, 0.5, 300); await wm.click(); }
     } finally {
       wm.robot.setTyping(false);
+      post();   // even when interrupted, the reply is never lost in the box
     }
-    p.innerHTML = md(getText().text);
-    chat.scrollTop = chat.scrollHeight;
   }
 
   // You are typing in the side chat: your bubble with bouncing dots appears in its Messages app.

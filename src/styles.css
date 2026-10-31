@@ -210,6 +210,18 @@ textarea::placeholder { color: var(--ink-3); }
 
 /* chat */
 .chat { height: 100%; overflow: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: #191e4b; }
+/* the messenger: conversation above, message box below */
+.chat-app { height: 100%; display: flex; flex-direction: column; background: #191e4b; }
+.chat-app .chat { flex: 1; min-height: 0; height: auto; }
+.chat-compose { flex: none; display: flex; align-items: flex-end; gap: 6px; padding: 6px 8px 8px; border-top: 1px solid rgba(255, 255, 255, 0.07); background: #161a42; }
+.cc-field { position: relative; flex: 1; min-width: 0; padding: 6px 10px; border-radius: 14px; background: #262c66; font-size: 11px; line-height: 1.4; }
+.cc-ph { position: absolute; left: 10px; top: 6px; color: rgba(255, 255, 255, 0.4); pointer-events: none; }
+.chat-compose.has-text .cc-ph { display: none; }
+.cc-text { min-height: 15px; max-height: 76px; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; color: #fff; }
+.chat-compose.has-text .cc-text::after { content: ""; display: inline-block; width: 1.5px; height: 12px; margin-left: 1px; vertical-align: -2px; background: #fff; animation: blink 1s steps(1) infinite; }
+.cc-send { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: #3a4290; color: rgba(255, 255, 255, 0.55); transition: background 0.2s, color 0.2s; }
+.cc-send svg { width: 14px; height: 14px; margin-left: 2px; }
+.chat-compose.has-text .cc-send { background: #ff8a65; color: #2a1407; }
 .msg { max-width: 88%; }
 .msg p { margin: 0; padding: 8px 10px; border-radius: 13px; line-height: 1.45; overflow-wrap: anywhere; }
 .msg.you { align-self: flex-end; }
