@@ -1,10 +1,10 @@
 // Standalone demo: every game in its own window with a fake robot host.
-// Query: ?only=blockcraft,nightshift  ?skill=0.8  ?max=90000  ?scale=0.5 (also shows a monitor-sized copy)
+// Query: ?only=blockcraft,nightshift  ?skill=0.8  ?max=90000  ?speed=4 (faster robot waits, for outcome-rate runs)
 import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import gsap from "gsap";
 import type { FunHost, FunOpts, Outcome } from "../fun/host";
-import { playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge } from "./index";
+import { playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge, playRobotIsland, playBotCom, playDerBugger, playBoot } from "./index";
 
 class Cancel extends Error {}
 
@@ -37,6 +37,7 @@ const only = params.get("only")?.split(",") ?? null;
 const skill = params.has("skill") ? Number(params.get("skill")) : undefined;
 const maxMs = Number(params.get("max") || 90000);
 const once = params.get("once") === "1";
+const speed = Math.max(0.1, Number(params.get("speed") || 1));
 type Log = { panel: string; outcome: Outcome | string; at: number };
 const LOG: Log[] = [];
 const state = { LOG, reacts: [] as string[], taps: {} as Record<string, number>, stop: () => {} };
@@ -51,7 +52,7 @@ class FakeHost implements FunHost {
   sleep(ms: number) {
     return new Promise<void>((resolve, reject) => {
       if (this.stopped) return reject(new Cancel());
-      const id = window.setTimeout(() => { this.pending.delete(cancel); resolve(); }, ms);
+      const id = window.setTimeout(() => { this.pending.delete(cancel); resolve(); }, ms / speed);
       const cancel = () => { window.clearTimeout(id); reject(new Cancel()); };
       this.pending.add(cancel);
     });
@@ -65,7 +66,7 @@ class FakeHost implements FunHost {
     const r = el.getBoundingClientRect(), p = this.win.getBoundingClientRect();
     const x = r.left - p.left + r.width * ax, y = r.top - p.top + r.height * ay;
     const dist = Math.hypot(x - this.pos.x, y - this.pos.y);
-    const dur = Math.max(0.12, Math.min(0.9, (ms / 1000) * (0.45 + dist / 700)));
+    const dur = Math.max(0.12, Math.min(0.9, (ms / 1000) * (0.45 + dist / 700))) / speed;
     this.pos = { x, y };
     await new Promise<void>((res) => gsap.to(this.cursor, { x, y, duration: dur, ease: "power2.inOut", onComplete: res }));
     if (this.stopped) throw new Cancel();
@@ -144,6 +145,10 @@ const loops = [
   panel("ttt", "Tic-tac-toe", playTicTacToe),
   panel("c4", "Four in a Row", playConnectFour),
   panel("merge", "Bit Merge", playBitMerge),
+  panel("island", "The Secret of Robot Island", playRobotIsland),
+  panel("botcom", "BOT-COM: Terror from the Deep Sea", playBotCom),
+  panel("bugger", "Der Bugger 2", playDerBugger),
+  panel("boot", "BOOT", playBoot),
 ].filter(Boolean) as (() => Promise<void>)[];
 
 const startAll = () => { running = true; for (const l of loops) void l(); };

@@ -1,0 +1,47 @@
+/* BOT-COM: Terror from the Deep Sea. Every class is prefixed gm-bx-. */
+.gm-bx .gm-stage { background: #05222a; --bx-mono: var(--mono, "JetBrains Mono Variable", ui-monospace, monospace); }
+.gm-bx-panel { position: absolute; left: 0; right: 0; bottom: 0; height: 62px; z-index: 4; display: grid; grid-template-columns: 124px 1fr 54px 54px 66px; gap: 6px; align-items: center; padding: 0 9px;
+  background: linear-gradient(180deg, #123a43, #0c2a31); color: #d8f3ee; }
+.gm-bx-who { min-width: 0; }
+.gm-bx-name { display: block; font-size: 12px; font-weight: 600; color: #f3dca2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gm-bx-row { display: flex; align-items: center; gap: 5px; margin-top: 4px; font: 600 9px var(--bx-mono); color: #8fbcb8; }
+.gm-bx-row span { width: 13px; }
+.gm-bx-bar { position: relative; flex: 1; height: 6px; border-radius: 3px; background: #071c21; overflow: hidden; }
+.gm-bx-bar > i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; border-radius: 3px; background: #6fe3a0; transition: width 0.25s ease-out; }
+.gm-bx-hp > i { background: #ff7a6e; }
+.gm-bx-row em { width: 16px; font-style: normal; text-align: right; color: #d8f3ee; font-variant-numeric: tabular-nums; }
+.gm-bx-squad { display: flex; justify-content: center; gap: 4px; }
+.gm-bx-sq { width: 21px; height: 34px; border-radius: 5px; background: #17444e; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; transition: background-color 0.15s, opacity 0.3s; }
+.gm-bx-sq b { font: 600 11px var(--bx-mono); color: #bfe3de; }
+.gm-bx-sq > i { position: relative; width: 13px; height: 3px; border-radius: 2px; background: #071c21; overflow: hidden; }
+.gm-bx-sq > i > i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #ff7a6e; transition: width 0.25s; }
+.gm-bx-sq.gm-hot { background: #22606c; }
+.gm-bx-sq.gm-on { background: #d9a03a; }
+.gm-bx-sq.gm-on b { color: #2a1a05; }
+.gm-bx-sq.gm-dead { opacity: 0.3; }
+.gm-bx-btn { height: 40px; border-radius: 7px; background: #17444e; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; transition: background-color 0.15s, color 0.15s, opacity 0.2s; }
+.gm-bx-btn b { font-size: 11px; font-weight: 600; white-space: nowrap; }
+.gm-bx-btn span { font: 500 9px var(--bx-mono); color: #8fbcb8; }
+.gm-bx-btn.gm-off { opacity: 0.45; }
+.gm-bx-btn.gm-hot { background: #22606c; opacity: 1; }
+.gm-bx-btn.gm-on { background: #d9a03a; color: #2a1a05; opacity: 1; }
+.gm-bx-btn.gm-on span { color: #5a3a0a; }
+.gm-bx-end { background: #1d5560; }
+.gm-bx-tip { position: absolute; left: 0; top: 0; z-index: 5; transform: translate(-50%, -100%); padding: 3px 7px; border-radius: 5px; background: rgba(3, 18, 22, 0.88); color: #f3dca2; font: 600 10px var(--bx-mono); white-space: nowrap; pointer-events: none; opacity: 0; }
+.gm-bx-tip b { color: #ffffff; font-weight: 700; }
+.gm-bx-banner { position: absolute; left: 0; right: 0; top: 7px; z-index: 5; text-align: center; font-size: 13px; font-weight: 600; color: #f3dca2; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); opacity: 0; pointer-events: none; }
+.gm-bx-banner[data-tone="alien"] { color: #ff8fb0; }
+.gm-bx-intro, .gm-bx-deb { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; pointer-events: none; }
+.gm-bx-intro { background: rgba(3, 20, 25, 0.9); display: none; }
+.gm-bx-intro b { font-size: 18px; font-weight: 600; color: #f3dca2; }
+.gm-bx-intro span { font: 500 11px var(--bx-mono); color: #8fbcb8; }
+.gm-bx-deb { display: none; background: radial-gradient(75% 70% at 50% 45%, rgba(4, 26, 32, 0.95), rgba(3, 18, 22, 0.88)); }
+.gm-bx-deb.gm-on { display: flex; }
+.gm-bx-deb-t { font-size: 22px; font-weight: 600; color: #f3dca2; }
+.gm-bx-deb[data-tone="good"] .gm-bx-deb-t { color: #6fe3a0; }
+.gm-bx-deb[data-tone="bad"] .gm-bx-deb-t { color: #ff8f7a; }
+.gm-bx-deb-op { font-size: 11px; color: #8fbcb8; max-width: 340px; }
+.gm-bx-deb-rows { display: flex; flex-direction: column; gap: 4px; width: 210px; margin: 8px 0 4px; }
+.gm-bx-deb-rows div { display: flex; justify-content: space-between; font-size: 12px; color: #bfe3de; }
+.gm-bx-deb-rows b { font: 600 12px var(--bx-mono); color: #ffffff; font-variant-numeric: tabular-nums; }
+.gm-bx-deb-line { margin: 4px 0 0; max-width: 300px; font-size: 11px; line-height: 1.45; color: #d8f3ee; }

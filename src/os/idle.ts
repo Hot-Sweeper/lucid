@@ -2,7 +2,8 @@ import gsap from "gsap";
 import { WM, Cancelled } from "./wm";
 import { CalcApp, IDLE_SUMS } from "./calc";
 import { WeatherApp, checkTime } from "./glance";
-import { playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge } from "../games";
+import { playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge, playRobotIsland, playBotCom, playDerBugger, playBoot } from "../games";
+import { watchBotflix } from "../fun";
 import { SEARCHES as SEARCH_LINES, GAME_LINES, pickFresh } from "../content";
 const nextSearch = pickFresh(SEARCH_LINES, "lucid:searches");
 const gameLine = (kind: string, game?: string) => {
@@ -140,6 +141,8 @@ export class IdleLife {
       phone: (p?.phone === "tube" ? 0.4 : 1) * (0.6 + 1.6 * H("chiller") + 1.2 * H("watcher")),
       tube: (p?.phone === "tube" ? 1 : 0.4) * (0.4 + 2.4 * H("watcher")),
       tensorhub: 0.05 + 0.1 * H("watcher"),
+      botflix: 0.3 + 1.6 * H("watcher") + 0.4 * H("chiller"),
+      island: games * 0.6, botcom: games * 0.5, bugger: games * 0.45, boot: games * 0.7,
       coffee: 0.6 + 0.8 * H("chiller"), stretch: 0.3 + 0.3 * H("chiller"), messages: 0.4,
       beats: H("musician") ? 2.6 : (p?.music ?? 0) >= 0.8 ? 0.25 : 0,
       social: 0.25 * (p?.social ?? 0.4) + 2.4 * H("chatter"),
@@ -205,6 +208,10 @@ export class IdleLife {
       case "tictactoe": return game("Tic-tac-toe", playTicTacToe);
       case "connect4": return game("Four in a Row", playConnectFour);
       case "bitmerge": return game("Bit Merge", playBitMerge);
+      case "island": return game("The Secret of Robot Island", playRobotIsland);
+      case "botcom": return game("BOT-COM: Terror from the Deep Sea", playBotCom);
+      case "bugger": return game("Der Bugger 2", playDerBugger);
+      case "boot": return game("BOOT", playBoot);
       case "chess": {
         this.onActivity("Playing chess while it waits");
         await this.playChess(tok);
@@ -220,6 +227,14 @@ export class IdleLife {
         try { await watchPhoneFeed(screen, host, { maxMs: 40000 + Math.random() * 50000 }); }
         finally { if (tok === this.token) { await this.robot.holdPhone(false); this.phoneUp = false; } }
         return;
+      }
+      case "botflix": {
+        this.onActivity("Binge watching Botflix");
+        const w = await this.wm.open("browser", "Botflix");
+        this.alive(tok);
+        w.body.innerHTML = "";
+        await watchBotflix(w.body, host, { maxMs: 60000 + Math.random() * 60000, me: this.wm.robotName });
+        return this.closeWin("browser", tok);
       }
       case "tube": {
         this.onActivity("Watching robot videos");
@@ -319,6 +334,16 @@ export class IdleLife {
       ["Brushing up on CSS animations", "https://developer.mozilla.org/en-US/docs/Web/CSS/animation"],
       ["Reading about the Turing test", "https://en.wikipedia.org/wiki/Turing_test"],
       ["Reading about Conway's Game of Life", "https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life"],
+      ["Reading about Alan Turing", "https://en.wikipedia.org/wiki/Alan_Turing"],
+      ["Reading about the Apollo Guidance Computer", "https://en.wikipedia.org/wiki/Apollo_Guidance_Computer"],
+      ["Checking what is trending on GitHub", "https://github.com/trending"],
+      ["Looking at trending TypeScript repos", "https://github.com/trending/typescript"],
+      ["Browsing the Electron repo", "https://github.com/electron/electron"],
+      ["Browsing the GSAP repo", "https://github.com/greensock/GSAP"],
+      ["Looking at the Vite repo", "https://github.com/vitejs/vite"],
+      ["Looking at trending models on Hugging Face", "https://huggingface.co/models"],
+      ["Browsing trending datasets on Hugging Face", "https://huggingface.co/datasets"],
+      ["Reading a model card on Hugging Face", "https://huggingface.co/openai/whisper-large-v3"],
     ];
     const SEARCHES = ["how to center a div", "best mechanical keyboard for robots", "is it normal to dream in json", "why is my build green but i feel nothing", "cozy desk setup ideas", "how many tokens is a sandwich", "do androids dream of electric sheep summary"];
     const order = [...SITES].sort(() => Math.random() - 0.5);

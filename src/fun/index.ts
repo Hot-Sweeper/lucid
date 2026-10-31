@@ -7,3 +7,5 @@ export { VIDEOS, drawThumbnail, type VideoDef } from "./videos";
 export { watchPhoneFeed } from "./phone";
 export { watchTube } from "./tube";
 export { browseTensorHub, TENSOR_VIDEOS } from "./tensorhub";
+export { watchBotflix, type BotflixOpts } from "./botflix";
+export { SHOWS as BOTFLIX_SHOWS, type ShowDef } from "./shows";

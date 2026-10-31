@@ -6,3 +6,7 @@ export { playNightShift } from "./nightshift";
 export { playTicTacToe } from "./tictactoe";
 export { playConnectFour } from "./connect4";
 export { playBitMerge } from "./merge";
+export { playRobotIsland } from "./island";
+export { playBotCom } from "./botcom";
+export { playDerBugger } from "./bugger";
+export { playBoot } from "./boot";

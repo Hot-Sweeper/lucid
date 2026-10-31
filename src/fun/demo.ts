@@ -4,8 +4,9 @@ import "@fontsource-variable/jetbrains-mono";
 import gsap from "gsap";
 import "./fun.css";
 import type { FunHost, FunOpts, Outcome } from "./host";
-import { playSnake, playFlappy, playDash, watchPhoneFeed, watchTube, browseTensorHub, VIDEOS, TENSOR_VIDEOS, drawThumbnail } from "./index";
+import { playSnake, playFlappy, playDash, watchPhoneFeed, watchTube, browseTensorHub, watchBotflix, VIDEOS, TENSOR_VIDEOS, drawThumbnail } from "./index";
 import { fitCanvas } from "./util";
+import { SHOWS, drawArt, renderStage } from "./shows";
 
 class Cancel extends Error {}
 
@@ -154,6 +155,9 @@ const loops = [
   panel("phone", "Phone", 150, 300, watchPhoneFeed, true),
   panel("tube", "Browser", 740, 330, watchTube),
   panel("th", "Browser", 740, 330, browseTensorHub),
+  // Botflix in a browser-sized window (740 x 390 frame, 364 body). ?bfw=&bfh= try other window sizes.
+  panel("botflix", "Botflix", Number(params.get("bfw") || 740), Number(params.get("bfh") || 364),
+    (b, h, o) => watchBotflix(b, h, { maxMs: o.maxMs, me: params.get("me") || undefined }).then((r) => ({ result: "done" as const, score: r.result === "closed" ? 0 : 1 }))),
 ].filter(Boolean) as (() => Promise<void>)[];
 
 const startAll = () => { running = true; for (const l of loops) void l(); };
@@ -203,4 +207,23 @@ if (!only || only.includes("videos")) {
     if (!thumbs && !params.has("t")) requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
+}
+
+// Botflix gallery: every show as a tile, a poster, the hero crop and a close-up. ?only=bfgal
+if (only?.includes("bfgal")) {
+  const gal = document.createElement("div");
+  gal.style.cssText = "display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 26px;margin-top:18px";
+  root.appendChild(gal);
+  const sized = (w: number, h: number) => { const c = document.createElement("canvas"); c.style.borderRadius = "4px"; return { c, ctx: fitCanvas(c, w, h) }; };
+  for (const s of SHOWS) {
+    const fig = document.createElement("figure");
+    fig.style.cssText = "margin:0;display:flex;gap:8px;align-items:flex-end;font-size:11px;color:#b9bfe6";
+    const tile = sized(200, 112), poster = sized(76, 114), hero = sized(250, 112), ep = sized(120, 68);
+    drawArt(tile.ctx, s, 200, 112, "tile");
+    drawArt(poster.ctx, s, 76, 114, "poster");
+    renderStage(hero.ctx, s, 250, 112, s.thumbT, s.hero ?? s.key);
+    drawArt(ep.ctx, s, 120, 68, "ep", s.thumbT, 1);
+    fig.append(tile.c, poster.c, hero.c, ep.c);
+    gal.appendChild(fig);
+  }
 }
