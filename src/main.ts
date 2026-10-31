@@ -470,6 +470,7 @@ async function pollWeather() {
     const r = await (window as any).lucid.weather();
     const w = r?.weather ?? null;
     world.setWeather(w);
+    (window as any).__weatherNow = w;   // the robots' Weather app shows the real weather
     const el = $("wx");
     el.hidden = !w;
     if (w) {

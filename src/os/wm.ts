@@ -5,7 +5,7 @@ import { ICONS } from "./icons";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -23,9 +23,10 @@ const FRAMES: Record<AppId, Frame> = {
   tasks: { x: 112, y: 16, w: 596, h: 380 },
   calc: { x: 560, y: 60, w: 236, h: 330 },
   music: { x: 110, y: 18, w: 600, h: 386 },
+  weather: { x: 470, y: 40, w: 320, h: 260 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "music", "chat", "notes", "tasks", "calc", "harness", "tool", "beats", "social", "game"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "music", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game"];
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 
@@ -53,6 +54,7 @@ export class WM {
         <div class="wallpaper"><img class="wall-logo" alt=""></div>
         <div class="win-layer"></div>
         <nav class="dock" aria-label="Apps">${DOCK.map((id) => `<div class="dock-item" data-app="${id}" title="${TITLES[id]}">${ICONS[id]}<i></i></div>`).join("")}</nav>
+        <div class="os-clock" aria-hidden="true"></div>
         <div class="toast-layer"></div>
         <div class="cursor" aria-hidden="true"><svg viewBox="0 0 20 24" width="15" height="18"><path d="M2 1 L2 19 L7 14.5 L10.5 22 L13.5 20.6 L10 13.4 L16.5 13 Z" fill="#fff"/><path d="M3.6 4.4 L3.6 15.6 L7.4 12.3 L10.9 19.6 L11.6 19.3 L8.2 12 L12.8 11.7 Z" fill="#11142c"/></svg></div>
       </div>`;
@@ -61,6 +63,11 @@ export class WM {
     this.dock = screen.querySelector(".dock")!;
     this.cursorEl = screen.querySelector(".cursor")!;
     gsap.set(this.cursorEl, { x: this.cursor.x, y: this.cursor.y });
+    // the clock in the corner shows the real time
+    const clock = this.root.querySelector(".os-clock") as HTMLElement;
+    const paint = () => { clock.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); };
+    paint();
+    window.setInterval(paint, 15000);
   }
 
   setWallpaper(css: string) {

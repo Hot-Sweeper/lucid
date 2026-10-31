@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { WM, Cancelled } from "./wm";
 import { CalcApp, IDLE_SUMS } from "./calc";
+import { WeatherApp, checkTime } from "./glance";
 import { playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge } from "../games";
 import { SEARCHES as SEARCH_LINES, GAME_LINES, pickFresh } from "../content";
 const nextSearch = pickFresh(SEARCH_LINES, "lucid:searches");
@@ -141,6 +142,7 @@ export class IdleLife {
       social: 0.25 * (p?.social ?? 0.4) + 2.4 * H("chatter"),
       browse: this.browser ? 0.7 + 0.9 * H("chiller") + 0.4 * H("watcher") : 0,
       calc: 0.3,
+      weather: 0.35, time: 0.4,
       music: this.music && p?.listens !== "never" ? (p?.listens === "always" ? 1.2 : 0.5) + 1.2 * H("musician") : 0,
     };
     for (const r of recent) if (weights[r] != null) weights[r] *= r === recent[0] ? 0 : 0.25;
@@ -263,6 +265,19 @@ export class IdleLife {
         await this.wait(25000 + Math.random() * 30000, tok);
         return;
       }
+      case "weather": {
+        this.onActivity("Checking the weather");
+        const kind = await new WeatherApp(this.wm).check();
+        this.alive(tok);
+        if (kind === "rain" || kind === "drizzle" || kind === "storm") this.robot.react("shy");
+        else if (kind === "clear") this.robot.react("cheer");
+        await this.wait(800, tok);
+        return this.closeWin("weather" as any, tok);
+      }
+      case "time":
+        this.onActivity("Checking the time");
+        this.robot.setPose("mouse");
+        return checkTime(this.wm);
       case "calc": {
         const [what, sum] = IDLE_SUMS[Math.floor(Math.random() * IDLE_SUMS.length)];
         this.onActivity(what);
@@ -323,7 +338,7 @@ export class IdleLife {
     return this.closeWin("browser", tok);
   }
 
-  private async closeWin(id: "game" | "browser" | "chat" | "beats" | "social" | "calc", tok: number) {
+  private async closeWin(id: "game" | "browser" | "chat" | "beats" | "social" | "calc" | "weather", tok: number) {
     const w = this.wm.wins.get(id);
     if (!w) return;
     await this.wm.pointAt(w.el.querySelector(".win-x")!, 0.5, 0.5, 380);

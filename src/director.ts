@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { WM, Cancelled } from "./os/wm";
 import { CalcApp, WORK_SUMS } from "./os/calc";
+import { checkTime } from "./os/glance";
 import { MusicApp } from "./os/music";
 import { IdleLife } from "./os/idle";
 import { HarnessApp, harnessKind, type HarnessSession, type SubagentEvent } from "./harness/harness";
@@ -344,9 +345,14 @@ export class Director {
           this.robot.setPose("mouse");
           await new CalcApp(this.wm).compute(sum, what);
           this.onActivity("Thinking");
-        } else if (r < 0.95) {
+        } else if (r < 0.92) {
           this.robot.setPose("mouse");
           await this.wm.fidget();
+          this.robot.setPose("think");
+        } else if (r < 0.96) {
+          // a quick look at the clock while it waits
+          this.robot.setPose("mouse");
+          await checkTime(this.wm);
           this.robot.setPose("think");
         } else {
           this.robot.setPose("think");
