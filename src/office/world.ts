@@ -3,10 +3,11 @@ import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
 import { drawFloor, drawWall, drawDecor, placeDecor, DECOR } from "../decor/decor";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
+import { Walker } from "../world/walker";
+import { GEOM } from "./rig";
 import { SHOP_W, SHOP_H, type ShopFront } from "./shopfront";
 import { mountWeather, applySkyTint, type WeatherLayer, type Weather } from "../weather/effects";
 import { outdoorLook, seasonPalette } from "../weather/season";
-import { GEOM } from "./rig";
 import { outsideSvg, PARK_W } from "./outside";
 import { ambientPlant } from "./ambient";
 import { Roster, type RobotProfile } from "./roster";
@@ -58,6 +59,86 @@ export class World {
   themes = new Map<string, RoomTheme>();
   set owns(f: (key: string) => boolean) { ownsItem = f; }
   park: Park;
+
+  // --- robots walking between rooms --------------------------------------------------------
+  // When a robot changes rooms it gets up and walks: out of its room's door, along the hall,
+  // in through the other door. Until it arrives it is not shown at the destination.
+  private topH = 0;
+  private roomOf = new Map<string, string>();          // thread -> room id at the last update ("park" too)
+  private transit = new Map<string, Walker>();
+  private extLists: { brk: any[]; queue: any[]; park: any[] } = { brk: [], queue: [], park: [] };
+  private get hallY() { return this.topH + HALL / 2; }
+  private roomById(id: string) { return this.rooms.find((r) => r.id === id) ?? null; }
+  // the door on the hall side of a room: [just outside in the hall, just inside the room]
+  private door(r: Room): [{ x: number; y: number }, { x: number; y: number }] {
+    if (r.y + r.h <= this.topH + 1) {   // top row: door in the south wall
+      const x = r.x + r.w / 2;
+      return [{ x, y: r.y + r.h + 34 }, { x, y: r.y + r.h - 40 }];
+    }
+    const x = r.x + r.w - 46;           // bottom row: door in the north wall, right corner
+    return [{ x, y: r.y - 34 }, { x, y: r.y + WALL_FACE + 16 }];
+  }
+  // from a spot inside a room to the hall (walking around the desks, along the edges)
+  private exitPath(r: Room, from: { x: number; y: number }) {
+    const [out, inn] = this.door(r);
+    const top = r.y + r.h <= this.topH + 1;
+    const pts = top
+      ? [{ x: from.x, y: r.y + r.h - 40 }, inn, out]
+      : [{ x: from.x, y: r.y + r.h - 34 }, { x: inn.x, y: r.y + r.h - 34 }, inn, out];
+    return [...pts, { x: out.x, y: this.hallY }];
+  }
+  private enterPath(r: Room, to: { x: number; y: number }) { return this.exitPath(r, to).reverse().slice(1).concat([to]); }
+  private chairOf(d: Desk) { return { x: parseFloat(d.el.style.left) + GEOM.chair.x, y: parseFloat(d.el.style.top) + GEOM.chair.y + 50 }; }
+  private entrance() { return { x: this.size.w - 6, y: this.hallY }; }
+
+  private walk(t: { id: string; provider: string; model?: string | null }, from: string, fromPt: { x: number; y: number } | null, to: string, delay: number) {
+    const prev = this.transit.get(t.id);
+    const start = prev ? { x: prev.x, y: prev.y } : null;
+    prev?.destroy();
+    const profile = this.roster.byThread(t.id);
+    const w = new Walker(this.deskLayer, { id: t.id, provider: t.provider, name: profile?.name, model: t.model ?? undefined, scale: 0.42, look: profile?.look });
+    w.el.classList.add("hall-walker");
+    w.el.addEventListener("click", (e) => { e.stopPropagation(); this.onSelectThread(t.id); });
+    this.transit.set(t.id, w);
+    const fromRoom = this.roomById(from);
+    // where it sets off: its old chair, its old room's door (break room, questions), or the park
+    const path: { x: number; y: number }[] = [];
+    if (start) path.push({ x: start.x, y: this.hallY });
+    else if (fromRoom && fromPt) path.push(...this.exitPath(fromRoom, fromPt));
+    else if (fromRoom) path.push(...this.door(fromRoom).slice(0, 1), { x: this.door(fromRoom)[0].x, y: this.hallY });
+    else path.push(this.entrance());
+    const first = start ?? (fromPt ?? path[0]);
+    w.setPos(first.x, first.y);
+    w.el.style.opacity = "0";
+    const arrive = async () => {
+      const toRoom = this.roomById(to);
+      const desk = this.desks.get(t.id);
+      if (desk && toRoom) path.push({ x: this.door(toRoom)[0].x, y: this.hallY }, ...this.enterPath(toRoom, this.chairOf(desk)));
+      else if (toRoom) path.push({ x: this.door(toRoom)[0].x, y: this.hallY }, this.door(toRoom)[0]);
+      else path.push(this.entrance());
+      await w.walkPath(path);
+    };
+    window.setTimeout(async () => {
+      if (this.transit.get(t.id) !== w) return;
+      gsap.to(w.el, { opacity: 1, duration: 0.25 });
+      try { await arrive(); } catch { /* replaced */ }
+      if (this.transit.get(t.id) !== w) return;
+      this.transit.delete(t.id);
+      w.destroy();
+      // it has arrived: sit down at the desk, or join the room
+      const desk = this.desks.get(t.id);
+      if (desk) { desk.el.classList.remove("arriving"); gsap.fromTo(desk.el.querySelector(".robot-host"), { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "back.out(1.6)" }); }
+      this.pushExt();
+    }, delay);
+  }
+
+  // break room, question line and park only show robots that are actually there
+  private pushExt() {
+    const here = (l: any[]) => l.filter((x) => !this.transit.has(x.id));
+    this.ext.break?.setThreads(here(this.extLists.brk) as any);
+    this.ext.queue?.setThreads(here(this.extLists.queue) as any);
+    this.park.setThreads(here(this.extLists.park));
+  }
   // the shop building between the office and the park
   private shopFront: ShopFront | null = null;
   shopRect: { x: number; y: number; w: number; h: number } | null = null;
@@ -228,6 +309,7 @@ export class World {
     const rooms: Room[] = [];
     let x = 0;
     const topH = Math.max(...top.map((r) => r.h));
+    this.topH = topH;
     // Robots: working threads get one (reusing free teammates first), resting ones keep theirs.
     const working = [...queue, ...main, ...freelance, ...[...perProject.values()].flat()];
     this.roster.assign(working, new Set(brk.map((t) => t.id)), new Set(data.threads.map((t) => t.id)));
@@ -314,6 +396,21 @@ export class World {
       }
     });
     const wanted = new Set(slots.filter((s) => s.t).map((s) => s.t!.id));
+    // where every robot is right now, so a robot changing rooms can walk over
+    const chairsBefore = new Map<string, { x: number; y: number }>();
+    for (const [id, d] of this.desks) chairsBefore.set(id, this.chairOf(d));
+    const nowRoom = new Map<string, string>();
+    for (const s of slots) if (s.t) nowRoom.set(s.t.id, s.key.split("#")[0]);
+    brkShown.forEach((t) => nowRoom.set(t.id, "break"));
+    queue.forEach((t) => nowRoom.set(t.id, "queue"));
+    brk.slice(8, 14).forEach((t) => { if (!nowRoom.has(t.id)) nowRoom.set(t.id, "park"); });
+    const first = this.roomOf.size === 0;
+    const moving: { t: WThread; from: string; to: string }[] = [];
+    for (const t of data.threads) {
+      const from = this.roomOf.get(t.id), to = nowRoom.get(t.id);
+      if (!first && from && to && from !== to) moving.push({ t, from, to });
+    }
+    this.roomOf = nowRoom;
     this.addTiles(plans, rooms);
     for (const [id, d] of this.desks) if (!wanted.has(id)) { if (this.selected === d) this.select(null); d.destroy(); this.allDesks.delete(d); this.desks.delete(id); for (const [k, v] of this.slotDesks) if (v === d) this.slotDesks.delete(k); }
     const slotKeys = new Set(slots.map((s) => s.key));
@@ -341,24 +438,25 @@ export class World {
       if (d.threadId) d.el.classList.toggle("orch-desk", d.threadId === this.orchThread);
       const cur = { x: parseFloat(d.el.style.left), y: parseFloat(d.el.style.top) };
       if (Math.abs(cur.x - s.x) > 1 || Math.abs(cur.y - s.y) > 1) {
-        // a robot changing rooms leaves its old seat and shows up at the new one,
-        // instead of its whole desk sliding across the building
-        const move = () => { d!.el.style.left = `${s.x}px`; d!.el.style.top = `${s.y}px`; d!.baseZ = Math.round(s.y); d!.lift("move", false); };
-        if (d.el.isConnected && d.el.style.opacity !== "0" && d.threadId) {
-          gsap.timeline()
-            .to(d.el, { opacity: 0, scale: 0.96, duration: 0.35, ease: "power2.in" })
-            .add(move)
-            .to(d.el, { opacity: 1, scale: 1, duration: 0.45, ease: "power2.out" });
-        } else move();
+        d.el.style.left = `${s.x}px`; d.el.style.top = `${s.y}px`; d.baseZ = Math.round(s.y); d.lift("move", false);
       }
     }
     // desks whose seat disappeared are retired properly (their robot and computer stop)
     const inUse = new Set(this.slotDesks.values());
     for (const d of this.allDesks) if (!inUse.has(d)) { this.allDesks.delete(d); if (this.selected === d) this.select(null); d.destroy(); }
-    this.ext.break?.setThreads(brkShown.map((t) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name })) as any);
+    for (const m of moving) {
+      const desk = this.desks.get(m.t.id);
+      if (desk) desk.el.classList.add("arriving");
+      // leaving a desk: get up at once; leaving the break room, questions or park: walk out of
+      // that room by itself first, then come down the hall
+      const fromDesk = chairsBefore.get(m.t.id) ?? null;
+      const delay = fromDesk ? 0 : m.from === "park" ? 7000 : 3200;
+      this.walk(m.t, m.from, fromDesk, m.to, delay);
+    }
     // robots that finished longer ago than the break room's latest eight go out to the park
-    this.park.setThreads(brk.slice(8, 14).map((t) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name })));
-    this.ext.queue?.setThreads(queue.map((t) => ({ id: t.id, provider: t.provider, title: t.title, question: t.question, model: t.model, name: this.roster.byThread(t.id)?.name })) as any);
+    const info = (t: WThread) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name });
+    this.extLists = { brk: brkShown.map(info), queue: queue.map((t) => ({ ...info(t), question: t.question })), park: brk.slice(8, 14).map(info) };
+    this.pushExt();
     this.onRooms(rooms);
   }
 
@@ -380,7 +478,7 @@ export class World {
       b.title = "Add a desk";
       b.setAttribute("aria-label", `Add a desk to ${r.title}`);
       b.innerHTML = `<span aria-hidden="true">+</span><i>Add a desk</i>`;
-      const x = fits ? r.x + 70 + c * SLOT_W + 110 : r.x + r.w - 150;
+      const x = fits ? r.x + 70 + c * SLOT_W + 110 : r.x + r.w - 210;
       const y = fits ? r.y + WALL_FACE + 40 + row * SLOT_H + 120 : r.y + 26;
       b.classList.toggle("compact", !fits);
       b.style.cssText = `left:${x}px;top:${y}px`;
@@ -594,7 +692,8 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0) {
       }).join("");
   // windows on the north wall face
   const windows: string[] = [];
-  const nWin = Math.max(1, Math.floor((w - 240) / 300));
+  const hallDoor = kind === "project" || kind === "freelance";
+  const nWin = Math.max(1, Math.floor((w - 240 - (hallDoor ? 60 : 0)) / 300));
   for (let i = 0; i < nWin; i++) {
     const wx = 200 + i * ((w - 260) / nWin), ww = Math.min(220, (w - 260) / nWin - 40);
     windows.push(`
@@ -658,5 +757,6 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0) {
     <rect x="${w - T}" width="${T}" height="${h}" fill="#3a3f4f"/>
     <rect y="${h - T}" width="${w}" height="${T}" fill="#3a3f4f"/>
     <rect x="${w / 2 - 60}" y="${h - T}" width="120" height="${T}" fill="${pal.floor}"/>
+    ${hallDoor ? `<rect x="${w - 74}" y="0" width="56" height="${WALL_FACE}" fill="#7a5236"/><rect x="${w - 69}" y="4" width="46" height="${WALL_FACE - 4}" fill="${pal.floor}"/><rect x="${w - 69}" y="${WALL_FACE - 14}" width="46" height="14" fill="#000" opacity="0.08"/>` : ""}
   </svg>`;
 }

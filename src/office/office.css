@@ -440,3 +440,7 @@
 .shopfront:focus-visible { outline: none; }
 .shopfront .sf-owned { opacity: 0.55; }
 .shop-note { grid-column: 1 / -1; margin: 0 0 4px; font-size: 13px; color: var(--ink-3); }
+
+/* a robot on its way to this desk: the chair waits empty until it arrives */
+.desk-unit.arriving .robot-host { opacity: 0; }
+.hall-walker { cursor: pointer; }
