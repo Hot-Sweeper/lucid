@@ -9,6 +9,34 @@ const caches = new WeakMap<HTMLElement, Cache>();
 const pending = new Map<HTMLElement, { state: State; due: number }>();
 let timer = 0;
 
+// Derive simplified shell marks from existing SVG artwork, never per-app profiles.
+const shellIcons = new WeakMap<HTMLElement, string>();
+export function syncShellMark(item: HTMLElement) {
+  const icon = item.querySelector('svg, img');
+  if (!icon) return;
+  const key = icon.outerHTML;
+  if (shellIcons.get(item) === key) return;
+  shellIcons.set(item, key);
+  const shapes = Array.from(icon.querySelectorAll('path, rect, circle, ellipse, polygon'));
+  const stops = Array.from(icon.querySelectorAll('stop')).map(el => el.getAttribute('stop-color')).filter((color): color is string => !!color);
+  const fills = shapes.map(el => el.getAttribute('fill')).map(fill => fill?.startsWith('url(') ? stops[Math.floor((stops.length - 1) / 2)] : fill).filter((fill): fill is string => !!fill && !['none', 'currentColor', 'transparent'].includes(fill) && !fill.startsWith('url('));
+  const colorful = (fill: string) => {
+    const hex = fill.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)?.[1];
+    if (!hex) return false;
+    const rgb = hex.length === 3 ? [...hex].map(c => parseInt(c + c, 16)) : [0,2,4].map(i => parseInt(hex.slice(i, i + 2), 16));
+    return Math.max(...rgb) - Math.min(...rgb) > 35;
+  };
+  const color = fills.find(colorful) ?? fills[0] ?? getComputedStyle(icon).color;
+  const silhouette = shapes[0];
+  const round = silhouette && (['circle', 'ellipse'].includes(silhouette.tagName.toLowerCase()) ||
+    silhouette.tagName.toLowerCase() === 'rect' && Number(silhouette.getAttribute('rx')) >= Number(silhouette.getAttribute('width')) * .4);
+  item.style.setProperty('--detail-mark-color', color);
+  item.style.setProperty('--detail-mark-radius', round ? '50%' : '3px');
+}
+function syncShell(host: HTMLElement) {
+  host.querySelectorAll<HTMLElement>('.dock-item, .toast').forEach(syncShellMark);
+}
+
 function cacheFor(win: HTMLElement) {
   let cache = caches.get(win);
   if (!cache) { cache = { views: new Map(), lastPaint: -Infinity }; caches.set(win, cache); }
@@ -79,6 +107,7 @@ export function setScreenDetail(host: HTMLElement, visible: boolean, width: numb
   if (!state) {
     const observer = new MutationObserver(records => {
       const changed = new Map<HTMLElement, boolean>();
+      let shellChanged = false;
       for (const record of records) {
         // Newly opened windows are reported on the shared layer, outside .win.
         if (record.type === 'childList') for (const node of record.addedNodes) {
@@ -89,12 +118,17 @@ export function setScreenDetail(host: HTMLElement, visible: boolean, width: numb
         // Adding/removing our own overlay is not an application content change.
         if (record.type === 'childList' && [...record.addedNodes, ...record.removedNodes].every(n => n instanceof Element && n.matches('.screen-detail'))) continue;
         const win = target.closest<HTMLElement>('.win');
-        if (!win) continue; // Cursor, dock, wallpaper and clock cannot dirty app snapshots.
+        if (!win) {
+          // New/rebranded dock icons and toasts inherit the active shell tier.
+          if ((record.type === 'childList' && target.closest('.dock, .toast-layer')) || (target.closest('.dock-item, .toast') && target.tagName.toLowerCase() === 'svg')) shellChanged = true;
+          continue;
+        }
         const body = win.querySelector('.win-body');
         // The icon tier depends only on the shell, body surface and app icon.
         const shell = !body?.contains(target) || target === body || target.parentElement === body && record.type === 'attributes';
         changed.set(win, (changed.get(win) ?? false) || shell);
       }
+      if (shellChanged && state!.tier !== 'full') syncShell(host);
       for (const [win, shell] of changed) {
         const cache = cacheFor(win);
         cache.views.delete('lines'); cache.views.delete('shapes');
@@ -108,7 +142,8 @@ export function setScreenDetail(host: HTMLElement, visible: boolean, width: numb
   const tier = screenDetail(width);
   const transition = tier !== state.tier, appeared = visible && !state.visible;
   state.tier = tier; state.visible = visible;
-  if (!visible) { for (const [win, job] of pending) if (job.state === state) pending.delete(win); return; }
+  // Tier is a presentation choice even when drawing is paused (arriving/away
+  // robots can leave an onscreen desktop behind). Never leave those at full text.
   if (tier === 'full') {
     if (!host.dataset.screenDetail) return;
     delete host.dataset.screenDetail;
@@ -116,6 +151,8 @@ export function setScreenDetail(host: HTMLElement, visible: boolean, width: numb
     return;
   }
   if (host.dataset.screenDetail !== tier) host.dataset.screenDetail = tier;
+  if (transition) syncShell(host);
+  if (!visible) { for (const [win, job] of pending) if (job.state === state) pending.delete(win); return; }
   if (transition || appeared) host.querySelectorAll<HTMLElement>('.win').forEach(win => enqueue(win, state!, true));
 }
 export function releaseScreenDetail(host: HTMLElement) {

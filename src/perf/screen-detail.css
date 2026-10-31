@@ -1,7 +1,7 @@
 .screen-detail { position: absolute; inset: 0; pointer-events: none; overflow: hidden; visibility: visible; display: none; }
 .screen-detail > canvas { width: 100%; height: 100%; display: block; }
-[data-screen-detail] .win[data-detail-ready] > :not(.screen-detail) { visibility: hidden !important; }
-[data-screen-detail] .win[data-detail-ready] > :not(.screen-detail) * { visibility: hidden !important; }
+[data-screen-detail] .win > :not(.screen-detail) { visibility: hidden !important; }
+[data-screen-detail] .win > :not(.screen-detail) * { visibility: hidden !important; }
 .screen-detail-icon { position: absolute; inset: 26px 0 0; display: grid; place-items: center; }
 .screen-detail-icon > * { width: var(--screen-detail-icon-size); height: var(--screen-detail-icon-size); object-fit: contain; }
 .screen-detail-icon-overview { inset: 0; }
@@ -9,3 +9,39 @@
 
 .screen-detail-surface { position: absolute; inset: 0; }
 [data-screen-detail] .screen-detail { display: block; }
+
+/* Inherit a glyph-free shell for future popups too. Text layout and robot
+   targeting stay intact, while known text surfaces below get explicit bars. */
+[data-screen-detail] .os { -webkit-text-fill-color: transparent; text-shadow: none; }
+/* Shell text follows the same tier as every app, including queued/new windows. */
+[data-screen-detail] .os-clock { visibility: hidden; }
+[data-screen-detail] .os-clock::after {
+  content: ''; visibility: visible; position: absolute; left: 8px; right: 8px;
+  top: 50%; height: 3px; border-radius: 2px; background: #c9cdf5; opacity: .6;
+}
+[data-screen-detail] .toast span { position: relative; visibility: hidden; }
+[data-screen-detail="lines"] .toast span::after {
+  content: ''; visibility: visible; position: absolute; left: 0; right: 0;
+  top: 50%; height: 3px; border-radius: 2px; background: currentColor; opacity: .4;
+}
+[data-screen-detail] .dock-item::before, [data-screen-detail] .toast::before {
+  content: ''; width: 22px; height: 22px; background: var(--detail-mark-color, #c9cdf5);
+  border-radius: var(--detail-mark-radius, 3px); flex: none;
+}
+[data-screen-detail] .dock-item > :not(i), [data-screen-detail] .toast > svg,
+[data-screen-detail] .toast > img { display: none; }
+[data-screen-detail] .dock { backdrop-filter: none; }
+[data-screen-detail] .toast { box-shadow: none; }
+[data-screen-detail="shapes"] .os-clock::after { height: 7px; }
+[data-screen-detail="icon"] .os-clock { display: none; }
+[data-screen-detail="icon"] .toast span { display: none; }
+/* Transient OS surfaces use bars rather than leaving tiny glyphs behind. */
+[data-screen-detail] :is(.launcher, .alttab, .lock, .uac) {
+  -webkit-text-fill-color: transparent; text-shadow: none;
+}
+[data-screen-detail] :is(.l-q, .l-result > span, .at-item > span) {
+  color: transparent; position: relative;
+}
+[data-screen-detail="lines"] :is(.l-q, .l-result > span, .at-item > span)::after {
+  content: ''; position: absolute; inset: 45% 0 auto; height: 3px; background: #c9cdf5;
+}
