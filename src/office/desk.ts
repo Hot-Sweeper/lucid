@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { gameSound } from './sound';
 import { WM } from "../os/wm";
 import { Director, type ThreadInfo } from "../director";
 import { GEOM, PHONE_SCALE, UNIT, type DeskRig, type Pt, type SeatedRobot } from "./rig";
@@ -58,6 +59,7 @@ export class Desk implements DeskStage {
   info: ThreadInfo | null = null;
   onActivity: (t: string) => void = () => {};
   activity = "";
+  lastKeyAt = 0;
   private keys = new Map<string, KeyRect>();
   private pressedKeys = new Map<string, { el: SVGRectElement; animation: Animation; timer: number }>();
   private vectorOwner = vectorOwner("desk");
@@ -97,7 +99,7 @@ export class Desk implements DeskStage {
     this.wm = new WM(this.screen, this.robot);
     this.director = new Director(this.wm, this.robot, this, services.peek, services.image, services.readText);
     this.director.onActivity = (t) => { this.activity = t; this.onActivity(t); };
-    this.director.present = () => !el.classList.contains("arriving");
+    this.syncPresence();
     this.baseZ = Math.round(y);
     el.style.zIndex = String(this.baseZ);
   }
@@ -121,16 +123,35 @@ export class Desk implements DeskStage {
   room = "";
   private model: string | null = null;
 
+  /** Called in the same frame as the walking/seated actor changes. */
+  onPresenceChange: () => void = () => {};
+  setSeated(here: boolean) {
+    const wasHere = !this.el.classList.contains('arriving');
+    this.el.classList.toggle("arriving", !here);
+    this.syncPresence();
+    if (wasHere !== here) this.onPresenceChange();
+  }
+
+  private syncPresence() {
+    const here = !!this.threadId && !this.el.classList.contains("arriving") && !this.handoffBusy;
+    if (!here) this.clearKeys();
+    this.director.setPresent(here);
+  }
+
   assign(thread: { id: string; title: string; provider: string; model?: string | null } | null, profile: RobotProfile | null = null) {
     if (this.threadId === (thread?.id ?? null)) return;
     this.director.reset();
     this.clearKeys();
     this.threadId = thread?.id ?? null;
+    this.managerProject = null;
+    this.managerSig = '';
+    this.el.classList.remove("manager");
     this.profile = profile;
     this.model = thread?.model ?? null;
     this.el.classList.toggle("empty", !thread);
     this.handoffBusy = false;
     this.lastBrand = null;
+    this.syncPresence();
     if (thread) {
       this.deferredRobot.mount();
       this.robot.setBrand(thread.provider);
@@ -149,20 +170,32 @@ export class Desk implements DeskStage {
   }
 
   private labelSig = "";
+  private managerProject: { title: string; icon: string | null; role?: string } | null = null;
+  private managerSig = '';
+  setManagerProject(p: { title: string; icon: string | null; role?: string } | null) {
+    const sig = JSON.stringify(p);
+    if (sig === this.managerSig) return;
+    this.managerSig = sig;
+    this.managerProject = p;
+    this.el.classList.toggle("manager", !!p);
+    this.label(this.el.querySelector(".desk-plate i")?.textContent || "", this.info?.provider ?? null);
+  }
   private label(title: string, provider: string | null) {
     const who = this.profile ? (this.profile.role ? `${this.profile.name}, ${this.profile.role}` : this.profile.name) : "";
-    const sig = JSON.stringify([title, provider, who, this.model, this.profile?.prefs.hobby]);
+    const sig = JSON.stringify([title, provider, who, this.model, this.profile?.prefs.hobby, this.managerProject]);
     if (sig === this.labelSig) return;
     this.labelSig = sig;
     const plate = this.el.querySelector(".desk-plate") as HTMLElement;
     const img = plate.querySelector("img") as HTMLImageElement;
-    const logo = logoFor(provider, "light");
+    const logo = this.managerProject ? this.managerProject.icon : logoFor(provider, "light");
     img.hidden = !logo;
+    img.onerror = () => { img.hidden = true; };
     if (logo) img.src = logo;
     plate.querySelector("span")!.innerHTML = who ? `<b></b> <i></i>` : `<i></i>`;
     if (who) plate.querySelector("b")!.textContent = who;
+    if (this.managerProject && who) plate.querySelector('b')!.textContent = `${who}, ${this.managerProject.role || 'Manager'}`;
     plate.querySelector("i")!.textContent = title;
-    plate.title = [who, title, this.model, this.profile?.prefs.hobby ? `Free time: ${HOBBY_LABEL[this.profile.prefs.hobby]}` : ""].filter(Boolean).join("\n");
+    plate.title = [this.managerProject ? `${this.managerProject.title} manager` : "", who, title, this.model, this.profile?.prefs.hobby ? `Free time: ${HOBBY_LABEL[this.profile.prefs.hobby]}` : ""].filter(Boolean).join("\n");
   }
 
   setInfo(info: ThreadInfo) {
@@ -191,6 +224,7 @@ export class Desk implements DeskStage {
   private lastBrand: string | null = null;   // the harness this conversation was on at the last update
   private async handoff(from: string, to: string, model: string | null) {
     this.handoffBusy = true;
+    this.syncPresence();
     const tid = this.threadId;
     const host = this.el.querySelector(".robot-host") as HTMLElement;
     const name = this.profile?.name;
@@ -209,6 +243,7 @@ export class Desk implements DeskStage {
     this.say(null);
     this.lift("handoff", false);
     this.handoffBusy = false;
+    this.syncPresence();
   }
 
   // Little desk toys: poke the robot, nudge its coffee, buzz its phone.
@@ -221,6 +256,7 @@ export class Desk implements DeskStage {
     this.el.querySelector(".poke-head")!.addEventListener("click", (e) => {
       stop(e);
       if (!this.threadId) return;
+      gameSound.play('poke');
       this.pokes++;
       window.clearTimeout(this.pokeTimer);
       this.pokeTimer = window.setTimeout(() => (this.pokes = 0), 3000);
@@ -229,9 +265,10 @@ export class Desk implements DeskStage {
       this.say((angry ? grumpy : lines)[Math.floor(Math.random() * (angry ? grumpy : lines).length)], "speak");
       window.setTimeout(() => this.say(null), 1800);
     });
-    this.el.querySelector(".poke-mug")!.addEventListener("click", (e) => { stop(e); if (this.threadId) void this.robot.drink(); });
+    this.el.querySelector(".poke-mug")!.addEventListener("click", (e) => { stop(e); if (this.threadId) { gameSound.play('coffee'); void this.robot.drink(); } });
     this.el.querySelector(".poke-phone")!.addEventListener("click", (e) => {
       stop(e);
+      if (this.threadId) gameSound.play('phone');
       const ph = this.el.querySelector("[data-d=phone]") as SVGGElement | null;
       if (ph) gsap.fromTo(ph, { x: -2 }, { x: 2, duration: 0.05, repeat: 9, yoyo: true, clearProps: "x" });
       if (this.threadId) { this.robot.react("surprised"); this.say(["Bzzz!", "Who is texting me?", "Probably spam."][Math.floor(Math.random() * 3)], "speak"); window.setTimeout(() => this.say(null), 1600); }
@@ -322,8 +359,11 @@ export class Desk implements DeskStage {
 
   // --- the robot's reach ---------------------------------------------------------
   private pressKey(key: string) {
+    if (!this.wm.operatorPresent) return;
     const name=this.norm(key),geometry=this.keys.get(name);
     if(!geometry)return;
+    this.lastKeyAt = performance.now();
+    this.el.dispatchEvent(new CustomEvent("lucid:desk-key", { bubbles: true }));
     let active=this.pressedKeys.get(name);
     if(!active){
       const el=document.createElementNS("http://www.w3.org/2000/svg","rect");
@@ -363,7 +403,7 @@ export class Desk implements DeskStage {
       homeLeft: { ...me.keyCenters.get("f")! },
       homeRight: { ...me.keyCenters.get("j")! },
       mouse: { ...mouse },
-      moveMouse(p: Pt, turn = 0) { mouseG.setAttribute("transform", `translate(${(p.x - mouse.x).toFixed(2)} ${(p.y - mouse.y).toFixed(2)}) rotate(${turn.toFixed(1)} ${mouse.x} ${mouse.y})`); },
+      moveMouse(p: Pt, turn = 0) { if (me.wm.operatorPresent) mouseG.setAttribute("transform", `translate(${(p.x - mouse.x).toFixed(2)} ${(p.y - mouse.y).toFixed(2)}) rotate(${turn.toFixed(1)} ${mouse.x} ${mouse.y})`); },
       mug: { ...mug },
       moveMug(p: Pt | null, tilt = 0) {
         mugG.setAttribute("transform", p ? `translate(${(p.x - mug.x).toFixed(1)} ${(p.y - mug.y).toFixed(1)}) rotate(${tilt} ${mug.x} ${mug.y})` : "");

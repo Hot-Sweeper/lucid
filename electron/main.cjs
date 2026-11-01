@@ -1,10 +1,78 @@
 const { app, BrowserWindow, ipcMain, shell, net, protocol } = require("electron");
+// Screenshot runs use isolated profiles. Normal launches share one office process.
+if (!process.env.LUCID_SHOT && !app.requestSingleInstanceLock()) {
+  app.quit();
+  return;
+}
 const { pathToFileURL } = require("node:url");
 const fsp = require("node:fs/promises");
 const path = require("node:path");
 const t3 = require("./t3.cjs");
 const updater = require("./updater.cjs");
 
+// Keep the existing desktop handlers authoritative while giving each phone its own building.
+const { AsyncLocalStorage } = require('node:async_hooks');
+const mobileContext = new AsyncLocalStorage();
+const browserHandlers = new Map();
+const registerHandle = ipcMain.handle.bind(ipcMain);
+ipcMain.handle = (channel, handler) => { browserHandlers.set(channel, handler); return registerHandle(channel, handler); };
+let mobileServer = null;
+let mobileRestoring = Promise.resolve();
+const mobileAccess = require('./mobile-access.cjs').createMobileAccess({
+  file: path.join(process.env.LUCID_SHOT ? process.env.LUCID_SHOT_PROFILE || path.join(app.getPath('temp'), 'lucid-test-profile') : app.getPath('userData'), 'mobile-access.json'),
+  start: async config => {
+    if (mobileServer) await mobileServer.close();
+    mobileServer = require('./mobile-server.cjs').createMobileServer({ root: path.resolve(__dirname, '..'), config,
+      bootstrap: () => companion('snapshot'), invoke: invokeBrowser,
+      onCloseClient: client => { for (const stop of client.stops.values()) stop(); client.stops.clear(); },
+    });
+    await mobileServer.listen(5180);
+  },
+  stop: async () => { await mobileServer?.close(); mobileServer = null; },
+});
+ipcMain.handle('mobile:status', async () => { await mobileRestoring; return mobileAccess.status(); });
+ipcMain.handle('mobile:setup', () => mobileAccess.setup());
+ipcMain.handle('mobile:disable', () => mobileAccess.disable());
+async function companion(method, input) {
+  if (!win || win.isDestroyed()) throw Error('Keep Lucid open on the desktop, then retry.');
+  return win.webContents.executeJavaScript(`(() => { if (!window.__lucidCompanion) throw Error('Lucid is still starting. Try again in a moment.'); return window.__lucidCompanion.${method}(${input === undefined ? '' : JSON.stringify(input)}); })()`);
+}
+const companionFrames = require('./companion-frames.cjs').createCompanionFrames({
+  read: async () => {
+    const [state, world, tasks] = await Promise.all([
+      companion('snapshot'), browserHandlers.get('t3:world')(), browserHandlers.get('t3:tasks')(),
+    ]);
+    return { state, world, tasks };
+  },
+});
+async function invokeBrowser(client, channel, args) {
+  return mobileContext.run(client, async () => {
+    if (channel === 'remoteState') return companion('snapshot');
+    if (channel === 'remoteFrame') return companionFrames.frame(activeBuilding() || 'local', args[0]?.known);
+    if (channel === 'remoteCommit') {
+      const input = args[0];
+      if (!input || typeof input !== 'object') throw Error('Invalid office change.');
+      const result = await companion('commit', input.kind === 'hire'
+        ? {...input, sourceWorld: managers.world(activeBuilding() ? await remote.world(activeBuilding()) : undefined)} : input);
+      companionFrames.invalidate();
+      return result;
+    }
+    if (channel === 't3:watch-set') {
+      if (!Array.isArray(args[0]) || args[0].length > 300 || args[0].some(id => typeof id !== 'string' || id.length > 500)) throw Error('Invalid thread watch list.');
+      const wanted = new Set(args[0]);
+      for (const [id, stop] of client.stops) if (!wanted.has(id)) { stop(); client.stops.delete(id); }
+      for (const id of wanted) if (!client.stops.has(id)) client.stops.set(id, (remote.split(id) ? remote.watch : t3.watchThread)(id,
+        (items, initial) => client.publish('t3:items', {threadId:id,items,initial}),
+        info => client.publish('t3:info', {threadId:id,info})));
+      return true;
+    }
+    const handler = browserHandlers.get(channel);
+    if (!handler) throw Error('This action is unavailable. Update Lucid on the desktop.');
+    const result = await handler({sender:client.sender}, ...args);
+    if (['t3:start', 't3:send', 'project:add', 'project:remove', 'environment:select', 'reports:manual'].includes(channel) || channel.startsWith('t3s:') && !['t3s:status','t3s:providers','t3s:hire-config','t3s:hire-contexts','t3s:manager-suggest'].includes(channel)) companionFrames.invalidate();
+    return result;
+  });
+}
 const DEV_URL = process.env.LUCID_DEV_URL;
 if (process.env.LUCID_SHOT) {
   // Test runs get their own copy of the settings, so they never overwrite the real app's
@@ -20,7 +88,14 @@ if (process.env.LUCID_SHOT) {
   app.commandLine.appendSwitch("disable-background-timer-throttling");
 }
 let win = null;
+app.on("second-instance", () => {
+  if (!win || win.isDestroyed()) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+});
 const watchers = new Map(); // threadId -> stop()
+const languageHelpers = new Set();
 
 function createWindow() {
   win = new BrowserWindow({
@@ -50,8 +125,18 @@ function createWindow() {
   if (process.env.LUCID_AUTO_SCOPE) query.autoScope = process.env.LUCID_AUTO_SCOPE;
   else if (process.env.LUCID_SHOT) query.autoScope = "(none: test run)";
   query.app = "1";   // only the real app window answers questions (not pages other tools open)
-  if (DEV_URL) win.loadURL(DEV_URL + "?" + new URLSearchParams(query));
-  else win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query });
+  const loadOffice = () => {
+    if (DEV_URL) win.loadURL(DEV_URL + "?" + new URLSearchParams(query));
+    else win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query });
+  };
+  if (process.env.LUCID_DELIVERY_PROOF && !process.env.LUCID_SHOT) {
+    // Install the capture listeners before navigation, but never await
+    // Debugger.enable: a fresh BrowserWindow needs navigation to create the
+    // renderer which answers that command. Auditing cannot gate the office.
+    void require('./delivery-attestation.cjs').prepare(win, {root: path.resolve(__dirname, '..'), output: process.env.LUCID_DELIVERY_PROOF})
+      .catch(error => { console.error('Delivery audit unavailable:', error.message); });
+  }
+  loadOffice();
   // Debug aid: LUCID_TRACE=file records a 5 second performance trace (style, layout, paint,
   // compositing per frame) after 8 seconds, for chrome://tracing or a summary script.
   if (process.env.LUCID_TRACE) {
@@ -111,22 +196,42 @@ ${typeof out === "string" ? out : JSON.stringify(out, null, 1)}
 
 const send = (channel, payload) => { if (win && !win.isDestroyed()) win.webContents.send(channel, payload); };
 
-ipcMain.handle("t3:projects", () => t3.listProjects());
+ipcMain.handle("t3:projects", () => activeBuilding() ? remote.cached(activeBuilding())?.projects || [] : t3.listProjects());
 const environments = require("./environments.cjs");
+const remote = environments.remote;
+let desktopBuilding = null;
+const activeBuilding = () => mobileContext.getStore()?.environment ?? (mobileContext.getStore() ? null : desktopBuilding);
+const setActiveBuilding = value => { const client = mobileContext.getStore(); if (client) client.environment = value; else desktopBuilding = value; };
 ipcMain.handle("environment:list", (_e, fresh) => environments.getEnvironments({ fresh: fresh === true }));
-ipcMain.handle("environment:select", async (_e, id) => {
-  await environments.requireLocalEnvironment(id);
+// Read another authenticated computer without changing the active action target.
+const campusReads = new Map();
+ipcMain.handle("environment:world", async (_e, id) => {
   const inventory = await environments.getEnvironments();
-  return inventory.buildings.find(building => building.id === inventory.localId);
+  const building = inventory.buildings.find(b => b.id === id && b.canOpen);
+  if (!building) throw Error('This computer is not connected. Refresh Buildings and try again.');
+  if (campusReads.has(id)) return campusReads.get(id);
+  const read = Promise.resolve().then(async () => managers.world(building.local ? t3.world() : await remote.world(id)))
+    .finally(() => campusReads.delete(id));
+  campusReads.set(id, read); return read;
 });
-ipcMain.handle("t3:threads", () => t3.listThreads());
+ipcMain.handle("environment:select", async (_e, id) => {
+  const inventory = await environments.getEnvironments();
+  const building = inventory.buildings.find(b => b.id === id && b.canOpen);
+  if (!building) throw Error('This building is not available in T3 Connect.');
+  if (!building.local) await remote.world(id);
+  setActiveBuilding(building.local ? null : id);
+  const owned = mobileContext.getStore()?.stops || watchers;
+  for (const stop of owned.values()) stop(); owned.clear();
+  return { ...building, world: managers.world(activeBuilding() ? structuredClone(remote.cached(activeBuilding())) : undefined) };
+});
+ipcMain.handle("t3:threads", () => activeBuilding() ? remote.cached(activeBuilding())?.threads || [] : t3.listThreads());
 // Watch exactly this set of threads (one per desk in the open office).
 ipcMain.handle("t3:watch-set", (_e, ids) => {
   const want = new Set(ids);
   for (const [id, stop] of watchers) if (!want.has(id)) { stop(); watchers.delete(id); }
   for (const id of want) {
     if (watchers.has(id)) continue;
-    watchers.set(id, t3.watchThread(
+    watchers.set(id, (remote.split(id) ? remote.watch : t3.watchThread)(
       id,
       (items, initial) => send("t3:items", { threadId: id, items, initial }),
       (info) => send("t3:info", { threadId: id, info }),
@@ -134,12 +239,12 @@ ipcMain.handle("t3:watch-set", (_e, ids) => {
   }
   return true;
 });
-ipcMain.handle("t3:office", (_e, projectId) => t3.office(projectId));
-ipcMain.handle("t3:offices", () => t3.listProjectsWithCounts());
-ipcMain.handle("project:add", (_e, o) => t3.addProject(o));
+ipcMain.handle("t3:office", (_e, projectId) => { const target = remote.split(projectId); if (!target) return t3.office(projectId); const data = remote.cached(target.environmentId); return { project: data?.projects.find(p => p.id === projectId), threads: data?.threads.filter(t => t.projectId === projectId) || [] }; });
+ipcMain.handle("t3:offices", () => activeBuilding() ? (remote.cached(activeBuilding())?.projects || []).map(p => ({ ...p, threads: remote.cached(activeBuilding()).threads.filter(t => t.projectId === p.id).length })) : t3.listProjectsWithCounts());
+ipcMain.handle("project:add", (_e, o) => { if (activeBuilding()) throw Error('Add projects to this building in T3 Code.'); return t3.addProject(o); });
 // --- orchestrator -----------------------------------------------------------------
 const orch = require("./orchestrator.cjs");
-const ORCH_DIR = path.join(require("node:os").homedir(), "T3 Projects", "Lucid Orchestrator");
+const ORCH_DIR = process.env.LUCID_SHOT ? path.join(app.getPath("userData"), "orchestrator") : path.join(require("node:os").homedir(), "T3 Projects", "Lucid Orchestrator");
 // keep the orchestrator's instructions current (they gain new duties over time)
 try { if (require("node:fs").existsSync(ORCH_DIR)) orch.ensureFolder(ORCH_DIR); } catch {}
 ipcMain.handle("orch:init", async (_e, { provider = "claudeAgent", model = "claude-sonnet-5-5" } = {}) => {
@@ -162,18 +267,46 @@ ipcMain.handle("orch:dir", () => ORCH_DIR);
 ipcMain.handle("orch:answers", () => orch.readAnswers(ORCH_DIR));
 ipcMain.handle("orch:record", (_e, list) => orch.recordAnswers(ORCH_DIR, list));
 ipcMain.handle("orch:decisions", () => orch.readDecisions(ORCH_DIR));
-ipcMain.handle("orch:log", (_e, d) => orch.logDecision(ORCH_DIR, d));
+ipcMain.handle("orch:approval-papers", () => orch.readApprovalPapers(ORCH_DIR));
+ipcMain.handle("orch:log", (_e, d) => {
+  let robot = null;
+  try { robot = JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "roster.json"), "utf8")).find(r => r.threadId === d.threadId); } catch {}
+  return orch.logDecision(ORCH_DIR, { ...d, robot: robot ? { id: robot.id, name: robot.name, provider: robot.provider, look: robot.look } : null });
+});
 ipcMain.handle("t3:request-context", (_e, id) => t3.requestContext(id));
 ipcMain.handle("t3:replies-since", (_e, id, since) => t3.repliesSince(id, since));
 ipcMain.handle("t3:resolved-since", (_e, since) => t3.resolvedRequestsSince(since));
 ipcMain.handle("t3:user-messages", (_e, since, exclude) => t3.userMessagesSince(since, exclude));
-ipcMain.handle("project:remove", (_e, o) => t3.removeProject(o));
+ipcMain.handle("project:remove", (_e, o) => { if (remote.split(o.id)) throw Error('Remove remote projects in T3 Code.'); return t3.removeProject(o); });
 ipcMain.handle("app:host", () => require("node:os").hostname());
 const usage = require("./usage.cjs");
 usage.setProviderLimitsReader(() => require("./t3server.cjs").usageLimits());
 ipcMain.handle("usage:get", () => usage.getUsage());
+ipcMain.handle("coins:usage", () => usage.getCoinSources(t3.coinBindings()));
+const reports = require("./reports.cjs").createReports({
+  robots: () => { try { return JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "roster.json"), "utf8")); } catch { return []; } },
+  dir: process.env.LUCID_SHOT ? path.join(app.getPath("userData"), "reports") : path.join(ORCH_DIR, "reports"), t3, server: require("./t3server.cjs"), usage,
+  settings: () => { if (process.env.LUCID_SHOT) return null; try { return JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "settings.json"), "utf8")).orch || null; } catch { return null; } },
+});
+// Owned single-flight backend supervision continues when the office renderer is hidden.
+let reportSupervisorTimer = null, reportSupervisorStopped = false;
+async function superviseReports() {
+  if (reportSupervisorStopped) return;
+  try { await reports.supervise(); } catch (error) { console.error('Report supervision failed', error.message); }
+  finally { if (!reportSupervisorStopped) reportSupervisorTimer = setTimeout(superviseReports, 5000); }
+}
+if (!process.env.LUCID_SHOT && !process.env.LUCID_AUTO_SCOPE?.startsWith('(none')) {
+  app.whenReady().then(() => { void superviseReports(); });
+}
+app.on('before-quit', () => { reportSupervisorStopped = true; clearTimeout(reportSupervisorTimer); });
+ipcMain.handle("reports:list", () => reports.list());
+ipcMain.handle("reports:submit", (_e, id, robot) => reports.submit(id, robot));
+ipcMain.handle("reports:tick", (_e, arrived) => reports.tick(arrived));
+ipcMain.handle("reports:manual", (_e, id, action, values) => reports.manual(id, action, values));
+
 // Files attached in the side chat are saved where agents can open them by path.
 ipcMain.handle("attach:save", async (_e, { name, data }) => {
+  if (activeBuilding()) throw Error('Use T3 Code to send files to this building.');
   const dir = path.join(require("node:os").homedir(), ".t3", "userdata", "lucid-attachments");
   await fsp.mkdir(dir, { recursive: true });
   const safe = String(name || "file").replace(/[^\w.\- ]+/g, "_").slice(-120) || "file";
@@ -188,23 +321,39 @@ ipcMain.handle("weather:get", async () => {
 });
 // Small settings file (hidden offices and such).
 const SETTINGS = path.join(app.getPath("userData"), "settings.json");
-ipcMain.on("settings:load", (e) => { try { e.returnValue = require("node:fs").readFileSync(SETTINGS, "utf8"); } catch { e.returnValue = "{}"; } });
-ipcMain.handle("settings:save", (_e, json) => require("node:fs").promises.writeFile(SETTINGS, json));
+const { createJsonStore } = require('./json-store.cjs');
+const settingsStore = createJsonStore(SETTINGS, { fallback: '{}' });
+ipcMain.on("settings:load", (e) => { e.returnValue = settingsStore.load(); });
+ipcMain.handle("settings:save", (_e, json) => settingsStore.save(json));
 // The robot team lives in a file so names, looks and habits survive restarts.
 const ROSTER = path.join(app.getPath("userData"), "roster.json");
-ipcMain.on("roster:load", (e) => { try { e.returnValue = require("node:fs").readFileSync(ROSTER, "utf8"); } catch { e.returnValue = "[]"; } });
-ipcMain.handle("roster:save", (_e, json) => require("node:fs").promises.writeFile(ROSTER, json));
-ipcMain.handle("t3:conversation", (_e, id) => t3.conversation(id));
-ipcMain.handle("t3:conversation-page", (_e, id, options) => t3.conversationPage(id, options));
-ipcMain.handle("t3:pending-requests", (_e, id) => t3.pendingRequests(id));
+const rosterStore = createJsonStore(ROSTER, { fallback: '[]', array: true });
+ipcMain.on("roster:load", (e) => { e.returnValue = rosterStore.load(); });
+ipcMain.handle("roster:save", (_e, json) => rosterStore.save(json));
+const flushUserState = () => Promise.all([settingsStore.flush(), rosterStore.flush()]);
+let savingBeforeQuit = false;
+app.on('before-quit', event => {
+  if (!settingsStore.pending && !rosterStore.pending) return;
+  event.preventDefault();
+  if (savingBeforeQuit) return;
+  savingBeforeQuit = true;
+  void flushUserState().finally(() => { savingBeforeQuit = false; app.quit(); });
+});
+ipcMain.handle("t3:conversation", (_e, id) => remote.split(id) ? remote.conversation(id) : t3.conversation(id));
+ipcMain.handle("t3:conversation-page", (_e, id, options) => remote.split(id) ? remote.conversationPage(id) : t3.conversationPage(id, options));
+ipcMain.handle("t3:pending-requests", (_e, id) => remote.split(id) ? remote.pending(id) : t3.pendingRequests(id));
 ipcMain.handle("t3:request-outcome", (_e, threadId, requestId) => { try { return t3.requestOutcome(threadId, requestId); } catch { return null; } });
-ipcMain.handle("t3:thread-info", (_e, id) => { try { return t3.threadInfo(id); } catch { return null; } });
-ipcMain.handle("t3:items-since", (_e, id, since) => (since ? t3.itemsSince(id, since) : t3.recentItems(id, 60)));
+ipcMain.handle("t3:thread-info", (_e, id) => { try { return remote.split(id) ? remote.info(id) : t3.threadInfo(id); } catch { return null; } });
+ipcMain.handle("t3:items-since", (_e, id, since) => remote.split(id) ? remote.items(id) : (since ? t3.itemsSince(id, since) : t3.recentItems(id, 60)));
 ipcMain.handle("t3:attach-dir", () => require("node:path").join(process.env.T3CODE_HOME || require("node:path").join(require("node:os").homedir(), ".t3"), "userdata", "attachments") + require("node:path").sep);
-ipcMain.handle("t3:world", () => t3.world());
-ipcMain.handle("t3:tasks", () => { try { return t3.officeTasks(); } catch { return []; } });
-ipcMain.handle("t3:start", (_e, opts) => t3.startThread(opts));
-ipcMain.handle("t3:send", (_e, opts) => t3.sendMessage(opts));
+ipcMain.handle("t3:world", async () => {
+  const data = managers.world(activeBuilding() ? await remote.world(activeBuilding()) : undefined);
+  data.threads = data.threads.filter(t => !languageHelpers.has(t.id));
+  return data;
+});
+ipcMain.handle("t3:tasks", () => { if (activeBuilding()) return []; try { return t3.officeTasks(); } catch { return []; } });
+ipcMain.handle("t3:start", (_e, opts) => { if (remote.split(opts.project)) throw Error('Start a new remote thread in T3 Code, then open it here.'); return opts.options !== undefined ? t3s.startHire(opts) : t3.startThread(opts); });
+ipcMain.handle("t3:send", (_e, opts) => remote.split(opts.threadId) ? remote.send(opts) : t3.sendMessage(opts));
 
 // Fetch a page the agent visited so the robot's browser can show its real title and text.
 ipcMain.handle("web:peek", async (_e, url) => {
@@ -254,6 +403,7 @@ require("./sites.cjs").register(ipcMain, (url, opts) => net.fetch(url, opts));
 
 // Images the agent looked at, sent as data URLs (common image types only, max 12 MB).
 ipcMain.handle("fs:image", async (_e, p) => {
+  if (activeBuilding()) return null;
   try {
     const fs = require("node:fs/promises");
     const ext = path.extname(p).toLowerCase().slice(1);
@@ -269,6 +419,7 @@ ipcMain.handle("fs:image", async (_e, p) => {
 
 // Text of a file the agent created or changed (max 400 KB), shown in the robot's editor.
 ipcMain.handle("fs:text", async (_e, p) => {
+  if (activeBuilding()) return null;
   try {
     const fs = require("node:fs/promises");
     const st = await fs.stat(p);
@@ -287,6 +438,7 @@ ipcMain.handle("app:apply-update", async () => {
     const result = await updater.apply((step) => send("app:update-step", step));
     if (!result.updated) return { ok: true };
     delete process.env.LUCID_DEV_URL;
+    await flushUserState();
     app.relaunch();
     app.exit(0);
     return { ok: true };
@@ -298,8 +450,8 @@ ipcMain.handle("app:version", () => app.getVersion());
 
 // lucid-file://local/<encoded path> serves images and text files the agents worked with,
 // so the robots' screens and the chat can show them. Only known media and text types.
-protocol.registerSchemesAsPrivileged([{ scheme: "lucid-file", privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
-const SERVE = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif"]);
+protocol.registerSchemesAsPrivileged([{ scheme: "lucid-file", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
+const SERVE = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif", ".mp4", ".webm", ".mov", ".m4v", ".ogv", ".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".opus"]);
 
 app.whenReady().then(() => {
   protocol.handle("lucid-file", async (req) => {
@@ -307,23 +459,48 @@ app.whenReady().then(() => {
       const file = decodeURIComponent(new URL(req.url).pathname.slice(1));
       if (!SERVE.has(path.extname(file).toLowerCase())) return new Response("not allowed", { status: 403 });
       await fsp.access(file);
-      return net.fetch(pathToFileURL(file).toString());
+      return net.fetch(pathToFileURL(file).toString(), { headers: req.headers.has("range") ? { Range: req.headers.get("range") } : {} });
     } catch {
       return new Response("missing", { status: 404 });
     }
   });
   createWindow();
+  if (!process.env.LUCID_SHOT) mobileRestoring = process.argv.includes('--mobile-access') ? mobileAccess.setup().catch(() => mobileAccess.status()) : mobileAccess.restore();
 });
+app.on('before-quit', () => { void mobileServer?.close(); });
 app.on("window-all-closed", () => app.quit());
 
 // --- T3 server (paired session): queue edits and model changes ------------------
 // Handlers answer { ok, value } or { ok: false, error } so the renderer gets a clean message.
 const t3s = require("./t3server.cjs");
+const { createLocalization, createT3Translator } = require('./localization.cjs');
+const localization = createLocalization({ file: path.join(app.getPath('userData'), 'translations.json'), translate: createT3Translator({ t3, server: t3s, helpers: languageHelpers }) });
+ipcMain.handle('lucid:localize', (_e, input) => localization.localize(input));
+t3s.setRemoteDispatch(c => remote.dispatch(c));
+const managerT3 = { ...t3, world: () => activeBuilding() ? structuredClone(remote.cached(activeBuilding())) : t3.world(),
+  threadInfo: id => remote.split(id) ? remote.info(id) : t3.threadInfo(id),
+  conversation: id => remote.split(id) ? remote.conversation(id) : t3.conversation(id),
+  sendMessage: o => remote.split(o.threadId) ? remote.send(o) : t3.sendMessage(o) };
+const managerServer = { dispatch: c => remote.split(c.threadId) || remote.split(c.projectId) ? remote.dispatch(c) : t3s.dispatch(c), selection: id => remote.split(id) ? remote.selection(id) : t3s.selection(id) };
+const managers = require("./managers.cjs").createManagers({ file: path.join(app.getPath("userData"), "managers.json"), t3: managerT3, server: managerServer });
 const t3sWrap = (fn) => async (_e, ...args) => {
   try { return { ok: true, value: await fn(...args) }; } catch (err) { return { ok: false, error: String(err?.message || err), code: err?.code || null }; }
 };
-ipcMain.handle("t3s:status", t3sWrap((o) => t3s.status(o || {})));
-ipcMain.handle("t3s:providers", t3sWrap((o) => t3s.listProviders(o || {})));
+ipcMain.handle("t3s:status", t3sWrap(async (o) => remote.split(o?.threadId) ? { paired: true, error: null, selection: await remote.selection(o.threadId) } : t3s.status(o || {})));
+ipcMain.handle("t3s:manager", t3sWrap(async (o) => { if (remote.split(o.threadId)) await remote.world(remote.split(o.threadId).environmentId); return managers.update(o); }));
+ipcMain.handle("t3s:manager-suggest", t3sWrap((o) => managers.suggest(o)));
+ipcMain.handle("t3s:providers", t3sWrap((o) => activeBuilding() ? remote.providers(activeBuilding()) : t3s.listProviders(o || {})));
+ipcMain.handle("t3s:hire-config", t3sWrap((o) => { if (activeBuilding()) throw Error('Start a new thread in T3 Code for this building.'); return t3s.hireConfig(o || {}); }));
+ipcMain.handle("t3s:hire-contexts", t3sWrap((o) => { if (activeBuilding()) throw Error('Context search is unavailable for this building.'); return t3s.hireContexts(o.projectId); }));
+let threadMovePending = false;
+ipcMain.handle("t3s:move-thread", t3sWrap(async (o) => {
+  if (threadMovePending) throw Error('A thread move is still saving. Try again in a moment.');
+  threadMovePending = true;
+  try {
+    const assignments = require('./thread-order.cjs').moveAssignments(managers.world().threads, o.threadId, o.targetId, o.after === true);
+    for (const a of assignments) await t3s.dispatch({ type: a.pinned ? 'thread.pin.reorder' : 'thread.active.reorder', threadId: a.threadId, orderKey: a.orderKey });
+  } finally { threadMovePending = false; }
+}));
 ipcMain.handle("t3s:reorder", t3sWrap((o) => t3s.reorderQueued(o.threadId, o.runId, o.beforeRunId ?? null)));
 ipcMain.handle("t3s:cancel", t3sWrap((o) => t3s.cancelQueued(o.threadId, o.runId)));
 ipcMain.handle("t3s:edit", t3sWrap((o) => t3s.editQueued(o.threadId, o.runId, o.text)));

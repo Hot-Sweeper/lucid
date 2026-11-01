@@ -47,24 +47,49 @@ const publicOrigins = urls => [...new Set((Array.isArray(urls) ? urls : []).flat
   try { const url = new URL(value); return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password ? [url.origin] : []; } catch { return []; }
 }))];
 
+function createLinkedInventory({ connect, links }) {
+  const saved = [null, null];
+  return async () => {
+    const results = await Promise.allSettled([Promise.resolve().then(connect), Promise.resolve().then(links)]);
+    if (results.every(r => r.status === 'rejected')) throw Error('Connection inventory unavailable.');
+    const rows = results.flatMap((result, i) => {
+      if (result.status === 'fulfilled') { saved[i] = result.value; return result.value; }
+      return (saved[i] || []).map(row => ({ ...row, status: 'unknown' }));
+    });
+    return { rows, error: results.some((r, i) => r.status === 'rejected' && saved[i] !== null) };
+  };
+}
+
 function createEnvironmentRegistry({ descriptor = localDescriptor, links = cliLinks, hostname = os.hostname, now = Date.now } = {}) {
   let cached = null, at = 0, pending = null;
   const read = async () => {
     const [identity, inventory] = await Promise.allSettled([descriptor(), links()]);
     const local = identity.status === "fulfilled" ? identity.value : null;
-    const localId = nonempty(local?.environmentId) || `local:${hostname()}`;
-    const buildings = [{ id: localId, label: nonempty(local?.label) || hostname(), local: true, status: identity.status === "fulfilled" ? "reachable" : "unknown", canOpen: true, reason: null, origins: [] }];
-    const ids = new Set([localId]);
-    if (inventory.status === "fulfilled" && Array.isArray(inventory.value)) for (const row of inventory.value) {
+    const localId = nonempty(local?.environmentId) || cached?.localId || `local:${hostname()}`;
+    const buildings = [{ id: localId, label: nonempty(local?.label) || cached?.buildings.find(b => b.local)?.label || hostname(), local: true, status: identity.status === "fulfilled" ? "reachable" : "unknown", canOpen: true, reason: null, origins: [] }];
+    const devices = new Map();
+    const rows = inventory.status === "fulfilled" ? Array.isArray(inventory.value) ? inventory.value : inventory.value.rows : [];
+    const inventoryError = inventory.status === "rejected" || !!inventory.value?.error;
+    for (const row of rows) {
       const id = nonempty(row?.environmentId), label = nonempty(row?.label);
-      if (!id || !label || ids.has(id)) continue;
-      ids.add(id);
-      buildings.push({ id, label, local: false, status: ["reachable", "unreachable", "expired"].includes(row.status) ? row.status : "unknown", canOpen: false,
-        reason: "This environment is linked in T3 Code. Its authenticated building feed is not connected to Lucid.", origins: publicOrigins(row.urls) });
+      if (!id || id === localId) continue;
+      let device = devices.get(id);
+      if (!device) { device = { id, label: null, status: "unknown", canOpen: false, origins: [] }; devices.set(id, device); }
+      if (label && (!device.label || row.desktop)) device.label = label;
+      if (["reachable", "unreachable", "expired"].includes(row.status)) device.status = row.status;
+      device.canOpen ||= !!row.desktop;
+      device.origins = publicOrigins([...device.origins, ...(Array.isArray(row.urls) ? row.urls : [])]);
     }
-    const result = { localId, buildings, remoteWorldSupported: false, observedAt: new Date(now()).toISOString(),
-      error: inventory.status === "rejected" ? "Linked environments could not be read from T3 Code." : null,
-      connectionState: buildings.length > 1 ? "remote-feed-unavailable" : inventory.status === "rejected" ? "inventory-unavailable" : "no-linked-environments" };
+    for (const device of devices.values()) buildings.push({ ...device, label: device.label || "Connected computer", local: false,
+      reason: device.canOpen ? null : "This environment is linked in T3 Code. Its authenticated building feed is not connected to Lucid." });
+    // A temporary inventory failure must not make already discovered buildings
+    // disappear. A successful empty inventory still removes disconnected devices.
+    if (inventory.status === "rejected" && cached) for (const building of cached.buildings) {
+      if (!building.local && building.id !== localId) buildings.push({ ...building, status: "unknown" });
+    }
+    const result = { localId, buildings, remoteWorldSupported: buildings.some(b => !b.local && b.canOpen), observedAt: new Date(now()).toISOString(),
+      error: inventoryError ? "Linked environments could not be refreshed from T3 Code. Try Refresh again." : null,
+      connectionState: inventoryError ? "inventory-unavailable" : buildings.some(b => !b.local && b.canOpen) ? "available" : buildings.length > 1 ? "remote-feed-unavailable" : "no-linked-environments" };
     cached = result; at = now(); return result;
   };
   return {
@@ -82,5 +107,7 @@ function createEnvironmentRegistry({ descriptor = localDescriptor, links = cliLi
   };
 }
 
-const registry = createEnvironmentRegistry();
-module.exports = { getEnvironments: options => registry.get(options), requireLocalEnvironment: id => registry.requireLocal(id), createEnvironmentRegistry };
+const client = require('./connect-client.cjs').createConnectClient();
+const remote = require('./remote-building.cjs').createRemoteBuilding(client);
+const registry = createEnvironmentRegistry({ links: createLinkedInventory({ connect: () => client.inventory(true), links: cliLinks }) });
+module.exports = { client, remote, getEnvironments: options => registry.get(options), requireLocalEnvironment: id => registry.requireLocal(id), createEnvironmentRegistry, createLinkedInventory };

@@ -13,14 +13,15 @@ export const reduced = () => typeof matchMedia === "function" && matchMedia("(pr
  */
 export async function typeWith(wm: WM, text: string, cps: number, paint: (n: number, typing: boolean) => void) {
   const e = wm.epoch;
+  await wm.waitForOperator(e);
   wm.robot.setTyping(true);
   let shown = 0;
-  const start = performance.now();
+  const start = wm.presentationTime;
   try {
     while (shown < text.length) {
       await presentationFrame(wm.root);
-      wm.check(e);
-      const elapsed = (performance.now() - start) * wm.speed;
+      await wm.waitForOperator(e);
+      const elapsed = (wm.presentationTime - start) * wm.speed;
       const next = Math.min(text.length, Math.floor((elapsed / 1000) * cps * (0.88 + Math.random() * 0.24)));
       if (next <= shown) continue;
       if (renderFps(wm.root)) for (let i = shown; i < next; i++) wm.robot.pressKey(text[i] === "\n" ? "Enter" : text[i]);

@@ -19,6 +19,17 @@ function mergeProviderLimits(usage, snapshot, now = Date.now()) {
         staleReason: tooOld ? "T3 reading is out of date" : undefined,
       };
     });
+    // A partial provider snapshot must not erase an exhausted local window.
+    // Local logs cannot identify an account, so use them only for a single instance.
+    const peers = (snapshot.providers || []).filter(p => canonical(p.driver) === harness);
+    const local = usage.limits[harness];
+    if (peers.length === 1 && local) {
+      const reportedIds = new Set((data?.windows || []).map(w => w.id));
+      for (const limit of local.windows || [local.primary, local.secondary].filter(Boolean)) {
+        if (limit.usedPercent < 100 || limit.usedPercent === null || reportedIds.has(limit.id)) continue;
+        windows.push({ ...limit, id: `${provider.instanceId}:${limit.id}`, pool: provider.instanceId });
+      }
+    }
     if (windows.length) {
       if (windows.some(w => !w.stale)) covered.add(harness);
       limits[`t3:${provider.instanceId}`] = { harness, name: provider.name || provider.instanceId, source: "T3 Code", observedAt: checkedAt || snapshot.fetchedAt || "",

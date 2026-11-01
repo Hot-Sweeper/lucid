@@ -1,4 +1,5 @@
 import { VIDEOS, type VideoDef } from "./videos";
+import { canvasText, canvasLines } from "../localization-canvas";
 
 // Today's trending videos on BotTube, from the orchestrator's daily pack. Each one borrows the
 // animation of an existing robot video and puts its own title on it, so new ones cost nothing
@@ -27,14 +28,15 @@ function make(t: { title: string; channel?: string; views?: string }, i: number)
     // TRENDING badge
     ctx.save();
     ctx.font = `700 ${Math.round(11 * s)}px Lexend Variable, sans-serif`;
-    const bw = ctx.measureText("TRENDING").width + 18 * s;
+    const badge = canvasText("TRENDING");
+    const bw = ctx.measureText(badge).width + 18 * s;
     ctx.fillStyle = "#ff3d5a";
     ctx.beginPath(); ctx.roundRect(10 * s, 10 * s, bw, 20 * s, 10 * s); ctx.fill();
     ctx.fillStyle = "#fff"; ctx.textBaseline = "middle";
-    ctx.fillText("TRENDING", 19 * s, 20.5 * s);
+    ctx.fillText(badge, 19 * s, 20.5 * s);
     // the title in a caption bar
     ctx.font = `700 ${Math.round(15 * s)}px Lexend Variable, sans-serif`;
-    const lines = wrap(ctx, t.title, w - 32 * s);
+    const lines = canvasLines(ctx, t.title, w - 32 * s).slice(0, 3);
     const bh = lines.length * 19 * s + 14 * s;
     ctx.fillStyle = "rgba(12, 14, 40, 0.78)";
     ctx.fillRect(0, h - bh, w, bh);

@@ -1,0 +1,8 @@
+.room-media-control { position: absolute; z-index: 99994; border: 0; padding: 0; background: transparent; color: #fff8e9; cursor: pointer; touch-action: manipulation; border-radius: 5px; }
+.room-media-control > span { position: absolute; left: 50%; bottom: 5px; translate: -50% 0; width: max-content; max-width: calc(100% + 16px); padding: 5px 8px; border-radius: 4px; background: #252a3eef; font: 500 12px/1.3 var(--font); opacity: 0; pointer-events: none; transition: opacity .15s ease; text-wrap: balance; }
+.room-media-control:hover > span, .room-media-control:focus-visible > span { opacity: 1; }
+.room-media-control:focus-visible { outline: 3px solid #ffd27a; outline-offset: 4px; }
+.room-media-control:active > span { background: #3a4058; }
+.room-media-hidden { visibility: hidden !important; }
+@media (hover: none) { .room-media-control > span { opacity: 1; font-size: 11px; } }
+@media (prefers-reduced-motion: reduce) { .room-media-control > span { transition: none; } }

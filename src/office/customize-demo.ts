@@ -27,8 +27,11 @@ if (qs.get("dialog") === "hire") {
   roster.assign([{ id: "t1", provider: "claudeAgent" }, { id: "t2", provider: "codex" }, { id: "t3", provider: "grok" }, { id: "t4", provider: "claudeAgent" }], new Set(["t1", "t2", "t3", "t4"]), new Set());
   roster.robots.forEach((r, i) => (r.look = randomLook(seeded("hire" + i), 6)));
   openHire({
-    room: "p:demo", roomTitle: "Lucid", seat: 2, team: roster.freeTeam(new Set(["t1", "t2", "t3", "t4"])), providers: ["codex", "claudeAgent"],
-    models: { codex: ["gpt-5.5-codex", "gpt-5.5-codex-mini"], claudeAgent: ["claude-opus-5-5", "claude-sonnet-5-5"] }, roles: BUILTIN_ROLES,
+    room: "p:demo", roomTitle: "Lucid", seat: 2, team: roster.freeTeam(new Set(["t1", "t2", "t3", "t4"])),
+    loadRuntime: async () => ({
+      source: "T3 defaults", selection: { providerInstanceId: "codex", model: "gpt-6.1-sol", options: { reasoningEffort: "medium" } },
+      providers: [{ instanceId: "codex", name: "Codex", ready: true, models: [{ slug: "gpt-6.1-sol", name: "gpt-6.1-sol", isDefault: true, options: [{ id: "reasoningEffort", label: "Thinking", type: "select", choices: [{ id: "medium", label: "Medium", isDefault: true }, { id: "high", label: "High", isDefault: false }] }] }] }, { instanceId: "claudeAgent", name: "Claude Code", ready: true, models: [{ slug: "claude-opus-5-5", name: "Opus 5.5", isDefault: true, options: [] }] }],
+    }), roles: BUILTIN_ROLES,
     onNewRole: () => {}, projects: null, onHire: async () => {}, level,
   });
 } else {

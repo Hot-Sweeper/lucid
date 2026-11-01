@@ -22,12 +22,13 @@ export type Decision = {
   requestId: string; at: string; threadId: string; title: string; project: string;
   questions: string; outcome: "answered" | "asked" | "failed" | "user"; answer?: string; suggestion?: string;
   reason: string; confidence?: number | null; userAnswer?: string; agreed?: boolean | null;
+  attempts?: number;
   /** what the answer card shows, kept so it survives a restart */
   advice?: Advice;
 };
 type Log = { auto: number; asked: number; log: Decision[] };
 type Example = { q: string; options: string[]; answer: string | string[]; project: string; thread: string; count: number; last: string };
-export type DelegateState = { threadId: string; auto?: boolean; threshold?: number; answersSince?: string; folded?: string };
+export type DelegateState = { threadId: string; auto?: boolean; paused?: boolean; threshold?: number; answersSince?: string; folded?: string };
 
 type Api = {
   pendingRequests(id: string): Promise<PendingRequest[]>;
@@ -43,20 +44,13 @@ type Api = {
 type T3 = { respond(o: { threadId: string; requestId: string; answers?: Record<string, string | string[]>; decision?: string }): Promise<unknown> };
 
 const WAIT_MS = 150_000;       // how long a decision may take before the question comes to you
-const FRESH_MS = 20 * 60_000;  // questions already waiting this long when Lucid sees them stay yours
-const FOLD_EVERY = 5;          // new answers before the orchestrator folds them into memory.md
-
-// Things that are always yours to decide, whatever the orchestrator thinks.
-const NEVER: [RegExp, string][] = [
-  [/\b(pay|paid|payment|purchase|buy|price|pricing|cost|billing|invoice|subscription|subscribe|refund|credit card|wallet|budget|charge)\b|[$€£]\s?\d/i, "money"],
-  [/\b(password|passphrase|passcode|(access|auth|api|bearer|github|npm|refresh|session) ?token|api[ -]?key|secret|credential|ssh key|private key|2fa|otp|oauth|auth code)s?\b/i, "credentials"],
-  [/\b(publish|release|deploy|go live|production|npm publish|git push|push to (main|master|origin|remote)|pull request|merge (the|this|it)|open a pr|create a pr|upload|tweet|post (it|this|publicly))\b/i, "publishing"],
-  [/\b(e-?mail|send (a |the |an )?(message|mail|dm|text|reply|invite)|notify|slack|discord|sms|whatsapp|invite|contact (him|her|them|the))\b/i, "sending messages to people"],
-  [/\b(delete|erase|wipe|drop (table|database)|truncate|destroy|purge|overwrite|irreversible|permanent(ly)?|cannot be undone|can't be undone|force[- ]push|reset --hard|rm -rf)\b/i, "something that cannot be undone"],
-];
-// Commands that change or remove things outside a normal edit: never approved for you.
-const RISKY_COMMAND = /(^|[\s;&|(])(rm|rmdir|rd|del|erase|Remove-Item|mv|move|Move-Item|chmod|chown|icacls|sudo|su|dd|mkfs|format|diskpart|shutdown|reboot|kill|taskkill|Stop-Process|reg|curl|wget|Invoke-WebRequest|iwr|scp|ssh|ftp)(\s|$)|git\s+(push|reset|clean|checkout\s+--|restore|branch\s+-D|rebase|filter-branch|gc|stash\s+(drop|clear))|npm\s+(publish|unpublish)|docker\s+(rm|rmi|prune|system\s+prune)|kubectl\s+delete|\b(drop|delete\s+from|truncate)\b|>\s*[^&|\s]|\|\s*(sh|bash|pwsh|powershell|iex)\b/i;
-const AUTO_APPROVE_KINDS = new Set(["command", "file-read", "file-change"]);
+const RETRY_MS = 30_000;
+const MAX_ATTEMPTS = 3;
+const RESOLVED = Symbol("request resolved");
+const PAUSED = Symbol("orchestrator paused");
+const FOLD_EVERY = 5;
+// Credentials cannot be supplied by a stand-in. Other approvals are judged against the task.
+const CREDENTIALS = /\b(password|passphrase|passcode|(access|auth|api|bearer|github|npm|refresh|session) ?token|api[ -]?key|secret|credential|ssh key|private key|2fa|otp|oauth|auth code)s?\b/i;
 
 const words = (s: string) => new Set(s.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []);
 const clip = (s: string, n: number) => { s = String(s ?? "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
@@ -71,11 +65,7 @@ function textOf(r: PendingRequest) {
 }
 /** Why a request is always yours (null when the orchestrator may answer it). */
 export function alwaysYours(r: PendingRequest): string | null {
-  for (const [re, what] of NEVER) if (re.test(textOf(r))) return `It is about ${what}, so it always comes to you.`;
-  if (r.type === "approval") {
-    if (!AUTO_APPROVE_KINDS.has(r.requestKind)) return "Requests like this always come to you.";
-    if (r.requestKind === "command" && RISKY_COMMAND.test(r.prompt)) return "This command could remove, move or send things, so it always comes to you.";
-  }
+  if (CREDENTIALS.test(textOf(r))) return "Credentials require your input.";
   return null;
 }
 
@@ -88,12 +78,14 @@ export class Delegate {
   private seen = new Set<string>();        // request ids already handled (or left to you)
   private queue: { r: PendingRequest; t: WThread }[] = [];
   private working = false;
+  private activeRequest: string | null = null;
   private learning = false;
   private phases = new Map<string, Phase>();
   private scope = new URLSearchParams(location.search).get("autoScope");
-  private started = Date.now();
   private ready: Promise<void>;
   private projects = new Map<string, string>();
+  private observationFlight: Promise<void> | null = null;
+  private pendingObservation: { threads: WThread[]; projects: { id: string; title: string }[] } | null = null;
 
   constructor(private api: Api, private t3: T3 | undefined, private get: () => DelegateState | null, private set: (patch: Partial<DelegateState>) => void) {
     this.ready = this.api.orchDecisions().then((l) => {
@@ -101,13 +93,15 @@ export class Delegate {
       for (const d of l.log) { this.seen.add(d.requestId); if (d.advice && (d.outcome === "asked" || d.outcome === "failed")) this.advice.set(d.requestId, d.advice); }
       this.onChange();
     }).catch(() => {});
-    window.setInterval(() => void this.learn(), 20_000);
-    window.setTimeout(() => void this.learn(), 8_000);
+    if (!(window as any).lucidRemote) {
+      window.setInterval(() => void this.learn(), 20_000);
+      window.setTimeout(() => void this.learn(), 8_000);
+    }
   }
 
   // only Lucid's own window answers (a page another tool opens with the same build does not)
   private appWindow = new URLSearchParams(location.search).has("app");
-  get on() { const s = this.get(); return this.appWindow && !!s && s.auto !== false; }
+  get on() { const s = this.get(); return !(window as any).lucidRemote && this.appWindow && !!s && s.auto !== false && !s.paused; }
   get threshold() { return this.get()?.threshold ?? 0.8; }
   phaseOf(threadId: string) { return this.phases.get(threadId) ?? null; }
 
@@ -117,7 +111,31 @@ export class Delegate {
   }
 
   /** Called with every world refresh: new questions go to the orchestrator first. */
-  async observe(threads: WThread[], projects: { id: string; title: string }[]) {
+  observe(threads: WThread[], projects: { id: string; title: string }[]): Promise<void> {
+    if ((window as any).lucidRemote) return Promise.resolve();
+    // Refreshes can arrive while T3 is still reading pending requests. Retain
+    // one latest snapshot, without starting overlapping polls or queuing every
+    // stale world behind a slow request.
+    this.pendingObservation = { threads, projects };
+    if (this.observationFlight) return this.observationFlight;
+    const flight = Promise.resolve().then(async () => {
+      try {
+        let failed = false, failure: unknown;
+        while (this.pendingObservation) {
+          const latest = this.pendingObservation;
+          this.pendingObservation = null;
+          try { await this.runObservation(latest.threads, latest.projects); }
+          catch (error) { if (!failed) { failed = true; failure = error; } }
+        }
+        if (failed) throw failure;
+      } finally { if (this.observationFlight === flight) this.observationFlight = null; }
+    });
+    this.observationFlight = flight;
+    return flight;
+  }
+
+  private async runObservation(threads: WThread[], projects: { id: string; title: string }[]) {
+    if ((window as any).lucidRemote) return;
     for (const p of projects) this.projects.set(p.id, p.title);
     const s = this.get();
     if (!s) return;
@@ -127,11 +145,19 @@ export class Delegate {
       let list: PendingRequest[];
       try { list = await this.api.pendingRequests(t.id); } catch { continue; }
       for (const r of list) {
-        if (this.seen.has(r.id) || !r.answerable) continue;
-        this.seen.add(r.id);
+        if (!r.answerable) continue;
+        if (this.seen.has(r.id)) {
+          if (this.activeRequest === r.id || this.queue.some(q => q.r.id === r.id)) continue;
+          const last = this.log.log.find(d => d.requestId === r.id);
+          // Transport failures are retryable; a genuine human decision is not.
+          if (last?.outcome !== "failed" || (last.attempts ?? 1) >= MAX_ATTEMPTS ||
+              Date.now() - Date.parse(last.at) < RETRY_MS) continue;
+          this.seen.delete(r.id);
+        }
         // waiting since before Lucid opened: that one was already yours
-        if (Date.now() - Date.parse(r.at) > FRESH_MS && Date.parse(r.at) < this.started) continue;
+        // Existing requests are part of the backlog too. Pause keeps them available for resume.
         if (!this.on) continue;
+        this.seen.add(r.id);
         this.queue.push({ r, t });
       }
     }
@@ -154,7 +180,9 @@ export class Delegate {
     try {
       while (this.queue.length) {
         const { r, t } = this.queue.shift()!;
+        this.activeRequest = r.id;
         try { await this.decide(r, t); } catch (err) { console.error("orchestrator decision failed", err); }
+        finally { this.activeRequest = null; }
       }
     } finally { this.working = false; }
   }
@@ -168,8 +196,10 @@ export class Delegate {
 
   private async decide(r: PendingRequest, t: WThread) {
     const s = this.get();
-    if (!s || !this.on) return;
-    const base = { requestId: r.id, at: new Date().toISOString(), threadId: t.id, title: t.title, project: this.projects.get(t.projectId) ?? "", questions: clip(r.type === "input" ? r.questions.map((q) => q.question || q.header).join(" / ") : r.prompt || r.requestKind, 200) };
+    if (!s || !this.on) { this.seen.delete(r.id); return; }
+    const orchestratorId = s.threadId;
+    const prior = this.log.log.find(d => d.requestId === r.id);
+    const base = { requestId: r.id, at: new Date().toISOString(), attempts: (prior?.attempts ?? (prior ? 1 : 0)) + 1, threadId: t.id, title: t.title, project: this.projects.get(t.projectId) ?? "", questions: clip(r.type === "input" ? r.questions.map((q) => q.question || q.header).join(" / ") : r.prompt || r.requestKind, 200) };
     // 1. some things are never answered for you; no model call needed
     const rule = alwaysYours(r);
     if (rule) {
@@ -185,20 +215,34 @@ export class Delegate {
       await this.record({ ...base, outcome: "failed", reason, confidence: null });
     };
     let probe;
-    try { probe = await this.api.repliesSince(s.threadId, new Date().toISOString()); } catch { probe = null; }
+    try { probe = await this.api.repliesSince(orchestratorId, prior?.outcome === "failed" ? new Date(Date.parse(prior.at) - 1000).toISOString() : new Date().toISOString()); } catch { probe = null; }
     if (!probe?.exists) return fail("Its thread in T3 is gone, so it could not look at this.");
     const tag = tagOf(r.id);
-    let message: string;
-    try { message = await this.prompt(tag, r, t); } catch { return fail("Lucid could not read this robot's thread."); }
-    this.advice.set(r.id, { state: "deciding", reason: "" });
-    this.phase(t.id, "reading");
-    const since = new Date(Date.now() - 1000).toISOString();
-    try { await this.api.sendMessage({ threadId: s.threadId, message }); } catch { return fail("Lucid could not send the question to it."); }
-    const reply = await this.awaitReply(s.threadId, since, tag);
+    // A timed-out response can arrive later. Consume it before sending another ask.
+    let reply: any = prior?.outcome === "failed" ? [...probe.messages].reverse()
+      .filter(m => !m.streaming).map(m => parseReply(m.text, tag)).find(Boolean) : null;
+    if (!reply) {
+      let message: string;
+      try { message = await this.prompt(tag, r, t); } catch { return fail("Lucid could not read this robot's thread."); }
+      if(!this.on || this.get()?.threadId!==orchestratorId){this.seen.delete(r.id);this.phase(t.id,null);return;}
+      this.advice.set(r.id, { state: "deciding", reason: "" });
+      this.phase(t.id, "reading");
+      const since = new Date(Date.now() - 1000).toISOString();
+      try { await this.api.sendMessage({ threadId: orchestratorId, message }); } catch { return fail("Lucid could not send the question to it."); }
+      reply = await this.awaitReply(orchestratorId, since, tag, {threadId: t.id, id: r.id});
+    }
+    if (reply === PAUSED) { this.seen.delete(r.id); this.advice.delete(r.id); this.phase(t.id, null); return; }
+    if (reply === RESOLVED) {
+      this.advice.delete(r.id); this.phase(t.id, null);
+      await this.record({...base, outcome: "user", reason: "The question was resolved while the orchestrator was waiting."});
+      return;
+    }
     if (typeof reply === "string") return fail(reply);
     // 3. still waiting for an answer? (you may have answered it meanwhile)
     let still: PendingRequest | undefined;
-    try { still = (await this.api.pendingRequests(t.id)).find((x) => x.id === r.id); } catch {}
+    try { still = (await this.api.pendingRequests(t.id)).find((x) => x.id === r.id); }
+    catch { return fail("Lucid could not verify whether this question is still open."); }
+    if (!this.on || this.get()?.threadId !== orchestratorId) { this.seen.delete(r.id); this.phase(t.id, null); return; }
     const verdict = this.judge(r, reply);
     if (!still) {
       this.advice.delete(r.id);
@@ -212,6 +256,7 @@ export class Delegate {
       await this.record({ ...base, outcome: "asked", reason: verdict.reason, confidence: verdict.confidence, suggestion: verdict.answerText });
       return;
     }
+    if (!this.on) { this.seen.delete(r.id); this.phase(t.id, null); return; }
     // 4. sure and safe: send it
     try {
       if (!this.t3) throw new Error("not connected");
@@ -242,7 +287,7 @@ Reply with only this JSON, nothing else, no tools, no file reads:`;
     const robot = `Robot thread: "${clip(ctx.title || t.title, 90)}" in project "${clip(project || "none", 50)}".
 ${ctx.user ? `The user last told it: "${clip(ctx.user, 300)}"\n` : ""}${ctx.robot ? `It last said: "${clip(ctx.robot, 400)}"\n` : ""}`;
     const past = `Past answers by the user that may be related:\n${ranked.join("\n") || "- (none yet)"}`;
-    const rules = `confidence: 0 to 1, how sure you are the user would choose exactly this (below 0.5 when your notes do not cover it). reason: one short line. sensitive: true if it touches money, credentials, publishing, messaging people, deleting data or anything irreversible.`;
+    const rules = `confidence: 0 to 1, how sure you are this follows the user's request and known preferences. You act as the user for routine questions and approvals within their requested task. Consider the actual command, scope and context. reason: one short line. sensitive: true when the request needs credentials, exceeds the user's authorized scope, or creates an external or irreversible consequence the user has not authorized. Do not reject an already authorized action solely because it mentions publishing, cost, or deletion.`;
     if (r.type === "input") {
       const qs = r.questions.map((q, i) => `${i + 1}. ${clip(q.question || q.header, 300)} (${q.multiSelect ? "pick any" : "pick one"}${q.allowCustomAnswer ? ", own words allowed in other" : ""})\n   options: ${q.options.map((o) => `"${clip(o.label, 60)}"${o.description ? ` (${clip(o.description, 80)})` : ""}`).join(", ") || "(none, answer in other)"}`).join("\n");
       return `${head}
@@ -265,22 +310,25 @@ ${past}`;
   }
 
   /** The orchestrator's JSON reply, or a plain reason why there is none. */
-  private async awaitReply(orchId: string, since: string, tag: string): Promise<any | string> {
+  private async awaitReply(orchId: string, since: string, tag: string, request?: {threadId: string; id: string}): Promise<any | string> {
     const end = Date.now() + WAIT_MS;
     let sawRun = false;
     while (Date.now() < end) {
-      await wait(2000);
+      if (!this.on || this.get()?.threadId !== orchId) return PAUSED;
+      if (request) {
+        try { if (!(await this.api.pendingRequests(request.threadId)).some(r => r.id === request.id)) return RESOLVED; } catch { /* A transient read failure does not resolve a question. */ }
+      }
       let st;
-      try { st = await this.api.repliesSince(orchId, since); } catch { continue; }
+      try { st = await this.api.repliesSince(orchId, since); } catch { await wait(2000); continue; }
       if (!st.exists) return "Its thread in T3 is gone.";
       for (const m of [...st.messages].reverse()) {
         if (m.streaming || !m.text.includes(tag)) continue;
         const json = parseReply(m.text, tag);
         if (json) return json;
-        return "Its reply was not in the shape Lucid asked for.";
       }
       if (st.runStatus === "running" || st.runStatus === "queued" || st.runStatus === "starting") sawRun = true;
       else if (sawRun && (st.runStatus === "failed" || st.runStatus === "interrupted" || st.runStatus === "cancelled")) return "Its run in T3 stopped before it answered.";
+      await wait(1000);
     }
     return "It did not answer within two and a half minutes.";
   }
@@ -345,8 +393,9 @@ ${past}`;
   // --- learning from your answers -----------------------------------------------------------
 
   private async learn() {
+    if ((window as any).lucidRemote) return;
     const s = this.get();
-    if (!s || this.learning) return;
+    if (!s || s.paused || this.learning) return;
     this.learning = true;
     try {
       await this.ready;
@@ -389,8 +438,9 @@ ${past}`;
   // Now and then the orchestrator turns your recent answers into lasting notes in memory.md.
   private async fold() {
     const s = this.get();
-    if (!s) return;
+    if (!s || s.paused) return;
     const all = (await this.api.orchAnswers()).examples;
+    if(this.get()?.paused || this.get()?.threadId!==s.threadId)return;
     const since = s.folded ?? "";
     const fresh = all.filter((e) => e.last > since);
     if (fresh.length < FOLD_EVERY) return;
@@ -404,8 +454,13 @@ function num(v: unknown) { const n = Number(v); return Number.isFinite(n) ? Math
 
 /** The JSON object with this tag from a reply that may wrap it in prose or a code fence. */
 export function parseReply(text: string, tag: string): any | null {
-  const at = text.indexOf(tag);
-  for (let start = text.lastIndexOf("{", at); start >= 0; start = text.lastIndexOf("{", start - 1)) {
+  // Search back from the last mention so a prose introduction containing the
+  // request tag cannot hide the JSON answer that follows it.
+  const at = text.lastIndexOf(tag);
+  if (at < 0) return null;
+  // lastIndexOf clamps a negative position to zero. Explicitly finish after
+  // offset zero so an unrelated JSON reply cannot trap the renderer here.
+  for (let start = text.lastIndexOf("{", at); start >= 0; start = start > 0 ? text.lastIndexOf("{", start - 1) : -1) {
     let depth = 0, inStr = false, esc = false;
     for (let i = start; i < text.length; i++) {
       const c = text[i];

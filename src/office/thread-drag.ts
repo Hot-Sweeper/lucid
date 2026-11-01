@@ -12,7 +12,8 @@ const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, 
 const ROW = ".th-row[data-id], .rail-th[data-id]";
 
 export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFor: (id: string) => ThreadRef | null,
-  office?: { hold?(active: boolean): void; zone(x: number, y: number): string | null; preview(room: string | null): void; place(id: string, room: string): boolean }) {
+  office?: { hold?(active: boolean): void; zone(x: number, y: number): string | null; preview(room: string | null): void; place(id: string, room: string): boolean },
+  reorder?: { target(id: string, x: number, y: number): { row: HTMLElement; after: boolean } | null; move(id: string, targetId: string, after: boolean): void }) {
   for (const box of containers) {
     box.addEventListener("pointerdown", (e) => start(e, box));
     // Logos and selected text otherwise start Chromium's native drag, which cancels
@@ -32,6 +33,8 @@ export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFo
     let ghost: HTMLElement | null = null;
     let zone: "box" | "tab" | null = null;
     let officeZone: string | null = null;
+    let orderTarget: { row: HTMLElement; after: boolean } | null = null;
+    const clearOrder = () => { orderTarget?.row.classList.remove("th-drop-before", "th-drop-after"); };
 
     let finished = false;
     // captured from the start, so a quick flick off the row still counts as a drag
@@ -62,13 +65,16 @@ export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFo
       const gx = x + 12 + gw > innerWidth - 8 ? x - gw - 12 : x + 12;   // flips left near the right edge
       gsap.set(ghost!, { x: Math.max(8, gx), y: Math.max(8, y - gh - 10) });
       zone = chat.dropZone(x, y);
-      officeZone = zone ? null : office?.zone(x, y) ?? null;
+      clearOrder();
+      orderTarget = zone ? null : reorder?.target(ref.id, x, y) ?? null;
+      orderTarget?.row.classList.add(orderTarget.after ? "th-drop-after" : "th-drop-before");
+      officeZone = zone || orderTarget ? null : office?.zone(x, y) ?? null;
       office?.preview(officeZone);
       chat.dragOver(ref, zone);
       const note = ghost!.querySelector("em") as HTMLElement;
-      const say = officeZone ? "Move thread to this office" : zone ? "" : "Drop in an office to move it, or in chat to reference it";
+      const say = orderTarget ? "Move thread here" : officeZone ? "Move thread to this office" : zone ? "" : "Drop in the list to reorder, in an office to move, or in chat to reference";
       if (note.textContent !== say) note.textContent = say;
-      ghost!.classList.toggle("over", !!zone || !!officeZone);
+      ghost!.classList.toggle("over", !!zone || !!officeZone || !!orderTarget);
     };
 
     const onMove = (ev: PointerEvent) => {
@@ -81,6 +87,7 @@ export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFo
     };
 
     const cleanup = () => {
+      clearOrder();
       finished = true;
       row.removeEventListener("pointermove", onMove);
       row.removeEventListener("pointerup", onUp);
@@ -116,6 +123,11 @@ export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFo
       cleanup();
       if (!g) return;   // a plain click
       eatClick();
+      if (orderTarget) {
+        reorder?.move(ref.id, orderTarget.row.dataset.id!, orderTarget.after);
+        g.remove();
+        return;
+      }
       if (room && office?.place(ref.id, room)) {
         gsap.to(g, { opacity: 0, scale: 0.8, duration: 0.2, onComplete: () => g.remove() });
         return;

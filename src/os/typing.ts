@@ -7,17 +7,18 @@ export const el = (html: string) => { const t = document.createElement("template
 // Typing helper: types text into a target, char by char, faster for long text.
 export async function typeInto(wm: WM, target: HTMLElement, text: string, opts: { cps?: number; budgetMs?: number; render?: (s: string) => string } = {}) {
   const e = wm.epoch;
+  await wm.waitForOperator(e);
   const budget = opts.budgetMs ?? 1600;
   const cps = Math.max(opts.cps ?? 38, text.length / (budget / 1000));
   const render = opts.render ?? esc;
   wm.robot.setTyping(true);
   let shown = 0;
-  const start = performance.now();
+  const start = wm.presentationTime;
   try {
     while (shown < text.length) {
       await presentationFrame(target);
-      wm.check(e);
-      const elapsed = (performance.now() - start) * wm.speed;
+      await wm.waitForOperator(e);
+      const elapsed = (wm.presentationTime - start) * wm.speed;
       const jitter = 0.85 + Math.random() * 0.3;
       const next = Math.min(text.length, Math.max(shown, Math.floor((elapsed / 1000) * cps * jitter)));
       if (next !== shown) {

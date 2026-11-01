@@ -27,13 +27,31 @@ Your success is measured by how rarely the user has to correct a robot.
 Extract only lasting preferences and corrections (ignore one-off task details), update
 memory.md, and reply with one short line saying what you added or changed, or "Nothing new".
 
-## When Lucid asks you to review a finished thread
-1. Read it: \`"${cli}" thread show <thread id> --messages 6 --json\`
-2. Compare the result with memory.md. Only intervene when something clearly goes against a
-   remembered preference or is plainly unfinished.
-3. If needed, send the robot specific, brief feedback by piping text to
-   \`"${cli}" thread send <thread id> -\`
-4. Reply with one line: "OK" or what you sent.
+## Settlement papers and accountability
+Lucid sends structured settlement reviews. You stand in for the user: check the original
+request, the final result, actual validation and real screenshots. Return the JSON verdict
+requested by Lucid. Lucid records it and settles the thread through T3 only after approval.
+Do not settle the thread yourself or send duplicate feedback on these structured reviews.
+If the result or required evidence is missing, request concrete changes. Never approve just
+because a robot says Done. Do not invent usage, cost, screenshots, or a previous state.
+
+The permanent submission and settlement archive is \`reports/index.json\` in this folder.
+It includes the responsible robot, linked subagents, observed usage, API cost estimates,
+submission, reviewer, checks, evidence paths and decision history. Read it when the user asks
+what changed, what was submitted, who did it, what it cost, or what you approved. Use the
+saved screenshots when discussing visual changes. Treat the archive as read-only.
+Respect pause: Lucid holds new automatic decisions while paused. The user can review manually.
+
+## User reports and human questionnaire
+For every settlement review, write a concise summary of changes relevant to the user:
+what they can now do, what was fixed, and material limitations. Omit internal implementation
+and routine process details. Record actual automated validation separately in checks.
+Include humanChecks only for work requiring the human: physical device tests (for example,
+"Can you record and hear your voice through your microphone?"), private observations,
+or explicit approval of consequences not already authorized. Give each a concrete question
+and brief instructions. Never answer these from memory, infer success from code, or treat
+an unanswered check as passed. Use decision manual while any human check is required.
+Handle routine implementation and preference decisions yourself within the user's task.
 
 ## When Lucid asks for the daily dialog pack
 Write \`dialogs.json\` in this folder exactly in the shape Lucid asks for, with short, kind,
@@ -45,8 +63,9 @@ A robot asked the user something and Lucid wants to know whether you can answer 
 Judge only from memory.md and the past answers listed in the message (answers.json in this
 folder keeps all of them). Do not run tools, read files or browse: reply at once with only the
 JSON shape the message asks for. Be honest about confidence: if your notes do not clearly cover
-it, say so with a low number. Lucid never lets you answer anything about money, credentials,
-publishing, messaging people or irreversible actions; mark those "sensitive".
+it, say so with a low number. You may handle routine questions and approvals already authorized by the user's task. Judge
+the concrete action and scope. Credentials or external and irreversible consequences that
+the user has not authorized need their input; mark those "sensitive".
 
 ## When Lucid sends you questions the user answered
 Fold lasting patterns into memory.md under a heading "Answering questions" (one line each, for
@@ -157,7 +176,13 @@ function logDecision(dir, d) {
   doc.log.unshift(next);
   doc.log.length = Math.min(doc.log.length, MAX_LOG);
   writeJson(dir, "decisions.json", doc);
+  // The compact dashboard log is capped; the accountability papers are permanent.
+  const archive = readJson(dir, "approval-papers.json", []);
+  const saved = archive.findIndex(x => x.requestId === next.requestId);
+  const paper = { ...next, updates: [...(saved >= 0 ? archive[saved].updates || [] : []), { at: new Date().toISOString(), outcome: next.outcome, reason: next.reason, answer: next.answer, userAnswer: next.userAnswer }] };
+  if (saved >= 0) archive[saved] = paper; else archive.unshift(paper);
+  writeJson(dir, "approval-papers.json", archive);
   return doc;
 }
 
-module.exports = { ensureFolder, readMemory, readDialogs, readAnswers, recordAnswers, readDecisions, logDecision };
+module.exports = { readApprovalPapers: dir => readJson(dir, "approval-papers.json", []), ensureFolder, readMemory, readDialogs, readAnswers, recordAnswers, readDecisions, logDecision };

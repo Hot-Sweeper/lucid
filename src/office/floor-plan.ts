@@ -12,17 +12,25 @@ export type OfficePlan = {
   hallY: number;
 };
 
-export function officePlan(top: PlanRoom[], offices: PlanRoom[], hall = 150, gap = 40): OfficePlan {
+export function officePlan(top: PlanRoom[], offices: PlanRoom[], hall = 150, gap = 40, minimumTopH = 0): OfficePlan {
   const rooms = new Map<string, PlanRect>();
-  const topH = Math.max(0, ...top.map((r) => r.h));
+  const topH = Math.max(0, minimumTopH, ...top.map((r) => r.h));
   let topW = 0;
   for (const r of top) { rooms.set(r.id, { x: topW, y: topH - r.h, w: r.w, h: r.h }); topW += r.w + gap; }
   topW = Math.max(0, topW - gap);
-  const columns = Array.from({ length: Math.min(3, offices.length) }, () => ({ x: 0, w: 0, bottom: topH }));
-  offices.forEach((r, i) => { const c = columns[i % columns.length]; c.w = Math.max(c.w, r.w); });
-  let right = 0;
-  for (const c of columns) { c.x = right; right += c.w + hall; }
-  const width = Math.max(topW, right);
+  // Choose the column count from actual room dimensions. A fixed three-column
+  // tail leaves most of a wide service wing empty and makes quiet offices distant.
+  const candidate = (count: number) => {
+    const columns = Array.from({ length: count }, () => ({ x: 0, w: 0, bottom: topH }));
+    offices.forEach((r, i) => { const c = columns[i % count]; c.w = Math.max(c.w, r.w); c.bottom += hall + r.h; });
+    let right = 0;
+    for (const c of columns) { c.x = right; right += c.w + hall; }
+    const width = Math.max(topW, right), height = Math.max(topH + hall, ...columns.map(c => c.bottom));
+    return { columns, width, score: Math.max(width / 1.65, height) ** 2 + width * height * .2 };
+  };
+  const choices = Array.from({ length: Math.max(1, Math.min(8, offices.length)) }, (_, i) => candidate(offices.length ? i + 1 : 0));
+  const { columns, width } = choices.reduce((best, c) => c.score < best.score ? c : best);
+  for (const c of columns) c.bottom = topH;
   const halls: HallStrip[] = [{ x: 0, y: topH, w: width, h: hall, axis: "x", column: null }];
   offices.forEach((r, i) => {
     const column = i % columns.length, c = columns[column];
@@ -43,31 +51,40 @@ const contains = (r: PlanRect, p: PlanPoint) => p.x >= r.x && p.x <= r.x + r.w &
 export const inHall = (plan: OfficePlan, p: PlanPoint) => plan.halls.some((r) => contains(r, p));
 
 type HallAnchor = { column: number | null; points: PlanPoint[]; join: PlanPoint };
-function anchor(plan: OfficePlan, p: PlanPoint): HallAnchor | null {
+// A stable preference uses the hall width without moving the door endpoints.
+export function hallPreference(id: string): PlanPoint {
+  let hash = 2166136261;
+  for (let i = 0; i < id.length; i++) hash = Math.imul(hash ^ id.charCodeAt(i), 16777619);
+  return { x: ((hash >>> 0) % 1009) / 504 - 1, y: ((hash >>> 12) % 1013) / 506 - 1 };
+}
+function anchor(plan: OfficePlan, p: PlanPoint, preference: PlanPoint): HallAnchor | null {
+  const across = (start: number, width: number, bias: number) => start + width / 2 + Math.max(-1, Math.min(1, bias)) * Math.max(0, width / 2 - 30);
   const primary = plan.halls[0];
   if (primary && contains(primary, p)) {
-    const join = { x: p.x, y: plan.hallY };
+    const join = { x: p.x, y: across(primary.y, primary.h, preference.y) };
     return { column: null, points: [join], join };
   }
   const spine = plan.halls.find((r) => r.axis === "y" && contains(r, p));
   if (spine) {
-    const join = { x: spine.x + spine.w / 2, y: p.y };
+    const join = { x: across(spine.x, spine.w, preference.x), y: p.y };
     return { column: spine.column, points: [join], join };
   }
   const branch = plan.halls.find((r) => r.axis === "x" && contains(r, p));
   if (!branch) return null;
   const trunk = plan.halls.find((r) => r.axis === "y" && r.column === branch.column)!;
-  const join = { x: trunk.x + trunk.w / 2, y: branch.y + branch.h / 2 };
+  const join = { x: across(trunk.x, trunk.w, preference.x), y: across(branch.y, branch.h, preference.y) };
   return { column: branch.column, points: [{ x: p.x, y: join.y }, join], join };
 }
 
-// Shortest route on the corridor tree. Returned legs stay on physical hall floor.
+// Route on the corridor tree with a preferred position across each strip. Returned legs stay on physical hall floor.
 // A point outside that floor has no route; callers wait/replan instead of cutting walls.
-export function hallRoute(plan: OfficePlan, from: PlanPoint, to: PlanPoint): PlanPoint[] | null {
-  const a = anchor(plan, from), b = anchor(plan, to);
+export function hallRoute(plan: OfficePlan, from: PlanPoint, to: PlanPoint, preference: PlanPoint = { x: 0, y: 0 }): PlanPoint[] | null {
+  const a = anchor(plan, from, preference), b = anchor(plan, to, preference);
   if (!a || !b) return null;
+  const primary = plan.halls[0];
+  const hallY = primary.y + primary.h / 2 + Math.max(-1, Math.min(1, preference.y)) * Math.max(0, primary.h / 2 - 30);
   const points = [from, ...a.points];
-  if (a.column !== b.column || a.column === null) points.push({ x: a.join.x, y: plan.hallY }, { x: b.join.x, y: plan.hallY });
+  if (a.column !== b.column || a.column === null) points.push({ x: a.join.x, y: hallY }, { x: b.join.x, y: hallY });
   points.push(...b.points.toReversed(), to);
   const result: PlanPoint[] = [];
   for (const p of points) {

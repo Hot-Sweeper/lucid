@@ -1,8 +1,18 @@
 import { mountPerformancePanel } from "./office/performance";
+import { showReport, showReportArchive } from "./office/report";
+import { companionClient, readCompanionState, installCompanionOwner } from "./remote-client";
+import { CoinRewards } from "./office/coin-rewards";
+import { formatCoins } from "./office/coin-ledger";
+import { gameSound } from "./office/sound";
+import { OfficeSoundscape } from "./office/soundscape";
+import { mountLanguageSetting } from "./office/language";
+import { openManagers } from "./office/managers";
 import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import "./styles.css";
 import { beginSystem, endSystem } from "./perf/metrics";
+import { renderFps, onRenderWake } from "./perf/render";
+import { mobileStartRoom } from "./office/mobile-start";
 import "./office/office.css";
 import "./office/panels.css";
 import "./world/world.css";
@@ -10,17 +20,20 @@ import "./decor/decor.css";
 import { openDecorate, type RoomTheme } from "./office/decorate";
 import { TopDownRobot } from "./world/seated";
 import { BreakRoom } from "./world/breakroom";
+import { ChargingRoom } from "./world/charging";
 import { QuestionLine } from "./world/queue";
 import { useRobot } from "./office/desk";
 import gsap from "gsap";
 import { World, type Room, type WorldData } from "./office/world";
 import { ChatPanel } from "./office/chat-panel";
 import { AnswerCard } from "./office/answer";
+import { MonitorTasks, sharedPendingRequests } from "./office/monitor-tasks";
 import { Delegate, showDecisions } from "./office/delegate";
 import { showMenu, confirmDialog } from "./office/menus";
 import { openHire, BUILTIN_ROLES, type Role } from "./office/hire";
 import { openCustomizeFor } from "./office/customize";
 import { Orchestrator, type OrchState } from "./office/orchestrator";
+import { openOrchestratorControls } from "./office/orchestrator-controls";
 import { progress } from "./office/progress";
 import { mountStats } from "./stats/stats";
 import { mountEnvironments } from "./office/environments";
@@ -40,6 +53,8 @@ import type { ThreadRef } from "./office/thread-ref";
 import { foldButton, foldSection, setRail } from "./office/sidebar";
 import openaiLogo from "./assets/openai.svg";
 import claudeLogo from "./assets/claude.svg";
+import { mountMobileShell } from "./mobile";
+import { mountMobileAccess } from "./office/mobile-access";
 
 declare global {
   interface Window {
@@ -59,14 +74,14 @@ declare global {
       conversation(id: string): Promise<any[]>;
       attachDir(): Promise<string>;
       watchSet(ids: string[]): Promise<boolean>;
-      startThread(o: { project: string; message: string; provider?: string; model?: string }): Promise<{ threadId: string }>;
+      startThread(o: { project: string; message: string; provider?: string; model?: string; options?: Record<string, string | boolean>; requestId?: string; contextThreadId?: string }): Promise<{ threadId: string }>;
       sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
       peek(url: string): Promise<any>;
       image(path: string): Promise<string | null>;
       readText(path: string): Promise<string | null>;
       onItems(fn: (p: { threadId: string; items: any[]; initial: boolean }) => void): () => void;
       onInfo(fn: (p: { threadId: string; info: ThreadInfo }) => void): () => void;
-      checkUpdate(): Promise<{ available: boolean; behind?: number; local?: number; legacy?: boolean; files?: string[]; changes?: string[]; reason?: string }>;
+      checkUpdate(): Promise<{ available: boolean; behind?: number; local?: number; legacy?: boolean; changes?: string[]; files?: string[]; reason?: string }>;
       applyUpdate(): Promise<{ ok: boolean; error?: string; kind?: string; details?: string }>;
       onUpdateStep(fn: (s: string) => void): () => void;
       version(): Promise<string>;
@@ -81,7 +96,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 document.getElementById("app")!.innerHTML = `
   <aside class="panel" id="side-panel">
     <header class="brand"><span class="mark" aria-hidden="true"></span><h1>Lucid</h1><button type="button" class="wx" id="wx" hidden aria-haspopup="menu"></button>
-      <button class="update" id="update" type="button" hidden>Update</button>
+      <button class="update" id="update" type="button" title="Check for game updates">Check updates</button>
       <button type="button" class="side-hide" id="side-hide" aria-expanded="true" aria-controls="side-panel" aria-label="Hide sidebar" title="Hide sidebar: it folds into a rail on the left (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M9.5 4L5.5 8l4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Hide<span class="sh-more"> sidebar</span></span></button>
     </header>
 
@@ -109,8 +124,8 @@ document.getElementById("app")!.innerHTML = `
     </section>
 
     <section class="usage" id="usage">
-      <div class="sec-head"><h3>Usage</h3>${foldButton("usage", "usage")}</div>
-      <div class="fold-body" id="fold-usage"><div id="usage-body"></div></div>
+      <div class="sec-head"><h3>Subscriptions</h3>${foldButton("subscriptions", "subscription usage")}</div>
+      <div class="fold-body" id="fold-subscriptions"><div id="usage-body"></div></div>
     </section>
 
     <section class="orch" id="orch">
@@ -133,32 +148,65 @@ document.getElementById("app")!.innerHTML = `
     <ol class="rail-list" id="rail-list" aria-label="Threads"></ol>
   </nav>
   <main class="scene" id="scene"></main>
-  <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button></div>`;
+  <section class="orch-power" aria-label="Global orchestrator controls">
+    <label class="switch orch-power-switch"><span>Orchestrator</span><input type="checkbox" id="orch-power-toggle" role="switch" aria-label="Orchestrator enabled" disabled><span class="track" aria-hidden="true"><i></i></span><b id="orch-power-status">Off</b></label>
+    <button type="button" class="link-btn" id="orch-controls-open" aria-label="Orchestrator settings">Settings</button>
+  </section>
+  <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button><button type="button" id="coin-bank" aria-label="Coin balance. Open shop">${coinIcon(18)}<b id="coin-bank-bal">0</b></button><button type="button" id="game-sound" aria-pressed="true">Sound on</button></div>`;
 
 // Keep threads in front and put occasional office controls behind one disclosure.
 const extras = document.createElement("details");
 extras.className = "sidebar-extras";
 extras.innerHTML = '<summary>Office & tools</summary><div class="sidebar-extras-body"></div>';
 const extrasBody = extras.querySelector("div")!;
+mountLanguageSetting(extrasBody);
 mountPerformancePanel(extrasBody);
-for (const selector of ["#environment-body", ".rooms", "#orch", "#usage", "#company", "#wallet"]) {
+mountMobileAccess(extrasBody, api as any);
+for (const selector of ["#environment-body", ".rooms", "#orch", "#company", "#wallet"]) {
   const section = document.querySelector(selector);
   if (section) extrasBody.appendChild(section);
 }
 $("side-panel").appendChild(extras);
+$("side-panel").appendChild($("usage"));
 
 // robots in the original design, plus the break room and the question line
 useRobot((host, rig) => new TopDownRobot(host, rig));
 const world = new World($("scene"), { peek: (u) => api.peek(u), image: (p) => api.image(p), readText: (p) => api.readText(p) });
+window.addEventListener('lucid:mobile-view', () => world.refreshPresentation());
 world.extFactory.break = (h, w, hh) => new BreakRoom(h, w, hh);
+world.extFactory.charging = (h, w, hh) => new ChargingRoom(h, w, hh);
 world.extFactory.queue = (h, w, hh) => new QuestionLine(h, w, hh);
 let selectedDesk: Desk | null = null;
+let coinRewards: CoinRewards | null = null;
 (window as any).__world = world; // debug handle for test runs
 const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), conversationPage: (id, options) => (api as any).conversationPage(id, options), sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), t3: (window as any).lucidT3 });
+function manageRobot(threadId: string | null, projectId: string | null = null) {
+  if (!world.lastData) return;
+  openManagers(world.lastData, threadId, projectId, {
+    update: o => (window as any).lucidT3.manager(o),
+    suggest: o => (window as any).lucidT3.managerSuggest(o),
+    robotName: id => world.roster.byThread(id)?.name,
+    refresh,
+  });
+}
+chat.onManage = id => manageRobot(id);
 // the sidebar and the chat are columns beside the scene, so the camera always fits what is left (see World)
 world.onFocus = (d) => { if (d) { world.revealThread(d.threadId); chat.open(d); chat.setView(world.focusMode); pushStatus(d); } else { chat.setCollapsed(true); } };
 // a robot's question, answered from its chat (see openAnswer)
-const answer = new AnswerCard(chat, { pending: (id) => (window as any).lucid.pendingRequests(id), t3: (window as any).lucidT3, advice: (rid) => delegate.advice.get(rid) ?? null });
+const answerDeps = { pending: sharedPendingRequests((id) => (window as any).lucid.pendingRequests(id)), t3: (window as any).lucidT3, advice: (rid: string) => delegate.advice.get(rid) ?? null };
+const answer = new AnswerCard(chat, answerDeps);
+const monitorTasks = new MonitorTasks(world, {
+  answer: answerDeps,
+  read: id => world.onFollowChat(id),
+  close: id => {
+    if (chat.threadId === id) chat.close();
+    if (world.focusDesk?.threadId === id) { world.unfocus(); world.revealThread(null); }
+    $("th-list").querySelector<HTMLButtonElement>(`[data-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
+  },
+  reward: id => coinRewards ? wallet.rewards.find(r => r.id === id)?.amount.toFixed(2).replace(/\.00$/, '') ?? null : null,
+  collect: (id, from) => coinRewards?.collect(id, from),
+});
+(window as any).__monitorTasks = monitorTasks;
 (window as any).__answer = answer; // isolated answer-form fixture handle
 // a chat opened without a desk (questions room, follow chip) closes itself
 chat.onClose = () => { chat.close(); world.unfocus(); world.revealThread(null); };
@@ -208,13 +256,16 @@ world.onRooms = (rooms: Room[]) => {
         ${r.icon ? `<img src="${esc(r.icon)}" alt="">` : `<span class="dot ${r.kind}"></span>`}
         <span class="rt">${esc(r.title)}</span><span class="rc">${r.threadIds.length || ""}</span>
       </button>
-      ${office ? `<button type="button" class="room-fold" data-fold-room="${esc(r.id)}" aria-pressed="${!!pin}" aria-label="${pin ? "Auto-size" : "Keep open"} ${esc(r.title)}" title="${pin ? "Auto-size office. Active work stays visible." : "Keep office open"}">${pin ? "Auto" : r.collapsed ? "Open" : "Keep"}</button>` : ""}
+      ${office ? `<button type="button" class="room-fold" data-fold-room="${esc(r.id)}" aria-pressed="${!!pin}" aria-label="${pin ? "Collapse" : "Expand"} ${esc(r.title)}" title="${pin ? "Collapse office" : "Expand office"}">${pin ? "Collapse" : "Expand"}</button>` : ""}
     </li>`;
   }).join("");
   if (list.dataset.html !== html) {
     const focused = document.activeElement as HTMLElement | null;
     const key = focused && list.contains(focused) ? { room: focused.dataset.room, grip: focused.dataset.roomId, fold: focused.dataset.foldRoom } : null;
     list.innerHTML = html; list.dataset.html = html;
+    if (companionClient()) for (const button of list.querySelectorAll<HTMLButtonElement>('.room-grab, .room-fold')) {
+      button.disabled = true; button.title = 'Arrange offices on the computer.';
+    }
     if (key) {
       const selector = key.room ? `[data-room="${CSS.escape(key.room)}"]` : key.grip ? `.room-grab[data-room-id="${CSS.escape(key.grip)}"]` : key.fold ? `[data-fold-room="${CSS.escape(key.fold)}"]` : "";
       if (selector) list.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
@@ -240,7 +291,7 @@ $("room-list").addEventListener("contextmenu", (e) => {
   if (!room || !["main", "project", "freelance"].includes(room.kind)) return;
   e.preventDefault(); world.onRoomMenu(room, e.clientX, e.clientY);
 });
-wireRoomDrag({ scene: $("scene"), list: $("room-list"), rooms: () => world.orderRooms(world.rooms.filter((r) => movableRoom(r.id))),
+if (!companionClient()) wireRoomDrag({ scene: $("scene"), list: $("room-list"), rooms: () => world.orderRooms(world.rooms.filter((r) => movableRoom(r.id))),
   hold: (active) => { if (active) world.stopCameraMotion(); world.setLayoutHeld(active); }, reorder: (id, before) => world.reorderRoom(id, before) });
 $("overview").addEventListener("click", () => world.overview());
 $("park").addEventListener("click", () => world.showPark());
@@ -300,9 +351,9 @@ $("back-btn").addEventListener("click", () => world.unfocus());
 
 
 // --- live data -------------------------------------------------------------------------
-api.onItems(({ threadId, items, initial }) => { world.deskFor(threadId)?.director.push(items, initial); chat.ping(threadId); answer.ping(threadId); });
+api.onItems(({ threadId, items, initial }) => { world.activityDeskFor(threadId)?.director.push(items, initial); chat.ping(threadId); answer.ping(threadId); });
 api.onInfo(({ threadId, info }) => {
-  const d = world.deskFor(threadId);
+  const d = world.activityDeskFor(threadId);
   if (info.error) return;
   if (d) {
     d.setInfo(info);
@@ -315,38 +366,151 @@ api.onInfo(({ threadId, info }) => {
 });
 
 let watched = "";
-let firstLoad = true;
-async function refresh() {
+let companionRevisions: Record<string, string> = {};
+let watchTimer = 0, watchBusy = false, watchAgain = false;
+world.onCampusChange = () => { void syncWatches(); };
+function desiredWatches() {
+  const companion = companionClient();
+  const office = !document.hidden && !world.scene.inert;
+  const ids = companion
+    ? office ? [...world.desks].filter(([, desk]) => renderFps(desk.screen) > 0).map(([id]) => id) : []
+    : world.campusDesks.map(row => row.id);
+  if (world.orchThread && (!companion || office)) ids.push(world.orchThread);
+  if (chat.threadId && (!companion || !document.hidden && chat.isOpen && !chat.collapsed && !chat.el.inert)) ids.push(chat.threadId);
+  return [...new Set(ids)].sort();
+}
+function scheduleWatchSync() {
+  if (!companionClient() || watchTimer) return;
+  watchTimer = window.setTimeout(() => { watchTimer = 0; void syncWatches(); }, 120);
+}
+async function syncWatches() {
+  if (watchBusy) { watchAgain = true; return; }
+  if (switchingBuilding) return;
+  const ids = desiredWatches(), key = ids.join(',');
+  if (key === watched) return;
+  const epoch = buildingEpoch;
+  watchBusy = true;
   try {
-    const data = await api.world();
+    if (await api.watchSet(ids) && epoch === buildingEpoch) watched = key;
+  } catch (error) { console.error('Thread watch refresh failed', error); }
+  finally { watchBusy = false; if (watchAgain || epoch !== buildingEpoch) { watchAgain = false; scheduleWatchSync(); } }
+}
+if (companionClient()) {
+  const stopWatchWake = onRenderWake(scheduleWatchSync);
+  window.addEventListener('lucid:mobile-view', scheduleWatchSync);
+  document.addEventListener('visibilitychange', scheduleWatchSync);
+  window.addEventListener('pagehide', (event) => {
+    if (event.persisted) return;
+    clearTimeout(watchTimer); stopWatchWake();
+    window.removeEventListener('lucid:mobile-view', scheduleWatchSync);
+    document.removeEventListener('visibilitychange', scheduleWatchSync);
+  });
+}
+let firstLoad = true;
+let refreshBusy = false;
+let refreshQueued = false;
+let tasksBusy = false, tasksQueued = false;
+let buildingEpoch = 0, switchingBuilding = false;
+let currentEnvironment: string | undefined;
+const buildingCameras = new Map<string, { x: number; y: number; s: number }>();
+async function refreshTasks() {
+  if (switchingBuilding) return;
+  if (tasksBusy) { tasksQueued = true; return; }
+  const epoch = buildingEpoch, environment = currentEnvironment;
+  tasksBusy = true;
+  try {
+    const tasks = await api.tasks();
+    if (!switchingBuilding && epoch === buildingEpoch && environment === currentEnvironment) todo.update(tasks);
+  } catch (err) { console.error("to-do list failed", err); }
+  finally {
+    tasksBusy = false;
+    if (tasksQueued) { tasksQueued = false; void refreshTasks(); }
+  }
+}
+async function refresh() {
+  if (companionClient() && document.hidden) return;
+  if (switchingBuilding) return;
+  if (refreshBusy) { refreshQueued = true; return; }
+  const epoch = buildingEpoch, environment = currentEnvironment;
+  const current = () => !switchingBuilding && epoch === buildingEpoch && environment === currentEnvironment;
+  refreshBusy = true;
+  try {
+    const frame = companionClient() && (api as any).remoteFrame
+      ? await (api as any).remoteFrame({ known: companionRevisions }) as { state?: { settings: string; roster: string }; world?: WorldData; tasks?: RawTask[]; revisions: Record<string, string> }
+      : null;
+    const companion = frame ? frame.state : await readCompanionState();
+    if (!current()) return;
+    if (companion) {
+      world.roster.replaceSnapshot(companion.roster);
+      const shared = JSON.parse(companion.settings);
+      for (const key of ['orch', 'wallet', 'roles', 'level', 'milestones', 'themes', 'hidden', 'extra', 'homes', 'seats', 'expandedRooms', 'collapsedRooms', 'roomOrder', 'buildingLayouts'] as const) (settings as any)[key] = shared[key];
+      world.hidden = new Set(settings.hidden ?? []);
+      world.roomOrder = settings.roomOrder ?? [];
+      world.expandedRooms = new Set(settings.expandedRooms ?? []);
+      world.collapsedRooms = new Set(settings.collapsedRooms ?? []);
+      world.extra = new Map(Object.entries(settings.extra ?? {}));
+      world.themes = new Map(Object.entries(settings.themes ?? {}));
+      world.homes = new Map(Object.entries(settings.homes ?? {}));
+      world.seats = new Map(Object.entries(settings.seats ?? {}));
+      world.restoreLayouts(settings.buildingLayouts ?? {});
+      renderOrch();
+    }
+    const data = frame ? frame.world ?? world.lastData : await api.world();
+    if (!current() || !data || data.environmentId !== environment) return;
+    if (frame) {
+      companionRevisions = frame.revisions;
+      if (frame.tasks) todo.update(frame.tasks);
+      if (!frame.world && !frame.state && !world.needsRefresh) { scheduleWatchSync(); return; }
+    }
+    if (!data.environmentId) {
+      // Supervision can wait on external tools. It must never hold the office
+      // snapshot, camera or refresh loop hostage to a slow review request.
+      void orch.observe(data.threads);
+      void delegate.observe(data.threads, data.projects).catch(error => console.error('Question refresh failed', error));
+    }
+    monitorTasks.prepare(data);
+    coinRewards?.prepare(data);
     for (const p of data.projects) projectTitles.set(p.id, p.title);
-    orch.observe(data.threads);
-    void delegate.observe(data.threads, data.projects);
     renderCompany(data.shipped ?? { total: 0, today: 0 });
-    if (settings.orch) world.orchThread = settings.orch.threadId;
+    world.orchThread = data.environmentId ? '' : settings.orch?.threadId || '';
     world.update(data);
-    void api.tasks().then((t) => todo.update(t)).catch((err) => console.error("to-do list failed", err));
+    if (!document.hidden) renderThreads();
+    if (companionClient()) for (const button of world.scene.querySelectorAll<HTMLButtonElement>('.add-desk')) {
+      button.disabled = true; button.title = 'Add desks on the computer. Use the office menu to start work.';
+    }
+    coinRewards?.render();
+    monitorTasks.sync();
+    const selected = data.threads.find(t => t.id === chat.threadId);
+    chat.setManager(selected?.pinned ? `${data.projects.find(p => p.id === (selected.manager?.projectId || selected.projectId))?.title || 'Project'} manager${selected.manager?.role ? `: ${selected.manager.role}` : ''}` : null);
+    if (!frame) void refreshTasks();
     for (const d of world.desks.values()) {
       d.onActivity = (t) => { if (d.threadId === chat.threadId) pushStatus(d); if (d === selectedDesk) { const a = $("focus-activity"); if (a.textContent !== t) { a.textContent = t; gsap.fromTo(a, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.3 }); } } };
     }
-    const ids = [...new Set([...world.desks.keys(), ...(world.orchThread ? [world.orchThread] : []), ...(chat.threadId ? [chat.threadId] : [])])].sort();
-    const key = ids.join(",");
-    if (key !== watched) { watched = key; await api.watchSet(ids); }
+    void syncWatches();
     if (firstLoad) {
       firstLoad = false;
       const want = new URLSearchParams(location.search).get("thread");
       const d = want ? world.deskFor(want) : null;
-      if (d) { world.select(d); requestAnimationFrame(() => world.showDesk(d)); }
-      else requestAnimationFrame(() => world.overview());
+      if (d) { world.select(d); requestAnimationFrame(() => { if (current()) world.showDesk(d); }); }
+      else requestAnimationFrame(() => {
+        if (!current()) return;
+        const room = appEl.classList.contains('mobile-layout') ? mobileStartRoom(world.rooms, data.threads, new URLSearchParams(location.search).get('project')) : null;
+        if (room) world.showRoom(room); else world.overview();
+      });
     }
   } catch (err) {
     console.error("world refresh failed", err, String((err as any)?.stack || "").split("\n").slice(1, 3).join(" < "));
+  } finally {
+    refreshBusy = false;
+    // Coalesce actions made during a refresh into one immediate follow-up.
+    if (refreshQueued) { refreshQueued = false; void refresh(); }
   }
 }
 
 // --- office and desk options -------------------------------------------------------------
 function setupMenus() {
   world.onAddDesk = (room) => {
+    if (companionClient()) return;
     world.setRoomExpanded(room, true);
     world.extra.set(room, (world.extra.get(room) ?? 0) + 1);
     world.seats.get(room)?.push(null);
@@ -354,6 +518,7 @@ function setupMenus() {
     void refresh();
   };
   world.onFreeDeskMenu = (d, slot, x, y) => {
+    if (companionClient()) { world.onFreeDesk(d, slot, x, y); return; }
     const room = slot.split("#")[0];
     const extra = world.extra.get(room) ?? 0;
     showMenu(x, y, room === "main" ? "Drag a thread here from the sidebar" : "Free desk", [
@@ -366,31 +531,56 @@ function setupMenus() {
       } }] : []),
     ]);
   };
-  world.onFreeDesk = (_d, slot, _x, _y) => {
-    const [room, idx] = slot.split("#");
-    if (room === "main") { showMenu(_x, _y, "Drag a thread here from the sidebar", []); return; }
+  const hireForOffice = (room: string, idx: number, intent?: "thread" | "delegate") => {
+    let companionLaunch: { requestId: string; signature: string; resuming: boolean; threadId?: string } | null = null;
     const data = world.lastData;
     if (!data) return;
     const r = world.rooms.find((q) => q.id === room);
-    const settled = new Set(data.threads.filter((t) => t.settled).map((t) => t.id));
     const scratch = data.projects.find((p) => p.scratch);
     const projectId = room.startsWith("p:") ? room.slice(2) : room === "freelance" ? scratch?.id ?? "" : "";
     const real = data.projects.filter((p) => !p.scratch && !world.hidden.has(p.id) && p.id !== settings.orch?.projectId);
+    const freeTeam = () => {
+      const latest = world.lastData ?? data;
+      const settledNow = new Set(latest.threads.filter(t => t.settled && !t.pinned).map(t => t.id));
+      return world.roster.freeTeam(settledNow).map(robot => {
+        const thread = [robot.threadId, ...[...(robot.done ?? [])].reverse()].map(id => latest.threads.find(t => t.id === id && t.provider === robot.provider && t.model)).find(Boolean);
+        return { ...robot, model: thread?.model || robot.lastModel || null };
+      });
+    };
     openHire({
-      room, roomTitle: r?.title ?? "Office", seat: Number(idx) || 0,
-      team: world.roster.freeTeam(settled),
-      providers: ["codex", "claudeAgent"],
-      models: data.models ?? {},
-      prices: data.prices ?? {},
+      room, roomTitle: r?.title ?? "Office", seat: Number(idx) || 0, intent,
+      team: freeTeam(), getTeam: freeTeam, projectId,
+      loadRuntime: id => (window as any).lucidT3.hireConfig({ projectId: id }),
+      loadContexts: id => (window as any).lucidT3.hireContexts({ projectId: id }),
+      saveAttachment: (name, bytes) => (api as any).saveAttachment(name, bytes),
       roles: [...BUILTIN_ROLES, ...(settings.roles ?? [])],
       onNewRole: (r) => { settings.roles = [...(settings.roles ?? []), r]; saveSettings(); },
       projects: projectId ? null : real.map((p) => ({ id: p.id, title: p.title })),
       onHire: async (c) => {
         const project = projectId || c.projectId;
         if (!project) throw new Error("Choose a project for this desk");
+        if (!companionClient() && c.robotId && world.roster.byThread(c.contextThreadId || c.requestId)?.id !== c.robotId) {
+          const latest = await api.world();
+          const robot = world.roster.robots.find(r => r.id === c.robotId);
+          if (!robot || robot.threadId && !latest.threads.some(t => t.id === robot.threadId && t.settled && !t.pinned)) throw new Error("That robot is no longer free. Choose another candidate.");
+        }
         const message = c.role ? `Your role: ${c.role.name}. ${c.role.brief}\n\nTask: ${c.task}` : c.task;
-        const { threadId } = await api.startThread({ project, message, provider: c.provider, model: c.model ?? undefined });
-        world.roster.assignRobot(threadId, c.robotId, c.provider, c.role?.name ?? "");
+        if (companionClient()) {
+          const signature = JSON.stringify({ project, message, provider: c.provider, model: c.model, options: c.options });
+          if (companionLaunch && companionLaunch.signature !== signature) throw Error('The previous task has already been submitted. Restore its prompt and runtime to retry its desk assignment, or open the thread from the list.');
+          companionLaunch ??= { requestId: c.requestId, signature, resuming: !!c.contextThreadId };
+        }
+        const { threadId } = companionLaunch?.threadId ? { threadId: companionLaunch.threadId } : await api.startThread({ project, message, provider: c.provider, model: c.model, options: c.options, requestId: companionLaunch?.requestId ?? c.requestId, contextThreadId: c.contextThreadId });
+        if (companionClient()) {
+          companionLaunch!.threadId = threadId;
+          const snapshot = await (api as any).remoteCommit({ kind: 'hire', threadId, robotId: c.robotId, provider: c.provider, role: c.role?.name ?? '', model: c.model, room, index: Number(idx) || 0, resuming: companionLaunch!.resuming });
+          world.roster.replaceSnapshot(snapshot.roster);
+          await refresh();
+          const desk = world.deskFor(threadId);
+          if (desk) { world.select(desk); world.focusOn(desk); }
+          return;
+        }
+        world.roster.assignRobot(threadId, c.robotId, c.provider, c.role?.name ?? "", c.model, !!c.contextThreadId);
         world.homes.set(threadId, room);
         world.pendingSeat = { room, index: Number(idx) || 0, threadId };
         saveSettings();
@@ -399,6 +589,16 @@ function setupMenus() {
         if (nd) { world.select(nd); world.focusOn(nd); }
       },
     });
+  };
+  world.onFreeDesk = (_d, slot, x, y) => {
+    const [room, idx] = slot.split("#");
+    hireForOffice(room, Number(idx) || 0);
+  };
+  const startOfficeWork = (room: string, intent: "thread" | "delegate") => {
+    const seats = world.seats.get(room) ?? [];
+    const free = seats.indexOf(null);
+    gameSound.play('open');
+    hireForOffice(room, free >= 0 ? free : seats.length, intent);
   };
   const decorate = (room: { id: string; title: string }) => {
     const SHEET = 372; // the decorate panel covers the right side of the view
@@ -411,8 +611,13 @@ function setupMenus() {
   };
   (window as any).__decorate = decorate; // debug handle for test runs
   world.onRoomMenu = (room, x, y) => {
+    const work = [
+      { label: "New thread", run: () => startOfficeWork(room.id, "thread") },
+      { label: "Delegate task", run: () => startOfficeWork(room.id, "delegate") },
+    ];
+    if (companionClient()) { showMenu(x, y, room.title, work); return; }
     const deco = { label: "Decorate", run: () => decorate(room) };
-    const policy = { label: world.isRoomExpanded(room.id) ? "Auto-size office" : "Keep office open", run: () => world.setRoomExpanded(room.id, !world.isRoomExpanded(room.id)) };
+    const policy = { label: world.isRoomExpanded(room.id) ? "Collapse office" : "Expand office", run: () => world.setRoomExpanded(room.id, !world.isRoomExpanded(room.id)) };
     const order = world.orderRooms(world.rooms.filter((r) => movableRoom(r.id)));
     const index = order.findIndex((r) => r.id === room.id);
     const moveOffice = (before: string | null) => {
@@ -423,13 +628,15 @@ function setupMenus() {
       ...(index > 0 ? [{ label: "Move office earlier", run: () => moveOffice(order[index - 1].id) }] : []),
       ...(index >= 0 && index < order.length - 1 ? [{ label: "Move office later", run: () => moveOffice(order[index + 2]?.id ?? null) }] : []),
     ];
-    if (room.kind === "main") { showMenu(x, y, room.title, [deco, policy]); return; }
+    if (room.kind === "main") { showMenu(x, y, room.title, [...work, deco, policy]); return; }
     if (room.kind === "freelance") {
-      showMenu(x, y, "Freelancers", [deco, policy, ...moves, { label: "Hide this office", run: () => { world.hidden.add("freelance"); saveSettings(); void refresh(); } }]);
+      showMenu(x, y, "Freelancers", [...work, deco, policy, ...moves, { label: "Hide this office", run: () => { world.hidden.add("freelance"); saveSettings(); void refresh(); } }]);
       return;
     }
     const pid = room.id.slice(2);
     showMenu(x, y, room.title, [
+      ...work,
+      { label: "Manage project managers", run: () => manageRobot(null, pid) },
       deco, policy, ...moves,
       { label: "Hide this office", run: () => { world.hidden.add(pid); saveSettings(); void refresh(); } },
       { label: "Remove project from T3", danger: true, run: async () => {
@@ -446,6 +653,7 @@ function setupMenus() {
       { label: "Look at its screen", run: () => world.focusScreen(d) },
       { label: "Go to its desk", run: () => world.showDesk(d) },
       { label: "Customize robot", run: () => openCustomizeFor(d, world.roster, world.level) },
+      { label: world.lastData?.threads.find(t => t.id === d.threadId)?.pinned ? "Edit or demote manager" : "Promote to manager", run: () => manageRobot(d.threadId) },
     ];
     if (d.room === "freelance" && d.folder) {
       items.push({ input: "Turn this work into a project", placeholder: "Project name", value: (d.info?.title || "").slice(0, 40), submit: "Create project",
@@ -468,6 +676,7 @@ function updateTimeout<T>(operation: Promise<T>, milliseconds: number): Promise<
   })]).finally(() => clearTimeout(timer));
 }
 async function checkUpdate() {
+  if (companionClient()) return;
   if (updateBusy || updateChecking) return;
   updateChecking = true;
   const btn = $<HTMLButtonElement>("update");
@@ -492,6 +701,7 @@ async function checkUpdate() {
   } finally { updateChecking = false; }
 }
 $("update").addEventListener("click", async () => {
+  if (companionClient()) return;
   if (updateBusy || updateChecking) return;
   const btn = $<HTMLButtonElement>("update");
   if (!updateState?.available) {
@@ -533,25 +743,50 @@ $("update").addEventListener("click", async () => {
   }
 });
 
+if (companionClient()) {
+  $<HTMLButtonElement>('update').disabled = true;
+  $('update').title = 'Update Lucid on the computer.';
+}
+
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
-mountEnvironments($("environment-body"), (fresh) => (api as any).environments(fresh), (id) => {
-  void (api as any).selectEnvironment(id).then((building: { label: string }) => {
+async function selectBuilding(id: string) {
+  if (switchingBuilding) throw Error('Another building is still opening.');
+  buildingCameras.set(currentEnvironment || 'local', world.cameraState());
+  switchingBuilding = true; buildingEpoch++;
+  try {
+    const building = await (api as any).selectEnvironment(id) as { label: string; local: boolean; world: WorldData };
+    chat.close(); world.unfocus(); world.revealThread(null);
+    currentEnvironment = building.local ? undefined : id;
+    companionRevisions = {};
+    todo.update([]);
+    watched = '';
+    world.orchThread = building.local ? settings.orch?.threadId || '' : '';
+    monitorTasks.prepare(building.world);
+    world.update(building.world);
+    coinRewards?.render();
+    monitorTasks.sync();
     world.building = building.label;
     const label = world.root.querySelector(".building-plate b");
     if (label) label.textContent = building.label;
-    world.overview();
-  }).catch((error: Error) => console.warn("Building could not be selected", error.message));
-});
-const settings: { roomOrder?: string[]; expandedRooms?: string[]; seats?: Record<string, (string | null)[]>; hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+    const saved = buildingCameras.get(currentEnvironment || 'local');
+    if (saved) world.restoreCamera(saved); else world.overview();
+  } finally { switchingBuilding = false; }
+  await refresh();
+}
+mountEnvironments($("environment-body"), (fresh) => (api as any).environments(fresh), selectBuilding,
+  data => world.setBuildings(data.buildings, selectBuilding, id => (api as any).buildingWorld(id)));
+const settings: { buildingLayouts?: Record<string, import("./office/world").OfficeLayout>; roomOrder?: string[]; expandedRooms?: string[]; collapsedRooms?: string[]; seats?: Record<string, (string | null)[]>; hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
 world.roomOrder = Array.isArray(settings.roomOrder) ? settings.roomOrder.filter((id) => typeof id === "string" && movableRoom(id)) : [];
+world.collapsedRooms = new Set(settings.collapsedRooms ?? []);
 world.expandedRooms = new Set(Array.isArray(settings.expandedRooms) ? settings.expandedRooms.filter((id) => typeof id === "string") : []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));
 world.themes = new Map(Object.entries(settings.themes ?? {}));
 world.level = settings.level ?? 0;
 world.homes = new Map(Object.entries(settings.homes ?? {}));
 world.seats = new Map(Object.entries(settings.seats ?? {}).filter(([, seats]) => Array.isArray(seats)));
+world.restoreLayouts(settings.buildingLayouts ?? {});
 
 // --- folding the sidebar, its sections and the chat (remembered in settings.ui) ------------
 settings.ui ??= {};
@@ -676,17 +911,71 @@ if (ui.rail) toggleRail(true, false);
 chat.setCollapsed(true, false);
 applyLayout();
 chat.onCollapse = (on, animate) => { ui.chatTab = on; saveSettings(); slideChat(animate); };
+mountMobileShell(appEl, chat);
+let settingsWriteFlight = Promise.resolve();
 const saveSettings = () => {
-  settings.roomOrder = [...world.roomOrder];
-  settings.expandedRooms = [...world.expandedRooms];
-  settings.hidden = [...world.hidden];
-  settings.extra = Object.fromEntries(world.extra);
-  settings.themes = Object.fromEntries(world.themes);
-  settings.homes = Object.fromEntries(world.homes);
-  settings.seats = Object.fromEntries(world.seats);
-  void api.settingsSave(JSON.stringify(settings));
+  settings.buildingLayouts = world.exportLayouts();
+  const local = settings.buildingLayouts.local;
+  if (local) Object.assign(settings, local);
+  const json = JSON.stringify(settings);
+  const write = settingsWriteFlight.then(() => api.settingsSave(json));
+  settingsWriteFlight = write.catch(() => {});
   renderHidden();
+  return write;
 };
+installCompanionOwner({
+  snapshot: () => ({ settings: JSON.stringify(settings), roster: JSON.stringify(world.roster.robots) }),
+  apply: async (kind, json) => {
+    if (kind === 'roster') {
+      world.roster.replaceSnapshot(json);
+      await (api as any).rosterSave(JSON.stringify(world.roster.robots));
+    } else {
+      const next = JSON.parse(json);
+      next.ui = settings.ui;
+      for (const key of Object.keys(settings)) delete (settings as any)[key];
+      Object.assign(settings, next);
+      world.hidden = new Set(settings.hidden ?? []);
+      world.roomOrder = settings.roomOrder ?? [];
+      world.expandedRooms = new Set(settings.expandedRooms ?? []);
+      world.collapsedRooms = new Set(settings.collapsedRooms ?? []);
+      world.extra = new Map(Object.entries(settings.extra ?? {}));
+      world.themes = new Map(Object.entries(settings.themes ?? {}));
+      world.homes = new Map(Object.entries(settings.homes ?? {}));
+      world.seats = new Map(Object.entries(settings.seats ?? {}));
+      world.restoreLayouts(settings.buildingLayouts ?? {});
+      await saveSettings();
+    }
+    await refresh();
+  },
+  hire: async input => {
+    if (typeof input.threadId !== 'string' || typeof input.provider !== 'string' || typeof input.room !== 'string' || !Number.isInteger(input.index) || input.index < 0 || input.index > 1000) throw Error('The desk assignment is invalid.');
+    const latest = input.sourceWorld ?? await api.world();
+    const thread = latest.threads.find(t => t.id === input.threadId);
+    if (!thread || thread.settled) throw Error('This thread is no longer available. Refresh and try again.');
+    const project = latest.projects.find(p => p.id === thread.projectId);
+    if (!project) throw Error('This project is no longer available.');
+    if (!(input.room === `p:${thread.projectId}` || input.room === 'main' || input.room === 'freelance' && project.scratch)) throw Error('This task belongs to another project office.');
+    if (input.robotId) {
+      const robot = world.roster.robots.find(r => r.id === input.robotId);
+      if (!robot || robot.threadId && robot.threadId !== input.threadId && !latest.threads.some(t => t.id === robot.threadId && t.settled && !t.pinned)) throw Error('That robot is no longer free. Choose another candidate.');
+    }
+    world.roster.assignRobot(input.threadId, input.robotId, thread.provider, input.role, thread.model ?? input.model, input.resuming);
+    world.homes.set(input.threadId, input.room);
+    const seats = world.seats.get(input.room) ?? [];
+    const occupied = seats[input.index];
+    const index = occupied && occupied !== input.threadId ? seats.indexOf(null) >= 0 ? seats.indexOf(null) : seats.length : input.index;
+    const reserved = [...seats];
+    while (reserved.length <= index) reserved.push(null);
+    const previous = reserved.indexOf(input.threadId);
+    if (previous >= 0 && previous !== index) reserved[previous] = null;
+    reserved[index] = input.threadId;
+    world.seats.set(input.room, reserved);
+    if (world.lastData?.environmentId === latest.environmentId) world.pendingSeat = { room: input.room, index, threadId: input.threadId };
+    await (api as any).rosterSave(JSON.stringify(world.roster.robots));
+    await saveSettings();
+    await refresh();
+  },
+});
 world.onLayoutChange = saveSettings;
 world.onRoomOrder = () => { saveSettings(); world.onRooms(world.rooms); };
 function renderHidden() {
@@ -716,9 +1005,27 @@ delegate.onChange = () => renderOrch();
 (window as any).__refresh = () => refresh();
 function renderOrch() {
   const s = settings.orch;
+  world.orchPresence = s?.paused ? (s.presence === "away" ? "away" : "sleep") : "awake";
+  (world.ext.queue as QuestionLine | undefined)?.setPresence(world.orchPresence);
+  const power = $<HTMLInputElement>("orch-power-toggle");
+  power.disabled = !s || companionClient();
+  power.checked = !!s && !s.paused;
+  $("orch-power-status").textContent = !s ? "Not hired" : s.paused ? "Off" : "On";
+  $("orch-controls-open").textContent = s ? "Settings" : "Set up";
   const body = $("orch-body");
+  if (companionClient()) {
+    power.title = 'Change automatic supervision on the computer.';
+    $("orch-controls-open").setAttribute('disabled', '');
+    $("orch-controls-open").title = 'Change automatic supervision on the computer.';
+    if (!body.querySelector('#orch-archive')) {
+      body.innerHTML = '<p class="hint">Automatic supervision runs on the computer.</p><button type="button" class="ghost" id="orch-archive">Settlement papers</button>';
+      $("orch-archive").addEventListener('click', () => void showReportArchive(openThread));
+    }
+    return;
+  }
   if (!s) {
-    body.innerHTML = `<p class="hint">Your stand-in: it learns how you like things done from what you tell robots, and can review their finished work for you.</p><button type="button" class="primary" id="orch-hire">Hire the orchestrator</button><p class="form-msg" id="orch-msg" role="status"></p>`;
+    body.innerHTML = `<p class="hint">Your stand-in: it learns how you like things done from what you tell robots, and can review their finished work for you.</p><button type="button" class="primary" id="orch-hire">Hire the orchestrator</button><button type="button" class="ghost" id="orch-archive">Settlement papers</button><p class="form-msg" id="orch-msg" role="status"></p>`;
+    $("orch-archive").addEventListener("click", () => void showReportArchive(openThread));
     $("orch-hire").addEventListener("click", async () => {
       const b = $<HTMLButtonElement>("orch-hire");
       b.disabled = true;
@@ -737,13 +1044,31 @@ function renderOrch() {
   }
   const log = delegate.log;
   body.innerHTML = `
+    <label class="switch"><input type="checkbox" id="orch-paused" ${s.paused ? "checked" : ""}><span class="track" aria-hidden="true"><i></i></span><span>Pause automatic review and answers</span></label>
+    <p class="hint">Pausing holds new reports for you. Reviews already sent may still finish.</p>
+    <div id="orch-reports"></div>
     <p class="orch-line">Learned from <b>${s.learned}</b> of your messages</p>
     <p class="orch-line">Answered <b>${log.auto}</b> ${log.auto === 1 ? "question" : "questions"} for you, asked you <b>${log.asked}</b></p>
-    <label class="switch"><input type="checkbox" id="orch-auto" ${s.auto !== false ? "checked" : ""}><span class="track" aria-hidden="true"><i></i></span><span>Let the Orchestrator answer for me</span></label>
+    <label class="switch"><input type="checkbox" id="orch-auto" ${s.auto !== false ? "checked" : ""}><span class="track" aria-hidden="true"><i></i></span><span>Handle questions and approvals for me</span></label>
     <label class="switch"><input type="checkbox" id="orch-review" ${s.review ? "checked" : ""}><span class="track" aria-hidden="true"><i></i></span><span>Review finished work for me</span></label>
-    <div class="orch-actions"><button type="button" class="ghost" id="orch-decisions">Recent decisions</button><button type="button" class="ghost" id="orch-notes">Read its notebook</button><button type="button" class="ghost" id="orch-desk">Go to its chair</button></div>`;
+    <div class="orch-actions"><button type="button" class="ghost" id="orch-archive">Settlement papers</button><button type="button" class="ghost" id="orch-chat">Chat with orchestrator</button><button type="button" class="ghost" id="orch-decisions">Recent decisions</button><button type="button" class="ghost" id="orch-notes">Read its notebook</button><button type="button" class="ghost" id="orch-desk">Go to its chair</button></div>`;
   $<HTMLInputElement>("orch-review").addEventListener("change", (e) => orch.setReview((e.target as HTMLInputElement).checked));
   $<HTMLInputElement>("orch-auto").addEventListener("change", (e) => { if (settings.orch) { settings.orch = { ...settings.orch, auto: (e.target as HTMLInputElement).checked }; saveSettings(); } });
+  $<HTMLInputElement>("orch-paused").addEventListener("change", e => orch.setPaused((e.target as HTMLInputElement).checked));
+  const reports = $("orch-reports");
+  for (const [id, report] of world.reports) {
+    const row = document.createElement("p");
+    const open = document.createElement("button");
+    open.type = "button"; open.className = "ghost";
+    const paper = orch.papers.find(p => p.threadId === id);
+    const status = paper?.status === "reviewing" ? "Under review" : paper?.status === "manual-review" ? "Needs your review" : report.arrived ? "Awaiting review" : "Printing / delivering";
+    open.textContent = `${report.title}: ${status}`;
+    open.addEventListener("click", () => void showReport(id, report.title, () => openThread(id), undefined, openThread));
+    row.appendChild(open); reports.appendChild(row);
+  }
+  if (!world.reports.size) reports.textContent = "No reports waiting.";
+  $("orch-archive").addEventListener("click", () => void showReportArchive(openThread));
+  $("orch-chat").addEventListener("click", () => openThread(s.threadId));
   $("orch-decisions").addEventListener("click", () => showDecisions(delegate, (v) => { if (settings.orch) { settings.orch = { ...settings.orch, threshold: v }; saveSettings(); } }));
   $("orch-notes").addEventListener("click", () => void orch.showNotebook());
   // it sits in the boss chair in the questions room: follow it there (or its desk, if it has one)
@@ -752,6 +1077,12 @@ function renderOrch() {
   });
 }
 renderOrch();
+$("orch-power-toggle").addEventListener("change", e => {
+  const enabled = (e.target as HTMLInputElement).checked;
+  orch.setPresence(enabled ? "awake" : "sleep");
+});
+$("orch-controls-open").addEventListener("click",()=>openOrchestratorControls(orch,()=>settings.orch??null,
+  ()=>void showReportArchive(openThread),()=>{folded.delete("orch");foldSection("orch",true,false);$("orch-body").scrollIntoView({block:"nearest"});$("orch-hire")?.focus();}));
 
 // --- company progress ------------------------------------------------------------------------
 let lastCompany = "";
@@ -780,6 +1111,7 @@ function renderCompany(shipped: { total: number; today: number }) {
   if (world.level !== p.level) { world.level = p.level; void refresh(); }
 }
 function celebrate(level: number) {
+  gameSound.play('level');
   for (const d of world.desks.values()) d.robot.react("cheer");
   const el = document.createElement("div");
   el.className = "level-up";
@@ -790,15 +1122,38 @@ function celebrate(level: number) {
     .to(el, { opacity: 0, y: -10, duration: 0.4, delay: 4 });
 }
 world.attachDir = attachDir;
-await refresh();
-setInterval(refresh, 3000);
+// Start the first refresh after all controls and state below are initialized.
+setInterval(() => { if (!companionClient() || !document.hidden) void refresh(); }, 3000);
 checkUpdate();
 setInterval(() => { if (!document.hidden) void checkUpdate(); }, 60 * 1000);
 
 // tokens, plan limits and cost from the harness logs
 // Coins: the robots' API-priced spend pays for things in the shop.
-const wallet = new Wallet(() => settings.wallet, (s) => { settings.wallet = s; saveSettings(); });
+const wallet = new Wallet(() => settings.wallet, (s) => { if (!companionClient()) { settings.wallet = s; saveSettings(); } });
 walletReady = wallet;
+const soundButton = $('game-sound');
+const paintSound = () => { soundButton.textContent = gameSound.enabled ? 'Sound on' : 'Sound off'; soundButton.setAttribute('aria-pressed', String(gameSound.enabled)); soundButton.title = gameSound.enabled ? 'Mute game sounds' : 'Enable game sounds'; };
+paintSound();
+soundButton.addEventListener('click', () => { gameSound.configure(!gameSound.enabled); paintSound(); if (gameSound.enabled) gameSound.play('open'); });
+const volumeControl = document.createElement('label'); volumeControl.className = 'game-volume';
+volumeControl.innerHTML = '<span>Sound volume</span><input type="range" min="0" max="100" step="5" aria-label="Game sound volume">';
+const volumeSlider = volumeControl.querySelector('input')!; volumeSlider.value = String(gameSound.volume * 100);
+volumeSlider.addEventListener('input', () => gameSound.configure(gameSound.enabled, Number(volumeSlider.value) / 100));
+volumeSlider.addEventListener('change', () => gameSound.play('collect'));
+extrasBody.append(volumeControl);
+for (const [kind, label, value] of [
+  ['theme', 'Theme music', gameSound.themeVolume],
+  ['ambience', 'Room ambience', gameSound.ambienceVolume],
+] as const) {
+  const control = document.createElement('label'); control.className = 'game-volume';
+  const text = document.createElement('span'); text.textContent = label;
+  const slider = document.createElement('input'); slider.type = 'range';
+  slider.min = '0'; slider.max = '100'; slider.step = '1'; slider.value = String(Math.round(value * 100));
+  slider.setAttribute('aria-label', `${label} volume`);
+  slider.addEventListener('input', () => gameSound.configureBackground(kind, Number(slider.value) / 100));
+  control.append(text, slider); extrasBody.append(control);
+}
+let bankAmount = wallet.balance;
 // boosts and the daily reward
 const paintBoost = () => {
   wallet.level = world.level;
@@ -824,9 +1179,16 @@ window.setTimeout(() => { if (lastShipped) checkMilestones(lastShipped); }, 0);
 world.owns = (key) => wallet.owns(key);
 const paintWallet = (gained = 0) => {
   const b = $("wl-bal");
-  b.textContent = wallet.balance.toLocaleString();
+  b.textContent = formatCoins(wallet.balance);
+  const bank = $('coin-bank-bal'), target = { value: bankAmount };
+  gsap.killTweensOf(bank);
+  const bankAnimation = (bank as any).__count as gsap.core.Tween | undefined; bankAnimation?.kill();
+  if (gained > 0 && !document.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    (bank as any).__count = gsap.to(target, { value: wallet.balance, duration: .65, ease: 'power2.out', onUpdate: () => { bank.textContent = formatCoins(target.value); bankAmount = target.value; } });
+  } else { bankAmount = wallet.balance; bank.textContent = formatCoins(bankAmount); }
+  $('coin-bank').title = `${formatCoins(wallet.balance)} coins. Open shop`;
   const rb = $("rail-bal"), n = wallet.balance;
-  rb.textContent = n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : String(n);
+  rb.textContent = n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : formatCoins(n);
   $("rail-coins").title = `${n.toLocaleString()} coins. Click to open the shop`;
   if (gained > 0 && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     const f = document.createElement("span");
@@ -839,20 +1201,31 @@ const paintWallet = (gained = 0) => {
 };
 wallet.onChange = (_bal, gained) => paintWallet(gained);
 paintWallet();
-const goShopping = () => openShop({ wallet, level: world.level, onBought: () => { void refresh(); shopFront.render(); } });
+const goShopping = () => {
+  if (companionClient()) { void confirmDialog('Office shop', 'Collect coins and decorate your office on the computer.', 'OK'); return; }
+  openShop({ wallet, level: world.level, onBought: () => { void refresh(); shopFront.render(); } });
+};
 $("open-shop").addEventListener("click", goShopping);
 $("rail-coins").addEventListener("click", goShopping);
+$("coin-bank").addEventListener("click", goShopping);
 // the shop is also a real building next to the office
 const shopFront = new ShopFront(document.createElement("div"), wallet, () => world.level);
 shopFront.onOpen = goShopping;
 world.attachShop(shopFront);
 wallet.onChange = (_bal, gained) => { paintWallet(gained); shopFront.render(); };
 $("shop-link").addEventListener("click", () => world.showShop());
+if (!companionClient()) coinRewards = new CoinRewards(wallet, world, () => (api as any).coinUsage());
+(window as any).__coinRewards = coinRewards;
+(window as any).__wallet = wallet;
+(window as any).__gameSound = gameSound;
+const soundscape = new OfficeSoundscape(world);
+(window as any).__soundscape = soundscape;
 mountStats(document.getElementById("usage-body")!, async () => {
   const u = await (window as any).lucid.usage();
-  if (u?.windows) wallet.observe(u);
+  world.setUsage(u);
+  if (u?.windows && !companionClient()) wallet.observe(u);
   return u;
-});
+}, { background: true });
 
 // Real weather where you are: it rains, snows or storms over the office, and the season shows outside.
 const WX_NAME: Record<string, string> = { clear: "Clear", clouds: "Cloudy", rain: "Rain", drizzle: "Drizzle", snow: "Snow", storm: "Storm", fog: "Fog" };
@@ -922,7 +1295,15 @@ watchDaily((p) => { world.eventName = p?.event?.name ?? ""; world.paintEvent(); 
 function openDetachedChat(id: string, info?: ThreadInfo) {
   world.revealThread(id);
   const t = world.lastData?.threads.find((x) => x.id === id);
-  if (!t) return;
+  if (!t) {
+    // Saved papers outlive the active office list, including archived source threads.
+    void (api as any).threadInfo(id).then((historical: ThreadInfo | null) => {
+      if (!historical) return;
+      chat.open({ threadId: id, info: historical, profile: world.roster.byThread(id) } as any, false);
+      chat.setStatus("Thread history", "idle");
+    }).catch((err: unknown) => console.error("Could not open saved source thread", err));
+    return;
+  }
   const profile = world.roster.byThread(id);
   chat.open({ threadId: id, info: info ?? { id, title: t.title, provider: t.provider }, profile: id === world.orchThread ? { ...profile, name: "Orchestrator" } : profile } as any, !info);
   const question = !!t.question;
@@ -967,44 +1348,78 @@ const ago = (iso?: string | null) => {
   return m < 1 ? "now" : m < 60 ? `${Math.floor(m)}m` : m < 1440 ? `${Math.floor(m / 60)}h` : `${Math.floor(m / 1440)}d`;
 };
 let thSig = "";
+let settledOpen = false;
+let settledLimit = 10;
+let threadMovePending = false;
+async function moveThread(id: string, targetId: string, after: boolean) {
+  if (threadMovePending) return;
+  threadMovePending = true;
+  try {
+    await (window as any).lucidT3.moveThread({ threadId: id, targetId, after });
+    await refresh();
+    renderThreads();
+    $("th-list").querySelector<HTMLElement>(`[data-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
+  } catch (err: any) {
+    showMenu(24, 100, "Could not move thread", [{ label: String(err?.message || err), run: () => {} }]);
+  } finally { threadMovePending = false; }
+}
+function threadNeighbors(id: string) {
+  const all = world.lastData?.threads ?? [], t = all.find(t => t.id === id);
+  const group = t && !t.settled ? all.filter(x => !x.settled && x.pinned === t.pinned) : [];
+  const index = group.findIndex(x => x.id === id);
+  return { previous: group[index - 1], next: group[index + 1] };
+}
 function renderThreads() {
+  if (appEl.classList.contains('mobile-layout') && appEl.dataset.mobileView !== 'threads') return;
   const data = world.lastData;
   if (!data || document.body.classList.contains("th-dragging")) return;   // never swap rows out from under a drag
   const started = beginSystem();
   renderRail();
   const q = (($("th-q") as HTMLInputElement).value || "").trim().toLowerCase();
   const projects = new Map(data.projects.map((p) => [p.id, p]));
-  const list = [...data.threads]
-    .filter((t) => !q || t.title.toLowerCase().includes(q) || (projects.get(t.projectId)?.title ?? "").toLowerCase().includes(q))
-    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
-    .slice(0, 60);
-  const rows = list.map((t) => {
-    const p = projects.get(t.projectId);
+  // The bridge supplies T3 Code's sidebar order, independent of live activity.
+  const list = data.threads.filter((t) => !q || t.title.toLowerCase().includes(q) || (t.manager?.role || '').toLowerCase().includes(q) || (projects.get(t.manager?.projectId || t.projectId)?.title ?? "").toLowerCase().includes(q));
+  const active = list.filter((t) => !t.settled);
+  const settled = list.filter((t) => t.settled);
+  const row = (t: typeof list[number]) => {
+    const p = projects.get(t.manager?.projectId || t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
     const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
+    if (t.settled) return `<li><button type="button" class="th-row th-settled-row" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}`)}">${icon}<span class="th-settled-title">${esc(t.title || "Untitled")}</span><span class="th-ago">${ago(t.updatedAt)}</span></button></li>`;
     const state = t.question ? `<span class="th-st ask">${delegate.phaseOf(t.id) === "reading" ? "With the Orchestrator" : "Needs input"}</span>`
       : t.runStatus === "running" ? `<span class="th-st work"><i></i>Working ${ago(t.runStartedAt || t.updatedAt)}</span>`
       : t.lastStatus === "failed" ? `<span class="th-st fail">Failed</span>`
       : t.unseen && t.lastStatus === "completed" ? `<span class="th-st done">Done</span>`
       : `<span class="th-ago">${ago(t.updatedAt)}</span>`;
     const robot = world.roster.byThread(t.id);
-    const logo = logoFor(t.provider);
-    const sub = t.branch || (p?.scratch ? "" : "");
+    const logo = t.pinned ? p?.icon : logoFor(t.provider);
+    const sub = t.pinned ? t.manager?.role || 'Manager' : t.branch || (p?.scratch ? "" : "");
     const host = !p || p.scratch ? world.building : "";
-    return `<li><button type="button" class="th-row ${t.runStatus === "running" ? "on" : ""}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}`)}">
+    return `<li><button type="button" class="th-row ${!t.settled && t.runStatus === "running" ? "on" : ""}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}`)}">
       <span class="th-top">${icon}<span class="th-proj">${esc(proj)}</span>${state}</span>
       <span class="th-title">${t.pinned ? '<span class="th-pin" aria-label="Pinned">●</span>' : ""}${esc(t.title)}</span>
       <span class="th-bot"><span class="th-sub">${esc(sub || host)}</span>${robot ? `<span class="th-bot-name">${esc(robot.name)}</span>` : ""}${logo ? `<img class="th-logo" src="${logo}" alt="">` : ""}</span>
     </button></li>`;
-  }).join("");
+  };
+  const expanded = settledOpen || !!q;
+  const rows = active.map(row).join("") + (settled.length ? `<li><button type="button" class="th-settled-toggle" aria-expanded="${expanded}" aria-controls="th-settled-list"><span>Settled</span><span class="th-settled-count">${settled.length}</span><span aria-hidden="true">${expanded ? "⌄" : "›"}</span></button><ol id="th-settled-list" class="th-settled-list"${expanded ? "" : " hidden"}>${expanded ? settled.slice(0, q ? settled.length : settledLimit).map(row).join("") : ""}</ol>${expanded && !q && settled.length > settledLimit ? `<button type="button" class="th-settled-more">⌄ &nbsp; Show ${Math.min(25, settled.length - settledLimit)} more</button>` : ""}</li>` : "");
   const sig = rows + q;
   if (sig === thSig) { endSystem("ui", started); return; }
   thSig = sig;
+  const focused = document.activeElement as HTMLElement | null;
+  const focusedId = focused?.closest<HTMLElement>(".th-row")?.dataset.id;
+  const scrollBox = $("th-list").closest(".panel") || $("th-list").parentElement!;
+  const scrollTop = scrollBox.scrollTop;
   $("th-list").innerHTML = rows || `<li class="th-empty">No threads match.</li>`;
+  if (focusedId) $("th-list").querySelector<HTMLElement>(`[data-id="${CSS.escape(focusedId)}"]`)?.focus({ preventScroll: true });
+  scrollBox.scrollTop = scrollTop;
   endSystem("ui", started);
 }
 $("th-q").addEventListener("input", renderThreads);
 $("th-list").addEventListener("click", (e) => {
+  const target = e.target as HTMLElement;
+  if (target.closest(".th-settled-toggle")) { settledOpen = !settledOpen; renderThreads(); return; }
+  if (target.closest(".th-settled-more")) { settledLimit += 25; renderThreads(); return; }
   const b = (e.target as HTMLElement).closest(".th-row") as HTMLElement | null;
   if (b) openThread(b.dataset.id!);
 });
@@ -1022,8 +1437,14 @@ function openThread(id: string) {
   // from their desks. Camera following and chat selection are independent.
   world.onWatchChat(id);
 }
-setInterval(renderThreads, 3000);
-window.setTimeout(renderThreads, 1500);
+setInterval(() => { if (!document.hidden) renderThreads(); }, 3000);
+window.addEventListener('lucid:mobile-view', (event) => {
+  const detail = (event as CustomEvent<{ mobile: boolean; view: string }>).detail;
+  if (!detail?.mobile || detail.view === 'threads') renderThreads();
+});
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { renderThreads(); if (companionClient()) void refresh(); } });
+// Defer until module initialization finishes, then make the loaded threads usable.
+window.setTimeout(renderThreads, 0);
 
 // The folded sidebar: one button per thread with its harness logo and a dot for its state.
 let railSig = "";
@@ -1032,14 +1453,13 @@ function renderRail() {
   if (!data || !ui.rail || document.body.classList.contains("th-dragging")) return;
   const projects = new Map(data.projects.map((p) => [p.id, p]));
   const list = [...data.threads]
-    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
     .slice(0, 40);
   const html = list.map((t) => {
-    const p = projects.get(t.projectId);
+    const p = projects.get(t.manager?.projectId || t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
-    const [st, said] = t.question ? ["ask", "needs input"] : t.runStatus === "running" ? ["work", "working"]
+    const [st, said] = t.settled ? ["done", "settled"] : t.question ? ["ask", "needs input"] : t.runStatus === "running" ? ["work", "working"]
       : t.lastStatus === "failed" ? ["fail", "failed"] : t.unseen && t.lastStatus === "completed" ? ["done", "done"] : ["", ""];
-    const logo = logoFor(t.provider);
+    const logo = t.pinned ? p?.icon : logoFor(t.provider);
     const name = `${t.title}, ${proj}${said ? `, ${said}` : ""}`;
     return `<li><button type="button" class="rail-th${t.id === chat.threadId ? " cur" : ""}" data-id="${esc(t.id)}" aria-label="${esc(name)}" title="${esc(`${t.title}
 ${proj}${said ? ` · ${said[0].toUpperCase()}${said.slice(1)}` : ""}`)}">`
@@ -1066,12 +1486,24 @@ function threadRef(id: string): ThreadRef | null {
 wireThreadDrag([$("th-list"), $("rail-list")], chat, threadRef, {
   hold: (active) => { if (active) world.stopCameraMotion(); world.setLayoutHeld(active); },
   zone: (x, y) => {
+    if (companionClient()) return null;
     const button = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-room]");
     const room = button?.dataset.room;
     return room && world.rooms.some((r) => r.id === room && ["main", "project", "freelance"].includes(r.kind)) ? room : world.threadDropZone(x, y);
   },
   preview: (room) => world.previewThreadDrop(room),
   place: (id, room) => world.placeThread(id, room),
+}, {
+  target: (id, x, y) => {
+    if (threadMovePending || ($("th-q") as HTMLInputElement).value.trim()) return null;
+    const row = document.elementFromPoint(x, y)?.closest<HTMLElement>("#th-list .th-row[data-id]");
+    const threads = world.lastData?.threads ?? [];
+    const source = threads.find(t => t.id === id), target = threads.find(t => t.id === row?.dataset.id);
+    if (!row || !source || !target || source === target || source.settled || target.settled || source.pinned !== target.pinned) return null;
+    const after = y > row.getBoundingClientRect().top + row.offsetHeight / 2;
+    return { row, after };
+  },
+  move: (id, targetId, after) => { void moveThread(id, targetId, after); },
 });
 function referenceInChat(id: string, x: number, y: number) {
   const ref = threadRef(id);
@@ -1083,6 +1515,9 @@ function threadMenu(row: HTMLElement, x: number, y: number) {
   const id = row.dataset.id!, ref = threadRef(id);
   if (!ref) return;
   const items = [{ label: "Open", run: () => openThread(id) }];
+  const { previous, next } = threadNeighbors(id);
+  if (previous) items.push({ label: "Move up (Alt+Up)", run: () => { void moveThread(id, previous.id, false); } });
+  if (next) items.push({ label: "Move down (Alt+Down)", run: () => { void moveThread(id, next.id, true); } });
   if (chat.isOpen && chat.threadId && chat.threadId !== id) items.unshift({ label: "Reference in chat (R)", run: () => { chat.addReference(ref); } });
   showMenu(x, y, ref.title, items);
 }
@@ -1097,6 +1532,13 @@ for (const box of [$("th-list"), $("rail-list")]) {
   });
   box.addEventListener("keydown", (e) => {
     const row = (e.target as HTMLElement).closest("[data-id]") as HTMLElement | null;
+    if (row && e.altKey && !e.ctrlKey && !e.metaKey && ["ArrowUp", "ArrowDown"].includes(e.key)) {
+      e.preventDefault();
+      const { previous, next } = threadNeighbors(row.dataset.id!);
+      const target = e.key === "ArrowUp" ? previous : next;
+      if (target) void moveThread(row.dataset.id!, target.id, e.key === "ArrowDown");
+      return;
+    }
     if (!row || e.ctrlKey || e.metaKey || e.altKey || e.key.toLowerCase() !== "r") return;
     e.preventDefault();
     const r = row.getBoundingClientRect();
@@ -1123,6 +1565,7 @@ function milestoneStats(shipped: { total: number; today: number }): MsStats {
   };
 }
 function checkMilestones(shipped: { total: number; today: number }) {
+  if (companionClient()) return;
   if (!walletReady) return;
   const wallet = walletReady;
   const seen = new Set(settings.milestones ?? []);
@@ -1138,3 +1581,5 @@ function checkMilestones(shipped: { total: number; today: number }) {
   const el = document.getElementById("ms-count");
   if (el) el.textContent = `${seen.size}/${MILESTONES.length}`;
 }
+
+void refresh();

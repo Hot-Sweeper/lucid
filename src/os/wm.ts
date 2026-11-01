@@ -1,8 +1,12 @@
 import gsap from "gsap";
+import { uiText, onLocaleChange } from "../localization";
+import { localizeGameDOM } from "../localization-dom";
 import type { SeatedRobot as Robot } from "../office/rig";
 const SCREEN = { w: 820, h: 461 };
 import { ICONS } from "./icons";
+import { noteAppIcon } from "./note-app-icon";
 import { wakeRender, renderFps } from "../perf/render";
+import { watchClock, clockTime } from "../perf/clock";
 
 export class Cancelled extends Error {}
 
@@ -14,7 +18,7 @@ const FRAMES: Record<AppId, Frame> = {
   editor: { x: 176, y: 12, w: 630, h: 384 },
   terminal: { x: 24, y: 196, w: 500, h: 208 },
   browser: { x: 40, y: 12, w: 740, h: 390 },
-  chat: { x: 538, y: 26, w: 268, h: 372 },
+  chat: { x: 110, y: 12, w: 600, h: 396 },
   tool: { x: 470, y: 228, w: 330, h: 170 },
   game: { x: 190, y: 14, w: 440, h: 392 },
   harness: { x: 110, y: 22, w: 600, h: 356 },
@@ -48,8 +52,10 @@ codex: { x: 70, y: 12, w: 680, h: 396 },
   steam: { x: 50, y: 10, w: 720, h: 398 },
   trading: { x: 40, y: 10, w: 740, h: 398 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "GitHub Desktop", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", instaweb: "Instabot", spoolweb: "Spool", sparkplug: "Sparkplug", t3code: "T3 Code", photos: "Photos", player: "Player", codex: "Codex", steam: "Steambot", trading: "Tradebot" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "t3code", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "photos", "player", "codex", "steam", "trading"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Lucid Chat", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "GitHub Desktop", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", instaweb: "Instabot", spoolweb: "Spool", sparkplug: "Sparkplug", t3code: "T3 Code", photos: "Photos", player: "Player", codex: "Codex", steam: "Steambot", trading: "Tradebot" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "t3code", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "photos", "player", "codex", "steam", "trading"];
+// Real browser tabs, work, files, terminal output and thread conversations stay untouched.
+const FICTIONAL_APPS = new Set<AppId>(["beats", "social", "game", "music", "botsapp", "telegrid", "chirp", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "steam", "trading"]);
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 
@@ -62,19 +68,103 @@ export class WM {
   onCursor?: (x: number, y: number) => void;
   private _prefs: import("../office/roster").Prefs | null = null;
   get prefs() { return this._prefs; }
-  set prefs(p) { this._prefs = p; if (this.dock) this.renderDock(false); }
+  set prefs(p) { this._prefs = p; this.root?.setAttribute("data-notes-app", p?.notesApp ?? "apple-notes"); if (this.dock) this.renderDock(false); }
   robotName = "unit";
   speed = 1;
+  lastClickAt = 0;
   epoch = 0;
   // An app can ask for a different window size before it opens (the Tasks checklist is narrower).
   frameHint: Partial<Record<AppId, Frame>> = {};
   private z = 10;
+  private overlayCovered = false;
+  /** A human-facing task overlay covers the desktop without closing its apps. */
+  setOverlayCovered(covered: boolean) {
+    if (covered === this.overlayCovered) return;
+    this.overlayCovered = covered;
+    this.syncOcclusion();
+  }
   private cursor = { x: SCREEN.w * 0.55, y: SCREEN.h * 0.5 };
   robot: Robot;
-  private clockTimer = 0;
+  private stopClock: () => void = () => {};
+  private stopLocale: () => void = () => {};
+  private localizationStops = new Map<AppId, () => void>();
   private cursorX!: (x: number) => void;
   private cursorY!: (y: number) => void;
   private movingWindows = new Map<Win, number>();
+  private operatorHere = true;
+  private presentationHere = true;
+  private operatorWaiters = new Set<() => void>();
+  private pausedByAbsence = new Set<gsap.core.Tween>();
+  private cursorMotion: gsap.core.Tween | null = null;
+  private absenceAt: number | null = null;
+  private absenceDuration = 0;
+  get operatorPresent() { return this.operatorHere; }
+  get presentationVisible() { return this.presentationHere !== false; }
+  /** Typing cadence excludes time spent away from the chair. */
+  get presentationTime() { return (this.absenceAt ?? performance.now()) - this.absenceDuration; }
+
+  /** Only the seated actor operates this computer. Task data still updates while away. */
+  setOperatorPresent(here: boolean) {
+    if (here === this.operatorHere) return;
+    const wasAvailable = this.operatorHere && this.presentationVisible;
+    this.operatorHere = here;
+    this.root.classList.toggle("unattended", !here);
+    this.updatePresentationAvailability(wasAvailable);
+  }
+
+  /** Screen scenes are cosmetic. Keep their state while their monitor is hidden,
+   * independently of the robot's physical chair and the real agent's work. */
+  setPresentationVisible(visible: boolean) {
+    if (visible === this.presentationVisible) return;
+    const wasAvailable = this.operatorHere && this.presentationVisible;
+    this.presentationHere = visible;
+    this.updatePresentationAvailability(wasAvailable);
+  }
+
+  private updatePresentationAvailability(wasAvailable: boolean) {
+    const available = this.operatorHere && this.presentationVisible;
+    if (available === wasAvailable) return;
+    if (!available) {
+      this.absenceAt = performance.now();
+      // Camera culling must not enumerate a whole computer's conversation DOM.
+      // Walk the animation tree once, checking only the actual tween targets.
+      const tweens = gsap.globalTimeline.getChildren(true, true, false) as gsap.core.Tween[];
+      for (const tween of tweens) {
+        if (tween === this.cursorMotion || tween.targets().some(target => target instanceof Node && this.root.contains(target))) {
+          if (!tween.paused()) { tween.pause(); this.pausedByAbsence.add(tween); }
+        }
+      }
+      // Cursor movement tweens a numeric path, rather than a DOM element.
+      if (this.cursorMotion && !this.cursorMotion.paused()) { this.cursorMotion.pause(); this.pausedByAbsence.add(this.cursorMotion); }
+      this.robot.setTyping(false);
+    } else {
+      this.absenceDuration += performance.now() - (this.absenceAt ?? performance.now());
+      this.absenceAt = null;
+      for (const tween of this.pausedByAbsence) {
+        // Disposing an app can kill a suspended tween or its owning timeline.
+        // Never reconnect that old scene when its monitor is shown again.
+        let parent = tween.parent;
+        while (parent && parent !== gsap.globalTimeline) parent = parent.parent;
+        if (parent) tween.resume();
+      }
+      this.pausedByAbsence.clear();
+      this.wakeOperatorWaiters();
+    }
+  }
+
+  private wakeOperatorWaiters() {
+    const waiting = [...this.operatorWaiters];
+    this.operatorWaiters.clear();
+    for (const resolve of waiting) resolve();
+  }
+
+  async waitForOperator(epoch = this.epoch) {
+    this.check(epoch);
+    while (!this.operatorHere || !this.presentationVisible) {
+      await new Promise<void>((resolve) => this.operatorWaiters.add(resolve));
+      this.check(epoch);
+    }
+  }
 
   constructor(screen: HTMLElement, robot: Robot) {
     this.robot = robot;
@@ -91,22 +181,30 @@ export class WM {
     this.layer = screen.querySelector(".win-layer")!;
     this.dock = screen.querySelector(".dock")!;
     this.renderDock(false);
+    this.stopLocale = onLocaleChange(() => {
+      this.renderDock(false);
+      for (const win of this.wins.values()) win.title.textContent = uiText(this.windowTitles.get(win) ?? this.titleOf(win.id));
+    });
     this.cursorEl = screen.querySelector(".cursor")!;
     gsap.set(this.cursorEl, { x: this.cursor.x, y: this.cursor.y });
     this.cursorX = gsap.quickSetter(this.cursorEl, "x", "px") as (x: number) => void;
     this.cursorY = gsap.quickSetter(this.cursorEl, "y", "px") as (y: number) => void;
     // the clock in the corner shows the real time
     const clock = this.root.querySelector(".os-clock") as HTMLElement;
-    const paint = () => { clock.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); };
-    paint();
-    this.clockTimer = window.setInterval(() => { if (this.root.isConnected) paint(); }, 15000);
+    this.stopClock = watchClock(this.root, date => {
+      const text = clockTime(date);
+      if (clock.textContent !== text) clock.textContent = text;
+    });
   }
 
   setWallpaper(css: string) {
     (this.root.querySelector(".wallpaper") as HTMLElement).style.background = css;
   }
 
+  private wallpaperLogoSource = '';
   setWallpaperLogo(src: string) {
+    if (src === this.wallpaperLogoSource) return;
+    this.wallpaperLogoSource = src;
     (this.root.querySelector(".wall-logo") as HTMLImageElement).src = src;
   }
 
@@ -115,13 +213,15 @@ export class WM {
     if (epoch !== this.epoch) throw new Cancelled();
   }
   async sleep(ms: number, epoch = this.epoch) {
+    await this.waitForOperator(epoch);
     await new Promise((r) => setTimeout(r, ms / this.speed));
-    this.check(epoch);
+    await this.waitForOperator(epoch);
   }
 
   // --- cursor --------------------------------------------------------------
   async moveTo(x: number, y: number, ms = 520) {
     const e = this.epoch;
+    await this.waitForOperator(e);
     const from = { ...this.cursor };
     const dist = Math.hypot(x - from.x, y - from.y);
     const dur = Math.max(0.16, Math.min(0.9, (ms / 1000) * (0.45 + dist / 700))) / this.speed;
@@ -133,7 +233,7 @@ export class WM {
     const paint = () => { this.cursorX(this.cursor.x); this.cursorY(this.cursor.y); };
     this.robot.setPose("mouse");
     await new Promise<void>((resolve) => {
-      gsap.to(p, {
+      this.cursorMotion = gsap.to(p, {
         t: 1, duration: dur, ease: "power2.inOut",
         onUpdate: () => {
           const t = p.t, u = 1 - t;
@@ -146,11 +246,12 @@ export class WM {
           this.robot.mouseTo(this.cursor.x / SCREEN.w, this.cursor.y / SCREEN.h);
           this.onCursor?.(this.cursor.x, this.cursor.y);
         },
-        onComplete: () => { paint(); this.robot.mouseTo(this.cursor.x / SCREEN.w, this.cursor.y / SCREEN.h); resolve(); },
+        onComplete: () => { paint(); this.robot.mouseTo(this.cursor.x / SCREEN.w, this.cursor.y / SCREEN.h); this.cursorMotion = null; resolve(); },
+        onInterrupt: () => { this.cursorMotion = null; resolve(); },
       });
       this.robot.lookAt(x / SCREEN.w, y / SCREEN.h);
     });
-    this.check(e);
+    await this.waitForOperator(e);
   }
 
   // Element position in screen coordinates from layout, so it stays right even when
@@ -184,12 +285,14 @@ export class WM {
   }
 
   async pointAt(el: Element, ax = 0.5, ay = 0.5, ms?: number) {
+    await this.waitForOperator(this.epoch);
     const p = this.pos(el, ax, ay);
     await this.moveTo(p.x, p.y, ms);
   }
 
   async click(double = false) {
     const e = this.epoch;
+    await this.waitForOperator(e);
     const ring = document.createElement("span");
     ring.className = "click-ring";
     ring.style.left = this.cursor.x + "px";
@@ -198,6 +301,7 @@ export class WM {
     gsap.fromTo(ring, { scale: 0.2, opacity: 0.8 }, { scale: 1.6, opacity: 0, duration: 0.45, ease: "power2.out", onComplete: () => ring.remove() });
     gsap.fromTo(this.cursorEl, { scale: 1 }, { scale: 0.82, duration: 0.07, yoyo: true, repeat: double ? 3 : 1, transformOrigin: "0 0" });
     this.robot.click();
+    this.lastClickAt = performance.now();
     await this.sleep(double ? 200 : 110, e);
   }
 
@@ -209,14 +313,13 @@ export class WM {
 
   /** `clicked`: the robot already clicked something that opens the app (a notification), so it skips its usual way there. */
   async open(id: AppId, title?: string, clicked = false): Promise<Win> {
-    // The old Messages app is the T3 Code window now: one messaging app, never two
-    if (id === "chat") id = "t3code";
+    await this.waitForOperator();
     // Two callers can ask for the same app while its window is still opening (it takes a moment
     // to click the icon). The second one waits for that window instead of opening a twin.
     const pending = this.opening.get(id);
     if (pending) {
       const w = await pending;
-      if (title) w.title.textContent = title;
+      if (title) { this.windowTitles.set(w, title); w.title.textContent = uiText(title); }
       return w;
     }
     // A game is a specific application. Do not search for the shared window slot
@@ -235,7 +338,7 @@ export class WM {
     if (w) {
       if (newGame && !clicked) { await this.launch(id); this.check(e); }
       if (newGame) w.body.replaceChildren();
-      if (title) w.title.textContent = title;
+      if (title) { this.windowTitles.set(w, title); w.title.textContent = uiText(title); }
       if (clicked) this.focus(id);
       else if (Number(w.el.style.zIndex) !== this.z) {
         // bring it back the way this robot usually does: click the window, its dock icon, or Alt+Tab
@@ -273,10 +376,12 @@ export class WM {
     el.style.cssText = `left:${f.x}px;top:${f.y}px;width:${f.w}px;height:${f.h}px`;
     el.innerHTML = `<header class="win-bar">${this.iconOf(id)}<span class="win-title"></span><span class="win-x" aria-hidden="true"></span></header><div class="win-body"></div>`;
     const titleEl = el.querySelector(".win-title") as HTMLElement;
-    titleEl.textContent = title || this.titleOf(id);
+    titleEl.textContent = title ? uiText(title) : this.titleOf(id);
     this.layer.appendChild(el);
     w = { id, el, body: el.querySelector(".win-body")!, title: titleEl, lastUsed: Date.now() };
+    if (title) this.windowTitles.set(w, title);
     this.wins.set(id, w);
+    if (FICTIONAL_APPS.has(id)) this.localizationStops.set(id, localizeGameDOM(w.body, `Fictional ${TITLES[id]} app on a robot computer. Preserve app brands and usernames. Adapt related jokes and replies together.`));
     this.focus(id);
     const dockItem = this.showInDock(id);
     dockItem.classList.add("running");
@@ -309,6 +414,7 @@ export class WM {
       this.layer.prepend(box);
       this.robot.click();
       const paint = () => {
+        if (!this.operatorPresent || !this.presentationVisible) return;
         const l = Math.min(x0, this.cursor.x), t = Math.min(y0, this.cursor.y);
         box.style.cssText = `left:${l}px;top:${t}px;width:${Math.abs(this.cursor.x - x0)}px;height:${Math.abs(this.cursor.y - y0)}px`;
       };
@@ -329,9 +435,14 @@ export class WM {
   // harness the robot actually uses (Claude, Codex, OpenCode...), in the dock, Spotlight,
   // the window bar and the app switcher.
   private appTitles: Partial<Record<AppId, string>> = {};
+  private windowTitles = new WeakMap<Win, string>();
   private appIcons: Partial<Record<AppId, string>> = {};
-  titleOf(id: AppId) { return this.appTitles[id] ?? TITLES[id]; }
-  iconOf(id: AppId) { return this.appIcons[id] ?? ICONS[id]; }
+  titleOf(id: AppId) {
+    if (id === "notes") return this.prefs?.notesApp === "notepad-plus-plus" ? "Notepad++" : this.prefs?.notesApp === "notepad" ? "Notepad" : "Apple Notes";
+    return uiText(this.appTitles[id] ?? TITLES[id]); }
+  iconOf(id: AppId) {
+    if (id === "notes") return noteAppIcon(this.prefs?.notesApp ?? "apple-notes");
+    return this.appIcons[id] ?? ICONS[id]; }
   brandApp(id: AppId, o: { title?: string; icon?: string }) {
     if (o.title) this.appTitles[id] = o.title;
     if (o.icon) this.appIcons[id] = o.icon;
@@ -350,6 +461,7 @@ export class WM {
   // music lovers, its task app). Other apps show up while they are open and leave when closed.
   pinned(): AppId[] {
     const p = this.prefs, pins = new Set<AppId>(["files", "editor", "terminal", "browser", "t3code"]);
+    if (p?.chatApp !== "t3code") pins.add("chat");
     if (p?.hobby === "gamer") pins.add("game");
     if (p?.hobby === "musician") pins.add("beats");
     if (p?.hobby === "chatter") pins.add("social");
@@ -485,7 +597,7 @@ export class WM {
     const endMove = this.beginWindowMove(w);
     this.robot.click();
     const move = this.moveTo(to.x + grab.x, to.y + grab.y, 520);
-    const follow = () => { w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
+    const follow = () => { if (!this.operatorPresent || !this.presentationVisible) return; w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
     gsap.ticker.add(follow);
     try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); endMove(); }
     this.check(e);
@@ -583,7 +695,7 @@ export class WM {
     const endMove = this.beginWindowMove(w);
     this.robot.click();
     const move = this.moveTo(nx + grab.x, ny + grab.y, 600);
-    const follow = () => { w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
+    const follow = () => { if (!this.operatorPresent || !this.presentationVisible) return; w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
     gsap.ticker.add(follow);
     try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); endMove(); }
     this.check(e);
@@ -601,7 +713,7 @@ export class WM {
   private syncOcclusion() {
     for (const w of this.wins.values()) {
       const f = this.frameOf(w), z = Number(w.el.style.zIndex);
-      let hidden = false;
+      let hidden = this.overlayCovered;
       for (const other of this.wins.values()) {
         if (other === w || Number(other.el.style.zIndex) <= z) continue;
         // An opening window is still translucent and scaled. Its final rectangle
@@ -664,6 +776,7 @@ export class WM {
   close(id: AppId) {
     const w = this.wins.get(id);
     if (!w) return;
+    this.localizationStops.get(id)?.(); this.localizationStops.delete(id);
     this.wins.delete(id);
     this.syncOcclusion();
     const dockItem = (this.dock.querySelector(`[data-app="${id}"]`) as HTMLElement | null) ?? this.dock;
@@ -703,15 +816,20 @@ export class WM {
 
   reset() {
     this.epoch++;
+    this.wakeOperatorWaiters();
+    this.cursorMotion?.kill();
+    for (const tween of this.pausedByAbsence) tween.kill();
+    this.pausedByAbsence.clear();
     gsap.killTweensOf(this.cursor);
     for (const w of this.wins.values()) w.el.remove();
     this.wins.clear();
     this.opening.clear();
+    this.root.querySelectorAll(".launcher, .alttab, .sel-box, .click-ring").forEach((el) => el.remove());
     this.renderDock(false);
     this.root.querySelector(".toast-layer")!.innerHTML = "";
   }
 
-  destroy() { clearInterval(this.clockTimer); this.reset(); }
+  destroy() { this.stopLocale(); this.stopClock(); this.reset(); }
 }
 
 function overlap(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) {

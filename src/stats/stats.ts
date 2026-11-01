@@ -105,7 +105,7 @@ function windowName(minutes: number | null): string {
 type LimitRow = { root: HTMLElement; name: HTMLElement; reset: HTMLElement; fill: HTMLElement; pct: HTMLElement };
 type ModelRow = { root: HTMLElement; name: HTMLElement; tokens: HTMLElement; cost: HTMLElement };
 
-export function mountStats(host: HTMLElement, load: () => Promise<Usage>): { refresh(): void; destroy(): void } {
+export function mountStats(host: HTMLElement, load: () => Promise<Usage>, options: { background?: boolean } = {}): { refresh(): void; destroy(): void } {
   const root = el("div", "st");
   root.setAttribute("aria-live", "off");
 
@@ -140,6 +140,7 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>): { ref
     const open = toggle.getAttribute("aria-expanded") !== "true";
     toggle.setAttribute("aria-expanded", String(open));
     root.classList.toggle("st-open", open);
+    if (open && last) renderModels(last.windows.today);
   });
 
   const projectToggle = el("button", "st-toggle", "By project today");
@@ -158,10 +159,11 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>): { ref
     const open = projectToggle.getAttribute("aria-expanded") !== "true";
     projectToggle.setAttribute("aria-expanded", String(open));
     root.classList.toggle("st-projects-open", open);
+    if (open && last) renderProjects(last.windows.today);
   });
   const limitsNote = el("p", "st-more st-limit-note");
   const note = el("p", "st-note");
-  root.append(head, sub, limitsBox, limitsNote, projectToggle, projectsWrap, toggle, modelsWrap, note);
+  root.append(limitsBox, limitsNote, head, sub, projectToggle, projectsWrap, toggle, modelsWrap, note);
   host.append(root);
 
   const limitRows = new Map<string, LimitRow>();
@@ -171,6 +173,7 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>): { ref
   let seq = 0;
   let timer: ReturnType<typeof setInterval> | null = null;
   let destroyed = false;
+  let loading = false;
 
   function limitRow(key: string, harness: string): LimitRow {
     let r = limitRows.get(key);
@@ -311,8 +314,9 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>): { ref
     const w = u.windows.week;
     setText(sub, `Last 7 days ${formatTokens(w.tokens)} tokens, ${formatCost(w.costUsd)}`);
     renderLimits(u);
-    renderModels(t);
-    renderProjects(t);
+    // Closed breakdowns need no sorting, row allocation or DOM updates.
+    if (toggle.getAttribute("aria-expanded") === "true") renderModels(t);
+    if (projectToggle.getAttribute("aria-expanded") === "true") renderProjects(t);
     // Unknown prices already show on their model row; other problems get one quiet line.
     const other = u.errors.filter((e) => !e.startsWith("No API price"));
     setText(note, other.length ? (other.length === 1 ? other[0] : `${other.length} usage logs could not be read`) : "");
@@ -322,30 +326,32 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>): { ref
   }
 
   async function refresh() {
-    if (destroyed) return;
+    if (destroyed || loading) return;
+    loading = true;
     const mine = ++seq;
     try {
       const u = await load();
       if (destroyed || mine !== seq) return;
       last = u;
-      render(u);
+      if (!document.hidden) render(u);
     } catch (err) {
       if (destroyed || mine !== seq) return;
+      if (document.hidden) return;
       const msg = err instanceof Error ? err.message : String(err);
       if (last) render(last); // keep the last good numbers
       setText(note, `Usage could not be updated: ${msg}`);
       note.hidden = false;
-    }
+    } finally { loading = false; }
   }
 
-  const onVisible = () => { if (!document.hidden) void refresh(); };
+  const onVisible = () => { if (!document.hidden) { if (last) render(last); void refresh(); } };
   document.addEventListener("visibilitychange", onVisible);
   root.classList.add("st-loading");
   note.hidden = true;
   modelMore.hidden = true;
   limitsBox.hidden = true;
   void refresh();
-  timer = setInterval(() => { if (!document.hidden) void refresh(); }, REFRESH_MS);
+  timer = setInterval(() => { if (options.background || !document.hidden) void refresh(); }, REFRESH_MS);
 
   return {
     refresh: () => void refresh(),

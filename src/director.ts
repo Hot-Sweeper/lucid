@@ -2,6 +2,7 @@ import { Botword } from "./office-apps/botword";
 import { reportDocument } from "./office-apps/word-markdown";
 import { uiText } from "./localization";
 import { frontendUrlFromOutput } from "./os/frontend";
+import { renderFps } from "./perf/render";
 import gsap from "gsap";
 import { WM, Cancelled } from "./os/wm";
 import { CalcApp, WORK_SUMS } from "./os/calc";
@@ -30,6 +31,16 @@ import { OfficeSuite, OFFICE_GLOW, officeActivity, officeKind, officeTargets, re
 
 export type Item = { id: string; runId: string | null; ordinal: number; type: string; status: string; updatedAt: string; data: any };
 export type ThreadInfo = { id: string; title: string; provider: string; model?: string | null; effort?: string | null; projectTitle?: string; root?: string; run?: { id: string; status: string } | null; queued?: { id: string; text: string }[]; error?: string };
+
+// Reconnected watches can contain the same JSON objects with new identities.
+// Compare without serializing large tool outputs a second time or keeping a copy.
+export function samePresentationValue(a: any, b: any): boolean {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every(key => Object.hasOwn(b, key) && samePresentationValue(a[key], b[key]));
+}
 
 const GLOW: Record<string, string> = {
   editor: "#6f7dff", terminal: "#4ff0a0", browser: "#4fd2ff", chat: "#ff7aa8", files: "#ffbf5a", tool: "#b07cff", think: "#9d8cff", idle: "#4fb6ff", tasks: "#4fd8c0", git: "#a37cff",
@@ -109,7 +120,9 @@ export class Director {
   private pendingInitial: Item[] | null = null;
   private files: FilesApp; private editor: EditorApp; private term: TerminalApp;
   private uac: UacPrompt;
-  private browser: BrowserApp; private codex: CodexApp; private chat: T3CodeApp; private tool: ToolApp; private tasks: TasksApp;
+  private browser: BrowserApp; private codex: CodexApp; private chat: T3CodeApp; private nativeMessages: T3CodeApp;
+  private get messages() { return this.wm.prefs?.chatApp === "t3code" ? this.chat : this.nativeMessages; }
+  private get messageApp(): "chat" | "t3code" { return this.wm.prefs?.chatApp === "t3code" ? "t3code" : "chat"; } private tool: ToolApp; private tasks: TasksApp;
   private planSig = "";
   onActivity: (text: string) => void = () => {};
   private idleLife: IdleLife;
@@ -143,13 +156,14 @@ export class Director {
     this.browser = new BrowserApp(wm, peek);
     // the thread itself plays out in T3 Code, the app it really lives in (stable or Nightly per robot)
     this.chat = new T3CodeApp(wm);
+    this.nativeMessages = new T3CodeApp(wm, "user");
     this.tool = new ToolApp(wm);
     this.codex = new CodexApp(wm);
     this.tasks = new TasksApp(wm);
     this.gitdesk = new GitDeskApp(wm);
     this.idleLife = new IdleLife(wm, robot, stage);
     this.idleLife.browser = this.browser;
-    this.idleLife.hold = () => this.waitingForUser;
+    this.idleLife.hold = () => this.waitingForUser || !this.present();
     this.music = new MusicApp(wm);
     this.idleLife.music = this.music;
     this.harness = new HarnessApp(wm as any);
@@ -158,6 +172,8 @@ export class Director {
   }
 
   reset() {
+    window.clearTimeout(this.historyTimer);
+    this.historyTimer = 0; this.historyThread = null; this.historyGeneration++; this.historyCut = 0;
     this.notePresentation.reset();
     this.idleLife.stop();
     for (const s of this.sessions.values()) window.clearInterval(s.timer);
@@ -166,6 +182,7 @@ export class Director {
     this.helperHints.clear();
     this.harness.reset();
     this.chat.reset();
+    this.nativeMessages.reset();
     this.imageRefresh.reset();
     this.browser.reset();
     this.codex.reset();
@@ -198,6 +215,7 @@ export class Director {
     const first = !this.info;
     this.info = info;
     this.chat.setInfo(info);
+    this.nativeMessages.setInfo(info);
     this.codex.setInfo(info);
     this.term.setCwd(info.root || null);
     const status = info.run?.status || "";
@@ -215,7 +233,7 @@ export class Director {
     this.lastRunStatus = status;
     this.noteQueue(info.queued ?? [], first);
     // after the robot has settled on this thread (its T3 Code window may still be reset meanwhile)
-    if (first && info.id) { const id = info.id; window.setTimeout(() => { if (this.info?.id === id) void this.loadHistory(id); }, 1200); }
+    if (first && info.id) { this.historyThread = info.id; this.scheduleHistory(); }
     if (this.pendingInitial) {
       const items = this.pendingInitial;
       this.pendingInitial = null;
@@ -224,14 +242,44 @@ export class Director {
   }
 
   private historyCut = 0;
+  private historyThread: string | null = null;
+  private historyTimer = 0;
+  private historyGeneration = 0;
+  private scheduleHistory() {
+    if (!this.historyThread || this.historyTimer || !this.present() || !renderFps(this.wm.root)) return;
+    const id = this.historyThread, generation = this.historyGeneration;
+    this.historyTimer = window.setTimeout(() => {
+      this.historyTimer = 0;
+      if (this.historyThread !== id || this.info?.id !== id || !this.present() || !renderFps(this.wm.root)) return;
+      this.historyThread = null;
+      void this.loadHistory(id, generation);
+    }, 1200);
+  }
   /** The thread's earlier messages (yours with their images, and the robot's replies). */
-  private async loadHistory(id: string) {
+  private async loadHistory(id: string, generation = this.historyGeneration) {
     try {
-      const msgs = await (window as any).lucid?.conversation?.(id);
-      if (!Array.isArray(msgs)) return;
+      const api = (window as any).lucid;
       const cut = this.historyCut || Date.now();
+      const eligible = (m: any) => (m.role === 'user' || m.role === 'assistant') && m.run !== 'queued' && Date.parse(m.at) < cut;
+      let msgs: any[];
+      if (api?.conversationPage) {
+        msgs = [];
+        let before: { at: string; rowid: number } | undefined;
+        const seen = new Set<string>();
+        do {
+          const page = await api.conversationPage(id, { limit: 12, ...(before ? { before } : {}) });
+          if (this.info?.id !== id || this.historyGeneration !== generation || !Array.isArray(page?.messages)) return;
+          msgs = [...page.messages.filter(eligible), ...msgs];
+          if (msgs.length >= 12 || !page.hasMore || !page.cursor) break;
+          const key = JSON.stringify(page.cursor);
+          if (seen.has(key)) break;
+          seen.add(key); before = page.cursor;
+          if (!this.present()) { this.historyThread = id; return; }
+        } while (before);
+      } else msgs = await api?.conversation?.(id);
+      if (!Array.isArray(msgs) || this.info?.id !== id || this.historyGeneration !== generation) return;
       const past = msgs
-        .filter((m: any) => (m.role === "user" || m.role === "assistant") && m.run !== "queued" && Date.parse(m.at) < cut)
+        .filter(eligible)
         .slice(-12)
         .map((m: any) => {
           const raw = String(m.text || "");
@@ -240,7 +288,7 @@ export class Director {
           return { role: m.role, text: raw.replace(/\s*Attached:[\s\S]*$/, "").trim(), images: [...new Set(paths)].map((p) => fileUrl(p)) };
         })
         .filter((m: any) => m.text || m.images.length);
-      this.chat.history(past);
+      this.messages.history(past);
     } catch { /* no history then */ }
   }
 
@@ -273,6 +321,8 @@ export class Director {
     if (initial) latestRun = this.info?.run?.status === "running" ? this.info.run.id : null;
     // what is replayed starts here; older messages are shown as history in T3 Code
     if (initial) { const t = latestRun ? items.filter((i) => i.runId === latestRun).map((i) => Date.parse(i.updatedAt)).filter((n) => n > 0) : []; this.historyCut = t.length ? Math.min(...t) - 1500 : Date.now(); }
+    items = items.filter(it => !samePresentationValue(this.items.get(it.id), it));
+    if (!items.length) return;
     for (const it of items) {
       const t = Date.parse(it.updatedAt);
       if (t > this.lastEventAt) this.lastEventAt = t;
@@ -342,12 +392,15 @@ export class Director {
 
   // The robot's notes: while it thinks, its reasoning gets jotted down here.
   private async openNotes() {
-    const w = await this.wm.open("notes", "Notes");
-    if (!w.body.querySelector(".notes")) w.body.innerHTML = `<div class="notes"></div>`;
+    const w = await this.wm.open("notes");
+    if (!w.body.querySelector(".notes")) w.body.innerHTML = `<div class="notes-workspace"><div class="notes-chrome" aria-hidden="true"></div><div class="notes"></div></div>`;
+    const chrome = w.body.querySelector(".notes-chrome");
+    if (chrome) chrome.textContent = this.wm.prefs?.notesApp === "notepad-plus-plus" ? "File   Edit   Search   View\nnotes.txt" : this.wm.prefs?.notesApp === "notepad" ? "File   Edit   View\nnotes.txt" : "Notes";
     return w.body.querySelector(".notes") as HTMLElement;
   }
   private noteFor = new WeakMap<HTMLElement, HTMLElement>();
-  private notePresentation = new NotePresentation(() => this.wm.epoch, (key) => this.robot.pressKey(key));
+  private notePresentation = new NotePresentation(() => this.wm.epoch, (key) => this.robot.pressKey(key),
+    { present: () => this.present(), wait: (epoch) => this.wm.waitForOperator(epoch) });
   private async writeNote(box: HTMLElement, text: string) {
     const clean = text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim().slice(0, 600);
     let p = this.noteFor.get(box);
@@ -432,9 +485,13 @@ export class Director {
       }
     };
     const seen = new Set<string>();
+    let polling = false;
     const tick = async () => {
-      if (s.done) return;
+      if (s.done || polling || !this.present()) return;
+      polling = true;
+      try {
       const items = await this.childItems(child, s.since).catch(() => []);
+      if (s.done || ![...this.sessions.values()].includes(s)) return;
       for (const it of items) {
         if (it.updatedAt > s.since) s.since = it.updatedAt;
         if (it.type === "assistant_message") { if (it.data?.text) { s.last = String(it.data.text); session.stream(s.last); } continue; }
@@ -446,11 +503,13 @@ export class Director {
       // Every few polls: learn the model once the child thread exists, and notice when its run ends.
       if (s.ticks++ % 3 === 0) {
         const info = await this.childInfo(child).catch(() => null);
+        if (s.done || ![...this.sessions.values()].includes(s)) return;
         if (info && !s.hasModel && info.model) { s.hasModel = true; session.setMeta({ model: info.model, effort: info.effort || undefined }); }
         const st = info?.run?.status || "";
         if (st === "running") s.runSeen = true;
         else if (s.runSeen && /^(completed|failed|interrupted|cancelled|canceled|error)$/.test(st)) this.endHelper(s, s.last || "Done", st === "completed");
       }
+      } finally { polling = false; }
     };
     void tick();
     s.timer = window.setInterval(tick, 2500);
@@ -492,16 +551,42 @@ export class Director {
   private userTypingAt = 0;
   private get waitingForUser() { return Date.now() - this.userTypingAt < 8000; }
   /** The desk robot is in its chair (not walking back to it). Set by the desk. */
-  present: () => boolean = () => true;
+  present: () => boolean = () => this.wm.operatorPresent && this.wm.presentationVisible;
+  setPresentationVisible(visible: boolean) {
+    const wasVisible = this.wm.presentationVisible;
+    this.wm.setPresentationVisible(visible);
+    if (!visible && this.writingReport) this.wm.reset();
+    if (!visible) {
+      window.clearTimeout(this.historyTimer); this.historyTimer = 0;
+      return;
+    }
+    this.scheduleHistory();
+    if (!wasVisible && this.pumpEpoch === -1 && this.present()) {
+      if (this.queue.length) void this.pump(); else if (this.info && !this.idleLife.isActive) this.idle();
+    }
+  }
+  setPresent(here: boolean) {
+    if (here === this.wm.operatorPresent) return;
+    if (!here) {
+      this.busyToken++;
+      this.idleLife.leaveDesk();
+    }
+    this.wm.setOperatorPresent(here);
+    if (here) this.scheduleHistory();
+    if (here && this.pumpEpoch === -1) {
+      if (this.queue.length) void this.pump();
+      else if (this.info) this.idle();
+    }
+  }
   private seesChat() {
-    return this.present() && !this.idleLife.asleep && !this.idleLife.holdingPhone && !this.phoneUp && this.wm.isFront("t3code");
+    return this.present() && !this.idleLife.asleep && !this.idleLife.holdingPhone && !this.phoneUp && this.wm.isFront(this.messageApp);
   }
   userTyping(on: boolean) {
     if (on) {
       if (!this.seesChat()) return;
       const fresh = !this.waitingForUser;
       this.userTypingAt = Date.now();
-      void this.chat.youTyping(true).catch(() => {});
+      void this.messages.youTyping(true).catch(() => {});
       // real work keeps going; only the bubble shows the typing
       if (!fresh || this.pumpEpoch !== -1) return;
       this.busyToken++;
@@ -510,7 +595,7 @@ export class Director {
       this.robot.setPose("read");
       return;
     }
-    void this.chat.youTyping(false).catch(() => {});
+    void this.messages.youTyping(false).catch(() => {});
     if (!this.waitingForUser) return;   // it never saw you typing
     this.userTypingAt = Date.now() - 2000;   // a short grace period in case the message is on its way
     const epoch = this.wm.epoch;
@@ -521,7 +606,7 @@ export class Director {
 
   // A robot walking back to its desk does nothing on its computer until it sits down.
   private async untilPresent() {
-    for (let n = 0; n < 240 && !this.present(); n++) await this.wm.sleep(250);
+    await this.wm.waitForOperator();
   }
 
   private writingReport = false;
@@ -612,8 +697,10 @@ export class Director {
   }
 
   private idle() {
+    if (this.writingReport) return;
     this.wasIdle = true;
-    if (this.waitingForUser) { this.robot.setPose("read"); this.onActivity("Watching you type"); void this.chat.youTyping(true).catch(() => {}); return; }
+    if (!this.present()) return;
+    if (this.waitingForUser) { this.robot.setPose("read"); this.onActivity("Watching you type"); void this.messages.youTyping(true).catch(() => {}); return; }
     if (this.phoneUp) { this.mobile = false; void this.phone(false); }
     // Helpers still at work: wait for them and look in on them now and then.
     const live = [...this.sessions.entries()].filter(([, s]) => !s.done);
@@ -622,7 +709,7 @@ export class Director {
       this.onActivity(live.length === 1 ? "Waiting for its helper" : `Waiting for ${live.length} helpers`);
       const epoch = this.wm.epoch;
       window.setTimeout(async () => {
-        if (epoch !== this.wm.epoch || this.queue.length) return;
+        if (epoch !== this.wm.epoch || this.queue.length || !this.present()) return;
         const still = [...this.sessions.entries()].filter(([, s]) => !s.done);
         if (still.length) { try { await this.harness.checkOn(still[0][0]); } catch {} }
         if (epoch === this.wm.epoch && !this.queue.length) this.idle();
@@ -649,7 +736,7 @@ export class Director {
   private busyToken = 0;
   private async busyWhileWaiting(epoch: number) {
     const tok = ++this.busyToken;
-    const still = () => tok === this.busyToken && epoch === this.wm.epoch && !this.queue.length && this.pumpEpoch === -1 && this.info?.run?.status === "running" && !this.waitingForUser;
+    const still = () => this.present() && tok === this.busyToken && epoch === this.wm.epoch && !this.queue.length && this.pumpEpoch === -1 && this.info?.run?.status === "running" && !this.waitingForUser;
     try {
       await this.wm.sleep(1200, epoch);
       if (!still()) return;
@@ -731,6 +818,22 @@ export class Director {
       if (Array.isArray(o.content)) return o.content.map((c: any) => c.text || "").join("\n");
       return JSON.stringify(o, null, 1);
     };
+    if (/t3_thread_send(?:_attachments)?$/.test(base)) {
+      this.onActivity("Sending a T3 message");
+      this.robot.setPose("read");
+      const done = await this.settle(id, 20000);
+      const message = String(done.data.input?.message || "");
+      await this.chat.assistant(() => ({ text: message || "Attachments sent.", done: true }));
+      await this.chat.inspection(done.status === "failed" ? "Message could not be sent" : "Message sent to another thread", String(done.data.input?.threadId || ""));
+      return true;
+    }
+    if (/t3_thread_read$/.test(base)) {
+      this.onActivity("Reading a T3 thread");
+      this.robot.setPose("read");
+      const done = await this.settle(id, 20000);
+      await this.chat.inspection(done.status === "failed" ? "Thread could not be read" : "T3 thread read", text(done.data.output));
+      return true;
+    }
     if (/^(bash|powershell|shell|run_command)$/i.test(base)) {
       const cmd = this.get(id).data.input?.command || "";
       if (await this.playGit(id, cmd)) return true;
@@ -829,7 +932,14 @@ export class Director {
       if (it.status !== "running" && it.status !== "pending") this.finishSession(id);
       return true;
     }
+    if (/^(orchestrator_|task_|t3_thread_|t3_environment_)/.test(base)) {
+      const done = await this.settle(id, 15000);
+      this.onActivity("Coordinating in T3 Code");
+      await this.chat.inspection(base.replace(/_/g, " "), text(done.data.output));
+      return true;
+    }
     if (base === "delegate_task") {
+      await this.chat.inspection("Delegating a task", String(this.get(id).data.input?.task || this.get(id).data.input?.title || ""));
       // T3's delegate tool: the child may run any harness (Codex, OpenCode, ...) with its own model and effort.
       const done = await this.settle(id, 15000);
       const inp = done.data.input || {};
@@ -1222,10 +1332,10 @@ export class Director {
         // Asleep, it hears the notification, wakes up, stretches and unlocks first. Busy in
         // another app, it looks up, then clicks the notification or goes to Messages its usual way.
         const dozing = this.idleLife.pending && this.idleLife.asleep;
-        const watching = !dozing && this.wm.isFront("t3code");
+        const watching = !dozing && this.wm.isFront(this.messageApp);
         this.onActivity(dozing ? "Waking up" : "Reading your message");
         this.stage.setGlow(GLOW.chat);
-        const note = this.wm.toast("New message from you", "t3code", dozing ? 7 : 2.8);
+        const note = this.wm.toast("New message from you", this.messageApp, dozing ? 7 : 2.8);
         if (dozing) await this.idleLife.rouse();
         else {
           this.robot.setPose(watching ? "read" : "notice");
@@ -1234,7 +1344,7 @@ export class Director {
         }
         this.onActivity("Reading your message");
         let clicked = false;
-        if (!this.wm.isFront("t3code") && note.isConnected && Math.random() < (dozing ? 0.65 : 0.4)) {
+        if (!this.wm.isFront(this.messageApp) && note.isConnected && Math.random() < (dozing ? 0.65 : 0.4)) {
           this.robot.setPose("mouse");
           await this.wm.pointAt(note, 0.45, 0.5, 420);
           await this.wm.click();
@@ -1254,7 +1364,7 @@ export class Director {
             if (mm) imgs.push({ path: mm[1].trim(), name: mm[1].trim().split(/[\\/]/).pop()!.replace(/^\d+-/, "") });
           }
         }
-        await this.chat.user(said, imgs.map((i) => fileUrl(i.path)), clicked);
+        await this.messages.user(said, imgs.map((i) => fileUrl(i.path)), clicked);
         this.robot.setPose("read");
         await this.wm.sleep(Math.min(3200, 800 + said.length * 12));
         for (const img of imgs.slice(0, 2)) {
@@ -1285,10 +1395,10 @@ export class Director {
       case "assistant_message": {
         this.onActivity("Writing to you");
         this.stage.setGlow(GLOW.chat);
-        await this.chat.assistant(() => {
+        await this.messages.assistant(() => {
           const cur = this.get(id);
           return { text: cur.data.text || "", done: !(cur.status === "running" || cur.data.streaming) };
-        });
+        }, true);
         await this.wm.sleep(500);
         return;
       }
@@ -1382,12 +1492,12 @@ export class Director {
         this.stage.setGlow(GLOW.chat);
         this.robot.setPose("ask");
         this.stage.say(q, "speak");
-        await this.chat.note(q, "ask");
+        await this.messages.note(q, "ask");
         const done = await this.settle(id, 30 * 60 * 1000);
         const answer = done.data.questionAnswer?.answers ? Object.values(done.data.questionAnswer.answers).join("\n") : "";
         this.stage.say(null);
         this.robot.setPose("rest");
-        if (answer) await this.chat.user(String(answer));
+        if (answer) await this.messages.user(String(answer));
         return;
       }
       case "subagent": {
@@ -1422,7 +1532,7 @@ export class Director {
       }
       case "error": {
         this.wm.toast(d.message || d.text || "Something failed in this run", "tool");
-        await this.chat.note(d.message || d.text || "The run hit an error.", "error");
+        await this.messages.note(d.message || d.text || "The run hit an error.", "error");
         return;
       }
       default:

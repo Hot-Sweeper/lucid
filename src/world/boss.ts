@@ -26,6 +26,9 @@ export class Boss {
   /** where the robots in line stand, front first (for glances) */
   visitors: () => { x: number; y: number }[] = () => [];
   private running = false;
+  private presence: "awake" | "sleep" | "away" = "awake";
+  private info: BossInfo | null = null;
+  private sleeping = false;
   private life: gsap.core.Tween | null = null;
   private busyUntil = 0;
   private glowAnim: gsap.core.Animation | null = null;
@@ -37,7 +40,8 @@ export class Boss {
   constructor(private layer: HTMLElement, private desk: BossDesk) {}
 
   set(info: BossInfo | null) {
-    if (!info) { this.clear(); return; }
+    this.info = info;
+    if (!info || this.presence === "away") { this.clear(); return; }
     if (this.w && this.w.id !== info.id) this.clear();
     if (!this.w) {
       const w = new Walker(this.layer, { id: info.id, provider: info.provider, model: info.model ?? undefined, name: info.name, scale: SCALE, look: info.look });
@@ -62,21 +66,35 @@ export class Boss {
       if (info.look) this.w.setLook(info.look);
       if (info.name) this.w.setName(info.name);
     }
+    if(this.presence === "sleep") {
+      if(!this.sleeping) {
+        this.read(null);this.life?.kill();this.glowAnim?.kill();
+        if(this.desk.glow)gsap.set(this.desk.glow,{opacity:0});
+        this.w.do("nap");this.sleeping=true;
+      }
+      return;
+    }
+    if(this.sleeping) { this.sleeping=false;this.running=info.running;this.setRunning(info.running);if(!reduced())this.scheduleLife(); }
     if (info.running !== this.running) this.setRunning(info.running);
+  }
+
+  setPresence(presence: "awake" | "sleep" | "away") {
+    if(this.presence===presence)return;
+    this.presence=presence;this.set(this.info);
   }
 
   /** A robot just took its place in line: look over and wave. */
   greet(x: number, y: number) {
     const w = this.w;
-    if (!w || reduced() || this.deciding || performance.now() < this.busyUntil) return;
+    if (!w || this.presence !== "awake" || reduced() || this.deciding || performance.now() < this.busyUntil) return;
     this.busyUntil = performance.now() + 2200;
     this.look(x, y, 1.6);
-    gsap.delayedCall(0.3, () => this.w === w && w.greet());
+    gsap.delayedCall(0.3, () => this.w === w && this.presence === "awake" && w.greet());
   }
 
   /** The bell rang: a quick look at whoever rang it. */
   heard(x: number, y: number) {
-    if (!this.w || reduced() || this.deciding || performance.now() < this.busyUntil) return;
+    if (!this.w || this.presence !== "awake" || reduced() || this.deciding || performance.now() < this.busyUntil) return;
     this.look(x, y, 0.9);
   }
 
@@ -104,6 +122,7 @@ export class Boss {
   /** While the decision is actually in flight: it turns to the robot (`at` gives where it stands)
    *  and reads its card, glancing at its screen in between. Null stops reading. */
   read(at: (() => { x: number; y: number } | null) | null) {
+    if(at && this.presence!=="awake")return;
     this.readLoop?.kill();
     this.readLoop = null;
     const w = this.w;
@@ -122,6 +141,7 @@ export class Boss {
 
   /** It answered for you: a stamp on the paper and a nod toward the robot. */
   answered(at: { x: number; y: number } | null) {
+    if(this.presence!=="awake")return;
     this.read(null);
     const w = this.w;
     if (!w) return;
@@ -138,6 +158,7 @@ export class Boss {
 
   /** It was not sure (or may not answer this kind): a shake of the head, then it points at you. */
   passed() {
+    if(this.presence!=="awake")return;
     this.read(null);
     const w = this.w;
     if (!w) return;
@@ -188,6 +209,7 @@ export class Boss {
   }
 
   clear() {
+    this.sleeping = false;
     this.readLoop?.kill();
     this.readLoop = null;
     this.deciding = false;

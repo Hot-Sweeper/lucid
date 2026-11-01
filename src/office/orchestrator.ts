@@ -1,10 +1,11 @@
 import gsap from "gsap";
 import type { World, WThread } from "./world";
+import { companionClient } from "../remote-client";
 
 // Your stand-in. It learns your preferences from what you tell robots, keeps them in its
 // notebook (memory.md), and when reviews are on, checks finished work for you.
 
-export type OrchState = { threadId: string; projectId: string; dir: string; review: boolean; seenUntil: string; lastSentAt: number; learned: number; reviewed: Record<string, number>; dialogsAsked?: string;
+export type OrchState = { threadId: string; projectId: string; dir: string; review: boolean; reviewWorkflow?: number; paused?: boolean; presence?: "awake" | "sleep" | "away"; seenUntil: string; lastSentAt: number; learned: number; reviewed: Record<string, number>; dialogsAsked?: string;
   /** answering robots' questions for you (delegate.ts): on unless turned off, how sure it must be, learning cursors */
   auto?: boolean; threshold?: number; answersSince?: string; folded?: string };
 type Api = {
@@ -17,11 +18,19 @@ type Api = {
 const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export class Orchestrator {
-  private prevRun = new Map<string, string | null>();
+  papers: any[] = [];
+  private reportsFlight: Promise<void> | null = null;
+  private pendingReportThreads: WThread[] | null = null;
   private busy = false;
   onChange: () => void = () => {};
 
   constructor(private api: Api, private world: World, private get: () => OrchState | null, private set: (s: OrchState | null) => void) {
+    if (companionClient()) return;
+    // Record the workflow version without overriding an existing manual review choice.
+    const saved = this.get();
+    if (saved && saved.reviewWorkflow !== 1) this.set({ ...saved, review: saved.review === true, reviewWorkflow: 1 });
+    this.world.onReportArrived = () => void this.syncReports();
+    void this.syncReports();
     setInterval(() => void this.learn(), 60000);
     // once a day: fresh lines for the robots, about you and each other
     window.setTimeout(() => void this.daily(), 90000);
@@ -31,12 +40,14 @@ export class Orchestrator {
   // Ask the orchestrator for today's dialog pack: about 40 short lines on a cheap model,
   // drawn from what it knows about you (memory.md) and what the robots worked on today.
   async daily() {
+    if (companionClient()) return;
     const s = this.get();
-    if (!s) return;
+    if (!s || s.paused) return;
     const today = new Date().toLocaleDateString("en-CA");
     if (s.dialogsAsked === today) return;
     const have = await (window as any).lucid.orchDialogs?.().catch(() => null);
-    if (have?.date === today) { this.set({ ...s, dialogsAsked: today }); return; }
+    if(this.get()?.paused || this.get()?.threadId!==s.threadId)return;
+    if (have?.date === today) { this.set({ ...this.get()!, dialogsAsked: today }); return; }
     const names = [...new Set(this.world.roster.robots.map((r) => r.name))].slice(0, 16).join(", ");
     const topics = (this.world.lastData?.threads ?? [])
       .filter((t) => t.title && Date.now() - Date.parse(t.updatedAt) < 36 * 3600 * 1000)
@@ -58,7 +69,7 @@ ${topics || "- (quiet day)"}
 Rules: lines under 70 characters, kind and funny, PG, no em dashes or en dashes, no secrets or personal data.`;
     try {
       await this.api.sendMessage({ threadId: s.threadId, message });
-      this.set({ ...s, dialogsAsked: today });
+      if(this.get()?.threadId===s.threadId)this.set({ ...this.get()!, dialogsAsked: today });
     } catch (err) { console.error("daily dialogs failed", err); }
   }
 
@@ -66,7 +77,7 @@ Rules: lines under 70 characters, kind and funny, PG, no em dashes or en dashes,
 
   async hire() {
     const r = await this.api.orchInit({ provider: "claudeAgent", model: "claude-sonnet-5-5" });
-    this.set({ ...r, review: false, seenUntil: new Date().toISOString(), lastSentAt: Date.now(), learned: 0, reviewed: {} });
+    this.set({ ...r, review: true, reviewWorkflow: 1, seenUntil: new Date().toISOString(), lastSentAt: Date.now(), learned: 0, reviewed: {} });
     this.world.roster.assignRobot(r.threadId, null, "claudeAgent");
     const bot = this.world.roster.byThread(r.threadId);
     if (bot) { bot.name = "Boss"; bot.look = { ...bot.look, antennaTip: "star", accent: "#ffd27a" }; (this.world.roster as any).save(); }
@@ -79,20 +90,24 @@ Rules: lines under 70 characters, kind and funny, PG, no em dashes or en dashes,
     if (!s) return;
     this.set({ ...s, review: on });
     this.onChange();
+    if (on) this.dispatchReports();
   }
 
   // Batch the user's new messages to robots and hand them to the orchestrator to learn from.
   async learn(force = false) {
+    if (companionClient()) return;
     const s = this.get();
-    if (!s || this.busy) return;
+    if (!s || s.paused || this.busy) return;
     this.busy = true;
     try {
       const msgs = await this.api.userMessagesSince(s.seenUntil, s.threadId);
+      if(this.get()?.paused || this.get()?.threadId!==s.threadId)return;
       const due = msgs.length >= 3 || (msgs.length > 0 && (force || Date.now() - s.lastSentAt > 15 * 60 * 1000));
       if (!due) return;
       const lines = msgs.map((m) => `- [${m.title || "a robot"}] ${m.text.replace(/\s+/g, " ").slice(0, 600)}`).join("\n");
       await this.api.sendMessage({ threadId: s.threadId, message: `New messages the user wrote to robots. Learn lasting preferences from them and update memory.md:\n\n${lines}` });
-      this.set({ ...s, seenUntil: msgs[msgs.length - 1].at, lastSentAt: Date.now(), learned: s.learned + msgs.length });
+      const current=this.get();
+      if(current?.threadId===s.threadId)this.set({ ...current, seenUntil: msgs[msgs.length - 1].at, lastSentAt: Date.now(), learned: current.learned + msgs.length });
       this.onChange();
     } catch (err) {
       console.error("orchestrator learn failed", err);
@@ -101,23 +116,97 @@ Rules: lines under 70 characters, kind and funny, PG, no em dashes or en dashes,
     }
   }
 
-  // Watch runs finish; with reviews on, ask the orchestrator to check the result.
+  setPaused(paused: boolean) {
+    this.setPresence(paused ? "sleep" : "awake");
+  }
+
+  setAuto(auto: boolean) {
+    const s=this.get(); if(!s)return;
+    this.set({...s,auto});this.onChange();
+  }
+
+  setPresence(presence: "awake" | "sleep" | "away") {
+    const s = this.get();
+    if (!s) return;
+    this.set({ ...s, paused: presence !== "awake", presence });
+    this.onChange();
+    if (presence === "awake") this.dispatchReports();
+  }
+
+  // Include the existing DONE backlog. Durable run IDs deduplicate submissions across restarts.
   observe(threads: WThread[]) {
     const s = this.get();
-    for (const t of threads) {
-      const was = this.prevRun.get(t.id);
-      this.prevRun.set(t.id, t.runStatus);
-      if (!s || !s.review || t.id === s.threadId || was !== "running" || t.runStatus === "running") continue;
-      if (t.runStatus !== "completed") continue;
-      if (Date.now() - (s.reviewed[t.id] ?? 0) < 10 * 60 * 1000) continue;
-      s.reviewed[t.id] = Date.now();
-      this.set({ ...s });
-      void this.api.sendMessage({
-        threadId: s.threadId,
-        message: `Review this finished thread against memory.md: "${t.title}" (thread id ${t.id}). Read it with the t3 CLI, give the robot feedback only if it clearly goes against the user's preferences or is unfinished, then reply with one line.`,
-      }).catch((e) => console.error("orchestrator review failed", e));
-    }
+    if (!s) return;
+    return this.syncReports(threads);
   }
+
+  private dispatchReports() { void this.syncReports(); }
+
+  private syncReports(threads = this.world.lastData?.threads ?? []): Promise<void> {
+    // Keep only the latest observation while the backend is busy. Attaching a
+    // recursive continuation per refresh accumulates an unbounded stale queue.
+    this.pendingReportThreads = threads;
+    if (this.reportsFlight) return this.reportsFlight;
+    const flight = (async () => {
+      try {
+        while (this.pendingReportThreads) {
+          const latest = this.pendingReportThreads;
+          this.pendingReportThreads = null;
+          await this.runReportSync(latest);
+        }
+      } finally { this.reportsFlight = null; }
+    })();
+    this.reportsFlight = flight;
+    return flight;
+  }
+
+  private async runReportSync(threads: WThread[]) {
+    if (companionClient()) return;
+    if (this.world.lastData?.environmentId) return;
+    const api = (window as any).lucid;
+    if (new URLSearchParams(location.search).get("autoScope")?.startsWith("(none")) return;
+    if (!api?.reportsTick || !new URLSearchParams(location.search).has("app")) return;
+    try {
+      const s = this.get();
+      if (!s) return;
+      const saved = await api.reportsList();
+      const known = new Set(saved.map((p: any) => `${p.threadId}:${p.runId}`));
+      // Submit one job per refresh so a large backlog cannot block the office.
+      for (const t of threads) {
+        if (t.id === s.threadId || t.pinned || t.settled || t.question || t.runStatus !== "completed") continue;
+        const previous = saved.find((p: any) => p.threadId === t.id);
+        // Backend compares run IDs, including when a robot completes another revision.
+        const stamp = `${t.id}:${t.updatedAt}`;
+        if (this.submittedVersions.has(stamp) && previous) continue;
+        const p = await api.reportsSubmit(t.id, this.world.roster.byThread(t.id));
+        this.submittedVersions.add(stamp);
+        if (p && !known.has(`${p.threadId}:${p.runId}`)) break;
+      }
+      const arrived = [...this.world.reports].filter(([, r]) => r.arrived).map(([id]) => id);
+      this.papers = await api.reportsTick(arrived);
+      // The office can refresh or switch buildings while a report is pending.
+      // Never animate an old completion on a robot that has resumed work.
+      const current = this.world.lastData;
+      if (!current || current.environmentId || this.get()?.threadId !== s.threadId) return;
+      const seenThreads = new Set<string>();
+      for (const p of this.papers) {
+        if (seenThreads.has(p.threadId)) continue;
+        seenThreads.add(p.threadId);
+        const t = current.threads.find(t => t.id === p.threadId);
+        if (!t || t.runStatus === 'running') continue;
+        const prior = this.paperStates.get(p.id);
+        if (prior !== p.status && (prior || ["reviewing", "manual-review"].includes(p.status))) {
+          const phase = p.status === "reviewing" ? "reading" : p.status === "settled" ? "answered" : p.status === "manual-review" ? "asked" : null;
+          this.world.bossDecision(p.threadId, phase, p.verdict?.summary);
+        }
+        this.paperStates.set(p.id, p.status);
+        if (t && !t.pinned && !t.settled && t.runStatus === "completed" && ["submitted", "reviewing", "approved", "manual-review"].includes(p.status) && !this.world.reports.has(t.id)) this.world.queueReport(t, p.response || "", !!p.delivered);
+      }
+      this.onChange();
+    } catch (e) { console.error("Could not sync settlement papers", e); }
+  }
+  private paperStates = new Map<string, string>();
+  private submittedVersions = new Set<string>();
 
   async showNotebook() {
     const text = await this.api.orchMemory().catch(() => "");

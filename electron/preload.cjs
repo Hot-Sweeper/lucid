@@ -7,6 +7,10 @@ const on = (channel) => (fn) => {
 };
 
 contextBridge.exposeInMainWorld("lucid", {
+  mobileAccessStatus: () => ipcRenderer.invoke('mobile:status'),
+  mobileAccessSetup: () => ipcRenderer.invoke('mobile:setup'),
+  mobileAccessDisable: () => ipcRenderer.invoke('mobile:disable'),
+  localize: (input) => ipcRenderer.invoke('lucid:localize', input),
   projects: () => ipcRenderer.invoke("t3:projects"),
   threads: () => ipcRenderer.invoke("t3:threads"),
   watchSet: (ids) => ipcRenderer.invoke("t3:watch-set", ids),
@@ -14,6 +18,7 @@ contextBridge.exposeInMainWorld("lucid", {
   offices: () => ipcRenderer.invoke("t3:offices"),
   world: () => ipcRenderer.invoke("t3:world"),
   environments: (fresh = false) => ipcRenderer.invoke("environment:list", fresh),
+  buildingWorld: (id) => ipcRenderer.invoke("environment:world", id),
   selectEnvironment: (id) => ipcRenderer.invoke("environment:select", id),
   tasks: () => ipcRenderer.invoke("t3:tasks"),
   rosterLoad: () => ipcRenderer.sendSync("roster:load"),
@@ -21,6 +26,11 @@ contextBridge.exposeInMainWorld("lucid", {
   settingsSave: (json) => ipcRenderer.invoke("settings:save", json),
   addProject: (o) => ipcRenderer.invoke("project:add", o),
   orchInit: (o) => ipcRenderer.invoke("orch:init", o),
+  approvalPapers: () => ipcRenderer.invoke("orch:approval-papers"),
+  reportsList: () => ipcRenderer.invoke("reports:list"),
+  reportsSubmit: (id, robot) => ipcRenderer.invoke("reports:submit", id, robot),
+  reportsTick: (arrived) => ipcRenderer.invoke("reports:tick", arrived),
+  reportsManual: (id, action, values) => ipcRenderer.invoke("reports:manual", id, action, values),
   orchMemory: () => ipcRenderer.invoke("orch:memory"),
   orchDialogs: () => ipcRenderer.invoke("orch:dialogs"),
   orchAnswers: () => ipcRenderer.invoke("orch:answers"),
@@ -34,6 +44,7 @@ contextBridge.exposeInMainWorld("lucid", {
   removeProject: (o) => ipcRenderer.invoke("project:remove", o),
   host: () => ipcRenderer.invoke("app:host"),
   usage: () => ipcRenderer.invoke("usage:get"),
+  coinUsage: () => ipcRenderer.invoke("coins:usage"),
   weather: () => ipcRenderer.invoke("weather:get"),
   saveAttachment: (name, data) => ipcRenderer.invoke("attach:save", { name, data }),
   rosterSave: (json) => ipcRenderer.invoke("roster:save", json),
@@ -69,9 +80,14 @@ const t3s = (channel) => async (arg) => {
   return r.value;
 };
 contextBridge.exposeInMainWorld("lucidT3", {
+  manager: t3s("t3s:manager"),
+  managerSuggest: t3s("t3s:manager-suggest"),
   status: t3s("t3s:status"),
   providers: t3s("t3s:providers"),
+  hireConfig: t3s("t3s:hire-config"),
+  hireContexts: t3s("t3s:hire-contexts"),
   reorder: t3s("t3s:reorder"),
+  moveThread: t3s("t3s:move-thread"),
   cancel: t3s("t3s:cancel"),
   edit: t3s("t3s:edit"),
   steer: t3s("t3s:steer"),

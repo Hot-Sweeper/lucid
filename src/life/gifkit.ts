@@ -1,3 +1,4 @@
+import { canvasText, canvasLines } from "../localization-canvas";
 // Drawing kit for the Botcord meme GIFs: flat shapes, soft gradients, no outlines,
 // and robots that look like Lucid's own (rounded head, dark visor, glowing eyes,
 // antenna with a bulb, cream or white shells). Everything is drawn in a virtual
@@ -135,7 +136,7 @@ export function caption(c: Ctx, s: string, x: number, y: number, px: number, o: 
   c.font = font(px, o.weight ?? 700);
   c.textAlign = o.align ?? "center";
   c.textBaseline = "alphabetic";
-  const lines = wrap(c, s, o.maxW ?? 220);
+  const lines = canvasLines(c, canvasText(s), o.maxW ?? 220);
   const lh = px * (o.lh ?? 1.08);
   const asc = px * 0.74;
   const total = lh * (lines.length - 1) + asc;

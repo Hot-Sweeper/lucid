@@ -282,6 +282,8 @@ export type OutsideOpts = {
   season?: Season; snowCover?: number; frozen?: boolean;
   /** Extra areas kept free of lawn trees (other buildings). */
   avoid?: Rect[];
+  campusAreas?: Rect[];
+  campusRoutes?: Rect[];
   /** Which part to draw, see OutsideLayer. Default "all". */
   layer?: OutsideLayer;
   /** The shop building's rect. Without it, the first `avoid` rect is taken for the shop. */
@@ -290,12 +292,16 @@ export type OutsideOpts = {
   grounds?: Grounds;
   /** What the weather does to the ground (puddles, frost, heat, snowmen); see weather/ground.ts. */
   wx?: GroundWx;
+  /** Lamp posts drawn in the landscape: their light pools at night. */
+  glows?: [number, number][];
+  /** Parks of connected computers: drawn with the same furniture. */
+  otherParks?: Rect[];
   /** Where puddles form (puddleSpots), drawn when wx has puddles. */
   puddles?: Puddle[];
 };
 
 /** The season palette as the weather and the snow leave it. */
-function lookFor(o: Pick<OutsideOpts, "season" | "snowCover" | "wx">): Look {
+export function lookFor(o: Pick<OutsideOpts, "season" | "snowCover" | "wx">): Look {
   const season = o.season ?? "summer";
   const snow = Math.max(0, Math.min(1, o.snowCover ?? 0));
   const pal0 = weatherPal(seasonPalette(season), o.wx, snow);
@@ -545,6 +551,63 @@ function patterns(L: Look) {
     <pattern id="lc-grass" width="140" height="140" patternUnits="userSpaceOnUse"><path d="${tufts}" stroke="${pal.tuft}" stroke-width="1.6" fill="none" stroke-linecap="round" opacity="${n2(0.5 * tuftOp)}"/></pattern>
     <pattern id="lc-snow" width="700" height="700" patternUnits="userSpaceOnUse"><g fill="${SNOW}">${lumps}</g></pattern>
     <pattern id="lc-pave" width="44" height="44" patternUnits="userSpaceOnUse"><rect width="44" height="44" fill="${paveC}"/><path d="M0 0.75H44M0.75 0V44" stroke="${mix(paveC, "#7a6a50", 0.16)}" stroke-width="1.5"/></pattern>`;
+}
+
+// The outdoor overlay: building shell, the park objects robots use, and the light (dusk, night,
+// lamp and window glows). Terrain and woodland are bitmap tiles underneath (landscape-tiles.ts).
+export const PLAIN_GROUND = "#78b066";
+export function campusGround(o: Pick<OutsideOpts, "season" | "snowCover" | "wx">) { const L = lookFor(o); return mix(L.pal.ground, SNOW, L.snow * .8); }
+export function plainOutsideSvg(o: OutsideOpts) {
+  const { ox, oy, w, h, building: b, park: p } = o, L = lookFor(o);
+  const { snow, season, pal } = L;
+  const frozen = o.frozen ?? (season === "winter" && snow >= 0.4);
+  const shell = o.footprint
+    ? `<path d="${o.footprint.path}" transform="translate(24 34)" fill="#1f2a1a" opacity="0.32"/>
+      <path d="${o.footprint.path}" fill="${mix("#4a4f5c", "#c9d3dc", snow * 0.8)}" stroke="${mix("#4a4f5c", "#c9d3dc", snow * 0.8)}" stroke-width="44" stroke-linejoin="round"/>
+      <path d="${o.footprint.path}" fill="${mix("#5d6373", SNOW, snow * 0.85)}" stroke="${mix("#5d6373", SNOW, snow * 0.85)}" stroke-width="28" stroke-linejoin="round"/>`
+    : `<rect x="${b.x + 24}" y="${b.y + 34}" width="${b.w}" height="${b.h}" rx="14" fill="#1f2a1a" opacity="0.32"/>
+      <rect x="${b.x - 22}" y="${b.y - 22}" width="${b.w + 44}" height="${b.h + 44}" rx="16" fill="#4a4f5c"/>
+      <rect x="${b.x - 14}" y="${b.y - 14}" width="${b.w + 28}" height="${b.h + 28}" rx="12" fill="#5d6373"/>`;
+  const plaza = mix(pal.plaza, SNOW, snow * 0.45);
+  const garden = new Grove();
+  // A small finite garden uses the existing artwork, frozen into static paths.
+  for (const [i,[x,y,r]] of [[-540,-410,66],[530,400,70],[-320,-200,58],[540,-220,54],[-510,330,56],[400,-400,62]].entries()) treeInto(garden,x,y,r,i%3,L,71+i*13);
+  for (const [x,y,r] of [[-470,230,40],[-200,420,34],[420,220,38],[470,260,30],[-480,-340,38]]) bushInto(garden,x,y,r,L);
+  const flowerColors = pal.flowers.colors;
+  const flowers = Array.from({length:28},(_,i)=>{
+    const x = -235 + (i % 7) * 16, y = 193 + Math.floor(i / 7) * 14;
+    return `<path d="M${x} ${y+8}v-9" stroke="${pal.bush[0]}" stroke-width="3"/><circle cx="${x}" cy="${y-4}" r="5" fill="${snow>.5?SNOW:flowerColors[i%flowerColors.length]}"/>`;
+  }).join('');
+  const lamp = (x:number,y:number) => `<g transform="translate(${x} ${y})"><ellipse cy="12" rx="22" ry="10" fill="#334332" opacity=".18"/><path d="M0 0v-62" stroke="#46534c" stroke-width="9"/><path d="M-15-70h30l-4 23h-22z" fill="#ffe6ac"/><path d="M-19-72h38l-10-10h-18z" fill="#48564c"/><circle cy="-59" r="19" fill="#ffe6ac" style="opacity:calc(var(--lamp,0) * .25)"/></g>`;
+  const parkArt = `
+        <path d="M-520 0H0V390H-320M0 0H300M0 0V-340M-70-110H-114M0 110H120" fill="none" stroke="${mix(plaza,'#8a785c',.2)}" stroke-width="59" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M-520 0H0V390H-320M0 0H300M0 0V-340M-70-110H-114M0 110H120" fill="none" stroke="${plaza}" stroke-width="47" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle r="110" fill="${plaza}"/><circle r="97" fill="none" stroke="${mix(plaza,'#8a785c',.25)}" stroke-width="3"/>
+        ${pond(260, -120, L, frozen)}
+        ${garden.all()}${flowers}
+
+        <circle r="70" fill="${plaza}"/><circle r="52" fill="${frozen ? "#d3ebf5" : season === "winter" ? "#86bcd4" : "#8fc9e2"}"/><circle r="16" fill="${plaza}"/>
+        ${bench(-150, -110, L)}${bench(80, 110, L)}${bench(-150, 120, L)}${picnic(-380, 300, L)}
+      `;
+  // Ground, paths and woodland are painted by the landscape tiles underneath (landscape-tiles.ts).
+  // Night glows: warm light from the lamp posts and from every lit window wall.
+  const glows = (o.glows ?? []).map(([x,y]) => `<ellipse cx="${n1(x-ox)}" cy="${n1(y-oy)}" rx="120" ry="92" fill="url(#lc-glow)"/>`).join("");
+  return `<svg class="outside outside-plain" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true" style="position:relative;z-index:1">
+    <defs><radialGradient id="lc-glow"><stop offset="0" stop-color="#ffd58e" stop-opacity=".55"/><stop offset=".55" stop-color="#ffc677" stop-opacity=".2"/><stop offset="1" stop-color="#ffc677" stop-opacity="0"/></radialGradient></defs>
+    <g transform="translate(${-ox} ${-oy})">
+      ${shell}
+      <rect x="${b.x + b.w - 4}" y="${o.entranceY - 60}" width="40" height="120" fill="#b9a27e"/>
+      <rect x="${b.x + b.w + 36}" y="${o.entranceY - 70}" width="60" height="140" rx="10" fill="${plaza}"/>
+      ${[p, ...(o.otherParks ?? [])].map(q => `<g transform="translate(${q.x + q.w / 2} ${q.y + q.h / 2}) scale(${PARK_K})">${parkArt}</g>`).join("")}
+    </g>
+    <rect width="${w}" height="${h}" fill="#ff8f5a" style="opacity:calc(var(--outdoor-dusk,0) * .16)"/>
+    <rect width="${w}" height="${h}" fill="#0a1236" style="opacity:calc(var(--outdoor-night,0) * .84)"/>
+    <g style="opacity:calc((var(--lamp,0) - .25) * 1.3)">${glows}</g>
+    ${[p, ...(o.otherParks ?? [])].map(q => `<g transform="translate(${q.x+q.w/2-ox} ${q.y+q.h/2-oy}) scale(${PARK_K})">
+      <g fill="#ffd390" style="opacity:calc(var(--lamp,0) * .13)"><ellipse cx="-65" cy="0" rx="110" ry="65"/><ellipse cx="60" cy="195" rx="110" ry="65"/><ellipse cx="-390" cy="335" rx="110" ry="65"/></g>
+      ${lamp(-65,-35)}${lamp(60,160)}${lamp(-390,300)}
+    </g>`).join("")}
+  </svg>`;
 }
 
 export function outsideSvg(o: OutsideOpts) {

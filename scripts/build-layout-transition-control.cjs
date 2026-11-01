@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 (async()=>{
  const out=path.resolve(process.argv[2]);fs.mkdirSync(out,{recursive:true});
  const file='src/office/world.ts',current=fs.readFileSync(file,'utf8');
- const needle='return !!actor && !this.exits.has(id) && layoutClearAt(actor, this.floorPlan, desiredFloor, HALL);';
+ const needle='return !!actor && !this.exits.has(id) && layoutSafeAt(actor, this.floorPlan, desiredFloor, HALL);';
  if(!current.includes(needle))throw Error('Readiness rule changed; review control reversal');
  const control=current.replace(needle,'return !!actor && !this.exits.has(id) && Math.hypot(actor.x - this.meetingSpots.get(id).x, actor.y - this.meetingSpots.get(id).y) <= 8;');
  fs.writeFileSync(path.join(out,'control-world.ts'),control);

@@ -102,6 +102,7 @@ const EQ = `<span class="bf-eqb" aria-hidden="true"><i></i><i></i><i></i><i></i>
 
 export class MusicApp {
   playing: Playlist | null = null;
+  get soundtrack() { return this.playing ? JSON.stringify(this.track()) : ""; }
   private shown: Playlist | null = null;
   private current: Playlist | null = null;   // stays set while paused
   private trackIx = 0;

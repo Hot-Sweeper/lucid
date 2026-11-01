@@ -1,4 +1,5 @@
 import { canvas } from "./util";
+import { canvasText, canvasLines, redrawCanvasOnLocale } from "../localization-canvas";
 
 // Little hand-drawn meme panels for the chat. Flat shapes only, no images.
 
@@ -22,15 +23,9 @@ function text(c: Ctx, s: string, x: number, y: number, px: number, color: string
   c.fillStyle = color;
   c.textAlign = align;
   c.textBaseline = "top";
-  const words = s.split(" ");
-  let line = "", yy = y;
-  for (const w of words) {
-    const t = line ? line + " " + w : w;
-    if (c.measureText(t).width > maxW && line) { c.fillText(line, x, yy); line = w; yy += px * 1.25; }
-    else line = t;
-  }
-  c.fillText(line, x, yy);
-  return yy + px * 1.25;
+  const lines = canvasLines(c, canvasText(s), maxW);
+  lines.forEach((line, i) => c.fillText(line, x, y + i * px * 1.25, maxW));
+  return y + lines.length * px * 1.25;
 }
 
 type Mood = "up" | "away" | "happy" | "sweat" | "dizzy" | "proud";
@@ -181,6 +176,7 @@ export function drawMeme(cv: HTMLCanvasElement, kind: MemeKind) {
     ({ repo: drawRepo, graph: drawGraph, fans: drawFans, approve: drawApprove })[kind](c);
   };
   draw();
+  redrawCanvasOnLocale(cv, draw);
   // redraw once webfonts are in, so captions use the right face
   document.fonts?.ready.then(() => { if (cv.isConnected) draw(); });
 }

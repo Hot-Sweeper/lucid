@@ -77,6 +77,8 @@ export interface HarnessHost {
   click(double?: boolean): Promise<void>;
   sleep(ms: number, epoch?: number): Promise<void>;
   check(epoch: number): void;
+  waitForOperator?(epoch?: number): Promise<void>;
+  readonly presentationTime?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -1184,16 +1186,18 @@ export class HarnessApp {
 
   private async typeInto(target: HTMLElement, text: string, e: number) {
     const wm = this.wm;
+    await wm.waitForOperator?.(e);
     const budget = Math.min(3400, Math.max(900, text.length * 32));
     const cps = Math.max(38, text.length / (budget / 1000));
     wm.robot.setTyping(true);
     let shown = 0;
-    const start = performance.now();
+    const start = wm.presentationTime ?? performance.now();
     try {
       while (shown < text.length) {
         await presentationFrame(target);
+        await wm.waitForOperator?.(e);
         wm.check(e);
-        const elapsed = (performance.now() - start) * wm.speed;
+        const elapsed = ((wm.presentationTime ?? performance.now()) - start) * wm.speed;
         const jitter = 0.85 + Math.random() * 0.3;
         const next = Math.min(text.length, Math.max(shown, Math.floor((elapsed / 1000) * cps * jitter)));
         if (next !== shown) {

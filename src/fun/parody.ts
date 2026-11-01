@@ -3,6 +3,7 @@
 import { C, type Ctx, circle, ellipse, fillRR, glow, lin, limb, loopFade, poly, rad, shade, text, withAlpha } from "./draw";
 import type { VideoDef } from "./videos";
 import { backOut, clamp, easeIn, easeInOut, easeOut, hash, lerp, seg, smooth } from "./util";
+import { canvasText } from "../localization-canvas";
 
 // --- time and layout ---------------------------------------------------------------
 /** Loop-local time. The clock can read negative or NaN for a frame; never let that reach the drawing. */
@@ -38,6 +39,7 @@ function fitSize(ctx: Ctx, s: string, maxW: number, size: number, weight = 800, 
 
 /** Heavy thumbnail-style text with a soft drop shadow (no outline). */
 function big(ctx: Ctx, s: string, x: number, y: number, size: number, color: string, o: { align?: CanvasTextAlign; maxW?: number; weight?: number; rot?: number; shadow?: string | null; mono?: boolean } = {}) {
+  s = canvasText(s);
   const weight = o.weight ?? 800;
   const sz = o.maxW ? fitSize(ctx, s, o.maxW, size, weight, o.mono) : size;
   ctx.save();
@@ -51,6 +53,7 @@ function big(ctx: Ctx, s: string, x: number, y: number, size: number, color: str
 
 /** Word on a colored block, the classic thumbnail highlight. */
 function tag(ctx: Ctx, s: string, x: number, y: number, size: number, bg: string, fg: string, o: { align?: CanvasTextAlign; maxW?: number; rot?: number } = {}) {
+  s = canvasText(s);
   const sz = o.maxW ? fitSize(ctx, s, o.maxW - size * 0.6, size) : size;
   ctx.font = `800 ${sz}px ${SANS}`;
   const tw = ctx.measureText(s).width, pad = sz * 0.3;
@@ -699,12 +702,12 @@ function primeVideo(c: PrimeCfg): VideoDef {
               const d = (20 + ((lt * 40 + i * 9) % 40)) * s;
               ellipse(ctx, w / 2 + Math.cos(a) * d * 1.6, h * 0.42 + Math.sin(a) * d, 2.6 * s, 1.2 * s, a, withAlpha(i % 2 ? C.orange : "#ffd23f", 0.8));
             }
-            const words = c.shout.split(" ");
+            const words = canvasText(c.shout).split(" ");
             words.forEach((wd, i) => big(ctx, wd, w / 2, h * (portrait ? 0.3 : 0.32) + i * 17 * s, 18 * s * k, i ? "#ffd23f" : "#ffffff", { align: "center", rot: -0.06, maxW: w * 0.9 }));
           }
           if (signoff) {
             const k1 = seg(lt, 12.9, 13.6), k2 = backOut(seg(lt, 13.6, 13.95));
-            const l1 = "the unit designation is...";
+            const l1 = canvasText("the unit designation is...");
             text(ctx, l1.slice(0, Math.floor(l1.length * k1)), w / 2, h * 0.14, 6.5 * s, "#b9bfe6", { weight: 500 });
             if (k2 > 0) big(ctx, "PrimeBotgen", w / 2, h * 0.27, 13 * s * k2, "#ffd23f", { align: "center", maxW: w * 0.85 });
           }
@@ -1039,6 +1042,7 @@ function podVideo(c: PodCfg): VideoDef {
       };
       const caption = (str: string, k: number) => {
         if (k <= 0) return;
+        str = canvasText(str);
         ctx.save(); ctx.globalAlpha = k;
         const fs = fitSize(ctx, str, w * 0.86, (P ? 6.4 : 5.6) * s, 500);
         ctx.font = `500 ${fs}px ${SANS}`;
@@ -1122,7 +1126,7 @@ function newsVideo(id: string, title: string, views: string, dur: string, back: 
         const th = 8 * s, ty = h - th;
         fillRR(ctx, 0, ty, w, th, 0, "#0b0e26");
         ctx.save(); ctx.beginPath(); ctx.rect(24 * s, ty, w, th); ctx.clip();
-        const full = TICKER.join("   /   ") + "   /   ";
+        const full = TICKER.map(canvasText).join("   /   ") + "   /   ";
         ctx.font = `600 ${4.2 * s}px ${SANS}`;
         const tw = ctx.measureText(full).width;
         const off = (lt * 18 * s) % tw;

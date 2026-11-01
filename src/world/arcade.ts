@@ -1,6 +1,8 @@
 import gsap from "gsap";
 import { PALETTES, uid, type BrandKind } from "./parts";
-import { Anims, reducedMotion, type Pt, type RoomStage } from "./room";
+import { reducedMotion, type Pt, type RoomStage } from "./room";
+import { MediaAnimations, RoomMediaControl } from './room-controls';
+import { gameSound } from '../office/sound';
 
 // The game corner: a TV on a low cabinet against the north wall, a console next to it and a
 // small couch facing the TV (seen from behind, so the players' backs are toward us). The TV
@@ -13,12 +15,18 @@ const SW = 152, SH = 86;   // screen
 const NS = "http://www.w3.org/2000/svg";
 
 export class Arcade {
+  readonly el: HTMLElement;
+  onPowerChange: (powered: boolean) => void = () => {};
   readonly seats: [Pt, Pt];
   readonly watch: Pt;
   private screen: SVGGElement;
   private glow: SVGElement;
   private led: SVGElement;
-  private anims = new Anims();
+  private anims = new MediaAnimations();
+  private powerControl: RoomMediaControl;
+  private powerTransition: gsap.core.Timeline | null = null;
+  private power = true;
+  private playing = false;
   private id = uid("ar");
 
   constructor(stage: RoomStage, readonly cx: number, wallY: number) {
@@ -44,8 +52,11 @@ export class Arcade {
       <circle data-a="led" cx="178" cy="105" r="2" fill="#ff6f91"/>
       <rect x="146" y="104" width="18" height="2" rx="1" fill="#c9d0dc"/>`);
     this.screen = tv.querySelector('[data-a="screen"]') as SVGGElement;
+    this.el = tv.parentElement as unknown as HTMLElement;
+    this.el.dataset.roomMedia = 'tv';
     this.glow = tv.querySelector('[data-a="glow"]') as SVGElement;
     this.led = tv.querySelector('[data-a="led"]') as SVGElement;
+    this.powerControl = new RoomMediaControl(stage.layer, 'tv-power', { x: x0 + 18, y: wallY - 76, w: 164, h: 98 }, () => this.setPowered(!this.power, true));
     // the couch: seat and armrests behind the players, the backrest in front of them
     const cw = 214, cy0 = this.seats[0].y - 44;
     stage.prop(cx - cw / 2, cy0, cw, 50, this.seats[0].y - 12, /* svg */ `
@@ -61,7 +72,27 @@ export class Arcade {
     this.standby();
   }
 
-  private el(tag: string, attrs: Record<string, string | number>, parent: Element = this.screen) {
+  get powered() { return this.power; }
+  get isPlaying() { return this.playing; }
+  private syncPower() {
+    this.el.dataset.powered = String(this.power);
+    this.el.dataset.playing = String(this.playing && this.power);
+    this.powerControl.state(this.power ? 'Turn TV off' : 'Turn TV on', this.power);
+    this.glow.style.visibility = this.power ? '' : 'hidden';
+    this.led.setAttribute('fill', !this.power || !this.playing ? '#ff6f91' : '#4ff0a0');
+  }
+  setPowered(powered: boolean, byUser = false) {
+    if (powered === this.power) return;
+    this.power = powered;
+    this.anims.setPaused(!powered);
+    this.syncPower();
+    this.powerTransition?.kill();
+    const duration = reducedMotion() || document.hidden ? 0 : .18;
+    this.powerTransition = gsap.timeline().to(this.screen, { opacity: powered ? 1 : 0, scaleY: powered ? 1 : .015, transformOrigin: '50% 50%', duration, ease: powered ? 'power2.out' : 'power2.in', overwrite: 'auto' });
+    if (byUser) { gameSound.at('switch', this.el); this.onPowerChange(powered); }
+  }
+
+  private node(tag: string, attrs: Record<string, string | number>, parent: Element = this.screen) {
     const e = document.createElementNS(NS, tag);
     for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
     parent.appendChild(e);
@@ -70,29 +101,32 @@ export class Arcade {
 
   /** Screen off: dark glass, the console's light on standby. */
   standby() {
+    this.playing = false;
     this.anims.kill();
     this.screen.innerHTML = "";
-    this.el("rect", { x: 24, y: 10, width: SW, height: SH, fill: "#10142c" });
+    this.node("rect", { x: 24, y: 10, width: SW, height: SH, fill: "#10142c" });
     gsap.set(this.glow, { opacity: 0 });
     this.led.setAttribute("fill", "#ff6f91");
+    this.syncPower();
   }
 
   /** Console boots: a start-up logo sweeps in. */
   async boot() {
+    this.playing = true;
+    this.syncPower();
     this.screen.innerHTML = "";
-    this.led.setAttribute("fill", "#4ff0a0");
-    const g = this.el("g", { transform: "translate(24 10)" });
-    this.el("rect", { width: SW, height: SH, fill: "#f6f2ea" }, g);
-    const logo = this.el("g", { transform: `translate(${SW / 2} ${SH / 2})` }, g);
-    this.el("rect", { x: -18, y: -12, width: 36, height: 24, rx: 9, fill: "#3a3f4f" }, logo);
-    this.el("circle", { cx: -8, cy: 0, r: 4, fill: "#ff6f91" }, logo);
-    this.el("circle", { cx: 8, cy: 0, r: 4, fill: "#4fb6ff" }, logo);
+    const g = this.node("g", { transform: "translate(24 10)" });
+    this.node("rect", { width: SW, height: SH, fill: "#f6f2ea" }, g);
+    const logo = this.node("g", { transform: `translate(${SW / 2} ${SH / 2})` }, g);
+    this.node("rect", { x: -18, y: -12, width: 36, height: 24, rx: 9, fill: "#3a3f4f" }, logo);
+    this.node("circle", { cx: -8, cy: 0, r: 4, fill: "#ff6f91" }, logo);
+    this.node("circle", { cx: 8, cy: 0, r: 4, fill: "#4fb6ff" }, logo);
     gsap.set(this.glow, { opacity: 0.14, fill: "#ffffff" });
     await this.anims.run(gsap.timeline().from(logo, { scale: 0.2, opacity: 0, rotation: -40, duration: 0.6, ease: "back.out(2)" }).to(logo, { opacity: 0, duration: 0.3 }, "+=0.7"));
   }
 
   private label(text: string, x: number, y: number, size: number, fill: string, parent: Element) {
-    const t = this.el("text", { x, y, "text-anchor": "middle", "font-family": "var(--mono)", "font-size": size, "font-weight": 700, fill }, parent);
+    const t = this.node("text", { x, y, "text-anchor": "middle", "font-family": "var(--mono)", "font-size": size, "font-weight": 700, fill }, parent);
     t.textContent = text;
     return t;
   }
@@ -102,10 +136,10 @@ export class Arcade {
   // ---- fighting game ---------------------------------------------------------------------------
   private fighter(parent: Element, brand: BrandKind, x: number, dir: 1 | -1) {
     const p = PALETTES[brand];
-    const g = this.el("g", {}, parent);
+    const g = this.node("g", {}, parent);
     gsap.set(g, { x, y: 74 });
-    const flip = this.el("g", { transform: `scale(${dir} 1)` }, g);
-    const body = this.el("g", {}, flip);
+    const flip = this.node("g", { transform: `scale(${dir} 1)` }, g);
+    const body = this.node("g", {}, flip);
     body.innerHTML = `
       <ellipse cx="0" cy="0.5" rx="9" ry="2" fill="#000" opacity="0.25"/>
       <rect x="-5" y="-9" width="4" height="9" rx="2" fill="${p.deep}"/><rect x="1.5" y="-9" width="4" height="9" rx="2" fill="${p.deep}"/>
@@ -113,9 +147,9 @@ export class Arcade {
       <rect x="-1" y="-38" width="2" height="5" fill="${p.deep}"/><circle cx="0" cy="-38.5" r="2" fill="${p.glow}"/>
       <rect x="-8" y="-34" width="16" height="13" rx="5" fill="${p.shell}"/>
       <rect x="-4" y="-31" width="11" height="7" rx="3" fill="${p.visor}"/><rect x="2" y="-29.5" width="2.4" height="4" rx="1" fill="${p.glow}"/>`;
-    const arm = this.el("g", {}, body);
+    const arm = this.node("g", {}, body);
     arm.innerHTML = `<rect x="-2" y="-19" width="11" height="4" rx="2" fill="${p.deep}"/><circle cx="9" cy="-17" r="3.2" fill="${p.shade}"/>`;
-    const flash = this.el("rect", { x: -9, y: -40, width: 18, height: 40, rx: 5, fill: "#fff", opacity: 0 }, flip);
+    const flash = this.node("rect", { x: -9, y: -40, width: 18, height: 40, rx: 5, fill: "#fff", opacity: 0 }, flip);
     const bob = this.anims.add(gsap.to(body, { y: -1.2, duration: 0.28, yoyo: true, repeat: -1, ease: "sine.inOut" }));
     return { g, body, arm, flash, x, dir, glow: p.glow, bob };
   }
@@ -124,27 +158,27 @@ export class Arcade {
   async fight(brands: [BrandKind, BrandKind], ev: (e: GameEvent) => void): Promise<0 | 1> {
     this.screen.innerHTML = "";
     gsap.set(this.glow, { opacity: 0.16, fill: "#ff9f5a" });
-    const g = this.el("g", { transform: "translate(24 10)" });
+    const g = this.node("g", { transform: "translate(24 10)" });
     g.innerHTML = `
       <defs><linearGradient id="${this.id}-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9f5a"/><stop offset="1" stop-color="#ff6f91"/></linearGradient></defs>
       <rect width="${SW}" height="${SH}" fill="url(#${this.id}-sky)"/>
       <circle cx="${SW / 2}" cy="52" r="20" fill="#ffd27a" opacity="0.8"/>
       <path d="M0 64 L18 46 L34 58 L56 38 L80 60 L100 44 L124 58 L140 48 L152 56 L152 74 L0 74 Z" fill="#c4577a"/>
       <rect y="72" width="${SW}" height="14" fill="#3a3f4f"/><rect y="72" width="${SW}" height="2" fill="#5a6177"/>`;
-    const hud = this.el("g", {}, g);
+    const hud = this.node("g", {}, g);
     const bars = [0, 1].map((i) => {
-      this.el("rect", { x: i ? 84 : 8, y: 6, width: 60, height: 6, rx: 2, fill: "#10142c" }, hud);
-      return this.el("rect", { x: i ? 85 : 9, y: 7, width: 58, height: 4, rx: 1.5, fill: PALETTES[brands[i]].glow }, hud);
+      this.node("rect", { x: i ? 84 : 8, y: 6, width: 60, height: 6, rx: 2, fill: "#10142c" }, hud);
+      return this.node("rect", { x: i ? 85 : 9, y: 7, width: 58, height: 4, rx: 1.5, fill: PALETTES[brands[i]].glow }, hud);
     });
     const clock = this.label("60", SW / 2, 12, 7, "#ffffff", hud);
     const f = [this.fighter(g, brands[0], 46, 1), this.fighter(g, brands[1], 106, -1)];
-    const fx = this.el("g", {}, g);
+    const fx = this.node("g", {}, g);
     const hp = [1, 1];
     let time = 60;
     this.anims.add(gsap.to({}, { duration: 0.4, repeat: -1, onRepeat: () => { time = Math.max(0, time - 1); clock.textContent = String(time); } }));
     const bias = 0.35 + Math.random() * 0.3;
     const spark = (x: number, y: number, color: string, big: boolean) => {
-      const s = this.el("path", { d: "M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6 Z", fill: color, transform: `translate(${x} ${y})` }, fx);
+      const s = this.node("path", { d: "M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6 Z", fill: color, transform: `translate(${x} ${y})` }, fx);
       this.anims.add(gsap.fromTo(s, { scale: 0.3, transformOrigin: "50% 50%" }, { scale: big ? 2.4 : 1.5, opacity: 0, rotation: 45, duration: 0.35, ease: "power2.out", onComplete: () => s.remove() }));
     };
     const setX = (k: 0 | 1, x: number, d: number) => { f[k].x = x; return gsap.to(f[k].g, { x, duration: d, ease: "power2.inOut" }); };
@@ -156,7 +190,7 @@ export class Arcade {
       const special = roll < 0.16, block = !special && Math.random() < 0.22;
       if (special) {
         // charge up, then an energy ball across the screen
-        const ball = this.el("circle", { cx: A.x + A.dir * 10, cy: 57, r: 2, fill: A.glow }, fx);
+        const ball = this.node("circle", { cx: A.x + A.dir * 10, cy: 57, r: 2, fill: A.glow }, fx);
         await this.anims.run(gsap.timeline().to(A.body, { y: 2, duration: 0.25 }).to(ball, { attr: { r: 5 }, duration: 0.35 }, 0).to(A.body, { y: 0, duration: 0.1 }));
         await this.anims.run(gsap.to(ball, { attr: { cx: Dd.x }, duration: 0.35, ease: "power1.in" }));
         ball.remove();
@@ -202,10 +236,10 @@ export class Arcade {
   async race(brands: [BrandKind, BrandKind], ev: (e: GameEvent) => void): Promise<0 | 1> {
     this.screen.innerHTML = "";
     gsap.set(this.glow, { opacity: 0.16, fill: "#7cc8ff" });
-    const g = this.el("g", { transform: "translate(24 10)" });
+    const g = this.node("g", { transform: "translate(24 10)" });
     const H = 42;
     const halves = [0, 1].map((i) => {
-      const h = this.el("g", { transform: `translate(0 ${i * (H + 2)})` }, g);
+      const h = this.node("g", { transform: `translate(0 ${i * (H + 2)})` }, g);
       const pal = PALETTES[brands[i]];
       h.innerHTML = `
         <rect width="${SW}" height="14" fill="${i ? "#ffb98a" : "#7cc8ff"}"/>
@@ -213,21 +247,21 @@ export class Arcade {
         <rect y="14" width="${SW}" height="${H - 14}" fill="#3f9b6e"/>
         <path d="M66 14 L86 14 L146 ${H} L6 ${H} Z" fill="#5a6177"/>
         <path d="M66 14 L68 14 L12 ${H} L6 ${H} Z M84 14 L86 14 L146 ${H} L140 ${H} Z" fill="#f6f2ea" opacity="0.8"/>`;
-      const dash = this.el("path", { d: `M76 14 L76 ${H}`, stroke: "#ffffff", "stroke-width": 1.6, "stroke-dasharray": "3 4", opacity: 0.85 }, h);
-      const trees = [0, 1, 2, 3].map((k) => this.el("circle", { cx: k % 2 ? 90 : 62, cy: 15, r: 0.8, fill: k % 2 ? "#2f7a55" : "#3a8f63" }, h));
-      const kart = this.el("g", { transform: `translate(76 ${H - 6})` }, h);
+      const dash = this.node("path", { d: `M76 14 L76 ${H}`, stroke: "#ffffff", "stroke-width": 1.6, "stroke-dasharray": "3 4", opacity: 0.85 }, h);
+      const trees = [0, 1, 2, 3].map((k) => this.node("circle", { cx: k % 2 ? 90 : 62, cy: 15, r: 0.8, fill: k % 2 ? "#2f7a55" : "#3a8f63" }, h));
+      const kart = this.node("g", { transform: `translate(76 ${H - 6})` }, h);
       kart.innerHTML = `
         <rect x="-11" y="-2" width="5" height="6" rx="2" fill="#1b1f2e"/><rect x="6" y="-2" width="5" height="6" rx="2" fill="#1b1f2e"/>
         <rect x="-9" y="-6" width="18" height="8" rx="3" fill="${pal.glow}"/><rect x="-6" y="-12" width="12" height="9" rx="4" fill="${pal.shell}"/>
         <rect x="-1" y="-15" width="2" height="4" fill="${pal.deep}"/>`;
-      const flag = this.el("g", { opacity: 0 }, h);
-      for (let k = 0; k < 10; k++) this.el("rect", { x: 6 + k * 14, y: H - 8, width: 7, height: 4, fill: k % 2 ? "#ffffff" : "#1b1f2e" }, flag);
+      const flag = this.node("g", { opacity: 0 }, h);
+      for (let k = 0; k < 10; k++) this.node("rect", { x: 6 + k * 14, y: H - 8, width: 7, height: 4, fill: k % 2 ? "#ffffff" : "#1b1f2e" }, flag);
       const place = this.label("1", SW - 10, 10, 7, "#2d3142", h);
       return { h, dash, trees, kart, flag, place };
     });
     // the minimap between the halves
-    this.el("rect", { y: H, width: SW, height: 2, fill: "#10142c" }, g);
-    const dots = [0, 1].map((i) => this.el("circle", { cx: 6, cy: H + 1, r: 1.6, fill: PALETTES[brands[i]].glow }, g));
+    this.node("rect", { y: H, width: SW, height: 2, fill: "#10142c" }, g);
+    const dots = [0, 1].map((i) => this.node("circle", { cx: 6, cy: H + 1, r: 1.6, fill: PALETTES[brands[i]].glow }, g));
     const reduced = reducedMotion();
     // scenery streams by; it follows each kart's speed
     const speed = [1, 1], prog = [0, 0];
@@ -290,5 +324,5 @@ export class Arcade {
     return winner;
   }
 
-  destroy() { this.anims.kill(); }
+  destroy() { this.powerTransition?.kill(); this.anims.destroy(); this.powerControl.destroy(); }
 }

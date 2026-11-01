@@ -1,0 +1,10 @@
+.manager-editor { width: min(540px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; }
+.manager-editor label { display: grid; gap: 6px; margin: 12px 0; font-size: 13px; }
+.manager-editor input, .manager-editor select { width: 100%; min-width: 0; box-sizing: border-box; padding: 9px 10px; color: inherit; background: var(--bg, #171d31); border: 1px solid #ffffff26; border-radius: 5px; font: inherit; }
+.manager-editor input:focus, .manager-editor select:focus { outline: 2px solid #a4b8ec; outline-offset: 2px; }
+.manager-editor select option { background: #171d31; color: #edf0f7; }
+.manager-help, .manager-message { font-size: 12px; line-height: 1.5; }
+.manager-suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.manager-editor .dialog-actions { flex-wrap: wrap; gap: 8px; }
+.cp-management { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 16px 10px; font-size: 12px; }
+.cp-management span { overflow-wrap: anywhere; min-width: 0; }

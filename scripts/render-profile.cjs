@@ -9,6 +9,9 @@
 // LUCID_PERF_TRACE=0 measures without profiling; LUCID_PERF_CPU=4 applies CDP CPU slowdown.
 // LUCID_PERF_METRICS=1 records system JS costs; LUCID_PERF_SCENES selects comma-separated names.
 // LUCID_SYSTEM_CHECKS=1 verifies pause/resume, covered windows, chat cache and HUD controls.
+// LUCID_CAMERA_STRESS_CHECKS=1 exercises native rapid zoom/pan and long-chat scrolling.
+// LUCID_OUTSIDE_CANVAS_CHECKS=1 compares retained scenery against native SVG pixels.
+// LUCID_OUTSIDE_PRODUCTION_CHECKS=1 checks mounted grounds mapping, density and lifecycle.
 const fs = require("node:fs");
 const path = require("node:path");
 if (!process.versions.electron) {
@@ -54,6 +57,7 @@ if (!process.versions.electron) {
           catch (error) { console.error("Failed fixture expression:", code.slice(0, 200)); throw error; }
         };
         await wait(6500);
+        fs.writeFileSync(path.join(out, "loaded-assets.json"), JSON.stringify(await js(`({url:location.href,scripts:[...document.scripts].map(s=>s.src),styles:[...document.querySelectorAll('link[rel=stylesheet]')].map(s=>s.href),resources:performance.getEntriesByType('resource').map(r=>r.name)})`), null, 2));
         if (process.env.LUCID_REAL_WORLD !== "1") await js("window.__chat.api.conversationPage=undefined");
         if (process.env.LUCID_STATIC_ART_OFF) await js("window.__staticArt.enable(false)");
         if (process.env.LUCID_CAMERA_NO_GATE) await js("{const w=window.__world;w.flushCamera=()=>{w.applyQueued=0;w.apply();w.keepFocus()};void 0}");
@@ -148,6 +152,7 @@ if (!process.versions.electron) {
           console.log(JSON.stringify(results.at(-1)));
         }
         fs.writeFileSync(path.join(out, "results.json"), JSON.stringify(results, null, 2));
+        if (process.env.LUCID_IDLE_LOADING_CHECKS) await require("./render-idle-loading-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_PERF_CHECKS) await require("./render-checks.cjs")({ js, wc, wait, out, threads });
         if (process.env.LUCID_SYSTEM_CHECKS) {
           await js("window.__lucidPerf.enable(false)");
@@ -160,6 +165,8 @@ if (!process.versions.electron) {
         if (process.env.LUCID_INTERACTION_CHECKS) await require("./render-interaction-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_VIEWPORT_CHECKS) await require("./render-viewport-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_STATIC_ART_CHECKS) await require("./render-static-art-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_OUTSIDE_CANVAS_CHECKS) await require("./render-outside-canvas-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_OUTSIDE_PRODUCTION_CHECKS) await require("./render-outside-production-checks.cjs")({ js, wc, wait, out, dbg });
         if (process.env.LUCID_CANVAS_CHECKS) await require("./render-canvas-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_MEDIA_CANVAS_CHECKS) await require("./render-media-canvas-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_INTERFACE_CHECKS) await require("./render-interface-checks.cjs")({ js, wc, wait, out });
@@ -170,6 +177,8 @@ if (!process.versions.electron) {
         }
         if (process.env.LUCID_HISTORY_CHECKS) await require("./render-history-pagination-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_CAMERA_CHECKS) await require("./render-camera-checks.cjs")({ js, wc, wait, out });
+        if (process.env.LUCID_CAMERA_STRESS_CHECKS) await require("./render-camera-stress-checks.cjs")({ js, wc, wait, out, setMessages: next => { messages = next; } });
+        if (process.env.LUCID_HALL_CHECKS) await require("./render-hallway-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_ROOM_CHECKS) await require("./render-room-arrangement-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_ACTIVITY_CHECKS) {
           const result = await require("./activity-room-checks.cjs")({ js, wc, wait, out });

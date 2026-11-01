@@ -460,3 +460,14 @@ textarea::placeholder { color: var(--ink-3); }
 .uac-btns .faded { opacity: 0.4; }
 .uac-btns .pressed { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55); }
 .uac-foot { margin: 0; padding: 0 16px 12px; text-align: right; font-size: 10px; color: #8a91c4; }
+
+/* Persistent robot scratchpad styles. */
+.notes-workspace { height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #fff7d6; }
+.notes-chrome { flex: none; padding: 7px 10px; white-space: pre-wrap; font-size: 10px; line-height: 1.8; background: #f2e8bc; color: #62502b; }
+.notes-workspace .notes { flex: 1; min-height: 0; height: auto; box-sizing: border-box; }
+.os[data-notes-app="notepad"] .app-notes .win-bar { background: #dce9f5; color: #263b50; }
+.os[data-notes-app="notepad"] .notes-chrome { background: #edf3f9; color: #34475c; }
+.os[data-notes-app="notepad"] .notes { background: #fff; color: #26313e; font-family: "JetBrains Mono", monospace; }
+.os[data-notes-app="notepad-plus-plus"] .app-notes .win-bar { background: #dce7d1; color: #314128; }
+.os[data-notes-app="notepad-plus-plus"] .notes-chrome { background: #e7ecdf; color: #35452e; }
+.os[data-notes-app="notepad-plus-plus"] .notes { background: linear-gradient(to right, #e5e8df 28px, #f9fbf5 28px); color: #2d3c26; padding-left: 38px; font-family: "JetBrains Mono", monospace; }

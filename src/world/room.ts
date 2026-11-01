@@ -40,13 +40,13 @@ export class RoomStage {
   el: HTMLDivElement;
   layer: HTMLDivElement;
   readonly id = uid("rm");
-  constructor(host: HTMLElement, readonly w: number, readonly h: number, pal: Palette, wallArt: string, cls: string) {
+  constructor(host: HTMLElement, readonly w: number, readonly h: number, pal: Palette, wallArt: string, cls: string, floorArt?: string) {
     const el = document.createElement("div");
     el.className = `world-room ${cls}`;
     el.dataset.vectorOwner=this.id;
     el.style.width = `${w}px`;
     el.style.height = `${h}px`;
-    el.innerHTML = `${shellSvg(this.id, w, h, pal, wallArt)}<div class="world-room-layer"></div>${frontSvg(w, h, pal)}`;
+    el.innerHTML = `${shellSvg(this.id, w, h, pal, wallArt, floorArt)}<div class="world-room-layer"></div>${frontSvg(w, h, pal)}`;
     host.appendChild(el);
     this.el = el;
     this.layer = el.querySelector(".world-room-layer")!;
@@ -67,7 +67,7 @@ export class RoomStage {
   destroy() {destroyStaticArt(this.el);releaseVectors(this.id);this.el.remove();}
 }
 
-function shellSvg(id: string, w: number, h: number, pal: Palette, wallArt: string) {
+function shellSvg(id: string, w: number, h: number, pal: Palette, wallArt: string, floorArt?: string) {
   const lamps: string[] = [];
   for (let ly = WALL + 190; ly < h - 60; ly += 380)
     for (let lx = 200; lx < w - 60; lx += 400)
@@ -79,7 +79,7 @@ function shellSvg(id: string, w: number, h: number, pal: Palette, wallArt: strin
       <radialGradient id="${id}-pool"><stop offset="0" stop-color="#ffe6b0" stop-opacity="0.3"/><stop offset="1" stop-color="#ffe6b0" stop-opacity="0"/></radialGradient>
     </defs>
     <rect y="${WALL}" width="${w}" height="${h - WALL}" fill="${pal.floor}"/>
-    ${plankJoints(w,h,WALL,pal.seam,id)}
+    ${floorArt ?? plankJoints(w,h,WALL,pal.seam,id)}
     ${lamps.join("")}
     <rect y="${WALL}" width="${w}" height="20" fill="#000" opacity="0.07"/>
     <rect width="${w}" height="${WALL}" fill="${pal.wall}"/>

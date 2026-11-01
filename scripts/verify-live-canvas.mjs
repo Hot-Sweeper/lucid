@@ -5,8 +5,8 @@ import { transformWithOxc } from 'vite';
 const compile = async file => (await transformWithOxc((await readFile(new URL(`../src/perf/${file}.ts`, import.meta.url), 'utf8')).replace(/^import .*;\r?\n/gm, ''), `${file}.ts`)).code.replace(/export\s*\{[^}]*\};?/g, '').replace(/^export /gm, '');
 let requested = .1;
 const renderCode=await compile('render');
-const window={devicePixelRatio:1.5};
-const render=new Function('window','document','IntersectionObserver','requestAnimationFrame','screenFrameRate',`${renderCode};return {setRenderView,renderPixelRatio,pixelRatioBucket}`)(window,{addEventListener(){}},undefined,()=>1,()=>60);
+const window={devicePixelRatio:1.5,addEventListener(){}};
+const render=new Function('window','document','IntersectionObserver','requestAnimationFrame','screenFrameRate','setScreenDetail','releaseScreenDetail',`${renderCode};return {setRenderView,renderPixelRatio,pixelRatioBucket}`)(window,{addEventListener(){}},undefined,()=>1,()=>60,()=>{},()=>{});
 const bucket=render.pixelRatioBucket;
 const api = new Function('renderPixelRatio', 'pixelRatioBucket', `${await compile('canvas')};return {fitCanvas,canvasPixelRatio,canvasLogicalSize,LiveCanvases}`)(() => requested,bucket);
 class Canvas {

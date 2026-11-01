@@ -57,7 +57,10 @@ function readConversation(db, threadId, options = {}, attachmentPath = () => nul
   // database order, so messages with the same timestamp stay in the order they were written.
   const key = (r) => (r.role === "user" && started.get(r.id) > r.at ? started.get(r.id) : r.at);
   const ordered = rows.map((r, i) => ({ r, i, k: key(r) })).sort((a, b) => (a.k < b.k ? -1 : a.k > b.k ? 1 : a.i - b.i)).map((x) => x.r);
-  const messages = ordered.map((r) => {
+  // Memory-learning batches are Lucid's housekeeping, not messages from the
+  // human. Keep raw rows as pagination boundaries so hidden batches cannot
+  // strand older conversation history.
+  const messages = ordered.filter((r) => !(r.role === "user" && /^\s*New messages the user wrote to robots\. Learn lasting preferences from them and update memory\.md:/.test(safeJson(r.p)?.text || ""))).map((r) => {
     const p = safeJson(r.p) || {};
     return {
       id: r.id, role: r.role, at: r.at, orderAt: key(r), sourceOrder: r.rowid, streaming: !!r.streaming, text: p.text || "", run: runs.get(r.id) || null, queue: queuePos.get(r.id) || null,

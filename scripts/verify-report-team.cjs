@@ -1,0 +1,14 @@
+const assert = require('node:assert/strict');
+const { reportTeam } = require('../electron/report-team.cjs');
+const effortOf = options => options?.find(o => o.id === 'effort')?.value ?? null;
+const row = (id, threadId, provider, model, effort, status = 'completed') => ({ id, threadId, title: threadId, status, payload: { providerInstanceId: provider, modelSelection: { model, options: effort ? [{ id: 'effort', value: effort }] : [] } } });
+const team = reportTeam('owner', [row('1', 'owner', 'codex', 'model-a', 'high'), row('2', 'owner', 'codex', 'model-a', 'high'), row('3', 'owner', 'claudeAgent', 'model-b', 'medium'), row('4', 'child', 'codex', 'model-c', null), row('5', 'child', 'codex', 'unused', 'high', 'queued')], effortOf);
+assert.equal(team.length, 3, 'model and harness handoffs stay distinct');
+assert.deepEqual(team[0].runIds, ['1', '2']);
+assert.equal(team[1].provider, 'claudeAgent');
+assert.equal(team[1].effort, 'medium');
+assert.equal(team[2].role, 'Subagent');
+assert.equal(team[2].threadId, 'child');
+assert.equal(team[2].effort, null, 'missing effort is never guessed');
+assert(!team.some(m => m.model === 'unused'), 'queued models are not counted as contributors');
+console.log('PASS: contributor grouping, handoffs, effort, subagent identity and queued-work exclusion.');

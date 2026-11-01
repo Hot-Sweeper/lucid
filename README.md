@@ -31,6 +31,17 @@ npm start
 
 On Windows you can double-click `Lucid.cmd` after installing.
 
+## Keep computers in sync
+
+`npm install` enables this repository's Git hook, which pushes each new commit
+to GitHub automatically. Commit changes before switching computers. If a push
+fails while offline, the commit stays safe locally; run `git push` after reconnecting.
+Existing custom Git hooks are preserved.
+
+On the other computer, run `git pull --ff-only` before starting work, then
+`npm install` if dependencies changed. Uncommitted edits remain local. Automatic
+pushing does not merge changes or overwrite another computer's work.
+
 ## Develop
 
 ```sh

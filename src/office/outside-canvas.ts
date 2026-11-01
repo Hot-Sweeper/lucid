@@ -4,12 +4,12 @@ type View = { x: number; y: number; w: number; h: number };
 type Bounds = { x: number; y: number; w: number; h: number };
 type Paint = { color: string } | { pattern: string } | null;
 type Shape = {
-  kind: 'shape'; path: Path2D; matrix: DOMMatrix; bounds: Bounds | null;
+  kind: 'shape'; path: Path2D; matrix: DOMMatrix; stretch: number; bounds: Bounds | null;
   fill: Paint; stroke: Paint; fillOpacity: number; strokeOpacity: number;
   rule: CanvasFillRule; width: number; cap: CanvasLineCap; join: CanvasLineJoin;
   miter: number; dash: number[]; offset: number;
 };
-type Group = { kind: 'group'; opacity: number; children: Command[] };
+type Group = { kind: 'group'; opacity: number; children: Command[]; bounds: Bounds | null };
 type Command = Shape | Group;
 type Pattern = { x: number; y: number; w: number; h: number; commands: Command[]; density: number; value: CanvasPattern | null };
 type Frame = { x: number; y: number; density: number; densityY?: number; width: number; height: number; scratch: HTMLCanvasElement[] };
@@ -22,6 +22,20 @@ const identity = () => new DOMMatrix();
 function norm(m: DOMMatrix) {
   const a = m.a * m.a + m.b * m.b, b = m.c * m.c + m.d * m.d, c = m.a * m.c + m.b * m.d;
   return Math.sqrt((a + b + Math.sqrt((a - b) ** 2 + 4 * c * c)) / 2);
+}
+
+function opacityGroup(opacity: number, children: Command[]): Group {
+  let x = Infinity, y = Infinity, right = -Infinity, bottom = -Infinity;
+  for (const child of children) {
+    if (child.kind === 'group' && !child.children.length) continue;
+    const b = child.bounds;
+    // Missing bounds must keep the whole group drawable. Child shape bounds
+    // already include conservative stroke padding and their world transforms.
+    if (!b || ![b.x, b.y, b.w, b.h].every(Number.isFinite)) return { kind: 'group', opacity, children, bounds: null };
+    x = Math.min(x, b.x); y = Math.min(y, b.y);
+    right = Math.max(right, b.x + b.w); bottom = Math.max(bottom, b.y + b.h);
+  }
+  return { kind: 'group', opacity, children, bounds: x < Infinity ? { x, y, w: right - x, h: bottom - y } : null };
 }
 
 /** Unsupported SVG features leave the existing native SVG fallback available. */
@@ -40,7 +54,7 @@ export class OutsideVectorCanvas {
   get available() { return this.supported; }
   private paints = 0;
 
-  constructor(svg: SVGSVGElement) {
+  constructor(svg: SVGSVGElement, private onUnavailable: () => void = () => {}) {
     this.canvas.className = 'outside-vector-canvas';
     this.canvas.setAttribute('aria-hidden', 'true');
     this.canvas.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;transform-origin:0 0;will-change:transform';
@@ -73,7 +87,7 @@ export class OutsideVectorCanvas {
       }
       this.commands = this.readChildren(svg, identity());
       const style = getComputedStyle(svg);
-      if (style.opacity !== '1') this.commands = [{ kind: 'group', opacity: alpha(style.opacity), children: this.commands }];
+      if (style.opacity !== '1') this.commands = [opacityGroup(alpha(style.opacity), this.commands)];
     } catch { this.supported = false; }
     finally { for (const entry of restored.reverse()) entry.el.style.cssText = entry.css; }
   }
@@ -104,7 +118,7 @@ export class OutsideVectorCanvas {
       if (!opacity) continue;
       if (tag === 'g') {
         const children = this.readChildren(node, matrix);
-        if (opacity < 1) out.push({ kind: 'group', opacity, children }); else out.push(...children);
+        if (opacity < 1) out.push(opacityGroup(opacity, children)); else out.push(...children);
         continue;
       }
       const path = this.path(node);
@@ -119,7 +133,7 @@ export class OutsideVectorCanvas {
         if (b.width > 0 || b.height > 0) bounds = { x, y, w: Math.max(...points.map(p => p.x)) - x, h: Math.max(...points.map(p => p.y)) - y };
       } catch { /* Culling is optional; the canvas still clips every command. */ }
       const shape: Shape = {
-        kind: 'shape', path, matrix, bounds, fill, stroke,
+        kind: 'shape', path, matrix, stretch: norm(matrix), bounds, fill, stroke,
         fillOpacity: alpha(style.fillOpacity), strokeOpacity: alpha(style.strokeOpacity),
         rule: style.fillRule === 'evenodd' ? 'evenodd' : 'nonzero', width: parseFloat(style.strokeWidth),
         cap: style.strokeLinecap as CanvasLineCap, join: style.strokeLinejoin as CanvasLineJoin,
@@ -128,7 +142,7 @@ export class OutsideVectorCanvas {
         offset: parseFloat(style.strokeDashoffset),
       };
       if (opacity < 1) {
-        if (fill && stroke) out.push({ kind: 'group', opacity, children: [shape] });
+        if (fill && stroke) out.push(opacityGroup(opacity, [shape]));
         else { shape.fillOpacity *= opacity; shape.strokeOpacity *= opacity; out.push(shape); }
       } else out.push(shape);
     }
@@ -194,23 +208,28 @@ export class OutsideVectorCanvas {
   private render(commands: Command[], ctx: CanvasRenderingContext2D, f: Frame, depth: number) {
     const right = f.x + f.width / f.density, bottom = f.y + f.height / (f.densityY ?? f.density);
     for (const command of commands) {
+      const b = command.bounds;
+      if (b && (b.x > right || b.y > bottom || b.x + b.w < f.x || b.y + b.h < f.y)) continue;
       if (command.kind === 'group') {
+        if (!command.children.length) continue;
         const layer = f.scratch[depth] ??= document.createElement('canvas');
-        if (layer.width !== f.width) layer.width = f.width;
-        if (layer.height !== f.height) layer.height = f.height;
+        // Edge tiles vary by a pixel or leave a partial final row. Keep the
+        // backing store large enough instead of reallocating it at every edge.
+        if (layer.width < f.width) layer.width = f.width;
+        if (layer.height < f.height) layer.height = f.height;
         const buffer = layer.getContext('2d', { willReadFrequently: true }); if (!buffer) { this.supported = false; continue; }
         buffer.setTransform(1, 0, 0, 1, 0, 0); buffer.clearRect(0, 0, f.width, f.height);
         this.render(command.children, buffer, f, depth + 1);
-        ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = command.opacity; ctx.drawImage(layer, 0, 0); ctx.globalAlpha = 1;
+        ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = command.opacity;
+        ctx.drawImage(layer, 0, 0, f.width, f.height, 0, 0, f.width, f.height); ctx.globalAlpha = 1;
         continue;
       }
-      const c = command, b = c.bounds;
-      if (b && (b.x > right || b.y > bottom || b.x + b.w < f.x || b.y + b.h < f.y)) continue;
+      const c = command;
       const m = c.matrix, d = f.density, dy = f.densityY ?? d;
       ctx.setTransform(d * m.a, dy * m.b, d * m.c, dy * m.d, d * (m.e - f.x), dy * (m.f - f.y));
-      const fill = this.resolve(c.fill, Math.max(d, dy) * norm(m));
+      const fill = this.resolve(c.fill, Math.max(d, dy) * c.stretch);
       if (fill && c.fillOpacity) { ctx.fillStyle = fill; ctx.globalAlpha = c.fillOpacity; ctx.fill(c.path, c.rule); }
-      const stroke = this.resolve(c.stroke, Math.max(d, dy) * norm(m));
+      const stroke = this.resolve(c.stroke, Math.max(d, dy) * c.stretch);
       if (stroke && c.width > 0 && c.strokeOpacity) {
         ctx.strokeStyle = stroke; ctx.globalAlpha = c.strokeOpacity; ctx.lineWidth = c.width;
         ctx.lineCap = c.cap; ctx.lineJoin = c.join; ctx.miterLimit = c.miter;
@@ -220,15 +239,35 @@ export class OutsideVectorCanvas {
     ctx.globalAlpha = 1;
   }
 
-  draw(view: View, scale: number, width: number, height: number, dpr: number): boolean {
+  /** Cull the retained grounds once for the entire crop. Each small backing tile
+   * then walks only nearby geometry, preserving opacity groups and painter order. */
+  private cropCommands(commands: Command[], view: View): Command[] {
+    const right = view.x + view.w, bottom = view.y + view.h;
+    const result: Command[] = [];
+    for (const command of commands) {
+      const b = command.bounds;
+      if (b && (b.x > right || b.y > bottom || b.x + b.w < view.x || b.y + b.h < view.y)) continue;
+      if (command.kind === 'shape') result.push(command);
+      else {
+        const children = this.cropCommands(command.children, view);
+        if (children.length) result.push(children.length === command.children.length && children.every((child, i) => child === command.children[i]) ? command : { ...command, children });
+      }
+    }
+    return result;
+  }
+
+  draw(view: View, scale: number, width: number, height: number, dpr: number, reserveCss = 0): boolean {
     if (!this.supported || !this.context || !(scale > 0 && width > 0 && height > 0 && dpr > 0)) return false;
     const needed = scale * dpr;
-    const covers = (old: typeof this.crop) => !!old && old.density >= needed * (1 - 1e-10)
-      && old.x <= view.x && old.y <= view.y
-      && old.x + old.w >= view.x + view.w && old.y + old.h >= view.y + view.h;
-    let covered = covers(this.crop);
+    const covers = (old: typeof this.crop, reserve = 0) => !!old && old.density >= needed * (1 - 1e-10)
+      && old.x <= view.x - reserve && old.y <= view.y - reserve
+      && old.x + old.w >= view.x + view.w + reserve && old.y + old.h >= view.y + view.h + reserve;
+    let covered = covers(this.crop, reserveCss / scale);
     if (!covered) {
-      const found = this.history.findIndex(entry => covers(entry.crop));
+      // A historical crop near an edge is sharp for this frame but makes the next
+      // small pan rebuild everything. Reuse it only with a useful movement reserve.
+      // The current crop still remains valid right up to its actual coverage edge.
+      const found = this.history.findIndex(entry => covers(entry.crop, Math.max(96, reserveCss) / scale));
       if (found >= 0) {
         const entry = this.history.splice(found, 1)[0]; this.remember();
         this.crop = entry.crop; this.tiles = entry.tiles;
@@ -270,6 +309,7 @@ export class OutsideVectorCanvas {
     if (covered) return true;
     const w = this.canvas.width, h = this.canvas.height;
     try {
+      const commands = this.cropCommands(this.commands, crop);
       let index = 0;
       for (let y = 0; y < h; y += 510) for (let x = 0; x < w; x += 510) {
         const cw = Math.min(510, w - x), ch = Math.min(510, h - y);
@@ -279,6 +319,14 @@ export class OutsideVectorCanvas {
         if (!tile) {
           tile = { canvas: document.createElement('canvas'), x, y, core: { x, y, w: cw, h: ch } };
           tile.canvas.style.cssText = 'position:absolute;pointer-events:none;contain:strict';
+          tile.canvas.addEventListener('contextlost', () => {
+            // A lost backing store can leave a whole rectangular tile blank even
+            // though the retained crop still claims full coverage. Immediately
+            // return presentation to the original, bounded SVG in that case.
+            if (!this.supported) return;
+            this.destroy();
+            this.onUnavailable();
+          });
           this.tiles.push(tile); this.element.append(tile.canvas);
         }
         tile.x = x - left; tile.y = y - top; tile.core = { x, y, w: cw, h: ch };
@@ -286,9 +334,9 @@ export class OutsideVectorCanvas {
         if (tile.canvas.height !== th) tile.canvas.height = th;
         tile.canvas.style.cssText = `position:absolute;pointer-events:none;contain:strict;left:${tile.x}px;top:${tile.y}px;width:${tw}px;height:${th}px`;
         const ctx = tile.canvas.getContext('2d', { willReadFrequently: true });
-        if (!ctx) return false;
+        if (!ctx || typeof ctx.isContextLost === 'function' && ctx.isContextLost()) { this.supported = false; return false; }
         ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, tw, th);
-        this.render(this.commands, ctx, { x: crop.x + tile.x / crop.density, y: crop.y + tile.y / crop.density, density: crop.density, width: tw, height: th, scratch: this.scratch }, 0);
+        this.render(commands, ctx, { x: crop.x + tile.x / crop.density, y: crop.y + tile.y / crop.density, density: crop.density, width: tw, height: th, scratch: this.scratch }, 0);
       }
       while (this.tiles.length > index) { const old = this.tiles.pop()!; old.canvas.remove(); old.canvas.width = old.canvas.height = 0; }
       this.canvas.dataset.paints = this.element.dataset.paints = String(++this.paints);

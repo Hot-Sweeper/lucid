@@ -427,15 +427,16 @@ export class TasksApp {
   // ---------------------------------------------------------------------------
   private async type(target: HTMLElement, text: string, budgetMs: number) {
     const wm = this.wm, e = wm.epoch;
+    await wm.waitForOperator(e);
     const cps = Math.max(26, text.length / (budgetMs / 1000));
     wm.robot.setTyping(true);
     let shown = 0;
-    const start = performance.now();
+    const start = wm.presentationTime;
     try {
       while (shown < text.length) {
         await presentationFrame(target);
-        wm.check(e);
-        const want = Math.floor(((performance.now() - start) * wm.speed / 1000) * cps * (0.85 + Math.random() * 0.3));
+        await wm.waitForOperator(e);
+        const want = Math.floor(((wm.presentationTime - start) * wm.speed / 1000) * cps * (0.85 + Math.random() * 0.3));
         const nxt = Math.min(text.length, Math.max(shown, want));
         if (nxt === shown) continue;
         // one key per frame is plenty for the hands; the text itself keeps up exactly

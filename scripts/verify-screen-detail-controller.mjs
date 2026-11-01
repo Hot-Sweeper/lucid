@@ -132,6 +132,23 @@ const beforeMove=reads;busyWins[0].style.transform='translateX(20px)';observer.c
 api.releaseScreenDetail(busyHost);drain();
 console.log(JSON.stringify({coldCaptureTasks:tasks,maxLayoutStyleReadsPerTask:maxReadsPerTask,warmBoundaryChanges:600,warmLayoutReads:0,warmCanvasAllocations:0,staleViewRetained:true,windowMotionRecaptures:0}));
 
+// The camera's stable-input shortcut must retain the detail observer. Windows
+// opened after an unchanged pan still inherit the current presentation tier.
+window.addEventListener=()=>{};
+let detailUpdates=0;
+const render=new Function('document','window','IntersectionObserver','requestAnimationFrame','cancelAnimationFrame','clearTimeout','beginSystem','endSystem','reportError','screenFrameRate','setScreenDetail','releaseScreenDetail',
+  `${await compile('diagnostics')};${await compile('render')};return {setRenderView,releaseRenderView}`)(document,window,undefined,()=>1,()=>{},id=>timers.delete(id),()=>-1,()=>{},error=>{throw error},()=>20,(...args)=>{detailUpdates++;api.setScreenDetail(...args)},api.releaseScreenDetail);
+const observedHost=new Element('screen'),observedLayer=new Element('win-layer');observedHost.append(observedLayer);observedHost.classList={toggle(){}};
+render.setRenderView(observedHost,true,140,820);
+for(let i=0;i<120;i++)render.setRenderView(observedHost,true,140,820);
+assert.equal(detailUpdates,1,'Stable pans enter the real detail controller only once');
+const late=makeWin(observedLayer);
+observers.at(-1).cb([{target:observedLayer,type:'childList',addedNodes:[late.w],removedNodes:[]}]);drain();
+assert.equal(late.w.dataset.detailReady,'1','A new window inherits detail without another camera pipeline call');
+assert.ok(late.w.querySelector('.authentic-app-icon'),'New reduced windows retain their actual app artwork');
+render.releaseRenderView(observedHost);drain();
+console.log(JSON.stringify({stablePans:120,detailControllerCalls:detailUpdates,newWindowObserverRetained:true}));
+
 // Keep the renderer continuously busy: idle callbacks are deliberately withheld.
 // Every first-time zoom tier must still appear, with bounded work on each frame.
 const frames=new Map(),idles=new Map();

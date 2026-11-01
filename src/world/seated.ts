@@ -1,4 +1,6 @@
+import { ModelSticker } from "./model-sticker";
 import gsap from "gsap";
+import { batteryWeakness, subscriptionBatteries } from "../office/battery";
 import { prettyModel } from "../harness/themes";
 import { watch, unwatch, drawNow, sinceDraw, finishDraw } from "./budget";
 import { beginSystem, endSystem } from "../perf/metrics";
@@ -62,10 +64,20 @@ export class TopDownRobot implements SeatedRobot {
   el: SVGSVGElement;
   private id = uid("tdr");
   private brand: BrandKind = "codex";
+  private weakness = 0;
+  private batteryProvider = "codex";
+  private stopBattery?: () => void;
+  private refreshBattery = () => {
+    const battery = subscriptionBatteries.get(this.batteryProvider);
+    this.weakness = batteryWeakness(battery.remaining);
+    this.el.dataset.battery = battery.remaining === null ? "unknown" : String(Math.floor(battery.remaining));
+  };
   private pose: Pose = "rest";
   private typing = false;
   private facing = false;
   private expr: Expression = "neutral";
+  private blink = { scale: 1 };
+  private deskHost: Element | null = null;
   private $: Record<string, SVGElement> = {};
   private rig = { lx: REST_L.x, ly: REST_L.y, rx: REST_R.x, ry: REST_R.y, hx: 0, hy: 0, rot: 0, yaw: 0, lean: 0, body: 0, sx: 1, bx: 0, by: 0, shrug: 0, shake: 0, upper: UPPER, fore: FORE, sw: 0, base: 0 };
   private lift = { l: 0, r: 0 };
@@ -129,6 +141,7 @@ export class TopDownRobot implements SeatedRobot {
   private armMemo: Record<"L" | "R", ArmMemo> = { L: {}, R: {} };
 
   constructor(host: HTMLElement, private desk: DeskRig) {
+    this.deskHost = host.closest('.desk-unit');
     const id = this.id;
     host.insertAdjacentHTML("beforeend", ROBOT(id));
     this.el = host.lastElementChild as SVGSVGElement;
@@ -158,6 +171,9 @@ export class TopDownRobot implements SeatedRobot {
   get currentPose() { return this.pose; }
 
   setBrand(provider: string) {
+    this.batteryProvider = provider;
+    this.refreshBattery();
+    this.stopBattery ||= subscriptionBatteries.subscribe(this.refreshBattery);
     this.brand = brandFor(provider);
     paintBrand(this.el, this.$, this.brand);
     paintBrand(this.thumb, {}, this.brand);
@@ -171,9 +187,11 @@ export class TopDownRobot implements SeatedRobot {
     paintLookColors(this.thumb, PALETTES[this.brand], this.look);
   }
 
+  private modelSticker?: ModelSticker;
   setModel(name: string | null) {
     const t = this.$.model as SVGTextElement, plate = this.$.plate;
     this.modelName = name;
+    (this.modelSticker ??= new ModelSticker(this.el)).set(name);
     if (!name) { this.$.nameplate.style.display = "none"; return; }
     this.$.nameplate.style.display = "";
     const pretty = prettyModel(name) || name;
@@ -441,9 +459,9 @@ export class TopDownRobot implements SeatedRobot {
     const paint = () => { this.$.eyes.innerHTML = this.eyesFor(e); };
     if (!changed || !this.facing) { paint(); return; }
     gsap.timeline()
-      .to([this.$.eyes, this.$.eyeLight], { scaleY: 0.1, duration: 0.07, transformOrigin: "50% 50%" })
+      .to(this.blink, { scale: 0.1, duration: 0.07 })
       .add(paint)
-      .to([this.$.eyes, this.$.eyeLight], { scaleY: 1, duration: 0.12, ease: "back.out(2)" });
+      .to(this.blink, { scale: 1, duration: 0.12, ease: "back.out(2)" });
   }
 
   // ---- headphones and music ----------------------------------------------------------------
@@ -615,11 +633,11 @@ export class TopDownRobot implements SeatedRobot {
   private scheduleBlink() {
     this.blinkCall?.kill();
     this.blinkCall = gsap.delayedCall(rnd(1.8, 4.6), () => {
-      const eyes = [this.$.eyes, this.$.eyeLight];
+      const eyes = this.blink;
       const tl = gsap.timeline()
-        .to(eyes, { scaleY: 0.1, duration: 0.06, transformOrigin: "50% 50%", ease: "power2.in" })
-        .to(eyes, { scaleY: 1, duration: 0.11, ease: "power2.out" });
-      if (Math.random() < 0.22) tl.to(eyes, { scaleY: 0.1, duration: 0.06, ease: "power2.in" }, "+=0.08").to(eyes, { scaleY: 1, duration: 0.11, ease: "power2.out" });
+        .to(eyes, { scale: 0.1, duration: 0.06, ease: "power2.in" })
+        .to(eyes, { scale: 1, duration: 0.11, ease: "power2.out" });
+      if (Math.random() < 0.22) tl.to(eyes, { scale: 0.1, duration: 0.06, ease: "power2.in" }, "+=0.08").to(eyes, { scale: 1, duration: 0.11, ease: "power2.out" });
       this.scheduleBlink();
     });
   }
@@ -775,11 +793,15 @@ export class TopDownRobot implements SeatedRobot {
     const r = this.rig, now = performance.now();
     // off screen or tiny (zoomed out): redraw less often, or not at all
     const dt = sinceDraw(this, now);
-    if (!drawNow(this, this.el, now)) return;
+    if (!drawNow(this, this.el, now, !this.deskHost?.classList.contains('arriving'))) return;
     const started = beginSystem();
+    const blink = `translate(0 657) scale(1 ${this.blink.scale.toFixed(4)}) translate(0 -657)`;
+    setSvgAttribute(this.$.eyes, 'transform', blink);
+    setSvgAttribute(this.$.eyeLight, 'transform', blink);
+    this.modelSticker?.step(now);
     // Keep the pulse clock running, but present it with the rest of this actor.
     // A direct infinite SVG tween otherwise repaints even offscreen or between body draws.
-    setSvgAttribute(this.$.antennaGlow, "opacity", this.glowPulse.opacity.toFixed(4));
+    setSvgAttribute(this.$.antennaGlow, "opacity", (this.glowPulse.opacity * (1 - this.weakness * .65)).toFixed(4));
     this.autoType(now);
     if (this.pose === "type") {
       // a hand that has not typed for a moment drifts back to its home key
@@ -841,7 +863,7 @@ export class TopDownRobot implements SeatedRobot {
 
     // head (v0 units inside the head group)
     const hdx = r.hx;
-    const hdy = r.hy - breath * 1.15 + jig - shrug * 0.6 + gNod * 5 + ant * 3.5 - pv * 2.5;
+    const hdy = r.hy - breath * 1.15 + jig - shrug * 0.6 + gNod * 5 + ant * 3.5 - pv * 2.5 + this.weakness * 15;
     const rot = r.rot + (this.rig.lx - this.rig.rx + 108) * 0.015 + this.shift.r * calm + gSway * 3 + pv * 5 * this.ponder.side;
     const scale = (1 + (r.lean + pv * 0.08) * 0.06) * this.look.head;
 
@@ -974,7 +996,7 @@ export class TopDownRobot implements SeatedRobot {
     }
     const k = this.autoQ.shift()!;
     this.hit(k, false);
-    this.nextAuto = now + (k === " " || k === "Enter" ? rnd(150, 300) : rnd(70, 190));
+    this.nextAuto = now + (k === " " || k === "Enter" ? rnd(150, 300) : rnd(70, 190)) * (1 + this.weakness * 2);
   }
 
   /** A point given in head v0 coordinates, in desk coordinates for the current frame. */
@@ -1034,6 +1056,7 @@ export class TopDownRobot implements SeatedRobot {
 
   destroy() {
     if (this.dead) return;
+    this.stopBattery?.();
     this.dead = true;
     this.busy = false;
     gsap.ticker.remove(this.frame);
@@ -1041,7 +1064,7 @@ export class TopDownRobot implements SeatedRobot {
     for (const a of this.loops) a.kill();
     for (const a of [this.poseAnim, this.reactTl, this.antTl, this.swTl, this.hpTl, this.propTl, this.blinkCall, this.shiftCall]) a?.kill();
     for (const s of ["l", "r"] as const) this.liftTl[s]?.kill();
-    gsap.killTweensOf([this.rig, this.lift, this.fold, this.press, this.bob, this.ant, this.shift, this.ponder, this.groove, this.hp, this.mouseW, this.mouseP,
+    gsap.killTweensOf([this.rig, this.lift, this.fold, this.press, this.bob, this.ant, this.shift, this.ponder, this.groove, this.hp, this.mouseW, this.mouseP, this.blink,
       this.gripL, this.gripR, this.mugTilt, this.swipeP, this.phoneTilt, this.el, this.$.antenna, this.$.antennaDroop, this.$.antennaGlow, this.$.eyes, this.$.eyeLight]);
     if (this.mugP) this.desk.moveMug(null);
     if (this.phoneP) this.desk.showPhone(null);

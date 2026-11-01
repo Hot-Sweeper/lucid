@@ -1,4 +1,6 @@
 import gsap from "gsap";
+import { startCoinLedger, observeCoinLedger, collectCoinJob, collectible, formatCoins, roundCoins, type CoinLedger, type CoinSource } from "./coin-ledger";
+import { gameSound } from "./sound";
 import { FLOORS, WALLS, DECOR, DECOR_IDS, drawFloor, drawDecor, type FloorId, type WallId, type DecorId } from "../decor/decor";
 
 // The company's coins and shop. A coin is a dollar: every dollar of API-priced work the robots
@@ -28,7 +30,7 @@ export const seasonalNow = () => CATALOG.filter((c) => c.season === currentSeaso
 const SEASON_END: Record<Season, string> = { spring: "the end of May", summer: "the end of August", autumn: "the end of November", winter: "the end of February" };
 export const itemFor = (kind: ShopKind, id: string) => CATALOG.find((c) => c.kind === kind && c.id === id) ?? null;
 
-export type WalletState = { ledger: Record<string, number>; spent: number; owned: string[]; v?: number; daily?: { last: string; streak: number } };
+export type WalletState = { ledger: Record<string, number>; spent: number; owned: string[]; v?: number; daily?: { last: string; streak: number }; collection?: CoinLedger };
 
 // --- boosts: temporary coin multipliers -------------------------------------------------------
 export type Boost = { mult: number; label: string; until?: number };
@@ -56,12 +58,50 @@ export class Wallet {
   private state(): WalletState {
     const s = this.get();
     if (!s) return { ledger: {}, spent: 0, owned: [], v: 2 };
-    const st: WalletState = { ledger: { ...s.ledger }, spent: s.spent ?? 0, owned: [...(s.owned ?? [])], v: s.v, daily: s.daily ? { ...s.daily } : undefined };
+    const st: WalletState = { ledger: { ...s.ledger }, spent: s.spent ?? 0, owned: [...(s.owned ?? [])], v: s.v, daily: s.daily ? { ...s.daily } : undefined, collection: s.collection ? structuredClone(s.collection) : undefined };
     // coins used to be 10 per dollar: spent coins convert at the same rate (rewards were stored in dollars already)
     if ((st.v ?? 1) < 2) { st.spent = Math.round(st.spent / 10); st.v = 2; this.set(st); }
     return st;
   }
-  get earned() { return Math.floor(Object.values(this.state().ledger).reduce((a, b) => a + b, 0) * COINS_PER_DOLLAR); }
+  get earned() {
+    const s = this.state();
+    if (s.collection) return roundCoins(s.collection.legacyEarned + s.collection.collected + Object.entries(s.ledger).filter(([k]) => k.startsWith('bonus:')).reduce((sum, [, n]) => sum + n, 0));
+    return Math.floor(Object.values(s.ledger).reduce((a, b) => a + b, 0) * COINS_PER_DOLLAR);
+  }
+  get rewards() { return Object.entries(this.state().collection?.jobs ?? {}).filter(([, job]) => collectible(job) > 0).map(([id, job]) => ({ id, ...job, amount: collectible(job) })); }
+  observeSources(sources: CoinSource[]) {
+    const s = this.state();
+    if (!s.collection) {
+      const bonuses = Object.entries(s.ledger).filter(([k]) => k.startsWith('bonus:')).reduce((sum, [, n]) => sum + n, 0);
+      s.collection = startCoinLedger(sources, this.earned - bonuses);
+    } else observeCoinLedger(s.collection, sources, boostNow(this.level).mult * COINS_PER_DOLLAR);
+    if (JSON.stringify(s) !== JSON.stringify(this.get())) this.set(s);
+  }
+  collect(id: string) {
+    const s = this.state();
+    if (!s.collection) return 0;
+    const payout = collectCoinJob(s.collection, id);
+    if (!payout) return 0;
+    s.ledger['work:collected'] = (s.ledger['work:collected'] ?? 0) + payout.dollars;
+    this.set(s);
+    this.onChange(this.balance, payout.coins);
+    return payout.coins;
+  }
+  collectAll() {
+    const s = this.state();
+    if (!s.collection) return 0;
+    let coins = 0, dollars = 0;
+    for (const id of Object.keys(s.collection.jobs)) {
+      const payout = collectCoinJob(s.collection, id);
+      if (payout) { coins += payout.coins; dollars += payout.dollars; }
+    }
+    if (!coins) return 0;
+    s.ledger['work:collected'] = (s.ledger['work:collected'] ?? 0) + dollars;
+    this.set(s);
+    coins = roundCoins(coins);
+    this.onChange(this.balance, coins);
+    return coins;
+  }
   /** Dollars of AI work at API prices (rewards excluded). */
   get spentUsd() { return Object.entries(this.state().ledger).filter(([k]) => !k.startsWith("bonus:")).reduce((a, [, v]) => a + v, 0); }
   /** Pay out a one-time reward (milestones). */
@@ -72,7 +112,7 @@ export class Wallet {
     this.set(s);
     this.onChange(this.balance, coins);
   }
-  get balance() { return this.earned - this.state().spent; }
+  get balance() { return roundCoins(this.earned - this.state().spent); }
   owns(key: string) { const it = CATALOG.find((c) => c.key === key); return !!it && (it.price === 0 || this.state().owned.includes(key)); }
 
   // Record what the robots spent. The first reading also credits the rest of the past week.
@@ -82,12 +122,14 @@ export class Wallet {
     const today = dayKey();
     // the week before today counts once, as a welcome; restored if the ledger ever lost it
     const pastDays = Object.keys(s.ledger).some((k) => /^\d{4}-\d{2}-\d{2}$/.test(k) && k !== today);
-    if (s.ledger.welcome == null && !pastDays) s.ledger.welcome = Math.max(0, u.windows.week.costUsd - u.windows.today.costUsd);
+    if (!s.collection && s.ledger.welcome == null && !pastDays) s.ledger.welcome = Math.max(0, u.windows.week.costUsd - u.windows.today.costUsd);
     // new work since the last reading, with the boost that is active right now
     const delta = Math.max(0, u.windows.today.costUsd - (s.ledger[today] ?? 0));
     const boost = boostNow(this.level);
-    if (delta > 0 && boost.mult > 1 && s.ledger[today] != null) s.ledger[`bonus:boost:${today}`] = (s.ledger[`bonus:boost:${today}`] ?? 0) + delta * (boost.mult - 1);
-    s.ledger[today] = Math.max(s.ledger[today] ?? 0, u.windows.today.costUsd);
+    if (!s.collection) {
+      if (delta > 0 && boost.mult > 1 && s.ledger[today] != null) s.ledger[`bonus:boost:${today}`] = (s.ledger[`bonus:boost:${today}`] ?? 0) + delta * (boost.mult - 1);
+      s.ledger[today] = Math.max(s.ledger[today] ?? 0, u.windows.today.costUsd);
+    }
     // the daily reward: a few coins for showing up, more for a streak
     let daily = 0;
     if (s.daily?.last !== today) {
@@ -97,7 +139,7 @@ export class Wallet {
       s.ledger[`bonus:daily:${today}`] = daily / COINS_PER_DOLLAR;
       s.daily = { last: today, streak };
     }
-    this.set(s);
+    if (JSON.stringify(s) !== JSON.stringify(this.get())) this.set(s);
     if (daily) this.onDaily(daily, s.daily!.streak);
     const gained = this.earned - before;
     if (gained) this.onChange(this.balance, gained);
@@ -129,6 +171,7 @@ export function itemPreview(it: ShopItem, w = 96, h = 72) {
 
 // The shop window.
 export function openShop(o: { wallet: Wallet; level: number; onBought?: (it: ShopItem) => void }) {
+  gameSound.play('open');
   const wrap = document.createElement("div");
   wrap.className = "dialog-wrap shop-wrap";
   type Tab = ShopKind | "season";
@@ -138,7 +181,7 @@ export function openShop(o: { wallet: Wallet; level: number; onBought?: (it: Sho
   wrap.innerHTML = `
     <div class="dialog shop" role="dialog" aria-modal="true" aria-labelledby="shop-title">
       <header class="shop-head">
-        <div><h2 id="shop-title">Shop</h2><p>One coin for every dollar of AI work at API prices, so big things take a few days. Today's lucky hour (double coins) starts at ${luckyHour()}:00. Place what you buy with Decorate on any office sign.</p></div>
+        <div><h2 id="shop-title">Shop</h2><p>Collect coins from finished robots: $1 at API prices earns 1 coin, plus bonuses. Today's lucky hour starts at ${luckyHour()}:00. Place purchases with Decorate on an office sign.</p></div>
         <div class="shop-bal" aria-live="polite">${coinIcon(20)}<b></b></div>
       </header>
       <div class="shop-tabs" role="tablist">${tabs.map(([k, n]) => `<button type="button" role="tab" data-t="${k}" aria-selected="${k === tab}">${n}</button>`).join("")}</div>
@@ -149,7 +192,7 @@ export function openShop(o: { wallet: Wallet; level: number; onBought?: (it: Sho
   const grid = wrap.querySelector(".shop-grid") as HTMLElement;
   const bal = wrap.querySelector(".shop-bal b") as HTMLElement;
   const paint = () => {
-    bal.textContent = o.wallet.balance.toLocaleString();
+    bal.textContent = formatCoins(o.wallet.balance);
     const list = tab === "season" ? CATALOG.filter((c) => c.season === season) : CATALOG.filter((c) => c.kind === tab && !c.season);
     const note = tab === "season" ? `<p class="shop-note">${list.length ? `Only sold until ${SEASON_END[season]}. What you buy stays yours all year.` : "The seasonal things are on their way."}</p>` : "";
     grid.innerHTML = note + list.map((it) => {
@@ -174,6 +217,7 @@ export function openShop(o: { wallet: Wallet; level: number; onBought?: (it: Sho
     const it = CATALOG.find((c) => c.key === b.dataset.k)!;
     const card = b.closest(".shop-item") as HTMLElement;
     if (!o.wallet.buy(it.key)) return;
+    gameSound.play('purchase');
     coinBurst(b);
     paint();
     const fresh = [...grid.querySelectorAll(".shop-item")].find((x) => x.querySelector("b")?.textContent === it.name) as HTMLElement | undefined;

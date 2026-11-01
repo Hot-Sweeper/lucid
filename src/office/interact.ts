@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { gameSound } from './sound';
 import type { Walker } from "../world/walker";
 
 // Little toys in the world: pick up a walking robot, carry it somewhere, or fling it and
@@ -60,6 +61,7 @@ export function makeInteractive(w: Walker, o: Opts = {}) {
         w.calm();
         w.grabbed(true);   // legs dangle and kick, arms flail
         w.setExpression("surprised");
+        gameSound.at('boop', el, .7);
         w.say(pick(GRAB), 1400);
         el.classList.add("held");
         gsap.to(el.style, { scale: 1.12, duration: 0.15 } as any);
@@ -82,6 +84,7 @@ export function makeInteractive(w: Walker, o: Opts = {}) {
         window.clearTimeout(pokeTimer);
         pokeTimer = window.setTimeout(() => (pokes = 0), 2500);
         w.hop();
+        gameSound.at('poke', el, .8);
         w.poke();
         if (pokes >= 4) { w.setExpression("angry"); w.say(pick(["Okay, stop it.", "I will file a ticket.", "Rude.", "Poke limit reached."]), 1800); }
         else { w.setExpression(pick(["happy", "laugh", "shy"] as const)); w.say(pick(POKE), 1500); }
@@ -100,6 +103,7 @@ export function makeInteractive(w: Walker, o: Opts = {}) {
       const land = () => {
         el.classList.remove("held");
         held.delete(w);
+        gameSound.at('boop', el, .55);
         o.onLanded?.();
       };
       if (speed > 500) {

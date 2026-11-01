@@ -13,6 +13,24 @@ function fixture() {
   const run = (id, n, status, p) => db.prepare('insert into orchestration_v2_projection_runs values (?,?,?,?,?)').run(id, 't', status, n, JSON.stringify(p));
   return { db, at, msg, run };
 }
+
+test('memory housekeeping stays hidden without losing history or user content', () => {
+  const { db, msg } = fixture();
+  const batch = 'New messages the user wrote to robots. Learn lasting preferences from them and update memory.md:\n\n- [Robot] https://example.com';
+  msg(0, 'user', { text: 'https://example.com' });
+  msg(1, 'assistant', { text: batch });
+  msg(2, 'user', { text: 'Please explain: ' + batch });
+  msg(3, 'user', { text: batch });
+  msg(4, 'user', { text: batch });
+  const latest = readConversation(db, 't', { limit: 2 });
+  assert.deepEqual(latest.messages, []);
+  assert.equal(latest.hasMore, true);
+  const older = readConversation(db, 't', { limit: 2, before: latest.cursor });
+  const oldest = readConversation(db, 't', { limit: 2, before: older.cursor });
+  assert.deepEqual([...oldest.messages, ...older.messages].map(m => m.id).sort(), ['m0', 'm1', 'm2']);
+  assert.equal(db.prepare('select count(*) as n from orchestration_v2_projection_messages').get().n, 5);
+  db.close();
+});
 test('205 real SQLite rows page without loss or duplicates across equal timestamps and new inserts', () => {
   const { db, msg } = fixture();
   for (let n = 0; n < 205; n++) msg(n);

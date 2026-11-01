@@ -1,5 +1,5 @@
 /* ---------- world and camera ---------- */
-.scene { position: relative; overflow: clip; --scene-night: 0; background: color-mix(in srgb, #0b1030 calc(var(--scene-night) * 90%), var(--scene-ground, #78b066)); cursor: grab; touch-action: none; }
+.scene { position: relative; overflow: clip; --scene-night: 0; background: color-mix(in srgb, #0a1236 calc(var(--scene-night) * 84%), var(--scene-ground, #78b066)); cursor: grab; touch-action: none; }
 .scene.panning { cursor: grabbing; }
 .world { position: absolute; left: 0; top: 0; transform-origin: 0 0; --night: 0; --lamp: 0; --stars: 0; --city: 0; --sky1: #6fb2ee; --sky2: #d4ecfb; }
 .room-layer, .desk-layer { position: absolute; inset: 0; }
@@ -196,14 +196,24 @@
 .cp-msg time { font-size: 10.5px; color: var(--ink-3); padding: 0 4px; font-variant-numeric: tabular-nums; }
 .cp-atts { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .cp-att { margin: 0; width: 150px; height: 100px; border-radius: 10px; overflow: hidden; background: #11143a; cursor: zoom-in; }
-.cp-att img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cp-att img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .cp-file { display: flex; gap: 8px; align-items: center; padding: 7px 10px; border-radius: 10px; background: rgba(255,255,255,0.08); font-size: 12px; max-width: 220px; }
 .cp-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cp-file i { font-style: normal; color: var(--ink-3); flex: none; }
 .cp-empty { color: var(--ink-3); font-size: 13px; text-align: center; margin: 24px 0; }
-.cp-zoom { position: absolute; inset: 60px 10px 80px; z-index: 2; background: rgba(12, 15, 40, 0.97); border-radius: 14px; display: flex; flex-direction: column; gap: 10px; padding: 10px; align-items: center; justify-content: center; }
-.cp-zoom[hidden] { display: none; }
-.cp-zoom img { max-width: 100%; max-height: calc(100% - 50px); object-fit: contain; border-radius: 8px; }
+.cp-zoom { position: fixed; inset: 0; width: min(1200px, 94vw); height: min(850px, 92vh); max-width: 94vw; max-height: 92vh; box-sizing: border-box; border: 1px solid #404568; background: #171c38; color: var(--ink); border-radius: 12px; padding: 16px; }
+.cp-zoom::backdrop { background: rgb(5 8 22 / 82%); }
+.cp-zoom[open] { display: flex; flex-direction: column; gap: 14px; }
+.cp-zoom header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.cp-zoom strong { overflow-wrap: anywhere; min-width: 0; }
+.cp-zoom header button { flex: none; }
+.cp-media-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: auto; }
+.cp-media-stage img, .cp-media-stage video { max-width: 100%; max-height: 100%; object-fit: contain; }
+.cp-media-stage audio { width: min(640px, 100%); }
+.cp-chip .cp-file-preview { flex: 1; width: auto; height: auto; font: inherit; display: flex; align-items: center; gap: 6px; min-width: 0; border: 0; padding: 0; background: transparent; color: inherit; cursor: zoom-in; }
+button.cp-att { padding: 0; border: 0; }
+button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inherit; }
+
 /* the message box: grows as you type, with attachments and a send button inside */
 .cp-form { flex: none; position: relative; padding: 10px 12px 14px; }
 .cp-box { background: #12153a; border-radius: 16px; padding: 10px 10px 8px 14px; box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow 0.15s; }
@@ -261,14 +271,14 @@
 .hidden-offices { margin-top: 10px; display: flex; flex-direction: column; align-items: flex-start; }
 .hidden-offices h3 { margin: 0 0 2px; }
 
-/* add-desk tiles */
-.add-desk { position: absolute; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 180px; padding: 22px 10px; border: 0; border-radius: 22px; cursor: pointer;
-  background: rgba(255, 255, 255, 0.16); color: #4a3a28; font: 600 15px var(--font); transition: background 0.2s, transform 0.2s; }
-.add-desk span { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: var(--accent); font-size: 34px; line-height: 1; box-shadow: 0 8px 18px rgba(40, 30, 20, 0.18); }
-.add-desk i { font-style: normal; }
-.add-desk:hover { background: rgba(255, 255, 255, 0.3); transform: translateY(-2px); }
-.add-desk.compact { flex-direction: row; width: auto; padding: 8px 14px 8px 8px; border-radius: 30px; background: rgba(255, 255, 255, 0.9); }
-.add-desk.compact span { width: 34px; height: 34px; font-size: 24px; box-shadow: none; background: #fff3e6; }
+/* A small solid room control, below the window sill and clear of the monitor. */
+.add-desk { position:absolute; z-index:1; box-sizing:border-box; display:flex; flex-direction:row; align-items:center; justify-content:center; gap:7px; width:144px; min-height:36px; padding:6px 10px; border:1px solid #d7c2a7; border-radius:6px; cursor:pointer; background:#fff7e8; color:#4a3a28; font:600 13px var(--font); transition:background .15s; }
+.add-desk span { display:grid; place-items:center; width:18px; height:18px; flex:none; color:#b66d32; font-size:22px; line-height:1; }
+.add-desk i { font-style:normal; white-space:nowrap; }
+.add-desk:hover { background:#f4e3cb; }
+.add-desk:focus-visible { outline:2px solid #b66d32; outline-offset:3px; }
+.add-desk.compact { width:128px; min-height:28px; padding:3px 7px; gap:5px; font-size:12px; }
+.add-desk.compact span { width:16px; height:16px; font-size:20px; }
 .desk-unit.empty { cursor: pointer; }
 .desk-unit.empty:hover .desk-table { filter: drop-shadow(0 0 14px rgba(255, 159, 90, 0.75)); }
 .desk-unit.empty::after { content: "Hire"; position: absolute; left: 50%; top: 286px; transform: translateX(-50%); padding: 6px 14px; border-radius: 16px; background: rgba(255, 255, 255, 0.92); color: #3a2a1a; font: 600 13px var(--font); opacity: 0; transition: opacity 0.2s; pointer-events: none; }
@@ -422,6 +432,10 @@
 .cp-text hr { border: 0; height: 1px; background: rgba(255, 255, 255, 0.1); margin: 14px 0; }
 .cp-text a { color: #8fc8ff; text-decoration: underline; text-underline-offset: 2px; }
 .cp-text a:hover { color: #b9dcff; }
+.cp-msg.you .cp-text a { color: #24365c; }
+.cp-msg.you .cp-text a:hover { color: #15213d; }
+.cp-msg.you .cp-text a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.cp-msg.you .cp-text li::marker { color: inherit; }
 .cp-text .md-file { font-family: var(--mono); font-size: 12px; padding: 1px 6px; border-radius: 6px; background: rgba(143, 200, 255, 0.12); color: #a9d4ff; }
 .cp-text code { font-size: 12.5px; background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 5px; }
 .cp-msg.you .cp-text code { background: rgba(0, 0, 0, 0.14); }
@@ -514,7 +528,7 @@
 .desk-unit.arriving .world-thumb, .desk-unit.arriving .phone-held, .desk-unit.arriving .bubble { opacity: 0 !important; }
 .hall-walker { cursor: pointer; }
 
-.outside-layer { overflow: hidden; }
+.outside-layer { overflow: hidden; z-index: 0; isolation: isolate; }
 .outside-layer .outside-live { position: absolute; left: 0; top: 0; pointer-events: none; }
 
 /* little toys: grab robots, poke them, click things */
@@ -531,18 +545,6 @@
 @keyframes pond-ring { to { transform: scale(9); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pond-ring { animation-duration: 0.01s; } }
 
-/* following a walking robot */
-.follow-chip { grid-column: 2; grid-row: 1; position: relative; align-self: end; justify-self: center; margin: 0 12px 18px; z-index: 40; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; border-radius: 14px; background: rgba(22, 27, 58, 0.94); box-shadow: 0 12px 30px rgba(5, 8, 30, 0.45); max-width: min(560px, calc(100% - 24px)); box-sizing: border-box; }
-.follow-chip[hidden] { display: none; }
-.fc-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ff0a0; flex: none; animation: fc-pulse 1.6s ease-in-out infinite; }
-@keyframes fc-pulse { 50% { opacity: 0.35; } }
-.fc-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
-.fc-text b { font-size: 14px; }
-.fc-text i { font-style: normal; font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.follow-chip button { flex: none; border: 0; border-radius: 9px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; background: rgba(255, 255, 255, 0.08); color: var(--ink); }
-.follow-chip .fc-chat { background: var(--accent); color: #2a1407; font-weight: 600; }
-.follow-chip button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { .fc-dot { animation: none; } }
 
 /* thread list, like T3 Code's sidebar */
 .threads { display: flex; flex-direction: column; flex: none; }
@@ -554,6 +556,16 @@
 .th-list { list-style: none; margin: 8px -10px 0; padding: 0; flex: none; max-height: 42vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .th-row { width: 100%; display: flex; flex-direction: column; gap: 3px; border: 0; background: none; color: var(--ink); text-align: left; padding: 9px 10px; border-radius: 10px; cursor: pointer; font: inherit; }
 .th-row:hover { background: rgba(255, 255, 255, 0.05); }
+.th-row.th-drop-before { box-shadow: inset 0 2px var(--ink-3); }
+.th-row.th-drop-after { box-shadow: inset 0 -2px var(--ink-3); }
+.th-settled-toggle, .th-settled-more { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 10px; border: 0; background: none; color: var(--ink-3); font: inherit; text-align: left; cursor: pointer; }
+.th-settled-toggle:hover, .th-settled-more:hover { color: var(--ink); }
+.th-settled-toggle:focus-visible, .th-settled-more:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.th-settled-count { margin-left: auto; font-variant-numeric: tabular-nums; }
+.th-settled-list { list-style: none; margin: 0; padding: 0; }
+.th-row.th-settled-row { flex-direction: row; align-items: center; gap: 10px; padding: 10px; color: var(--ink-3); }
+.th-settled-row img { width: 16px; height: 16px; object-fit: contain; flex: none; border-radius: 4px; }
+.th-settled-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .th-row.on { background: rgba(255, 255, 255, 0.07); }
 .th-row:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 .th-top { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-3); }
@@ -673,6 +685,10 @@
 .cp-text .md-code pre { overflow-x: auto; }
 .cp-text code { overflow-wrap: anywhere; word-break: break-word; }
 .cp-text img { max-width: 100%; height: auto; }
+.cp-text .cp-inline-media { display: inline-flex; max-width: 100%; padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; text-align: left; vertical-align: top; cursor: zoom-in; }
+.cp-text .cp-inline-media img { display: block; max-width: 100%; max-height: 360px; width: auto; height: auto; object-fit: contain; border-radius: inherit; }
+.cp-inline-media:focus-visible, .cp-atts button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.cp-media-unavailable { display: block; padding: 8px; color: inherit; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 /* your long messages fold to a preview with a toggle */
 .cp-msg.you.long .cp-text { max-height: 240px; position: relative; }
 .cp-msg.you.long .cp-text::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: linear-gradient(to bottom, transparent, var(--accent)); pointer-events: none; }
@@ -692,6 +708,8 @@
 .scene:not(.near) :is(.mug-steam path, .amb-tree, .amb-bare, .amb-bush, .amb-fl, .amb-glow, .amb-plant, .amb-rock, .amb-sit, .amb-blink, .amb-flap, .amb-buzz, .amb-cloud) { animation: none; }
 .scene:not(.near) :is(.amb-drop, .amb-ripple, .amb-ring, .amb-path, .amb-occ, .amb-dart, .amb-hop, .amb-ffly) { animation: none; visibility: hidden; }
 .desk-unit.culled *, .room.culled *, .screen.render-paused * { animation-play-state: paused !important; }
+.os.unattended * { animation-play-state: paused !important; }
+.os.unattended .cursor { visibility: hidden; }
 .win.render-hidden .win-body { visibility: hidden; content-visibility: hidden; }
 .desk-unit, .room, .robot-host { contain: layout style; }
 /* Keep animated vectors on local surfaces. Permanent promotion of every in-world
@@ -737,7 +755,7 @@
 .ms-bar i { display: block; height: 100%; background: #ffd27a; }
 
 /* model bar above the message box: harness, model, effort and speed of this thread */
-.cp-model { display: flex; align-items: center; gap: 2px; min-width: 0; padding: 0 2px 6px; }
+.cp-model { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; padding: 0 2px 6px; }
 .cp-model[hidden], .cp-connect[hidden], .cm-error[hidden], .cq-note[hidden], .cm-pick[hidden], .cm-fast[hidden] { display: none; }
 .cm-pick, .cm-fast { display: inline-flex; align-items: center; gap: 6px; min-width: 0; height: 28px; padding: 0 8px; border: 0; border-radius: 8px; background: none;
   color: var(--ink-2); font: inherit; font-size: 12.5px; white-space: nowrap; cursor: pointer; }
@@ -813,11 +831,16 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .wl-boost.hot { background: #ffd27a; box-shadow: 0 0 12px rgba(255, 210, 122, 0.6); }
 .cm-error.calm { color: var(--ink-3); }
 
-/* Reuse pixels during pans; let live text and vectors rerasterize during zoom. */
-.world.zooming:not(.scaling) { will-change: transform; }
+/* Let Chromium composite the visible camera contents. Promoting the entire
+   world during a pan rasterizes a large shared surface after the camera settles. */
 /* Keep SVG artwork at the current display density while zooming. A permanently
    promoted local surface otherwise magnifies its previous raster beside sharp HTML. */
 .world.scaling :is(.room, .world-seated, .world-walker-svg, .desk-unit > svg) { will-change: auto; }
+.world.overview :is(.world-seated, .world-walker-svg) { will-change: auto; }
+/* Keep crowded overview rooms and actors on separate local surfaces. Otherwise
+   every moving robot makes Chromium regroup the whole campus's paint chunks.
+   Close views and culled rooms keep their existing policy. */
+.world.overview .room:not(.culled), .world.overview .world-walker > .world-walker-svg { will-change: transform; }
 
 .cp-plan { flex: none; margin: 0 16px 8px; color: var(--ink-2); font-size: 12px; }
 .cp-plan[hidden] { display: none; }
@@ -839,3 +862,18 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .room-drag-ghost { position: fixed; z-index: 1000000; pointer-events: none; max-width: min(280px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: hidden; padding: 8px 11px; white-space: pre-line; overflow-wrap: anywhere; border-radius: 6px; background: var(--panel, #202735); color: var(--ink); font: 12px/1.5 var(--font); box-shadow: 0 3px 14px #0004; }
 .room-drop-preview { position: fixed; z-index: 999999; box-sizing: border-box; pointer-events: none; overflow: hidden; border: 2px dashed var(--accent); border-left-style: solid; color: var(--ink); background: transparent; padding: 4px; font: 11px/1.3 var(--font); }
 .room-drop-preview.room-drop-after { border-left-style: dashed; border-right-style: solid; }
+
+.room-size-hit { position: absolute; right: 22px; top: 25px; width: 54px; height: 54px; display: grid; place-items: center; border: 0; border-radius: 8px; color: #fff0df; background: #36364ee6; cursor: pointer; }
+.room-folded .room-size-hit { right: 90px; top: 112px; width: 42px; height: 42px; }
+.room-size-hit:hover { background: #514b68; }
+.room-size-hit:focus-visible, .room-reopen-hit:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+.room-size-hit svg { transform: rotate(-90deg); transition: transform .2s ease; }
+.room-size-hit.is-pinned svg { transform: rotate(0deg); }
+.room-retiring { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .room-size-hit svg { transition: none; } }
+
+.room-size-hit { width: auto; min-width: 54px; padding: 8px 12px; grid-auto-flow: column; gap: 6px; font: 600 16px Lexend, sans-serif; z-index: 3; }
+.room-folded .room-size-hit { width: auto; min-width: 42px; }
+.room-list .room-fold { width: auto; min-width: 58px; }
+
+.shopfront::after { content: ""; position: absolute; inset: 0; background: #0b1030; opacity: calc(var(--night, 0) * .9); pointer-events: none; }

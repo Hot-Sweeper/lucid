@@ -1,0 +1,24 @@
+{
+  "verifiedFrom": [
+    "https://support.apple.com/guide/mac-help/apps-included-on-your-mac-mchl110b00b7/mac",
+    "https://github.com/notepad-plus-plus/notepad-plus-plus/tree/master/PowerEditor/misc/chameleon",
+    "Microsoft.WindowsNotepad 11.2503.16.0 installed signed package; NotepadAppList app icon"
+  ],
+  "assets": [
+    {
+      "file": "apple-notes.png",
+      "source": "https://ipcdn-web.apple.com/assets/v2/web/b08f38fa-c1f2-42af-8b03-8b5abfbd7f1a",
+      "sha256": "eb225f8f0b077b99a5e2bca7c3371748dc8b9c277d267784374e3a487370524f"
+    },
+    {
+      "file": "notepad-plus-plus.png",
+      "source": "https://raw.githubusercontent.com/notepad-plus-plus/notepad-plus-plus/master/PowerEditor/misc/chameleon/chameleon-pencil-200.png",
+      "sha256": "03015c308cf8db74143d175bece62e67f4700a667891e7cada808432f9c290b4"
+    },
+    {
+      "file": "notepad.png",
+      "source": "C:/Program Files/WindowsApps/Microsoft.WindowsNotepad_11.2503.16.0_x64__8wekyb3d8bbwe/Assets/NotepadAppList.targetsize-256_altform-unplated.png",
+      "sha256": "f974969ed293477b6d878d96500802ca679c841da1039e8c994e04171b61c646"
+    }
+  ]
+}

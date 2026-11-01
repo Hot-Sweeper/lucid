@@ -8,7 +8,8 @@ type Box = { owner: HTMLElement; epoch: number; generation: number; entries: Map
 export class NotePresentation {
   private boxes = new Map<HTMLElement, Box>();
   private generation = 0;
-  constructor(private epoch: () => number, private pressKey: (key: string) => void) {}
+  constructor(private epoch: () => number, private pressKey: (key: string) => void,
+    private operator?: { present(): boolean; wait(epoch: number): Promise<void> }) {}
 
   reset() {
     this.generation++;
@@ -19,7 +20,7 @@ export class NotePresentation {
   private remove(box: Box) { box.dead = true; box.stop?.(); if (this.boxes.get(box.owner) === box) this.boxes.delete(box.owner); }
   private paint(box: Box) {
     if (!this.valid(box)) { this.remove(box); return; }
-    if (!renderFps(box.owner)) return;
+    if ((this.operator && !this.operator.present()) || !renderFps(box.owner)) return;
     let changed = false;
     for (const [paragraph, entry] of box.entries) {
       if (!paragraph.isConnected || !box.owner.contains(paragraph)) { box.entries.delete(paragraph); continue; }
@@ -32,10 +33,10 @@ export class NotePresentation {
     }
     if (changed) scheduleLayout(box.owner, () => {
       // Visibility/assignment can change after text paint but before this batch.
-      if (!this.valid(box) || !renderFps(box.owner)) return null;
+      if (!this.valid(box) || (this.operator && !this.operator.present()) || !renderFps(box.owner)) return null;
       const target = Math.max(0, box.owner.scrollHeight - box.owner.clientHeight);
       return Math.abs(target - box.owner.scrollTop) < .5 ? null : () => {
-        if (this.valid(box) && renderFps(box.owner)) box.owner.scrollTop = target;
+        if (this.valid(box) && (!this.operator || this.operator.present()) && renderFps(box.owner)) box.owner.scrollTop = target;
       };
     });
     if (!box.entries.size) {
@@ -60,6 +61,7 @@ export class NotePresentation {
     let shown = target.startsWith(initial) ? initial.length : target.length;
     if (shown === target.length) { entry.text = target; entry.dirty = true; queue(); }
     while (shown < target.length && current()) {
+      if (this.operator && !this.operator.present()) { await this.operator.wait(box.epoch); if (!current()) break; }
       const fps = renderFps(owner);
       if (!fps) { entry.text = target; entry.dirty = true; queue(); break; }
       const cadence = Math.max(22 / Math.max(.1, speed), 1000 / fps);

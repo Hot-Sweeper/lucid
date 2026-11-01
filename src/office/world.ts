@@ -1,31 +1,44 @@
+import { gameSound } from "./sound";
+import { printerArt, printerStation } from "./printer";
+import { subscriptionBatteries } from "./battery";
+import type { Usage } from "../stats/stats";
+import { chargingSize } from "../world/charging";
 import gsap from "gsap";
 import { setZoom } from "../world/budget";
 import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
 import { drawFloor, drawWall, drawDecor, placeDecor, decorFootprint, DECOR } from "../decor/decor";
 import { furniturePath, type Footprint } from "./navigation";
-import { officePlan, hallRoute, inHall, type OfficePlan } from "./floor-plan";
+import { forestPlan } from "./forest-plan";
+import { mountNativeContourCull } from "./outside-cull";
+import { campusNight } from "./campus-light";
+import { campusPlan, districtPlan } from "./campus-plan";
+import { officePlan, hallRoute, hallPreference, inHall, type OfficePlan } from "./floor-plan";
 import { buildingFootprint, footprintCovers } from "./building-footprint";
-import { hasOfficeWork, reserveRoomSeats, projectRoomSeats, physicalSeatIndices, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, layoutClearAt, FOLDED_OFFICE } from "./room-policy";
+import { hasOfficeWork, hasOfficeDesk, reserveRoomSeats, projectRoomSeats, physicalSeatIndices, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, layoutSafeAt, FOLDED_OFFICE } from "./room-policy";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
 import { Walker, SIT_HEAD, pause, type Facing } from "../world/walker";
-import { makeInteractive, whenFree } from "./interact";
+import { makeInteractive, whenFree, isHeld } from "./interact";
 import { GEOM, type Pt } from "./rig";
 import { SHOP_W, SHOP_H, type ShopFront } from "./shopfront";
 import { mountWeather, applySkyTint, type WeatherLayer, type Weather } from "../weather/effects";
 import { outdoorLook, seasonPalette } from "../weather/season";
-import { outsideSvg, backdropColor, groundsLayout, PARK_W, PARK_H, type Grounds } from "./outside";
+import { plainOutsideSvg, lookFor, groundsLayout, PARK_W, PARK_H, type Grounds } from "./outside";
 import { groundWx, groundSig, isWet, puddleSpots, type Puddle } from "../weather/ground";
 import { gearFor } from "../weather/gear";
-import { ambientPlant, watchOutdoorAmbient } from "./ambient";
+import { ambientPlant } from "./ambient";
 import { Roster, type RobotProfile } from "./roster";
-import { paintOutside, updateOutside } from "./outside-zoom";
+import { updateOutside } from "./outside-zoom";
+import { LandscapeTiles } from "./landscape-tiles";
+import { planLandscape, landColors, type LandPlan } from "./landscape";
 import { setRenderView } from "../perf/render";
 import { beginSystem, endSystem } from "../perf/metrics";
 import { cafeTiles, plankJoints } from "../perf/floor-paths";
 import { vectorOwner, releaseVectors } from "../perf/shared-vector";
 import { cacheStaticArt, updateStaticArt, invalidateStaticArt, destroyStaticArt } from "../perf/static-art";
 import { orderedRooms, moveRoomOrder, movableRoom } from "./room-order";
+import { mountTouchCamera } from "./touch-camera";
+import { phoneGestureDiagnostics, type PhoneGestureDiagnostics } from "../perf/phone-gesture";
 
 // The whole building, seen fake top-down: rooms laid out on a floor plan, one shared camera.
 // Offices hold desks (one per thread). Desks live in one layer above the rooms, so a robot
@@ -34,14 +47,22 @@ import { orderedRooms, moveRoomOrder, movableRoom } from "./room-order";
 export type WThread = {
   id: string; projectId: string; title: string; updatedAt: string; provider: string;
   runStatus: string | null; pinned: boolean; settled: boolean; question: string | null; model: string | null;
+  manager?: { projectId: string; role: string };
   schedule?: { nextRunAt: string | null; everyMs: number | null } | null;
   folder?: string | null;
   branch?: string | null; lastStatus?: string | null; runStartedAt?: string | null; unseen?: boolean;
+  coinPending?: boolean;
+  completionPending?: boolean;
 };
 export type WProject = { id: string; title: string; root: string; icon: string | null; scratch: boolean };
-export type WorldData = { projects: WProject[]; threads: WThread[]; models?: Record<string, string[]>; prices?: Record<string, { input: number; output: number }>; shipped?: { total: number; today: number } };
+export type WorldData = { environmentId?: string; projects: WProject[]; threads: WThread[]; models?: Record<string, string[]>; prices?: Record<string, { input: number; output: number }>; shipped?: { total: number; today: number } };
 
-export type RoomKind = "main" | "project" | "freelance" | "break" | "queue";
+export type OfficeLayout = {
+  roomOrder: string[]; expandedRooms: string[]; collapsedRooms?: string[]; hidden: string[];
+  extra: Record<string, number>; homes: Record<string, string>;
+  seats: Record<string, (string | null)[]>; themes: Record<string, RoomTheme>;
+};
+export type RoomKind = "main" | "project" | "freelance" | "break" | "queue" | "charging";
 export type Room = { id: string; kind: RoomKind; title: string; icon: string | null; x: number; y: number; w: number; h: number; el: HTMLElement; threadIds: string[]; collapsed: boolean };
 type PhysicalRoomPlan = { id: string; kind: RoomKind; title: string; icon: string | null; threads: (WThread | null)[]; slots: number; w: number; h: number; collapsed: boolean };
 
@@ -80,6 +101,15 @@ export class World {
   root: HTMLElement;
   rooms: Room[] = [];
   desks = new Map<string, Desk>();
+  private coinHolds = new Set<string>();
+  private completionHolds = new Set<string>();
+  setCompletionHolds(ids: Iterable<string>) { this.completionHolds = new Set(ids); }
+  setCoinHolds(ids: Iterable<string>) {
+    const next = new Set(ids);
+    if (next.size === this.coinHolds.size && [...next].every(id => this.coinHolds.has(id))) return false;
+    this.coinHolds = next;
+    return true;
+  }
   themes = new Map<string, RoomTheme>();
   set owns(f: (key: string) => boolean) { ownsItem = f; }
   park: Park;
@@ -91,6 +121,9 @@ export class World {
   // park have walkers of their own: they hand a leaving robot over at their door and take an
   // arriving one over at the same point, so nobody pops in or out. New robots come in from
   // outside through the entrance; outdoors a robot walks in the park layer (under the night tint).
+  readonly reports = new Map<string, { title: string; arrived: boolean; sent?: boolean; writing?: boolean; started?: boolean; response?: string }>();
+  onReportArrived: (id: string) => void = () => {};
+  queueReport(t: WThread, response = "", delivered = false) { this.reports.set(t.id, { title: t.title, arrived: delivered, writing: !delivered, response }); }
   private topH = 0;
   private floorPlan: OfficePlan = officePlan([], []);
   private footprint = buildingFootprint([]);
@@ -104,7 +137,8 @@ export class World {
   private known = new Map<string, WThread>();          // every thread at the last update, for robots whose thread went away
   private exits = new Map<string, { t: WThread; from: string; to: string | null }>();   // its source room owns the robot until the door handoff
   private parkDoor: Pt = { x: 0, y: 0 };
-  private extLists: { brk: any[]; queue: any[]; park: any[]; orch?: any } = { brk: [], queue: [], park: [] };
+  private extLists: { brk: any[]; queue: any[]; charging: any[]; park: any[]; orch?: any } = { brk: [], queue: [], charging: [], park: [] };
+  private bossPhases = new Map<string, {phase: "reading" | "answered" | "asked"; text?: string}>();
   private get hallY() { return this.topH + HALL / 2; }
   private roomById(id: string | null) { return id ? this.rooms.find((r) => r.id === id) ?? null : null; }
   // the door on the hall side of a room: [just outside in the hall, just inside the room]
@@ -155,19 +189,16 @@ export class World {
     const desk = toRoom && owned?.room === to ? owned : null;
     let blocked = departure === null;
     const throughHall = (target: Pt) => {
-      const path = hallRoute(this.floorPlan, pts.at(-1) ?? p, target);
+      const path = hallRoute(this.floorPlan, pts.at(-1) ?? p, target, hallPreference(id));
       if (path) pts.push(...path); else blocked = true;
     };
     const startOut = this.outside(p), endOut = !toRoom;   // the park, or away
+    // Robots never queue outside the building for a fold. Their normal route already
+    // leaves the changing office, and promotion waits only for that floor to clear.
     const meeting = this.physicalLayoutHeld && this.layoutParticipants.has(id) ? this.meetingSpots.get(id) ?? this.pendingMeeting : null;
-    if (meeting) {
-      if (meeting.outside) {
-        if (!startOut) { throughHall(this.entrance()); pts.push(this.parkDoor); }
-        pts.push({ x: meeting.x, y: meeting.y });
-      } else {
-        if (startOut) pts.push(this.parkDoor, this.entrance());
-        throughHall(meeting);
-      }
+    if (meeting && !meeting.outside) {
+      if (startOut) pts.push(this.parkDoor, this.entrance());
+      throughHall(meeting);
       return { pts, desk: null as Desk | null, deskAt: null as Pt | null, blocked, revision: this.layoutRevision, rendezvous: true };
     }
     // A resumed journey already inside its destination goes straight to the chair.
@@ -225,7 +256,7 @@ export class World {
       const path = room ? furniturePath(from, goal, this.furniture(room), this.walkBounds(room)) : [goal];
       if (!path) return; // stay put and let travel retry, never walk through a blocked aisle
       const current = this.lastData?.threads.find((thread) => thread.id === t.id) ?? t;
-      w.setRunning(hasOfficeWork(current) && !current.question && !!this.desks.get(t.id)?.el.classList.contains("arriving"));
+      w.setRunning(this.reports.has(t.id) || hasOfficeWork(current) && !current.question && !!this.desks.get(t.id)?.el.classList.contains("arriving"));
       await w.walkPath(path);
       if (this.transit.get(t.id) !== w || this.trips.get(t.id) !== trip || revision !== this.layoutRevision) return;
       const last = pts[j - 1];
@@ -244,13 +275,16 @@ export class World {
       blocks.push({ x: p.x + GEOM.monitor.x, y: p.y + GEOM.monitor.y, w: GEOM.monitor.w, h: GEOM.monitor.h });
       blocks.push({ x: p.x + 34, y: p.y + 180, w: 332, h: 88 }, { x: p.x + 164, y: p.y + 285, w: 72, h: 64 });
     }
+    if (["main", "project", "freelance"].includes(r.kind)) {
+      const f = printerStation(r.h).footprint;
+      blocks.push({ ...f, x: r.x + f.x, y: r.y + f.y });
+    }
     const slots = this.physicalPlans.find((p) => p.id === r.id)?.slots ?? 0;
     for (const p of officeDecor(r, slots, this.themes.get(r.id), this.level)) {
       const b = decorFootprint(p); if (b) blocks.push({ ...b, x: b.x + r.x, y: b.y + r.y });
     }
     if (!usable(this.themes.get(r.id), this.level).length) blocks.push(
       { x: r.x + r.w - 82, y: r.y + r.h - 86, w: 44, h: 26 }, { x: r.x + 34, y: r.y + r.h - 84, w: 38, h: 24 });
-    if (r.kind === "freelance") blocks.push({ x: r.x + r.w - 420, y: r.y + WALL_FACE - 6, w: 290, h: 58 });
     return blocks;
   }
 
@@ -285,6 +319,24 @@ export class World {
         await this.walkLegs(t, back.slice(0, 2), trip, revision);
         if (this.trips.get(t.id) !== trip || this.transit.get(t.id) !== w) return;
         w.zBias = 0;
+        if (this.reports.has(t.id) && revision === this.layoutRevision) {
+          const pickup = printerStation(r.h).pickup;
+          const printer = { x: r.x + pickup.x, y: r.y + pickup.y };
+          await this.walkLegs(t, [printer], trip, revision);
+          if (this.trips.get(t.id) !== trip) return;
+          if (Math.hypot(w.x - printer.x, w.y - printer.y) < 12) {
+            w.face("left"); w.say("Printing report...", 1600);
+            gameSound.at("servo", r.el, .6);
+            const sheet = r.el.querySelector(".report-sheet");
+            if (sheet) gsap.fromTo(sheet, { y: -12, opacity: 0 }, { y: 0, opacity: 1, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1.2 });
+            await pause(1.4);
+            if (this.trips.get(t.id) !== trip) return;
+            gameSound.at("paper", r.el, .7);
+            w.carryReport(`Report: ${t.title}`);
+            if (sheet) gsap.set(sheet, { opacity: 0 });
+            w.setRunning(true);
+          }
+        }
         if (revision === this.layoutRevision) await this.walkLegs(t, back.slice(2), trip, revision);
         if (this.trips.get(t.id) !== trip) return;
         w = this.transit.get(t.id) ?? w;
@@ -347,7 +399,7 @@ export class World {
           // A room may grow during the sitting animation, too. Keep the same trip
           // and walk to its current chair before revealing the seated actor.
           const seatMoved = this.desks.get(t.id) !== d || !d.el.isConnected || Math.hypot(this.deskPos(d).x - plan.deskAt!.x, this.deskPos(d).y - plan.deskAt!.y) > 1;
-          if (plan.revision === this.layoutRevision && !seatMoved) break;
+          if (plan.revision === this.layoutRevision && !seatMoved && !isHeld(w) && Math.hypot(w.x - end!.x, w.y - end!.y) <= 8) break;
           w.calm();
         } else break;
       }
@@ -361,11 +413,11 @@ export class World {
     if (desk) {
       // It turns and sits; switch actors in the same frame, in the same chair.
       if (this.trips.get(t.id) !== trip) return;
-      desk.el.classList.remove("arriving");
+      desk.setSeated(true);
       done.destroy();
     } else if (to && to !== "park") {
       // the room's own walker takes over just inside the door
-      const r = this.roomById(to), ext = this.ext[to as "break" | "queue"];
+      const r = this.roomById(to), ext = this.ext[to as "break" | "queue" | "charging"];
       if (r && ext?.enterFrom) ext.enterFrom(t.id, { x: done.x - r.x, y: done.y - r.y });
       done.destroy();
     } else if (to === "park") done.destroy();   // the park's own walker steps out of the same door
@@ -392,13 +444,13 @@ export class World {
   /** A robot changes rooms (`to` null: its thread is gone and it leaves the building). */
   private move(t: WThread, from: string | null, to: string | null, seat: Pt | null) {
     const desk = to ? this.desks.get(t.id) : undefined;
-    if (desk) desk.el.classList.add("arriving");
+    if (desk) desk.setSeated(false);
     const ex = this.exits.get(t.id);
     if (ex) { ex.t = t; ex.to = to; return; }                 // still walking out of its room: it goes on from the door
     const cur = this.transit.get(t.id);
     if (cur) { void this.travel(t, { walker: cur }, to); return; }
     if (seat) { void this.travel(t, { seat, room: from }, to); return; }
-    if (from === "break" || from === "queue" || from === "park") {
+    if (from === "break" || from === "queue" || from === "charging" || from === "park") {
       // the room walks it to its door first and hands it over there (handOver)
       this.exits.set(t.id, { t, from, to });
       return;
@@ -409,6 +461,8 @@ export class World {
 
   /** What the orchestrator is doing with a robot's question, shown at the questions desk. */
   bossDecision(threadId: string, phase: "reading" | "answered" | "asked" | null, text?: string) {
+    if (phase) this.bossPhases.set(threadId, {phase, text});
+    else this.bossPhases.delete(threadId);
     (this.ext.queue as any)?.decision?.(threadId, phase, text);
   }
 
@@ -418,11 +472,22 @@ export class World {
     // a second robot while the first was walking to its old room's door.
     const here = (l: any[]) => l.filter((x) => !this.transit.has(x.id) && !this.exits.has(x.id));
     this.ext.break?.setThreads(here(this.extLists.brk) as any);
+    this.ext.charging?.setThreads(here(this.extLists.charging) as any);
+    const line = this.ext.queue as any;
+    if (line) line.onReportArrived = (id: string) => {
+      const report = this.reports.get(id);
+      if (report && !report.arrived) { report.arrived = true; this.onReportArrived(id); }
+    };
     this.ext.queue?.setThreads(here(this.extLists.queue) as any);
-    (this.ext.queue as any)?.setBoss?.(this.extLists.orch ?? null);   // the orchestrator sits behind the questions desk
+    for (const [id, state] of this.bossPhases) {
+      if (this.reports.has(id) || this.lastData?.threads.some(t => t.id === id && t.question)) line?.decision?.(id, state.phase, state.text);
+      else this.bossPhases.delete(id);
+    }
+    (this.ext.queue as any)?.setPresence?.(this.orchPresence);
+    (this.ext.queue as any)?.setBoss?.(this.extLists.orch && !this.transit.has(this.orchThread) && !this.exits.has(this.orchThread) ? this.extLists.orch : null);
     this.park.setThreads(here(this.extLists.park));
     for (const [id, ex] of this.exits) {
-      const source = ex.from === "park" ? this.park.layer : this.ext[ex.from as "break" | "queue"]?.el;
+      const source = ex.from === "park" ? this.park.layer : this.ext[ex.from as "break" | "queue" | "charging"]?.el;
       if (source?.querySelector(`.world-walker[data-id="${CSS.escape(id)}"]`)) continue;
       // A culled/overflow robot or a rebuilt room has no source actor to hand over.
       // Only then may the hall create it. A slow or held robot must never time out.
@@ -450,8 +515,14 @@ export class World {
   // real weather and the season shape the outdoors and the light
   weather: Weather | null = null;
   private fx: WeatherLayer | null = null;
-  private outArgs: Parameters<typeof outsideSvg>[0] | null = null;
+  private outArgs: Parameters<typeof plainOutsideSvg>[0] | null = null;
   private lookSig = "";
+  private forestAreas: {x:number;y:number;w:number;h:number}[] = [];
+  private forestRoutes: {x:number;y:number;w:number;h:number}[] = [];
+  private forestBounds: {x:number;y:number;w:number;h:number} | null = null;
+  private forestSig = "";
+  private sceneryCull: ReturnType<typeof mountNativeContourCull> | null = null;
+  private sceneryView: {x:number;y:number;w:number;h:number;density:number} | null = null;
   /** Rain, snow or a storm now, or rain within 20 minutes: nobody stays outside. */
   get outdoorsWet() {
     const w = this.weather;
@@ -481,35 +552,83 @@ export class World {
     if (!this.outArgs) return;
     const { look, g } = this.ground();
     // puddles, frost and heat are part of the drawing, in coarse steps, so it is redrawn only when they change class
-    const sig = JSON.stringify(look) + groundSig(g);
+    const sig = JSON.stringify(look) + groundSig(g) + this.forestSig;
     if (!force && sig === this.lookSig) return;
     this.lookSig = sig;
-    // The outdoors (the grounds, the walk and the park) is one drawing of a few thousand shapes.
-    // Cache it as a small overview and a screen-resolution viewport crop; a full-sized SVG
-    // image made pans stall in GPU raster. Only lamps, animals and swaying trees stay live.
+    // Finite static garden artwork, with no animated forest or extra cache owners.
     const layer = this.root.querySelector(".outside-layer") as HTMLElement;
-    const svg = outsideSvg({ ...this.outArgs, ...look, wx: g, puddles: this.puddles, layer: "still" }).replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
-    const css = [...document.styleSheets].flatMap((sh) => { try { return [...sh.cssRules].map((r) => r.cssText).filter((t) => /\.outside|@keyframes|--lamp|--night/.test(t)); } catch { return []; } }).join("\n");
-    const vars = getComputedStyle(this.root);
-    const root = `svg{--lamp:${vars.getPropertyValue("--lamp") || 0};--night:${vars.getPropertyValue("--night") || 0};--wind:${vars.getPropertyValue("--wind") || 0.3}}`;
-    // animating inside one huge image forces it to be redrawn every frame, so by default it
-    // stays still; moving bits (water, lamps, wildlife) belong in small separate elements
-    const animate = !!(window as any).__animOutside;
-    const withCss = svg.replace(/(<svg[^>]*>)/, `$1<style>${root}\n${animate ? css : css.replace(/animation[^;}]*;?/g, "")}</style>`);
-    (window as any).__outBytes = withCss.length;   // debug: size of the still image
-    layer.innerHTML = outsideSvg({ ...this.outArgs, ...look, wx: g, layer: "live" });
-    watchOutdoorAmbient(layer);
-    paintOutside(layer, withCss);
-    const box = this.sceneBox ??= this.scene.getBoundingClientRect();
-    updateOutside(layer, this.cam, box.width, box.height);
-    // the scene behind the drawing has the backdrop's colour, so the soft edge never shows
-    this.scene.style.setProperty("--scene-ground", backdropColor({ ...look, wx: g }));
+    this.sceneryCull?.destroy(); this.sceneryCull = null; this.sceneryView = null;
+    const bounds = this.forestBounds, base = this.outArgs;
+    const width = bounds ? Math.max(base.ox+base.w,bounds.x+bounds.w)-base.ox : base.w;
+    const height = bounds ? Math.max(base.oy+base.h,bounds.y+bounds.h)-base.oy : base.h;
+    const { plan: land, parks } = this.landscapePlan(width, height);
+    // The drawing reaches well past the woodland, so even the widest zoom shows forest, not a frame.
+    const pad = Math.round(Math.max(1600, Math.max(width, height) * 0.4));
+    layer.style.left = `${base.ox - pad}px`; layer.style.top = `${base.oy - pad}px`;
+    layer.style.width = `${width + 2 * pad}px`; layer.style.height = `${height + 2 * pad}px`;
+    // the connected computers' parks get the same furniture their robots use
+    const own = base.park, otherParks = parks.filter(r => r.x !== own.x || r.y !== own.y);
+    layer.innerHTML = plainOutsideSvg({ ...base, ox: base.ox - pad, oy: base.oy - pad, w: width + 2 * pad, h: height + 2 * pad, ...look, wx: g, glows: land.lamps, otherParks });
+    // Terrain and woodland: reusable bitmap tiles under the overlay, kept across redraws.
+    this.landscape ??= new LandscapeTiles();
+    layer.prepend(this.landscape.el);
+    const landLook = { ...lookFor({ ...look, wx: g }), frozen: look.frozen };
+    this.landscape.setScene(land, landLook, { x: base.ox - pad, y: base.oy - pad }, { w: width + 2 * pad, h: height + 2 * pad });
+    this.scene.style.setProperty("--scene-ground", landColors(landLook).edge);
+    this.viewLandscape();
+  }
+  private landscape: LandscapeTiles | null = null;
+  private landPlan: LandPlan | null = null;
+  private landSig = "";
+  /** This office and each connected one, with its own park beside it, in world coordinates. */
+  private campusDistricts() {
+    type R = { x: number; y: number; w: number; h: number };
+    const list: { building: R; park: R | null; shop: R | null; door: number }[] = [];
+    const add = (o: World, dx: number, dy: number, shop: boolean) => {
+      const m = (r: R | null | undefined) => r ? { x: r.x + dx, y: r.y + dy, w: r.w, h: r.h } : null;
+      list.push({ building: { x: dx, y: dy, w: o.size.w, h: o.size.h }, park: m(o.outdoor?.park), shop: shop ? m(o.shopRect) : null, door: dy + o.topH + HALL / 2 });
+    };
+    add(this, 0, 0, true);
+    for (const e of this.neighbors.values()) if (e.office) add(e.office, e.x, e.y, false);
+    return list;
+  }
+  /** Woodland, paths and lawns for the current campus geometry; rebuilt only when that changes. */
+  private landscapePlan(width: number, height: number) {
+    const base = this.outArgs!;
+    const districts = this.campusDistricts();
+    // each building's walk: from its door along the building, into its park, and on to the shop
+    const paved: [number, number][][] = [];
+    for (const d of districts) {
+      const b = d.building, p = d.park; if (!p) continue;
+      const walkX = b.x + b.w + 64, pcx = p.x + p.w / 2, pcy = p.y + p.h / 2;
+      paved.push([[b.x + b.w, d.door], [walkX, d.door], [walkX, pcy], [pcx, pcy]]);
+      if (d.shop) paved.push([[pcx, pcy], [pcx, p.y + p.h - 80], [d.shop.x + d.shop.w / 2, p.y + p.h - 80], [d.shop.x + d.shop.w / 2, d.shop.y + 40]]);
+    }
+    const areas = this.forestAreas.length ? this.forestAreas : districts.flatMap(d => [d.building, ...(d.park ? [d.park] : []), ...(d.shop ? [d.shop] : [])]);
+    const parks = districts.flatMap(d => d.park ? [d.park] : []), shops = districts.flatMap(d => d.shop ? [d.shop] : []);
+    const bounds = { x: base.ox, y: base.oy, w: width, h: height };
+    const sig = JSON.stringify([bounds, areas, paved, this.forestRoutes, parks, shops]);
+    if (sig !== this.landSig || !this.landPlan) { this.landSig = sig; this.landPlan = planLandscape({ bounds, areas, parks, shops, paved, routes: this.forestRoutes }); }
+    return { plan: this.landPlan, parks };
+  }
+  private viewLandscape() {
+    if (!this.landscape || this.viewIndoors || this.hostWorld) return;
+    const box = this.sceneBox ??= this.scene.getBoundingClientRect(), s = this.cam.s;
+    if (!box.width || !box.height || !s) return;
+    this.landscape.update({ x: -this.cam.x / s, y: -this.cam.y / s, w: box.width / s, h: box.height / s }, s * (window.devicePixelRatio || 1));
   }
   level = 0;
   freeDesks: Desk[] = [];
   private roomLayer: HTMLElement;
   private deskLayer: HTMLElement;
   private cam = { x: 0, y: 0, s: 0.4 };
+  private cameraTween: ReturnType<typeof gsap.to> | null = null;
+  cameraState() { return { ...this.cam }; }
+  restoreCamera(state: { x: number; y: number; s: number }) {
+    this.stopCameraMotion(); Object.assign(this.cam, state); this.sceneBox = null;
+    this.apply(); this.keepFocus();
+  }
+  private cancelCameraTween() { this.cameraTween?.kill(); this.cameraTween = null; }
   private size = { w: 2000, h: 1600 };
   focusDesk: Desk | null = null;
   selected: Desk | null = null;
@@ -528,8 +647,10 @@ export class World {
     this.onRoomOrder([...next]);
     return true;
   }
-  ext: Partial<Record<"break" | "queue", RoomExtension>> = {};
-  extFactory: Partial<Record<"break" | "queue", (host: HTMLElement, w: number, h: number) => RoomExtension>> = {};
+  ext: Partial<Record<"break" | "queue" | "charging", RoomExtension>> = {};
+  extFactory: Partial<Record<"break" | "queue" | "charging", (host: HTMLElement, w: number, h: number) => RoomExtension>> = {};
+  private chargingCapacity = 6;
+  setUsage(usage: Usage) { if (!usage?.limits) return; subscriptionBatteries.setUsage(usage); if (this.lastData) this.update(this.lastData); }
   private lastKey = "";
   private hasLayout = false;
   private placed = new Map<string, { room: string; pending?: { room: string; since: number } }>();
@@ -539,15 +660,52 @@ export class World {
   collapsedRooms = new Set<string>();
   private revealedThread: string | null = null;
   private layoutHeld = false;
+  private touchLayoutHeld = false;
+  private touchLayoutPending = false;
+  private touchLayoutIdle = 0;
+  private touchLayoutTimer = 0;
+  private roomTweens = new Map<HTMLElement, gsap.core.Tween>();
+  private retiringRooms = new Set<HTMLElement>();
+  private retiringRoomById = new Map<string, HTMLElement>();
+  private finishRoomTransitions() {
+    for (const tween of [...this.roomTweens.values()]) { tween.progress(1); tween.kill(); }
+    this.roomTweens.clear();
+  }
+  private tweenRoom(el: HTMLElement, vars: gsap.TweenVars) {
+    this.roomTweens.get(el)?.kill();
+    const done = () => { this.roomTweens.delete(el); el.classList.remove('room-changing'); };
+    el.classList.add('room-changing');
+    const tween = gsap.to(el, { ...vars, duration: .34, ease: 'power3.out', overwrite: 'auto', onComplete: done, onInterrupt: done });
+    this.roomTweens.set(el, tween);
+  }
+  private retireRoom(el: HTMLElement, animate: boolean) {
+    this.roomTweens.get(el)?.kill(); this.cull.unobserve(el);
+    const id = el.dataset.roomId || '';
+    const previous = this.retiringRoomById.get(id); if (previous) this.roomTweens.get(previous)?.kill();
+    const remove = () => { this.roomTweens.delete(el); this.retiringRooms.delete(el); if (this.retiringRoomById.get(id) === el) this.retiringRoomById.delete(id); releaseRoomVectors(el); el.remove(); };
+    if (!animate) { remove(); return; }
+    el.inert = true; el.setAttribute('aria-hidden', 'true'); delete el.dataset.roomId;
+    el.classList.add('room-retiring'); this.retiringRooms.add(el); this.retiringRoomById.set(id, el);
+    this.roomTweens.set(el, gsap.to(el, { opacity: 0, duration: .18, ease: 'power1.out', onComplete: remove, onInterrupt: remove }));
+  }
   private physicalPlans: PhysicalRoomPlan[] = [];
   private physicalLayoutHeld = false;
   private layoutParticipants = new Set<string>();
   private pendingMeeting: ReturnType<typeof layoutMeeting> | null = null;
   private meetingSpots = new Map<string, ReturnType<typeof layoutMeeting>>();
   private layoutUpdateQueued = false;
-  isRoomExpanded(id: string) { return this.expandedRooms.has(id); }
+  /** Source data may be unchanged while a delayed room change is becoming due. */
+  get needsRefresh() {
+    if (!this.hostWorld && [...this.neighbors.values()].some(entry => entry.office?.needsRefresh)) return true;
+    return this.touchLayoutPending && !this.touchLayoutHeld || !!this.pendingSeat || this.physicalLayoutHeld || [...this.placed.values()].some(p => p.pending && Date.now() - p.pending.since > 20000);
+  }
+  isRoomExpanded(id: string) { return !this.collapsedRooms.has(id); }
   setRoomExpanded(id: string, expanded: boolean) {
-    if (expanded) this.expandedRooms.add(id); else this.expandedRooms.delete(id);
+    if (this.isRoomExpanded(id) === expanded) return;
+    const room = this.rooms.find(r => r.id === id);
+    if (room) gameSound.at(expanded ? 'open' : 'switch', room.el, .7);
+    if (expanded) { this.expandedRooms.add(id); this.collapsedRooms.delete(id); }
+    else { this.expandedRooms.delete(id); this.collapsedRooms.add(id); }
     if (this.lastData) this.update(this.lastData);
     this.onLayoutChange();
   }
@@ -562,7 +720,27 @@ export class World {
     const was = this.layoutHeld; this.layoutHeld = held;
     if (was && !held && this.lastData) this.update(this.lastData);
   }
+  private cancelTouchLayoutFlush() {
+    if (this.touchLayoutIdle) window.cancelIdleCallback?.(this.touchLayoutIdle);
+    if (this.touchLayoutTimer) clearTimeout(this.touchLayoutTimer);
+    this.touchLayoutIdle = this.touchLayoutTimer = 0;
+  }
+  private holdTouchLayout(held: boolean) {
+    this.touchLayoutHeld = held;
+    this.cancelTouchLayoutFlush();
+    if (held || !this.touchLayoutPending) return;
+    const flush = () => {
+      this.touchLayoutIdle = this.touchLayoutTimer = 0;
+      if (this.touchLayoutHeld || !this.touchLayoutPending || !this.lastData || this.layoutHeld || this.deskDragActive) return;
+      this.update(this.lastData);
+    };
+    // Keep release responsive too. Reconcile the newest authoritative snapshot
+    // after the final camera frame, without pausing real work or supervision.
+    if (window.requestIdleCallback) this.touchLayoutIdle = window.requestIdleCallback(flush, { timeout: 120 });
+    else this.touchLayoutTimer = window.setTimeout(flush, 32);
+  }
   private homeForThread(t: WThread, projects: WProject[]) {
+    if (t.pinned && t.manager && projects.some(p => p.id === t.manager!.projectId)) return `p:${t.manager.projectId}`;
     const saved = this.homes.get(t.id), p = projects.find((p) => p.id === t.projectId);
     return saved === "main" || saved === "freelance" || (saved?.startsWith("p:") && projects.some((p) => p.id === saved.slice(2)))
       ? saved : (!p || p.scratch ? "freelance" : `p:${p.id}`);
@@ -581,14 +759,16 @@ export class World {
     if (cur.room === want) { cur.pending = undefined; return want; }
     // questions and new work never wait: the robot heads over right away
     // and an answered robot that is working again leaves the question line at once
-    const urgent = this.collapsedRooms.has(cur.room) || want === "queue" || ((hasOfficeWork(t) || this.revealedThread === t.id) && (cur.room === "break" || cur.room === "queue")) || (want === "break" && !hasOfficeWork(t) && this.revealedThread !== t.id);
+    const urgent = this.collapsedRooms.has(cur.room) || want === "charging" || cur.room === "charging" || want === "queue" || ((hasOfficeWork(t) || this.revealedThread === t.id) && (cur.room === "break" || cur.room === "queue")) || (want === "break" && !hasOfficeWork(t) && this.revealedThread !== t.id);
     if (urgent) { this.placed.set(t.id, { room: want }); return want; }
     if (!cur.pending || cur.pending.room !== want) cur.pending = { room: want, since: Date.now() };
     if (Date.now() - cur.pending.since > 20000) { this.placed.set(t.id, { room: want }); return want; }
     return cur.room;
   }
 
-  constructor(scene: HTMLElement, private services: DeskServices) {
+  constructor(scene: HTMLElement, private services: DeskServices, private hostWorld: World | null = null) {
+    this.roster = hostWorld?.roster ?? new Roster();
+    if (hostWorld) this.layoutArchive = hostWorld.layoutArchive;
     this.scene = scene;
     scene.innerHTML = `<div class="world"><div class="outside-layer"></div><div class="building-plate"><span class="bp-dot"></span><b></b></div><div class="hall"></div><div class="room-layer"></div><div class="night-shade"></div><div class="desk-layer"></div></div>`;
     // robots in the park walk on the grass above the outdoors, under the night tint
@@ -600,15 +780,32 @@ export class World {
     this.root = scene.querySelector(".world")!;
     this.roomLayer = scene.querySelector(".room-layer")!;
     this.deskLayer = scene.querySelector(".desk-layer")!;
-    this.camera();
+    if (!hostWorld) { this.mountTouchInput(); this.camera(); }
+    document.addEventListener('visibilitychange', this.visibilityPresentation);
+    if (!hostWorld) window.addEventListener('pagehide', () => document.removeEventListener('visibilitychange', this.visibilityPresentation), { once: true });
     this.daylight();
-    setInterval(() => this.daylight(), 60000);
+    if (!hostWorld) setInterval(() => this.daylight(), 60000);
   }
 
   // --- layout -------------------------------------------------------------------
   update(data: WorldData) {
+    if (!this.hostWorld) for (const entry of this.neighbors.values()) if (entry.office?.needsRefresh && entry.office.lastData) entry.office.update(entry.office.lastData);
+    if (this.lastData?.environmentId !== data.environmentId || !this.lastData && this.hostWorld) {
+      if (this.lastData) this.rememberLayout();
+      // A visible neighbor may have newer layout choices than its last saved file.
+      for (const entry of this.neighbors.values()) entry.office?.rememberLayout();
+      this.applyOfficeLayout(this.layoutForEnvironment(data.environmentId));
+    }
+    data = { ...data, threads: data.threads.map(t => ({ ...t, coinPending: !data.environmentId && this.coinHolds.has(t.id), completionPending: this.completionHolds.has(t.id) && !t.settled })) };
     this.lastData = data;
+    if (!this.hostWorld) subscriptionBatteries.setEnabled(!data.environmentId);
+    for (const [id] of this.reports) {
+      const t = data.threads.find(t => t.id === id);
+      if (!t || t.pinned || t.settled || hasOfficeWork(t)) this.reports.delete(id);
+    }
+    if (this.hasLayout && this.touchLayoutHeld) { this.touchLayoutPending = true; return; }
     if (this.deskDragActive || this.layoutHeld) return; // no physical layout changes under any held drag
+    this.touchLayoutPending = false;
     const seatsBefore = JSON.stringify([...this.seats]);
     const byProject = new Map(data.projects.map((p) => [p.id, p]));
     const byThread = new Map(data.threads.map((t) => [t.id, t]));
@@ -616,34 +813,41 @@ export class World {
     const retiringIds = new Set([...this.desks].filter(([id, desk]) => {
       if (this.roomOf.get(id) !== desk.room) return false;
       const t = byThread.get(id);
-      return !t || (!!t.question && desk.room !== "queue") || (!hasOfficeWork(t) && this.revealedThread !== id) || this.homeForThread(t, data.projects) !== desk.room;
+      return !t || subscriptionBatteries.get(t.provider).charging || (!!t.question && desk.room !== "queue") || this.collapsedRooms.has(desk.room) || !hasOfficeDesk(t, this.revealedThread) || this.homeForThread(t, data.projects) !== desk.room;
     }).map(([id]) => id));
     const indoorJourney = [...this.transit.values()].some((w) => !this.outside(w));
+    // Park visitors walk to the park gate outside the building. Their exit never
+    // touches office geometry, so it must not hold a fold or expansion.
+    const indoorExits = [...this.exits].filter(([, ex]) => ex.from !== "park").map(([id]) => id);
     const wasHeld = this.physicalLayoutHeld;
-    let holdPhysical = this.hasLayout && this.physicalPlans.length > 0 && (retiringIds.size > 0 || indoorJourney || this.exits.size > 0 || this.layoutParticipants.size > 0);
+    let holdPhysical = this.hasLayout && this.physicalPlans.length > 0 && (retiringIds.size > 0 || indoorJourney || indoorExits.length > 0 || this.layoutParticipants.size > 0);
     const classifiedRoom = new Map<string, string>();
-    const queue: WThread[] = [], main: WThread[] = [], brk: WThread[] = [], rest: WThread[] = [];
+    const queue: WThread[] = [], main: WThread[] = [], brk: WThread[] = [], charging: WThread[] = [], rest: WThread[] = [];
     const perProject = new Map<string, WThread[]>();
     const freelance: WThread[] = [];
     const heldPark: WThread[] = [];
     const residents = new Map<string, WThread[]>();
     let orchT: WThread | null = null;
     for (const t of data.threads) {
-      if (t.id === this.orchThread) { orchT = t; continue; }   // no desk: it has the chair in the questions room
+      const depleted = subscriptionBatteries.get(t.provider).charging;
+      if (t.id === this.orchThread && !depleted) { orchT = t; continue; }
       const home = this.homeForThread(t, data.projects);
       // Keep historical reservations without keeping their computers and room floor alive.
       if (!residents.has(home)) residents.set(home, []);
       residents.get(home)!.push(t);
-      const want = t.question ? "queue" : hasOfficeWork(t) || this.revealedThread === t.id ? home : "break";
+      const report = this.reports.get(t.id);
+      if (report?.writing && this.collapsedRooms.has(home)) report.writing = false;
+      const want = depleted ? "charging" : t.question ? "queue" : this.collapsedRooms.has(home) && !this.reports.has(t.id) ? "break" : (t.coinPending || t.completionPending) && t.runStatus === 'completed' ? home : this.reports.has(t.id) ? (this.reports.get(t.id)!.writing ? home : this.reports.get(t.id)!.arrived ? "break" : "queue") : hasOfficeDesk(t, this.revealedThread) ? home : "break";
       // Existing actors finish their old-floor journey first. A newly started robot
       // waits in its current room until its physical desk can safely be opened.
       const currentRoom = this.roomOf.get(t.id) ?? null;
       const barrier = wasHeld && !retiringIds.has(t.id) && !this.transit.has(t.id) && !this.exits.has(t.id);
-      const deferred = (barrier && want !== currentRoom) || (holdPhysical && want !== "queue" && want !== "break" && !previousPhysical.has(t.id));
+      const deferred = want !== "charging" && ((barrier && want !== currentRoom) || (holdPhysical && want !== "queue" && want !== "break" && !previousPhysical.has(t.id)));
       const room = deferred ? this.roomOf.get(t.id) ?? null : this.settleRoom(t, want);
       if (!room) continue;
       classifiedRoom.set(t.id, room);
       if (room === "queue") queue.push(t);
+      else if (room === "charging") { if (!t.settled || this.roster.byThread(t.id)) charging.push(t); }
       else if (room === "main") main.push(t);
       else if (room === "break") { if (!t.settled) brk.unshift(t); else brk.push(t); }   // visitors on a break get a spot first
       else if (room === "freelance") freelance.push(t);
@@ -682,7 +886,7 @@ export class World {
       const extra = this.extra.get(id) ?? 0;
       const reserved = residents.get(id) ?? threads;
       seatOrder(id, reserved);
-      const projection = projectRoomSeats(this.seats.get(id)!, reserved, this.expandedRooms.has(id), this.revealedThread, extra);
+      const projection = projectRoomSeats(this.seats.get(id)!, reserved, this.expandedRooms.has(id), this.revealedThread, extra, this.collapsedRooms.has(id));
       const { slots, collapsed } = projection;
       const { w, h } = collapsed ? FOLDED_OFFICE : officeSize(slots, needsLounge(this.themes.get(id), this.level) ? LOUNGE : 0);
       return { id, kind, title, icon, threads: projection.threads, slots, w, h, collapsed };
@@ -692,6 +896,9 @@ export class World {
       office("main", "main", "Main office", null, main),
       { id: "break", kind: "break", title: "Break room", icon: null, threads: brk.slice(0, 8), slots: 0, w: 1900, h: 800, collapsed: false },
     ];
+    const standbyCharging = this.roster.robots.filter(r => (!r.threadId || !byThread.has(r.threadId) && !r.threadId.includes("::") && !data.environmentId) && subscriptionBatteries.get(r.provider).charging);
+    this.chargingCapacity = Math.max(this.chargingCapacity, charging.length + standbyCharging.length);
+    top.push({ id: "charging", kind: "charging", title: "Charging room", icon: null, threads: charging, slots: 0, ...chargingSize(this.chargingCapacity), collapsed: false });
     let bottom: Plan[] = [];
     for (const p of [...data.projects].filter((p) => !p.scratch).sort((a, b) => a.id.localeCompare(b.id))) {
       const pid = p.id, list = perProject.get(pid) ?? [];
@@ -703,14 +910,28 @@ export class World {
     const policyKey = (plans: Plan[]) => plans.map((p) => `${p.id}:${p.w}:${p.h}:${p.slots}:${p.slots ? p.threads.map((t) => t?.id ?? "").join(",") : ""}`).join("|");
     const desiredPlans = [...top, ...bottom];
     const physicalChange = policyKey(desiredPlans) !== policyKey(this.physicalPlans);
-    const desiredFloor = officePlan(top, bottom, HALL, GAP);
+    // Source-room exits are registered by move() later in this update. Include
+    // them now, before moving that room, or its door hands the robot over using
+    // an animated old origin that no longer belongs to the current floor.
+    const departingResidents = new Set([...classifiedRoom].filter(([id, destination]) => {
+      const source = this.roomOf.get(id);
+      return source !== destination && (source === 'break' || source === 'queue' || source === 'charging') &&
+        !this.transit.has(id) && !this.exits.has(id);
+    }).map(([id]) => id));
+    if (this.hasLayout && departingResidents.size) holdPhysical = true;
+    // Folding the main office must not move the entrance corridor out from under
+    // its occupants. Keep that corridor for the folded state and its expansion,
+    // so evacuation can finish in the hall instead of crossing the entire campus.
+    const hallTop = this.collapsedRooms.has('main') ? this.topH : 0;
+    const desiredFloor = officePlan(top, bottom, HALL, GAP, hallTop);
     const oldMeeting = this.pendingMeeting;
     const oldSpots = JSON.stringify([...this.meetingSpots]);
     if (holdPhysical && physicalChange) {
+      for (const id of departingResidents) this.layoutParticipants.add(id);
       for (const id of retiringIds) this.layoutParticipants.add(id);
-      for (const id of this.exits.keys()) this.layoutParticipants.add(id);
+      for (const id of indoorExits) this.layoutParticipants.add(id);
       for (const [id, walker] of this.transit) if (!this.outside(walker)) this.layoutParticipants.add(id);
-      for (const id of this.layoutParticipants) if (!this.transit.has(id) && !this.exits.has(id) && !retiringIds.has(id)) this.layoutParticipants.delete(id);
+      for (const id of this.layoutParticipants) if (!this.transit.has(id) && !indoorExits.includes(id) && !retiringIds.has(id) && !departingResidents.has(id)) this.layoutParticipants.delete(id);
       this.pendingMeeting = layoutMeeting(this.floorPlan, desiredFloor, HALL);
       this.meetingSpots = layoutWaitingSpots(this.floorPlan, desiredFloor, [...this.layoutParticipants], HALL);
       const ready = [...this.layoutParticipants].every((id) => {
@@ -718,7 +939,7 @@ export class World {
         // Waiting spots guide evacuation, but reaching one is not a barrier.
         // Promote as soon as everyone clears the changing rooms, then re-plan
         // their existing journeys against the new floor instead of forming a line.
-        return !!actor && !this.exits.has(id) && layoutClearAt(actor, this.floorPlan, desiredFloor, HALL);
+        return !!actor && !this.exits.has(id) && layoutSafeAt(actor, this.floorPlan, desiredFloor, HALL);
       });
       if (ready) holdPhysical = false;
     } else holdPhysical = false;
@@ -734,22 +955,27 @@ export class World {
       const latest = new Map([...top, ...bottom].map((p) => [p.id, p]));
       const held = this.physicalPlans.map((p) => ({ ...p, title: latest.get(p.id)?.title ?? p.title, icon: latest.get(p.id)?.icon ?? p.icon,
         threads: p.threads.map((t) => t ? byThread.get(t.id) ?? t : null) }));
-      top = held.filter((p) => p.kind === "queue" || p.kind === "main" || p.kind === "break");
+      top = held.filter((p) => p.kind === "queue" || p.kind === "main" || p.kind === "break" || p.kind === "charging");
       bottom = held.filter((p) => p.kind === "project" || p.kind === "freelance");
     }
 
     // Full-size project offices in stable columns, joined by real cross halls.
     const rooms: Room[] = [];
-    const floorPlan = officePlan(top, bottom, HALL, GAP);
+    const floorPlan = officePlan(top, bottom, HALL, GAP, holdPhysical ? this.topH : hallTop);
     const topH = floorPlan.topH;
     this.topH = topH;
     this.floorPlan = floorPlan;
     // Robots: working threads get one (reusing free teammates first), resting ones keep theirs.
-    const working = [...queue, ...main, ...freelance, ...[...perProject.values()].flat()];
-    this.roster.assign(working, new Set(brk.map((t) => t.id)), new Set(data.threads.map((t) => t.id)));
+    const working = [...queue, ...main, ...freelance, ...[...perProject.values()].flat(), ...charging.filter(t => !t.settled)];
+    const otherBuildings = this.roster.robots.flatMap(r => r.threadId && (r.threadId.includes('::') ? r.threadId.split('::')[0] : '') !== (data.environmentId || '') ? [r.threadId] : []);
+    this.roster.assign(working, new Set(brk.map((t) => t.id)), new Set([...data.threads.map(t => t.id), ...otherBuildings]), new Set(data.threads.filter(t => t.pinned).map(t => t.id)));
     const resting = this.roster.restingFor(brk.slice(0, 8));
     const restingIds = new Set(resting.map((r) => r.thread));
     const brkShown = brk.filter((t) => restingIds.has(t.id)).slice(0, 8);
+    // Historical threads whose robot moved to another job are not park residents.
+    const parkVisitors = [...new Map([...heldPark, ...brk.slice(8)]
+      .filter(t => this.roster.byThread(t.id))
+      .map(t => [t.id, t])).values()].slice(0, 6);
     const idsOf = (r: Plan) => r.threads.filter((t): t is WThread => !!t).map((t) => t.id);
     const plans = [...top, ...bottom];
     for (const r of plans) rooms.push({ id: r.id, kind: r.kind, title: r.title, icon: r.icon, ...floorPlan.rooms.get(r.id)!, el: null as any, threadIds: idsOf(r), collapsed: r.collapsed });
@@ -769,87 +995,75 @@ export class World {
     const key = rooms.map((r, i) => `${r.id}:${plans[i].slots}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|") + `:L${this.level}:${[...this.themes.values()].map((t) => [...(t.decor ?? []), t.floor, t.wall].filter((k) => k).map((k) => (ownsItem(`decor:${k}`) || ownsItem(`floor:${k}`) || ownsItem(`wall:${k}`) ? 1 : 0)).join("")).join("")}`;
     if (key !== this.lastKey) {
       this.lastKey = key;
-      // Preserve room residents and their running journeys when another office changes size.
+      // Keep unchanged artwork and residents alive while neighboring rooms move.
+      const animate = this.hasLayout && !document.hidden && !this.scene.inert && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!animate) this.finishRoomTransitions();
+      const focused = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>('.room[data-room-id]');
+      const focusedId = focused?.dataset.roomId;
+      const focusedSize = (document.activeElement as HTMLElement | null)?.classList.contains('room-size-hit');
       const oldRooms = new Map(this.rooms.map((r) => [r.id, r]));
       rooms.forEach((r, i) => {
         const old = oldRooms.get(r.id);
-        if ((r.kind === "break" || r.kind === "queue") && old && old.w === r.w && old.h === r.h) {
+        const signature = JSON.stringify([r.kind, r.title, r.icon, r.w, r.h, plans[i].slots, this.themes.get(r.id), this.level, key.slice(key.lastIndexOf(":L"))]);
+        const utility = r.kind === 'break' || r.kind === 'queue' || r.kind === 'charging';
+        if (old && old.w === r.w && old.h === r.h && (utility || old.el.dataset.artSignature === signature)) {
           r.el = old.el;
-          gsap.to(r.el, { left: r.x, top: r.y, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 0.3, ease: "power3.out", overwrite: "auto" });
-          const ext = this.ext[r.kind];
+          if (animate) this.tweenRoom(r.el, { left: r.x, top: r.y });
+          else { this.roomTweens.get(r.el)?.kill(); gsap.set(r.el, { left: r.x, top: r.y }); }
+          const ext = utility ? this.ext[r.kind as "break" | "queue" | "charging"] : undefined;
           if (ext) ext.onExit = (id, at, face) => this.handOver(id, { x: at.x + parseFloat(r.el.style.left), y: at.y + parseFloat(r.el.style.top) }, face);
           oldRooms.delete(r.id);
           return;
         }
-        if (old) { this.cull.unobserve(old.el);releaseRoomVectors(old.el);old.el.remove();oldRooms.delete(r.id); }
+        if (old) { if (r.kind === "charging") { this.ext.charging?.destroy(); delete this.ext.charging; } this.retireRoom(old.el, animate);oldRooms.delete(r.id); }
         const el = document.createElement("div");
         el.className = `room room-${r.kind}${r.collapsed ? " room-folded" : ""}`;
-        el.dataset.roomId = r.id;
+        el.dataset.roomId = r.id; el.dataset.artSignature = signature;
         el.style.cssText = `left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px`;
-        const make = r.kind === "break" || r.kind === "queue" ? this.extFactory[r.kind] : undefined;
+        const make = r.kind === "break" || r.kind === "queue" || r.kind === "charging" ? this.extFactory[r.kind] : undefined;
         if (make) {
           const ext = make(el, r.w, r.h);
           ext.onSelect = (id) => this.onSelectThread(id);
           ext.onExit = (id, at, face) => this.handOver(id, { x: at.x + r.x, y: at.y + r.y }, face);
-          this.ext[r.kind as "break" | "queue"] = ext;
+          this.ext[r.kind as "break" | "queue" | "charging"] = ext;
         } else {el.dataset.vectorOwner=vectorOwner("room");el.innerHTML=roomSvg(r,plans[i].slots,this.themes.get(r.id),this.level,el.dataset.vectorOwner)}
         this.roomLayer.appendChild(el);
         const art=el.querySelector<SVGSVGElement>(":scope > .room-art");if(art)cacheStaticArt(art);
         this.cull.observe(el);
         r.el = el;
+        if (animate && old) {
+          el.style.left = `${old.x}px`; el.style.top = `${old.y}px`; el.style.opacity = '.35';
+          el.style.clipPath = `inset(0 ${Math.max(0, r.w - old.w)}px ${Math.max(0, r.h - old.h)}px 0)`;
+          this.tweenRoom(el, { left: r.x, top: r.y, opacity: 1, clipPath: 'inset(0px 0px 0px 0px)' });
+        }
       });
-      for (const old of oldRooms.values()) { this.cull.unobserve(old.el);releaseRoomVectors(old.el);old.el.remove(); }
+      for (const old of oldRooms.values()) this.retireRoom(old.el, animate);
       const hall = this.root.querySelector(".hall") as HTMLElement;
       hall.classList.add("hall-network");
       hall.style.cssText = `top:0;height:${this.size.h}px;width:${this.size.w}px`;
       hall.innerHTML = floorPlan.halls.map((h) => `<div class="hall-strip${h.axis === "y" ? " hall-strip-vertical" : ""}" style="left:${h.x}px;top:${h.y}px;width:${h.w}px;height:${h.h}px"></div>`).join("");
       // the outdoors: grass and trees around the building, a park beside the entrance
       // the shop sits just past the entrance, south of the path; the park lies beyond it
-      const entY = topH + HALL / 2;
-      this.shopRect = { x: this.size.w + 190, y: entY + 190, w: SHOP_W, h: SHOP_H };
-      this.shopFront?.place(this.shopRect.x, this.shopRect.y);
-      // the park's middle stays level with the entrance (or with y 320 for a short building)
-      const park = { x: this.size.w + 190 + SHOP_W + 260, y: Math.max(320, entY) - PARK_H / 2, w: PARK_W, h: PARK_H };
-      // the grounds round it (grounds.ts): lawn, hedge and a tree belt that fades into the backdrop
-      const building = { x: 0, y: 0, w: this.size.w, h: this.size.h };
-      this.grounds = groundsLayout({ building, entranceY: entY, park, shop: this.shopRect });
-      const cb = this.grounds.bounds;
-      const out = { ox: cb.x, oy: cb.y, w: cb.w, h: cb.h };
-      this.outdoor = { x: out.ox, y: out.oy, w: out.w, h: out.h, park };
-      this.parkDoor = { x: this.size.w + 66, y: topH + HALL / 2 + 20 };
-      this.park.setGeometry(park, this.parkDoor);
-      const layer = this.root.querySelector(".outside-layer") as HTMLElement;
-      layer.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px`;
-      this.outArgs = { ...out, building, footprint: this.footprint, entranceY: entY, park, shop: this.shopRect, grounds: this.grounds };
-      this.puddles = puddleSpots(this.grounds, building, park, entY);
-      this.redrawOutside(true);
-      // the weather reaches well past the drawn grounds, so rain and cloud never stop at an edge
-      const reach = Math.max(3000, cb.w * 0.6);
-      const wr = { x: out.ox - reach, y: out.oy - reach, w: out.w + 2 * reach, h: out.h + 2 * reach, park, entranceY: topH + HALL / 2 };
-      if (this.fx) this.fx.resize(wr); else { this.fx = mountWeather(this.root, wr); this.apply(); }
-      // puddles ripple in the rain, the paving shimmers in the heat, walkers leave prints in the snow
-      this.fx.setGround(this.puddles, [this.grounds.walk]);
-      this.fx.setSteppers(() => this.park.steppers());
-      // the shop has a roof: keep it above the rain
-      if (this.shopFront) this.root.insertBefore(this.shopFront.el, this.root.querySelector(".building-plate"));
-      const shade = this.root.querySelector(".night-shade") as HTMLElement;
-      shade.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px;right:auto;bottom:auto`;
-      this.root.style.width = `${this.size.w}px`;
-      this.root.style.height = `${this.size.h}px`;
-      (this.root.querySelector(".building-plate b") as HTMLElement).textContent = this.building;
-      this.paintEvent();
+      this.layoutGrounds();
       // the room sign is the handle for office options
       for (const r of rooms) {
         if (r.kind !== "project" && r.kind !== "freelance" && r.kind !== "main") continue;
+        if (r.el.querySelector(".room-sign-hit")) continue;
         const hit = document.createElement("button");
         hit.type = "button";
         hit.className = "room-sign-hit";
         hit.dataset.roomId = r.id;
         if (r.collapsed) hit.style.width = `${r.w - 120}px`;
-        hit.title = `${r.title}${r.collapsed ? ": open office or drag to rearrange" : ": office options or drag to rearrange"}`;
+        hit.title = this.hostWorld ? `Show ${r.title} office` : `${r.title}${r.collapsed ? ": open office or drag to rearrange" : ": office options or drag to rearrange"}`;
         hit.setAttribute("aria-label", `${r.title} office options`);
-        hit.addEventListener("click", (e) => { e.stopPropagation(); this.onRoomMenu(r, e.clientX, e.clientY); });
+        hit.addEventListener("click", (e) => { e.stopPropagation(); this.onRoomMenu(this.rooms.find(room => room.id === r.id) ?? r, e.clientX, e.clientY); });
         r.el.appendChild(hit);
+        const size = document.createElement('button'); size.type = 'button'; size.className = 'room-size-hit';
+        size.dataset.roomId = r.id;
+        size.innerHTML = '<span class="room-size-label"></span><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        size.addEventListener('click', event => { event.stopPropagation(); this.setRoomExpanded(r.id, !this.isRoomExpanded(r.id)); });
+        size.addEventListener('pointerdown', event => event.stopPropagation());
+        r.el.append(size);
         if (r.collapsed) {
           const open = document.createElement("button");
           open.type = "button"; open.className = "room-reopen-hit";
@@ -859,9 +1073,19 @@ export class World {
           r.el.appendChild(open);
         }
       }
+      if (focusedId) rooms.find(r => r.id === focusedId)?.el.querySelector<HTMLElement>(focusedSize ? '.room-size-hit' : '.room-sign-hit')?.focus({ preventScroll: true });
       this.paintClock();
     } else rooms.forEach((r, i) => (r.el = this.rooms[i]?.el ?? r.el));
     this.rooms = rooms;
+    for (const room of rooms) {
+      const button = room.el.querySelector<HTMLButtonElement>('.room-size-hit'); if (!button) continue;
+      const pinned = this.isRoomExpanded(room.id);
+      button.setAttribute('aria-expanded', String(!room.collapsed)); button.setAttribute('aria-pressed', String(pinned));
+      button.setAttribute('aria-label', `${pinned ? 'Collapse' : 'Expand'} ${room.title} office`);
+      button.title = pinned ? 'Collapse office' : 'Expand office';
+      button.classList.toggle('is-pinned', pinned);
+      button.querySelector('.room-size-label')!.textContent = pinned ? 'Collapse' : 'Expand';
+    }
 
     // Desks: keep each thread's desk, slide it to its new slot, create or retire as needed.
     const slots: { key: string; x: number; y: number; t: WThread | null }[] = [];
@@ -870,6 +1094,10 @@ export class World {
       const r = rooms[i];
       const { cols } = officeSize(p.slots);
       for (let k = 0; k < p.slots; k++) {
+        // Keep the old floor safe for departing walkers, without keeping a settled
+        // worker's computer and nameplate alive throughout the layout barrier.
+        const occupant = p.threads[k];
+        if (occupant?.settled && !hasOfficeDesk(occupant)) continue;
         const c = k % cols, row = Math.floor(k / cols);
         slots.push({ key: `${p.id}#${k}`, x: r.x + 70 + c * SLOT_W, y: r.y + WALL_FACE + 40 + row * SLOT_H, t: p.threads[k] ?? null });
       }
@@ -880,17 +1108,19 @@ export class World {
     for (const [id, d] of this.desks) if (!d.el.classList.contains("arriving")) desksBefore.set(id, this.deskPos(d));
     const nowRoom = new Map<string, string>();
     for (const s of slots) if (s.t && classifiedRoom.get(s.t.id) === s.key.split("#")[0]) nowRoom.set(s.t.id, s.key.split("#")[0]);
-    if (holdPhysical) for (const [id, room] of classifiedRoom) if ((room === "main" || room === "freelance" || room.startsWith("p:")) && previousPhysical.has(id) && previousPhysical.get(id) !== room) nowRoom.set(id, room);
+    if (holdPhysical) for (const [id, room] of classifiedRoom) if ((room === "main" || room === "freelance" || room.startsWith("p:")) && previousPhysical.get(id) !== room) nowRoom.set(id, room);
     brkShown.forEach((t) => nowRoom.set(t.id, "break"));
-    heldPark.forEach((t) => nowRoom.set(t.id, "park"));
     queue.forEach((t) => nowRoom.set(t.id, "queue"));
-    if (!this.outdoorsWet) brk.slice(8, 14).forEach((t) => { if (!nowRoom.has(t.id)) nowRoom.set(t.id, "park"); });
+    charging.forEach((t) => nowRoom.set(t.id, "charging"));
+    if (orchT) nowRoom.set(orchT.id, "queue");
+    if (!this.outdoorsWet) parkVisitors.forEach((t) => { if (!nowRoom.has(t.id)) nowRoom.set(t.id, "park"); });
     const first = !this.hasLayout;
+    this.drawBuildings();
     this.hasLayout = true;
     const moving: { t: WThread; from: string | null; to: string | null }[] = [];
     if (!first) {
       for (const t of data.threads) {
-        if (t.id === this.orchThread) continue;   // the orchestrator has the chair in the questions room (boss.ts)
+        if (t.id === this.orchThread && !this.roomOf.has(t.id) && !nowRoom.has(t.id)) continue;
         const from = this.roomOf.get(t.id) ?? null, to = nowRoom.get(t.id) ?? null;
         if (from !== to) moving.push({ t, from, to });   // a new robot comes in from outside; one with no place left goes out
       }
@@ -920,7 +1150,8 @@ export class World {
         }
         // which room it sits in now, and in shared rooms which project it works on
         d.room = s.key.split("#")[0];
-        const proj = byProject.get(s.t.projectId);
+        const proj = byProject.get(s.t.pinned ? s.t.manager?.projectId || s.t.projectId : s.t.projectId);
+        d.setManagerProject(s.t.pinned && proj && !proj.scratch ? { ...proj, role: s.t.manager?.role } : null);
         d.setProject(d.room === "main" || d.room === "queue" ? (proj && !proj.scratch ? { title: proj.title, icon: proj.icon } : { title: "No project", icon: null }) : null);
       } else {
         d = here && !here.threadId ? here : this.makeDesk(s.x, s.y);
@@ -930,7 +1161,7 @@ export class World {
       this.slotDesks.set(s.key, d);
       d.room = s.key.split("#")[0];
       d.el.dataset.slot = s.key;
-      if (d.threadId && (nowRoom.get(d.threadId) !== d.room || moving.some((m) => m.t.id === d!.threadId) || this.transit.has(d.threadId))) d.el.classList.add("arriving");
+      if (d.threadId && (nowRoom.get(d.threadId) !== d.room || moving.some((m) => m.t.id === d!.threadId) || this.transit.has(d.threadId))) d.setSeated(false);
       if (d.threadId) d.el.classList.toggle("orch-desk", d.threadId === this.orchThread);
       const cur = { x: parseFloat(d.el.style.left), y: parseFloat(d.el.style.top) };
       if (Math.abs(cur.x - s.x) > 1 || Math.abs(cur.y - s.y) > 1) {
@@ -953,17 +1184,75 @@ export class World {
     const wet = this.outdoorsWet;
     this.park.wet = wet;
     this.park.rainSoon = wet && !["rain", "drizzle", "storm", "snow"].includes(this.weather?.kind ?? "");
-    const parkVisitors = [...new Map([...heldPark, ...brk.slice(8, 14)].map((t) => [t.id, t])).values()];
-    this.extLists = { brk: brkShown.map(info), queue: queue.map((t) => ({ ...info(t), question: t.question })), park: wet ? [] : parkVisitors.map(info), orch: orchT ? { ...info(orchT), running: orchT.runStatus === "running" } : null };
+    const chargingList: (ReturnType<typeof info> & { battery: ReturnType<typeof subscriptionBatteries.get>; threadId?: string | null })[] = charging.map(t => ({ ...info(t), battery: subscriptionBatteries.get(t.provider) }));
+    const occupiedRobots = new Set(charging.map(t => this.roster.byThread(t.id)?.id));
+    for (const r of standbyCharging) if (!occupiedRobots.has(r.id)) chargingList.push({ id: `charging:${r.id}`, threadId: r.threadId, provider: r.provider, title: r.name, model: r.lastModel || null, name: r.name, look: r.look, battery: subscriptionBatteries.get(r.provider) });
+    const chargingRoom = rooms.find(r => r.id === "charging");
+    if (chargingRoom) chargingRoom.threadIds = chargingList.map(r => r.id);
+    this.extLists = { brk: brkShown.map(info), queue: queue.map((t) => ({ ...info(t), question: t.question || (this.reports.has(t.id) ? `Report: ${t.title}` : null), report: this.reports.has(t.id) })), charging: chargingList, park: wet ? [] : parkVisitors.map(info), orch: orchT ? { ...info(orchT), running: orchT.runStatus === "running" } : null };
     this.pushExt();
     this.recull();
     this.onRooms(rooms);
+    for (const [id, report] of this.reports) {
+      const desk = this.desks.get(id);
+      if (!report.writing || report.started || !desk || desk.el.classList.contains("arriving")) continue;
+      report.started = true;
+      void desk.director.writeReport(report.title, report.response || "").catch(() => {}).finally(() => {
+        if (this.reports.get(id) !== report) return;
+        report.writing = false;
+        if (this.lastData) this.update(this.lastData);
+      });
+    }
     if (JSON.stringify([...this.seats]) !== seatsBefore) this.onLayoutChange();
     if (wasHeld && !holdPhysical) this.reconcilePhysicalLayout(true);
   }
 
+  private parkPosition: Pt | null = null;
+  private layoutGrounds() {
+      const topH = this.topH, entY = topH + HALL / 2;
+      const district = districtPlan({ id: "", ...this.size, entranceY: entY }, { w: PARK_W, h: PARK_H }, { w: SHOP_W, h: SHOP_H });
+      this.shopRect = district.shop;
+      this.shopFront?.place(this.shopRect.x, this.shopRect.y);
+      // The same plan owns visible artwork, walking geometry and campus bounds.
+      const park = district.park;
+      // the grounds round it (grounds.ts): lawn, hedge and a tree belt that fades into the backdrop
+      const building = { x: 0, y: 0, w: this.size.w, h: this.size.h };
+      this.grounds = groundsLayout({ building, entranceY: entY, park, shop: this.shopRect });
+      const cb = this.grounds.bounds;
+      const out = { ox: cb.x, oy: cb.y, w: cb.w, h: cb.h };
+      this.outdoor = { x: out.ox, y: out.oy, w: out.w, h: out.h, park };
+      this.parkDoor = { x: this.size.w + 66, y: topH + HALL / 2 + 20 };
+      this.park.setGeometry(park, this.parkDoor, undefined);
+      const layer = this.root.querySelector(".outside-layer") as HTMLElement;
+      layer.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px`;
+      this.outArgs = { ...out, building, footprint: this.footprint, entranceY: entY, park, shop: this.shopRect, grounds: this.grounds };
+      this.puddles = puddleSpots(this.grounds, building, park, entY);
+      if (!this.hostWorld) this.redrawOutside(true);
+      // the weather reaches well past the drawn grounds, so rain and cloud never stop at an edge
+      const reach = Math.max(3000, cb.w * 0.6);
+      const wr = { x: out.ox - reach, y: out.oy - reach, w: out.w + 2 * reach, h: out.h + 2 * reach, park, entranceY: topH + HALL / 2 };
+      if (!this.hostWorld) { if (this.fx) this.fx.resize(wr); else { this.fx = mountWeather(this.root, wr); this.apply(); } }
+      // puddles ripple in the rain, the paving shimmers in the heat, walkers leave prints in the snow
+      this.fx?.setGround(this.puddles, [this.grounds.walk]);
+      this.fx?.setSteppers(() => this.park.steppers());
+      // the shop has a roof: keep it above the rain
+      if (this.shopFront) this.root.insertBefore(this.shopFront.el, this.root.querySelector(".building-plate"));
+      const shade = this.root.querySelector(".night-shade") as HTMLElement;
+      shade.style.cssText = `left:0;top:0;width:${this.size.w}px;height:${this.size.h}px;right:auto;bottom:auto;background:none`;
+      shade.innerHTML = `<svg width="${this.size.w}" height="${this.size.h}" aria-hidden="true"><path d="${this.footprint.path}" fill="#0b1030"/></svg>`;
+      if (this.hostWorld) {
+        let foundation = this.root.querySelector('.campus-foundation') as HTMLElement | null;
+        if (!foundation) { foundation = document.createElement('div'); foundation.className = 'campus-foundation'; foundation.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none'; this.root.insertBefore(foundation,this.root.querySelector('.hall')); }
+        foundation.innerHTML = `<svg width="${this.size.w}" height="${this.size.h}" style="overflow:visible" aria-hidden="true"><path d="${this.footprint.path}" fill="none" stroke="#a29174" stroke-width="82" stroke-linejoin="round"/><path d="${this.footprint.path}" fill="none" stroke="#d8c8a6" stroke-width="60" stroke-linejoin="round"/><path d="${this.footprint.path}" fill="#4a4f5c" stroke="#4a4f5c" stroke-width="26" stroke-linejoin="round"/></svg>`;
+      }
+      this.root.style.width = `${this.size.w}px`;
+      this.root.style.height = `${this.size.h}px`;
+      (this.root.querySelector(".building-plate b") as HTMLElement).textContent = this.building;
+      this.paintEvent();
+  }
+
   private allDesks = new Set<Desk>();
-  roster = new Roster();
+  roster: Roster;
   // "+" tiles: add a desk to an office.
   private tileSig = "";
   private addTiles(plans: { id: string; kind: RoomKind; slots: number }[], rooms: Room[]) {
@@ -984,8 +1273,8 @@ export class World {
       b.title = "Add a desk";
       b.setAttribute("aria-label", `Add a desk to ${r.title}`);
       b.innerHTML = `<span aria-hidden="true">+</span><i>Add a desk</i>`;
-      const x = fits ? r.x + 70 + c * SLOT_W + 110 : r.x + r.w - 210;
-      const y = fits ? r.y + WALL_FACE + 40 + row * SLOT_H + 120 : r.y + 26;
+      const x = fits ? r.x + 70 + c * SLOT_W + 110 : r.x + r.w - 214;
+      const y = fits ? r.y + WALL_FACE + 40 + row * SLOT_H + 120 : r.y + WALL_FACE + 10;
       b.classList.toggle("compact", !fits);
       b.style.cssText = `left:${x}px;top:${y}px`;
       b.addEventListener("click", (e) => { e.stopPropagation(); this.onAddDesk(p.id); });
@@ -1001,7 +1290,24 @@ export class World {
     observe: (el: HTMLElement) => { this.cullSet.add(el); this.recull(); },
     unobserve: (el: Element) => { this.cullSet.delete(el as HTMLElement); },
   };
+  private presentationDirty = false;
+  private resizePresentation: (() => void) | null = null;
+  private visibilityPresentation = () => { if (document.hidden) this.finishRoomTransitions(); this.refreshPresentation(); };
+  refreshPresentation() {
+    if (!this.scene.inert && !document.hidden && this.presentationDirty) {
+      this.presentationDirty = false;
+      if (this.resizePresentation) this.resizePresentation(); else this.apply();
+      return;
+    }
+    this.recull();
+    this.syncBuildings();
+  }
   private recull() {
+    if (this.scene.inert || document.hidden) {
+      this.presentationDirty = true;
+      for (const d of this.allDesks) { setRenderView(d.screen, false, 276 * (this.cam.s || 1)); d.director.setPresentationVisible(false); }
+      return;
+    }
     const box = this.sceneBox ?? (this.sceneBox = this.scene.getBoundingClientRect());
     const s = this.cam.s || 1, m = 160 / s;
     const x0 = -this.cam.x / s - m, y0 = -this.cam.y / s - m, x1 = x0 + box.width / s + 2 * m, y1 = y0 + box.height / s + 2 * m;
@@ -1016,8 +1322,9 @@ export class World {
     for (const d of this.allDesks) {
       const left = this.cam.x + (parseFloat(d.el.style.left) + 54) * s;
       const top = this.cam.y + (parseFloat(d.el.style.top) + 4) * s;
-      const shown = !!d.threadId && !d.el.classList.contains("arriving") && left < box.width && left + 292 * s > 0 && top < box.height && top + 172 * s > 0;
+      const shown = !this.scene.inert && !!d.threadId && !d.el.classList.contains("arriving") && left < box.width && left + 292 * s > 0 && top < box.height && top + 172 * s > 0;
       setRenderView(d.screen, shown, 276 * s);
+      d.director.setPresentationVisible(shown);
     }
     const vx = -this.cam.x / s, vy = -this.cam.y / s;
     this.viewIndoors = footprintCovers(this.footprint, { x: vx, y: vy, w: box.width / s, h: box.height / s });
@@ -1050,12 +1357,13 @@ export class World {
 
   private makeDesk(x: number, y: number) {
     const d = new Desk(this.deskLayer, x, y, this.services);
+    d.onPresenceChange = () => this.recull();
     this.cull.observe(d.el);
     d.onSay = () => this.fitBubbles();
     d.director.attachDir = this.attachDir;
     d.director.childItems = (id, since) => (window as any).lucid.itemsSince(id, since);
     this.allDesks.add(d);
-    this.wireDeskDrag(d);
+    if (!this.hostWorld) this.wireDeskDrag(d);
     d.el.addEventListener("click", (e) => {
       if (this.dragged) return;
       e.stopPropagation();
@@ -1112,7 +1420,7 @@ export class World {
         if (!active && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return;
         if (!active) {
           active = this.deskDragActive = this.dragged = true;
-          this.stopFollow(); gsap.killTweensOf(this.cam);
+          this.stopFollow(); this.cancelCameraTween();
           z = this.cam.s;
           for (const w of this.transit.values()) w.stop();
           for (const desk of original) gsap.killTweensOf(desk.el, "left,top");
@@ -1182,7 +1490,7 @@ export class World {
     if (!room || !t || id === this.orchThread || !["main", "project", "freelance"].includes(room.kind)) return false;
     this.homes.set(id, roomId);
     this.revealedThread = id;
-    this.expandedRooms.add(roomId);
+    this.expandedRooms.add(roomId); this.collapsedRooms.delete(roomId);
     for (const [r, seats] of this.seats) if (r !== roomId) this.seats.set(r, seats.map((seat) => seat === id ? null : seat));
     // User placement takes effect immediately. Questions can still take the robot to the queue.
     this.placed.set(id, { room: t.question ? "queue" : roomId });
@@ -1203,8 +1511,8 @@ export class World {
   // Click a robot that is walking around (break room, park, hallway, shop) and the camera
   // stays on it as it goes about its business. Panning, zooming or Esc lets go.
   private followEl: HTMLElement | null = null;
-  private followChip: HTMLElement | null = null;
-  private followTick = () => {
+  private followTick = (_time: number, delta: number) => {
+    if (document.hidden || this.scene.inert) return;
     const el = this.followEl;
     if (!el || !el.isConnected) {
       // it walked out of view into another room: pick it up again if it is somewhere else
@@ -1220,83 +1528,80 @@ export class World {
     const cx = r.left + r.width / 2 - s.left, cy = r.top + r.height / 2 - s.top;
     const W = this.scene.clientWidth - this.panelWidth * 0, H = this.scene.clientHeight;
     const target = Math.max(0.9, Math.min(1.6, this.cam.s));
+    // Match the original 60 Hz response at every display rate, with a bounded
+    // catch-up after a slow frame rather than a large returning-camera jump.
+    const steps = Math.min(3, Math.max(0, delta / (1000 / 60)));
+    const move = 1 - Math.pow(.9, steps), zoom = 1 - Math.pow(.92, steps);
     if (Math.abs(this.cam.s - target) > 0.01) {
-      const k = this.cam.s + (target - this.cam.s) * 0.08;
+      const k = this.cam.s + (target - this.cam.s) * zoom;
       this.cam.x = cx - ((cx - this.cam.x) / this.cam.s) * k; this.cam.y = cy - ((cy - this.cam.y) / this.cam.s) * k; this.cam.s = k;
     }
-    this.cam.x += (W / 2 - cx) * 0.1;
-    this.cam.y += (H * 0.55 - cy) * 0.1;
+    this.cam.x += (W / 2 - cx) * move;
+    this.cam.y += (H * 0.55 - cy) * move;
     this.apply();
-    this.paintFollowChip();
   };
   follow(el: HTMLElement) {
     this.frame = null;
     if (this.focusDesk) this.unfocus(false);
     this.select(null);
-    gsap.killTweensOf(this.cam);
+    this.cancelCameraTween();
     this.followEl = el;
     gsap.ticker.remove(this.followTick);
     gsap.ticker.add(this.followTick);
-    if (!this.followChip) {
-      const c = document.createElement("div");
-      c.className = "follow-chip";
-      c.innerHTML = `<span class="fc-dot"></span><span class="fc-text"><b></b><i></i></span><button type="button" class="fc-chat">Chat</button><button type="button" class="fc-stop" aria-label="Stop following">Stop</button>`;
-      c.querySelector(".fc-stop")!.addEventListener("click", () => this.stopFollow());
-      c.querySelector(".fc-chat")!.addEventListener("click", () => { const id = this.followEl?.dataset.id; if (id) this.onFollowChat(id); });
-      this.scene.parentElement!.appendChild(c);
-      this.followChip = c;
-    }
-    this.followChip.hidden = false;
-    this.paintFollowChip(true);
   }
-  /** "Chat" on the follow chip: open the conversation of the robot being followed. */
+  /** Open the conversation of a followed robot. */
   onFollowChat: (threadId: string) => void = () => {};
   /** You clicked another robot while a chat was open: the chat switches to it without moving the camera. */
   onWatchChat: (threadId: string) => void = () => {};
   stopFollow() {
     gsap.ticker.remove(this.followTick);
     this.followEl = null;
-    if (this.followChip) this.followChip.hidden = true;
   }
-  private chipSig = "";
-  private paintFollowChip(force = false) {
-    const c = this.followChip, el = this.followEl;
-    if (!c || !el) return;
-    const id = el.dataset.id || "";
-    const robot = this.roster.byThread(id);
-    const thread = this.lastData?.threads.find((t) => t.id === id);
-    const where = el.closest(".room-break") ? "In the break room" : el.closest(".room-queue") ? (id === this.orchThread ? "At your desk" : "Waiting with a question") : el.closest(".park-layer") ? "In the park" : el.closest(".shopfront") ? "Running the shop" : "Walking";
-    const bubble = (el.parentElement?.querySelector(`.world-say[data-for="${CSS.escape(id)}"]`) as HTMLElement | null)?.textContent || "";
-    const name = id === "shopkeeper" ? "Shopkeeper" : id === this.orchThread ? "Orchestrator" : robot?.name ?? "Robot";
-    const sub = [where, thread?.title].filter(Boolean).join(" · ");
-    const sig = name + sub + bubble;
-    if (!force && sig === this.chipSig) return;
-    this.chipSig = sig;
-    c.querySelector("b")!.textContent = name;
-    c.querySelector("i")!.textContent = sub;
-    (c.querySelector(".fc-chat") as HTMLElement).hidden = !thread;
-  }
-
   // --- camera -------------------------------------------------------------------
+  private disposeTouchInput: (() => void) | null = null;
+  private phoneGesture: PhoneGestureDiagnostics | null = null;
+  private mountTouchInput() {
+    this.disposeTouchInput?.();
+    this.phoneGesture?.destroy();
+    this.phoneGesture = phoneGestureDiagnostics(this.scene, () => this.cam.s);
+    this.disposeTouchInput = mountTouchCamera(this.scene, {
+      camera: () => this.cam,
+      viewport: () => this.sceneBox ??= this.scene.getBoundingClientRect(),
+      zoomBounds: () => this.cameraZoomBounds(),
+      constrain: () => this.clampCam(),
+      start: (kind) => { this.stopCameraMotion(); this.cancelOutsideWarm(); this.dragged = true; this.holdTouchLayout(true); this.phoneGesture?.start(kind); },
+      input: (kind) => this.phoneGesture?.input(kind),
+      change: () => this.applySoon(),
+      end: () => { this.dragged = false; this.holdTouchLayout(false); this.phoneGesture?.end(); },
+    });
+  }
+  /** Release owned phone input when an embedding removes its office scene. */
+  destroyTouchInput() { this.disposeTouchInput?.(); this.disposeTouchInput = null; this.phoneGesture?.destroy(); this.phoneGesture = null; this.cancelTouchLayoutFlush(); this.cancelOutsideWarm(); this.touchLayoutHeld = this.touchLayoutPending = false; }
   /** Direct manipulation takes ownership from an earlier fly-to or followed actor. */
   stopCameraMotion() {
     this.stopFollow();
     this.frame = null;
-    gsap.killTweensOf(this.cam);
+    this.cancelCameraTween();
   }
   private dragged = false;
   private camera() {
     const s = this.scene;
     s.addEventListener("wheel", (e) => {
       e.preventDefault();
-      this.stopFollow();
-      const r = s.getBoundingClientRect();
-      const px = e.clientX - r.left, py = e.clientY - r.top;
+      if (!e.deltaY) return;
+      if (this.followEl) this.stopFollow();
+      this.cancelCameraTween();
       this.frame = null;
-      const ns = Math.min(5, Math.max(0.08, this.cam.s * Math.exp(-e.deltaY * 0.0015)));
+      const bounds = this.cameraZoomBounds();
+      const ns = Math.min(bounds.max, Math.max(bounds.min, this.cam.s * Math.exp(-e.deltaY * 0.0015)));
+      if (ns === this.cam.s) return;
+      // Camera transforms do not move the scene's viewport. Reuse its geometry
+      // across high-rate wheel bursts; resizing and panel moves invalidate it.
+      const r = this.sceneBox ??= s.getBoundingClientRect();
+      const px = e.clientX - r.left, py = e.clientY - r.top;
       const wx = (px - this.cam.x) / this.cam.s, wy = (py - this.cam.y) / this.cam.s;
-      gsap.killTweensOf(this.cam);
       this.cam.s = ns; this.cam.x = px - wx * ns; this.cam.y = py - wy * ns;
+      this.clampCam();
       this.applySoon();
     }, { passive: false });
     let start: { id: number; button: number; x: number; y: number; cx: number; cy: number } | null = null;
@@ -1309,6 +1614,7 @@ export class World {
       setTimeout(() => (this.dragged = false), 0);
     };
     const beginPan = (e: PointerEvent) => {
+      if (e.pointerType === "touch") return;
       if (start || e.button !== 0 && e.button !== 1) return;
       if (e.button === 1) {
         e.preventDefault(); e.stopPropagation();
@@ -1331,7 +1637,7 @@ export class World {
       if (start.button === 1) { e.preventDefault(); e.stopPropagation(); }
       const dx = e.clientX - start.x, dy = e.clientY - start.y;
       if (!this.dragged && Math.hypot(dx, dy) < 5) return;
-      if (!this.dragged) { this.dragged = true; s.classList.add("panning"); this.stopFollow(); this.frame = null; gsap.killTweensOf(this.cam); }
+      if (!this.dragged) { this.dragged = true; s.classList.add("panning"); this.stopFollow(); this.frame = null; this.cancelCameraTween(); }
       this.cam.x = start.cx + dx; this.cam.y = start.cy + dy;
       this.applySoon();
     }, true);
@@ -1364,12 +1670,13 @@ export class World {
     // changes width the view adapts to it: a framed view (a desk, a room, the whole building) is fitted to
     // the new area again, and a freely panned view keeps what is at its centre in the centre.
     let last = { w: s.clientWidth, h: s.clientHeight };
-    new ResizeObserver(() => {
+    this.resizePresentation = () => {
+      if (this.scene.inert || document.hidden) { this.presentationDirty = true; return; }
       this.sceneBox = null;
       const w = s.clientWidth, h = s.clientHeight;
       if (last.w && last.h && w && h && (w !== last.w || h !== last.h)) {
         if (this.frame) {
-          gsap.killTweensOf(this.cam);
+          this.cancelCameraTween();
           this.fit(this.frame.rect, this.frame.pad, w, h);
         } else if (!this.followEl) {
           this.cam.x += (w - last.w) / 2; this.cam.y += (h - last.h) / 2;
@@ -1378,11 +1685,12 @@ export class World {
       last = { w, h };
       this.apply();
       this.keepFocus();
-    }).observe(s);
+    };
+    new ResizeObserver(this.resizePresentation).observe(s);
   }
 
   // Coalesce fast mouse input into one commit on the display's next animation frame.
-  // A separate 60 Hz deadline skips uneven display frames on high-refresh monitors.
+  // Let each display frame consume the newest input without a separate 60 Hz deadline.
   // Camera, culling, bubbles and focus work run together at most once per display frame.
   private applyQueued = 0;
   private flushCamera = () => {
@@ -1395,33 +1703,61 @@ export class World {
   }
   private sceneBox: DOMRect | null = null;
   private near: boolean | null = null;
+  private overviewLayers: boolean | null = null;
   private lastScale = 0;
   private lastX = 0;
   private lastY = 0;
   private zooming = false;
   private zoomEnd = 0;
-  // The camera stays on the grounds: it cannot zoom out past the whole drawing, and the view never
-  // drifts off it (when the view is wider or taller than the grounds, they stay centred that way).
+  private outsideWarmIdle = 0;
+  private outsideWarmTimer = 0;
+  private cancelOutsideWarm() {
+    if (this.outsideWarmIdle) window.cancelIdleCallback?.(this.outsideWarmIdle);
+    if (this.outsideWarmTimer) clearTimeout(this.outsideWarmTimer);
+    this.outsideWarmIdle = this.outsideWarmTimer = 0;
+  }
+  private scheduleOutsideWarm() {
+    if (this.outsideWarmIdle || this.outsideWarmTimer || this.dragged || this.zooming || this.scene.inert || document.hidden) return;
+    const expected = { ...this.cam }, box = this.sceneBox ??= this.scene.getBoundingClientRect();
+    const warm = () => {
+      this.outsideWarmIdle = this.outsideWarmTimer = 0;
+      if (this.dragged || this.zooming || this.scene.inert || document.hidden || !this.root.isConnected || expected.x !== this.cam.x || expected.y !== this.cam.y || expected.s !== this.cam.s || box !== this.sceneBox) return;
+      updateOutside(this.root.querySelector('.outside-layer'), this.cam, box.width, box.height, 96, {x: box.left, y: box.top});
+    };
+    // Restore a useful pan reserve after settling, including under opaque floors.
+    // Retained crops near an edge must not put their first renewal on a gesture.
+    if (window.requestIdleCallback) this.outsideWarmIdle = window.requestIdleCallback(warm, { timeout: 500 });
+    else this.outsideWarmTimer = window.setTimeout(warm, 80);
+  }
+  private cameraExtent() {
+    const g = this.grounds?.bounds ?? { x: 0, y: 0, ...this.size };
+    const f=this.forestBounds, x=Math.min(g.x,f?.x??g.x), y=Math.min(g.y,f?.y??g.y);
+    return { x, y, w: Math.max(g.x+g.w,this.campusRight,f?f.x+f.w:0)-x, h:Math.max(g.y+g.h,this.campusHeight,f?f.y+f.h:0)-y };
+  }
+  private cameraZoomBounds() {
+    const g = this.cameraExtent(), box = this.sceneBox ??= this.scene.getBoundingClientRect();
+    return { min: Math.max(Number.EPSILON, Math.min(box.width / g.w, box.height / g.h) * .75), max: 5 };
+  }
   private clampCam() {
-    const g = this.grounds?.bounds;
-    if (!g) return;
-    const box = (this.sceneBox ??= this.scene.getBoundingClientRect());
-    const W = box.width, H = box.height;
+    if (!this.grounds) return;
+    const box = this.sceneBox ??= this.scene.getBoundingClientRect(), W = box.width, H = box.height;
     if (!W || !H) return;
-    // zooming out stops when the lawn and a strip of woods fill the view; the rest of the woods is only there for wide windows
-    const l = this.grounds!.lawn, pad = 260;
-    const c = this.cam, min = Math.max(Math.min(W / g.w, H / g.h), Math.min(W / (l.w + 2 * pad), H / (l.h + 2 * pad)));
+    const c = this.cam, min = this.cameraZoomBounds().min;
     if (c.s < min) { const k = min / c.s; c.x = W / 2 - (W / 2 - c.x) * k; c.y = H / 2 - (H / 2 - c.y) * k; c.s = min; }
-    const fit = (t: number, size: number, lo: number, len: number) =>
-      len * c.s <= size ? (size - len * c.s) / 2 - lo * c.s : Math.min(-lo * c.s, Math.max(size - (lo + len) * c.s, t));
-    c.x = fit(c.x, W, g.x, g.w);
-    c.y = fit(c.y, H, g.y, g.h);
+    const g = this.cameraExtent(), pad = Math.max(240, 100 / c.s);
+    const fit = (t: number, size: number, lo: number, len: number) => len * c.s <= size ? (size - len * c.s) / 2 - lo * c.s : Math.min(-lo * c.s, Math.max(size - (lo + len) * c.s, t));
+    c.x = fit(c.x, W, g.x - pad, g.w + 2 * pad);
+    c.y = fit(c.y, H, g.y - pad, g.h + 2 * pad);
   }
   private apply() {
+    if (this.hostWorld) { this.recull(); return; }
+    if (this.scene.inert || document.hidden) { this.presentationDirty = true; return; }
+    const gestureStarted = this.phoneGesture?.active ? performance.now() : -1;
     const started = beginSystem();
     this.clampCam();
     this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
     this.recull();
+    this.syncBuildings();
     // Translation can reuse composited pixels. Scaling must let Chromium choose a
     // new raster density immediately, rather than magnifying a finished world image.
     if (this.cam.s !== this.lastScale || this.cam.x !== this.lastX || this.cam.y !== this.lastY) {
@@ -1429,18 +1765,41 @@ export class World {
       this.lastScale = this.cam.s; this.lastX = this.cam.x; this.lastY = this.cam.y;
       if (!this.zooming) { this.zooming = true; this.root.classList.add("zooming"); }
       window.clearTimeout(this.zoomEnd);
-      this.zoomEnd = window.setTimeout(() => { this.zooming = false; this.root.classList.remove("zooming", "scaling"); }, 180);
+      this.cancelOutsideWarm();
+      this.zoomEnd = window.setTimeout(() => { this.zooming = false; this.root.classList.remove("zooming", "scaling"); this.scheduleOutsideWarm(); }, 180);
+    }
+    if(this.sceneryCull && this.outArgs && !this.viewIndoors) {
+      const view={x:-this.cam.x/this.cam.s-this.outArgs.ox,y:-this.cam.y/this.cam.s-this.outArgs.oy,w:this.scene.clientWidth/this.cam.s,h:this.scene.clientHeight/this.cam.s};
+      const density=this.cam.s*(window.devicePixelRatio||1), previous=this.sceneryView;
+      // A conservative guard band reuses exact paths during short pans. Only
+      // newly exposed geometry or a density change needs another culling pass.
+      if(!previous || previous.density!==density || view.x<previous.x || view.y<previous.y || view.x+view.w>previous.x+previous.w || view.y+view.h>previous.y+previous.h) {
+        const pad=140/this.cam.s;
+        this.sceneryView={x:view.x-pad,y:view.y-pad,w:view.w+2*pad,h:view.h+2*pad,density};
+        this.sceneryCull.update(this.sceneryView,density);
+      }
     }
     setZoom(this.cam.s, this.cam.x, this.cam.y);
     const box = this.sceneBox ??= this.scene.getBoundingClientRect();
-    updateOutside(this.root.querySelector(".outside-layer"), this.cam, box.width, box.height);
-    updateStaticArt(this.cam,box.width,box.height);
+    // The footprint already proves every displayed pixel is behind opaque
+    // office geometry. Keep the sharp ground cache parked until it is exposed;
+    // drawing it underneath the floors can otherwise monopolize a pinch frame.
+    if (!this.viewIndoors) updateOutside(this.root.querySelector(".outside-layer"), this.cam, box.width, box.height, 0, {x: box.left, y: box.top});
+    else this.scheduleOutsideWarm();
+    this.viewLandscape();
+    updateStaticArt(this.cam,box.width,box.height,box.left,box.top);
     // the weather follows the camera without measuring the page (which is slow every frame)
     if (this.fx) { this.sceneBox ??= this.scene.getBoundingClientRect(); this.fx.setCamera(this.cam, this.sceneBox, this.size.w, this.viewIndoors ? this.size.h : undefined); }
     // small looping details (steam, swaying plants, birds) only move when you are close enough to see them
     const near = this.cam.s >= 1;
     if (near !== this.near) { this.near = near; this.scene.classList.toggle("near", near); }
+    // Far overview traces showed compositor layer-building dominating paint.
+    // These SVG actors keep their full artwork and motion; only the unnecessary
+    // permanent promotion hint changes within the existing distant-view band.
+    const overview = this.cam.s < .3;
+    if (overview !== this.overviewLayers) { this.overviewLayers = overview; this.root.classList.toggle('overview', overview); }
     endSystem("camera", started);
+    this.phoneGesture?.commit(gestureStarted);
   }
 
   /** Moves the view at once (a side panel changing width keeps the office still on screen). */
@@ -1459,8 +1818,9 @@ export class World {
   flyTo(rect: { x: number; y: number; w: number; h: number }, pad = 40, d = 1, insetRight = 0) {
     const W = this.scene.clientWidth - insetRight, H = this.scene.clientHeight;
     if (!W || !H) return;
+    this.stopFollow(); this.cancelCameraTween();
     this.frame = { rect, pad };
-    gsap.to(this.cam, { ...this.fitTarget(rect, pad, W, H), duration: d, ease: "power3.inOut", onUpdate: () => this.apply() });
+    this.cameraTween = gsap.to(this.cam, { ...this.fitTarget(rect, pad, W, H), duration: d, ease: "power3.inOut", onUpdate: () => this.apply() });
   }
   onFocus: (d: Desk | null) => void = () => {};
   panelWidth = 0;
@@ -1480,16 +1840,224 @@ export class World {
   /** The office's grounds: lawn, walk, plaza and the drawn outdoor bounds the camera stays within. */
   grounds: Grounds | null = null;
   orchThread = "";
+  orchPresence: "awake" | "sleep" | "away" = "awake";
   attachDir = "";
+
+  private layoutArchive: Record<string, OfficeLayout> = {};
+  private rememberLayout() {
+    if (!this.lastData) return;
+    this.layoutArchive[this.lastData.environmentId || 'local'] = {
+      roomOrder: [...this.roomOrder], expandedRooms: [...this.expandedRooms], collapsedRooms: [...this.collapsedRooms], hidden: [...this.hidden],
+      extra: Object.fromEntries(this.extra), homes: Object.fromEntries(this.homes),
+      seats: Object.fromEntries(this.seats), themes: Object.fromEntries(this.themes),
+    };
+  }
+  private layoutForEnvironment(environment?: string) {
+    const key = environment || 'local';
+    if (this.layoutArchive[key] || !environment) return this.layoutArchive[key];
+    // Earlier releases stored all computers together. Retain their scoped edits
+    // when creating the first independent record for this computer.
+    const legacy = this.layoutArchive.local;
+    if (!legacy) return undefined;
+    const threadPrefix = `${environment}::`, projectPrefix = `p:${threadPrefix}`;
+    const scoped = (id: string) => id.startsWith(projectPrefix);
+    const entries = <T>(record: Record<string, T>, accept: (id: string) => boolean) => Object.fromEntries(Object.entries(record).filter(([id]) => accept(id)));
+    const seats = entries(legacy.seats, scoped);
+    for (const room of ['main', 'freelance']) {
+      const previous = legacy.seats[room] ?? [];
+      if (previous.some(id => id?.startsWith(threadPrefix))) seats[room] = previous.map(id => id?.startsWith(threadPrefix) ? id : null);
+    }
+    return this.layoutArchive[key] = {
+      roomOrder: legacy.roomOrder.filter(scoped), expandedRooms: legacy.expandedRooms.filter(scoped), collapsedRooms: (legacy.collapsedRooms ?? []).filter(scoped),
+      hidden: legacy.hidden.filter(id => id.startsWith(threadPrefix)),
+      extra: entries(legacy.extra, scoped), themes: entries(legacy.themes, scoped),
+      homes: entries(legacy.homes, id => id.startsWith(threadPrefix)), seats,
+    };
+  }
+  private applyOfficeLayout(layout?: OfficeLayout) {
+    this.roomOrder = [...(layout?.roomOrder ?? [])]; this.expandedRooms = new Set(layout?.expandedRooms ?? []); this.collapsedRooms = new Set(layout?.collapsedRooms ?? []);
+    this.hidden = new Set(layout?.hidden ?? []); this.extra = new Map(Object.entries(layout?.extra ?? {}));
+    this.homes = new Map(Object.entries(layout?.homes ?? {})); this.seats = new Map(Object.entries(layout?.seats ?? {}));
+    this.themes = new Map(Object.entries(layout?.themes ?? {}));
+  }
+  restoreLayouts(layouts: Record<string, OfficeLayout>) {
+    Object.assign(this.layoutArchive, layouts);
+    const current = this.layoutArchive[this.lastData?.environmentId || 'local'];
+    if (current) this.applyOfficeLayout(current);
+  }
+  exportLayouts() {
+    this.rememberLayout();
+    for (const entry of this.neighbors.values()) entry.office?.rememberLayout();
+    return this.layoutArchive;
+  }
+
+  private buildings: { id: string; label: string; local: boolean; canOpen: boolean; reason: string | null }[] = [];
+  private openBuilding: (id: string) => Promise<void> = async () => {};
+  private loadBuilding: (id: string) => Promise<WorldData> = async () => { throw Error('Connection unavailable'); };
+  private neighbors = new Map<string, { el: HTMLElement; office: World | null; x: number; y: number; busy: boolean; status: HTMLElement; open: HTMLButtonElement }>();
+  onCampusChange: () => void = () => {};
+  get campusDesks(): { id: string; desk: Desk; x: number; y: number }[] {
+    return [...[...this.desks].map(([id, desk]) => ({ id, desk, x: 0, y: 0 })),
+      ...[...this.neighbors.values()].flatMap(entry => entry.office ? [...entry.office.desks].map(([id, desk]) => ({ id, desk, x: parseFloat(entry.el.style.left) || entry.x, y: parseFloat(entry.el.style.top) || entry.y })) : [])];
+  }
+  activityDeskFor(id: string) { return this.deskFor(id) ?? this.campusDesks.find(row => row.id === id)?.desk ?? null; }
+  private campusRight = 0;
+  private campusHeight = 0;
+  private campusTimer = 0;
+  setBuildings(buildings: typeof this.buildings, open: (id: string) => Promise<void>, load: (id: string) => Promise<WorldData>) {
+    this.buildings = buildings; this.openBuilding = open; this.loadBuilding = load; this.drawBuildings();
+    if (!this.campusTimer) {
+      this.campusTimer = window.setInterval(() => { if (!document.hidden && !this.scene.inert) void this.refreshBuildings(); }, 15000);
+      window.addEventListener('pagehide', this.destroyBuildings, { once: true });
+    }
+    void this.refreshBuildings();
+  }
+  private destroyBuildings = () => {
+    this.finishRoomTransitions();
+    window.clearInterval(this.campusTimer); this.campusTimer = 0;
+    for (const entry of this.neighbors.values()) { entry.office?.rememberLayout(); entry.office?.destroyEmbedded(); this.roomTweens.get(entry.el)?.kill(); entry.el.remove(); }
+    this.neighbors.clear();
+    this.sceneryCull?.destroy(); this.sceneryCull=null;
+  };
+  private destroyEmbedded() {
+    document.removeEventListener('visibilitychange', this.visibilityPresentation);
+    this.cancelCameraTween(); this.cancelOutsideWarm(); window.clearTimeout(this.zoomEnd);
+    this.cancelTouchLayoutFlush();
+    for (const walker of this.transit.values()) walker.destroy(); this.transit.clear(); this.trips.clear(); this.wakeRoutes();
+    for (const d of this.allDesks) d.destroy(); this.allDesks.clear(); this.desks.clear();
+    for (const extension of Object.values(this.ext)) extension?.destroy();
+    this.park.destroy(); this.fx?.destroy();
+    this.sceneryCull?.destroy(); this.sceneryCull=null;
+    this.landscape?.destroy(); this.landscape = null;
+    this.finishRoomTransitions();
+    for (const room of this.rooms) releaseRoomVectors(room.el);
+    this.root.remove();
+  }
+  private async refreshBuildings() {
+    for (const [id, entry] of this.neighbors) {
+      if (entry.busy || !this.buildings.find(b => b.id === id)?.canOpen) continue;
+      entry.busy = true;
+      try {
+        const data = await this.loadBuilding(id);
+        if (this.neighbors.get(id) !== entry) continue;
+        if (!entry.office) {
+          const host = document.createElement('div'); host.className = 'neighbor-office'; entry.el.append(host);
+          const office = new World(host, this.services, this); office.scene = this.scene;
+          office.building = this.buildings.find(b => b.id === id)!.label;
+          office.extFactory = this.extFactory;
+          office.onLayoutChange = () => { office.rememberLayout(); this.drawBuildings(); this.syncBuildings(); this.onLayoutChange(); };
+          office.onRoomMenu = room => office.showRoom(room.id);
+          office.onSelectThread = threadId => { void this.openBuilding(id).then(() => this.onSelectThread(threadId)).catch(error => { entry.status.textContent = error instanceof Error ? error.message : 'Could not open this session. Try again.'; }); };
+          const openDesk = (desk: Desk, screen: boolean, slot = '', x = 0, y = 0) => {
+            const threadId = desk.threadId, roomId = desk.room;
+            entry.status.textContent = 'Opening computer...';
+            void this.openBuilding(id).then(async () => {
+              if (this.lastData?.environmentId !== data.environmentId) return;
+              this.setRoomExpanded(roomId, true);
+              if (threadId) this.onSelectThread(threadId);
+              // Activating a building may still be evacuating the previous floor.
+              // Retain the click until that computer exists in the active world.
+              let target = threadId ? this.desks.get(threadId) : this.slotDesks.get(slot);
+              for (let attempt = 0; !target && attempt < 150; attempt++) {
+                await pause(.1);
+                if (this.lastData?.environmentId !== data.environmentId) return;
+                target = threadId ? this.desks.get(threadId) : this.slotDesks.get(slot);
+              }
+              if (!target) throw Error('This computer changed. Open its office and try again.');
+              if (threadId) { this.select(target); if (screen) this.focusScreen(target); else this.focusOn(target); }
+              else this.onFreeDesk(target, slot, x, y);
+            }).catch(error => { entry.status.textContent = error instanceof Error ? error.message : 'Could not open this computer. Try again.'; });
+          };
+          office.onOpenDesk = (desk, screen) => openDesk(desk, screen);
+          office.onFreeDesk = (desk, slot, x, y) => openDesk(desk, false, slot, x, y);
+          office.onFreeDeskMenu = office.onFreeDesk;
+          office.onAddDesk = room => { void this.openBuilding(id).then(() => this.onAddDesk(room)).catch(error => { entry.status.textContent = String(error.message || error); }); };
+          entry.office = office;
+        }
+        entry.office.update(data);
+        entry.el.dataset.projects = String(data.projects.length); entry.el.dataset.sessions = String(data.threads.length);
+        entry.status.textContent = ''; entry.open.disabled = false;
+        this.drawBuildings(); this.syncBuildings(); this.onCampusChange();
+      } catch (error) {
+        if (this.neighbors.get(id) === entry) entry.status.textContent = error instanceof Error ? error.message : 'Could not refresh this computer. Retrying shortly.';
+      } finally { entry.busy = false; }
+    }
+  }
+  private syncBuildings() {
+    for (const entry of this.neighbors.values()) if (entry.office) {
+      const office = entry.office;
+      office.cam = { x: this.cam.x + (parseFloat(entry.el.style.left) || entry.x) * this.cam.s, y: this.cam.y + (parseFloat(entry.el.style.top) || entry.y) * this.cam.s, s: this.cam.s };
+      office.sceneBox = this.sceneBox; office.root.classList.toggle('overview', this.cam.s < .3);
+      office.recull();
+    }
+  }
+  private drawBuildings() {
+    if (this.hostWorld) return;
+    const buildings = this.buildings.filter(b => this.lastData?.environmentId ? b.id !== this.lastData.environmentId : !b.local);
+    const keep = new Set(buildings.map(b => b.id));
+    for (const [id, entry] of this.neighbors) if (!keep.has(id)) { entry.office?.rememberLayout(); entry.office?.destroyEmbedded(); this.roomTweens.get(entry.el)?.kill(); entry.el.remove(); this.neighbors.delete(id); }
+    const campus = campusPlan([
+      { id: 'active', ...this.size, entranceY: this.topH + HALL / 2 },
+      ...buildings.map(b => { const office = this.neighbors.get(b.id)?.office; return { id: b.id, outdoors: false, w: office?.size.w ?? 1400, h: office?.size.h ?? 800, entranceY: office ? office.topH + HALL / 2 : 400 }; }),
+    ], { w: PARK_W, h: PARK_H }, { w: SHOP_W, h: SHOP_H });
+    this.campusRight = campus.bounds.w; this.campusHeight = campus.bounds.h;
+    let createdOffice = false;
+    for (const building of buildings) {
+      const district = campus.districts.get(building.id)!;
+      const { x, y } = district.building;
+      let entry = this.neighbors.get(building.id);
+      if (!entry) {
+        const el = document.createElement('section'); el.className = 'neighbor-building'; el.dataset.environment = building.id;
+        const open = document.createElement('button'); open.type = 'button'; open.className = 'neighbor-open';
+        const status = document.createElement('p'); status.className = 'neighbor-status'; status.setAttribute('role', 'status');
+        status.textContent = building.canOpen ? 'Reading projects and sessions from T3 Code' : building.reason || 'Connection needed';
+        const created = { el, office: null, x, y, busy: false, status, open }; entry = created;
+        open.addEventListener('click', async () => { if (open.disabled) return; open.disabled = true; gameSound.at('open', open); try { await this.openBuilding(building.id); } catch (error) { status.textContent = error instanceof Error ? error.message : 'Could not open this computer. Try again.'; } finally { open.disabled = !this.buildings.find(b => b.id === building.id)?.canOpen; } });
+        el.append(open, status); this.root.append(el); this.neighbors.set(building.id, entry); createdOffice = true;
+      }
+      entry.open.textContent = building.label; entry.open.disabled = !building.canOpen;
+      entry.el.setAttribute('aria-label', `${building.label} office`);
+      const moving = entry.el.style.left && (entry.x !== x || entry.y !== y);
+      entry.x = x; entry.y = y;
+      if (moving && !document.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches) this.tweenRoom(entry.el, { left: x, top: y, onUpdate: () => this.syncBuildings() });
+      else if (!this.roomTweens.has(entry.el)) { entry.el.style.left = `${x}px`; entry.el.style.top = `${y}px`; }
+      const office = entry.office;
+      const width = office ? office.size.w : 1400;
+      const height = district.bounds.h;
+      entry.el.style.width = `${width}px`; entry.el.style.height = `${height}px`;
+
+    }
+    // Outdoor positions stay local to each computer, even when campus rows wrap.
+    for (const { office } of [{ office: this }, ...[...this.neighbors.values()].filter(e => e.office).map(e => ({ office: e.office! }))]) {
+      const position = districtPlan({ id: '', ...office.size, entranceY: office.topH + HALL / 2 }, { w: PARK_W, h: PARK_H }, { w: SHOP_W, h: SHOP_H }).park;
+      if (office.parkPosition?.x !== position.x || office.parkPosition?.y !== position.y) { office.parkPosition = position; office.layoutGrounds(); }
+    }
+    // Every computer's district (building, park and, for this one, the shop) stays clear of woodland.
+    const districts = this.campusDistricts();
+    const areas = districts.flatMap(d => [d.building, ...(d.park ? [d.park] : []), ...(d.shop ? [d.shop] : [])]);
+    const routes = districts.flatMap(d => {
+      const b = d.building, top = d.door - HALL / 2, out = [{ x: b.x + b.w - 40, y: top - 30, w: PARK_W + 350, h: 220 }];
+      if (d.park) out.push({ x: d.park.x - 100, y: Math.min(top, d.park.y), w: d.park.w + 200, h: Math.max(d.park.y + d.park.h, d.shop ? d.shop.y + d.shop.h : 0) - Math.min(top, d.park.y) });
+      return out;
+    });
+    const signature = JSON.stringify([areas,routes]);
+    if(signature!==this.forestSig){this.forestSig=signature;this.forestAreas=areas;this.forestRoutes=routes;this.forestBounds=forestPlan(areas,routes).bounds;this.redrawOutside(true);}
+    if (createdOffice) void this.refreshBuildings();
+  }
 
   overview() {
     this.unfocus(false);
-    const p = this.outdoor?.park;
-    const right = p ? p.x + p.w : this.size.w;
-    this.flyTo({ x: -120, y: -170, w: right + 240, h: Math.max(this.size.h, p ? p.y + p.h : 0) + 290 }, 20);
+    const g = this.cameraExtent();
+    this.flyTo(g, 40);
   }
   showPark() { const p = this.outdoor?.park; if (p) { this.unfocus(false); this.flyTo({ x: p.x - 40, y: p.y - 40, w: p.w + 80, h: p.h + 80 }, 20); } }
   showRoom(id: string, insetRight = 0) {
+    if (this.hostWorld) {
+      if (this.rooms.find(r => r.id === id)?.collapsed) this.setRoomExpanded(id, true);
+      const entry = [...this.hostWorld.neighbors.values()].find(e => e.office === this), room = this.rooms.find(r => r.id === id);
+      if (entry && room) this.hostWorld.flyTo({ x: entry.x + room.x, y: entry.y + room.y, w: room.w, h: room.h }, 30, .45, insetRight);
+      return;
+    }
     if (this.rooms.find((r) => r.id === id)?.collapsed) this.setRoomExpanded(id, true);
     this.stopFollow();
     const r = this.rooms.find((q) => q.id === id);
@@ -1505,6 +2073,7 @@ export class World {
   // The chat stays open while you zoom and pan around a robot. It only closes once you zoom
   // well out (to about a third of the close-up) or move the robot's desk out of view.
   private keepFocus() {
+    if (this.scene.inert || document.hidden) return;
     const d = this.focusDesk;
     if (!d) return;
     // worked out from the camera, without measuring the page (that forced a full layout per mouse move)
@@ -1526,7 +2095,9 @@ export class World {
     return { l: 200 - w / 2, r: 200 + w / 2, top: h ? Math.min(-32, 6 - h - 14) : -32 };
   }
 
+  onOpenDesk: (d: Desk, screen: boolean) => void = () => {};
   focusOn(d: Desk) {
+    if (this.hostWorld) { this.onOpenDesk(d, false); return; }
     this.stopFollow();
     this.focusDesk = d;
     this.focusMode = "desk";
@@ -1539,6 +2110,7 @@ export class World {
 
   // Fill the view with the robot's screen.
   focusScreen(d: Desk) {
+    if (this.hostWorld) { this.onOpenDesk(d, true); return; }
     this.focusDesk = d;
     this.focusMode = "screen";
     const m = GEOM.screen;
@@ -1559,8 +2131,8 @@ export class World {
   }
 
   // --- daylight and the wall clock --------------------------------------------------
-  daylight() {
-    const now = new Date();
+  daylight(now = new Date()) {
+    if (this.hostWorld) { this.paintClock(); return; }
     const h = now.getHours() + now.getMinutes() / 60;
     const S = (sky1: string, sky2: string, stars: number, lamp: number, night: number, city: number) => ({ sky1, sky2, stars, lamp, night, city });
     const v = h < 5 || h >= 21.5 ? S("#0b1030", "#262c62", 1, 1, 0.3, 1)
@@ -1570,24 +2142,31 @@ export class World {
       : h < 19 ? S("#7a7fd0", "#ffbc85", 0, 0.5, 0.05, 0.3)
       : S("#2a2f6a", "#e0708a", 0.5, 0.95, 0.2, 0.9);
     // rain greys the sky and dims the light, storms more so
-    const t = applySkyTint(v, this.weather);
-    const night = Math.min(1, v.night + t.dim);
+    const darkness = campusNight(now, this.weather);
+    const sky = darkness > .6 ? { ...v, sky1: "#080e24", sky2: "#172039", lamp: 1, stars: 1 } : v;
+    const t = applySkyTint(sky, this.weather);
+    const night = Math.min(.9, darkness + t.dim);
     const st = this.root.style;
     st.setProperty("--sky1", t.sky1); st.setProperty("--sky2", t.sky2);
-    st.setProperty("--stars", String(v.stars * t.stars)); st.setProperty("--lamp", String(Math.min(1, v.lamp + t.dim * 0.8)));
-    st.setProperty("--night", String(night)); st.setProperty("--city", String(v.city));
+    st.setProperty("--stars", String(sky.stars * t.stars)); st.setProperty("--lamp", String(Math.min(1, sky.lamp + t.dim * 0.8)));
+    st.setProperty("--night", String(night * .45)); st.setProperty("--outdoor-night", String(night));
+    // a warm low sun at dawn and dusk, fading under cloud
+    const dusk = h >= 5 && h < 8 ? Math.max(0, 1 - Math.abs(h - 6.6) / 1.5) : h >= 16.5 && h < 21 ? Math.max(0, 1 - Math.abs(h - 18.6) / 2.2) : 0;
+    st.setProperty("--outdoor-dusk", (dusk * Math.max(0, 1 - t.dim * 2.5)).toFixed(2)); st.setProperty("--city", String(v.city));
     // the grass beyond the drawn outdoors darkens with the same night tint
     this.root.parentElement?.style.setProperty("--scene-night", String(night));
     const { look, g } = this.ground();
-    this.fx?.set(this.weather, { night: v.night, season: look.season, frozen: look.frozen, ground: { puddles: g.puddles, hot: g.hot, prints: look.snowCover >= 0.3 } });
+    this.fx?.set(this.weather, { night, season: look.season, frozen: look.frozen, ground: { puddles: g.puddles, hot: g.hot, prints: look.snowCover >= 0.3 } });
     // the real wind sways the trees (ambient.css), fog puts halos round the lamps, frost rims the windows
     const w = this.weather;
     st.setProperty("--wind", (w ? Math.min(1, Math.max(0.1, w.windKmh / 55, w.kind === "storm" ? 0.85 : 0)) : 0.2).toFixed(2));
     st.setProperty("--fog", w?.kind === "fog" ? "1" : "0");
     st.setProperty("--frost", g.frost ? "1" : "0");
     this.park.setGear(gearFor(w));
+    for (const entry of this.neighbors.values()) entry.office?.park.setGear(gearFor(w));
     this.redrawOutside();
     this.paintClock();
+    this.syncBuildings();
     invalidateStaticArt();
   }
 
@@ -1621,6 +2200,7 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0, owner?:st
     freelance: { wall: "#f0dfcb", trim: "#dcc4a8", floor: "#c98a6a", seam: "#b8775a", accent: "#ff6f91" },
     break: { wall: "#e6eadf", trim: "#d0d6c5", floor: "#c9a274", seam: "#b88f61", accent: "#4ff0a0" },
     queue: { wall: "#ebe4ef", trim: "#d6cddd", floor: "#c9a274", seam: "#b88f61", accent: "#b07cff" },
+    charging: { wall: "#e6eadf", trim: "#d0d6c5", floor: "#c49a6c", seam: "#b2875b", accent: "#4ff0a0" },
   }[kind];
   if (r.collapsed) {
     const doorX = kind === "main" ? w / 2 - 30 : w - 74, doorY = kind === "main" ? h - 64 : 16;
@@ -1681,13 +2261,6 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0, owner?:st
       <circle r="2.6" fill="${pal.accent}"/>
     </g>` : "";
   const plant = (x: number, y: number, s = 1) => ambientPlant(x, y, s);
-  const cafe = kind === "freelance" ? `
-    <g transform="translate(-90 0)">
-    <rect x="${w - 330}" y="${WALL_FACE - 6}" width="290" height="58" rx="8" fill="#6b4f3a"/>
-    <rect x="${w - 330}" y="${WALL_FACE - 6}" width="290" height="10" rx="5" fill="#82634b"/>
-    <rect x="${w - 300}" y="${WALL_FACE + 8}" width="56" height="34" rx="6" fill="#3a3f4f"/><rect x="${w - 292}" y="${WALL_FACE + 14}" width="20" height="10" rx="3" fill="#ff9f5a"/>
-    <circle cx="${w - 200}" cy="${WALL_FACE + 26}" r="14" fill="#f6ecdc"/><circle cx="${w - 160}" cy="${WALL_FACE + 26}" r="14" fill="#f6ecdc"/></g>
-    ${Array.from({ length: Math.floor(w / 46) }, (_, i) => `<circle cx="${20 + i * 46}" cy="${WALL_FACE + 14 + Math.sin(i * 0.9) * 6}" r="4" fill="#ffd27a" style="opacity:calc(0.5 + var(--lamp) * 0.5)"/>`).join("")}` : "";
   // the room's furnishing: placed around the desks, never on them
   let decorSvg: string | null = null;
   const items = usable(theme, level);
@@ -1706,7 +2279,8 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0, owner?:st
     <rect y="${WALL_FACE}" width="${w}" height="18" fill="#000" opacity="0.07"/>
     ${theme?.wall && ownsItem(`wall:${theme.wall}`) ? drawWall(theme.wall, w, WALL_FACE) : `<rect width="${w}" height="${WALL_FACE}" fill="${pal.wall}"/><rect y="${WALL_FACE - 10}" width="${w}" height="10" fill="${pal.trim}"/>`}
     ${windows.join("")}
-    ${signBox}${clock}${cafe}
+    ${signBox}${clock}
+    ${["main", "project", "freelance"].includes(kind) ? printerArt(h, pal.accent) : ""}
     ${decorSvg ?? `${plant(w - 60, h - 70)}${plant(52, h - 70, 0.85)}`}
     <rect width="${w}" height="${T}" fill="#3a3f4f"/>
     <rect width="${T}" height="${h}" fill="#3a3f4f"/>

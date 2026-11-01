@@ -64,7 +64,7 @@ function fixture(t) {
     fs.utimesSync(p, new Date(NOW), new Date(NOW));
     return p;
   };
-  return { root, log, getUsage: module.exports.getUsage, reads: () => ({ calls: readCalls, bytes: readBytes }) };
+  return { root, log, getUsage: module.exports.getUsage, getCoinSources: module.exports.getCoinSources, reads: () => ({ calls: readCalls, bytes: readBytes }) };
 }
 
 function codex(id, cwd, total = 15, limits) {
@@ -210,4 +210,42 @@ test("missing project database leaves real usage Unassigned without creating a d
   assert.equal(fs.existsSync(dbPath), false);
   assert.equal(u.limits.codex, null);
   reconcile(u);
+});
+
+
+test("coin sources use exact sessions, deduplicate streaming and exclude ambiguous ownership", async (t) => {
+  const f = fixture(t);
+  f.log("codex", "main", codex("codex-native", "C:/work/alpha"));
+  f.log("claude", "stream", [claude(4), claude(9)]);
+  f.log("claude", "copy", [claude(9)]);
+  f.log("codex", "ambiguous", codex("ambiguous", "C:/work/alpha"));
+  const result = await f.getCoinSources([
+    { harness: 'codex', sessionId: 'codex-native', threadId: 'ta', title: 'Parent', status: 'completed' },
+    { harness: 'claudeAgent', sessionId: 'claude-native', threadId: 'child', title: 'Helper', status: 'running' },
+    { harness: 'codex', sessionId: 'ambiguous', threadId: 'ta' },
+    { harness: 'codex', sessionId: 'ambiguous', threadId: 'tb' },
+    { harness: 'codex', sessionId: 'missing', threadId: 'empty' },
+  ]);
+  assert.equal(result.sources.length, 3);
+  assert.ok(!result.sources.some(s => s.key.endsWith(':ambiguous')));
+  assert.ok(Math.abs(result.sources.find(s => s.threadId === 'ta').costUsd - .0000282) < 1e-12);
+  assert.ok(Math.abs(result.sources.find(s => s.threadId === 'child').costUsd - .0000412) < 1e-12);
+  assert.equal(result.sources.find(s => s.threadId === 'empty').costUsd, null);
+  assert.equal(result.sources.find(s => s.threadId === 'child').status, 'running');
+});
+
+
+test("partial T3 limits preserve exhausted local windows without crossing accounts", () => {
+  const { mergeProviderLimits } = require('../electron/provider-limits.cjs');
+  const now = Date.now(), resetsAt = new Date(now + 3600000).toISOString();
+  const local = { id: 'seven_day', usedPercent: 100, resetsAt, windowMinutes: 10080 };
+  const usage = { limits: { claude: { windows: [local] } } };
+  const provider = { instanceId: 'claudeAgent', driver: 'claudeAgent', usageLimits: { checkedAt: new Date(now).toISOString(), windows: [{ id: 'five_hour', usedPercent: 20, resetsAt }] } };
+  const merged = mergeProviderLimits(usage, { providers: [provider] }, now);
+  assert.equal(merged.limits['t3:claudeAgent'].windows.find(w => w.id.endsWith(':seven_day')).usedPercent, 100);
+  const recovered = structuredClone(provider);
+  recovered.usageLimits.windows.push({ id: 'seven_day', usedPercent: 10, resetsAt });
+  assert.equal(mergeProviderLimits(usage, { providers: [recovered] }, now).limits['t3:claudeAgent'].windows.find(w => w.id.endsWith(':seven_day')).usedPercent, 10);
+  const other = { ...provider, instanceId: 'work' };
+  assert.equal(mergeProviderLimits(usage, { providers: [provider, other] }, now).limits['t3:claudeAgent'].windows.length, 1);
 });

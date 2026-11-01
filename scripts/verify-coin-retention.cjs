@@ -1,0 +1,17 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const { stripTypeScriptTypes } = require('node:module');
+const source = fs.readFileSync('src/office/room-policy.ts', 'utf8').replace(/export /g, '');
+const context = {};
+vm.runInNewContext(stripTypeScriptTypes(source, { mode: 'transform' }) + '\nglobalThis.api={hasOfficeDesk,projectRoomSeats};', context);
+const { hasOfficeDesk, projectRoomSeats } = context.api;
+const thread = { id: 'earned', runStatus: 'completed', settled: true, coinPending: true };
+assert(hasOfficeDesk(thread), 'uncollected completed work retains its desk even after settlement');
+assert.equal(projectRoomSeats(['earned'], [thread], false, null).slots, 1);
+assert(!hasOfficeDesk({ ...thread, coinPending: false }), 'collection releases an ordinary settled desk');
+assert.equal(projectRoomSeats(['earned'], [{ ...thread, coinPending: false }], false, null).slots, 0);
+assert(!hasOfficeDesk({ ...thread, runStatus: 'failed' }), 'pending marker never converts failure to completion');
+assert(hasOfficeDesk({ ...thread, coinPending: false, pinned: true, manager: { projectId: 'p', role: 'Manager' } }), 'persistent manager desk remains independent of coins');
+assert(hasOfficeDesk({ id: 'working', runStatus: 'running' }));
+console.log('PASS: uncollected desk retention, post-collection retirement, manager continuity and failed-work exclusion.');

@@ -1,4 +1,5 @@
 // Written content pack for robot downtime: chats, thoughts, apps and games.
+import { localizedFlavor } from "./localized";
 
 export type { Topic, Place, Season } from "./types";
 export * from "./convos";
@@ -44,7 +45,9 @@ export function pickFresh<T>(list: readonly T[], key: string): () => T {
     recent.push(id);
     if (recent.length > keep) recent = recent.slice(-keep);
     save(key, recent);
-    return list[i];
+    // Warm just the next scene, retaining canonical IDs for repeat avoidance.
+    if (deck.length) localizedFlavor(list[deck[0]], key);
+    return localizedFlavor(list[i], key);
   };
 }
 

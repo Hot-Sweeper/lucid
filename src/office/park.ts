@@ -2,15 +2,17 @@ import { Walker, type Facing } from "../world/walker";
 import { JOKES, LAUGHS, shuffled } from "../world/jokes";
 import { dailyConvo, dailyLine } from "./daily";
 import { CONVOS, THOUGHTS, pickFresh } from "../content";
-import { makeInteractive, whenFree, popWord, splash } from "./interact";
+import { makeInteractive, whenFree } from "./interact";
+import { ParkToys, type ParkToyKind } from './park-toys';
 import { dress, type Gear } from "../weather/gear";
 import { PARK_K as K } from "./grounds";
+import type { RobotLook } from "./rig";
 
 // The park next to the building. Robots whose work finished a while ago (the break room only
 // holds the most recent ones) spend their time out here: they stroll the paths, sit on the
 // benches and chat, watch the pond and the fountain, and have a picnic.
 
-export type ParkThread = { id: string; provider: string; title: string; model?: string | null; name?: string | null };
+export type ParkThread = { id: string; provider: string; title: string; model?: string | null; name?: string | null; look: RobotLook };
 type Rect = { x: number; y: number; w: number; h: number };
 type Spot = { key: string; x: number; y: number; face: Facing; kind: "bench" | "pond" | "fountain" | "picnic"; taken: string | null };
 type Visitor = { t: ParkThread; w: Walker; spot: Spot | null; alive: boolean; busy: boolean };
@@ -31,14 +33,17 @@ export class Park {
   onExit: ((id: string, at: { x: number; y: number }, face: Facing) => boolean) | null = null;
   private vis = new Map<string, Visitor>();
   private spots: Spot[] = [];
-  private geo: { park: Rect; door: { x: number; y: number } } | null = null;
+  private geo: { park: Rect; door: { x: number; y: number }; routeY?: number } | null = null;
   private joke = shuffled(JOKES);
   private dead = false;
+  private toys: ParkToys;
+  private reactionAt = -2000;
 
   constructor(parent: HTMLElement) {
     this.layer = document.createElement("div");
     this.layer.className = "park-layer";
     parent.appendChild(this.layer);
+    this.toys = new ParkToys(this.layer, (kind, at) => this.reactToToy(kind, at));
     this.layer.addEventListener("click", (e) => {
       const el = (e.target as HTMLElement).closest(".world-walker") as HTMLElement | null;
       if (el?.dataset.id) { e.stopPropagation(); this.onSelect(el.dataset.id); }
@@ -47,9 +52,10 @@ export class Park {
 
   // Where the park and the building door are, in world coordinates. If the building grows the
   // park moves with it. Visitors keep their physical position and re-plan their walk.
-  setGeometry(park: Rect, door: { x: number; y: number }) {
+  setGeometry(park: Rect, door: { x: number; y: number }, routeY?: number) {
     const prev = this.geo;
-    this.geo = { park: { ...park }, door: { ...door } };
+    this.geo = { park: { ...park }, door: { ...door }, routeY };
+    this.toys.setGeometry(park);
     const cx = park.x + park.w / 2, cy = park.y + park.h / 2;
     // the park is drawn on a plan K times smaller than the world: offsets below are plan units
     const at = (dx: number, dy: number) => ({ x: cx + dx * K, y: cy + dy * K });
@@ -79,9 +85,16 @@ export class Park {
     const want = list.slice(0, MAX);
     const ids = new Set(want.map((t) => t.id));
     for (const v of [...this.vis.values()]) if (!ids.has(v.t.id)) void this.leave(v);
+    const arrivals: { visitor: Visitor; arriving: boolean }[] = [];
     for (const t of want) {
-      if (this.vis.has(t.id)) continue;
-      const w = new Walker(this.layer, { id: t.id, provider: t.provider, name: t.name ?? undefined, model: t.model ?? undefined, scale: SCALE, look: (t as any).look });
+      const existing = this.vis.get(t.id);
+      if (existing) {
+        existing.t = t;
+        existing.w.setLook(t.look);
+        existing.w.el.title = t.name ? `${t.name}: ${t.title}` : t.title;
+        continue;
+      }
+      const w = new Walker(this.layer, { flavorSpeech: true, id: t.id, provider: t.provider, name: t.name ?? undefined, model: t.model ?? undefined, scale: SCALE, look: t.look });
       w.el.title = t.name ? `${t.name}: ${t.title}` : t.title;
       dress(w.el, this.gear);
       const v: Visitor = { t, w, spot: null, alive: true, busy: false };
@@ -91,9 +104,11 @@ export class Park {
       const first = this.vis.size <= want.length && !this.started;
       if (first) { const s = this.freeSpot(); const p = s ?? this.strollPoint(); w.setPos(p.x, p.y); if (s) this.take(v, s); }
       else w.setPos(this.geo.door.x, this.geo.door.y);
-      void this.life(v, !first);
+      arrivals.push({ visitor: v, arriving: !first });
     }
-    this.started = true;
+    if (want.length) this.started = true;
+    // Reserve every startup spot before activity loops can release any of them.
+    for (const { visitor, arriving } of arrivals) void this.life(visitor, arriving);
   }
   private started = false;
   /** Bad weather: the park empties, everyone goes back into the building. */
@@ -114,6 +129,19 @@ export class Park {
     for (const v of this.vis.values()) out.push({ id: v.t.id, x: v.w.x, y: v.w.y });
     for (const w of this.leaving) out.push({ id: w.id, x: w.x, y: w.y });
     return out;
+  }
+  /** Actual park activity and world positions, for the shared spatial sound budget. */
+  soundActors(): { el: HTMLElement; x: number; y: number; activity: string; moving?: boolean }[] {
+    return [...this.vis.values()].map(({ w }) => ({ el: w.el as HTMLElement, x: w.x, y: w.y, activity: w.activity }))
+      .concat([...this.leaving].map(w => ({ el: w.el as HTMLElement, x: w.x, y: w.y, activity: w.activity })));
+  }
+  soundZones(): { kind: 'water' | 'birds'; x: number; y: number }[] {
+    if (!this.geo || this.dead) return [];
+    const p = this.geo.park, cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+    return [
+      { kind: 'water', x: cx + 260 * K, y: cy - 120 * K },
+      ...(!this.wet ? [{ kind: 'birds' as const, x: cx - 320 * K, y: cy - 200 * K }] : []),
+    ];
   }
 
   private freeSpot(kind?: Spot["kind"]) {
@@ -164,26 +192,27 @@ export class Park {
     }
   }
 
-  // Clicks on the park itself: the fountain splashes, the ducks quack.
+  // Existing world-coordinate click routing also reaches keyboard-backed park toys.
   hit(x: number, y: number) {
-    const g = this.geo;
-    if (!g) return false;
-    const cx = g.park.x + g.park.w / 2, cy = g.park.y + g.park.h / 2;
-    if (Math.hypot(x - cx, y - cy) < 72 * K) {
-      splash(this.layer, cx, cy - 6 * K, 16);
-      popWord(this.layer, cx, cy - 40 * K, pick(["Splash!", "Sploosh", "*fountain noises*"]), "#bfe8ff");
-      return true;
-    }
-    const px = cx + 260 * K, py = cy - 120 * K;
-    if (((x - px) / (190 * K)) ** 2 + ((y - py) / (120 * K)) ** 2 < 1) {
-      popWord(this.layer, x, y - 10, pick(["Quack!", "Quack quack", "QUACK", "quack?"]), "#ffe9a8");
-      const ring = document.createElement("i");
-      ring.className = "pond-ring";
-      ring.style.cssText = `left:${x}px;top:${y}px`;
-      this.layer.appendChild(ring);
-      return true;
-    }
-    return false;
+    return this.toys.hit(x, y);
+  }
+  private reactToToy(kind: ParkToyKind, at: { x: number; y: number }) {
+    const now = performance.now();
+    if (this.dead || document.hidden || now - this.reactionAt < 1800) return;
+    const nearby = [...this.vis.values()].filter(v => v.alive && !v.busy && Math.hypot(v.w.x - at.x, v.w.y - at.y) < 450)
+      .sort((a, b) => Math.hypot(a.w.x - at.x, a.w.y - at.y) - Math.hypot(b.w.x - at.x, b.w.y - at.y))[0];
+    if (!nearby) return;
+    this.reactionAt = now;
+    const lines: Record<ParkToyKind, string[]> = {
+      tree: ['Tiny bird, big opinions.', 'The tree says hi.', 'Leaf me out of this.'],
+      bush: ['Something rustled!', 'I thought that was my phone.', 'Hello, tiny forest friend.'],
+      pond: ['The ducks have feedback.', 'Quack to you too.', 'That duck is the manager.'],
+      fountain: ['My waterproofing has limits.', 'A little splash break.', 'Refreshing!'],
+      flowers: ['Careful, they are growing.', 'A bouquet of good commits.', 'Tiny flowers, tiny happy circuits.'],
+    };
+    nearby.w.say(pick(lines[kind]), 2100);
+    // A reaction never replaces the visitor's walk, conversation or current props.
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) nearby.w.hop();
   }
 
   private strollPoint() {
@@ -196,7 +225,7 @@ export class Park {
 
   private async life(v: Visitor, arriving: boolean) {
     const g = this.geo!;
-    if (arriving) { await v.w.walkPath([{ x: g.park.x + 30, y: g.door.y }]); await this.go(v, this.strollPoint()); }
+    if (arriving) { await v.w.walkPath([...(g.routeY === undefined ? [] : [{ x: g.door.x, y: g.routeY }]), { x: g.park.x + 30, y: g.routeY ?? g.door.y }]); await this.go(v, this.strollPoint()); }
     while (v.alive && !this.dead) {
       try { await this.activity(v); } catch { /* left mid-way */ }
       if (!v.alive || this.dead) return;
@@ -259,7 +288,12 @@ export class Park {
     v.w.say(this.rainSoon ? pick(["Rain's coming, pack up!", "Those clouds look wet.", "Grab the blanket, rain!", "Inside before it pours!"])
       : this.wet ? pick(["It's raining, inside!", "Nope, too wet.", "My circuits hate rain.", "Race you to the door!"]) : "Back to work!", 1600);
     const g = this.geo;
-    if (g) { await this.go(v, { x: g.park.x + 30, y: g.door.y }, true).catch(() => {}); await v.w.walkPath([g.door]).catch(() => {}); }
+    if (g) {
+      await this.go(v, { x: g.park.x + 30, y: g.routeY ?? g.door.y }, true).catch(() => {});
+      if (this.dead) return;
+      await v.w.walkPath([...(g.routeY === undefined ? [] : [{ x: g.door.x, y: g.routeY }]), g.door]).catch(() => {});
+    }
+    if (this.dead) return;
     this.leaving.delete(v.w);
     if (!this.dead) this.onExit?.(v.t.id, { x: v.w.x, y: v.w.y }, v.w.facing);
     v.w.destroy();
@@ -267,8 +301,11 @@ export class Park {
 
   destroy() {
     this.dead = true;
+    this.toys.destroy();
     for (const v of this.vis.values()) { v.alive = false; v.w.destroy(); }
     this.vis.clear();
+    for (const walker of this.leaving) walker.destroy();
+    this.leaving.clear();
     this.layer.remove();
   }
 }

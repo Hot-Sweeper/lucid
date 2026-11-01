@@ -666,4 +666,56 @@ async function getUsage() {
   return inflight;
 }
 
-module.exports = { getUsage, setProviderLimitsReader };
+// Exact session attribution only. Never assign an entire project's cost to a job.
+async function getSessionUsage(bindings) {
+  await getUsage();
+  const keys = new Set(bindings.map(b => `${harnessOf(b.harness)}:${b.sessionId}`));
+  const best = new Map();
+  for (const st of files.values()) for (const r of st.records) {
+    if (!keys.has(`${r.harness}:${r.sessionId}`)) continue;
+    const key = r.key || `${st.path}:${r.ts}:${r.input}:${r.output}`;
+    const old = best.get(key);
+    if (!old || r.output > old.output || (r.output === old.output && r.input + r.cacheRead + r.cacheWrite > old.input + old.cacheRead + old.cacheWrite)) best.set(key, r);
+  }
+  if (!best.size) return { available: false, tokens: null, costUsd: null, scope: "Observed native sessions, including linked subagents; recent logs only." };
+  const totals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, tokens: 0, costUsd: 0 };
+  let priced = true;
+  for (const r of best.values()) {
+    for (const k of ["input", "output", "cacheRead", "cacheWrite"]) totals[k] += r[k];
+    const rate = priceFor(r.model); if (!rate) priced = false;
+    totals.costUsd += costOf(r, rate);
+  }
+  totals.tokens = totals.input + totals.output + totals.cacheRead + totals.cacheWrite;
+  return { ...totals, costUsd: priced ? totals.costUsd : null, available: true, priced, scope: "API price estimate, not a bill. Observed recent native-session logs, including linked subagents; older or unlinked usage may be absent." };
+}
+async function getCoinSources(bindings) {
+  const usage = await getUsage();
+  const owners = new Map(), ambiguous = new Set();
+  for (const b of bindings) {
+    const key = `${harnessOf(b.harness)}:${b.sessionId}`;
+    if (owners.has(key) && owners.get(key).threadId !== b.threadId) ambiguous.add(key);
+    else owners.set(key, b);
+  }
+  const records = new Map();
+  // One scan for the whole office, including parents and their helpers.
+  for (const st of files.values()) for (const r of st.records) {
+    const session = `${r.harness}:${r.sessionId}`;
+    if (!owners.has(session) || ambiguous.has(session)) continue;
+    let best = records.get(session);
+    if (!best) records.set(session, best = new Map());
+    const key = r.key || `${st.path}:${r.ts}:${r.input}:${r.output}`;
+    const old = best.get(key);
+    if (!old || r.output > old.output || (r.output === old.output && r.input + r.cacheRead + r.cacheWrite > old.input + old.cacheRead + old.cacheWrite)) best.set(key, r);
+  }
+  const sources = [...owners].filter(([key]) => !ambiguous.has(key)).map(([key, b]) => {
+    let costUsd = 0, priced = !!records.get(key)?.size;
+    for (const r of records.get(key)?.values() || []) {
+      const rate = priceFor(r.model);
+      if (!rate) priced = false;
+      costUsd += costOf(r, rate);
+    }
+    return { key, threadId: b.threadId, title: b.title, status: b.status, costUsd: priced ? costUsd : null };
+  });
+  return { usage, sources };
+}
+module.exports = { getUsage, getSessionUsage, getCoinSources, setProviderLimitsReader };

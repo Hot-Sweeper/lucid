@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { localizeGameDOM } from "../localization-dom";
 import { renderLoop } from "../perf/render";
 import { LiveCanvases, fitCanvas } from "../perf/canvas";
 import type { FunHost, FunOpts, Outcome } from "./types";
@@ -18,8 +19,12 @@ export class Kit {
   dead = false;
   readonly t0 = performance.now();
   private canvases: LiveCanvases;
+  private stopLocalization: () => void;
 
-  constructor(readonly root: HTMLElement, readonly host: FunHost, readonly opts: FunOpts) { this.canvases = new LiveCanvases(root); }
+  constructor(readonly root: HTMLElement, readonly host: FunHost, readonly opts: FunOpts) {
+    this.canvases = new LiveCanvases(root);
+    this.stopLocalization = localizeGameDOM(root, "Fictional robot downtime app. Adapt jokes and conversational replies together; preserve usernames and app brands.");
+  }
   liveCanvas(canvas: HTMLCanvasElement) { return this.canvases.add(canvas); }
   releaseCanvas(canvas: HTMLCanvasElement) { this.canvases.remove(canvas); }
 
@@ -73,6 +78,7 @@ export class Kit {
   kill() {
     if (this.dead) return;
     this.dead = true;
+    this.stopLocalization();
     for (const a of this.anims) a.kill();
     this.anims.clear();
     for (const id of this.timers) clearTimeout(id);

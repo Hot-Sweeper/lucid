@@ -3,6 +3,7 @@
 import { C, type Ctx, circle, core, drawBot, drawFan, ellipse, fillRR, glow, lin, limb, loopFade, mix, poly, rad, shade, text, withAlpha } from "./draw";
 import type { VideoDef } from "./videos";
 import { backOut, clamp, easeIn, easeInOut, easeOut, hash, lerp, seg, smooth } from "./util";
+import { canvasText } from "../localization-canvas";
 
 const TEAL = "#3fe0d0";
 const BG = "#0b0e18";
@@ -380,8 +381,18 @@ const tag: VideoDef = {
       ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillStyle = "#1b2238";
       y += size * 0.9;
       const wob = grow > 0.5 ? Math.sin(t * 14 + i) * grow * 0.8 * s : 0;
-      ctx.fillText(i === 0 ? "Welcome to my " : p, rx + 4 * s + wob, y);
-      if (i === 0) { const lead = ctx.measureText("Welcome to my ").width; ctx.font = `800 ${size}px "Lexend Variable", system-ui, sans-serif`; ctx.fillText("homepage", rx + 4 * s + lead, y); }
+      const source = i === 0 ? "Welcome to my " : p;
+      const label = canvasText(source);
+      const available = pw - 8 * s;
+      const translated = label !== source;
+      const lead = translated ? Math.min(ctx.measureText(label).width, available * 0.70) : ctx.measureText(label).width;
+      if (translated) ctx.fillText(label, rx + 4 * s + wob, y, i === 0 ? lead : available);
+      else ctx.fillText(label, rx + 4 * s + wob, y);
+      if (i === 0) {
+        ctx.font = `800 ${size}px "Lexend Variable", system-ui, sans-serif`;
+        if (translated) ctx.fillText(canvasText("homepage"), rx + 4 * s + lead, y, available - lead);
+        else ctx.fillText("homepage", rx + 4 * s + lead, y);
+      }
       y += size * 0.9;
     });
     ctx.restore();

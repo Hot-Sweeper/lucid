@@ -4,6 +4,7 @@ import {
 import { backOut, clamp, easeIn, easeInOut, easeOut, hash, lerp, seg, smooth } from "./util";
 import { PARODY_VIDEOS } from "./parody";
 import { DANCE_VIDEOS } from "./dance";
+import { redrawCanvasOnLocale } from "../localization-canvas";
 
 export interface VideoDef {
   id: string;
@@ -831,6 +832,7 @@ export const VIDEOS: VideoDef[] = [dance, roomba, unbox, attention, pancakes, dr
 
 /** One still frame of a video with its duration in the corner. */
 export function drawThumbnail(v: VideoDef, ctx: CanvasRenderingContext2D, w: number, h: number) {
+  redrawCanvasOnLocale(ctx.canvas, () => drawThumbnail(v, ctx, w, h));
   ctx.save();
   ctx.clearRect(0, 0, w, h);
   v.draw(ctx, w, h, v.thumbT ?? 2);

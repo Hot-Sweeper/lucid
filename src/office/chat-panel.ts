@@ -1,3 +1,4 @@
+import { readPromptDraft, writePromptDraft } from "./prompt-draft";
 import gsap from "gsap";
 import type { Desk } from "./desk";
 import { logoFor, harnessName } from "./brand";
@@ -8,17 +9,12 @@ import { type ThreadRef, refBlock, stripRefs, summarize } from "./thread-ref";
 import { beginSystem, endSystem } from "../perf/metrics";
 import { HistoryWindow, type HistoryCursor, type HistoryPage } from "./history-window";
 import { attachDictation } from "./dictation";
+import { sameChatMessage, type ChatMessage as Msg } from "./chat-message";
+import { chatReaderAnchor } from "./chat-scroll";
+import { chatFileUrl, chatMediaKind, inlineChatImage, prepareChatImages, chatImageFailed } from "./chat-media";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
-
-type Msg = {
-  id: string; role: string; at: string; orderAt?: string; sourceOrder?: number; streaming: boolean; text: string; run?: string | null; queue?: number | null;
-  attachments: { type: string; name: string; mime: string; size: number; path: string | null }[];
-  // queued messages only: their run, the live turn they can be steered into, and what T3 allows
-  event?: { kind: "compaction" | "handoff" | "harness" | "model"; status?: string; from?: { provider?: string; model?: string }; to?: { provider?: string; model?: string } };
-  queueRunId?: string; steerTarget?: string | null; queueFixed?: boolean; queueGuest?: boolean;
-};
 
 // T3 server actions through Lucid's paired session (see electron/t3server.cjs).
 type OptionValue = string | boolean;
@@ -83,7 +79,13 @@ const ICON = {
 };
 
 const HINT = "Enter to send, Shift+Enter for a new line";
-export const fileUrl = (p: string) => `lucid-file://local/${encodeURIComponent(p)}`;
+export const fileUrl = chatFileUrl;
+function mediaAttachment(path: string, name: string, mime = "") {
+  const kind = chatMediaKind(path, mime);
+  if (!kind) return `<div class="cp-file"><span>${esc(name)}</span><i>file</i></div>`;
+  return `<button type="button" class="${kind === "image" ? "cp-att" : "cp-file"}" data-media-src="${fileUrl(path)}" data-media-kind="${kind}" data-media-name="${esc(name)}" aria-label="Preview ${esc(name)}">${kind === "image" ? `<img src="${fileUrl(path)}" alt="${esc(name)}" loading="lazy">` : `<span>${esc(name)}</span><i>Open ${kind}</i>`}</button>`;
+}
+
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // Messages render as real Markdown, like in T3 Code: headings, lists, tables, quotes,
@@ -93,6 +95,9 @@ const FENCE: Record<string, string> = { ts: "c", tsx: "c", js: "c", jsx: "c", ty
 const mdParser = new Marked({ gfm: true, breaks: true });
 mdParser.use({
   renderer: {
+    image({ href, text, title }: { href: string; text: string; title?: string | null }) {
+      return inlineChatImage(href, text, title);
+    },
     code({ text, lang }: { text: string; lang?: string }) {
       const l = (lang || "").trim().split(/\s+/)[0].toLowerCase();
       const body = text.replace(/\n$/, "").split("\n").map((line) => highlight(line, FENCE[l] ?? "c")).join("\n");
@@ -112,7 +117,11 @@ mdParser.use({
 });
 function md(text: string) {
   const html = mdParser.parse(text, { async: false }) as string;
-  return DOMPurify.sanitize(html, { ADD_ATTR: ["target"] });
+  return DOMPurify.sanitize(prepareChatImages(html), {
+    ADD_ATTR: ["target"],
+    // Only the app's media scheme is added to DOMPurify's normal URL schemes.
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|ftp|ftps|mailto|tel|callto|sms|cid|xmpp|lucid-file):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
+  });
 }
 // Time of day for today's messages; older ones also get their date so equal times never look alike.
 const when = (iso: string) => {
@@ -127,13 +136,21 @@ export class ChatPanel {
   private shown = new Map<string, HTMLElement>();
   private timer = 0;
   private groups = new Map<string, HTMLElement>();
-  private timelineSig = "";
+  private renderedMessages = new Map<string, Msg>();
+  private timelineIds: string[] | null = null;
   private loadingHistory = false;
   private history = new HistoryWindow<Msg>();
   private historyGeneration = 0;
   private loadingOlder = false;
   onClose: () => void = () => {};
   onChooseThread: () => void = () => {};
+  /** A conversation was selected, including one already open in the panel. */
+  onPresent: () => void = () => {};
+  onManage: (id: string) => void = () => {};
+  setManager(label: string | null) {
+    this.el.querySelector('.cp-management span')!.textContent = label || '';
+    this.el.querySelector('.cp-manage')!.textContent = label ? 'Edit manager' : 'Promote to manager';
+  }
   onToggleView: () => void = () => {};
   /** You started or stopped typing a message to this robot. */
   onTyping: (on: boolean) => void = () => {};
@@ -146,7 +163,7 @@ export class ChatPanel {
   private resizeComposer: () => void = () => {};
   private stopComposerTyping: () => void = () => {};
   private dictation = { cancel() {} };
-  private previews = new WeakMap<File, string>();
+  private previews = new Map<File, string>();
   // T3 session: the model bar and the queue actions need Lucid to be paired with T3
   private paired = false;
   private triedConnect = false;
@@ -184,8 +201,20 @@ export class ChatPanel {
         if (!this.previews.has(f)) this.previews.set(f, URL.createObjectURL(f));
         thumb = `<img src="${this.previews.get(f)}" alt="">`;
       } else thumb = `<span class="cpc-ext">${esc((f.name.split(".").pop() || "file").slice(0, 4).toUpperCase())}</span>`;
-      return `<div class="cp-chip">${thumb}<span class="cpc-name" title="${esc(f.name)}">${esc(f.name)}</span><button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">&times;</button></div>`;
+      return `<div class="cp-chip"><button type="button" class="cp-file-preview" data-preview-file="${i}" aria-label="Preview ${esc(f.name)}">${thumb}<span class="cpc-name" title="${esc(f.name)}">${esc(f.name)}</span></button><button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">&times;</button></div>`;
     }).join("");
+  }
+
+  private releaseUnusedPreviews() {
+    const owned = new Set<File>();
+    for (const draft of this.drafts.values()) for (const file of draft.files) owned.add(file);
+    if (this.threadId) for (const file of this.files) owned.add(file);
+    const preview = this.el.querySelector<HTMLDialogElement>(".cp-zoom");
+    const showing = new Set(preview?.open ? [...preview.querySelectorAll<HTMLImageElement | HTMLMediaElement>("img,video,audio")].map(media => media.src) : []);
+    for (const [file, url] of this.previews) {
+      if (owned.has(file) || showing.has(url)) continue;
+      URL.revokeObjectURL(url); this.previews.delete(file);
+    }
   }
 
   // --- threads you reference in your message (dragged in from the sidebar) -------------
@@ -254,7 +283,7 @@ export class ChatPanel {
     const file = rm.dataset.rm != null ? files[Number(rm.dataset.rm)] : null;
     gsap.to(chip, { opacity: 0, scale: 0.9, duration: 0.14, onComplete: () => {
       if (ref) { const i = refs.indexOf(ref); if (i >= 0) refs.splice(i, 1); }
-      if (file) { const i = files.indexOf(file); if (i >= 0) files.splice(i, 1); }
+      if (file) { const i = files.indexOf(file); if (i >= 0) files.splice(i, 1); const url = this.previews.get(file); if (url) { URL.revokeObjectURL(url); this.previews.delete(file); } }
       if (threadId === this.threadId) this.renderChips();
     } });
   }
@@ -315,11 +344,12 @@ export class ChatPanel {
         <button type="button" class="cp-hide ghost" aria-expanded="true" title="Hide the chat for more room. It stays as a tab on the right edge.">Hide chat</button>
         <button type="button" class="cp-close" aria-label="Back to the office" title="Back to the office (Esc)"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
       </header>
+      <div class="cp-management"><span></span><button type="button" class="cp-manage ghost">Promote to manager</button></div>
       <p class="cp-status" aria-live="polite"><i></i><span></span></p>
       <details class="cp-plan" hidden><summary>Plan</summary><ol></ol></details>
       <div class="cp-list" role="log" aria-live="polite"></div>
       <section class="cp-queue" aria-label="Queued messages" hidden><button type="button" class="cq-head" aria-expanded="true"><b>Queued</b><span class="cq-count"></span><i aria-hidden="true"></i></button><p class="cq-note" role="status" hidden></p><ol></ol></section>
-      <div class="cp-zoom" hidden><img alt=""><button type="button" class="ghost">Close image</button></div>
+      <dialog class="cp-zoom" aria-label="Attachment preview"><header><strong></strong><button type="button" class="ghost">Close preview</button></header><div class="cp-media-stage"></div></dialog>
       <form class="cp-form">
         <div class="cp-model" role="group" aria-label="Harness and model for this thread" hidden>
           <button type="button" class="cm-pick cm-harness" aria-haspopup="listbox" aria-expanded="false" title="Harness"><img alt="" hidden><span></span>${CHEVRON}</button>
@@ -343,6 +373,7 @@ export class ChatPanel {
         <div class="cp-drop" hidden>Drop to attach</div>
       </form>`;
     host.appendChild(this.el);
+    this.el.querySelector('.cp-manage')!.addEventListener('click', () => { if (this.threadId) this.onManage(this.threadId); });
     // folded, the chat is a tab on the right edge with the robot's name
     this.tab = document.createElement("button");
     this.tab.type = "button";
@@ -370,6 +401,7 @@ export class ChatPanel {
     };
     this.resizeComposer = grow;
     ta.addEventListener("input", grow);
+    ta.addEventListener("input", () => { this.saveDraft(); });
     // let the robot know you are typing (and when you stop)
     let typingTimer = 0, typingOn = false;
     const setTyping = (on: boolean) => { if (on !== typingOn) { typingOn = on; this.onTyping(on); } };
@@ -401,7 +433,17 @@ export class ChatPanel {
     const chips = form.querySelector(".cp-chips") as HTMLElement;
     chips.addEventListener("click", (e) => {
       const x = (e.target as HTMLElement).closest("[data-rm], [data-rmref]") as HTMLElement | null;
-      if (!x) return;
+      if (!x) {
+        const chip = (e.target as HTMLElement).closest<HTMLElement>("[data-preview-file]");
+        const file = chip ? this.files[Number(chip.dataset.previewFile)] : null;
+        const kind = file ? chatMediaKind(file.name, file.type) : null;
+        if (file && kind) {
+          let url = this.previews.get(file);
+          if (!url) { url = URL.createObjectURL(file); this.previews.set(file, url); }
+          this.zoom(url, kind, file.name);
+        }
+        return;
+      }
       const chip = x.closest(".cp-chip") as HTMLElement;
       const all = [...chips.querySelectorAll(".cp-chip:not(.preview)")];
       const i = all.indexOf(chip);
@@ -428,7 +470,8 @@ export class ChatPanel {
       this.sendErrors.delete(threadId);
       this.el.querySelectorAll(".cp-notice").forEach((n) => n.remove());
       ta.disabled = true;
-      const files = [...this.files];
+      const composerFiles = this.files;
+      const files = [...composerFiles];
       const refs = [...this.refs];
       let pending: { threadId: string; text: string; at: number } | null = null;
       try {
@@ -446,6 +489,7 @@ export class ChatPanel {
         if (threadId === this.threadId) this.renderPending();
         await this.api.sendMessage({ threadId, message: text });
         this.drafts.delete(threadId);
+        writePromptDraft(`chat:${threadId}`, "");
         if (threadId === this.threadId) {
           ta.value = "";
           this.files = this.files.filter((f) => !files.includes(f));
@@ -453,7 +497,12 @@ export class ChatPanel {
           this.renderChips();
           grow();
           this.refreshSoon(300);
+        } else if (!this.threadId && this.files === composerFiles) {
+          // A closed composer has no live File owner after its saved draft was
+          // sent. A different composer, including one since closed, keeps its array.
+          this.files = this.files.filter((f) => !files.includes(f));
         }
+        this.releaseUnusedPreviews();
       } catch (err: any) {
         if (pending) this.pending = this.pending.filter((p) => p !== pending);
         const error = `Could not send: ${err.message || err}. Your text is still here.`;
@@ -467,12 +516,18 @@ export class ChatPanel {
         if (threadId === this.threadId) { ta.disabled = false; ta.focus(); }
       }
     });
-    ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); } });
+    ta.addEventListener("keydown", (e) => {
+      const phone = document.getElementById('app')?.classList.contains('mobile-layout');
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && (!phone || e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit(); }
+    });
+    this.el.querySelector(".cp-list")!.addEventListener("error", chatImageFailed, true);
     this.el.querySelector(".cp-list")!.addEventListener("click", (e) => {
       const t = e.target as HTMLElement;
       if (t.closest(".cp-history-more")) { void this.loadEarlier(); return; }
       const img = t.closest(".cp-att img") as HTMLImageElement | null;
-      if (img) this.zoom(img.src);
+      if (img && !img.closest("[data-media-src]")) this.zoom(img.src, "image", img.alt);
+      const media = t.closest<HTMLElement>("[data-media-src]");
+      if (media) { e.preventDefault(); this.zoom(media.dataset.mediaSrc!, media.dataset.mediaKind!, media.dataset.mediaName!); }
       // copy a code block
       const copy = t.closest(".md-copy") as HTMLButtonElement | null;
       if (copy) {
@@ -480,9 +535,18 @@ export class ChatPanel {
         void navigator.clipboard.writeText(code).then(() => { copy.textContent = "Copied"; window.setTimeout(() => (copy.textContent = "Copy"), 1400); });
       }
     });
-    const zoom = this.el.querySelector(".cp-zoom") as HTMLElement;
-    zoom.querySelector("button")!.addEventListener("click", () => (zoom.hidden = true));
-    window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !zoom.hidden) { e.stopImmediatePropagation(); zoom.hidden = true; } }, true);
+    const zoom = this.el.querySelector(".cp-zoom") as HTMLDialogElement;
+    zoom.querySelector("button")!.addEventListener("click", () => zoom.close());
+    zoom.addEventListener("click", e => { if (e.target === zoom) zoom.close(); });
+    zoom.addEventListener("close", () => {
+      if (zoom.open) return;
+      for (const media of zoom.querySelectorAll<HTMLMediaElement>("video,audio")) {
+        media.pause(); media.removeAttribute("src"); media.load();
+      }
+      zoom.querySelector(".cp-media-stage")!.replaceChildren();
+      this.releaseUnusedPreviews();
+    });
+    zoom.addEventListener("keydown", e => e.stopPropagation());
     this.wireT3();
   }
 
@@ -492,6 +556,8 @@ export class ChatPanel {
   private closing = false;
   private saveDraft() {
     if (!this.threadId) return;
+    const text = (this.el.querySelector("textarea") as HTMLTextAreaElement).value;
+    if (!writePromptDraft(`chat:${this.threadId}`, text)) this.note("Draft could not be saved. Keep Lucid open and copy your prompt before closing.");
     this.drafts.set(this.threadId, { text: (this.el.querySelector("textarea") as HTMLTextAreaElement).value, files: this.files, refs: this.refs });
   }
   open(desk: Desk, focus = true) {
@@ -500,11 +566,12 @@ export class ChatPanel {
     const same = !!desk.threadId && this.threadId === desk.threadId;
     if (!same) { this.dictation.cancel(); this.stopComposerTyping(); this.saveDraft(); for (const clean of [...this.queueCleanups]) clean(); }
     this.desk = desk;
+    this.setManager(desk.el?.classList.contains('manager') ? 'Project manager' : null);
     this.setPlan(desk.planSteps || []);
     if (!same) {
       const draft = desk.threadId ? this.drafts.get(desk.threadId) : null;
       const ta = this.el.querySelector("textarea") as HTMLTextAreaElement;
-      ta.value = draft?.text ?? "";
+      ta.value = draft?.text ?? (desk.threadId ? readPromptDraft(`chat:${desk.threadId}`) : "");
       ta.disabled = !!desk.threadId && this.sending.has(desk.threadId);
       this.files = draft?.files ?? [];
       this.refs = draft?.refs ?? [];
@@ -512,8 +579,7 @@ export class ChatPanel {
       this.renderChips();
       this.resizeComposer();
       this.typingOn = false;
-      this.history = new HistoryWindow<Msg>(); this.historyGeneration++; this.loadingOlder = false;
-      this.shown.clear(); this.groups.clear(); this.timelineSig = ""; (this.el.querySelector(".cp-list") as HTMLElement).innerHTML = "";
+      this.clearTranscript();
       this.sel = null; this.queueHold = 0; this.closeMenu();
       (this.el.querySelector(".cp-queue ol") as HTMLElement).dataset.sig = "";
       this.renderQueue([]);
@@ -541,10 +607,26 @@ export class ChatPanel {
     this.refresh();
     this.renderPending(false);
     if (!same && this.sendErrors.has(this.threadId!)) this.note(this.sendErrors.get(this.threadId!)!);
-    if (focus) (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
+    this.onPresent();
+    // Selecting a robot opens its conversation. A phone keyboard appears when
+    // the user touches the composer, leaving the conversation readable first.
+    if (focus && !document.getElementById('app')?.classList.contains('mobile-layout')) (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
+  }
+
+  private clearTranscript() {
+    this.history = new HistoryWindow<Msg>(); this.historyGeneration++; this.loadingOlder = false;
+    this.shown.clear(); this.groups.clear(); this.renderedMessages.clear(); this.timelineIds = null;
+    (this.el.querySelector(".cp-list") as HTMLElement).replaceChildren();
+    this.typingOn = false; this.queueLatest = []; this.queueHold = 0;
+    const queue = this.el.querySelector<HTMLElement>(".cp-queue")!;
+    queue.hidden = true;
+    const rows = queue.querySelector<HTMLElement>("ol")!;
+    rows.replaceChildren(); rows.dataset.sig = "";
   }
 
   close() {
+    const preview = this.el.querySelector<HTMLDialogElement>(".cp-zoom");
+    if (preview?.open) preview.close();
     this.dictation.cancel();
     if (!this.isOpen) return;
     this.stopComposerTyping(); this.saveDraft();
@@ -552,7 +634,8 @@ export class ChatPanel {
     this.el.classList.remove("open");
     this.closeMenu();
     this.desk = null;
-    this.historyGeneration++;
+    window.clearTimeout(this.timer); this.timer = 0;
+    this.clearTranscript();
     this.tabLabel = "Chat";
     (this.tab.querySelector("span") as HTMLElement).textContent = "Chat";
     this.tab.setAttribute("aria-label", "Show chat");
@@ -631,7 +714,7 @@ export class ChatPanel {
     const generation = this.historyGeneration;
     let page: HistoryPage<Msg>;
     try { page = this.api.conversationPage ? await this.api.conversationPage(id) : { messages: await this.api.conversation(id), cursor: null, hasMore: false }; }
-    catch { this.refreshSoon(2000); return; }
+    catch { if (id === this.threadId && generation === this.historyGeneration) this.refreshSoon(2000); return; }
     finally { this.loadingHistory = false; }
     if (id !== this.threadId || generation !== this.historyGeneration) return;
     this.renderHistory(this.history.update(page));
@@ -672,7 +755,8 @@ export class ChatPanel {
     }
     button.hidden = !this.history.hasMore;
     button.disabled = this.loadingOlder;
-    button.textContent = this.loadingOlder ? "Loading earlier messages..." : "Load earlier messages";
+    const label = this.loadingOlder ? "Loading earlier messages..." : "Load earlier messages";
+    if (button.textContent !== label) button.textContent = label;
     return button;
   }
 
@@ -683,25 +767,32 @@ export class ChatPanel {
     if (this.paired && !this.saving && Date.now() - this.selAt > 4000) void this.loadSelection();
     const started = beginSystem();
     const list = this.el.querySelector(".cp-list") as HTMLElement;
-    const nearBottom = !preservePosition && list.scrollHeight - list.scrollTop - list.clientHeight < 80;
-    const oldHeight = list.scrollHeight;
-    const initial = this.shown.size === 0;
     // Queued messages wait in their own section at the bottom, in the order the robot takes them.
     const queued = msgs.filter((m) => m.role === "user" && m.run === "queued").sort((a, b) => (a.queue ?? 99) - (b.queue ?? 99));
     const timeline = msgs.filter((m) => !(m.role === "user" && m.run === "queued"));
     this.renderQueue(queued);
     this.setPlan(this.desk?.planSteps || []);
     const historyButton = this.historyButton();
-    const signature = JSON.stringify(timeline);
-    if (signature === this.timelineSig) { endSystem("chat", started); return; }
-    this.timelineSig = signature;
+    const changed = new Set<string>();
+    for (const m of timeline) {
+      if (!sameChatMessage(this.renderedMessages.get(m.id), m)) changed.add(m.id);
+      // Retain the current history object, so an unchanged IPC reply does not
+      // leave a second copy of its text alive through the render cache.
+      this.renderedMessages.set(m.id, m);
+    }
+    const reordered = !this.timelineIds || timeline.length !== this.timelineIds.length || timeline.some((m, i) => m.id !== this.timelineIds![i]);
+    if (!changed.size && !reordered) { endSystem("chat", started); return; }
+    this.timelineIds = timeline.map(m => m.id);
+    // Read layout only when the visible timeline actually needs an update.
+    const nearBottom = !preservePosition && list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+    const oldHeight = list.scrollHeight;
+    const initial = this.shown.size === 0;
+    const reader = !nearBottom ? chatReaderAnchor(list) : null;
+    const anchor = reader?.element, anchorY = reader?.top;
     const ids = new Set(timeline.map((m) => m.id));
     for (const id of [...this.shown.keys()]) {
-      if (!ids.has(id)) { this.shown.get(id)!.remove(); this.shown.delete(id); }
+      if (!ids.has(id)) { this.shown.get(id)!.remove(); this.shown.delete(id); this.renderedMessages.delete(id); }
     }
-    const listTop = list.getBoundingClientRect().top;
-    const anchor = !nearBottom ? [...list.querySelectorAll<HTMLElement>(".cp-msg,.cp-event")].find((e) => e.getClientRects().length && e.getBoundingClientRect().bottom > listTop) : null;
-    const anchorY = anchor?.getBoundingClientRect().top;
     list.querySelector(".cp-empty:not(.cp-notice)")?.remove();
     const batches: { key: string; role: string; messages: Msg[] }[] = [];
     for (const m of timeline) {
@@ -712,11 +803,9 @@ export class ChatPanel {
         el.dataset.id = m.id;
         this.shown.set(m.id, el);
       }
-      const sig = JSON.stringify(m);
-      if (el.dataset.sig !== sig) {
+      if (changed.has(m.id)) {
         const expanded = el.classList.contains("open");
         el.innerHTML = m.event ? this.renderEvent(m) : this.render(m);
-        el.dataset.sig = sig;
         if (m.role === "user" && m.text.length > 700) {
           el.classList.add("long");
           el.classList.toggle("open", expanded);
@@ -746,9 +835,12 @@ export class ChatPanel {
           this.groups.set(batch.key, row);
         }
         const details = row.querySelector("details")!;
-        details.hidden = batch.messages.length < 2;
+        const hideEarlier = batch.messages.length < 2;
+        if (details.hidden !== hideEarlier) details.hidden = hideEarlier;
         const count = batch.messages.length - 1;
-        details.querySelector("summary")!.textContent = `${count} earlier ${batch.role === "user" ? (count === 1 ? "message" : "messages") : (count === 1 ? "update" : "updates")}`;
+        const summary = details.querySelector("summary")!;
+        const label = `${count} earlier ${batch.role === "user" ? (count === 1 ? "message" : "messages") : (count === 1 ? "update" : "updates")}`;
+        if (summary.textContent !== label) summary.textContent = label;
         const earlier = row.querySelector(".cp-earlier-body")!, latest = row.querySelector(".cp-latest")!;
         batch.messages.forEach((m, i) => {
           const target = i === batch.messages.length - 1 ? latest : earlier;
@@ -813,8 +905,7 @@ export class ChatPanel {
         const mm = line.match(/^- (image|file): (.+)$/);
         if (!mm) continue;
         const p = mm[2].trim(), name = p.split(/[\\/]/).pop()!.replace(/^\d+-/, "");
-        sent.push(mm[1] === "image" ? `<figure class="cp-att"><img src="${fileUrl(p)}" alt="${esc(name)}" loading="lazy"></figure>`
-          : `<div class="cp-file" title="${esc(p)}"><span>${esc(name)}</span><i>file</i></div>`);
+        sent.push(mediaAttachment(p, name, mm[1] === "image" ? "image/" : ""));
       }
     }
     // threads you referenced show as small chips, not as the block the agent reads
@@ -828,11 +919,11 @@ export class ChatPanel {
     }
     m = { ...m, text: body };
     const atts = sent.join("") + m.attachments.map((a) => {
-      if (a.type === "image" && a.path) return `<figure class="cp-att"><img src="${fileUrl(a.path)}" alt="${esc(a.name)}" loading="lazy"></figure>`;
+      if (a.path) return mediaAttachment(a.path, a.name, a.mime || (a.type === "image" ? "image/" : ""));
       return `<div class="cp-file" title="${esc(a.name)}"><span>${esc(a.name)}</span><i>${Math.max(1, Math.round((a.size || 0) / 1024))} KB</i></div>`;
     }).join("");
     const state = m.role === "user" && m.run === "running" ? `<em class="cp-live">It is working on this</em>` : "";
-    return `${atts ? `<div class="cp-atts">${atts}</div>` : ""}${m.text ? `<div class="cp-text">${md(m.text)}${m.streaming ? '<span class="caret"></span>' : ""}</div>` : ""}${state}<time>${when(m.at)}</time>`;
+    return `${atts ? `<div class="cp-atts">${atts}</div>` : ""}${m.text ? `<div class="cp-text">${md(m.text)}${m.streaming ? '<span class="caret"></span>' : ""}</div>` : ""}${state}<time datetime="${esc(m.at)}" title="${esc(new Date(m.at).toLocaleString())}">${when(m.at)}</time>`;
   }
 
   private renderQueue(queued: Msg[]) {
@@ -1418,11 +1509,25 @@ export class ChatPanel {
     });
   }
 
-  private zoom(src: string) {
-    const z = this.el.querySelector(".cp-zoom") as HTMLElement;
-    (z.querySelector("img") as HTMLImageElement).src = src;
-    z.hidden = false;
-    gsap.fromTo(z, { opacity: 0 }, { opacity: 1, duration: 0.2 });
+  private zoom(src: string, kind = "image", name = "Image") {
+    const z = this.el.querySelector(".cp-zoom") as HTMLDialogElement;
+    for (const previous of z.querySelectorAll<HTMLMediaElement>("video,audio")) {
+      previous.pause(); previous.removeAttribute("src"); previous.load();
+    }
+    const media = document.createElement(kind === "video" ? "video" : kind === "audio" ? "audio" : "img");
+    media.src = src;
+    if (media instanceof HTMLImageElement) media.alt = name;
+    else { media.controls = true; media.preload = "metadata"; }
+    media.addEventListener("error", () => {
+      if (z.querySelector(".cp-media-stage")!.firstElementChild !== media) return;
+      const message = document.createElement("p");
+      message.textContent = "This file could not be previewed. Check that it is still available and uses a supported media format.";
+      z.querySelector(".cp-media-stage")!.replaceChildren(message);
+    }, { once: true });
+    z.querySelector("strong")!.textContent = name;
+    z.querySelector(".cp-media-stage")!.replaceChildren(media);
+    if (!z.open) z.showModal();
+    z.querySelector("button")!.focus();
   }
 
   private note(text: string) {

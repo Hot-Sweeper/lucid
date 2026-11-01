@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {transformWithOxc} from 'vite';
 const compile=async name=>(await transformWithOxc((await readFile(new URL('../src/'+name,import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,''),name)).code.replace(/export\s*\{[^}]*\};?/g,'').replace(/^export /gm,'');
-const events=[],rafs=new Map(),listeners=new Map();let next=0,now=0;
+const events=[],rafs=new Map(),listeners=new Map(),timers=new Map();let next=0,now=0;
 const raf=fn=>{rafs.set(++next,fn);return next};
 const document={hidden:false,addEventListener:(type,fn)=>listeners.set(type,fn)};
-const window={};
+const window={addEventListener:(type,fn)=>listeners.set(type,fn),setTimeout:(fn,delay)=>{timers.set(++next,{fn,due:now+delay});return next}};
 const budget=new Function(`${await compile('perf/screen-budget.ts')};return screenFrameRate`)();
-const render=new Function('document','window','IntersectionObserver','requestAnimationFrame','beginSystem','endSystem','reportError','screenFrameRate',`${await compile('perf/diagnostics.ts')};${await compile('perf/render.ts')};return {renderLoop,renderFps,setRenderView,wakeRender,loopCount:()=>loops.size}`)(document,window,undefined,raf,()=>0,()=>{},e=>{throw e},budget);
+const render=new Function('document','window','IntersectionObserver','requestAnimationFrame','cancelAnimationFrame','clearTimeout','beginSystem','endSystem','reportError','screenFrameRate','setScreenDetail','releaseScreenDetail',`${await compile('perf/diagnostics.ts')};${await compile('perf/render.ts')};return {renderLoop,renderFps,setRenderView,wakeRender,loopCount:()=>loops.size}`)(document,window,undefined,raf,id=>rafs.delete(id),id=>timers.delete(id),()=>0,()=>{},e=>{throw e},budget,()=>{},()=>{});
 const scheduleLayout=new Function('requestAnimationFrame','reportError',`${await compile('harness/layout.ts')};return scheduleLayout`)(raf,e=>{throw e});
 class Observer{constructor(fn){this.fn=fn;this.dead=false}observe(){}disconnect(){this.dead=true}}
 const {followPromptScroll}=new Function('renderLoop','renderFps','scheduleLayout','ResizeObserver',`${await compile('os/prompt-scroll.ts')};return {followPromptScroll}`)(render.renderLoop,render.renderFps,scheduleLayout,Observer);
@@ -21,7 +21,11 @@ class Element{
   set scrollTop(n){this.writes++;events.push('write-'+this.id);this.top=n}
   setAttribute(k,v){this[k]=v}
 }
-const step=()=>{now+=1000/60;const batch=[...rafs.values()];rafs.clear();for(const fn of batch)fn(now)};
+const step=()=>{
+  const target=now+1000/60;
+  while(timers.size){const[id,job]=[...timers].sort((a,b)=>a[1].due-b[1].due)[0];if(job.due>target)break;timers.delete(id);now=job.due;job.fn();}
+  now=target;const batch=[...rafs.values()];rafs.clear();for(const fn of batch)fn(now);
+};
 const frames=n=>{for(let i=0;i<n;i++)step()};
 const screen=new Element('screen'),win=new Element('win',screen),typed=new Element('prompt',win);
 render.setRenderView(screen,false,50);

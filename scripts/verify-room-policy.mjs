@@ -2,8 +2,26 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 const load = async (name) => { const source = await transformWithOxc(await readFile(new URL(`../src/office/${name}.ts`, import.meta.url), 'utf8'), `${name}.ts`); return import('data:text/javascript;base64,' + Buffer.from(source.code).toString('base64')); };
-const { hasOfficeWork, reserveRoomSeats, projectRoomSeats, reorderPhysicalSeats, physicalSeatIndices, layoutMeeting, layoutWaitingSpots, layoutClearAt, FOLDED_OFFICE } = await load('room-policy');
+const { hasOfficeWork, reserveRoomSeats, projectRoomSeats, reorderPhysicalSeats, physicalSeatIndices, layoutMeeting, layoutWaitingSpots, layoutClearAt, layoutSafeAt, FOLDED_OFFICE } = await load('room-policy');
 const { officePlan, hallRoute, inHall } = await load('floor-plan');
+const { hasOfficeDesk } = await load('room-policy');
+const settledWorker = { id: 'settled', runStatus: 'completed', settled: true };
+assert.equal(hasOfficeDesk(settledWorker, 'settled'), false, 'opening settled history must not recreate a desk');
+assert.equal(hasOfficeDesk({ ...settledWorker, runStatus: 'running' }), false, 'settled metadata wins over stale run state');
+assert.equal(hasOfficeDesk({ ...settledWorker, pinned: true }), false, 'a pin alone does not designate a manager');
+const manager = { ...settledWorker, pinned: true, manager: { projectId: 'project', role: 'Uploads' } };
+assert.equal(hasOfficeDesk(manager), true, 'explicit persistent manager keeps its workstation');
+assert.equal(projectRoomSeats(['settled'], [settledWorker], false, 'settled').slots, 1);
+assert.equal(projectRoomSeats(['settled'], [manager], false, null).slots, 1);
+// Exercise the real held-floor slot loop: retiring a worker must remove its entire
+// desk while retaining the floor and an adjacent active manager's exact position.
+const worldSource = await readFile(new URL('../src/office/world.ts', import.meta.url), 'utf8');
+const slotSource = worldSource.slice(worldSource.indexOf('    const slots: { key:'), worldSource.indexOf('    const wanted = new Set(slots'));
+const slotCode = (await transformWithOxc(slotSource, 'slots.ts')).code;
+const heldSlots = new Function('plans', 'rooms', 'officeSize', 'SLOT_W', 'SLOT_H', 'WALL_FACE', 'hasOfficeDesk', `${slotCode};return slots;`)(
+  [{ id: 'p:project', slots: 2, threads: [settledWorker, { ...manager, id: 'manager' }] }],
+  [{ x: 0, y: 0 }], () => ({ cols: 2 }), 400, 380, 80, hasOfficeDesk);
+assert.deepEqual(heldSlots.map(s => [s.key, s.t.id, s.x]), [['p:project#1', 'manager', 470]]);
 const thread = (id, runStatus = null, question = null) => ({ id, runStatus, question, pinned: true, settled: false });
 for (const status of ['running', 'queued', 'waiting', 'starting', 'preparing', 'pending', 'waiting_for_approval', 'awaiting-approval', 'Waiting For Input']) assert.equal(hasOfficeWork(thread('x', status)), true, status);
 for (const status of [null, 'completed', 'complete', 'done', 'idle', 'interrupted', 'error', 'paused', 'cancelled']) assert.equal(hasOfficeWork(thread('x', status)), false, 'inactivity ignores pin/unsettled state: ' + status);
@@ -14,12 +32,12 @@ assert.deepEqual(reservations, ['old', null, 'b', 'a', null, 'c', null]);
 assert.deepEqual(reserveRoomSeats(reservations, [...ids].reverse()), reservations, 'refresh order preserves every historical reservation');
 const snapshot = JSON.stringify(reservations);
 let projection = projectRoomSeats(reservations, all, false, null, 10);
-assert.deepEqual({ slots: projection.slots, collapsed: projection.collapsed, threads: projection.threads }, { slots: 0, collapsed: true, threads: [] }, 'quiet offices instantiate no reserved/free desks');
+assert.deepEqual({ slots: projection.slots, collapsed: projection.collapsed, threads: projection.threads }, { slots: 1, collapsed: false, threads: [null] }, 'quiet offices retain one full empty workstation');
 const working = all.map((t) => t.id === 'b' || t.id === 'c' ? { ...t, runStatus: 'running' } : t);
 projection = projectRoomSeats(reservations, working, false, null, 10);
 assert.equal(projection.slots, 2, 'automatic physical desks equal active work, regardless of historical free capacity');
 assert.deepEqual(projection.threads.map((t) => t?.id), ['b', 'c']);
-assert.equal(projectRoomSeats(reservations, all, false, null).collapsed, true, 'complete transition folds again');
+assert.equal(projectRoomSeats(reservations, all, false, null).collapsed, false, 'complete transition folds again');
 assert.equal(JSON.stringify(reservations), snapshot, 'completion and folding never mutate saved assignments');
 assert.deepEqual(projectRoomSeats(reservations, working, false, null).threads.map((t) => t?.id), ['b', 'c'], 'reactivation returns to stable reservation order');
 projection = projectRoomSeats(reservations, all, false, 'a');
@@ -76,7 +94,7 @@ for (const active of [0, 1, 7]) {
     }
     routes++;
   }
-  assert.equal(policy.slots, active);
+  assert.equal(policy.slots, Math.max(1, active));
 }
 console.log(JSON.stringify({ ok: true, statuses: 20, statusTransitionRoutes: routes, durableSeats: reservations.length }));
 
@@ -88,3 +106,21 @@ assert(!layoutClearAt({x:3500,y:875},oldFloor,newFloor), 'old hallway is not sur
 assert(!layoutClearAt({x:100,y:875},oldFloor,{topH:1000,size:{w:3000}}), 'no shared hallway during height change');
 assert(layoutClearAt({x:4141,y:875},oldFloor,newFloor), 'outside both buildings is safe');
 assert(!layoutClearAt({x:4020,y:875},oldFloor,newFloor), 'outside actor must clear the wall with its body');
+
+// Folding one project office waits only for floor that actually changes. Robots in an
+// unchanged room or in a hall that survives may stay put; nobody queues outside.
+{
+  const top = [{id:'queue',w:720,h:800},{id:'main',w:1380,h:980},{id:'break',w:1900,h:800}];
+  const open = officePlan(top, [{id:'p:a',w:1380,h:980},{id:'p:b',w:1380,h:2580},{id:'freelance',w:1380,h:980}]);
+  const folded = officePlan(top, [{id:'p:a',w:1380,h:980},{id:'p:b',...FOLDED_OFFICE},{id:'freelance',w:1380,h:980}]);
+  const b = open.rooms.get('p:b'), brk = open.rooms.get('break'), a = open.rooms.get('p:a');
+  assert(!layoutSafeAt({x:b.x+b.w/2,y:b.y+b.h/2},open,folded), 'robot inside the folding office holds the fold');
+  assert(!layoutSafeAt({x:b.x+b.w/2,y:b.y-20},open,folded), 'robot body still at the folding door holds the fold');
+  assert(layoutSafeAt({x:brk.x+brk.w/2,y:brk.y+brk.h/2},open,folded), 'robot in the unchanged break room never holds the fold');
+  assert(layoutSafeAt({x:a.x+a.w/2,y:a.y+a.h/2},open,folded), 'robot at an unchanged desk never holds the fold');
+  assert(layoutSafeAt({x:2200,y:open.hallY},open,folded), 'robot in the surviving entrance hall never holds the fold');
+  assert(layoutSafeAt({x:2200,y:open.hallY},folded,open), 'robot in the surviving entrance hall never holds expansion');
+  assert(!layoutSafeAt({x:b.x+b.w/2,y:b.y+b.h/2},folded,open), 'expansion waits for floor that becomes the office');
+}
+
+assert.deepEqual(projectRoomSeats(reservations, working, false, null, 0, true), {threads:[],slots:0,collapsed:true}, "explicit collapse hides desks without changing sessions or reservations");

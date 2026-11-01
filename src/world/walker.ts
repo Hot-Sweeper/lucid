@@ -1,10 +1,14 @@
+import { ModelSticker } from "./model-sticker";
+import { accessorySvg, blushSvg, hatInfo, hatSvg, paintLookColors, styledEyes } from "./look";
 import gsap from "gsap";
+import { flavorSpeech } from "../localization-speech";
+import { batteryWeakness, subscriptionBatteries } from "../office/battery";
 import { watch, unwatch, drawNow, sinceDraw, finishDraw } from "./budget";
 import { routeSuffixLengths } from "./route-distance";
 import { beginSystem, endSystem } from "../perf/metrics";
 import { setSvgAttribute } from "../perf/svg-write";
 import type { Expression, RobotLook } from "../office/rig";
-import { bind, brandFor, clamp, defsSvg, eyesSvg, headSideSvg, headSvg, lerp, paintBrand, paintLook, uid, type BrandKind } from "./parts";
+import { bind, brandFor, clamp, defsSvg, eyesSvg, headSideSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, uid, type BrandKind } from "./parts";
 
 // The v0 robot standing on the top-down floor, the same character as the desk robot: the
 // original head on a slim tapered shell, thin two-bone arms and legs with real elbows and knees.
@@ -28,12 +32,12 @@ export type Activity =
   // seated behind a desk, facing the room, hands on the keyboard
   | "type";
 
-export interface WalkerOptions { id: string; provider: string; name?: string; model?: string; scale?: number; look?: RobotLook; speed?: number }
+export interface WalkerOptions { id: string; provider: string; name?: string; model?: string; scale?: number; look?: RobotLook; speed?: number; flavorSpeech?: boolean }
 export type Prop = "none" | "mug" | "bowl" | "spoon" | "card" | "wrist" | "paddle" | "pad" | "popcorn" | "ball" | "stamp";
 
 // ---- skeleton (v0 units) ------------------------------------------------------------------------
 const FEET = { x: 560, y: 935 };              // floor point between the feet
-const VB = { x: 392, y: 500, w: 336, h: 482 };
+const VB = { x: 392, y: 440, w: 336, h: 542 };
 const ANKLE = FEET.y - 9;
 const SH = { dx: 50, y: 750 };                // shoulders: half width, height
 const HIP = { dx: 15, y: 852 };               // hip joints
@@ -147,6 +151,22 @@ export class Walker {
   private deskEdge: number | null = null;
   private s: number;
   private speed: number;
+  private weakness = 0;
+  private remainingBattery: number | null = null;
+  private batteryProvider = "";
+  private stopBattery?: () => void;
+  private refreshBattery = () => {
+    const battery = subscriptionBatteries.get(this.batteryProvider);
+    this.remainingBattery = battery.remaining;
+    this.weakness = batteryWeakness(battery.remaining);
+    this.battery.classList.toggle("low", battery.remaining !== null && battery.remaining <= 30 && !battery.charging);
+    if (battery.remaining !== null) {
+      const fill = this.battery.querySelector("i") as HTMLElement;
+      gsap.killTweensOf(fill);
+      fill.style.transform = `scaleX(${battery.remaining / 100})`;
+    }
+    this.updateTitle();
+  };
   private svg: SVGSVGElement;
   private $: Record<string, SVGElement> = {};
   private bubble: HTMLDivElement;
@@ -163,6 +183,7 @@ export class Walker {
     laugh: 0, chew: 0, bounce: 0, mash: 0, wave: 0, tap: 0, kick: 0, dangle: 0, dizzy: 0, glowPulse: 0,
   };
   private expr: Expression = "neutral";
+  private blink = { scale: 1 };
   private propL: Prop = "none";
   private propR: Prop = "none";
   private act: gsap.core.Animation | null = null;
@@ -187,6 +208,7 @@ export class Walker {
   private dangling = false;
   private last = performance.now();
   private glowPulse = { opacity: 0.9 };
+  private speechLocale?: ReturnType<typeof flavorSpeech>;
 
   constructor(parent: Element, opts: WalkerOptions) {
     this.id = opts.id;
@@ -209,15 +231,27 @@ export class Walker {
     this.bubble.setAttribute("role", "status");
     this.bubble.innerHTML = "<p></p>";
     parent.appendChild(this.bubble);
+    if (opts.flavorSpeech) this.speechLocale = flavorSpeech(text => {
+      const p = this.bubble.querySelector("p")!;
+      p.textContent = text;
+      const room = this.bubble.parentElement?.closest(".room") ? this.bubble.parentElement : null;
+      this.bubbleFit = room ? { bw: p.offsetWidth, bh: p.offsetHeight, pw: room.clientWidth, ph: room.clientHeight } : null;
+      this.placeBubble();
+    });
     this.el = el;
     this.svg = el.querySelector("svg")!;
     this.$ = bind(this.svg);
+    for (const key of ["antenna", "sideAntenna"]) {
+      const lift = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      this.$[key].before(lift); lift.append(this.$[key]); this.$[`${key}Lift`] = lift;
+    }
     this.card = el.querySelector(".world-card")!;
     this.battery = el.querySelector(".world-battery")!;
     el.style.setProperty("--head-top", `${((FEET.y - 560) * this.s).toFixed(1)}px`);
     paintBrand(this.svg, this.$, this.brand);
-    if (opts.look) { paintLook(this.svg, this.$, opts.look); this.headK = headSize(opts.look); }
+    if (opts.look) this.setLook(opts.look);
     this.setModel(this.model);
+    this.setBrand(opts.provider);
     this.updateTitle();
     this.setExpression("neutral");
     const still = reduced();
@@ -231,13 +265,51 @@ export class Walker {
     this.place();
   }
 
-  setBrand(provider: string) { this.brand = brandFor(provider); paintBrand(this.svg, this.$, this.brand); }
-  setLook(look: RobotLook) { paintLook(this.svg, this.$, look); this.headK = headSize(look); }
+  setBrand(provider: string) { this.batteryProvider = provider; this.refreshBattery(); this.stopBattery ||= subscriptionBatteries.subscribe(this.refreshBattery); this.brand = brandFor(provider); paintBrand(this.svg, this.$, this.brand); paintLookColors(this.svg, PALETTES[this.brand], this.walkerLook); }
+  private walkerLook: RobotLook = {};
+  private lookKey = "";
+  private lookId = uid("walker-look");
+  private updateAccessories() {
+    const side = this.facing === "left" || this.facing === "right";
+    const art = accessorySvg(this.walkerLook.accessory, this.facing === "up" ? "back" : "front");
+    const rear = accessorySvg(this.walkerLook.accessory, "back");
+    this.$.accessoryUnder.innerHTML = side ? rear.pack + rear.under : art.under;
+    this.$.accessoryUnder.setAttribute("transform", side ? "translate(245 0) scale(0.52 1)" : "");
+    this.$.accessoryOver.innerHTML = side ? art.over : art.pack + art.over;
+    this.$.accessoryOver.setAttribute("transform", side ? "translate(338 0) scale(0.42 1)" : "");
+  }
+  private updateHeadwear() {
+    const side = this.facing === "left" || this.facing === "right";
+    const view = this.facing === "up" ? "back" : "front";
+    const art = (suffix: string) => hatSvg(this.walkerLook.hat, view).replace(/lkp([fb])/g, `${this.lookId}-${suffix}-$1`);
+    this.$.fbHat.innerHTML = art("fb");
+    this.$.sideHat.innerHTML = art("side");
+    this.$.sideHat.setAttribute("transform", "translate(98 0) scale(0.82 1)");
+    this.$.fbHat.style.display = side ? "none" : "";
+    this.$.sideHat.style.display = side ? "" : "none";
+    const hat = hatInfo(this.walkerLook.hat ?? "none");
+    for (const antenna of [this.$.antennaLift, this.$.sideAntennaLift]) {
+      antenna.style.display = hat.antenna === "hide" ? "none" : "";
+      antenna.setAttribute("transform", hat.antenna === "lift" ? `translate(0 ${-(hat.lift ?? 0)})` : "");
+    }
+    this.$.fbBlush.innerHTML = this.walkerLook.blush ? blushSvg() : "";
+    this.$.fbBlush.style.display = this.facing === "down" ? "" : "none";
+  }
+  setLook(look: RobotLook) {
+    const key = JSON.stringify(look);
+    if (key === this.lookKey) return;
+    this.lookKey = key;
+    this.walkerLook = {...look}; this.updateAccessories(); paintLook(this.svg, this.$, look);
+    paintLookColors(this.svg, PALETTES[this.brand], look);
+    this.headK = headSize(look); this.updateHeadwear(); this.setExpression(this.expr);
+  }
   /** The robot's own head size (look.head), the same as at its desk. */
   private headK = 1;
   setName(name: string) { this.name = name; this.updateTitle(); }
+  private modelSticker?: ModelSticker;
   setModel(model: string | null | undefined) {
     this.model = model ?? "";
+    (this.modelSticker ??= new ModelSticker(this.svg)).set(this.model);
     const t = this.$.model as SVGTextElement;
     t.textContent = this.model.length > 15 ? this.model.slice(0, 14) + "…" : this.model;
     this.$.nameplate.style.display = this.model ? "" : "none";
@@ -246,10 +318,13 @@ export class Walker {
     this.$.plate.setAttribute("width", String(w));
     this.updateTitle();
   }
-  private updateTitle() { this.el.title = [this.name, this.model].filter(Boolean).join(", "); }
+  private updateTitle() { this.el.title = [this.name, this.model, this.remainingBattery === null ? "" : `${Math.floor(this.remainingBattery)}% subscription battery remaining`].filter(Boolean).join(", "); }
 
   /** Height of the robot above its feet, in px (for placing things over its head). */
-  get height() { return (FEET.y - 556) * this.s; }
+  get height() {
+    const top = !this.walkerLook.hat || this.walkerLook.hat === "none" ? 556 : this.walkerLook.hat === "wizard" ? 470 : 510;
+    return (FEET.y - (715 + (top - 715) * this.headK)) * this.s;
+  }
 
   setPos(x: number, y: number) { this.x = x; this.y = y; this.place(); }
 
@@ -264,6 +339,8 @@ export class Walker {
   face(dir: Facing) {
     const was = this.facing;
     this.facing = dir;
+    this.updateAccessories();
+    this.updateHeadwear();
     const fb = dir === "up" || dir === "down";
     const show = (k: string, v: boolean) => (this.$[k].style.display = v ? "" : "none");
     show("fbBody", fb); show("sideBody", !fb);
@@ -347,7 +424,7 @@ export class Walker {
     if (m.wait > 0) { m.wait -= dt; return; }
     const rest = Math.hypot(m.pts[m.i].x - this.x, m.pts[m.i].y - this.y) + m.tails[m.i];
     const cap = Math.sqrt(2 * 560 * rest) + 18;                // ease into the stop
-    const want = Math.min(this.speed, cap);
+    const want = Math.min(this.speed * (1 - this.weakness * .6), cap);
     this.v = want > this.v ? this.v + (want - this.v) * Math.min(1, dt * 7) : want;
     let step = this.v * dt;
     while (step > 0 && m.i < m.pts.length) {
@@ -392,7 +469,7 @@ export class Walker {
     this.actTimers = [];
     window.clearInterval(this.zTimer);
     this.zTimer = 0;
-    this.card.classList.remove("on");
+    this.card.classList.toggle("on", this.carryingReport);
     this.battery.classList.remove("on");
   }
 
@@ -415,7 +492,7 @@ export class Walker {
   }
 
   /** `seated` keeps the robot sitting (laughing on a couch, thinking at a chess table). */
-  do(activity: Activity, opts: { card?: string; keep?: boolean; seated?: boolean } = {}) {
+  do(activity: Activity, opts: { card?: string; keep?: boolean; seated?: boolean; quota?: boolean } = {}) {
     this.activity = activity;
     this.clearAct();
     if (!opts.keep) this.setProps("none", "none");
@@ -502,9 +579,9 @@ export class Walker {
         loop(() => this.sip(), () => rnd(3.2, 5), 1);
         break;
       case "charge":
-        this.battery.classList.add("on");
+        this.battery.classList.toggle("on", !opts.quota);
         to({ ...arm("l", H(12, 66, -12)), ...arm("r", H(12, 66, -12)), nod: 3, lookY: 0.4 }, 0.8);
-        this.act = gsap.fromTo(this.battery.querySelector("i"), { scaleX: 0.15 }, { scaleX: 1, duration: 14, ease: "none", transformOrigin: "0 50%", repeat: -1, repeatDelay: 1 });
+        if (!opts.quota && this.remainingBattery === null) this.act = gsap.fromTo(this.battery.querySelector("i"), { scaleX: 0.15 }, { scaleX: 1, duration: 14, ease: "none", transformOrigin: "0 50%", repeat: -1, repeatDelay: 1 });
         if (!reduced()) this.actTimers.push(gsap.to(st, { glowPulse: 1, duration: 0.7, ease: "sine.inOut", yoyo: true, repeat: -1 }) as unknown as gsap.core.Tween);
         loop(() => {
           // a little hum of energy now and then; glances up at the battery
@@ -879,24 +956,27 @@ export class Walker {
       .to(st, { ...pose(KEYS), look: 0, lookY: 0.5, nod: 2, duration: 0.4, ease: "power2.inOut" });
   }
 
+  private carryingReport = false;
+  carryReport(text: string) { this.carryingReport = true; this.setCard(text); this.card.classList.add("on"); }
   setCard(text: string) { this.card.querySelector("span")!.textContent = text; this.card.title = text; }
 
   setExpression(e: Expression) {
     this.expr = e;
-    this.$.eyes.innerHTML = eyesSvg(e);
-    this.$.sideEyes.innerHTML = eyesSvg(e, [604]);
+    this.$.eyes.innerHTML = styledEyes(this.walkerLook.eyes, e) ?? eyesSvg(e);
+    this.$.sideEyes.innerHTML = styledEyes(this.walkerLook.eyes, e, [604]) ?? eyesSvg(e, [604]);
   }
 
   /** Speech bubble; `think` draws it as a thought cloud instead. */
   say(text: string | null, ms?: number, think = false) {
     this.sayTimer?.kill();
+    this.speechLocale?.show(text);
     const b = this.bubble, p = b.querySelector("p")!;
     if (text) b.classList.toggle("think", think);
     if (!text) {
       if (b.classList.contains("on")) gsap.to(p, { opacity: 0, y: 6, duration: 0.2, ease: "power2.in", onComplete: () => b.classList.remove("on") });
       return;
     }
-    p.textContent = text;
+    if (!this.speechLocale) p.textContent = text;
     const was = b.classList.contains("on");
     b.classList.add("on");
     // inside a room the bubble must stay within its walls (rooms clip what sticks out);
@@ -956,12 +1036,11 @@ export class Walker {
   private scheduleBlink() {
     this.blinkCall = gsap.delayedCall(rnd(1.8, 4.8), () => {
       if (this.expr !== "sleepy" && this.expr !== "laugh" && this.expr !== "happy") {
-        const fb = [this.$.eyes, this.$.eyeLight], sd = [this.$.sideEyes, this.$.sideEyeLight];
+        const eyes = this.blink;
         const tl = TL()
-          .to(fb, { scaleY: 0.1, svgOrigin: "560 657", duration: 0.06, ease: "power2.in" }, 0)
-          .to(sd, { scaleY: 0.1, svgOrigin: "604 657", duration: 0.06, ease: "power2.in" }, 0)
-          .to([...fb, ...sd], { scaleY: 1, duration: 0.11, ease: "power2.out" }, 0.07);
-        if (Math.random() < 0.22) tl.to([...fb, ...sd], { scaleY: 0.1, duration: 0.06, ease: "power2.in" }, 0.25).to([...fb, ...sd], { scaleY: 1, duration: 0.11, ease: "power2.out" }, 0.31);
+          .to(eyes, { scale: 0.1, duration: 0.06, ease: "power2.in" }, 0)
+          .to(eyes, { scale: 1, duration: 0.11, ease: "power2.out" }, 0.07);
+        if (Math.random() < 0.22) tl.to(eyes, { scale: 0.1, duration: 0.06, ease: "power2.in" }, 0.25).to(eyes, { scale: 1, duration: 0.11, ease: "power2.out" }, 0.31);
       }
       this.scheduleBlink();
     });
@@ -1000,7 +1079,10 @@ export class Walker {
     dt = sinceDraw(this, now);
     if (!drawNow(this, this.svg, now)) return;
     const started = beginSystem();
-    const pulse = this.glowPulse.opacity.toFixed(4);
+    const blink = `translate(0 657) scale(1 ${this.blink.scale.toFixed(4)}) translate(0 -657)`;
+    for (const eyes of [this.$.eyes, this.$.eyeLight, this.$.sideEyes, this.$.sideEyeLight]) setSvgAttribute(eyes, 'transform', blink);
+    this.modelSticker?.step(now);
+    const pulse = (this.glowPulse.opacity * (1 - this.weakness * .65)).toFixed(4);
     setSvgAttribute(this.$.antennaGlow, "opacity", pulse);
     setSvgAttribute(this.$.sideGlow, "opacity", pulse);
     const st = this.st, t = now / 1000;
@@ -1139,14 +1221,14 @@ export class Walker {
     const neck = toScreen(NECK);
     this.headLag += (bob - this.headLag) * Math.min(1, dt * 10);
     const hx = neck.x - NECK.x + st.look * (side ? 0 : 2);
-    const hy = neck.y - NECK.y + (bob - this.headLag) * 0.8 + st.nod + chew * 2.4 + fwd * 1.1 - laugh * 0.8;
+    const hy = neck.y - NECK.y + (bob - this.headLag) * 0.8 + st.nod + chew * 2.4 + fwd * 1.1 - laugh * 0.8 + this.weakness * 15;
     const tilt = st.tilt + laugh * 2.5 + st.look * (side ? 0 : 3) + dSway * 6 - rot * 0.35 + (side ? st.lookY * -4 : 0);
     this.attr(this.$.head, "transform", `translate(${f1(hx)} ${f1(hy)}) rotate(${tilt.toFixed(2)} 560 715)${this.headK === 1 ? "" : ` translate(560 715) scale(${this.headK}) translate(-560 -715)`}`);
     this.attr(this.$.look, "transform", `translate(${f1(st.look * 8)} ${f1(st.lookY * 5)})`);
     this.attr(this.$.sideLook, "transform", `translate(${f1(Math.abs(st.look) * -2)} ${f1(st.lookY * 5)})`);
     this.attr(this.$.shadow, "rx", f1((54 - st.jump * 14 - dangle * 10) * (1 + st.sit * 0.1)));
     this.attr(this.$.shadow, "opacity", (0.22 - dangle * 0.1).toFixed(2));
-    const dim = 1 - st.dim * 0.55;
+    const dim = (1 - st.dim * 0.55) * (1 - this.weakness * .6);
     this.attr(this.$.antenna, "opacity", dim.toFixed(2));
     this.attr(this.$.sideAntenna, "opacity", dim.toFixed(2));
     if (st.glowPulse > 0.001 || this.lastPulse > 0) { this.lastPulse = st.glowPulse; this.attr(this.$.chestGlow, "r", f1(8 + st.glowPulse * 6)); }
@@ -1220,6 +1302,8 @@ export class Walker {
   }
 
   destroy() {
+    this.speechLocale?.destroy();
+    this.stopBattery?.();
     this.stop();
     gsap.ticker.remove(this.frame);
     unwatch(this.svg);
@@ -1229,7 +1313,7 @@ export class Walker {
     this.lifeCall?.kill();
     this.settleTl?.kill();
     this.sayTimer?.kill();
-    gsap.killTweensOf([this.st, this, this.card, this.bubble.firstElementChild, this.$.eyes, this.$.eyeLight, this.$.sideEyes, this.$.sideEyeLight, this.$.antennaDroop]);
+    gsap.killTweensOf([this.st, this, this.blink, this.card, this.bubble.firstElementChild, this.$.eyes, this.$.eyeLight, this.$.sideEyes, this.$.sideEyeLight, this.$.antennaDroop]);
     this.bubble.remove();
     this.el.remove();
   }
@@ -1275,7 +1359,7 @@ const WALKER_SVG = (id: string, s: number) => /* svg */ `
   <g data-r="flip"><g data-r="rig">
     <g data-r="lower"><g data-r="legsBack"><g data-r="legs">${limb("leg", "l")}${footSvg("l")}${limb("leg", "r")}${footSvg("r")}</g></g>
     <g data-r="body">
-      <g data-r="armsBack"></g>
+      <g data-r="armsBack"></g><g data-r="accessoryUnder"></g>
       <rect x="547" y="700" width="26" height="42" rx="9" fill="var(--deep)"/>
       <g data-r="fbBody">
         <rect x="524" y="826" width="72" height="40" rx="17" fill="var(--deep)"/>
@@ -1306,10 +1390,13 @@ const WALKER_SVG = (id: string, s: number) => /* svg */ `
         <circle cx="586" cy="774" r="5" fill="var(--glow)" opacity="0.85"/>
         ${cap(566)}
       </g>
+      <g data-r="accessoryOver"></g>
     </g></g>
     <g data-r="head">
-      <g data-r="fbHead">${headSvg(id)}</g>
+      <g data-r="fbHead">${headSvg(id)}<g data-r="fbBlush"></g></g>
+      <g data-r="fbHat"></g>
       ${headSideSvg(id)}
+      <g data-r="sideHat"></g>
     </g>
     <g data-r="legsFront"></g>
     <g data-r="armsFront">${armSvg("l")}${armSvg("r")}</g>

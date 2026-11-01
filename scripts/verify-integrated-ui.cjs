@@ -40,7 +40,7 @@ if (!process.versions.electron) {
         check(width>before.width+30,`${side} panel resizes using real mouse input`);
       }
       check(await js(`{const u=JSON.parse(window.lucid.settingsLoad()).ui;typeof u.sideW==='number' && typeof u.chatW==='number'}`),'both panel widths save to the isolated settings');
-      check(await js(`{const c=document.querySelector('.follow-chip').getBoundingClientRect(),s=document.querySelector('.scene').getBoundingClientRect();c.left>=s.left && c.right<=s.right}`),'follow controls stay inside the scene beside the chat');
+      check(await js(`!document.querySelector('.follow-chip')`),'following a robot adds no bottom pill');
       const time='2026-10-31T12:29:';
       fixture=[{id:'u',role:'user',at:time+'00Z',text:'Check the real app.',attachments:[]},...['First progress update.','Second progress update.','Finished result.'].map((text,i)=>({id:'a'+i,role:'assistant',at:time+(10+i)+'Z',text,attachments:[]})),{id:'event',role:'event',at:time+'20Z',text:'',attachments:[],event:{kind:'compaction',status:'completed'}},{id:'next',role:'assistant',at:time+'21Z',text:'After compaction.',attachments:[]}];
       await js('window.__chat.close();window.__world.onFollowChat(window.__world.orchThread)');await wait(700);

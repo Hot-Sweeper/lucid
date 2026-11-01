@@ -1,0 +1,31 @@
+// Evaluate only inside an isolated fixture. It creates no T3 requests or decisions.
+module.exports.evaluation = `(async()=>{
+const checks=[],check=(ok,text)=>{if(!ok)throw Error(text);checks.push(text)},sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const world=window.__world,Queue=world?.ext?.queue?.constructor;if(!Queue)throw Error('Question room not ready');
+const host=document.createElement('div');host.style.cssText='position:fixed;left:24px;top:12px;width:720px;height:800px;z-index:9999;background:#c9a274';document.body.append(host);
+const queue=new Queue(host,720,800),receipts=[];queue.onReportArrived=id=>receipts.push(id);
+queue.setBoss({id:'__queue-boss',name:'Boss',provider:'codex',running:false});
+const saved=window.__queueLooks??world.roster?.robots??[];
+const people=Array.from({length:9},(_,i)=>{const robot=saved[i];return {id:'__queue-'+i,provider:robot?.provider??(i%2?'codex':'claudeAgent'),title:'Queue fixture '+i,name:robot?.name??'Visitor '+i,look:robot?.look,question:i<2?'Report: finished fixture':'A question for the boss',report:i<2}});
+queue.setThreads(people);
+window.__queueReview=queue;
+window.__queueReviewCleanup=()=>{queue.destroy();host.remove()};
+for(let n=0;n<120&&receipts.length<2;n++)await sleep(100);
+check(receipts.length===2,'two papers received before any review verdict');
+check(queue.line.filter(q=>q.alive&&!q.waiting).length<=3,'one short line, no folded second row');
+check(queue.line.filter(q=>q.alive&&q.waiting).length>=6,'overflow visitors wait around the room');
+queue.decision('__queue-2','asked');await sleep(1400);
+check(queue.line.find(q=>q.id==='__queue-2').waiting,'question needing the user moves aside');
+check(queue.line.find(q=>q.id==='__queue-3').slot===0,'next visitor advances immediately');
+for(let n=0;n<80&&queue.line.some(q=>!q.settled);n++)await sleep(100);
+const alive=queue.line.filter(q=>q.alive);check(new Set(alive.map(q=>q.id)).size===9,'each robot appears once');
+for(let i=0;i<alive.length;i++)for(let j=i+1;j<alive.length;j++)check(Math.hypot(alive[i].w.x-alive[j].w.x,alive[i].w.y-alive[j].w.y)>100,'waiting robots remain separated');
+for(const q of alive){for(const t of q.timers)t.kill();q.timers=[]}if(queue.conversation)queue.endConversation(queue.conversation.a);
+const speaker=alive.find(q=>q.waiting&&q.settled);check(!!speaker,'social waiting pair available');
+queue.chatLater(speaker);speaker.timers.at(-1).progress(1);
+const c=queue.conversation;check(!!c,'nearby pair starts talking');
+const opposite={up:'down',down:'up',left:'right',right:'left'};check(c.a.w.facing===opposite[c.b.w.facing],'partners face one another, including vertically adjacent places');
+check(alive.filter(q=>['talk','listen'].includes(q.w.activity)).length===2,'only one pair talks');
+await sleep(2700);check(c.a.w.activity==='listen'&&c.b.w.activity==='talk','one speaker at a time, listener replies');
+return {ok:true,checks,receipts,line:alive.filter(q=>!q.waiting).map(q=>q.id),waiting:alive.filter(q=>q.waiting).map(q=>q.id),positions:alive.map(q=>({id:q.id,x:q.w.x,y:q.w.y,activity:q.w.activity}))};
+})()`;

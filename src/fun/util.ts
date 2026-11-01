@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { localizeGameDOM } from "../localization-dom";
 import { renderLoop, deferRender } from "../perf/render";
 import { LiveCanvases } from "../perf/canvas";
 export { fitCanvas } from "../perf/canvas";
@@ -9,7 +10,10 @@ export class Scope {
   private tweens: (gsap.core.Tween | gsap.core.Timeline)[] = [];
   disposed = false;
   private canvases: LiveCanvases;
-  constructor(private owner?: HTMLElement) { this.canvases = new LiveCanvases(owner); }
+  constructor(private owner?: HTMLElement) {
+    this.canvases = new LiveCanvases(owner);
+    if (owner) this.add(localizeGameDOM(owner, "Fictional robot entertainment feed. Adapt captions, comments, and jokes naturally; preserve handles and brands."));
+  }
 
   add(fn: () => void) { this.fns.push(fn); }
   liveCanvas(canvas: HTMLCanvasElement) { return this.canvases.add(canvas); }

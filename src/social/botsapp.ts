@@ -7,6 +7,7 @@ import { Kit, runApp, rnd, chance, h, esc, avatar, seedOf, touch, typeInto, scro
 import { sceneCanvas } from "./scenes";
 import { theyType, dotsBubble, headerTyping } from "./typing";
 import { phoneKeyboard, type PhoneKeyboard } from "./keyboard";
+import { followConversationName } from "./conversation-name";
 
 type Chat = { id: string; name: string; color: string; group?: string[]; el?: HTMLElement; last: string; time: string; unread: number };
 
@@ -31,7 +32,10 @@ const STICKERS = [
 ];
 
 export async function chatOnBotsApp(body: HTMLElement, host: SoHost, opts: SoOpts) {
-  return runApp(body, host, opts, async (k) => { await new BotsApp(k, body, opts).session(); });
+  return runApp(body, host, opts, async (k) => {
+    const app = new BotsApp(k, body, opts);
+    try { await app.session(); } finally { app.dispose(); }
+  });
 }
 
 class BotsApp {
@@ -52,6 +56,9 @@ class BotsApp {
   tray!: HTMLElement;
   nextScene = pickFresh(FAMILY_SCENES, "lucid:botsapp");
   kb: PhoneKeyboard | null = null;
+  private stopName: () => void = () => {};
+
+  dispose() { this.stopName(); }
 
   constructor(private k: Kit, body: HTMLElement, private opts: SoOpts) {
     this.phone = !!opts.phone;
@@ -123,7 +130,8 @@ class BotsApp {
     this.cur = c;
     c.unread = 0;
     this.paintRow(c);
-    this.headName.textContent = c.name;
+    this.stopName();
+    this.stopName = followConversationName(this.headName, c.el!.querySelector<HTMLElement>("b")!);
     this.headAv.innerHTML = avatar(c.color, seedOf(c.id));
     this.setSub(null);
     this.msgs.innerHTML = `<div class="so-ba-day">Today</div>`;

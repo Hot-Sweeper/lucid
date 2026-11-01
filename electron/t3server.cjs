@@ -286,7 +286,9 @@ async function call(tag, payload, { timeout = 15_000, pairedOnly = false } = {})
 }
 
 /** Sends one orchestration command, with a fresh UUID commandId like T3's web app. */
+let remoteDispatch = null;
 function dispatch(command) {
+  if (remoteDispatch && [command.threadId, command.projectId].some(id => typeof id === 'string' && id.includes('::'))) return remoteDispatch(command);
   return call("orchestration.dispatchCommand", { commandId: crypto.randomUUID(), ...command });
 }
 
@@ -322,6 +324,19 @@ function respondToRequest(threadId, requestId, { answers, decision, feedback } =
   if (!Object.keys(clean).length) return Promise.reject(new T3ServerError("Pick an answer first.", "invalid"));
   return dispatch({ type: "runtime-request.respond", threadId, requestId, answers: clean });
 }
+
+// Explicit settlement is reversible through T3's native thread commands.
+async function settleThread(threadId, { excludePinned = true, expectedRunId = null } = {}) {
+  // Pair/connect first, then re-read promotion state immediately before dispatch.
+  {
+    await connect();
+    const state = require("./t3.cjs").reportState(threadId);
+    if (expectedRunId && (state.run?.id !== expectedRunId || state.run?.status !== "completed" || state.pendingRuns || state.pendingRequests)) throw new T3ServerError("New work superseded this review.", "stale-review");
+    if (state.pinned) throw new T3ServerError("Pinned project managers cannot be settled automatically.", "manager-protected");
+  }
+  return dispatch({ type: "thread.settle", threadId });
+}
+function unsettleThread(threadId) { return dispatch({ type: "thread.unsettle", threadId, reason: "user" }); }
 
 // --- model -------------------------------------------------------------------
 
@@ -379,7 +394,13 @@ async function listProviders({ fresh = false } = {}) {
   if (!fresh && providerCache && Date.now() - providerCache.at < 60_000) return providerCache.list;
   const config = await call("server.getConfig", {});
   rememberUsageLimits(config);
-  const list = (config?.providers || [])
+  const list = providerList(config);
+  providerCache = { at: Date.now(), list };
+  return list;
+}
+
+function providerList(config) {
+  return (config?.providers || [])
     .filter((p) => p && p.enabled !== false && p.availability !== "unavailable")
     .map((p) => ({
       instanceId: p.instanceId,
@@ -398,8 +419,37 @@ async function listProviders({ fresh = false } = {}) {
         })),
       })),
     }));
-  providerCache = { at: Date.now(), list };
-  return list;
+}
+
+async function hireConfig({ projectId = '' } = {}) {
+  const config = await call('server.getConfig', {});
+  const settings = config.settings || {};
+  let project = null;
+  if (projectId) {
+    const row = getDb().prepare('select * from projection_projects where project_id = ?').get(projectId);
+    if (!row) throw new T3ServerError('This project is no longer available.', 'invalid');
+    project = safeJson(row.payload_json) || {};
+    if (!project.defaultModelSelection && row.default_model_selection_json) project.defaultModelSelection = safeJson(row.default_model_selection_json);
+  }
+  const defaults = require('./hire-runtime.cjs').hireDefaults(settings, projectId, project);
+  const overrides = settings.projectSettingsOverrides?.[projectId]?.providerInstances || {};
+  const providers = providerList(config).filter(p => overrides[p.instanceId]?.enabled !== false);
+  return { providers, ...defaults };
+}
+
+async function startHire(opts) {
+  const config = await hireConfig({ projectId: opts.project });
+  const provider = config.providers.find(p => p.instanceId === opts.provider && p.ready);
+  const model = provider?.models.find(m => m.slug === opts.model);
+  if (!model) throw new T3ServerError('This harness or model is unavailable. Choose another setup and retry.', 'invalid');
+  for (const [id, value] of Object.entries(opts.options || {})) {
+    const option = model.options.find(o => o.id === id);
+    if (!option || (option.type === 'boolean' ? typeof value !== 'boolean' : !option.choices?.some(c => c.id === value))) throw new T3ServerError('A model setting changed in T3. Reload the runtime settings and retry.', 'invalid');
+  }
+  if (opts.contextThreadId) return require('./hire-context.cjs').continueHire(getDb(), opts, dispatch);
+  const payload = require('./hire-runtime.cjs').launchPayload(opts, config.runtimeMode);
+  const result = await call('orchestration.launchThread', payload, { timeout: 60_000 });
+  return { threadId: result.threadId };
 }
 
 // --- status ------------------------------------------------------------------
@@ -434,7 +484,8 @@ async function status({ connect = false, threadId = null } = {}) {
 }
 
 module.exports = {
-  ensurePaired, status, dispatch, call, listProviders, selection, usageLimits,
-  reorderQueued, cancelQueued, editQueued, steerNow, setThreadModel, respondToRequest,
+  setRemoteDispatch: fn => { remoteDispatch = fn; },
+  ensurePaired, status, dispatch, call, listProviders, hireConfig, startHire, hireContexts: projectId => require('./hire-context.cjs').settledContexts(getDb(), projectId), selection, usageLimits,
+  settleThread, unsettleThread, reorderQueued, cancelQueued, editQueued, steerNow, setThreadModel, respondToRequest,
   setStorePath, closeSock, T3ServerError,
 };

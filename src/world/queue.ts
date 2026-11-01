@@ -4,6 +4,7 @@ import { PAL, RoomStage, WALL, plantSvg, posterArt, windowArt } from "./room";
 import type { BreakThread, RoomExtension } from "./breakroom";
 import { Boss, type BossInfo } from "./boss";
 import { BossMonitor } from "./boss-monitor";
+import { questionPlaces } from "./question-layout";
 
 // The question line: robots with a question for you queue up in front of your desk (an empty
 // human chair, a bell, a monitor, a plant). The front robot holds up a card with a short
@@ -13,10 +14,10 @@ import { BossMonitor } from "./boss-monitor";
 
 const SCALE = 0.42;
 const DESK_Y = 150;   // top of the big desk
-const SPACING = 124;
 const MAX = 9;
 
-type Q = { id: string; w: Walker; alive: boolean; slot: number; question: string; timers: gsap.core.Tween[]; entered?: boolean; here?: boolean };
+type Q = { id: string; w: Walker; alive: boolean; slot: number; question: string; timers: gsap.core.Tween[]; entered?: boolean; here?: boolean; place?: string; waiting?: boolean; settled?: boolean; delivered?: boolean; version: number; lookKey: string };
+type Conversation = { a: Q; b: Q; av: number; bv: number };
 
 export class QuestionLine implements RoomExtension {
   el: HTMLElement;
@@ -35,6 +36,8 @@ export class QuestionLine implements RoomExtension {
   private anims: gsap.core.Animation[] = [];
   private boss: Boss;
   private monitor: BossMonitor;
+  private reservations = new Map<string, string>();
+  private conversation: Conversation | null = null;
 
   constructor(host: HTMLElement, readonly w: number, readonly h: number) {
     this.stage = new RoomStage(host, w, h, { wall: "#ebe4ef", trim: "#d6cddd", floor: PAL.floor, seam: PAL.seam, accent: PAL.violet }, wallArt(w), "world-queue");
@@ -51,6 +54,10 @@ export class QuestionLine implements RoomExtension {
 
   /** The orchestrator in the chair behind the desk, or nobody. */
   setBoss(info: BossInfo | null) { this.boss.set(info); this.monitor.set(info); }
+  setPresence(presence: "awake" | "sleep" | "away") { this.boss.setPresence(presence); }
+  soundActors() {
+    return this.line.filter(q => q.alive && q.here).map(q => ({ el: q.w.el, x: q.w.x, y: q.w.y, activity: q.w.activity }));
+  }
 
   // What the orchestrator is doing with a robot's question (delegate.ts): reading it while the
   // decision is in flight, then answering it (stamp, the robot repeats the answer) or passing
@@ -62,62 +69,77 @@ export class QuestionLine implements RoomExtension {
     if (!phase) {
       this.verdicts.delete(id);
       if (this.readingId === id) { this.readingId = null; this.boss.read(null); }
+      this.reflow();
       return;
     }
+    const previous = this.verdicts.get(id);
+    if (previous?.phase === phase && previous.text === text) return;
     this.verdicts.set(id, { phase, text });
+    const visitor = this.line.find(q => q.id === id && q.alive);
+    if (visitor) this.endConversation(visitor);
     if (phase === "reading") { this.readingId = id; this.boss.read(where); return; }
     if (this.readingId === id) this.readingId = null;
     if (phase === "answered") this.boss.answered(where());
     else this.boss.passed();
     const q = this.line.find((x) => x.id === id && x.alive);
     if (q && q.slot >= 0) this.showVerdict(q);
+    this.reflow();
   }
 
   private showVerdict(q: Q) {
     const v = this.verdicts.get(q.id);
     if (!v || v.shown || v.phase === "reading") return;
-    q.timers.push(gsap.delayedCall(v.phase === "answered" ? 1.1 : 1.6, () => {
+    this.later(q, v.phase === "answered" ? 1.1 : 1.6, () => {
       if (!q.alive || v.shown) return;
       v.shown = true;
       q.w.say(v.phase === "answered" ? `The boss said: ${shortQuestion(v.text || "yes")}` : "Needs your answer", v.phase === "answered" ? 4000 : 5000);
-    }));
+    });
   }
 
-  private slotPos(i: number) {
-    const cx = this.w / 2, first = 392;
-    const perCol = Math.max(1, Math.floor((this.h - 70 - first) / SPACING) + 1);
-    if (i < perCol) return { x: cx, y: first + i * SPACING };
-    const j = i - perCol;
-    return { x: cx + 165, y: first + 100 + (perCol - 1 - j) * SPACING }; // the line folds back up beside itself
+  private later(q: Q, delay: number, action: () => void) {
+    const timer = gsap.delayedCall(delay, () => {
+      q.timers = q.timers.filter(t => t !== timer);
+      if (q.alive) action();
+    });
+    q.timers.push(timer);
   }
 
   setThreads(list: BreakThread[]) {
     const want = list.slice(0, MAX);
     this.reports = new Set(list.filter(t => (t as any).report).map(t => t.id));
     const ids = new Set(want.map((t) => t.id));
-    for (const q of [...this.line]) if (!ids.has(q.id)) void this.leave(q);
+    for (const q of [...this.line]) if (q.alive && !ids.has(q.id)) void this.leave(q);
     for (const t of want) {
       const q = this.line.find((x) => x.id === t.id);
       const text = shortQuestion(t.question || t.title);
       if (q) {
+        if (!q.alive) {
+          // A question can return while its owner is still walking out. Reuse that
+          // actor and invalidate the pending exit instead of spawning a duplicate.
+          q.alive = true; q.version++; q.w.stop(); q.w.calm(); q.w.say(null);
+          q.place = undefined; q.entered = true; q.here = false;
+        }
         // answered but still standing here a moment: the card keeps the question
         if (q.question !== text && t.question) { q.question = text; q.w.setCard(text); }
         if ((t.model ?? "") !== q.w.model) q.w.setModel(t.model);
+        const lookKey = JSON.stringify(t.look ?? {});
+        if (q.lookKey !== lookKey) { q.lookKey = lookKey; q.w.setLook(t.look ?? {}); }
+        if (t.name && t.name !== q.w.name) q.w.setName(t.name);
         continue;
       }
-      const w = new Walker(this.stage.layer, { id: t.id, provider: t.provider, model: t.model ?? undefined, name: t.name ?? t.title, scale: SCALE, look: (t as any).look });
+      const w = new Walker(this.stage.layer, { id: t.id, provider: t.provider, model: t.model ?? undefined, name: t.name ?? t.title, scale: SCALE, look: t.look });
       // a robot that just walked down the hall carries on from where it stopped
       const entry = this.entries.get(t.id);
       this.entries.delete(t.id);
       // when the app opens, the line is already standing there
       const here = !entry && !this.opened;
       if (entry) w.setPos(entry.x, entry.y);
-      else if (here) { const p = this.slotPos(this.line.filter((x) => x.alive).length); w.setPos(p.x, p.y); }
+      else if (here) w.setPos(this.door.x, this.door.y);
       else w.setPos(this.out.x, this.out.y + this.line.length * 20);
       w.face("up");
       w.setCard(text);
       w.el.addEventListener("click", (e) => { e.stopPropagation(); this.onSelect(t.id); });
-      this.line.push({ id: t.id, w, alive: true, slot: -1, question: text, timers: [], entered: !!entry || here, here });
+      this.line.push({ id: t.id, w, alive: true, slot: -1, question: text, timers: [], entered: !!entry || here, here, version: 0, lookKey: JSON.stringify(t.look ?? {}) });
     }
     if (want.length) this.opened = true;
     this.reflow();
@@ -126,50 +148,124 @@ export class QuestionLine implements RoomExtension {
   // Everyone walks to their place in line; the front robot holds up its card.
   private reflow() {
     const live = this.line.filter((q) => q.alive);
+    const places = questionPlaces(live.map(q => ({id: q.id, needsDesk: !q.delivered && !["asked", "answered"].includes(this.verdicts.get(q.id)?.phase ?? "") && !(this.reports.has(q.id) && this.verdicts.get(q.id)?.phase === "reading")})), this.w, this.h, this.reservations);
+    this.reservations = new Map([...places].filter(([, p]) => p.zone === "waiting").map(([id, p]) => [id, p.key]));
     live.forEach((q, i) => {
-      if (q.slot === i) return;
-      const was = q.slot;
-      q.slot = i;
+      const p = places.get(q.id);
+      if (!p) return;
+      if (q.place === p.key) {
+        // A refresh must also restore the resting direction after a handoff or turn.
+        if (q.settled && this.conversation?.a !== q && this.conversation?.b !== q) this.facePlace(q);
+        return;
+      }
+      this.endConversation(q);
+      const fresh = !q.place, wasWaiting = q.waiting, version = ++q.version;
+      q.place = p.key; q.slot = p.slot; q.waiting = p.zone === "waiting"; q.settled = false;
       for (const t of q.timers) t.kill();
       q.timers = [];
-      const p = this.slotPos(i);
-      const path = was < 0 && !q.here ? [{ x: this.door.x, y: this.door.y }, p] : [p];
-      gsap.delayedCall(was < 0 ? (q.entered ? 0 : live.indexOf(q) * 0.25) : i * 0.18, async () => {
-        await q.w.walkPath(path);
-        if (!q.alive || q.slot !== i) return;
-        q.w.face("up");
-        if (was < 0) this.boss.greet(q.w.x, q.w.y);
+      q.w.stop(); q.w.calm();
+      q.w.setRunning(this.reports.has(q.id));
+      // The side aisles leave the desk, bench, plants and doorway clear.
+      const aisle = this.w / 2 + (p.x < this.w / 2 ? -100 : 100);
+      const path = !fresh && !wasWaiting && p.zone === "line" ? [{x: p.x, y: p.y}] : [{ x: aisle, y: fresh ? this.door.y : Math.max(350, q.w.y) }, { x: aisle, y: p.y }, {x: p.x, y: p.y}];
+      this.later(q, fresh && !q.entered ? i * 0.08 : 0, async () => {
+        if (!q.alive || q.version !== version) return;
+        if (fresh && q.here) q.w.setPos(p.x, p.y);
+        else {
+          if (fresh && !q.entered) await q.w.walkPath([this.door]);
+          if (!q.alive || q.version !== version) return;
+          await q.w.walkPath(path);
+        }
+        if (!q.alive || q.version !== version) return;
+        q.settled = true;
+        q.w.setRunning(false);
+        this.facePlace(q);
+        if (fresh) this.boss.greet(q.w.x, q.w.y);
         this.settle(q);
         this.showVerdict(q);
       });
     });
   }
 
+  /** The line looks at the boss; visitors off to the sides face out into the room. */
+  private facePlace(q: Q) {
+    const facing: Facing = q.waiting ? "down" : "up";
+    if (q.w.facing !== facing) q.w.face(facing);
+  }
+
   private settle(q: Q) {
+    this.facePlace(q);
     if (q.slot === 0) {
       q.w.do("hold-card", { card: q.question });
       if (this.reports.has(q.id)) {
+        q.delivered = true;
         q.w.say("Report ready for review.", 2500);
         this.onReportArrived(q.id);
+        // Receiving a paper does not occupy the service counter for its whole review.
+        this.later(q, .65, () => this.reflow());
         return;
       }
       const tap = () => {
         if (!q.alive || q.slot !== 0) return;
         q.w.poke();
-        gsap.delayedCall(0.22, () => { this.ding(); this.boss.heard(q.w.x, q.w.y); });
-        q.timers.push(gsap.delayedCall(6 + Math.random() * 5, tap));
+        this.later(q, 0.22, () => { if(q.slot === 0) { this.ding(); this.boss.heard(q.w.x, q.w.y); } });
+        this.later(q, 6 + Math.random() * 5, tap);
       };
-      q.timers.push(gsap.delayedCall(1.5 + Math.random() * 2, tap));
+      this.later(q, 1.5 + Math.random() * 2, tap);
     } else {
       q.w.do("wait");
-      if (Math.random() < 0.3) q.timers.push(gsap.delayedCall(3 + Math.random() * 6, () => q.alive && q.slot > 0 && q.w.say(pick(["Any minute now.", "Still here.", "I can wait. Probably.", "Is it my turn yet?"]))));
+      if (q.waiting) this.chatLater(q);
+    }
+  }
+
+  private chatLater(q: Q) {
+    const version = q.version;
+    this.later(q, 12 + Math.random() * 14, () => {
+      if (!q.alive || q.version !== version || !q.waiting) return;
+      const mate = this.line.filter(p => p !== q && p.alive && p.waiting && p.settled && Math.abs(p.w.x - q.w.x) < 180 && Math.hypot(p.w.x - q.w.x, p.w.y - q.w.y) < 230)
+        .sort((a, b) => Math.hypot(a.w.x - q.w.x, a.w.y - q.w.y) - Math.hypot(b.w.x - q.w.x, b.w.y - q.w.y))[0];
+      if (mate && !this.conversation && !document.hidden && !this.el.closest(".culled")) {
+        const conversation = this.conversation = {a: q, b: mate, av: q.version, bv: mate.version};
+        const lines = pick([["Hey, how's it going?", "Pretty good. You?"], ["Want to grab a coffee later?", "Sure, sounds good."], ["Mind if I wait here?", "Go ahead."]]);
+        const dx = mate.w.x - q.w.x, dy = mate.w.y - q.w.y;
+        const facing: Facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+        const opposite = {up: "down", down: "up", left: "right", right: "left"} as const;
+        q.w.face(facing); mate.w.face(opposite[facing]);
+        q.w.do("talk"); mate.w.do("listen"); q.w.say(lines[0], 2300);
+        this.later(q, 2.6, () => {
+          if (this.conversation !== conversation) return;
+          if (!this.conversationValid(conversation)) { this.endConversation(q); return; }
+          q.w.say(null); q.w.do("listen"); mate.w.do("talk"); mate.w.say(lines[1], 2300);
+        });
+        this.later(q, 5.2, () => { if(this.conversation === conversation) this.endConversation(q); });
+      }
+      this.chatLater(q);
+    });
+  }
+
+  private conversationValid(c: Conversation) {
+    return this.conversation === c && c.a.alive && c.b.alive && c.a.waiting && c.b.waiting && c.a.settled && c.b.settled && c.a.version === c.av && c.b.version === c.bv && !document.hidden && !this.el.closest(".culled");
+  }
+
+  private endConversation(q: Q) {
+    const c = this.conversation;
+    if (!c || (c.a !== q && c.b !== q)) return;
+    this.conversation = null;
+    for (const p of [c.a, c.b]) {
+      p.w.say(null);
+      if (p.alive && p.waiting && p.settled) {
+        this.facePlace(p); p.w.do("wait");
+      }
     }
   }
 
   private async leave(q: Q) {
+    this.endConversation(q);
     q.alive = false;
+    const version = ++q.version; q.w.stop();
+    q.w.setRunning(false);
+    this.reservations.delete(q.id);
     for (const t of q.timers) t.kill();
-    this.line = this.line.filter((x) => x !== q);
     q.w.calm();
     q.w.face("down");
     q.w.do("wave");
@@ -181,10 +277,14 @@ export class QuestionLine implements RoomExtension {
     else q.w.say(pick(["Thanks!", "Got it, thank you!", "Back to work!", "Perfect, thanks!"]), 1600);
     gsap.delayedCall(0.6, () => this.reflow());
     await new Promise((r) => gsap.delayedCall(v?.phase === "answered" ? 3 : 1.7, r));
+    if (q.alive || q.version !== version) return;
     const side = { x: this.w / 2 + 120, y: q.w.y };
     await q.w.walkPath([side, { x: this.w / 2 + 120, y: this.door.y - 20 }, this.door]);
+    if (q.alive || q.version !== version) return;
     // at the door the hall walker takes over on the same spot; otherwise it walks out by itself
     if (!this.onExit?.(q.id, { x: q.w.x, y: q.w.y }, q.w.facing)) await q.w.walkPath([this.out]);
+    if (q.alive || q.version !== version) return;
+    this.line = this.line.filter((x) => x !== q);
     q.w.destroy();
   }
 
@@ -242,9 +342,10 @@ export class QuestionLine implements RoomExtension {
   }
 
   destroy() {
+    this.conversation = null;
     this.monitor.destroy();
     this.boss.clear();
-    for (const q of this.line) { for (const t of q.timers) t.kill(); q.w.destroy(); }
+    for (const q of this.line) { q.alive = false; q.version++; for (const t of q.timers) t.kill(); q.w.destroy(); }
     this.line = [];
     for (const a of this.anims) a.kill();
     gsap.killTweensOf(Object.values(this.$));

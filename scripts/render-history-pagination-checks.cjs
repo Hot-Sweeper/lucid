@@ -22,13 +22,33 @@ module.exports = async ({ js, wait, out }) => {
     })()`);
     result.complete = await js(`(async()=>{
       const f=window.__historyFixture,c=f.c;await c.loadEarlier();
-      const before=c.shown.get('history-0'),current=f.messages.at(-1);current.text='Latest streaming replacement';current.streaming=true;await c.refresh();
-      return{shown:c.shown.size,first:c.shown.has('history-0'),sameFirst:c.shown.get('history-0')===before,last:c.shown.get('history-204').textContent.includes('Latest streaming replacement'),more:!c.el.querySelector('.cp-history-more').hidden,calls:f.calls};
+      const before=c.shown.get('history-0'),current=f.messages.at(-1),originalRender=c.render;let renders=0;c.render=function(m){renders++;return originalRender.call(this,m)};
+      try {
+        await c.refresh();const unchangedRenders=renders;
+        current.text='Latest streaming replacement';current.streaming=true;await c.refresh();
+        return{shown:c.shown.size,first:c.shown.has('history-0'),sameFirst:c.shown.get('history-0')===before,last:c.shown.get('history-204').textContent.includes('Latest streaming replacement'),more:!c.el.querySelector('.cp-history-more').hidden,calls:f.calls,unchangedRenders,changedRenders:renders-unchangedRenders,serializedMessages:[...c.shown.values()].filter(el=>el.dataset.sig!==undefined).length,currentReferences:[...c.renderedMessages].every(([id,m])=>c.history.rows.get(id)===m)};
+      } finally {c.render=originalRender}
+    })()`);
+    result.streamingAnchor = await js(`(async()=>{
+      const f=window.__historyFixture,c=f.c,list=c.el.querySelector('.cp-list');
+      f.messages[203].at=f.messages[202].at;f.messages[204].text+='\\n\\n'+('Later content keeps this expanded earlier update within the scrollable range. '.repeat(50));await c.refresh();
+      const anchor=c.shown.get('history-202'),group=anchor.closest('.cp-group'),details=group.querySelector('details');details.open=true;
+      list.scrollTop+=anchor.getBoundingClientRect().top-list.getBoundingClientRect().top+10;
+      const y=anchor.getBoundingClientRect().top,aligned=Math.abs(y-list.getBoundingClientRect().top+10)<=1;let metadataChanges=0;
+      const collect=records=>{for(const r of records){const target=r.target.nodeType===1?r.target:r.target.parentElement;if(target?.closest('summary')||r.type==='attributes'&&target?.matches('.cp-earlier'))metadataChanges++}};
+      const observer=new MutationObserver(collect);observer.observe(list,{subtree:true,childList:true,attributes:true,attributeFilter:['hidden']});
+      f.messages[126].text+='\\n\\n'+('Earlier content expanded during streaming. '.repeat(30));await c.refresh();
+      collect(observer.takeRecords());observer.disconnect();
+      return{sameAnchor:c.shown.get('history-202')===anchor,expanded:details.open,aligned,positionError:Math.abs(anchor.getBoundingClientRect().top-y),metadataChanges};
     })()`);
     result.passed = result.initial.shown === 80 && result.initial.more && result.initial.first === 'history-125'
       && result.prepend.shown === 160 && result.prepend.more && result.prepend.error <= 1
       && result.complete.shown === 205 && result.complete.first && result.complete.sameFirst && result.complete.last && !result.complete.more
-      && result.complete.calls.filter(c=>c.before).length === 2;
+      && result.complete.calls.filter(c=>c.before).length === 2
+      && result.complete.unchangedRenders === 0 && result.complete.changedRenders === 1
+      && result.complete.serializedMessages === 0 && result.complete.currentReferences
+      && result.streamingAnchor.sameAnchor && result.streamingAnchor.expanded && result.streamingAnchor.aligned && result.streamingAnchor.positionError <= 1
+      && result.streamingAnchor.metadataChanges === 0;
     fs.writeFileSync(path.join(out,'history-pagination-checks.json'),JSON.stringify(result,null,2));
     if (!result.passed) throw Error('Bounded history load, reader anchor, retained older content or newest-stream refresh failed');
   } finally {

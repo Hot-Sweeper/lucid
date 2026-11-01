@@ -59,9 +59,9 @@ export const EYES: Opt<EyeStyle>[] = [
   { id: "visor", label: "Visor bar" }, { id: "pixel", label: "Pixel" }, { id: "sleepy", label: "Sleepy" }, { id: "hearts", label: "Hearts", unlock: 3 },
 ];
 export const TINTS: (Opt<Tint> & { color: string | null })[] = [
-  { id: "none", label: "Factory", color: null }, { id: "warm", label: "Warm", color: "#ffa36b" }, { id: "cool", label: "Cool", color: "#7fa6ff" },
-  { id: "mint", label: "Mint", color: "#5fdcae" }, { id: "rose", label: "Rose", color: "#ff8fb1" }, { id: "sand", label: "Sand", color: "#dcb47a" },
-  { id: "lilac", label: "Lilac", color: "#b896ff" }, { id: "graphite", label: "Graphite", color: "#4a505f" },
+  { id: "none", label: "Factory", color: null }, { id: "warm", label: "Soft depth", color: "#ffa36b" }, { id: "cool", label: "Soft shade", color: "#7fa6ff" },
+  { id: "mint", label: "Light", color: "#5fdcae" }, { id: "rose", label: "Medium depth", color: "#ff8fb1" }, { id: "sand", label: "Medium shade", color: "#dcb47a" },
+  { id: "lilac", label: "Deep", color: "#b896ff" }, { id: "graphite", label: "Graphite", color: "#4a505f" },
 ];
 export const STICKERS: Opt<StickerKind>[] = [
   { id: "none", label: "None" }, { id: "bolt", label: "Bolt" }, { id: "star", label: "Star" }, { id: "heart", label: "Heart" }, { id: "smile", label: "Smiley" },
@@ -154,15 +154,20 @@ export function migrateLook(look: RobotLook, id: string): RobotLook {
 const hex = (c: string) => { const n = parseInt(c.replace("#", "").padEnd(6, "0").slice(0, 6), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const toHex = (rgb: number[]) => "#" + rgb.map((v) => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, "0")).join("");
 export const mix = (a: string, b: string, t: number) => { const x = hex(a), y = hex(b); return toHex(x.map((v, i) => v + (y[i] - v) * t)); };
-const lum = (c: string) => { const [r, g, b] = hex(c); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; };
 
 /** The brand shell shifted slightly toward a tint. Enough to tell robots apart, never enough to lose the brand. */
 export function tintPalette<P extends { shell: string; shade: string; deep: string }>(p: P, tint: Tint | undefined): P {
-  const t = TINTS.find((x) => x.id === tint)?.color;
-  if (!t) return p;
-  const dark = lum(p.shell) < 0.4;
-  const k = dark ? 0.12 : tint === "graphite" ? 0.15 : 0.12;
-  return { ...p, shell: mix(p.shell, t, k), shade: mix(p.shade, t, k * 1.3), deep: mix(p.deep, t, k * 1.4) };
+  // Each choice stays in the harness's own color family. Vary brightness and
+  // saturation rather than mixing unrelated pink, green or blue into its shell.
+  const shifts: Record<string, [string, number]> = {
+    warm: [p.deep, 0.10], cool: [p.shade, 0.16], mint: [p.shell, 0.08],
+    rose: [p.deep, 0.16], sand: [p.shade, 0.24], lilac: [p.deep, 0.22],
+    graphite: ["#17191e", 0.18],
+  };
+  const shift = shifts[tint || "none"];
+  if (!shift) return p;
+  const [target, amount] = shift;
+  return { ...p, shell: mix(p.shell, target, amount), shade: mix(p.shade, target, amount * 0.7), deep: mix(p.deep, target, amount * 0.4) };
 }
 
 /** Sets the colour variables a look needs on a robot root (call after the brand is painted). */

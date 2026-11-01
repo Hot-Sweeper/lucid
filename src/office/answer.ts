@@ -2,6 +2,7 @@ import gsap from "gsap";
 import "./answer.css";
 import type { ChatPanel } from "./chat-panel";
 import type { Advice } from "./delegate";
+import { gameSound } from './sound';
 
 // Answering a robot's question (or approving what it wants to do) from its chat.
 // The card sits above the message box while the thread has an open request. It shows the real
@@ -24,7 +25,8 @@ type T3 = {
   status(o: { connect?: boolean; threadId?: string | null }): Promise<{ paired: boolean; error: string | null }>;
   respond(o: { threadId: string; requestId: string; answers?: Answers; decision?: string }): Promise<unknown>;
 };
-type Deps = { pending(threadId: string): Promise<PendingRequest[]>; t3?: T3; advice?(requestId: string): Advice | null };
+export type AnswerDeps = { pending(threadId: string): Promise<PendingRequest[]>; t3?: T3; advice?(requestId: string): Advice | null; poll?: boolean; autoFocus?: boolean };
+type AnswerHost = Pick<ChatPanel, "el" | "isOpen" | "threadId">;
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const APPROVAL_TITLE: Record<string, string> = {
@@ -58,8 +60,11 @@ export class AnswerCard {
   private sent = new Map<string, string>(); // requests answered from here (what to say once T3 resolves them)
   private busy = false;
   private timer = 0;
+  private interval = 0;
+  private reading = false;
+  private disposed = false;
 
-  constructor(private chat: ChatPanel, private deps: Deps) {
+  constructor(private chat: AnswerHost, private deps: AnswerDeps) {
     this.el = document.createElement("section");
     this.el.className = "cp-answer";
     this.el.hidden = true;
@@ -71,7 +76,18 @@ export class AnswerCard {
       if (c) void this.connect(c);
     });
     // live data: follow whichever thread the chat shows
-    window.setInterval(() => void this.tick(), 1500);
+    if (deps.poll !== false) this.interval = window.setInterval(() => void this.tick(), 1500);
+  }
+
+  refresh() { return this.tick(); }
+
+  destroy() {
+    this.disposed = true;
+    this.threadId = null;
+    window.clearInterval(this.interval);
+    window.clearTimeout(this.timer);
+    gsap.killTweensOf([this.el, ...this.el.querySelectorAll("*")]);
+    this.el.remove();
   }
 
   /** Open questions of this thread get focus as soon as they are loaded. */
@@ -93,6 +109,7 @@ export class AnswerCard {
   }
 
   private async tick(force = false) {
+    if (this.disposed) return;
     const id = this.chat.isOpen ? this.chat.threadId : null;
     if (id !== this.threadId) {
       // another robot's chat: start clean, never show the last robot's question there
@@ -102,19 +119,22 @@ export class AnswerCard {
       this.paired = null;
       this.el.innerHTML = "";
       this.el.hidden = true;
-      if (id && this.wantFocus !== id) this.wantFocus = id; // opening a chat with a question brings you to it
+      if (id && this.wantFocus !== id && this.deps.autoFocus !== false) this.wantFocus = id;
       force = true;
     }
-    if (!id || (this.busy && !force)) return;
+    if (!id || this.reading || (this.busy && !force)) return;
+    this.reading = true;
+    try {
     let list: PendingRequest[];
     try { list = await this.deps.pending(id); } catch { return; }
-    if (id !== this.threadId) return;
+    if (id !== this.threadId || this.chat.threadId !== id || !this.chat.isOpen) return;
     if (list.length && this.paired === null) {
       this.paired = false;
       try { this.paired = !!this.deps.t3 && (await this.deps.t3.status({ threadId: id })).paired; } catch {}
-      if (id !== this.threadId) return;
+      if (id !== this.threadId || this.chat.threadId !== id || !this.chat.isOpen) return;
     }
     this.apply(list);
+    } finally { this.reading = false; }
   }
 
   private apply(list: PendingRequest[]) {
@@ -373,6 +393,8 @@ export class AnswerCard {
     this.busy = true;
     try {
       await t3.respond({ threadId, requestId: r.id, ...payload });
+      if (this.disposed || this.threadId !== threadId || this.chat.threadId !== threadId) return;
+      gameSound.play('switch');
       const verb = r.type === "input" ? "Answer sent" : payload.decision?.startsWith("accept") ? "Approved" : "Denied";
       this.sent.set(r.id, `${verb}. It carries on.`);
       state.textContent = `${verb}. Waiting for it to carry on.`;

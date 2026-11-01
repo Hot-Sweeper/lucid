@@ -4,6 +4,7 @@
 import { C, type Bot, type Ctx, circle, drawBot, drawGPU, ellipse, fillRR, glow, limb, lin, poly, rad, shade, withAlpha } from "./draw";
 import { VIDEOS } from "./videos";
 import { clamp, hash, lerp, seg, smooth } from "./util";
+import { canvasText, canvasLabel } from "../localization-canvas";
 
 export const SW = 178, SH = 100;
 /** Canvas clocks can read NaN or negative for a frame. Never let that reach the drawing. */
@@ -162,12 +163,13 @@ export function drawTitle(ctx: Ctx, s: TitleStyle, x: number, y: number, maxW: n
     const sz = size * (s.subSize ?? 0.2) * B.k;
     setFont(ctx, s.subFont ?? "sans", sz, s.subWeight ?? 500);
     ctx.letterSpacing = `${(s.subTrack ?? 0.08) * sz}px`;
-    const w = ctx.measureText(s.sub).width - (s.subTrack ?? 0.08) * sz;
+    const subtitle = canvasText(s.sub);
+    const w = Math.min(maxW, ctx.measureText(subtitle).width - (s.subTrack ?? 0.08) * sz);
     const sx = align === "center" ? x - w / 2 : x + (s.skew ? sz * 0.2 : 0);
     ctx.shadowColor = "rgba(0,0,0,0.7)";
     ctx.shadowBlur = sz * 0.5 * S;
     ctx.fillStyle = s.subColor ?? "#ffffff";
-    ctx.fillText(s.sub, sx, cy + sz * 1.25);
+    ctx.fillText(subtitle, sx, cy + sz * 1.25, maxW);
   }
   ctx.letterSpacing = "0px";
   ctx.shadowColor = "transparent";
@@ -243,7 +245,7 @@ export function drawArt(ctx: Ctx, show: ShowDef, w: number, h: number, kind: Art
     ctx.fillStyle = "#fff";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(show.ribbon, w * 0.065 + rh * 0.4, h - rh * 0.75);
+    ctx.fillText(canvasText(show.ribbon), w * 0.065 + rh * 0.4, h - rh * 0.75, Math.min(w * 0.5, rh * 6.4) - rh * 0.8);
   }
 }
 
@@ -581,7 +583,7 @@ const unterminated: ShowDef = {
     ctx.setLineDash([]);
     ctx.restore();
     fillRR(ctx, 84, 58, 24, 7, 0.6, "#f2d14a");
-    ctx.font = `800 3.6px ${FONT.mono}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#1a1416"; ctx.fillText("MISSING ;", 96, 61.7);
+    ctx.font = `800 3.6px ${FONT.mono}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#1a1416"; canvasLabel(ctx, "MISSING ;", 96, 61.7);
     floor(ctx, 78, "#151012", "#070506");
     // desk lamp light
     const flick = 0.85 + 0.15 * Math.sin(t * 13) * Math.sin(t * 3.1);
@@ -800,7 +802,7 @@ const paperJam: ShowDef = {
     for (let i = 0; i < 11; i++) fillRR(ctx, -40, 6 + i * 3.1, 52, 1.6, 0.3, withAlpha("#e8e6dc", 0.9));
     // motivational poster
     fillRR(ctx, 74, 10, 20, 24, 0.6, "#1f2a44"); fillRR(ctx, 76, 12, 16, 14, 0.4, lin(ctx, 0, 12, 0, 26, [[0, "#ff9f5a"], [1, "#6b3fa0"]]));
-    ctx.font = `700 2.5px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#f6ecdc"; ctx.fillText("SYNERGY", 84, 30);
+    ctx.font = `700 2.5px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#f6ecdc"; canvasLabel(ctx, "SYNERGY", 84, 30);
     // cubicle walls
     fillRR(ctx, -40, 44, 104, 30, 1, "#8b8e9c"); fillRR(ctx, 130, 46, 90, 28, 1, "#8b8e9c");
     floor(ctx, 74, "#8d8a7c", "#6a675a");
@@ -1053,7 +1055,7 @@ const captchaGame: ShowDef = {
     // the giant captcha screen
     fillRR(ctx, 64, 8, 52, 50, 2, "#f6f6f6");
     fillRR(ctx, 64, 8, 52, 9, 2, "#4a7cf0");
-    ctx.font = `700 3px ${SANS}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.fillText("Select all squares with", 67, 11); ctx.font = `800 3.4px ${SANS}`; ctx.fillText("traffic lights", 67, 14.6);
+    ctx.font = `700 3px ${SANS}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; canvasLabel(ctx, "Select all squares with", 67, 11); ctx.font = `800 3.4px ${SANS}`; canvasLabel(ctx, "traffic lights", 67, 14.6);
     for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
       const x = 66.5 + c * 15.8, y = 19 + r * 12.6;
       fillRR(ctx, x, y, 15, 12, 0.4, ["#8aa0b0", "#9ab0a0", "#a0a8b8"][(r + c) % 3]);
@@ -1107,7 +1109,7 @@ const precinct404: ShowDef = {
     // wall plaque
     fillRR(ctx, 70, 8, 40, 16, 1.6, "#1a2230");
     ctx.font = `800 9px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#ffd36b"; ctx.fillText("404", 90, 15);
-    ctx.font = `600 2.6px ${SANS}`; ctx.fillStyle = "#c9d4e4"; ctx.fillText("NOT FOUND SINCE 1998", 90, 21.2);
+    ctx.font = `600 2.6px ${SANS}`; ctx.fillStyle = "#c9d4e4"; canvasLabel(ctx, "NOT FOUND SINCE 1998", 90, 21.2);
     // lights and blinds
     fillRR(ctx, 130, 8, 40, 30, 1, "#1a2230");
     for (let i = 0; i < 9; i++) fillRR(ctx, 131, 9 + i * 3.2, 38, 1.8, 0.2, withAlpha(Math.sin(t * 2.4) > 0 ? "#ff5050" : "#5080ff", 0.25 + i * 0.03));
@@ -1437,7 +1439,7 @@ const chargingBooth: ShowDef = {
     // the booth
     fillRR(ctx, 50, 30, 80, 8, 1, "#ff6f91");
     for (let i = 0; i < 8; i++) poly(ctx, [[50 + i * 10, 38], [60 + i * 10, 38], [55 + i * 10, 43]], i & 1 ? "#ffffff" : "#ff6f91");
-    ctx.font = `800 4.6px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.fillText("CHARGING BOOTH 5c", 90, 34.4);
+    ctx.font = `800 4.6px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; canvasLabel(ctx, "CHARGING BOOTH 5c", 90, 34.4);
     fillRR(ctx, 52, 38, 3, 36, 0.4, "#f6e6ee"); fillRR(ctx, 125, 38, 3, 36, 0.4, "#f6e6ee");
     fillRR(ctx, 50, 66, 80, 10, 1, "#f6e6ee");
     // the shared cable
@@ -1530,7 +1532,7 @@ export function drawEpisode(ctx: Ctx, show: ShowDef, ep: number, w: number, h: n
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#d8d8de";
-    ctx.fillText(`${CREDIT_ROLES[ci]} ${CREDIT_NAMES[(ci + show.id.length) % CREDIT_NAMES.length]}`, w / 2, h * 0.8);
+    ctx.fillText(`${canvasText(CREDIT_ROLES[ci])} ${CREDIT_NAMES[(ci + show.id.length) % CREDIT_NAMES.length]}`, w / 2, h * 0.8, w * 0.9);
     ctx.restore();
     return;
   }
@@ -1556,7 +1558,7 @@ export function drawEpisode(ctx: Ctx, show: ShowDef, ep: number, w: number, h: n
       if (role) y += lh * 0.9;
       if (y > -lh * 2 && y < h) {
         ctx.font = `400 ${lh * 0.7}px ${SANS}`; ctx.fillStyle = "#8c8c96";
-        if (role) ctx.fillText(role, w * 0.66, y);
+        if (role) ctx.fillText(canvasText(role), w * 0.66, y, w * 0.30);
         ctx.font = `500 ${lh * 0.8}px ${SANS}`; ctx.fillStyle = "#e8e8ee";
         ctx.fillText(name, w * 0.66, y + lh * 0.95);
       }

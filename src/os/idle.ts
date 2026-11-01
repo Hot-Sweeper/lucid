@@ -1,11 +1,9 @@
 import gsap from "gsap";
+import { watchClock, clockTime, clockDate } from "../perf/clock";
 import { GAME_TITLES, type GameKey } from "../games/catalog";
-import { markSteamStopped } from "../leisure/steam";
 import { WM, Cancelled, type AppId } from "./wm";
 import { CalcApp, IDLE_SUMS } from "./calc";
 import { WeatherApp, checkTime } from "./glance";
-import { playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge, playRobotIsland, playBotCom, playDerBugger, playBoot } from "../games";
-import { watchBotflix } from "../fun";
 import { SEARCHES as SEARCH_LINES, GAME_LINES, pickFresh } from "../content";
 const nextSearch = pickFresh(SEARCH_LINES, "lucid:searches");
 const gameLine = (kind: string, game?: string) => {
@@ -14,14 +12,13 @@ const gameLine = (kind: string, game?: string) => {
 };
 import type { SeatedRobot as Robot } from "../office/rig";
 import type { DeskStage as Stage } from "../office/desk";
-import { playSnake, playFlappy, playDash, watchPhoneFeed, watchTube, browseTensorHub, type FunHost } from "../fun";
+import type { FunHost } from "../fun/host";
 import "../fun/fun.css";
-import { makeBeat } from "../life/beats";
-import { hangOutInChat } from "../life/chat";
 import "../life/life.css";
 import { officeIdle, officePick, OFFICE_IDLE_LINE } from "../office-apps/idle";
-import { chatOnBotsApp, browseTelegrid, scrollChirp, usePhone, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, browseInstaweb, scrollSpoolWeb, swipeSparkplug, PHONE_APP_DOING, type PhoneApp, type SoOpts } from "../social";
-import { useSteam, tradeOnTradebot } from "../leisure";
+import { PHONE_APP_DOING, type PhoneApp } from "../social/phone-apps";
+import type { SoOpts } from "../social/kit";
+import { playSnake, playFlappy, playDash, playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge, playRobotIsland, playBotCom, playDerBugger, playBoot, watchBotflix, watchTube, browseTensorHub, makeBeat, hangOutInChat, usePhone, chatOnBotsApp, browseTelegrid, scrollChirp, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, browseInstaweb, scrollSpoolWeb, swipeSparkplug, useSteam, tradeOnTradebot, preloadActivity, } from "./idle-activities";
 import type { Prefs } from "../office/roster";
 
 // What the robot does when there is no work: tidy the desktop, play a game,
@@ -39,7 +36,7 @@ export class IdleLife {
   private active = false;
   private stopGame: (() => void) | null = null;
   private lockEl: HTMLElement | null = null;
-  private clockTimer = 0;
+  private stopClock: (() => void) | null = null;
   private phoneUp = false;
   onActivity: (t: string) => void = () => {};
 
@@ -59,10 +56,11 @@ export class IdleLife {
   hold: () => boolean = () => false;
 
   begin(opts: { locked?: boolean } = {}) {
+    if (this.hold()) return;
     // halted but never roused (the work went away again): it just goes on dozing
     if (this.halted && this.lockEl) { this.halted = false; this.active = true; ++this.token; return; }
     if (this.halted) this.stop();
-    if (this.active || this.hold()) return;
+    if (this.active) return;
     this.active = true;
     const tok = ++this.token;
     this.run(tok, opts).catch((err) => { if (!(err instanceof Cancelled)) console.error("idle failed", err); });
@@ -93,6 +91,13 @@ export class IdleLife {
     this.halted = true;
     this.token++;
     this.wm.epoch++;
+  }
+
+  /** A game must stop driving input as soon as its player leaves the chair. */
+  leaveDesk() {
+    this.halt();
+    this.stopGame?.();
+    this.stopGame = null;
   }
 
   /** Asleep behind the lock screen right now. */
@@ -235,6 +240,8 @@ export class IdleLife {
   }
 
   private async doActivity(act: string, tok: number, alreadyLaunched = false) {
+    this.alive(tok);
+    preloadActivity(act);
     const host = this.host(tok);
     const skill = 0.35 + Math.random() * 0.5;
     const game = async (play: (b: HTMLElement, h: FunHost, o: { maxMs: number; skill?: number }) => Promise<{ result: string }>) => {
@@ -420,7 +427,7 @@ export class IdleLife {
         this.alive(tok);
         if (out.launch) {
           try { await this.doActivity(out.launch, tok, true); }
-          finally { markSteamStopped(w.body); }
+          finally { (await import("../leisure/steam")).markSteamStopped(w.body); }
         }
         return this.closeWin("steam", tok);
       }
@@ -549,13 +556,13 @@ export class IdleLife {
     el.innerHTML = `<div class="lock-time"></div><div class="lock-date"></div><p class="lock-hint">Waiting for a new task</p>`;
     this.wm.root.appendChild(el);
     this.lockEl = el;
-    const paint = () => {
-      const now = new Date();
-      el.querySelector(".lock-time")!.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      el.querySelector(".lock-date")!.textContent = now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
-    };
-    paint();
-    this.clockTimer = window.setInterval(paint, 1000);
+    const time = el.querySelector(".lock-time")!, date = el.querySelector(".lock-date")!;
+    this.stopClock?.();
+    this.stopClock = watchClock(el, now => {
+      const nextTime = clockTime(now), nextDate = clockDate(now);
+      if (time.textContent !== nextTime) time.textContent = nextTime;
+      if (date.textContent !== nextDate) date.textContent = nextDate;
+    });
     gsap.timeline()
       .fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.8, ease: "sine.out" })
       .fromTo(el.querySelector(".lock-time"), { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: "expo.out" }, 0.2)
@@ -567,7 +574,7 @@ export class IdleLife {
   }
 
   private unlock() {
-    window.clearInterval(this.clockTimer);
+    this.stopClock?.(); this.stopClock = null;
     gsap.to(this.wm.cursorEl, { opacity: 1, duration: 0.3 });
     const el = this.lockEl;
     this.lockEl = null;

@@ -46,6 +46,94 @@ async function protocol() {
   } finally { service.stop(); }
 }
 
+async function workerOwnership() {
+  const fixtures = [];
+  function fixture(stopTimeoutMs = 1000) {
+    const children = [];
+    const service = createService({ exists: () => true, stopTimeoutMs, spawnWorker: (_python, args) => {
+      const child = new EventEmitter();
+      child.stdout = new PassThrough(); child.stderr = new PassThrough(); child.stdin = new PassThrough();
+      child.mode = args.at(-1); child.killRequests = 0; child.exited = false;
+      // Native termination is asynchronous. A kill request is not an exit.
+      child.kill = () => { child.killRequests++; return true; };
+      children.push(child); return child;
+    } });
+    const result = { service, children,
+      reply: (n, value) => children[n].stdout.write(JSON.stringify(value) + '\n'),
+      exit: n => { children[n].exited = true; children[n].emit('exit', 0); },
+    };
+    fixtures.push(result); return result;
+  }
+  try {
+    let f = fixture();
+    const cancelled = f.service.load('auto');
+    const cancellation = assert.rejects(cancelled, { code: 'CANCELLED' });
+    f.reply(0, { type: 'error', error: 'Synthetic automatic startup failure' });
+    f.service.stop(); await cancellation; await tick();
+    assert.equal(f.children.length, 1, 'cancel between failure and fallback microtask must prevent a CPU start');
+    f.exit(0); await tick();
+    assert.equal(f.children.length, 1, 'late shutdown cannot revive a cancelled operation');
+
+    f = fixture();
+    const first = f.service.load('auto'), second = f.service.load('auto');
+    assert.equal(first, second, 'all callers share the complete fallback operation');
+    f.reply(0, { type: 'error', error: 'Synthetic automatic startup failure' }); await tick();
+    assert.equal(f.children.length, 1, 'fallback waits for the failed native worker to exit');
+    assert.equal(f.children[0].killRequests, 1);
+    f.exit(0); await tick(); assert.equal(f.children.length, 2); assert.equal(f.children[1].mode, 'cpu');
+    f.reply(1, { type: 'ready', device: 'CPU', backend: 'cpu' });
+    assert.deepEqual(await first, await second, 'both callers receive the successful fallback');
+    await f.service.load('auto'); assert.equal(f.children.length, 2, 'automatic mode reuses its CPU fallback');
+
+    const replacement = f.service.load('cpu');
+    const replacementCancelled = assert.rejects(replacement, { code: 'CANCELLED' });
+    for (let i = 0; i < 1000; i++) assert.equal(f.service.load('cpu'), replacement);
+    assert.equal(f.children.length, 2, 'repeated loads cannot overlap a model still shutting down');
+    f.service.stop(); await replacementCancelled; f.exit(1); await tick();
+    assert.equal(f.children.length, 2, 'cancel while waiting for shutdown prevents replacement');
+    const fresh = f.service.load('cpu');
+    f.reply(2, { type: 'ready', device: 'CPU', backend: 'cpu' }); await fresh;
+
+    f = fixture(20);
+    const initial = f.service.load('cpu');
+    f.reply(0, { type: 'ready', device: 'CPU', backend: 'cpu' }); await initial;
+    // Keep the fake-only process alive while the production unref'ed deadline fires.
+    const deadline = setTimeout(() => {}, 1000);
+    try { await assert.rejects(f.service.load('auto'), /still stopping/); }
+    finally { clearTimeout(deadline); }
+    assert.equal(f.children.length, 1, 'shutdown timeout does not drop ownership or launch another model');
+    f.exit(0);
+    const retry = f.service.load('auto');
+    f.reply(1, { type: 'ready', device: 'GPU', backend: 'vulkan' }); await retry;
+    assert.equal(f.children.length, 2, 'a confirmed late exit permits an explicit retry');
+
+    const run = f.service.run(new Uint8Array(16000 * 4));
+    const pipeFailure = assert.rejects(run, /stopped receiving audio/);
+    f.children[1].stdin.emit('error', Object.assign(new Error('Synthetic broken pipe'), { code: 'EPIPE' }));
+    await pipeFailure;
+    assert.equal(f.children[1].killRequests, 1, 'pipe failure retires the owning worker without an uncaught stream error');
+
+    f = fixture();
+    const loaded = f.service.load('cpu');
+    f.reply(0, { type: 'ready', device: 'CPU', backend: 'cpu' }); await loaded;
+    let writeDone;
+    f.children[0].stdin.write = (_value, callback) => { writeDone = callback; return true; };
+    const oldRun = f.service.run(new Uint8Array(4));
+    const oldRunCancelled = assert.rejects(oldRun, { code: 'CANCELLED' });
+    f.service.stop(); await oldRunCancelled;
+    const nextLoad = f.service.load('cpu');
+    writeDone(Object.assign(new Error('Late write failure'), { code: 'EPIPE' }));
+    f.exit(0); await tick();
+    assert.equal(f.children.length, 2, 'a retiring worker write callback cannot cancel the replacement waiting for its exit');
+    f.reply(1, { type: 'ready', device: 'CPU', backend: 'cpu' }); await nextLoad;
+  } finally {
+    for (const f of fixtures) {
+      f.service.stop();
+      f.children.forEach((child, n) => { if (!child.exited) f.exit(n); });
+    }
+  }
+}
+
 function windowsEncoding() {
   // Execute the real worker protocol, substituting only the model for a fixture.
   // Force a Windows legacy stdout encoding, reproducing the reported corruption.
@@ -162,4 +250,4 @@ function batchedCapture() {
   values.forEach((value, index) => assert.equal(value, index));
 }
 
-(async () => { await protocol(); windowsEncoding(); batchedCapture(); await composer(); console.log('PASS: German encoding, CPU fallback, deferred model loading, batched capture with lossless tail flush, cancellation, microphone cleanup, draft insertion and thread isolation.'); })().catch(error => { console.error(error); process.exitCode = 1; });
+(async () => { await protocol(); await workerOwnership(); if (!process.argv.includes('--without-python')) windowsEncoding(); batchedCapture(); await composer(); console.log('PASS: dictation protocol, shared fallback, cancellation races, exclusive model ownership through delayed exit, bounded shutdown, pipe errors, capture cleanup and thread-safe draft insertion.'); if (process.argv.includes('--without-python')) console.log('Python encoding fixture skipped; update validation does not require the optional dictation runtime.'); })().catch(error => { console.error(error); process.exitCode = 1; });

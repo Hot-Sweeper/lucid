@@ -30,15 +30,56 @@ function fixture() {
   let source = fs.readFileSync(path.join(__dirname, "../src/stats/stats.ts"), "utf8");
   source = source.replace(/^import .*;\r?$/gm, "").replace(/^export /gm, "");
   const document = { createElement: (tag) => new Element(tag), addEventListener() {}, removeEventListener() {}, hidden: false };
-  const context = { document, logoFor: () => null, harnessName: (h) => h === "codex" ? "Codex" : "Claude", setInterval: () => 1, clearInterval() {} };
+  let poll;
+  const context = { document, logoFor: () => null, harnessName: (h) => h === "codex" ? "Codex" : "Claude", setInterval: fn => { poll = fn; return 1; }, clearInterval() {} };
   vm.createContext(context);
   vm.runInContext(stripTypeScriptTypes(source) + "\nthis.mountStats = mountStats;", context);
-  return { host: new Element("div"), mount: context.mountStats };
+  return { host: new Element("div"), mount: context.mountStats, document, poll: () => poll() };
 }
 const totals = { tokens: 30, input: 20, output: 10, cacheRead: 0, cacheWrite: 0, costUsd: 1, byHarness: {}, byModel: {}, byProject: {
   alpha: { name: "A long project name that must remain readable", tokens: 20, costUsd: 0.8, priced: true, sources: { session: 20, cwd: 0, unassigned: 0 } },
   unassigned: { name: "Unassigned", tokens: 10, costUsd: 0.2, priced: false, sources: { session: 0, cwd: 0, unassigned: 10 } },
 } };
+test("battery supervision continues hidden without repainting or overlapping quota reads", async () => {
+  const f = fixture(); f.document.hidden = true;
+  let calls = 0, finish;
+  const mounted = f.mount(f.host, () => { calls++; return new Promise(resolve => { finish = resolve; }); }, { background: true });
+  f.poll(); f.poll(); assert.equal(calls, 1);
+  finish({ updatedAt: '', windows: { today: totals, week: totals, last5h: totals }, limits: {}, errors: [] });
+  await tick(); assert.equal(f.host.children[0].classList.contains('st-loading'), true, 'hidden results do not render even the stats summary');
+  f.poll(); assert.equal(calls, 2, 'quota supervision keeps polling while the window is hidden');
+  finish({ updatedAt: '', windows: { today: totals, week: totals, last5h: totals }, limits: {}, errors: [] });
+  await tick(); mounted.destroy();
+});
+test("slow subscription reads never overlap and destroy ignores their result", async () => {
+  const f = fixture();
+  let calls = 0, finish;
+  const mounted = f.mount(f.host, () => { calls++; return new Promise(resolve => { finish = resolve; }); });
+  mounted.refresh(); mounted.refresh();
+  assert.equal(calls, 1);
+  mounted.destroy();
+  finish({ updatedAt: '', windows: { today: totals, week: totals, last5h: totals }, limits: {}, errors: [] });
+  await tick();
+  assert.equal(f.host.children.length, 0);
+});
+test("closed breakdowns skip row construction and reopen with current data", async () => {
+  const f = fixture();
+  let today = { ...totals, byProject: { alpha: totals.byProject.alpha }, byModel: { example: { tokens: 10, costUsd: 1, harness: 'codex' } } };
+  const mounted = f.mount(f.host, async () => ({ updatedAt: '', windows: { today, week: today, last5h: today }, limits: {}, errors: [] }));
+  await tick();
+  assert.equal(find(f.host, 'st-model').length, 0);
+  const toggle = find(f.host, 'st-toggle').find(e => e.textContent.startsWith('By project'));
+  toggle.click();
+  const row = find(f.host, 'st-projects-wrap')[0];
+  assert.match(row.textContent, /A long project/);
+  toggle.click();
+  today = { ...today, byProject: { alpha: { ...totals.byProject.alpha, name: 'Latest project name' } } };
+  mounted.refresh(); await tick();
+  assert.doesNotMatch(row.textContent, /Latest project name/, 'Hidden rows are not updated');
+  toggle.click();
+  assert.match(row.textContent, /Latest project name/, 'Reopen renders latest data immediately');
+  mounted.destroy();
+});
 test("equal-duration pools keep separate stable rows; missing/stale percentages never become zero claims", async () => {
   const f = fixture();
   let data = { updatedAt: "2026-10-31T12:00:00Z", windows: { today: totals, week: totals, last5h: totals }, errors: [], limits: { claude: null, codex: { primary: null, secondary: null, observedAt: "2026-10-31T12:00:00Z", windows: [
@@ -57,12 +98,13 @@ test("equal-duration pools keep separate stable rows; missing/stale percentages 
   assert.doesNotMatch(rows[3].textContent, /100%/);
   assert.match(find(f.host, "st-limit-note")[0].textContent, /Claude limits unavailable/);
   const projects = find(f.host, "st-projects-wrap")[0];
+  assert.equal(find(projects, "st-model").length, 0, "Closed breakdowns allocate no rows");
+  const projectToggle = find(f.host, "st-toggle").find((e) => e.textContent.startsWith("By project"));
+  projectToggle.click(); assert.equal(projectToggle.getAttribute("aria-expanded"), "true");
   assert.match(projects.textContent, /A long project name that must remain readable/);
   assert.match(projects.textContent, /Unassigned/);
   assert.match(projects.textContent, /\$0\.20\*/);
   assert.match(find(projects, "st-mname")[0].title, /linked by T3 session/);
-  const projectToggle = find(f.host, "st-toggle").find((e) => e.textContent.startsWith("By project"));
-  projectToggle.click(); assert.equal(projectToggle.getAttribute("aria-expanded"), "true");
   assert.ok(f.host.children[0].classList.contains("st-projects-open"));
   data.limits.codex.windows[1].usedPercent = 81;
   mounted.refresh(); await tick();
