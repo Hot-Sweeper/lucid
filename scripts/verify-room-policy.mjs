@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 const load = async (name) => { const source = await transformWithOxc(await readFile(new URL(`../src/office/${name}.ts`, import.meta.url), 'utf8'), `${name}.ts`); return import('data:text/javascript;base64,' + Buffer.from(source.code).toString('base64')); };
-const { hasOfficeWork, reserveRoomSeats, projectRoomSeats, reorderPhysicalSeats, physicalSeatIndices, layoutMeeting, layoutWaitingSpots, FOLDED_OFFICE } = await load('room-policy');
+const { hasOfficeWork, reserveRoomSeats, projectRoomSeats, reorderPhysicalSeats, physicalSeatIndices, layoutMeeting, layoutWaitingSpots, layoutClearAt, FOLDED_OFFICE } = await load('room-policy');
 const { officePlan, hallRoute, inHall } = await load('floor-plan');
 const thread = (id, runStatus = null, question = null) => ({ id, runStatus, question, pinned: true, settled: false });
 for (const status of ['running', 'queued', 'waiting', 'starting', 'preparing', 'pending', 'waiting_for_approval', 'awaiting-approval', 'Waiting For Input']) assert.equal(hasOfficeWork(thread('x', status)), true, status);
@@ -79,3 +79,12 @@ for (const active of [0, 1, 7]) {
   assert.equal(policy.slots, active);
 }
 console.log(JSON.stringify({ ok: true, statuses: 20, statusTransitionRoutes: routes, durableSeats: reservations.length }));
+
+// Exact rendezvous arrival must not hold safe hallway actors behind a delayed peer.
+const oldFloor = {topH:800,size:{w:4000}}, newFloor = {topH:800,size:{w:3000}};
+for (let i=0;i<36;i++) assert(layoutClearAt({x:100+i*76,y:875},oldFloor,newFloor));
+assert(!layoutClearAt({x:100,y:810},oldFloor,newFloor), 'body still overlaps the old rooms');
+assert(!layoutClearAt({x:3500,y:875},oldFloor,newFloor), 'old hallway is not surviving floor');
+assert(!layoutClearAt({x:100,y:875},oldFloor,{topH:1000,size:{w:3000}}), 'no shared hallway during height change');
+assert(layoutClearAt({x:4141,y:875},oldFloor,newFloor), 'outside both buildings is safe');
+assert(!layoutClearAt({x:4020,y:875},oldFloor,newFloor), 'outside actor must clear the wall with its body');

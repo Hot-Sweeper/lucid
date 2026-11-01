@@ -78,3 +78,11 @@ export function layoutWaitingSpots(old: { topH: number; size: { w: number } }, n
     x: start + i * spacing, y: outside ? old.topH + hall / 2 : meeting.y, outside,
   }]));
 }
+
+/** A robot can keep walking after promotion once its body clears both floor plans. */
+export function layoutClearAt(point: { x: number; y: number }, old: { topH: number; size: { w: number } }, next: { topH: number; size: { w: number } }, hall = 150) {
+  if (point.x > Math.max(old.size.w, next.size.w) + 40) return true;
+  return point.x >= 40 && point.x <= Math.min(old.size.w, next.size.w) - 40 &&
+    point.y >= Math.max(old.topH, next.topH) + 40 &&
+    point.y <= Math.min(old.topH, next.topH) + hall - 40;
+}

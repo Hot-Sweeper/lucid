@@ -5,7 +5,7 @@ import { drawFloor, drawWall, drawDecor, placeDecor, decorFootprint, DECOR } fro
 import { furniturePath, type Footprint } from "./navigation";
 import { officePlan, hallRoute, inHall, type OfficePlan } from "./floor-plan";
 import { buildingFootprint, footprintCovers } from "./building-footprint";
-import { hasOfficeWork, reserveRoomSeats, projectRoomSeats, physicalSeatIndices, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, FOLDED_OFFICE } from "./room-policy";
+import { hasOfficeWork, reserveRoomSeats, projectRoomSeats, physicalSeatIndices, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, layoutClearAt, FOLDED_OFFICE } from "./room-policy";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
 import { Walker, SIT_HEAD, pause, type Facing } from "../world/walker";
@@ -714,8 +714,10 @@ export class World {
       this.meetingSpots = layoutWaitingSpots(this.floorPlan, desiredFloor, [...this.layoutParticipants], HALL);
       const ready = [...this.layoutParticipants].every((id) => {
         const actor = this.transit.get(id);
-        const meeting = this.meetingSpots.get(id)!;
-        return !!actor && !this.exits.has(id) && Math.hypot(actor.x - meeting.x, actor.y - meeting.y) <= 8;
+        // Waiting spots guide evacuation, but reaching one is not a barrier.
+        // Promote as soon as everyone clears the changing rooms, then re-plan
+        // their existing journeys against the new floor instead of forming a line.
+        return !!actor && !this.exits.has(id) && layoutClearAt(actor, this.floorPlan, desiredFloor, HALL);
       });
       if (ready) holdPhysical = false;
     } else holdPhysical = false;
