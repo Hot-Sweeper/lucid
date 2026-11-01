@@ -536,6 +536,7 @@ export class World {
   seats = new Map<string, (string | null)[]>();   // persistent reservations, including robots on a break
   private slotDesks = new Map<string, Desk>();              // "room#index" -> desk standing there
   expandedRooms = new Set<string>();
+  collapsedRooms = new Set<string>();
   private revealedThread: string | null = null;
   private layoutHeld = false;
   private physicalPlans: PhysicalRoomPlan[] = [];
@@ -580,7 +581,7 @@ export class World {
     if (cur.room === want) { cur.pending = undefined; return want; }
     // questions and new work never wait: the robot heads over right away
     // and an answered robot that is working again leaves the question line at once
-    const urgent = want === "queue" || ((hasOfficeWork(t) || this.revealedThread === t.id) && (cur.room === "break" || cur.room === "queue")) || (want === "break" && !hasOfficeWork(t) && this.revealedThread !== t.id);
+    const urgent = this.collapsedRooms.has(cur.room) || want === "queue" || ((hasOfficeWork(t) || this.revealedThread === t.id) && (cur.room === "break" || cur.room === "queue")) || (want === "break" && !hasOfficeWork(t) && this.revealedThread !== t.id);
     if (urgent) { this.placed.set(t.id, { room: want }); return want; }
     if (!cur.pending || cur.pending.room !== want) cur.pending = { room: want, since: Date.now() };
     if (Date.now() - cur.pending.since > 20000) { this.placed.set(t.id, { room: want }); return want; }
