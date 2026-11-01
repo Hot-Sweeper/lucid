@@ -9,8 +9,8 @@ type Capture = { run: Generator<void, void, void>; bounds: DOMRect; tier: Reduce
 type Cache = { views: Map<Reduced, Cached>; lastPaint: number; width: number; height: number; revision: number; iconRevision: number; shellStyle: string };
 const states = new WeakMap<HTMLElement, State>();
 const caches = new WeakMap<HTMLElement, Cache>();
-const pending = new Map<HTMLElement, { state: State; due: number; capture?: Capture }>();
-let timer = 0, idle = 0;
+const pending = new Map<HTMLElement, { state: State; due: number; urgent: boolean; capture?: Capture }>();
+let timer = 0, idle = 0, frame = 0;
 const CAPTURE_NODES = 64, CAPTURE_MS = 2;
 
 // Derive simplified shell marks from existing SVG artwork, never per-app profiles.
@@ -60,6 +60,7 @@ function showCached(win: HTMLElement, tier: Reduced, state: State) {
   const nodes = cached.nodes;
   const overlay = overlayFor(win);
   if (overlay.firstChild !== nodes[0]) overlay.replaceChildren(...nodes);
+  overlay.dataset.detailTier = tier;
   if (win.dataset.detailReady !== '1') win.dataset.detailReady = '1';
   // Retain the last valid view during refresh instead of rebuilding in a camera event.
   return cached.revision === (tier === 'icon' ? cacheFor(win).iconRevision : cacheFor(win).revision);
@@ -70,20 +71,25 @@ function enqueue(win: HTMLElement, state: State, transition = false) {
   const interval = state.tier === 'lines' ? 750 : 1500;
   const due = transition ? 0 : cacheFor(win).lastPaint + interval;
   const previous = pending.get(win);
-  pending.set(win, { state, due: Math.min(previous?.due ?? Infinity, due), capture: previous?.capture?.tier === state.tier ? previous.capture : undefined });
+  pending.set(win, { state, due: Math.min(previous?.due ?? Infinity, due), urgent: transition || !!previous?.urgent, capture: previous?.capture?.tier === state.tier ? previous.capture : undefined });
   // A zoom transition must not wait behind a throttled content refresh.
   if (transition && timer) { clearTimeout(timer); timer = 0; }
+  if (transition && idle) { window.cancelIdleCallback(idle); idle = 0; }
   pump();
 }
 function pump() {
-  if (timer || idle || !pending.size || document.hidden) return;
-  if (window.requestIdleCallback) idle = window.requestIdleCallback(flush, { timeout: 80 });
+  if (timer || idle || frame || !pending.size || document.hidden) return;
+  // An uncached tier is visible feedback to zoom input. Do not leave the old
+  // icon view onscreen while a busy renderer keeps postponing idle callbacks.
+  // The same node/time limits apply on each frame; content refreshes stay idle.
+  if ([...pending.values()].some(job => job.urgent) && window.requestAnimationFrame) frame = window.requestAnimationFrame(() => flush());
+  else if (window.requestIdleCallback) idle = window.requestIdleCallback(flush, { timeout: 80 });
   else timer = window.setTimeout(() => flush(), 0);
 }
 function later(ms: number) { timer = window.setTimeout(() => { timer = 0; pump(); }, ms); }
 // Cold captures yield between nodes; a large app cannot monopolize a wheel frame.
 function flush(deadline?: IdleDeadline) {
-  timer = idle = 0;
+  timer = idle = frame = 0;
   if (document.hidden) return;
   let soonest = Infinity;
   const now = performance.now();
@@ -231,7 +237,8 @@ function* paint(win: HTMLElement, tier: ScreenDetail, state: State, capture: Cap
     }
     const icon = appIcon(win, width, height, true);
     if (icon) surface.append(icon);
-    overlayFor(win).replaceChildren(surface); win.dataset.detailReady = '1'; return;
+    const layer = overlayFor(win);
+    layer.replaceChildren(surface); layer.dataset.detailTier = tier; win.dataset.detailReady = '1'; return;
   }
   const canvas = document.createElement('canvas');
   // Both raster tiers cover the largest reduced view. A transition can keep
@@ -282,6 +289,7 @@ function* paint(win: HTMLElement, tier: ScreenDetail, state: State, capture: Cap
   yield* walk(win, { x: 0, y: 0, w: width, h: height });
   const layer = overlayFor(win);
   layer.replaceChildren(canvas);
+  layer.dataset.detailTier = tier;
   if (tier === 'shapes') {
     const icon = appIcon(win, width, height, false);
     if (icon) layer.append(icon);

@@ -37,7 +37,7 @@ const dock=new Element('dock'),dockItem=new Element('dock-item'),dockSvg=new Ele
 const circle=new Element();circle.tagName='circle';circle.setAttribute('fill','#2fb5ff');dockSvg.append(circle);dockItem.append(dockSvg);dock.append(dockItem);host.append(dock);
 const toastLayer=new Element('toast-layer');host.append(toastLayer);
 
-const makeWin=()=>{const w=new Element('win'),bar=new Element('win-bar'),body=new Element('win-body'),content=new Element('content'),message=new Element('message');const icon=new Element('ico authentic-app-icon');icon.tagName='svg';bar.append(icon);body.append(content);content.append(message);w.append(bar,body);layer.append(w);return {w,body,message};};
+const makeWin=(target=layer)=>{const w=new Element('win'),bar=new Element('win-bar'),body=new Element('win-body'),content=new Element('content'),message=new Element('message');const icon=new Element('ico authentic-app-icon');icon.tagName='svg';bar.append(icon);body.append(content);content.append(message);w.append(bar,body);target.append(w);return {w,body,message};};
 const a=makeWin(),b=makeWin();
 const mutation=(target,type='attributes',addedNodes=[])=>observers[0].cb([{target,type,addedNodes,removedNodes:[]}]);
 api.setScreenDetail(host,true,250);
@@ -131,3 +131,29 @@ assert.equal(busyWins[0].querySelector('.screen-detail').firstChild,retained,'Di
 const beforeMove=reads;busyWins[0].style.transform='translateX(20px)';observer.cb([{target:busyWins[0],type:'attributes',attributeName:'style'}]);drain();assert.equal(reads,beforeMove,'Composited window motion does not invalidate any app capture');
 api.releaseScreenDetail(busyHost);drain();
 console.log(JSON.stringify({coldCaptureTasks:tasks,maxLayoutStyleReadsPerTask:maxReadsPerTask,warmBoundaryChanges:600,warmLayoutReads:0,warmCanvasAllocations:0,staleViewRetained:true,windowMotionRecaptures:0}));
+
+// Keep the renderer continuously busy: idle callbacks are deliberately withheld.
+// Every first-time zoom tier must still appear, with bounded work on each frame.
+const frames=new Map(),idles=new Map();
+window.requestAnimationFrame=fn=>{const id=++nextId;frames.set(id,fn);return id;};
+window.requestIdleCallback=fn=>{const id=++nextId;idles.set(id,fn);return id;};
+window.cancelIdleCallback=id=>idles.delete(id);
+const frameDrain=()=>{let count=0;while(frames.size){assert.ok(++count<30,'Urgent captures must complete in bounded frames');const [id,fn]=frames.entries().next().value;frames.delete(id);now+=16;const before=reads;fn(now);assert.ok(reads-before<=140,'Urgent frames preserve the capture work bound');}};
+const responsiveHost=new Element('screen'),responsiveLayer=new Element('win-layer');responsiveHost.append(responsiveLayer);
+const responsive=makeWin(responsiveLayer);for(let i=0;i<480;i++)responsive.body.append(new Element('row'));
+const responsiveReads=reads;
+for(const [width,tier] of [[140,'icon'],[190,'shapes'],[250,'lines'],[400,'full'],[250,'lines'],[190,'shapes'],[140,'icon']]){
+  api.setScreenDetail(responsiveHost,true,width);frameDrain();
+  assert.equal(responsiveHost.dataset.screenDetail,tier==='full'?undefined:tier);
+  if(tier!=='full')assert.equal(responsive.w.querySelector('.screen-detail').dataset.detailTier,tier,'Displayed pixels follow the middle tier, not only the host attribute');
+}
+assert.ok(reads>responsiveReads,'Uncached middle tiers were actually captured');
+assert.equal(idles.size,0,'Zoom tiers do not wait for idle time');
+api.setScreenDetail(responsiveHost,true,250);frameDrain();
+observers.at(-1).cb([{target:responsive.message,type:'characterData'}]);now+=2000;drain();
+assert.equal(idles.size,1,'Ordinary content refresh still uses idle time');
+assert.equal(frames.size,0,'Background content does not request urgent frames');
+api.setScreenDetail(responsiveHost,true,190);assert.equal(idles.size,0,'A zoom transition cancels the pending idle wait');frameDrain();
+assert.equal(responsive.w.querySelector('.screen-detail').dataset.detailTier,'shapes');
+api.releaseScreenDetail(responsiveHost);drain();
+console.log(JSON.stringify({busyRendererAllFourTiers:true,middleTierPixelsRestored:true,contentRefreshStaysIdle:true}));
