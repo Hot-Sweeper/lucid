@@ -47,8 +47,13 @@ settlement `reportFacts` reader resolves all four attached files and their bytes
 match the evidence copies.
 
 These images do not close every request in the broader performance thread.
-Rare stalls, the original complete-app dictation freeze and remote manager
-write acceptance remain outside this evidence. The retained prompt audit at
+The [current reconciliation](reconciliation.md) separates the delivered parser
+freeze repair, startup and update checks from remaining movement hitches,
+visual seam cases and longer normal-use acceptance. Its
+[checked metadata](reconciliation.json) links the corrective executing-build
+proof and verifies that these four captures remain unchanged. The original
+complete-app dictation freeze and remote manager write acceptance remain
+outside this image evidence. The retained prompt audit at
 `E:/Lucid-validation/prompt-audit-20261031/report.md` distinguishes implemented,
 release-pending, partial and superseded work. Keep settlement pending where those
 requirements or current integrated acceptance are still missing.
