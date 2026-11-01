@@ -4,6 +4,7 @@ import grokLogo from "./assets/grok.svg";
 import opencodeLogo from "../assets/harness/opencode.svg";
 import geminiLogo from "../assets/harness/gemini.svg";
 import antigravityLogo from "../assets/harness/antigravity.svg";
+import museLogo from "../assets/harness/muse.svg";
 import { brandFor, type BrandKind } from "../office/brand";
 import type { Expression, Pt, RobotLook } from "../office/rig";
 import { stickerSvg as lookSticker } from "./look";
@@ -24,6 +25,7 @@ export const PALETTES: Record<BrandKind, Palette> = {
   opencode: { shell: "#c9d3e6", shade: "#9eabc6", deep: "#6d7b9b", glow: "#4ff0a0", visor: "#121a2e", logo: "#6d7b9b", rim: "#8fd8ff", src: opencodeLogo, mode: "mask" },
   gemini: { shell: "#e8f0fe", shade: "#c2d3f5", deep: "#7b93d6", glow: "#4285f4", visor: "#121a2e", logo: "#4285f4", rim: "#8fd8ff", src: geminiLogo, mode: "mask" },
   antigravity: { shell: "#f0e6ff", shade: "#d4c2f0", deep: "#8a6bbf", glow: "#9b59b6", visor: "#1a1028", logo: "#9b59b6", rim: "#d8b4fe", src: antigravityLogo, mode: "mask" },
+  muse: { shell: "#e8f0fe", shade: "#c2d3f5", deep: "#0467DF", glow: "#0467DF", visor: "#101828", logo: "#0467DF", rim: "#8fd8ff", src: museLogo, mode: "image" },
   generic: { shell: "#c9d3e6", shade: "#9eabc6", deep: "#6d7b9b", glow: "#4ff0a0", visor: "#121a2e", logo: "#6d7b9b", rim: "#8fd8ff", src: null, mode: "chip" },
 };
 
