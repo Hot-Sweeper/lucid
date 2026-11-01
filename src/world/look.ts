@@ -1,4 +1,4 @@
-import type { AccessoryKind, Build, EyeStyle, Expression, HatKind, RobotLook, StickerKind, Tint } from "../office/rig";
+import type { AccessoryKind, Build, EyeStyle, Expression, HatKind, ManagerMark, RobotLook, StickerKind, Tint } from "../office/rig";
 
 // Robot customisation shared by every robot drawing: the desk robot (seated.ts), the hiring
 // portraits, the customize dialog and, later, the walker. Everything is drawn in the v0 robot
@@ -84,12 +84,14 @@ export const LOOK_DEFAULTS = { build: "regular", head: 1, hat: "none", accessory
 export function resolveLook(look: RobotLook = {}) {
   return {
     accent: look.accent,
-    antennaTip: look.antennaTip ?? "ball",
+    manager: look.manager,
+    // a manager always wears the crown and a star on the antenna
+    antennaTip: look.manager ? "star" as const : look.antennaTip ?? "ball",
     headphones: !!look.headphones,
     sticker: look.sticker ?? LOOK_DEFAULTS.sticker,
     build: look.build ?? LOOK_DEFAULTS.build,
     head: Math.min(1.15, Math.max(0.9, look.head ?? 1)),
-    hat: look.hat ?? LOOK_DEFAULTS.hat,
+    hat: look.manager ? "crown" as const : look.hat ?? LOOK_DEFAULTS.hat,
     accessory: look.accessory ?? LOOK_DEFAULTS.accessory,
     eyes: look.eyes ?? LOOK_DEFAULTS.eyes,
     tint: look.tint ?? LOOK_DEFAULTS.tint,
@@ -172,6 +174,7 @@ export function paintLookColors(el: Element, base: { shell: string; shade: strin
   st.setProperty("--shell", p.shell); st.setProperty("--shade", p.shade); st.setProperty("--deep", p.deep);
   st.setProperty("--glow", look.glow || base.glow);
   st.setProperty("--acc", look.accent || "#ff9f5a");
+  if (look.manager) st.setProperty("--mgr", look.manager.color); else st.removeProperty("--mgr");
   return look.glow || base.glow;
 }
 
@@ -234,7 +237,7 @@ export function hatSvg(kind: HatKind | undefined, view: View = "back"): string {
         <path d="M560 584 L574 560 L590 592 L610 572 L610 612 L560 612 Z" fill="#e0a21f" opacity="0.5"/>
         <rect x="508" y="598" width="104" height="16" rx="5" fill="#f2b52b"/>
         <circle cx="510" cy="570" r="4.5" fill="#ffe08a"/><circle cx="546" cy="558" r="4.5" fill="#ffe08a"/><circle cx="574" cy="558" r="4.5" fill="#ffe08a"/><circle cx="610" cy="570" r="4.5" fill="#ffe08a"/>
-        <circle cx="560" cy="606" r="5.5" fill="#ff6f91"/><circle cx="534" cy="606" r="4" fill="#4fb6ff"/><circle cx="586" cy="606" r="4" fill="#4ff0a0"/>
+        <circle cx="560" cy="606" r="5.5" fill="var(--mgr, #ff6f91)"/><circle cx="534" cy="606" r="4" fill="#4fb6ff"/><circle cx="586" cy="606" r="4" fill="#4ff0a0"/>
         ${hi("M518 606 L526 606", 3, 0.6)}</g>`;
     }
     case "beret":
@@ -391,6 +394,27 @@ export function accessorySvg(kind: AccessoryKind | undefined, view: View = "back
   }
 }
 
+/**
+ * What marks a manager apart on the body: gold epaulettes on both shoulders, and from the front a
+ * badge on the chest, a shield in the project's colour with its logo (or monogram) on a white disc.
+ * `skipFront` drops the user's own tie or lanyard from the chest so the two do not pile up.
+ */
+export function managerSvg(m: ManagerMark, view: View = "back"): { under: string; pack: string; over: string } {
+  const front = view === "front";
+  const epaulette = (x: number) => `<g><rect x="${x - 15}" y="728" width="30" height="9" rx="4.5" fill="#ffcc3d"/><rect x="${x - 15}" y="733" width="30" height="4" rx="2" fill="#e0a21f"/>
+    ${[-10, -3.5, 3.5, 10].map((dx) => `<rect x="${x + dx - 1.2}" y="736" width="2.4" height="8" rx="1.2" fill="#ffcc3d"/>`).join("")}${hi(`M${x - 11} 731 L${x + 9} 731`, 2, 0.55)}</g>`;
+  const wings = `${epaulette(510)}${epaulette(610)}`;
+  if (!front) return { under: "", pack: "", over: wings };
+  const mono = m.mono.slice(0, 2).toUpperCase();
+  // up on the chest, where the chair does not hide it when the robot faces us
+  const shield = `<path d="M560 760 L588 766 C588 786 578 800 560 808 C542 800 532 786 532 766 Z" fill="#ffcc3d"/>
+    <path d="M560 764 L584 769 C584 785 575 797 560 804 C545 797 536 785 536 769 Z" fill="${m.color}"/>
+    <circle cx="560" cy="781" r="10.5" fill="#fff"/>
+    ${m.logo ? `<image href="${m.logo}" x="552" y="773" width="16" height="16" preserveAspectRatio="xMidYMid meet"/>` : `<text x="560" y="785.5" text-anchor="middle" font-size="11" font-weight="800" font-family="var(--font, sans-serif)" fill="${m.color}">${mono}</text>`}
+    ${hi("M541 770 L556 767", 2, 0.4)}`;
+  return { under: "", pack: "", over: `${wings}${shield}` };
+}
+
 // ---- eyes ---------------------------------------------------------------------------------
 /** Resting eyes for an eye style, or null when the expression keeps its own shape (eyesSvg). */
 export function styledEyes(style: EyeStyle | undefined, e: Expression, xs: number[] = [540, 580], cy = 657): string | null {
@@ -465,6 +489,14 @@ export function stepLookMotion(m: LookMotion, t: number, sway: number) {
 export type PortraitPalette = { shell: string; shade: string; deep: string; glow: string; visor: string; logo: string; src: string | null; mode: "mask" | "image" | "chip" };
 let pseq = 0;
 
+/** The accessory layers plus a manager's marks; on the chest a manager's badge replaces the user's tie, bow tie or lanyard. */
+export function withManager(acc: { under: string; pack: string; over: string }, m: ManagerMark | null | undefined, kind: AccessoryKind | undefined, view: View) {
+  if (!m) return acc;
+  const mk = managerSvg(m, view);
+  const chestItem = view === "front" && (kind === "tie" || kind === "bowtie" || kind === "lanyard");
+  return { under: acc.under + mk.under, pack: acc.pack + mk.pack, over: (chestItem ? "" : acc.over) + mk.over };
+}
+
 /** A flat front portrait (head, hat, eyes; with `bust` also shoulders and accessory) for cards and option tiles. */
 export function portraitSvg(look: RobotLook, base: PortraitPalette, o: { size?: number; bust?: boolean; view?: View; cls?: string; label?: string } = {}) {
   const L = resolveLook(look), view = o.view ?? "front", id = `lkp${++pseq}`;
@@ -496,7 +528,7 @@ export function portraitSvg(look: RobotLook, base: PortraitPalette, o: { size?: 
     ${face}${hatSvg(L.hat, view)}${hat.antenna === "through" ? antenna : ""}</g>`;
   let body = "";
   if (o.bust) {
-    const acc2 = accessorySvg(L.accessory, view);
+    const acc2 = withManager(accessorySvg(L.accessory, view), L.manager, L.accessory, view);
     const sx = `translate(560 0) scale(${b.kx} 1) translate(-560 0)`;
     const shoulder = (x: number) => `<circle cx="${x}" cy="747" r="18" fill="${acc}"/><circle cx="${x}" cy="749" r="15.5" fill="var(--shade)"/><circle cx="${x - 3}" cy="744.5" r="11" fill="var(--shell)"/>`;
     body = `<rect x="547" y="700" width="26" height="42" rx="9" fill="var(--deep)"/>
@@ -510,6 +542,6 @@ export function portraitSvg(look: RobotLook, base: PortraitPalette, o: { size?: 
   const vb = o.bust ? "448 478 224 372" : "452 486 216 240";
   const size = o.size ?? 56;
   const [w, h] = o.bust ? [size * 224 / 372, size] : [size * 216 / 240, size];
-  const style = `--shell:${p.shell};--shade:${p.shade};--deep:${p.deep};--glow:${glow};--visor:${base.visor};--logo:${base.logo};--acc:${acc}`;
+  const style = `--shell:${p.shell};--shade:${p.shade};--deep:${p.deep};--glow:${glow};--visor:${base.visor};--logo:${base.logo};--acc:${acc}${L.manager ? `;--mgr:${L.manager.color}` : ""}`;
   return `<svg class="${o.cls ?? "av"}" viewBox="${vb}" width="${w.toFixed(0)}" height="${h.toFixed(0)}" style="${style}" ${o.label ? `role="img" aria-label="${o.label}"` : `aria-hidden="true"`}>${body}${head}</svg>`;
 }

@@ -3,7 +3,7 @@ import { prettyModel } from "../harness/themes";
 import { watch, unwatch, drawNow, sinceDraw } from "./budget";
 import { GEOM, PHONE_SCALE, UNIT, type DeskRig, type Expression, type Pose, type Pt, type Reaction, type RobotLook, type SeatedRobot } from "../office/rig";
 import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, solveArm, uid, type BrandKind, type ArmMemo } from "./seated-parts";
-import { accessoryInfo, accessorySvg, blushSvg, BUILD_SHAPE, hatInfo, hatSvg, lookMotion, paintLookColors, resolveLook, stepLookMotion, styledEyes, type FullLook, type LookMotion } from "./look";
+import { accessoryInfo, accessorySvg, withManager, mix, blushSvg, BUILD_SHAPE, hatInfo, hatSvg, lookMotion, paintLookColors, resolveLook, stepLookMotion, styledEyes, type FullLook, type LookMotion } from "./look";
 import { tierFor } from "../office/tier";
 
 // The v0 robot, seated on the south side of its desk, seen from behind and above.
@@ -185,6 +185,11 @@ export class TopDownRobot implements SeatedRobot {
     const tier = tierFor(name);
     plate.style.stroke = tier === "flagship" ? "#ffcf5a" : tier === "standard" ? "rgba(200, 210, 235, 0.9)" : "";
     plate.style.strokeWidth = tier === "light" ? "" : tier === "flagship" ? "2.4" : "1.4";
+    // a manager's plate takes the project's colour, with a gold rim
+    const mgr = this.look.manager;
+    plate.style.fill = mgr ? mix(mgr.color, "#12162c", 0.5) : "";
+    (this.$.model as SVGElement).style.fill = mgr ? "#ffffff" : "";
+    if (mgr) { plate.style.stroke = "#ffcc3d"; plate.style.strokeWidth = "2.4"; }
     let pip = this.$.nameplate.querySelector(".tier-pip") as SVGPathElement | null;
     if (!pip) {
       pip = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -223,7 +228,7 @@ export class TopDownRobot implements SeatedRobot {
     else if (head.firstChild !== lift) head.insertBefore(lift, head.firstChild);
     lift.style.display = hat.antenna === "hide" ? "none" : "";
     lift.setAttribute("transform", hat.antenna === "lift" ? `translate(0 ${-(hat.lift ?? 0)})` : "");
-    const acc = accessorySvg(L.accessory, view);
+    const acc = withManager(accessorySvg(L.accessory, view), L.manager, L.accessory, view);
     this.$.accUnder.innerHTML = acc.under;
     this.$.accPack.innerHTML = acc.pack;
     this.$.accOver.innerHTML = acc.over;

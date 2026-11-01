@@ -92,7 +92,7 @@ function station(scale: number, lookIdx = 0) {
   const [brand, model, look] = SCENE === "grid" ? LOOKS[lookIdx % LOOKS.length] : [BRAND, LOOKS.find((l) => l[0] === BRAND)?.[1] ?? "qwen-coder-4", LOOKS.find((l) => l[0] === BRAND)?.[2] ?? LOOKS[3][2]];
   robot.setBrand(brand); robot.setModel(model); robot.setLook(look);
   // look overrides for single scenes: seed=N (a random look), hat=, acc=, eyes=, build=, head=
-  if (!GALLERY && SCENE !== "grid" && [...qs.keys()].some((k) => ["seed", "hat", "acc", "eyes", "build", "head"].includes(k))) {
+  if (!GALLERY && SCENE !== "grid" && [...qs.keys()].some((k) => ["seed", "hat", "acc", "eyes", "build", "head", "mgr"].includes(k))) {
     const l: RobotLook = { ...look, ...(qs.has("seed") ? randomLook(seeded("demo-look-" + qs.get("seed")), 10) : {}) };
     if (qs.has("hat")) l.hat = qs.get("hat") as RobotLook["hat"];
     if (qs.has("acc")) l.accessory = qs.get("acc") as RobotLook["accessory"];
@@ -100,6 +100,7 @@ function station(scale: number, lookIdx = 0) {
     if (qs.has("build")) l.build = qs.get("build") as RobotLook["build"];
     if (qs.has("head")) l.head = Number(qs.get("head"));
     l.headphones = false;
+    if (qs.has("mgr")) l.manager = { color: qs.get("mgr") === "1" ? "#1d9bf0" : "#" + qs.get("mgr"), logo: null, mono: "WB" };
     robot.setLook(l);
   }
   api.robots.push(robot);

@@ -1,0 +1,45 @@
+/* The executive desk of a project manager: two tall side screens, a gold name plate, a walnut top,
+   a leather chair. The table pieces themselves (mat, lamp, trophy) are drawn with the desk and only
+   show while the desk is a manager's (.boss-only). */
+.boss { position: absolute; inset: 0; pointer-events: none; --mgr: #ff9f5a; }
+.boss[hidden] { display: none; }
+.boss-mon { position: absolute; top: 20px; width: 46px; height: 152px; padding: 4px; border-radius: 7px; background: linear-gradient(170deg, #2a2f45, #151927 70%); box-shadow: 0 6px 12px rgba(30, 20, 10, 0.28); }
+.boss-mon.l { left: 4px; }
+.boss-mon.r { right: 4px; }
+.boss-mon > i { position: absolute; left: 50%; bottom: -15px; width: 9px; height: 15px; margin-left: -4.5px; background: #3a3f4f; }
+.boss-mon > i::after { content: ""; position: absolute; left: 50%; bottom: -3px; width: 28px; height: 7px; margin-left: -14px; border-radius: 50%; background: #4a5063; }
+.bm-scr { height: 100%; display: flex; flex-direction: column; border-radius: 4px; overflow: hidden; background: #0e1233; color: #e9ecff; font: 500 6px/1.25 var(--font); }
+.bm-scr header { flex: none; display: flex; align-items: center; gap: 3px; padding: 3px 4px; background: color-mix(in srgb, var(--mgr) 70%, #0e1233); color: #fff; font-weight: 700; font-size: 6.5px; min-width: 0; }
+.bm-scr header b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.bm-scr header img { width: 8px; height: 8px; border-radius: 2px; object-fit: contain; flex: none; background: #fff; }
+.bm-scr header .bm-mono { width: 8px; height: 8px; border-radius: 2px; flex: none; display: grid; place-items: center; background: #fff; color: var(--mgr); font-size: 4.5px; font-weight: 800; }
+.bm-body { flex: 1; min-height: 0; padding: 4px 3px; overflow: hidden; }
+.bm-body ol, .bm-body ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.bm-body li { display: flex; gap: 3px; align-items: flex-start; }
+.bm-body li i { flex: none; width: 4px; height: 4px; margin-top: 1.5px; border-radius: 50%; background: #6f7a93; }
+.bm-body li.on i { background: #51a2ff; }
+.bm-body li.done i { background: #2bb673; }
+.bm-body li.done span { opacity: 0.55; }
+.bm-body li span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.bm-body p { margin: 0; color: #8f98b8; }
+.bm-logo { display: block; width: 28px; height: 28px; margin: 24px auto 0; object-fit: contain; }
+.bm-bigmono { width: 28px; height: 28px; margin: 24px auto 0; border-radius: 7px; display: grid; place-items: center; background: var(--mgr); color: #fff; font: 800 12px var(--font); }
+.boss-sign { position: absolute; left: 258px; top: 250px; width: 104px; padding: 2px 6px 3px; border-radius: 3px; text-align: center; color: #2e2108; background: linear-gradient(180deg, #ffe08a, #e6aa2c); box-shadow: 0 2px 4px rgba(40, 24, 4, 0.35); display: flex; flex-direction: column; line-height: 1.15; }
+.boss-sign b { font: 700 8.5px var(--font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.boss-sign span { font: 500 7px var(--font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.8; }
+.boss-only { display: none; }
+.desk-unit.manager .boss-only { display: inline; }
+.desk-unit.manager .desk-notes { display: none; }
+/* walnut top and front, a leather chair */
+.desk-unit.manager .tbl-top { fill: #9a6a46; }
+.desk-unit.manager .tbl-front { fill: #6b4529; }
+.desk-unit.manager .tbl-shine { fill: #ffe9c4; opacity: 0.18; }
+.desk-unit.manager .world-seated [data-r="backrest"] [fill="#4a5063"] { fill: #6b2f3a; }
+.desk-unit.manager .world-seated [data-r="backrest"] [fill="#565d73"] { fill: #80404c; }
+.desk-unit.manager .world-seated [data-r="seatBack"] [fill="#3a3f4f"], .desk-unit.manager .world-seated [data-r="seatFront"] [fill="#3a3f4f"] { fill: #4a2530; }
+
+.bm-scr header img[hidden], .bm-scr header .bm-mono[hidden] { display: none; }
+
+.boss-rug { position: absolute; left: 66px; top: 262px; width: 268px; height: 112px; border-radius: 22px; pointer-events: none;
+  background: color-mix(in srgb, var(--mgr, #ff9f5a) 52%, #3a2630); box-shadow: inset 0 0 0 3px rgba(255, 204, 61, 0.7), inset 0 0 0 9px color-mix(in srgb, var(--mgr, #ff9f5a) 52%, #3a2630), inset 0 0 0 10.5px rgba(255, 204, 61, 0.35), 0 5px 10px rgba(30, 20, 10, 0.22); }
+.boss-rug[hidden] { display: none; }

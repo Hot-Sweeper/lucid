@@ -670,6 +670,13 @@ export class World {
         d.room = s.key.split("#")[0];
         const proj = byProject.get(s.t.projectId);
         d.setProject(d.room === "main" || d.room === "queue" ? (proj && !proj.scratch ? { title: proj.title, icon: proj.icon } : { title: "No project", icon: null }) : null);
+        // a pinned thread is a project manager: crown, project badge, executive desk with its team on a screen
+        const st = s.t;
+        d.setManager(st.pinned ? {
+          title: proj && !proj.scratch ? proj.title : st.title, icon: proj?.icon ?? null, role: this.roster.byThread(st.id)?.role ?? null,
+          team: data.threads.filter((x) => x.projectId === st.projectId && x.id !== st.id && !x.settled && x.id !== this.orchThread).slice(0, 6)
+            .map((x) => ({ title: x.title, status: x.question ? "waiting" as const : x.runStatus === "running" ? "working" as const : "idle" as const })),
+        } : null);
       } else {
         d = here && !here.threadId ? here : this.makeDesk(s.x, s.y);
         if (d.threadId) d.assign(null);

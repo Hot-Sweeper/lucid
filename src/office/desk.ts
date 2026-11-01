@@ -7,6 +7,7 @@ import { emptyChairSvg } from "../world/seated";
 import { playHandoff } from "../world/handoff";
 import { logoFor, brandFor } from "./brand";
 import { WALLPAPERS, HOBBY_LABEL, type RobotProfile } from "./roster";
+import { ManagerDecor, markOf, projectColor, type ManagerInfo } from "./manager";
 
 // One workstation, seen fake top-down: the desk surface from above, the monitor and the
 // robot as upright figures. The robot sits south of the desk with its back to us, the
@@ -54,6 +55,7 @@ export class Desk implements DeskStage {
   private keys = new Map<string, SVGRectElement>();
   private keyCenters = new Map<string, Pt & { hand: "left" | "right" }>();
   private zTimer = 0;
+  private decor: ManagerDecor;
 
   constructor(parent: HTMLElement, x: number, y: number, services: DeskServices) {
     const el = document.createElement("div");
@@ -78,6 +80,7 @@ export class Desk implements DeskStage {
     this.monitor = el.querySelector(".monitor")!;
     this.screen = el.querySelector(".screen")!;
     gsap.set(el.querySelector(".phone-held"), { scale: PHONE_SCALE, transformOrigin: "0 0" });
+    this.decor = new ManagerDecor(el);
     this.indexKeys();
     this.robot = robotFactory(el.querySelector(".robot-host") as HTMLElement, this.rig());
     this.wireToys();
@@ -115,13 +118,14 @@ export class Desk implements DeskStage {
     this.profile = profile;
     this.model = thread?.model ?? null;
     this.el.classList.toggle("empty", !thread);
+    if (!thread) this.setManager(null);
     this.handoffBusy = false;
     this.lastBrand = null;
     if (thread) {
       this.robot.setBrand(thread.provider);
       this.robot.setModel?.(this.model);
       if (profile) {
-        this.robot.setLook?.(profile.look);
+        this.applyLook(true);
         this.wm.prefs = profile.prefs;
         this.wm.robotName = profile.name;
         this.wm.setWallpaper(WALLPAPERS[profile.prefs.wallpaper % WALLPAPERS.length]);
@@ -219,6 +223,43 @@ export class Desk implements DeskStage {
     });
   }
 
+  // A project manager (a pinned thread): crown, badge in the project's colour, an executive desk.
+  private mgr: ManagerInfo | null = null;
+  private mgrColor = "";
+  private mgrSig = "";
+  setManager(m: ManagerInfo | null) {
+    const sig = m ? JSON.stringify([m.title, m.icon?.length ?? 0, m.role, m.team]) : "";
+    if (sig === this.mgrSig) return;
+    this.mgrSig = sig;
+    this.mgr = m;
+    this.el.classList.toggle("manager", !!m);
+    if (m) {
+      this.mgrColor = projectColor(m.title, m.icon, (c) => { if (this.mgr === m) { this.mgrColor = c; this.refreshManager(); } });
+      this.refreshManager();
+    } else {
+      this.mgrColor = "";
+      this.decor.update(null, "");
+      this.applyLook();
+    }
+  }
+
+  private refreshManager() {
+    if (!this.mgr) return;
+    this.el.style.setProperty("--mgr", this.mgrColor);
+    this.decor.update(this.mgr, this.mgrColor);
+    this.applyLook();
+  }
+
+  /** The robot's own look, plus the manager's marks while it is one. */
+  private applyLook(first = false) {
+    const look = this.profile?.look;
+    if (!look) return;
+    // the headphones state is the robot's own after it first sits down (music puts them on and off)
+    const { headphones: _h, ...rest } = look;
+    const base: typeof look = first ? look : rest;
+    this.robot.setLook?.(this.mgr ? { ...base, manager: markOf(this.mgr, this.mgrColor) } : base);
+  }
+
   // In shared rooms (the main office) a sign over the monitor says which project it works on.
   private projSig = "";
   setProject(p: { title: string; icon: string | null } | null) {
@@ -255,6 +296,7 @@ export class Desk implements DeskStage {
 
   // Plan steps as sticky notes stuck to the side of the monitor.
   setPlan(steps: { text: string; status: string }[]) {
+    this.decor.setPlan(steps);
     const list = this.el.querySelector(".desk-notes") as HTMLElement;
     const existing = Array.from(list.children) as HTMLElement[];
     steps.slice(0, 4).forEach((st, i) => {
@@ -368,9 +410,19 @@ export class Desk implements DeskStage {
     return /* svg */ `
     <svg class="desk-table" viewBox="0 0 ${UNIT.w} ${UNIT.h}" aria-hidden="true">
       <ellipse cx="${t.x + t.w / 2}" cy="${t.y + t.h + t.front + 8}" rx="${t.w / 2 + 6}" ry="12" fill="#2b1d10" opacity="0.18"/>
-      <rect x="${t.x}" y="${t.y + t.h - 4}" width="${t.w}" height="${t.front + 4}" rx="6" fill="#b48a5e"/>
-      <rect x="${t.x}" y="${t.y}" width="${t.w}" height="${t.h}" rx="8" fill="#d7b48a"/>
-      <rect x="${t.x + 6}" y="${t.y + 4}" width="${t.w - 12}" height="3" rx="1.5" fill="#fff" opacity="0.25"/>
+      <rect class="tbl-front" x="${t.x}" y="${t.y + t.h - 4}" width="${t.w}" height="${t.front + 4}" rx="6" fill="#b48a5e"/>
+      <rect class="tbl-top" x="${t.x}" y="${t.y}" width="${t.w}" height="${t.h}" rx="8" fill="#d7b48a"/>
+      <rect class="tbl-shine" x="${t.x + 6}" y="${t.y + 4}" width="${t.w - 12}" height="3" rx="1.5" fill="#fff" opacity="0.25"/>
+      <g class="boss-only">
+        <rect x="${t.x + 82}" y="${t.y + 19}" width="190" height="52" rx="8" fill="#2c2437"/><rect x="${t.x + 82}" y="${t.y + 19}" width="190" height="52" rx="8" fill="none" stroke="#ffcc3d" stroke-opacity="0.55" stroke-width="1.2"/>
+        <rect x="${t.x + 14}" y="${t.y + t.h - 3}" width="${t.w - 28}" height="2.6" rx="1.3" fill="#ffcc3d"/>
+        <ellipse cx="${t.x + 62}" cy="${t.y + 20}" rx="22" ry="8" fill="#fff6d0" opacity="0.2"/>
+        <ellipse cx="${t.x + 28}" cy="${t.y + 32}" rx="11" ry="4" fill="#2a2e3b"/><path d="M${t.x + 28} ${t.y + 30} L${t.x + 36} ${t.y + 10} L${t.x + 58} ${t.y + 6}" fill="none" stroke="#3a3f4f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M${t.x + 52} ${t.y + 2} L${t.x + 72} ${t.y + 8} L${t.x + 64} ${t.y + 20} Z" fill="#ffcc3d"/><path d="M${t.x + 58} ${t.y + 6} L${t.x + 72} ${t.y + 8} L${t.x + 64} ${t.y + 20} Z" fill="#e0a21f" opacity="0.6"/>
+        <rect x="${t.x + 2}" y="${t.y + 64}" width="14" height="5" rx="1.5" fill="#6b4529"/><rect x="${t.x + 7.5}" y="${t.y + 55}" width="3" height="9" fill="#e0a21f"/>
+        <path d="M${t.x + 0} ${t.y + 40} H${t.x + 18} C${t.x + 18} ${t.y + 51} ${t.x + 13.5} ${t.y + 56} ${t.x + 9} ${t.y + 56} C${t.x + 4.5} ${t.y + 56} ${t.x} ${t.y + 51} ${t.x} ${t.y + 40} Z" fill="#ffcc3d"/>
+        <path d="M${t.x + 0} ${t.y + 43} C${t.x - 7} ${t.y + 43} ${t.x - 6} ${t.y + 51} ${t.x + 1} ${t.y + 51} M${t.x + 18} ${t.y + 43} C${t.x + 25} ${t.y + 43} ${t.x + 24} ${t.y + 51} ${t.x + 17} ${t.y + 51}" fill="none" stroke="#e0a21f" stroke-width="2"/>
+      </g>
       <ellipse cx="${st.x}" cy="${st.base}" rx="30" ry="9" fill="#4a5063"/>
       <ellipse cx="${st.x}" cy="${st.base - 2}" rx="24" ry="6" fill="#5a6177"/>
       <rect x="${st.x - 7}" y="${st.top}" width="14" height="${st.base - st.top - 2}" fill="#3a3f4f"/>

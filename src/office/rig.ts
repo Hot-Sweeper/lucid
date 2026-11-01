@@ -102,4 +102,11 @@ export interface RobotLook {
   tint?: Tint;                                       // a slight shift of the brand shell color
   glow?: string | null;                              // eye, antenna and chest light color (null: the brand's own)
   blush?: boolean;                                   // pink cheeks under the visor
+  /**
+   * Set while the robot's thread is a project manager (a pinned T3 Code thread). Never saved with the
+   * look: it shows a crown, shoulder epaulettes, a project badge on the chest and a project coloured back plate.
+   */
+  manager?: ManagerMark;
 }
+/** What a manager shows: the project's own colour and logo (a monogram when there is no logo). */
+export interface ManagerMark { color: string; logo: string | null; mono: string }
