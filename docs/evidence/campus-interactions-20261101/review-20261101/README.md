@@ -31,6 +31,8 @@ The second isolated app retained the genuine existing T3 Connect Ares inventory 
 
 A real mouse press/release on an occupied Ares monitor opened the expected environment and matching conversation. The independently read remote title matched the displayed session title. [Machine-readable check](actual-ares-read-only.json) records exact scoped identities and [the external fixture](actual-ares-fixture.cjs) records the guards.
 
+[Loaded Ares conversation at the initial focus timeout](actual-ares-loaded-conversation-focus-timeout.png) preserves the later populated history, rather than claiming the initial empty loading frame establishes content rendering.
+
 The computer's focus selection did not remain selected after opening. `computerFocusVerified` is therefore false. Session routing passed; sustained computer/screen focus did not pass. The earlier simulated routing result must not be treated as live proof for that behavior. This gap was sent to the coordinated delivery owner.
 
 A separate MCP read was unavailable because linked-environment tools were disabled on this machine. The successful app check above used Lucid's already authenticated connection and had completed before that tool refusal; no further remote action was taken afterward.
@@ -43,3 +45,5 @@ This is a scoped evidence-only commit. It records existing product source throug
 A read-only capture of the reopened production page at 19:32:29 UTC obtained its executing V8 entry hash. [Production executing entry](production-executing-entry.json) records index-CY9w-VI3.js and SHA256 b618b20f6545627aec4246dd017169f2e0aaa0236635b1075810194c8dd351f8. That asset no longer existed in the current dist, so it could not be matched to the [observed installed manifest](production-observed-manifest.json). This is an explicit provenance gap, not matching live delivery proof. The isolated tested build match above does not close it. No competing restart or promotion was attempted to manufacture a match.
 
 The review must remain unsettled until sustained Ares computer focus and the coordinated matching executing-build receipt are supplied.
+
+[Attachment ingestion](attachment-ingestion.json) confirms the received supported attachments match the exact source bytes.
