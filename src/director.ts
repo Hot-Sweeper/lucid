@@ -1175,7 +1175,7 @@ export class Director {
     const d = it.data;
     const root = this.info?.root || null;
     this.chat.activity(it);
-    if (it.type !== "reasoning" && it.type !== "user_input_request") this.stage.say(null);
+    if (it.type !== "user_input_request") this.stage.say(null);
 
     // Codex's image tool (or the imagegen skill in a command): the Codex app shows the picture being made
     const ig = imageGenOf(it);
@@ -1234,17 +1234,13 @@ export class Director {
         this.onActivity("Thinking");
         this.stage.setGlow(GLOW.think);
         this.robot.setPose("think");
-        const summary = (t: string) => {
-          const clean = (t || "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
-          return clean.length > 170 ? clean.slice(0, 168).replace(/\s+\S*$/, "") + " …" : clean;
-        };
         let last = "";
         const start = Date.now();
         const notes = await this.openNotes();
         for (;;) {
           const cur = this.get(id);
-          const s = summary(cur.data.text || "");
-          if (s && s !== last) { this.stage.say(s, "think"); last = s; void this.writeNote(notes, cur.data.text || ""); }
+          const text = String(cur.data.text || "");
+          if (text && text !== last) { last = text; void this.writeNote(notes, text); }
           if (!(cur.status === "running" || cur.data.streaming) || this.queue.length > 1) break;
           await this.wm.sleep(250);
           if (Date.now() - start > 90000) break;
