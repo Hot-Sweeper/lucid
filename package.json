@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "vite build",
-    "start": "vite build && node scripts/start.mjs",
-    "typecheck": "tsc -p ."
+    "start": "node scripts/launch.cjs",
+    "typecheck": "node electron/runtime-check.cjs && tsc -p ."
   },
   "type": "commonjs",
   "devDependencies": {

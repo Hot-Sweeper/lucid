@@ -66,7 +66,7 @@ declare global {
       readText(path: string): Promise<string | null>;
       onItems(fn: (p: { threadId: string; items: any[]; initial: boolean }) => void): () => void;
       onInfo(fn: (p: { threadId: string; info: ThreadInfo }) => void): () => void;
-      checkUpdate(): Promise<{ available: boolean; behind?: number; changes?: string[]; reason?: string }>;
+      checkUpdate(): Promise<{ available: boolean; behind?: number; local?: number; legacy?: boolean; files?: string[]; changes?: string[]; reason?: string }>;
       applyUpdate(): Promise<{ ok: boolean; error?: string }>;
       onUpdateStep(fn: (s: string) => void): () => void;
       version(): Promise<string>;
@@ -456,19 +456,60 @@ function setupMenus() {
 }
 
 // --- one-click update --------------------------------------------------------------------
+let updateState: Awaited<ReturnType<typeof api.checkUpdate>> | null = null;
+let updateBusy = false;
+let updateChecking = false;
+let updateCheckError = "";
+function updateTimeout<T>(operation: Promise<T>, milliseconds: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  return Promise.race([operation, new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("Lucid did not answer. Close and reopen Lucid, then retry the update.")), milliseconds);
+  })]).finally(() => clearTimeout(timer));
+}
 async function checkUpdate() {
-  const u = await api.checkUpdate().catch(() => null);
+  if (updateBusy || updateChecking) return;
+  updateChecking = true;
   const btn = $<HTMLButtonElement>("update");
-  if (u?.available) { btn.hidden = false; btn.title = (u.changes || []).join("\n"); btn.textContent = `Update (${u.behind})`; }
-  else btn.hidden = true;
+  try {
+    updateCheckError = "";
+    const u = await updateTimeout(api.checkUpdate(), 15000);
+    if (updateBusy) return;
+    updateState = u;
+    const count = (u.local || 0) + (u.behind || 0);
+    btn.textContent = u.available ? `Update${count ? ` (${count})` : ""}` : "Check updates";
+    btn.title = [u.local ? `${u.local} changed files since the loaded build` : "", u.behind ? `${u.behind} remote commits` : "", u.legacy ? "Rebuild the current checkout" : "", ...(u.changes || []), ...(u.files || []).slice(0, 15), u.reason || (!u.available ? "You're up to date" : "Click to build and restart")].filter(Boolean).join("\n");
+  } catch (err: any) {
+    btn.textContent = updateState?.available ? "Update" : "Retry update check";
+    updateCheckError = String(err?.message || err);
+    btn.title = updateCheckError;
+  } finally { updateChecking = false; }
 }
 $("update").addEventListener("click", async () => {
+  if (updateBusy || updateChecking) return;
   const btn = $<HTMLButtonElement>("update");
+  if (!updateState?.available) {
+    btn.textContent = "Checking updates";
+    await checkUpdate();
+    if (!updateState?.available) {
+      const r = btn.getBoundingClientRect();
+      showMenu(r.left, r.bottom, updateCheckError || updateState?.reason || "You're up to date", [{ label: "Check again", run: checkUpdate }]);
+      return;
+    }
+  }
+  updateBusy = true;
   btn.disabled = true;
+  btn.textContent = "Preparing update";
   const off = api.onUpdateStep((s) => (btn.textContent = s));
-  const res = await api.applyUpdate();
-  off();
-  if (!res.ok) { btn.disabled = false; btn.textContent = "Retry update"; btn.title = res.error || ""; }
+  try {
+    const res = await updateTimeout(api.applyUpdate(), 600000);
+    if (!res.ok) throw new Error(res.error || "Update failed. Try again.");
+    btn.textContent = "Check updates";
+  } catch (err: any) {
+    btn.textContent = "Retry update";
+    btn.title = String(err?.message || err);
+    const r = btn.getBoundingClientRect();
+    showMenu(r.left, r.bottom, "Update could not finish", [{ label: btn.title, run: () => {} }]);
+  } finally { off(); updateBusy = false; btn.disabled = false; }
 });
 
 const attachDir = await api.attachDir().catch(() => "");

@@ -283,7 +283,9 @@ ipcMain.handle("fs:text", async (_e, p) => {
 ipcMain.handle("app:check-update", () => updater.check());
 ipcMain.handle("app:apply-update", async () => {
   try {
-    await updater.apply((step) => send("app:update-step", step));
+    const result = await updater.apply((step) => send("app:update-step", step));
+    if (!result.updated) return { ok: true };
+    delete process.env.LUCID_DEV_URL;
     app.relaunch();
     app.exit(0);
     return { ok: true };
