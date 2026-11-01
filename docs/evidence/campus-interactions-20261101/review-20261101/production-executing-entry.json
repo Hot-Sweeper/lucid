@@ -1,0 +1,9 @@
+{
+  "at": "2026-11-01T19:32:29.135Z",
+  "method": "Existing CDP Debugger.getScriptSource; no UI action, reload, promotion or restart",
+  "entryUrl": "file:///E:/T3%20Projects/Lucid/dist/assets/index-CY9w-VI3.js",
+  "executingSha256": "b618b20f6545627aec4246dd017169f2e0aaa0236635b1075810194c8dd351f8",
+  "diskSha256": null,
+  "manifestSha256": "0704b00fdad6b0881ea7bf2c1a93cbd670ba4a4e96424c33a5704b4f8fe19b61",
+  "matchesDisk": false
+}

@@ -1,0 +1,22 @@
+{
+  "scope": {
+    "src/office/campus-plan.ts": {
+      "current": "9cdc468d737313cfd9805fbcbdda27f1d8dab5beddb4ade93154ca229064636e",
+      "tested": "9cdc468d737313cfd9805fbcbdda27f1d8dab5beddb4ade93154ca229064636e"
+    },
+    "src/office/floor-plan.ts": {
+      "current": "93b58cd5fee5d7df77a9fb2b3b9fbfd7e92d8a91d0fb387f5db54f8b83e0fd94",
+      "tested": "93b58cd5fee5d7df77a9fb2b3b9fbfd7e92d8a91d0fb387f5db54f8b83e0fd94"
+    },
+    "src/office/world.ts": {
+      "current": "db4ed0838a6b3955183b13e33f12bd3d152cf441fef572bb518b7889e3200ad9",
+      "tested": "db4ed0838a6b3955183b13e33f12bd3d152cf441fef572bb518b7889e3200ad9"
+    },
+    "src/office/soundscape.ts": {
+      "current": "d7c5c8f60e09ec1fe2a8bedbf2b04aaadfdf01cf4adf5a438b0ff5c86aafa155",
+      "tested": "d7c5c8f60e09ec1fe2a8bedbf2b04aaadfdf01cf4adf5a438b0ff5c86aafa155"
+    }
+  },
+  "productionDelivery": "pending coordinated normal update",
+  "nativeProof": "after-native.json"
+}
