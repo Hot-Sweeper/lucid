@@ -27,3 +27,9 @@ The passing baseline registered old-work key activity in all four cases. The fix
 - The successful production launch was preserved, with no restart or reload. A read-only attempt to inspect its executing source failed because port 9334 was unavailable. production-delivery.json records that failure. Installed/tested/native-fixture bytes match; executing bytes in the already-running production process remain unattested.
 
 The commit stages only the startup fix in director.ts plus its new focused checks, baseline builder, native fixture and evidence. Other existing changes in director.ts and the shared checkout are preserved outside this commit.
+
+## Attachment correction
+
+The three existing PNGs were uploaded through the supported prepare-upload, exact-byte HTTP POST (all HTTP 204), and send-attachments flow. The Before filename and message retain the newly captured reconstructed-baseline label. [attachment-ingestion.json](attachment-ingestion.json) confirms the actual T3 reportFacts attachment input, SHA-256 equality with the originals, and the unchanged production submission collector's image list: one Before and two After entries. The collector ran in a separate evidence directory. The current run is active, so this verifies ingestion and collection, not persistence of a future archive. No production report archive was edited.
+
+Accepted checks and captures remain unchanged. No test, native capture, build or production restart was repeated. Status remains pending dependency and unsettled until coordinated delivery supplies matching production execution proof.
