@@ -1,3 +1,4 @@
+import { diagnosticOff } from "../perf/diagnostics";
 // How often robots redraw their bodies. Every robot rebuilds its arms and joints each frame,
 // which is most of the app's work. Robots off screen do not need it at all, and when the camera
 // is zoomed far out a robot is a few pixels tall, so fewer redraws look the same.
@@ -36,7 +37,7 @@ let tick = -1, drawn = 0, spent = 0, drawStarted = 0;
 /** Should this robot redraw its body now? Spread distant SVG work across frame slots. */
 export function drawNow(owner: object, el: Element, now: number) {
   // Visibility observers resume drawing when the actor re-enters the scene.
-  if (document.hidden || visible.get(el) === false) { overdue.delete(owner); queued.delete(owner); return false; }
+  if (diagnosticOff("bodies") || document.hidden || visible.get(el) === false) { overdue.delete(owner); queued.delete(owner); return false; }
   if (!owners.has(el)) owners.set(el, owner);
   if (tick !== gsap.ticker.frame) {
     tick = gsap.ticker.frame; drawn = 0; spent = 0;

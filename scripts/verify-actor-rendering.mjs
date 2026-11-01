@@ -62,7 +62,8 @@ globalThis.performance = { now: () => clock };
 globalThis.document = { hidden: false };
 globalThis.__actorGsap = { ticker: { frame: 1, fps() {}, deltaRatio: () => 8 } };
 try {
-  const budgetSource = (await source('budget.ts')).replace('import gsap from "gsap";', 'const gsap = globalThis.__actorGsap;');
+  const diagnosticSource = (await fs.readFile(new URL('../src/perf/diagnostics.ts', import.meta.url), 'utf8')).replace(/^export /gm, '');
+  const budgetSource = (diagnosticSource + '\n' + (await source('budget.ts')).replace('import { diagnosticOff } from "../perf/diagnostics";', '')).replace('import gsap from "gsap";', 'const gsap = globalThis.__actorGsap;');
   const { drawNow, finishDraw, setZoom, unwatch } = await moduleFrom(budgetSource, 'budget.ts');
   setZoom(1);
   const actors = Array.from({ length: 40 }, () => ({ owner: {}, el: {}, draws: 0 }));

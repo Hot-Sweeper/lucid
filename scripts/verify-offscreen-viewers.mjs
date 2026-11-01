@@ -7,7 +7,7 @@ const raf=fn=>{rafs.set(++next,fn);return next};
 const document={hidden:false,addEventListener:(type,fn)=>listeners.set(type,fn)};
 const window={};
 const budget=new Function(`${await compile('perf/screen-budget.ts')};return screenFrameRate`)();
-const render=new Function('document','window','IntersectionObserver','requestAnimationFrame','beginSystem','endSystem','reportError','screenFrameRate',`${await compile('perf/render.ts')};return {renderLoop,renderFps,setRenderView,wakeRender,loopCount:()=>loops.size}`)(document,window,undefined,raf,()=>0,()=>{},e=>{throw e},budget);
+const render=new Function('document','window','IntersectionObserver','requestAnimationFrame','beginSystem','endSystem','reportError','screenFrameRate',`${await compile('perf/diagnostics.ts')};${await compile('perf/render.ts')};return {renderLoop,renderFps,setRenderView,wakeRender,loopCount:()=>loops.size}`)(document,window,undefined,raf,()=>0,()=>{},e=>{throw e},budget);
 const scheduleLayout=new Function('requestAnimationFrame','reportError',`${await compile('harness/layout.ts')};return scheduleLayout`)(raf,e=>{throw e});
 class Observer{constructor(fn){this.fn=fn;this.dead=false}observe(){}disconnect(){this.dead=true}}
 const {followPromptScroll}=new Function('renderLoop','renderFps','scheduleLayout','ResizeObserver',`${await compile('os/prompt-scroll.ts')};return {followPromptScroll}`)(render.renderLoop,render.renderFps,scheduleLayout,Observer);

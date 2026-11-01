@@ -1,3 +1,4 @@
+import { diagnosticOff, onDiagnosticsChange } from "./diagnostics";
 import { setScreenDetail, releaseScreenDetail } from "./screen-detail";
 import { beginSystem, endSystem } from "./metrics";
 import { screenFrameRate } from "./screen-budget";
@@ -56,7 +57,7 @@ function contextFor(owner: HTMLElement) {
   return context;
 }
 export function renderFps(owner: HTMLElement) {
-  if (document.hidden || !owner.isConnected) return 0;
+  if (diagnosticOff("screens") || document.hidden || !owner.isConnected) return 0;
   const context = contextFor(owner);
   const s = surfaces.get(context.host);
   return context.win?.dataset.renderHidden === "1" || s?.visible === false ? 0 : s?.fps ?? 60;
@@ -90,6 +91,7 @@ export function renderLoop(owner: HTMLElement | undefined, cb: Loop["cb"], once 
 }
 export function deferRender(owner: HTMLElement, cb: () => void) { return renderLoop(owner, cb, true); }
 function loopFrameRate(l: Loop) {
+  if (diagnosticOff("screens")) return 0;
   if (document.hidden) return 0;
   if (l.owner && !l.owner.isConnected) return 0;
   if (l.owner && (!l.bound || l.parent !== l.owner.parentElement || l.surface && !l.surface.el.contains(l.owner) || l.win && !l.win.contains(l.owner))) {
@@ -152,3 +154,5 @@ if ((window as any).__lucidPerf) (window as any).__lucidPerf.render = () => {
   for (const l of loops) { if (loopFrameRate(l)) activeLoops++; if (l.once) pendingImages++; }
   return { loops: loops.size, active: activeLoops, pendingImages };
 };
+
+onDiagnosticsChange(wakeRender);

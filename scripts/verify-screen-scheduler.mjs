@@ -10,7 +10,8 @@ for (const width of [0, 1, 12, 39, 40, 79, 80, 120, 199]) assert.equal(screenFra
 assert.equal(screenFrameRate(200), 30); assert.equal(screenFrameRate(449), 30); assert.equal(screenFrameRate(450), 60);
 
 const source = await readFile(new URL('../src/perf/render.ts', import.meta.url), 'utf8');
-const code = (await transformWithOxc(source.replace(/^import .*;\r?\n/gm, ''), 'render.ts')).code.replace(/export\s*\{[^}]*\};?/g, '').replace(/^export /gm, '');
+const diagnostics = await readFile(new URL('../src/perf/diagnostics.ts', import.meta.url), 'utf8');
+const code = (await transformWithOxc((diagnostics + '\n' + source).replace(/^import .*;\r?\n/gm, ''), 'render.ts')).code.replace(/export\s*\{[^}]*\};?/g, '').replace(/^export /gm, '');
 let nextFrame = null, io, hierarchyChecks = 0;
 class Element {
   constructor(kind, parent = null) { this.kind = kind; this.parent = parent; this.isConnected = true; this.dataset = {}; this.classList = { toggle() {} }; }

@@ -1,3 +1,4 @@
+import { diagnosticOff, onDiagnosticsChange } from "../perf/diagnostics";
 import { outdoorLook } from "./season";
 import { beginSystem, endSystem } from "../perf/metrics";
 import type { Season, Weather, WeatherKind } from "./types";
@@ -593,7 +594,7 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   // --- the loop ------------------------------------------------------------------------------
   function frame(now: number) {
     raf = 0;
-    if (dead || document.hidden || indoors) return;
+    if (diagnosticOff("weather") || dead || document.hidden || indoors) return;
     const started = beginSystem();
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0.016;
     last = now;
@@ -634,10 +635,11 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   let fallDirty = false;
   let timer = 0;
   function schedule(delay = 0) {
-    if (raf || timer || dead || document.hidden || indoors) return;
+    if (diagnosticOff("weather") || raf || timer || dead || document.hidden || indoors) return;
     if (delay) timer = window.setTimeout(() => { timer = 0; raf = requestAnimationFrame(frame); }, delay);
     else raf = requestAnimationFrame(frame);
   }
+  const stopDiagnostics = onDiagnosticsChange(() => { cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; last = 0; schedule(); });
   const onVis = () => { if (!document.hidden) { last = 0; schedule(); } };
   const onMotion = () => { skyAt = -1; schedule(); };
   document.addEventListener("visibilitychange", onVis);
@@ -690,6 +692,7 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
     },
     destroy() {
       dead = true;
+      stopDiagnostics();
       cancelAnimationFrame(raf); clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVis);
       reduce.removeEventListener("change", onMotion);

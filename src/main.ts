@@ -1,3 +1,4 @@
+import { mountPerformancePanel } from "./office/performance";
 import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import "./styles.css";
@@ -139,6 +140,7 @@ const extras = document.createElement("details");
 extras.className = "sidebar-extras";
 extras.innerHTML = '<summary>Office & tools</summary><div class="sidebar-extras-body"></div>';
 const extrasBody = extras.querySelector("div")!;
+mountPerformancePanel(extrasBody);
 for (const selector of ["#environment-body", ".rooms", "#orch", "#usage", "#company", "#wallet"]) {
   const section = document.querySelector(selector);
   if (section) extrasBody.appendChild(section);
