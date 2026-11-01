@@ -26,3 +26,24 @@ uncommitted shared `verify:update` pipeline remains in the working tree.
 Running-build and installed-audio delivery receipts are recorded separately
 from the earlier native playback result. Source hash parity establishes the
 soundtrack scope, not a claim that unrelated current edits are installed.
+
+Scoped source commit: `58a001582937ea699d065f360f9dfbb09506ed5a`.
+
+Review delivery receipts:
+
+- `review-validation.json`: the required full validation rerun, accepted native
+  result identity, and exact candidate soundtrack parity.
+- `packaged-audio-proof.json`: SHA-256 equality for all nine committed songs and
+  room air, their accepted assets and installed files, plus production-entry
+  references to every recording. Runtime working bytes match the accepted and
+  build-manifest bytes. Git normalizes `sound.ts` from CRLF to LF; canonical
+  committed-source equality is recorded separately.
+- `installed-build-manifest.json`: the manifest observed with the packaged audio.
+- `running-capture-attempt.json`: the unsuccessful read-only attempt against the
+  earlier normal app, which had no CDP connection. It is retained as a failed
+  attempt and does not prove execution. No app was launched or restarted.
+
+The existing coordinated delivery owner has accepted the source handoff. Its
+normal required update will provide the running-entry attestation. Until that
+receipt is attached and matched, execution proof remains pending. No new playback
+run or competing restart is authorized or needed for this review.
