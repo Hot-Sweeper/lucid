@@ -56,6 +56,10 @@ from the specific hard freeze, not completion of the smoothness goal.
    callback and input-backlog spikes. Earlier controlled before/after improvements
    remain valid only for their recorded snapshots and workloads. They cannot be
    transferred to the corrective delivered build as fresh performance acceptance.
+   The user subsequently reported continued lag/glitching and asked whether rain
+   and particles contribute. The existing owner is measuring that view with weather
+   visible, temporarily hidden and restored. There is no result or causal conclusion
+   from that comparison in this reconciliation, and no duplicate run is requested.
 2. **Remaining visual glitches.** Phase-sensitive outdoor PNG seams remain recorded.
    Current retained fidelity results include small differences also present in
    same-source continuous controls. Broad mean-error passes do not establish zero
@@ -77,10 +81,10 @@ from the specific hard freeze, not completion of the smoothness goal.
    not be silently marked complete by this rendering evidence package. The
    October 31 audit's then-pending presence and delivery findings are superseded
    only to the extent supported above.
-6. **Review and user acceptance.** The user had not yet tried the newly fixed
-   window at the last stabilization message read. No whole-thread settlement is
-   requested by this reconciliation. Keep it unsettled until the existing owner
-   reports remaining acceptance and this review is completed.
+6. **Review and user acceptance.** The latest user report still describes lag and
+   glitches. No whole-thread settlement is requested by this reconciliation. Keep
+   it unsettled until the existing owner reports remaining acceptance and this
+   review is completed.
 
 ## Retained before and after images
 
