@@ -39,6 +39,10 @@ npm run typecheck
 npm run build
 ```
 
+Builds and `npm run verify:update` write to `dist-build`, keeping the installed
+`dist` intact while Lucid is running. Use Lucid's update button to validate and
+install changes. Do not build directly into the shared checkout's `dist`.
+
 ## Offline dictation (Windows setup)
 
 Run `Setup Dictation.cmd` once with Python installed. It installs an isolated

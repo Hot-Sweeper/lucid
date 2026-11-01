@@ -1,3 +1,10 @@
 node_modules/
 dist/
+dist-update/
+dist-build/
+dist-previous/
 *.log
+
+.lucid-update-*/
+.lucid-update.lock
+.lucid-update-recovery.json

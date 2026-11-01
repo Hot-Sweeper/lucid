@@ -67,7 +67,7 @@ declare global {
       onItems(fn: (p: { threadId: string; items: any[]; initial: boolean }) => void): () => void;
       onInfo(fn: (p: { threadId: string; info: ThreadInfo }) => void): () => void;
       checkUpdate(): Promise<{ available: boolean; behind?: number; local?: number; legacy?: boolean; files?: string[]; changes?: string[]; reason?: string }>;
-      applyUpdate(): Promise<{ ok: boolean; error?: string }>;
+      applyUpdate(): Promise<{ ok: boolean; error?: string; kind?: string; details?: string }>;
       onUpdateStep(fn: (s: string) => void): () => void;
       version(): Promise<string>;
     };
@@ -460,6 +460,7 @@ let updateState: Awaited<ReturnType<typeof api.checkUpdate>> | null = null;
 let updateBusy = false;
 let updateChecking = false;
 let updateCheckError = "";
+let lastUpdateFailure: { message: string; details: string; kind?: string } | null = null;
 function updateTimeout<T>(operation: Promise<T>, milliseconds: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
   return Promise.race([operation, new Promise<never>((_, reject) => {
@@ -475,6 +476,12 @@ async function checkUpdate() {
     const u = await updateTimeout(api.checkUpdate(), 15000);
     if (updateBusy) return;
     updateState = u;
+    if (lastUpdateFailure && u.available) {
+      btn.textContent = lastUpdateFailure.kind === 'not-ready' ? 'Changes not ready' : 'Retry update';
+      btn.title = lastUpdateFailure.message;
+      return;
+    }
+    lastUpdateFailure = null;
     const count = (u.local || 0) + (u.behind || 0);
     btn.textContent = u.available ? `Update${count ? ` (${count})` : ""}` : "Check updates";
     btn.title = [u.local ? `${u.local} changed files since the loaded build` : "", u.behind ? `${u.behind} remote commits` : "", u.legacy ? "Rebuild the current checkout" : "", ...(u.changes || []), ...(u.files || []).slice(0, 15), u.reason || (!u.available ? "You're up to date" : "Click to build and restart")].filter(Boolean).join("\n");
@@ -499,17 +506,31 @@ $("update").addEventListener("click", async () => {
   updateBusy = true;
   btn.disabled = true;
   btn.textContent = "Preparing update";
-  const off = api.onUpdateStep((s) => (btn.textContent = s));
+  lastUpdateFailure = null;
+  let off = () => {};
   try {
+    off = api.onUpdateStep((s) => (btn.textContent = s));
     const res = await updateTimeout(api.applyUpdate(), 600000);
-    if (!res.ok) throw new Error(res.error || "Update failed. Try again.");
+    if (!res.ok) {
+      lastUpdateFailure = { message: res.error || "Update failed. Try again.", details: res.details || res.error || '', kind: res.kind };
+      throw new Error(lastUpdateFailure.message);
+    }
     btn.textContent = "Check updates";
+    btn.title = "You're up to date";
   } catch (err: any) {
-    btn.textContent = "Retry update";
-    btn.title = String(err?.message || err);
+    lastUpdateFailure ??= { message: String(err?.message || err), details: String(err?.message || err) };
+    btn.textContent = lastUpdateFailure.kind === 'not-ready' ? 'Changes not ready' : 'Retry update';
+    btn.title = lastUpdateFailure.message;
     const r = btn.getBoundingClientRect();
-    showMenu(r.left, r.bottom, "Update could not finish", [{ label: btn.title, run: () => {} }]);
-  } finally { off(); updateBusy = false; btn.disabled = false; }
+    const details = lastUpdateFailure.details;
+    showMenu(r.left, r.bottom, lastUpdateFailure.message, [{ label: "Copy error details", run: async () => {
+      try { await navigator.clipboard.writeText(details); }
+      catch { showMenu(r.left, r.bottom, "Could not copy the error details. Try again from the update button.", [{ label: "Close", run: () => btn.focus() }]); }
+    } }], { wrapTitle: true });
+  } finally {
+    try { off(); } catch { /* Cleanup must not leave the update button disabled. */ }
+    updateBusy = false; btn.disabled = false;
+  }
 });
 
 const attachDir = await api.attachDir().catch(() => "");
@@ -772,7 +793,7 @@ world.attachDir = attachDir;
 await refresh();
 setInterval(refresh, 3000);
 checkUpdate();
-setInterval(checkUpdate, 60 * 1000);
+setInterval(() => { if (!document.hidden) void checkUpdate(); }, 60 * 1000);
 
 // tokens, plan limits and cost from the harness logs
 // Coins: the robots' API-priced spend pays for things in the shop.

@@ -291,7 +291,7 @@ ipcMain.handle("app:apply-update", async () => {
     app.exit(0);
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: String(err.message || err) };
+    return require('./update-errors.cjs').updateFailure(err, require('./installation.cjs').hasInstalledBuild(path.join(__dirname, '..')));
   }
 });
 ipcMain.handle("app:version", () => app.getVersion());

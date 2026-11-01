@@ -242,6 +242,7 @@
 .room-sign-hit:focus-visible { outline: 3px solid var(--accent); }
 .pop-menu { position: fixed; z-index: 200; min-width: 220px; max-width: 300px; padding: 6px; border-radius: 12px; background: #252d5c; box-shadow: 0 18px 44px rgba(4, 6, 24, 0.55); color: var(--ink); }
 .pm-title { margin: 4px 8px 6px; font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pop-menu-message .pm-title { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; color: var(--ink-2); font-size: 13px; line-height: 1.45; }
 .pop-menu > button { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
 .pop-menu > button:hover, .pop-menu > button:focus-visible { background: rgba(255, 255, 255, 0.08); outline: none; }
 .pop-menu > button.danger { color: #ffb4a8; }

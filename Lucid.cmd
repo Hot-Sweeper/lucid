@@ -1,6 +1,5 @@
 @echo off
-rem Starts Lucid from this folder.
+rem Open the installed version. Use Check updates in Lucid to install source changes.
 cd /d "%~dp0"
 set ELECTRON_RUN_AS_NODE=
-if not exist "dist\index.html" call npm run build
-start "" "%~dp0node_modules\electron\dist\electron.exe" .
+node "%~dp0scripts\launch.cjs"

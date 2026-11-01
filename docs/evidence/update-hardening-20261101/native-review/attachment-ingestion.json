@@ -1,0 +1,9 @@
+{
+  "mechanism": "t3_attachment_prepare_upload, exact-byte HTTP POST, t3_thread_send_attachments",
+  "initialMessage": "mcp:a5280964-25f1-4276-a6c3-e7add4d1825a",
+  "correctedRetryMessage": "mcp:10257d29-1df4-4b75-84c2-e207a2ae2e23",
+  "firstThreeImagesUnchanged": true,
+  "supersededRetrySha256": "f1279e8f78bb8823638713112d14c8a1bad11829926aa09bad739732db2e4fb6",
+  "correctedRetrySha256": "dfbb8e588aec0ccf7d633a7346f4bcc2e67e3dc85bd9b8ef0365a6132211a870",
+  "wholeThreadSettled": false
+}
