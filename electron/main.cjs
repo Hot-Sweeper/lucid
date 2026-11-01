@@ -40,6 +40,7 @@ function createWindow() {
       sandbox: false,
     },
   });
+  require("./profiler.cjs").install(win);
   const query = {};
   if (process.env.LUCID_THREAD) query.thread = process.env.LUCID_THREAD;
   if (process.env.LUCID_PROJECT) query.project = process.env.LUCID_PROJECT;
