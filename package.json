@@ -7,7 +7,8 @@
     "dev": "node scripts/dev.mjs",
     "build": "vite build",
     "start": "node scripts/launch.cjs",
-    "typecheck": "node electron/runtime-check.cjs && tsc -p ."
+    "typecheck": "node electron/runtime-check.cjs && tsc -p .",
+    "verify:soundtrack": "node scripts/verify-soundtrack.cjs"
   },
   "type": "commonjs",
   "devDependencies": {

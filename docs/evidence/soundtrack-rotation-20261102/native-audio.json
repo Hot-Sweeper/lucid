@@ -1,0 +1,68 @@
+{
+  "metrics": [
+    {
+      "duration": 145.176463,
+      "position": 0.46412,
+      "rms": 0.013606356882051562,
+      "loop": false
+    },
+    {
+      "duration": 46,
+      "position": 0.464399,
+      "rms": 0.00911091303018268,
+      "loop": true
+    }
+  ],
+  "songs": [
+    {
+      "id": "sleepy-satellites",
+      "duration": 145.176463
+    },
+    {
+      "id": "moonlit-desks",
+      "duration": 154,
+      "rms": 0.01646624648313997
+    },
+    {
+      "id": "apricot-hour",
+      "duration": 130.315782,
+      "rms": 0.011559894578640288
+    },
+    {
+      "id": "peach-parade",
+      "duration": 108.347823,
+      "rms": 0.01298636559785227
+    },
+    {
+      "id": "first-coffee",
+      "duration": 94,
+      "rms": 0.011702344139430776
+    },
+    {
+      "id": "tram-home",
+      "duration": 109.36585,
+      "rms": 0.012995377127449817
+    },
+    {
+      "id": "window-garden",
+      "duration": 113.090907,
+      "rms": 0.014013457653162597
+    },
+    {
+      "id": "paper-kites",
+      "duration": 98.117642,
+      "rms": 0.011383789739802062
+    },
+    {
+      "id": "little-lights",
+      "duration": 196.923084,
+      "rms": 0.05343383911734136
+    }
+  ],
+  "nineSongRotation": true,
+  "ambienceLooping": true,
+  "muteAndResume": true,
+  "independentLevels": true,
+  "cleanup": true,
+  "listeningTest": false
+}
