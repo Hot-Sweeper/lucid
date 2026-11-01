@@ -103,6 +103,7 @@ export class Director {
   private catchingUp = false;
   private info: ThreadInfo | null = null;
   private lastRunStatus = "";
+  private pendingInitial: Item[] | null = null;
   private files: FilesApp; private editor: EditorApp; private term: TerminalApp;
   private uac: UacPrompt;
   private browser: BrowserApp; private codex: CodexApp; private chat: T3CodeApp; private tool: ToolApp; private tasks: TasksApp;
@@ -176,6 +177,7 @@ export class Director {
     this.played.clear();
     this.info = null;
     this.lastRunStatus = "";
+    this.pendingInitial = null;
     this.stage.say(null);
     this.stage.setPlan([]);
     this.tasks.reset();
@@ -210,6 +212,11 @@ export class Director {
     this.noteQueue(info.queued ?? [], first);
     // after the robot has settled on this thread (its T3 Code window may still be reset meanwhile)
     if (first && info.id) { const id = info.id; window.setTimeout(() => { if (this.info?.id === id) void this.loadHistory(id); }, 1200); }
+    if (this.pendingInitial) {
+      const items = this.pendingInitial;
+      this.pendingInitial = null;
+      this.push(items, true);
+    }
   }
 
   private historyCut = 0;
@@ -255,10 +262,13 @@ export class Director {
   }
 
   push(items: Item[], initial: boolean) {
+    // Watches deliver their snapshot before metadata. Never infer live work from
+    // the last historical turn while its authoritative status is still unknown.
+    if (initial && !this.info) { this.pendingInitial = items; return; }
     let latestRun: string | null = null;
-    if (initial) latestRun = [...items].reverse().find((i) => i.runId)?.runId ?? null;
+    if (initial) latestRun = this.info?.run?.status === "running" ? this.info.run.id : null;
     // what is replayed starts here; older messages are shown as history in T3 Code
-    if (initial) { const t = items.filter((i) => i.runId === latestRun).map((i) => Date.parse(i.updatedAt)).filter((n) => n > 0); this.historyCut = t.length ? Math.min(...t) - 1500 : Date.now(); }
+    if (initial) { const t = latestRun ? items.filter((i) => i.runId === latestRun).map((i) => Date.parse(i.updatedAt)).filter((n) => n > 0) : []; this.historyCut = t.length ? Math.min(...t) - 1500 : Date.now(); }
     for (const it of items) {
       const t = Date.parse(it.updatedAt);
       if (t > this.lastEventAt) this.lastEventAt = t;
@@ -289,8 +299,8 @@ export class Director {
         continue;
       }
       if (SKIP.has(it.type) || this.played.has(it.id) || this.queue.includes(it.id)) continue;
-      // On first open, replay only the latest turn so you see what the robot is doing now.
-      if (initial && it.runId !== latestRun) { this.played.add(it.id); continue; }
+      // Completed turns belong in conversation history, never in a startup work scene.
+      if (initial && (!latestRun || it.runId !== latestRun)) { this.played.add(it.id); continue; }
       if (it.type === "todo_list") { this.stage.setPlan(it.data.steps || []); if (!this.queuePlan(it)) this.played.add(it.id); continue; }
       this.queue.push(it.id);
     }
