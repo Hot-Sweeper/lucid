@@ -55,6 +55,15 @@
 .bw-h2 { margin: 10px 0 3px; font-size: 11.5px; line-height: 1.25; font-weight: 600; color: #3b52c4; }
 .bw-h3 { margin: 8px 0 2px; font-size: 10.4px; font-weight: 600; color: #3b4060; }
 .bw-p { margin: 0 0 6px; min-height: 1em; }
+.bw-page b { font-weight: 700; }
+.bw-page a { color: #2f45b5; text-decoration: underline; text-underline-offset: 2px; }
+.bw-page a:hover { color: #1d2252; }
+.bw-page a:focus-visible { outline: 1.5px solid #4f6fe8; outline-offset: 2px; border-radius: 2px; }
+.bw-page code, .bw-code { font-family: var(--mono); font-size: .92em; }
+.bw-page code { padding: 1px 3px; border-radius: 2px; background: #eef0f7; color: #293052; box-decoration-break: clone; }
+.bw-file { color: #34447f; background: #f0f2fa; border-radius: 2px; padding: 0 2px; box-decoration-break: clone; }
+.bw-code { margin: 6px 0 10px; padding: 9px 10px; border-radius: 3px; background: #f0f2f8; color: #293052; line-height: 1.55; white-space: pre-wrap; tab-size: 2; }
+.bw-rule { margin: 12px 0; border: 0; border-top: 1px solid #d9ddec; }
 .bw-quote { padding-left: 10px; color: #4a5070; font-style: italic; box-shadow: inset 2px 0 0 #c9cee6; }
 .bw-li { position: relative; margin: 0 0 3px; padding-left: calc(14px + var(--lvl, 0) * 14px); }
 .bw-tx::before { content: attr(data-mk); position: absolute; left: calc(var(--lvl, 0) * 14px); width: 12px; color: #3b4060; }

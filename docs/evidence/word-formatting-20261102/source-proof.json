@@ -1,0 +1,24 @@
+{
+  "at": "2026-11-01T23:10:57.463Z",
+  "sources": {
+    "src/director.ts": "dcbb67167c5487a4c0c8794c8b1d2846d6268306c35b38c7e26006c81acc0e9b",
+    "src/office-apps/model.ts": "de0afef59c41b131cc9f34ea7245de0b217b9b0f18e7de937153cafed3cc3803",
+    "src/office-apps/botword.ts": "f07f548c495d6dac47d2d1fc26d57fe64bd0e4fefea4ae05aed9d95c5fe7b33f",
+    "src/office-apps/word-markdown.ts": "e9d5f515d4ce013b6bb7dc5090f2c959487cfd9609814c7a85b16eef1bd0154a",
+    "src/office-apps/office.css": "2695e1e956608d48bc618861efff4039bed82db93be43e9c3c2dae6b7437a6ab",
+    "scripts/verify-word-formatting-native.cjs": "bb1d0cb2604e0a9a06ba791be72eccd6a2e061a82912c927173093c263e3b681"
+  },
+  "verifyUpdate": {
+    "passed": true,
+    "log": "verify-update.log",
+    "sha256": "00fb908b779643432e626c42c312b19b2cc89a541800848b59c1db0de4a56857"
+  },
+  "native": {
+    "results": "results.json",
+    "sourceManifest": "tested-source.json",
+    "executingBundleSha256": "592e33bb8018d89c335c90feac9ac686d83258aa2cc73f56b90d25d32e86ac0e"
+  },
+  "productionTouched": false,
+  "installedExecutionProved": false,
+  "broaderStabilizationSettled": false
+}

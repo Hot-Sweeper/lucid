@@ -1,3 +1,6 @@
+import { Botword } from "./office-apps/botword";
+import { reportDocument } from "./office-apps/word-markdown";
+import { uiText } from "./localization";
 import { frontendUrlFromOutput } from "./os/frontend";
 import gsap from "gsap";
 import { WM, Cancelled } from "./os/wm";
@@ -189,6 +192,7 @@ export class Director {
   }
 
   setInfo(info: ThreadInfo) {
+    if (this.writingReport && (info.run?.status === "running" || info.id !== this.info?.id)) this.wm.reset();
     if (info.error) return;
     if (this.info && this.info.id !== info.id) { this.imageRefresh.reset(); this.codex.reset(); }
     const first = !this.info;
@@ -520,7 +524,37 @@ export class Director {
     for (let n = 0; n < 240 && !this.present(); n++) await this.wm.sleep(250);
   }
 
+  private writingReport = false;
+  async writeReport(title: string, response: string) {
+    if (!this.present()) return;
+    this.writingReport = true;
+    this.busyToken++;
+    this.idleLife.halt();
+    this.wm.reset();
+    const epoch = this.wm.epoch;
+    try {
+      this.onActivity(uiText("Writing report"));
+      await new Botword(this.wm).show(reportDocument(title, response), { typed: "all" });
+      const win = this.wm.wins.get("botword");
+      if (!win || epoch !== this.wm.epoch) return;
+      const print = document.createElement("button");
+      print.type = "button";
+      print.className = "oa-btn";
+      Object.assign(print.style, { width: "auto", whiteSpace: "nowrap", flexShrink: "0", padding: "0 10px" });
+      print.textContent = uiText("Send to printer");
+      win.body.querySelector(".oa-tools")?.append(print);
+      await this.wm.pointAt(print, .5, .5);
+      await this.wm.click();
+      print.textContent = uiText("Sent to printer");
+      await this.wm.sleep(450, epoch);
+    } finally {
+      this.writingReport = false;
+      if (this.queue.length) void this.pump();
+    }
+  }
+
   private async pump() {
+    if (this.writingReport) return;
     if (this.pumpEpoch === this.wm.epoch) return;
     const epoch = (this.pumpEpoch = this.wm.epoch);
     try {

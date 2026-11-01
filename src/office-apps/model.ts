@@ -3,12 +3,12 @@
 // command wrote, text fallbacks (csv, diffs), and a tiny formula evaluator for the sheet.
 import { parseDiff } from "../os/classify";
 
-export type Run = { t: string; b?: boolean; i?: boolean; u?: boolean };
+export type Run = { t: string; b?: boolean; i?: boolean; u?: boolean; s?: boolean; code?: boolean; href?: string };
 export type Block =
   | { kind: "h"; level: number; text: string; runs?: Run[]; align?: string; sub?: boolean }
-  | { kind: "p"; text: string; runs?: Run[]; align?: string; quote?: boolean }
-  | { kind: "li"; text: string; ordered: boolean; level: number; runs?: Run[]; align?: string }
-  | { kind: "table"; rows: string[][] }
+  | { kind: "p"; text: string; runs?: Run[]; align?: string; quote?: boolean; code?: boolean; rule?: boolean }
+  | { kind: "li"; text: string; ordered: boolean; level: number; runs?: Run[]; align?: string; marker?: string }
+  | { kind: "table"; rows: string[][]; cellRuns?: Run[][][] }
   | { kind: "img" };
 export type WordDoc = { kind: "word"; name: string; blocks: Block[]; truncated?: boolean };
 

@@ -25,6 +25,12 @@ function runsHTML(text: string, runs: Run[] | undefined, n: number) {
     if (r.u) h = `<u>${h}</u>`;
     if (r.i) h = `<i>${h}</i>`;
     if (r.b) h = `<b>${h}</b>`;
+    if (r.s) h = `<s>${h}</s>`;
+    if (r.code) h = `<code>${h}</code>`;
+    if (r.href) {
+      if (/^(https?:|mailto:)/i.test(r.href)) h = `<a href="${esc(r.href)}" target="_blank" rel="noopener noreferrer">${h}</a>`;
+      else if (/^(?:[a-z]:[\\/]|\.{0,2}\/|file:)/i.test(r.href)) h = `<span class="bw-file" title="${esc(r.href)}">${h}</span>`;
+    }
     out += h;
   }
   return out;
@@ -73,11 +79,11 @@ export class Botword {
   }
 
   private blockEl(b: Block) {
-    const el = document.createElement(b.kind === "table" ? "table" : b.kind === "h" ? (b.level <= 1 ? "h1" : b.level === 2 ? "h2" : "h3") : b.kind === "p" ? "p" : "div");
+    const el = document.createElement(b.kind === "table" ? "table" : b.kind === "h" ? (b.level <= 1 ? "h1" : b.level === 2 ? "h2" : "h3") : b.kind === "p" ? (b.code ? "pre" : b.rule ? "hr" : "p") : "div");
     if (b.kind === "h") el.className = b.level === 0 ? "bw-title" : b.sub ? "bw-sub" : `bw-h${Math.min(3, b.level)}`;
-    else if (b.kind === "p") el.className = b.quote ? "bw-p bw-quote" : "bw-p";
-    else if (b.kind === "li") { el.className = `bw-li${b.ordered ? " ol" : ""}`; el.style.setProperty("--lvl", String(b.level)); el.innerHTML = `<span class="bw-tx"></span>`; }
-    else if (b.kind === "table") { el.className = "bw-table"; el.innerHTML = b.rows.map((r, ri) => `<tr>${r.map(() => (ri === 0 ? "<th></th>" : "<td></td>")).join("")}</tr>`).join(""); }
+    else if (b.kind === "p") el.className = `${b.code ? "bw-code" : b.rule ? "bw-rule" : "bw-p"}${b.quote ? " bw-quote" : ""}`;
+    else if (b.kind === "li") { el.className = `bw-li${b.ordered ? " ol" : ""}`; el.style.setProperty("--lvl", String(b.level)); if (b.marker !== undefined) el.dataset.marker = b.marker; el.innerHTML = `<span class="bw-tx"></span>`; }
+    else if (b.kind === "table") { const cols = Math.max(1, ...b.rows.map(row => row.length)); el.className = "bw-table"; el.innerHTML = b.rows.map((_r, ri) => `<tr>${Array.from({ length: cols }, () => (ri === 0 ? "<th></th>" : "<td></td>")).join("")}</tr>`).join(""); }
     else el.className = "bw-img";
     if (b.kind === "img") el.innerHTML = GL.picture;
     if ("align" in b && b.align) el.style.textAlign = b.align;
@@ -85,10 +91,13 @@ export class Botword {
   }
 
   private paint(el: HTMLElement, b: Block, n: number, caret: boolean) {
+    if (b.kind === "p" && b.rule) return;
     const c = caret ? '<span class="caret"></span>' : "";
     if (b.kind === "table") {
-      el.querySelectorAll("th, td").forEach((td, i) => { const cols = b.rows[0]?.length || 1; td.textContent = b.rows[Math.floor(i / cols)]?.[i % cols] ?? ""; });
-    } else if (b.kind === "li") (el.firstElementChild as HTMLElement).innerHTML = (runsHTML(b.text, b.runs, n) || (caret ? "" : "&nbsp;")) + c;
+      const cols = Math.max(1, ...b.rows.map(row => row.length));
+      el.querySelectorAll("th, td").forEach((td, i) => { const row = Math.floor(i / cols), col = i % cols, text = b.rows[row]?.[col] ?? ""; td.innerHTML = runsHTML(text, b.cellRuns?.[row]?.[col], text.length); });
+    } else if (b.kind === "p" && b.code) el.innerHTML = esc(b.text.slice(0, n)) + c;
+    else if (b.kind === "li") (el.firstElementChild as HTMLElement).innerHTML = (runsHTML(b.text, b.runs, n) || (caret ? "" : "&nbsp;")) + c;
     else if (b.kind !== "img") el.innerHTML = (runsHTML(b.text, b.runs, n) || (caret ? "" : "&nbsp;")) + c;
   }
 
@@ -100,7 +109,7 @@ export class Botword {
       const lvl = Number(el.style.getPropertyValue("--lvl") || 0);
       counts.length = lvl + 1;
       counts[lvl] = (counts[lvl] || 0) + 1;
-      (el.firstElementChild as HTMLElement).dataset.mk = el.classList.contains("ol") ? `${counts[lvl]}.` : ["•", "◦", "▪"][lvl % 3];
+      (el.firstElementChild as HTMLElement).dataset.mk = el.dataset.marker ?? (el.classList.contains("ol") ? `${counts[lvl]}.` : ["•", "◦", "▪"][lvl % 3]);
     }
   }
 
@@ -248,8 +257,8 @@ export class Botword {
       wm.check(e);
       const td = tds[r * cols + c], text = b.rows[r]?.[c] ?? "";
       if (!td) continue;
-      if (budget > 0 && text) await typeWith(wm, text, cps * 1.5, (n, caret) => { td.innerHTML = esc(text.slice(0, n)) + (caret ? '<span class="caret"></span>' : ""); });
-      else td.textContent = text;
+      if (budget > 0 && text) await typeWith(wm, text, cps * 1.5, (n, caret) => { td.innerHTML = runsHTML(text, b.cellRuns?.[r]?.[c], n) + (caret ? '<span class="caret"></span>' : ""); });
+      else td.innerHTML = runsHTML(text, b.cellRuns?.[r]?.[c], text.length);
       budget -= text.length;
       wm.robot.pressKey("Tab");
     }
