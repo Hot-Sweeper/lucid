@@ -36,7 +36,10 @@ On Windows you can double-click `Lucid.cmd` after installing.
 `npm install` enables this repository's Git hook, which pushes each new commit
 to GitHub automatically. Commit changes before switching computers. If a push
 fails while offline, the commit stays safe locally; run `git push` after reconnecting.
-Existing custom Git hooks are preserved.
+Existing custom Git hooks are preserved and chained. The installer configures all
+existing worktrees using a helper in Git's shared local storage, so older branches
+do not need the new scripts. Run `node scripts/setup-git-sync.cjs` again after adding
+a worktree. Fresh clones are configured by `npm install`.
 
 On the other computer, run `git pull --ff-only` before starting work, then
 `npm install` if dependencies changed. Uncommitted edits remain local. Automatic
