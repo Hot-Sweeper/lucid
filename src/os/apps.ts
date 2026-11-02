@@ -7,112 +7,14 @@ import { baseName, relPath, type Entry, type Hit, type Hunk } from "./classify";
 import { esc, el, typeInto } from "./typing";
 import { colorGitLine } from "./git";
 import { detectSheet, playSheet, playerFrame } from "./sheet";
+import { t3Icon, t3Title } from "../harness/t3code";
+import { describeTool, factTitles, isT3Tool, prettyTool, toolActivity, toolViewHtml, toolViewKey, type ToolState, type UploadLookup, type WatchedView } from "./tool-view";
+import "./tool-view.css";
 export { BrowserApp } from "./browser";
+export { prettyTool, toolActivity };
 
 // ---------------------------------------------------------------------------
-export class FilesApp {
-  private path = "";
-  constructor(private wm: WM) {}
-
-  private async ensure() {
-    const w = await this.wm.open("files");
-    if (!w.body.querySelector(".files")) {
-      w.body.innerHTML = `
-        <div class="files">
-          <div class="files-top"><div class="crumbs"></div><div class="search-box">${ICONS.files}<span class="q"></span></div></div>
-          <div class="files-list" role="list"></div>
-        </div>`;
-    }
-    return w;
-  }
-
-  private crumbs(w: HTMLElement, path: string, root: string | null) {
-    const rel = relPath(path, root);
-    const rootName = root ? baseName(root) : "";
-    const parts = (rel === path.replace(/\\/g, "/") ? rel.split("/") : [rootName, ...rel.split("/")]).filter(Boolean);
-    const c = w.querySelector(".crumbs") as HTMLElement;
-    c.innerHTML = parts.map((p) => `<span>${esc(p)}</span>`).join('<i aria-hidden="true">/</i>');
-    c.scrollLeft = c.scrollWidth;
-    return c;
-  }
-
-  async list(path: string, entries: Entry[], root: string | null) {
-    const wm = this.wm, e = wm.epoch;
-    const w = await this.ensure();
-    const list = w.body.querySelector(".files-list") as HTMLElement;
-    w.body.querySelector(".files")!.classList.remove("searching");
-    // Dig in: if the new folder is inside the old one, double-click through it.
-    const prev = this.path;
-    const sameTree = prev && path.replace(/\\/g, "/").toLowerCase().startsWith(prev.replace(/\\/g, "/").toLowerCase() + "/");
-    if (sameTree) {
-      const next = path.replace(/\\/g, "/").slice(prev.length + 1).split("/")[0];
-      const row = Array.from(list.querySelectorAll(".row")).find((r) => r.getAttribute("data-name")?.toLowerCase() === next.toLowerCase());
-      if (row) {
-        await wm.pointAt(row, 0.3, 0.5);
-        row.classList.add("hover");
-        await wm.click(true);
-      }
-    }
-    this.path = path;
-    const crumbs = this.crumbs(w.body, path, root);
-    gsap.fromTo(crumbs.lastElementChild, { opacity: 0, x: 10 }, { opacity: 1, x: 0, duration: 0.35, ease: "power2.out" });
-    const sorted = [...entries].sort((a, b) => Number(b.dir) - Number(a.dir) || a.name.localeCompare(b.name));
-    gsap.to(list.children, { opacity: 0, x: -8, duration: 0.15, stagger: 0.005 });
-    await wm.sleep(160, e);
-    list.innerHTML = sorted.length
-      ? sorted.map((x) => `<div class="row" role="listitem" data-name="${esc(x.name)}" title="${esc(x.path || x.name)}">${x.dir ? ICONS.folder : ICONS.file}<span class="n">${esc(x.name)}</span><span class="s">${x.size || ""}</span></div>`).join("")
-      : `<p class="empty">This folder is empty</p>`;
-    list.scrollTop = 0;
-    gsap.fromTo(list.children, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.3, stagger: Math.min(0.03, 0.6 / Math.max(1, sorted.length)), ease: "power2.out" });
-    // Skim the list like a person would.
-    const rows = Array.from(list.querySelectorAll(".row")).slice(0, 8);
-    for (const r of rows.filter((_, i) => i % 3 === 0)) {
-      await wm.pointAt(r, 0.35, 0.5, 300);
-      r.classList.add("hover");
-      await wm.sleep(180, e);
-      r.classList.remove("hover");
-    }
-    if (sorted.length > 12) {
-      wm.robot.setPose("read");
-      gsap.to(list, { scrollTop: list.scrollHeight, duration: Math.min(2.5, sorted.length * 0.05) / wm.speed, ease: "power1.inOut" });
-      await wm.sleep(Math.min(2500, sorted.length * 50), e);
-    }
-  }
-
-  async search(query: string, path: string, hits: Hit[], root: string | null) {
-    const wm = this.wm, e = wm.epoch;
-    const w = await this.ensure();
-    const box = w.body.querySelector(".search-box") as HTMLElement;
-    const files = w.body.querySelector(".files")!;
-    this.crumbs(w.body, path, root);
-    await wm.pointAt(box, 0.6, 0.5);
-    await wm.click();
-    box.classList.add("active");
-    await typeInto(wm, box.querySelector(".q") as HTMLElement, query, { budgetMs: 900 });
-    files.classList.add("searching");
-    const list = w.body.querySelector(".files-list") as HTMLElement;
-    const byFile = new Map<string, Hit[]>();
-    for (const h of hits) { const k = relPath(h.file, root); if (!byFile.has(k)) byFile.set(k, []); byFile.get(k)!.push(h); }
-    let re: RegExp | null = null;
-    try { re = query ? new RegExp(query.replace(/\\b/g, ""), "gi") : null; } catch { re = null; }
-    const mark = (t: string) => {
-      const s = esc(t.trim().slice(0, 160));
-      if (!re) return s;
-      try { return s.replace(re, (m) => `<mark>${m}</mark>`); } catch { return s; }
-    };
-    list.innerHTML = byFile.size
-      ? [...byFile.entries()].map(([f, hs]) => `
-          <div class="hit-file row" title="${esc(f)}">${ICONS.file}<span class="n">${esc(f)}</span><span class="s">${hs.length}</span></div>
-          ${hs.slice(0, 4).map((h) => `<div class="hit-line">${h.line ? `<b>${h.line}</b>` : ""}<code>${mark(h.text)}</code></div>`).join("")}`).join("")
-      : `<p class="empty">No matches for “${esc(query)}”</p>`;
-    list.scrollTop = 0;
-    gsap.fromTo(list.children, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.3, stagger: 0.025, ease: "power2.out" });
-    wm.robot.setPose("read");
-    const lines = Array.from(list.querySelectorAll(".hit-file")).slice(0, 4);
-    for (const l of lines) { await wm.pointAt(l, 0.3, 0.5, 260); await wm.sleep(260, e); }
-    box.classList.remove("active");
-  }
-}
+export { FilesApp } from "./explorer";
 
 // ---------------------------------------------------------------------------
 type Tab = { path: string; el: HTMLElement };
@@ -303,13 +205,6 @@ export class TerminalApp {
 }
 
 // ---------------------------------------------------------------------------
-export function prettyTool(name: string) {
-  const m = name.match(/^mcp__(.+?)__(.+)$/) || name.match(/^([\w-]+)\.(.+)$/);
-  const words = (s: string) => s.replace(/[_-]+/g, " ").trim();
-  if (m) return { app: words(m[1]).replace(/^t3 code$/i, "T3 Code").replace(/\b\w/g, (c) => c.toUpperCase()), action: words(m[2]) };
-  return { app: "Tool", action: words(name) };
-}
-
 export class ToolApp {
   constructor(private wm: WM) {}
   /**
@@ -346,18 +241,69 @@ export class ToolApp {
     await this.wm.sleep(big ? 2600 : 1600);
     if (big && !fs) await this.wm.unmaximize("photos");
   }
-  async show(toolName: string, input: unknown) {
-    const { app, action } = prettyTool(toolName);
-    const w = await this.wm.open("tool", app);
-    const entries = input && typeof input === "object" ? Object.entries(input as Record<string, unknown>).slice(0, 5) : [];
-    const fmt = (v: unknown) => {
-      const s = typeof v === "string" ? v : JSON.stringify(v);
-      return esc((s || "").replace(/\s+/g, " ").slice(0, 90));
+  /**
+   * Shows an operation that has no app of its own. The view states only what the event carries and
+   * is brought up to date with `refresh` when the real outcome arrives.
+   */
+  async show(toolName: string, input: unknown, state: () => ToolState, uploads?: UploadLookup): Promise<WatchedView> {
+    const wm = this.wm;
+    const t3 = isT3Tool(toolName);
+    const channel = wm.prefs?.t3 === "nightly" ? "nightly" : "stable";
+    const first = describeTool(toolName, input, state(), uploads);
+    const icon = t3 ? t3Icon(channel) : ICONS.tool;
+    wm.brandApp("tool", { icon });
+    const w = await wm.open("tool", t3 ? t3Title(channel) : first.app);
+    const barIcon = w.el.querySelector(".win-bar > .ico");
+    if (barIcon) { const tmp = document.createElement("div"); tmp.innerHTML = icon; if (tmp.firstElementChild) barIcon.replaceWith(tmp.firstElementChild); }
+    const root = document.createElement("div");
+    root.className = `tool tv${t3 ? " tv-t3" : ""}`;
+    root.dataset.channel = channel;
+    let shown = "";
+    const paint = (animate: boolean) => {
+      const v = describeTool(toolName, input, state(), uploads);
+      const key = toolViewKey(v);
+      if (key === shown) return;
+      const settling = shown !== "" && root.dataset.phase === "pending" && v.phase !== "pending";
+      shown = key;
+      root.dataset.phase = v.phase;
+      root.innerHTML = toolViewHtml(v, factTitles(toolName, input, state()));
+      if (animate && settling && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        const mark = root.querySelector(".tv-state");
+        if (mark) gsap.fromTo(mark, { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.32, ease: "back.out(2.2)" });
+        const reason = root.querySelector(".tv-note");
+        if (reason) gsap.fromTo(reason, { opacity: 0 }, { opacity: 1, duration: 0.25 });
+      }
     };
-    w.body.innerHTML = `<div class="tool"><h3>${esc(action)}</h3><dl>${entries.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${fmt(v)}</dd>`).join("")}</dl><div class="tool-run"><i></i></div></div>`;
-    gsap.fromTo(w.body.querySelectorAll("h3, dt, dd"), { opacity: 0, y: 6 }, { opacity: 1, y: 0, stagger: 0.04, duration: 0.3 });
-    await this.wm.pointAt(w.body.querySelector("h3")!, 0.3, 0.5, 300);
-    await this.wm.click();
-    await this.wm.sleep(900);
+    // The frame is small on purpose. If a reason or a long name needs more room, the window grows
+    // by exactly that much (and keeps its bottom edge on screen) instead of clipping what it says.
+    const fit = (animate: boolean) => {
+      const need = Math.ceil(root.scrollHeight - root.clientHeight);
+      if (need <= 0 || !root.isConnected) return;
+      const frame = w.el.style, top = parseFloat(frame.top) || 0, h = parseFloat(frame.height) || w.el.offsetHeight;
+      const next = Math.min(h + need, wm.height - 8), y = Math.max(4, Math.min(top, wm.height - next - 4));
+      const to = { height: next, top: y };
+      if (animate && !matchMedia("(prefers-reduced-motion: reduce)").matches) gsap.to(w.el, { ...to, duration: 0.2, ease: "power2.out", overwrite: "auto" });
+      else Object.assign(frame, { height: `${next}px`, top: `${y}px` });
+    };
+    paint(false);
+    w.body.replaceChildren(root);
+    fit(false);
+    gsap.killTweensOf(root);
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) gsap.fromTo(root, { opacity: 0 }, { opacity: 1, duration: 0.25 });
+    wm.robot.setPose("read");
+    // rest the cursor on the file tile (or the headline), clear of the text being read
+    const tile = root.querySelector(".tv-tile"), value = root.querySelector(".tv-facts dd");
+    if (tile) await wm.pointAt(tile as HTMLElement, 0.85, 0.9, 300);
+    else if (value) await wm.pointAt(value as HTMLElement, 0.95, 0.5, 300);
+    await wm.sleep(500);
+    return {
+      live: () => root.isConnected,
+      // true while the call is still running: the director keeps following the item until it settles
+      refresh: () => {
+        if (!root.isConnected) return false;
+        paint(true); fit(true);
+        return root.dataset.phase === "pending";
+      },
+    };
   }
 }

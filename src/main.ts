@@ -184,7 +184,7 @@ let coinRewards: CoinRewards | null = null;
 (window as any).__world = world; // debug handle for test runs
 const chat = new ChatPanel($("scene").parentElement!, {
   conversation: (id) => api.conversation(id), conversationPage: (id, options) => (api as any).conversationPage(id, options),
-  sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), t3: (window as any).lucidT3,
+  sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), revealFile: (api as any).revealFile ? (p) => (api as any).revealFile(p) : undefined, t3: (window as any).lucidT3,
   // Saved reports belong to this environment's actual review conversation.
   reviewPapers: async id => !currentEnvironment && id === settings.orch?.threadId ? (api as any).reportsList() : [],
   sourceReport: async id => !currentEnvironment && id !== settings.orch?.threadId ? latestSourceReport(await (api as any).reportsList(), id) : null,

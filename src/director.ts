@@ -13,7 +13,11 @@ import { HarnessApp, harnessKind, THEMES, type HarnessSession, type SubagentEven
 import { fileUrl } from "./office/chat-panel";
 import { UacPrompt } from "./os/uac";
 import { harnessName } from "./office/brand";
-import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, prettyTool } from "./os/apps";
+import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, toolActivity } from "./os/apps";
+import { findUpload, ToolViewWatch } from "./os/tool-view";
+import { attachmentsOf, sourcesFor } from "./os/attachment-source";
+import { attachmentSendOutcome, playSend, type DiskFact, type SendOutcome } from "./os/send-files";
+import { listingProblem } from "./os/explorer-model";
 import { T3CodeApp } from "./harness/t3code";
 import { CodexApp } from "./os/codex";
 import { imageGenOf, imageResult, type ImageGen } from "./os/imagegen";
@@ -122,7 +126,8 @@ export class Director {
   private uac: UacPrompt;
   private browser: BrowserApp; private codex: CodexApp; private chat: T3CodeApp; private nativeMessages: T3CodeApp;
   private get messages() { return this.wm.prefs?.chatApp === "t3code" ? this.chat : this.nativeMessages; }
-  private get messageApp(): "chat" | "t3code" { return this.wm.prefs?.chatApp === "t3code" ? "t3code" : "chat"; } private tool: ToolApp; private tasks: TasksApp;
+  private attachmentChat: { id: string; app: T3CodeApp } | null = null;
+  private get messageApp(): "chat" | "t3code" { return this.wm.prefs?.chatApp === "t3code" ? "t3code" : "chat"; } private tool: ToolApp; private toolWatch = new ToolViewWatch(); private tasks: TasksApp;
   private planSig = "";
   onActivity: (text: string) => void = () => {};
   private idleLife: IdleLife;
@@ -182,7 +187,9 @@ export class Director {
     this.helperHints.clear();
     this.harness.reset();
     this.chat.reset();
+    this.files.reset();
     this.nativeMessages.reset();
+    this.attachmentChat?.app.reset(); this.attachmentChat = null;
     this.imageRefresh.reset();
     this.browser.reset();
     this.codex.reset();
@@ -191,6 +198,7 @@ export class Director {
     if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
     this.lastEventAt = 0;
     this.frontendSignals.clear();
+    this.toolWatch.clear();
     this.wm.reset();
     this.items.clear();
     this.queue = [];
@@ -339,6 +347,7 @@ export class Director {
         if (/html_(render|preview)$/.test(tool) && typeof it.data.input?.html === 'string') this.browser.refreshFrontendHtml(it.data.input.html);
       }
       this.items.set(it.id, it);
+      this.toolWatch.update(it.id);   // a tool window still showing this call follows its real outcome
       this.chat.update(it);   // a work row already in T3 Code follows its item (Running, then Ran)
       const imageUpdate = this.imageRefresh.tracks(it.id) ? this.imageRefresh.observe(it.id, this.imageState(it)) : null;
       if (imageUpdate) this.refreshImage(imageUpdate);
@@ -792,6 +801,57 @@ export class Director {
     }
   }
 
+  /** What the disk says about the exact files an agent attached (size, time). Nothing is listed or read. */
+  private async diskFacts(paths: (string | null)[]): Promise<DiskFact[]> {
+    const list = [...new Set(paths.filter((p): p is string => !!p))];
+    if (!list.length) return [];
+    try { return (await (window as any).lucid?.statFiles?.(list)) ?? []; } catch { return []; }
+  }
+
+  /**
+   * The agent sent files in a message. It opens the Explorer on the folder the upload step names, picks
+   * the files, drags them into the message box and sends. This plays back what the recorded steps
+   * say happened: the upload and the send were already tool calls, and nothing here repeats them.
+   */
+  private async playAttachmentSend(id: string) {
+    const epoch = this.wm.epoch;
+    const input = this.get(id).data.input || {};
+    const attachments = attachmentsOf(input);
+    const root = this.info?.root || null;
+    const sources = sourcesFor(attachments, this.items.values(), root);
+    const threadId = String(input.threadId || "");
+    // a message with no other address goes to the person this robot is talking to
+    const toUser = !threadId || threadId === this.info?.id;
+    let destination = this.messages;
+    if (!toUser) {
+      if (this.attachmentChat?.id !== threadId) {
+        this.attachmentChat?.app.reset();
+        const app = new T3CodeApp(this.wm);
+        const target = await (window as any).lucid?.threadInfo?.(threadId).catch(() => null);
+        this.wm.check(epoch);
+        app.setInfo({ id: threadId, title: target?.title || "Conversation", provider: target?.provider, model: target?.model, root: target?.root });
+        this.attachmentChat = { id: threadId, app };
+      }
+      destination = this.attachmentChat.app;
+    }
+    this.onActivity(toUser ? "Sending files to you" : "Sending files to another thread");
+    this.stage.setGlow(GLOW.files);
+    this.robot.setPose("mouse");
+    const disk = await this.diskFacts(sources.map((s) => s.path));
+    this.wm.check(epoch);
+    const outcome = async (): Promise<SendOutcome> => {
+      const done = await this.settle(id, 30000);
+      return attachmentSendOutcome(done);
+    };
+    const result = await playSend({
+      wm: this.wm, files: this.files, chat: destination, root, sources, disk,
+      text: () => String(this.get(id).data.input?.message || ""), outcome, instant: this.catchingUp,
+      state: () => attachmentSendOutcome(this.get(id)),
+      follow: (view) => { this.toolWatch.add(id, view); this.toolWatch.update(id); },
+    });
+    if (!toUser) await destination.inspection(result === "failed" ? "Message could not be sent" : result === "pending" ? "Message awaiting confirmation" : "Message sent", threadId);
+  }
+
   // Wait until the item completes, or move on if newer work piles up.
   private async settle(id: string, maxMs = 120000) {
     const start = Date.now();
@@ -818,6 +878,10 @@ export class Director {
       if (Array.isArray(o.content)) return o.content.map((c: any) => c.text || "").join("\n");
       return JSON.stringify(o, null, 1);
     };
+    if (/t3_thread_send_attachments$/.test(base) && attachmentsOf(this.get(id).data.input).length) {
+      await this.playAttachmentSend(id);
+      return true;
+    }
     if (/t3_thread_send(?:_attachments)?$/.test(base)) {
       this.onActivity("Sending a T3 message");
       this.robot.setPose("read");
@@ -885,16 +949,18 @@ export class Director {
       const act = classify(`rg ${JSON.stringify(q)}`, text(done.data.output), root || "");
       this.onActivity(`Searching for “${q}”`);
       this.stage.setGlow(GLOW.files);
-      await this.files.search(q, done.data.input?.path || root || "", act.kind === "search" ? act.hits : [], root);
+      await this.files.search(q, done.data.input?.path || root || "", act.kind === "search" ? act.hits : [], root, { instant: this.catchingUp });
       return true;
     }
     if (base === "Glob") {
       const done = await this.settle(id, 20000);
-      const entries: Entry[] = text(done.data.output).split(/\r?\n/).filter(Boolean).slice(0, 400)
-        .map((l) => ({ name: baseName(l), dir: false, path: l }));
+      const out = text(done.data.output);
+      const found = /^\s*no files? found/i.test(out) || listingProblem(out) ? [] : out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 400);
       this.onActivity("Looking for files");
       this.stage.setGlow(GLOW.files);
-      await this.files.list(done.data.input?.path || root || "", entries, root);
+      const where = done.data.input?.path || root || "";
+      if (found.length) await this.files.matches(where, found, root, { instant: this.catchingUp });
+      else await this.files.list(where, [], root, { instant: this.catchingUp, problem: listingProblem(out) });
       return true;
     }
     if (base === "WebFetch" || base === "WebSearch") {
@@ -1421,11 +1487,11 @@ export class Director {
         if (act.kind === "list") {
           this.onActivity(`Looking through ${baseName(act.path)}`);
           this.stage.setGlow(GLOW.files);
-          await this.files.list(act.path, act.entries, root);
+          await this.files.list(act.path, act.entries, root, { instant: this.catchingUp, problem: act.entries.length ? null : listingProblem(done.data.output || "") });
         } else if (act.kind === "search") {
           this.onActivity(`Searching for “${act.query}”`);
           this.stage.setGlow(GLOW.files);
-          await this.files.search(act.query, act.path, act.hits, root);
+          await this.files.search(act.query, act.path, act.hits, root, { instant: this.catchingUp });
         } else if (act.kind === "read") {
           this.onActivity(`Reading ${baseName(act.path)}`);
           this.stage.setGlow(GLOW.editor);
@@ -1480,10 +1546,16 @@ export class Director {
           await this.browser.visit(url, { real: /^https?:\/\/(localhost|127\.|0\.0\.0\.0|\[::1\])/i.test(url) });
           return;
         }
-        this.onActivity(`Using ${prettyTool(name).action}`);
+        this.onActivity(toolActivity(name));
         this.stage.setGlow(GLOW.tool);
-        await this.tool.show(name, d.input);
+        // The view reads the real item each time, so a call that is still running shows as running
+        // and the outcome replaces it when it arrives. Nothing here estimates progress.
+        const view = await this.tool.show(name, d.input, () => this.get(id).data.output === undefined ? { status: this.get(id).status } : { status: this.get(id).status, output: this.get(id).data.output }, (attachmentId) => findUpload(this.items.values(), attachmentId));
+        // Waiting ends at the timeout or when newer work piles up, whichever comes first. The call may
+        // still be running then: the view keeps following the item until a real update settles it.
+        this.toolWatch.add(id, view);
         await this.settle(id, 15000);
+        this.toolWatch.update(id);
         return;
       }
       case "user_input_request": {

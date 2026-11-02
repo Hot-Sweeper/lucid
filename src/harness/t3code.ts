@@ -84,6 +84,9 @@ const IC = {
 const SPIN = `<svg class="t3-spin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/></svg>`;
 
 // ---------------------------------------------------------------------------------------------
+/** A file in the composer or in a sent message: its icon, a picture when the real file can be shown, its size. */
+export type DraftFile = { name: string; icon: string; thumb?: string | null; size?: string };
+
 export interface T3Host {
   epoch: number;
   prefs?: { t3?: T3Channel } | null;
@@ -167,6 +170,9 @@ export class T3CodeApp {
   private compText!: HTMLElement;
   private chip!: HTMLElement;
   private send!: HTMLElement;
+  private atts!: HTMLElement;
+  private drafts: DraftFile[] = [];
+  private draftRevision = 0;
   private channel: T3Channel | null = null;
   private info: T3Info = {};
   private group: { el: HTMLElement; rows: HTMLElement; head: HTMLElement; start: number } | null = null;
@@ -205,7 +211,7 @@ export class T3CodeApp {
         <div class="t3-foot">
           <div class="t3-status" hidden>${SPIN}<span class="t3-st"></span></div>
           <div class="t3-comp">
-            <div class="t3-field"><span class="t3-ph">Ask anything. @ files, $ skills, / commands</span><span class="t3-typed"></span><span class="t3-dots"><i></i><i></i><i></i></span></div>
+            <div class="t3-atts" hidden></div><div class="t3-field"><span class="t3-ph">Ask anything. @ files, $ skills, / commands</span><span class="t3-typed"></span><span class="t3-dots"><i></i><i></i><i></i></span></div>
             <div class="t3-row">${IC.clip}<span class="t3-chip"></span><span class="t3-send">${IC.up}<i class="t3-stop"></i></span></div>
           </div>
         </div>
@@ -222,6 +228,7 @@ export class T3CodeApp {
     this.compText = q(".t3-typed");
     this.chip = q(".t3-chip");
     this.send = q(".t3-send");
+    this.atts = q(".t3-atts");
     if (this.audience === "user") { q(".t3-ph").textContent = "Message you"; q(".t3-panes").textContent = "Lucid Chat"; }
   }
 
@@ -261,6 +268,8 @@ export class T3CodeApp {
   }
 
   reset() {
+    this.clearDrafts();
+    this.holdDraft("");
     this.feed.replaceChildren();
     this.rows.clear();
     this.group = null;
@@ -389,7 +398,7 @@ export class T3CodeApp {
   }
 
   /** The robot's reply streams into the thread while it types. */
-  async assistant(getText: () => { text: string; done: boolean }, compose = this.audience === "user") {
+  async assistant(getText: () => { text: string; done: boolean }, compose = this.audience === "user", files: DraftFile[] = []) {
     const wm = this.wm, e = wm.epoch;
     await this.ensure();
     this.closeGroup();
@@ -420,15 +429,74 @@ export class T3CodeApp {
           await wm.sleep(120, e);
         }
       }
-      if (compose && getText().text.trim()) { this.send.classList.add("sending"); await wm.pointAt?.(this.send); await wm.click?.(); await wm.sleep(180, e); }
+      if (compose && (getText().text.trim() || files.length)) { this.send.classList.add("sending"); await wm.pointAt?.(this.send); await wm.click?.(); await wm.sleep(180, e); }
     } finally {
       this.send.classList.remove("sending"); this.comp.classList.remove("composing"); this.compText.textContent = ""; p.hidden = false;
       wm.robot.setTyping(false);
       const t = getText().text;
       if (t.trim()) p.innerHTML = md(t);
-      else p.remove();
+      const delivered = files.length > 0 && wm.epoch === e;
+      if (delivered) { p.insertAdjacentHTML("beforeend", this.sentFiles(files)); this.clearDrafts(); }
+      if (!t.trim() && !delivered) p.remove();
       this.stick();
     }
+  }
+
+  // --- files in the composer ---------------------------------------------------------------------
+  /** The window opened and in front, the way the robot gets there. */
+  async show() { return this.ensure(); }
+  get composer() { return this.comp; }
+  get clipButton() { return this.root.querySelector(".t3-row > :first-child") as HTMLElement; }
+  get draftCount() { return this.drafts.length; }
+  dropHint(on: boolean) { this.comp.classList.toggle("drop", on); }
+
+  private draftChip(f: DraftFile) {
+    const art = f.thumb ? `<img alt="" src="${esc(f.thumb)}">` : f.icon;
+    return `<span class="t3-att" title="${esc(f.name)}"><span class="t3-atti">${art}</span><span class="t3-attn">${esc(f.name)}</span>${f.size ? `<span class="t3-atts-size">${esc(f.size)}</span>` : ""}<span class="t3-attst"></span></span>`;
+  }
+  private sentFiles(files: DraftFile[]) {
+    return `<div class="t3-sentfiles">${files.map((f) => f.thumb
+      ? `<span class="t3-sf pic" title="${esc(f.name)}"><img alt="${esc(f.name)}" src="${esc(f.thumb)}"></span>`
+      : `<span class="t3-sf" title="${esc(f.name)}"><span class="t3-atti">${f.icon}</span><span class="t3-attn">${esc(f.name)}</span>${f.size ? `<span class="t3-atts-size">${esc(f.size)}</span>` : ""}</span>`).join("")}</div>`;
+  }
+  /** Files dropped into the composer. They stay there, as a draft, until the message really goes. */
+  addDrafts(files: DraftFile[]) {
+    this.draftRevision++;
+    const before = this.drafts.length;
+    this.drafts.push(...files);
+    this.atts.hidden = false;
+    this.atts.insertAdjacentHTML("beforeend", files.map((f) => this.draftChip(f)).join(""));
+    const added = Array.from(this.atts.children).slice(before);
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) gsap.fromTo(added, { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.26, ease: "back.out(2)", clearProps: "transform" });
+  }
+  /** The send is under way, was refused, or is back to a plain draft. */
+  setDraftState(state: "ready" | "sending" | "failed") {
+    this.atts.dataset.state = state;
+    for (const mark of Array.from(this.atts.querySelectorAll(".t3-attst"))) mark.innerHTML = state === "sending" ? SPIN : state === "failed" ? "Not sent" : "";
+  }
+  clearDrafts() { this.draftRevision++; this.drafts = []; this.atts.replaceChildren(); this.atts.hidden = true; delete this.atts.dataset.state; }
+  /** A late recorded result updates only its original draft, without reopening a window or sending. */
+  followDraft(outcome: () => "sent" | "failed" | "pending") {
+    const revision = this.draftRevision, epoch = this.wm.epoch;
+    const live = () => this.root.isConnected && this.wm.epoch === epoch && this.draftRevision === revision && this.drafts.length > 0;
+    return { live, refresh: () => {
+      if (!live()) return false;
+      const state = outcome();
+      if (state === "pending") return true;
+      if (state === "failed") this.setDraftState("failed");
+      else {
+        this.closeGroup();
+        const p = document.createElement("div"); p.className = "t3-msg";
+        p.innerHTML = md(this.compText.textContent || "") + this.sentFiles(this.drafts);
+        this.feed.append(p); this.clearDrafts(); this.holdDraft(""); this.stick();
+      }
+      return false;
+    } };
+  }
+  /** A message that could not be sent stays in the composer, text and files, so nothing is lost. */
+  holdDraft(text: string) {
+    this.compText.textContent = text;
+    this.comp.classList.toggle("composing", !!text.trim());
   }
 
   /** You are typing to this robot: dots in the thread's composer. */

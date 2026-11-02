@@ -432,6 +432,19 @@ ipcMain.handle("fs:text", async (_e, p) => {
   }
 });
 
+// Size and time of the exact files an agent attached (at most 8 paths, nothing listed or read).
+ipcMain.handle("fs:stat", (_e, paths) => require("./file-facts.cjs").fileFacts(paths, { remote: !!activeBuilding() }));
+
+// Show a delivered attachment in its folder. Only files inside the two attachment folders qualify.
+ipcMain.handle("fs:reveal", async (_e, p) => {
+  if (activeBuilding() || typeof p !== "string") return false;
+  const home = process.env.T3CODE_HOME || path.join(require("node:os").homedir(), ".t3");
+  const { underRoots } = require("./file-facts.cjs");
+  if (!underRoots(p, [path.join(home, "userdata", "attachments"), path.join(require("node:os").homedir(), ".t3", "userdata", "lucid-attachments")])) return false;
+  try { if (!(await fsp.stat(p)).isFile()) return false; } catch { return false; }
+  shell.showItemInFolder(path.resolve(p));
+  return true;
+});
 ipcMain.handle("app:check-update", () => updater.check());
 ipcMain.handle("app:apply-update", async () => {
   try {

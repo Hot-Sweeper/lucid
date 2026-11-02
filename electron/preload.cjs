@@ -65,6 +65,8 @@ contextBridge.exposeInMainWorld("lucid", {
   gitInfo: (root) => ipcRenderer.invoke("git:info", root),
   image: (p) => ipcRenderer.invoke("fs:image", p),
   readText: (p) => ipcRenderer.invoke("fs:text", p),
+  statFiles: (paths) => ipcRenderer.invoke("fs:stat", paths),
+  revealFile: (p) => ipcRenderer.invoke("fs:reveal", p),
   onItems: on("t3:items"),
   onInfo: on("t3:info"),
   checkUpdate: () => ipcRenderer.invoke("app:check-update"),
