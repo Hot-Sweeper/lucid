@@ -126,4 +126,45 @@ async function answerAndStale() {
   chat.clearTranscript(); chat.desk = { threadId: "other", planSteps: [] }; resolve(papers); await pending;
   check(chat.reviewPapers.size === 0 && !chat.el.querySelector(".cp-review"), "Late report lookup cannot populate another conversation");
 }
-(window as any).fixture = { setup, example, visual, captures, preview, closePreview, narrow, regression, longReport, human, answerAndStale, checks };
+async function sourceSession(baseline = false) {
+  chat.clearTranscript(); chat.desk = { threadId: input.visual.threadId, planSteps: [] };
+  chat.el.querySelector(".cp-who b").textContent = input.visual.robot?.name || "Robot";
+  chat.el.querySelector(".cp-who span").textContent = input.visual.title;
+  chat.api.reviewPapers = async () => [];
+  chat.api.sourceReport = async () => input.visual;
+  await set([message("source-response", input.visual.response || "The work is ready for review.")]);
+  if (baseline) { list().scrollTop = list().scrollHeight; return; }
+  const footer = list().querySelector(".cp-source-report");
+  check(!!footer && list().lastElementChild === footer, "Actual source conversation ends with its saved report");
+  check(footer.querySelector(".cp-review-summary").textContent.includes(input.visual.verdict.summary), "Source footer uses actual saved verdict, not source prose or invented approval");
+  check(!footer.querySelector("[data-review-thread]"), "Source footer avoids a redundant link to its own conversation");
+  check(messages.length === 1 && messages[0].id === "source-response" && chat.shown.size === 1, "Report footer adds no persisted or synthetic conversation message");
+  footer.querySelector("details").open = true; await chat.refresh();
+  check(footer === list().querySelector(".cp-source-report") && footer.querySelector("details").open, "Refreshing source chat preserves report disclosure and node");
+  footer.querySelector("details").open = false; footer.querySelector("[data-review-open]").click(); await wait();
+  check(document.querySelector(".settlement-paper")?.textContent?.includes(input.visual.title), "Source footer opens the exact saved report");
+  document.querySelector<HTMLButtonElement>("[data-close]")!.click();
+  check(!document.querySelector(".dialog-wrap"), "Saved report dialog closes before returning to chat");
+  footer.scrollIntoView({ block: "start" }); await wait(150);
+}
+async function sourceUpdates() {
+  const original = input.visual;
+  const pending = { ...original, verdict: undefined, status: "submitted" };
+  list().scrollTop = 0; const row = chat.shown.get("source-response"), top = row.getBoundingClientRect().top;
+  chat.setSourceReport(pending);
+  check(list().querySelector(".cp-source-report").textContent.includes("Awaiting review"), "Unreviewed saved completion remains visibly awaiting review");
+  check(Math.abs(row.getBoundingClientRect().top - top) < 1, "Report-only updates preserve conversation reader position");
+  chat.setSourceReport({ ...original, threadId: "another-session" });
+  check(list().querySelector(".cp-source-report").textContent.includes("Awaiting review"), "Another session's paper cannot replace this session's report");
+  chat.setSourceReport(original);
+  const before = JSON.stringify(messages);
+  await set([...messages, { ...message("follow-up", "An additional source-session reply."), at: "2026-11-03T12:00:00Z" }]);
+  check(list().lastElementChild?.matches(".cp-source-report") && JSON.stringify(messages.slice(0,1)) === before, "Report stays at bottom as ordinary source messages arrive");
+  list().scrollTop = list().scrollHeight; chat.setSourceReport(null);
+  check(!list().querySelector(".cp-source-report"), "No saved paper leaves no empty report shell");
+  let resolve!: (paper: any) => void; chat.clearTranscript(); chat.api.sourceReport = () => new Promise(r => { resolve = r; });
+  const flight = chat.refresh(); await wait(); chat.clearTranscript(); chat.desk = { threadId: "other-source", planSteps: [] };
+  resolve(original); await flight;
+  check(!list().querySelector(".cp-source-report"), "Late source report lookup cannot leak into another session");
+}
+(window as any).fixture = { setup, example, visual, captures, preview, closePreview, narrow, regression, longReport, human, answerAndStale, sourceSession, sourceUpdates, checks };

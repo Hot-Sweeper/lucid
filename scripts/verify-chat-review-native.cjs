@@ -40,7 +40,7 @@ if (!process.versions.electron) {
     const win = new BrowserWindow({ show: false, width: 620, height: 1100, webPreferences: { sandbox: true, backgroundThrottling: false } });
     const ev = code => win.webContents.executeJavaScript(code);
     const check = (value, label) => { if (!value) throw Error(label); result.assertions.push(label); };
-    const capture = async name => { await new Promise(r => setTimeout(r, 100)); fs.writeFileSync(path.join(out, name), (await win.webContents.capturePage()).toPNG()); result.screenshots.push(name); };
+    const capture = async name => { await ev('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))'); await new Promise(r => setTimeout(r, 150)); fs.writeFileSync(path.join(out, name), (await win.webContents.capturePage()).toPNG()); result.screenshots.push(name); };
     try {
       new Function('protocol', 'fsp', 'path', 'net', 'pathToFileURL', serve + '\n' + handler)(protocol, fsp, path, net, pathToFileURL);
       const input = JSON.parse(fs.readFileSync(path.join(out, 'input.json'), 'utf8'));
@@ -52,7 +52,8 @@ if (!process.versions.electron) {
           check(await ev('!document.querySelector(".cp-review") && document.querySelector(".cp-list").textContent.includes("\\\"humanChecks\\\"")'), 'Baseline uses actual committed ChatPanel and supplied raw JSON');
           await win.setContentSize(360, 1000); await capture('before-example-narrow.png');
           await ev('fixture.longReport()'); await capture('before-long-narrow.png');
-          await win.setContentSize(620, 1100); await ev('fixture.visual()'); await capture('before-visual.png'); continue;
+          await win.setContentSize(620, 1100); await ev('fixture.visual()'); await capture('before-visual.png');
+          await ev('fixture.sourceSession(true)'); await capture('before-source-session.png'); continue;
         }
         await ev('fixture.example()');
         await win.setContentSize(360, 1000); await ev('fixture.narrow()'); await capture('after-example-narrow.png');
@@ -63,7 +64,10 @@ if (!process.versions.electron) {
         check(await ev('getComputedStyle(document.querySelector(".cp-review-images")).gridTemplateColumns.split(" ").length===1'), 'Captures stack in narrow chat');
         await ev('fixture.regression()'); await capture('after-long-narrow.png');
         await ev('fixture.human()'); await capture('after-human-workflow.png');
-        await ev('fixture.answerAndStale()'); result.assertions.push(...await ev('fixture.checks'));
+        await ev('fixture.answerAndStale()');
+        await win.setContentSize(620, 1100); await ev('fixture.sourceSession()'); await capture('after-source-session.png');
+        await win.setContentSize(360, 1000); await ev('fixture.narrow();document.querySelector(".cp-source-report").scrollIntoView({block:"start"})'); await capture('after-source-session-narrow.png');
+        await ev('fixture.sourceUpdates()'); result.assertions.push(...await ev('fixture.checks'));
       }
       result.ok = true; clearTimeout(deadline); fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify(result, null, 2)); console.log(JSON.stringify({ ok: true, assertions: result.assertions.length, out })); app.exit(0);
     } catch (error) { result.errors.push(String(error.stack || error)); clearTimeout(deadline); fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify(result, null, 2)); console.error(error); app.exit(1); }

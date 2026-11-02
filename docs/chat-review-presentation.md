@@ -6,6 +6,8 @@ Recognition requires an assistant message in the configured local Orchestrator c
 
 Report actions open the existing saved paper and source conversation. Answer questions focuses the existing questionnaire and uses its existing persistence action. No answers, settlement state, ingestion rules or persisted messages are changed. Local reports are never applied to a linked environment's conversation. Archived image copies are preferred when a verdict references their original sources. Captures open the existing in-product media viewer.
 
+The source session also shows its latest saved completion report after the conversation. Before a verdict exists, it shows the real submitted response excerpt and review state. Reviewed papers reuse the native report treatment and current saved status. The footer stays outside stored messages and minute groups, updates through existing report synchronization, and preserves ordinary conversation text, reader position and expanded details. There is no additional polling timer.
+
 Verification:
 
 - `node scripts/verify-chat-review.mjs` checks the supplied real verdict, strict schema, malformed/bounded input, ordinary snippets, streaming and decision wording. Included in `npm run verify:update`.
