@@ -13,7 +13,8 @@ import { HarnessApp, harnessKind, THEMES, type HarnessSession, type SubagentEven
 import { fileUrl } from "./office/chat-panel";
 import { UacPrompt } from "./os/uac";
 import { harnessName } from "./office/brand";
-import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, prettyTool } from "./os/apps";
+import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, toolActivity } from "./os/apps";
+import { findUpload } from "./os/tool-view";
 import { T3CodeApp } from "./harness/t3code";
 import { CodexApp } from "./os/codex";
 import { imageGenOf, imageResult, type ImageGen } from "./os/imagegen";
@@ -1480,10 +1481,13 @@ export class Director {
           await this.browser.visit(url, { real: /^https?:\/\/(localhost|127\.|0\.0\.0\.0|\[::1\])/i.test(url) });
           return;
         }
-        this.onActivity(`Using ${prettyTool(name).action}`);
+        this.onActivity(toolActivity(name));
         this.stage.setGlow(GLOW.tool);
-        await this.tool.show(name, d.input);
+        // The view reads the real item each time, so a call that is still running shows as running
+        // and the outcome replaces it when it arrives. Nothing here estimates progress.
+        const view = await this.tool.show(name, d.input, () => this.get(id).data.output === undefined ? { status: this.get(id).status } : { status: this.get(id).status, output: this.get(id).data.output }, (attachmentId) => findUpload(this.items.values(), attachmentId));
         await this.settle(id, 15000);
+        view.refresh();
         return;
       }
       case "user_input_request": {

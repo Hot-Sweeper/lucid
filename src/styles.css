@@ -234,14 +234,9 @@ textarea::placeholder { color: var(--ink-3); }
 /* tool */
 .tool { padding: 12px 14px; height: 100%; display: flex; flex-direction: column; background: #1d2252; }
 .tool h3 { margin: 0 0 8px; color: #fff; font-size: 13px; font-weight: 600; text-transform: none; }
-.tool dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 10.5px; }
-.tool dt { color: #8a91c4; }
-.tool dd { margin: 0; font-family: var(--mono); color: #d6d9ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tool-run { margin-top: auto; height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
-.tool-run i { display: block; width: 30%; height: 100%; background: #b07cff; animation: slide 1.2s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .caret, .spin-dot, .b-progress.loading i, .tool-run i { animation: none; }
+  .caret, .spin-dot, .b-progress.loading i { animation: none; }
 }
 
 .browser { position: relative; }
