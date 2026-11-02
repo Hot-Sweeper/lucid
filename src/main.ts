@@ -27,6 +27,7 @@ import { useRobot } from "./office/desk";
 import gsap from "gsap";
 import { World, type Room, type WorldData } from "./office/world";
 import { ChatPanel } from "./office/chat-panel";
+import { latestSourceReport } from "./office/chat-review";
 import { AnswerCard } from "./office/answer";
 import { MonitorTasks, sharedPendingRequests } from "./office/monitor-tasks";
 import { Delegate, showDecisions } from "./office/delegate";
@@ -185,6 +186,7 @@ const chat = new ChatPanel($("scene").parentElement!, {
   sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), t3: (window as any).lucidT3,
   // Saved reports belong to this environment's actual review conversation.
   reviewPapers: async id => !currentEnvironment && id === settings.orch?.threadId ? (api as any).reportsList() : [],
+  sourceReport: async id => !currentEnvironment && id !== settings.orch?.threadId ? latestSourceReport(await (api as any).reportsList(), id) : null,
   openReview: (paper, questions) => {
     if (currentEnvironment) return;
     gameSound.play('open');
@@ -1022,7 +1024,10 @@ $("hidden-offices").addEventListener("click", (e) => {
 const projectTitles = new Map<string, string>();
 setupMenus();
 const orch = new Orchestrator(api as any, world, () => settings.orch ?? null, (s) => { settings.orch = s; saveSettings(); });
-orch.onChange = renderOrch;
+orch.onChange = () => {
+  renderOrch();
+  if (!document.hidden && !currentEnvironment && chat.threadId && chat.threadId !== settings.orch?.threadId) chat.setSourceReport(latestSourceReport(orch.papers, chat.threadId));
+};
 (window as any).__orch = orch; // debug handle for test runs
 // questions go to the orchestrator first; it answers what it is sure about and passes the rest to you
 const delegate = new Delegate(api as any, (window as any).lucidT3, () => settings.orch ?? null, (p) => { if (settings.orch) { settings.orch = { ...settings.orch, ...p }; saveSettings(); } });

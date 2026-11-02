@@ -690,6 +690,7 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .cp-inline-media:focus-visible, .cp-atts button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .cp-media-unavailable { display: block; padding: 8px; color: inherit; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .cp-review { container-type: inline-size; }
+.cp-source-report { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
 .cp-text .cp-review > h3 { color: var(--accent); font-size: 18px; margin: 0 0 10px; }
 .cp-review-summary { color: var(--ink); }
 .cp-review > section { margin-top: 18px; }

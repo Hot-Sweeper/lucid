@@ -4,7 +4,7 @@ import { transformWithOxc } from 'vite';
 
 const source = await readFile(new URL('../src/office/chat-review.ts', import.meta.url), 'utf8');
 const code = (await transformWithOxc(source, 'chat-review.ts')).code.replace(/^import .*$/gm, '').replace(/^export /gm, '').replace(/export\s*\{[^}]*\};?/g, '');
-const { parseReviewVerdict, reviewReportId, renderChatReview } = new Function('inlineChatImage', `${code};return {parseReviewVerdict,reviewReportId,renderChatReview}`)(() => '<button>Image</button>');
+const { parseReviewVerdict, reviewReportId, renderChatReview, latestSourceReport, renderSourceChatReport } = new Function('inlineChatImage', `${code};return {parseReviewVerdict,reviewReportId,renderChatReview,latestSourceReport,renderSourceChatReport}`)(() => '<button>Image</button>');
 const example = await readFile(new URL('./fixtures/chat-review-example.json', import.meta.url), 'utf8');
 const v = JSON.parse(example);
 assert.deepEqual(parseReviewVerdict(example), v);
@@ -23,5 +23,13 @@ for (const [decision,label] of [['approve','Review approved'],['manual','Needs y
 assert(renderChatReview(JSON.stringify({...v,decision:'approve',humanChecks:[{question:'Only you can check?',instructions:'Check your device.'}]}),false,paper,prose).includes('Needs your review'));
 assert.equal(reviewReportId(example),v.report);
 assert.equal(JSON.stringify(JSON.parse(example)),JSON.stringify(v),'Presentation leaves source bytes and fields untouched');
+delete globalThis.location;
+const old = {...paper,submittedAt:'2026-11-01T12:00:00Z'}, latest = {...paper,id:'new',submittedAt:'2026-11-02T12:00:00Z'};
+assert.equal(latestSourceReport([old,{...latest,threadId:'other'},latest],paper.threadId),latest);
+assert.equal(latestSourceReport([old],'unrelated'),null);
+assert(renderSourceChatReport({...paper,status:'submitted',response:'Actual submitted work'},prose).includes('Awaiting review'));
+globalThis.location = {href:'file:///lucid/index.html'};
+assert(!renderSourceChatReport({...paper,verdict:v},prose).includes('data-review-thread'));
+assert(renderSourceChatReport({...paper,verdict:v},prose).includes('Review on hold'));
 delete globalThis.location;
 console.log('Chat review parsing passed: real screenshot payload, strict schema, prose/code isolation, bounded malformed input, streaming and truthful decisions.');

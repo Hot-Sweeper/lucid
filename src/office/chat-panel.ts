@@ -12,7 +12,7 @@ import { attachDictation } from "./dictation";
 import { sameChatMessage, type ChatMessage as Msg } from "./chat-message";
 import { chatReaderAnchor } from "./chat-scroll";
 import { chatFileUrl, chatMediaKind, inlineChatImage, prepareChatImages, chatImageFailed } from "./chat-media";
-import { reviewReportId, renderChatReview, type ChatReviewPaper } from "./chat-review";
+import { reviewReportId, renderChatReview, renderSourceChatReport, type ChatReviewPaper } from "./chat-review";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
@@ -38,6 +38,7 @@ type Api = {
   sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
   saveAttachment(name: string, data: Uint8Array): Promise<string>;
   reviewPapers?(conversationId: string): Promise<ChatReviewPaper[]>;
+  sourceReport?(conversationId: string): Promise<ChatReviewPaper | null>;
   openReview?(paper: ChatReviewPaper, questions: boolean): void;
   openReviewThread?(paper: ChatReviewPaper): void;
   t3?: T3Api;
@@ -143,6 +144,10 @@ export class ChatPanel {
   private renderedMessages = new Map<string, Msg>();
   private reviewPapers = new Map<string, ChatReviewPaper>();
   private reviewLookups = new Set<string>();
+  private sourceReport: ChatReviewPaper | null = null;
+  private sourceReportLoaded = false;
+  private sourceReportVersion = 0;
+  private sourceReportSignature = "";
   private timelineIds: string[] | null = null;
   private loadingHistory = false;
   private history = new HistoryWindow<Msg>();
@@ -535,7 +540,8 @@ export class ChatPanel {
       const t = e.target as HTMLElement;
       const review = t.closest<HTMLElement>(".cp-review [data-review-open],.cp-review [data-review-thread]");
       if (review) {
-        const paper = this.reviewPapers.get(review.dataset.reviewOpen || review.dataset.reviewThread || "");
+        const reportId = review.dataset.reviewOpen || review.dataset.reviewThread || "";
+        const paper = this.sourceReport?.id === reportId ? this.sourceReport : this.reviewPapers.get(reportId);
         if (paper && review.hasAttribute("data-review-open")) this.api.openReview?.(paper, review.hasAttribute("data-review-questions"));
         else if (paper && this.api.openReviewThread && !(e as MouseEvent).ctrlKey && !(e as MouseEvent).metaKey && !(e as MouseEvent).shiftKey && !(e as MouseEvent).altKey) { e.preventDefault(); this.api.openReviewThread(paper); }
         return;
@@ -634,6 +640,7 @@ export class ChatPanel {
     this.history = new HistoryWindow<Msg>(); this.historyGeneration++; this.loadingOlder = false;
     this.shown.clear(); this.groups.clear(); this.renderedMessages.clear(); this.timelineIds = null;
     this.reviewPapers.clear(); this.reviewLookups.clear();
+    this.sourceReport = null; this.sourceReportLoaded = false; this.sourceReportVersion++; this.sourceReportSignature = "";
     (this.el.querySelector(".cp-list") as HTMLElement).replaceChildren();
     this.typingOn = false; this.queueLatest = []; this.queueHold = 0;
     const queue = this.el.querySelector<HTMLElement>(".cp-queue")!;
@@ -734,6 +741,13 @@ export class ChatPanel {
     try {
       page = this.api.conversationPage ? await this.api.conversationPage(id) : { messages: await this.api.conversation(id), cursor: null, hasMore: false };
       await this.loadReviewPapers(page.messages, id, generation);
+      if (id === this.threadId && generation === this.historyGeneration && !this.sourceReportLoaded && this.api.sourceReport) {
+        const version = this.sourceReportVersion;
+        try {
+          const paper = await this.api.sourceReport(id);
+          if (id === this.threadId && generation === this.historyGeneration && version === this.sourceReportVersion) this.setSourceReport(paper);
+        } catch { /* Conversation remains usable when report history is unavailable. */ }
+      }
     }
     catch { if (id === this.threadId && generation === this.historyGeneration) this.refreshSoon(2000); return; }
     finally { this.loadingHistory = false; }
@@ -899,10 +913,42 @@ export class ChatPanel {
     if (pendingChanged) this.renderPending(false);
     if (!timeline.length && !list.querySelector(".cp-msg.pending,.cp-typing,.cp-empty")) list.insertAdjacentHTML("beforeend", `<p class="cp-empty">No messages yet. Say hello.</p>`);
     else if (timeline.length) list.querySelector(".cp-empty:not(.cp-notice)")?.remove();
+    const sourceReport = list.querySelector(".cp-source-report");
+    if (sourceReport) list.appendChild(sourceReport);
     if (nearBottom || (initial && !preservePosition)) list.scrollTop = list.scrollHeight;
     else if (anchor?.isConnected && anchorY != null) list.scrollTop += anchor.getBoundingClientRect().top - anchorY;
     else if (preservePosition) list.scrollTop += list.scrollHeight - oldHeight;
     endSystem("chat", started);
+  }
+
+  // A view of the saved paper, never a synthetic T3 message or settlement action.
+  setSourceReport(paper: ChatReviewPaper | null) {
+    if (paper && paper.threadId !== this.threadId) return;
+    this.sourceReportVersion++; this.sourceReportLoaded = true;
+    const signature = paper ? JSON.stringify([paper.id, paper.status, paper.response, paper.verdict, paper.images]) : "";
+    this.sourceReport = paper;
+    if (signature === this.sourceReportSignature) return;
+    this.sourceReportSignature = signature;
+    const list = this.el.querySelector<HTMLElement>(".cp-list")!;
+    const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+    let footer = list.querySelector<HTMLElement>(".cp-source-report");
+    if (!paper) footer?.remove();
+    else {
+      if (!footer) {
+        footer = document.createElement("section"); footer.className = "cp-msg bot cp-source-report";
+        footer.setAttribute("aria-label", "Session report");
+      }
+      const expanded = footer.querySelector<HTMLDetailsElement>(".cp-review-original")?.open;
+      const focused = footer.contains(document.activeElement) ? document.activeElement as HTMLElement : null;
+      const action = focused?.hasAttribute("data-review-questions") ? "[data-review-questions]" : focused?.hasAttribute("data-review-open") ? "[data-review-open]" : focused?.tagName === "SUMMARY" ? "summary" : null;
+      footer.innerHTML = '<div class="cp-text">' + renderSourceChatReport(paper, md) + '</div>';
+      const details = footer.querySelector<HTMLDetailsElement>(".cp-review-original");
+      if (details) details.open = !!expanded;
+      if (action) footer.querySelector<HTMLElement>(action)?.focus({ preventScroll: true });
+      list.querySelector(".cp-empty:not(.cp-notice)")?.remove();
+      list.appendChild(footer);
+    }
+    if (atBottom) list.scrollTop = list.scrollHeight;
   }
 
   showPlan() { const plan = this.el.querySelector<HTMLDetailsElement>(".cp-plan")!; plan.open = true; plan.querySelector("summary")!.focus({ preventScroll: true }); }
