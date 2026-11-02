@@ -7,7 +7,11 @@ import { baseName, relPath, type Entry, type Hit, type Hunk } from "./classify";
 import { esc, el, typeInto } from "./typing";
 import { colorGitLine } from "./git";
 import { detectSheet, playSheet } from "./sheet";
+import { t3Icon, t3Title } from "../harness/t3code";
+import { describeTool, factTitles, isT3Tool, prettyTool, toolActivity, toolViewHtml, toolViewKey, type ToolState, type UploadLookup } from "./tool-view";
+import "./tool-view.css";
 export { BrowserApp } from "./browser";
+export { prettyTool, toolActivity };
 
 // ---------------------------------------------------------------------------
 export class FilesApp {
@@ -303,13 +307,6 @@ export class TerminalApp {
 }
 
 // ---------------------------------------------------------------------------
-export function prettyTool(name: string) {
-  const m = name.match(/^mcp__(.+?)__(.+)$/) || name.match(/^([\w-]+)\.(.+)$/);
-  const words = (s: string) => s.replace(/[_-]+/g, " ").trim();
-  if (m) return { app: words(m[1]).replace(/^t3 code$/i, "T3 Code").replace(/\b\w/g, (c) => c.toUpperCase()), action: words(m[2]) };
-  return { app: "Tool", action: words(name) };
-}
-
 export class ToolApp {
   constructor(private wm: WM) {}
   /**
@@ -344,18 +341,61 @@ export class ToolApp {
     await this.wm.sleep(big ? 2600 : 1600);
     if (big && !fs) await this.wm.unmaximize("photos");
   }
-  async show(toolName: string, input: unknown) {
-    const { app, action } = prettyTool(toolName);
-    const w = await this.wm.open("tool", app);
-    const entries = input && typeof input === "object" ? Object.entries(input as Record<string, unknown>).slice(0, 5) : [];
-    const fmt = (v: unknown) => {
-      const s = typeof v === "string" ? v : JSON.stringify(v);
-      return esc((s || "").replace(/\s+/g, " ").slice(0, 90));
+  /**
+   * Shows an operation that has no app of its own. The view states only what the event carries and
+   * is brought up to date with `refresh` when the real outcome arrives.
+   */
+  async show(toolName: string, input: unknown, state: () => ToolState, uploads?: UploadLookup): Promise<{ refresh(): void }> {
+    const wm = this.wm;
+    const t3 = isT3Tool(toolName);
+    const channel = wm.prefs?.t3 === "nightly" ? "nightly" : "stable";
+    const first = describeTool(toolName, input, state(), uploads);
+    const icon = t3 ? t3Icon(channel) : ICONS.tool;
+    wm.brandApp("tool", { icon });
+    const w = await wm.open("tool", t3 ? t3Title(channel) : first.app);
+    const barIcon = w.el.querySelector(".win-bar > .ico");
+    if (barIcon) { const tmp = document.createElement("div"); tmp.innerHTML = icon; if (tmp.firstElementChild) barIcon.replaceWith(tmp.firstElementChild); }
+    const root = document.createElement("div");
+    root.className = `tool tv${t3 ? " tv-t3" : ""}`;
+    root.dataset.channel = channel;
+    let shown = "";
+    const paint = (animate: boolean) => {
+      const v = describeTool(toolName, input, state(), uploads);
+      const key = toolViewKey(v);
+      if (key === shown) return;
+      const settling = shown !== "" && root.dataset.phase === "pending" && v.phase !== "pending";
+      shown = key;
+      root.dataset.phase = v.phase;
+      root.innerHTML = toolViewHtml(v, factTitles(toolName, input, state()));
+      if (animate && settling && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        const mark = root.querySelector(".tv-state");
+        if (mark) gsap.fromTo(mark, { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.32, ease: "back.out(2.2)" });
+        const reason = root.querySelector(".tv-note");
+        if (reason) gsap.fromTo(reason, { opacity: 0 }, { opacity: 1, duration: 0.25 });
+      }
     };
-    w.body.innerHTML = `<div class="tool"><h3>${esc(action)}</h3><dl>${entries.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${fmt(v)}</dd>`).join("")}</dl><div class="tool-run"><i></i></div></div>`;
-    gsap.fromTo(w.body.querySelectorAll("h3, dt, dd"), { opacity: 0, y: 6 }, { opacity: 1, y: 0, stagger: 0.04, duration: 0.3 });
-    await this.wm.pointAt(w.body.querySelector("h3")!, 0.3, 0.5, 300);
-    await this.wm.click();
-    await this.wm.sleep(900);
+    // The frame is small on purpose. If a reason or a long name needs more room, the window grows
+    // by exactly that much (and keeps its bottom edge on screen) instead of clipping what it says.
+    const fit = (animate: boolean) => {
+      const need = Math.ceil(root.scrollHeight - root.clientHeight);
+      if (need <= 0 || !root.isConnected) return;
+      const frame = w.el.style, top = parseFloat(frame.top) || 0, h = parseFloat(frame.height) || w.el.offsetHeight;
+      const next = Math.min(h + need, wm.height - 8), y = Math.max(4, Math.min(top, wm.height - next - 4));
+      const to = { height: next, top: y };
+      if (animate && !matchMedia("(prefers-reduced-motion: reduce)").matches) gsap.to(w.el, { ...to, duration: 0.2, ease: "power2.out", overwrite: "auto" });
+      else Object.assign(frame, { height: `${next}px`, top: `${y}px` });
+    };
+    paint(false);
+    w.body.replaceChildren(root);
+    fit(false);
+    gsap.killTweensOf(root);
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) gsap.fromTo(root, { opacity: 0 }, { opacity: 1, duration: 0.25 });
+    wm.robot.setPose("read");
+    // rest the cursor on the file tile (or the headline), clear of the text being read
+    const tile = root.querySelector(".tv-tile"), value = root.querySelector(".tv-facts dd");
+    if (tile) await wm.pointAt(tile as HTMLElement, 0.85, 0.9, 300);
+    else if (value) await wm.pointAt(value as HTMLElement, 0.95, 0.5, 300);
+    await wm.sleep(500);
+    return { refresh: () => { if (root.isConnected) { paint(true); fit(true); } } };
   }
 }
