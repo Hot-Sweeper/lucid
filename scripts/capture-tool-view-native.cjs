@@ -13,8 +13,8 @@ if (!process.versions.electron) {
       "import '" + root + "/node_modules/@fontsource-variable/lexend/index.css';",
       "import '" + root + "/node_modules/@fontsource-variable/jetbrains-mono/index.css';",
       ...['src/styles.css', 'src/office/office.css'].filter(p => fs.existsSync(p)).map(p => "import '" + root + '/' + p + "';"),
-      ...[['WM', 'src/os/wm.ts'], ['Director', 'src/director.ts'], ['T3CodeApp', 'src/harness/t3code.ts'], ['ToolApp', 'src/os/apps.ts'], ['setRenderView', 'src/perf/render.ts']].map(([n, p]) => 'import {' + n + "} from '" + root + '/' + p + "';"),
-      'window.review={WM,Director,T3CodeApp,ToolApp,setRenderView};'
+      ...[['WM', 'src/os/wm.ts'], ['Director', 'src/director.ts'], ['T3CodeApp', 'src/harness/t3code.ts'], ['ToolApp', 'src/os/apps.ts'], ['ToolViewWatch', 'src/os/tool-view.ts'], ['setRenderView', 'src/perf/render.ts']].map(([n, p]) => 'import {' + n + "} from '" + root + '/' + p + "';"),
+      'window.review={WM,Director,T3CodeApp,ToolApp,ToolViewWatch,setRenderView};'
     ].join('\n'));
     await (await import('vite')).build({ configFile: false, logLevel: 'error', build: { outDir: folder, emptyOutDir: false, lib: { entry, name: 'Review', formats: ['iife'], fileName: () => 'test.js', cssFileName: 'test' } } });
     fs.writeFileSync(path.join(folder, 'index.html'), '<html><head><meta charset="utf-8"><link rel="stylesheet" href="test.css"><style>body{margin:0;background:#101329}#screen{position:relative;width:820px;height:461px;margin:20px}</style></head><body><div id="screen" class="screen"></div><script src="test.js"></script></body></html>');
@@ -41,13 +41,13 @@ if (!process.versions.electron) {
       win.webContents.on('console-message', (_e, level, message) => { if (level >= 2) results.errors.push(message); });
       await win.loadFile(path.join(folder, 'index.html'));
       await js(`(() => {
-        const {WM,Director,T3CodeApp,ToolApp,setRenderView}=review;
+        const {WM,Director,T3CodeApp,ToolApp,ToolViewWatch,setRenderView}=review;
         const robot={setTyping(){},setPose(){},mouseTo(){},click(){},lookAt(){},pressKey(){},releaseKey(){}};
         const wm=new WM(document.querySelector('#screen'),robot);wm.robotName='Nimbus';wm.speed=3;
         wm.prefs={windows:'floating',launch:'dock',t3:'stable',tidiness:'tidy'};
         setRenderView(wm.root,true,820);
         const chat=new T3CodeApp(wm);chat.setInfo({id:'review',title:'Tool view review',provider:'claude',model:'claude-sonnet-5-5',projectTitle:'Lucid'});
-        const director=Object.assign(Object.create(Director.prototype),{wm,chat,robot,tool:new ToolApp(wm),items:new Map(),queue:[],catchingUp:false,untilPresent:async()=>{},idleLife:{pending:false},stage:{say(){},setGlow(){}},onActivity(l){(window.activity??=[]).push(l)}});
+        const director=Object.assign(Object.create(Director.prototype),{wm,chat,robot,tool:new ToolApp(wm),toolWatch:new ToolViewWatch(),items:new Map(),queue:[],catchingUp:false,untilPresent:async()=>{},idleLife:{pending:false},stage:{say(){},setGlow(){}},onActivity(l){(window.activity??=[]).push(l)}});
         window.state={wm,director};
         window.checks=[];window.check=(v,m)=>{if(!v)throw Error(m);window.checks.push(m)};
         window.put=(id,toolName,input,status,output)=>{state.director.items.set(id,{id,runId:'r',ordinal:state.director.items.size,type:'dynamic_tool',status,updatedAt:new Date().toISOString(),data:{toolName,input,...(output===undefined?{}:{output})}})};

@@ -14,7 +14,7 @@ import { fileUrl } from "./office/chat-panel";
 import { UacPrompt } from "./os/uac";
 import { harnessName } from "./office/brand";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, toolActivity } from "./os/apps";
-import { findUpload } from "./os/tool-view";
+import { findUpload, ToolViewWatch } from "./os/tool-view";
 import { T3CodeApp } from "./harness/t3code";
 import { CodexApp } from "./os/codex";
 import { imageGenOf, imageResult, type ImageGen } from "./os/imagegen";
@@ -123,7 +123,7 @@ export class Director {
   private uac: UacPrompt;
   private browser: BrowserApp; private codex: CodexApp; private chat: T3CodeApp; private nativeMessages: T3CodeApp;
   private get messages() { return this.wm.prefs?.chatApp === "t3code" ? this.chat : this.nativeMessages; }
-  private get messageApp(): "chat" | "t3code" { return this.wm.prefs?.chatApp === "t3code" ? "t3code" : "chat"; } private tool: ToolApp; private tasks: TasksApp;
+  private get messageApp(): "chat" | "t3code" { return this.wm.prefs?.chatApp === "t3code" ? "t3code" : "chat"; } private tool: ToolApp; private toolWatch = new ToolViewWatch(); private tasks: TasksApp;
   private planSig = "";
   onActivity: (text: string) => void = () => {};
   private idleLife: IdleLife;
@@ -192,6 +192,7 @@ export class Director {
     if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
     this.lastEventAt = 0;
     this.frontendSignals.clear();
+    this.toolWatch.clear();
     this.wm.reset();
     this.items.clear();
     this.queue = [];
@@ -340,6 +341,7 @@ export class Director {
         if (/html_(render|preview)$/.test(tool) && typeof it.data.input?.html === 'string') this.browser.refreshFrontendHtml(it.data.input.html);
       }
       this.items.set(it.id, it);
+      this.toolWatch.update(it.id);   // a tool window still showing this call follows its real outcome
       this.chat.update(it);   // a work row already in T3 Code follows its item (Running, then Ran)
       const imageUpdate = this.imageRefresh.tracks(it.id) ? this.imageRefresh.observe(it.id, this.imageState(it)) : null;
       if (imageUpdate) this.refreshImage(imageUpdate);
@@ -1486,8 +1488,11 @@ export class Director {
         // The view reads the real item each time, so a call that is still running shows as running
         // and the outcome replaces it when it arrives. Nothing here estimates progress.
         const view = await this.tool.show(name, d.input, () => this.get(id).data.output === undefined ? { status: this.get(id).status } : { status: this.get(id).status, output: this.get(id).data.output }, (attachmentId) => findUpload(this.items.values(), attachmentId));
+        // Waiting ends at the timeout or when newer work piles up, whichever comes first. The call may
+        // still be running then: the view keeps following the item until a real update settles it.
+        this.toolWatch.add(id, view);
         await this.settle(id, 15000);
-        view.refresh();
+        this.toolWatch.update(id);
         return;
       }
       case "user_input_request": {

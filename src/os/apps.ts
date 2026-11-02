@@ -8,7 +8,7 @@ import { esc, el, typeInto } from "./typing";
 import { colorGitLine } from "./git";
 import { detectSheet, playSheet } from "./sheet";
 import { t3Icon, t3Title } from "../harness/t3code";
-import { describeTool, factTitles, isT3Tool, prettyTool, toolActivity, toolViewHtml, toolViewKey, type ToolState, type UploadLookup } from "./tool-view";
+import { describeTool, factTitles, isT3Tool, prettyTool, toolActivity, toolViewHtml, toolViewKey, type ToolState, type UploadLookup, type WatchedView } from "./tool-view";
 import "./tool-view.css";
 export { BrowserApp } from "./browser";
 export { prettyTool, toolActivity };
@@ -345,7 +345,7 @@ export class ToolApp {
    * Shows an operation that has no app of its own. The view states only what the event carries and
    * is brought up to date with `refresh` when the real outcome arrives.
    */
-  async show(toolName: string, input: unknown, state: () => ToolState, uploads?: UploadLookup): Promise<{ refresh(): void }> {
+  async show(toolName: string, input: unknown, state: () => ToolState, uploads?: UploadLookup): Promise<WatchedView> {
     const wm = this.wm;
     const t3 = isT3Tool(toolName);
     const channel = wm.prefs?.t3 === "nightly" ? "nightly" : "stable";
@@ -396,6 +396,14 @@ export class ToolApp {
     if (tile) await wm.pointAt(tile as HTMLElement, 0.85, 0.9, 300);
     else if (value) await wm.pointAt(value as HTMLElement, 0.95, 0.5, 300);
     await wm.sleep(500);
-    return { refresh: () => { if (root.isConnected) { paint(true); fit(true); } } };
+    return {
+      live: () => root.isConnected,
+      // true while the call is still running: the director keeps following the item until it settles
+      refresh: () => {
+        if (!root.isConnected) return false;
+        paint(true); fit(true);
+        return root.dataset.phase === "pending";
+      },
+    };
   }
 }
