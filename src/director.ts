@@ -16,7 +16,7 @@ import { harnessName } from "./office/brand";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, toolActivity } from "./os/apps";
 import { findUpload, ToolViewWatch } from "./os/tool-view";
 import { attachmentsOf, sourcesFor } from "./os/attachment-source";
-import { playSend, type DiskFact, type SendOutcome } from "./os/send-files";
+import { attachmentSendOutcome, playSend, type DiskFact, type SendOutcome } from "./os/send-files";
 import { listingProblem } from "./os/explorer-model";
 import { T3CodeApp } from "./harness/t3code";
 import { CodexApp } from "./os/codex";
@@ -126,6 +126,7 @@ export class Director {
   private uac: UacPrompt;
   private browser: BrowserApp; private codex: CodexApp; private chat: T3CodeApp; private nativeMessages: T3CodeApp;
   private get messages() { return this.wm.prefs?.chatApp === "t3code" ? this.chat : this.nativeMessages; }
+  private attachmentChat: { id: string; app: T3CodeApp } | null = null;
   private get messageApp(): "chat" | "t3code" { return this.wm.prefs?.chatApp === "t3code" ? "t3code" : "chat"; } private tool: ToolApp; private toolWatch = new ToolViewWatch(); private tasks: TasksApp;
   private planSig = "";
   onActivity: (text: string) => void = () => {};
@@ -188,6 +189,7 @@ export class Director {
     this.chat.reset();
     this.files.reset();
     this.nativeMessages.reset();
+    this.attachmentChat?.app.reset(); this.attachmentChat = null;
     this.imageRefresh.reset();
     this.browser.reset();
     this.codex.reset();
@@ -812,6 +814,7 @@ export class Director {
    * say happened: the upload and the send were already tool calls, and nothing here repeats them.
    */
   private async playAttachmentSend(id: string) {
+    const epoch = this.wm.epoch;
     const input = this.get(id).data.input || {};
     const attachments = attachmentsOf(input);
     const root = this.info?.root || null;
@@ -819,20 +822,34 @@ export class Director {
     const threadId = String(input.threadId || "");
     // a message with no other address goes to the person this robot is talking to
     const toUser = !threadId || threadId === this.info?.id;
+    let destination = this.messages;
+    if (!toUser) {
+      if (this.attachmentChat?.id !== threadId) {
+        this.attachmentChat?.app.reset();
+        const app = new T3CodeApp(this.wm);
+        const target = await (window as any).lucid?.threadInfo?.(threadId).catch(() => null);
+        this.wm.check(epoch);
+        app.setInfo({ id: threadId, title: target?.title || "Conversation", provider: target?.provider, model: target?.model, root: target?.root });
+        this.attachmentChat = { id: threadId, app };
+      }
+      destination = this.attachmentChat.app;
+    }
     this.onActivity(toUser ? "Sending files to you" : "Sending files to another thread");
     this.stage.setGlow(GLOW.files);
     this.robot.setPose("mouse");
     const disk = await this.diskFacts(sources.map((s) => s.path));
+    this.wm.check(epoch);
     const outcome = async (): Promise<SendOutcome> => {
       const done = await this.settle(id, 30000);
-      if (/failed|cancel|interrupt|error/i.test(done.status)) return "failed";
-      return done.status === "running" || done.status === "pending" ? "pending" : "sent";
+      return attachmentSendOutcome(done);
     };
     const result = await playSend({
-      wm: this.wm, files: this.files, chat: toUser ? this.messages : this.chat, root, sources, disk,
+      wm: this.wm, files: this.files, chat: destination, root, sources, disk,
       text: () => String(this.get(id).data.input?.message || ""), outcome, instant: this.catchingUp,
+      state: () => attachmentSendOutcome(this.get(id)),
+      follow: (view) => { this.toolWatch.add(id, view); this.toolWatch.update(id); },
     });
-    if (!toUser) await this.chat.inspection(result === "failed" ? "Message could not be sent" : "Message sent to another thread", threadId);
+    if (!toUser) await destination.inspection(result === "failed" ? "Message could not be sent" : result === "pending" ? "Message awaiting confirmation" : "Message sent", threadId);
   }
 
   // Wait until the item completes, or move on if newer work piles up.

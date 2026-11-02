@@ -131,7 +131,7 @@ app.whenReady().then(async () => {
     if (built.status !== 0) throw new Error(`page build failed: ${built.stdout}\n${built.stderr}`);
   } finally { fs.rmSync(legacy, { force: true }); }
 
-  const win = new BrowserWindow({ show: true, width: 860, height: 500, backgroundColor: "#141a33", webPreferences: { backgroundThrottling: false } });
+  const win = new BrowserWindow({ show: false, width: 860, height: 500, backgroundColor: "#141a33", webPreferences: { offscreen: true, backgroundThrottling: false } });
   const wc = win.webContents;
   const js = (code) => wc.executeJavaScript(code, true);
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));

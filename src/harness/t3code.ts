@@ -172,6 +172,7 @@ export class T3CodeApp {
   private send!: HTMLElement;
   private atts!: HTMLElement;
   private drafts: DraftFile[] = [];
+  private draftRevision = 0;
   private channel: T3Channel | null = null;
   private info: T3Info = {};
   private group: { el: HTMLElement; rows: HTMLElement; head: HTMLElement; start: number } | null = null;
@@ -267,6 +268,8 @@ export class T3CodeApp {
   }
 
   reset() {
+    this.clearDrafts();
+    this.holdDraft("");
     this.feed.replaceChildren();
     this.rows.clear();
     this.group = null;
@@ -458,6 +461,7 @@ export class T3CodeApp {
   }
   /** Files dropped into the composer. They stay there, as a draft, until the message really goes. */
   addDrafts(files: DraftFile[]) {
+    this.draftRevision++;
     const before = this.drafts.length;
     this.drafts.push(...files);
     this.atts.hidden = false;
@@ -470,7 +474,25 @@ export class T3CodeApp {
     this.atts.dataset.state = state;
     for (const mark of Array.from(this.atts.querySelectorAll(".t3-attst"))) mark.innerHTML = state === "sending" ? SPIN : state === "failed" ? "Not sent" : "";
   }
-  clearDrafts() { this.drafts = []; this.atts.replaceChildren(); this.atts.hidden = true; delete this.atts.dataset.state; }
+  clearDrafts() { this.draftRevision++; this.drafts = []; this.atts.replaceChildren(); this.atts.hidden = true; delete this.atts.dataset.state; }
+  /** A late recorded result updates only its original draft, without reopening a window or sending. */
+  followDraft(outcome: () => "sent" | "failed" | "pending") {
+    const revision = this.draftRevision, epoch = this.wm.epoch;
+    const live = () => this.root.isConnected && this.wm.epoch === epoch && this.draftRevision === revision && this.drafts.length > 0;
+    return { live, refresh: () => {
+      if (!live()) return false;
+      const state = outcome();
+      if (state === "pending") return true;
+      if (state === "failed") this.setDraftState("failed");
+      else {
+        this.closeGroup();
+        const p = document.createElement("div"); p.className = "t3-msg";
+        p.innerHTML = md(this.compText.textContent || "") + this.sentFiles(this.drafts);
+        this.feed.append(p); this.clearDrafts(); this.holdDraft(""); this.stick();
+      }
+      return false;
+    } };
+  }
   /** A message that could not be sent stays in the composer, text and files, so nothing is lost. */
   holdDraft(text: string) {
     this.compText.textContent = text;

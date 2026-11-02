@@ -6,10 +6,18 @@ import { carryFiles } from "./drag-drop";
 import { iconFor, kindOf } from "./file-kinds";
 import { fmtBytes, isInside, normPath, parentOf, pathKey } from "./explorer-model";
 import { chatFileUrl } from "../office/chat-media";
+import { phaseOf, type WatchedView } from "./tool-view";
 
 /** What the disk said about one exact path. Nothing was listed or read to get it. */
 export type DiskFact = { path: string; known: boolean; exists?: boolean; file?: boolean; size?: number; modified?: number; reason?: string };
 export type SendOutcome = "sent" | "failed" | "pending";
+
+export function attachmentSendOutcome(item: { status?: string; data?: { output?: unknown } }): SendOutcome {
+  let output = item.data?.output;
+  if (typeof output === "string") { try { output = JSON.parse(output); } catch { /* plain tool text */ } }
+  if (phaseOf({ status: item.status, output }) === "failed") return "failed";
+  return /^(completed|done|success)$/i.test(item.status || "") ? "sent" : "pending";
+}
 
 export type SendContext = {
   wm: WM;
@@ -22,6 +30,8 @@ export type SendContext = {
   text: () => string;
   /** Resolves once the real send finished (or the wait ran out, then "pending"). */
   outcome: () => Promise<SendOutcome>;
+  state?: () => SendOutcome;
+  follow?: (view: WatchedView) => void;
   /** Replaying history: show the result, do not walk anywhere. */
   instant?: boolean;
 };
@@ -70,12 +80,14 @@ export async function playSend(ctx: SendContext): Promise<SendOutcome> {
   const items = ctx.sources.map((s) => ({ s, fact: factFor(s.path), draft: draftFor(s, factFor(s.path)) }));
   const drafts = items.map((i) => i.draft);
   const text = ctx.text();
+  const follow = () => { if (ctx.state && ctx.follow) ctx.follow(chat.followDraft(ctx.state)); };
   // a new attempt replaces the draft a refused one left in the message box
   if (chat.draftCount) { chat.clearDrafts(); chat.holdDraft(""); }
 
   if (ctx.instant) {
     const result = await ctx.outcome();
     if (result === "failed") { await chat.show(); chat.addDrafts(drafts); chat.setDraftState("failed"); chat.holdDraft(text); }
+    else if (result === "pending") { await chat.show(); chat.addDrafts(drafts); chat.holdDraft(text); chat.setDraftState("sending"); follow(); }
     else await chat.assistant(() => ({ text, done: true }), false, drafts);
     return result;
   }
@@ -134,7 +146,7 @@ export async function playSend(ctx: SendContext): Promise<SendOutcome> {
     chat.holdDraft(text);
     return result;
   }
-  if (result === "pending") return result;
+  if (result === "pending") { chat.holdDraft(text); follow(); return result; }
   chat.setDraftState("ready");
   await chat.assistant(() => ({ text, done: true }), true, drafts);
   return result;

@@ -15,8 +15,8 @@ if (!process.versions.electron) {
       "import '" + root + "/node_modules/@fontsource-variable/lexend/index.css';",
       "import '" + root + "/node_modules/@fontsource-variable/jetbrains-mono/index.css';",
       ...['src/styles.css', 'src/office/office.css'].filter(p => fs.existsSync(p)).map(p => "import '" + root + '/' + p + "';"),
-      ...[['WM,Cancelled', 'src/os/wm.ts'], ['Director', 'src/director.ts'], ['T3CodeApp', 'src/harness/t3code.ts'], ['ToolApp', 'src/os/apps.ts'], ['ToolViewWatch', 'src/os/tool-view.ts'], ['setRenderView', 'src/perf/render.ts']].map(([n, p]) => 'import {' + n + "} from '" + root + '/' + p + "';"),
-      'window.review={WM,Cancelled,Director,T3CodeApp,ToolApp,ToolViewWatch,setRenderView};'
+      ...[['WM,Cancelled', 'src/os/wm.ts'], ['Director', 'src/director.ts'], ['T3CodeApp', 'src/harness/t3code.ts'], ['ToolApp,FilesApp', 'src/os/apps.ts'], ['ToolViewWatch', 'src/os/tool-view.ts'], ['playSend,attachmentSendOutcome','src/os/send-files.ts'], ['setRenderView', 'src/perf/render.ts']].map(([n, p]) => 'import {' + n + "} from '" + root + '/' + p + "';"),
+      'window.review={WM,Cancelled,Director,T3CodeApp,ToolApp,FilesApp,ToolViewWatch,playSend,attachmentSendOutcome,setRenderView};'
     ].join('\n'));
     await (await import('vite')).build({ configFile: false, logLevel: 'error', build: { outDir: folder, emptyOutDir: false, lib: { entry, name: 'Review', formats: ['iife'], fileName: () => 'test.js', cssFileName: 'test' } } });
     fs.writeFileSync(path.join(folder, 'index.html'), '<html><head><meta charset="utf-8"><link rel="stylesheet" href="test.css"><style>body{margin:0;background:#101329}#screen{position:relative;width:820px;height:461px;margin:20px}</style></head><body><div id="screen" class="screen"></div><script src="test.js"></script></body></html>');
@@ -29,7 +29,7 @@ if (!process.versions.electron) {
   app.commandLine.appendSwitch('disable-renderer-backgrounding'); app.commandLine.appendSwitch('disable-background-timer-throttling'); app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
   app.whenReady().then(async () => {
     const guard = setTimeout(() => { console.error('hard stop'); app.exit(2); }, 120000);
-    const win = new BrowserWindow({ show: true, x: 20, y: 20, focusable: true, skipTaskbar: true, width: 900, height: 560, webPreferences: { backgroundThrottling: false } });
+    const win = new BrowserWindow({ show: false, width: 900, height: 560, webPreferences: { offscreen: true, backgroundThrottling: false } });
     const js = s => win.webContents.executeJavaScript(s), wait = ms => new Promise(r => setTimeout(r, ms));
     const results = { checks: [], errors: [], timings: {} };
     try {
@@ -98,6 +98,34 @@ if (!process.versions.electron) {
       await js(`late('e1','failed',{isError:true,content:[{type:'text',text:'stale failure'}]});check(body().querySelector('.tv[data-phase=pending]')&&!/stale failure/.test(text()),'stale result does not leak into a later window')`);
       await js(`late('f1','completed',{content:[{type:'text',text:'ok'}]})`); await js('pf1');
       await js(`check(body().querySelector('.tv[data-phase=done]'),'later window follows its own outcome')`);
+
+      // Integrated attachment branch: actual Director.play/push, composer and late-item observation.
+      // Unknown source paths deliberately use the paperclip. No actual upload or send is performed.
+      await js(`window.outbound=0;window.lucid={threads:async()=>[],threadInfo:async id=>({id,title:'Destination fixture',provider:'codex'}),sendMessage:async()=>{outbound++;throw Error('No sends')},saveAttachment:async()=>{outbound++;throw Error('No uploads')},startThread:async()=>{outbound++;throw Error('No starts')}};
+        state.director.info={id:'review',root:null};state.director.files=new review.FilesApp(state.wm);state.director.nativeMessages=new review.T3CodeApp(state.wm,'user');state.director.nativeMessages.setInfo({id:'review',title:'Attachment fixture',provider:'codex'});state.wm.prefs.chatApp='native';
+        window.sendInput={threadId:'review',message:'Evidence from the real recorded send',attachments:[{id:'pending-file',name:'evidence.png',type:'image',mimeType:'image/png'}]};
+        put('a-error',T3+'t3_thread_send_attachments',sendInput,'completed',{isError:true,content:[{text:'Send refused'}]});window.pa=run('a-error');void 0`);
+      await js('pa');
+      await js(`check(document.querySelector('.app-chat .t3-atts').dataset.state==='failed','completed tool carrying isError preserves an unsent attachment draft');check(!document.querySelector('.app-chat .t3-sentfiles'),'error result never draws a sent message')`);
+      await js(`put('a-late',T3+'t3_thread_send_attachments',sendInput,'running');filler();window.pa=run('a-late');void 0`);
+      const a = await js('pa'); results.timings.attachmentBacklogExitMs = a.ms;
+      await js(`state.director.queue=[];check(document.querySelector('.app-chat .t3-atts').dataset.state==='sending'&&state.director.nativeMessages.draftCount===1,'attachment remains pending after real backlog exit');check(state.director.toolWatch.size===1,'pending attachment draft follows its actual item');late('a-late','completed',{isError:true,content:[{text:'Late refusal'}]});check(document.querySelector('.app-chat .t3-atts').dataset.state==='failed','late tool error keeps files and text marked Not sent');check(document.querySelector('.app-chat .t3-typed').textContent===sendInput.message,'late failure preserves message words')`);
+      await js(`put('a-retry',T3+'t3_thread_send_attachments',sendInput,'completed',{structuredContent:{ok:true}});window.pa=run('a-retry');void 0`); await js('pa');
+      await js(`check(document.querySelectorAll('.app-chat .t3-sentfiles').length===1&&state.director.nativeMessages.draftCount===0,'real Director retry produces one attachment message and clears draft');late('a-late','completed',{content:[{text:'stale'}]});check(document.querySelectorAll('.app-chat .t3-sentfiles').length===1,'stale previous attempt does not duplicate the retry')`);
+      // Accelerate only the scene wait for the remaining replay/lifecycle assertions.
+      await js(`state.director.settle=async id=>state.director.items.get(id);put('a-success',T3+'t3_thread_send_attachments',sendInput,'running');window.pa=run('a-success');void 0`); await js('pa');
+      await js(`late('a-success','completed',{structuredContent:{ok:true}});check(document.querySelectorAll('.app-chat .t3-sentfiles').length===2&&state.director.nativeMessages.draftCount===0,'late success appends one real-result message without replaying the scene')`);
+      await js(`put('a-reset',T3+'t3_thread_send_attachments',sendInput,'running');window.pa=run('a-reset');void 0`); await js('pa');
+      await js(`state.director.nativeMessages.reset();late('a-reset','completed',{structuredContent:{ok:true}});check(!document.querySelector('.app-chat .t3-sentfiles')&&state.director.nativeMessages.draftCount===0,'reset rejects a stale draft completion')`);
+      await js(`state.director.catchingUp=true;put('a-replay',T3+'t3_thread_send_attachments',sendInput,'running');window.pa=run('a-replay');void 0`); await js('pa');
+      await js(`check(!document.querySelector('.app-chat .t3-sentfiles')&&state.director.nativeMessages.draftCount===1,'pending history replay never claims the files were sent');late('a-replay','completed',{structuredContent:{ok:true}});state.director.catchingUp=false;check(document.querySelectorAll('.app-chat .t3-sentfiles').length===1,'replayed pending send follows its eventual result')`);
+      await js(`put('a-target',T3+'t3_thread_send_attachments',{...sendInput,threadId:'actual-target'},'completed',{structuredContent:{ok:true}});window.pa=run('a-target');void 0`); await js('pa');
+      await js(`check(state.director.attachmentChat.id==='actual-target'&&document.querySelector('.app-t3code .t3-crumbs').textContent.includes('Destination fixture'),'another-thread send opens its actual destination conversation');check(document.querySelectorAll('.app-t3code .t3-sentfiles').length===1,'destination conversation owns the attachment message');check(outbound===0,'Director playback performs no uploads, sends or thread starts');check(review.attachmentSendOutcome({status:'completed',data:{output:JSON.stringify({isError:true})}})==='failed','serialized error results also remain unsent')`);
+      await js(`window.lucid.threadInfo=async()=>new Promise(r=>window.resolveTarget=r);put('a-superseded-target',T3+'t3_thread_send_attachments',{...sendInput,threadId:'stale-target'},'completed',{structuredContent:{ok:true}});window.pa=run('a-superseded-target');void 0`);
+      await wait(80);
+      await js(`check(typeof resolveTarget==='function','recipient lookup is held while the scene can reset');state.wm.reset();resolveTarget({title:'Stale destination'});`);
+      const cancelled = await js('pa');
+      await js(`check(${!!cancelled.cancelled}&&state.wm.wins.size===0,'reset during recipient lookup cannot reopen a stale conversation');check(outbound===0,'all integrated attachment checks remain free of external mutations')`);
 
       results.checks = await js('window.checks'); results.errors.push(...await js('window.errs'));
       results.passed = !results.errors.length;
