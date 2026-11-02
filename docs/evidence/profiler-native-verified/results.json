@@ -1,0 +1,46 @@
+{
+  "passed": true,
+  "completed": [
+    {
+      "dir": "E:\\T3 Projects\\Lucid\\docs\\evidence\\profiler-native-verified\\profile\\profiles\\2026-11-01T19-15-52-548Z",
+      "metrics": 1,
+      "cpuSamples": 2275,
+      "traceEvents": 20021,
+      "frameEventRows": 468,
+      "frameCount": 233
+    },
+    {
+      "dir": "E:\\T3 Projects\\Lucid\\docs\\evidence\\profiler-native-verified\\profile\\profiles\\2026-11-01T19-15-54-565Z",
+      "metrics": 1,
+      "cpuSamples": 2342,
+      "traceEvents": 20098,
+      "frameEventRows": 493,
+      "frameCount": 246
+    },
+    {
+      "dir": "E:\\T3 Projects\\Lucid\\docs\\evidence\\profiler-native-verified\\profile\\profiles\\2026-11-01T19-15-59-324Z",
+      "metrics": 1,
+      "cpuSamples": 2342,
+      "traceEvents": 20015,
+      "frameEventRows": 493,
+      "frameCount": 246
+    },
+    {
+      "dir": "E:\\T3 Projects\\Lucid\\docs\\evidence\\profiler-native-verified\\profile\\profiles\\2026-11-01T19-16-01-346Z",
+      "metrics": 1,
+      "cpuSamples": 2341,
+      "traceEvents": 19953,
+      "frameEventRows": 493,
+      "frameCount": 246
+    }
+  ],
+  "startupFailure": true,
+  "writeFailure": true,
+  "stopOnClose": true,
+  "provenance": {
+    "electron": "45.2.0",
+    "profilerSha256": "64ea9bb04f34807fecd09dab10c66adc7a39264d68ddb134095577b4768b7f0f",
+    "workload": "Isolated native Electron canvas and animation frames, not production office"
+  },
+  "timestampCheck": "Frame wall times and process metrics within capture start/stop bounds"
+}

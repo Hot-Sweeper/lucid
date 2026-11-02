@@ -15,6 +15,18 @@ Lucid runs on top of [T3 Code](https://t3.codes). T3 Code drives the harnesses (
 - "Look at the screen" (or double-click the monitor) zooms into the robot's computer. Escape zooms back out.
 - One-click update: when this git checkout is behind its remote, an Update button appears. It pulls, reinstalls, rebuilds and restarts.
 
+## Managers
+
+Pinned T3 threads are your managers. They appear at the top of the Threads list as their robots,
+with a name, role and project, and the group folds into a row of faces. T3 itself is unchanged,
+so the official T3 apps (including mobile) still show them as normal pinned threads.
+
+Each manager can have a profile picture. Open **Edit manager** to choose an image, restore an
+earlier one, or ask the manager to design its own. Pictures live in
+`~/T3 Projects/Lucid Managers/<thread>/avatar.png` (or `.webp`, `.jpg`, `.svg`). A manager can
+replace that file at any time and Lucid shows the new picture on its next refresh, keeping the
+previous ones. Without a picture, the robot's own face is shown.
+
 ## Requirements
 
 - Windows, macOS or Linux with [Node.js](https://nodejs.org) 20 or newer and Git.
@@ -31,6 +43,20 @@ npm start
 
 On Windows you can double-click `Lucid.cmd` after installing.
 
+## Keep computers in sync
+
+`npm install` enables this repository's Git hook, which pushes each new commit
+to GitHub automatically. Commit changes before switching computers. If a push
+fails while offline, the commit stays safe locally; run `git push` after reconnecting.
+Existing custom Git hooks are preserved and chained. The installer configures all
+existing worktrees using a helper in Git's shared local storage, so older branches
+do not need the new scripts. Run `node scripts/setup-git-sync.cjs` again after adding
+a worktree. Fresh clones are configured by `npm install`.
+
+On the other computer, run `git pull --ff-only` before starting work, then
+`npm install` if dependencies changed. Uncommitted edits remain local. Automatic
+pushing does not merge changes or overwrite another computer's work.
+
 ## Develop
 
 ```sh
@@ -38,6 +64,36 @@ npm run dev        # Vite dev server + Electron with live reload of the renderer
 npm run typecheck
 npm run build
 ```
+
+Builds and `npm run verify:update` write to `dist-build`, keeping the installed
+`dist` intact while Lucid is running. Use Lucid's update button to validate and
+install changes. Do not build directly into the shared checkout's `dist`.
+
+## Offline dictation (Windows setup)
+
+Run `Setup Dictation.cmd` once with Python installed. It installs an isolated
+transcribe.cpp runtime and downloads the checksum-verified Parakeet Ultra Q8 model
+to `%LOCALAPPDATA%\Lucid\dictation` (about 740 MB for the model).
+
+In a robot's chat, click **Dictate**, speak English or German, then click **Stop**.
+The transcript is inserted at the cursor in your draft. Review and send it yourself.
+Escape, switching threads, or closing the chat cancels dictation. Recognition runs
+locally, with automatic GPU selection and a CPU fallback. The worker unloads after
+five minutes of inactivity. Audio is not saved or sent to a service.
+
+For a separate microphone trial, open `Test Dictation.cmd`, click **Record**, then
+click
+**Stop and transcribe**. The test starts in CPU mode. The device selector can also
+try automatic GPU acceleration. After setup, recognition runs offline. The model
+stays loaded while the test window is open; closing it releases the worker.
+
+This is a separate microphone trial. Text is editable and can be copied, but is
+not automatically sent to a robot. Recordings and transcripts are not saved by
+the trial. See `scripts/dictation-test/NOTICE.txt` for model attribution.
+
+`node scripts/verify-dictation.cjs` runs protocol and composer regressions without
+starting Electron, a microphone, or a native speech runtime. It requires Python
+to check German text under a Windows legacy output encoding.
 
 ## How it reads T3 Code
 

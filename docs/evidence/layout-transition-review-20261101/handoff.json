@@ -1,0 +1,18 @@
+{
+  "reviewStatus": "unsettled",
+  "fixCommit": "cdb3c4b4e8d75e4ae49be10be141972ea4796144",
+  "deliveryOwner": "<t3-thread://v2/35311fd2-1ff1-4b03-ba2f-301e3b5966eb/3b0a491b-9351-4af6-a9af-7ec07e045efe>",
+  "handoffMessageId": "message:mcp:dd73e3fc-94d6-479f-bf49-0f222fd9b815:thread-send:fcae061a-5267-4c75-b905-454b52e1331c",
+  "status": "installed-and-executing through the recorded coordinated culling delivery",
+  "productionRestartPerformed": false,
+  "executingProductionProof": "executing-entry-culling.json",
+  "evidence": "results.json",
+  "ownerAcknowledgement": {
+    "position": 332,
+    "at": "2026-11-01T10:58:18.038Z",
+    "text": "Your layout changes already match the current validation snapshot, so they will stay in the combined delivery."
+  },
+  "coordinatedDeliveryReceipt": "coordinated-delivery-culling.json",
+  "acceptedTestEvidence": "results.json, unchanged",
+  "attachmentIngestion": "attachment-ingestion.json"
+}

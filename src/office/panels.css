@@ -1,12 +1,11 @@
 /* ---------- folding the sidebar, its sections and the chat ---------- */
-#app { grid-template-columns: var(--side, 300px) minmax(0, 1fr); }
 #app > .panel, #app > .side-rail { grid-column: 1; grid-row: 1; }
 #app > .scene { grid-column: 2; grid-row: 1; }
 .panel[hidden], .side-rail[hidden] { display: none; }
 .panel { overflow-x: hidden; }
 /* while it narrows, the sections keep their width and slide out of view instead of re-wrapping */
 .panel.folding { overflow: hidden; }
-.panel.folding > * { min-width: 268px; }
+.panel.folding > * { min-width: 208px; }
 
 .side-hide { flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 12.5px; padding: 4px 7px; margin-right: -7px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
 .side-hide:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
@@ -53,15 +52,14 @@
 .rail-st.done { background: #4fd18b; }
 .rail-st.fail { background: #ff6b6b; }
 
-/* the folded chat: a tab on the right edge with the robot's name */
-.chat-panel.open.tabbed { display: none; }
+/* the folded chat: a slim rail on the right edge with the robot's name */
 .cp-hide { flex: none; padding: 7px 10px; font-size: 12.5px; white-space: nowrap; }
 .cp-hide:focus-visible, .cp-view:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.cp-tab { position: fixed; right: 0; top: 14px; z-index: 60; width: 40px; padding: 13px 0 11px; display: flex; flex-direction: column; align-items: center; gap: 10px; border: 0; border-radius: 12px 0 0 12px; background: #161b3a; color: var(--ink-2); box-shadow: 0 14px 34px rgba(5, 8, 30, 0.45); cursor: pointer; font: inherit; }
+.cp-tab { grid-column: 3; grid-row: 1; justify-self: end; align-self: stretch; width: 44px; padding: 16px 0 14px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 10px; border: 0; border-radius: 0; background: #161b3a; color: var(--ink-2); cursor: pointer; font: inherit; min-height: 0; }
 .cp-tab[hidden] { display: none; }
 .cp-tab:hover { background: #1d2350; color: var(--ink); }
-.cp-tab img { width: 18px; height: 18px; }
-.cp-tab span { writing-mode: vertical-rl; font-size: 13px; font-weight: 500; white-space: nowrap; max-height: 300px; overflow: hidden; text-overflow: ellipsis; }
+.cp-tab img { width: 18px; height: 18px; flex: none; }
+.cp-tab span { writing-mode: vertical-rl; font-size: 13px; font-weight: 500; white-space: nowrap; max-height: calc(100vh - 110px); overflow: hidden; text-overflow: ellipsis; }
 .cp-tab:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
 .cp-tab.ref-dragging { box-shadow: inset 0 0 0 1.5px rgba(255, 159, 90, 0.45), 0 14px 34px rgba(5, 8, 30, 0.45); }
 .cp-tab.ref-over { background: #262553; color: #ffd27a; box-shadow: inset 0 0 0 2px var(--accent), 0 14px 34px rgba(5, 8, 30, 0.45); }
@@ -96,3 +94,61 @@ body.th-dragging, body.th-dragging * { user-select: none !important; cursor: gra
 /* a sent message: the threads it referenced */
 .cp-reffile { max-width: 280px; }
 .cp-reffile img { width: 14px; height: 14px; flex: none; }
+
+/* ---------- dragging the edge of the sidebar or the chat to resize it ---------- */
+.grip { position: absolute; top: 0; bottom: 0; width: 10px; z-index: 80; cursor: col-resize; touch-action: none; outline: none; }
+.grip.left { left: calc(var(--side, 300px) - 3px); }
+.grip.right { right: calc(var(--chat, 460px) - 3px); }
+.grip::after { content: ""; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; border-radius: 2px; background: var(--accent); opacity: 0; transition: opacity 0.12s ease; }
+.grip.grabbing::after, .grip:focus-visible::after { opacity: 0.9; }
+#app.railed .grip.left, #app.chat-folded .grip.right { display: none; }
+body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-select: none !important; }
+@media (prefers-reduced-motion: reduce) { .grip::after { transition: none; } }
+
+/* the sidebar adapts to the width you give it: rows wrap instead of running off the edge */
+.brand { flex-wrap: wrap; row-gap: 4px; }
+.brand .wx { margin-left: 0; }
+.wallet { flex-wrap: wrap; row-gap: 8px; }
+.co-top { flex-wrap: wrap; row-gap: 2px; }
+.th-head { flex-wrap: wrap; row-gap: 6px; }
+.th-search { flex: 1 1 96px; min-width: 0; }
+.th-search input { width: 100%; min-width: 0; }
+.th-head .sec-fold { margin-left: auto; }
+.room-links { flex-wrap: wrap; gap: 2px 16px; }
+
+/* Threads own the sidebar; occasional office tools share one disclosure. */
+.panel { gap: 16px; }
+.panel > .threads { flex: 1 0 auto; }
+.panel .th-list { max-height: none; overflow: visible; }
+.panel .th-row { padding: 8px 10px; gap: 2px; border-radius: 6px; }
+.panel .th-row:not(:hover):not(:focus-within):not(.on) .th-bot { opacity: 0; }
+.panel .th-title { font-size: 13px; }
+.panel .th-top { font-size: 11px; }
+.panel .sec-fold { min-width: 28px; min-height: 28px; justify-content: center; margin: -3px 0; }
+.panel .sec-fold > span { display: none; }
+.panel .focus:has(#focus-body[hidden]) { display: none; }
+.sidebar-extras { flex: none; border-top: 1px solid rgba(255,255,255,.07); padding-top: 8px; }
+.sidebar-extras > summary { cursor: pointer; color: var(--ink-2); padding: 8px 2px; font-size: 12px; }
+.sidebar-extras > summary:hover { color: var(--ink); }
+.sidebar-extras > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sidebar-extras-body { display: flex; flex-direction: column; gap: 18px; padding: 12px 0 4px; }
+.game-language { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--ink-2); font-size: 12px; }
+.game-language select { min-width: 0; max-width: 60%; padding: 6px 8px; color: var(--ink); background: var(--night); border: 1px solid var(--line); border-radius: 5px; font: inherit; cursor: pointer; color-scheme: dark; }
+.game-language select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.panel > .usage { flex: none; border-top: 1px solid rgba(255,255,255,.07); padding-top: 12px; }
+.panel > .usage .st-head { margin-top: 12px; }
+.panel > .usage .st-ltop { flex-wrap: wrap; }
+.panel > .usage .st-reset { white-space: normal; overflow-wrap: anywhere; }
+
+/* A matching right rail, with the current conversation always within reach. */
+.cp-tab { width: 64px; background: var(--night-2); padding: 18px 5px 14px; gap: 14px; overflow: hidden; }
+.cp-tab:hover { background: color-mix(in srgb, var(--night-2) 90%, white); }
+.cp-tab .cp-rail-icon { flex: none; padding: 8px; box-sizing: content-box; border-radius: 8px; background: rgba(255,255,255,.06); }
+.cp-tab > span { font-size: 12px; max-height: calc(100dvh - 160px); }
+.cp-tab > svg:last-child { margin-top: auto; flex: none; }
+.cp-tab img { object-fit: contain; }
+
+.hire-attachments > div { display:flex; align-items:center; gap:10px; padding:6px 0; }
+.hire-attachments img { width:64px; height:48px; object-fit:contain; background:var(--bg); }
+.hire-attachments span { flex:1; overflow-wrap:anywhere; min-width:0; }
+.hire-runtime { font-size:12px; line-height:1.6; overflow-wrap:anywhere; }

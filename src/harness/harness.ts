@@ -5,6 +5,8 @@
 // flavour. The robot's habit (prefs.subagents) picks which one it drives.
 import { logoSvg } from "./logos";
 import gsap from "gsap";
+import { renderLoop, renderFps, presentationFrame } from "../perf/render";
+import { scheduleLayout } from "./layout";
 import type { AppId } from "../os/wm";
 import type { Robot } from "../robot";
 import { ICONS } from "../os/icons";
@@ -75,6 +77,8 @@ export interface HarnessHost {
   click(double?: boolean): Promise<void>;
   sleep(ms: number, epoch?: number): Promise<void>;
   check(epoch: number): void;
+  waitForOperator?(epoch?: number): Promise<void>;
+  readonly presentationTime?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -528,7 +532,7 @@ class Session implements HarnessSession {
   }
 
   // --- visibility ------------------------------------------------------------
-  get live() { return this.view.isConnected && this.app.activeSession === this && !reduced(); }
+  get live() { return this.view.isConnected && this.app.activeSession === this && renderFps(this.view) > 0 && !reduced(); }
 
   follow(ms = 650) {
     if (!this.stick) return;
@@ -544,6 +548,7 @@ class Session implements HarnessSession {
 
   /** Called from the app ticker. Returns true while it still has work to do. */
   tick(now: number): boolean {
+    if (!this.view.isConnected || this.app.activeSession !== this || !renderFps(this.view)) return this.state === "running" || !!this.streamLine;
     let busy = false;
     const st = this.streamLine;
     if (st && st.shown < st.target.length) {
@@ -551,19 +556,22 @@ class Session implements HarnessSession {
       const step = Math.max(1, Math.round(remaining / 18));
       st.shown = Math.min(st.target.length, st.shown + step);
       st.inner.textContent = st.target.slice(0, st.shown);
-      st.msg.classList.toggle("hx-over", st.inner.offsetHeight > st.msg.clientHeight + 1);
+      scheduleLayout(st.msg, () => {
+        const over = st.inner.offsetHeight > st.msg.clientHeight + 1;
+        return () => st.msg.classList.toggle("hx-over", over);
+      });
       this.follow(300);
       busy = true;
     }
     if (now < this.followUntil && this.stick) {
       const s = this.scroller;
-      const target = s.scrollHeight - s.clientHeight;
-      if (!this.live) s.scrollTop = target;
-      else {
-        const d = target - s.scrollTop;
-        s.scrollTop = Math.abs(d) < 0.8 ? target : s.scrollTop + d * 0.24;
-      }
-      this.lastAutoTop = s.scrollTop;
+      scheduleLayout(s, () => {
+        if (!this.stick || this.app.activeSession !== this || !renderFps(this.view)) return null;
+        const target = Math.max(0, s.scrollHeight - s.clientHeight), top = s.scrollTop, d = target - top;
+        if (Math.abs(d) < 0.5) return null;
+        const next = !this.live || Math.abs(d) < 0.8 ? target : top + d * 0.24;
+        return () => { if (this.stick) { this.lastAutoTop = next; s.scrollTop = next; } };
+      });
       busy = true;
     }
     if (this.state === "running") {
@@ -925,6 +933,7 @@ export class HarnessApp {
   private win: { el: HTMLElement; body: HTMLElement; title: HTMLElement } | null = null;
   private chain: Promise<unknown> = Promise.resolve();
   private ticking = false;
+  private stopTick: (() => void) | null = null;
   private resize: ResizeObserver;
 
   constructor(private wm: HarnessHost) {
@@ -1032,6 +1041,7 @@ export class HarnessApp {
 
   /** Forget all sessions (for example when the robot switches to another thread). */
   reset() {
+    this.stopTick?.(); this.stopTick = null; this.ticking = false;
     for (const s of this.sessions.values()) { s.view.remove(); s.tab.remove(); }
     this.sessions.clear();
     this.active = null;
@@ -1044,7 +1054,7 @@ export class HarnessApp {
   wake() {
     if (this.ticking) return;
     this.ticking = true;
-    gsap.ticker.add(this.tick);
+    this.stopTick = renderLoop(this.root, this.tick);
   }
 
   /** @internal */
@@ -1053,11 +1063,10 @@ export class HarnessApp {
     this.refreshSides();
   }
 
-  private tick = () => {
-    const now = performance.now();
+  private tick = (now: number) => {
     let busy = false;
     for (const s of this.sessions.values()) if (s.tick(now)) busy = true;
-    if (!busy) { gsap.ticker.remove(this.tick); this.ticking = false; }
+    if (!busy) { this.stopTick?.(); this.stopTick = null; this.ticking = false; }
   };
 
   private serial<T>(fn: () => Promise<T>): Promise<T> {
@@ -1177,25 +1186,28 @@ export class HarnessApp {
 
   private async typeInto(target: HTMLElement, text: string, e: number) {
     const wm = this.wm;
+    await wm.waitForOperator?.(e);
     const budget = Math.min(3400, Math.max(900, text.length * 32));
     const cps = Math.max(38, text.length / (budget / 1000));
     wm.robot.setTyping(true);
     let shown = 0;
-    const start = performance.now();
+    const start = wm.presentationTime ?? performance.now();
     try {
       while (shown < text.length) {
-        await new Promise((r) => requestAnimationFrame(r));
+        await presentationFrame(target);
+        await wm.waitForOperator?.(e);
         wm.check(e);
-        const elapsed = (performance.now() - start) * wm.speed;
+        const elapsed = ((wm.presentationTime ?? performance.now()) - start) * wm.speed;
         const jitter = 0.85 + Math.random() * 0.3;
-        const next = Math.min(text.length, Math.max(shown + 1, Math.floor((elapsed / 1000) * cps * jitter)));
+        const next = Math.min(text.length, Math.max(shown, Math.floor((elapsed / 1000) * cps * jitter)));
         if (next !== shown) {
-          for (let i = shown; i < next; i++) wm.robot.pressKey(text[i] === "\n" ? "Enter" : text[i]);
+          if (renderFps(target)) for (let i = shown; i < next; i++) wm.robot.pressKey(text[i] === "\n" ? "Enter" : text[i]);
           shown = next;
-          target.textContent = text.slice(0, shown);
+          if (renderFps(target)) target.textContent = text.slice(0, shown);
         }
       }
     } finally {
+      target.textContent = text.slice(0, shown);
       wm.robot.setTyping(false);
     }
   }

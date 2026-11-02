@@ -1,11 +1,16 @@
 import gsap from "gsap";
+import { uiText, onLocaleChange } from "../localization";
+import { localizeGameDOM } from "../localization-dom";
 import type { SeatedRobot as Robot } from "../office/rig";
 const SCREEN = { w: 820, h: 461 };
 import { ICONS } from "./icons";
+import { noteAppIcon } from "./note-app-icon";
+import { wakeRender, renderFps } from "../perf/render";
+import { watchClock, clockTime } from "../perf/clock";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "t3code" | "photos" | "player";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "t3code" | "instaweb" | "spoolweb" | "sparkplug" | "photos" | "player" | "codex" | "steam" | "trading";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -13,7 +18,7 @@ const FRAMES: Record<AppId, Frame> = {
   editor: { x: 176, y: 12, w: 630, h: 384 },
   terminal: { x: 24, y: 196, w: 500, h: 208 },
   browser: { x: 40, y: 12, w: 740, h: 390 },
-  chat: { x: 538, y: 26, w: 268, h: 372 },
+  chat: { x: 110, y: 12, w: 600, h: 396 },
   tool: { x: 470, y: 228, w: 330, h: 170 },
   game: { x: 190, y: 14, w: 440, h: 392 },
   harness: { x: 110, y: 22, w: 600, h: 356 },
@@ -37,12 +42,20 @@ const FRAMES: Record<AppId, Frame> = {
   stocks: { x: 110, y: 18, w: 600, h: 370 },
   mail: { x: 80, y: 12, w: 660, h: 384 },
   lingo: { x: 200, y: 12, w: 420, h: 384 },
+  instaweb: { x: 60, y: 10, w: 700, h: 392 },
+  spoolweb: { x: 60, y: 10, w: 700, h: 392 },
+  sparkplug: { x: 70, y: 12, w: 680, h: 390 },
   t3code: { x: 60, y: 10, w: 700, h: 396 },
   photos: { x: 470, y: 228, w: 330, h: 170 },
   player: { x: 150, y: 14, w: 520, h: 340 },
+codex: { x: 70, y: 12, w: 680, h: 396 },
+  steam: { x: 50, y: 10, w: 720, h: 398 },
+  trading: { x: 40, y: 10, w: 740, h: 398 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Messages", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "GitHub Desktop", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", t3code: "T3 Code", photos: "Photos", player: "Player" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "t3code", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo", "photos", "player"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Lucid Chat", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "GitHub Desktop", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", instaweb: "Instabot", spoolweb: "Spool", sparkplug: "Sparkplug", t3code: "T3 Code", photos: "Photos", player: "Player", codex: "Codex", steam: "Steambot", trading: "Tradebot" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "t3code", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "photos", "player", "codex", "steam", "trading"];
+// Real browser tabs, work, files, terminal output and thread conversations stay untouched.
+const FICTIONAL_APPS = new Set<AppId>(["beats", "social", "game", "music", "botsapp", "telegrid", "chirp", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "steam", "trading"]);
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 
@@ -55,15 +68,103 @@ export class WM {
   onCursor?: (x: number, y: number) => void;
   private _prefs: import("../office/roster").Prefs | null = null;
   get prefs() { return this._prefs; }
-  set prefs(p) { this._prefs = p; if (this.dock) this.renderDock(false); }
+  set prefs(p) { this._prefs = p; this.root?.setAttribute("data-notes-app", p?.notesApp ?? "apple-notes"); if (this.dock) this.renderDock(false); }
   robotName = "unit";
   speed = 1;
+  lastClickAt = 0;
   epoch = 0;
   // An app can ask for a different window size before it opens (the Tasks checklist is narrower).
   frameHint: Partial<Record<AppId, Frame>> = {};
   private z = 10;
+  private overlayCovered = false;
+  /** A human-facing task overlay covers the desktop without closing its apps. */
+  setOverlayCovered(covered: boolean) {
+    if (covered === this.overlayCovered) return;
+    this.overlayCovered = covered;
+    this.syncOcclusion();
+  }
   private cursor = { x: SCREEN.w * 0.55, y: SCREEN.h * 0.5 };
   robot: Robot;
+  private stopClock: () => void = () => {};
+  private stopLocale: () => void = () => {};
+  private localizationStops = new Map<AppId, () => void>();
+  private cursorX!: (x: number) => void;
+  private cursorY!: (y: number) => void;
+  private movingWindows = new Map<Win, number>();
+  private operatorHere = true;
+  private presentationHere = true;
+  private operatorWaiters = new Set<() => void>();
+  private pausedByAbsence = new Set<gsap.core.Tween>();
+  private cursorMotion: gsap.core.Tween | null = null;
+  private absenceAt: number | null = null;
+  private absenceDuration = 0;
+  get operatorPresent() { return this.operatorHere; }
+  get presentationVisible() { return this.presentationHere !== false; }
+  /** Typing cadence excludes time spent away from the chair. */
+  get presentationTime() { return (this.absenceAt ?? performance.now()) - this.absenceDuration; }
+
+  /** Only the seated actor operates this computer. Task data still updates while away. */
+  setOperatorPresent(here: boolean) {
+    if (here === this.operatorHere) return;
+    const wasAvailable = this.operatorHere && this.presentationVisible;
+    this.operatorHere = here;
+    this.root.classList.toggle("unattended", !here);
+    this.updatePresentationAvailability(wasAvailable);
+  }
+
+  /** Screen scenes are cosmetic. Keep their state while their monitor is hidden,
+   * independently of the robot's physical chair and the real agent's work. */
+  setPresentationVisible(visible: boolean) {
+    if (visible === this.presentationVisible) return;
+    const wasAvailable = this.operatorHere && this.presentationVisible;
+    this.presentationHere = visible;
+    this.updatePresentationAvailability(wasAvailable);
+  }
+
+  private updatePresentationAvailability(wasAvailable: boolean) {
+    const available = this.operatorHere && this.presentationVisible;
+    if (available === wasAvailable) return;
+    if (!available) {
+      this.absenceAt = performance.now();
+      // Camera culling must not enumerate a whole computer's conversation DOM.
+      // Walk the animation tree once, checking only the actual tween targets.
+      const tweens = gsap.globalTimeline.getChildren(true, true, false) as gsap.core.Tween[];
+      for (const tween of tweens) {
+        if (tween === this.cursorMotion || tween.targets().some(target => target instanceof Node && this.root.contains(target))) {
+          if (!tween.paused()) { tween.pause(); this.pausedByAbsence.add(tween); }
+        }
+      }
+      // Cursor movement tweens a numeric path, rather than a DOM element.
+      if (this.cursorMotion && !this.cursorMotion.paused()) { this.cursorMotion.pause(); this.pausedByAbsence.add(this.cursorMotion); }
+      this.robot.setTyping(false);
+    } else {
+      this.absenceDuration += performance.now() - (this.absenceAt ?? performance.now());
+      this.absenceAt = null;
+      for (const tween of this.pausedByAbsence) {
+        // Disposing an app can kill a suspended tween or its owning timeline.
+        // Never reconnect that old scene when its monitor is shown again.
+        let parent = tween.parent;
+        while (parent && parent !== gsap.globalTimeline) parent = parent.parent;
+        if (parent) tween.resume();
+      }
+      this.pausedByAbsence.clear();
+      this.wakeOperatorWaiters();
+    }
+  }
+
+  private wakeOperatorWaiters() {
+    const waiting = [...this.operatorWaiters];
+    this.operatorWaiters.clear();
+    for (const resolve of waiting) resolve();
+  }
+
+  async waitForOperator(epoch = this.epoch) {
+    this.check(epoch);
+    while (!this.operatorHere || !this.presentationVisible) {
+      await new Promise<void>((resolve) => this.operatorWaiters.add(resolve));
+      this.check(epoch);
+    }
+  }
 
   constructor(screen: HTMLElement, robot: Robot) {
     this.robot = robot;
@@ -80,20 +181,30 @@ export class WM {
     this.layer = screen.querySelector(".win-layer")!;
     this.dock = screen.querySelector(".dock")!;
     this.renderDock(false);
+    this.stopLocale = onLocaleChange(() => {
+      this.renderDock(false);
+      for (const win of this.wins.values()) win.title.textContent = uiText(this.windowTitles.get(win) ?? this.titleOf(win.id));
+    });
     this.cursorEl = screen.querySelector(".cursor")!;
     gsap.set(this.cursorEl, { x: this.cursor.x, y: this.cursor.y });
+    this.cursorX = gsap.quickSetter(this.cursorEl, "x", "px") as (x: number) => void;
+    this.cursorY = gsap.quickSetter(this.cursorEl, "y", "px") as (y: number) => void;
     // the clock in the corner shows the real time
     const clock = this.root.querySelector(".os-clock") as HTMLElement;
-    const paint = () => { clock.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); };
-    paint();
-    window.setInterval(paint, 15000);
+    this.stopClock = watchClock(this.root, date => {
+      const text = clockTime(date);
+      if (clock.textContent !== text) clock.textContent = text;
+    });
   }
 
   setWallpaper(css: string) {
     (this.root.querySelector(".wallpaper") as HTMLElement).style.background = css;
   }
 
+  private wallpaperLogoSource = '';
   setWallpaperLogo(src: string) {
+    if (src === this.wallpaperLogoSource) return;
+    this.wallpaperLogoSource = src;
     (this.root.querySelector(".wall-logo") as HTMLImageElement).src = src;
   }
 
@@ -102,13 +213,15 @@ export class WM {
     if (epoch !== this.epoch) throw new Cancelled();
   }
   async sleep(ms: number, epoch = this.epoch) {
+    await this.waitForOperator(epoch);
     await new Promise((r) => setTimeout(r, ms / this.speed));
-    this.check(epoch);
+    await this.waitForOperator(epoch);
   }
 
   // --- cursor --------------------------------------------------------------
   async moveTo(x: number, y: number, ms = 520) {
     const e = this.epoch;
+    await this.waitForOperator(e);
     const from = { ...this.cursor };
     const dist = Math.hypot(x - from.x, y - from.y);
     const dur = Math.max(0.16, Math.min(0.9, (ms / 1000) * (0.45 + dist / 700))) / this.speed;
@@ -116,24 +229,29 @@ export class WM {
     const bend = (Math.random() - 0.5) * Math.min(80, dist * 0.25);
     const mx = (from.x + x) / 2 - ((y - from.y) / (dist || 1)) * bend, my = (from.y + y) / 2 + ((x - from.x) / (dist || 1)) * bend;
     const p = { t: 0 };
+    let paintedAt = 0;
+    const paint = () => { this.cursorX(this.cursor.x); this.cursorY(this.cursor.y); };
     this.robot.setPose("mouse");
     await new Promise<void>((resolve) => {
-      gsap.to(p, {
+      this.cursorMotion = gsap.to(p, {
         t: 1, duration: dur, ease: "power2.inOut",
         onUpdate: () => {
           const t = p.t, u = 1 - t;
           this.cursor.x = u * u * from.x + 2 * u * t * mx + t * t * x;
           this.cursor.y = u * u * from.y + 2 * u * t * my + t * t * y;
-          gsap.set(this.cursorEl, { x: this.cursor.x, y: this.cursor.y });
+          const now = performance.now(), fps = renderFps(this.root);
+          if (!fps || now - paintedAt < 1000 / fps - 1) return;
+          paintedAt = now; paint();
           // the physical mouse on the desk moves with the cursor, every frame
           this.robot.mouseTo(this.cursor.x / SCREEN.w, this.cursor.y / SCREEN.h);
           this.onCursor?.(this.cursor.x, this.cursor.y);
         },
-        onComplete: () => resolve(),
+        onComplete: () => { paint(); this.robot.mouseTo(this.cursor.x / SCREEN.w, this.cursor.y / SCREEN.h); this.cursorMotion = null; resolve(); },
+        onInterrupt: () => { this.cursorMotion = null; resolve(); },
       });
       this.robot.lookAt(x / SCREEN.w, y / SCREEN.h);
     });
-    this.check(e);
+    await this.waitForOperator(e);
   }
 
   // Element position in screen coordinates from layout, so it stays right even when
@@ -167,12 +285,14 @@ export class WM {
   }
 
   async pointAt(el: Element, ax = 0.5, ay = 0.5, ms?: number) {
+    await this.waitForOperator(this.epoch);
     const p = this.pos(el, ax, ay);
     await this.moveTo(p.x, p.y, ms);
   }
 
   async click(double = false) {
     const e = this.epoch;
+    await this.waitForOperator(e);
     const ring = document.createElement("span");
     ring.className = "click-ring";
     ring.style.left = this.cursor.x + "px";
@@ -181,6 +301,7 @@ export class WM {
     gsap.fromTo(ring, { scale: 0.2, opacity: 0.8 }, { scale: 1.6, opacity: 0, duration: 0.45, ease: "power2.out", onComplete: () => ring.remove() });
     gsap.fromTo(this.cursorEl, { scale: 1 }, { scale: 0.82, duration: 0.07, yoyo: true, repeat: double ? 3 : 1, transformOrigin: "0 0" });
     this.robot.click();
+    this.lastClickAt = performance.now();
     await this.sleep(double ? 200 : 110, e);
   }
 
@@ -192,27 +313,32 @@ export class WM {
 
   /** `clicked`: the robot already clicked something that opens the app (a notification), so it skips its usual way there. */
   async open(id: AppId, title?: string, clicked = false): Promise<Win> {
-    // The old Messages app is the T3 Code window now: one messaging app, never two
-    if (id === "chat") id = "t3code";
+    await this.waitForOperator();
     // Two callers can ask for the same app while its window is still opening (it takes a moment
     // to click the icon). The second one waits for that window instead of opening a twin.
     const pending = this.opening.get(id);
     if (pending) {
       const w = await pending;
-      if (title) w.title.textContent = title;
+      if (title) { this.windowTitles.set(w, title); w.title.textContent = uiText(title); }
       return w;
     }
-    const p = this.openNow(id, title, clicked);
+    // A game is a specific application. Do not search for the shared window slot
+    // "Games", or click a shortcut still named after a different game.
+    const newGame = id === "game" && !!title && title !== this.titleOf(id);
+    if (id === "game" && title) this.brandApp(id, { title });
+    const p = this.openNow(id, title, clicked, newGame);
     this.opening.set(id, p);
     try { return await p; } finally { if (this.opening.get(id) === p) this.opening.delete(id); }
   }
   private opening = new Map<AppId, Promise<Win>>();
 
-  private async openNow(id: AppId, title?: string, clicked = false): Promise<Win> {
+  private async openNow(id: AppId, title?: string, clicked = false, newGame = false): Promise<Win> {
     const e = this.epoch;
     let w = this.wins.get(id);
     if (w) {
-      if (title) w.title.textContent = title;
+      if (newGame && !clicked) { await this.launch(id); this.check(e); }
+      if (newGame) w.body.replaceChildren();
+      if (title) { this.windowTitles.set(w, title); w.title.textContent = uiText(title); }
       if (clicked) this.focus(id);
       else if (Number(w.el.style.zIndex) !== this.z) {
         // bring it back the way this robot usually does: click the window, its dock icon, or Alt+Tab
@@ -229,7 +355,7 @@ export class WM {
     // the dock can only be found with Spotlight
     const pinnedItem = this.dock.querySelector(`[data-app="${id}"]`) as HTMLElement | null;
     if (clicked) { /* already on its way */ }
-    else if (!pinnedItem || this.habit(this.prefs?.launch ?? "dock", { dock: 0.2, spotlight: 0.2 }) === "spotlight") await this.launch(this.titleOf(id));
+    else if (newGame || !pinnedItem || this.habit(this.prefs?.launch ?? "dock", { dock: 0.2, spotlight: 0.2 }) === "spotlight") await this.launch(id);
     else {
       await this.pointAt(pinnedItem, 0.5, 0.5);
       // the dock may have shifted while the cursor travelled: land on the icon itself
@@ -246,21 +372,23 @@ export class WM {
     const messy = this.prefs?.tidiness === "messy" && Math.random() < 0.7;
     const f = this.wins.size && !messy ? this.bestSpot(base) : { ...base, ...this.jitter(base) };
     const el = document.createElement("section");
-    el.className = `win app-${id}`;
+    el.className = `win app-${id} render-opening`;
     el.style.cssText = `left:${f.x}px;top:${f.y}px;width:${f.w}px;height:${f.h}px`;
     el.innerHTML = `<header class="win-bar">${this.iconOf(id)}<span class="win-title"></span><span class="win-x" aria-hidden="true"></span></header><div class="win-body"></div>`;
     const titleEl = el.querySelector(".win-title") as HTMLElement;
-    titleEl.textContent = title || this.titleOf(id);
+    titleEl.textContent = title ? uiText(title) : this.titleOf(id);
     this.layer.appendChild(el);
     w = { id, el, body: el.querySelector(".win-body")!, title: titleEl, lastUsed: Date.now() };
+    if (title) this.windowTitles.set(w, title);
     this.wins.set(id, w);
+    if (FICTIONAL_APPS.has(id)) this.localizationStops.set(id, localizeGameDOM(w.body, `Fictional ${TITLES[id]} app on a robot computer. Preserve app brands and usernames. Adapt related jokes and replies together.`));
     this.focus(id);
     const dockItem = this.showInDock(id);
     dockItem.classList.add("running");
     const d = this.pos(dockItem);
     gsap.fromTo(el,
       { opacity: 0, scale: 0.35, x: d.x - (f.x + f.w / 2), y: d.y - (f.y + f.h / 2) },
-      { opacity: 1, scale: 1, x: 0, y: 0, duration: 0.55 / this.speed, ease: "expo.out", transformOrigin: "50% 50%" });
+      { opacity: 1, scale: 1, x: 0, y: 0, duration: 0.55 / this.speed, ease: "expo.out", transformOrigin: "50% 50%", onComplete: () => { el.classList.remove("render-opening"); this.syncOcclusion(); } });
     gsap.fromTo(el.querySelector(".win-body"), { opacity: 0 }, { opacity: 1, duration: 0.4 / this.speed, delay: 0.15 / this.speed });
     await this.sleep(260, e);
     // each robot has its own habit: some go full screen, some tile side by side, some let windows float
@@ -286,6 +414,7 @@ export class WM {
       this.layer.prepend(box);
       this.robot.click();
       const paint = () => {
+        if (!this.operatorPresent || !this.presentationVisible) return;
         const l = Math.min(x0, this.cursor.x), t = Math.min(y0, this.cursor.y);
         box.style.cssText = `left:${l}px;top:${t}px;width:${Math.abs(this.cursor.x - x0)}px;height:${Math.abs(this.cursor.y - y0)}px`;
       };
@@ -306,9 +435,14 @@ export class WM {
   // harness the robot actually uses (Claude, Codex, OpenCode...), in the dock, Spotlight,
   // the window bar and the app switcher.
   private appTitles: Partial<Record<AppId, string>> = {};
+  private windowTitles = new WeakMap<Win, string>();
   private appIcons: Partial<Record<AppId, string>> = {};
-  titleOf(id: AppId) { return this.appTitles[id] ?? TITLES[id]; }
-  iconOf(id: AppId) { return this.appIcons[id] ?? ICONS[id]; }
+  titleOf(id: AppId) {
+    if (id === "notes") return this.prefs?.notesApp === "notepad-plus-plus" ? "Notepad++" : this.prefs?.notesApp === "notepad" ? "Notepad" : "Apple Notes";
+    return uiText(this.appTitles[id] ?? TITLES[id]); }
+  iconOf(id: AppId) {
+    if (id === "notes") return noteAppIcon(this.prefs?.notesApp ?? "apple-notes");
+    return this.appIcons[id] ?? ICONS[id]; }
   brandApp(id: AppId, o: { title?: string; icon?: string }) {
     if (o.title) this.appTitles[id] = o.title;
     if (o.icon) this.appIcons[id] = o.icon;
@@ -327,6 +461,7 @@ export class WM {
   // music lovers, its task app). Other apps show up while they are open and leave when closed.
   pinned(): AppId[] {
     const p = this.prefs, pins = new Set<AppId>(["files", "editor", "terminal", "browser", "t3code"]);
+    if (p?.chatApp !== "t3code") pins.add("chat");
     if (p?.hobby === "gamer") pins.add("game");
     if (p?.hobby === "musician") pins.add("beats");
     if (p?.hobby === "chatter") pins.add("social");
@@ -338,7 +473,8 @@ export class WM {
     if (p?.office === "slides" || p?.office === "suite") pins.add("slidedeck");
     // favourite pastime apps, and the messengers and feeds it uses most, live in the dock too
     for (const a of p?.apps ?? []) pins.add(a);
-    for (const a of (p?.socials ?? []).slice(0, 2)) if (a === "botsapp" || a === "telegrid" || a === "chirp") pins.add(a);
+    const web: Record<string, AppId> = { botsapp: "botsapp", telegrid: "telegrid", chirp: "chirp", instabot: "instaweb", spool: "spoolweb", sparkplug: "sparkplug" };
+    for (const a of (p?.socials ?? []).slice(0, 2)) if (web[a]) pins.add(web[a]);
     return DOCK.filter((id) => pins.has(id));
   }
   private dockItem(id: AppId) {
@@ -391,7 +527,12 @@ export class WM {
   }
 
   // --- placement -----------------------------------------------------------
-  private frameOf(w: Win): Frame { return { x: w.el.offsetLeft, y: w.el.offsetTop, w: w.el.offsetWidth, h: w.el.offsetHeight }; }
+  private frameOf(w: Win): Frame {
+    // The window manager owns these coordinates. Reading layout after a tween's writes
+    // forced style/layout across the entire office, even for a distant robot's cursor.
+    const s = w.el.style;
+    return { x: parseFloat(s.left), y: parseFloat(s.top), w: parseFloat(s.width), h: parseFloat(s.height) };
+  }
   private jitter(b: Frame) {
     const H = SCREEN.h - 50;
     return { x: Math.max(4, Math.min(SCREEN.w - b.w - 4, b.x + Math.round((Math.random() - 0.5) * 60))), y: Math.max(4, Math.min(H - b.h, b.y + Math.round((Math.random() - 0.5) * 30))) };
@@ -425,6 +566,25 @@ export class WM {
     return best;
   }
   // grab the title bar and drag the window to a new frame (resizing on drop if needed)
+  private beginWindowMove(w: Win) {
+    this.movingWindows.set(w, (this.movingWindows.get(w) ?? 0) + 1);
+    // The old opaque rectangle is no longer a valid cover while it moves. Resume
+    // underlying apps now, so dragging/maximizing never exposes an empty body.
+    this.syncOcclusion();
+    let ended = false;
+    return () => {
+      if (ended) return;
+      ended = true;
+      const count = (this.movingWindows.get(w) ?? 1) - 1;
+      if (count > 0) this.movingWindows.set(w, count); else this.movingWindows.delete(w);
+      this.syncOcclusion();
+    };
+  }
+  private animateFrame(w: Win, to: Frame | { left: string; top: string; width: string; height: string }, duration: number, delay = 0, ease = "power3.out") {
+    const end = this.beginWindowMove(w);
+    const frame = "left" in to ? to : { left: to.x, top: to.y, width: to.w, height: to.h };
+    return gsap.to(w.el, { ...frame, duration: duration / this.speed, delay: delay / this.speed, ease, onComplete: end, onInterrupt: end });
+  }
   async dragTo(id: AppId, to: Frame) {
     const w = this.wins.get(id);
     if (!w) return;
@@ -434,13 +594,14 @@ export class WM {
     const r = this.frameOf(w);
     const grab = { x: this.cursor.x - r.x, y: this.cursor.y - r.y };
     w.el.classList.add("dragging");
+    const endMove = this.beginWindowMove(w);
     this.robot.click();
     const move = this.moveTo(to.x + grab.x, to.y + grab.y, 520);
-    const follow = () => { w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
+    const follow = () => { if (!this.operatorPresent || !this.presentationVisible) return; w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
     gsap.ticker.add(follow);
-    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); }
+    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); endMove(); }
     this.check(e);
-    if (to.w !== r.w || to.h !== r.h) gsap.to(w.el, { left: to.x, top: to.y, width: to.w, height: to.h, duration: 0.3 / this.speed, ease: "power2.out" });
+    if (to.w !== r.w || to.h !== r.h) this.animateFrame(w, to, 0.3, 0, "power2.out");
   }
   // drag to a screen edge: the window snaps to that half, like on a real desktop
   async snap(id: AppId, side: "left" | "right") {
@@ -454,31 +615,47 @@ export class WM {
     flash.style.cssText = `left:${half.x}px;top:${half.y}px;width:${half.w}px;height:${half.h}px`;
     this.layer.appendChild(flash);
     gsap.fromTo(flash, { opacity: 0 }, { opacity: 1, duration: 0.15, yoyo: true, repeat: 1, onComplete: () => flash.remove() });
-    gsap.to(w.el, { left: half.x, top: half.y, width: half.w, height: half.h, duration: 0.32 / this.speed, ease: "power3.out" });
+    this.animateFrame(w, half, 0.32);
     // the window on the other side fills the rest, if there is one
     const other = [...this.wins.values()].filter((o) => o.id !== id).sort((a, b) => b.lastUsed - a.lastUsed)[0];
     if (other && Math.random() < 0.7) {
       const rest = { x: side === "left" ? Math.round(SCREEN.w / 2) + 2 : 4, y: 4, w: half.w, h: half.h };
-      gsap.to(other.el, { left: rest.x, top: rest.y, width: rest.w, height: rest.h, duration: 0.36 / this.speed, ease: "power3.out", delay: 0.12 / this.speed });
+      this.animateFrame(other, rest, 0.36, 0.12);
     }
     await this.sleep(380);
   }
   // double-click the title bar: full screen
+  private unmax = new Map<AppId, { left: string; top: string; width: string; height: string }>();
   async maximize(id: AppId) {
     const w = this.wins.get(id);
     if (!w) return;
+    this.unmax.set(id, { left: w.el.style.left, top: w.el.style.top, width: w.el.style.width, height: w.el.style.height });
     await this.pointAt(w.el.querySelector(".win-bar")!, 0.5, 0.5, 340);
     await this.click(true);
-    gsap.to(w.el, { left: 4, top: 4, width: SCREEN.w - 8, height: SCREEN.h - 58, duration: 0.32 / this.speed, ease: "power3.out" });
+    this.animateFrame(w, { x: 4, y: 4, w: SCREEN.w - 8, h: SCREEN.h - 58 }, 0.32);
     await this.sleep(360);
   }
 
+  /** Double-click the title bar again: back to where the window was. */
+  async unmaximize(id: AppId) {
+    const w = this.wins.get(id), was = this.unmax.get(id);
+    if (!w || !was) return;
+    this.unmax.delete(id);
+    await this.pointAt(w.el.querySelector(".win-bar")!, 0.5, 0.5, 300);
+    await this.click(true);
+    this.animateFrame(w, was, 0.3);
+    await this.sleep(340);
+  }
+
   // Open an app by typing its name into the launcher, like a keyboard person would.
-  private async launch(name: string) {
+  private async launch(id: AppId) {
+    const name = this.titleOf(id);
     const e = this.epoch;
     const bar = document.createElement("div");
     bar.className = "launcher";
-    bar.innerHTML = `<span class="l-q"></span><span class="caret"></span>`;
+    bar.innerHTML = `<div class="l-search"><span class="l-q"></span><span class="caret"></span></div><div class="l-result" hidden>${this.iconOf(id)}<span></span><small>Open</small></div>`;
+    const result = bar.querySelector<HTMLElement>(".l-result")!;
+    result.querySelector("span")!.textContent = name;
     this.root.appendChild(bar);
     gsap.fromTo(bar, { opacity: 0, y: -10, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.25, ease: "power2.out" });
     this.robot.setTyping(true);
@@ -489,6 +666,7 @@ export class WM {
         await this.sleep(70 + Math.random() * 70, e);
         q.textContent += ch;
         this.robot.pressKey(ch);
+        result.hidden = (q.textContent?.length || 0) < 2;
       }
       await this.sleep(160, e);
       this.robot.pressKey("Enter");
@@ -509,16 +687,17 @@ export class WM {
     const e = this.epoch;
     const bar = w.el.querySelector(".win-bar")!;
     await this.pointAt(bar, 0.4, 0.5, 360);
-    const r = { x: w.el.offsetLeft, y: w.el.offsetTop, w: w.el.offsetWidth, h: w.el.offsetHeight };
+    const r = this.frameOf(w);
     const nx = Math.max(4, Math.min(SCREEN.w - r.w - 4, r.x + (Math.random() - 0.5) * 220));
     const ny = Math.max(4, Math.min(SCREEN.h - 50 - r.h, r.y + (Math.random() - 0.5) * 70));
     const grab = { x: this.cursor.x - r.x, y: this.cursor.y - r.y };
     w.el.classList.add("dragging");
+    const endMove = this.beginWindowMove(w);
     this.robot.click();
     const move = this.moveTo(nx + grab.x, ny + grab.y, 600);
-    const follow = () => { w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
+    const follow = () => { if (!this.operatorPresent || !this.presentationVisible) return; w.el.style.left = `${this.cursor.x - grab.x}px`; w.el.style.top = `${this.cursor.y - grab.y}px`; };
     gsap.ticker.add(follow);
-    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); }
+    try { await move; } finally { gsap.ticker.remove(follow); w.el.classList.remove("dragging"); endMove(); }
     this.check(e);
   }
 
@@ -528,6 +707,28 @@ export class WM {
     w.el.style.zIndex = String(++this.z);
     w.lastUsed = Date.now();
     for (const o of this.wins.values()) o.el.classList.toggle("focused", o === w);
+    this.syncOcclusion();
+  }
+
+  private syncOcclusion() {
+    for (const w of this.wins.values()) {
+      const f = this.frameOf(w), z = Number(w.el.style.zIndex);
+      let hidden = this.overlayCovered;
+      for (const other of this.wins.values()) {
+        if (other === w || Number(other.el.style.zIndex) <= z) continue;
+        // An opening window is still translucent and scaled. Its final rectangle
+        // must not hide the real app underneath before the opening finishes.
+        if (other.el.classList.contains("render-opening") || this.movingWindows.has(other)) continue;
+        const o = this.frameOf(other);
+        if (o.x <= f.x && o.y <= f.y && o.x + o.w >= f.x + f.w && o.y + o.h >= f.y + f.h) { hidden = true; break; }
+      }
+      const state = hidden ? "1" : "0";
+      if (w.el.dataset.renderHidden !== state) {
+        w.el.dataset.renderHidden = state;
+        w.el.classList.toggle("render-hidden", hidden);
+      }
+    }
+    wakeRender();
   }
 
   touch(id: AppId) {
@@ -575,7 +776,9 @@ export class WM {
   close(id: AppId) {
     const w = this.wins.get(id);
     if (!w) return;
+    this.localizationStops.get(id)?.(); this.localizationStops.delete(id);
     this.wins.delete(id);
+    this.syncOcclusion();
     const dockItem = (this.dock.querySelector(`[data-app="${id}"]`) as HTMLElement | null) ?? this.dock;
     dockItem.classList.remove("running");
     const d = this.pos(dockItem), c = this.pos(w.el);
@@ -613,13 +816,20 @@ export class WM {
 
   reset() {
     this.epoch++;
+    this.wakeOperatorWaiters();
+    this.cursorMotion?.kill();
+    for (const tween of this.pausedByAbsence) tween.kill();
+    this.pausedByAbsence.clear();
     gsap.killTweensOf(this.cursor);
     for (const w of this.wins.values()) w.el.remove();
     this.wins.clear();
     this.opening.clear();
+    this.root.querySelectorAll(".launcher, .alttab, .sel-box, .click-ring").forEach((el) => el.remove());
     this.renderDock(false);
     this.root.querySelector(".toast-layer")!.innerHTML = "";
   }
+
+  destroy() { this.stopLocale(); this.stopClock(); this.reset(); }
 }
 
 function overlap(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) {

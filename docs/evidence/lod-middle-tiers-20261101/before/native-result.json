@@ -1,0 +1,120 @@
+{
+  "control": true,
+  "apps": [
+    {
+      "app": "files",
+      "stages": [
+        {
+          "requested": "shapes",
+          "tier": "shapes",
+          "displayed": null,
+          "raster": false,
+          "colors": 0,
+          "overview": true,
+          "icon": true,
+          "hidden": false
+        },
+        {
+          "requested": "lines",
+          "tier": "lines",
+          "displayed": null,
+          "raster": false,
+          "colors": 0,
+          "overview": true,
+          "icon": true,
+          "hidden": false
+        }
+      ],
+      "restore": {
+        "tier": "full",
+        "sameBody": true,
+        "sameChild": true,
+        "sameContent": true,
+        "visibility": "visible"
+      }
+    },
+    {
+      "app": "tasks",
+      "stages": [
+        {
+          "requested": "shapes",
+          "tier": "shapes",
+          "displayed": null,
+          "raster": false,
+          "colors": 0,
+          "overview": false,
+          "icon": false,
+          "hidden": false
+        },
+        {
+          "requested": "lines",
+          "tier": "lines",
+          "displayed": null,
+          "raster": false,
+          "colors": 0,
+          "overview": false,
+          "icon": false,
+          "hidden": false
+        }
+      ],
+      "restore": {
+        "tier": "full",
+        "sameBody": true,
+        "sameChild": true,
+        "sameContent": true,
+        "visibility": "visible"
+      }
+    }
+  ],
+  "wheel": [
+    {
+      "before": {
+        "scale": 1.281159420289855,
+        "tier": "full"
+      },
+      "away": {
+        "scale": 1.0701142998370499,
+        "tier": "lines"
+      },
+      "restored": {
+        "scale": 1.2811594202898549,
+        "tier": "full"
+      }
+    },
+    {
+      "before": {
+        "scale": 0.9231884057971014,
+        "tier": "lines"
+      },
+      "away": {
+        "scale": 0.77111177488258,
+        "tier": "shapes"
+      },
+      "restored": {
+        "scale": 0.9231884057971013,
+        "tier": "lines"
+      }
+    },
+    {
+      "before": {
+        "scale": 0.6028985507246377,
+        "tier": "shapes"
+      },
+      "away": {
+        "scale": 0.5035831999233177,
+        "tier": "icon"
+      },
+      "restored": {
+        "scale": 0.6028985507246377,
+        "tier": "shapes"
+      }
+    }
+  ],
+  "errors": [],
+  "scope": "Isolated production renderer, real Files/Tasks APIs, synthetic review inputs, idle callbacks withheld during zoom; no FPS claim.",
+  "assets": [
+    "file:///E:/Lucid-validation/lod-middle-control-wojw7x/dist/assets/index-CY9w-VI3.js"
+  ],
+  "dpr": 1.5,
+  "passed": true
+}

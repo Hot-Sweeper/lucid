@@ -1,0 +1,25 @@
+.environments { margin: 18px 0; }
+.environment-list { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.environment-row { display: flex; flex-direction: column; gap: 2px; width: 100%; min-width: 0; padding: 6px 0; border: 0; background: none; color: var(--ink-2); text-align: left; cursor: pointer; font: inherit; }
+.environment-row b { color: var(--ink); font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.environment-row span, .environment-note { color: var(--ink-3); font-size: 12px; line-height: 1.45; }
+.environment-row:disabled { cursor: default; }
+.environment-row:enabled:hover b { color: var(--accent); }
+.environment-row:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+.environment-note { margin: 5px 0 0; overflow-wrap: anywhere; }
+.environments [hidden] { display: none !important; }
+
+.neighbor-building { position: absolute; top: 0; pointer-events: auto; }
+.neighbor-open { position: absolute; top: -120px; left: 0; z-index: 400000; border: 0; border-radius: 5px; background: #36364e; color: #f5e5d9; font: 42px Lexend, sans-serif; padding: 12px 28px; cursor: pointer; }
+.neighbor-open:focus-visible { outline: 5px solid #efb891; outline-offset: 5px; }
+.neighbor-open:disabled { cursor: default; }
+.neighbor-status { position: absolute; top: -65px; left: 0; z-index: 400001; color: #fff0df; background: #36364e; font-size: 24px; max-width: 1100px; }
+.neighbor-status:empty { display: none; }
+.neighbor-office, .neighbor-office > .world { position: absolute; inset: 0; overflow: visible; }
+.neighbor-office .outside-layer, .neighbor-office .building-plate { display: none; }
+
+.neighbor-office .room-sign-hit[data-room-id] { cursor: pointer; }
+
+
+/* Embedded worlds share the viewer's sky. Saved room decoration remains per computer. */
+.neighbor-office .world { --night: inherit; --outdoor-night: inherit; --lamp: inherit; --sky1: inherit; --sky2: inherit; --stars: inherit; --city: inherit; --wind: inherit; --fog: inherit; --frost: inherit; }

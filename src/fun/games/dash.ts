@@ -122,10 +122,11 @@ function generate(seed: number): Level {
 }
 
 export async function playDash(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   try {
     const view = mountGame(body, scope, "Dash", "dash");
     const { ctx, w, h } = view;
+    scope.liveCanvas(view.canvas);
     const S = new Session(host, opts, { base: 0.08, step: 0.03, calm: 0.02 });
     const skill = S.skill;
     const level = generate(Math.floor(Math.random() * 1e9));

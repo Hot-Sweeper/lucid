@@ -19,24 +19,35 @@ export function langOf(path: string) {
   return "c";
 }
 
+const tokenizers = new Map<string, RegExp>();
+function tokenizer(lang: string) {
+  const family = ["hash", "markup", "css"].includes(lang) ? lang : "c";
+  let re = tokenizers.get(family);
+  if (re) return re;
+  const comment = family === "hash" ? /#.*$/ : family === "markup" ? /<!--.*$/ : /\/\/.*$|\/\*.*?(\*\/|$)/;
+  re = new RegExp(
+    [
+      `(?<c>${comment.source})`,
+      `(?<s>"(?:[^"\\\\]|\\\\.)*"?|'(?:[^'\\\\]|\\\\.)*'?|\`[^\`]*\`?)`,
+      `(?<n>\\b\\d[\\d_.]*\\b)`,
+      family === "markup" ? `(?<tag></?[A-Za-z][\\w-]*)` : `(?<w>[A-Za-z_$][\\w$]*)(?<call>\\s*\\()?`,
+      family === "css" ? `(?<prop>[a-z-]+(?=\\s*:))` : `(?<x>$^)`,
+    ].join("|"),
+    "g",
+  );
+  tokenizers.set(family, re);
+  return re;
+}
+
 export function highlight(line: string, lang: string): string {
   if (lang === "text") {
     if (/^\s*#{1,6}\s/.test(line)) return `<span class="t-h">${esc(line)}</span>`;
     return esc(line).replace(/`([^`]+)`/g, '<span class="t-s">`$1`</span>');
   }
-  const comment = lang === "hash" ? /#.*$/ : lang === "markup" ? /<!--.*$/ : /\/\/.*$|\/\*.*?(\*\/|$)/;
   let out = "";
   let i = 0;
-  const re = new RegExp(
-    [
-      `(?<c>${comment.source})`,
-      `(?<s>"(?:[^"\\\\]|\\\\.)*"?|'(?:[^'\\\\]|\\\\.)*'?|\`[^\`]*\`?)`,
-      `(?<n>\\b\\d[\\d_.]*\\b)`,
-      lang === "markup" ? `(?<tag></?[A-Za-z][\\w-]*)` : `(?<w>[A-Za-z_$][\\w$]*)(?<call>\\s*\\()?`,
-      lang === "css" ? `(?<prop>[a-z-]+(?=\\s*:))` : `(?<x>$^)`,
-    ].join("|"),
-    "g",
-  );
+  const re = tokenizer(lang);
+  re.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(line))) {
     if (m[0] === "") { re.lastIndex++; continue; }

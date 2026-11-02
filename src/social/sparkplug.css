@@ -1,0 +1,140 @@
+/* Sparkplug: robot dating. Warm pink to orange brand, white app, big photo cards. */
+.so-sp { --sp-a: #ff6f91; --sp-b: #ff9f5a; position: absolute; inset: 0; overflow: hidden; user-select: none; display: flex; background: #f4f2f5; color: #21262e; font-family: var(--font); -webkit-font-smoothing: antialiased; font-size: 10px; line-height: 1.35; }
+.so-sp.so-ph { flex-direction: column; background: #fff; font-size: 7.5px; }
+.so-sp-logo { display: flex; align-items: center; gap: 3px; }
+.so-sp-logo svg { width: 13px; height: 13px; fill: var(--sp-a); }
+.so-sp-logo b { font-size: 12px; font-weight: 700; letter-spacing: -0.03em; color: var(--sp-a); }
+.so-sp-top { flex: none; height: 28px; display: flex; align-items: center; justify-content: space-between; padding: 6px 9px 0; }
+.so-sp-top .so-sp-logo svg { width: 10px; height: 10px; }
+.so-sp-top .so-sp-logo b { font-size: 9.5px; }
+.so-sp-ic svg { width: 11px; height: 11px; fill: #c3c7cf; }
+.so-sp-main { position: relative; flex: 1; min-width: 0; min-height: 0; }
+.so-sp-deck { position: absolute; left: 6px; right: 6px; top: 2px; bottom: 40px; }
+.so-sp-card { position: absolute; inset: 0; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 14px rgba(33, 38, 46, 0.18); transform-origin: 50% 90%; will-change: transform; }
+.so-sp-photo { position: absolute; inset: 0; display: flex; justify-content: center; align-items: flex-end; }
+.so-sp-photo::before { content: ""; position: absolute; left: -10%; right: -10%; bottom: 10%; height: 30%; border-radius: 50%; background: rgba(255, 255, 255, 0.35); }
+.so-sp-photo svg { position: relative; display: block; margin-bottom: 30%; }
+.so-sp-info { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px 8px 7px; background: linear-gradient(rgba(20, 22, 30, 0), rgba(20, 22, 30, 0.72) 45%); color: #fff; }
+.so-sp-info h3 { margin: 0; font-size: 11px; line-height: 1.2; color: #fff; font-family: inherit; letter-spacing: normal; }
+.so-sp-info h3 b { font-weight: 700; }
+.so-sp-info h3 span { font-weight: 400; font-size: 0.85em; }
+.so-sp-info small { display: flex; align-items: center; gap: 2px; margin: 1px 0 2px; font-size: 6px; opacity: 0.85; }
+.so-sp-info small svg { width: 6px; height: 6px; fill: #fff; }
+.so-sp-info small i { font-style: normal; }
+.so-sp-info p { margin: 0; font-size: 6.5px; line-height: 1.35; }
+.so-sp-tags { margin-top: 2px; font-size: 5.5px; opacity: 0.75; }
+.so-sp-stamp { position: absolute; top: 12px; padding: 1px 4px; border-radius: 3px; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; opacity: 0; z-index: 2; }
+.so-sp-stamp.like { left: 10px; color: #2fd18c; box-shadow: inset 0 0 0 2px #2fd18c; transform: rotate(-16deg); }
+.so-sp-stamp.nope { right: 10px; color: #ff4f6d; box-shadow: inset 0 0 0 2px #ff4f6d; transform: rotate(16deg); }
+.so-sp-btns { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; justify-content: center; align-items: center; gap: 12px; }
+.so-sp-btns span { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgba(33, 38, 46, 0.16); transition: transform 0.15s; }
+.so-sp-btns span.hit { transform: scale(0.84); }
+.so-sp-btns svg { width: 12px; height: 12px; }
+.so-sp-btns .b-star { width: 20px; height: 20px; }
+.so-sp-btns .b-star svg { width: 9px; height: 9px; fill: #3aa0ff; }
+.so-sp-btns .b-nope svg { fill: #ff4f6d; }
+.so-sp-btns .b-like svg { fill: #2fd18c; }
+
+/* the match screen */
+.so-sp-match { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 0 12px; background: linear-gradient(160deg, rgba(255, 111, 145, 0.97), rgba(255, 159, 90, 0.97)); color: #fff; text-align: center; }
+.so-sp-mtitle { font-size: 19px; font-weight: 800; font-style: italic; letter-spacing: -0.03em; transform: rotate(-4deg); }
+.so-sp-match p { margin: 0; font-size: 7px; opacity: 0.92; }
+.so-sp-pair { display: flex; margin: 6px 0 4px; }
+.so-sp-pair span { width: 56px; height: 56px; display: flex; justify-content: center; align-items: flex-start; border-radius: 50%; overflow: hidden; background: #fff4ec; box-shadow: 0 0 0 2px #fff, 0 4px 12px rgba(80, 20, 40, 0.25); }
+.so-sp-pair span + span { margin-left: -8px; }
+.so-sp-pair svg { flex: none; margin-top: 2px; }
+.so-sp-say { width: 100%; display: flex; align-items: center; gap: 4px; min-height: 22px; padding: 4px 6px 4px 9px; border-radius: 11px; background: #fff; color: #21262e; text-align: left; font-size: 7px; overflow-wrap: anywhere; }
+.so-sp-say span { flex: 1; }
+.so-sp-sayph { color: #9aa0aa; }
+.so-sp-say.has .so-sp-sayph { display: none; }
+.so-sp-say:not(.has) .so-sp-saytx { display: none; }
+.so-sp-say b { flex: none; color: var(--sp-a); font-weight: 700; opacity: 0.45; }
+.so-sp-say.has b { opacity: 1; }
+.so-sp-keep { font-size: 7px; font-weight: 600; opacity: 0.9; }
+.so-sp-spark { position: absolute; left: 50%; top: 38%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: #fff3b0; }
+
+/* chat with a match */
+.so-sp-chat { position: absolute; inset: 0; z-index: 9; display: flex; flex-direction: column; background: #fff; }
+.so-sp-chat header { position: relative; z-index: 3; flex: none; height: 32px; display: flex; align-items: center; gap: 5px; padding: 6px 8px 0; background: #fff; box-shadow: 0 1px 0 #eef0f3; }
+.so-sp-chat header div { display: flex; flex-direction: column; }
+.so-sp-chat header b { font-size: 8px; font-weight: 700; }
+.so-sp-chat header small { font-size: 5.5px; color: #9aa0aa; }
+.so-sp-cav, .so-sp-bav { flex: none; display: flex; justify-content: center; align-items: center; border-radius: 50%; overflow: hidden; background: #ffe3d6; }
+.so-sp-cav { width: 20px; height: 20px; }
+.so-sp-bav { width: 12px; height: 12px; align-self: flex-end; }
+.so-sp-bk { width: 6px; height: 6px; border: solid var(--sp-a); border-width: 0 0 1.5px 1.5px; transform: rotate(45deg); margin: 0 2px 0 3px; }
+.so-sp-msgs { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; padding: 6px 7px; }
+.so-sp-day { align-self: center; margin: 0 0 4px; font-size: 6px; color: #9aa0aa; }
+.so-sp-b { display: flex; gap: 3px; max-width: 82%; align-self: flex-start; }
+.so-sp-bt { padding: 4px 8px; border-radius: 10px; font-size: 7px; line-height: 1.35; overflow-wrap: anywhere; background: #eef0f3; }
+.so-sp-b.me { align-self: flex-end; }
+.so-sp-b.me .so-sp-bt { background: #3d8bff; color: #fff; }
+.so-sp-b.dots { align-items: center; color: #9aa0aa; }
+.so-sp-b.dots .so-dots { margin: 0; padding: 5px 8px; border-radius: 10px; background: #eef0f3; height: auto; }
+.so-sp-chat footer { position: relative; z-index: 2; flex: none; display: flex; align-items: flex-end; gap: 6px; padding: 5px 8px 11px; background: #fff; box-shadow: 0 -1px 0 #eef0f3; }
+.so-sp-field { flex: 1; min-width: 0; min-height: 18px; max-height: 40px; padding: 3.5px 8px; border-radius: 10px; background: #f2f3f6; font-size: 7px; line-height: 1.4; overflow: hidden; overflow-wrap: anywhere; }
+.so-sp-fph { color: #9aa0aa; }
+.so-sp-field.has .so-sp-fph { display: none; }
+.so-sp-send { flex: none; padding-bottom: 3px; color: var(--sp-a); font-size: 7px; font-weight: 700; opacity: 0.4; }
+.so-sp-send.on { opacity: 1; }
+
+/* desktop web: matches on the left, the card in the middle */
+.so-sp:not(.so-ph) .so-sp-side { width: 196px; flex: none; display: flex; flex-direction: column; background: #fff; box-shadow: 1px 0 0 #eceaee; }
+.so-sp-mine { flex: none; height: 46px; display: flex; align-items: center; gap: 7px; padding: 0 10px; background: linear-gradient(110deg, var(--sp-a), var(--sp-b)); color: #fff; }
+.so-sp-mine > b { flex: 1; font-size: 10.5px; font-weight: 600; }
+.so-sp-mine .so-sp-logo svg { fill: #fff; width: 15px; height: 15px; }
+.so-sp-mine .so-sp-logo b { display: none; }
+.so-sp-av { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: flex; justify-content: center; align-items: center; background: #fff4ec; }
+.so-sp-tabs { flex: none; display: flex; gap: 14px; padding: 10px 12px 0; font-size: 10px; font-weight: 600; color: #9aa0aa; }
+.so-sp-tabs .on { color: #21262e; box-shadow: 0 2px 0 var(--sp-a); padding-bottom: 4px; }
+.so-sp-matches { flex: 1; min-height: 0; padding: 10px 10px; overflow: hidden; }
+.so-sp-mgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.so-sp-mt { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 70px; border-radius: 7px; overflow: hidden; background: linear-gradient(170deg, #ffd1dc, #ffb38a); }
+.so-sp-mt svg { display: block; margin-bottom: 4px; }
+.so-sp-mt b { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 4px 3px; font-size: 8px; font-weight: 600; color: #fff; background: linear-gradient(rgba(20, 22, 30, 0), rgba(20, 22, 30, 0.6)); }
+.so-sp-mt.new::after { content: ""; position: absolute; right: 5px; top: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--sp-a); box-shadow: 0 0 0 1.5px #fff; }
+.so-sp-hint { margin: 30px 10px 0; text-align: center; color: #9aa0aa; font-size: 9px; }
+.so-sp:not(.so-ph) .so-sp-deck { left: 50%; right: auto; width: 214px; margin-left: -107px; top: 14px; bottom: 62px; }
+.so-sp:not(.so-ph) .so-sp-card { border-radius: 12px; }
+.so-sp:not(.so-ph) .so-sp-info { padding: 34px 12px 11px; }
+.so-sp:not(.so-ph) .so-sp-info h3 { font-size: 17px; }
+.so-sp:not(.so-ph) .so-sp-info small { font-size: 9px; gap: 3px; }
+.so-sp:not(.so-ph) .so-sp-info small svg { width: 9px; height: 9px; }
+.so-sp:not(.so-ph) .so-sp-info p { font-size: 10px; }
+.so-sp:not(.so-ph) .so-sp-tags { font-size: 8.5px; }
+.so-sp:not(.so-ph) .so-sp-stamp { top: 18px; font-size: 18px; padding: 2px 7px; border-radius: 5px; }
+.so-sp:not(.so-ph) .so-sp-stamp.like { box-shadow: inset 0 0 0 3px #2fd18c; }
+.so-sp:not(.so-ph) .so-sp-stamp.nope { box-shadow: inset 0 0 0 3px #ff4f6d; }
+.so-sp:not(.so-ph) .so-sp-btns { bottom: 12px; gap: 18px; }
+.so-sp:not(.so-ph) .so-sp-btns span { width: 40px; height: 40px; }
+.so-sp:not(.so-ph) .so-sp-btns svg { width: 18px; height: 18px; }
+.so-sp:not(.so-ph) .so-sp-btns .b-star { width: 32px; height: 32px; }
+.so-sp:not(.so-ph) .so-sp-btns .b-star svg { width: 14px; height: 14px; }
+.so-sp:not(.so-ph) .so-sp-match { gap: 10px; padding: 0 60px; }
+.so-sp:not(.so-ph) .so-sp-mtitle { font-size: 34px; }
+.so-sp:not(.so-ph) .so-sp-match p { font-size: 11px; }
+.so-sp:not(.so-ph) .so-sp-pair span { width: 92px; height: 92px; }
+.so-sp:not(.so-ph) .so-sp-pair span + span { margin-left: -14px; }
+.so-sp:not(.so-ph) .so-sp-say { max-width: 300px; min-height: 30px; padding: 6px 10px 6px 14px; border-radius: 15px; font-size: 10px; }
+.so-sp:not(.so-ph) .so-sp-keep { font-size: 10px; }
+.so-sp:not(.so-ph) .so-sp-chat header { height: 46px; padding: 0 14px; gap: 9px; }
+.so-sp:not(.so-ph) .so-sp-chat header b { font-size: 11px; }
+.so-sp:not(.so-ph) .so-sp-chat header small { font-size: 8.5px; }
+.so-sp:not(.so-ph) .so-sp-cav { width: 30px; height: 30px; }
+.so-sp:not(.so-ph) .so-sp-bav { width: 18px; height: 18px; }
+.so-sp:not(.so-ph) .so-sp-msgs { padding: 10px 16px; gap: 5px; }
+.so-sp:not(.so-ph) .so-sp-day { font-size: 9px; }
+.so-sp:not(.so-ph) .so-sp-bt { padding: 6px 11px; border-radius: 14px; font-size: 10px; }
+.so-sp:not(.so-ph) .so-sp-b { max-width: 64%; gap: 5px; }
+.so-sp:not(.so-ph) .so-sp-b.dots .so-dots { padding: 8px 11px; border-radius: 14px; }
+.so-sp:not(.so-ph) .so-sp-chat footer { padding: 8px 16px 12px; gap: 10px; align-items: center; }
+.so-sp:not(.so-ph) .so-sp-field { min-height: 28px; padding: 6px 12px; border-radius: 14px; font-size: 10px; }
+.so-sp:not(.so-ph) .so-sp-send { font-size: 10px; padding: 0; }
+/* phone: the keyboard is up on the match screen, so the content moves into the space above it */
+.so-sp.so-ph .so-sp-match.kbup { justify-content: flex-start; padding-top: 16px; gap: 6px; }
+.so-sp.so-ph .so-sp-match.kbup p, .so-sp.so-ph .so-sp-match.kbup .so-sp-keep { display: none; }
+.so-sp.so-ph .so-sp-match.kbup .so-sp-mtitle { font-size: 15px; }
+.so-sp.so-ph .so-sp-match.kbup .so-sp-pair { margin: 2px 0; }
+.so-sp.so-ph .so-sp-match.kbup .so-sp-pair span { width: 44px; height: 44px; }
+.so-sp.so-ph .so-sp-match.kbup .so-sp-say { max-height: 52px; overflow: hidden; align-items: flex-end; }
+.so-sp-b { width: fit-content; }

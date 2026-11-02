@@ -4,7 +4,7 @@
 // Starting threads and sending messages goes through the official `t3` CLI.
 
 const { DatabaseSync } = require("node:sqlite");
-const { spawn } = require("node:child_process");
+const { runCliProcess } = require("./cli-runner.cjs");
 const path = require("node:path");
 const fs = require("node:fs");
 const os = require("node:os");
@@ -13,11 +13,16 @@ const T3_HOME = process.env.T3CODE_HOME || path.join(os.homedir(), ".t3");
 const DB_PATH = path.join(T3_HOME, "userdata", "statev2.sqlite");
 const CLI = path.join(T3_HOME, "bin", process.platform === "win32" ? "t3.cmd" : "t3");
 
-let db = null;
+let db = null, dbIdentity = "", checkDbAt = 0;
 function getDb() {
-  if (db) return db;
+  if (db && Date.now() < checkDbAt) return db;
   if (!fs.existsSync(DB_PATH)) throw new Error(`T3 Code data not found at ${DB_PATH}. Open T3 Code once, then try again.`);
+  const stat = fs.statSync(DB_PATH), identity = `${stat.dev}:${stat.ino}:${stat.birthtimeMs}`;
+  checkDbAt = Date.now() + 15000;
+  if (db && identity === dbIdentity) return db;
+  if (db) db.close();
   db = new DatabaseSync(DB_PATH, { readOnly: true });
+  dbIdentity = identity;
   return db;
 }
 
@@ -39,7 +44,7 @@ function listThreads(limit = 60) {
               from orchestration_v2_projection_threads t
               left join projection_projects p on p.project_id = t.project_id
               where t.archived_at is null and t.deleted_at is null
-              order by t.updated_at desc limit ?`)
+              order by (json_extract(t.payload_json, '$.pinnedAt') is not null) desc, t.updated_at desc limit ?`)
     .all(limit);
   return rows;
 }
@@ -66,6 +71,53 @@ function queuedText(m) {
   const files = (raw.match(/^\s*-\s*(image|file):/gim) || []).length + (m?.attachments?.length || 0);
   const words = raw.replace(/\s*Attached:[\s\S]*$/, "").replace(/\s+/g, " ").trim().slice(0, 140);
   return words + (files ? `${words ? " " : ""}(+ ${files > 1 ? files + " attachments" : "attachment"})` : "");
+}
+
+
+// --- the offices' to-do lists ----------------------------------------------------------
+// Every message you sent to a robot is a task with the status T3 gives its run: queued,
+// running (or waiting on you), done, or stopped. Running tasks carry the robot's own plan
+// counts (steps finished of steps written), which is the only progress that is real.
+const OPEN_RUN = "('queued','running','starting','preparing','waiting','awaiting_input')";
+const ENDED_RUN = "('completed','failed','interrupted')";
+function officeTasks() {
+  const db = getDb();
+  const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+  const rows = db
+    .prepare(`select r.run_id as id, r.thread_id as threadId, t.project_id as projectId, r.status, r.ordinal, r.payload_json as p, m.payload_json as mp
+              from orchestration_v2_projection_runs r
+              join orchestration_v2_projection_threads t on t.thread_id = r.thread_id
+              left join orchestration_v2_projection_messages m on m.message_id = json_extract(r.payload_json, '$.userMessageId')
+              where t.archived_at is null and t.deleted_at is null and t.thread_id not like 'thread:%'
+                and (r.status in ${OPEN_RUN} or (r.status in ${ENDED_RUN} and json_extract(r.payload_json, '$.completedAt') >= ?))`)
+    .all(midnight.toISOString());
+  const planStmt = db.prepare("select payload_json as p from orchestration_v2_projection_turn_items where thread_id = ? and run_id = ? and type = 'todo_list' order by ordinal desc limit 1");
+  const todoStmt = db.prepare("select payload_json as p from orchestration_v2_projection_turn_items where thread_id = ? and run_id = ? and type = 'dynamic_tool' and json_extract(payload_json, '$.toolName') like '%TodoWrite' order by ordinal desc limit 1");
+  const tasks = [];
+  for (const r of rows) {
+    const p = safeJson(r.p) || {};
+    const m = safeJson(r.mp);
+    // helper reports and system notes are not things you asked for
+    if (m && (m.delegatedCompletion || m.notification)) continue;
+    const raw = String(m?.text || "");
+    if (/^\s*(Delegated task node:|<task-notification>|New messages the user wrote to robots)/.test(raw) || /delegated-task:command/.test(raw.slice(0, 200))) continue;
+    const files = (raw.match(/^\s*-\s*(image|file):/gim) || []).length + (m?.attachments?.length || 0);
+    let steps = null;
+    if (r.status === "running") {
+      // Codex writes a plan item, Claude calls TodoWrite
+      const list = safeJson(planStmt.get(r.threadId, r.id)?.p)?.steps || safeJson(todoStmt.get(r.threadId, r.id)?.p)?.input?.todos;
+      if (Array.isArray(list) && list.length) steps = { done: list.filter((s) => /complete|done|finish|success/i.test(String(s?.status || ""))).length, total: list.length };
+    }
+    tasks.push({
+      id: r.id, threadId: r.threadId, projectId: r.projectId, ordinal: r.ordinal,
+      status: r.status === "queued" ? "queued" : r.status === "completed" ? "done" : r.status === "failed" || r.status === "interrupted" ? "stopped" : "running",
+      asking: r.status === "waiting" || r.status === "awaiting_input",
+      pos: p.queuePosition ?? r.ordinal,
+      at: p.requestedAt || null, startedAt: p.startedAt || null, endedAt: p.completedAt || null,
+      text: raw.slice(0, 2400), files, steps,
+    });
+  }
+  return tasks;
 }
 
 function threadInfo(threadId) {
@@ -120,29 +172,8 @@ function itemsSince(threadId, since) {
 }
 
 // Watch one thread. Calls onItems with new or changed items.
-function watchThread(threadId, onItems, onInfo, { backlog = 14 } = {}) {
-  let since = "";
-  let lastInfo = "";
-  const seen = new Map();
-  const initial = recentItems(threadId, backlog);
-  for (const it of initial) { seen.set(it.id, it.updatedAt); if (it.updatedAt > since) since = it.updatedAt; }
-  onItems(initial, true);
-  const tick = () => {
-    try {
-      const fresh = itemsSince(threadId, since).filter((it) => seen.get(it.id) !== it.updatedAt);
-      for (const it of fresh) { seen.set(it.id, it.updatedAt); if (it.updatedAt > since) since = it.updatedAt; }
-      if (fresh.length) onItems(fresh, false);
-      const info = threadInfo(threadId);
-      const key = JSON.stringify(info);
-      if (key !== lastInfo) { lastInfo = key; onInfo(info); }
-    } catch (err) {
-      onInfo({ error: String(err.message || err) });
-    }
-  };
-  tick();
-  const timer = setInterval(tick, 350);
-  return () => clearInterval(timer);
-}
+const itemWatcher = require("./watch-items.cjs").createItemWatcher({ getDb, normalize, threadInfo });
+function watchThread(...args) { return itemWatcher.watch(...args); }
 
 // --- CLI actions -----------------------------------------------------------
 
@@ -166,17 +197,9 @@ function cliLauncher() {
 }
 
 function runCli(args, stdin) {
-  return new Promise((resolve, reject) => {
-    if (!fs.existsSync(CLI)) return reject(new Error("The t3 command was not found. Open T3 Code once so it installs it."));
-    const l = cliLauncher();
-    const child = spawn(l.cmd, [...l.pre, ...args], { windowsHide: true, env: { ...process.env, ...l.env } });
-    let out = "", err = "";
-    child.stdout.on("data", (d) => (out += d));
-    child.stderr.on("data", (d) => (err += d));
-    child.on("error", reject);
-    child.on("close", (code) => (code === 0 ? resolve(out) : reject(new Error(err.trim() || `t3 exited with code ${code}`))));
-    if (stdin != null) child.stdin.end(stdin); else child.stdin.end();
-  });
+  if (!fs.existsSync(CLI)) return Promise.reject(new Error("The t3 command was not found. Open T3 Code once so it installs it."));
+  const l = cliLauncher();
+  return runCliProcess(l.cmd, [...l.pre, ...args], { input: stdin, env: { ...process.env, ...l.env } });
 }
 
 // The model this provider was last used with, so new threads match your usual setup.
@@ -236,25 +259,47 @@ function readIcon(file) {
     if (!st.isFile() || st.size > 2 * 1024 * 1024) return null;
     const type = MIME[path.extname(file).slice(1).toLowerCase()];
     if (!type) return null;
-    return `data:${type};base64,${fs.readFileSync(file).toString("base64")}`;
+    return `lucid-file://local/${encodeURIComponent(path.resolve(file))}?v=${st.mtimeMs}-${st.size}`;
   } catch {
     return null;
   }
 }
 
 // The project's own logo or favicon, if it has one.
+const iconPaths = new Map();
 function projectIcon(root, faviconPath) {
   if (!root) return null;
+  const key = `${root}\0${faviconPath || ""}`, cached = iconPaths.get(key);
+  if (cached && cached.until > Date.now()) {
+    if (!cached.file) return null;
+    const url = readIcon(cached.file);
+    if (url) return url;
+  }
+  const found = (file) => {
+    const url = file ? readIcon(file) : null;
+    if (url || !file) {
+      iconPaths.set(key, { file, until: Date.now() + 30000 });
+      while (iconPaths.size > 256) iconPaths.delete(iconPaths.keys().next().value);
+    }
+    return url;
+  };
   if (faviconPath) {
-    const d = readIcon(path.isAbsolute(faviconPath) ? faviconPath : path.join(root, faviconPath));
+    const d = found(path.isAbsolute(faviconPath) ? faviconPath : path.join(root, faviconPath));
     if (d) return d;
   }
   try {
     const cfg = safeJson(fs.readFileSync(path.join(root, "t3.json"), "utf8"));
-    if (cfg?.iconPath) { const d = readIcon(path.join(root, cfg.iconPath)); if (d) return d; }
+    if (cfg?.iconPath) { const d = found(path.join(root, cfg.iconPath)); if (d) return d; }
   } catch {}
-  for (const c of ICON_CANDIDATES) { const d = readIcon(path.join(root, c)); if (d) return d; }
-  return null;
+  for (const c of ICON_CANDIDATES) { const d = found(path.join(root, c)); if (d) return d; }
+  for (const folder of ["", "assets", "src/assets", "public", "resources/branding"]) {
+    try {
+      const dir = path.join(root, folder);
+      const names = fs.readdirSync(dir).filter(name => /(?:^|[-_])(logo|icon)(?:[-_.]|$)/i.test(name) && /\.(svg|png|ico)$/i.test(name)).sort();
+      for (const name of names) { const d = found(path.join(dir, name)); if (d) return d; }
+    } catch {}
+  }
+  return found(null);
 }
 
 function office(projectId, limit = 6) {
@@ -282,6 +327,19 @@ function listProjectsWithCounts() {
 }
 
 // Every recent thread with what decides its room: pinned, running, settled, waiting on a question.
+function coinBindings() {
+  // Archived sessions also belong in the baseline, so reopening old work
+  // cannot mint coins for usage credited before manual collection existed.
+  const rows = getDb().prepare(`select p.provider, p.thread_id as threadId, p.payload_json as binding,
+    t.title, (select r.status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as status,
+    (select count(*) from orchestration_v2_projection_runtime_requests q where q.thread_id = t.thread_id and q.status not in ('resolved','cancelled','expired','failed')) as pending
+    from orchestration_v2_projection_provider_threads p join orchestration_v2_projection_threads t on t.thread_id = p.thread_id`).all();
+  return rows.flatMap(r => {
+    const ref = safeJson(r.binding)?.nativeThreadRef;
+    return ref?.strength === 'strong' && typeof ref.nativeId === 'string'
+      ? [{ harness: r.provider, sessionId: ref.nativeId, threadId: r.threadId, title: r.title, status: r.pending ? 'waiting' : r.status }] : [];
+  });
+}
 function world(limit = 40) {
   const db = getDb();
   const rows = db
@@ -289,12 +347,12 @@ function world(limit = 40) {
                      coalesce(t.provider_instance_id, t.default_provider) as provider,
                      (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as runStatus,
                      (select json_extract(r.payload_json, '$.startedAt') from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as runStartedAt,
-                     (select count(*) from orchestration_v2_projection_runtime_requests q where q.thread_id = t.thread_id and q.status not in ('resolved','cancelled','expired','failed')) as pending,
-                     (select max(i.updated_at) from orchestration_v2_projection_turn_items i where i.thread_id = t.thread_id) as lastItemAt
+                     (select count(*) from orchestration_v2_projection_runtime_requests q where q.thread_id = t.thread_id and q.status not in ('resolved','cancelled','expired','failed')) as pending
               from orchestration_v2_projection_threads t
               where t.archived_at is null and t.deleted_at is null and t.thread_id not like 'thread:%'
-              order by t.updated_at desc limit ?`)
-    .all(limit);
+              order by (json_extract(t.payload_json, '$.pinnedAt') is not null) desc, t.updated_at desc`)
+    .all();
+  const latestActivity = itemWatcher.latestActivity(rows.map(r => r.id));
   const questionStmt = db.prepare(`select payload_json as p from orchestration_v2_projection_turn_items
                                    where thread_id = ? and type = 'user_input_request' and status in ('running','pending','waiting') order by ordinal desc limit 1`);
   const approvalStmt = db.prepare(`select 1 from orchestration_v2_projection_runtime_requests where thread_id = ? and kind != 'user_input' and status not in ('resolved','cancelled','expired','failed') limit 1`);
@@ -307,6 +365,7 @@ function world(limit = 40) {
     }
   } catch {}
   const threads = rows.map((r) => {
+    r.lastItemAt = latestActivity.get(r.id);
     const p = safeJson(r.payload) || {};
     const settled = p.settledOverride === "settled" || (!!p.settledAt && !p.unsettledAt && p.settledOverride !== "unsettled");
     let question = null;
@@ -315,11 +374,14 @@ function world(limit = 40) {
       const qp = q ? safeJson(q.p) : null;
       question = qp?.questions?.map((x) => x.question).join(" ") || (approvalStmt.get(r.id) ? "Needs your approval" : "Needs your answer");
     }
-    // T3 can show a live turn as "queued"; recent activity is the most honest signal.
-    const busy = r.runStatus === "running" || r.runStatus === "queued" || (r.lastItemAt && Date.now() - Date.parse(r.lastItemAt) < 90000);
+    // Explicit completion wins over recent output. Activity is only a fallback
+    // for native sessions that have no projected run state yet.
+    const busy = r.runStatus === "running" || r.runStatus === "queued" || (!r.runStatus && r.lastItemAt && Date.now() - Date.parse(r.lastItemAt) < 90000);
     return {
       id: r.id, projectId: r.projectId, title: r.title, updatedAt: r.updatedAt, provider: r.provider, runStatus: busy ? "running" : r.runStatus,
       pinned: !!p.pinnedAt, settled, question, model: p.modelSelection?.model || null,
+      createdAt: p.createdAt, unsettledAt: p.unsettledAt, settledAt: p.settledAt,
+      pinOrderKey: p.pinOrderKey ?? null, activeOrderKey: p.activeOrderKey ?? null,
       schedule: schedules.get(r.id) || null,
       folder: p.worktreePath || null,
       // for the T3-style thread list
@@ -346,7 +408,7 @@ function world(limit = 40) {
   const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
   const shippedRow = db.prepare(`select count(*) as total, sum(case when completed_at >= ? then 1 else 0 end) as today
                                  from orchestration_v2_projection_runs where status = 'completed'`).get(midnight.toISOString());
-  return { projects, threads, models, prices: modelPrices(Object.values(models).flat()), shipped: { total: shippedRow.total || 0, today: shippedRow.today || 0 } };
+  return { projects, threads: require('./thread-order.cjs').sortThreads(threads), models, prices: modelPrices(Object.values(models).flat()), shipped: { total: shippedRow.total || 0, today: shippedRow.today || 0 } };
 }
 
 let rateDoc = null;
@@ -378,52 +440,57 @@ function attachmentPath(a) {
 
 // The chat between you and one robot, oldest first, with attachments resolved to files.
 function conversation(threadId, limit = 80) {
-  const rows = getDb()
-    .prepare("select message_id as id, role, created_at as at, streaming, payload_json as p from orchestration_v2_projection_messages where thread_id = ? order by created_at desc, rowid desc limit ?")
-    .all(threadId, limit)
-    .reverse();
-  // Queued messages are often older than the newest messages (they wait while the robot
-  // replies to others), so they are loaded on their own: the whole queue, however old.
-  const queuedRuns = getDb().prepare("select run_id as runId, status, ordinal, payload_json as p from orchestration_v2_projection_runs where thread_id = ? and status = 'queued'").all(threadId);
-  const have = new Set(rows.map((r) => r.id));
-  const missing = queuedRuns.map((q) => safeJson(q.p)?.userMessageId).filter((id) => id && !have.has(id));
-  if (missing.length) {
-    const extra = getDb()
-      .prepare(`select message_id as id, role, created_at as at, streaming, payload_json as p from orchestration_v2_projection_messages where thread_id = ? and message_id in (${missing.map(() => "?").join(",")})`)
-      .all(threadId, ...missing);
-    rows.unshift(...extra.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0)));
+  return require("./conversation.cjs").readConversation(getDb(), threadId, { limit }, attachmentPath).messages;
+}
+function conversationPage(threadId, options = {}) {
+  return require("./conversation.cjs").readConversation(getDb(), threadId, options, attachmentPath);
+}
+
+// Immutable submission facts used by the settlement archive. No projection writes.
+function reportFacts(threadId, withEvidence = true) {
+  const db = getDb(), info = threadInfo(threadId);
+  if (!info) throw new Error("This thread is no longer available.");
+  const rows = db.prepare("select thread_id as id, payload_json as p from orchestration_v2_projection_threads").all();
+  const family = new Set([threadId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const r of rows) {
+      const p = safeJson(r.p);
+      if (p?.lineage?.relationshipToParent === "subagent" && family.has(p.lineage.parentThreadId) && !family.has(r.id)) { family.add(r.id); changed = true; }
+    }
   }
-  const runs = new Map();
-  const started = new Map();
-  const queuePos = new Map();
-  const queueRun = new Map();
-  const queued = [];
-  let liveRunId = null;
-  const recent = getDb().prepare("select run_id as runId, status, ordinal, payload_json as p from orchestration_v2_projection_runs where thread_id = ? and status != 'queued' order by ordinal desc limit 60").all(threadId);
-  for (const run of [...queuedRuns.sort((a, b) => b.ordinal - a.ordinal), ...recent].sort((a, b) => b.ordinal - a.ordinal)) {
-    const rp = safeJson(run.p);
-    if (rp?.userMessageId) runs.set(rp.userMessageId, run.status);
-    if (rp?.userMessageId && rp.startedAt) started.set(rp.userMessageId, rp.startedAt);
-    if (run.status === "queued" && rp?.userMessageId) queued.push({ id: rp.userMessageId, runId: run.runId, ordinal: run.ordinal, pos: rp.queuePosition ?? run.ordinal });
-    // the turn a queued message can be steered into
-    if (!liveRunId && ["running", "starting", "preparing"].includes(run.status)) liveRunId = run.runId;
+  const children = rows.filter(r => r.id !== threadId && family.has(r.id)).map(r => { const p = safeJson(r.p); return { id: r.id, title: p.title, provider: p.providerInstanceId, model: p.modelSelection?.model, effort: effortOf(p.modelSelection?.options), parentThreadId: p.lineage?.parentThreadId }; });
+  const sessions = [];
+  for (const id of family) {
+    for (const r of db.prepare("select provider, payload_json as p from orchestration_v2_projection_provider_threads where thread_id = ?").all(id)) {
+      const p = safeJson(r.p);
+      if (p?.nativeThreadRef?.strength === "strong") sessions.push({ harness: r.provider, sessionId: p.nativeThreadRef.nativeId, threadId: id });
+    }
   }
-  // T3 delivers by queuePosition (set when you reorder), then by ordinal
-  queued.sort((a, b) => a.pos - b.pos || a.ordinal - b.ordinal).forEach((q, i) => { queuePos.set(q.id, i + 1); queueRun.set(q.id, q.runId); });
-  // A message that waited in the queue belongs where the robot picked it up, not where it was
-  // typed, so it never lands behind replies that came while it waited. Ties keep the
-  // database order, so messages with the same timestamp stay in the order they were written.
-  const key = (r) => (r.role === "user" && started.get(r.id) > r.at ? started.get(r.id) : r.at);
-  const ordered = rows.map((r, i) => ({ r, i, k: key(r) })).sort((a, b) => (a.k < b.k ? -1 : a.k > b.k ? 1 : a.i - b.i)).map((x) => x.r);
-  return ordered.map((r) => {
-    const p = safeJson(r.p) || {};
-    return {
-      id: r.id, role: r.role, at: r.at, streaming: !!r.streaming, text: p.text || "", run: runs.get(r.id) || null, queue: queuePos.get(r.id) || null,
-      // queued messages: their run, the live turn to steer into, and whether T3 lets you change them
-      ...(queueRun.has(r.id) ? { queueRunId: queueRun.get(r.id), steerTarget: liveRunId, queueFixed: !!(p.delegatedCompletion || p.notification), queueGuest: !!p.context?.guest } : {}),
-      attachments: (p.attachments || []).map((a) => ({ type: a.type, name: a.name, mime: a.mimeType, size: a.sizeBytes, path: attachmentPath(a) })),
-    };
-  });
+  let page = withEvidence ? conversationPage(threadId, { limit: 200 }) : { messages: [], hasMore: false };
+  let messages = page.messages;
+  while (page.hasMore && page.cursor) {
+    page = conversationPage(threadId, { limit: 200, before: page.cursor });
+    messages = page.messages.concat(messages);
+  }
+  const original = db.prepare("select payload_json as p from orchestration_v2_projection_messages where thread_id = ? and role = 'user' order by created_at asc limit 1").get(threadId);
+  let pendingRuns = 0, openRequests = 0;
+  for (const id of family) {
+    pendingRuns += db.prepare("select count(*) as n from orchestration_v2_projection_runs where thread_id = ? and status in ('running','queued','starting','preparing','waiting','awaiting_input')").get(id).n;
+    openRequests += pendingRequests(id).length;
+  }
+  const threadPayload = safeJson(rows.find(r => r.id === threadId)?.p) || {};
+  const runPayload = info.run?.id ? safeJson(db.prepare("select payload_json as p from orchestration_v2_projection_runs where run_id = ?").get(info.run.id)?.p) : null;
+  const teamRows = [];
+  if (withEvidence) for (const id of family) {
+    const title = safeJson(rows.find(r => r.id === id)?.p)?.title || "";
+    for (const run of db.prepare("select run_id as id, status, payload_json as p from orchestration_v2_projection_runs where thread_id = ? order by ordinal").all(id)) teamRows.push({ id: run.id, status: run.status, threadId: id, title, payload: safeJson(run.p) });
+  }
+  const team = require("./report-team.cjs").reportTeam(threadId, teamRows, effortOf);
+  for (const child of children) if (!team.some(member => member.threadId === child.id)) team.push({ threadId: child.id, title: child.title, role: "Subagent", provider: child.provider, model: child.model, effort: child.effort, runIds: [] });
+  const requested = runPayload?.userMessageId ? safeJson(db.prepare("select payload_json as p from orchestration_v2_projection_messages where message_id = ?").get(runPayload.userMessageId)?.p)?.text : null;
+  return { ...info, provider: runPayload?.providerInstanceId || info.provider, model: runPayload?.modelSelection?.model || info.model, effort: effortOf(runPayload?.modelSelection?.options), team, pinned: !!threadPayload.pinnedAt, settled: threadPayload.settledOverride === "settled" || (!!threadPayload.settledAt && !threadPayload.unsettledAt && threadPayload.settledOverride !== "active"), settledAt: threadPayload.settledAt, originalRequest: requested || safeJson(original?.p)?.text || "", initialRequest: safeJson(original?.p)?.text || "", messages, children, sessions, pendingRuns, pendingRequests: openRequests };
 }
 
 // Messages you wrote to robots since a moment, newest last (the orchestrator learns from them).
@@ -432,6 +499,8 @@ function userMessagesSince(since, exclude) {
     .prepare(`select m.thread_id as threadId, m.created_at as at, m.payload_json as p, t.title as title
               from orchestration_v2_projection_messages m left join orchestration_v2_projection_threads t on t.thread_id = m.thread_id
               where m.role = 'user' and m.created_at > ? and m.thread_id != ? and m.thread_id not like 'thread:%'
+                and coalesce(json_extract(m.payload_json, '$.createdBy'), 'user') = 'user'
+                and json_extract(m.payload_json, '$.senderThreadId') is null
               order by m.created_at asc limit 40`)
     .all(since, exclude || "")
     .map((r) => ({ threadId: r.threadId, title: r.title, at: r.at, text: (safeJson(r.p)?.text || "").slice(0, 1500) }))
@@ -471,6 +540,47 @@ function pendingRequests(threadId) {
   });
 }
 
+// --- the orchestrator deciding questions ---------------------------------------------------
+
+/** A short picture of a thread for the orchestrator: title, project, what was last said. */
+function requestContext(threadId) {
+  const db = getDb();
+  const t = db.prepare(`select t.title, p.title as project from orchestration_v2_projection_threads t
+                        left join projection_projects p on p.project_id = t.project_id where t.thread_id = ?`).get(threadId);
+  const last = (role) => safeJson(db.prepare("select payload_json as p from orchestration_v2_projection_messages where thread_id = ? and role = ? order by created_at desc limit 1").get(threadId, role)?.p)?.text || "";
+  return { title: t?.title || "", project: t?.project || "", user: last("user").slice(0, 8000), robot: last("assistant").slice(-6000) };
+}
+
+/** The orchestrator's replies since a moment, plus how its latest run is doing. */
+function repliesSince(threadId, since) {
+  const db = getDb();
+  const messages = db.prepare("select created_at as at, streaming, payload_json as p from orchestration_v2_projection_messages where thread_id = ? and role = 'assistant' and created_at > ? order by created_at desc limit 20")
+    .all(threadId, since).reverse().map((r) => ({ at: r.at, streaming: !!r.streaming, text: safeJson(r.p)?.text || "" }));
+  const run = db.prepare("select status from orchestration_v2_projection_runs where thread_id = ? order by ordinal desc limit 1").get(threadId);
+  const exists = !!db.prepare("select 1 from orchestration_v2_projection_threads where thread_id = ? and archived_at is null and deleted_at is null").get(threadId);
+  return { messages, runStatus: run?.status || null, exists };
+}
+
+/** Questions and approvals that were answered since a moment (by anyone), with what was asked and the answer. */
+function resolvedRequestsSince(since) {
+  const db = getDb();
+  const rows = db.prepare(`select q.runtime_request_id as id, q.thread_id as threadId, q.kind, q.resolved_at as at, q.payload_json as p, t.title, pr.title as project
+                           from orchestration_v2_projection_runtime_requests q
+                           left join orchestration_v2_projection_threads t on t.thread_id = q.thread_id
+                           left join projection_projects pr on pr.project_id = t.project_id
+                           where q.status = 'resolved' and q.resolved_at > ? order by q.resolved_at asc limit 40`).all(since);
+  const itemStmt = db.prepare(`select payload_json as p from orchestration_v2_projection_turn_items
+                               where thread_id = ? and type in ('user_input_request','approval_request') and json_extract(payload_json, '$.requestId') = ?
+                               order by ordinal desc limit 1`);
+  return rows.map((r) => {
+    const rp = safeJson(r.p) || {};
+    const item = safeJson(itemStmt.get(r.threadId, r.id)?.p) || {};
+    const questions = (item.questions || rp.questions || []).map((q) => ({ id: String(q.id), question: q.question || q.header || "", options: (q.options || []).map((o) => o.label) }));
+    return { id: r.id, threadId: r.threadId, title: r.title || "", project: r.project || "", at: r.at, kind: r.kind,
+      questions, answers: rp.answers || null, decision: rp.decision || null, prompt: item.prompt || "" };
+  });
+}
+
 // How a request ended: its status and, for an approval, what was decided (accept, decline, ...).
 function requestOutcome(threadId, requestId) {
   const row = getDb()
@@ -480,4 +590,4 @@ function requestOutcome(threadId, requestId) {
   return { status: row.status, decision: safeJson(row.p)?.decision || null };
 }
 
-module.exports = { requestOutcome, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
+module.exports = { coinBindings, reportState: id => reportFacts(id, false), reportFacts, officeTasks, requestContext, repliesSince, resolvedRequestsSince, requestOutcome, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, conversationPage, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };

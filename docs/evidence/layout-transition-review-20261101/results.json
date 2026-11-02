@@ -1,0 +1,386 @@
+{
+  "reviewStatus": "unsettled",
+  "productionRestart": false,
+  "coordinatedDelivery": "Requested inclusion in the next already-planned combined delivery; executing production inclusion remains pending.",
+  "cases": {
+    "before": {
+      "summary": {
+        "passed": true,
+        "scenario": "shrink",
+        "control": true,
+        "frames": 7002,
+        "robots": 12,
+        "promotions": 1,
+        "oldFloor": {
+          "topH": 800,
+          "size": {
+            "w": 5620,
+            "h": 2730
+          }
+        },
+        "newFloor": {
+          "topH": 800,
+          "size": {
+            "w": 4660,
+            "h": 1130
+          }
+        },
+        "actorsShortOfRendezvous": 0,
+        "duplicateFrames": 0,
+        "missingFrames": 0,
+        "discontinuities": 0,
+        "unrelatedRoomFrames": 0,
+        "destinations": {
+          "rooms": [
+            [
+              "layout-0",
+              "break"
+            ],
+            [
+              "layout-1",
+              "break"
+            ],
+            [
+              "layout-2",
+              "break"
+            ],
+            [
+              "layout-3",
+              "break"
+            ],
+            [
+              "layout-4",
+              "break"
+            ],
+            [
+              "layout-5",
+              "break"
+            ],
+            [
+              "layout-6",
+              "break"
+            ],
+            [
+              "layout-7",
+              "break"
+            ],
+            [
+              "layout-8",
+              "park"
+            ],
+            [
+              "layout-9",
+              "park"
+            ],
+            [
+              "layout-10",
+              "park"
+            ],
+            [
+              "layout-11",
+              "park"
+            ]
+          ],
+          "counts": {
+            "layout-9": 1,
+            "layout-8": 1,
+            "layout-11": 1,
+            "layout-10": 1,
+            "shopkeeper": 1,
+            "layout-2": 1,
+            "layout-3": 1,
+            "layout-1": 1,
+            "layout-4": 1,
+            "layout-0": 1,
+            "layout-5": 1,
+            "layout-6": 1,
+            "layout-7": 1
+          }
+        }
+      },
+      "rawResults": "E:\\Lucid-validation\\layout-20261101\\captures-before\\result.json",
+      "rawResultsSHA256": "e09095991915741c29fbfa2d81bf5536a3af119716b97330609db47252f3bac9",
+      "capturedAt": "2026-11-01T10:58:28.567Z",
+      "runtime": {
+        "electron": "45.2.0",
+        "chrome": "156.0.8078.49",
+        "node": "24.22.1"
+      },
+      "assets": [
+        {
+          "url": "file:///E:/Lucid-validation/layout-20261101/final-control-build/dist/assets/index-BnGMlC95.js",
+          "sha256": "8d589a02c98b174589ded5cfed8a868d7d68418cbab9afbd328e468c0ac27367",
+          "executingSHA256": "8d589a02c98b174589ded5cfed8a868d7d68418cbab9afbd328e468c0ac27367"
+        }
+      ],
+      "harnessSHA256": "b13579e1c7162b0e3a595f098fcf30d968e36b3a82c7f07dec90e817d47d0b23",
+      "manifestSHA256": "d6e3048fa6d34868cc105fc2e30fa31f1fd0c5f6e8fede9fba0cc1d8f51b858e",
+      "sourceHashes": {
+        "src/office/world.ts": "aecc5984e68b4b777c28654f07af0c404cb49d7cfe8bf6c83c15a06089830570",
+        "src/office/room-policy.ts": "db9fcda4735674465702409e8c3232c8d8eabcc4b3fc92469292118f949556f4",
+        "src/world/walker.ts": "3af46b18c6bceb5c93d120ab80ad250a48d487bcecd6a9d4c0f0967487808612",
+        "src/office/floor-plan.ts": "d427b6047924c5e8871c66174561d543f411f99db2514917f70e0d30956ea915"
+      }
+    },
+    "shrink": {
+      "summary": {
+        "passed": true,
+        "scenario": "shrink",
+        "control": false,
+        "frames": 5407,
+        "robots": 12,
+        "promotions": 1,
+        "oldFloor": {
+          "topH": 800,
+          "size": {
+            "w": 5620,
+            "h": 2730
+          }
+        },
+        "newFloor": {
+          "topH": 800,
+          "size": {
+            "w": 4660,
+            "h": 1130
+          }
+        },
+        "actorsShortOfRendezvous": 11,
+        "duplicateFrames": 0,
+        "missingFrames": 0,
+        "discontinuities": 0,
+        "unrelatedRoomFrames": 0,
+        "destinations": {
+          "rooms": [
+            [
+              "layout-0",
+              "break"
+            ],
+            [
+              "layout-1",
+              "break"
+            ],
+            [
+              "layout-2",
+              "break"
+            ],
+            [
+              "layout-3",
+              "break"
+            ],
+            [
+              "layout-4",
+              "break"
+            ],
+            [
+              "layout-5",
+              "break"
+            ],
+            [
+              "layout-6",
+              "break"
+            ],
+            [
+              "layout-7",
+              "break"
+            ],
+            [
+              "layout-8",
+              "park"
+            ],
+            [
+              "layout-9",
+              "park"
+            ],
+            [
+              "layout-10",
+              "park"
+            ],
+            [
+              "layout-11",
+              "park"
+            ]
+          ],
+          "counts": {
+            "layout-9": 1,
+            "layout-8": 1,
+            "layout-10": 1,
+            "layout-11": 1,
+            "shopkeeper": 1,
+            "layout-2": 1,
+            "layout-6": 1,
+            "layout-4": 1,
+            "layout-3": 1,
+            "layout-7": 1,
+            "layout-5": 1,
+            "layout-1": 1,
+            "layout-0": 1
+          }
+        }
+      },
+      "rawResults": "E:\\Lucid-validation\\layout-20261101\\captures-shrink\\result.json",
+      "rawResultsSHA256": "84a17bbd56de7ae63a34af2c9fce13e4d4c9a4e2ae34fdb3dd2301f1febdef2c",
+      "capturedAt": "2026-11-01T10:58:28.569Z",
+      "runtime": {
+        "electron": "45.2.0",
+        "chrome": "156.0.8078.49",
+        "node": "24.22.1"
+      },
+      "assets": [
+        {
+          "url": "file:///E:/Lucid-validation/layout-20261101/verified-build/assets/index-C-Zp08Sg.js",
+          "sha256": "599ff481a5eee191c154185b05af27aa3b566b79265272124531a61d1a85172c",
+          "executingSHA256": "599ff481a5eee191c154185b05af27aa3b566b79265272124531a61d1a85172c"
+        }
+      ],
+      "harnessSHA256": "b13579e1c7162b0e3a595f098fcf30d968e36b3a82c7f07dec90e817d47d0b23",
+      "manifestSHA256": "310da3acd17d2b3997a9046fde1369f4632e912634f2befc0b7f45d467363865",
+      "sourceHashes": {
+        "src/office/world.ts": "aecc5984e68b4b777c28654f07af0c404cb49d7cfe8bf6c83c15a06089830570",
+        "src/office/room-policy.ts": "db9fcda4735674465702409e8c3232c8d8eabcc4b3fc92469292118f949556f4",
+        "src/world/walker.ts": "3af46b18c6bceb5c93d120ab80ad250a48d487bcecd6a9d4c0f0967487808612",
+        "src/office/floor-plan.ts": "d427b6047924c5e8871c66174561d543f411f99db2514917f70e0d30956ea915"
+      }
+    },
+    "height": {
+      "summary": {
+        "passed": true,
+        "scenario": "height",
+        "control": false,
+        "frames": 13618,
+        "robots": 12,
+        "promotions": 1,
+        "oldFloor": {
+          "topH": 2180,
+          "size": {
+            "w": 5620,
+            "h": 4110
+          }
+        },
+        "newFloor": {
+          "topH": 800,
+          "size": {
+            "w": 4660,
+            "h": 1130
+          }
+        },
+        "actorsShortOfRendezvous": 8,
+        "duplicateFrames": 0,
+        "missingFrames": 0,
+        "discontinuities": 0,
+        "unrelatedRoomFrames": 0,
+        "destinations": {
+          "rooms": [
+            [
+              "layout-0",
+              "break"
+            ],
+            [
+              "layout-1",
+              "break"
+            ],
+            [
+              "layout-2",
+              "break"
+            ],
+            [
+              "layout-3",
+              "break"
+            ],
+            [
+              "layout-4",
+              "break"
+            ],
+            [
+              "layout-5",
+              "break"
+            ],
+            [
+              "layout-6",
+              "break"
+            ],
+            [
+              "layout-7",
+              "break"
+            ],
+            [
+              "layout-8",
+              "park"
+            ],
+            [
+              "layout-9",
+              "park"
+            ],
+            [
+              "layout-10",
+              "park"
+            ],
+            [
+              "layout-11",
+              "park"
+            ]
+          ],
+          "counts": {
+            "layout-10": 1,
+            "layout-8": 1,
+            "layout-9": 1,
+            "layout-11": 1,
+            "shopkeeper": 1,
+            "layout-1": 1,
+            "layout-0": 1,
+            "layout-7": 1,
+            "layout-5": 1,
+            "layout-6": 1,
+            "layout-4": 1,
+            "layout-2": 1,
+            "layout-3": 1
+          }
+        }
+      },
+      "rawResults": "E:\\Lucid-validation\\layout-20261101\\captures-height\\result.json",
+      "rawResultsSHA256": "0ebf44bbfc7f3b1a0a76fa8b2489c40bbdd998040451220e7b3034c9431d667d",
+      "capturedAt": "2026-11-01T10:58:28.567Z",
+      "runtime": {
+        "electron": "45.2.0",
+        "chrome": "156.0.8078.49",
+        "node": "24.22.1"
+      },
+      "assets": [
+        {
+          "url": "file:///E:/Lucid-validation/layout-20261101/verified-build/assets/index-C-Zp08Sg.js",
+          "sha256": "599ff481a5eee191c154185b05af27aa3b566b79265272124531a61d1a85172c",
+          "executingSHA256": "599ff481a5eee191c154185b05af27aa3b566b79265272124531a61d1a85172c"
+        }
+      ],
+      "harnessSHA256": "b13579e1c7162b0e3a595f098fcf30d968e36b3a82c7f07dec90e817d47d0b23",
+      "manifestSHA256": "310da3acd17d2b3997a9046fde1369f4632e912634f2befc0b7f45d467363865",
+      "sourceHashes": {
+        "src/office/world.ts": "aecc5984e68b4b777c28654f07af0c404cb49d7cfe8bf6c83c15a06089830570",
+        "src/office/room-policy.ts": "db9fcda4735674465702409e8c3232c8d8eabcc4b3fc92469292118f949556f4",
+        "src/world/walker.ts": "3af46b18c6bceb5c93d120ab80ad250a48d487bcecd6a9d4c0f0967487808612",
+        "src/office/floor-plan.ts": "d427b6047924c5e8871c66174561d543f411f99db2514917f70e0d30956ea915"
+      }
+    }
+  },
+  "controlReconstruction": {
+    "createdAt": "2026-11-01T10:55:33.169Z",
+    "description": "Reconstructed comparison, current source with only readiness restored to exact arrival. Not historical footage.",
+    "source": "src/office/world.ts",
+    "currentSHA256": "aecc5984e68b4b777c28654f07af0c404cb49d7cfe8bf6c83c15a06089830570",
+    "controlSHA256": "dff997befe8c78dfe6e03b2f8932221d09689a4a5837b682cd4244afbf0d3ed5"
+  },
+  "captures": {
+    "after-destinations.png": "9ffa749f786a25baf9c93a76e861e7d2382acfde46b06b3f108d4b0da369d102",
+    "after-height-release.png": "949547cd3f06f38a3372cfa65984cdd620f32d9c74c6c143da49a2bfc83bfb1a",
+    "after-shrink-release.png": "05c90d074445570ffe6697bd5820b36f7ad2fb40404c1db645689d84038f9a1a",
+    "before-held.png": "0b076623acdff2de6aa66410146f9ba641b8167a30918af41e38658a3ff905c3",
+    "user-reported-before.png": "bc354e35fac004bf12b7f2ef5a629a3bbc3c25614ef5e9802951b4e85a57cab2"
+  },
+  "checks": {
+    "focusedRoomPolicy": "passed",
+    "nativeComparison": "passed",
+    "shrinkingWidth": "5620 to 4660",
+    "changingEntranceHall": "2180 to 800",
+    "fullVerifyUpdate": "passed",
+    "verifyLogSHA256": "c62b2a4828e063aff998aaa502e221fb7d8dedba1dd7eb9b5bf02dc3861f9847"
+  }
+}

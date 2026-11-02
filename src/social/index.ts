@@ -14,9 +14,12 @@ import { playSolitaire } from "./solitaire";
 import { watchStocks } from "./stocks";
 import { checkMail } from "./mail";
 import { learnWithLingobot } from "./lingo";
+import { swipeSparkplug } from "./sparkplug";
+import { browseInstaweb } from "./instaweb";
+import { scrollSpoolWeb } from "./spoolweb";
 
 export type { SoHost, SoOpts } from "./kit";
-export { chatOnBotsApp, browseTelegrid, scrollChirp, scrollInstabot, snapOnSnapbot, usePhone, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot };
+export { chatOnBotsApp, browseTelegrid, scrollChirp, scrollInstabot, snapOnSnapbot, usePhone, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, swipeSparkplug, browseInstaweb, scrollSpoolWeb };
 export { PHONE_APP_DOING, PHONE_APP_LABEL, type PhoneApp } from "./phonetime";
 export { SO_ICONS } from "./icons";
 
@@ -33,6 +36,10 @@ export const DEMO_APPS: { id: string; title: string; w: number; h: number; phone
   { id: "snapbot", title: "Snapbot", w: 134, h: 284, phone: true, run: snapOnSnapbot },
   { id: "shorts", title: "Shorts", w: 134, h: 284, phone: true, run: (b, host, o) => watchPhoneFeed(b, host, { maxMs: o.maxMs, variant: "shorts" }) },
   { id: "phone", title: "Phone", w: 134, h: 284, phone: true, run: (b, host, o) => usePhone(b, host, { ...o, apps: (new URLSearchParams(location.search).get("apps")?.split(",") ?? ["instabot", "botsapp", "snapbot"]) as PhoneApp[] }) },
+  { id: "instaweb", title: "Instabot", w: 700, h: 390, run: browseInstaweb },
+  { id: "spoolweb", title: "Spool", w: 700, h: 390, run: scrollSpoolWeb },
+  { id: "sparkplug", title: "Sparkplug", w: 680, h: 390, run: swipeSparkplug },
+  { id: "sparkplug-ph", title: "Sparkplug", w: 134, h: 284, phone: true, run: swipeSparkplug },
   { id: "doodle", title: "Sketchpad", w: 600, h: 380, run: doodleInSketchpad },
   { id: "crossword", title: "Crossbot", w: 500, h: 360, run: solveCrossword },
   { id: "solitaire", title: "Solitaire", w: 600, h: 392, run: playSolitaire },

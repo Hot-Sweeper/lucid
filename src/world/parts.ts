@@ -1,6 +1,10 @@
 import openaiLogo from "../assets/openai.svg";
 import claudeLogo from "../assets/claude.svg";
 import grokLogo from "./assets/grok.svg";
+import opencodeLogo from "../assets/harness/opencode.svg";
+import geminiLogo from "../assets/harness/gemini.svg";
+import antigravityLogo from "../assets/harness/antigravity.svg";
+import museLogo from "../assets/harness/muse.svg";
 import { brandFor, type BrandKind } from "../office/brand";
 import type { Expression, Pt, RobotLook } from "../office/rig";
 
@@ -19,6 +23,10 @@ export const PALETTES: Record<BrandKind, Palette> = {
   codex: { shell: "#eef0f8", shade: "#c9cee3", deep: "#98a0c2", glow: "#7cf2ff", visor: "#10142c", logo: "#98a0c2", rim: "#8fd8ff", src: openaiLogo, mode: "mask" },
   claude: { shell: "#f6ecdc", shade: "#e2cfb4", deep: "#b99c7b", glow: "#ff9d6c", visor: "#1d1410", logo: "#d97757", rim: "#8fd8ff", src: claudeLogo, mode: "image" },
   grok: { shell: "#2e2f36", shade: "#1b1c21", deep: "#4b4d57", glow: "#ffffff", visor: "#060608", logo: "#e8e9ee", rim: "#cfd6ff", src: grokLogo, mode: "mask" },
+  opencode: { shell: "#c9d3e6", shade: "#9eabc6", deep: "#6d7b9b", glow: "#4ff0a0", visor: "#121a2e", logo: "#6d7b9b", rim: "#8fd8ff", src: opencodeLogo, mode: "mask" },
+  gemini: { shell: "#e8f0fe", shade: "#c2d3f5", deep: "#7b93d6", glow: "#4285f4", visor: "#121a2e", logo: "#4285f4", rim: "#8fd8ff", src: geminiLogo, mode: "mask" },
+  antigravity: { shell: "#f0e6ff", shade: "#d4c2f0", deep: "#8a6bbf", glow: "#9b59b6", visor: "#1a1028", logo: "#9b59b6", rim: "#d8b4fe", src: antigravityLogo, mode: "mask" },
+  muse: { shell: "#e8f0fe", shade: "#c2d3f5", deep: "#0467DF", glow: "#0467DF", visor: "#101828", logo: "#0467DF", rim: "#8fd8ff", src: museLogo, mode: "image" },
   generic: { shell: "#c9d3e6", shade: "#9eabc6", deep: "#6d7b9b", glow: "#4ff0a0", visor: "#121a2e", logo: "#6d7b9b", rim: "#8fd8ff", src: null, mode: "chip" },
 };
 
@@ -94,6 +102,7 @@ export function headSvg(id: string) {
         <g data-r="logoChip">${chip(560, 655, 1, "var(--logo)")}</g>
       </g>
       <g data-r="sticker" transform="translate(606 692) rotate(-14)"></g>
+      <g class="model-sticker" transform="translate(516 692) rotate(12)" style="display:none"></g>
     </g>
     <g data-r="face" opacity="0">
       <rect x="490" y="600" width="140" height="118" rx="44" fill="url(#${id}-hs)"/>
@@ -105,6 +114,7 @@ export function headSvg(id: string) {
         <g data-r="eyeLight"><ellipse cx="540" cy="657" rx="22" ry="27" fill="url(#${id}-eg)"/><ellipse cx="580" cy="657" rx="22" ry="27" fill="url(#${id}-eg)"/></g>
         <g data-r="eyes"></g>
       </g>
+      <g class="model-sticker" transform="translate(516 697) scale(.8) rotate(12)" style="display:none"></g>
       <g data-r="faceLogo">
         <rect data-r="faceMasked" x="551" y="606" width="18" height="18" fill="var(--logo)" mask="url(#${id}-fm)" opacity="0.8"/>
         <image data-r="facePlain" x="551" y="606" width="18" height="18" opacity="0.75"/>
@@ -140,6 +150,7 @@ export function headSideSvg(id: string) {
         </g>
       </g>
       <circle cx="540" cy="660" r="18" fill="var(--ear, var(--deep))"/><circle cx="538" cy="658" r="11" fill="var(--shade)"/>
+      <g class="model-sticker" transform="translate(565 697) scale(.8) rotate(12)" style="display:none"></g>
       <g data-r="sidePhones" style="display:none">
         <path d="M528 640 C524 586 560 578 574 596" fill="none" stroke="#3a3f4f" stroke-width="11" stroke-linecap="round"/>
         <rect x="524" y="634" width="32" height="52" rx="14" fill="var(--ear, #4a5063)"/>

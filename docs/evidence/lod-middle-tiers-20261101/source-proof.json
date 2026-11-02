@@ -1,0 +1,32 @@
+{
+  "commit": "a9175b2",
+  "fixedBuild": "E:/Lucid-validation/lod-middle-verified-CNP9vk",
+  "baselineBuild": "E:/Lucid-validation/lod-middle-control-wojw7x",
+  "baselineScope": "Pre-fix controller, every other frozen production source identical. Newly captured comparison, not historical footage.",
+  "source": "6d7a9e61a006dfe920644810e8a18982603110cea761c272c0db7c149270f24e",
+  "checks": {
+    "verifyUpdate": "passed",
+    "nativeBefore": {
+      "exitCode": 0,
+      "results": "before/native-result.json"
+    },
+    "nativeAfter": {
+      "exitCode": 0,
+      "results": "after/native-result.json"
+    },
+    "wheelBoundaries": 3,
+    "realApps": [
+      "Files",
+      "Tasks"
+    ],
+    "idleCallbacksWithheld": true
+  },
+  "attachmentMessageIds": [
+    "mcp:2a55aef3-0d4d-40bb-b9c9-c0577cfe7144",
+    "mcp:94f4cd00-5031-424c-a56d-f01855aeda41"
+  ],
+  "gpuSlot": "released",
+  "productionRestart": false,
+  "productionExecution": "Not established by these isolated tests; coordinated delivery owns installed/executing proof.",
+  "review": "Native scope passed; user visual review remains separate."
+}

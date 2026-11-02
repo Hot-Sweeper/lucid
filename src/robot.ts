@@ -1,6 +1,11 @@
 import gsap from "gsap";
 import openaiLogo from "./assets/openai.svg";
 import claudeLogo from "./assets/claude.svg";
+import opencodeLogo from "./assets/harness/opencode.svg";
+import geminiLogo from "./assets/harness/gemini.svg";
+import antigravityLogo from "./assets/harness/antigravity.svg";
+import grokLogo from "./assets/harness/grok.svg";
+import museLogo from "./assets/harness/muse.svg";
 
 // A full-body robot in an office chair, seen from the side and slightly above,
 // facing its monitor on the left. Flat vector shapes, no outlines. Arms and legs
@@ -11,9 +16,21 @@ type Brand = { shell: string; shade: string; deep: string; glow: string; visor: 
 const BRANDS: Record<string, Brand> = {
   codex: { shell: "#f2f4fa", shade: "#c9cee3", deep: "#8f98bd", glow: "#7cf2ff", visor: "#10142c", trim: "#3a3f5a", logo: openaiLogo, maskLogo: true },
   claude: { shell: "#f6ecdc", shade: "#e2cfb4", deep: "#b99c7b", glow: "#ffa477", visor: "#1d1410", trim: "#d97757", logo: claudeLogo, maskLogo: false },
+  opencode: { shell: "#f2f4fa", shade: "#c9cee3", deep: "#8f98bd", glow: "#4ff0a0", visor: "#10142c", trim: "#3a3f5a", logo: opencodeLogo, maskLogo: true },
+  gemini: { shell: "#e8f0fe", shade: "#c2d3f5", deep: "#7b93d6", glow: "#4285f4", visor: "#121a2e", trim: "#4285f4", logo: geminiLogo, maskLogo: true },
+  antigravity: { shell: "#f0e6ff", shade: "#d4c2f0", deep: "#8a6bbf", glow: "#9b59b6", visor: "#1a1028", trim: "#9b59b6", logo: antigravityLogo, maskLogo: true },
+  grok: { shell: "#2e2f36", shade: "#1b1c21", deep: "#4b4d57", glow: "#ffffff", visor: "#060608", trim: "#e8e9ee", logo: grokLogo, maskLogo: true },
+  muse: { shell: "#e8f0fe", shade: "#c2d3f5", deep: "#0467DF", glow: "#0467DF", visor: "#101828", trim: "#0467DF", logo: museLogo, maskLogo: false },
 };
 export function brandFor(provider: string | null | undefined): string {
-  return provider && provider.toLowerCase().includes("claude") ? "claude" : "codex";
+  const p = (provider || "").toLowerCase();
+  if (p.includes("claude")) return "claude";
+  if (p.includes("grok")) return "grok";
+  if (p.includes("muse")) return "muse";
+  if (p.includes("gemini")) return "gemini";
+  if (p.includes("antigravity")) return "antigravity";
+  if (p.includes("opencode") || p.includes("open-code")) return "opencode";
+  return "codex";
 }
 
 export type Pt = { x: number; y: number };

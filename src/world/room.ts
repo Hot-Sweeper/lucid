@@ -1,5 +1,8 @@
 import gsap from "gsap";
 import { uid } from "./parts";
+import { plankJoints } from "../perf/floor-paths";
+import { releaseVectors } from "../perf/shared-vector";
+import { cacheStaticArt, destroyStaticArt } from "../perf/static-art";
 
 // Shared pieces for the top-down rooms: the shell (floor, north wall face, dark wall tops,
 // door gap in the south wall), depth-sorted furniture pieces and a small walking graph.
@@ -37,15 +40,17 @@ export class RoomStage {
   el: HTMLDivElement;
   layer: HTMLDivElement;
   readonly id = uid("rm");
-  constructor(host: HTMLElement, readonly w: number, readonly h: number, pal: Palette, wallArt: string, cls: string) {
+  constructor(host: HTMLElement, readonly w: number, readonly h: number, pal: Palette, wallArt: string, cls: string, floorArt?: string) {
     const el = document.createElement("div");
     el.className = `world-room ${cls}`;
+    el.dataset.vectorOwner=this.id;
     el.style.width = `${w}px`;
     el.style.height = `${h}px`;
-    el.innerHTML = `${shellSvg(this.id, w, h, pal, wallArt)}<div class="world-room-layer"></div>${frontSvg(w, h, pal)}`;
+    el.innerHTML = `${shellSvg(this.id, w, h, pal, wallArt, floorArt)}<div class="world-room-layer"></div>${frontSvg(w, h, pal)}`;
     host.appendChild(el);
     this.el = el;
     this.layer = el.querySelector(".world-room-layer")!;
+    for(const svg of el.querySelectorAll<SVGSVGElement>(":scope > svg"))cacheStaticArt(svg);
   }
 
   /** An upright or floor piece of furniture, drawn in its own box and depth-sorted by `z` (its front edge y). */
@@ -55,19 +60,14 @@ export class RoomStage {
     d.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;z-index:${Math.round(z)}`;
     d.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">${inner}</svg>`;
     this.layer.appendChild(d);
+    cacheStaticArt(d.firstElementChild as SVGSVGElement);
     return d.firstElementChild as SVGSVGElement;
   }
 
-  destroy() { this.el.remove(); }
+  destroy() {destroyStaticArt(this.el);releaseVectors(this.id);this.el.remove();}
 }
 
-function shellSvg(id: string, w: number, h: number, pal: Palette, wallArt: string) {
-  const planks: string[] = [];
-  for (let i = 0; i < Math.ceil((h - WALL) / 26); i++) {
-    const y = WALL + i * 26, off = (i * 97) % 180;
-    planks.push(`<rect x="0" y="${y + 25}" width="${w}" height="1.2" fill="${pal.seam}" opacity="0.55"/>`);
-    for (let k = 0; k < Math.ceil(w / 180) + 1; k++) planks.push(`<rect x="${k * 180 - off}" y="${y}" width="1.2" height="25" fill="${pal.seam}" opacity="0.5"/>`);
-  }
+function shellSvg(id: string, w: number, h: number, pal: Palette, wallArt: string, floorArt?: string) {
   const lamps: string[] = [];
   for (let ly = WALL + 190; ly < h - 60; ly += 380)
     for (let lx = 200; lx < w - 60; lx += 400)
@@ -79,7 +79,7 @@ function shellSvg(id: string, w: number, h: number, pal: Palette, wallArt: strin
       <radialGradient id="${id}-pool"><stop offset="0" stop-color="#ffe6b0" stop-opacity="0.3"/><stop offset="1" stop-color="#ffe6b0" stop-opacity="0"/></radialGradient>
     </defs>
     <rect y="${WALL}" width="${w}" height="${h - WALL}" fill="${pal.floor}"/>
-    ${planks.join("")}
+    ${floorArt ?? plankJoints(w,h,WALL,pal.seam,id)}
     ${lamps.join("")}
     <rect y="${WALL}" width="${w}" height="20" fill="#000" opacity="0.07"/>
     <rect width="${w}" height="${WALL}" fill="${pal.wall}"/>

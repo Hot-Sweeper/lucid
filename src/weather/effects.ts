@@ -1,11 +1,13 @@
+import { diagnosticOff, onDiagnosticsChange } from "../perf/diagnostics";
 import { outdoorLook } from "./season";
+import { beginSystem, endSystem } from "../perf/metrics";
 import type { Season, Weather, WeatherKind } from "./types";
 export type { Weather, WeatherKind, Season } from "./types";
 
 // The weather over the outdoors: rain, snow, fog, cloud shadows, lightning, falling leaves and
-// petals. Two canvases, both children of the world element so they pan and zoom with it:
-//  - "sky": cloud shadows, fog banks and the overcast tint. Huge soft shapes, so it covers the
-//    whole outdoor rect at a tiny resolution and lets the browser smooth the upscale.
+// petals. The world-space sky texture stays off-DOM. Two viewport-sized canvases
+// preserve its mapping and the falling particles without enormous compositor layers:
+//  - "sky": cloud shadows, fog banks and the overcast tint, sampled from the original texture.
 //  - "fall": rain, snow, splashes, leaves. Small sharp things, so it only covers the part of
 //    the world currently on screen (plus a margin) at a reduced pixel density, and follows the
 //    camera by changing its own transform. Its drawing work scales with the screen, not the world.
@@ -29,7 +31,7 @@ export type WeatherLayer = {
   /** Who walks outdoors right now (read every frame, so keep it cheap: no page measuring). */
   setSteppers(fn: (() => Stepper[]) | null): void;
   /** The camera moved: where the world sits on screen and its zoom. Avoids measuring the page every frame. */
-  setCamera(cam: { x: number; y: number; s: number }, scene: { left: number; top: number; width: number; height: number }, worldW: number): void;
+  setCamera(cam: { x: number; y: number; s: number }, scene: { left: number; top: number; width: number; height: number }, worldW: number, worldH?: number): void;
   destroy(): void;
 };
 
@@ -124,10 +126,13 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   root.className = "weather-layer";
   root.setAttribute("aria-hidden", "true");
   const sky = document.createElement("canvas");
+  const skyView = document.createElement("canvas");
   const fall = document.createElement("canvas");
+  skyView.className = "weather-sky-view";
+  fall.className = "weather-fall";
   const flashEl = document.createElement("div");
   flashEl.className = "weather-flash";
-  root.append(sky, fall);
+  root.append(skyView, fall);
   // above the outdoors and the park robots, below the building's rooms and the night shade
   const plate = host.querySelector(":scope > .building-plate");
   if (plate) host.insertBefore(root, plate); else host.appendChild(root);
@@ -135,19 +140,25 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   const shade = host.querySelector(":scope > .night-shade");
   if (shade) shade.after(flashEl); else host.appendChild(flashEl);
   const place = () => {
-    const pos = `position:absolute;left:${rect.x}px;top:${rect.y}px;width:${rect.w}px;height:${rect.h}px;pointer-events:none;`;
+    const pos = "position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;transform-origin:0 0;";
     root.style.cssText = pos + "overflow:clip;";
     flashEl.style.cssText = pos + "background:#e4ecff;opacity:0;";
     // sky canvas: whole outdoor rect at about 1/16 resolution
     const k = Math.min(1 / 16, 640 / rect.w);
     sky.width = Math.max(8, Math.round(rect.w * k)); sky.height = Math.max(8, Math.round(rect.h * k));
-    sky.style.cssText = `position:absolute;left:0;top:0;width:${rect.w}px;height:${rect.h}px;`;
+    skyView.style.cssText = "position:absolute;left:0;top:0;";
     fall.style.cssText = "position:absolute;left:0;top:0;transform-origin:0 0;";
     fallXf = "";
+    planeStyle = "";
+    skyCrop = null;
   };
   let fallXf = "";
+  let planeStyle = "";
+  let skyCrop: { x: number; y: number; w: number; h: number; s: number; q: number } | null = null;
+  let skyPresents = 0;
   place();
   const sg = sky.getContext("2d")!;
+  const vg = skyView.getContext("2d")!;
   const fg = fall.getContext("2d")!;
 
   // state
@@ -181,6 +192,65 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   let cam: { x: number; y: number; s: number } | null = null;
   let sceneBox: { left: number; top: number; width: number; height: number } | null = null;
   let hostW = 1;
+  let indoors = false;
+  let plane = { x: 0, y: 0, s: 1, w: 0, h: 0, q: 1 };
+  function presentSky() {
+    const crop = skyCrop;
+    if (!crop) return;
+    vg.setTransform(1, 0, 0, 1, 0, 0);
+    vg.clearRect(0, 0, skyView.width, skyView.height);
+    const k = crop.q * crop.s;
+    vg.setTransform(k, 0, 0, k, -crop.x * k, -crop.y * k);
+    vg.drawImage(sky, rect.x, rect.y, rect.w, rect.h);
+    root.dataset.skyPresents = String(++skyPresents);
+  }
+  function presentFall(v: NonNullable<typeof view>) {
+    const xf = `translate(${(plane.x + (rect.x + v.x) * plane.s).toFixed(3)}px,${(plane.y + (rect.y + v.y) * plane.s).toFixed(3)}px) scale(${(v.k * plane.s).toFixed(7)})`;
+    if (xf !== fallXf) { fall.style.transform = xf; fallXf = xf; }
+  }
+  function updatePresentation() {
+    let c = cam, sc = sceneBox;
+    if (!c || !sc) {
+      const hr = host.getBoundingClientRect(), sr = (host.parentElement ?? document.documentElement).getBoundingClientRect();
+      c = { x: hr.left - sr.left, y: hr.top - sr.top, s: host.offsetWidth ? hr.width / host.offsetWidth : 1 };
+      sc = sr;
+    }
+    if (!(c.s > 0) || !sc.width || !sc.height) return;
+    const resizing = plane.w !== sc.width || plane.h !== sc.height;
+    plane.x = c.x; plane.y = c.y; plane.s = c.s; plane.w = sc.width; plane.h = sc.height;
+    plane.q = Math.min(devicePixelRatio || 1, 1.5, Math.sqrt(1.6e6 / (sc.width * sc.height)));
+    const top = clamp(c.y + rect.y * c.s, 0, sc.height), left = clamp(c.x + rect.x * c.s, 0, sc.width);
+    const right = sc.width - clamp(c.x + (rect.x + rect.w) * c.s, 0, sc.width), bottom = sc.height - clamp(c.y + (rect.y + rect.h) * c.s, 0, sc.height);
+    const xf = `translate(${-c.x / c.s}px,${-c.y / c.s}px) scale(${1 / c.s})`;
+    const signature = `${xf}|${sc.width}|${sc.height}|${top}|${right}|${bottom}|${left}`;
+    if (signature !== planeStyle) {
+      planeStyle = signature;
+      for (const el of [root, flashEl]) {
+        el.style.width = `${sc.width}px`; el.style.height = `${sc.height}px`; el.style.transform = xf;
+        el.style.clipPath = `inset(${top}px ${right}px ${bottom}px ${left}px)`;
+      }
+      if (view) presentFall(view);
+    }
+    // Keep sky pixels between their real cloud/fog updates. A camera pan only
+    // moves this bounded overscan crop, rather than reblitting the full viewport.
+    const vx = -c.x / c.s, vy = -c.y / c.s, vw = sc.width / c.s, vh = sc.height / c.s;
+    const pad = 128 / c.s, guard = 32 / c.s;
+    if (!skyCrop || resizing || skyCrop.s !== c.s || skyCrop.q !== plane.q || vx < skyCrop.x + guard || vy < skyCrop.y + guard || vx + vw > skyCrop.x + skyCrop.w - guard || vy + vh > skyCrop.y + skyCrop.h - guard) {
+      skyCrop = { x: vx - pad, y: vy - pad, w: vw + 2 * pad, h: vh + 2 * pad, s: c.s, q: plane.q };
+      const width = Math.max(1, Math.ceil((sc.width + 256) * plane.q));
+      const height = Math.max(1, Math.ceil((sc.height + 256) * plane.q));
+      // Setting an unchanged canvas dimension still clears its backing store.
+      // Camera renewal changes the source crop, not normally the buffer size.
+      if (skyView.width !== width) skyView.width = width;
+      if (skyView.height !== height) skyView.height = height;
+      skyView.style.width = `${sc.width + 256}px`; skyView.style.height = `${sc.height + 256}px`;
+      skyView.dataset.sourceDensity = String(plane.q);
+      skyView.dataset.sourceX = String(skyCrop.x); skyView.dataset.sourceY = String(skyCrop.y);
+      skyView.dataset.sourceW = String(skyCrop.w); skyView.dataset.sourceH = String(skyCrop.h);
+      presentSky();
+    }
+    skyView.style.transform = `translate(${c.x + skyCrop.x * c.s}px,${c.y + skyCrop.y * c.s}px)`;
+  }
   function measure() {
     let hr: { left: number; top: number; width: number }, s: number, clip: { left: number; top: number; right: number; bottom: number };
     if (cam && sceneBox) {
@@ -213,9 +283,24 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
     const k = ww / fall.width; // world units per canvas pixel
     const v = { x: vx, y: vy, w: ww, h: fall.height * k, k };
     if (v.x > rect.w || v.y > rect.h || v.x + v.w < 0 || v.y + v.h < 0) return null;
-    const xf = `translate(${v.x.toFixed(1)}px,${v.y.toFixed(1)}px) scale(${k.toFixed(5)})`;
-    if (xf !== fallXf) { fall.style.transform = xf; fallXf = xf; }
+    presentFall(v);
     return v;
+  }
+
+  function fallCoversCamera() {
+    if (!cam || !sceneBox) return true;
+    const s = cam.s;
+    // Only the exposed outdoor portion needs precipitation. The plane clips
+    // everything else, including the part of a scene outside the browser view.
+    const left = Math.max(0, -sceneBox.left, cam.x + rect.x * s);
+    const top = Math.max(0, -sceneBox.top, cam.y + rect.y * s);
+    const right = Math.min(sceneBox.width, innerWidth - sceneBox.left, cam.x + (rect.x + rect.w) * s);
+    const bottom = Math.min(sceneBox.height, innerHeight - sceneBox.top, cam.y + (rect.y + rect.h) * s);
+    if (right <= left || bottom <= top) return true;
+    if (!view) return false;
+    const x = cam.x + (rect.x + view.x) * s;
+    const y = cam.y + (rect.y + view.y) * s;
+    return x <= left && y <= top && x + view.w * s >= right && y + view.h * s >= bottom;
   }
 
   // --- park geometry for splashes ------------------------------------------------------------
@@ -264,14 +349,15 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
       }
     }
     sg.globalAlpha = 1;
+    presentSky();
   }
 
   // rain: three depth layers, each a tile of streaks repeated across the view
   const LAYERS = [
-    { T: 371, n: 34, speed: 900, len: 22, width: 1.1, alpha: 0.28 },
-    { T: 433, n: 26, speed: 1150, len: 30, width: 1.5, alpha: 0.38 },
-    { T: 512, n: 16, speed: 1400, len: 40, width: 2, alpha: 0.5 },
-  ].map((L, li) => { const q = rnd(77 + li * 31); return { ...L, drops: Array.from({ length: L.n }, () => ({ x: q() * L.T, y: q() * L.T, v: 0.85 + q() * 0.3 })) }; });
+    { T: 371, n: 34, speed: 210, len: 18, width: 0.65, alpha: 0.16 },
+    { T: 433, n: 26, speed: 270, len: 25, width: 0.85, alpha: 0.23 },
+    { T: 512, n: 16, speed: 340, len: 32, width: 1.05, alpha: 0.30 },
+  ].map((L, li) => { const q = rnd(77 + li * 31); return { ...L, drops: Array.from({ length: Math.ceil(L.n * 1.6) }, () => ({ x: q() * L.T, y: q() * L.T, v: 0.85 + q() * 0.3 })) }; });
   const FLAKES = [
     { T: 389, n: 30, speed: 55, r: 1.8, alpha: 0.75, sway: 10 },
     { T: 457, n: 20, speed: 80, r: 2.6, alpha: 0.85, sway: 16 },
@@ -286,8 +372,9 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
 
   function drawRain(t: number, v: NonNullable<typeof view>, amount: number) {
     const night = opts.night;
+    const zoom = plane.s;
     fg.lineCap = "round";
-    fg.strokeStyle = night > 0.1 ? "#c9d6f2" : "#e6f0ff";
+    fg.strokeStyle = night > 0.1 ? "#b6c9e3" : "#c7dceb";
     const lean = clamp(windX * (0.25 + windKmh / 70), -0.9, 0.9);
     for (const L of LAYERS) {
       const g = tiles(L.T, v);
@@ -296,14 +383,16 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
       const cap = Math.min(want, 2400 / Math.max(1, g.n));
       if (cap < 0.5) continue;
       const step = want / cap;
-      const len = L.len * (0.6 + amount * 0.4);
+      // Keep a fine streak at overview and close zoom. A backing-pixel width
+      // floor with world-sized lengths made distant rain turn into bright dots.
+      const len = clamp(L.len * zoom, 2.5, L.len) / zoom * (0.6 + amount * 0.4);
       const nx = lean, ny = 1, m = Math.hypot(nx, ny);
       const dx = (nx / m) * len, dy = (ny / m) * len;
-      fg.lineWidth = Math.max(L.width, v.k * 0.9);
+      fg.lineWidth = clamp(L.width * zoom, 0.55, L.width) / zoom;
       fg.globalAlpha = L.alpha * clamp(0.55 + amount * 0.45, 0, 1.1);
       fg.beginPath();
       for (let i = 0; i < want; i += step) {
-        const d = L.drops[Math.floor(i) % L.n];
+        const d = L.drops[Math.floor(i)];
         const sp = L.speed * d.v;
         const ox = mod(d.x + lean * sp * t, L.T), oy = mod(d.y + sp * t, L.T);
         for (let tx = g.x0; tx <= g.x1; tx++) for (let ty = g.y0; ty <= g.y1; ty++) {
@@ -429,6 +518,10 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
       d.y += d.vy * dt;
       d.rot += d.spin * dt;
     }
+    drawDrifts(t, v);
+  }
+  function drawDrifts(t: number, v: NonNullable<typeof view>) {
+    const petals = season === "spring";
     const cols = petals ? PETAL_COLS : LEAF_COLS;
     const [rx, ry] = petals ? [3.6, 2.3] : [6, 3.2];
     const s = Math.max(1, v.k * 0.7);
@@ -520,26 +613,50 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   }
 
   function flash() {
+    if (dead) return;
     const k = clamp(0.3 + opts.night * 1.2, 0.3, 0.65);
     flashEl.animate([{ opacity: 0 }, { opacity: k, offset: 0.06 }, { opacity: k * 0.15, offset: 0.22 }, { opacity: k * 0.8, offset: 0.32 }, { opacity: 0 }], { duration: 800, easing: "ease-out" });
     layer.onFlash?.(k);
   }
 
   // --- the loop ------------------------------------------------------------------------------
+  let officeCovered = false;
+  const onMobileView = (event: Event) => {
+    const detail = (event as CustomEvent<{mobile: boolean; view: string}>).detail;
+    officeCovered = !!detail?.mobile && detail.view !== 'office';
+    if (officeCovered) { cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; }
+    else { last = 0; schedule(); }
+  };
+  window.addEventListener('lucid:mobile-view', onMobileView);
   function frame(now: number) {
     raf = 0;
-    if (dead || document.hidden) return;
+    if (diagnosticOff("weather") || dead || document.hidden || officeCovered || indoors) return;
+    const started = beginSystem();
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0.016;
     last = now;
     const slow = reduce.matches;
     clock += dt;
+    updatePresentation();
     // the sky changes slowly: redraw it at 30 fps (4 fps when motion is reduced)
-    if (clock - skyAt > (slow ? 0.25 : 1 / 30) || skyAt < 0) { drawSky(clock); skyAt = clock; }
-    const rain = R.rain, snow = R.snow;
+    if (clock - skyAt > (slow ? 0.25 : 1 / 12) || skyAt < 0) { drawSky(clock); skyAt = clock; }
+    const busy = falling();
+    paintFall(true, dt);
+    if (R.lightning && !slow) {
+      if (!nextFlash) nextFlash = clock + 3 + r() * 6;
+      if (clock > nextFlash) { flash(); nextFlash = clock + 5 + r() * 12; }
+    }
+    // nothing falling: only the slow sky moves, so 30 fps is plenty
+    endSystem("weather", started);
+    schedule(slow ? 250 : cam && cam.s < .3 ? 80 : busy || R.lightning ? 30 : 70);
+  }
+  function falling() {
+    return R.rain > 0 || R.snow > 0 || season === "autumn" || season === "spring" || ground.hot || (ground.prints && !!steppers);
+  }
+  function paintFall(advance: boolean, dt = 0) {
+    const slow = reduce.matches, rain = R.rain, snow = R.snow;
     const printing = ground.prints && !!steppers;
     if (!printing && prints.length) { prints.length = 0; lastStep.clear(); }
-    const busy = rain > 0 || snow > 0 || season === "autumn" || season === "spring" || ground.hot || printing;
-    view = busy ? measure() : null;
+    view = falling() ? measure() : null;
     if (view || fallDirty) {
       fg.setTransform(1, 0, 0, 1, 0, 0);
       fg.clearRect(0, 0, fall.width, fall.height);
@@ -550,38 +667,59 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
       fg.setTransform(1 / v.k, 0, 0, 1 / v.k, -v.x / v.k, -v.y / v.k);
       // with reduced motion the falling things hold still: a static texture
       const tp = slow ? 0 : clock;
-      if (rain > 0) { if (!slow) spawnRipples(clock, dt, v, rain); drawRain(tp, v, rain); drawRipples(clock, v); }
+      if (rain > 0) { if (!slow && advance) spawnRipples(clock, dt, v, rain); drawRain(tp, v, rain); drawRipples(clock, v); }
       if (ground.hot && !slow) drawShimmer(clock, v);
-      if (printing) drawPrints(clock, v, slow ? [] : stepPrints(clock));
+      if (printing) drawPrints(clock, v, slow ? [] : advance ? stepPrints(clock) : steppers?.() ?? []);
       if (snow > 0) drawSnow(tp, v, snow);
-      if (!slow) stepDrifts(clock, dt, v); else { drifts.length = 0; }
+      if (!slow) { if (advance) stepDrifts(clock, dt, v); else drawDrifts(clock, v); }
+      else { drifts.length = 0; }
     }
-    if (R.lightning && !slow) {
-      if (!nextFlash) nextFlash = clock + 3 + r() * 6;
-      if (clock > nextFlash) { flash(); nextFlash = clock + 5 + r() * 12; }
-    }
-    // nothing falling: only the slow sky moves, so 30 fps is plenty
-    schedule(slow ? 250 : busy || R.lightning ? 15 : 33);
   }
   let fallDirty = false;
   let timer = 0;
   function schedule(delay = 0) {
-    if (raf || timer || dead || document.hidden) return;
+    if (diagnosticOff("weather") || raf || timer || dead || document.hidden || officeCovered || indoors) return;
     if (delay) timer = window.setTimeout(() => { timer = 0; raf = requestAnimationFrame(frame); }, delay);
     else raf = requestAnimationFrame(frame);
   }
-  const onVis = () => { if (!document.hidden) { last = 0; schedule(); } };
+  const stopDiagnostics = onDiagnosticsChange(() => { cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; last = 0; schedule(); });
+  const onVis = () => {
+    if (document.hidden) { cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; }
+    else { last = 0; schedule(); }
+  };
   const onMotion = () => { skyAt = -1; schedule(); };
   document.addEventListener("visibilitychange", onVis);
   reduce.addEventListener("change", onMotion);
 
   const layer: WeatherLayer = {
     onFlash: null,
-    setCamera(c, sc, w) { cam = { ...c }; sceneBox = { ...sc }; hostW = w || 1; },
+    setCamera(c, sc, w, h) {
+      if (cam) { cam.x = c.x; cam.y = c.y; cam.s = c.s; } else cam = { x: c.x, y: c.y, s: c.s };
+      // DOMRect coordinates are getters, so spreading one silently drops them.
+      if (sceneBox) { sceneBox.left = sc.left; sceneBox.top = sc.top; sceneBox.width = sc.width; sceneBox.height = sc.height; }
+      else sceneBox = { left: sc.left, top: sc.top, width: sc.width, height: sc.height };
+      hostW = w || 1;
+      const x = -c.x / c.s, y = -c.y / c.s;
+      const inside = h != null && x >= 0 && y >= 0 && x + sc.width / c.s <= w && y + sc.height / c.s <= h;
+      if (inside !== indoors) {
+        indoors = inside; root.style.visibility = inside ? "hidden" : "";
+        if (inside) { cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; }
+        else { last = 0; skyAt = -1; schedule(); }
+      }
+      if (!dead && !document.hidden && !officeCovered && !indoors && !diagnosticOff("weather")) {
+        updatePresentation();
+        // A normal pan reuses the original world-mapped particle pixels. When
+        // a fast pan or zoom-out exhausts that crop, fill the newly visible area
+        // at the same weather time, without spawning or advancing any effects.
+        // The recurring weather cadence and its single pending callback stay put.
+        if (falling() && !fallCoversCamera()) paintFall(false);
+      }
+    },
     setGround(p, rs) { puddlesW = p; pavedW = rs; toLocal(); },
     setSteppers(fn) { steppers = fn; schedule(); },
     flash,
     set(w, o) {
+      if (dead) return;
       weather = w;
       opts = { ...o };
       const look = outdoorLook(new Date(), w);
@@ -598,19 +736,30 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
       schedule();
     },
     resize(next) {
+      if (dead) return;
       rect = { ...next };
       geo = parkGeo();
       toLocal();
       ripples.length = 0; drifts.length = 0; prints.length = 0; lastStep.clear();
+      view = null;
       place();
       skyAt = -1;
       schedule();
     },
     destroy() {
       dead = true;
+      stopDiagnostics();
       cancelAnimationFrame(raf); clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("lucid:mobile-view", onMobileView);
       reduce.removeEventListener("change", onMotion);
+      for (const animation of flashEl.getAnimations()) animation.cancel();
+      for (const canvas of [sky, skyView, fall, ...CLOUDS.map(c => c.img), ...FOGS.map(c => c.img)]) {
+        canvas.width = canvas.height = 0;
+      }
+      view = skyCrop = null;
+      ripples.length = drifts.length = prints.length = 0; lastStep.clear();
+      steppers = null;
       root.remove(); flashEl.remove();
     },
   };

@@ -5,6 +5,7 @@ import { pickFresh } from "../content";
 import { Kit, runApp, rnd, chance, shuffle, h, avatar, seedOf, touch, typeInto, scrollTo, calm, fmtN, ICON, type SoHost, type SoOpts } from "./kit";
 import { sceneCanvas } from "./scenes";
 import "./chirp.css";
+import { phoneKeyboard } from "./keyboard";
 
 const LOGO = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13.5C4 8.3 8 4 13.2 4c2.6 0 4.6 1 5.8 2.4L22 6l-2 2.6c.1.5.2 1 .2 1.6C20.2 15.6 16 20 10.4 20 7.6 20 5.3 19 4 17.6c1.8.2 3.6-.3 4.9-1.4C6.2 16 4 14.9 4 13.5Z"/><circle cx="15.6" cy="8.6" r="1.2" fill="#000"/></svg>`;
 const NAV = ["Home", "Explore", "Notifications", "Messages", "Bookmarks", "Profile"];
@@ -155,9 +156,12 @@ class Chirp {
     else await this.k.click(this.composer.querySelector(".so-cp-cin")!, 0.3);
     this.composer.classList.add("has");
     const text = nextMine();
-    await typeInto(this.k, this.compText, text, { phone: this.phone, skill: this.opts.skill });
+    const kb = this.phone ? phoneKeyboard(this.k, this.root, { dark: true, accent: "#1d9bf0" }) : undefined;
+    await kb?.open({ ret: "return" });
+    await typeInto(this.k, this.compText, text, { phone: this.phone, skill: this.opts.skill, kb });
     await this.k.sleep(rnd(500, 1000));
     await this.tap(this.postBtn);
+    await kb?.close();
     this.compText.textContent = "";
     this.composer.classList.remove("has");
     this.root.classList.remove("composing");

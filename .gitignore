@@ -1,3 +1,19 @@
 node_modules/
 dist/
+dist-update/
+dist-build/
+dist-previous/
 *.log
+
+.lucid-update-*/
+.lucid-update.lock
+.lucid-update-recovery.json
+
+# Local snapshots, captures and machine-specific credentials.
+.lucid-*/
+docs/evidence/
+.env
+.env.*
+!.env.example
+*.pem
+*.key

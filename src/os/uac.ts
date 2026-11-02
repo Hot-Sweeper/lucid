@@ -34,19 +34,22 @@ export class UacPrompt {
   private id: string | null = null;
   private timer = 0;
   private epoch = -1;
+  private generation = 0;
   constructor(private wm: WM, private deps: UacDeps) {}
 
   get isUp() { return !!this.el; }
 
   /** An approval item arrived or changed. It is shown only while T3 really has it open. */
   async sync(threadId: string, requestId: string | undefined, who: UacWho) {
-    if (!threadId || !requestId || this.id === requestId) return;
+    if (!threadId || !requestId || this.id) return;
+    const epoch = this.wm.epoch, generation = this.generation;
     const open = (await this.deps.pending(threadId).catch(() => [])).find((r) => r.id === requestId && r.type === "approval");
-    if (!open || this.id) return;
+    if (!open || this.id || epoch !== this.wm.epoch || generation !== this.generation) return;
     this.show(threadId, open, who);
   }
 
   private show(threadId: string, r: Approval, who: UacWho) {
+    this.generation++;
     this.id = r.id;
     this.epoch = this.wm.epoch;
     const kind = ASK[r.requestKind ?? ""] ?? ASK_DEFAULT;
@@ -84,16 +87,19 @@ export class UacPrompt {
 
   // is it still open? when it is not, show how it was decided
   private async poll(threadId: string) {
-    const id = this.id;
+    const id = this.id, el = this.el, generation = this.generation;
     if (!id || !this.el) return;
     if (this.epoch !== this.wm.epoch) { this.drop(); return; }
+    const current = () => this.id === id && this.el === el && this.generation === generation && this.epoch === this.wm.epoch;
     const still = (await this.deps.pending(threadId).catch(() => null))?.some((r) => r.id === id);
-    if (still !== false) return;   // unknown (the read failed) is not a decision
+    if (!current() || still !== false) return;   // unknown (the read failed) is not a decision
     const out = await this.deps.outcome(threadId, id).catch(() => null);
+    if (!current()) return;
     this.settle(out?.decision ?? null);
   }
 
   private settle(decision: string | null) {
+    this.generation++;
     const el = this.el;
     window.clearInterval(this.timer);
     this.timer = 0;
@@ -112,6 +118,7 @@ export class UacPrompt {
   }
 
   private drop() {
+    this.generation++;
     window.clearInterval(this.timer);
     this.timer = 0;
     this.el?.remove();

@@ -1,0 +1,21 @@
+{
+  "at": "2026-11-01T22:48:54.423Z",
+  "method": "Existing main-process inspector and renderer Debugger.getScriptSource; no production reload or restart",
+  "pid": 150332,
+  "state": {
+    "url": "file:///E:/T3%20Projects/Lucid/dist/index.html?app=1",
+    "entries": [
+      "file:///E:/T3%20Projects/Lucid/dist/assets/index-DM7sUNYB.js"
+    ],
+    "office": true
+  },
+  "entry": "file:///E:/T3%20Projects/Lucid/dist/assets/index-DM7sUNYB.js",
+  "executingSha256": "9c9c83d309cb4844d468a0e50dbb2490e63bb049a8c0ef10937a1aff53b8c0e2",
+  "installedSha256": "9c9c83d309cb4844d468a0e50dbb2490e63bb049a8c0ef10937a1aff53b8c0e2",
+  "manifestSha256": "bb8b753424575233efde61ae7719b6b0db0f59467abf5c563eddc36d89fc0fd0",
+  "source": "5d3d3ae27d66d702cf2e5d78877df8a374b10383ba11eeb715eef06443284665",
+  "testedSourceSha256": "5d3d3ae27d66d702cf2e5d78877df8a374b10383ba11eeb715eef06443284665",
+  "passed": true,
+  "productionRestarted": false,
+  "reviewStatus": "unsettled"
+}

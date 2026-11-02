@@ -1,0 +1,24 @@
+const assert = require('node:assert/strict');
+const { DatabaseSync } = require('node:sqlite');
+const { historyEvents } = require('../electron/chat-history.cjs');
+const db = new DatabaseSync(':memory:');
+db.exec(`create table orchestration_v2_projection_runs (run_id text,thread_id text,ordinal integer,payload_json text);
+  create table orchestration_v2_projection_turn_items (turn_item_id text,thread_id text,run_id text,type text,status text,updated_at text,ordinal integer,parent_item_id text,payload_json text)`);
+const run = (n, provider, model, started = true) => db.prepare('insert into orchestration_v2_projection_runs values (?,?,?,?)').run(`r${n}`, 't', n,
+  JSON.stringify({ startedAt: started ? `2026-10-31T12:${String(n).padStart(2,'0')}:00Z` : null, modelSelection: { instanceId: provider, model } }));
+run(1,'claudeAgent','claude-sonnet-5-5'); run(2,'claudeAgent','claude-opus-5-5');
+run(3,'codex','gpt-6.1-sol'); run(4,'claudeAgent','claude-opus-5-5',false); run(5,'codex','gpt-6.1-sol');
+const item = (id, runId, type, ordinal, extra = {}) => db.prepare('insert into orchestration_v2_projection_turn_items values (?,?,?,?,?,?,?,?,?)').run(id,'t',runId,type,'completed',`2026-10-31T12:03:30Z`,ordinal,null,JSON.stringify(extra));
+item('handoff','r3','handoff',30,{startedAt:'2026-10-31T12:03:00Z',fromProviderInstanceIds:['claudeAgent'],fromModelSelections:[{model:'claude-opus-5-5'}],toProviderInstanceId:'codex',toModel:'gpt-6.1-sol'});
+item('compact','r3','compaction',31);
+let events = historyEvents(db,'t');
+assert.deepEqual(events.map(m=>m.event.kind),['model','handoff','compaction']);
+assert.equal(events[0].event.from.model,'claude-sonnet-5-5');
+assert.equal(events[1].event.to.provider,'codex');
+assert.equal(historyEvents(db,'t','2026-10-31T12:03:10Z').length,1);
+run(6,'claudeAgent','claude-sonnet-5-5');
+events=historyEvents(db,'t');
+assert.equal(events.filter(m=>m.event.kind==='harness').length,1);
+assert.equal(events.filter(m=>m.event.kind==='handoff').length,1);
+db.close();
+console.log('Chat history passed: compaction, model change, harness change, handoff deduplication, queued selections, time window.');

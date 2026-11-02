@@ -1,6 +1,7 @@
 import type { RobotLook } from "./rig";
 import { brandFor, type BrandKind } from "./brand";
 import { migrateLook, randomLook } from "../world/look";
+import { companionClient } from "../remote-client";
 
 // The team. Robots are persistent workers: hired once with a name, a look and habits,
 // then assigned to threads. When a thread settles, its robot becomes free and the next
@@ -8,18 +9,20 @@ import { migrateLook, randomLook } from "../world/look";
 
 export type Editor = "studio" | "pad" | "vim";
 export type Game = "snake" | "flappy" | "dash" | "chess";
+export type NotesApp = "apple-notes" | "notepad-plus-plus" | "notepad";
 export type TasksStyle = "board" | "checklist" | "sticky";
 // Office fans use Botword, Cellsheet or Slidedeck when bored and keep their favourites in the dock.
 export type OfficeTaste = "none" | "writer" | "numbers" | "slides" | "suite";
 // Pastime apps on the monitor, and the social apps a robot uses (desktop and phone). Each robot has its own mix.
-export type FunApp = "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo";
-export type SocialApp = "botsapp" | "telegrid" | "chirp" | "instabot" | "snapbot" | "shorts";
+export type FunApp = "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "steam" | "trading";
+export type SocialApp = "botsapp" | "telegrid" | "chirp" | "instabot" | "snapbot" | "shorts" | "spool" | "sparkplug";
 // What a robot mostly does with free time. Gamers game, musicians make beats, chatters hang
 // out with friends, watchers watch videos, chillers sip coffee and scroll.
 export type Hobby = "gamer" | "musician" | "chatter" | "watcher" | "chiller";
 export const HOBBY_LABEL: Record<Hobby, string> = { gamer: "Gamer", musician: "Makes beats", chatter: "Chatty", watcher: "Video binger", chiller: "Chiller" };
 export interface Prefs {
   editor: Editor;
+  notesApp?: NotesApp;                         // persistent choice of scratchpad
   wallpaper: number;                  // index into WALLPAPERS
   games: Record<Game, number>;        // how much it likes each game
   phone: "clips" | "tube";            // short vertical clips, or long videos on the monitor
@@ -38,7 +41,10 @@ export interface Prefs {
   office?: OfficeTaste;                            // which office apps it likes (none for most robots)
   apps?: FunApp[];                                 // favourite pastime apps (pinned in the dock)
   socials?: SocialApp[];                           // social apps it uses; it never opens the others
+  socialsV?: number;                               // 2 once Spool and Sparkplug were offered to it
+  chatApp?: "native" | "t3code";                    // preferred app for conversations with the user
   t3?: T3Channel;                                  // which T3 Code build it runs its thread in
+  leisure2?: boolean;                              // already offered Steambot and Tradebot (older robots get them once, from their id)
 }
 /** T3 Code release channel: the stable app or T3 Code (Nightly). */
 export type T3Channel = "stable" | "nightly";
@@ -54,6 +60,7 @@ export interface RobotProfile {
   jobs: number;
   done?: string[];
   role?: string | null;
+  lastModel?: string | null;
 }
 
 export const WALLPAPERS = [
@@ -82,6 +89,11 @@ function idHash(id: string) {
 function tasksFor(id: string) { return tasksFrom(idHash(id)); }
 /** The T3 Code build a robot uses, from its id: the same every launch, and about half the office on each. */
 export function t3ChannelFor(id: string): T3Channel { return idHash(id + "t3code") < 0.5 ? "nightly" : "stable"; }
+/** A persistent taste: most robots use Lucid Chat, one in six prefers T3 Code. */
+export function chatAppFor(id: string): "native" | "t3code" { return idHash(id + "user-chat") < 1 / 6 ? "t3code" : "native"; }
+export function notesAppFor(id: string): NotesApp {
+  return (["apple-notes", "notepad-plus-plus", "notepad"] as const)[Math.floor(seeded(id + ":notes-app")() * 3)];
+}
 const officeFrom = (x: number): OfficeTaste => (x < 0.6 ? "none" : x < 0.72 ? "writer" : x < 0.83 ? "numbers" : x < 0.92 ? "slides" : "suite");
 // A robot's interests: two or three pastime apps and two to four social apps, nudged by its hobby.
 // \`r\` is Math.random for new hires, or a generator seeded from the id so old robots migrate the same way every launch.
@@ -94,11 +106,13 @@ export function interestsFrom(r: () => number, hobby: Hobby): { apps: FunApp[]; 
     instabot: 0.32 + 0.2 * (H("chiller") + H("chatter")),
     snapbot: 0.22 + 0.25 * H("chatter"),
     shorts: 0.3 + 0.4 * H("watcher"),
+    spool: 0.3 + 0.35 * (H("watcher") + H("chiller")),
+    sparkplug: 0.16 + 0.22 * H("chatter"),
   };
   const all = Object.keys(odds) as SocialApp[];
   let socials = all.map((a) => [a, r()] as const).filter(([a, x]) => x < odds[a]).sort((a, b) => a[1] - b[1]).map(([a]) => a);
   while (socials.length < 2) { const a = all[Math.floor(r() * all.length)]; if (!socials.includes(a)) socials.push(a); }
-  socials = socials.slice(0, 4);
+  socials = socials.slice(0, 5);
   const like: Record<FunApp, number> = {
     doodle: 1 + 1.5 * H("musician") + H("chiller"),
     crossword: 1 + H("chiller") + 0.5 * H("gamer"),
@@ -106,6 +120,9 @@ export function interestsFrom(r: () => number, hobby: Hobby): { apps: FunApp[]; 
     stocks: 0.7 + 0.8 * H("watcher"),
     mail: 0.8 + H("chatter"),
     lingo: 1 + 0.6 * H("chatter") + 0.6 * H("watcher"),
+    // games on Steambot for the gamers, charts and regret on Tradebot for the watchers and the restless
+    steam: 0.35 + 2.4 * H("gamer") + 0.2 * H("watcher"),
+    trading: 0.25 + 0.7 * H("watcher") + 0.5 * H("chiller") + 0.3 * H("musician"),
   };
   const apps: FunApp[] = [];
   const want = r() < 0.3 ? 3 : 2;
@@ -115,6 +132,14 @@ export function interestsFrom(r: () => number, hobby: Hobby): { apps: FunApp[]; 
     apps.push(pool.find((a) => (x -= like[a]) <= 0) ?? pool[0]);
   }
   return { apps, socials };
+}
+// Robots hired before Spool (web) and Sparkplug existed: the same odds decide, from their id.
+function newSocials(have: SocialApp[], r: () => number, hobby: Hobby): SocialApp[] {
+  const H = (k: Hobby) => (hobby === k ? 1 : 0);
+  const out = [...have];
+  if (!out.includes("spool") && r() < 0.3 + 0.35 * (H("watcher") + H("chiller"))) out.push("spool");
+  if (!out.includes("sparkplug") && r() < 0.16 + 0.22 * H("chatter")) out.push("sparkplug");
+  return out;
 }
 function seeded(key: string) {
   let a = 7;
@@ -133,6 +158,7 @@ function hobbyFor(p: Prefs, id: string): Hobby {
 }
 
 export class Roster {
+  private reservedManagers = new Set<string>();
   /** The office's roster, for dialogs that are opened without one (the hiring screen). */
   static current: Roster | null = null;
   robots: RobotProfile[] = [];
@@ -151,6 +177,7 @@ export class Roster {
       if (r.prefs && !r.prefs.git) { r.prefs.git = idHash((r.id || r.name || "") + "git") < 0.45 ? "desktop" : "cli"; migrated = true; }
       if (r.prefs && !r.prefs.office) { r.prefs.office = officeFrom(idHash((r.id || r.name || "") + "office")); migrated = true; }
       if (r.prefs && !r.prefs.socials) { Object.assign(r.prefs, interestsFrom(seeded((r.id || r.name || "") + "interests"), r.prefs.hobby)); migrated = true; }
+      if (r.prefs?.socials && (r.prefs.socialsV ?? 1) < 2) { r.prefs.socials = newSocials(r.prefs.socials, seeded((r.id || r.name || "") + "socials2"), r.prefs.hobby); r.prefs.socialsV = 2; migrated = true; }
       if (r.prefs && !r.prefs.launch) {
         const x = idHash((r.id || r.name || "") + "habits");
         r.prefs.launch = x < 0.35 ? "spotlight" : "dock";
@@ -158,6 +185,15 @@ export class Roster {
         r.prefs.tidiness = ((x * 13) % 1) < 0.3 ? "tidy" : ((x * 13) % 1) < 0.7 ? "normal" : "messy";
       }
       if (r.prefs && !r.prefs.listens) { const x = idHash((r.id || r.name || "") + "music"); r.prefs.listens = x < 0.35 ? "always" : x < 0.7 ? "sometimes" : "never"; r.look.headphones = false; }
+      // robots hired before Steambot and Tradebot: each gets (or does not get) them from its id, the same every launch
+      if (r.prefs?.apps && !r.prefs.leisure2) {
+        const rr = seeded((r.id || r.name || "") + "leisure2"), hb = r.prefs.hobby;
+        if (!r.prefs.apps.includes("steam") && rr() < 0.14 + (hb === "gamer" ? 0.5 : 0)) r.prefs.apps.push("steam");
+        if (!r.prefs.apps.includes("trading") && rr() < 0.1 + (hb === "watcher" ? 0.25 : hb === "chiller" ? 0.2 : 0)) r.prefs.apps.push("trading");
+        r.prefs.leisure2 = true; migrated = true;
+      }
+      if (r.prefs && !r.prefs.notesApp) { r.prefs.notesApp = notesAppFor(r.id || r.name || ""); migrated = true; }
+      if (r.prefs && !r.prefs.chatApp) { r.prefs.chatApp = chatAppFor(r.id || r.name || ""); migrated = true; }
       if (r.prefs && !r.prefs.t3) { r.prefs.t3 = t3ChannelFor(r.id || r.name || ""); migrated = true; }
       if (r.prefs && !r.prefs.windows) { const x = idHash((r.id || r.name || "") + "win"); r.prefs.windows = x < 0.25 ? "fullscreen" : x < 0.6 ? "tiler" : "floating"; }
       // Robots hired before hats and builds existed get their extras from their id: unique, and the same every launch.
@@ -188,6 +224,7 @@ export class Roster {
   }
 
   private save() {
+    if (companionClient()) return;
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
       const json = JSON.stringify(this.robots);
@@ -198,19 +235,36 @@ export class Roster {
 
   byThread(threadId: string) { return this.robots.find((r) => r.threadId === threadId) ?? null; }
 
+  /** Refresh identities without replacing profiles already held by desks. */
+  replaceSnapshot(json: string) {
+    const incoming = JSON.parse(json) as RobotProfile[];
+    if (!Array.isArray(incoming)) throw Error('The computer returned an invalid robot list.');
+    const existing = new Map(this.robots.map(r => [r.id, r]));
+    this.robots = incoming.map(row => {
+      const profile = existing.get(row.id);
+      if (!profile) return row;
+      Object.assign(profile, row);
+      return profile;
+    });
+  }
+
   // Give every working thread a robot. Robots whose thread is settled or gone are free
   // and get reused for new threads of the same harness before anyone new is hired.
-  assign(working: { id: string; provider: string }[], settledIds: Set<string>, knownIds: Set<string>) {
+  assign(working: { id: string; provider: string; model?: string | null }[], settledIds: Set<string>, knownIds: Set<string>, managers = new Set<string>()) {
+    this.reservedManagers = managers;
+    if (companionClient()) return;
     const working_ = new Set(working.map((t) => t.id));
     for (const r of this.robots) {
       if (r.threadId && !working_.has(r.threadId) && !settledIds.has(r.threadId) && !knownIds.has(r.threadId)) r.threadId = null;
     }
     for (const t of working) {
-      if (this.byThread(t.id)) continue;
+      const assigned = this.byThread(t.id);
+      if (assigned) { if (t.model) assigned.lastModel = t.model; continue; }
       const brand = brandFor(t.provider);
-      const free = this.robots.find((r) => r.brand === brand && (!r.threadId || settledIds.has(r.threadId)));
+      const free = this.robots.find((r) => r.brand === brand && (!r.threadId || (settledIds.has(r.threadId) && !managers.has(r.threadId))));
       if (free) { if (free.threadId) (free.done ??= []).push(free.threadId); free.threadId = t.id; free.provider = t.provider; free.jobs++; }
       else this.robots.push(this.hire(t.id, t.provider));
+      if (t.model) this.byThread(t.id)!.lastModel = t.model;
     }
     this.save();
   }
@@ -221,24 +275,36 @@ export class Roster {
     for (const t of settled) {
       const r = this.byThread(t.id);
       if (r) out.push({ thread: t.id, robot: r });
-      else if (!this.robots.some((x) => x.done?.includes(t.id))) out.push({ thread: t.id, robot: this.hireFor(t.id, t.provider) });
+      else if (!companionClient() && !this.robots.some((x) => x.done?.includes(t.id))) out.push({ thread: t.id, robot: this.hireFor(t.id, t.provider) });
     }
     return out;
   }
 
   // The hiring screen picked someone for a new thread: a free teammate, or a fresh hire.
-  assignRobot(threadId: string, robotId: string | null, provider: string, role: string | null = null) {
+  assignRobot(threadId: string, robotId: string | null, provider: string, role: string | null = null, model?: string, resuming = false) {
+    if (companionClient()) throw Error('The computer assigns robots when work starts.');
+    const assigned = this.byThread(threadId);
+    if (assigned && (!robotId || assigned.id === robotId)) { assigned.provider = provider; assigned.brand = brandFor(provider); if (role !== null) assigned.role = role || null; if (model) assigned.lastModel = model; this.save(); return; }
+    // A world refresh can discover the launch before its hiring callback returns.
+    // Undo that automatic assignment so the explicitly chosen teammate gets the job.
+    if (assigned) {
+      if (resuming) { if (!assigned.done?.includes(threadId)) (assigned.done ??= []).push(threadId); assigned.threadId = null; }
+      else { assigned.threadId = assigned.done?.pop() ?? null; assigned.jobs = Math.max(0, assigned.jobs - 1); }
+    }
     let r = robotId ? this.robots.find((x) => x.id === robotId) ?? null : null;
     if (r) {
       if (r.threadId && r.threadId !== threadId) (r.done ??= []).push(r.threadId);
-      r.threadId = threadId; r.provider = provider; r.jobs++;
+      const returning = resuming && r.done?.includes(threadId);
+      if (returning) r.done = r.done?.filter(id => id !== threadId);
+      r.threadId = threadId; r.provider = provider; r.brand = brandFor(provider); if (!returning) r.jobs++;
     } else { r = this.hire(threadId, provider); this.robots.push(r); }
     if (role !== null) r.role = role || null;
+    if (model) r.lastModel = model;
     this.save();
   }
 
   freeTeam(settledIds: Set<string>) {
-    return this.robots.filter((r) => !r.threadId || settledIds.has(r.threadId));
+    return this.robots.filter((r) => !r.threadId || (settledIds.has(r.threadId) && !this.reservedManagers.has(r.threadId)));
   }
 
   hireFor(threadId: string, provider: string) {
@@ -281,7 +347,10 @@ export class Roster {
         git: Math.random() < 0.45 ? "desktop" : "cli",
         office: officeFrom(Math.random()),
         ...interestsFrom(Math.random, hobby),
+        socialsV: 2,
         t3: t3ChannelFor(id),
+        chatApp: chatAppFor(id),
+        notesApp: notesAppFor(id),
       },
       hiredAt: Date.now(),
       threadId,

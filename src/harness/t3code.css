@@ -67,7 +67,7 @@
 .t3-you { align-self: flex-end; max-width: 82%; background: var(--bubble); border-radius: 11px; padding: 6px 10px; }
 .t3-you p, .t3-msg, .t3-note p { margin: 0; overflow-wrap: anywhere; }
 .t3-imgs { display: flex; gap: 4px; margin-bottom: 4px; }
-.t3-imgs img { width: 46px; height: 46px; object-fit: cover; border-radius: 6px; }
+.t3-imgs img { height: 52px; width: auto; max-width: 140px; object-fit: contain; border-radius: 6px; background: rgba(255, 255, 255, 0.06); }
 .t3-msg { color: var(--ink); font-size: 11.5px; line-height: 1.5; }
 .t3 code { font-family: var(--mono, ui-monospace, monospace); font-size: 0.9em; background: rgba(255, 255, 255, 0.07); border-radius: 4px; padding: 0 3px; }
 
@@ -133,3 +133,32 @@
   .t3-spin, .t3-dots i, .t3-wr.live .t3-v { animation: none; }
   .t3-wr.live .t3-v { color: var(--ink); background: none; }
 }
+
+.t3-inspection { border-block:1px solid var(--line); padding:8px 0; color:var(--muted); }
+.t3-inspection summary { cursor:pointer; color:var(--ink); }
+.t3-inspection pre { white-space:pre-wrap; overflow-wrap:anywhere; font:10px/1.6 var(--mono, monospace); margin:8px 0; }
+
+/* Lucid's user conversation has its own desktop app and keeps the office chat palette. */
+.t3.lucid-chat {
+  --bg: #151936; --card: #151936; --ink: #f3efff; --muted: #aeb8e8;
+  --faint: #7c8dc8; --bubble: #ffa052; --primary: #ffa052;
+  font-family: "Lexend Variable", sans-serif; font-size: 12px;
+}
+.lucid-chat .t3-side, .lucid-chat .t3-status { display: none; }
+.lucid-chat .t3-main { width: 100%; min-width: 0; }
+.lucid-chat .t3-top { background: #151936; padding: 12px 18px; }
+.lucid-chat .t3-proj, .lucid-chat .t3-av, .lucid-chat .t3-sep { display: none; }
+.lucid-chat .t3-panes { color: #aeb8e8; font-size: 10px; }
+.lucid-chat .t3-you { background: #ffa052; color: #211b29; border-radius: 13px 13px 4px 13px; }
+.lucid-chat .t3-msg { line-height: 1.65; }
+.lucid-chat .t3-comp { border: 1px solid #b87743; border-radius: 14px; background: #121630; }
+.lucid-chat .t3-field { max-height: 115px; overflow: auto; overflow-wrap: anywhere; }
+.lucid-chat .t3-typed { white-space: pre-wrap; }
+.lucid-chat .composing .t3-ph { display: none; }
+.lucid-chat .t3-send { background: #ffa052; color: #211b29; }
+.lucid-chat .t3-send.sending { transform: scale(.86); }
+.lucid-chat .t3-chip { color: #aeb8e8; }
+
+.t3-comp.composing .t3-ph { display: none; }
+.t3-comp.composing .t3-typed { display: block; white-space: pre-wrap; max-height: 115px; overflow: auto; overflow-wrap: anywhere; }
+.t3-send.sending { transform: scale(.86); }

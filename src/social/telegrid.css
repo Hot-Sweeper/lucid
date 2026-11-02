@@ -98,3 +98,9 @@
 .so-tg.so-ph .so-tg-field { height: 20px; padding: 0 7px; border-radius: 10px; }
 .so-tg.so-ph .so-tg-send { width: 20px; height: 20px; }
 .so-tg.so-ph .so-tg-send svg { width: 10px; height: 10px; }
+/* who is typing, under the chat name; the keyboard lifts the list under the header */
+.so-tg-head small.typing { color: #3390ec; }
+.so-tg.so-ph .so-tg-head small.typing { color: #fff; }
+.so-tg-head, .so-tg-pin { position: relative; z-index: 3; }
+.so-tg.so-ph .so-tg-foot { align-items: flex-end; }
+.so-tg.so-ph .so-tg-field { height: auto; min-height: 20px; max-height: 42px; padding: 4px 7px; display: block; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }

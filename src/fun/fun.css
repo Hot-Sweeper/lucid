@@ -132,3 +132,36 @@
 .fun-th-btns { display: flex; gap: 10px; margin-top: 4px; }
 .fun-th-btn { padding: 8px 14px; border-radius: 7px; font-size: 11.5px; font-weight: 600; background: #1b2232; color: #c9d4e4; }
 .fun-th-enter { background: #3fe0d0; color: #062420; }
+
+/* BotTube: like, comment and reply */
+.fun-tb-acts { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.fun-tb-acts > span { display: flex; align-items: center; gap: 5px; height: 22px; padding: 0 4px; font-size: 10px; color: #dfe2ff; }
+.fun-tb-acts svg { width: 12px; height: 12px; fill: #dfe2ff; }
+.fun-tb-like b { font-weight: 550; font-variant-numeric: tabular-nums; }
+.fun-tb-like.fun-on svg { fill: #ff9f5a; }
+.fun-tb-dis svg { transform: rotate(180deg); }
+.fun-tb-views { margin: 6px 0 0; }
+.fun-tb-add { display: flex; align-items: center; gap: 9px; margin: 2px 0 2px; }
+.fun-tb-me2 { background: #35c37a; }
+.fun-tb-in { flex: 1; min-width: 0; padding: 4px 0 5px; font-size: 11px; color: #eef0ff; box-shadow: inset 0 -1px 0 #3a4280; overflow-wrap: anywhere; }
+.fun-tb-in.on { box-shadow: inset 0 -1.5px 0 #eef0ff; }
+.fun-tb-ph { color: #8a91c4; }
+.fun-tb-in.on .fun-tb-ph { display: none; }
+.fun-tb-in.on .fun-tb-tx::after { content: ""; display: inline-block; width: 1px; height: 11px; margin-left: 1px; vertical-align: -2px; background: #eef0ff; }
+.fun-tb-addb { display: none; justify-content: flex-end; gap: 12px; align-items: center; font-size: 10px; color: #b9bfe6; margin-bottom: 6px; }
+.fun-tb-addb.on { display: flex; }
+.fun-tb-addb b { padding: 4px 11px; border-radius: 11px; background: #2a3166; color: #8a91c4; font-weight: 550; }
+.fun-tb-addb b.fun-on { background: #4fb6ff; color: #0e1233; }
+.fun-tb-cact { display: flex; align-items: center; gap: 12px; font-size: 9.5px; color: #8a91c4; }
+.fun-tb-cact svg { width: 10px; height: 10px; fill: #8a91c4; }
+.fun-tb-cl { display: flex; align-items: center; gap: 4px; }
+.fun-tb-cl i { font-style: normal; font-variant-numeric: tabular-nums; }
+.fun-tb-cl.fun-on svg { fill: #ff9f5a; }
+.fun-tb-cd svg { transform: rotate(180deg); }
+.fun-tb-rp { font-weight: 550; color: #b9bfe6; }
+.fun-tb-rbox { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.fun-tb-rbox .fun-av { width: 18px; height: 18px; }
+.fun-tb-rbox b { font-size: 10px; padding: 3px 10px; border-radius: 10px; background: #4fb6ff; color: #0e1233; }
+.fun-tb-reply { padding: 6px 0 0; }
+.fun-tb-reply .fun-av { width: 18px; height: 18px; }
+.fun-mine > div > b { color: #4ff0a0; }

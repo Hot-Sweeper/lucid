@@ -3,6 +3,7 @@
 // Bank Medibit, ride out malware plagues, crashes and the Kaiser's tax daemon, and repay
 // the loan by the last season or lose the wagon (and the mule-bot).
 import "./games.css";
+import { canvasPixelRatio } from "../perf/canvas";
 import "./bugger.css";
 import {
   Scope, Session, Halt, mountFrame, addCanvas, fitCanvas, nap, think, chance, clamp, lerp, rng, reducedMotion,
@@ -534,13 +535,14 @@ const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 // ---- the game ------------------------------------------------------------------------------
 
 export async function playDerBugger(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   try {
     const f = mountFrame(body, scope, "Der Bugger 2: Merchant of the Data Age", "db");
     const S = new Session(host, opts, { base: 0.32, step: 0.15, calm: 0.1 });
     const calm = reducedMotion();
     const W = f.w, H = f.h, SIDE = 176, MW = W - SIDE;
     const { ctx } = addCanvas(f.stage, MW, H, "gm-db-map");
+    scope.liveCanvas(ctx.canvas);
     const bg = document.createElement("canvas");
     const bctx = fitCanvas(bg, MW, H);
     const tx = (t: TownId) => TOWN[t].x * MW, ty = (t: TownId) => TOWN[t].y * H;
@@ -590,6 +592,8 @@ export async function playDerBugger(body: HTMLElement, host: FunHost, opts: FunO
     } catch { /* bake with the fallback face */ }
     if (host.stopped) throw new Halt();
     drawParchment(bctx, MW, H, 1501);
+    let mapDensity = 2;
+    scope.add(() => { bg.width = bg.height = 0; });
 
     // ---- live state shared by the drawing loop ----
     let w = makeWorld(1), me = makeMe();
@@ -606,6 +610,11 @@ export async function playDerBugger(body: HTMLElement, host: FunHost, opts: FunO
     const tint = ["rgba(150,190,90,0.05)", "rgba(255,210,120,0.04)", "rgba(200,110,40,0.07)", "rgba(235,242,255,0.2)"];
 
     scope.raf((t, dt) => {
+      const density = canvasPixelRatio(ctx.canvas);
+      if (density > mapDensity) {
+        mapDensity = density;
+        drawParchment(fitCanvas(bg, MW, H, density), MW, H, 1501);
+      }
       ctx.drawImage(bg, 0, 0, MW, H);
       ctx.fillStyle = tint[w.season % 4];
       ctx.fillRect(0, 0, MW, H);

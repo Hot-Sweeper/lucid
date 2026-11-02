@@ -4,6 +4,8 @@
 // zips across to the island and fights the Sword Master with insults instead of skill.
 import "./games.css";
 import "./island.css";
+import { canvasPixelRatio } from "../perf/canvas";
+import { textLayout } from "./text-layout";
 import {
   Scope, Session, Halt, mountFrame, addCanvas, fitCanvas, nap, think, chance, pick, clamp, rng, hash, reducedMotion,
   fillRR, circle, ellipse, poly, line, lin, glow, withAlpha,
@@ -49,9 +51,9 @@ const STUMPED = ["I... um... oh yeah?", "Hold on, I had a comeback cached somewh
 
 // ---- painting helpers -------------------------------------------------------------------
 
-function layer(W: number, H: number, ox: number, oy: number, draw: (ctx: Ctx) => void) {
+function layer(W: number, H: number, ox: number, oy: number, draw: (ctx: Ctx) => void, density = 2) {
   const c = document.createElement("canvas");
-  const ctx = fitCanvas(c, W, H);
+  const ctx = fitCanvas(c, W, H, density);
   ctx.translate(ox, oy);
   draw(ctx);
   return c;
@@ -388,7 +390,7 @@ const ITEMS: Record<ItemId, { name: string; draw: (ctx: Ctx) => void }> = {
 interface Hot { name: string; x: number; y: number; w: number; h: number; walk?: number; face?: 1 | -1; ax?: number; ay?: number; el?: HTMLElement }
 
 export async function playRobotIsland(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   const calm = reducedMotion();
   try {
     const f = mountFrame(body, scope, "The Secret of Robot Island", "ri");
@@ -401,9 +403,11 @@ export async function playRobotIsland(body: HTMLElement, host: FunHost, opts: Fu
     const pace = clamp(opts.maxMs / 100000, 0.72, 1);
 
     const { canvas, ctx } = addCanvas(f.stage, W, SH, "gm-ri-scene");
+    scope.liveCanvas(canvas);
     canvas.style.height = `${SH}px`;
-    const L1 = { back: layer(W, SH, OX, OY, harbourBack), front: layer(W, SH, OX, OY, harbourFront) };
-    const L2 = { back: layer(W, SH, OX, OY, islandBack), front: layer(W, SH, OX, OY, islandFront) };
+    const L1 = { back: layer(W, SH, OX, OY, harbourBack), front: layer(W, SH, OX, OY, harbourFront), density: 2 };
+    const L2 = { back: layer(W, SH, OX, OY, islandBack), front: layer(W, SH, OX, OY, islandFront), density: 2 };
+    scope.add(() => { for (const art of [L1.back, L1.front, L2.back, L2.front]) art.width = art.height = 0; });
 
     // ---- the verb panel ----
     const panel = document.createElement("div");
@@ -516,25 +520,17 @@ export async function playRobotIsland(body: HTMLElement, host: FunHost, opts: Fu
       } else m.walk = 0;
     };
 
-    const wrap = (s: string, maxW: number) => {
-      const words = s.split(" "), out: string[] = [];
-      let cur = "";
-      for (const w of words) {
-        const tt = cur ? `${cur} ${w}` : w;
-        if (cur && ctx.measureText(tt).width > maxW) { out.push(cur); cur = w; } else cur = tt;
-      }
-      if (cur) out.push(cur);
-      return out;
-    };
+    const speechLayout = textLayout();
+    document.fonts.addEventListener("loadingdone", speechLayout.clear);
+    scope.add(() => document.fonts.removeEventListener("loadingdone", speechLayout.clear));
     const drawSpeech = () => {
       if (!speech) return;
       const who = speech.who;
       const [ax, ay] = who === "rivet" ? [rv.x, rv.y - (look.hang ? 62 : 60)] : who === "scope" ? [301, 82] : [ms.x, ms.y - 90];
       ctx.font = '600 12px "Lexend Variable", system-ui, sans-serif';
       ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-      const lines = wrap(speech.text, 220);
+      const { lines, width: wMax } = speechLayout.get(ctx, speech.text, 220);
       const lh = 14;
-      const wMax = Math.max(...lines.map((l) => ctx.measureText(l).width));
       const x = clamp(ax, wMax / 2 + 6 - OX, W - OX - wMax / 2 - 6);
       let y = ay - (lines.length - 1) * lh;
       y = Math.max(y, 14 - OY);
@@ -551,8 +547,15 @@ export async function playRobotIsland(body: HTMLElement, host: FunHost, opts: Fu
       const tt = calm ? 0 : t;
       move(rv, dt); move(ms, dt);
       if (!calm) flick = clamp(flick + (Math.random() - 0.5) * dt * 6, 0.8, 1);
-      ctx.setTransform(2, 0, 0, 2, 0, 0);
+      const density = canvasPixelRatio(canvas);
+      ctx.setTransform(density, 0, 0, density, 0, 0);
       const Lr = scene === 1 ? L1 : L2;
+      if (density > Lr.density) {
+        Lr.density = density;
+        Lr.back.width = Lr.back.height = Lr.front.width = Lr.front.height = 0;
+        Lr.back = layer(W, SH, OX, OY, scene === 1 ? harbourBack : islandBack, density);
+        Lr.front = layer(W, SH, OX, OY, scene === 1 ? harbourFront : islandFront, density);
+      }
       ctx.drawImage(Lr.back, 0, 0, W, SH);
       ctx.save();
       ctx.translate(OX, OY);

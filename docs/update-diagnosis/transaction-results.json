@@ -1,0 +1,158 @@
+{
+  "electron": "45.2.0",
+  "productionRestarted": false,
+  "attempts": [
+    {
+      "name": "current-source",
+      "stages": [
+        "Checking updates",
+        "Preparing update",
+        "Checking code",
+        "Building update",
+        "Restarting"
+      ],
+      "commands": [
+        {
+          "cmd": "npm",
+          "args": [
+            "run",
+            "typecheck"
+          ]
+        },
+        {
+          "cmd": "npm",
+          "args": [
+            "run",
+            "build",
+            "--",
+            "--outDir",
+            "dist-update"
+          ]
+        }
+      ],
+      "result": {
+        "updated": true
+      }
+    },
+    {
+      "name": "compiler-failure",
+      "stages": [
+        "Checking updates",
+        "Preparing update",
+        "Checking code"
+      ],
+      "commands": [
+        {
+          "cmd": "npm",
+          "args": [
+            "run",
+            "typecheck"
+          ]
+        }
+      ],
+      "error": "Error: npm exited with code 1.\nstdout:\n> lucid@0.1.0 typecheck\n> node electron/runtime-check.cjs && tsc -p .\n\nRuntime syntax: 192 CommonJS files passed.\nsrc/update-transaction-probe.ts(1,14): error TS2322: Type 'number' is not assignable to type 'string'.\n    at finish (E:\\T3 Projects\\Lucid\\electron\\update-command.cjs:65:21)\n    at ChildProcess.<anonymous> (E:\\T3 Projects\\Lucid\\electron\\update-command.cjs:103:25)\n    at ChildProcess.wrapper (node:events:639:12)\n    at ChildProcess.emit (node:events:514:28)\n    at maybeClose (node:internal/child_process:1172:16)\n    at ChildProcess._handle.onexit (node:internal/child_process:335:5)",
+      "details": "npm exited with code 1.\nstdout:\n> lucid@0.1.0 typecheck\n> node electron/runtime-check.cjs && tsc -p .\n\nRuntime syntax: 192 CommonJS files passed.\nsrc/update-transaction-probe.ts(1,14): error TS2322: Type 'number' is not assignable to type 'string'."
+    },
+    {
+      "name": "interrupted-validation",
+      "stages": [
+        "Checking updates",
+        "Installing packages",
+        "Preparing update",
+        "Checking code"
+      ],
+      "commands": [
+        {
+          "cmd": "npm",
+          "args": [
+            "install",
+            "--no-audit",
+            "--no-fund"
+          ]
+        },
+        {
+          "cmd": "npm",
+          "args": [
+            "run",
+            "typecheck"
+          ]
+        }
+      ],
+      "error": "Error: Update command cancelled.\nstdout:\n> lucid@0.1.0 typecheck\n> node electron/runtime-check.cjs && tsc -p . && node scripts/update-transaction-wait.cjs\n\nRuntime syntax: 193 CommonJS files passed.\nVALIDATION_WAIT_READY\n    at finish (E:\\T3 Projects\\Lucid\\electron\\update-command.cjs:65:21)\n    at termination.then.cleanupError (E:\\T3 Projects\\Lucid\\electron\\update-command.cjs:80:44)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)",
+      "details": "Update command cancelled.\nstdout:\n> lucid@0.1.0 typecheck\n> node electron/runtime-check.cjs && tsc -p . && node scripts/update-transaction-wait.cjs\n\nRuntime syntax: 193 CommonJS files passed.\nVALIDATION_WAIT_READY"
+    },
+    {
+      "name": "promotion-failure",
+      "stages": [
+        "Checking updates",
+        "Installing packages",
+        "Preparing update",
+        "Checking code",
+        "Building update"
+      ],
+      "commands": [
+        {
+          "cmd": "npm",
+          "args": [
+            "install",
+            "--no-audit",
+            "--no-fund"
+          ]
+        },
+        {
+          "cmd": "npm",
+          "args": [
+            "run",
+            "typecheck"
+          ]
+        },
+        {
+          "cmd": "npm",
+          "args": [
+            "run",
+            "build",
+            "--",
+            "--outDir",
+            "dist-update"
+          ]
+        }
+      ],
+      "error": "Error: Injected promotion interruption\n    at fs.renameSync (E:\\T3 Projects\\Lucid\\scripts\\verify-updater-transaction-native.cjs:65:86)\n    at E:\\T3 Projects\\Lucid\\electron\\updater.cjs:106:12\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async attempt (E:\\T3 Projects\\Lucid\\scripts\\verify-updater-transaction-native.cjs:29:24)\n    at async native (E:\\T3 Projects\\Lucid\\scripts\\verify-updater-transaction-native.cjs:67:23)",
+      "details": "Injected promotion interruption"
+    },
+    {
+      "name": "successful-retry",
+      "stages": [
+        "Checking updates",
+        "Preparing update",
+        "Checking code",
+        "Building update",
+        "Restarting"
+      ],
+      "commands": [
+        {
+          "cmd": "npm",
+          "args": [
+            "run",
+            "typecheck"
+          ]
+        },
+        {
+          "cmd": "npm",
+          "args": [
+            "run",
+            "build",
+            "--",
+            "--outDir",
+            "dist-update"
+          ]
+        }
+      ],
+      "result": {
+        "updated": true
+      }
+    }
+  ],
+  "status": "passed",
+  "productionInstallationUnchanged": true
+}

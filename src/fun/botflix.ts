@@ -2,6 +2,7 @@
 // hover previews, a details modal and a player with skip intro, subtitles, autoplay and the
 // "are you still watching" check. Everything it starts lives on one Scope and stops at once.
 import "./botflix.css";
+import { LiveCanvases, canvasPixelRatio } from "../perf/canvas";
 import type gsap from "gsap";
 import type { FunHost } from "./host";
 import { Scope, fitCanvas, html, esc, clamp } from "./util";
@@ -69,7 +70,7 @@ function metaHtml(s: ShowDef) {
 }
 const tagsHtml = (s: ShowDef) => `<p class="fun-bf-tags">${s.tags.map(esc).join(`<i aria-hidden="true"></i>`)}</p>`;
 
-type Live = { c: HTMLCanvasElement; ctx: CanvasRenderingContext2D; w: number; h: number; fps: number; last: number; n: number; once?: boolean; done?: boolean; vis?: () => boolean; draw: (ctx: CanvasRenderingContext2D, w: number, h: number, ms: number) => void };
+type Live = { c: HTMLCanvasElement; ctx: CanvasRenderingContext2D; w: number; h: number; nextW: number; nextH: number; observer: ResizeObserver | null; fps: number; last: number; once?: boolean; done?: boolean; vis?: () => boolean; draw: (ctx: CanvasRenderingContext2D, w: number, h: number, ms: number) => void };
 type Pick = { show: ShowDef; e: number; p: number };
 type Play = {
   show: ShowDef; e: number; dur: number; pos: number; playing: boolean; stingAt: number;
@@ -87,6 +88,7 @@ class Botflix {
   modal: HTMLElement | null = null;
   P: Play | null = null;
   private lives = new Set<Live>();
+  private adaptive: LiveCanvases;
   private paint: (() => void)[] = [];
   private art = new Map<string, HTMLCanvasElement>();
   private uiUntil = 0;
@@ -104,8 +106,9 @@ class Botflix {
     body.appendChild(this.root);
     this.view = this.root.querySelector(".fun-bf-view") as HTMLElement;
     this.fx = this.root.querySelector(".fun-bf-fx") as HTMLElement;
+    this.adaptive = new LiveCanvases(body);
     scope.raf(() => this.frame());
-    scope.add(() => { this.lives.clear(); this.paint = []; this.art.clear(); });
+    scope.add(() => { for (const L of this.lives) L.observer?.disconnect(); this.lives.clear(); this.adaptive.clear(); this.paint = []; this.art.clear(); });
   }
 
   d(s: number) { return this.rm ? Math.min(s, 0.12) : s; }
@@ -116,17 +119,21 @@ class Botflix {
     const dt = clamp((ms - this.lastMs) / 1000, 0, 0.25);
     this.lastMs = ms;
     this.tickPlayer(ms, dt);
-    // draw only while the app is actually on screen
-    if (!this.root.isConnected || this.root.offsetWidth === 0 || document.visibilityState === "hidden") return;
+    // Visibility and cadence are handled by the shared screen scheduler.
     for (let i = 0; i < 3 && this.paint.length; i++) this.paint.shift()!();
     if (this.home && this.page) this.home.classList.toggle("fun-bf-scrolled", this.page.scrollTop > 6);
     for (const L of this.lives) {
-      if (L.once && L.done) continue;
+      if (!L.c.isConnected) { this.drop(L); continue; }
       if (L.vis && !L.vis()) continue;
-      if (ms - L.last < 1000 / L.fps - 2) continue;
-      if (!L.c.isConnected) { this.lives.delete(L); continue; }
+      // Prepare only this visible full-redraw surface. A scope-wide resize would
+      // clear hidden or throttled surfaces that this inner loop does not repaint.
+      const width = L.c.width, height = L.c.height;
+      this.refit(L);
+      this.adaptive.add(L.c); this.adaptive.prepare(); this.adaptive.remove(L.c);
+      const resized = width !== L.c.width || height !== L.c.height;
+      if (L.once && L.done && !resized) continue;
+      if (ms - L.last < 1000 / L.fps - 2 && !resized) continue;
       L.last = ms;
-      if (++L.n % 24 === 0) this.refit(L);
       L.ctx.save();
       L.draw(L.ctx, L.w, L.h, ms);
       L.ctx.restore();
@@ -135,20 +142,30 @@ class Botflix {
   }
 
   private refit(L: Live) {
-    const w = L.c.parentElement?.clientWidth || L.w, h = L.c.parentElement?.clientHeight || L.h;
-    if (Math.abs(w - L.w) > 2 || Math.abs(h - L.h) > 2) { L.w = w; L.h = h; L.ctx = fitCanvas(L.c, w, h); L.done = false; }
+    const w = L.nextW, h = L.nextH;
+    if (Math.abs(w - L.w) > 2 || Math.abs(h - L.h) > 2) { L.w = w; L.h = h; L.ctx = fitCanvas(L.c, w, h, canvasPixelRatio(L.c)); L.done = false; }
   }
 
   live(c: HTMLCanvasElement, draw: Live["draw"], o: { fps?: number; once?: boolean; vis?: () => boolean } = {}) {
     const w = c.parentElement?.clientWidth || 160, h = c.parentElement?.clientHeight || 90;
-    const L: Live = { c, ctx: fitCanvas(c, w, h), w, h, fps: o.fps ?? 30, last: 0, n: 0, once: o.once, vis: o.vis, draw };
+    const L: Live = { c, ctx: fitCanvas(c, w, h), w, h, nextW: w, nextH: h, observer: null, fps: o.fps ?? 30, last: 0, once: o.once, vis: o.vis, draw };
+    if (typeof ResizeObserver === "function" && c.parentElement) {
+      L.observer = new ResizeObserver(entries => {
+        const size = entries[entries.length - 1]?.contentRect;
+        if (size && size.width > 0 && size.height > 0) { L.nextW = size.width; L.nextH = size.height; }
+      });
+      L.observer.observe(c.parentElement);
+    }
     this.lives.add(L);
     return L;
   }
-  drop(L: Live | null | undefined) { if (L) this.lives.delete(L); }
+  drop(L: Live | null | undefined) { if (L) { L.observer?.disconnect(); this.lives.delete(L); } }
 
   /** Paint still art into a canvas, cached per show, kind and size. */
   still(c: HTMLCanvasElement, show: ShowDef, kind: "tile" | "poster" | "ep", ep = 0) {
+    this.scope.defer(c, () => this.paintStill(c, show, kind, ep));
+  }
+  private paintStill(c: HTMLCanvasElement, show: ShowDef, kind: "tile" | "poster" | "ep", ep: number) {
     const w = c.parentElement?.clientWidth || 128, h = c.parentElement?.clientHeight || 72;
     const ctx = fitCanvas(c, w, h);
     const key = `${show.id}|${kind}|${ep}|${w}x${h}`;
@@ -722,7 +739,7 @@ const f0 = (P: Play) => P.pos / P.dur;
 // the activity
 // ======================================================================================
 export async function watchBotflix(body: HTMLElement, host: FunHost, opts: BotflixOpts): Promise<{ result: "done" | "closed" }> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   const start = performance.now();
   const left = () => opts.maxMs - (performance.now() - start);
   const timeUp = () => host.stopped || left() <= 0;

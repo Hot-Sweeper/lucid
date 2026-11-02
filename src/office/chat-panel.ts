@@ -1,3 +1,4 @@
+import { readPromptDraft, writePromptDraft } from "./prompt-draft";
 import gsap from "gsap";
 import type { Desk } from "./desk";
 import { logoFor, harnessName } from "./brand";
@@ -5,16 +6,16 @@ import { Marked } from "marked";
 import DOMPurify from "dompurify";
 import { highlight } from "../os/highlight";
 import { type ThreadRef, refBlock, stripRefs, summarize } from "./thread-ref";
+import { beginSystem, endSystem } from "../perf/metrics";
+import { HistoryWindow, type HistoryCursor, type HistoryPage } from "./history-window";
+import { attachDictation } from "./dictation";
+import { sameChatMessage, type ChatMessage as Msg } from "./chat-message";
+import { chatReaderAnchor } from "./chat-scroll";
+import { chatFileUrl, chatMediaKind, inlineChatImage, prepareChatImages, chatImageFailed } from "./chat-media";
+import { reviewReportId, renderChatReview, renderSourceChatReport, type ChatReviewPaper } from "./chat-review";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
-
-type Msg = {
-  id: string; role: string; at: string; streaming: boolean; text: string; run?: string | null; queue?: number | null;
-  attachments: { type: string; name: string; mime: string; size: number; path: string | null }[];
-  // queued messages only: their run, the live turn they can be steered into, and what T3 allows
-  queueRunId?: string; steerTarget?: string | null; queueFixed?: boolean; queueGuest?: boolean;
-};
 
 // T3 server actions through Lucid's paired session (see electron/t3server.cjs).
 type OptionValue = string | boolean;
@@ -33,8 +34,13 @@ export type T3Api = {
 };
 type Api = {
   conversation(id: string): Promise<Msg[]>;
+  conversationPage?(id: string, options?: { before?: HistoryCursor | null }): Promise<HistoryPage<Msg>>;
   sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
   saveAttachment(name: string, data: Uint8Array): Promise<string>;
+  reviewPapers?(conversationId: string): Promise<ChatReviewPaper[]>;
+  sourceReport?(conversationId: string): Promise<ChatReviewPaper | null>;
+  openReview?(paper: ChatReviewPaper, questions: boolean): void;
+  openReviewThread?(paper: ChatReviewPaper): void;
   t3?: T3Api;
 };
 
@@ -78,7 +84,13 @@ const ICON = {
 };
 
 const HINT = "Enter to send, Shift+Enter for a new line";
-export const fileUrl = (p: string) => `lucid-file://local/${encodeURIComponent(p)}`;
+export const fileUrl = chatFileUrl;
+function mediaAttachment(path: string, name: string, mime = "") {
+  const kind = chatMediaKind(path, mime);
+  if (!kind) return `<div class="cp-file"><span>${esc(name)}</span><i>file</i></div>`;
+  return `<button type="button" class="${kind === "image" ? "cp-att" : "cp-file"}" data-media-src="${fileUrl(path)}" data-media-kind="${kind}" data-media-name="${esc(name)}" aria-label="Preview ${esc(name)}">${kind === "image" ? `<img src="${fileUrl(path)}" alt="${esc(name)}" loading="lazy">` : `<span>${esc(name)}</span><i>Open ${kind}</i>`}</button>`;
+}
+
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // Messages render as real Markdown, like in T3 Code: headings, lists, tables, quotes,
@@ -88,6 +100,9 @@ const FENCE: Record<string, string> = { ts: "c", tsx: "c", js: "c", jsx: "c", ty
 const mdParser = new Marked({ gfm: true, breaks: true });
 mdParser.use({
   renderer: {
+    image({ href, text, title }: { href: string; text: string; title?: string | null }) {
+      return inlineChatImage(href, text, title);
+    },
     code({ text, lang }: { text: string; lang?: string }) {
       const l = (lang || "").trim().split(/\s+/)[0].toLowerCase();
       const body = text.replace(/\n$/, "").split("\n").map((line) => highlight(line, FENCE[l] ?? "c")).join("\n");
@@ -107,7 +122,11 @@ mdParser.use({
 });
 function md(text: string) {
   const html = mdParser.parse(text, { async: false }) as string;
-  return DOMPurify.sanitize(html, { ADD_ATTR: ["target"] });
+  return DOMPurify.sanitize(prepareChatImages(html), {
+    ADD_ATTR: ["target"],
+    // Only the app's media scheme is added to DOMPurify's normal URL schemes.
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|ftp|ftps|mailto|tel|callto|sms|cid|xmpp|lucid-file):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
+  });
 }
 // Time of day for today's messages; older ones also get their date so equal times never look alike.
 const when = (iso: string) => {
@@ -121,13 +140,45 @@ export class ChatPanel {
   private desk: Desk | null = null;
   private shown = new Map<string, HTMLElement>();
   private timer = 0;
+  private groups = new Map<string, HTMLElement>();
+  private renderedMessages = new Map<string, Msg>();
+  private reviewPapers = new Map<string, ChatReviewPaper>();
+  private reviewLookups = new Set<string>();
+  private sourceReport: ChatReviewPaper | null = null;
+  private sourceReportLoaded = false;
+  private sourceReportVersion = 0;
+  private sourceReportSignature = "";
+  private timelineIds: string[] | null = null;
+  private loadingHistory = false;
+  private history = new HistoryWindow<Msg>();
+  private historyGeneration = 0;
+  private loadingOlder = false;
   onClose: () => void = () => {};
+  onChooseThread: () => void = () => {};
+  /** A conversation was selected, including one already open in the panel. */
+  onPresent: () => void = () => {};
+  onManage: (id: string) => void = () => {};
+  /** face: the manager's profile picture markup, or empty for ordinary robots. */
+  setManager(label: string | null, face = '') {
+    this.el.querySelector('.cp-manager-label')!.textContent = label || '';
+    const holder = this.el.querySelector<HTMLElement>('.cp-manager-face')!;
+    if (holder.dataset.face !== face) { holder.dataset.face = face; holder.innerHTML = face; }
+    holder.hidden = !face;
+    this.el.querySelector('.cp-manage')!.textContent = label ? 'Edit manager' : 'Promote to manager';
+  }
   onToggleView: () => void = () => {};
   /** You started or stopped typing a message to this robot. */
   onTyping: (on: boolean) => void = () => {};
-  private pending: { text: string; at: number }[] = [];
+  private pending: { threadId: string; text: string; at: number }[] = [];
   private files: File[] = [];
-  private previews = new WeakMap<File, string>();
+  private drafts = new Map<string, { text: string; files: File[]; refs: ThreadRef[] }>();
+  private sending = new Set<string>();
+  private sendErrors = new Map<string, string>();
+  private queueCleanups = new Set<() => void>();
+  private resizeComposer: () => void = () => {};
+  private stopComposerTyping: () => void = () => {};
+  private dictation = { cancel() {} };
+  private previews = new Map<File, string>();
   // T3 session: the model bar and the queue actions need Lucid to be paired with T3
   private paired = false;
   private triedConnect = false;
@@ -165,8 +216,20 @@ export class ChatPanel {
         if (!this.previews.has(f)) this.previews.set(f, URL.createObjectURL(f));
         thumb = `<img src="${this.previews.get(f)}" alt="">`;
       } else thumb = `<span class="cpc-ext">${esc((f.name.split(".").pop() || "file").slice(0, 4).toUpperCase())}</span>`;
-      return `<div class="cp-chip">${thumb}<span class="cpc-name" title="${esc(f.name)}">${esc(f.name)}</span><button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">&times;</button></div>`;
+      return `<div class="cp-chip"><button type="button" class="cp-file-preview" data-preview-file="${i}" aria-label="Preview ${esc(f.name)}">${thumb}<span class="cpc-name" title="${esc(f.name)}">${esc(f.name)}</span></button><button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">&times;</button></div>`;
     }).join("");
+  }
+
+  private releaseUnusedPreviews() {
+    const owned = new Set<File>();
+    for (const draft of this.drafts.values()) for (const file of draft.files) owned.add(file);
+    if (this.threadId) for (const file of this.files) owned.add(file);
+    const preview = this.el.querySelector<HTMLDialogElement>(".cp-zoom");
+    const showing = new Set(preview?.open ? [...preview.querySelectorAll<HTMLImageElement | HTMLMediaElement>("img,video,audio")].map(media => media.src) : []);
+    for (const [file, url] of this.previews) {
+      if (owned.has(file) || showing.has(url)) continue;
+      URL.revokeObjectURL(url); this.previews.delete(file);
+    }
   }
 
   // --- threads you reference in your message (dragged in from the sidebar) -------------
@@ -212,11 +275,11 @@ export class ChatPanel {
     const state = this.refState(ref);
     this.refPreview = null;
     if (state === "ok") {
-      this.refs.push({ ...ref });
+      const added = { ...ref };
+      this.refs.push(added);
       // the last request and reply go along as a summary; loaded now so sending stays quick
       this.refLoads.set(ref.id, this.api.conversation(ref.id).then((msgs) => {
-        const r = this.refs.find((x) => x.id === ref.id);
-        if (r) Object.assign(r, summarize(msgs));
+        Object.assign(added, summarize(msgs));
       }).catch(() => {}));
     }
     this.renderChips();
@@ -230,48 +293,53 @@ export class ChatPanel {
   private removeChip(chip: HTMLElement) {
     const rm = chip.querySelector("[data-rm], [data-rmref]") as HTMLElement | null;
     if (!rm) return;
+    const threadId = this.threadId, refs = this.refs, files = this.files;
+    const ref = rm.dataset.rmref != null ? refs[Number(rm.dataset.rmref)] : null;
+    const file = rm.dataset.rm != null ? files[Number(rm.dataset.rm)] : null;
     gsap.to(chip, { opacity: 0, scale: 0.9, duration: 0.14, onComplete: () => {
-      if (rm.dataset.rmref != null) { const r = this.refs.splice(Number(rm.dataset.rmref), 1)[0]; if (r) this.refLoads.delete(r.id); }
-      else this.files.splice(Number(rm.dataset.rm), 1);
-      this.renderChips();
+      if (ref) { const i = refs.indexOf(ref); if (i >= 0) refs.splice(i, 1); }
+      if (file) { const i = files.indexOf(file); if (i >= 0) files.splice(i, 1); const url = this.previews.get(file); if (url) { URL.revokeObjectURL(url); this.previews.delete(file); } }
+      if (threadId === this.threadId) this.renderChips();
     } });
   }
 
   // --- folding the chat into a tab on the right edge ------------------------------------
   collapsed = false;
-  /** The chat was folded into its edge tab, or opened again from it. */
-  onCollapse: (collapsed: boolean) => void = () => {};
+  /** The chat was folded into its edge tab, or opened again from it. The page animates the column. */
+  onCollapse: (collapsed: boolean, animate: boolean) => void = () => {};
+  /** The width the chat takes when it is open (the page owns it: you drag it wider or narrower). */
+  wide: () => number = () => 440;
   private tab!: HTMLButtonElement;
   private tabLabel = "Chat";
 
   setCollapsed(on: boolean, animate = true) {
+    if (on) this.dictation.cancel();
+    if (!on && !this.isOpen) { this.onChooseThread(); return; }
     if (on === this.collapsed) return;
     this.collapsed = on;
     const el = this.el, tab = this.tab;
     const still = !animate || matchMedia("(prefers-reduced-motion: reduce)").matches;
-    (el.querySelector(".cp-hide") as HTMLElement).setAttribute("aria-expanded", String(!on));
+    el.querySelectorAll(".cp-hide").forEach((b) => b.setAttribute("aria-expanded", String(!on)));
     tab.setAttribute("aria-expanded", String(!on));
     gsap.killTweensOf([el, tab]);
-    if (!this.isOpen) { el.classList.toggle("tabbed", on); this.onCollapse(on); return; }
     this.closeMenu();
-    const slide = Math.max(0, el.offsetWidth - 40);
+    const hadFocus = !!document.activeElement && (el.contains(document.activeElement) || document.activeElement === tab);
+    // while the column narrows or widens, the panel keeps its width and is clipped by the window edge
+    const pin = (w: number) => { el.style.width = `${w}px`; el.style.justifySelf = "start"; };
+    const unpin = () => { el.style.width = ""; el.style.justifySelf = ""; };
     if (on) {
-      // the panel slides into the right edge, where its tab appears
-      const done = () => { el.classList.add("tabbed"); gsap.set(el, { clearProps: "x,opacity" }); tab.hidden = false; };
-      if (still) { done(); gsap.set(tab, { clearProps: "x,opacity" }); }
-      else gsap.timeline()
-        .to(el, { x: slide, opacity: 0, duration: 0.34, ease: "power3.in" })
-        .add(done)
-        .fromTo(tab, { x: 44, opacity: 0 }, { x: 0, opacity: 1, duration: 0.26, ease: "power3.out" }, "-=0.06");
-      if (document.activeElement && el.contains(document.activeElement)) tab.focus({ preventScroll: true });
+      const w = el.offsetWidth || this.wide();
+      const done = () => { unpin(); el.classList.add("tabbed"); gsap.set(el, { clearProps: "opacity" }); tab.hidden = false; if (hadFocus) tab.focus({ preventScroll: true }); if (!still) gsap.fromTo(tab, { x: 24, opacity: 0 }, { x: 0, opacity: 1, duration: 0.24, ease: "power3.out", clearProps: "x,opacity" }); };
+      if (still) done();
+      else { pin(w); gsap.to(el, { opacity: 0, duration: 0.26, ease: "power2.in", onComplete: done }); }
     } else {
-      // the tab slides away and the panel comes back out of the edge
+      // the tab steps aside and the panel comes back out of the right edge
       tab.hidden = true;
       el.classList.remove("tabbed");
-      if (!still) gsap.fromTo(el, { x: slide, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: "power3.out", clearProps: "x" });
-      (el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
+      if (!still) { pin(this.wide()); gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out", delay: 0.08, onComplete: unpin }); }
+      if (hadFocus) (el.querySelector(this.isOpen ? "textarea" : ".cp-hide") as HTMLElement).focus({ preventScroll: true });
     }
-    this.onCollapse(on);
+    this.onCollapse(on, !still);
   }
 
   constructor(host: HTMLElement, private api: Api) {
@@ -279,6 +347,11 @@ export class ChatPanel {
     this.el.className = "chat-panel";
     this.el.setAttribute("aria-label", "Chat with this robot");
     this.el.innerHTML = `
+      <div class="cp-empty">
+        <p><b>No robot selected</b></p>
+        <p>Click a robot or its desk, or a thread in the sidebar, to chat with it here.</p>
+        <button type="button" class="cp-hide ghost" aria-expanded="true" title="Hide the chat for more room. It stays as a tab on the right edge.">Hide chat</button>
+      </div>
       <header class="cp-head">
         <img class="cp-logo" alt="">
         <div class="cp-who"><b></b><span></span></div>
@@ -286,10 +359,12 @@ export class ChatPanel {
         <button type="button" class="cp-hide ghost" aria-expanded="true" title="Hide the chat for more room. It stays as a tab on the right edge.">Hide chat</button>
         <button type="button" class="cp-close" aria-label="Back to the office" title="Back to the office (Esc)"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
       </header>
+      <div class="cp-management"><span class="cp-manager-face" hidden></span><span class="cp-manager-label"></span><button type="button" class="cp-manage ghost">Promote to manager</button></div>
       <p class="cp-status" aria-live="polite"><i></i><span></span></p>
+      <details class="cp-plan" hidden><summary>Plan</summary><ol></ol></details>
       <div class="cp-list" role="log" aria-live="polite"></div>
       <section class="cp-queue" aria-label="Queued messages" hidden><button type="button" class="cq-head" aria-expanded="true"><b>Queued</b><span class="cq-count"></span><i aria-hidden="true"></i></button><p class="cq-note" role="status" hidden></p><ol></ol></section>
-      <div class="cp-zoom" hidden><img alt=""><button type="button" class="ghost">Close image</button></div>
+      <dialog class="cp-zoom" aria-label="Attachment preview"><header><strong></strong><button type="button" class="ghost">Close preview</button></header><div class="cp-media-stage"></div></dialog>
       <form class="cp-form">
         <div class="cp-model" role="group" aria-label="Harness and model for this thread" hidden>
           <button type="button" class="cm-pick cm-harness" aria-haspopup="listbox" aria-expanded="false" title="Harness"><img alt="" hidden><span></span>${CHEVRON}</button>
@@ -313,20 +388,25 @@ export class ChatPanel {
         <div class="cp-drop" hidden>Drop to attach</div>
       </form>`;
     host.appendChild(this.el);
+    this.el.querySelector('.cp-manage')!.addEventListener('click', () => { if (this.threadId) this.onManage(this.threadId); });
     // folded, the chat is a tab on the right edge with the robot's name
     this.tab = document.createElement("button");
     this.tab.type = "button";
     this.tab.className = "cp-tab";
     this.tab.hidden = true;
     this.tab.setAttribute("aria-expanded", "false");
-    this.tab.innerHTML = `<img alt="" hidden><span></span><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    this.tab.setAttribute("aria-label", "Show chat");
+    this.tab.title = "Show the chat";
+    this.tab.innerHTML = `<svg class="cp-rail-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5H9l-5.5 4V6A1.5 1.5 0 0 1 5 4.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 9h8M8 13h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><img alt="" hidden><span>Chat</span><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     host.appendChild(this.tab);
     this.tab.addEventListener("click", () => this.setCollapsed(false));
-    this.el.querySelector(".cp-hide")!.addEventListener("click", () => this.setCollapsed(true));
+    this.tab.title = "Choose a thread to chat";
+    this.el.querySelectorAll(".cp-hide").forEach((b) => b.addEventListener("click", () => this.setCollapsed(true)));
     this.el.querySelector(".cp-close")!.addEventListener("click", () => this.onClose());
     this.el.querySelector(".cp-view")!.addEventListener("click", () => this.onToggleView());
     const form = this.el.querySelector(".cp-form") as HTMLFormElement;
     const ta = form.querySelector("textarea")!;
+    this.dictation = attachDictation(form, () => this.threadId);
     // the box grows with what you type, up to about 40% of the panel, then scrolls
     const grow = () => {
       ta.style.height = "auto";
@@ -334,17 +414,20 @@ export class ChatPanel {
       ta.style.height = `${Math.min(max, ta.scrollHeight)}px`;
       ta.style.overflowY = ta.scrollHeight > max ? "auto" : "hidden";
     };
+    this.resizeComposer = grow;
     ta.addEventListener("input", grow);
+    ta.addEventListener("input", () => { this.saveDraft(); });
     // let the robot know you are typing (and when you stop)
     let typingTimer = 0, typingOn = false;
     const setTyping = (on: boolean) => { if (on !== typingOn) { typingOn = on; this.onTyping(on); } };
+    this.stopComposerTyping = () => { window.clearTimeout(typingTimer); setTyping(false); };
     ta.addEventListener("input", () => {
       window.clearTimeout(typingTimer);
       if (!ta.value.trim()) { setTyping(false); return; }
       setTyping(true);
       typingTimer = window.setTimeout(() => setTyping(false), 6000);
     });
-    form.addEventListener("submit", () => { window.clearTimeout(typingTimer); typingOn = false; }, true);
+    form.addEventListener("submit", () => this.stopComposerTyping(), true);
     // attachments: the paperclip, pasting, or dropping files onto the panel
     const fileInput = form.querySelector(".cp-fileinput") as HTMLInputElement;
     form.querySelector(".cp-attach")!.addEventListener("click", () => fileInput.click());
@@ -365,7 +448,17 @@ export class ChatPanel {
     const chips = form.querySelector(".cp-chips") as HTMLElement;
     chips.addEventListener("click", (e) => {
       const x = (e.target as HTMLElement).closest("[data-rm], [data-rmref]") as HTMLElement | null;
-      if (!x) return;
+      if (!x) {
+        const chip = (e.target as HTMLElement).closest<HTMLElement>("[data-preview-file]");
+        const file = chip ? this.files[Number(chip.dataset.previewFile)] : null;
+        const kind = file ? chatMediaKind(file.name, file.type) : null;
+        if (file && kind) {
+          let url = this.previews.get(file);
+          if (!url) { url = URL.createObjectURL(file); this.previews.set(file, url); }
+          this.zoom(url, kind, file.name);
+        }
+        return;
+      }
       const chip = x.closest(".cp-chip") as HTMLElement;
       const all = [...chips.querySelectorAll(".cp-chip:not(.preview)")];
       const i = all.indexOf(chip);
@@ -386,10 +479,16 @@ export class ChatPanel {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const typed = ta.value.trim();
-      if ((!typed && !this.files.length && !this.refs.length) || !this.desk?.threadId) return;
+      const threadId = this.threadId;
+      if ((!typed && !this.files.length && !this.refs.length) || !threadId || this.sending.has(threadId)) return;
+      this.sending.add(threadId);
+      this.sendErrors.delete(threadId);
+      this.el.querySelectorAll(".cp-notice").forEach((n) => n.remove());
       ta.disabled = true;
-      const files = [...this.files];
+      const composerFiles = this.files;
+      const files = [...composerFiles];
       const refs = [...this.refs];
+      let pending: { threadId: string; text: string; at: number } | null = null;
       try {
         // files are saved where the agent can open them, and listed in the message
         const saved: { path: string; image: boolean }[] = [];
@@ -397,29 +496,61 @@ export class ChatPanel {
         // referenced threads go along as short blocks the agent can read and look up by id
         await Promise.all(refs.map((r) => this.refLoads.get(r.id)));
         let text = typed || (saved.length ? "Have a look at the attached files." : refs.length > 1 ? "Have a look at these threads." : refs.length ? "Have a look at this thread." : "");
-        if (refs.length) text += `\n\n${refs.map((r) => refBlock(this.refs.find((x) => x.id === r.id) ?? r, harnessName(r.provider))).join("\n\n")}`;
+        if (refs.length) text += `\n\n${refs.map((r) => refBlock(r, harnessName(r.provider))).join("\n\n")}`;
         if (saved.length) text += `\n\nAttached:\n${saved.map((s) => `- ${s.image ? "image" : "file"}: ${s.path}`).join("\n")}`;
         // show it right away; it turns into the real message once T3 has it
-        this.pending.push({ text, at: Date.now() });
-        this.renderPending();
-        await this.api.sendMessage({ threadId: this.desk.threadId, message: text });
-        ta.value = "";
-        this.files = [];
-        this.refs = this.refs.filter((r) => !refs.some((x) => x.id === r.id));
-        this.renderChips();
-        grow();
-        this.refreshSoon(300);
+        pending = { threadId, text, at: Date.now() };
+        this.pending.push(pending);
+        if (threadId === this.threadId) this.renderPending();
+        await this.api.sendMessage({ threadId, message: text });
+        this.drafts.delete(threadId);
+        writePromptDraft(`chat:${threadId}`, "");
+        if (threadId === this.threadId) {
+          ta.value = "";
+          this.files = this.files.filter((f) => !files.includes(f));
+          this.refs = this.refs.filter((r) => !refs.includes(r));
+          this.renderChips();
+          grow();
+          this.refreshSoon(300);
+        } else if (!this.threadId && this.files === composerFiles) {
+          // A closed composer has no live File owner after its saved draft was
+          // sent. A different composer, including one since closed, keeps its array.
+          this.files = this.files.filter((f) => !files.includes(f));
+        }
+        this.releaseUnusedPreviews();
       } catch (err: any) {
-        this.pending = this.pending.filter((p) => !p.text.startsWith(typed));
-        this.renderPending();
-        this.note(`Could not send: ${err.message || err}. Your text is still here.`);
-      } finally { ta.disabled = false; ta.focus(); }
+        if (pending) this.pending = this.pending.filter((p) => p !== pending);
+        const error = `Could not send: ${err.message || err}. Your text is still here.`;
+        this.sendErrors.set(threadId, error);
+        if (threadId === this.threadId) {
+          this.renderPending();
+          this.note(error);
+        }
+      } finally {
+        this.sending.delete(threadId);
+        if (threadId === this.threadId) { ta.disabled = false; ta.focus(); }
+      }
     });
-    ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); } });
+    ta.addEventListener("keydown", (e) => {
+      const phone = document.getElementById('app')?.classList.contains('mobile-layout');
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && (!phone || e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit(); }
+    });
+    this.el.querySelector(".cp-list")!.addEventListener("error", chatImageFailed, true);
     this.el.querySelector(".cp-list")!.addEventListener("click", (e) => {
       const t = e.target as HTMLElement;
+      const review = t.closest<HTMLElement>(".cp-review [data-review-open],.cp-review [data-review-thread]");
+      if (review) {
+        const reportId = review.dataset.reviewOpen || review.dataset.reviewThread || "";
+        const paper = this.sourceReport?.id === reportId ? this.sourceReport : this.reviewPapers.get(reportId);
+        if (paper && review.hasAttribute("data-review-open")) this.api.openReview?.(paper, review.hasAttribute("data-review-questions"));
+        else if (paper && this.api.openReviewThread && !(e as MouseEvent).ctrlKey && !(e as MouseEvent).metaKey && !(e as MouseEvent).shiftKey && !(e as MouseEvent).altKey) { e.preventDefault(); this.api.openReviewThread(paper); }
+        return;
+      }
+      if (t.closest(".cp-history-more")) { void this.loadEarlier(); return; }
       const img = t.closest(".cp-att img") as HTMLImageElement | null;
-      if (img) this.zoom(img.src);
+      if (img && !img.closest("[data-media-src]")) this.zoom(img.src, "image", img.alt);
+      const media = t.closest<HTMLElement>("[data-media-src]");
+      if (media) { e.preventDefault(); this.zoom(media.dataset.mediaSrc!, media.dataset.mediaKind!, media.dataset.mediaName!); }
       // copy a code block
       const copy = t.closest(".md-copy") as HTMLButtonElement | null;
       if (copy) {
@@ -427,9 +558,18 @@ export class ChatPanel {
         void navigator.clipboard.writeText(code).then(() => { copy.textContent = "Copied"; window.setTimeout(() => (copy.textContent = "Copy"), 1400); });
       }
     });
-    const zoom = this.el.querySelector(".cp-zoom") as HTMLElement;
-    zoom.querySelector("button")!.addEventListener("click", () => (zoom.hidden = true));
-    window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !zoom.hidden) { e.stopImmediatePropagation(); zoom.hidden = true; } }, true);
+    const zoom = this.el.querySelector(".cp-zoom") as HTMLDialogElement;
+    zoom.querySelector("button")!.addEventListener("click", () => zoom.close());
+    zoom.addEventListener("click", e => { if (e.target === zoom) zoom.close(); });
+    zoom.addEventListener("close", () => {
+      if (zoom.open) return;
+      for (const media of zoom.querySelectorAll<HTMLMediaElement>("video,audio")) {
+        media.pause(); media.removeAttribute("src"); media.load();
+      }
+      zoom.querySelector(".cp-media-stage")!.replaceChildren();
+      this.releaseUnusedPreviews();
+    });
+    zoom.addEventListener("keydown", e => e.stopPropagation());
     this.wireT3();
   }
 
@@ -437,15 +577,35 @@ export class ChatPanel {
   get threadId() { return this.desk?.threadId ?? null; }
 
   private closing = false;
-  open(desk: Desk) {
+  private saveDraft() {
+    if (!this.threadId) return;
+    const text = (this.el.querySelector("textarea") as HTMLTextAreaElement).value;
+    if (!writePromptDraft(`chat:${this.threadId}`, text)) this.note("Draft could not be saved. Keep Lucid open and copy your prompt before closing.");
+    this.drafts.set(this.threadId, { text: (this.el.querySelector("textarea") as HTMLTextAreaElement).value, files: this.files, refs: this.refs });
+  }
+  open(desk: Desk, focus = true) {
     // opened again while it was sliding out (you clicked another robot): it stays
     if (this.closing) { this.closing = false; gsap.killTweensOf(this.el); gsap.set(this.el, { clearProps: "x,opacity" }); }
-    const same = this.desk === desk;
+    const same = !!desk.threadId && this.threadId === desk.threadId;
+    if (!same) { this.dictation.cancel(); this.stopComposerTyping(); this.saveDraft(); for (const clean of [...this.queueCleanups]) clean(); }
     this.desk = desk;
+    this.setManager(desk.el?.classList.contains('manager') ? 'Project manager' : null);
+    this.setPlan(desk.planSteps || []);
     if (!same) {
-      this.shown.clear(); (this.el.querySelector(".cp-list") as HTMLElement).innerHTML = "";
+      const draft = desk.threadId ? this.drafts.get(desk.threadId) : null;
+      const ta = this.el.querySelector("textarea") as HTMLTextAreaElement;
+      ta.value = draft?.text ?? (desk.threadId ? readPromptDraft(`chat:${desk.threadId}`) : "");
+      ta.disabled = !!desk.threadId && this.sending.has(desk.threadId);
+      this.files = draft?.files ?? [];
+      this.refs = draft?.refs ?? [];
+      this.refPreview = null;
+      this.renderChips();
+      this.resizeComposer();
+      this.typingOn = false;
+      this.clearTranscript();
       this.sel = null; this.queueHold = 0; this.closeMenu();
       (this.el.querySelector(".cp-queue ol") as HTMLElement).dataset.sig = "";
+      this.renderQueue([]);
       void this.loadT3();
     }
     const info = desk.info, logo = logoFor(info?.provider);
@@ -461,32 +621,54 @@ export class ChatPanel {
     const tabLogo = this.tab.querySelector("img") as HTMLImageElement;
     tabLogo.hidden = !logo;
     if (logo) tabLogo.src = logo;
-    if (!this.isOpen && this.collapsed) {
-      // folded: the chat stays a tab on the edge until you open it
-      this.el.classList.add("open", "tabbed");
-      this.tab.hidden = false;
-      gsap.killTweensOf(this.tab);
-      gsap.fromTo(this.tab, { x: 44, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: "power3.out" });
-    } else if (!this.isOpen) {
+    if (!this.isOpen) {
       this.el.classList.add("open");
-      gsap.fromTo(this.el, { x: 40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "power3.out" });
+      // the empty panel becomes this robot's chat: its parts settle in one after another
+      if (!this.collapsed) gsap.from([...this.el.children].filter((c) => !c.classList.contains("cp-empty")), { opacity: 0, y: 8, duration: 0.32, ease: "power2.out", stagger: 0.04, clearProps: "opacity,y" });
     }
+    this.setCollapsed(false);
     this.refresh();
-    (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
+    this.renderPending(false);
+    if (!same && this.sendErrors.has(this.threadId!)) this.note(this.sendErrors.get(this.threadId!)!);
+    this.onPresent();
+    // Selecting a robot opens its conversation. A phone keyboard appears when
+    // the user touches the composer, leaving the conversation readable first.
+    if (focus && !document.getElementById('app')?.classList.contains('mobile-layout')) (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
+  }
+
+  private clearTranscript() {
+    this.history = new HistoryWindow<Msg>(); this.historyGeneration++; this.loadingOlder = false;
+    this.shown.clear(); this.groups.clear(); this.renderedMessages.clear(); this.timelineIds = null;
+    this.reviewPapers.clear(); this.reviewLookups.clear();
+    this.sourceReport = null; this.sourceReportLoaded = false; this.sourceReportVersion++; this.sourceReportSignature = "";
+    (this.el.querySelector(".cp-list") as HTMLElement).replaceChildren();
+    this.typingOn = false; this.queueLatest = []; this.queueHold = 0;
+    const queue = this.el.querySelector<HTMLElement>(".cp-queue")!;
+    queue.hidden = true;
+    const rows = queue.querySelector<HTMLElement>("ol")!;
+    rows.replaceChildren(); rows.dataset.sig = "";
   }
 
   close() {
+    const preview = this.el.querySelector<HTMLDialogElement>(".cp-zoom");
+    if (preview?.open) preview.close();
+    this.dictation.cancel();
     if (!this.isOpen) return;
-    if (this.collapsed) {
-      const tab = this.tab;
-      this.el.classList.remove("open");
-      gsap.to(tab, { x: 44, opacity: 0, duration: 0.22, ease: "power2.in", onComplete: () => { tab.hidden = true; gsap.set(tab, { clearProps: "x,opacity" }); } });
-    } else {
-      this.closing = true;
-      gsap.to(this.el, { x: 40, opacity: 0, duration: 0.3, ease: "power2.in", onComplete: () => { this.closing = false; this.el.classList.remove("open"); } });
-    }
+    this.stopComposerTyping(); this.saveDraft();
+    for (const clean of [...this.queueCleanups]) clean();
+    this.el.classList.remove("open");
     this.closeMenu();
     this.desk = null;
+    window.clearTimeout(this.timer); this.timer = 0;
+    this.clearTranscript();
+    this.tabLabel = "Chat";
+    (this.tab.querySelector("span") as HTMLElement).textContent = "Chat";
+    this.tab.setAttribute("aria-label", "Show chat");
+    this.tab.title = "Choose a thread to chat";
+    (this.tab.querySelector("img") as HTMLImageElement).hidden = true;
+    this.setCollapsed(true);
+    const empty = this.el.querySelector(".cp-empty") as HTMLElement;
+    gsap.fromTo(empty, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out", clearProps: "opacity" });
   }
 
   setView(mode: "desk" | "screen") {
@@ -528,17 +710,17 @@ export class ChatPanel {
     }
   }
 
-  private renderPending() {
+  private renderPending(scroll = true) {
     const list = this.el.querySelector(".cp-list") as HTMLElement;
     list.querySelectorAll(".cp-msg.pending").forEach((e) => e.remove());
-    for (const p of this.pending) {
+    for (const p of this.pending.filter((p) => p.threadId === this.threadId)) {
       const el = document.createElement("div");
       el.className = "cp-msg you pending";
-      const view = this.render({ id: "pending", role: "user", at: new Date().toISOString(), streaming: false, text: p.text, attachments: [] });
+      const view = this.render({ id: "pending", role: "user", at: new Date(p.at).toISOString(), streaming: false, text: p.text, attachments: [] });
       el.innerHTML = view.replace(/<time>[^<]*<\/time>$/, "<time>Sending</time>");
       list.appendChild(el);
     }
-    list.scrollTop = list.scrollHeight;
+    if (scroll) list.scrollTop = list.scrollHeight;
   }
 
   // Called when new events arrive for a thread.
@@ -552,58 +734,248 @@ export class ChatPanel {
   private async refresh() {
     const id = this.threadId;
     if (!id) return;
-    const msgs = await this.api.conversation(id).catch(() => [] as Msg[]);
-    if (id !== this.threadId) return;
+    if (this.loadingHistory) { this.refreshSoon(100); return; }
+    this.loadingHistory = true;
+    const generation = this.historyGeneration;
+    let page: HistoryPage<Msg>;
+    try {
+      page = this.api.conversationPage ? await this.api.conversationPage(id) : { messages: await this.api.conversation(id), cursor: null, hasMore: false };
+      await this.loadReviewPapers(page.messages, id, generation);
+      if (id === this.threadId && generation === this.historyGeneration && !this.sourceReportLoaded && this.api.sourceReport) {
+        const version = this.sourceReportVersion;
+        try {
+          const paper = await this.api.sourceReport(id);
+          if (id === this.threadId && generation === this.historyGeneration && version === this.sourceReportVersion) this.setSourceReport(paper);
+        } catch { /* Conversation remains usable when report history is unavailable. */ }
+      }
+    }
+    catch { if (id === this.threadId && generation === this.historyGeneration) this.refreshSoon(2000); return; }
+    finally { this.loadingHistory = false; }
+    if (id !== this.threadId || generation !== this.historyGeneration) return;
+    this.renderHistory(this.history.update(page));
+  }
+
+  private async loadEarlier() {
+    const id = this.threadId, cursor = this.history.cursor;
+    if (!id || !cursor || !this.history.hasMore || this.loadingOlder || !this.api.conversationPage) return;
+    const generation = this.historyGeneration;
+    this.loadingOlder = true;
+    this.historyButton();
+    try {
+      const page = await this.api.conversationPage(id, { before: cursor });
+      await this.loadReviewPapers(page.messages, id, generation);
+      if (id !== this.threadId || generation !== this.historyGeneration) return;
+      this.renderHistory(this.history.update(page, true), true);
+    } catch {
+      if (id === this.threadId && generation === this.historyGeneration) {
+        const button = this.historyButton();
+        button.textContent = "Could not load earlier messages. Retry";
+      }
+    } finally {
+      if (generation === this.historyGeneration) {
+        this.loadingOlder = false;
+        const button = this.el.querySelector<HTMLButtonElement>(".cp-history-more");
+        if (button) { button.disabled = false; if (button.textContent === "Loading earlier messages...") this.historyButton(); }
+      }
+    }
+  }
+
+  private historyButton() {
+    const list = this.el.querySelector<HTMLElement>(".cp-list")!;
+    let button = list.querySelector<HTMLButtonElement>(".cp-history-more");
+    if (!button) {
+      button = document.createElement("button");
+      button.type = "button";
+      button.className = "cp-history-more ghost";
+      list.prepend(button);
+    }
+    button.hidden = !this.history.hasMore;
+    button.disabled = this.loadingOlder;
+    const label = this.loadingOlder ? "Loading earlier messages..." : "Load earlier messages";
+    if (button.textContent !== label) button.textContent = label;
+    return button;
+  }
+
+  private async loadReviewPapers(messages: Msg[], threadId: string, generation: number) {
+    if (!this.api.reviewPapers || threadId !== this.threadId || generation !== this.historyGeneration) return;
+    const ids = messages.filter(m => m.role === "assistant").map(m => reviewReportId(m.text)).filter((id): id is string => !!id && !this.reviewLookups.has(id));
+    if (!ids.length) return;
+    try {
+      const papers = await this.api.reviewPapers(threadId);
+      if (threadId !== this.threadId || generation !== this.historyGeneration) return;
+      for (const paper of papers) if (ids.includes(paper.id)) this.reviewPapers.set(paper.id, { id: paper.id, threadId: paper.threadId, title: paper.title, images: paper.images });
+      // The live verdict can precede archive ingestion. Retry absent papers on
+      // later refreshes instead of caching their temporary absence forever.
+      for (const id of ids) if (this.reviewPapers.has(id)) this.reviewLookups.add(id);
+      for (const m of messages) if (ids.includes(reviewReportId(m.text) || "")) this.renderedMessages.delete(m.id);
+    } catch { /* Keep the original message readable if saved history is unavailable. */ }
+  }
+
+  private renderHistory(msgs: Msg[], preservePosition = false) {
+    const id = this.threadId;
+    if (!id) return;
     // the thread's model can change elsewhere too (T3 itself); check now and then
     if (this.paired && !this.saving && Date.now() - this.selAt > 4000) void this.loadSelection();
+    const started = beginSystem();
     const list = this.el.querySelector(".cp-list") as HTMLElement;
-    const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
-    let added = 0;
     // Queued messages wait in their own section at the bottom, in the order the robot takes them.
     const queued = msgs.filter((m) => m.role === "user" && m.run === "queued").sort((a, b) => (a.queue ?? 99) - (b.queue ?? 99));
     const timeline = msgs.filter((m) => !(m.role === "user" && m.run === "queued"));
     this.renderQueue(queued);
-    for (const id of [...this.shown.keys()]) {
-      if (!timeline.some((m) => m.id === id)) { this.shown.get(id)!.remove(); this.shown.delete(id); }
+    this.setPlan(this.desk?.planSteps || []);
+    const historyButton = this.historyButton();
+    const changed = new Set<string>();
+    for (const m of timeline) {
+      if (!sameChatMessage(this.renderedMessages.get(m.id), m)) changed.add(m.id);
+      // Retain the current history object, so an unchanged IPC reply does not
+      // leave a second copy of its text alive through the render cache.
+      this.renderedMessages.set(m.id, m);
     }
-    list.querySelector(".cp-empty")?.remove();
-    let prevEl: HTMLElement | null = null;
+    const reordered = !this.timelineIds || timeline.length !== this.timelineIds.length || timeline.some((m, i) => m.id !== this.timelineIds![i]);
+    if (!changed.size && !reordered) { endSystem("chat", started); return; }
+    this.timelineIds = timeline.map(m => m.id);
+    // Read layout only when the visible timeline actually needs an update.
+    const nearBottom = !preservePosition && list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+    const oldHeight = list.scrollHeight;
+    const initial = this.shown.size === 0;
+    const reader = !nearBottom ? chatReaderAnchor(list) : null;
+    const anchor = reader?.element, anchorY = reader?.top;
+    const ids = new Set(timeline.map((m) => m.id));
+    for (const id of [...this.shown.keys()]) {
+      if (!ids.has(id)) { this.shown.get(id)!.remove(); this.shown.delete(id); this.renderedMessages.delete(id); }
+    }
+    list.querySelector(".cp-empty:not(.cp-notice)")?.remove();
+    const batches: { key: string; role: string; messages: Msg[] }[] = [];
     for (const m of timeline) {
       let el = this.shown.get(m.id);
-      const html = this.render(m);
       if (!el) {
         el = document.createElement("div");
-        el.className = `cp-msg ${m.role === "user" ? "you" : "bot"}`;
-        el.innerHTML = html;
+        el.className = m.role === "event" ? "cp-event" : `cp-msg ${m.role === "user" ? "you" : "bot"}`;
+        el.dataset.id = m.id;
         this.shown.set(m.id, el);
-        if (this.shown.size > msgs.length - 6) gsap.fromTo(el, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out", delay: added++ * 0.05 });
-      } else if (el.dataset.sig !== `${m.text.length}:${m.streaming}:${m.run}`) {
-        el.innerHTML = html;
       }
-      el.dataset.sig = `${m.text.length}:${m.streaming}:${m.run}`;
-      // very long messages of yours fold, with a toggle to read them in full
-      if (m.role === "user" && m.text.length > 700 && !el.querySelector(".cp-more")) {
-        el.classList.add("long");
-        const more = document.createElement("button");
-        more.type = "button"; more.className = "cp-more"; more.textContent = "Show all";
-        more.addEventListener("click", () => { const open = el!.classList.toggle("open"); more.textContent = open ? "Show less" : "Show all"; });
-        el.appendChild(more);
+      if (changed.has(m.id)) {
+        const expanded = el.classList.contains("open");
+        el.innerHTML = m.event ? this.renderEvent(m) : this.render(m);
+        if (m.role === "user" && m.text.length > 700) {
+          el.classList.add("long");
+          el.classList.toggle("open", expanded);
+          const more = document.createElement("button");
+          more.type = "button"; more.className = "cp-more"; more.textContent = expanded ? "Show less" : "Show all";
+          more.addEventListener("click", () => { more.textContent = el!.classList.toggle("open") ? "Show less" : "Show all"; });
+          el.appendChild(more);
+        }
       }
-      // keep every message in conversation order, also ones that were already on screen
-      const want: Element | null = prevEl ? prevEl.nextElementSibling : list.firstElementChild;
-      if (want !== el) list.insertBefore(el, want);
-      prevEl = el;
+      const prev = batches.at(-1);
+      const minute = Math.floor(Date.parse(m.at) / 60000);
+      if (m.role !== "event" && prev?.role === m.role && Math.floor(Date.parse(prev.messages[0].at) / 60000) === minute) prev.messages.push(m);
+      else batches.push({ key: m.id, role: m.role, messages: [m] });
     }
+    const activeGroups = new Set<string>();
+    let previous: HTMLElement | null = historyButton;
+    for (const batch of batches) {
+      let row: HTMLElement;
+      if (batch.role === "event") row = this.shown.get(batch.key)!;
+      else {
+        activeGroups.add(batch.key);
+        row = this.groups.get(batch.key)!;
+        if (!row) {
+          row = document.createElement("section");
+          row.className = `cp-group ${batch.role === "user" ? "you" : "bot"}`;
+          row.innerHTML = `<details class="cp-earlier"><summary></summary><div class="cp-earlier-body"></div></details><div class="cp-latest"></div>`;
+          this.groups.set(batch.key, row);
+        }
+        const details = row.querySelector("details")!;
+        const hideEarlier = batch.messages.length < 2;
+        if (details.hidden !== hideEarlier) details.hidden = hideEarlier;
+        const count = batch.messages.length - 1;
+        const summary = details.querySelector("summary")!;
+        const label = `${count} earlier ${batch.role === "user" ? (count === 1 ? "message" : "messages") : (count === 1 ? "update" : "updates")}`;
+        if (summary.textContent !== label) summary.textContent = label;
+        const earlier = row.querySelector(".cp-earlier-body")!, latest = row.querySelector(".cp-latest")!;
+        batch.messages.forEach((m, i) => {
+          const target = i === batch.messages.length - 1 ? latest : earlier;
+          const el = this.shown.get(m.id)!;
+          if (el.parentElement !== target) target.appendChild(el);
+        });
+      }
+      const next: Element | null = previous ? previous.nextElementSibling : list.firstElementChild;
+      if (next !== row) list.insertBefore(row, next);
+      previous = row;
+    }
+    for (const [key, group] of this.groups) if (!activeGroups.has(key)) { group.remove(); this.groups.delete(key); }
     // pending bubbles disappear once the real message shows up
     const texts = new Set(msgs.filter((m) => m.role === "user").map((m) => m.text.trim()));
     list.querySelectorAll(".cp-msg.pending").forEach((e) => list.appendChild(e));
     const typing = list.querySelector(".cp-typing");
     if (typing) list.appendChild(typing);
-    this.pending = this.pending.filter((p) => !texts.has(p.text) && Date.now() - p.at < 60000);
-    this.renderPending();
-    if (!list.children.length) list.innerHTML = `<p class="cp-empty">No messages yet. Say hello.</p>`;
-    else list.querySelector(".cp-empty")?.remove();
-    if (nearBottom || added) list.scrollTop = list.scrollHeight;
+    const pending = this.pending.filter((p) => p.threadId !== id || (!texts.has(p.text) && Date.now() - p.at < 60000));
+    const pendingChanged = pending.length !== this.pending.length;
+    this.pending = pending;
+    if (pendingChanged) this.renderPending(false);
+    if (!timeline.length && !list.querySelector(".cp-msg.pending,.cp-typing,.cp-empty")) list.insertAdjacentHTML("beforeend", `<p class="cp-empty">No messages yet. Say hello.</p>`);
+    else if (timeline.length) list.querySelector(".cp-empty:not(.cp-notice)")?.remove();
+    const sourceReport = list.querySelector(".cp-source-report");
+    if (sourceReport) list.appendChild(sourceReport);
+    if (nearBottom || (initial && !preservePosition)) list.scrollTop = list.scrollHeight;
+    else if (anchor?.isConnected && anchorY != null) list.scrollTop += anchor.getBoundingClientRect().top - anchorY;
+    else if (preservePosition) list.scrollTop += list.scrollHeight - oldHeight;
+    endSystem("chat", started);
+  }
+
+  // A view of the saved paper, never a synthetic T3 message or settlement action.
+  setSourceReport(paper: ChatReviewPaper | null) {
+    if (paper && paper.threadId !== this.threadId) return;
+    this.sourceReportVersion++; this.sourceReportLoaded = true;
+    const signature = paper ? JSON.stringify([paper.id, paper.status, paper.response, paper.verdict, paper.images]) : "";
+    this.sourceReport = paper;
+    if (signature === this.sourceReportSignature) return;
+    this.sourceReportSignature = signature;
+    const list = this.el.querySelector<HTMLElement>(".cp-list")!;
+    const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+    let footer = list.querySelector<HTMLElement>(".cp-source-report");
+    if (!paper) footer?.remove();
+    else {
+      if (!footer) {
+        footer = document.createElement("section"); footer.className = "cp-msg bot cp-source-report";
+        footer.setAttribute("aria-label", "Session report");
+      }
+      const expanded = footer.querySelector<HTMLDetailsElement>(".cp-review-original")?.open;
+      const focused = footer.contains(document.activeElement) ? document.activeElement as HTMLElement : null;
+      const action = focused?.hasAttribute("data-review-questions") ? "[data-review-questions]" : focused?.hasAttribute("data-review-open") ? "[data-review-open]" : focused?.tagName === "SUMMARY" ? "summary" : null;
+      footer.innerHTML = '<div class="cp-text">' + renderSourceChatReport(paper, md) + '</div>';
+      const details = footer.querySelector<HTMLDetailsElement>(".cp-review-original");
+      if (details) details.open = !!expanded;
+      if (action) footer.querySelector<HTMLElement>(action)?.focus({ preventScroll: true });
+      list.querySelector(".cp-empty:not(.cp-notice)")?.remove();
+      list.appendChild(footer);
+    }
+    if (atBottom) list.scrollTop = list.scrollHeight;
+  }
+
+  showPlan() { const plan = this.el.querySelector<HTMLDetailsElement>(".cp-plan")!; plan.open = true; plan.querySelector("summary")!.focus({ preventScroll: true }); }
+
+  private setPlan(steps: { text: string; status: string }[]) {
+    const plan = this.el.querySelector<HTMLElement>(".cp-plan")!;
+    plan.hidden = !steps.length;
+    const sig = JSON.stringify(steps);
+    if (plan.dataset.sig === sig) return;
+    plan.dataset.sig = sig;
+    plan.querySelector("summary")!.textContent = `Plan (${steps.filter((s) => /completed|done/.test(s.status)).length} of ${steps.length} complete)`;
+    plan.querySelector("ol")!.innerHTML = steps.map((s) => `<li data-status="${esc(s.status)}"><span>${/completed|done/.test(s.status) ? "Done" : /progress|running/.test(s.status) ? "Doing" : "To do"}</span>${esc(s.text)}</li>`).join("");
+  }
+
+  private renderEvent(m: Msg) {
+    const e = m.event!;
+    const modelName = (s?: string) => (s || "").replace(/^claude-/, "").replace(/^gpt-/, "").replace(/-(\d)-(\d)/, " $1.$2").replace(/-/g, " ").replace(/\b[a-z]/g, (c) => c.toUpperCase());
+    const selection = (s?: { provider?: string; model?: string }) => {
+      if (!s) return "";
+      const logo = s.provider ? logoFor(s.provider) : null;
+      return `<span class="cp-event-model">${logo ? `<img src="${logo}" alt="${esc(harnessName(s.provider))}">` : ""}${esc(modelName(s.model) || harnessName(s.provider))}</span>`;
+    };
+    const label = e.kind === "compaction" ? (/running|pending|waiting/.test(e.status ?? "") ? "Compacting context" : e.status === "failed" ? "Compaction failed" : /cancel|interrupt|abort/.test(e.status ?? "") ? "Compaction interrupted" : "Context compacted")
+      : e.kind === "handoff" ? "Context handoff" : e.kind === "harness" ? "Harness switched" : "Model switched";
+    return `<span class="cp-event-line" aria-hidden="true"></span><span class="cp-event-body"><span>${label}</span>${e.from || e.to ? selection(e.from) + '<span aria-hidden="true">&rarr;</span>' + selection(e.to) : ""}<time datetime="${esc(m.at)}">${when(m.at)}</time></span><span class="cp-event-line" aria-hidden="true"></span>`;
   }
 
   private render(m: Msg) {
@@ -616,8 +988,7 @@ export class ChatPanel {
         const mm = line.match(/^- (image|file): (.+)$/);
         if (!mm) continue;
         const p = mm[2].trim(), name = p.split(/[\\/]/).pop()!.replace(/^\d+-/, "");
-        sent.push(mm[1] === "image" ? `<figure class="cp-att"><img src="${fileUrl(p)}" alt="${esc(name)}" loading="lazy"></figure>`
-          : `<div class="cp-file" title="${esc(p)}"><span>${esc(name)}</span><i>file</i></div>`);
+        sent.push(mediaAttachment(p, name, mm[1] === "image" ? "image/" : ""));
       }
     }
     // threads you referenced show as small chips, not as the block the agent reads
@@ -631,11 +1002,13 @@ export class ChatPanel {
     }
     m = { ...m, text: body };
     const atts = sent.join("") + m.attachments.map((a) => {
-      if (a.type === "image" && a.path) return `<figure class="cp-att"><img src="${fileUrl(a.path)}" alt="${esc(a.name)}" loading="lazy"></figure>`;
+      if (a.path) return mediaAttachment(a.path, a.name, a.mime || (a.type === "image" ? "image/" : ""));
       return `<div class="cp-file" title="${esc(a.name)}"><span>${esc(a.name)}</span><i>${Math.max(1, Math.round((a.size || 0) / 1024))} KB</i></div>`;
     }).join("");
     const state = m.role === "user" && m.run === "running" ? `<em class="cp-live">It is working on this</em>` : "";
-    return `${atts ? `<div class="cp-atts">${atts}</div>` : ""}${m.text ? `<div class="cp-text">${md(m.text)}${m.streaming ? '<span class="caret"></span>' : ""}</div>` : ""}${state}<time>${when(m.at)}</time>`;
+    const paper = m.role === "assistant" ? this.reviewPapers.get(reviewReportId(m.text) || "") : null;
+    const report = paper ? renderChatReview(m.text, m.streaming, paper, md) : null;
+    return `${atts ? `<div class="cp-atts">${atts}</div>` : ""}${m.text ? `<div class="cp-text">${report ?? (md(m.text) + (m.streaming ? '<span class="caret"></span>' : ""))}</div>` : ""}${state}<time datetime="${esc(m.at)}" title="${esc(new Date(m.at).toLocaleString())}">${when(m.at)}</time>`;
   }
 
   private renderQueue(queued: Msg[]) {
@@ -656,7 +1029,7 @@ export class ChatPanel {
     // never replace rows while you drag, edit or confirm; the latest state lands afterwards
     if (this.queueHold > 0) return;
     const live = this.canAct();
-    const sig = `${live}|` + queued.map((m) => `${m.id}:${m.text.length}:${m.text.slice(0, 40)}:${m.steerTarget ? 1 : 0}`).join(",");
+    const sig = JSON.stringify([live, queued]);
     if (ol.dataset.sig === sig) return;
     ol.dataset.sig = sig;
     box.classList.toggle("can-act", live);
@@ -982,7 +1355,8 @@ export class ChatPanel {
   private wireQueue() {
     const ol = this.el.querySelector(".cp-queue ol") as HTMLOListElement;
     const items = () => [...ol.children] as HTMLElement[];
-    const hold = (on: boolean) => {
+    const hold = (on: boolean, threadId = this.threadId) => {
+      if (threadId !== this.threadId) return;
       this.queueHold = Math.max(0, this.queueHold + (on ? 1 : -1));
       if (!this.queueHold) { ol.dataset.sig = ""; this.renderQueue(this.queueLatest); }
     };
@@ -995,28 +1369,30 @@ export class ChatPanel {
       }
     };
     const move = async (li: HTMLElement, to: number, seen?: Map<HTMLElement, number>) => {
+      const threadId = this.threadId;
       const list = items();
       const from = list.indexOf(li);
       const min = list.findIndex((x) => !x.classList.contains("fixed"));
       to = Math.max(min, Math.min(list.length - 1, to));
-      if (to === from || !this.threadId) return;
+      if (to === from || !threadId) return;
       // T3 wants the run it should now sit in front of (null: the end of the queue)
       const before = list.filter((x) => x !== li)[to] ?? null;
       seen ??= new Map(list.map((x) => [x, x.getBoundingClientRect().top]));
       ol.insertBefore(li, before);
       glide(list, seen);
       this.numberQueue();
-      hold(true);
+      hold(true, threadId);
       try {
-        await this.api.t3!.reorder({ threadId: this.threadId, runId: li.dataset.run!, beforeRunId: before?.dataset.run || null });
+        await this.api.t3!.reorder({ threadId, runId: li.dataset.run!, beforeRunId: before?.dataset.run || null });
       } catch (err: any) {
+        if (threadId !== this.threadId) return;
         const back = new Map(list.map((x) => [x, x.getBoundingClientRect().top]));
         ol.insertBefore(li, list[from + 1] ?? null);
         glide(list, back);
         this.numberQueue();
         this.failed(err, "queue");
       } finally {
-        hold(false);
+        hold(false, threadId);
         this.refreshSoon(250);
       }
     };
@@ -1025,23 +1401,26 @@ export class ChatPanel {
       const b = (e.target as HTMLElement).closest("[data-act]") as HTMLButtonElement | null;
       const li = b?.closest("li") as HTMLElement | null;
       if (!b || !li || b.disabled || !this.threadId) return;
+      const threadId = this.threadId;
+      const rowHold = (on: boolean) => hold(on, threadId);
       const i = items().indexOf(li);
       const act = b.dataset.act;
       if (act === "up" || act === "down") {
         await move(li, act === "up" ? i - 1 : i + 1);
         (li.querySelector(`[data-act="${act}"]`) as HTMLButtonElement | null)?.focus();
-      } else if (act === "edit") this.editRow(li, hold);
-      else if (act === "cancel") this.confirmRemove(li, hold);
+      } else if (act === "edit") this.editRow(li, rowHold);
+      else if (act === "cancel") this.confirmRemove(li, rowHold);
       else if (act === "steer") {
         const m = this.queueLatest.find((x) => x.id === li.dataset.id);
         if (!m?.steerTarget) return;
-        hold(true);
+        rowHold(true);
         gsap.to(li, { opacity: 0.35, duration: 0.15 });
         try {
-          await this.api.t3!.steer({ threadId: this.threadId, queuedRunId: li.dataset.run!, targetRunId: m.steerTarget });
+          await this.api.t3!.steer({ threadId, queuedRunId: li.dataset.run!, targetRunId: m.steerTarget });
+          if (threadId !== this.threadId) return;
           li.remove(); this.numberQueue();
-        } catch (err: any) { gsap.to(li, { opacity: 1, duration: 0.15 }); this.failed(err, "queue"); }
-        finally { hold(false); this.refreshSoon(250); }
+        } catch (err: any) { if (threadId === this.threadId) { gsap.to(li, { opacity: 1, duration: 0.15 }); this.failed(err, "queue"); } }
+        finally { rowHold(false); this.refreshSoon(250); }
       }
     });
 
@@ -1068,12 +1447,15 @@ export class ChatPanel {
       const gap = rects.length > 1 ? rects[1].top - rects[0].bottom : 6;
       const step = rects[from].height + gap;
       const startY = e.clientY;
+      const threadId = this.threadId;
+      const pointerId = e.pointerId;
       let to = from;
-      grip.setPointerCapture(e.pointerId);
+      try { grip.setPointerCapture(pointerId); } catch { /* window handlers cover synthetic and lost capture */ }
       li.classList.add("dragging");
       document.body.classList.add("cq-dragging");
-      hold(true);
+      hold(true, threadId);
       const onMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
         const dy = ev.clientY - startY;
         gsap.set(li, { y: dy });
         const mid = rects[from].top + rects[from].height / 2 + dy;
@@ -1090,23 +1472,37 @@ export class ChatPanel {
         preview.splice(to, 0, li);
         preview.forEach((x, i) => ((x.querySelector(".cq-n") as HTMLElement).textContent = ordLabel(i + 1)));
       };
-      const onUp = (ev: PointerEvent) => {
-        if (ev.type === "pointercancel") to = from; // interrupted: it goes back where it was
-        grip.removeEventListener("pointermove", onMove);
-        grip.removeEventListener("pointerup", onUp);
-        grip.removeEventListener("pointercancel", onUp);
+      let ended = false;
+      const finish = (cancel: boolean) => {
+        if (ended) return;
+        ended = true;
+        if (cancel) to = from;
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onCancel);
+        window.removeEventListener("blur", onCancel);
+        window.removeEventListener("keydown", onKey, true);
+        grip.removeEventListener("lostpointercapture", onCancel);
+        this.queueCleanups.delete(onCancel);
         li.classList.remove("dragging");
         document.body.classList.remove("cq-dragging");
         // remember where everything is on screen, drop the drag offsets, then glide into place
         gsap.killTweensOf(list);
         const seen = new Map(list.map((x) => [x, x.getBoundingClientRect().top]));
         list.forEach((x) => gsap.set(x, { clearProps: "transform" }));
-        if (to !== from) void move(li, to, seen).finally(() => hold(false));
-        else { glide(list, seen); this.numberQueue(); hold(false); }
+        if (to !== from) void move(li, to, seen).finally(() => hold(false, threadId));
+        else { glide(list, seen); this.numberQueue(); hold(false, threadId); }
       };
-      grip.addEventListener("pointermove", onMove);
-      grip.addEventListener("pointerup", onUp);
-      grip.addEventListener("pointercancel", onUp);
+      const onUp = (ev: PointerEvent) => { if (ev.pointerId === pointerId) finish(false); };
+      const onCancel = () => finish(true);
+      const onKey = (ev: KeyboardEvent) => { if (ev.key === "Escape") { ev.preventDefault(); ev.stopImmediatePropagation(); finish(true); } };
+      this.queueCleanups.add(onCancel);
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onCancel);
+      window.addEventListener("blur", onCancel);
+      window.addEventListener("keydown", onKey, true);
+      grip.addEventListener("lostpointercapture", onCancel);
     });
   }
 
@@ -1115,6 +1511,7 @@ export class ChatPanel {
     if (li.classList.contains("editing")) return;
     const m = this.queueLatest.find((x) => x.id === li.dataset.id);
     if (!m) return;
+    const threadId = this.threadId!;
     hold(true);
     li.classList.add("editing");
     const p = li.querySelector("p") as HTMLElement;
@@ -1126,7 +1523,11 @@ export class ChatPanel {
     p.replaceWith(box);
     ta.focus();
     ta.setSelectionRange(ta.value.length, ta.value.length);
+    let finished = false;
     const finish = () => {
+      if (finished) return;
+      finished = true;
+      this.queueCleanups.delete(finish);
       window.removeEventListener("keydown", onEsc, true);
       box.replaceWith(p);
       li.classList.remove("editing");
@@ -1134,6 +1535,7 @@ export class ChatPanel {
     };
     const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape" && box.contains(document.activeElement)) { e.stopImmediatePropagation(); finish(); (li.querySelector('[data-act="edit"]') as HTMLElement | null)?.focus(); } };
     window.addEventListener("keydown", onEsc, true);
+    this.queueCleanups.add(finish);
     const save = async () => {
       const text = ta.value.trim();
       if (!text) { this.queueNote("A queued message cannot be empty. Remove it instead."); return; }
@@ -1141,11 +1543,13 @@ export class ChatPanel {
       const saveBtn = box.querySelector(".cq-save") as HTMLButtonElement;
       saveBtn.disabled = true; saveBtn.textContent = "Saving";
       try {
-        await this.api.t3!.edit({ threadId: this.threadId!, runId: li.dataset.run!, text });
+        await this.api.t3!.edit({ threadId, runId: li.dataset.run!, text });
+        if (threadId !== this.threadId) return;
         p.textContent = text; p.title = text;
         finish();
         this.refreshSoon(200);
       } catch (err: any) {
+        if (threadId !== this.threadId) return;
         saveBtn.disabled = false; saveBtn.textContent = "Save";
         this.failed(err, "queue");
       }
@@ -1158,6 +1562,7 @@ export class ChatPanel {
   // Removing cannot be undone in T3, so the row asks once, in place.
   private confirmRemove(li: HTMLElement, hold: (on: boolean) => void) {
     if (li.classList.contains("confirming")) return;
+    const threadId = this.threadId!;
     hold(true);
     li.classList.add("confirming");
     const bar = document.createElement("div");
@@ -1167,37 +1572,53 @@ export class ChatPanel {
     li.appendChild(bar);
     const keep = bar.querySelector(".cq-no") as HTMLButtonElement;
     keep.focus();
-    const finish = () => { window.removeEventListener("keydown", onEsc, true); bar.remove(); li.classList.remove("confirming"); hold(false); };
+    let finished = false;
+    const finish = () => { if (finished) return; finished = true; this.queueCleanups.delete(finish); window.removeEventListener("keydown", onEsc, true); bar.remove(); li.classList.remove("confirming"); hold(false); };
     const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape" && bar.contains(document.activeElement)) { e.stopImmediatePropagation(); finish(); (li.querySelector('[data-act="cancel"]') as HTMLElement | null)?.focus(); } };
     window.addEventListener("keydown", onEsc, true);
+    this.queueCleanups.add(finish);
     keep.addEventListener("click", () => { finish(); (li.querySelector('[data-act="cancel"]') as HTMLElement | null)?.focus(); });
     bar.querySelector(".cq-yes")!.addEventListener("click", async () => {
       const yes = bar.querySelector(".cq-yes") as HTMLButtonElement;
       yes.disabled = true; yes.textContent = "Removing";
       try {
-        await this.api.t3!.cancel({ threadId: this.threadId!, runId: li.dataset.run! });
+        await this.api.t3!.cancel({ threadId, runId: li.dataset.run! });
+        if (threadId !== this.threadId) return;
         const next = (li.nextElementSibling ?? li.previousElementSibling) as HTMLElement | null;
-        window.removeEventListener("keydown", onEsc, true);
-        gsap.to(li, { opacity: 0, height: 0, marginTop: 0, duration: 0.2, onComplete: () => { li.remove(); this.numberQueue(); li.classList.remove("confirming"); hold(false); this.refreshSoon(100); } });
+        gsap.to(li, { opacity: 0, height: 0, marginTop: 0, duration: 0.2, onComplete: () => { li.remove(); if (threadId === this.threadId) this.numberQueue(); finish(); this.refreshSoon(100); } });
         (next?.querySelector(".cq-grip") as HTMLElement | null)?.focus();
       } catch (err: any) {
         finish();
-        this.failed(err, "queue");
+        if (threadId === this.threadId) this.failed(err, "queue");
       }
     });
   }
 
-  private zoom(src: string) {
-    const z = this.el.querySelector(".cp-zoom") as HTMLElement;
-    (z.querySelector("img") as HTMLImageElement).src = src;
-    z.hidden = false;
-    gsap.fromTo(z, { opacity: 0 }, { opacity: 1, duration: 0.2 });
+  private zoom(src: string, kind = "image", name = "Image") {
+    const z = this.el.querySelector(".cp-zoom") as HTMLDialogElement;
+    for (const previous of z.querySelectorAll<HTMLMediaElement>("video,audio")) {
+      previous.pause(); previous.removeAttribute("src"); previous.load();
+    }
+    const media = document.createElement(kind === "video" ? "video" : kind === "audio" ? "audio" : "img");
+    media.src = src;
+    if (media instanceof HTMLImageElement) media.alt = name;
+    else { media.controls = true; media.preload = "metadata"; }
+    media.addEventListener("error", () => {
+      if (z.querySelector(".cp-media-stage")!.firstElementChild !== media) return;
+      const message = document.createElement("p");
+      message.textContent = "This file could not be previewed. Check that it is still available and uses a supported media format.";
+      z.querySelector(".cp-media-stage")!.replaceChildren(message);
+    }, { once: true });
+    z.querySelector("strong")!.textContent = name;
+    z.querySelector(".cp-media-stage")!.replaceChildren(media);
+    if (!z.open) z.showModal();
+    z.querySelector("button")!.focus();
   }
 
   private note(text: string) {
     const list = this.el.querySelector(".cp-list") as HTMLElement;
     const p = document.createElement("p");
-    p.className = "cp-empty";
+    p.className = "cp-empty cp-notice";
     p.textContent = text;
     list.appendChild(p);
     list.scrollTop = list.scrollHeight;

@@ -1,0 +1,18 @@
+{
+  "mode": "flush-failure",
+  "injected": true,
+  "events": [
+    "Checking updates",
+    "save-pending",
+    "save-pending",
+    "Restarting",
+    "injected-save-error",
+    "injected-save-error",
+    "relaunch",
+    "exit"
+  ],
+  "productionRestarted": false,
+  "handlerSha256": "11b5ea350ce54d884f9848b2e6e03b6a07e521b4599633b9ab8eacb1d1ac7045",
+  "status": "failed",
+  "error": "AssertionError [ERR_ASSERTION]: Injected persistence failure crossed the relaunch boundary\n+ actual - expected\n\n+ 'flush-failure'\n- 'success'\n\n    at reopened (E:\\T3 Projects\\Lucid\\scripts\\verify-update-ipc-native.cjs:75:12)\n    at Object.<anonymous> (E:\\T3 Projects\\Lucid\\scripts\\verify-update-ipc-native.cjs:105:68)\n    at Module._compile (node:internal/modules/cjs/loader:1937:14)\n    at Object..js (node:internal/modules/cjs/loader:2070:10)\n    at Module.load (node:internal/modules/cjs/loader:1658:32)\n    at Module._load (node:internal/modules/cjs/loader:1450:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:268:19)\n    at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:378:15)\n    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:246:9)\n    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)"
+}

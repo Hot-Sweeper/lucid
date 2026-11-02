@@ -8,22 +8,13 @@ import { browseTelegrid } from "./telegrid";
 import { scrollChirp } from "./chirp";
 import { scrollInstabot } from "./instabot";
 import { snapOnSnapbot } from "./snapbot";
+import { swipeSparkplug } from "./sparkplug";
 import "../fun/fun.css";
 import "./shorts.css";
 import "./phonetime.css";
 
-export type PhoneApp = "botsapp" | "telegrid" | "chirp" | "instabot" | "snapbot" | "shorts" | "spool";
-export const PHONE_APP_LABEL: Record<PhoneApp, string> = { botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", instabot: "Instabot", snapbot: "Snapbot", shorts: "BotTube Shorts", spool: "Spool" };
-/** What the robot is up to, for the activity line. */
-export const PHONE_APP_DOING: Record<PhoneApp, string> = {
-  botsapp: "Texting the family on BotsApp",
-  telegrid: "Reading Telegrid channels",
-  chirp: "Scrolling Chirp on its phone",
-  instabot: "Scrolling Instabot",
-  snapbot: "Sending snaps on Snapbot",
-  shorts: "Watching BotTube Shorts",
-  spool: "Scrolling clips on its phone",
-};
+import { PHONE_APP_LABEL, PHONE_APP_DOING, type PhoneApp } from "./phone-apps";
+export { PHONE_APP_LABEL, PHONE_APP_DOING, type PhoneApp } from "./phone-apps";
 
 type RunFn = (body: HTMLElement, host: SoHost, opts: SoOpts) => Promise<unknown>;
 const RUN: Record<PhoneApp, RunFn> = {
@@ -34,6 +25,7 @@ const RUN: Record<PhoneApp, RunFn> = {
   snapbot: snapOnSnapbot,
   shorts: (b, host, o) => watchPhoneFeed(b, host, { maxMs: o.maxMs, variant: "shorts" }),
   spool: (b, host, o) => watchPhoneFeed(b, host, { maxMs: o.maxMs }),
+  sparkplug: swipeSparkplug,
 };
 const LABEL_SHORT: Record<PhoneApp, string> = { ...PHONE_APP_LABEL, shorts: "Shorts" };
 const FILLER = [

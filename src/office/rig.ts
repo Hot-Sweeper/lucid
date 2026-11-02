@@ -15,7 +15,7 @@ export const GEOM = {
   stand: { x: 200, top: 176, base: 194 },
   table: { x: 34, y: 180, w: 332, h: 76, front: 12 },   // top surface, then a 12px front face
   keyboard: { x: 146, y: 208, w: 108, h: 30 },          // 4 key rows + a space bar row, columns left to right
-  mouse: { x: 278, y: 226 },
+  mouse: { x: 288, y: 226 },                           // pad begins at 264, clear of the keyboard's right edge at 259
   mug: { x: 330, y: 204 },
   phoneRest: { x: 76, y: 226 },
   chair: { x: 200, y: 300 },                            // seat center; backrest is south of it (y 300..344)
@@ -35,7 +35,7 @@ export interface DeskRig {
   homeLeft: Pt;   // resting typing position of the left hand (on F)
   homeRight: Pt;  // resting typing position of the right hand (on J)
   mouse: Pt;      // resting mouse position
-  moveMouse(p: Pt): void;
+  moveMouse(p: Pt, turn?: number): void;   // the mouse slides to p and turns a little (degrees) with the hand's swing
   mug: Pt;
   moveMug(p: Pt | null, tilt?: number): void;          // null puts it back on the desk
   phoneRest: Pt;

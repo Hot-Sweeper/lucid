@@ -1,3 +1,4 @@
+import { canvasText, canvasLines } from "../localization-canvas";
 // Shared flat vector drawing helpers for games and videos. No strokes around shapes:
 // lines are only used for limbs, cables and light streaks.
 
@@ -122,24 +123,19 @@ export function loopFade(ctx: Ctx, w: number, h: number, t: number, L: number, e
   ctx.fillRect(0, 0, w, h);
 }
 
-export function text(ctx: Ctx, s: string, x: number, y: number, size: number, color: string, opts: { weight?: number; align?: CanvasTextAlign; mono?: boolean; base?: CanvasTextBaseline } = {}) {
+export function text(ctx: Ctx, s: string, x: number, y: number, size: number, color: string, opts: { weight?: number; align?: CanvasTextAlign; mono?: boolean; base?: CanvasTextBaseline; maxW?: number } = {}) {
   ctx.font = `${opts.weight ?? 500} ${size}px ${opts.mono ? '"JetBrains Mono Variable", ui-monospace, monospace' : '"Lexend Variable", system-ui, sans-serif'}`;
   ctx.textAlign = opts.align ?? "center";
   ctx.textBaseline = opts.base ?? "middle";
   ctx.fillStyle = color;
-  ctx.fillText(s, x, y);
+  const shown = canvasText(s);
+  const maxW = opts.maxW ?? (shown !== s ? Math.max(1, ctx.measureText(s).width) : undefined);
+  if (maxW !== undefined) ctx.fillText(shown, x, y, maxW);
+  else ctx.fillText(shown, x, y);
 }
 
 export function wrap(ctx: Ctx, s: string, maxW: number): string[] {
-  const words = s.split(" ");
-  const lines: string[] = [];
-  let cur = "";
-  for (const w of words) {
-    const t = cur ? cur + " " + w : w;
-    if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t;
-  }
-  if (cur) lines.push(cur);
-  return lines;
+  return canvasLines(ctx, canvasText(s), maxW);
 }
 
 // --- robot ------------------------------------------------------------------

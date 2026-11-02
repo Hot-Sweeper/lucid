@@ -1,7 +1,14 @@
+import { ModelSticker } from "./model-sticker";
+import { accessorySvg, blushSvg, hatInfo, hatSvg, paintLookColors, styledEyes } from "./look";
 import gsap from "gsap";
-import { watch, unwatch, drawNow, sinceDraw } from "./budget";
+import { flavorSpeech } from "../localization-speech";
+import { batteryWeakness, subscriptionBatteries } from "../office/battery";
+import { watch, unwatch, drawNow, sinceDraw, finishDraw } from "./budget";
+import { routeSuffixLengths } from "./route-distance";
+import { beginSystem, endSystem } from "../perf/metrics";
+import { setSvgAttribute } from "../perf/svg-write";
 import type { Expression, RobotLook } from "../office/rig";
-import { bind, brandFor, clamp, defsSvg, eyesSvg, headSideSvg, headSvg, lerp, paintBrand, paintLook, uid, type BrandKind } from "./parts";
+import { bind, brandFor, clamp, defsSvg, eyesSvg, headSideSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, uid, type BrandKind } from "./parts";
 
 // The v0 robot standing on the top-down floor, the same character as the desk robot: the
 // original head on a slim tapered shell, thin two-bone arms and legs with real elbows and knees.
@@ -25,12 +32,12 @@ export type Activity =
   // seated behind a desk, facing the room, hands on the keyboard
   | "type";
 
-export interface WalkerOptions { id: string; provider: string; name?: string; model?: string; scale?: number; look?: RobotLook }
-export type Prop = "none" | "mug" | "bowl" | "spoon" | "card" | "wrist" | "paddle" | "pad" | "popcorn" | "ball" | "stamp";
+export interface WalkerOptions { id: string; provider: string; name?: string; model?: string; scale?: number; look?: RobotLook; speed?: number; flavorSpeech?: boolean }
+export type Prop = "none" | "mug" | "bowl" | "spoon" | "card" | "report" | "wrist" | "paddle" | "pad" | "popcorn" | "ball" | "stamp";
 
 // ---- skeleton (v0 units) ------------------------------------------------------------------------
 const FEET = { x: 560, y: 935 };              // floor point between the feet
-const VB = { x: 392, y: 500, w: 336, h: 482 };
+const VB = { x: 392, y: 440, w: 336, h: 542 };
 const ANKLE = FEET.y - 9;
 const SH = { dx: 50, y: 750 };                // shoulders: half width, height
 const HIP = { dx: 15, y: 852 };               // hip joints
@@ -77,6 +84,11 @@ const PROPS: Record<Prop, string> = {
   spoon: `<rect x="-2.5" y="-30" width="5" height="40" rx="2.5" fill="#cfd5e2"/><ellipse cx="0" cy="-33" rx="6.5" ry="8" fill="#e6eaf2"/>
     <ellipse data-r="bite" cx="0" cy="-34" rx="4.2" ry="5" fill="#ffd27a" opacity="0"/>`,
   card: "",
+  report: `<g class="world-report-sheet" aria-hidden="true"><path d="M-8 -66 H33 L47 -52 V7 H-8 Z" fill="#fff9ec" stroke="#c7b28e" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M33 -66 V-52 H47" fill="#eadcc3" stroke="#c7b28e" stroke-width="1.6" stroke-linejoin="round"/>
+    <rect x="0" y="-56" width="24" height="5" rx="1" fill="#d3935c"/>
+    <path d="M0 -42 H35 M0 -34 H35 M0 -26 H29 M0 -18 H34 M0 -10 H19" stroke="#afa28d" stroke-width="2" stroke-linecap="round"/>
+    <path d="M29 -2 H35" stroke="#d3935c" stroke-width="2" stroke-linecap="round"/></g>`,
   wrist: "",
   paddle: `<g transform="scale(1.2)"><rect x="-4" y="-10" width="8" height="22" rx="4" fill="#a8774f"/><circle cx="0" cy="-29" r="20" fill="#2b2f3d"/><circle cx="0" cy="-30" r="17.5" fill="#e2483d"/>
     <ellipse cx="-6" cy="-36" rx="6.5" ry="4" fill="#ff8a7a" opacity="0.6"/></g>`,
@@ -143,6 +155,23 @@ export class Walker {
   zBias = 0;
   private deskEdge: number | null = null;
   private s: number;
+  private speed: number;
+  private weakness = 0;
+  private remainingBattery: number | null = null;
+  private batteryProvider = "";
+  private stopBattery?: () => void;
+  private refreshBattery = () => {
+    const battery = subscriptionBatteries.get(this.batteryProvider);
+    this.remainingBattery = battery.remaining;
+    this.weakness = batteryWeakness(battery.remaining);
+    this.battery.classList.toggle("low", battery.remaining !== null && battery.remaining <= 30 && !battery.charging);
+    if (battery.remaining !== null) {
+      const fill = this.battery.querySelector("i") as HTMLElement;
+      gsap.killTweensOf(fill);
+      fill.style.transform = `scaleX(${battery.remaining / 100})`;
+    }
+    this.updateTitle();
+  };
   private svg: SVGSVGElement;
   private $: Record<string, SVGElement> = {};
   private bubble: HTMLDivElement;
@@ -159,6 +188,7 @@ export class Walker {
     laugh: 0, chew: 0, bounce: 0, mash: 0, wave: 0, tap: 0, kick: 0, dangle: 0, dizzy: 0, glowPulse: 0,
   };
   private expr: Expression = "neutral";
+  private blink = { scale: 1 };
   private propL: Prop = "none";
   private propR: Prop = "none";
   private act: gsap.core.Animation | null = null;
@@ -171,7 +201,7 @@ export class Walker {
   private lifeCall: gsap.core.Tween | null = null;
   private gen = 0;
   // walking
-  private mv: { pts: P2[]; i: number; wait: number; resolve: () => void } | null = null;
+  private mv: { pts: P2[]; tails: Float64Array; i: number; wait: number; resolve: () => void } | null = null;
   private v = 0;
   private settleTl: gsap.core.Timeline | null = null;
   // antenna spring (v0 units, local to the current view)
@@ -182,10 +212,13 @@ export class Walker {
   private layer = { l: "", r: "", legs: "" };
   private dangling = false;
   private last = performance.now();
+  private glowPulse = { opacity: 0.9 };
+  private speechLocale?: ReturnType<typeof flavorSpeech>;
 
   constructor(parent: Element, opts: WalkerOptions) {
     this.id = opts.id;
     this.s = opts.scale ?? 0.48;
+    this.speed = opts.speed ?? SPEED;
     this.brand = brandFor(opts.provider);
     this.name = opts.name ?? "";
     this.model = opts.model ?? "";
@@ -203,20 +236,32 @@ export class Walker {
     this.bubble.setAttribute("role", "status");
     this.bubble.innerHTML = "<p></p>";
     parent.appendChild(this.bubble);
+    if (opts.flavorSpeech) this.speechLocale = flavorSpeech(text => {
+      const p = this.bubble.querySelector("p")!;
+      p.textContent = text;
+      const room = this.bubble.parentElement?.closest(".room") ? this.bubble.parentElement : null;
+      this.bubbleFit = room ? { bw: p.offsetWidth, bh: p.offsetHeight, pw: room.clientWidth, ph: room.clientHeight } : null;
+      this.placeBubble();
+    });
     this.el = el;
     this.svg = el.querySelector("svg")!;
     this.$ = bind(this.svg);
+    for (const key of ["antenna", "sideAntenna"]) {
+      const lift = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      this.$[key].before(lift); lift.append(this.$[key]); this.$[`${key}Lift`] = lift;
+    }
     this.card = el.querySelector(".world-card")!;
     this.battery = el.querySelector(".world-battery")!;
     el.style.setProperty("--head-top", `${((FEET.y - 560) * this.s).toFixed(1)}px`);
     paintBrand(this.svg, this.$, this.brand);
-    if (opts.look) { paintLook(this.svg, this.$, opts.look); this.headK = headSize(opts.look); }
+    if (opts.look) this.setLook(opts.look);
     this.setModel(this.model);
+    this.setBrand(opts.provider);
     this.updateTitle();
     this.setExpression("neutral");
     const still = reduced();
     this.loops.push(gsap.to(this.st, { breath: 1, duration: rnd(2, 2.6), ease: "sine.inOut", yoyo: true, repeat: -1, delay: Math.random() * 2 }));
-    if (!still) this.loops.push(gsap.to([this.$.antennaGlow, this.$.sideGlow], { opacity: 0.5, duration: 1.5, ease: "sine.inOut", yoyo: true, repeat: -1 }));
+    if (!still) this.loops.push(gsap.to(this.glowPulse, { opacity: 0.5, duration: 1.5, ease: "sine.inOut", yoyo: true, repeat: -1 }));
     this.scheduleBlink();
     if (!still) this.scheduleLife();
     this.face("down");
@@ -225,13 +270,51 @@ export class Walker {
     this.place();
   }
 
-  setBrand(provider: string) { this.brand = brandFor(provider); paintBrand(this.svg, this.$, this.brand); }
-  setLook(look: RobotLook) { paintLook(this.svg, this.$, look); this.headK = headSize(look); }
+  setBrand(provider: string) { this.batteryProvider = provider; this.refreshBattery(); this.stopBattery ||= subscriptionBatteries.subscribe(this.refreshBattery); this.brand = brandFor(provider); paintBrand(this.svg, this.$, this.brand); paintLookColors(this.svg, PALETTES[this.brand], this.walkerLook); }
+  private walkerLook: RobotLook = {};
+  private lookKey = "";
+  private lookId = uid("walker-look");
+  private updateAccessories() {
+    const side = this.facing === "left" || this.facing === "right";
+    const art = accessorySvg(this.walkerLook.accessory, this.facing === "up" ? "back" : "front");
+    const rear = accessorySvg(this.walkerLook.accessory, "back");
+    this.$.accessoryUnder.innerHTML = side ? rear.pack + rear.under : art.under;
+    this.$.accessoryUnder.setAttribute("transform", side ? "translate(245 0) scale(0.52 1)" : "");
+    this.$.accessoryOver.innerHTML = side ? art.over : art.pack + art.over;
+    this.$.accessoryOver.setAttribute("transform", side ? "translate(338 0) scale(0.42 1)" : "");
+  }
+  private updateHeadwear() {
+    const side = this.facing === "left" || this.facing === "right";
+    const view = this.facing === "up" ? "back" : "front";
+    const art = (suffix: string) => hatSvg(this.walkerLook.hat, view).replace(/lkp([fb])/g, `${this.lookId}-${suffix}-$1`);
+    this.$.fbHat.innerHTML = art("fb");
+    this.$.sideHat.innerHTML = art("side");
+    this.$.sideHat.setAttribute("transform", "translate(98 0) scale(0.82 1)");
+    this.$.fbHat.style.display = side ? "none" : "";
+    this.$.sideHat.style.display = side ? "" : "none";
+    const hat = hatInfo(this.walkerLook.hat ?? "none");
+    for (const antenna of [this.$.antennaLift, this.$.sideAntennaLift]) {
+      antenna.style.display = hat.antenna === "hide" ? "none" : "";
+      antenna.setAttribute("transform", hat.antenna === "lift" ? `translate(0 ${-(hat.lift ?? 0)})` : "");
+    }
+    this.$.fbBlush.innerHTML = this.walkerLook.blush ? blushSvg() : "";
+    this.$.fbBlush.style.display = this.facing === "down" ? "" : "none";
+  }
+  setLook(look: RobotLook) {
+    const key = JSON.stringify(look);
+    if (key === this.lookKey) return;
+    this.lookKey = key;
+    this.walkerLook = {...look}; this.updateAccessories(); paintLook(this.svg, this.$, look);
+    paintLookColors(this.svg, PALETTES[this.brand], look);
+    this.headK = headSize(look); this.updateHeadwear(); this.setExpression(this.expr);
+  }
   /** The robot's own head size (look.head), the same as at its desk. */
   private headK = 1;
   setName(name: string) { this.name = name; this.updateTitle(); }
+  private modelSticker?: ModelSticker;
   setModel(model: string | null | undefined) {
     this.model = model ?? "";
+    (this.modelSticker ??= new ModelSticker(this.svg)).set(this.model);
     const t = this.$.model as SVGTextElement;
     t.textContent = this.model.length > 15 ? this.model.slice(0, 14) + "…" : this.model;
     this.$.nameplate.style.display = this.model ? "" : "none";
@@ -240,12 +323,18 @@ export class Walker {
     this.$.plate.setAttribute("width", String(w));
     this.updateTitle();
   }
-  private updateTitle() { this.el.title = [this.name, this.model].filter(Boolean).join(", "); }
+  private updateTitle() { this.el.title = [this.name, this.model, this.reportTitle, this.remainingBattery === null ? "" : `${Math.floor(this.remainingBattery)}% subscription battery remaining`].filter(Boolean).join(", "); }
 
   /** Height of the robot above its feet, in px (for placing things over its head). */
-  get height() { return (FEET.y - 556) * this.s; }
+  get height() {
+    const top = !this.walkerLook.hat || this.walkerLook.hat === "none" ? 556 : this.walkerLook.hat === "wizard" ? 470 : 510;
+    return (FEET.y - (715 + (top - 715) * this.headK)) * this.s;
+  }
 
   setPos(x: number, y: number) { this.x = x; this.y = y; this.place(); }
+
+  /** Hurry to assigned work; leisure and departures retain the walking gait. */
+  setRunning(on: boolean) { this.speed = on ? 240 : SPEED; }
 
   private place() {
     this.el.style.transform = `translate(${this.x.toFixed(1)}px, ${this.y.toFixed(1)}px)`;
@@ -255,12 +344,15 @@ export class Walker {
   face(dir: Facing) {
     const was = this.facing;
     this.facing = dir;
+    this.updateAccessories();
+    this.updateHeadwear();
     const fb = dir === "up" || dir === "down";
     const show = (k: string, v: boolean) => (this.$[k].style.display = v ? "" : "none");
     show("fbBody", fb); show("sideBody", !fb);
     show("fbHead", fb); show("sideHead", !fb);
     show("backPlate", dir === "up"); show("chest", dir === "down");
     this.$.face.setAttribute("opacity", dir === "down" ? "1" : "0");
+    show("face", dir === "down"); show("back", dir !== "down");
     this.$.flip.setAttribute("transform", dir === "left" ? "translate(1120 0) scale(-1 1)" : "");
     // far limbs in the side view are a shade darker
     for (const k of ["l", "r"] as const) {
@@ -306,7 +398,7 @@ export class Walker {
     const fresh = this.v < 5 && this.st.stride < 0.25;
     this.faceToward(pts[0]);
     return new Promise<void>((resolve) => {
-      this.mv = { pts, i: 0, wait: fresh ? 0.12 : 0, resolve };
+      this.mv = { pts, tails: routeSuffixLengths(pts), i: 0, wait: fresh ? 0.12 : 0, resolve };
       // anticipation: sink and lean back a touch, then push off
       if (fresh && !reduced()) TL().to(this.st, { crouch: 0.55, lean: -4, duration: 0.12, ease: "power2.out" })
         .to(this.st, { crouch: 0, lean: 0, duration: 0.32, ease: "power2.out" });
@@ -335,10 +427,9 @@ export class Walker {
       return;
     }
     if (m.wait > 0) { m.wait -= dt; return; }
-    let rest = Math.hypot(m.pts[m.i].x - this.x, m.pts[m.i].y - this.y);
-    for (let j = m.i + 1; j < m.pts.length; j++) rest += Math.hypot(m.pts[j].x - m.pts[j - 1].x, m.pts[j].y - m.pts[j - 1].y);
+    const rest = Math.hypot(m.pts[m.i].x - this.x, m.pts[m.i].y - this.y) + m.tails[m.i];
     const cap = Math.sqrt(2 * 560 * rest) + 18;                // ease into the stop
-    const want = Math.min(SPEED, cap);
+    const want = Math.min(this.speed * (1 - this.weakness * .6), cap);
     this.v = want > this.v ? this.v + (want - this.v) * Math.min(1, dt * 7) : want;
     let step = this.v * dt;
     while (step > 0 && m.i < m.pts.length) {
@@ -349,10 +440,12 @@ export class Walker {
       } else { this.x += ((q.x - this.x) / d) * step; this.y += ((q.y - this.y) / d) * step; step = 0; }
     }
     this.place();
-    const strideWant = 0.35 + 0.65 * Math.min(1, this.v / SPEED);
+    const strideWant = 0.35 + 0.65 * Math.min(1, this.v / this.speed);
     st.stride += (strideWant - st.stride) * Math.min(1, dt * 10);
     // feet stay planted: half a cycle covers 2 * STEP * stride of floor
-    st.phase += ((this.v / this.s) / (4 * STEP * Math.max(0.3, st.stride))) * TAU * dt;
+    const run = this.speed > SPEED ? clamp((this.v - SPEED * 0.7) / (240 - SPEED * 0.7), 0, 1) : 0;
+    const stance = 0.5 - run * 0.16;
+    st.phase += ((this.v / this.s) / (2 * STEP * (1 + run * 0.65) / stance * Math.max(0.3, st.stride))) * TAU * dt;
     if (m.i >= m.pts.length) {
       this.mv = null;
       this.v = 0;
@@ -404,7 +497,7 @@ export class Walker {
   }
 
   /** `seated` keeps the robot sitting (laughing on a couch, thinking at a chess table). */
-  do(activity: Activity, opts: { card?: string; keep?: boolean; seated?: boolean } = {}) {
+  do(activity: Activity, opts: { card?: string; keep?: boolean; seated?: boolean; quota?: boolean } = {}) {
     this.activity = activity;
     this.clearAct();
     if (!opts.keep) this.setProps("none", "none");
@@ -491,9 +584,9 @@ export class Walker {
         loop(() => this.sip(), () => rnd(3.2, 5), 1);
         break;
       case "charge":
-        this.battery.classList.add("on");
+        this.battery.classList.toggle("on", !opts.quota);
         to({ ...arm("l", H(12, 66, -12)), ...arm("r", H(12, 66, -12)), nod: 3, lookY: 0.4 }, 0.8);
-        this.act = gsap.fromTo(this.battery.querySelector("i"), { scaleX: 0.15 }, { scaleX: 1, duration: 14, ease: "none", transformOrigin: "0 50%", repeat: -1, repeatDelay: 1 });
+        if (!opts.quota && this.remainingBattery === null) this.act = gsap.fromTo(this.battery.querySelector("i"), { scaleX: 0.15 }, { scaleX: 1, duration: 14, ease: "none", transformOrigin: "0 50%", repeat: -1, repeatDelay: 1 });
         if (!reduced()) this.actTimers.push(gsap.to(st, { glowPulse: 1, duration: 0.7, ease: "sine.inOut", yoyo: true, repeat: -1 }) as unknown as gsap.core.Tween);
         loop(() => {
           // a little hum of energy now and then; glances up at the battery
@@ -537,6 +630,10 @@ export class Walker {
         break;
       case "hold-card":
         if (opts.card != null) this.setCard(opts.card);
+        if (this.carryingReport) {
+          to({ ...arm("r", H(20, 52, 30, -6)), ...arm("l", HIP_HAND), lak: 1 }, 0.4);
+          break;
+        }
         this.card.classList.add("on");
         to({ ...arm("r", H(16, -82, 6)), ...arm("l", HIP_HAND), lak: 1 }, 0.5);
         this.act = gsap.to(this.card, { y: -3, duration: 1.4, yoyo: true, repeat: -1, ease: "sine.inOut" });
@@ -836,6 +933,21 @@ export class Walker {
     return TL().to(this.st, { nod: 6, duration: 0.14, ease: "sine.inOut", yoyo: true, repeat: 3 });
   }
 
+  /** A "no": the head turns from side to side. */
+  shakeNo() {
+    return TL().to(this.st, { look: -0.55, tilt: -2, duration: 0.16, ease: "sine.inOut" })
+      .to(this.st, { look: 0.55, tilt: 2, duration: 0.28, ease: "sine.inOut", yoyo: true, repeat: 2 })
+      .to(this.st, { look: 0, tilt: 0, duration: 0.2, ease: "sine.out" });
+  }
+
+  /** Point straight out of the picture, at you, then hands back to where they were. */
+  pointAtYou(hold = 1.4) {
+    const st = this.st, typing = this.activity === "type";
+    return TL().to(st, { mash: 0, rx: 12, ry: 4, rz: 86, rr: 0, ru: 1, lean: 4, nod: 2, duration: 0.3, ease: "back.out(1.6)" })
+      .to(st, { rz: 92, duration: 0.12, yoyo: true, repeat: 1, ease: "sine.inOut" })
+      .to(st, { ...(typing ? { rx: KEYS.x, ry: KEYS.y, rz: KEYS.z } : { ru: 0 }), lean: 0, nod: 0, duration: 0.45, ease: "power2.inOut" }, `+=${hold}`);
+  }
+
   /** Pick up the rubber stamp, press it down beside the keyboard (`onHit` at contact), put it away. */
   stamp(onHit: () => void = () => {}) {
     const st = this.st, keep = this.propL;
@@ -853,24 +965,34 @@ export class Walker {
       .to(st, { ...pose(KEYS), look: 0, lookY: 0.5, nod: 2, duration: 0.4, ease: "power2.inOut" });
   }
 
+  private carryingReport = false;
+  private reportTitle = "";
+  carryReport(text: string | null) {
+    if (this.carryingReport === !!text && this.reportTitle === (text || "")) return;
+    this.carryingReport = !!text; this.reportTitle = text || "";
+    this.card.classList.remove("on");
+    this.setProps(this.propL, text ? "report" : this.propR === "report" ? "none" : this.propR);
+    this.updateTitle();
+  }
   setCard(text: string) { this.card.querySelector("span")!.textContent = text; this.card.title = text; }
 
   setExpression(e: Expression) {
     this.expr = e;
-    this.$.eyes.innerHTML = eyesSvg(e);
-    this.$.sideEyes.innerHTML = eyesSvg(e, [604]);
+    this.$.eyes.innerHTML = styledEyes(this.walkerLook.eyes, e) ?? eyesSvg(e);
+    this.$.sideEyes.innerHTML = styledEyes(this.walkerLook.eyes, e, [604]) ?? eyesSvg(e, [604]);
   }
 
   /** Speech bubble; `think` draws it as a thought cloud instead. */
   say(text: string | null, ms?: number, think = false) {
     this.sayTimer?.kill();
+    this.speechLocale?.show(text);
     const b = this.bubble, p = b.querySelector("p")!;
     if (text) b.classList.toggle("think", think);
     if (!text) {
       if (b.classList.contains("on")) gsap.to(p, { opacity: 0, y: 6, duration: 0.2, ease: "power2.in", onComplete: () => b.classList.remove("on") });
       return;
     }
-    p.textContent = text;
+    if (!this.speechLocale) p.textContent = text;
     const was = b.classList.contains("on");
     b.classList.add("on");
     // inside a room the bubble must stay within its walls (rooms clip what sticks out);
@@ -887,6 +1009,7 @@ export class Walker {
   }
 
   private setProps(l: Prop, r: Prop) {
+    if (this.carryingReport) r = "report";
     this.propL = l; this.propR = r;
     for (const [k, p] of [["L", l], ["R", r]] as const) {
       const over = OVER.has(p);
@@ -930,12 +1053,11 @@ export class Walker {
   private scheduleBlink() {
     this.blinkCall = gsap.delayedCall(rnd(1.8, 4.8), () => {
       if (this.expr !== "sleepy" && this.expr !== "laugh" && this.expr !== "happy") {
-        const fb = [this.$.eyes, this.$.eyeLight], sd = [this.$.sideEyes, this.$.sideEyeLight];
+        const eyes = this.blink;
         const tl = TL()
-          .to(fb, { scaleY: 0.1, svgOrigin: "560 657", duration: 0.06, ease: "power2.in" }, 0)
-          .to(sd, { scaleY: 0.1, svgOrigin: "604 657", duration: 0.06, ease: "power2.in" }, 0)
-          .to([...fb, ...sd], { scaleY: 1, duration: 0.11, ease: "power2.out" }, 0.07);
-        if (Math.random() < 0.22) tl.to([...fb, ...sd], { scaleY: 0.1, duration: 0.06, ease: "power2.in" }, 0.25).to([...fb, ...sd], { scaleY: 1, duration: 0.11, ease: "power2.out" }, 0.31);
+          .to(eyes, { scale: 0.1, duration: 0.06, ease: "power2.in" }, 0)
+          .to(eyes, { scale: 1, duration: 0.11, ease: "power2.out" }, 0.07);
+        if (Math.random() < 0.22) tl.to(eyes, { scale: 0.1, duration: 0.06, ease: "power2.in" }, 0.25).to(eyes, { scale: 1, duration: 0.11, ease: "power2.out" }, 0.31);
       }
       this.scheduleBlink();
     });
@@ -973,6 +1095,13 @@ export class Walker {
     // walking goes on every frame; the body is redrawn less often when off screen or tiny
     dt = sinceDraw(this, now);
     if (!drawNow(this, this.svg, now)) return;
+    const started = beginSystem();
+    const blink = `translate(0 657) scale(1 ${this.blink.scale.toFixed(4)}) translate(0 -657)`;
+    for (const eyes of [this.$.eyes, this.$.eyeLight, this.$.sideEyes, this.$.sideEyeLight]) setSvgAttribute(eyes, 'transform', blink);
+    this.modelSticker?.step(now);
+    const pulse = (this.glowPulse.opacity * (1 - this.weakness * .65)).toFixed(4);
+    setSvgAttribute(this.$.antennaGlow, "opacity", pulse);
+    setSvgAttribute(this.$.sideGlow, "opacity", pulse);
     const st = this.st, t = now / 1000;
     const side = this.facing === "left" || this.facing === "right";
     const back = this.facing === "up";
@@ -980,15 +1109,18 @@ export class Walker {
 
     // walk cycle: contact, down, passing, up (two bobs per cycle); feet planted in stance
     const stride = st.stride * (1 - dangle);
+    const run = reduced() ? 0 : (this.speed > SPEED ? clamp((this.v - SPEED * 0.7) / (240 - SPEED * 0.7), 0, 1) : 0);
     const u0 = ((st.phase / TAU) % 1 + 1) % 1;
     const foot = (off: number) => {
       const u = (u0 + off) % 1;
-      if (u < 0.5) { const s = u / 0.5; return { z: STEP * (1 - 2 * s), lift: 0, rot: lerp(8, -16, s * s) }; }
-      const s = (u - 0.5) / 0.5, e = s * s * (3 - 2 * s);
-      return { z: -STEP + 2 * STEP * e, lift: Math.sin(Math.PI * Math.pow(s, 0.8)) * 13, rot: lerp(-22, 10, e) };
+      const stance = 0.5 - run * 0.16, reach = STEP * (1 + run * 0.65);
+      if (u < stance) { const s = u / stance; return { z: reach * (1 - 2 * s), lift: 0, rot: lerp(8, -16 - run * 12, s * s) }; }
+      const s = (u - stance) / (1 - stance), e = s * s * (3 - 2 * s);
+      return { z: -reach + 2 * reach * e, lift: Math.sin(Math.PI * Math.pow(s, 0.8)) * (13 + run * 22), rot: lerp(-22 - run * 16, 10, e) };
     };
     const fl = foot(0), fr = foot(0.5);
-    const bob = stride * 4.2 * Math.cos(TAU * 2 * (u0 - 0.1));
+    // A lower running hip keeps the longer planted leg within its real reach.
+    const bob = stride * ((4.2 + run * 4) * Math.cos(TAU * 2 * (u0 - 0.1)) + run * 16);
     const weight = side ? 0 : -stride * 4.5 * Math.sin(TAU * u0);   // over the standing foot
 
     // procedural layers
@@ -1004,7 +1136,7 @@ export class Walker {
     const drop = st.sit * SIT_DROP + st.crouch * CROUCH_DROP - bounce * 3.5 + bob;
     const bx = weight + (st.sway + dSway) * 5 + st.bx;
     const by = drop - laugh * 1.8;
-    const walkLean = stride * 5;
+    const walkLean = stride * (5 + run * 10);
     const rot = side ? st.lean + walkLean : st.roll + weight * 0.5 + dSway * 4 + laugh * 0.8;
     const fwd = side ? 0 : (back ? -1 : 1) * (st.lean + walkLean * 0.4) * 0.55;   // forward lean seen from the front
     const upper = -breath * 0.45 - st.shrug * 0.3;
@@ -1061,6 +1193,7 @@ export class Walker {
       rest.z += legZ * sw;
       rest.y -= Math.abs(legZ) * sw * 0.12;
       rest.x += stride * (free ? 3 : 0);
+      if (free) { rest.y -= run * 36; rest.z += run * (14 + legZ * 0.3); }
       const u = (st as any)[k + "u"] as number;
       const tg = { x: lerp(rest.x, (st as any)[k + "x"], u), y: lerp(rest.y, (st as any)[k + "y"], u), z: lerp(rest.z, (st as any)[k + "z"], u) };
       let pr = lerp(rest.r ?? 0, (st as any)[k + "r"], u);
@@ -1095,8 +1228,8 @@ export class Walker {
         this.handR.x = sc.x; this.handR.y = sc.y - jump;
         if (this.card.classList.contains("on")) {
           const mx = this.facing === "left" ? 1120 - sc.x : sc.x;
-          this.el.style.setProperty("--hx", `${((mx - FEET.x) * this.s).toFixed(1)}px`);
-          this.el.style.setProperty("--hy", `${((sc.y - jump - FEET.y) * this.s).toFixed(1)}px`);
+          this.card.style.setProperty("--hx", `${((mx - FEET.x) * this.s).toFixed(1)}px`);
+          this.card.style.setProperty("--hy", `${((sc.y - jump - FEET.y) * this.s).toFixed(1)}px`);
         }
       }
     }
@@ -1105,14 +1238,14 @@ export class Walker {
     const neck = toScreen(NECK);
     this.headLag += (bob - this.headLag) * Math.min(1, dt * 10);
     const hx = neck.x - NECK.x + st.look * (side ? 0 : 2);
-    const hy = neck.y - NECK.y + (bob - this.headLag) * 0.8 + st.nod + chew * 2.4 + fwd * 1.1 - laugh * 0.8;
+    const hy = neck.y - NECK.y + (bob - this.headLag) * 0.8 + st.nod + chew * 2.4 + fwd * 1.1 - laugh * 0.8 + this.weakness * 15;
     const tilt = st.tilt + laugh * 2.5 + st.look * (side ? 0 : 3) + dSway * 6 - rot * 0.35 + (side ? st.lookY * -4 : 0);
     this.attr(this.$.head, "transform", `translate(${f1(hx)} ${f1(hy)}) rotate(${tilt.toFixed(2)} 560 715)${this.headK === 1 ? "" : ` translate(560 715) scale(${this.headK}) translate(-560 -715)`}`);
     this.attr(this.$.look, "transform", `translate(${f1(st.look * 8)} ${f1(st.lookY * 5)})`);
     this.attr(this.$.sideLook, "transform", `translate(${f1(Math.abs(st.look) * -2)} ${f1(st.lookY * 5)})`);
     this.attr(this.$.shadow, "rx", f1((54 - st.jump * 14 - dangle * 10) * (1 + st.sit * 0.1)));
     this.attr(this.$.shadow, "opacity", (0.22 - dangle * 0.1).toFixed(2));
-    const dim = 1 - st.dim * 0.55;
+    const dim = (1 - st.dim * 0.55) * (1 - this.weakness * .6);
     this.attr(this.$.antenna, "opacity", dim.toFixed(2));
     this.attr(this.$.sideAntenna, "opacity", dim.toFixed(2));
     if (st.glowPulse > 0.001 || this.lastPulse > 0) { this.lastPulse = st.glowPulse; this.attr(this.$.chestGlow, "r", f1(8 + st.glowPulse * 6)); }
@@ -1138,8 +1271,14 @@ export class Walker {
     // overlays follow the head
     this.headPx = (hy - jump) * this.s;
     const bobPx = `${this.headPx.toFixed(1)}px`;
-    if (bobPx !== this.lastBob) { this.lastBob = bobPx; this.el.style.setProperty("--bob", bobPx); }
+    // An inherited variable on the actor root invalidated every SVG descendant each
+    // frame. Only the battery uses this offset, so update that small overlay itself.
+    if (this.battery.classList.contains("on")) {
+      if (bobPx !== this.lastBob) { this.lastBob = bobPx; this.battery.style.setProperty("--bob", bobPx); }
+    } else this.lastBob = "";
     if (this.bubble.classList.contains("on")) this.placeBubble();
+    finishDraw();
+    endSystem("robots", started);
   };
   private footZ = { l: 0, r: 0 };
   private lastBob = "";
@@ -1153,6 +1292,7 @@ export class Walker {
       case "bowl": return { ...BOWL };
       case "spoon": return { ...SCOOP };
       case "mug": return { ...MUG };
+      case "report": return H(20, 52, 30, -6);
       case "popcorn": return mix(POP_STAND, POP_SIT);
       case "pad": return mix(PAD, PAD_SIT);
       case "paddle": return { ...READY_R, y: 50, z: 18, r: -10 };
@@ -1180,6 +1320,8 @@ export class Walker {
   }
 
   destroy() {
+    this.speechLocale?.destroy();
+    this.stopBattery?.();
     this.stop();
     gsap.ticker.remove(this.frame);
     unwatch(this.svg);
@@ -1189,7 +1331,7 @@ export class Walker {
     this.lifeCall?.kill();
     this.settleTl?.kill();
     this.sayTimer?.kill();
-    gsap.killTweensOf([this.st, this, this.card, this.bubble.firstElementChild, this.$.eyes, this.$.eyeLight, this.$.sideEyes, this.$.sideEyeLight, this.$.antennaDroop]);
+    gsap.killTweensOf([this.st, this, this.blink, this.card, this.bubble.firstElementChild, this.$.eyes, this.$.eyeLight, this.$.sideEyes, this.$.sideEyeLight, this.$.antennaDroop]);
     this.bubble.remove();
     this.el.remove();
   }
@@ -1235,7 +1377,7 @@ const WALKER_SVG = (id: string, s: number) => /* svg */ `
   <g data-r="flip"><g data-r="rig">
     <g data-r="lower"><g data-r="legsBack"><g data-r="legs">${limb("leg", "l")}${footSvg("l")}${limb("leg", "r")}${footSvg("r")}</g></g>
     <g data-r="body">
-      <g data-r="armsBack"></g>
+      <g data-r="armsBack"></g><g data-r="accessoryUnder"></g>
       <rect x="547" y="700" width="26" height="42" rx="9" fill="var(--deep)"/>
       <g data-r="fbBody">
         <rect x="524" y="826" width="72" height="40" rx="17" fill="var(--deep)"/>
@@ -1266,10 +1408,13 @@ const WALKER_SVG = (id: string, s: number) => /* svg */ `
         <circle cx="586" cy="774" r="5" fill="var(--glow)" opacity="0.85"/>
         ${cap(566)}
       </g>
+      <g data-r="accessoryOver"></g>
     </g></g>
     <g data-r="head">
-      <g data-r="fbHead">${headSvg(id)}</g>
+      <g data-r="fbHead">${headSvg(id)}<g data-r="fbBlush"></g></g>
+      <g data-r="fbHat"></g>
       ${headSideSvg(id)}
+      <g data-r="sideHat"></g>
     </g>
     <g data-r="legsFront"></g>
     <g data-r="armsFront">${armSvg("l")}${armSvg("r")}</g>

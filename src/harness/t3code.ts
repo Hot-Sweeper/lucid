@@ -11,6 +11,9 @@ import { harnessKind, prettyModel, effortWord } from "./themes";
 import { logoSvg } from "./logos";
 import { ICONS } from "../os/icons";
 import "./t3code.css";
+import { scheduleLayout } from "./layout";
+import { presentationFrame, renderFps } from "../perf/render";
+import { watchClock } from "../perf/clock";
 
 export type T3Channel = "stable" | "nightly";
 
@@ -45,7 +48,7 @@ function nightSky(id: string) {
 export function t3Icon(channel: T3Channel) {
   const mark = `<svg x="4.2" y="7" width="15.6" height="9.4" viewBox="15.5309 37 94.3941 56.96"><path d="${T3_PATH}" fill="#fff"/></svg>`;
   if (channel === "stable") return `<svg class="ico" viewBox="0 0 24 24"><rect width="24" height="24" rx="5.5" fill="#0b0b0c"/>${mark}</svg>`;
-  return `<svg class="ico" viewBox="0 0 24 24"><defs><linearGradient id="t3n-ico" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0d1a3c"/><stop offset=".6" stop-color="#1b1650"/><stop offset="1" stop-color="#3a1a66"/></linearGradient></defs><rect width="24" height="24" rx="5.5" fill="url(#t3n-ico)"/><circle cx="5" cy="4.4" r=".45" fill="#e4eaff"/><circle cx="16.5" cy="3.6" r=".4" fill="#e4eaff"/><path d="M8.6 3.4v1.6M7.8 4.2h1.6" stroke="#c8d7ff" stroke-width=".45"/><path d="M14 24c.3-2.6 2-4.2 4-4.2.6-1.6 2-2.6 3.6-2.6 1 0 1.8.3 2.4.9V24Z" fill="#7a5fd6" fill-opacity=".75"/><path d="M0 24v-3.4c.8-.9 2-1.3 3.2-1 .8-1.5 2.4-2.3 4-2 1.5.3 2.6 1.4 2.9 2.9 1 .1 1.8.9 2 2.1.1.5.1 1 0 1.4Z" fill="#4f6fd8" fill-opacity=".8"/>${mark}</svg>`;
+  return `<svg class="ico" viewBox="0 0 24 24" style="clip-path:inset(0 round 22.916667%)"><defs><linearGradient id="t3n-ico" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0d1a3c"/><stop offset=".6" stop-color="#1b1650"/><stop offset="1" stop-color="#3a1a66"/></linearGradient></defs><rect width="24" height="24" rx="5.5" fill="url(#t3n-ico)"/><circle cx="5" cy="4.4" r=".45" fill="#e4eaff"/><circle cx="16.5" cy="3.6" r=".4" fill="#e4eaff"/><path d="M8.6 3.4v1.6M7.8 4.2h1.6" stroke="#c8d7ff" stroke-width=".45"/><path d="M14 24c.3-2.6 2-4.2 4-4.2.6-1.6 2-2.6 3.6-2.6 1 0 1.8.3 2.4.9V24Z" fill="#7a5fd6" fill-opacity=".75"/><path d="M0 24v-3.4c.8-.9 2-1.3 3.2-1 .8-1.5 2.4-2.3 4-2 1.5.3 2.6 1.4 2.9 2.9 1 .1 1.8.9 2 2.1.1.5.1 1 0 1.4Z" fill="#4f6fd8" fill-opacity=".8"/>${mark}</svg>`;
 }
 // The dock can draw the app before a robot's build is known: the stable icon until then.
 ICONS.t3code ??= t3Icon("stable");
@@ -87,8 +90,12 @@ export interface T3Host {
   robotName?: string;
   robot: { setTyping(on: boolean): void; setPose(p: any): void };
   open(id: AppId, title?: string, clicked?: boolean): Promise<{ el: HTMLElement; body: HTMLElement; title: HTMLElement }>;
+  pointAt?(el: HTMLElement, x?: number, y?: number): Promise<void>;
+  click?(): Promise<void>;
   brandApp?(id: AppId, o: { title?: string; icon?: string }): void;
   sleep(ms: number, epoch?: number): Promise<void>;
+  check?(epoch: number): void;
+  waitForOperator?(epoch?: number): Promise<void>;
 }
 
 export interface T3Info { id?: string; title?: string; provider?: string; model?: string | null; effort?: string | null; projectTitle?: string; root?: string; run?: { status: string } | null }
@@ -166,13 +173,13 @@ export class T3CodeApp {
   private rows = new Map<string, Row>();
   private runStart = 0;
   private running = false;
-  private timer = 0;
+  private stopClock: (() => void) | null = null;
   private others: ListThread[] = [];
   private uid = `t3-${Math.random().toString(36).slice(2, 8)}`;
 
-  constructor(private wm: T3Host) {
+  constructor(private wm: T3Host, private audience: "agents" | "user" = "agents") {
     this.root = document.createElement("div");
-    this.root.className = "t3";
+    this.root.className = audience === "user" ? "t3 lucid-chat" : "t3";
     this.build();
   }
 
@@ -215,10 +222,12 @@ export class T3CodeApp {
     this.compText = q(".t3-typed");
     this.chip = q(".t3-chip");
     this.send = q(".t3-send");
+    if (this.audience === "user") { q(".t3-ph").textContent = "Message you"; q(".t3-panes").textContent = "Lucid Chat"; }
   }
 
   /** Builds differ in branding only: the window name and icon, and Nightly's sky behind the sidebar header. */
   private brand() {
+    if (this.audience === "user") return;
     const c = this.chan();
     if (c === this.channel) return;
     this.channel = c;
@@ -229,7 +238,7 @@ export class T3CodeApp {
 
   private async ensure(clicked = false) {
     this.brand();
-    const w = await this.wm.open("t3code", t3Title(this.chan()), clicked);
+    const w = await this.wm.open(this.audience === "user" ? "chat" : "t3code", this.audience === "user" ? "Lucid Chat" : t3Title(this.chan()), clicked);
     if (this.root.parentElement !== w.body) w.body.replaceChildren(this.root);
     this.renderSide();
     return w;
@@ -240,14 +249,15 @@ export class T3CodeApp {
     this.brand();
     this.info = { ...this.info, ...info };
     const was = this.running;
-    this.running = info.run?.status === "running";
+    this.running = this.audience === "agents" && info.run?.status === "running";
     if (this.running && !was) this.runStart = Date.now();
     if (!this.running && was) this.endRun();
     this.renderTop();
     this.renderChip();
     this.renderStatus();
-    void threadList().then((l) => { this.others = l; this.renderSide(); });
-    if (this.running && !this.timer) this.timer = window.setInterval(() => this.tick(), 1000);
+    if (this.audience === "agents") void threadList().then((l) => { this.others = l; this.renderSide(); });
+    if (this.running && !this.stopClock) this.stopClock = watchClock(this.root, () => this.tick(), 1000);
+    else if (!this.running) { this.stopClock?.(); this.stopClock = null; }
   }
 
   reset() {
@@ -255,24 +265,27 @@ export class T3CodeApp {
     this.rows.clear();
     this.group = null;
     this.running = false;
-    window.clearInterval(this.timer);
-    this.timer = 0;
+    this.stopClock?.(); this.stopClock = null;
     this.renderStatus();
   }
 
   private tick() {
-    if (!this.running) { window.clearInterval(this.timer); this.timer = 0; return; }
+    if (!this.running) return;
     this.renderStatus();
     this.paintElapsed();
   }
 
   private paintElapsed() {
     const el = this.list.querySelector(".t3-th.own .t3-el") as HTMLElement | null;
-    if (el) el.textContent = `Working ${dur(Date.now() - this.runStart)}`;
+    const text = `Working ${dur(Date.now() - this.runStart)}`;
+    if (el && el.textContent !== text) el.textContent = text;
   }
 
   private renderTop() {
     const proj = this.info.projectTitle || (this.info.root ? base(this.info.root) : "");
+    const signature = JSON.stringify([proj, this.info.title]);
+    if (signature === this.topSig) return;
+    this.topSig = signature;
     this.crumbs.innerHTML = `${proj ? `${avatar(proj)}<span class="t3-proj">${esc(proj)}</span><span class="t3-sep">/</span>` : ""}<span class="t3-tt"></span>`;
     const tt = this.crumbs.querySelector(".t3-tt") as HTMLElement;
     tt.textContent = this.info.title || "New thread";
@@ -282,16 +295,26 @@ export class T3CodeApp {
   private renderChip() {
     const model = prettyModel(this.info.model) || "";
     const eff = effortWord(this.info.effort || "", true);
-    this.chip.innerHTML = `${harnessLogo(this.info.provider)}<span></span>`;
-    (this.chip.lastElementChild as HTMLElement).textContent = [model, eff].filter(Boolean).join(" ") || "Model";
+    const signature = JSON.stringify([this.info.provider, model, eff]);
+    if (signature !== this.chipSig) {
+      this.chipSig = signature;
+      this.chip.innerHTML = `${harnessLogo(this.info.provider)}<span></span>`;
+      (this.chip.lastElementChild as HTMLElement).textContent = [this.info.provider || "Harness unavailable", model || "Model unavailable", eff || "Effort unavailable"].join(" / ");
+    }
     this.send.classList.toggle("busy", this.running);
   }
 
   private renderStatus() {
-    this.statusEl.hidden = !this.running;
-    if (this.running) this.statusText.textContent = `Working for ${dur(Date.now() - this.runStart)}`;
+    if (this.statusEl.hidden === this.running) this.statusEl.hidden = !this.running;
+    if (this.running) {
+      const text = `Working for ${dur(Date.now() - this.runStart)}`;
+      if (this.statusText.textContent !== text) this.statusText.textContent = text;
+    }
     this.send.classList.toggle("busy", this.running);
   }
+
+  private topSig = "";
+  private chipSig = "";
 
   // Sidebar: recent threads on top, then the Working section with this robot's own thread.
   private renderSide() {
@@ -321,7 +344,10 @@ export class T3CodeApp {
   // --- the conversation --------------------------------------------------------------------
   private stick() {
     const s = this.scroller;
-    requestAnimationFrame(() => { s.scrollTop = s.scrollHeight; });
+    scheduleLayout(s, () => {
+      const target = Math.max(0, s.scrollHeight - s.clientHeight);
+      return Math.abs(target - s.scrollTop) < 0.5 ? null : () => { s.scrollTop = target; };
+    });
   }
 
   private appear(el: HTMLElement, from: gsap.TweenVars = { opacity: 0, y: 8 }) {
@@ -342,28 +368,61 @@ export class T3CodeApp {
     await this.wm.sleep(500);
   }
 
+  /** Earlier messages of the thread, above what is being replayed (shown at once, oldest first). */
+  history(list: { role: string; text: string; images: string[] }[]) {
+    if (!list.length || this.feed.querySelector(".t3-past")) return;
+    const box = document.createElement("div");
+    box.className = "t3-past";
+    for (const m of list) {
+      const b = document.createElement("div");
+      if (m.role === "user") {
+        b.className = "t3-you";
+        b.innerHTML = `${m.images.length ? `<div class="t3-imgs">${m.images.slice(0, 4).map((src) => `<img src="${esc(src)}" alt="">`).join("")}</div>` : ""}${m.text ? `<p>${md(m.text.slice(0, 1200))}</p>` : ""}`;
+      } else {
+        b.className = "t3-msg";
+        b.innerHTML = md(m.text.slice(0, 2400));
+      }
+      box.append(b);
+    }
+    this.feed.prepend(box);
+    this.stick();
+  }
+
   /** The robot's reply streams into the thread while it types. */
-  async assistant(getText: () => { text: string; done: boolean }) {
+  async assistant(getText: () => { text: string; done: boolean }, compose = this.audience === "user") {
     const wm = this.wm, e = wm.epoch;
     await this.ensure();
     this.closeGroup();
     const p = document.createElement("div");
     p.className = "t3-msg";
+    if (compose) p.hidden = true;
     this.feed.append(p);
     let shown = 0;
+    let painted = "";
     wm.robot.setTyping(true);
     try {
       for (;;) {
+        await wm.waitForOperator?.(e);
         const { text, done } = getText();
         if (shown < text.length) {
           shown = Math.min(text.length, shown + Math.max(3, Math.ceil((text.length - shown) / 30)));
-          p.innerHTML = md(text.slice(0, shown));
-          this.stick();
-          await wm.sleep(30, e);
+          if (renderFps(compose ? this.root : p)) {
+            painted = text.slice(0, shown);
+            if (compose) { this.compText.textContent = painted; this.comp.classList.add("composing"); }
+            else p.innerHTML = md(painted);
+            this.stick();
+          }
+          await presentationFrame(compose ? this.root : p);
+          if (wm.check) wm.check(e); else await wm.sleep(0, e);
         } else if (done) break;
-        else await wm.sleep(120, e);
+        else {
+          if (renderFps(compose ? this.root : p) && painted !== text) { painted = text; if (compose) this.compText.textContent = text; else p.innerHTML = md(text); this.stick(); }
+          await wm.sleep(120, e);
+        }
       }
+      if (compose && getText().text.trim()) { this.send.classList.add("sending"); await wm.pointAt?.(this.send); await wm.click?.(); await wm.sleep(180, e); }
     } finally {
+      this.send.classList.remove("sending"); this.comp.classList.remove("composing"); this.compText.textContent = ""; p.hidden = false;
       wm.robot.setTyping(false);
       const t = getText().text;
       if (t.trim()) p.innerHTML = md(t);
@@ -375,6 +434,17 @@ export class T3CodeApp {
   /** You are typing to this robot: dots in the thread's composer. */
   async youTyping(on: boolean) {
     this.comp.classList.toggle("you-typing", on);
+  }
+
+  /** A real tool result, kept separate from this worker's own conversation. */
+  async inspection(title: string, body: string) {
+    await this.ensure();
+    const panel = document.createElement("details");
+    panel.className = "t3-inspection";
+    panel.open = true;
+    const heading = document.createElement("summary"); heading.textContent = title;
+    const content = document.createElement("pre"); content.textContent = body.slice(0, 12000) || "No readable content returned.";
+    panel.append(heading, content); this.feed.append(panel); this.stick();
   }
 
   /** A question for you (T3's "Input" state) or an error in the run. */
@@ -492,6 +562,10 @@ export class T3CodeApp {
         const name = String(d.toolName || "tool");
         const inp = d.input || {};
         const short = name.replace(/^mcp__[^_]+(?:_[^_]+)*?__/, "").replace(/^.*__/, "");
+        if (/t3_thread_send(?:_attachments)?$/.test(short)) return { icon: IC.list, verb: live ? "Sending a message" : "Sent a message", target: String(inp.message || 'Attachments').slice(0, 100), live };
+        if (/t3_thread_read$/.test(short)) return { icon: IC.list, verb: live ? "Reading T3 thread" : "Read T3 thread", target: String(inp.title || inp.threadId || "Current thread"), live };
+        if (/t3_thread_list$/.test(short)) return { icon: IC.list, verb: live ? "Finding T3 threads" : "Listed T3 threads", target: String(inp.projectId || "All projects"), live };
+        if (/computer|cua|preview_/.test(short)) return { icon: IC.globe, verb: live ? "Using computer" : "Used computer", target: String(inp.url || inp.title || inp.action || short), live };
         if (/^(Read|read_file|view)$/i.test(short)) return { icon: IC.file, verb: live ? "Reading" : "Read", target: base(String(inp.file_path || inp.path || "")), live };
         if (/^(Grep|Glob|search)$/i.test(short)) return { icon: IC.search, verb: "Searched files", target: String(inp.pattern || inp.query || "").slice(0, 100), live };
         if (/^(Edit|Write|MultiEdit)$/i.test(short)) return { icon: IC.edit, verb: short === "Write" ? "Created" : "Edited", target: base(String(inp.file_path || inp.path || "")), live };

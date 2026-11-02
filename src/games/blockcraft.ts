@@ -2,6 +2,7 @@
 // stone and ore, builds a little hut before nightfall and sleeps through to morning.
 // A hissing green cube bot sometimes wanders over and pops a crater in the ground.
 import "./games.css";
+import { canvasPixelRatio } from "../perf/canvas";
 import {
   Scope, Session, Halt, mountFrame, addCanvas, nap, chance, clamp, lerp, rng, hash, reducedMotion,
   P, fillRR, circle, line, lin, rad, glow, text, withAlpha, mix,
@@ -128,7 +129,7 @@ function drawBlock(ctx: Ctx, t: number, x: number, y: number, B: number, seed: n
 }
 
 export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   const calm = reducedMotion();
   try {
     const f = mountFrame(body, scope, "Blockcraft", "bc");
@@ -161,12 +162,13 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
     // ---------------------------------------------------------------------------------
     async function playWorld(n: number): Promise<"win" | "dead" | "time" | "quit"> {
       // each world gets its own frame loop, torn down before the next one starts
-      const ws = new Scope();
+      const ws = new Scope(body);
       scope.add(() => ws.dispose());
       try { return await runWorld(n, ws); } finally { ws.dispose(); }
     }
 
     async function runWorld(n: number, ws: Scope): Promise<"win" | "dead" | "time" | "quit"> {
+      ws.liveCanvas(ctx.canvas);
       const world = genWorld(Math.floor(Math.random() * 1e9));
       const { blk, site, sh } = world;
       const get = (c: number, r: number) => (c < 0 || c >= COLS || r >= ROWS ? CORE : r < 0 ? AIR : blk[r * COLS + c]);
@@ -178,6 +180,8 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
       cache.width = COLS * B * 2; cache.height = ROWS * B * 2;
       const cc = cache.getContext("2d")!;
       cc.setTransform(2, 0, 0, 2, 0, 0);
+      let terrainDensity = 2;
+      ws.add(() => { cache.width = cache.height = 0; });
       const empty = (c: number, r: number) => { const t = get(c, r); return t === AIR || t === WATER || (t === LEAF && false); };
       const paintCell = (c: number, r: number) => {
         cc.clearRect(c * B, r * B, B, B);
@@ -352,6 +356,13 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
         return { sunH, light, dusk };
       };
       const draw = (t: number, dt: number) => {
+        const density = canvasPixelRatio(ctx.canvas);
+        if (density > terrainDensity) {
+          terrainDensity = density;
+          cache.width = Math.ceil(COLS * B * density); cache.height = Math.ceil(ROWS * B * density);
+          cc.setTransform(density, 0, 0, density, 0, 0);
+          for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) paintCell(c, r);
+        }
         const { sunH, light, dusk } = sky();
         const target = clamp((R.x + R.w / 2) * B - W * 0.48, 0, COLS * B - W);
         camX += (target - camX) * Math.min(1, dt * 3);
@@ -390,7 +401,7 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
           fillRR(ctx, cx + 14, cy - 9, 34, 16, 8, withAlpha("#ffffff", a * 0.8));
         }
         // terrain
-        ctx.drawImage(cache, camX * 2, 0, W * 2, ROWS * B * 2, 0, 0, W, ROWS * B);
+        ctx.drawImage(cache, camX * terrainDensity, 0, W * terrainDensity, ROWS * B * terrainDensity, 0, 0, W, ROWS * B);
         if (crack) {
           const x = sx(crack.c), y = crack.r * B, p = crack.p;
           ctx.save(); ctx.beginPath(); ctx.rect(x, y, B, B); ctx.clip();

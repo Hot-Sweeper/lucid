@@ -6,8 +6,11 @@
   position: absolute; inset: 0; overflow: hidden; user-select: none;
   font-family: var(--font); -webkit-font-smoothing: antialiased; font-size: 10px; line-height: 1.35;
 }
-[class^="so-"] svg { display: block; }
-[class^="so-"], [class^="so-"] * { box-sizing: border-box; }
+/* Indexed app roots keep camera/culling class changes from invalidating the
+   entire office through a class-prefix attribute selector. */
+:is(.so-ba, .so-tg, .so-cp, .so-ig, .so-sn, .so-dw, .so-cw, .so-sol, .so-st, .so-ml, .so-lg, .so-home, .so-iw, .so-sw, .so-sp, .so-ph, .so-kb, .so-av, .so-scene, .so-dots, .so-touch, .so-mark) svg { display: block; }
+:is(.so-ba, .so-tg, .so-cp, .so-ig, .so-sn, .so-dw, .so-cw, .so-sol, .so-st, .so-ml, .so-lg, .so-home, .so-iw, .so-sw, .so-sp, .so-ph, .so-kb, .so-av, .so-scene, .so-dots, .so-touch, .so-mark),
+:is(.so-ba, .so-tg, .so-cp, .so-ig, .so-sn, .so-dw, .so-cw, .so-sol, .so-st, .so-ml, .so-lg, .so-home, .so-iw, .so-sw, .so-sp, .so-ph, .so-kb, .so-av, .so-scene, .so-dots, .so-touch, .so-mark) * { box-sizing: border-box; }
 .so-av { flex: none; width: 26px; height: 26px; border-radius: 50%; overflow: hidden; display: block; }
 .so-av svg { width: 100%; height: 100%; }
 .so-touch { position: absolute; z-index: 90; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: rgba(255, 255, 255, 0.55); pointer-events: none; }
@@ -130,3 +133,11 @@
 .so-ba.so-ph .so-ba-emo svg { width: 12px; height: 12px; }
 .so-ba.so-ph .so-ba-tray { bottom: 30px; left: 5px; gap: 4px; padding: 4px; }
 .so-ba.so-ph .so-ba-tray span { width: 28px; height: 28px; }
+/* the field grows a line at a time while thumb typing, like the real thing */
+.so-ba.so-ph .so-ba-foot { height: auto; min-height: 28px; align-items: flex-end; padding: 4px 5px; }
+.so-ba.so-ph .so-ba-field { height: auto; min-height: 20px; max-height: 42px; padding: 4px 7px; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; display: block; }
+.so-ba.so-ph .so-ba-head { position: relative; z-index: 3; }
+/* the other side typing: a bubble of dots */
+.so-ba-msg.so-ba-dots { padding: 6px 9px; color: #8696a0; font-size: 10px; }
+.so-ba-msg.so-ba-dots .so-dots { margin: 0; }
+.so-ba.so-ph .so-ba-msg.so-ba-dots { padding: 4px 6px; font-size: 7px; }

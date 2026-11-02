@@ -1,0 +1,113 @@
+{
+  "recordedAt": "2026-11-01T12:22:43.449Z",
+  "scope": "Read-only evidence reconciliation and documentation. No profiling, build, freeze, promotion, restart or settlement.",
+  "reviewStatus": "unsettled",
+  "stabilizationOwner": "<t3-thread://v2/35311fd2-1ff1-4b03-ba2f-301e3b5966eb/3b0a491b-9351-4af6-a9af-7ec07e045efe>",
+  "delivery": {
+    "candidate": "E:\\T3 Projects\\Lucid\\.lucid-update-RdewP1",
+    "entry": "./assets/index-BtWwktEL.js",
+    "executingSha256": "726d56016a305bde1df44feab4aa3289a641fb8c8922b9d7d481044f51a70c05",
+    "installedSha256": "726d56016a305bde1df44feab4aa3289a641fb8c8922b9d7d481044f51a70c05",
+    "manifestSha256": "5ed7ac344973ee41d8cbbc1e78dfd060314e2272d51b18b52f47c7a529630f50",
+    "verifiedDiskStillMatchesRecordedProof": true,
+    "validation": {
+      "command": "npm run verify:update",
+      "passed": true,
+      "log": "E:\\Lucid-validation\\stability-20261101\\verify-freeze-fixed.log",
+      "logSha256": "b5ea6769ee9135fb1db9faf88f8e66220e6e66ad2b0a6ddbab8c6b591cd80065"
+    }
+  },
+  "includedSource": {
+    "src/assets/botify.svg": {
+      "sha256": "a8de432e779211eee2f373fd7fdcc9bbb7c2d22de0c41a5413abc3ef64d9ea05",
+      "currentSourceMatches": true
+    },
+    "src/os/icons.ts": {
+      "sha256": "9bb847eae432697fbd7d62bd04be0700046706af32a8e8473d4ca01ad9b478c9",
+      "currentSourceMatches": true
+    },
+    "src/office/delegate.ts": {
+      "sha256": "f4a4d7c6e8de5b805c883894c80747102234a4a36751dbe143770cb6e8c2d3e2",
+      "currentSourceMatches": true
+    },
+    "src/os/wm.ts": {
+      "sha256": "e1ea8bd78c7e8113b53a160c6861be09fbaa3d051fc6493324815e62c9f979c5",
+      "currentSourceMatches": true
+    }
+  },
+  "health": {
+    "status": "passed",
+    "elapsedMs": 61883,
+    "observations": 60,
+    "allObservedVisible": true,
+    "rendererErrors": 0,
+    "frameSummary": {
+      "frames": 3420,
+      "samples": 3419,
+      "medianMs": 20.799999999995634,
+      "p95Ms": 27.799999999999272,
+      "maxMs": 104.20000000000073
+    },
+    "limits": "Finite normal-profile health observation, not pan/zoom acceptance, human-input latency or physical presentation FPS."
+  },
+  "existingChecks": {
+    "parserBeforeTimeouts": 4,
+    "parserFixedCasesReturned": 5,
+    "presenceAssertions": 24
+  },
+  "retainedCaptures": [
+    {
+      "name": "before-Botify-archived-monitor.png",
+      "sha256": "adfb4bcbc7bb54f60c9c234ba330151184b4ec480b3b64a821c4f3520533dcff",
+      "unchanged": true
+    },
+    {
+      "name": "after-Botify-archived-monitor.png",
+      "sha256": "a112a2237efd128a622d301a63bdb3f6eda689e2722787d75c3d1aa9a1f9cfd7",
+      "unchanged": true
+    },
+    {
+      "name": "before-zoom-snapshot-20261031.png",
+      "sha256": "ac7497f9809e776e1ca4eea02b6d37bbbf5bb9cb6ba5fb43403224be29fe8572",
+      "unchanged": true
+    },
+    {
+      "name": "after-zoom-snapshot-20261031.png",
+      "sha256": "80e6c746aa6691e0cb17af66e8e9714ca13efcd41674447c3c055540b87566ad",
+      "unchanged": true
+    }
+  ],
+  "referencedEvidence": [
+    {
+      "path": "E:\\Lucid-validation\\stability-20261101\\freeze-fixed-delivery\\executing-entry.json",
+      "sha256": "7a042f43c05df8e0c8da237e524d32135e508a973783c64832b29ea53ba8c2f4"
+    },
+    {
+      "path": "E:\\Lucid-validation\\stability-20261101\\freeze-fixed-delivery\\responsiveness.json",
+      "sha256": "15ef993e4b5a13a0c42a48d486080724b1bb46369845541dd2573cd723bc0ce0"
+    },
+    {
+      "path": "E:\\Lucid-validation\\stability-20261101\\freeze-fixed-delivery\\delivery-receipt-chain.json",
+      "sha256": "694a3c500c591a59a55ff0000a7127ea9209f85f116afe60176337bbe51a30bf"
+    },
+    {
+      "path": "E:\\Lucid-validation\\stability-20261101\\verify-freeze-fixed.log",
+      "sha256": "b5ea6769ee9135fb1db9faf88f8e66220e6e66ad2b0a6ddbab8c6b591cd80065"
+    },
+    {
+      "path": "E:/Lucid-validation/presence-native-20261101-final/result.json",
+      "sha256": "e2a969c16775f31fe1302edf609e5a7d5d086e28483e868e5c9cfb8e438bfd71"
+    },
+    {
+      "path": "E:\\Lucid-validation\\stability-20261101\\orphan-hangs\\parser-reproduction.json",
+      "sha256": "ce49a3f5d22c093d5a328a38dab58c2bbe5bdccf9f229253c671816a64a149ba"
+    }
+  ],
+  "limitations": [
+    "Smooth pan/zoom acceptance remains with active stabilization owner.",
+    "Earlier controlled performance results are not measurements of the corrective delivered build.",
+    "Original complete-app dictation freeze not reproduced by the isolated CPU fixture.",
+    "Outdoor seam cases and resource ceilings remain open.",
+    "No new application or native checks performed for this documentation-only reconciliation."
+  ]
+}

@@ -10,6 +10,7 @@ import { ChessTable, GAMES, type ChessGame } from "./chess";
 import { Arcade, type GameEvent } from "./arcade";
 import { MovieCorner, type Beat } from "./movie";
 import type { Facing } from "./walker";
+import type { RobotLook } from "../office/rig";
 
 // The break room, seen top-down. West: a kitchen counter on the north wall (fridge, sink,
 // microwave, coffee machine), a dining table, three charging docks and a nap pod. Middle: a
@@ -22,7 +23,7 @@ import type { Facing } from "./walker";
 // ones that are only idling) and waits for them; anyone leaving ends the game cleanly.
 // The room is laid out for 1900 x 800; the games wing hugs the east wall, the door is at w / 2.
 
-export type BreakThread = { id: string; provider: string; title: string; question?: string | null; model?: string | null; name?: string | null };
+export type BreakThread = { id: string; provider: string; title: string; question?: string | null; model?: string | null; name?: string | null; look?: RobotLook };
 
 export interface RoomExtension {
   el: HTMLElement;
@@ -194,6 +195,34 @@ export class BreakRoom implements RoomExtension {
   private movie!: MovieCorner;
   private dead = false;
 
+  /** Actual resident poses and positions for the camera's spatial sound mix. */
+  soundActors() {
+    return [...this.res.values()].filter(r => r.alive).map(r => ({ el: r.w.el, x: r.w.x, y: r.w.y, activity: r.w.activity }));
+  }
+  soundMedia() {
+    return [
+      { el: this.arcade.el, x: this.arcade.cx, y: WALL - 24, kind: 'tv' as const, playing: this.arcade.isPlaying, powered: this.arcade.powered },
+      { el: this.movie.el, x: this.movie.cx, y: 110, kind: 'movie' as const, playing: this.movie.isPlaying, powered: this.movie.isPlaying },
+    ];
+  }
+  setTvPowered(powered: boolean) { this.arcade.setPowered(powered, true); }
+  setMovieScreenRaised(raised: boolean) { this.movie.setScreenRaised(raised, true); }
+
+  private mediaReaction(kind: 'console' | 'movie', restored: boolean) {
+    const group = this.groups[kind];
+    if (!group?.alive) return;
+    const viewers = group.players.filter(r => r.alive && !r.held && group.arrived.has(r));
+    const lines = kind === 'console'
+      ? restored ? ["There we go!", "Rematch. I was winning.", "Controller still works!"] : ["Hey! My high score!", "Did you unplug the boss fight?", "I was definitely winning."]
+      : restored ? ["The toaster returns!", "Okay. Nobody spoil it.", "Popcorn still warm. Continue."] : ["The wall has no subtitles.", "We were watching that!", "Is this the director's cut?"];
+    viewers.slice(0, 2).forEach((r, index) => this.later(index * .24, () => {
+      if (this.dead || !group.has(r) || r.held) return;
+      r.w.setExpression(restored ? 'happy' : 'surprised'); r.w.hop();
+      if (!index) r.w.say(pickOne(lines), 1800);
+      this.later(1.9, () => { if (!this.dead && group.has(r) && !r.held) r.w.setExpression('neutral'); });
+    }));
+  }
+
   constructor(host: HTMLElement, readonly w: number, readonly h: number) {
     this.doorIn = { x: w / 2, y: h - 50 };
     this.doorOut = { x: w / 2, y: h + 60 };
@@ -358,7 +387,7 @@ export class BreakRoom implements RoomExtension {
         if (t.name && t.name !== r.w.name) r.w.setName(t.name);
         return;
       }
-      const w = new Walker(this.stage.layer, { id: t.id, provider: t.provider, model: t.model ?? undefined, name: t.name ?? t.title, scale: SCALE, look: (t as any).look });
+      const w = new Walker(this.stage.layer, { flavorSpeech: true, id: t.id, provider: t.provider, model: t.model ?? undefined, name: t.name ?? t.title, scale: SCALE, look: (t as any).look });
       // a robot that just walked down the hall carries on from where it stopped
       const entry = this.entries.get(t.id);
       this.entries.delete(t.id);
@@ -512,7 +541,7 @@ export class BreakRoom implements RoomExtension {
     if (ok("chat") && !this.host && this.chatSpots()) options.push("chat");
     // two or more robots free (this one included): a group game can start
     const others = this.available(r).length;
-    const startable = (k: GroupKind) => !this.groups[k] && (this.rested[k] ?? 0) <= now && others >= 1;
+    const startable = (k: GroupKind) => !this.groups[k] && (k !== 'console' || this.arcade.powered) && (this.rested[k] ?? 0) <= now && others >= 1;
     for (const k of GROUPS) if (ok(k) && startable(k)) options.push(k);
     let kind: Kind | null = null;
     if (this.force && startable(this.force)) { kind = this.force; this.force = null; }
@@ -1543,6 +1572,8 @@ export class BreakRoom implements RoomExtension {
     // the games wing
     this.arcade = new Arcade(st, gx(1240), WALL);
     this.movie = new MovieCorner(st, gx(1655), gx(1440));
+    this.arcade.onPowerChange = powered => this.mediaReaction('console', powered);
+    this.movie.onScreenChange = raised => this.mediaReaction('movie', !raised);
     this.pp = new PingPong(st, gx(1270), 622, { x0: gx(1000), x1: gx(1530), y0: 566, y1: 770 });
     this.chessT = new ChessTable(st, gx(1700), 650);
     void this.chessT.setup();

@@ -1,0 +1,48 @@
+{
+  "checkedAt": "2026-11-01T01:40:27.693Z",
+  "collector": "electron/t3.cjs reportFacts",
+  "threadId": "81cf85be-c79b-4478-b832-4fc9894c2d01",
+  "passed": true,
+  "files": [
+    {
+      "messageId": "mcp:a9d2332b-f939-4ccf-9bfe-b35700dc2e2f",
+      "name": "before-Botify-archived-monitor.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\81cf85be-c79b-4478-b832-4fc9894c2d01-869cf9bb-364d-43d8-842c-fc4559b15051.png",
+      "exists": true,
+      "size": 278855,
+      "sha256": "adfb4bcbc7bb54f60c9c234ba330151184b4ec480b3b64a821c4f3520533dcff",
+      "expectedSha256": "adfb4bcbc7bb54f60c9c234ba330151184b4ec480b3b64a821c4f3520533dcff",
+      "match": true
+    },
+    {
+      "messageId": "mcp:a9d2332b-f939-4ccf-9bfe-b35700dc2e2f",
+      "name": "after-Botify-archived-monitor.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\81cf85be-c79b-4478-b832-4fc9894c2d01-8ec69a17-400e-41e7-bc8a-fcfc05834ddf.png",
+      "exists": true,
+      "size": 265134,
+      "sha256": "a112a2237efd128a622d301a63bdb3f6eda689e2722787d75c3d1aa9a1f9cfd7",
+      "expectedSha256": "a112a2237efd128a622d301a63bdb3f6eda689e2722787d75c3d1aa9a1f9cfd7",
+      "match": true
+    },
+    {
+      "messageId": "mcp:a9d2332b-f939-4ccf-9bfe-b35700dc2e2f",
+      "name": "before-zoom-snapshot-20261031.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\81cf85be-c79b-4478-b832-4fc9894c2d01-70e4cde4-5829-4d87-8f5c-9bd246f4c96d.png",
+      "exists": true,
+      "size": 1365018,
+      "sha256": "ac7497f9809e776e1ca4eea02b6d37bbbf5bb9cb6ba5fb43403224be29fe8572",
+      "expectedSha256": "ac7497f9809e776e1ca4eea02b6d37bbbf5bb9cb6ba5fb43403224be29fe8572",
+      "match": true
+    },
+    {
+      "messageId": "mcp:a9d2332b-f939-4ccf-9bfe-b35700dc2e2f",
+      "name": "after-zoom-snapshot-20261031.png",
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\81cf85be-c79b-4478-b832-4fc9894c2d01-ba8cadf6-739b-42fe-812f-c5ac1d56be55.png",
+      "exists": true,
+      "size": 1408855,
+      "sha256": "80e6c746aa6691e0cb17af66e8e9714ca13efcd41674447c3c055540b87566ad",
+      "expectedSha256": "80e6c746aa6691e0cb17af66e8e9714ca13efcd41674447c3c055540b87566ad",
+      "match": true
+    }
+  ]
+}

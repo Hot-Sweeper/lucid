@@ -11,10 +11,10 @@ export function closeMenu() {
   gsap.to(m, { opacity: 0, y: -4, duration: 0.12, onComplete: () => m.remove() });
 }
 
-export function showMenu(x: number, y: number, title: string, items: MenuItem[]) {
+export function showMenu(x: number, y: number, title: string, items: MenuItem[], options: { wrapTitle?: boolean } = {}) {
   closeMenu();
   const m = document.createElement("div");
-  m.className = "pop-menu";
+  m.className = options.wrapTitle ? "pop-menu pop-menu-message" : "pop-menu";
   m.setAttribute("role", "menu");
   m.innerHTML = `<p class="pm-title"></p>`;
   m.querySelector(".pm-title")!.textContent = title;

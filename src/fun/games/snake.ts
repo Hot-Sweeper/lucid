@@ -9,10 +9,11 @@ const KEY = (d: P) => (d.x === 1 ? "ArrowRight" : d.x === -1 ? "ArrowLeft" : d.y
 const WIN_SCORE = 45;
 
 export async function playSnake(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   try {
     const view = mountGame(body, scope, "Snake", "snake");
     const { ctx, w, h } = view;
+    scope.liveCanvas(view.canvas);
     const S = new Session(host, opts, { base: 0.35, step: 0.18, calm: 0.05 });
     const skill = S.skill;
 

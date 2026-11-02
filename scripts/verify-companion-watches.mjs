@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {transformWithOxc} from 'vite';
+const source=await readFile(new URL('../src/main.ts',import.meta.url),'utf8');
+const section=source.slice(source.indexOf('let watched ='),source.indexOf('let firstLoad ='));
+const compiled=(await transformWithOxc(section,'watches.ts')).code;
+let companion=true,resolveWrite;
+const writes=[],timers=new Map(),listeners=new Map();
+const doc={hidden:false,addEventListener(){},removeEventListener(){}};
+const win={setTimeout(fn){timers.set(1,fn);return 1;},addEventListener(n,fn){listeners.set(n,fn);},removeEventListener(){}};
+const desks=new Map(Array.from({length:31},(_,i)=>['t'+i,{screen:{visible:i<2}}]));
+const world={desks,scene:{inert:false},orchThread:''},chat={threadId:null,isOpen:false,collapsed:true,el:{inert:true}};
+const api={watchSet:ids=>{writes.push(ids);return new Promise(resolve=>{resolveWrite=resolve;});}};
+const factory=new Function('world','chat','document','window','companionClient','renderFps','onRenderWake','api','clearTimeout',`${compiled}
+let switchingBuilding=false,buildingEpoch=0;
+return {syncWatches,desiredWatches,scheduleWatchSync};`);
+const watch=factory(world,chat,doc,win,()=>companion,screen=>screen.visible?60:0,()=>()=>{},api,()=>{});
+assert.deepEqual(watch.desiredWatches(),['t0','t1'],'The phone watches only visible monitor surfaces');
+const first=watch.syncWatches();await Promise.resolve();await watch.syncWatches();assert.equal(writes.length,1,'Watch writes never overlap');resolveWrite(true);await first;
+await watch.syncWatches();assert.equal(writes.length,1,'Unchanged view does not reinstall watches');
+world.scene.inert=true;assert.deepEqual(watch.desiredWatches(),[],'Threads view has no computer subscriptions');
+Object.assign(chat,{threadId:'t20',isOpen:true,collapsed:false});chat.el.inert=false;
+assert.deepEqual(watch.desiredWatches(),['t20'],'Chat subscribes only its selected real conversation');
+doc.hidden=true;assert.deepEqual(watch.desiredWatches(),[],'A hidden phone releases every subscription');
+companion=false;assert.equal(watch.desiredWatches().length,31,'Desktop supervision continues watching every assigned desk');
+companion=true;doc.hidden=false;
+for(let i=0;i<100;i++)watch.scheduleWatchSync();assert.equal(timers.size,1,'Camera wake events share one scheduled watch update');
+console.log('Companion watches: 31 desks reduced to visible monitors, selected-chat ownership, hidden release, desktop continuity, no duplicate/overlapping polls and coalesced camera changes passed.');

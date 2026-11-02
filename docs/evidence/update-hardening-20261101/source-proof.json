@@ -1,0 +1,26 @@
+{
+  "verifiedAt": "2026-11-01T22:36:46.122Z",
+  "scope": {
+    "electron/updater.cjs": "2d7de80baa4d2e81ba3f2decb672bbfefddf2cd6dbe68b5f4276f4fdd15f8f29",
+    "electron/update-command.cjs": "3ba8a744ba0b0a9d0d69df701f20460537210eca0b5526a65cd48d6fdf451070",
+    "electron/update-errors.cjs": "360af607e052acf2538d15f7ac630cedd096766572a53c699c91cc8d2559483e",
+    "electron/update-recovery.cjs": "7df3b09aaa76dcecefc2bf47618b77e49878486d8eb2813d9e2fc7c02a58a360",
+    "electron/installation.cjs": "d29632bfa55a2651f32475ee7b79cddb1d92d496ad702b7800b1ae9f6c6e947b",
+    "electron/frozen-input.cjs": "b2874913473ed295b53d9030f304d09afec71818a7afa123a753e1bde0fce168",
+    "electron/main.cjs": "1a3179606ba9d983e34d942c95a2690e985fb742e07e5665453160598b4ef682",
+    "src/main.ts": "ced28feeb8503dd22eba364b904bdec059953a8a748b8b0c01c5a67797bc2268",
+    "vite.config.mjs": "b89a2b5709f4b4634c14e587c943fa8d6203bb638cc11fd34bcdb83e7bec6da2",
+    "scripts/verify-updater.cjs": "56b4cf8f7e4f89b078dc64f675aaf0af8c1b978a822a55c84667e3dd8ec1f39e",
+    "scripts/verify-update-command.cjs": "171611c7d71e78d59499acd1828b13d9dbe2c399924d02e149acf6b0b3fc3418",
+    "scripts/verify-update-feedback.cjs": "fb7e187b9bc2709ce3ac0de68accc91246fc2be6f6095472b20a3e23e02d204d",
+    "scripts/verify-frozen-input-native.cjs": "b4e75b37a3c16935152a46aa6a82c2c174632767fe70fa14660e32b316a3ac59",
+    "scripts/verify-build-isolation.cjs": "061f96645a44089d9551cec8f2d57705acfc19f4040e58933856392b3a1b6243"
+  },
+  "installedManifestSha256": "4259801f566292bfd4a066428a488816f8b788de842eeb649f8725d89f435c17",
+  "validatedManifestSha256": "c397b5b866b85e5d045919b2730634d9fc3fecb8ae18d86c5a0ca0797188c369",
+  "executingEntry": "E:\\T3 Projects\\Lucid\\dist\\assets\\index-KSlqkuT0.js",
+  "executingEntrySha256": "81679d2ea8c5ce5b82241758fa6f35fc7e993e50a0ca867bf2a663f7dc72157e",
+  "mainPid": 162136,
+  "validationLogSha256": "b0eb41df8e4dffa9bc55881207c62d40f9a5abd02953366911cb200a3c768c52",
+  "wholeThreadSettled": false
+}

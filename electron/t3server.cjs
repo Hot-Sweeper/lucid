@@ -166,12 +166,13 @@ async function ensurePaired({ force = false } = {}) {
 }
 
 // HTTP with the session. A 401 means expired or revoked: pair again once, then give up.
-async function authed(pathname, init = {}, retried = false) {
-  const c = await ensurePaired();
+async function authed(pathname, init = {}, retried = false, pairedOnly = false) {
+  const c = pairedOnly ? await loadCred() : await ensurePaired();
+  if (!c) throw new T3ServerError("Connect Lucid to T3 Code to read subscription limits.", "not-paired");
   const { origin } = server();
-  const res = await fetch(origin + pathname, { ...init, headers: { ...(init.headers || {}), authorization: `Bearer ${c.token}` } });
+  const res = await fetch(origin + pathname, { ...(pairedOnly ? { signal: AbortSignal.timeout(2000) } : {}), ...init, headers: { ...(init.headers || {}), authorization: `Bearer ${c.token}` } });
   if (res.status === 401 || res.status === 403) {
-    if (res.status === 401 && !retried) {
+    if (res.status === 401 && !retried && !pairedOnly) {
       forgetCred();
       await ensurePaired({ force: true });
       return authed(pathname, init, true);
@@ -200,9 +201,9 @@ function closeSock() {
   s.pending.clear();
 }
 
-async function connect() {
+async function connect({ pairedOnly = false } = {}) {
   if (sock) return sock.ready;
-  const { ticket } = await authed("/api/auth/websocket-ticket/rpc", { method: "POST" });
+  const { ticket } = await authed("/api/auth/websocket-ticket/rpc", { method: "POST" }, false, pairedOnly);
   const { ws: base } = server();
   const ws = new WebSocket(`${base}/ws?orchestrationProtocol=${PROTOCOL}&wsTicket=${encodeURIComponent(ticket)}`);
   ws.binaryType = "arraybuffer";
@@ -265,8 +266,8 @@ function friendly(s) {
   return s.replace(/\b(run|thread|message|node|command):[^\s.,)]+/g, "this item").slice(0, 240);
 }
 
-async function call(tag, payload, { timeout = 15_000 } = {}) {
-  const s = await connect();
+async function call(tag, payload, { timeout = 15_000, pairedOnly = false } = {}) {
+  const s = await connect({ pairedOnly });
   const id = String(nextId++);
   clearTimeout(idleTimer);
   const result = new Promise((resolve, reject) => {
@@ -285,7 +286,9 @@ async function call(tag, payload, { timeout = 15_000 } = {}) {
 }
 
 /** Sends one orchestration command, with a fresh UUID commandId like T3's web app. */
+let remoteDispatch = null;
 function dispatch(command) {
+  if (remoteDispatch && [command.threadId, command.projectId].some(id => typeof id === 'string' && id.includes('::'))) return remoteDispatch(command);
   return call("orchestration.dispatchCommand", { commandId: crypto.randomUUID(), ...command });
 }
 
@@ -322,6 +325,19 @@ function respondToRequest(threadId, requestId, { answers, decision, feedback } =
   return dispatch({ type: "runtime-request.respond", threadId, requestId, answers: clean });
 }
 
+// Explicit settlement is reversible through T3's native thread commands.
+async function settleThread(threadId, { excludePinned = true, expectedRunId = null } = {}) {
+  // Pair/connect first, then re-read promotion state immediately before dispatch.
+  {
+    await connect();
+    const state = require("./t3.cjs").reportState(threadId);
+    if (expectedRunId && (state.run?.id !== expectedRunId || state.run?.status !== "completed" || state.pendingRuns || state.pendingRequests)) throw new T3ServerError("New work superseded this review.", "stale-review");
+    if (state.pinned) throw new T3ServerError("Pinned project managers cannot be settled automatically.", "manager-protected");
+  }
+  return dispatch({ type: "thread.settle", threadId });
+}
+function unsettleThread(threadId) { return dispatch({ type: "thread.unsettle", threadId, reason: "user" }); }
+
 // --- model -------------------------------------------------------------------
 
 function optionArray(options) {
@@ -339,11 +355,52 @@ function setThreadModel(threadId, { providerInstanceId, model, options }) {
 }
 
 let providerCache = null;
+let usageLimitsCache = null, usageLimitsRead = null, usageLimitsRetryAt = 0;
+function rememberUsageLimits(config) {
+  // Keep only usage fields. Account identifiers and authentication metadata never
+  // leave the main process through the usage bridge.
+  const providers = (config?.providers || []).filter(p => p && p.enabled !== false && p.installed !== false).map(p => ({
+    instanceId: p.instanceId, driver: p.driver, name: p.displayName || p.instanceId,
+    usageLimits: p.usageLimits ? { checkedAt: p.usageLimits.checkedAt, windows: (p.usageLimits.windows || []).map(w => ({ id: w.id, kind: w.kind, label: w.label, usedPercent: w.usedPercent, resetsAt: w.resetsAt, windowDurationMins: w.windowDurationMins })), unavailable: p.usageLimits.unavailable ? { reason: p.usageLimits.unavailable.reason, message: p.usageLimits.unavailable.message } : undefined } : null,
+  }));
+  usageLimitsCache = { at: Date.now(), providers };
+  return { providers, fetchedAt: new Date(usageLimitsCache.at).toISOString(), source: "T3 Code" };
+}
+
+/** Read T3's supported provider snapshots through an existing paired connection. */
+async function usageLimits() {
+  if (usageLimitsCache && Date.now() - usageLimitsCache.at < 20000) return { providers: usageLimitsCache.providers, fetchedAt: new Date(usageLimitsCache.at).toISOString(), source: "T3 Code" };
+  if (Date.now() < usageLimitsRetryAt) return { providers: usageLimitsCache?.providers || [], error: "T3 limits could not be refreshed.", source: "T3 Code" };
+  if (usageLimitsRead) return usageLimitsRead;
+  usageLimitsRead = (async () => {
+    let timer;
+    try {
+      // Reading limits must never initiate pairing, prompt, or restart a provider.
+      if (!await loadCred()) return { providers: [], error: "Connect Lucid to T3 Code to read subscription limits.", source: "T3 Code" };
+      const config = await Promise.race([
+        call("server.getConfig", {}, { timeout: 2000, pairedOnly: true }),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new T3ServerError("T3 limits did not answer in time.", "timeout")), 2500); }),
+      ]);
+      return rememberUsageLimits(config);
+    } catch {
+      usageLimitsRetryAt = Date.now() + 30000;
+      return { providers: usageLimitsCache?.providers || [], error: "T3 limits could not be refreshed.", source: "T3 Code" };
+    } finally { clearTimeout(timer); usageLimitsRead = null; }
+  })();
+  return usageLimitsRead;
+}
 /** Harnesses T3 offers right now, with their models and each model's options (effort, fast mode). */
 async function listProviders({ fresh = false } = {}) {
   if (!fresh && providerCache && Date.now() - providerCache.at < 60_000) return providerCache.list;
   const config = await call("server.getConfig", {});
-  const list = (config?.providers || [])
+  rememberUsageLimits(config);
+  const list = providerList(config);
+  providerCache = { at: Date.now(), list };
+  return list;
+}
+
+function providerList(config) {
+  return (config?.providers || [])
     .filter((p) => p && p.enabled !== false && p.availability !== "unavailable")
     .map((p) => ({
       instanceId: p.instanceId,
@@ -362,8 +419,37 @@ async function listProviders({ fresh = false } = {}) {
         })),
       })),
     }));
-  providerCache = { at: Date.now(), list };
-  return list;
+}
+
+async function hireConfig({ projectId = '' } = {}) {
+  const config = await call('server.getConfig', {});
+  const settings = config.settings || {};
+  let project = null;
+  if (projectId) {
+    const row = getDb().prepare('select * from projection_projects where project_id = ?').get(projectId);
+    if (!row) throw new T3ServerError('This project is no longer available.', 'invalid');
+    project = safeJson(row.payload_json) || {};
+    if (!project.defaultModelSelection && row.default_model_selection_json) project.defaultModelSelection = safeJson(row.default_model_selection_json);
+  }
+  const defaults = require('./hire-runtime.cjs').hireDefaults(settings, projectId, project);
+  const overrides = settings.projectSettingsOverrides?.[projectId]?.providerInstances || {};
+  const providers = providerList(config).filter(p => overrides[p.instanceId]?.enabled !== false);
+  return { providers, ...defaults };
+}
+
+async function startHire(opts) {
+  const config = await hireConfig({ projectId: opts.project });
+  const provider = config.providers.find(p => p.instanceId === opts.provider && p.ready);
+  const model = provider?.models.find(m => m.slug === opts.model);
+  if (!model) throw new T3ServerError('This harness or model is unavailable. Choose another setup and retry.', 'invalid');
+  for (const [id, value] of Object.entries(opts.options || {})) {
+    const option = model.options.find(o => o.id === id);
+    if (!option || (option.type === 'boolean' ? typeof value !== 'boolean' : !option.choices?.some(c => c.id === value))) throw new T3ServerError('A model setting changed in T3. Reload the runtime settings and retry.', 'invalid');
+  }
+  if (opts.contextThreadId) return require('./hire-context.cjs').continueHire(getDb(), opts, dispatch);
+  const payload = require('./hire-runtime.cjs').launchPayload(opts, config.runtimeMode);
+  const result = await call('orchestration.launchThread', payload, { timeout: 60_000 });
+  return { threadId: result.threadId };
 }
 
 // --- status ------------------------------------------------------------------
@@ -398,7 +484,8 @@ async function status({ connect = false, threadId = null } = {}) {
 }
 
 module.exports = {
-  ensurePaired, status, dispatch, call, listProviders, selection,
-  reorderQueued, cancelQueued, editQueued, steerNow, setThreadModel, respondToRequest,
+  setRemoteDispatch: fn => { remoteDispatch = fn; },
+  ensurePaired, status, dispatch, call, listProviders, hireConfig, startHire, hireContexts: projectId => require('./hire-context.cjs').settledContexts(getDb(), projectId), selection, usageLimits,
+  settleThread, unsettleThread, reorderQueued, cancelQueued, editQueued, steerNow, setThreadModel, respondToRequest,
   setStorePath, closeSock, T3ServerError,
 };

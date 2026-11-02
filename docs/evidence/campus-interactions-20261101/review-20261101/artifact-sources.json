@@ -1,0 +1,104 @@
+[
+  {
+    "file": "before-user-office-report.png",
+    "source": "C:\\Users\\tim\\.t3\\userdata\\attachments\\11928683-0005-4dbc-9630-bcf6c0a37131-19effbcb-a38a-449e-95c4-00bd102bf0f9.png",
+    "sha256": "84404139c30df3c0c663dd09317f5cdee5ed4cae6636e9a735c9214a42895f32",
+    "sizeBytes": 1013670
+  },
+  {
+    "file": "after-existing-empty-office.png",
+    "source": "E:\\Lucid-validation\\campus-interactions-20261101\\empty-office.png",
+    "sha256": "cf3106dde91372fecbacf5a2eb488fa8228737dc3132273f5971b9c98fe0dcc5",
+    "sizeBytes": 285390
+  },
+  {
+    "file": "after-occupied-expanded-control.png",
+    "source": "E:\\Lucid-validation\\campus-review-20261101\\isolated\\after-expanded-occupied-control.png",
+    "sha256": "026c76d2b81dfdfab5a77d8aafc8a5b37774c008267a9542f545873c54b4de09",
+    "sizeBytes": 532096
+  },
+  {
+    "file": "after-occupied-collapsed-control.png",
+    "source": "E:\\Lucid-validation\\campus-review-20261101\\isolated\\after-collapsed-occupied-control.png",
+    "sha256": "4523d473db0f933c7ca90a096f9bb890faa6a1f0e3775ed0394e2d06e93273cb",
+    "sizeBytes": 121212
+  },
+  {
+    "file": "after-tested-office-overview.png",
+    "source": "E:\\Lucid-validation\\campus-review-20261101\\isolated\\after-corrected-overview.png",
+    "sha256": "526315cfbdca283f8457f4a9f58ffb7ac50a1e7e02e1c86af504c5238d3046d7",
+    "sizeBytes": 318548
+  },
+  {
+    "file": "after-real-ares-session.png",
+    "source": "E:\\Lucid-validation\\campus-review-20261101\\real-ares\\actual-ares-session.png",
+    "sha256": "806b2706acb473071e4780d2ebf0c6673795dfd0ada24a4af6753ff8c98d00bd",
+    "sizeBytes": 286574
+  },
+  {
+    "file": "actual-ares-read-only.json",
+    "source": "E:\\Lucid-validation\\campus-review-20261101\\real-ares\\actual-ares-read-only.json",
+    "sha256": "ba5a614a375c5bd9346a82d6ce4ed2de11aee47261b93043db4b5c3ae3c95909",
+    "sizeBytes": 987
+  },
+  {
+    "file": "occupied-transition.json",
+    "source": "E:\\Lucid-validation\\campus-review-20261101\\isolated\\occupied-transition.json",
+    "sha256": "c5aa218b72e231d11e3f24be9122a4cd46ddba4312bb33d42429a1de681181de",
+    "sizeBytes": 269338
+  },
+  {
+    "file": "tested-build.json",
+    "source": "E:\\Lucid-validation\\campus-review-20261101\\isolated\\tested-build.json",
+    "sha256": "91675e2330cfee5e0c5081e1e60cb0ab129a535964fa079bc1323854d36fa57c",
+    "sizeBytes": 65065
+  },
+  {
+    "file": "focused-native-results.json",
+    "source": "E:\\Lucid-validation\\campus-review-20261101\\isolated\\result.json",
+    "sha256": "d016088ef3a6b7c174e4e2b2e284c7660cbe5a0e9dd869dbcfa687c54b376614",
+    "sizeBytes": 422
+  },
+  {
+    "file": "production-executing-entry.json",
+    "source": "E:\\Lucid-validation\\campus-review-20261101\\production-executing-entry.json",
+    "sha256": "423f27f54829f1e618dfdde9d59110a62f73e42b16f90dd561b996866ae4b289",
+    "sizeBytes": 436
+  },
+  {
+    "file": "production-observed-manifest.json",
+    "source": "E:\\Lucid-validation\\campus-review-20261101\\production-observed-manifest.json",
+    "sha256": "0704b00fdad6b0881ea7bf2c1a93cbd670ba4a4e96424c33a5704b4f8fe19b61",
+    "sizeBytes": 60116
+  },
+  {
+    "file": "coordinated-after-campus-overview.png",
+    "source": "E:\\T3 Projects\\Lucid\\docs\\evidence\\campus-layout-20261101\\after-campus-overview.png",
+    "sha256": "64efb1bc30107a7befdf2a26487f1a6742959f9447655a77e7b2da7edafa9ac0",
+    "sizeBytes": 627808
+  },
+  {
+    "file": "coordinated-source-proof.json",
+    "source": "E:\\T3 Projects\\Lucid\\docs\\evidence\\campus-layout-20261101\\source-proof.json",
+    "sha256": "a3ec28b863058a4a151e57e0ae121aed19f22a66cb10a415fa2062d44ac955aa",
+    "sizeBytes": 971
+  },
+  {
+    "file": "coordinated-native-results.json",
+    "source": "E:\\T3 Projects\\Lucid\\docs\\evidence\\campus-layout-20261101\\after-native.json",
+    "sha256": "6536de5368f0c722b1c39ea0c3d63f5e88a1eb40248bd7643030b20d51f2ddf3",
+    "sizeBytes": 72058
+  },
+  {
+    "file": "occupied-fixture.cjs",
+    "source": "E:\\Lucid-validation\\campus-review-20261101\\occupied-fixture.cjs",
+    "sha256": "70229c0873bf59a7040e0c4c5e7672497905c9578233eac2ff92a75289cb9baa",
+    "sizeBytes": 13485
+  },
+  {
+    "file": "actual-ares-fixture.cjs",
+    "source": "E:\\Lucid-validation\\campus-review-20261101\\real-ares.cjs",
+    "sha256": "82dd293694f9303de93b94d89d5022e429338b650622b10de393b23ddefef686",
+    "sizeBytes": 7660
+  }
+]

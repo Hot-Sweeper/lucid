@@ -26,23 +26,38 @@ export class Boss {
   /** where the robots in line stand, front first (for glances) */
   visitors: () => { x: number; y: number }[] = () => [];
   private running = false;
+  private presence: "awake" | "sleep" | "away" = "awake";
+  private info: BossInfo | null = null;
+  private sleeping = false;
   private life: gsap.core.Tween | null = null;
   private busyUntil = 0;
   private glowAnim: gsap.core.Animation | null = null;
+  // a robot's question is with the orchestrator right now (delegate.ts): it reads instead of idling
+  private deciding = false;
+  private readLoop: gsap.core.Tween | null = null;
+  private quietUntil = 0;   // its run ended with a decision: no extra "Done." stamp for that run
 
   constructor(private layer: HTMLElement, private desk: BossDesk) {}
 
   set(info: BossInfo | null) {
-    if (!info) { this.clear(); return; }
+    this.info = info;
+    if (!info || this.presence === "away") { this.clear(); return; }
     if (this.w && this.w.id !== info.id) this.clear();
     if (!this.w) {
       const w = new Walker(this.layer, { id: info.id, provider: info.provider, model: info.model ?? undefined, name: info.name, scale: SCALE, look: info.look });
       w.el.classList.add("world-boss");
+      w.el.setAttribute("role", "button");
+      w.el.setAttribute("tabindex", "0");
+      w.el.setAttribute("aria-label", "Chat with the Orchestrator");
+      w.el.title = "Chat with the Orchestrator";
       w.setPos(this.desk.seat.x, this.desk.seat.y);
       w.face("down");
       w.setDeskEdge(this.desk.edge, this.desk.z - Math.round(this.desk.seat.y));
       w.do("type");
       w.el.addEventListener("click", (e) => { e.stopPropagation(); this.onSelect(info.id); });
+      w.el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); this.onSelect(info.id); }
+      });
       this.w = w;
       this.running = false;
       if (!reduced()) this.scheduleLife();
@@ -51,26 +66,41 @@ export class Boss {
       if (info.look) this.w.setLook(info.look);
       if (info.name) this.w.setName(info.name);
     }
+    if(this.presence === "sleep") {
+      if(!this.sleeping) {
+        this.read(null);this.life?.kill();this.glowAnim?.kill();
+        if(this.desk.glow)gsap.set(this.desk.glow,{opacity:0});
+        this.w.do("nap");this.sleeping=true;
+      }
+      return;
+    }
+    if(this.sleeping) { this.sleeping=false;this.running=info.running;this.setRunning(info.running);if(!reduced())this.scheduleLife(); }
     if (info.running !== this.running) this.setRunning(info.running);
+  }
+
+  setPresence(presence: "awake" | "sleep" | "away") {
+    if(this.presence===presence)return;
+    this.presence=presence;this.set(this.info);
   }
 
   /** A robot just took its place in line: look over and wave. */
   greet(x: number, y: number) {
     const w = this.w;
-    if (!w || reduced() || performance.now() < this.busyUntil) return;
+    if (!w || this.presence !== "awake" || reduced() || this.deciding || performance.now() < this.busyUntil) return;
     this.busyUntil = performance.now() + 2200;
     this.look(x, y, 1.6);
-    gsap.delayedCall(0.3, () => this.w === w && w.greet());
+    gsap.delayedCall(0.3, () => this.w === w && this.presence === "awake" && w.greet());
   }
 
   /** The bell rang: a quick look at whoever rang it. */
   heard(x: number, y: number) {
-    if (!this.w || reduced() || performance.now() < this.busyUntil) return;
+    if (!this.w || this.presence !== "awake" || reduced() || this.deciding || performance.now() < this.busyUntil) return;
     this.look(x, y, 0.9);
   }
 
   private look(x: number, y: number, hold: number) {
-    const w = this.w!;
+    const w = this.w;
+    if (!w) return;
     w.glance((x - w.x) / 90, Math.min(1, Math.max(-0.3, (y - w.y) / 160)), hold);
   }
 
@@ -86,7 +116,59 @@ export class Boss {
       ? (reduced() ? gsap.to(g, { opacity: 0.85, duration: 0.3 }) : gsap.fromTo(g, { opacity: 0.55 }, { opacity: 0.95, duration: 1.4, ease: "sine.inOut", yoyo: true, repeat: -1 }))
       : gsap.to(g, { opacity: 0, duration: 0.8, ease: "power2.out" });
     if (on && !reduced()) { this.busyUntil = performance.now() + 1500; w.glance(-1, 0.3, 1); }
-    if (!on && was) this.done();
+    if (!on && was && !this.deciding && performance.now() > this.quietUntil) this.done();
+  }
+
+  /** While the decision is actually in flight: it turns to the robot (`at` gives where it stands)
+   *  and reads its card, glancing at its screen in between. Null stops reading. */
+  read(at: (() => { x: number; y: number } | null) | null) {
+    if(at && this.presence!=="awake")return;
+    this.readLoop?.kill();
+    this.readLoop = null;
+    const w = this.w;
+    this.deciding = !!at;
+    if (!w) return;
+    if (!at) { w.setExpression("neutral"); return; }
+    w.setExpression("focus");
+    const loop = (i: number) => {
+      if (this.w !== w || !this.deciding) return;
+      const p = at();
+      if (i % 3 !== 2 && p) this.look(p.x, p.y, 1.5); else w.glance(-1, 0.25, 1.1);
+      this.readLoop = gsap.delayedCall(2.2, () => loop(i + 1));
+    };
+    if (reduced()) { const p = at(); if (p) this.look(p.x, p.y, 2); } else loop(0);
+  }
+
+  /** It answered for you: a stamp on the paper and a nod toward the robot. */
+  answered(at: { x: number; y: number } | null) {
+    if(this.presence!=="awake")return;
+    this.read(null);
+    const w = this.w;
+    if (!w) return;
+    this.quietUntil = performance.now() + 20000;
+    this.busyUntil = performance.now() + 3200;
+    if (reduced()) { w.setExpression("happy"); gsap.delayedCall(1.6, () => this.w === w && w.setExpression("neutral")); return; }
+    w.stamp(() => this.thunk()).add(() => {
+      w.setExpression("happy");
+      if (at) this.look(at.x, at.y, 1.2);
+      w.nodYes();
+      gsap.delayedCall(1.8, () => this.w === w && w.setExpression("neutral"));
+    });
+  }
+
+  /** It was not sure (or may not answer this kind): a shake of the head, then it points at you. */
+  passed() {
+    if(this.presence!=="awake")return;
+    this.read(null);
+    const w = this.w;
+    if (!w) return;
+    this.quietUntil = performance.now() + 20000;
+    this.busyUntil = performance.now() + 3600;
+    w.setExpression("shy");
+    gsap.delayedCall(2.8, () => this.w === w && w.setExpression("neutral"));
+    w.say("Over to you.", 2200);
+    if (reduced()) return;
+    w.shakeNo().add(() => { if (this.w === w) w.pointAtYou(1.2); });
   }
 
   private done() {
@@ -115,7 +197,7 @@ export class Boss {
     this.life = gsap.delayedCall(rnd(2.5, 6), () => {
       const w = this.w;
       if (!w) return;
-      if (performance.now() >= this.busyUntil) {
+      if (performance.now() >= this.busyUntil && !this.deciding) {
         const r = Math.random(), line = this.visitors();
         if (r < 0.35) w.glance(-1, 0.25, rnd(0.8, 2));
         else if (r < 0.6 && line.length) { const v = line[0]; this.look(v.x, v.y, rnd(0.8, 1.6)); }
@@ -127,6 +209,10 @@ export class Boss {
   }
 
   clear() {
+    this.sleeping = false;
+    this.readLoop?.kill();
+    this.readLoop = null;
+    this.deciding = false;
     this.life?.kill();
     this.life = null;
     this.glowAnim?.kill();

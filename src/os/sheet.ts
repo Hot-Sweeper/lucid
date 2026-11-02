@@ -7,45 +7,52 @@
 //      itself shifted by one cell lines up far better than at any other shift.
 import gsap from "gsap";
 import type { WM } from "./wm";
+import { analysisSize, sheetAnalysisBudget } from "./sheet-analysis";
+import { renderLoop } from "../perf/render";
 
 export type Rect = { x: number; y: number; w: number; h: number };
 /** `clips`: where each clip starts, when every row of the sheet is its own little video. */
 export type Sheet = { frames: Rect[]; cols: number; rows: number; fw: number; fh: number; fps: number; kind: "sprite" | "shots"; clips: number[] };
 
-const WORK = 720;     // analysed at most this wide (and tall)
 const NAME_HINT = /(sheet|sprite|frames?|strip|atlas|anim|walk|run|cycle|idle|tiles?|contact|timeline|shots)/i;
 
 function load(src: string) {
   return new Promise<HTMLImageElement>((ok, no) => {
     const img = new Image();
-    img.onload = () => ok(img);
-    img.onerror = () => no(new Error("image failed to load"));
+    const timer = setTimeout(() => { img.onload = img.onerror = null; no(new Error("image load timed out")); }, 9000);
+    img.onload = () => { clearTimeout(timer); ok(img); };
+    img.onerror = () => { clearTimeout(timer); no(new Error("image failed to load")); };
     img.src = src;
   });
 }
 
 type Gray = { w: number; h: number; k: number; v: Float32Array };
+type Checkpoint = () => Promise<void>;
 // brightness of every pixel at working size (transparent counts as one flat value)
-function grayOf(img: HTMLImageElement): Gray {
-  const k = Math.min(1, WORK / Math.max(img.naturalWidth, img.naturalHeight));
-  const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
+async function grayOf(img: HTMLImageElement, checkpoint: Checkpoint): Promise<Gray> {
+  const { w, h } = analysisSize(img.naturalWidth, img.naturalHeight);
+  const k = w / img.naturalWidth;
   const c = document.createElement("canvas");
   c.width = w; c.height = h;
   const g = c.getContext("2d", { willReadFrequently: true })!;
   g.drawImage(img, 0, 0, w, h);
   const d = g.getImageData(0, 0, w, h).data;
   const v = new Float32Array(w * h);
-  for (let p = 0, i = 0; p < w * h; p++, i += 4) v[p] = d[i + 3] < 32 ? -40 : 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2];
+  for (let p = 0, i = 0; p < w * h; p++, i += 4) {
+    if (p % (w * 32) === 0) await checkpoint();
+    v[p] = d[i + 3] < 32 ? -40 : 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2];
+  }
   return { w, h, k, v };
 }
 
 // how flat every column (axis "x") or row (axis "y") is: its spread of brightness, and the share
 // of it taken by its most common colour (a gutter crossed by a scrollbar or a label is still a gutter)
-function spread(gr: Gray, axis: "x" | "y") {
+async function spread(gr: Gray, axis: "x" | "y", checkpoint: Checkpoint) {
   const n = axis === "x" ? gr.w : gr.h, m = axis === "x" ? gr.h : gr.w;
   const sd = new Float32Array(n), share = new Float32Array(n);
   const hist = new Uint32Array(40);
   for (let a = 0; a < n; a++) {
+    if (a % 16 === 0) await checkpoint();
     let s = 0, s2 = 0;
     hist.fill(0);
     for (let b = 0; b < m; b++) {
@@ -87,18 +94,42 @@ function gutterCells({ sd, share }: { sd: Float32Array; share: Float32Array }, l
   const near = (a: number, b: number) => Math.abs(a - b) <= Math.max(3, b * 0.06);
   const sizes = cells.map(([a, b]) => b - a);
   const mid = sizes.map((s0) => ({ s0, k: sizes.filter((x) => near(x, s0)).length })).sort((a, b) => b.k - a.k || b.s0 - a.s0)[0].s0;
-  const keep = cells.filter(([a, b]) => near(b - a, mid));
+  // a frame with a flat band of its own (a panel edge, a ruled line) reads as two short runs:
+  // runs that together span exactly one common cell are that one frame
+  const merged: [number, number][] = [];
+  for (let i = 0; i < cells.length; i++) {
+    let [a, b] = cells[i];
+    for (let j = i + 1; b - a < mid * 0.94 && j < cells.length && cells[j][1] - a <= mid * 1.06; j++) {
+      if (near(cells[j][1] - a, mid)) { b = cells[j][1]; i = j; break; }
+    }
+    merged.push([a, b]);
+  }
+  const keep = merged.filter(([a, b]) => near(b - a, mid));
   if (keep.length < 2) return null;
-  // one cell after the other, at one pitch, covering most of the sheet
+  // The exact frames fix the grid: one pitch, one phase. A frame the flat test misread (a row
+  // with a large plain area of its own) sits on that grid too, so the grid is followed to the
+  // edge of the image; a cell that does not fit inside the image is cut off and left out.
   const starts = keep.map(([a]) => a);
-  const pitch = median(starts.slice(1).map((x, i) => x - starts[i]));
-  if (pitch > mid * 1.25 || starts.slice(1).some((x, i) => Math.abs(x - starts[i] - pitch) > Math.max(3, pitch * 0.04))) return null;
-  if (keep.length * mid < n * 0.55) return null;
-  return keep;
+  const diffs = starts.slice(1).map((x, i) => x - starts[i]);
+  const unit = Math.min(...diffs);
+  const pitch = median(diffs.filter((d) => d <= unit * 1.5));
+  const tol = Math.max(3, pitch * 0.03);
+  if (pitch > mid * 1.25 || pitch < mid) return null;
+  // every exact frame lies on the grid
+  if (starts.some((x) => { const k = Math.round((x - starts[0]) / pitch); return Math.abs(x - starts[0] - k * pitch) > tol * Math.max(1, Math.abs(k) / 3); })) return null;
+  const grid: [number, number][] = [];
+  for (let k = 0; ; k++) {
+    const a = Math.round(starts[0] + k * pitch);
+    if (a + mid > n + 1) break;
+    const own = keep.find(([x]) => Math.abs(x - a) <= tol);
+    grid.push(own ?? [a, Math.min(n, a + mid)]);
+  }
+  if (grid.length * mid < n * 0.55) return null;
+  return grid;
 }
 
 /** How many equal cells repeat along one axis (1 when nothing repeats), and how clearly (0..1). */
-function repeats(gr: Gray, axis: "x" | "y"): { n: number; q: number } {
+async function repeats(gr: Gray, axis: "x" | "y", checkpoint: Checkpoint): Promise<{ n: number; q: number }> {
   const len = axis === "x" ? gr.w : gr.h;
   const step = Math.max(1, Math.floor((axis === "x" ? gr.h : gr.w) / 120));
   // 1. the picture compared with itself shifted by one cell
@@ -112,6 +143,7 @@ function repeats(gr: Gray, axis: "x" | "y"): { n: number; q: number } {
   //    what is inside them changes (a dimmed game over screen, a new chart)
   const prof = new Float32Array(len);
   for (let a = 1; a < len; a++) {
+    if (a % 32 === 0) await checkpoint();
     let s = 0, c = 0;
     if (axis === "x") for (let y = 0; y < gr.h; y += step) { s += Math.abs(gr.v[y * gr.w + a] - gr.v[y * gr.w + a - 1]); c++; }
     else for (let x = 0; x < gr.w; x += step) { s += Math.abs(gr.v[a * gr.w + x] - gr.v[(a - 1) * gr.w + x]); c++; }
@@ -128,12 +160,15 @@ function repeats(gr: Gray, axis: "x" | "y"): { n: number; q: number } {
     return da && db ? num / Math.sqrt(da * db) : 0;
   };
   const odd = Array.from({ length: 24 }, (_, i) => Math.round(len * (0.05 + 0.45 * ((i * 0.618034) % 1))));
-  const ref = median(odd.map(diff)), base = median(odd.map(corr));
+  const refs: number[] = [], bases: number[] = [];
+  for (const p of odd) { await checkpoint(); refs.push(diff(p)); bases.push(corr(p)); }
+  const ref = median(refs), base = median(bases);
   if (ref < 1) return { n: 1, q: 0 };
   const found: { n: number; q: number }[] = [];
   for (let n = 2; n <= 16; n++) {
     const p = Math.round(len / n);
     if (p < 10) break;
+    await checkpoint();
     const r = diff(p) / ref, c = corr(p);
     found.push({ n, q: Math.max(1 - r, c - Math.max(0, base)) });
   }
@@ -143,24 +178,60 @@ function repeats(gr: Gray, axis: "x" | "y"): { n: number; q: number } {
   return pick ?? { n: 1, q: 0 };
 }
 
-/** The frames of an image, or null when it is just a picture. */
-export async function detectSheet(src: string, name: string): Promise<{ img: HTMLImageElement; sheet: Sheet } | null> {
+// Keep metadata, not decoded full-resolution images. Data URLs change when a local file does.
+const analysed = new Map<string, Sheet | null>();
+let cacheBytes = 0;
+function remember(key: string, value: Sheet | null) {
+  const bytes = key.length * 2;
+  if (bytes > 8 * 1024 * 1024) return;
+  if (analysed.has(key)) { cacheBytes -= bytes; analysed.delete(key); }
+  while (analysed.size >= 8 || cacheBytes + bytes > 16 * 1024 * 1024) {
+    const oldest = analysed.keys().next().value;
+    if (oldest === undefined) break;
+    cacheBytes -= oldest.length * 2; analysed.delete(oldest);
+  }
+  analysed.set(key, value); cacheBytes += bytes;
+}
+
+/**
+ * The frames of an image, or null when it is just a picture. The analysis runs in short slices
+ * so input and animation keep going, and stops as soon as `valid` says the result is unwanted.
+ */
+export async function detectSheet(src: string, name: string, valid: () => boolean = () => true): Promise<{ img: HTMLImageElement; sheet: Sheet } | null> {
+  const checkpoint = sheetAnalysisBudget(valid);
+  await checkpoint();
   const img = await load(src);
+  await checkpoint();
   const W = img.naturalWidth, H = img.naturalHeight;
   if (W < 48 || H < 16 || W * H > 40_000_000) return null;
   const hinted = NAME_HINT.test(name);
   // a long strip can be a sheet by its shape; anything else has to say so in its name
   if (!hinted && Math.max(W / H, H / W) < 2.4) return null;
-  const gr = grayOf(img);
-  const axis = (a: "x" | "y") => {
-    const sp = spread(gr, a);
+  const key = `${hinted ? "hint" : "strip"}:${src}`;
+  let sheet: Sheet | null;
+  if (analysed.has(key)) {
+    sheet = analysed.get(key)!;
+    analysed.delete(key); analysed.set(key, sheet);
+  } else {
+    sheet = await analyse(img, hinted, checkpoint);
+    remember(key, sheet);
+  }
+  if (!sheet) return null;
+  const named = Number(name.match(/(\d{1,3})\s*fps/i)?.[1]);
+  return { img, sheet: named >= 1 && named <= 60 ? { ...sheet, fps: named } : sheet };
+}
+
+async function analyse(img: HTMLImageElement, hinted: boolean, checkpoint: Checkpoint): Promise<Sheet | null> {
+  const gr = await grayOf(img, checkpoint);
+  const axis = async (a: "x" | "y") => {
+    const sp = await spread(gr, a, checkpoint);
     const g = gutterCells(sp, false) ?? gutterCells(sp, true);
     if (g) return { cells: g, clear: true };
-    const { n, q } = repeats(gr, a);
+    const { n, q } = await repeats(gr, a, checkpoint);
     const len = a === "x" ? gr.w : gr.h;
     return { cells: Array.from({ length: n }, (_, i) => [Math.round((len * i) / n), Math.round((len * (i + 1)) / n)] as [number, number]), clear: n > 1 && q > (hinted ? 0.38 : 0.6) };
   };
-  const xs = axis("x"), ys = axis("y");
+  const xs = await axis("x"), ys = await axis("y");
   if (!xs.clear && !ys.clear) return null;
   const cols = xs.clear ? xs.cells : [[0, gr.w] as [number, number]];
   const rowsC = ys.clear ? ys.cells : [[0, gr.h] as [number, number]];
@@ -180,8 +251,7 @@ export async function detectSheet(src: string, name: string): Promise<{ img: HTM
   if (fw / fh < 0.3 || fw / fh > 3.5 || fw < 12 || fh < 12) return null;
   // big frames are screenshots taken over time (played like a timelapse), small ones are sprite poses
   const kind: Sheet["kind"] = fw >= 180 && fh >= 110 ? "shots" : "sprite";
-  const named = Number(name.match(/(\d{1,3})\s*fps/i)?.[1]);
-  const fps = named >= 1 && named <= 60 ? named : kind === "shots" ? 2.5 : frames.length <= 4 ? 6 : frames.length <= 12 ? 10 : 12;
+  const fps = kind === "shots" ? 2.5 : frames.length <= 4 ? 6 : frames.length <= 12 ? 10 : 12;
   frames = frames.map((f) => ({ x: Math.round(f.x), y: Math.round(f.y), w: Math.round(f.w), h: Math.round(f.h) }));
   // A sheet whose rows are different scenes (a review of several animations, one per row) plays
   // row by row as clips: frames next to each other in a row are far more alike than the end of
@@ -202,7 +272,7 @@ export async function detectSheet(src: string, name: string): Promise<{ img: HTM
     for (let n = 1; n < frames.length; n++) (n % C === 0 ? across : within).push(d(n - 1, n));
     if (across.length && median(across) > 2.2 * median(within) + 4) for (let n = C; n < frames.length; n += C) clips.push(n);
   }
-  return { img, sheet: { frames, cols: C, rows: rowsC.length, fw: Math.round(fw), fh: Math.round(fh), fps, kind, clips } };
+  return { frames, cols: C, rows: rowsC.length, fw: Math.round(fw), fh: Math.round(fh), fps, kind, clips };
 }
 
 // --- the player -------------------------------------------------------------------------------
@@ -273,22 +343,34 @@ export async function playSheet(wm: WM, body: HTMLElement, found: { img: HTMLIma
     tg.drawImage(img, f.x, f.y, f.w, f.h, 0, 0, c.width, c.height);
   });
 
+  // What is on the stage right now. A draw happens only when that changes: a new frame, or a
+  // step of the short dissolve between two screenshots. A frame that just sits there costs nothing.
+  let painted = -1, paintedAlpha = 1;
   const draw = (n: number, alpha = 1) => {
+    if (n === painted && alpha === paintedAlpha) return;
     const f = s.frames[n];
-    g.globalAlpha = alpha;
     if (alpha >= 1) g.clearRect(0, 0, canvas.width, canvas.height);
+    else if (painted !== n) {
+      // the dissolve starts from the frame before, drawn whole once
+      const p = s.frames[(n + N - 1) % N];
+      g.clearRect(0, 0, canvas.width, canvas.height);
+      g.drawImage(img, p.x, p.y, p.w, p.h, 0, 0, canvas.width, canvas.height);
+    }
+    g.globalAlpha = alpha;
     g.drawImage(img, f.x, f.y, f.w, f.h, 0, 0, canvas.width, canvas.height);
     g.globalAlpha = 1;
+    painted = n; paintedAlpha = alpha;
   };
-  let cur = -1;
+  let cur = -1, shownPos = -1, shownTime = "";
   // the frame and its position: `pos` is the playback position in frames (fractional while playing)
   const show = (n: number, pos = n) => {
     const p = Math.min(1, N > 1 ? pos / (N - 1) : 1);
-    done.style.transform = `scaleX(${p})`;
-    knob.style.left = `${p * 100}%`;
-    timeEl.textContent = clock(Math.min(total, pos / s.fps));
+    if (Math.abs(p - shownPos) > 0.0005) { shownPos = p; done.style.transform = `scaleX(${p})`; knob.style.left = `${p * 100}%`; }
+    const time = clock(Math.min(total, pos / s.fps));
+    if (time !== shownTime) { shownTime = time; timeEl.textContent = time; }
     if (n === cur) return;
     cur = n;
+    root.dataset.frame = String(n);
     if (s.clips.length > 1) {
       const c = s.clips.filter((x) => x <= n).length - 1, start = s.clips[c], end = s.clips[c + 1] ?? N;
       numEl.innerHTML = `Clip <b>${c + 1}</b> of ${s.clips.length}, frame <b>${n - start + 1}</b> of ${end - start}`;
@@ -301,16 +383,21 @@ export async function playSheet(wm: WM, body: HTMLElement, found: { img: HTMLIma
   show(0);
   gsap.fromTo(root, { opacity: 0 }, { opacity: 1, duration: 0.3 });
 
-  // playback runs on the clock, so the frame rate is the real one and never drifts; screenshots
-  // dissolve into each other for a moment, sprite poses cut hard like animation does
-  let playing = false, t0 = 0, at = 0, passes = 0;
+  // Playback runs on the clock, so the frame rate is the real one and never drifts. It paints
+  // through the shared screen clock: a hidden, covered or far away screen paints nothing, and
+  // its next visible paint samples the real clock instead of replaying missed frames. Screenshots
+  // dissolve into each other for a moment, sprite poses and clip starts cut hard.
+  let playing = false, t0 = 0, at = 0;
+  let stopPlayback: (() => void) | null = null;
+  const halt = () => { stopPlayback?.(); stopPlayback = null; };
+  const frameAt = () => at + ((performance.now() - t0) / 1000) * s.fps;
+  const DISSOLVE = 0.22;
   const tick = () => {
-    const f = at + ((performance.now() - t0) / 1000) * s.fps;
-    passes = Math.floor(f / N);
+    if (wm.epoch !== e || !canvas.isConnected) { setPlaying(false); return; }
+    const f = frameAt();
     const n = Math.floor(f) % N, frac = f - Math.floor(f);
-    const changed = n !== cur;
-    if (s.kind === "shots" && frac < 0.22 && !s.clips.includes(n)) { draw((n + N - 1) % N); draw(n, frac / 0.22); }
-    else if (changed || s.kind === "shots") draw(n);
+    const fade = s.kind === "shots" && !s.clips.includes(n) && frac < DISSOLVE;
+    draw(n, fade ? Math.max(0.05, Math.round((frac / DISSOLVE) * 8) / 8) : 1);
     show(n, f % N);
   };
   let hideT = 0;
@@ -323,8 +410,8 @@ export async function playSheet(wm: WM, body: HTMLElement, found: { img: HTMLIma
   const setPlaying = (on: boolean) => {
     if (on === playing) return;
     playing = on;
-    if (on) { t0 = performance.now(); at = Math.max(0, cur); passes = 0; gsap.ticker.add(tick); }
-    else { gsap.ticker.remove(tick); draw(cur); }
+    if (on) { t0 = performance.now(); at = Math.max(0, cur); stopPlayback = renderLoop(body, tick); }
+    else { halt(); if (canvas.isConnected) draw(cur); }
     playBtn.innerHTML = on ? I.pause : I.play;
     playBtn.setAttribute("aria-label", on ? "Pause" : "Play");
     stage.classList.toggle("playing", on);
@@ -336,6 +423,7 @@ export async function playSheet(wm: WM, body: HTMLElement, found: { img: HTMLIma
     await wm.pointAt(el, 0.5, 0.5, ms);
     wake();
     await wm.click();
+    wm.check(e);
     gsap.fromTo(el, { scale: 0.86 }, { scale: 1, duration: 0.25, ease: "back.out(3)" });
   };
   const step = async (d: 1 | -1) => {
@@ -352,7 +440,8 @@ export async function playSheet(wm: WM, body: HTMLElement, found: { img: HTMLIma
     const want = Math.max(1, opts.loops ?? (s.kind === "shots" ? 1 : 3));
     const cap = Math.min(s.kind === "shots" ? 14000 : 7000, Math.max(3200, total * 1000 * want));
     const began = performance.now();
-    while (passes < want && performance.now() - began < cap) await wm.sleep(150, e);
+    // logical playback continues while the screen is hidden; the clock says how far it got
+    while (Math.floor(frameAt() / N) < want && performance.now() - began < cap) await wm.sleep(150, e);
     // pause, then scrub back through it by dragging along the bar
     await press(playBtn, 360);
     setPlaying(false);
@@ -364,6 +453,7 @@ export async function playSheet(wm: WM, body: HTMLElement, found: { img: HTMLIma
     for (let i = 0; i <= 6; i++) {
       const p = from + ((to - from) * i) / 6;
       await wm.pointAt(track, p, 0.5, 120);
+      wm.check(e);
       const n = Math.round(p * (N - 1));
       draw(n); show(n);
       wake();
@@ -375,8 +465,9 @@ export async function playSheet(wm: WM, body: HTMLElement, found: { img: HTMLIma
     const pick = thumbs[Math.min(N - 1, Math.floor(N * (0.2 + Math.random() * 0.6)))];
     await wm.pointAt(pick, 0.5, 0.5, 420);
     await wm.click();
+    wm.check(e);
     const n = Number(pick.dataset.n);
     draw(n); show(n);
     await wm.sleep(1100, e);
-  } finally { gsap.ticker.remove(tick); window.clearTimeout(hideT); }
+  } finally { halt(); window.clearTimeout(hideT); }
 }

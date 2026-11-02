@@ -1,0 +1,69 @@
+{
+  "checkedAt": "2026-11-01T22:13:18.371Z",
+  "messageId": "mcp:0409fd71-dd04-42b0-8952-d54f396082bc",
+  "attachments": [
+    {
+      "type": "image",
+      "name": "before-original.png",
+      "mime": "image/png",
+      "size": 95152,
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\0a65f232-9f33-4d22-8fc5-aa6622df6d2a-4fd65f7d-7bdd-4fd0-a76d-744dd8e1ed1f.png",
+      "sha256": "8e3443b8799d426fa95f36868b35725403a44d2a6bd6761586ca024cd599ae45"
+    },
+    {
+      "type": "image",
+      "name": "after-rest.png",
+      "mime": "image/png",
+      "size": 502368,
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\0a65f232-9f33-4d22-8fc5-aa6622df6d2a-f400491e-98dc-42ff-9fd5-84a52e61a1f8.png",
+      "sha256": "8b2b98bf382864a456e4bda52dd3a95b33c19bcc82d76af64f79bc454eeb947d"
+    },
+    {
+      "type": "image",
+      "name": "after-mouse-left.png",
+      "mime": "image/png",
+      "size": 501268,
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\0a65f232-9f33-4d22-8fc5-aa6622df6d2a-a1fe7365-59d2-4197-81aa-a50b3f72d1f9.png",
+      "sha256": "74c34162ad465780c92e723d4f24721b08eb20a54a7402c5e73439de5d4effe7"
+    },
+    {
+      "type": "image",
+      "name": "after-mouse-right.png",
+      "mime": "image/png",
+      "size": 481653,
+      "path": "C:\\Users\\tim\\.t3\\userdata\\attachments\\0a65f232-9f33-4d22-8fc5-aa6622df6d2a-c8090524-5b41-4367-b057-381bd0aadec0.png",
+      "sha256": "32287cfc26ec89d9e7f3d98f59adb2084d16a850ae83277287ef1bf40d18c203"
+    }
+  ],
+  "collectorImages": [
+    {
+      "hash": "8e3443b8799d426fa95f3686",
+      "path": "E:\\T3 Projects\\Lucid\\docs\\evidence\\mousepad-review-20261101\\ingestion-preview\\5b4226dcbe7f9c17ed242eb0\\8e3443b8799d426fa95f3686.png",
+      "source": "C:\\Users\\tim\\.t3\\userdata\\attachments\\0a65f232-9f33-4d22-8fc5-aa6622df6d2a-4fd65f7d-7bdd-4fd0-a76d-744dd8e1ed1f.png",
+      "name": "0a65f232-9f33-4d22-8fc5-aa6622df6d2a-4fd65f7d-7bdd-4fd0-a76d-744dd8e1ed1f.png",
+      "label": "Before"
+    },
+    {
+      "hash": "8b2b98bf382864a456e4bda5",
+      "path": "E:\\T3 Projects\\Lucid\\docs\\evidence\\mousepad-review-20261101\\ingestion-preview\\5b4226dcbe7f9c17ed242eb0\\8b2b98bf382864a456e4bda5.png",
+      "source": "C:\\Users\\tim\\.t3\\userdata\\attachments\\0a65f232-9f33-4d22-8fc5-aa6622df6d2a-f400491e-98dc-42ff-9fd5-84a52e61a1f8.png",
+      "name": "0a65f232-9f33-4d22-8fc5-aa6622df6d2a-f400491e-98dc-42ff-9fd5-84a52e61a1f8.png",
+      "label": "After"
+    },
+    {
+      "hash": "74c34162ad465780c92e723d",
+      "path": "E:\\T3 Projects\\Lucid\\docs\\evidence\\mousepad-review-20261101\\ingestion-preview\\5b4226dcbe7f9c17ed242eb0\\74c34162ad465780c92e723d.png",
+      "source": "C:\\Users\\tim\\.t3\\userdata\\attachments\\0a65f232-9f33-4d22-8fc5-aa6622df6d2a-a1fe7365-59d2-4197-81aa-a50b3f72d1f9.png",
+      "name": "0a65f232-9f33-4d22-8fc5-aa6622df6d2a-a1fe7365-59d2-4197-81aa-a50b3f72d1f9.png",
+      "label": "After"
+    },
+    {
+      "hash": "32287cfc26ec89d9e7f3d98f",
+      "path": "E:\\T3 Projects\\Lucid\\docs\\evidence\\mousepad-review-20261101\\ingestion-preview\\5b4226dcbe7f9c17ed242eb0\\32287cfc26ec89d9e7f3d98f.png",
+      "source": "C:\\Users\\tim\\.t3\\userdata\\attachments\\0a65f232-9f33-4d22-8fc5-aa6622df6d2a-c8090524-5b41-4367-b057-381bd0aadec0.png",
+      "name": "0a65f232-9f33-4d22-8fc5-aa6622df6d2a-c8090524-5b41-4367-b057-381bd0aadec0.png",
+      "label": "After"
+    }
+  ],
+  "scope": "Actual attachment readback and unchanged production createReports collector in isolated preview directory. Completion gate supplied only for preview. Live archive untouched; normal submission after completion remains pending review."
+}

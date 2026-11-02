@@ -1,0 +1,95 @@
+{
+  "checkedAt": "2026-11-01T23:14:01.481Z",
+  "root": "E:\\T3 Projects\\Lucid",
+  "method": "Existing CDP page, Debugger.getScriptSource, UTF-8 SHA-256",
+  "status": "failed",
+  "noLaunchReloadOrRestart": true,
+  "validationRunIndependentlyAttested": false,
+  "manifest": {
+    "path": "E:\\T3 Projects\\Lucid\\dist\\lucid-build.json",
+    "sha256": "13ef1c87ee5e3bf4a01e9d03778250de03dfaf86c31401522c7c75564ad8908f",
+    "installedPath": "E:\\T3 Projects\\Lucid\\dist\\lucid-build.json",
+    "installedSha256": "13ef1c87ee5e3bf4a01e9d03778250de03dfaf86c31401522c7c75564ad8908f",
+    "sameBytesAsInstalledManifest": true,
+    "sourceFileMapMatchesInstalled": true
+  },
+  "sourceHashes": [
+    {
+      "file": "src/office/outside-zoom.ts",
+      "manifestSha256": "116b7800dd27235364679d4c437cabed62e1ed99e6e7a511d44337212b0fc737",
+      "currentWorkingTreeSha256": "116b7800dd27235364679d4c437cabed62e1ed99e6e7a511d44337212b0fc737"
+    },
+    {
+      "file": "src/office/outside-canvas.ts",
+      "manifestSha256": "27b8a0d2ec100439d2612e09df07d5476fa504d07b5e9203639fc799e8a1d4f3",
+      "currentWorkingTreeSha256": "27b8a0d2ec100439d2612e09df07d5476fa504d07b5e9203639fc799e8a1d4f3"
+    },
+    {
+      "file": "src/office/chat-panel.ts",
+      "manifestSha256": "c734caf925f705f1084f9c8074864500ca0660c7271b7a81abc38d5728df5236",
+      "currentWorkingTreeSha256": "c734caf925f705f1084f9c8074864500ca0660c7271b7a81abc38d5728df5236"
+    },
+    {
+      "file": "src/office/chat-message.ts",
+      "manifestSha256": "4e7aec87320966d3a25d55db33b6117b1119df905e429e928fcf32c11c0a6173",
+      "currentWorkingTreeSha256": "4e7aec87320966d3a25d55db33b6117b1119df905e429e928fcf32c11c0a6173"
+    },
+    {
+      "file": "src/office/chat-scroll.ts",
+      "manifestSha256": "ef0920024f5e0304c77716b3cdd8f59375014728e653bf2b2f6faca808c46f0d",
+      "currentWorkingTreeSha256": "ef0920024f5e0304c77716b3cdd8f59375014728e653bf2b2f6faca808c46f0d"
+    },
+    {
+      "file": "src/os/wm.ts",
+      "manifestSha256": "e1ea8bd78c7e8113b53a160c6861be09fbaa3d051fc6493324815e62c9f979c5",
+      "currentWorkingTreeSha256": "e1ea8bd78c7e8113b53a160c6861be09fbaa3d051fc6493324815e62c9f979c5"
+    },
+    {
+      "file": "src/os/apps.ts",
+      "manifestSha256": "9c939b76c8630889ec71d3d3fbf7542bd8a255a512f2a7196d1a3790f4f52d46",
+      "currentWorkingTreeSha256": "9c939b76c8630889ec71d3d3fbf7542bd8a255a512f2a7196d1a3790f4f52d46"
+    },
+    {
+      "file": "src/harness/note-presentation.ts",
+      "manifestSha256": "b396c025ae1cedbd55fa84c1dd6d1f116be8c0f54668144dcf2900689e278bb8",
+      "currentWorkingTreeSha256": "b396c025ae1cedbd55fa84c1dd6d1f116be8c0f54668144dcf2900689e278bb8"
+    },
+    {
+      "file": "src/os/note-app-icon.ts",
+      "manifestSha256": "f120175db0982bf837aad5c08d32a125c49c19421df70b4f7359fc784e5b6581",
+      "currentWorkingTreeSha256": "f120175db0982bf837aad5c08d32a125c49c19421df70b4f7359fc784e5b6581"
+    },
+    {
+      "file": "src/assets/note-apps/apple-notes.png",
+      "manifestSha256": "eb225f8f0b077b99a5e2bca7c3371748dc8b9c277d267784374e3a487370524f",
+      "currentWorkingTreeSha256": "eb225f8f0b077b99a5e2bca7c3371748dc8b9c277d267784374e3a487370524f"
+    },
+    {
+      "file": "src/assets/note-apps/notepad-plus-plus.png",
+      "manifestSha256": "03015c308cf8db74143d175bece62e67f4700a667891e7cada808432f9c290b4",
+      "currentWorkingTreeSha256": "03015c308cf8db74143d175bece62e67f4700a667891e7cada808432f9c290b4"
+    },
+    {
+      "file": "src/assets/note-apps/notepad.png",
+      "manifestSha256": "f974969ed293477b6d878d96500802ca679c841da1039e8c994e04171b61c646",
+      "currentWorkingTreeSha256": "f974969ed293477b6d878d96500802ca679c841da1039e8c994e04171b61c646"
+    },
+    {
+      "file": "src/assets/note-apps/sources.json",
+      "manifestSha256": "85c63dd70a9b004ddeccbacde1760f85a79822b3ce6aaf06de8105a90a172f88",
+      "currentWorkingTreeSha256": "85c63dd70a9b004ddeccbacde1760f85a79822b3ce6aaf06de8105a90a172f88"
+    },
+    {
+      "file": "src/social/botsapp.ts",
+      "manifestSha256": "b739da77fc7db28ccb7cde78a03a293565b7d5cbd4e9493fc5f5871b9110bad8",
+      "currentWorkingTreeSha256": "b739da77fc7db28ccb7cde78a03a293565b7d5cbd4e9493fc5f5871b9110bad8"
+    },
+    {
+      "file": "src/social/conversation-name.ts",
+      "manifestSha256": "69235c2168e1681e8e61c05f26f45a10045663909aafe97fc89f4bb1a14502aa",
+      "currentWorkingTreeSha256": "69235c2168e1681e8e61c05f26f45a10045663909aafe97fc89f4bb1a14502aa"
+    }
+  ],
+  "error": "fetch failed",
+  "elapsedMs": 21.067400000000003
+}

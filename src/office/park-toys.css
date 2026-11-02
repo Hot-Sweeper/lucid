@@ -1,0 +1,9 @@
+.park-layer .park-toy { position: absolute; z-index: 1; display: block; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #fff7d7; cursor: pointer; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.park-layer .park-toy:hover { background: #fff5c812; }
+.park-layer .park-toy:focus-visible { outline: 3px solid #fff0b4; outline-offset: 4px; background: #fff5c81c; }
+.park-effect { position: absolute; z-index: 100000; display: block; pointer-events: none; }
+.park-effect svg { display: block; overflow: visible; }
+.park-ripple { width: 24px; height: 12px; border: 2px solid #e8f8ff; border-radius: 50%; }
+.park-droplet { width: 7px; height: 10px; border-radius: 60% 60% 55% 55%; background: #c5edff; }
+.park-leaf { width: 20px; height: 12px; }
+.park-bird { width: 30px; height: 24px; }

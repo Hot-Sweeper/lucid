@@ -1,6 +1,8 @@
 import gsap from "gsap";
 import { uid } from "./parts";
 import { Anims, reducedMotion, type Pt, type RoomStage } from "./room";
+import { RoomMediaControl } from './room-controls';
+import { gameSound } from '../office/sound';
 
 // Movie night: a projector screen that rolls down from the north wall, four beanbags facing it
 // (seen from behind), a projector on a little cart and a popcorn machine. While a film runs the
@@ -14,6 +16,8 @@ export type Beat = "gasp" | "laugh" | "aww" | "scare" | "credits";
 const FW = 342, FH = 168;   // film frame
 
 export class MovieCorner {
+  readonly el: HTMLElement;
+  onScreenChange: (raised: boolean) => void = () => {};
   readonly seats: Pt[];
   readonly popcornSpot: Pt;
   private id = uid("mv");
@@ -28,6 +32,15 @@ export class MovieCorner {
   private anims = new Anims();
   private idle: gsap.core.Animation | null = null;
   private reel: gsap.core.Timeline | null = null;
+  private screenControl: RoomMediaControl;
+  private popcornControl: RoomMediaControl;
+  private screenTransition: gsap.core.Tween | null = null;
+  private raised = true;
+  private userRaised = false;
+  private active = false;
+  private dead = false;
+  private popping = false;
+  private popcornTask: Promise<void> | null = null;
 
   constructor(stage: RoomStage, readonly cx: number, popX: number) {
     const sy = 410;
@@ -53,8 +66,11 @@ export class MovieCorner {
       <rect x="4" y="2" width="368" height="3" rx="1.5" fill="#5a6177"/>
       <rect x="-4" y="-2" width="10" height="16" rx="3" fill="#2a2e3b"/><rect x="370" y="-2" width="10" height="16" rx="3" fill="#2a2e3b"/>`);
     this.cloth = scr.querySelector('[data-m="cloth"]') as SVGGElement;
+    this.el = scr.parentElement as unknown as HTMLElement;
+    this.el.dataset.roomMedia = 'movie';
     this.film = scr.querySelector('[data-m="film"]') as SVGGElement;
     gsap.set(this.cloth, { scaleY: 0.04, transformOrigin: "50% 0%" });
+    this.screenControl = new RoomMediaControl(stage.layer, 'movie-screen', { x: cx - 188, y: 16, w: 376, h: 38 }, () => this.setScreenRaised(!this.raised, true));
     // beanbags, seen from behind: they hide the sitters' lower half
     const bag = ["#ff9f5a", "#4fb6ff", "#ff6f91", "#b07cff"], hi = ["#ffc08a", "#8fd0ff", "#ff9fb5", "#cfaaff"];
     this.seats.forEach((s, i) => stage.prop(s.x - 38, s.y - 30, 76, 46, s.y + 12, /* svg */ `
@@ -88,6 +104,12 @@ export class MovieCorner {
       <circle cx="32" cy="4" r="3" fill="#ffd23f"/>`);
     this.kernels = [...pc.querySelectorAll('[data-m="kernels"] circle')] as SVGElement[];
     this.warm = pc.querySelector('[data-m="warm"]') as SVGElement;
+    this.popcornControl = new RoomMediaControl(stage.layer, 'popcorn', { x: popX - 32, y: this.popcornSpot.y - 122, w: 64, h: 100 }, () => {
+      if (this.popping || this.dead) return;
+      gameSound.at('boop', pc);
+      void this.popcorn();
+    });
+    this.popcornControl.state('Pop some popcorn', false);
     // the dark falls over the audience but not over the screen; the beam crosses above their heads
     const ow = 760, oh = 620, ox = cx - ow / 2, oy = 16;
     const hole = { x0: cx - 180 - ox, x1: cx + 180 - ox, y0: 24 - oy, y1: 210 - oy };
@@ -108,32 +130,69 @@ export class MovieCorner {
     stage.layer.appendChild(this.dim);
     this.dust = [...this.dim.querySelectorAll('[data-m="dust"] circle')] as SVGElement[];
     gsap.set(this.dim, { autoAlpha: 0 });
+    this.syncScreen();
+    document.addEventListener('visibilitychange', this.visibility);
+  }
+
+  get screenRaised() { return this.raised; }
+  get isPlaying() { return this.active && !this.raised; }
+  private visibility = () => {
+    this.reel?.paused(this.raised || document.hidden);
+    this.idle?.paused(this.raised || document.hidden);
+    if (document.hidden) this.screenTransition?.progress(1);
+  };
+  private syncScreen() {
+    this.el.dataset.screen = this.raised ? 'up' : 'down';
+    this.el.dataset.playing = String(this.active && !this.raised);
+    this.el.dataset.powered = String(this.active && !this.raised);
+    this.screenControl.state(this.raised ? 'Lower projector screen' : 'Raise projector screen', this.raised);
+    for (const el of [this.dim, this.spill, this.lens]) el.classList.toggle('room-media-hidden', this.raised);
+    this.visibility();
+  }
+  private rollScreen() {
+    this.screenTransition?.kill();
+    // This motor is independent of start/stop promises. Rapid player toggles
+    // cannot strand the audience while a cancelled transition waits to finish.
+    this.screenTransition = gsap.to(this.cloth, { scaleY: this.raised ? .04 : 1, duration: reducedMotion() || document.hidden ? 0 : 1.05, ease: 'power2.inOut', overwrite: 'auto' });
+    this.syncScreen();
+  }
+  setScreenRaised(raised: boolean, byUser = false) {
+    if (this.dead || raised === this.raised) return;
+    this.userRaised = raised; this.raised = raised; this.rollScreen();
+    if (byUser) { gameSound.at('projector', this.el); this.onScreenChange(raised); }
   }
 
   /** The machine pops a fresh bucket. */
   popcorn() {
+    if (this.dead) return Promise.resolve();
+    if (this.popcornTask) return this.popcornTask;
+    this.popping = true;
     const tl = gsap.timeline();
     tl.to(this.warm, { opacity: 0.7, duration: 0.3 });
     this.kernels.forEach((k, i) => tl.fromTo(k, { opacity: 1, attr: { cy: 54 } }, { attr: { cy: 26 + Math.random() * 10 }, duration: 0.22, yoyo: true, repeat: 7, ease: "power2.out", delay: i * 0.07 }, 0.1));
     tl.to(this.kernels, { opacity: 0, duration: 0.2 }, ">-0.1").to(this.warm, { opacity: 0.15, duration: 0.5 }, "<");
-    return this.anims.run(tl);
+    this.popcornTask = this.anims.run(tl).then(() => { this.popping = false; this.popcornTask = null; });
+    return this.popcornTask;
   }
 
   /** Lights down, screen rolls down, projector on. */
   start() {
+    this.active = true; this.raised = this.userRaised; this.rollScreen();
     const tl = gsap.timeline()
-      .to(this.cloth, { scaleY: 1, duration: 1.6, ease: "power2.inOut" })
+      .to({}, { duration: reducedMotion() || document.hidden ? 0 : 1.6 })
       .to(this.dim, { autoAlpha: 1, duration: 1.4, ease: "sine.inOut" }, 0.4)
       .to(this.lens, { opacity: 0.9, duration: 0.4 }, 1.2);
     if (!reducedMotion()) {
       this.idle = gsap.to(this.dust, { y: -26, x: "random(-8, 8)", opacity: 0.1, duration: 3, stagger: 0.4, yoyo: true, repeat: -1, ease: "sine.inOut" });
       this.anims.add(this.idle);
+      this.visibility();
     }
     return this.anims.run(tl);
   }
 
   /** Lights up, screen rolls back up. */
   stop() {
+    this.active = false; this.raised = true; this.rollScreen();
     this.idle?.kill();
     this.idle = null;
     this.reel?.kill();
@@ -141,8 +200,7 @@ export class MovieCorner {
     this.film.innerHTML = "";
     return this.anims.run(gsap.timeline()
       .to([this.spill, this.lens], { opacity: 0, duration: 0.5 })
-      .to(this.dim, { autoAlpha: 0, duration: 1.2, ease: "sine.inOut" }, 0)
-      .to(this.cloth, { scaleY: 0.04, duration: 1.2, ease: "power2.inOut" }, 0.3));
+      .to(this.dim, { autoAlpha: 0, duration: 1.2, ease: "sine.inOut" }, 0));
   }
 
   /** Play the trailer. Resolves when the credits are over. */
@@ -288,10 +346,16 @@ export class MovieCorner {
       .fromTo($("[data-roll]"), { y: FH + 10 }, { y: -110, duration: 8, ease: "none" }, 38)
       .to(f, { opacity: 0, duration: 0.6 }, 46.4)
       .set(f, { opacity: 1 });
-    return this.anims.run(tl);
+    const finished = this.anims.run(tl);
+    this.visibility();
+    return finished;
   }
 
   destroy() {
+    this.dead = true;
+    document.removeEventListener('visibilitychange', this.visibility);
+    this.screenTransition?.kill();
+    this.screenControl.destroy(); this.popcornControl.destroy();
     this.anims.kill();
     gsap.killTweensOf([this.cloth, this.dim, this.spill, this.lens, this.warm, ...this.kernels, ...this.dust]);
     this.dim.remove();

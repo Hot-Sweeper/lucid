@@ -1,3 +1,8 @@
+import { Botword } from "./office-apps/botword";
+import { reportDocument } from "./office-apps/word-markdown";
+import { uiText } from "./localization";
+import { frontendUrlFromOutput } from "./os/frontend";
+import { renderFps } from "./perf/render";
 import gsap from "gsap";
 import { WM, Cancelled } from "./os/wm";
 import { CalcApp, WORK_SUMS } from "./os/calc";
@@ -10,6 +15,10 @@ import { UacPrompt } from "./os/uac";
 import { harnessName } from "./office/brand";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, prettyTool } from "./os/apps";
 import { T3CodeApp } from "./harness/t3code";
+import { CodexApp } from "./os/codex";
+import { imageGenOf, imageResult, type ImageGen } from "./os/imagegen";
+import { ImageRefreshGate, type ImageRefresh, type ImageState } from "./os/image-refresh";
+import { NotePresentation } from "./harness/note-presentation";
 import { classify, parseDiff, baseName, relPath, unwrap, type Entry } from "./os/classify";
 import { TasksApp, type TaskStep } from "./os/tasks";
 import { GitDeskApp, type DeskFile } from "./os/gitdesk";
@@ -22,6 +31,16 @@ import { OfficeSuite, OFFICE_GLOW, officeActivity, officeKind, officeTargets, re
 
 export type Item = { id: string; runId: string | null; ordinal: number; type: string; status: string; updatedAt: string; data: any };
 export type ThreadInfo = { id: string; title: string; provider: string; model?: string | null; effort?: string | null; projectTitle?: string; root?: string; run?: { id: string; status: string } | null; queued?: { id: string; text: string }[]; error?: string };
+
+// Reconnected watches can contain the same JSON objects with new identities.
+// Compare without serializing large tool outputs a second time or keeping a copy.
+export function samePresentationValue(a: any, b: any): boolean {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every(key => Object.hasOwn(b, key) && samePresentationValue(a[key], b[key]));
+}
 
 const GLOW: Record<string, string> = {
   editor: "#6f7dff", terminal: "#4ff0a0", browser: "#4fd2ff", chat: "#ff7aa8", files: "#ffbf5a", tool: "#b07cff", think: "#9d8cff", idle: "#4fb6ff", tasks: "#4fd8c0", git: "#a37cff",
@@ -94,12 +113,16 @@ export class Director {
   private queue: string[] = [];
   private played = new Set<string>();
   private pumpEpoch = -1;
+  private frontendSignals = new Map<string, string>();
   private catchingUp = false;
   private info: ThreadInfo | null = null;
   private lastRunStatus = "";
+  private pendingInitial: Item[] | null = null;
   private files: FilesApp; private editor: EditorApp; private term: TerminalApp;
   private uac: UacPrompt;
-  private browser: BrowserApp; private chat: T3CodeApp; private tool: ToolApp; private tasks: TasksApp;
+  private browser: BrowserApp; private codex: CodexApp; private chat: T3CodeApp; private nativeMessages: T3CodeApp;
+  private get messages() { return this.wm.prefs?.chatApp === "t3code" ? this.chat : this.nativeMessages; }
+  private get messageApp(): "chat" | "t3code" { return this.wm.prefs?.chatApp === "t3code" ? "t3code" : "chat"; } private tool: ToolApp; private tasks: TasksApp;
   private planSig = "";
   onActivity: (text: string) => void = () => {};
   private idleLife: IdleLife;
@@ -118,6 +141,7 @@ export class Director {
   childInfo: (threadId: string) => Promise<ThreadInfo | null> = async (id) => (window as any).lucid?.threadInfo?.(id) ?? null;
   attachDir = "";
   private lastEventAt = 0;
+  private imageRefresh = new ImageRefreshGate();
 
   constructor(private wm: WM, private robot: Robot, private stage: Stage, peek: (url: string) => Promise<any>, private image: (path: string) => Promise<string | null>, private readText: (path: string) => Promise<string | null>) {
     this.files = new FilesApp(wm);
@@ -132,12 +156,14 @@ export class Director {
     this.browser = new BrowserApp(wm, peek);
     // the thread itself plays out in T3 Code, the app it really lives in (stable or Nightly per robot)
     this.chat = new T3CodeApp(wm);
+    this.nativeMessages = new T3CodeApp(wm, "user");
     this.tool = new ToolApp(wm);
+    this.codex = new CodexApp(wm);
     this.tasks = new TasksApp(wm);
     this.gitdesk = new GitDeskApp(wm);
     this.idleLife = new IdleLife(wm, robot, stage);
     this.idleLife.browser = this.browser;
-    this.idleLife.hold = () => this.waitingForUser;
+    this.idleLife.hold = () => this.waitingForUser || !this.present();
     this.music = new MusicApp(wm);
     this.idleLife.music = this.music;
     this.harness = new HarnessApp(wm as any);
@@ -146,6 +172,9 @@ export class Director {
   }
 
   reset() {
+    window.clearTimeout(this.historyTimer);
+    this.historyTimer = 0; this.historyThread = null; this.historyGeneration++; this.historyCut = 0;
+    this.notePresentation.reset();
     this.idleLife.stop();
     for (const s of this.sessions.values()) window.clearInterval(s.timer);
     this.sessions.clear();
@@ -153,16 +182,22 @@ export class Director {
     this.helperHints.clear();
     this.harness.reset();
     this.chat.reset();
+    this.nativeMessages.reset();
+    this.imageRefresh.reset();
+    this.browser.reset();
+    this.codex.reset();
     this.uac.reset();
     this.mobile = false;
     if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
     this.lastEventAt = 0;
+    this.frontendSignals.clear();
     this.wm.reset();
     this.items.clear();
     this.queue = [];
     this.played.clear();
     this.info = null;
     this.lastRunStatus = "";
+    this.pendingInitial = null;
     this.stage.say(null);
     this.stage.setPlan([]);
     this.tasks.reset();
@@ -174,10 +209,14 @@ export class Director {
   }
 
   setInfo(info: ThreadInfo) {
+    if (this.writingReport && (info.run?.status === "running" || info.id !== this.info?.id)) this.wm.reset();
     if (info.error) return;
+    if (this.info && this.info.id !== info.id) { this.imageRefresh.reset(); this.codex.reset(); }
     const first = !this.info;
     this.info = info;
     this.chat.setInfo(info);
+    this.nativeMessages.setInfo(info);
+    this.codex.setInfo(info);
     this.term.setCwd(info.root || null);
     const status = info.run?.status || "";
     if (status === "running" && this.idleLife.isActive) {
@@ -193,6 +232,64 @@ export class Director {
     }
     this.lastRunStatus = status;
     this.noteQueue(info.queued ?? [], first);
+    // after the robot has settled on this thread (its T3 Code window may still be reset meanwhile)
+    if (first && info.id) { this.historyThread = info.id; this.scheduleHistory(); }
+    if (this.pendingInitial) {
+      const items = this.pendingInitial;
+      this.pendingInitial = null;
+      this.push(items, true);
+    }
+  }
+
+  private historyCut = 0;
+  private historyThread: string | null = null;
+  private historyTimer = 0;
+  private historyGeneration = 0;
+  private scheduleHistory() {
+    if (!this.historyThread || this.historyTimer || !this.present() || !renderFps(this.wm.root)) return;
+    const id = this.historyThread, generation = this.historyGeneration;
+    this.historyTimer = window.setTimeout(() => {
+      this.historyTimer = 0;
+      if (this.historyThread !== id || this.info?.id !== id || !this.present() || !renderFps(this.wm.root)) return;
+      this.historyThread = null;
+      void this.loadHistory(id, generation);
+    }, 1200);
+  }
+  /** The thread's earlier messages (yours with their images, and the robot's replies). */
+  private async loadHistory(id: string, generation = this.historyGeneration) {
+    try {
+      const api = (window as any).lucid;
+      const cut = this.historyCut || Date.now();
+      const eligible = (m: any) => (m.role === 'user' || m.role === 'assistant') && m.run !== 'queued' && Date.parse(m.at) < cut;
+      let msgs: any[];
+      if (api?.conversationPage) {
+        msgs = [];
+        let before: { at: string; rowid: number } | undefined;
+        const seen = new Set<string>();
+        do {
+          const page = await api.conversationPage(id, { limit: 12, ...(before ? { before } : {}) });
+          if (this.info?.id !== id || this.historyGeneration !== generation || !Array.isArray(page?.messages)) return;
+          msgs = [...page.messages.filter(eligible), ...msgs];
+          if (msgs.length >= 12 || !page.hasMore || !page.cursor) break;
+          const key = JSON.stringify(page.cursor);
+          if (seen.has(key)) break;
+          seen.add(key); before = page.cursor;
+          if (!this.present()) { this.historyThread = id; return; }
+        } while (before);
+      } else msgs = await api?.conversation?.(id);
+      if (!Array.isArray(msgs) || this.info?.id !== id || this.historyGeneration !== generation) return;
+      const past = msgs
+        .filter(eligible)
+        .slice(-12)
+        .map((m: any) => {
+          const raw = String(m.text || "");
+          const paths = [...raw.matchAll(/^\s*-\s*image:\s*(.+)$/gim)].map((x) => x[1].trim());
+          for (const a of m.attachments || []) if (a.path && /^image\//.test(a.mime || "image/")) paths.push(a.path);
+          return { role: m.role, text: raw.replace(/\s*Attached:[\s\S]*$/, "").trim(), images: [...new Set(paths)].map((p) => fileUrl(p)) };
+        })
+        .filter((m: any) => m.text || m.images.length);
+      this.messages.history(past);
+    } catch { /* no history then */ }
   }
 
   // Your queued messages are written down in the robot's to-do app; when you reorder, edit
@@ -217,13 +314,34 @@ export class Director {
   }
 
   push(items: Item[], initial: boolean) {
+    // Watches deliver their snapshot before metadata. Never infer live work from
+    // the last historical turn while its authoritative status is still unknown.
+    if (initial && !this.info) { this.pendingInitial = items; return; }
     let latestRun: string | null = null;
-    if (initial) latestRun = [...items].reverse().find((i) => i.runId)?.runId ?? null;
+    if (initial) latestRun = this.info?.run?.status === "running" ? this.info.run.id : null;
+    // what is replayed starts here; older messages are shown as history in T3 Code
+    if (initial) { const t = latestRun ? items.filter((i) => i.runId === latestRun).map((i) => Date.parse(i.updatedAt)).filter((n) => n > 0) : []; this.historyCut = t.length ? Math.min(...t) - 1500 : Date.now(); }
+    items = items.filter(it => !samePresentationValue(this.items.get(it.id), it));
+    if (!items.length) return;
     for (const it of items) {
       const t = Date.parse(it.updatedAt);
       if (t > this.lastEventAt) this.lastEventAt = t;
+      // React to streaming server output while the shell command is still running.
+      // The mirror uses its own cancellable tab lifecycle; it never sends UI clicks.
+      if (!initial && (it.type === 'command_execution' || it.type === 'dynamic_tool')) {
+        const output = outText(it.data.output);
+        const url = frontendUrlFromOutput(output);
+        if (url && this.frontendSignals.get(it.id) !== url) {
+          this.frontendSignals.set(it.id, url);
+          void this.browser.open(url, { instant: true, read: false, real: true }).catch(() => {});
+        }
+        const tool = String(it.data.toolName || '');
+        if (/html_(render|preview)$/.test(tool) && typeof it.data.input?.html === 'string') this.browser.refreshFrontendHtml(it.data.input.html);
+      }
       this.items.set(it.id, it);
       this.chat.update(it);   // a work row already in T3 Code follows its item (Running, then Ran)
+      const imageUpdate = this.imageRefresh.tracks(it.id) ? this.imageRefresh.observe(it.id, this.imageState(it)) : null;
+      if (imageUpdate) this.refreshImage(imageUpdate);
       // An approval is not a scene: the robot is stuck until it is answered, so the prompt comes up
       // on its screen at once, whatever else it is playing, and only while T3 really has it open.
       if (it.type === "approval_request") {
@@ -235,8 +353,8 @@ export class Director {
         continue;
       }
       if (SKIP.has(it.type) || this.played.has(it.id) || this.queue.includes(it.id)) continue;
-      // On first open, replay only the latest turn so you see what the robot is doing now.
-      if (initial && it.runId !== latestRun) { this.played.add(it.id); continue; }
+      // Completed turns belong in conversation history, never in a startup work scene.
+      if (initial && (!latestRun || it.runId !== latestRun)) { this.played.add(it.id); continue; }
       if (it.type === "todo_list") { this.stage.setPlan(it.data.steps || []); if (!this.queuePlan(it)) this.played.add(it.id); continue; }
       this.queue.push(it.id);
     }
@@ -274,11 +392,15 @@ export class Director {
 
   // The robot's notes: while it thinks, its reasoning gets jotted down here.
   private async openNotes() {
-    const w = await this.wm.open("notes", "Notes");
-    if (!w.body.querySelector(".notes")) w.body.innerHTML = `<div class="notes"></div>`;
+    const w = await this.wm.open("notes");
+    if (!w.body.querySelector(".notes")) w.body.innerHTML = `<div class="notes-workspace"><div class="notes-chrome" aria-hidden="true"></div><div class="notes"></div></div>`;
+    const chrome = w.body.querySelector(".notes-chrome");
+    if (chrome) chrome.textContent = this.wm.prefs?.notesApp === "notepad-plus-plus" ? "File   Edit   Search   View\nnotes.txt" : this.wm.prefs?.notesApp === "notepad" ? "File   Edit   View\nnotes.txt" : "Notes";
     return w.body.querySelector(".notes") as HTMLElement;
   }
   private noteFor = new WeakMap<HTMLElement, HTMLElement>();
+  private notePresentation = new NotePresentation(() => this.wm.epoch, (key) => this.robot.pressKey(key),
+    { present: () => this.present(), wait: (epoch) => this.wm.waitForOperator(epoch) });
   private async writeNote(box: HTMLElement, text: string) {
     const clean = text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim().slice(0, 600);
     let p = this.noteFor.get(box);
@@ -288,17 +410,7 @@ export class Director {
       this.noteFor.set(box, p);
       while (box.children.length > 6) box.firstElementChild!.remove();
     }
-    const done = p.textContent || "";
-    if (clean.startsWith(done) && clean.length > done.length) {
-      const rest = clean.slice(done.length);
-      for (let i = 0; i < rest.length; i += 3) {
-        p.textContent = done + rest.slice(0, i + 3);
-        this.robot.pressKey(rest[i] || " ");
-        box.scrollTop = box.scrollHeight;
-        await new Promise((r) => setTimeout(r, 22 / this.wm.speed));
-      }
-    } else p.textContent = clean;
-    box.scrollTop = box.scrollHeight;
+    await this.notePresentation.write(box, p, clean, this.wm.speed);
   }
 
   /**
@@ -373,9 +485,13 @@ export class Director {
       }
     };
     const seen = new Set<string>();
+    let polling = false;
     const tick = async () => {
-      if (s.done) return;
+      if (s.done || polling || !this.present()) return;
+      polling = true;
+      try {
       const items = await this.childItems(child, s.since).catch(() => []);
+      if (s.done || ![...this.sessions.values()].includes(s)) return;
       for (const it of items) {
         if (it.updatedAt > s.since) s.since = it.updatedAt;
         if (it.type === "assistant_message") { if (it.data?.text) { s.last = String(it.data.text); session.stream(s.last); } continue; }
@@ -387,11 +503,13 @@ export class Director {
       // Every few polls: learn the model once the child thread exists, and notice when its run ends.
       if (s.ticks++ % 3 === 0) {
         const info = await this.childInfo(child).catch(() => null);
+        if (s.done || ![...this.sessions.values()].includes(s)) return;
         if (info && !s.hasModel && info.model) { s.hasModel = true; session.setMeta({ model: info.model, effort: info.effort || undefined }); }
         const st = info?.run?.status || "";
         if (st === "running") s.runSeen = true;
         else if (s.runSeen && /^(completed|failed|interrupted|cancelled|canceled|error)$/.test(st)) this.endHelper(s, s.last || "Done", st === "completed");
       }
+      } finally { polling = false; }
     };
     void tick();
     s.timer = window.setInterval(tick, 2500);
@@ -433,16 +551,42 @@ export class Director {
   private userTypingAt = 0;
   private get waitingForUser() { return Date.now() - this.userTypingAt < 8000; }
   /** The desk robot is in its chair (not walking back to it). Set by the desk. */
-  present: () => boolean = () => true;
+  present: () => boolean = () => this.wm.operatorPresent && this.wm.presentationVisible;
+  setPresentationVisible(visible: boolean) {
+    const wasVisible = this.wm.presentationVisible;
+    this.wm.setPresentationVisible(visible);
+    if (!visible && this.writingReport) this.wm.reset();
+    if (!visible) {
+      window.clearTimeout(this.historyTimer); this.historyTimer = 0;
+      return;
+    }
+    this.scheduleHistory();
+    if (!wasVisible && this.pumpEpoch === -1 && this.present()) {
+      if (this.queue.length) void this.pump(); else if (this.info && !this.idleLife.isActive) this.idle();
+    }
+  }
+  setPresent(here: boolean) {
+    if (here === this.wm.operatorPresent) return;
+    if (!here) {
+      this.busyToken++;
+      this.idleLife.leaveDesk();
+    }
+    this.wm.setOperatorPresent(here);
+    if (here) this.scheduleHistory();
+    if (here && this.pumpEpoch === -1) {
+      if (this.queue.length) void this.pump();
+      else if (this.info) this.idle();
+    }
+  }
   private seesChat() {
-    return this.present() && !this.idleLife.asleep && !this.idleLife.holdingPhone && !this.phoneUp && this.wm.isFront("t3code");
+    return this.present() && !this.idleLife.asleep && !this.idleLife.holdingPhone && !this.phoneUp && this.wm.isFront(this.messageApp);
   }
   userTyping(on: boolean) {
     if (on) {
       if (!this.seesChat()) return;
       const fresh = !this.waitingForUser;
       this.userTypingAt = Date.now();
-      void this.chat.youTyping(true).catch(() => {});
+      void this.messages.youTyping(true).catch(() => {});
       // real work keeps going; only the bubble shows the typing
       if (!fresh || this.pumpEpoch !== -1) return;
       this.busyToken++;
@@ -451,7 +595,7 @@ export class Director {
       this.robot.setPose("read");
       return;
     }
-    void this.chat.youTyping(false).catch(() => {});
+    void this.messages.youTyping(false).catch(() => {});
     if (!this.waitingForUser) return;   // it never saw you typing
     this.userTypingAt = Date.now() - 2000;   // a short grace period in case the message is on its way
     const epoch = this.wm.epoch;
@@ -462,10 +606,40 @@ export class Director {
 
   // A robot walking back to its desk does nothing on its computer until it sits down.
   private async untilPresent() {
-    for (let n = 0; n < 240 && !this.present(); n++) await this.wm.sleep(250);
+    await this.wm.waitForOperator();
+  }
+
+  private writingReport = false;
+  async writeReport(title: string, response: string) {
+    if (!this.present()) return;
+    this.writingReport = true;
+    this.busyToken++;
+    this.idleLife.halt();
+    this.wm.reset();
+    const epoch = this.wm.epoch;
+    try {
+      this.onActivity(uiText("Writing report"));
+      await new Botword(this.wm).show(reportDocument(title, response), { typed: "all" });
+      const win = this.wm.wins.get("botword");
+      if (!win || epoch !== this.wm.epoch) return;
+      const print = document.createElement("button");
+      print.type = "button";
+      print.className = "oa-btn";
+      Object.assign(print.style, { width: "auto", whiteSpace: "nowrap", flexShrink: "0", padding: "0 10px" });
+      print.textContent = uiText("Send to printer");
+      win.body.querySelector(".oa-tools")?.append(print);
+      await this.wm.pointAt(print, .5, .5);
+      await this.wm.click();
+      print.textContent = uiText("Sent to printer");
+      await this.wm.sleep(450, epoch);
+    } finally {
+      this.writingReport = false;
+      if (this.queue.length) void this.pump();
+    }
   }
 
   private async pump() {
+    if (this.writingReport) return;
     if (this.pumpEpoch === this.wm.epoch) return;
     const epoch = (this.pumpEpoch = this.wm.epoch);
     try {
@@ -492,6 +666,15 @@ export class Director {
               await this.wm.maybeShuffle(wins[Math.floor(Math.random() * wins.length)].id, 1);
             }
           }
+          // a song it is not in the mood for: open Botify and skip it
+          if (!this.catchingUp && !this.queue.length && this.music.playing && this.present() && Math.random() < 0.05) {
+            this.onActivity("Skipping a song");
+            if (await this.music.skip()) {
+              // and back to work: Botify goes away again
+              const w = this.wm.wins.get("music");
+              if (w) { await this.wm.pointAt(w.el.querySelector(".win-x")!, 0.5, 0.5, 380); await this.wm.click(); this.wm.close("music"); }
+            }
+          }
           const live = [...this.sessions.entries()].filter(([, s]) => !s.done);
           if (live.length && Math.random() < 0.2) {
             this.onActivity("Checking on its helper");
@@ -514,8 +697,10 @@ export class Director {
   }
 
   private idle() {
+    if (this.writingReport) return;
     this.wasIdle = true;
-    if (this.waitingForUser) { this.robot.setPose("read"); this.onActivity("Watching you type"); void this.chat.youTyping(true).catch(() => {}); return; }
+    if (!this.present()) return;
+    if (this.waitingForUser) { this.robot.setPose("read"); this.onActivity("Watching you type"); void this.messages.youTyping(true).catch(() => {}); return; }
     if (this.phoneUp) { this.mobile = false; void this.phone(false); }
     // Helpers still at work: wait for them and look in on them now and then.
     const live = [...this.sessions.entries()].filter(([, s]) => !s.done);
@@ -524,7 +709,7 @@ export class Director {
       this.onActivity(live.length === 1 ? "Waiting for its helper" : `Waiting for ${live.length} helpers`);
       const epoch = this.wm.epoch;
       window.setTimeout(async () => {
-        if (epoch !== this.wm.epoch || this.queue.length) return;
+        if (epoch !== this.wm.epoch || this.queue.length || !this.present()) return;
         const still = [...this.sessions.entries()].filter(([, s]) => !s.done);
         if (still.length) { try { await this.harness.checkOn(still[0][0]); } catch {} }
         if (epoch === this.wm.epoch && !this.queue.length) this.idle();
@@ -551,7 +736,7 @@ export class Director {
   private busyToken = 0;
   private async busyWhileWaiting(epoch: number) {
     const tok = ++this.busyToken;
-    const still = () => tok === this.busyToken && epoch === this.wm.epoch && !this.queue.length && this.pumpEpoch === -1 && this.info?.run?.status === "running" && !this.waitingForUser;
+    const still = () => this.present() && tok === this.busyToken && epoch === this.wm.epoch && !this.queue.length && this.pumpEpoch === -1 && this.info?.run?.status === "running" && !this.waitingForUser;
     try {
       await this.wm.sleep(1200, epoch);
       if (!still()) return;
@@ -633,6 +818,22 @@ export class Director {
       if (Array.isArray(o.content)) return o.content.map((c: any) => c.text || "").join("\n");
       return JSON.stringify(o, null, 1);
     };
+    if (/t3_thread_send(?:_attachments)?$/.test(base)) {
+      this.onActivity("Sending a T3 message");
+      this.robot.setPose("read");
+      const done = await this.settle(id, 20000);
+      const message = String(done.data.input?.message || "");
+      await this.chat.assistant(() => ({ text: message || "Attachments sent.", done: true }));
+      await this.chat.inspection(done.status === "failed" ? "Message could not be sent" : "Message sent to another thread", String(done.data.input?.threadId || ""));
+      return true;
+    }
+    if (/t3_thread_read$/.test(base)) {
+      this.onActivity("Reading a T3 thread");
+      this.robot.setPose("read");
+      const done = await this.settle(id, 20000);
+      await this.chat.inspection(done.status === "failed" ? "Thread could not be read" : "T3 thread read", text(done.data.output));
+      return true;
+    }
     if (/^(bash|powershell|shell|run_command)$/i.test(base)) {
       const cmd = this.get(id).data.input?.command || "";
       if (await this.playGit(id, cmd)) return true;
@@ -652,6 +853,14 @@ export class Director {
       const inp = done.data.input || {};
       const added = base === "Edit" ? inp.new_string : base === "MultiEdit" ? (inp.edits || []).map((x: any) => x?.new_string || "").join("\n") : undefined;
       await this.playOffice(String(inp.file_path), base === "Write" ? "add" : "update", { text: base === "Write" && typeof inp.content === "string" ? inp.content : null, added: typeof added === "string" ? added : undefined });
+      return true;
+    }
+    if (/^(Write|Edit|MultiEdit)$/.test(base) && /\.html?$/i.test(String(this.get(id).data.input?.file_path || ''))) {
+      const done = await this.settle(id, 20000);
+      if (!/failed|cancelled|interrupted/.test(done.status) && root) {
+        this.onActivity('Watching the frontend update'); this.stage.setGlow(GLOW.browser);
+        await this.browser.frontendFile(String(done.data.input?.file_path), root);
+      }
       return true;
     }
     if (base === "Read") {
@@ -723,7 +932,14 @@ export class Director {
       if (it.status !== "running" && it.status !== "pending") this.finishSession(id);
       return true;
     }
+    if (/^(orchestrator_|task_|t3_thread_|t3_environment_)/.test(base)) {
+      const done = await this.settle(id, 15000);
+      this.onActivity("Coordinating in T3 Code");
+      await this.chat.inspection(base.replace(/_/g, " "), text(done.data.output));
+      return true;
+    }
     if (base === "delegate_task") {
+      await this.chat.inspection("Delegating a task", String(this.get(id).data.input?.task || this.get(id).data.input?.title || ""));
       // T3's delegate tool: the child may run any harness (Codex, OpenCode, ...) with its own model and effort.
       const done = await this.settle(id, 15000);
       const inp = done.data.input || {};
@@ -775,8 +991,9 @@ export class Director {
       const done = await this.settle(id, 15000);
       const out = done.data.output || {};
       const inp = done.data.input || {};
-      const url = String((out.url && !/^chrome-error:/.test(out.url) ? out.url : "") || inp.url || "");
+      const url = String((out.url && !/^chrome-error:/.test(out.url) ? out.url : "") || inp.url || (inp.target?.kind === "environment-port" ? `${inp.target.protocol || "http"}://localhost:${Number(inp.target.port)}${inp.target.path || "/"}` : ""));
       const tabId = out.tabId || inp.tabId;
+      if (base === 'preview_snapshot' && typeof out.accessibilityTree === 'string') this.browser.rememberFrontendSnapshot(out.accessibilityTree);
       if (/^https?:/.test(url) && (base !== "preview_snapshot" || out.visibleText)) {
         this.stage.setGlow(GLOW.browser);
         this.onActivity(base === "preview_snapshot" ? "Reading the page" : base === "preview_open" ? "Opening a tab" : `Visiting ${hostOf(url)}`);
@@ -789,21 +1006,37 @@ export class Director {
       this.onActivity(browserActs[base]);
       this.stage.setGlow(GLOW.browser);
       const done = await this.settle(id, 15000);
+      const input = done.data.input || {};
+      this.browser.frontendAction({ selector: input.selector || input.locator, x: input.x, y: input.y,
+        viewportWidth: done.data.output?.viewport?.width, viewportHeight: done.data.output?.viewport?.height });
       await this.browser.act(browserActs[base], done.data.output?.title, done.data.output?.url);
       return true;
     }
-    if (base === "t3_preview_close") { this.wm.close("browser"); return true; }
+    if (base === "preview_close" || base === "t3_preview_close") {
+      const done = await this.settle(id, 10000);
+      if (/^(failed|cancelled|canceled|interrupted|aborted)$/.test(done.status) || done.data.output?.isError) {
+        this.onActivity("Could not close the browser tab");
+        return true;
+      }
+      if (done.status === "running" || done.status === "pending" || done.data.streaming) {
+        this.onActivity("Waiting for the browser tab to close");
+        return true;
+      }
+      const tabId = done.data.input?.tabId || done.data.output?.tabId;
+      this.onActivity("Closing a browser tab");
+      await this.browser.closeTab(tabId ? `pv:${tabId}` : undefined, this.catchingUp);
+      if (this.mobile) await this.phone(false);
+      return true;
+    }
     // HTML the robot wrote and rendered to look at it: the browser draws that very page
     if (base === "html_render" || base === "html_preview") {
       const inp = this.get(id).data.input || {};
       const html = typeof inp.html === "string" && /</.test(inp.html) ? inp.html : null;
       if (html) {
         const title = String(inp.title || "").trim();
-        let key = 0;
-        for (let i = 0; i < html.length; i++) key = (Math.imul(key, 31) + html.charCodeAt(i)) | 0;
         this.stage.setGlow(GLOW.browser);
         this.onActivity(title ? `Looking at “${title.slice(0, 50)}” in the browser` : "Looking at the page it built");
-        await this.browser.open("about:blank", { instant: this.catchingUp, title: title || undefined, html, key: `html:${key}`, newTab: true });
+        await this.browser.open("about:blank", { instant: this.catchingUp, title: title || undefined, html, key: `frontend-html`, newTab: false });
         return true;
       }
     }
@@ -1044,6 +1277,38 @@ export class Director {
     await this.wm.sleep(1100);
   }
 
+  // The picture is made in the Codex desktop app. The prompt and the finished file are read from the
+  // tool call itself, so the frame stays empty exactly as long as the call runs.
+  private imageState(it: Item): ImageState {
+    const result = imageResult(it, fileUrl);
+    return { done: it.status !== "running" && it.status !== "pending" && !it.data.streaming, failed: result.failed, sources: result.sources };
+  }
+
+  private refreshImage(update: ImageRefresh) {
+    const epoch = this.wm.epoch, thread = this.info?.id;
+    const valid = () => epoch === this.wm.epoch && thread === this.info?.id && this.imageRefresh.valid(update);
+    void this.codex.refresh(update.id, update.state, valid).then((outcome) => {
+      if (!outcome || !valid() || this.pumpEpoch !== -1 || this.queue.length || !this.wm.isFront("codex")) return;
+      this.onActivity(outcome === "completed" ? "Image ready" : outcome === "failed" ? "Image generation failed" : "Image preview unavailable");
+    }).catch((err) => { if (valid()) console.warn("image result refresh failed", err); });
+  }
+
+  private async playImageGen(id: string, first: ImageGen) {
+    this.onActivity(first.edit ? "Editing an image in Codex" : "Generating an image in Codex");
+    this.stage.setGlow(GLOW.tool);
+    let presented = this.imageState(this.get(id));
+    this.imageRefresh.begin(id, presented);
+    const state = () => (presented = this.imageState(this.get(id)));
+    const latest = imageGenOf(this.get(id)) ?? first;
+    const outcome = await this.codex.generate({ itemId: id, prompt: latest.prompt || first.prompt, size: latest.size ?? first.size, edit: first.edit, state, instant: this.catchingUp });
+    this.onActivity(outcome === "completed" ? (first.edit ? "Edited an image" : "Generated an image")
+      : outcome === "failed" ? "Image generation failed"
+      : outcome === "pending" ? "Waiting for image generation"
+      : "Image preview unavailable");
+    const late = this.imageRefresh.release(id, presented);
+    if (late) this.refreshImage(late);
+  }
+
   private async play(id: string) {
     const it = this.get(id);
     const tool = it.type === "dynamic_tool" ? String(it.data.toolName || "") : "";
@@ -1054,7 +1319,11 @@ export class Director {
     const d = it.data;
     const root = this.info?.root || null;
     this.chat.activity(it);
-    if (it.type !== "reasoning" && it.type !== "user_input_request") this.stage.say(null);
+    if (it.type !== "user_input_request") this.stage.say(null);
+
+    // Codex's image tool (or the imagegen skill in a command): the Codex app shows the picture being made
+    const ig = imageGenOf(it);
+    if (ig) { await this.playImageGen(id, ig); return; }
 
     switch (it.type) {
       case "user_message": {
@@ -1063,10 +1332,10 @@ export class Director {
         // Asleep, it hears the notification, wakes up, stretches and unlocks first. Busy in
         // another app, it looks up, then clicks the notification or goes to Messages its usual way.
         const dozing = this.idleLife.pending && this.idleLife.asleep;
-        const watching = !dozing && this.wm.isFront("t3code");
+        const watching = !dozing && this.wm.isFront(this.messageApp);
         this.onActivity(dozing ? "Waking up" : "Reading your message");
         this.stage.setGlow(GLOW.chat);
-        const note = this.wm.toast("New message from you", "t3code", dozing ? 7 : 2.8);
+        const note = this.wm.toast("New message from you", this.messageApp, dozing ? 7 : 2.8);
         if (dozing) await this.idleLife.rouse();
         else {
           this.robot.setPose(watching ? "read" : "notice");
@@ -1075,7 +1344,7 @@ export class Director {
         }
         this.onActivity("Reading your message");
         let clicked = false;
-        if (!this.wm.isFront("t3code") && note.isConnected && Math.random() < (dozing ? 0.65 : 0.4)) {
+        if (!this.wm.isFront(this.messageApp) && note.isConnected && Math.random() < (dozing ? 0.65 : 0.4)) {
           this.robot.setPose("mouse");
           await this.wm.pointAt(note, 0.45, 0.5, 420);
           await this.wm.click();
@@ -1095,7 +1364,7 @@ export class Director {
             if (mm) imgs.push({ path: mm[1].trim(), name: mm[1].trim().split(/[\\/]/).pop()!.replace(/^\d+-/, "") });
           }
         }
-        await this.chat.user(said, imgs.map((i) => fileUrl(i.path)), clicked);
+        await this.messages.user(said, imgs.map((i) => fileUrl(i.path)), clicked);
         this.robot.setPose("read");
         await this.wm.sleep(Math.min(3200, 800 + said.length * 12));
         for (const img of imgs.slice(0, 2)) {
@@ -1109,17 +1378,13 @@ export class Director {
         this.onActivity("Thinking");
         this.stage.setGlow(GLOW.think);
         this.robot.setPose("think");
-        const summary = (t: string) => {
-          const clean = (t || "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
-          return clean.length > 170 ? clean.slice(0, 168).replace(/\s+\S*$/, "") + " …" : clean;
-        };
         let last = "";
         const start = Date.now();
         const notes = await this.openNotes();
         for (;;) {
           const cur = this.get(id);
-          const s = summary(cur.data.text || "");
-          if (s && s !== last) { this.stage.say(s, "think"); last = s; void this.writeNote(notes, cur.data.text || ""); }
+          const text = String(cur.data.text || "");
+          if (text && text !== last) { last = text; void this.writeNote(notes, text); }
           if (!(cur.status === "running" || cur.data.streaming) || this.queue.length > 1) break;
           await this.wm.sleep(250);
           if (Date.now() - start > 90000) break;
@@ -1130,10 +1395,10 @@ export class Director {
       case "assistant_message": {
         this.onActivity("Writing to you");
         this.stage.setGlow(GLOW.chat);
-        await this.chat.assistant(() => {
+        await this.messages.assistant(() => {
           const cur = this.get(id);
           return { text: cur.data.text || "", done: !(cur.status === "running" || cur.data.streaming) };
-        });
+        }, true);
         await this.wm.sleep(500);
         return;
       }
@@ -1194,6 +1459,8 @@ export class Director {
           if (ch.operation === "add") await this.editor.diff(name, parseDiff(text));
           else await this.editor.read(name, text.split(/\r?\n/).slice(0, 1500), 1);
         }
+        const htmlFile = changes.find(ch => /\.html?$/i.test(ch.path) && ch.operation !== 'delete');
+        if (htmlFile && root) { this.onActivity('Watching the frontend update'); this.stage.setGlow(GLOW.browser); await this.browser.frontendFile(htmlFile.path, root); }
         return;
       }
       case "web_search": {
@@ -1225,12 +1492,12 @@ export class Director {
         this.stage.setGlow(GLOW.chat);
         this.robot.setPose("ask");
         this.stage.say(q, "speak");
-        await this.chat.note(q, "ask");
+        await this.messages.note(q, "ask");
         const done = await this.settle(id, 30 * 60 * 1000);
         const answer = done.data.questionAnswer?.answers ? Object.values(done.data.questionAnswer.answers).join("\n") : "";
         this.stage.say(null);
         this.robot.setPose("rest");
-        if (answer) await this.chat.user(String(answer));
+        if (answer) await this.messages.user(String(answer));
         return;
       }
       case "subagent": {
@@ -1254,8 +1521,7 @@ export class Director {
         return;
       }
       case "compaction": {
-        // Compaction is the robot's coffee break: lean back, stretch, sip, then back to it.
-        this.onActivity("Taking a short break");
+        this.onActivity(it.status === "failed" ? "Context compaction failed" : it.status === "running" || it.status === "pending" ? "Compacting context" : "Context compacted");
         this.stage.say(null);
         this.robot.setPose("stretch");
         await this.wm.sleep(1400);
@@ -1266,7 +1532,7 @@ export class Director {
       }
       case "error": {
         this.wm.toast(d.message || d.text || "Something failed in this run", "tool");
-        await this.chat.note(d.message || d.text || "The run hit an error.", "error");
+        await this.messages.note(d.message || d.text || "The run hit an error.", "error");
         return;
       }
       default:

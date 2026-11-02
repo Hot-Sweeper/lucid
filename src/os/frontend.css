@@ -1,0 +1,8 @@
+.frontend-view { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; aspect-ratio: 16 / 9; }
+.frontend-frame { display: block; width: 100%; height: 100%; object-fit: fill; }
+.frontend-status { position: absolute; inset: 0; display: grid; place-items: center; background: #171b45; color: #c9cdf5; padding: 18px; font-size: 12px; text-align: center; }
+.frontend-status[hidden], .frontend-target[hidden], .frontend-pointer[hidden] { display: none; }
+.frontend-target { position: absolute; box-sizing: border-box; border: 2px solid #6f7dff; background: #6f7dff18; pointer-events: none; }
+.frontend-pointer { position: absolute; width: 10px; height: 14px; clip-path: polygon(0 0, 100% 65%, 48% 67%, 30% 100%); background: #fff; filter: drop-shadow(0 1px 1px #000); pointer-events: none; transition: left .16s ease-out, top .16s ease-out; }
+@media (prefers-reduced-motion: reduce) { .frontend-pointer { transition: none; } }
+.b-page.frontend-page { overflow: hidden; padding: 0; }

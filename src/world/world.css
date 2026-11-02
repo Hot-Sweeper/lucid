@@ -21,7 +21,7 @@
 .world-card span { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .world-battery { position: absolute; left: -15px; bottom: calc(var(--head-top) + 14px - var(--bob)); width: 30px; height: 14px; border-radius: 4px; background: #3a3f4f; padding: 2px; display: none; }
 .world-battery::after { content: ""; position: absolute; right: -4px; top: 4px; width: 3px; height: 6px; border-radius: 0 2px 2px 0; background: #3a3f4f; }
-.world-battery.on { display: block; }
+.world-battery.on { display: none; }
 .world-battery i { display: block; height: 100%; border-radius: 2px; background: #4ff0a0; box-shadow: 0 0 8px #4ff0a0; }
 .world-z { position: absolute; left: 0; top: 0; font: 600 16px var(--font); color: #7d86c4; pointer-events: none; }
 .world-puff { position: absolute; left: -9px; top: 0; width: 18px; height: 12px; border-radius: 50%; background: #ffffff; pointer-events: none; }

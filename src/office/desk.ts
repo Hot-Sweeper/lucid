@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { gameSound } from './sound';
 import { WM } from "../os/wm";
 import { Director, type ThreadInfo } from "../director";
 import { GEOM, PHONE_SCALE, UNIT, type DeskRig, type Pt, type SeatedRobot } from "./rig";
@@ -7,6 +8,11 @@ import { emptyChairSvg } from "../world/seated";
 import { playHandoff } from "../world/handoff";
 import { logoFor, brandFor } from "./brand";
 import { WALLPAPERS, HOBBY_LABEL, type RobotProfile } from "./roster";
+import { releaseRenderView } from "../perf/render";
+import { DeferredRobot } from "../perf/deferred-robot";
+import type { KeyRect } from "../perf/keyboard-path";
+import { sharedVector, vectorOwner, releaseVectors } from "../perf/shared-vector";
+import { cacheStaticArt } from "../perf/static-art";
 
 // One workstation, seen fake top-down: the desk surface from above, the monitor and the
 // robot as upright figures. The robot sits south of the desk with its back to us, the
@@ -44,14 +50,20 @@ export class Desk implements DeskStage {
   el: HTMLElement;
   monitor: HTMLElement;
   screen: HTMLElement;
+  bubble: HTMLElement;
   robot: SeatedRobot;
+  private deferredRobot: DeferredRobot;
   wm: WM;
   director: Director;
   threadId: string | null = null;
   info: ThreadInfo | null = null;
   onActivity: (t: string) => void = () => {};
   activity = "";
-  private keys = new Map<string, SVGRectElement>();
+  lastKeyAt = 0;
+  private keys = new Map<string, KeyRect>();
+  private pressedKeys = new Map<string, { el: SVGRectElement; animation: Animation; timer: number }>();
+  private vectorOwner = vectorOwner("desk");
+  private disposeStaticArt: () => void = () => {};
   private keyCenters = new Map<string, Pt & { hand: "left" | "right" }>();
   private zTimer = 0;
 
@@ -77,14 +89,17 @@ export class Desk implements DeskStage {
     this.el = el;
     this.monitor = el.querySelector(".monitor")!;
     this.screen = el.querySelector(".screen")!;
+    this.bubble = el.querySelector(".bubble")!;
     gsap.set(el.querySelector(".phone-held"), { scale: PHONE_SCALE, transformOrigin: "0 0" });
-    this.indexKeys();
-    this.robot = robotFactory(el.querySelector(".robot-host") as HTMLElement, this.rig());
+    const robotHost = el.querySelector(".robot-host") as HTMLElement;
+    this.deferredRobot = new DeferredRobot(robotHost, () => robotFactory(robotHost, this.rig()));
+    this.robot = this.deferredRobot;
+    this.disposeStaticArt = cacheStaticArt(el.querySelector<SVGSVGElement>(".desk-table")!);
     this.wireToys();
     this.wm = new WM(this.screen, this.robot);
     this.director = new Director(this.wm, this.robot, this, services.peek, services.image, services.readText);
     this.director.onActivity = (t) => { this.activity = t; this.onActivity(t); };
-    this.director.present = () => !el.classList.contains("arriving");
+    this.syncPresence();
     this.baseZ = Math.round(y);
     el.style.zIndex = String(this.baseZ);
   }
@@ -108,16 +123,37 @@ export class Desk implements DeskStage {
   room = "";
   private model: string | null = null;
 
+  /** Called in the same frame as the walking/seated actor changes. */
+  onPresenceChange: () => void = () => {};
+  setSeated(here: boolean) {
+    const wasHere = !this.el.classList.contains('arriving');
+    this.el.classList.toggle("arriving", !here);
+    this.syncPresence();
+    if (wasHere !== here) this.onPresenceChange();
+  }
+
+  private syncPresence() {
+    const here = !!this.threadId && !this.el.classList.contains("arriving") && !this.handoffBusy;
+    if (!here) this.clearKeys();
+    this.director.setPresent(here);
+  }
+
   assign(thread: { id: string; title: string; provider: string; model?: string | null } | null, profile: RobotProfile | null = null) {
     if (this.threadId === (thread?.id ?? null)) return;
     this.director.reset();
+    this.clearKeys();
     this.threadId = thread?.id ?? null;
+    this.managerProject = null;
+    this.managerSig = '';
+    this.el.classList.remove("manager");
     this.profile = profile;
     this.model = thread?.model ?? null;
     this.el.classList.toggle("empty", !thread);
     this.handoffBusy = false;
     this.lastBrand = null;
+    this.syncPresence();
     if (thread) {
+      this.deferredRobot.mount();
       this.robot.setBrand(thread.provider);
       this.robot.setModel?.(this.model);
       if (profile) {
@@ -129,21 +165,37 @@ export class Desk implements DeskStage {
       }
       const logo = logoFor(thread.provider);
       if (logo) this.wm.setWallpaperLogo(logo);
-    }
+    } else this.deferredRobot.destroy();
     this.label(thread?.title ?? "Free desk", thread?.provider ?? null);
   }
 
+  private labelSig = "";
+  private managerProject: { title: string; icon: string | null; role?: string } | null = null;
+  private managerSig = '';
+  setManagerProject(p: { title: string; icon: string | null; role?: string } | null) {
+    const sig = JSON.stringify(p);
+    if (sig === this.managerSig) return;
+    this.managerSig = sig;
+    this.managerProject = p;
+    this.el.classList.toggle("manager", !!p);
+    this.label(this.el.querySelector(".desk-plate i")?.textContent || "", this.info?.provider ?? null);
+  }
   private label(title: string, provider: string | null) {
+    const who = this.profile ? (this.profile.role ? `${this.profile.name}, ${this.profile.role}` : this.profile.name) : "";
+    const sig = JSON.stringify([title, provider, who, this.model, this.profile?.prefs.hobby, this.managerProject]);
+    if (sig === this.labelSig) return;
+    this.labelSig = sig;
     const plate = this.el.querySelector(".desk-plate") as HTMLElement;
     const img = plate.querySelector("img") as HTMLImageElement;
-    const logo = logoFor(provider, "light");
+    const logo = this.managerProject ? this.managerProject.icon : logoFor(provider, "light");
     img.hidden = !logo;
+    img.onerror = () => { img.hidden = true; };
     if (logo) img.src = logo;
-    const who = this.profile ? (this.profile.role ? `${this.profile.name}, ${this.profile.role}` : this.profile.name) : "";
     plate.querySelector("span")!.innerHTML = who ? `<b></b> <i></i>` : `<i></i>`;
     if (who) plate.querySelector("b")!.textContent = who;
+    if (this.managerProject && who) plate.querySelector('b')!.textContent = `${who}, ${this.managerProject.role || 'Manager'}`;
     plate.querySelector("i")!.textContent = title;
-    plate.title = [who, title, this.model, this.profile?.prefs.hobby ? `Free time: ${HOBBY_LABEL[this.profile.prefs.hobby]}` : ""].filter(Boolean).join("\n");
+    plate.title = [this.managerProject ? `${this.managerProject.title} manager` : "", who, title, this.model, this.profile?.prefs.hobby ? `Free time: ${HOBBY_LABEL[this.profile.prefs.hobby]}` : ""].filter(Boolean).join("\n");
   }
 
   setInfo(info: ThreadInfo) {
@@ -172,6 +224,7 @@ export class Desk implements DeskStage {
   private lastBrand: string | null = null;   // the harness this conversation was on at the last update
   private async handoff(from: string, to: string, model: string | null) {
     this.handoffBusy = true;
+    this.syncPresence();
     const tid = this.threadId;
     const host = this.el.querySelector(".robot-host") as HTMLElement;
     const name = this.profile?.name;
@@ -190,6 +243,7 @@ export class Desk implements DeskStage {
     this.say(null);
     this.lift("handoff", false);
     this.handoffBusy = false;
+    this.syncPresence();
   }
 
   // Little desk toys: poke the robot, nudge its coffee, buzz its phone.
@@ -202,6 +256,7 @@ export class Desk implements DeskStage {
     this.el.querySelector(".poke-head")!.addEventListener("click", (e) => {
       stop(e);
       if (!this.threadId) return;
+      gameSound.play('poke');
       this.pokes++;
       window.clearTimeout(this.pokeTimer);
       this.pokeTimer = window.setTimeout(() => (this.pokes = 0), 3000);
@@ -210,9 +265,10 @@ export class Desk implements DeskStage {
       this.say((angry ? grumpy : lines)[Math.floor(Math.random() * (angry ? grumpy : lines).length)], "speak");
       window.setTimeout(() => this.say(null), 1800);
     });
-    this.el.querySelector(".poke-mug")!.addEventListener("click", (e) => { stop(e); if (this.threadId) void this.robot.drink(); });
+    this.el.querySelector(".poke-mug")!.addEventListener("click", (e) => { stop(e); if (this.threadId) { gameSound.play('coffee'); void this.robot.drink(); } });
     this.el.querySelector(".poke-phone")!.addEventListener("click", (e) => {
       stop(e);
+      if (this.threadId) gameSound.play('phone');
       const ph = this.el.querySelector("[data-d=phone]") as SVGGElement | null;
       if (ph) gsap.fromTo(ph, { x: -2 }, { x: 2, duration: 0.05, repeat: 9, yoyo: true, clearProps: "x" });
       if (this.threadId) { this.robot.react("surprised"); this.say(["Bzzz!", "Who is texting me?", "Probably spam."][Math.floor(Math.random() * 3)], "speak"); window.setTimeout(() => this.say(null), 1600); }
@@ -239,7 +295,7 @@ export class Desk implements DeskStage {
 
   // --- DeskStage -------------------------------------------------------------
   say(text: string | null, kind: "think" | "speak" = "think") {
-    const b = this.el.querySelector(".bubble") as HTMLElement;
+    const b = this.bubble;
     if (!text) {
       if (b.classList.contains("show")) gsap.to(b, { opacity: 0, y: 8, scale: 0.96, duration: 0.25, ease: "power2.in", onComplete: () => { b.classList.remove("show"); this.lift("bubble", false); } });
       return;
@@ -253,28 +309,24 @@ export class Desk implements DeskStage {
     if (!was) gsap.fromTo(b, { opacity: 0, y: 12, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.8)" });
   }
 
-  // Plan steps as sticky notes stuck to the side of the monitor.
+  planSteps: { text: string; status: string }[] = [];
+  // A readable plan pad on the desk. The complete plan opens in chat when clicked.
   setPlan(steps: { text: string; status: string }[]) {
+    this.planSteps = steps.map((s) => ({ ...s }));
     const list = this.el.querySelector(".desk-notes") as HTMLElement;
-    const existing = Array.from(list.children) as HTMLElement[];
-    steps.slice(0, 4).forEach((st, i) => {
-      let li = existing[i];
-      if (!li) {
-        li = document.createElement("li");
-        li.innerHTML = `<span class="check" aria-hidden="true"></span><span class="t"></span>`;
-        list.appendChild(li);
-        gsap.fromTo(li, { opacity: 0, y: -12, rotation: -8 }, { opacity: 1, y: 0, rotation: i % 2 ? 3 : -3, duration: 0.6, ease: "back.out(2)", delay: i * 0.08 });
-      }
-      li.querySelector(".t")!.textContent = st.text;
-      li.title = st.text;
-      const done = st.status === "completed";
-      if (done && !li.classList.contains("done")) {
-        li.classList.add("done");
-        gsap.fromTo(li.querySelector(".check"), { scale: 0 }, { scale: 1, duration: 0.45, ease: "back.out(3)" });
-      }
-      li.classList.toggle("active", st.status === "running" || st.status === "in_progress");
-    });
-    existing.slice(steps.length).forEach((li) => gsap.to(li, { opacity: 0, y: 12, duration: 0.3, onComplete: () => li.remove() }));
+    const sig = JSON.stringify(steps);
+    if (list.dataset.sig === sig) return;
+    list.dataset.sig = sig;
+    list.replaceChildren();
+    if (!steps.length) return;
+    const done = steps.filter((s) => /completed|done/.test(s.status)).length;
+    const li = document.createElement("li"), button = document.createElement("button");
+    button.type = "button";
+    button.className = "desk-plan";
+    button.setAttribute("aria-label", `Open plan, ${done} of ${steps.length} steps complete`);
+    button.innerHTML = `<b>Plan</b><span>${done} / ${steps.length}</span><small>Open</small>`;
+    button.title = steps.map((s) => `${/completed|done/.test(s.status) ? "Done" : /progress|running/.test(s.status) ? "Doing" : "To do"}: ${s.text}`).join("\n");
+    li.appendChild(button); list.appendChild(li);
   }
 
   setGlow(color: string) {
@@ -306,9 +358,27 @@ export class Desk implements DeskStage {
   }
 
   // --- the robot's reach ---------------------------------------------------------
-  private indexKeys() {
-    for (const k of this.el.querySelectorAll<SVGRectElement>("[data-key]")) this.keys.set(k.dataset.key!, k);
+  private pressKey(key: string) {
+    if (!this.wm.operatorPresent) return;
+    const name=this.norm(key),geometry=this.keys.get(name);
+    if(!geometry)return;
+    this.lastKeyAt = performance.now();
+    this.el.dispatchEvent(new CustomEvent("lucid:desk-key", { bubbles: true }));
+    let active=this.pressedKeys.get(name);
+    if(!active){
+      const el=document.createElementNS("http://www.w3.org/2000/svg","rect");
+      el.dataset.key=name;for(const [key,value]of Object.entries({x:geometry.x,y:geometry.y,width:geometry.w,height:geometry.h,rx:geometry.r}))el.setAttribute(key,String(value));el.setAttribute("fill","#9fe8ff");
+      this.el.querySelector(".keys")!.appendChild(el);
+      const animation=el.animate([{opacity:0},{opacity:1}],{duration:120,fill:"both"});
+      active={el,animation,timer:0};this.pressedKeys.set(name,active);
+      animation.onfinish=()=>{if(animation.playbackRate<0){el.remove();this.pressedKeys.delete(name)}};
+    }else{
+      window.clearTimeout(active.timer);active.animation.playbackRate=1;active.animation.play();
+    }
+    const pressed=active;
+    pressed.timer=window.setTimeout(()=>{pressed.animation.reverse()},110);
   }
+  private clearKeys(){for(const k of this.pressedKeys.values()){window.clearTimeout(k.timer);k.animation.cancel();k.el.remove()}this.pressedKeys.clear()}
 
   private norm(key: string) {
     if (KEY_ALIASES[key]) return KEY_ALIASES[key];
@@ -328,15 +398,12 @@ export class Desk implements DeskStage {
         return me.keyCenters.get(k) ?? me.keyCenters.get(" ") ?? null;
       },
       pressKey(key: string) {
-        const el = me.keys.get(me.norm(key));
-        if (!el) return;
-        el.classList.add("down");
-        setTimeout(() => el.classList.remove("down"), 110);
+        me.pressKey(key);
       },
       homeLeft: { ...me.keyCenters.get("f")! },
       homeRight: { ...me.keyCenters.get("j")! },
       mouse: { ...mouse },
-      moveMouse(p: Pt) { mouseG.setAttribute("transform", `translate(${(p.x - mouse.x).toFixed(1)} ${(p.y - mouse.y).toFixed(1)})`); },
+      moveMouse(p: Pt, turn = 0) { if (me.wm.operatorPresent) mouseG.setAttribute("transform", `translate(${(p.x - mouse.x).toFixed(2)} ${(p.y - mouse.y).toFixed(2)}) rotate(${turn.toFixed(1)} ${mouse.x} ${mouse.y})`); },
       mug: { ...mug },
       moveMug(p: Pt | null, tilt = 0) {
         mugG.setAttribute("transform", p ? `translate(${(p.x - mug.x).toFixed(1)} ${(p.y - mug.y).toFixed(1)}) rotate(${tilt} ${mug.x} ${mug.y})` : "");
@@ -359,14 +426,16 @@ export class Desk implements DeskStage {
       [...row].forEach((ch, c) => {
         const x = kb.x + c * colW + 1.2, y = kb.y + 2 + r * rowH + 0.8;
         this.keyCenters.set(ch, { x: x + colW / 2 - 1.2, y: y + rowH / 2 - 0.8, hand: c < 6 ? "left" : "right" });
-        keys.push(`<rect class="key" data-key="${ch === "\n" ? "\n" : ch.replace(/"/g, "&quot;")}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(colW - 2.4).toFixed(1)}" height="${(rowH - 1.6).toFixed(1)}" rx="1.6"/>`);
+        const geometry={x:Number(x.toFixed(1)),y:Number(y.toFixed(1)),w:Number((colW-2.4).toFixed(1)),h:Number((rowH-1.6).toFixed(1)),r:1.6};
+        this.keys.set(ch,geometry);keys.push(`<rect x="${geometry.x}" y="${geometry.y}" width="${geometry.w}" height="${geometry.h}" rx="${geometry.r}" fill="#5a6177"/>`);
       });
     });
     const sy = kb.y + 2 + 4 * rowH + 0.6;
     this.keyCenters.set(" ", { x: kb.x + kb.w / 2, y: sy + 2.5, hand: "right" });
-    keys.push(`<rect class="key" data-key=" " x="${kb.x + colW * 3}" y="${sy}" width="${colW * 6}" height="5" rx="2"/>`);
+    const space={x:kb.x+colW*3,y:sy,w:colW*6,h:5,r:2};this.keys.set(" ",space);keys.push(`<rect x="${space.x}" y="${space.y}" width="${space.w}" height="${space.h}" rx="${space.r}" fill="#5a6177"/>`);
     return /* svg */ `
     <svg class="desk-table" viewBox="0 0 ${UNIT.w} ${UNIT.h}" aria-hidden="true">
+      ${sharedVector(`
       <ellipse cx="${t.x + t.w / 2}" cy="${t.y + t.h + t.front + 8}" rx="${t.w / 2 + 6}" ry="12" fill="#2b1d10" opacity="0.18"/>
       <rect x="${t.x}" y="${t.y + t.h - 4}" width="${t.w}" height="${t.front + 4}" rx="6" fill="#b48a5e"/>
       <rect x="${t.x}" y="${t.y}" width="${t.w}" height="${t.h}" rx="8" fill="#d7b48a"/>
@@ -376,7 +445,8 @@ export class Desk implements DeskStage {
       <rect x="${st.x - 7}" y="${st.top}" width="14" height="${st.base - st.top - 2}" fill="#3a3f4f"/>
       <g class="papers"><rect x="96" y="194" width="38" height="30" rx="3" fill="#f4f1ea" transform="rotate(-7 115 209)"/><rect x="100" y="197" width="38" height="30" rx="3" fill="#fbf9f4" transform="rotate(5 119 212)"/></g>
       <rect x="${kb.x - 5}" y="${kb.y - 3}" width="${kb.w + 10}" height="${kb.h + 7}" rx="7" fill="#2e3242"/>
-      <g class="keys">${keys.join("")}</g>
+      `,this.vectorOwner)}
+      <g class="keys">${sharedVector(keys.join(""),this.vectorOwner,"key")}</g>
       <rect x="${m.x - 24}" y="${m.y - 22}" width="48" height="44" rx="10" fill="#4a5063" opacity="0.55"/>
       <g data-d="mouse"><ellipse cx="${m.x}" cy="${m.y}" rx="9" ry="12" fill="#2e3242"/><ellipse cx="${m.x}" cy="${m.y - 3}" rx="6" ry="7" fill="#4a5063"/><rect x="${m.x - 0.75}" y="${m.y - 11}" width="1.5" height="6" fill="#2e3242"/></g>
       <g data-d="phone"><rect x="${ph.x - 11}" y="${ph.y - 19}" width="22" height="38" rx="5" fill="#22263a"/><rect x="${ph.x - 9}" y="${ph.y - 16}" width="18" height="32" rx="3" fill="#353b58"/></g>
@@ -390,13 +460,18 @@ export class Desk implements DeskStage {
         <ellipse cx="${mug.x - 2}" cy="${mug.y - 12}" rx="3" ry="1.2" fill="#8a4a32"/>
         <g class="mug-steam"><path d="M${mug.x - 3} ${mug.y - 16} q-3 -5 0 -9 q3 -4 0 -9" /><path d="M${mug.x + 3} ${mug.y - 15} q-3 -5 0 -9 q3 -4 0 -8" /></g>
       </g>
-      ${emptyChairSvg()}
+      ${sharedVector(emptyChairSvg(),this.vectorOwner,"empty-chair")}
     </svg>`;
   }
 
   destroy() {
+    this.disposeStaticArt();
+    this.clearKeys();
     this.director.reset();
     this.robot.destroy();
+    this.wm.destroy();
+    releaseVectors(this.vectorOwner);
+    releaseRenderView(this.screen);
     window.clearInterval(this.zTimer);
     this.el.remove();
   }

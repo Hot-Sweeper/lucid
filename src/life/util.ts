@@ -1,4 +1,7 @@
 import gsap from "gsap";
+import { localizeGameDOM } from "../localization-dom";
+import { renderLoop } from "../perf/render";
+import { LiveCanvases, fitCanvas } from "../perf/canvas";
 import type { FunHost, FunOpts, Outcome } from "./types";
 
 // Thrown internally when time is up or the host says stop. Never leaves this module.
@@ -12,12 +15,18 @@ export class Kit {
   private anims = new Set<gsap.core.Animation>();
   private timers = new Set<number>();
   private ticks = new Set<Tick>();
-  private raf = 0;
-  private last = 0;
+  private stopFrames: (() => void) | null = null;
   dead = false;
   readonly t0 = performance.now();
+  private canvases: LiveCanvases;
+  private stopLocalization: () => void;
 
-  constructor(readonly root: HTMLElement, readonly host: FunHost, readonly opts: FunOpts) {}
+  constructor(readonly root: HTMLElement, readonly host: FunHost, readonly opts: FunOpts) {
+    this.canvases = new LiveCanvases(root);
+    this.stopLocalization = localizeGameDOM(root, "Fictional robot downtime app. Adapt jokes and conversational replies together; preserve usernames and app brands.");
+  }
+  liveCanvas(canvas: HTMLCanvasElement) { return this.canvases.add(canvas); }
+  releaseCanvas(canvas: HTMLCanvasElement) { this.canvases.remove(canvas); }
 
   get left() { return this.opts.maxMs - (performance.now() - this.t0); }
   get over() { return this.dead || this.host.stopped || this.left <= 0; }
@@ -44,16 +53,13 @@ export class Kit {
 
   every(fn: Tick) {
     this.ticks.add(fn);
-    if (!this.raf && !this.dead) { this.last = performance.now(); this.raf = requestAnimationFrame(this.frame); }
-    return () => { this.ticks.delete(fn); };
+    if (!this.stopFrames && !this.dead) this.stopFrames = renderLoop(this.root, this.frame);
+    return () => { this.ticks.delete(fn); if (!this.ticks.size) { this.stopFrames?.(); this.stopFrames = null; } };
   }
-  private frame = (now: number) => {
-    this.raf = 0;
+  private frame = (now: number, dt: number) => {
     if (this.dead) return;
-    const dt = Math.min(0.1, (now - this.last) / 1000);
-    this.last = now;
-    for (const f of [...this.ticks]) f(now, dt);
-    if (this.ticks.size) this.raf = requestAnimationFrame(this.frame);
+    this.canvases.prepare();
+    for (const f of this.ticks) f(now, dt);
   };
 
   // --- robot --------------------------------------------------------------
@@ -72,13 +78,14 @@ export class Kit {
   kill() {
     if (this.dead) return;
     this.dead = true;
+    this.stopLocalization();
     for (const a of this.anims) a.kill();
     this.anims.clear();
     for (const id of this.timers) clearTimeout(id);
     this.timers.clear();
     this.ticks.clear();
-    if (this.raf) cancelAnimationFrame(this.raf);
-    this.raf = 0;
+    this.stopFrames?.(); this.stopFrames = null;
+    this.canvases.clear();
     gsap.killTweensOf(this.root.querySelectorAll("*"));
   }
 }
@@ -118,13 +125,7 @@ export function rel(el: Element, box: HTMLElement) {
 }
 
 export function canvas(el: HTMLCanvasElement, w: number, h: number) {
-  el.width = Math.max(1, Math.round(w * 2));
-  el.height = Math.max(1, Math.round(h * 2));
-  el.style.width = w + "px";
-  el.style.height = h + "px";
-  const ctx = el.getContext("2d")!;
-  ctx.setTransform(2, 0, 0, 2, 0, 0);
-  return ctx;
+  return fitCanvas(el, w, h);
 }
 
 export function esc(s: string) {

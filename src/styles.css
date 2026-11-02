@@ -23,7 +23,7 @@ button, textarea, input { font: inherit; color: inherit; }
 ::-webkit-scrollbar-thumb:hover { background-color: rgba(185, 191, 230, 0.32); }
 ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
 
-#app { display: grid; grid-template-columns: 300px 1fr; height: 100vh; }
+#app { position: relative; display: grid; grid-template-columns: var(--side, 300px) minmax(0, 1fr) var(--chat, 460px); grid-template-rows: minmax(0, 1fr); height: 100vh; overflow: hidden; }
 
 /* ---------------- panel ---------------- */
 .panel { display: flex; flex-direction: column; gap: 22px; padding: 20px 16px 0; background: var(--night-2); min-height: 0; }
@@ -246,8 +246,9 @@ textarea::placeholder { color: var(--ink-3); }
 
 .browser { position: relative; }
 .b-action { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 6px 12px; border-radius: 9px; background: rgba(27, 31, 69, 0.9); color: #fff; font-size: 11px; white-space: nowrap; pointer-events: none; }
-.pic { height: 100%; display: grid; place-items: center; background: #11143a; padding: 8px; }
-.pic img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+.pic { height: 100%; min-height: 0; display: flex; background: #11143a; padding: 8px; box-sizing: border-box; }
+/* the whole picture at its own shape, as big as the window allows */
+.pic img { flex: 1; min-width: 0; min-height: 0; width: 100%; height: 100%; object-fit: contain; border-radius: 6px; }
 
 /* the player: sheets of frames playing like a video, with a real player's controls over the picture */
 .vp { height: 100%; display: flex; flex-direction: column; background: #0b0d26; }
@@ -393,6 +394,7 @@ textarea::placeholder { color: var(--ink-3); }
 .botify.is-playing .bf-tracks li.on .bf-eqb { display: flex; }
 .bf-bar { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); align-items: center; gap: 12px; padding: 0 8px; background: #000; }
 .bf-now { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.bf-now .bf-art { flex: none; border-radius: 4px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35); }
 .bf-now > div { display: flex; flex-direction: column; min-width: 0; }
 .bf-now b { color: #fff; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bf-now i { font-style: normal; color: #b3b3b3; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -471,3 +473,14 @@ textarea::placeholder { color: var(--ink-3); }
 .uac-btns .faded { opacity: 0.4; }
 .uac-btns .pressed { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55); }
 .uac-foot { margin: 0; padding: 0 16px 12px; text-align: right; font-size: 10px; color: #8a91c4; }
+
+/* Persistent robot scratchpad styles. */
+.notes-workspace { height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #fff7d6; }
+.notes-chrome { flex: none; padding: 7px 10px; white-space: pre-wrap; font-size: 10px; line-height: 1.8; background: #f2e8bc; color: #62502b; }
+.notes-workspace .notes { flex: 1; min-height: 0; height: auto; box-sizing: border-box; }
+.os[data-notes-app="notepad"] .app-notes .win-bar { background: #dce9f5; color: #263b50; }
+.os[data-notes-app="notepad"] .notes-chrome { background: #edf3f9; color: #34475c; }
+.os[data-notes-app="notepad"] .notes { background: #fff; color: #26313e; font-family: "JetBrains Mono", monospace; }
+.os[data-notes-app="notepad-plus-plus"] .app-notes .win-bar { background: #dce7d1; color: #314128; }
+.os[data-notes-app="notepad-plus-plus"] .notes-chrome { background: #e7ecdf; color: #35452e; }
+.os[data-notes-app="notepad-plus-plus"] .notes { background: linear-gradient(to right, #e5e8df 28px, #f9fbf5 28px); color: #2d3c26; padding-left: 38px; font-family: "JetBrains Mono", monospace; }

@@ -1,9 +1,9 @@
 import gsap from "gsap";
+import { watchClock, clockTime, clockDate } from "../perf/clock";
+import { GAME_TITLES, type GameKey } from "../games/catalog";
 import { WM, Cancelled, type AppId } from "./wm";
 import { CalcApp, IDLE_SUMS } from "./calc";
 import { WeatherApp, checkTime } from "./glance";
-import { playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge, playRobotIsland, playBotCom, playDerBugger, playBoot } from "../games";
-import { watchBotflix } from "../fun";
 import { SEARCHES as SEARCH_LINES, GAME_LINES, pickFresh } from "../content";
 const nextSearch = pickFresh(SEARCH_LINES, "lucid:searches");
 const gameLine = (kind: string, game?: string) => {
@@ -12,13 +12,13 @@ const gameLine = (kind: string, game?: string) => {
 };
 import type { SeatedRobot as Robot } from "../office/rig";
 import type { DeskStage as Stage } from "../office/desk";
-import { playSnake, playFlappy, playDash, watchPhoneFeed, watchTube, browseTensorHub, type FunHost } from "../fun";
+import type { FunHost } from "../fun/host";
 import "../fun/fun.css";
-import { makeBeat } from "../life/beats";
-import { hangOutInChat } from "../life/chat";
 import "../life/life.css";
 import { officeIdle, officePick, OFFICE_IDLE_LINE } from "../office-apps/idle";
-import { chatOnBotsApp, browseTelegrid, scrollChirp, usePhone, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, PHONE_APP_DOING, type PhoneApp, type SoOpts } from "../social";
+import { PHONE_APP_DOING, type PhoneApp } from "../social/phone-apps";
+import type { SoOpts } from "../social/kit";
+import { playSnake, playFlappy, playDash, playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge, playRobotIsland, playBotCom, playDerBugger, playBoot, watchBotflix, watchTube, browseTensorHub, makeBeat, hangOutInChat, usePhone, chatOnBotsApp, browseTelegrid, scrollChirp, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, browseInstaweb, scrollSpoolWeb, swipeSparkplug, useSteam, tradeOnTradebot, preloadActivity, } from "./idle-activities";
 import type { Prefs } from "../office/roster";
 
 // What the robot does when there is no work: tidy the desktop, play a game,
@@ -36,14 +36,14 @@ export class IdleLife {
   private active = false;
   private stopGame: (() => void) | null = null;
   private lockEl: HTMLElement | null = null;
-  private clockTimer = 0;
+  private stopClock: (() => void) | null = null;
   private phoneUp = false;
   onActivity: (t: string) => void = () => {};
 
   /** The robot's web browser, set by the director, for surfing when bored. */
   browser: { visit(target: string): Promise<void>; act(caption: string, title?: string, url?: string): Promise<void> } | null = null;
   /** The music app, set by the director. */
-  music: { playing: unknown; start(prefer?: number): Promise<number>; stop(): void } | null = null;
+  music: { playing: unknown; start(prefer?: number): Promise<number>; skip(): Promise<boolean>; stop(): void } | null = null;
 
   constructor(private wm: WM, private robot: Robot, private stage: Stage) {
     const scale = Number(new URLSearchParams(location.search).get("idleScale") || localStorage.getItem("lucid:idleScale") || 1);
@@ -56,10 +56,11 @@ export class IdleLife {
   hold: () => boolean = () => false;
 
   begin(opts: { locked?: boolean } = {}) {
+    if (this.hold()) return;
     // halted but never roused (the work went away again): it just goes on dozing
     if (this.halted && this.lockEl) { this.halted = false; this.active = true; ++this.token; return; }
     if (this.halted) this.stop();
-    if (this.active || this.hold()) return;
+    if (this.active) return;
     this.active = true;
     const tok = ++this.token;
     this.run(tok, opts).catch((err) => { if (!(err instanceof Cancelled)) console.error("idle failed", err); });
@@ -90,6 +91,13 @@ export class IdleLife {
     this.halted = true;
     this.token++;
     this.wm.epoch++;
+  }
+
+  /** A game must stop driving input as soon as its player leaves the chair. */
+  leaveDesk() {
+    this.halt();
+    this.stopGame?.();
+    this.stopGame = null;
   }
 
   /** Asleep behind the lock screen right now. */
@@ -203,6 +211,8 @@ export class IdleLife {
       calc: 0.3,
       weather: 0.35, time: 0.4,
       music: this.music && p?.listens !== "never" ? (p?.listens === "always" ? 1.2 : 0.5) + 1.2 * H("musician") : 0,
+      // already listening: not every song is the right one
+      skip: this.music?.playing ? 1.1 + (p?.listens === "always" ? 0.8 : 0) + 0.6 * H("musician") : 0,
       office: p?.office && p.office !== "none" ? (p.office === "suite" ? 1.6 : 1.3) : 0,
       ...IdleLife.interestWeights(p, H),
     };
@@ -224,17 +234,22 @@ export class IdleLife {
       react: (kind) => me.robot.react(kind),
       get stopped() { return tok !== me.token; },
       thumb: () => me.robot.swipe(),
+      thumbAt: (nx, ny) => (me.robot as any).thumbAt?.(nx, ny),
       scroll: () => {},
     };
   }
 
-  private async doActivity(act: string, tok: number) {
+  private async doActivity(act: string, tok: number, alreadyLaunched = false) {
+    this.alive(tok);
+    preloadActivity(act);
     const host = this.host(tok);
     const skill = 0.35 + Math.random() * 0.5;
-    const game = async (title: string, play: (b: HTMLElement, h: FunHost, o: { maxMs: number; skill?: number }) => Promise<{ result: string }>) => {
-      this.onActivity(`Playing ${title} while it waits`);
-      const w = await this.wm.open("game", title);
+    const game = async (play: (b: HTMLElement, h: FunHost, o: { maxMs: number; skill?: number }) => Promise<{ result: string }>) => {
+      const title = GAME_TITLES[act as GameKey];
+      this.onActivity(`${alreadyLaunched ? "Launching" : "Opening"} ${title}`);
+      const w = await this.wm.open("game", title, alreadyLaunched);
       this.alive(tok);
+      this.onActivity(`Playing ${title} while it waits`);
       w.body.innerHTML = "";
       this.stopGame = () => { w.body.innerHTML = ""; };
       const out = await play(w.body, host, { maxMs: T.gameFor * (0.6 + Math.random() * 0.6), skill });
@@ -243,7 +258,7 @@ export class IdleLife {
       const r = String(out.result || "");
       const kind = r === "ragequit" ? "ragequit" : /win|won|cleared|record/i.test(r) ? "win" : /lose|lost|dead|crash|over/i.test(r) ? "lose" : "close";
       const said = gameLine(kind, title.toLowerCase().includes("snake") ? "snake" : undefined);
-      if (said) { this.stage.say(said, "speak"); window.setTimeout(() => this.stage.say(null), 2600); }
+      if (said) { this.stage.say(said, "speak"); window.setTimeout(() => { if (tok === this.token) this.stage.say(null); }, 2600); }
       if (out.result === "ragequit") {
         // slam it shut
         this.onActivity(`Rage quit ${title}`);
@@ -255,21 +270,21 @@ export class IdleLife {
       }
     };
     switch (act) {
-      case "snake": return game("Snake", playSnake);
-      case "flappy": return game("Flappy Drone", playFlappy);
-      case "dash": return game("Dash", playDash);
-      case "blockcraft": return game("Blockcraft", playBlockcraft);
-      case "nightshift": return game("Five Nights at the Server Room", playNightShift);
-      case "tictactoe": return game("Tic-tac-toe", playTicTacToe);
-      case "connect4": return game("Four in a Row", playConnectFour);
-      case "bitmerge": return game("Bit Merge", playBitMerge);
-      case "island": return game("The Secret of Robot Island", playRobotIsland);
-      case "botcom": return game("BOT-COM: Terror from the Deep Sea", playBotCom);
-      case "bugger": return game("Der Bugger 2", playDerBugger);
-      case "boot": return game("BOOT", playBoot);
+      case "snake": return game(playSnake);
+      case "flappy": return game(playFlappy);
+      case "dash": return game(playDash);
+      case "blockcraft": return game(playBlockcraft);
+      case "nightshift": return game(playNightShift);
+      case "tictactoe": return game(playTicTacToe);
+      case "connect4": return game(playConnectFour);
+      case "bitmerge": return game(playBitMerge);
+      case "island": return game(playRobotIsland);
+      case "botcom": return game(playBotCom);
+      case "bugger": return game(playDerBugger);
+      case "boot": return game(playBoot);
       case "chess": {
-        this.onActivity("Playing chess while it waits");
-        await this.playChess(tok);
+        this.onActivity(`${alreadyLaunched ? "Launching" : "Opening"} Chess`);
+        await this.playChess(tok, alreadyLaunched);
         return this.closeWin("game", tok);
       }
       case "phone": {
@@ -337,8 +352,20 @@ export class IdleLife {
         if (bpm) (this.robot as any).setGroove?.(bpm);
         this.alive(tok);
         this.robot.setPose("rest");
-        await this.wait(25000 + Math.random() * 30000, tok);
+        // halfway through it often gets bored of the song
+        const stay = 25000 + Math.random() * 30000;
+        await this.wait(stay * 0.5, tok);
+        if (Math.random() < 0.45 && await this.music!.skip()) { this.alive(tok); this.robot.setPose("rest"); }
+        await this.wait(stay * 0.5, tok);
         return;
+      }
+      case "skip": {
+        this.onActivity("Skipping a song in Botify");
+        const bpm = await this.music!.skip();
+        this.alive(tok);
+        this.robot.setPose("rest");
+        if (bpm) await this.wait(1200, tok);
+        return this.closeWin("music", tok);
       }
       case "weather": {
         this.onActivity("Checking the weather");
@@ -385,6 +412,26 @@ export class IdleLife {
       case "stocks": return this.socialApp("stocks", "Watching GPU stocks", watchStocks, tok, 30000);
       case "mail": return this.socialApp("mail", "Clearing its inbox", checkMail, tok, 30000);
       case "lingo": return this.socialApp("lingo", "Keeping its Lingobot streak alive", learnWithLingobot, tok, 45000);
+      case "instaweb": return this.socialApp("instaweb", "Scrolling Instabot on the web", browseInstaweb, tok);
+      case "spoolweb": return this.socialApp("spoolweb", "Watching Spool clips on the desktop", scrollSpoolWeb, tok);
+      case "sparkplug": return this.socialApp("sparkplug", "Swiping on Sparkplug", swipeSparkplug, tok, 40000);
+      case "steam": {
+        // the store, the library, a download and a launch: then the game itself runs on its desktop
+        this.onActivity("Browsing Steambot");
+        const w = await this.wm.open("steam");
+        this.alive(tok);
+        this.robot.setPose("mouse");
+        const g = this.wm.prefs?.games ?? { snake: 1, flappy: 1, dash: 1, chess: 1 };
+        const want = (key: string) => (key === "snake" ? g.snake : key === "flappy" ? g.flappy : key === "dash" ? g.dash : key === "chess" ? g.chess : 1);
+        const out = await useSteam(w.body, this.host(tok), { maxMs: 130000, me: this.wm.robotName, skill: 0.5 + Math.random() * 0.4, want });
+        this.alive(tok);
+        if (out.launch) {
+          try { await this.doActivity(out.launch, tok, true); }
+          finally { (await import("../leisure/steam")).markSteamStopped(w.body); }
+        }
+        return this.closeWin("steam", tok);
+      }
+      case "trading": return this.socialApp("trading", "Trading bitcoin on Tradebot", tradeOnTradebot, tok, 60000);
     }
   }
 
@@ -425,7 +472,7 @@ export class IdleLife {
       this.onActivity(what);
       await b.visit(url);
       this.alive(tok);
-      if (Math.random() < 0.45) { await b.act("Click a link", undefined, url); this.alive(tok); }
+      if (Math.random() < 0.45) { await b.act("Scrolling the page", undefined, url); this.alive(tok); }
       if (Math.random() < 0.25) this.robot.react(Math.random() < 0.5 ? "laugh" : "surprised");
       await this.wait(1500 + Math.random() * 2500, tok);
     }
@@ -447,15 +494,20 @@ export class IdleLife {
       solitaire: likes("solitaire") ? 1.5 + 1.0 * H("gamer") : 0,
       stocks: likes("stocks") ? 1.3 : 0,
       lingo: likes("lingo") ? 1.5 : 0,
-      mail: likes("mail") ? 1.3 : 0.1,
+      mail: likes("mail") ? 1.3 : 0,
+      instaweb: uses("instabot") ? 0.6 + 0.5 * H("chiller") : 0,
+      spoolweb: uses("spool") ? 0.6 + 0.8 * H("watcher") : 0,
+      sparkplug: uses("sparkplug") ? 0.5 + 0.5 * H("chatter") : 0,
+      steam: likes("steam") ? 1.7 + 1.0 * H("gamer") : 0,
+      trading: likes("trading") ? 1.5 : 0,
     };
   }
 
-  /** The phone apps this robot uses: its social apps, plus clips if that is its habit. */
+  /** Keep the phone home screen consistent with this robot's saved interests. */
   private phoneApps(): PhoneApp[] {
     const p = this.wm.prefs;
     const apps: PhoneApp[] = [...(p?.socials ?? [])];
-    if (p?.phone !== "tube" || !apps.length) apps.push("spool");
+    if (!apps.length) apps.push(p?.phone === "tube" ? "shorts" : "spool");
     return apps;
   }
 
@@ -504,13 +556,13 @@ export class IdleLife {
     el.innerHTML = `<div class="lock-time"></div><div class="lock-date"></div><p class="lock-hint">Waiting for a new task</p>`;
     this.wm.root.appendChild(el);
     this.lockEl = el;
-    const paint = () => {
-      const now = new Date();
-      el.querySelector(".lock-time")!.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      el.querySelector(".lock-date")!.textContent = now.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
-    };
-    paint();
-    this.clockTimer = window.setInterval(paint, 1000);
+    const time = el.querySelector(".lock-time")!, date = el.querySelector(".lock-date")!;
+    this.stopClock?.();
+    this.stopClock = watchClock(el, now => {
+      const nextTime = clockTime(now), nextDate = clockDate(now);
+      if (time.textContent !== nextTime) time.textContent = nextTime;
+      if (date.textContent !== nextDate) date.textContent = nextDate;
+    });
     gsap.timeline()
       .fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.8, ease: "sine.out" })
       .fromTo(el.querySelector(".lock-time"), { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: "expo.out" }, 0.2)
@@ -522,7 +574,7 @@ export class IdleLife {
   }
 
   private unlock() {
-    window.clearInterval(this.clockTimer);
+    this.stopClock?.(); this.stopClock = null;
     gsap.to(this.wm.cursorEl, { opacity: 1, duration: 0.3 });
     const el = this.lockEl;
     this.lockEl = null;
@@ -541,9 +593,10 @@ export class IdleLife {
     { name: "the Blackburne Shilling trap", winner: "black", moves: "e2e4 e7e5 g1f3 b8c6 f1c4 c6d4 f3e5 d8g5 e5f7 g5g2 h1f1 g2e4 c4e2 d4f3".split(" ") },
   ];
 
-  private async playChess(tok: number) {
-    const w = await this.wm.open("game", "Chess");
+  private async playChess(tok: number, alreadyLaunched = false) {
+    const w = await this.wm.open("game", GAME_TITLES.chess, alreadyLaunched);
     this.alive(tok);
+    this.onActivity("Playing Chess while it waits");
     const glyph: Record<string, string> = { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" };
     const G = IdleLife.GAMES[Math.floor(Math.random() * IdleLife.GAMES.length)];
     const robotWhite = Math.random() < 0.6;
@@ -621,7 +674,7 @@ export class IdleLife {
     const won = (G.winner === "white") === robotWhite;
     status.textContent = won ? `Checkmate! The robot wins (${G.name})` : `Checkmated by ${G.name}`;
     const quip = gameLine(won ? "win" : "lose", "chess");
-    if (quip) { this.stage.say(quip, "speak"); window.setTimeout(() => this.stage.say(null), 2600); }
+    if (quip) { this.stage.say(quip, "speak"); window.setTimeout(() => { if (tok === this.token) this.stage.say(null); }, 2600); }
     gsap.fromTo(status, { scale: 1.2 }, { scale: 1, duration: 0.5, ease: "back.out(3)" });
     if (won) this.robot.setPose("celebrate");
     else { this.robot.react(Math.random() < 0.5 ? "angry" : "shy"); }

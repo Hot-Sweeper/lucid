@@ -56,9 +56,11 @@ export class Site {
   thumbs(el: HTMLElement, videos: VideoDef[]) {
     el.querySelectorAll<HTMLCanvasElement>("canvas[data-v]").forEach((c) => {
       const v = videos.find((x) => x.id === c.dataset.v)!;
-      const w = c.clientWidth || 160, h = c.clientHeight || 90;
-      const ctx = fitCanvas(c, w, h);
-      drawThumbnail(v, ctx, w, h);
+      this.scope.defer(c, () => {
+        const w = c.clientWidth || 160, h = c.clientHeight || 90;
+        const ctx = fitCanvas(c, w, h);
+        drawThumbnail(v, ctx, w, h);
+      });
     });
   }
 

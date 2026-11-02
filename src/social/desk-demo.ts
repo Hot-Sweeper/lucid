@@ -28,8 +28,8 @@ export function runDesk(root: HTMLElement) {
   if (what === "pick") {
     const out: string[] = [];
     const robots: [string, Prefs][] = [];
-    for (const hobby of ["chatter", "watcher", "gamer", "chiller"] as const) {
-      let seed = hobby.length * 977;
+    for (const [i, hobby] of (["chatter", "watcher", "gamer", "chiller", "chatter", "watcher", "chiller"] as const).entries()) {
+      let seed = hobby.length * 977 + i * 131;
       const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
       robots.push([hobby, { ...base, hobby, ...interestsFrom(r, hobby) }]);
     }
@@ -40,7 +40,7 @@ export function runDesk(root: HTMLElement) {
       for (let i = 0; i < 4000; i++) { const a = life.pick([]); counts[a] = (counts[a] ?? 0) + 1; }
       out.push(`${name}: apps ${p.apps!.join(", ")}  socials ${p.socials!.join(", ")}`);
       out.push("   " + Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(v / 40).toFixed(1)}%`).join("  "));
-      out.push(`   never: ${["botsapp", "telegrid", "chirp", "doodle", "crossword", "solitaire", "stocks", "lingo"].filter((k) => !counts[k]).join(", ")}`);
+      out.push(`   never: ${["botsapp", "telegrid", "chirp", "instaweb", "spoolweb", "sparkplug", "doodle", "crossword", "solitaire", "stocks", "lingo"].filter((k) => !counts[k]).join(", ")}`);
     }
     const pre = document.createElement("div");
     pre.className = "dd-log";
@@ -53,7 +53,7 @@ export function runDesk(root: HTMLElement) {
   const screen = root.querySelector(".dd-screen") as HTMLElement;
   const log = root.querySelector(".dd-log") as HTMLElement;
   const wm = new WM(screen, robot);
-  const prefs: Prefs = { ...base, hobby: "chiller", apps: ["doodle", "crossword", "solitaire"], socials: ["chirp", "botsapp", "instabot", "snapbot"], launch: (qs.get("launch") as "dock") || "dock" };
+  const prefs: Prefs = { ...base, hobby: "chiller", apps: ["doodle", "crossword", "solitaire"], socials: (qs.get("socials")?.split(",") ?? ["chirp", "botsapp", "instabot", "snapbot"]) as Prefs["socials"], launch: (qs.get("launch") as "dock") || "dock" };
   wm.prefs = prefs;
   wm.robotName = "Pip";
   const stage = { phoneScreen: root.querySelector(".phone-screen") as HTMLElement, say() {}, sleepy() {}, setGlow() {} } as never;

@@ -8,10 +8,11 @@ const WIN_SCORE = 40;
 type Rack = { x: number; gapY: number; scored: boolean; aim: number; seed: number };
 
 export async function playFlappy(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
-  const scope = new Scope();
+  const scope = new Scope(body);
   try {
     const view = mountGame(body, scope, "Flappy Drone", "flappy");
     const { ctx, w, h } = view;
+    scope.liveCanvas(view.canvas);
     const S = new Session(host, opts, { base: 0.32, step: 0.16, calm: 0.05 });
     const skill = S.skill;
     const k = h / 336;

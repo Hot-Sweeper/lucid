@@ -4,6 +4,8 @@ import { TG_CHANNELS, TG_GROUP, TG_BOT } from "../content/social";
 import { Kit, runApp, rnd, chance, pick, shuffle, h, avatar, seedOf, touch, typeInto, scrollTo, calm, clock, fmtN, ICON, type SoHost, type SoOpts } from "./kit";
 import { sceneCanvas } from "./scenes";
 import "./telegrid.css";
+import { theyType, headerTyping } from "./typing";
+import { phoneKeyboard, type PhoneKeyboard } from "./keyboard";
 
 type Row = { id: string; name: string; color: string; kind: "channel" | "group" | "bot"; sub: string; prev: string; unread: number; el?: HTMLElement };
 const EYE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.6 4.2 9.8 6.3.3.5.3 1 0 1.4C20.6 14.8 17 19 12 19s-8.6-4.2-9.8-6.3a1.4 1.4 0 0 1 0-1.4C3.4 9.2 7 5 12 5Zm0 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg>`;
@@ -26,6 +28,7 @@ class Telegrid {
   field!: HTMLElement;
   fieldText!: HTMLElement;
   foot!: HTMLElement;
+  kb: PhoneKeyboard | null = null;
 
   constructor(private k: Kit, body: HTMLElement, private opts: SoOpts) {
     this.phone = !!opts.phone;
@@ -102,8 +105,15 @@ class Telegrid {
   }
 
   async back() {
+    await this.kb?.close();
     await this.tapEl(this.root.querySelector(".so-tg-back")!);
     this.root.classList.remove("open");
+  }
+
+  /** Telegram shows who is typing right under the chat name. */
+  async typing(text: string, who?: string) {
+    const sub = this.root.querySelector(".so-tg-head small") as HTMLElement;
+    await theyType(this.k, text, () => headerTyping(sub, who ? `${who} is typing` : "typing"));
   }
 
   bottom() { scrollTo(this.k, this.msgs, this.msgs.scrollHeight, 0.5); }
@@ -129,11 +139,15 @@ class Telegrid {
   }
 
   async send(text: string) {
-    await this.tapEl(this.field, 0.3);
+    if (!this.kb?.up) await this.tapEl(this.field, 0.3);
+    if (this.phone) {
+      this.kb = phoneKeyboard(this.k, this.root, { accent: "#3390ec" });
+      await this.kb.open({ ret: "send", lift: [this.foot, this.msgs] });
+    }
     this.field.classList.add("has");
-    await typeInto(this.k, this.fieldText, text, { phone: this.phone, skill: this.opts.skill });
+    await typeInto(this.k, this.fieldText, text, { phone: this.phone, skill: this.opts.skill, kb: this.kb ?? undefined });
     await this.k.sleep(rnd(200, 400));
-    if (this.phone) await touch(this.k, this.root.querySelector(".so-tg-send")!, this.root); else this.k.tap("Enter");
+    if (this.phone) { if (chance(0.6)) await this.kb!.enter(); else await touch(this.k, this.root.querySelector(".so-tg-send")!, this.root); this.kb!.reset(); } else this.k.tap("Enter");
     this.fieldText.textContent = "";
     this.field.classList.remove("has");
     const m = this.line("me", text, true);
@@ -170,7 +184,8 @@ class Telegrid {
     const count = 4 + Math.floor(Math.random() * 4);
     for (let n = 0; n < count && this.k.left > 5000; n++) {
       const [u, t] = lines[i++ % lines.length];
-      await this.k.sleep(rnd(900, 2200));
+      await this.k.sleep(rnd(300, 1200));
+      await this.typing(t, u);
       const m = this.line(u, t);
       this.pop(m);
       this.bottom();
@@ -188,7 +203,7 @@ class Telegrid {
       if (this.k.left < 5000) return;
       await this.k.sleep(rnd(700, 1300));
       await this.send(cmd);
-      await this.k.sleep(rnd(500, 900));
+      await this.typing(reply, undefined);
       const m = this.line(TG_BOT.name, reply);
       // the bot's inline buttons
       const kb = h("div", "so-tg-kb");
@@ -202,7 +217,7 @@ class Telegrid {
         const btn = kb.children[2] as HTMLElement;
         await this.tapEl(btn);
         btn.classList.add("on");
-        await this.k.sleep(400);
+        await this.typing("You're welcome. Have a nice break!");
         const ok = this.line(TG_BOT.name, "You're welcome. Have a nice break!");
         this.pop(ok);
         this.bottom();

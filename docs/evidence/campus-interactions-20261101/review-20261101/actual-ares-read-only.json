@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "at": "2026-11-01T19:31:26.382Z",
+  "remoteDataMocked": false,
+  "localWorldMocked": true,
+  "computerFocusVerified": false,
+  "remoteWrites": 0,
+  "productionRestart": false,
+  "isolatedProfile": true,
+  "expected": {
+    "environmentId": "759ac290-8733-4821-b342-9357d3569073",
+    "threadId": "759ac290-8733-4821-b342-9357d3569073::20d100b1-f035-4f13-b8b9-4e503f01ef0e",
+    "title": "Improve Fast Voice Pipeline Latency",
+    "room": "p:759ac290-8733-4821-b342-9357d3569073::19e9e317-9c94-409b-80b1-f0ec4d517ec8"
+  },
+  "actual": {
+    "environment": "759ac290-8733-4821-b342-9357d3569073",
+    "chat": "759ac290-8733-4821-b342-9357d3569073::20d100b1-f035-4f13-b8b9-4e503f01ef0e",
+    "focus": null,
+    "title": "Improve Fast Voice Pipeline Latency"
+  },
+  "checks": [
+    "authenticated existing Ares link",
+    "actual remote thread info read",
+    "real mouse input on occupied remote monitor",
+    "active environment, chat thread and actual title match"
+  ]
+}

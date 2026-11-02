@@ -47,7 +47,7 @@ export class DemoDesk {
       homeLeft: { ...this.centers.get("f")! },
       homeRight: { ...this.centers.get("j")! },
       mouse: { ...mouse },
-      moveMouse(p) { mouseG.setAttribute("transform", `translate(${(p.x - mouse.x).toFixed(1)} ${(p.y - mouse.y).toFixed(1)})`); },
+      moveMouse(p, turn = 0) { mouseG.setAttribute("transform", `translate(${(p.x - mouse.x).toFixed(2)} ${(p.y - mouse.y).toFixed(2)}) rotate(${turn.toFixed(1)} ${mouse.x} ${mouse.y})`); },
       mug: { ...mug },
       moveMug(p, tilt = 0) {
         mugG.setAttribute("transform", p ? `translate(${(p.x - mug.x).toFixed(1)} ${(p.y - mug.y).toFixed(1)}) rotate(${tilt} ${mug.x} ${mug.y})` : "");

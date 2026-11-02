@@ -13,7 +13,8 @@ const HOME = os.homedir();
 const T3_HOME = process.env.T3CODE_HOME || path.join(HOME, ".t3");
 const CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR ? path.join(process.env.CLAUDE_CONFIG_DIR, "projects") : path.join(HOME, ".claude", "projects");
 const CODEX_DIR = path.join(process.env.CODEX_HOME || path.join(HOME, ".codex"), "sessions");
-const PI_DIR = path.join(HOME, ".pi", "agent", "sessions");
+const PI_DIR = path.join(process.env.PI_CODING_AGENT_DIR || path.join(HOME, ".pi", "agent"), "sessions");
+const DB_PATH = path.join(T3_HOME, "userdata", "statev2.sqlite");
 const RATES_PATH = path.join(T3_HOME, "userdata", "usage-model-rates.json");
 
 const DAY = 86400000;
@@ -24,8 +25,8 @@ const CHUNK = 8 * 1024 * 1024;
 
 const SOURCES = [
   { harness: "claude", dir: CLAUDE_DIR, patterns: ['"usage":{', '"rateLimitType"'] },
-  { harness: "codex", dir: CODEX_DIR, patterns: ['"type":"token_count"', '"type":"turn_context"'] },
-  { harness: "pi", dir: PI_DIR, patterns: ['"usage":{'] },
+  { harness: "codex", dir: CODEX_DIR, patterns: ['"type":"token_count"', '"type":"turn_context"', '"type":"session_meta"'] },
+  { harness: "pi", dir: PI_DIR, patterns: ['"usage":{', '"type":"session"'] },
 ];
 
 // ---------------------------------------------------------------- state
@@ -244,6 +245,92 @@ function costOf(rec, r) {
   return rec.input * inp + rec.output * out + rec.cacheRead * cr + (rec.cacheWrite - w1h) * cw + w1h * cw1h;
 }
 
+// ---------------------------------------------------------------- project attribution
+
+// Native session IDs are the only exact cross-source link. A shared provider session
+// can bind several projects, so ambiguous IDs never resolve to an arbitrary project.
+let projectIndex = { signature: null, projects: new Map(), sessions: new Map(), roots: [], error: null };
+const harnessOf = (p) => p === "claudeAgent" || p === "claude-code" ? "claude" : p;
+const normalizedPath = (p) => {
+  if (typeof p !== "string" || !p.trim()) return null;
+  const windows = /^[a-z]:[\\/]/i.test(p) || p.startsWith("\\\\");
+  const value = p.replace(/\\/g, "/").replace(/\/+$/, "");
+  return windows ? value.toLowerCase() : value;
+};
+
+function loadProjects(errors) {
+  let db;
+  try {
+    const signature = [DB_PATH, `${DB_PATH}-wal`].map((p) => {
+      try { const s = fs.statSync(p); return `${s.size}:${s.mtimeMs}`; } catch { return "missing"; }
+    }).join("|");
+    if (signature === projectIndex.signature) {
+      if (projectIndex.error) errors.push(projectIndex.error);
+      return;
+    }
+    const { DatabaseSync } = require("node:sqlite");
+    db = new DatabaseSync(DB_PATH, { readOnly: true });
+    const index = { signature, projects: new Map(), sessions: new Map(), roots: [], error: null };
+    const tables = new Set(db.prepare("select name from sqlite_master where type = 'table'").all().map((r) => r.name));
+    const rows = (table, sql) => tables.has(table) ? db.prepare(sql).all() : [];
+    for (const p of rows("projection_projects", "select project_id, title, workspace_root from projection_projects")) {
+      index.projects.set(p.project_id, { id: p.project_id, name: p.title });
+      if (normalizedPath(p.workspace_root)) index.roots.push({ path: normalizedPath(p.workspace_root), id: p.project_id });
+    }
+    const threads = new Map();
+    for (const table of ["projection_threads", "orchestration_v2_projection_threads"]) {
+      for (const t of rows(table, `select thread_id, project_id${table === "projection_threads" ? ", worktree_path" : ""} from ${table}`)) {
+        threads.set(t.thread_id, t.project_id);
+        if (index.projects.has(t.project_id) && normalizedPath(t.worktree_path)) index.roots.push({ path: normalizedPath(t.worktree_path), id: t.project_id });
+      }
+    }
+    const bind = (harness, nativeId, thread) => {
+      const id = threads.get(thread);
+      if (!nativeId || !id || !index.projects.has(id)) return;
+      const key = `${harnessOf(harness)}:${nativeId}`;
+      const ids = index.sessions.get(key) || new Set(); ids.add(id); index.sessions.set(key, ids);
+    };
+    for (const t of rows("orchestration_v2_projection_provider_threads", `select provider, thread_id,
+      json_extract(payload_json, '$.nativeThreadRef.nativeId') as native_id,
+      json_extract(payload_json, '$.nativeThreadRef.strength') as strength
+      from orchestration_v2_projection_provider_threads`)) {
+      if (t.strength === "strong") bind(t.provider, t.native_id, t.thread_id);
+    }
+    for (const t of rows("projection_thread_sessions", "select provider_name, provider_session_id, provider_thread_id, thread_id from projection_thread_sessions")) {
+      bind(t.provider_name, t.provider_session_id, t.thread_id);
+      bind(t.provider_name, t.provider_thread_id, t.thread_id);
+    }
+    index.roots.sort((a, b) => b.path.length - a.path.length);
+    projectIndex = index;
+  } catch {
+    // Drop a failed index rather than keep attributing to a possibly changed project.
+    projectIndex = { signature: null, projects: new Map(), sessions: new Map(), roots: [], error: "Project mapping unavailable; usage is grouped as Unassigned." };
+    errors.push(projectIndex.error);
+  } finally { if (db) db.close(); }
+}
+
+function projectFor(r) {
+  const exact = r.sessionId && projectIndex.sessions.get(`${r.harness}:${r.sessionId}`);
+  if (exact) {
+    if (exact.size === 1) return { ...projectIndex.projects.get([...exact][0]), source: "session" };
+    return { id: "unassigned", name: "Unassigned", source: "unassigned" };
+  }
+  const cwd = normalizedPath(r.cwd);
+  if (cwd) {
+    const matches = projectIndex.roots.filter((root) => cwd === root.path || cwd.startsWith(`${root.path}/`));
+    const ids = new Set(matches.filter((root) => root.path.length === matches[0]?.path.length).map((root) => root.id));
+    if (ids.size === 1) return { ...projectIndex.projects.get([...ids][0]), source: "cwd" };
+  }
+  return { id: "unassigned", name: "Unassigned", source: "unassigned" };
+}
+
+function logContext(o, ctx, harness) {
+  const meta = harness === "codex" ? o.payload || {} : o;
+  if (typeof meta.cwd === "string") ctx.cwd = meta.cwd;
+  const id = harness === "claude" ? meta.sessionId : (o.type === "session_meta" || o.type === "session" ? meta.id : null);
+  if (typeof id === "string") ctx.sessionId = id;
+}
+
 // ---------------------------------------------------------------- parsers
 
 function claudeLine(text, st) {
@@ -253,6 +340,7 @@ function claudeLine(text, st) {
   if (o.type !== "assistant" || !o.message) return;
   const ts = Date.parse(o.timestamp);
   if (!Number.isFinite(ts)) return;
+  logContext(o, st.ctx, "claude");
   const msg = o.message;
   // Limit info only appears when a request was rejected by a plan limit.
   const rl = o.apiErrorParams?.rate_limit_info || o.quotaLimits;
@@ -265,7 +353,7 @@ function claudeLine(text, st) {
   const cacheRead = num(u.cache_read_input_tokens), cacheWrite = num(u.cache_creation_input_tokens);
   if (!input && !output && !cacheRead && !cacheWrite) return;
   st.records.push({
-    ts, harness: "claude", model: msg.model,
+    ts, harness: "claude", model: msg.model, cwd: o.cwd || st.ctx.cwd, sessionId: o.sessionId || st.ctx.sessionId,
     key: msg.id ? `${msg.id}:${o.requestId || ""}` : null,
     input, output, cacheRead, cacheWrite,
     cacheWrite1h: num(u.cache_creation?.ephemeral_1h_input_tokens),
@@ -276,6 +364,7 @@ function claudeLine(text, st) {
 
 function codexContext(o, ctx) {
   const p = o.payload || {};
+  logContext(o, ctx, "codex");
   const model = p.model || p.collaboration_mode?.settings?.model;
   if (model) ctx.model = model;
   if (p.service_tier !== undefined) ctx.tier = p.service_tier && p.service_tier !== "default" ? p.service_tier : null;
@@ -285,7 +374,7 @@ function codexLine(text, st) {
   let o;
   try { o = JSON.parse(text); } catch { return; }
   const ctx = st.ctx;
-  if (o.type === "turn_context") return codexContext(o, ctx);
+  if (o.type === "turn_context" || o.type === "session_meta") return codexContext(o, ctx);
   const p = o.payload;
   if (o.type !== "event_msg" || !p || p.type !== "token_count") return;
   const ts = Date.parse(o.timestamp);
@@ -303,8 +392,8 @@ function codexLine(text, st) {
   const cacheWrite = num(last.cache_write_input_tokens);
   const output = num(last.output_tokens); // includes reasoning tokens
   st.records.push({
-    ts, harness: "codex", model: ctx.model || "unknown",
-    key: `codex:${o.timestamp}:${total}`,
+    ts, harness: "codex", model: ctx.model || "unknown", cwd: ctx.cwd, sessionId: ctx.sessionId,
+    key: `codex:${ctx.sessionId || st.path}:${o.timestamp}:${total}`,
     input: Math.max(0, inTotal - cacheRead - cacheWrite), output, cacheRead, cacheWrite, cacheWrite1h: 0,
     prompt: inTotal,
     tier: ctx.tier || null,
@@ -314,6 +403,7 @@ function codexLine(text, st) {
 function piLine(text, st) {
   let o;
   try { o = JSON.parse(text); } catch { return; }
+  logContext(o, st.ctx, "pi");
   const m = o.message;
   if (o.type !== "message" || !m || m.role !== "assistant" || !m.usage) return;
   const ts = Date.parse(o.timestamp) || num(m.timestamp);
@@ -322,7 +412,7 @@ function piLine(text, st) {
   const input = num(u.input), output = num(u.output), cacheRead = num(u.cacheRead), cacheWrite = num(u.cacheWrite);
   if (!input && !output && !cacheRead && !cacheWrite) return;
   st.records.push({
-    ts, harness: "pi", model: m.model || "unknown", key: null,
+    ts, harness: "pi", model: m.model || "unknown", key: null, cwd: st.ctx.cwd, sessionId: st.ctx.sessionId,
     input, output, cacheRead, cacheWrite, cacheWrite1h: 0, prompt: input + cacheRead + cacheWrite, tier: null,
   });
 }
@@ -337,7 +427,7 @@ async function scanFile(p, harness, stat, now, errors) {
   if (st && stat.size === st.offset && stat.size >= st.size) { st.size = stat.size; st.mtimeMs = stat.mtimeMs; return; }
   const fresh = !st || stat.size < st.offset;
   if (fresh) {
-    st = { harness, size: 0, mtimeMs: 0, offset: 0, records: [], limits: [], ctx: { model: null, tier: null, prevTotal: null } };
+    st = { harness, path: p, size: 0, mtimeMs: 0, offset: 0, records: [], limits: [], ctx: { model: null, tier: null, prevTotal: null } };
     files.set(p, st);
   }
   const src = SOURCES.find((s) => s.harness === harness);
@@ -345,6 +435,11 @@ async function scanFile(p, harness, stat, now, errors) {
   try {
     fh = await fsp.open(p, "r");
     let from = st.offset;
+    // The session header lies before a timestamp seek. Read it once, not the old body.
+    if (fresh && (harness === "codex" || harness === "pi")) {
+      const header = await readLine(fh, 0, stat.size, 256 * 1024);
+      if (header) { try { const o = JSON.parse(header.text); logContext(o, st.ctx, harness); if (harness === "codex") codexContext(o, st.ctx); } catch { /* malformed header */ } }
+    }
     if (fresh && stat.size > SEEK_MIN) {
       from = await seekTime(fh, stat.size, now - KEEP);
       if (from > 0 && harness === "codex") {
@@ -397,17 +492,20 @@ async function scanAll(now, errors) {
   const cut = now - KEEP;
   for (const st of files.values()) {
     if (st.records.length && st.records[0].ts < cut) st.records = st.records.filter((r) => r.ts >= cut);
-    if (st.limits.length > 50) st.limits = st.limits.slice(-50);
+    // Keep the latest observation for each pool, including model side pools.
+    const latest = new Map();
+    for (const l of st.limits) latest.set(harnessLimitKey(st.harness, l), l);
+    st.limits = [...latest.values()];
   }
 }
 
 // ---------------------------------------------------------------- aggregation
 
 function emptyTotals() {
-  return { tokens: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, costUsd: 0, byHarness: {}, byModel: {} };
+  return { tokens: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, costUsd: 0, byHarness: {}, byModel: {}, byProject: {} };
 }
 
-function addTo(t, r, cost) {
+function addTo(t, r, cost, project) {
   const tokens = r.input + r.output + r.cacheRead + r.cacheWrite;
   t.tokens += tokens; t.input += r.input; t.output += r.output; t.cacheRead += r.cacheRead; t.cacheWrite += r.cacheWrite; t.costUsd += cost;
   const h = (t.byHarness[r.harness] ||= { tokens: 0, costUsd: 0 });
@@ -417,6 +515,9 @@ function addTo(t, r, cost) {
   const m = (t.byModel[key] ||= { tokens: 0, costUsd: 0, harness: r.harness, priced: true });
   m.tokens += tokens; m.costUsd += cost;
   if (!priceFor(r.model)) m.priced = false;
+  const p = (t.byProject[project.id] ||= { name: project.name, tokens: 0, costUsd: 0, priced: true, sources: { session: 0, cwd: 0, unassigned: 0 } });
+  p.tokens += tokens; p.costUsd += cost; p.sources[project.source] += tokens;
+  if (!priceFor(r.model)) p.priced = false;
 }
 
 function roundTotals(t) {
@@ -425,6 +526,14 @@ function roundTotals(t) {
   for (const v of Object.values(t.byHarness)) v.costUsd = r(v.costUsd);
   const sorted = Object.entries(t.byModel).sort((a, b) => b[1].tokens - a[1].tokens);
   t.byModel = Object.fromEntries(sorted.map(([k, v]) => [k, { ...v, costUsd: r(v.costUsd) }]));
+  // Round using fractional remainders, keeping every row nonnegative and the
+  // project micro-dollar sum exactly equal to the rounded headline total.
+  const projects = Object.entries(t.byProject).sort((a, b) => b[1].costUsd - a[1].costUsd || b[1].tokens - a[1].tokens);
+  const shares = projects.map(([, p]) => ({ p, units: Math.floor(p.costUsd * 1e6), fraction: p.costUsd * 1e6 % 1 }));
+  let residue = Math.round(t.costUsd * 1e6) - shares.reduce((sum, p) => sum + p.units, 0);
+  for (const share of [...shares].sort((a, b) => b.fraction - a.fraction)) if (residue > 0) { share.units++; residue--; }
+  shares.forEach(({ p, units }) => { p.costUsd = units / 1e6; });
+  t.byProject = Object.fromEntries(projects);
   return t;
 }
 
@@ -435,11 +544,17 @@ function aggregate(now, errors) {
   // Claude repeats a message once per content block (and copies it into resumed or subagent
   // files); the usage grows while it streams, so keep the largest copy of each message.
   const best = new Map();
+  const attribution = new Map();
   const loose = [];
   for (const st of files.values()) {
     for (const r of st.records) {
       if (r.ts < cuts.week && r.ts < cuts.today) continue;
       if (!r.key) { loose.push(r); continue; }
+      const project = projectFor(r);
+      const rank = project.source === "session" ? 2 : project.source === "cwd" ? 1 : 0;
+      const candidate = attribution.get(r.key);
+      if (!candidate || rank > candidate.rank) attribution.set(r.key, { rank, project });
+      else if (rank === candidate.rank && candidate.project.id !== project.id) candidate.project = { id: "unassigned", name: "Unassigned", source: "unassigned" };
       const prev = best.get(r.key);
       if (!prev || r.output > prev.output || (r.output === prev.output && r.input + r.cacheRead + r.cacheWrite > prev.input + prev.cacheRead + prev.cacheWrite)) best.set(r.key, r);
     }
@@ -450,72 +565,97 @@ function aggregate(now, errors) {
     const pr = priceFor(r.model);
     if (!pr) unknown.add(r.model);
     if (r._c === undefined || r._v !== rates.mtimeMs) { r._c = costOf(r, pr); r._v = rates.mtimeMs; }
-    for (const k of Object.keys(cuts)) if (r.ts >= cuts[k] && r.ts <= now + 60000) addTo(windows[k], r, r._c);
+    const project = r.key ? attribution.get(r.key).project : projectFor(r);
+    for (const k of Object.keys(cuts)) if (r.ts >= cuts[k] && r.ts <= now + 60000) addTo(windows[k], r, r._c, project);
   }
   for (const m of unknown) errors.push(`No API price for model "${m}": its tokens are counted, its cost is 0.`);
   for (const k of Object.keys(windows)) roundTotals(windows[k]);
   return windows;
 }
 
-function iso(ms) { return ms ? new Date(ms).toISOString() : null; }
+function iso(ms) {
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const d = new Date(ms);
+  return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+}
+
+function harnessLimitKey(harness, l) {
+  return harness === "codex" ? (l.rl.limit_id || "codex") : (l.type || "unknown");
+}
 
 function codexLimits(now) {
-  let newest = null;
+  const pools = new Map();
   for (const st of files.values()) {
     if (st.harness !== "codex") continue;
     for (const l of st.limits) {
-      const id = l.rl.limit_id;
-      if (id && id !== "codex") continue; // other ids are per-model side limits
-      if (!newest || l.ts > newest.ts) newest = l;
+      const id = harnessLimitKey("codex", l);
+      if (!pools.has(id) || l.ts >= pools.get(id).ts) pools.set(id, l);
     }
   }
-  if (!newest) return null;
-  const lim = (w) => {
-    if (!w || typeof w.used_percent !== "number") return null;
+  if (!pools.size) return null;
+  const windows = [];
+  const convert = (w, id, slot, observed) => {
+    if (!w) return null;
     const resetsAt = num(w.resets_at) ? w.resets_at * 1000 : null;
-    const out = { usedPercent: w.used_percent, windowMinutes: num(w.window_minutes) || null, resetsAt: iso(resetsAt) };
-    if (resetsAt && resetsAt <= now) out.stale = true; // window has reset since this was observed
+    const out = { id: `${id}:${slot}`, pool: id, label: observed.rl.limit_name || (id === "codex" ? null : id),
+      usedPercent: typeof w.used_percent === "number" && Number.isFinite(w.used_percent) ? w.used_percent : null,
+      windowMinutes: num(w.window_minutes) || null, resetsAt: iso(resetsAt), observedAt: iso(observed.ts),
+      stale: !!(resetsAt && resetsAt <= now) };
+    windows.push(out);
     return out;
   };
-  const res = { primary: lim(newest.rl.primary), secondary: lim(newest.rl.secondary), observedAt: iso(newest.ts) };
-  if (newest.rl.plan_type) res.plan = newest.rl.plan_type;
-  return res;
+  let primary = null, secondary = null;
+  for (const [id, l] of pools) {
+    const p = convert(l.rl.primary, id, "primary", l);
+    const s = convert(l.rl.secondary, id, "secondary", l);
+    if (id === "codex") { primary = p; secondary = s; }
+    // Preserve a reported pool even when its utilization is unavailable.
+    if (!p && !s) windows.push({ id: `${id}:unknown`, pool: id, label: l.rl.limit_name || (id === "codex" ? null : id), usedPercent: null, windowMinutes: null, resetsAt: null, observedAt: iso(l.ts) });
+  }
+  const main = pools.get("codex");
+  return { primary, secondary, windows, observedAt: iso(Math.max(...[...pools.values()].map((l) => l.ts))), ...(main?.rl.plan_type ? { plan: main.rl.plan_type } : {}) };
 }
 
 function claudeLimits(now) {
-  // Claude Code logs limits only when a request is rejected. A rejection whose reset time is
-  // still ahead means that window is used up; anything else is unknown, so it stays null.
-  let five = null, week = null;
+  // Rejections prove a full window only until its reported reset. No reading is 0%.
+  const latest = new Map();
   for (const st of files.values()) {
     if (st.harness !== "claude") continue;
     for (const l of st.limits) {
-      if (!l.resetsAt || l.resetsAt <= now) continue;
-      let used = null;
-      if (l.status === "rejected") used = 100;
-      else if (typeof l.utilization === "number") used = l.utilization <= 1 ? l.utilization * 100 : l.utilization;
-      if (used === null) continue;
-      const entry = { ts: l.ts, limit: { usedPercent: used, windowMinutes: null, resetsAt: iso(l.resetsAt) } };
-      if (l.type === "five_hour") { entry.limit.windowMinutes = 300; if (!five || l.ts > five.ts) five = entry; }
-      else if (l.type && l.type.startsWith("seven_day")) { entry.limit.windowMinutes = 10080; if (!week || l.ts > week.ts) week = entry; }
+      const id = harnessLimitKey("claude", l);
+      if (!latest.has(id) || l.ts >= latest.get(id).ts) latest.set(id, l);
     }
   }
-  if (!five && !week) return null;
-  return { primary: five ? five.limit : null, secondary: week ? week.limit : null, observedAt: iso(Math.max(five?.ts || 0, week?.ts || 0)) };
+  if (!latest.size) return null;
+  const windows = [...latest].map(([id, l]) => {
+    const used = l.status === "rejected" ? (l.resetsAt ? 100 : null) : typeof l.utilization === "number" && Number.isFinite(l.utilization) ? (l.utilization <= 1 ? l.utilization * 100 : l.utilization) : null;
+    return { id, pool: id, label: id === "five_hour" || id === "seven_day" ? null : id.replace(/_/g, " "),
+      usedPercent: used, windowMinutes: id === "five_hour" ? 300 : id.startsWith("seven_day") ? 10080 : null,
+      resetsAt: iso(l.resetsAt), observedAt: iso(l.ts), stale: !!(l.resetsAt && l.resetsAt <= now) };
+  });
+  const weekly = windows.filter((w) => w.windowMinutes === 10080).sort((a, b) => b.observedAt.localeCompare(a.observedAt));
+  return { primary: windows.find((w) => w.id === "five_hour") || null, secondary: weekly[0] || null,
+    windows, observedAt: iso(Math.max(...[...latest.values()].map((l) => l.ts))) };
 }
 
 // ---------------------------------------------------------------- API
+let providerLimitsReader = null;
+function setProviderLimitsReader(reader) { providerLimitsReader = reader; }
 
 async function compute() {
   const errors = [];
+  const reportedLimits = providerLimitsReader ? Promise.resolve().then(providerLimitsReader).catch(() => ({ providers: [], error: "T3 limits could not be refreshed." })) : null;
   const now = Date.now();
   let windows = { last5h: emptyTotals(), today: emptyTotals(), week: emptyTotals() };
   const limits = { codex: null, claude: null };
   try { loadRates(errors); } catch (err) { errors.push(String(err.message || err)); }
+  try { loadProjects(errors); } catch { errors.push("Project mapping unavailable."); }
   try { await scanAll(now, errors); } catch (err) { errors.push(`Scan failed: ${err.message || err}`); }
   try { windows = aggregate(now, errors); } catch (err) { errors.push(`Totals failed: ${err.message || err}`); }
   try { limits.codex = codexLimits(now); } catch (err) { errors.push(`Codex limits failed: ${err.message || err}`); }
   try { limits.claude = claudeLimits(now); } catch (err) { errors.push(`Claude limits failed: ${err.message || err}`); }
-  return { updatedAt: new Date(now).toISOString(), windows, limits, errors };
+  const usage = { updatedAt: new Date(now).toISOString(), windows, limits, errors };
+  return reportedLimits ? require("./provider-limits.cjs").mergeProviderLimits(usage, await reportedLimits) : usage;
 }
 
 async function getUsage() {
@@ -526,4 +666,56 @@ async function getUsage() {
   return inflight;
 }
 
-module.exports = { getUsage };
+// Exact session attribution only. Never assign an entire project's cost to a job.
+async function getSessionUsage(bindings) {
+  await getUsage();
+  const keys = new Set(bindings.map(b => `${harnessOf(b.harness)}:${b.sessionId}`));
+  const best = new Map();
+  for (const st of files.values()) for (const r of st.records) {
+    if (!keys.has(`${r.harness}:${r.sessionId}`)) continue;
+    const key = r.key || `${st.path}:${r.ts}:${r.input}:${r.output}`;
+    const old = best.get(key);
+    if (!old || r.output > old.output || (r.output === old.output && r.input + r.cacheRead + r.cacheWrite > old.input + old.cacheRead + old.cacheWrite)) best.set(key, r);
+  }
+  if (!best.size) return { available: false, tokens: null, costUsd: null, scope: "Observed native sessions, including linked subagents; recent logs only." };
+  const totals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, tokens: 0, costUsd: 0 };
+  let priced = true;
+  for (const r of best.values()) {
+    for (const k of ["input", "output", "cacheRead", "cacheWrite"]) totals[k] += r[k];
+    const rate = priceFor(r.model); if (!rate) priced = false;
+    totals.costUsd += costOf(r, rate);
+  }
+  totals.tokens = totals.input + totals.output + totals.cacheRead + totals.cacheWrite;
+  return { ...totals, costUsd: priced ? totals.costUsd : null, available: true, priced, scope: "API price estimate, not a bill. Observed recent native-session logs, including linked subagents; older or unlinked usage may be absent." };
+}
+async function getCoinSources(bindings) {
+  const usage = await getUsage();
+  const owners = new Map(), ambiguous = new Set();
+  for (const b of bindings) {
+    const key = `${harnessOf(b.harness)}:${b.sessionId}`;
+    if (owners.has(key) && owners.get(key).threadId !== b.threadId) ambiguous.add(key);
+    else owners.set(key, b);
+  }
+  const records = new Map();
+  // One scan for the whole office, including parents and their helpers.
+  for (const st of files.values()) for (const r of st.records) {
+    const session = `${r.harness}:${r.sessionId}`;
+    if (!owners.has(session) || ambiguous.has(session)) continue;
+    let best = records.get(session);
+    if (!best) records.set(session, best = new Map());
+    const key = r.key || `${st.path}:${r.ts}:${r.input}:${r.output}`;
+    const old = best.get(key);
+    if (!old || r.output > old.output || (r.output === old.output && r.input + r.cacheRead + r.cacheWrite > old.input + old.cacheRead + old.cacheWrite)) best.set(key, r);
+  }
+  const sources = [...owners].filter(([key]) => !ambiguous.has(key)).map(([key, b]) => {
+    let costUsd = 0, priced = !!records.get(key)?.size;
+    for (const r of records.get(key)?.values() || []) {
+      const rate = priceFor(r.model);
+      if (!rate) priced = false;
+      costUsd += costOf(r, rate);
+    }
+    return { key, threadId: b.threadId, title: b.title, status: b.status, costUsd: priced ? costUsd : null };
+  });
+  return { usage, sources };
+}
+module.exports = { getUsage, getSessionUsage, getCoinSources, setProviderLimitsReader };
