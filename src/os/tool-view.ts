@@ -254,3 +254,30 @@ export function toolViewHtml(v: ToolView, titles: string[] = []): string {
 
 /** What changed between two renders, so a repeat of the same state leaves the screen untouched. */
 export const toolViewKey = (v: ToolView) => JSON.stringify([v.phase, v.headline, v.subject, v.note, v.facts]);
+
+/** A view on screen that can follow its item: `refresh` reports whether it is still waiting on an outcome. */
+export interface WatchedView { refresh(): boolean; live(): boolean }
+
+/**
+ * Keeps on-screen tool views tied to their items after the scene that drew them has moved on (its
+ * wait timed out, or newer work cut it short). A real update to the item repaints the view in place.
+ * A view whose window was replaced or destroyed is dropped and never repainted, so a late result of
+ * one call cannot overwrite what another call is showing.
+ */
+export class ToolViewWatch {
+  private views = new Map<string, WatchedView>();
+  get size() { return this.views.size; }
+  add(id: string, view: WatchedView) {
+    for (const [key, v] of this.views) if (!v.live()) this.views.delete(key);
+    this.views.set(id, view);
+  }
+  /** The item changed. Returns whether a view followed it. */
+  update(id: string): boolean {
+    const view = this.views.get(id);
+    if (!view) return false;
+    if (!view.live()) { this.views.delete(id); return false; }
+    if (!view.refresh()) this.views.delete(id);
+    return true;
+  }
+  clear() { this.views.clear(); }
+}

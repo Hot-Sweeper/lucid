@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 const source = await readFile(new URL('../src/os/tool-view.ts', import.meta.url), 'utf8');
 const code = (await transformWithOxc(source, 'tool-view.ts')).code.replace(/^export /gm, '');
-const m = new Function(`${code};return {describeTool,toolViewHtml,toolViewKey,factTitles,findUpload,phaseOf,formatSize,shortId,toolActivity,isT3Tool,prettyTool,readableNote,uploadIdOf};`)();
+const m = new Function(`${code};return {describeTool,toolViewHtml,toolViewKey,factTitles,findUpload,phaseOf,formatSize,shortId,toolActivity,isT3Tool,prettyTool,readableNote,uploadIdOf,ToolViewWatch};`)();
 
 const T3 = 'mcp__t3-code__';
 const id = 'pending-0ce4b802-9e93-426a-a139-5e2f0c3d4b11';
@@ -82,4 +82,29 @@ assert.equal(m.toolViewKey(a), m.toolViewKey(m.describeTool(T3 + 't3_attachment_
 assert.notEqual(m.toolViewKey(a), m.toolViewKey(m.describeTool(T3 + 't3_attachment_discard', { attachmentId: id }, { status: 'completed' })));
 assert.equal(m.formatSize(999), '999 B'); assert.equal(m.formatSize(1536), '1.5 KB'); assert.equal(m.formatSize(52428800), '52.4 MB'); assert.equal(m.formatSize(undefined), '');
 assert.ok(!dashes.test(source.replace(/\/\/.*$/gm, '')), 'no em or en dashes in interface copy');
+
+// Views follow their item after the scene that drew them stopped waiting (timeout or backlog), and only while attached.
+const view = (state) => { const v = { phase: 'pending', paints: 0, attached: true, live: () => v.attached, refresh: () => { if (!v.attached) { v.stale = true; return false; } v.paints++; v.phase = state.phase; return v.phase === 'pending'; } }; return v; };
+{
+  const watch = new m.ToolViewWatch();
+  const late = { phase: 'pending' }, v = view(late);
+  watch.add('a', v);
+  assert.equal(watch.update('a'), true); assert.equal(v.paints, 1, 'the scene end refresh leaves a running call in place');
+  assert.equal(watch.size, 1, 'a call still running stays followed');
+  late.phase = 'done'; assert.equal(watch.update('a'), true); assert.equal(v.paints, 2); assert.equal(v.phase, 'done', 'late success repaints');
+  assert.equal(watch.size, 0, 'a settled call is released');
+  assert.equal(watch.update('a'), false); assert.equal(v.paints, 2, 'no repaint after release');
+  const failing = { phase: 'pending' }, f = view(failing); watch.add('b', f);
+  failing.phase = 'failed'; watch.update('b'); assert.equal(f.phase, 'failed', 'late failure repaints'); assert.equal(watch.size, 0);
+  // another call took over the window: the older view must never be painted again
+  const old = view({ phase: 'done' }), next = view({ phase: 'pending' });
+  watch.add('old', old); watch.add('new', next); old.attached = false;
+  assert.equal(watch.update('old'), false); assert.equal(old.paints, 0, 'replaced view is not repainted'); assert.equal(old.stale, undefined, 'and is not even asked to');
+  assert.equal(watch.size, 1);
+  // a destroyed window drops its view when the next one registers, without waiting for an update
+  const gone = view({ phase: 'pending' }); watch.add('gone', gone); gone.attached = false; watch.add('later', view({ phase: 'pending' }));
+  assert.equal(watch.size, 2, 'destroyed views are pruned on the next registration');
+  watch.clear(); assert.equal(watch.size, 0); assert.equal(watch.update('later'), false);
+  assert.equal(watch.update('never-seen'), false);
+}
 console.log('tool view presentation verified');

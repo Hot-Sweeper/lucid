@@ -41,3 +41,19 @@ by `node scripts/capture-tool-view-native.cjs <dir>` (2x zoom of the 820x461 rob
     992edac61c1b8490f2c085b2eae765cdcb69fb16f7506e2f5ae99b3d460d16fb  narrow-long-name.png
     bb5102c9c3ed2af5b91664068128f600bed6967765385953209eb7cb14d44bb1  prepare-done.png
     dde50c632949bd33307cdd5b0224ba71680eb82abbdc7589279933d2e4954799  prepare-running.png
+
+## Late updates (added in the review follow-up)
+
+The scene that draws a tool view stops waiting after 15 seconds, or sooner when more than two items are queued.
+The view now keeps following its item: a real update through `Director.push` repaints it in place, and a view whose window
+was replaced or destroyed is dropped and never painted again. `ToolViewWatch` is covered deterministically in
+`scripts/verify-tool-view.mjs` (part of `verify:update`). The native check
+`node scripts/verify-tool-view-updates-native.cjs` (about 30 seconds, hard stop at 120) uses the production Director, WM and
+ToolApp and passed 24 checks with no renderer errors: backlog exit at 6.6 s then late success; 15 s timeout (15.2 s) then late failure
+with the tool's reason; a second call replacing the window, then the older call settling (the newer content is untouched);
+and a destroyed window followed by a stale result (nothing reopens, nothing leaks into a later window).
+The first version of the check was run against a build with the late-update hook removed and failed at "late success repaints",
+so the check can fail. The accepted captures above were not regenerated; the capture fixture still passes its 29 checks
+(rerun into a scratch folder).
+
+    d6adcba23f05f567aa9e8542fc3f36e95d7c699e03a365e4cc45686b5e5ad89d  tool-view-updates-20261102/update-results.json
