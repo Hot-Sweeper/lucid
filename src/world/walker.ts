@@ -33,7 +33,7 @@ export type Activity =
   | "type";
 
 export interface WalkerOptions { id: string; provider: string; name?: string; model?: string; scale?: number; look?: RobotLook; speed?: number; flavorSpeech?: boolean }
-export type Prop = "none" | "mug" | "bowl" | "spoon" | "card" | "wrist" | "paddle" | "pad" | "popcorn" | "ball" | "stamp";
+export type Prop = "none" | "mug" | "bowl" | "spoon" | "card" | "report" | "wrist" | "paddle" | "pad" | "popcorn" | "ball" | "stamp";
 
 // ---- skeleton (v0 units) ------------------------------------------------------------------------
 const FEET = { x: 560, y: 935 };              // floor point between the feet
@@ -84,6 +84,11 @@ const PROPS: Record<Prop, string> = {
   spoon: `<rect x="-2.5" y="-30" width="5" height="40" rx="2.5" fill="#cfd5e2"/><ellipse cx="0" cy="-33" rx="6.5" ry="8" fill="#e6eaf2"/>
     <ellipse data-r="bite" cx="0" cy="-34" rx="4.2" ry="5" fill="#ffd27a" opacity="0"/>`,
   card: "",
+  report: `<g class="world-report-sheet" aria-hidden="true"><path d="M-8 -66 H33 L47 -52 V7 H-8 Z" fill="#fff9ec" stroke="#c7b28e" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M33 -66 V-52 H47" fill="#eadcc3" stroke="#c7b28e" stroke-width="1.6" stroke-linejoin="round"/>
+    <rect x="0" y="-56" width="24" height="5" rx="1" fill="#d3935c"/>
+    <path d="M0 -42 H35 M0 -34 H35 M0 -26 H29 M0 -18 H34 M0 -10 H19" stroke="#afa28d" stroke-width="2" stroke-linecap="round"/>
+    <path d="M29 -2 H35" stroke="#d3935c" stroke-width="2" stroke-linecap="round"/></g>`,
   wrist: "",
   paddle: `<g transform="scale(1.2)"><rect x="-4" y="-10" width="8" height="22" rx="4" fill="#a8774f"/><circle cx="0" cy="-29" r="20" fill="#2b2f3d"/><circle cx="0" cy="-30" r="17.5" fill="#e2483d"/>
     <ellipse cx="-6" cy="-36" rx="6.5" ry="4" fill="#ff8a7a" opacity="0.6"/></g>`,
@@ -318,7 +323,7 @@ export class Walker {
     this.$.plate.setAttribute("width", String(w));
     this.updateTitle();
   }
-  private updateTitle() { this.el.title = [this.name, this.model, this.remainingBattery === null ? "" : `${Math.floor(this.remainingBattery)}% subscription battery remaining`].filter(Boolean).join(", "); }
+  private updateTitle() { this.el.title = [this.name, this.model, this.reportTitle, this.remainingBattery === null ? "" : `${Math.floor(this.remainingBattery)}% subscription battery remaining`].filter(Boolean).join(", "); }
 
   /** Height of the robot above its feet, in px (for placing things over its head). */
   get height() {
@@ -469,7 +474,7 @@ export class Walker {
     this.actTimers = [];
     window.clearInterval(this.zTimer);
     this.zTimer = 0;
-    this.card.classList.toggle("on", this.carryingReport);
+    this.card.classList.remove("on");
     this.battery.classList.remove("on");
   }
 
@@ -625,6 +630,10 @@ export class Walker {
         break;
       case "hold-card":
         if (opts.card != null) this.setCard(opts.card);
+        if (this.carryingReport) {
+          to({ ...arm("r", H(20, 52, 30, -6)), ...arm("l", HIP_HAND), lak: 1 }, 0.4);
+          break;
+        }
         this.card.classList.add("on");
         to({ ...arm("r", H(16, -82, 6)), ...arm("l", HIP_HAND), lak: 1 }, 0.5);
         this.act = gsap.to(this.card, { y: -3, duration: 1.4, yoyo: true, repeat: -1, ease: "sine.inOut" });
@@ -957,7 +966,14 @@ export class Walker {
   }
 
   private carryingReport = false;
-  carryReport(text: string) { this.carryingReport = true; this.setCard(text); this.card.classList.add("on"); }
+  private reportTitle = "";
+  carryReport(text: string | null) {
+    if (this.carryingReport === !!text && this.reportTitle === (text || "")) return;
+    this.carryingReport = !!text; this.reportTitle = text || "";
+    this.card.classList.remove("on");
+    this.setProps(this.propL, text ? "report" : this.propR === "report" ? "none" : this.propR);
+    this.updateTitle();
+  }
   setCard(text: string) { this.card.querySelector("span")!.textContent = text; this.card.title = text; }
 
   setExpression(e: Expression) {
@@ -993,6 +1009,7 @@ export class Walker {
   }
 
   private setProps(l: Prop, r: Prop) {
+    if (this.carryingReport) r = "report";
     this.propL = l; this.propR = r;
     for (const [k, p] of [["L", l], ["R", r]] as const) {
       const over = OVER.has(p);
@@ -1275,6 +1292,7 @@ export class Walker {
       case "bowl": return { ...BOWL };
       case "spoon": return { ...SCOOP };
       case "mug": return { ...MUG };
+      case "report": return H(20, 52, 30, -6);
       case "popcorn": return mix(POP_STAND, POP_SIT);
       case "pad": return mix(PAD, PAD_SIT);
       case "paddle": return { ...READY_R, y: 50, z: 18, r: -10 };

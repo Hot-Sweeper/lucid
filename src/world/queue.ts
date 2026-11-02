@@ -113,6 +113,7 @@ export class QuestionLine implements RoomExtension {
       const q = this.line.find((x) => x.id === t.id);
       const text = shortQuestion(t.question || t.title);
       if (q) {
+        q.w.carryReport(this.reports.has(t.id) ? text : null);
         if (!q.alive) {
           // A question can return while its owner is still walking out. Reuse that
           // actor and invalidate the pending exit instead of spawning a duplicate.
@@ -138,6 +139,7 @@ export class QuestionLine implements RoomExtension {
       else w.setPos(this.out.x, this.out.y + this.line.length * 20);
       w.face("up");
       w.setCard(text);
+      if (this.reports.has(t.id)) w.carryReport(text);
       w.el.addEventListener("click", (e) => { e.stopPropagation(); this.onSelect(t.id); });
       this.line.push({ id: t.id, w, alive: true, slot: -1, question: text, timers: [], entered: !!entry || here, here, version: 0, lookKey: JSON.stringify(t.look ?? {}) });
     }
@@ -261,6 +263,7 @@ export class QuestionLine implements RoomExtension {
 
   private async leave(q: Q) {
     this.endConversation(q);
+    q.w.carryReport(null);
     q.alive = false;
     const version = ++q.version; q.w.stop();
     q.w.setRunning(false);
