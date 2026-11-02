@@ -1,0 +1,193 @@
+﻿
+> lucid@0.1.0 verify:update
+> npm run typecheck && node scripts/verify-backend-stability.cjs && node scripts/verify-game-sound.cjs && node scripts/verify-background-audio.cjs && node scripts/verify-soundtrack.cjs && node scripts/verify-soundscape.cjs && node scripts/verify-dictation.cjs --without-python && node scripts/verify-reports.cjs && node scripts/verify-settlement-recovery.cjs && node scripts/verify-report-scheduling.mjs && node scripts/verify-delegate-observation.mjs && node scripts/verify-orchestrator-recovery.mjs && node scripts/verify-campus-atmosphere.mjs && node scripts/verify-campus-plan.mjs && node scripts/verify-landscape.mjs && node scripts/verify-floor-plan.mjs && node scripts/verify-world-refresh.mjs && node scripts/verify-desk-presence.mjs && node scripts/verify-chat-media.mjs && node scripts/verify-monitor-tasks.mjs && node scripts/verify-updater.cjs && node scripts/verify-screen-scheduler.mjs && node scripts/verify-screen-detail.mjs && node scripts/verify-screen-detail-controller.mjs && node scripts/verify-weather-retention.mjs && node scripts/verify-outside-cull.mjs && node scripts/verify-outside-viewport.mjs && node scripts/verify-tile-clip-retention.mjs && node scripts/verify-raster-quiet.mjs && npm run build
+
+
+> lucid@0.1.0 typecheck
+> node electron/runtime-check.cjs && tsc -p .
+
+Runtime syntax: 193 CommonJS files passed.
+node.exe : (node:52876) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:52876) Ex...nge at any time:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: queued atomic office saves, retained data during/failing writes, retry, validation, flush, CLI timeout, output bounds, stdin errors, late close and reports without projected runs.
+PASS: gesture-only graph, layered rewards, positional gain/pan, real headphone lowpass, sustained-source camera tracking, source cancellation, bounded polyphony, mute/hidden silence and teardown.
+(node:57060) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:56672) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: lazy streaming, single graph, bounded sources, quiet independent persistent levels, no overlapping starts, late-play races, retry, mute, visibility, playhead continuity and teardown.
+PASS: nine distinct songs, full-library shuffle, no adjacent repeats, persisted history, all day-period boundaries and preferences, packaged assets and digital headroom.
+(node:56128) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: single scheduler, geometry without layout reads, six-source/two-music budgets, actual activity routing, offscreen cancellation, TV power, park ambience, hidden silence and ownership cleanup.
+(node:57356) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:52920) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: dictation protocol, shared fallback, cancellation races, exclusive model ownership through delayed exit, bounded shutdown, pipe errors, capture cleanup and thread-safe draft insertion.
+Python encoding fixture skipped; update validation does not require the optional dictation runtime.
+Report checks passed: persistence, screenshots, pause, backlog, child work, matching verdicts, settlement, reopening, missing evidence, transport recovery, revisions, feedback stale-run protection, and manager promotion exclusions.
+PASS: renderer-independent review, automatic settlement retry/restart, confirmation, run fencing, stale snapshots, pause and single-flight supervision.
+Report scheduling: 1000 observations coalesced; latest snapshot, stale reports, environment switch and cleanup passed.
+PASS: coalesced observations, failure recovery, bounded JSON reply parsing, and normal/retried decisions skip unrelated JSON without freezing.
+PASS: busy-thread reply window, chronological order, bounded/backoff retries, queue deduplication, pause, late-response reuse, human-confidence gate, final recheck ownership and transient read failure.
+(node:58184) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Campus atmosphere: local solar/night/freshness/twilight and full-campus camera reach passed.
+Campus geometry passed: 49 districts, stable placement, adjacency, artwork scale, clear footprints, complete overview and row packing.
+Landscape: 1113 trees, 664 props, 1 lamps; deterministic and clear of buildings and routes.
+{"ok":true,"rooms":15,"building":{"w":5970,"h":3860},"checkedLegs":29403,"growth":{"resumed":38,"blocked":7}}
+PASS: nonblocking reports/watches, hidden desktop supervision, stale world/tasks/watch results, single-flight task reads, immediate coalesced refresh and subscription retries
+Desk presence: zero visibility-edge DOM scans, owned/nested GSAP pause and resume, killed-scene cleanup, hidden cursor geometry, cancellation, indefinite wait, real typing cadence, note paint, desk isolation, idle stop and queued arrival passed.
+Chat media paths passed: Windows/file/UNC/POSIX, special characters, media types, remote companion routing and rejected unsafe sources.
+Monitor tasks passed: coalesced pending reads, failed-read recovery, real completion transitions, desk retention, new work, settlement, removal and building isolation.
+Build isolation: successful and failed real Vite builds preserve installed HTML and loaded assets.
+PASS: command success/errors, npm through cmd, bounded output, timeout/abort kill owned trees including npm grandchildren, and preserve an unrelated sibling.
+Update feedback: concise errors, exact copyable details, retained failure state, retry, duplicate clicks and listener cleanup passed.
+(node:53148) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Native frozen input passed: exact ASAR bytes, failure cleanup, retry, private source isolation and unchanged installation.
+Updater transactions: live backend drift, all promotion renames, retained rollback, cleanup/notification failures and retry passed.
+Updater: accumulation, offline, dirty files, failed builds, retry, concurrency, promotion and restart passed.
+{"stableCameraCalls":120,"redundantDetailUpdates":0}
+{"tinyVisibleHz":20,"closeHz":60,"offscreenPaused":true,"coveredPaused":true,"reparentingResumed":true,"tinyThumbnailBuilt":true,"highRefreshDraws":21,"highRefreshChecks":21,"highRefreshCallbacks":68,"staggeredPeak":7}
+Symmetric LOD cutoffs and 1300 wheel round trips passed.
+{"cursorCaptures":0,"typingWindowsRefreshed":1,"iconCanvasAllocations":0,"iconTypingLayoutReads":0,"cachedTierLayoutReads":0,"newAppsInherit":true,"offscreenCaptures":0}
+{"coldCaptureTasks":64,"maxLayoutStyleReadsPerTask":130,"warmBoundaryChanges":600,"warmLayoutReads":0,"warmCanvasAllocations":0,"staleViewRetained":true,"windowMotionRecaptures":0}
+{"stablePans":120,"detailControllerCalls":1,"newWindowObserverRetained":true}
+{"busyRendererAllFourTiers":true,"middleTierPixelsRestored":true,"contentRefreshStaysIdle":true}
+PASS: sky backing reuse/density; retained pan and immediate rain coverage/world mapping; rain proportions and unique storm drops; camera-stable clock/cadence; hidden/diagnostic/mobile resume; graphics/timer/listener cleanup
+PASS: whole-path outdoor culling, original-byte restoration, physical guard, transformed bounds, fade/hedge holes, inherited paint safety and owner cleanup
+PASS: raster source spans, complete visible-path bytes, canonical independence, fail-closed mapping and bounded owner cleanup
+{"continuousWarmPanEvents":100,"warmPanRasterDecodes":0,"maxConcurrentDecodes":1,"maxTileAxis":514,"wholeWorldRasterJobs":0,"retainedBeforeDestroy":5283920,"images":1212}
+PASS: world-aligned outdoor tiles, full-DPR upward LOD, moving cache reuse, exact missing-core fallback, guard-inclusive viewport budget, bounded decode queue, retry/context loss/Safari compatibility and cleanup
+PASS: native-hole clip identity across 100 camera changes, exact physical-pixel snapping, no redundant ready-tile writes, tile arrival/removal cleanup.
+Raster quiet gate: continuous input, one sleeping timer, exact120ms quiet boundary, owner cancellation, visibility resume and teardown passed.
+
+> lucid@0.1.0 build
+> vite build
+
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 347 modules transformed.
+rendering chunks...
+computing gzip size...
+dist-build/index.html                                                       1.83 kB │ gzip:   0.63 kB
+dist-build/assets/jetbrains-mono-vietnamese-wght-normal-Bt-aOZkq.woff2      7.50 kB
+dist-build/assets/antigravity-DjUPfF9c.svg                                  8.04 kB │ gzip:   2.08 kB
+dist-build/assets/jetbrains-mono-greek-wght-normal-Bw9x6K1M.woff2           9.00 kB
+dist-build/assets/jetbrains-mono-cyrillic-wght-normal-D73BlboJ.woff2       12.10 kB
+dist-build/assets/lexend-vietnamese-wght-normal-RvljkFvg.woff2             13.84 kB
+dist-build/assets/jetbrains-mono-latin-ext-wght-normal-DBQx-q_a.woff2      15.19 kB
+dist-build/assets/lexend-latin-ext-wght-normal-B6JQhE1e.woff2              34.47 kB
+dist-build/assets/lexend-latin-wght-normal-ci0D1wrL.woff2                  39.68 kB
+dist-build/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2          40.40 kB
+dist-build/assets/room-air-B9b5SHkA.mp3                                   921.12 kB
+dist-build/assets/first-coffee-B8iU_x_j.mp3                             1,881.38 kB
+dist-build/assets/paper-kites-DIwvN68c.mp3                              1,963.92 kB
+dist-build/assets/peach-parade-DMp0SqM8.mp3                             2,168.20 kB
+dist-build/assets/tram-home-BZIB76b2.mp3                                2,188.58 kB
+dist-build/assets/window-garden-DD9yiqcu.mp3                            2,263.29 kB
+dist-build/assets/apricot-hour-De5EfxoP.mp3                             2,607.58 kB
+dist-build/assets/sleepy-satellites-CfVFJUlF.mp3                        2,904.86 kB
+dist-build/assets/moonlit-desks-GVvaoMr_.mp3                            3,081.44 kB
+dist-build/assets/little-lights-DP-MiED2.mp3                            3,939.83 kB
+dist-build/assets/doodle-CfyUGZaq.css                                       1.42 kB │ gzip:   0.61 kB
+dist-build/assets/solitaire-aPeShGrM.css                                    1.51 kB │ gzip:   0.65 kB
+dist-build/assets/crossword-CYbxEWVS.css                                    1.86 kB │ gzip:   0.72 kB
+dist-build/assets/canvas-4WaWdBR5.css                                       2.12 kB │ gzip:   0.65 kB
+dist-build/assets/tensorhub-bZpCjgWn.css                                    2.16 kB │ gzip:   0.73 kB
+dist-build/assets/stocks-DKiTp-rt.css                                       2.47 kB │ gzip:   0.84 kB
+dist-build/assets/mail-CrkEG-Ie.css                                         2.65 kB │ gzip:   0.85 kB
+dist-build/assets/island-DWkaKavF.css                                       3.01 kB │ gzip:   1.03 kB
+dist-build/assets/lingo-D4xjRBNh.css                                        3.32 kB │ gzip:   1.03 kB
+dist-build/assets/chatkit-PsZqft3X.css                                      3.65 kB │ gzip:   1.26 kB
+dist-build/assets/botcom-B--1xTx2.css                                       3.75 kB │ gzip:   1.21 kB
+dist-build/assets/boot-cwh-2pyw.css                                         3.95 kB │ gzip:   1.26 kB
+dist-build/assets/trading-D6E-4tq4.css                                      4.08 kB │ gzip:   1.16 kB
+dist-build/assets/bugger-Y56WQ5ww.css                                       4.67 kB │ gzip:   1.50 kB
+dist-build/assets/spoolweb-DGneRaiB.css                                     5.24 kB │ gzip:   1.59 kB
+dist-build/assets/instaweb-CV_I82NZ.css                                     5.41 kB │ gzip:   1.49 kB
+dist-build/assets/steam-azK0tEDc.css                                        5.64 kB │ gzip:   1.71 kB
+dist-build/assets/chirp-DckB-nOT.css                                        6.64 kB │ gzip:   1.69 kB
+dist-build/assets/telegrid-B8R5Oz12.css                                     7.21 kB │ gzip:   1.84 kB
+dist-build/assets/kit-CUmBWyhk.css                                          9.13 kB │ gzip:   2.35 kB
+dist-build/assets/kit-DrFSi-m_.css                                          9.84 kB │ gzip:   2.47 kB
+dist-build/assets/sparkplug-DfBsygh8.css                                   10.39 kB │ gzip:   2.54 kB
+dist-build/assets/phone-apps-C5eVkhGJ.css                                  12.55 kB │ gzip:   3.03 kB
+dist-build/assets/phonetime-fMcsrXPI.css                                   15.01 kB │ gzip:   3.38 kB
+dist-build/assets/botflix-09qaepx6.css                                     15.75 kB │ gzip:   3.94 kB
+dist-build/assets/index-DUhExxnB.css                                      281.47 kB │ gzip:  60.93 kB
+dist-build/assets/chirp-SVNW0sJw.js                                         0.07 kB │ gzip:   0.08 kB
+dist-build/assets/botsapp-DCZUc-Ur.js                                       0.07 kB │ gzip:   0.09 kB
+dist-build/assets/telegrid-BfmB_7aI.js                                      0.07 kB │ gzip:   0.08 kB
+dist-build/assets/sparkplug-BqICD8Ab.js                                     0.07 kB │ gzip:   0.08 kB
+dist-build/assets/chatkit-CcLXl4Ub.js                                       0.07 kB │ gzip:   0.09 kB
+dist-build/assets/rolldown-runtime-B8xr6ykz.js                              0.18 kB │ gzip:   0.14 kB
+dist-build/assets/catalog-C0e2NbeC.js                                       0.39 kB │ gzip:   0.30 kB
+dist-build/assets/typing-DVNqdMaY.js                                        0.98 kB │ gzip:   0.59 kB
+dist-build/assets/common-DpSIv8Wh.js                                        2.18 kB │ gzip:   1.05 kB
+dist-build/assets/util-DGyRiOh-.js                                          2.24 kB │ gzip:   1.15 kB
+dist-build/assets/emoji-DKZEI87Y.js                                         2.52 kB │ gzip:   1.45 kB
+dist-build/assets/util-BV1TusB4.js                                          3.14 kB │ gzip:   1.40 kB
+dist-build/assets/daily-CfFVBWdN.js                                         3.45 kB │ gzip:   1.78 kB
+dist-build/assets/site-CxaMkMzj.js                                          3.80 kB │ gzip:   1.73 kB
+dist-build/assets/mail-A8EZD3GV.js                                          4.71 kB │ gzip:   1.88 kB
+dist-build/assets/crossword-KlYejNU-.js                                     4.73 kB │ gzip:   1.88 kB
+dist-build/assets/kit-DbMVxyz8.js                                           4.89 kB │ gzip:   2.25 kB
+dist-build/assets/merge-DJFOPhwa.js                                         4.96 kB │ gzip:   2.42 kB
+dist-build/assets/connect4-DJEGw3SA.js                                      5.20 kB │ gzip:   2.57 kB
+dist-build/assets/lingo-DkdDLTKJ.js                                         5.22 kB │ gzip:   2.13 kB
+dist-build/assets/flappy-ClaeRgo3.js                                        5.37 kB │ gzip:   2.81 kB
+dist-build/assets/tictactoe-OsRd2Og5.js                                     5.70 kB │ gzip:   2.68 kB
+dist-build/assets/stocks-BEN07lLL.js                                        5.84 kB │ gzip:   2.57 kB
+dist-build/assets/phone-apps-Dm-Eon9f.js                                    5.95 kB │ gzip:   1.90 kB
+dist-build/assets/kit-Bc9ngcJX.js                                           6.12 kB │ gzip:   2.76 kB
+dist-build/assets/snake-m5qMtduZ.js                                         6.19 kB │ gzip:   3.00 kB
+dist-build/assets/solitaire-D7b2RFeM.js                                     6.70 kB │ gzip:   2.91 kB
+dist-build/assets/localization-dom-CiBmyjEe.js                              6.77 kB │ gzip:   3.29 kB
+dist-build/assets/scenes-BK92ykww.js                                        6.92 kB │ gzip:   2.86 kB
+dist-build/assets/dash-tDp5h_9I.js                                          7.71 kB │ gzip:   3.73 kB
+dist-build/assets/doodle-DRUBEnPv.js                                        8.01 kB │ gzip:   3.28 kB
+dist-build/assets/keyboard-DI3lvq3i.js                                      8.49 kB │ gzip:   3.37 kB
+dist-build/assets/telegrid-BDHe4Z1s.js                                      8.96 kB │ gzip:   3.40 kB
+dist-build/assets/spoolweb-CQsAfRhL.js                                      9.01 kB │ gzip:   3.39 kB
+dist-build/assets/chirp-e7EEyq0B.js                                         9.12 kB │ gzip:   3.48 kB
+dist-build/assets/instaweb-B8MiGCZn.js                                      9.19 kB │ gzip:   3.34 kB
+dist-build/assets/tube-B1K8PxTm.js                                         11.29 kB │ gzip:   3.95 kB
+dist-build/assets/sparkplug-Dz4rsiIw.js                                    11.50 kB │ gzip:   4.18 kB
+dist-build/assets/botsapp-DXZPJGc5.js                                      14.03 kB │ gzip:   5.13 kB
+dist-build/assets/draw-CNSj2Twk.js                                         14.12 kB │ gzip:   7.39 kB
+dist-build/assets/steam-ak_XVDbL.js                                        15.53 kB │ gzip:   5.60 kB
+dist-build/assets/trading-Dx_Z0Bfz.js                                      17.69 kB │ gzip:   6.38 kB
+dist-build/assets/nightshift-D6Ei9u7A.js                                   18.01 kB │ gzip:   7.82 kB
+dist-build/assets/social-Cwc30EvD.js                                       19.59 kB │ gzip:   8.44 kB
+dist-build/assets/blockcraft-spRxqYDl.js                                   20.70 kB │ gzip:   9.31 kB
+dist-build/assets/beats-FKuCqWf5.js                                        28.58 kB │ gzip:   9.14 kB
+dist-build/assets/bugger-B7unTs0j.js                                       28.73 kB │ gzip:  12.26 kB
+dist-build/assets/island-BwCXyOud.js                                       29.60 kB │ gzip:  12.42 kB
+dist-build/assets/botcom-Bwy_lONr.js                                       30.31 kB │ gzip:  12.87 kB
+dist-build/assets/phonetime-Bqm0s9Q2.js                                    34.38 kB │ gzip:  11.43 kB
+dist-build/assets/boot-BdMSU8jh.js                                         37.22 kB │ gzip:  15.28 kB
+dist-build/assets/tensorhub-DZTfpcOJ.js                                    50.59 kB │ gzip:  20.81 kB
+dist-build/assets/chat-Y7XqFff-.js                                         66.17 kB │ gzip:  24.15 kB
+dist-build/assets/content-CMqj1lOv.js                                      87.61 kB │ gzip:  34.68 kB
+dist-build/assets/canvas-ClMj5mcz.js                                       89.31 kB │ gzip:  35.17 kB
+dist-build/assets/botflix-23N4ksnp.js                                      99.30 kB │ gzip:  36.61 kB
+dist-build/assets/videos-zhePh7Ee.js                                      100.19 kB │ gzip:  40.73 kB
+dist-build/assets/seated-parts-CL6gPpRN.js                                111.06 kB │ gzip:  38.47 kB
+dist-build/assets/index-D0HmGSts.js                                     1,350.67 kB │ gzip: 465.32 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: 
+https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 389ms

@@ -5,7 +5,7 @@ const { randomUUID } = require('node:crypto');
 // Keep the previous complete document visible until its replacement is durable.
 // Serialize writes so an older, slower save cannot overwrite a newer one.
 function createJsonStore(file, { fallback, array = false, io = fs.promises } = {}) {
-  let tail = Promise.resolve(), pending = 0;
+  let tail = Promise.resolve(), pending = 0, lastFailure = null;
   const valid = text => {
     if (typeof text !== 'string') throw new Error('Invalid saved office data.');
     const value = JSON.parse(text);
@@ -29,6 +29,10 @@ function createJsonStore(file, { fallback, array = false, io = fs.promises } = {
           await handle.sync();
           await handle.close(); handle = null;
           await io.rename(temp, file);
+          lastFailure = null;
+        } catch (error) {
+          lastFailure = error;
+          throw error;
         } finally {
           if (handle) await handle.close().catch(() => {});
           await io.unlink(temp).catch(() => {});
@@ -37,7 +41,10 @@ function createJsonStore(file, { fallback, array = false, io = fs.promises } = {
       tail = operation.catch(() => {}).finally(() => { pending--; });
       return operation;
     },
-    async flush() { while (pending) await tail; },
+    async flush({ requireSaved = false } = {}) {
+      while (pending) await tail;
+      if (requireSaved && lastFailure) throw lastFailure;
+    },
     get pending() { return pending > 0; },
   };
 }

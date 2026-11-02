@@ -330,7 +330,7 @@ const ROSTER = path.join(app.getPath("userData"), "roster.json");
 const rosterStore = createJsonStore(ROSTER, { fallback: '[]', array: true });
 ipcMain.on("roster:load", (e) => { e.returnValue = rosterStore.load(); });
 ipcMain.handle("roster:save", (_e, json) => rosterStore.save(json));
-const flushUserState = () => Promise.all([settingsStore.flush(), rosterStore.flush()]);
+const flushUserState = (options) => Promise.all([settingsStore.flush(options), rosterStore.flush(options)]);
 let savingBeforeQuit = false;
 app.on('before-quit', event => {
   if (!settingsStore.pending && !rosterStore.pending) return;
@@ -438,7 +438,7 @@ ipcMain.handle("app:apply-update", async () => {
     const result = await updater.apply((step) => send("app:update-step", step));
     if (!result.updated) return { ok: true };
     delete process.env.LUCID_DEV_URL;
-    await flushUserState();
+    await flushUserState({ requireSaved: true });
     app.relaunch();
     app.exit(0);
     return { ok: true };
