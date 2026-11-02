@@ -222,5 +222,11 @@
   },
   "songCount": 9,
   "noPlaybackLaunchReloadOrRestart": true,
-  "runningExecutionProof": "Separate coordinated delivery attestation required; disk parity alone does not establish execution."
+  "runningExecutionProof": {
+    "path": "running-build.json",
+    "method": "Existing normal renderer, DevTools Sources > Page > file:// > E:/T3 Projects/Lucid/dist/assets > index-BTZvy9tc.js > Save as, with pretty printing disabled; SHA-256 of exported original loaded source",
+    "sourceExportSha256": "105c6cfbc0d3305a7adc453de83fac9432982c8402111de498a41239208e67c5",
+    "sameBytes": true
+  },
+  "currentLocationOfObservedBuild": "dist-previous, after the subsequent normal update at 23:29 UTC"
 }
