@@ -15,6 +15,9 @@ import { UacPrompt } from "./os/uac";
 import { harnessName } from "./office/brand";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, toolActivity } from "./os/apps";
 import { findUpload, ToolViewWatch } from "./os/tool-view";
+import { attachmentsOf, sourcesFor } from "./os/attachment-source";
+import { playSend, type DiskFact, type SendOutcome } from "./os/send-files";
+import { listingProblem } from "./os/explorer-model";
 import { T3CodeApp } from "./harness/t3code";
 import { CodexApp } from "./os/codex";
 import { imageGenOf, imageResult, type ImageGen } from "./os/imagegen";
@@ -183,6 +186,7 @@ export class Director {
     this.helperHints.clear();
     this.harness.reset();
     this.chat.reset();
+    this.files.reset();
     this.nativeMessages.reset();
     this.imageRefresh.reset();
     this.browser.reset();
@@ -795,6 +799,42 @@ export class Director {
     }
   }
 
+  /** What the disk says about the exact files an agent attached (size, time). Nothing is listed or read. */
+  private async diskFacts(paths: (string | null)[]): Promise<DiskFact[]> {
+    const list = [...new Set(paths.filter((p): p is string => !!p))];
+    if (!list.length) return [];
+    try { return (await (window as any).lucid?.statFiles?.(list)) ?? []; } catch { return []; }
+  }
+
+  /**
+   * The agent sent files in a message. It opens the Explorer on the folder the upload step names, picks
+   * the files, drags them into the message box and sends. This plays back what the recorded steps
+   * say happened: the upload and the send were already tool calls, and nothing here repeats them.
+   */
+  private async playAttachmentSend(id: string) {
+    const input = this.get(id).data.input || {};
+    const attachments = attachmentsOf(input);
+    const root = this.info?.root || null;
+    const sources = sourcesFor(attachments, this.items.values(), root);
+    const threadId = String(input.threadId || "");
+    // a message with no other address goes to the person this robot is talking to
+    const toUser = !threadId || threadId === this.info?.id;
+    this.onActivity(toUser ? "Sending files to you" : "Sending files to another thread");
+    this.stage.setGlow(GLOW.files);
+    this.robot.setPose("mouse");
+    const disk = await this.diskFacts(sources.map((s) => s.path));
+    const outcome = async (): Promise<SendOutcome> => {
+      const done = await this.settle(id, 30000);
+      if (/failed|cancel|interrupt|error/i.test(done.status)) return "failed";
+      return done.status === "running" || done.status === "pending" ? "pending" : "sent";
+    };
+    const result = await playSend({
+      wm: this.wm, files: this.files, chat: toUser ? this.messages : this.chat, root, sources, disk,
+      text: () => String(this.get(id).data.input?.message || ""), outcome, instant: this.catchingUp,
+    });
+    if (!toUser) await this.chat.inspection(result === "failed" ? "Message could not be sent" : "Message sent to another thread", threadId);
+  }
+
   // Wait until the item completes, or move on if newer work piles up.
   private async settle(id: string, maxMs = 120000) {
     const start = Date.now();
@@ -821,6 +861,10 @@ export class Director {
       if (Array.isArray(o.content)) return o.content.map((c: any) => c.text || "").join("\n");
       return JSON.stringify(o, null, 1);
     };
+    if (/t3_thread_send_attachments$/.test(base) && attachmentsOf(this.get(id).data.input).length) {
+      await this.playAttachmentSend(id);
+      return true;
+    }
     if (/t3_thread_send(?:_attachments)?$/.test(base)) {
       this.onActivity("Sending a T3 message");
       this.robot.setPose("read");
@@ -888,16 +932,18 @@ export class Director {
       const act = classify(`rg ${JSON.stringify(q)}`, text(done.data.output), root || "");
       this.onActivity(`Searching for “${q}”`);
       this.stage.setGlow(GLOW.files);
-      await this.files.search(q, done.data.input?.path || root || "", act.kind === "search" ? act.hits : [], root);
+      await this.files.search(q, done.data.input?.path || root || "", act.kind === "search" ? act.hits : [], root, { instant: this.catchingUp });
       return true;
     }
     if (base === "Glob") {
       const done = await this.settle(id, 20000);
-      const entries: Entry[] = text(done.data.output).split(/\r?\n/).filter(Boolean).slice(0, 400)
-        .map((l) => ({ name: baseName(l), dir: false, path: l }));
+      const out = text(done.data.output);
+      const found = /^\s*no files? found/i.test(out) || listingProblem(out) ? [] : out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 400);
       this.onActivity("Looking for files");
       this.stage.setGlow(GLOW.files);
-      await this.files.list(done.data.input?.path || root || "", entries, root);
+      const where = done.data.input?.path || root || "";
+      if (found.length) await this.files.matches(where, found, root, { instant: this.catchingUp });
+      else await this.files.list(where, [], root, { instant: this.catchingUp, problem: listingProblem(out) });
       return true;
     }
     if (base === "WebFetch" || base === "WebSearch") {
@@ -1424,11 +1470,11 @@ export class Director {
         if (act.kind === "list") {
           this.onActivity(`Looking through ${baseName(act.path)}`);
           this.stage.setGlow(GLOW.files);
-          await this.files.list(act.path, act.entries, root);
+          await this.files.list(act.path, act.entries, root, { instant: this.catchingUp, problem: act.entries.length ? null : listingProblem(done.data.output || "") });
         } else if (act.kind === "search") {
           this.onActivity(`Searching for “${act.query}”`);
           this.stage.setGlow(GLOW.files);
-          await this.files.search(act.query, act.path, act.hits, root);
+          await this.files.search(act.query, act.path, act.hits, root, { instant: this.catchingUp });
         } else if (act.kind === "read") {
           this.onActivity(`Reading ${baseName(act.path)}`);
           this.stage.setGlow(GLOW.editor);

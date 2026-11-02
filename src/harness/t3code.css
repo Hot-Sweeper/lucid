@@ -162,3 +162,23 @@
 .t3-comp.composing .t3-ph { display: none; }
 .t3-comp.composing .t3-typed { display: block; white-space: pre-wrap; max-height: 115px; overflow: auto; overflow-wrap: anywhere; }
 .t3-send.sending { transform: scale(.86); }
+
+/* --- files in the composer and in sent messages ------------------------------------------------- */
+.t3-atts { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 7px; }
+.t3-atts[hidden] { display: none; }
+.t3-att, .t3-sf { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; padding: 3px 8px 3px 3px; border-radius: 8px; background: var(--row); color: var(--ink); font-size: 10.5px; }
+.t3-atti { width: 26px; height: 26px; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: rgba(255, 255, 255, 0.06); flex: none; }
+.t3-atti .ico { width: 18px; height: 18px; }
+.t3-atti img, .t3-sf.pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.t3-attn { min-width: 0; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.t3-atts-size { color: var(--muted); flex: none; }
+.t3-attst:empty { display: none; }
+.t3-attst { display: inline-flex; align-items: center; color: var(--muted); flex: none; }
+.t3-attst .t3-spin { width: 11px; height: 11px; }
+.t3-atts[data-state="failed"] .t3-attst { color: var(--err); }
+.t3-atts[data-state="failed"] .t3-att { box-shadow: inset 0 0 0 1px rgba(255, 100, 103, 0.45); }
+.t3-comp.drop { border-color: #ff9f5a; background: color-mix(in srgb, var(--card) 88%, #ff9f5a); }
+.lucid-chat .t3-comp.drop { border-color: #ffa052; background: #1b1d36; }
+.t3-sentfiles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.t3-sf.pic { padding: 0; width: 96px; height: 70px; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, 0.06); }
+@media (prefers-reduced-motion: reduce) { .t3-comp.drop { transition: none; } }

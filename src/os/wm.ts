@@ -14,7 +14,7 @@ export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
-  files: { x: 14, y: 14, w: 400, h: 360 },
+  files: { x: 14, y: 14, w: 500, h: 340 },
   editor: { x: 176, y: 12, w: 630, h: 384 },
   terminal: { x: 24, y: 196, w: 500, h: 208 },
   browser: { x: 40, y: 12, w: 740, h: 390 },
@@ -84,6 +84,8 @@ export class WM {
     this.syncOcclusion();
   }
   private cursor = { x: SCREEN.w * 0.55, y: SCREEN.h * 0.5 };
+  /** Where the cursor is on the screen right now (screen coordinates). */
+  get cursorPoint() { return { x: this.cursor.x, y: this.cursor.y }; }
   robot: Robot;
   private stopClock: () => void = () => {};
   private stopLocale: () => void = () => {};

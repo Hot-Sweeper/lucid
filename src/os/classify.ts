@@ -49,12 +49,16 @@ const lines = (s: string) => s.replace(/\r/g, "").split("\n");
 
 function parseListing(out: string): Entry[] {
   const res: Entry[] = [];
+  // PowerShell prints "Directory: <folder>" above each group, so a recursive listing keeps every row's folder
+  let folder = "";
   for (const raw of lines(out)) {
     const l = raw.trimEnd();
-    if (!l.trim() || /^\s*(Directory:|Mode\s+LastWriteTime|----|total \d+)/i.test(l)) continue;
+    const header = l.match(/^\s*Directory:\s*(.+)$/i);
+    if (header) { folder = header[1].trim(); continue; }
+    if (!l.trim() || /^\s*(Mode\s+LastWriteTime|----|total \d+)/i.test(l)) continue;
     // PowerShell Get-ChildItem table row
     let m = l.match(/^([dla-][a-z-]{4,5})\s+\S+\s+\S+(?:\s+[AP]M)?\s+(\d+)?\s*(.+)$/i);
-    if (m) { res.push({ name: m[3].trim(), dir: m[1].startsWith("d"), size: m[2] ? fmtSize(+m[2]) : undefined }); continue; }
+    if (m) { const name = m[3].trim(); res.push({ name, dir: m[1].startsWith("d"), size: m[2] ? fmtSize(+m[2]) : undefined, ...(folder ? { path: folder.replace(/[\\/]+$/, "") + "\\" + name } : {}) }); continue; }
     // ls -l row
     m = l.match(/^([dl-])[rwxsStT-]{9}[.+@]?\s+\d+\s+\S+\s+\S+\s+(\d+)\s+\w+\s+\d+\s+[\d:]+\s+(.+)$/);
     if (m) { if (m[3] !== "." && m[3] !== "..") res.push({ name: m[3], dir: m[1] === "d", size: fmtSize(+m[2]) }); continue; }
