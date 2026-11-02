@@ -28,6 +28,7 @@ import gsap from "gsap";
 import { World, type Room, type WorldData } from "./office/world";
 import { ChatPanel } from "./office/chat-panel";
 import { latestSourceReport } from "./office/chat-review";
+import { latestThreadReviews, threadReviewLabel } from "./office/thread-review";
 import { AnswerCard } from "./office/answer";
 import { MonitorTasks, sharedPendingRequests } from "./office/monitor-tasks";
 import { Delegate, showDecisions } from "./office/delegate";
@@ -1026,6 +1027,7 @@ setupMenus();
 const orch = new Orchestrator(api as any, world, () => settings.orch ?? null, (s) => { settings.orch = s; saveSettings(); });
 orch.onChange = () => {
   renderOrch();
+  if (!document.hidden) renderThreads();
   if (!document.hidden && !currentEnvironment && chat.threadId && chat.threadId !== settings.orch?.threadId) chat.setSourceReport(latestSourceReport(orch.papers, chat.threadId));
 };
 (window as any).__orch = orch; // debug handle for test runs
@@ -1419,12 +1421,15 @@ function renderThreads() {
   const list = data.threads.filter((t) => !q || t.title.toLowerCase().includes(q) || (t.manager?.role || '').toLowerCase().includes(q) || (projects.get(t.manager?.projectId || t.projectId)?.title ?? "").toLowerCase().includes(q));
   const active = list.filter((t) => !t.settled);
   const settled = list.filter((t) => t.settled);
+  const reviews = latestThreadReviews(currentEnvironment ? [] : orch.papers);
+  const reviewOf = (t: typeof list[number]) => threadReviewLabel(t, reviews.get(t.id), !currentEnvironment && !!settings.orch && t.id !== settings.orch.threadId);
   const stateOf = (t: typeof list[number]) => t.question ? `<span class="th-st ask">${delegate.phaseOf(t.id) === "reading" ? "With the Orchestrator" : "Needs input"}</span>`
       : t.runStatus === "running" ? `<span class="th-st work"><i></i>Working ${ago(t.runStartedAt || t.updatedAt)}</span>`
+      : reviewOf(t) ? `<span class="th-st review">${reviewOf(t)}</span>`
       : t.lastStatus === "failed" ? `<span class="th-st fail">Failed</span>`
       : t.unseen && t.lastStatus === "completed" ? `<span class="th-st done">Done</span>`
       : `<span class="th-ago">${ago(t.updatedAt)}</span>`;
-  const dotOf = (t: typeof list[number]) => t.question ? "ask" : t.runStatus === "running" ? "work" : t.lastStatus === "failed" ? "fail" : t.unseen && t.lastStatus === "completed" ? "done" : "";
+  const dotOf = (t: typeof list[number]) => t.question ? "ask" : t.runStatus === "running" ? "work" : reviewOf(t) ? "ask" : t.lastStatus === "failed" ? "fail" : t.unseen && t.lastStatus === "completed" ? "done" : "";
   const faceOf = (t: typeof list[number], size: number, place: string, cls = "") => {
     const robot = world.roster.byThread(t.id);
     return managerFace({ provider: robot?.provider || t.provider, look: robot?.look, picture: t.manager?.avatar, size, place, cls });
@@ -1553,10 +1558,12 @@ function renderRail() {
   const projects = new Map(data.projects.map((p) => [p.id, p]));
   const list = [...data.threads]
     .slice(0, 40);
+  const reviews = latestThreadReviews(currentEnvironment ? [] : orch.papers);
   const html = list.map((t) => {
     const p = projects.get(t.manager?.projectId || t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
-    const [st, said] = t.settled ? ["done", "settled"] : t.question ? ["ask", "needs input"] : t.runStatus === "running" ? ["work", "working"]
+    const review = threadReviewLabel(t, reviews.get(t.id), !currentEnvironment && !!settings.orch && t.id !== settings.orch.threadId);
+    const [st, said] = t.settled ? ["done", "settled"] : t.question ? ["ask", "needs input"] : t.runStatus === "running" ? ["work", "working"] : review ? ["ask", review]
       : t.lastStatus === "failed" ? ["fail", "failed"] : t.unseen && t.lastStatus === "completed" ? ["done", "done"] : ["", ""];
     const logo = t.pinned ? p?.icon : logoFor(t.provider);
     const robot = t.pinned ? world.roster.byThread(t.id) : null;

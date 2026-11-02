@@ -579,6 +579,10 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .th-st.done { color: #4fd18b; }
 .th-st.fail { color: #ff6b6b; }
 .th-st.ask { color: #ffd27a; }
+.th-st.review { color: var(--accent); min-width: 0; max-width: 100%; white-space: normal; text-align: right; }
+.th-top:has(.th-st.review) { flex-wrap: wrap; }
+.th-top:has(.th-st.review) .th-proj { min-width: 4em; }
+.th-top .th-st.review { margin-left: auto; }
 .th-ago { flex: none; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 @keyframes th-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .th-st.work i { animation: none; } }
