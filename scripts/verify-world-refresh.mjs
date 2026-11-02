@@ -19,7 +19,7 @@ function harness() {
   const deps = { api, world, orch, delegate: { observe:async()=>{} }, coinRewards: null, monitorTasks: { prepare() {}, sync() {} }, projectTitles: new Map(),
     document,window,companionClient:()=>false,readCompanionState:async()=>null,renderThreads(){},
     appEl:{classList:{contains:()=>false}},mobileStartRoom:()=>null,
-    renderCompany() {}, settings: {}, chat: { threadId: null, setManager() {} }, todo: { update: t => tasks.push(t) },
+    renderCompany() {}, settings: {}, chat: { threadId: null, setManager() {} }, paintChatManager() {}, todo: { update: t => tasks.push(t) },
     $() {}, gsap: {}, pushStatus() {}, location: { search: '' }, URLSearchParams,
     requestAnimationFrame: callback => frames.push(callback), console: { error: (...args) => errors.push(args) } };
   const run = new Function(...Object.keys(deps), `${code}; return {refresh, refreshTasks,

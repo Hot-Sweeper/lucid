@@ -82,6 +82,9 @@ const t3s = (channel) => async (arg) => {
 contextBridge.exposeInMainWorld("lucidT3", {
   manager: t3s("t3s:manager"),
   managerSuggest: t3s("t3s:manager-suggest"),
+  managerAvatar: t3s("t3s:manager-avatar"),
+  managerAvatarHistory: t3s("t3s:manager-avatar-history"),
+  managerAvatarAsk: t3s("t3s:manager-avatar-ask"),
   status: t3s("t3s:status"),
   providers: t3s("t3s:providers"),
   hireConfig: t3s("t3s:hire-config"),

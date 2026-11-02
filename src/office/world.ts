@@ -47,7 +47,7 @@ import { phoneGestureDiagnostics, type PhoneGestureDiagnostics } from "../perf/p
 export type WThread = {
   id: string; projectId: string; title: string; updatedAt: string; provider: string;
   runStatus: string | null; pinned: boolean; settled: boolean; question: string | null; model: string | null;
-  manager?: { projectId: string; role: string };
+  manager?: { projectId: string; role: string; avatar?: string | null };
   schedule?: { nextRunAt: string | null; everyMs: number | null } | null;
   folder?: string | null;
   branch?: string | null; lastStatus?: string | null; runStartedAt?: string | null; unseen?: boolean;

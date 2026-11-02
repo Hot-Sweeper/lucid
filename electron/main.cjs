@@ -69,7 +69,7 @@ async function invokeBrowser(client, channel, args) {
     const handler = browserHandlers.get(channel);
     if (!handler) throw Error('This action is unavailable. Update Lucid on the desktop.');
     const result = await handler({sender:client.sender}, ...args);
-    if (['t3:start', 't3:send', 'project:add', 'project:remove', 'environment:select', 'reports:manual'].includes(channel) || channel.startsWith('t3s:') && !['t3s:status','t3s:providers','t3s:hire-config','t3s:hire-contexts','t3s:manager-suggest'].includes(channel)) companionFrames.invalidate();
+    if (['t3:start', 't3:send', 'project:add', 'project:remove', 'environment:select', 'reports:manual'].includes(channel) || channel.startsWith('t3s:') && !['t3s:status','t3s:providers','t3s:hire-config','t3s:hire-contexts','t3s:manager-suggest','t3s:manager-avatar-history'].includes(channel)) companionFrames.invalidate();
     return result;
   });
 }
@@ -482,13 +482,18 @@ const managerT3 = { ...t3, world: () => activeBuilding() ? structuredClone(remot
   conversation: id => remote.split(id) ? remote.conversation(id) : t3.conversation(id),
   sendMessage: o => remote.split(o.threadId) ? remote.send(o) : t3.sendMessage(o) };
 const managerServer = { dispatch: c => remote.split(c.threadId) || remote.split(c.projectId) ? remote.dispatch(c) : t3s.dispatch(c), selection: id => remote.split(id) ? remote.selection(id) : t3s.selection(id) };
-const managers = require("./managers.cjs").createManagers({ file: path.join(app.getPath("userData"), "managers.json"), t3: managerT3, server: managerServer });
+// Manager pictures sit beside the Orchestrator's folder so each manager's agent can write its own avatar file.
+const MANAGER_AVATARS = process.env.LUCID_SHOT ? path.join(app.getPath("userData"), "manager-avatars") : path.join(require("node:os").homedir(), "T3 Projects", "Lucid Managers");
+const managers = require("./managers.cjs").createManagers({ file: path.join(app.getPath("userData"), "managers.json"), t3: managerT3, server: managerServer, avatarRoot: MANAGER_AVATARS, isLocal: id => !remote.split(id) });
 const t3sWrap = (fn) => async (_e, ...args) => {
   try { return { ok: true, value: await fn(...args) }; } catch (err) { return { ok: false, error: String(err?.message || err), code: err?.code || null }; }
 };
 ipcMain.handle("t3s:status", t3sWrap(async (o) => remote.split(o?.threadId) ? { paired: true, error: null, selection: await remote.selection(o.threadId) } : t3s.status(o || {})));
 ipcMain.handle("t3s:manager", t3sWrap(async (o) => { if (remote.split(o.threadId)) await remote.world(remote.split(o.threadId).environmentId); return managers.update(o); }));
 ipcMain.handle("t3s:manager-suggest", t3sWrap((o) => managers.suggest(o)));
+ipcMain.handle("t3s:manager-avatar", t3sWrap((o) => managers.avatars.set(o || {})));
+ipcMain.handle("t3s:manager-avatar-history", t3sWrap((o) => managers.avatars.history(o || {})));
+ipcMain.handle("t3s:manager-avatar-ask", t3sWrap((o) => managers.avatars.ask(o || {})));
 ipcMain.handle("t3s:providers", t3sWrap((o) => activeBuilding() ? remote.providers(activeBuilding()) : t3s.listProviders(o || {})));
 ipcMain.handle("t3s:hire-config", t3sWrap((o) => { if (activeBuilding()) throw Error('Start a new thread in T3 Code for this building.'); return t3s.hireConfig(o || {}); }));
 ipcMain.handle("t3s:hire-contexts", t3sWrap((o) => { if (activeBuilding()) throw Error('Context search is unavailable for this building.'); return t3s.hireContexts(o.projectId); }));

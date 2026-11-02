@@ -7,4 +7,44 @@
 .manager-suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .manager-editor .dialog-actions { flex-wrap: wrap; gap: 8px; }
 .cp-management { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 16px 10px; font-size: 12px; }
-.cp-management span { overflow-wrap: anywhere; min-width: 0; }
+.cp-manager-label { flex: 1; overflow-wrap: anywhere; min-width: 0; }
+.cp-manager-face:not([hidden]) { display: inline-flex; flex: none; }
+
+/* Manager profile pictures: the robot portrait sits underneath and a custom picture covers it. */
+.mg-face { position: relative; flex: none; width: var(--mg-size); height: var(--mg-size); border-radius: calc(var(--mg-size) * 0.3); overflow: hidden; display: grid; place-items: center; background: #2a3166; isolation: isolate; }
+.mg-face > svg { width: 115%; height: 115%; margin-top: 18%; pointer-events: none; }
+.mg-face > img, .rail-th .mg-face > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
+.mg-face > img[hidden] { display: none; }
+.mg-face.working::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 2px #6fb6ff; animation: mg-breathe 2.4s ease-in-out infinite; }
+@keyframes mg-breathe { 50% { box-shadow: inset 0 0 0 2px rgba(111, 182, 255, 0.35); } }
+@media (prefers-reduced-motion: reduce) { .mg-face.working::after { animation: none; } }
+
+/* The Managers group at the top of the Threads list. */
+.mg-sec { list-style: none; }
+.mg-sec .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.mg-toggle { padding-top: 6px; padding-bottom: 8px; }
+.mg-strip { flex: 1; min-width: 0; display: flex; align-items: center; overflow: hidden; padding-left: 4px; }
+.mg-chip { position: relative; flex: none; margin-left: -5px; border-radius: 9px; box-shadow: 0 0 0 2px var(--night-2, #1d2349); }
+.mg-chip:first-child { margin-left: 0; }
+.mg-chip .rail-st { right: -2px; bottom: -2px; width: 7px; height: 7px; }
+.mg-more { flex: none; margin-left: 6px; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.mg-list { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+.th-row.mg-row { flex-direction: row; align-items: center; gap: 11px; padding: 8px 10px; }
+.mg-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mg-l1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mg-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mg-role { font-size: 12px; color: var(--ink-2, var(--ink)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mg-thread { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rail-th .mg-face { --mg-size: 28px; }
+
+/* Picture controls in the manager editor. */
+.manager-picture { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; margin: 14px 0 4px; }
+.manager-picture[hidden] { display: none; }
+.manager-picture-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.manager-picture-note { grid-column: 1 / -1; }
+.manager-picture-earlier { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); }
+.manager-picture-earlier[hidden] { display: none; }
+.manager-picture-history { display: flex; flex-wrap: wrap; gap: 6px; }
+.manager-picture-history button { padding: 0; border: 0; background: none; border-radius: 10px; cursor: pointer; }
+.manager-picture-history button:hover .mg-face, .manager-picture-history button:focus-visible .mg-face { box-shadow: 0 0 0 2px var(--accent, #ff9f5a); }
+.manager-picture-history button:focus-visible { outline: none; }

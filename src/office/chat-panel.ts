@@ -147,8 +147,12 @@ export class ChatPanel {
   /** A conversation was selected, including one already open in the panel. */
   onPresent: () => void = () => {};
   onManage: (id: string) => void = () => {};
-  setManager(label: string | null) {
-    this.el.querySelector('.cp-management span')!.textContent = label || '';
+  /** face: the manager's profile picture markup, or empty for ordinary robots. */
+  setManager(label: string | null, face = '') {
+    this.el.querySelector('.cp-manager-label')!.textContent = label || '';
+    const holder = this.el.querySelector<HTMLElement>('.cp-manager-face')!;
+    if (holder.dataset.face !== face) { holder.dataset.face = face; holder.innerHTML = face; }
+    holder.hidden = !face;
     this.el.querySelector('.cp-manage')!.textContent = label ? 'Edit manager' : 'Promote to manager';
   }
   onToggleView: () => void = () => {};
@@ -344,7 +348,7 @@ export class ChatPanel {
         <button type="button" class="cp-hide ghost" aria-expanded="true" title="Hide the chat for more room. It stays as a tab on the right edge.">Hide chat</button>
         <button type="button" class="cp-close" aria-label="Back to the office" title="Back to the office (Esc)"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
       </header>
-      <div class="cp-management"><span></span><button type="button" class="cp-manage ghost">Promote to manager</button></div>
+      <div class="cp-management"><span class="cp-manager-face" hidden></span><span class="cp-manager-label"></span><button type="button" class="cp-manage ghost">Promote to manager</button></div>
       <p class="cp-status" aria-live="polite"><i></i><span></span></p>
       <details class="cp-plan" hidden><summary>Plan</summary><ol></ol></details>
       <div class="cp-list" role="log" aria-live="polite"></div>
