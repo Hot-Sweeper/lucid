@@ -5,6 +5,7 @@
 //   ?scene=page&url=  a real page (a dev server, say) drawn by a real browser; needs the Electron shell
 //   ?scene=html       HTML a robot wrote, drawn as a real page
 //   ?scene=uac        the permission prompt, with sample approvals standing in for T3 (never shown in the real app)
+//   ?scene=file&src=<url>&name=sheet.png   a real image from a URL (served with CORS), as a robot would see it
 //   ?scene=icons      every app icon at dock size and window bar size, with its name
 //   ?scene=director   a desk played by the real Director: it reads sheet.png, tests a page on localhost, renders HTML
 import "@fontsource-variable/lexend";
@@ -13,6 +14,7 @@ import "../styles.css";
 import "../office/office.css";
 import { WM } from "./wm";
 import { UacPrompt } from "./uac";
+import { detectSheet } from "./sheet";
 import { ToolApp } from "./apps";
 import { BrowserApp } from "./browser";
 import { WALLPAPERS } from "../office/roster";
@@ -149,11 +151,20 @@ async function main() {
   try {
     const tool = new ToolApp(wm);
     if (scene === "icons") iconsScene();
+    else if (scene === "file") {
+      const blob = await (await fetch(qs.get("src") || "")).blob();
+      const u = await new Promise<string>((ok) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.readAsDataURL(blob); });
+      const t = performance.now();
+      const found = await detectSheet(u, qs.get("name") || "sheet.png");
+      const sh = found?.sheet;
+      console.warn("DETECT " + (performance.now() - t).toFixed(0) + "ms " + JSON.stringify(sh ? { cols: sh.cols, rows: sh.rows, n: sh.frames.length, fw: sh.fw, fh: sh.fh, fps: sh.fps, kind: sh.kind, clips: sh.clips, first: sh.frames.slice(0, 3) } : null));
+      await tool.picture(qs.get("name") || "sheet.png", u, async () => u);
+    }
     else if (scene === "uac") await uacScene();
     else if (scene === "director") await directorScene();
-    else if (scene === "sheet") { const u = sheetOf(8, 1, 96, "#ffffff"); await tool.picture("sheet.png", u, async () => u); }
-    else if (scene === "grid") { const u = sheetOf(4, 3, 64, null); await tool.picture("walk-cycle.png", u, async () => u); }
-    else if (scene === "photo") { const u = photo(); await tool.picture("skyline.png", u, async () => u); }
+    else if (scene === "sheet") { const u = sheetOf(8, 1, 96, "#ffffff"); console.warn("DETECT " + JSON.stringify((await detectSheet(u, "sheet.png"))?.sheet.frames.length ?? null)); await tool.picture("sheet.png", u, async () => u); }
+    else if (scene === "grid") { const u = sheetOf(4, 3, 64, null); console.warn("DETECT " + JSON.stringify((await detectSheet(u, "walk-cycle.png"))?.sheet.frames.length ?? null)); await tool.picture("walk-cycle.png", u, async () => u); }
+    else if (scene === "photo") { const u = photo(); console.warn("DETECT " + JSON.stringify((await detectSheet(u, "skyline.png"))?.sheet.frames.length ?? null)); await tool.picture("skyline.png", u, async () => u); }
     else if (scene === "page" || scene === "html") {
       const b = new BrowserApp(wm, async () => null);
       if (scene === "page") await b.open(qs.get("url") || "http://localhost:6555/", { real: true });

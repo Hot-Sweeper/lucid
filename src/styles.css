@@ -249,21 +249,34 @@ textarea::placeholder { color: var(--ink-3); }
 .pic { height: 100%; display: grid; place-items: center; background: #11143a; padding: 8px; }
 .pic img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
 
-/* a sprite sheet playing like a video: stage, controls, filmstrip */
-.sheet { height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 10px; background: #11143a; }
-.sh-stage { flex: 1; min-height: 0; display: grid; place-items: center; border-radius: 8px; background: #0b0d28; overflow: hidden; }
-.sh-stage canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
-.sh-stage canvas.px { image-rendering: pixelated; }
-.sh-ctrl { flex: none; display: flex; align-items: center; gap: 10px; }
-.sh-play { flex: none; width: 24px; height: 24px; padding: 5px; border: 0; border-radius: 50%; background: var(--accent); color: #2a1407; display: grid; place-items: center; }
-.sh-play svg { width: 100%; height: 100%; }
-.sh-bar { flex: 1; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.2); overflow: hidden; }
-.sh-bar i { display: block; height: 100%; background: var(--accent); transform-origin: 0 50%; }
-.sh-time { flex: none; min-width: 44px; text-align: right; font-size: 10px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.sh-time b { font-weight: 500; color: #fff; }
-.sh-strip { flex: none; display: flex; gap: 3px; justify-content: center; align-items: center; min-height: 40px; }
-.sh-f { flex: none; border-radius: 3px; background-color: #0b0d28; background-repeat: no-repeat; opacity: 0.5; transition: opacity 0.12s; }
-.sh-f.on { opacity: 1; box-shadow: 0 0 0 1.5px var(--accent); }
+/* the player: sheets of frames playing like a video, with a real player's controls over the picture */
+.vp { height: 100%; display: flex; flex-direction: column; background: #0b0d26; }
+.vp-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; background: #05060f; overflow: hidden; }
+.vp-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+.vp-px .vp-stage canvas, .vp-px .vp-th { image-rendering: pixelated; }
+.vp-big { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; padding: 15px 14px 15px 17px; border-radius: 50%; background: rgba(255, 159, 90, 0.95); color: #2a1407; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45); }
+.vp-big svg, .vp-btn svg { display: block; width: 100%; height: 100%; }
+.vp-hud { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px 10px 7px; background: linear-gradient(180deg, rgba(5, 6, 15, 0), rgba(5, 6, 15, 0.82)); transition: opacity 0.35s, transform 0.35s; }
+.vp-hud.idle { opacity: 0; transform: translateY(6px); }
+.vp-scrub { padding: 5px 0 6px; }
+.vp-track { position: relative; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.22); }
+.vp-done { position: absolute; inset: 0; border-radius: 2px; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); }
+.vp-track s { position: absolute; top: 50%; width: 2px; height: 2px; margin: -1px 0 0 -1px; border-radius: 50%; background: rgba(255, 255, 255, 0.55); }
+.vp-track u { position: absolute; top: -1px; bottom: -1px; width: 3px; margin-left: -1.5px; background: #05060f; }
+.vp-knob { position: absolute; top: 50%; left: 0; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); transition: transform 0.15s; }
+.vp-knob.held { transform: scale(1.35); }
+.vp-row { display: flex; align-items: center; gap: 6px; color: #fff; }
+.vp-btn { flex: none; width: 24px; height: 24px; padding: 4px; border-radius: 6px; color: #fff; }
+.vp-play { width: 26px; height: 26px; padding: 4px; }
+.vp-time { margin-left: 4px; font-size: 10px; color: rgba(255, 255, 255, 0.75); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vp-time b { font-weight: 500; color: #fff; }
+.vp-gap { flex: 1; }
+.vp-num { font-size: 10px; color: rgba(255, 255, 255, 0.75); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vp-num b { font-weight: 500; color: #fff; }
+.vp-strip { flex: none; display: flex; justify-content: safe center; gap: 4px; padding: 8px 8px 9px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; background: #0b0d26; }
+.vp-strip::-webkit-scrollbar { display: none; }
+.vp-th { flex: none; border-radius: 4px; background: #05060f; opacity: 0.45; transition: opacity 0.15s, box-shadow 0.15s; }
+.vp-th.on { opacity: 1; box-shadow: 0 0 0 1.5px var(--accent); }
 
 /* idle: lock screen, games, naps */
 .lock { position: absolute; inset: 0; z-index: 9500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;

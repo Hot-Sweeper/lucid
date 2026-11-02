@@ -6,7 +6,7 @@ import { baseName, relPath, type Entry, type Hit, type Hunk } from "./classify";
 
 import { esc, el, typeInto } from "./typing";
 import { colorGitLine } from "./git";
-import { detectSheet, playSheet } from "./sheet";
+import { detectSheet, playSheet, playerFrame } from "./sheet";
 export { BrowserApp } from "./browser";
 
 // ---------------------------------------------------------------------------
@@ -323,8 +323,10 @@ export class ToolApp {
       : Promise.resolve(null);
     const sheet = await probe;
     if (sheet) {
+      // the player window is sized to the frames, so the video fills it
+      this.wm.frameHint.player = playerFrame(sheet.f.sheet, this.wm.width, this.wm.height);
       const w = await this.wm.open("player", name);
-      await playSheet(this.wm, w.body, sheet.f, sheet.d, { width: 520 - 24 });
+      await playSheet(this.wm, w.body, sheet.f);
       return;
     }
     const w = await this.wm.open("photos", name);
