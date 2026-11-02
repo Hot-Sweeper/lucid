@@ -790,7 +790,9 @@ export class ChatPanel {
       const papers = await this.api.reviewPapers(threadId);
       if (threadId !== this.threadId || generation !== this.historyGeneration) return;
       for (const paper of papers) if (ids.includes(paper.id)) this.reviewPapers.set(paper.id, { id: paper.id, threadId: paper.threadId, title: paper.title, images: paper.images });
-      for (const id of ids) this.reviewLookups.add(id);
+      // The live verdict can precede archive ingestion. Retry absent papers on
+      // later refreshes instead of caching their temporary absence forever.
+      for (const id of ids) if (this.reviewPapers.has(id)) this.reviewLookups.add(id);
       for (const m of messages) if (ids.includes(reviewReportId(m.text) || "")) this.renderedMessages.delete(m.id);
     } catch { /* Keep the original message readable if saved history is unavailable. */ }
   }

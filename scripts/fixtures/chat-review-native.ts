@@ -87,6 +87,12 @@ async function regression() {
   check(!chat.el.querySelector(".cp-review") && chat.el.querySelector(".cp-text").textContent.includes('"humanChecks"'), "History lookup failure preserves original message");
   chat.api.reviewPapers = loader; await chat.refresh();
   check(!!chat.el.querySelector(".cp-review"), "Successful history retry renders unchanged message");
+  const savedPapers = papers;
+  papers = []; chat.reviewPapers.clear(); chat.reviewLookups.clear();
+  await set([message("awaiting-saved-report", raw)]);
+  check(!chat.el.querySelector(".cp-review"), "Verdict without a saved paper retains ordinary rendering");
+  papers = savedPapers; await chat.refresh();
+  check(!!chat.el.querySelector(".cp-review"), "Later saved paper formats the unchanged verdict without reopening chat");
   await longReport();
   list().scrollTop = 300; const anchor = chat.shown.get("history-8"), top = anchor.getBoundingClientRect().top, scroll = list().scrollTop;
   const original = chat.shown.get("long"); original.querySelector("details").open = true; await chat.refresh();
