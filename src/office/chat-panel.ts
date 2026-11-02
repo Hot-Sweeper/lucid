@@ -37,6 +37,8 @@ type Api = {
   conversationPage?(id: string, options?: { before?: HistoryCursor | null }): Promise<HistoryPage<Msg>>;
   sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
   saveAttachment(name: string, data: Uint8Array): Promise<string>;
+  /** Show a delivered file in its folder (the desktop app only). */
+  revealFile?(path: string): Promise<boolean>;
   reviewPapers?(conversationId: string): Promise<ChatReviewPaper[]>;
   sourceReport?(conversationId: string): Promise<ChatReviewPaper | null>;
   openReview?(paper: ChatReviewPaper, questions: boolean): void;
@@ -85,8 +87,9 @@ const ICON = {
 
 const HINT = "Enter to send, Shift+Enter for a new line";
 export const fileUrl = chatFileUrl;
-function mediaAttachment(path: string, name: string, mime = "") {
+function mediaAttachment(path: string, name: string, mime = "", reveal = false) {
   const kind = chatMediaKind(path, mime);
+  if (!kind && reveal) return `<button type="button" class="cp-file" data-file-path="${esc(path)}" aria-label="Show ${esc(name)} in its folder" title="${esc(path)}"><span>${esc(name)}</span><i>Show in folder</i></button>`;
   if (!kind) return `<div class="cp-file"><span>${esc(name)}</span><i>file</i></div>`;
   return `<button type="button" class="${kind === "image" ? "cp-att" : "cp-file"}" data-media-src="${fileUrl(path)}" data-media-kind="${kind}" data-media-name="${esc(name)}" aria-label="Preview ${esc(name)}">${kind === "image" ? `<img src="${fileUrl(path)}" alt="${esc(name)}" loading="lazy">` : `<span>${esc(name)}</span><i>Open ${kind}</i>`}</button>`;
 }
@@ -549,6 +552,8 @@ export class ChatPanel {
       if (t.closest(".cp-history-more")) { void this.loadEarlier(); return; }
       const img = t.closest(".cp-att img") as HTMLImageElement | null;
       if (img && !img.closest("[data-media-src]")) this.zoom(img.src, "image", img.alt);
+      const file = t.closest<HTMLElement>("[data-file-path]");
+      if (file) { e.preventDefault(); void this.api.revealFile?.(file.dataset.filePath!); return; }
       const media = t.closest<HTMLElement>("[data-media-src]");
       if (media) { e.preventDefault(); this.zoom(media.dataset.mediaSrc!, media.dataset.mediaKind!, media.dataset.mediaName!); }
       // copy a code block
@@ -988,7 +993,7 @@ export class ChatPanel {
         const mm = line.match(/^- (image|file): (.+)$/);
         if (!mm) continue;
         const p = mm[2].trim(), name = p.split(/[\\/]/).pop()!.replace(/^\d+-/, "");
-        sent.push(mediaAttachment(p, name, mm[1] === "image" ? "image/" : ""));
+        sent.push(mediaAttachment(p, name, mm[1] === "image" ? "image/" : "", !!this.api.revealFile));
       }
     }
     // threads you referenced show as small chips, not as the block the agent reads
@@ -1002,7 +1007,7 @@ export class ChatPanel {
     }
     m = { ...m, text: body };
     const atts = sent.join("") + m.attachments.map((a) => {
-      if (a.path) return mediaAttachment(a.path, a.name, a.mime || (a.type === "image" ? "image/" : ""));
+      if (a.path) return mediaAttachment(a.path, a.name, a.mime || (a.type === "image" ? "image/" : ""), !!this.api.revealFile);
       return `<div class="cp-file" title="${esc(a.name)}"><span>${esc(a.name)}</span><i>${Math.max(1, Math.round((a.size || 0) / 1024))} KB</i></div>`;
     }).join("");
     const state = m.role === "user" && m.run === "running" ? `<em class="cp-live">It is working on this</em>` : "";
