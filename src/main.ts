@@ -180,7 +180,18 @@ world.extFactory.queue = (h, w, hh) => new QuestionLine(h, w, hh);
 let selectedDesk: Desk | null = null;
 let coinRewards: CoinRewards | null = null;
 (window as any).__world = world; // debug handle for test runs
-const chat = new ChatPanel($("scene").parentElement!, { conversation: (id) => api.conversation(id), conversationPage: (id, options) => (api as any).conversationPage(id, options), sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), t3: (window as any).lucidT3 });
+const chat = new ChatPanel($("scene").parentElement!, {
+  conversation: (id) => api.conversation(id), conversationPage: (id, options) => (api as any).conversationPage(id, options),
+  sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), t3: (window as any).lucidT3,
+  // Saved reports belong to this environment's actual review conversation.
+  reviewPapers: async id => !currentEnvironment && id === settings.orch?.threadId ? (api as any).reportsList() : [],
+  openReview: (paper, questions) => {
+    if (currentEnvironment) return;
+    gameSound.play('open');
+    void showReport(paper.threadId, paper.title, () => openThread(paper.threadId), paper.id, openThread, questions);
+  },
+  openReviewThread: paper => { if (!currentEnvironment) openThread(paper.threadId); },
+});
 // The chat header names the manager's role and shows its profile picture.
 function paintChatManager() {
   const data = world.lastData;

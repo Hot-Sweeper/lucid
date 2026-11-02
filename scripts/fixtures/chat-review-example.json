@@ -1,0 +1,16 @@
+{
+  "report": "246d9d5d2eef1452b47af5b1",
+  "decision": "pending",
+  "summary": "The supplied reference could not be opened, so it provided no new diagnostic evidence. The original update failure remains unresolved; previously accepted test evidence is retained.",
+  "visualChanged": false,
+  "checks": [
+    "Read the source thread’s lookup attempt and response.",
+    "Independently retried the supplied ID and received thread_not_found.",
+    "Confirmed the ID is absent from both local thread projection tables.",
+    "This submission contains no new fix, validation or delivery evidence."
+  ],
+  "before": [],
+  "after": [],
+  "feedback": "Retain existing commits and evidence without another acknowledgment run. Obtain an accessible diagnostic reference, including its environment if remote, or the original error text. Resume explicitly with Retry automatic review when materially new diagnostic or acceptance evidence and matching delivery proof are available. This hold does not waive the outstanding delivery and branch-reconciliation requirements.",
+  "humanChecks": []
+}

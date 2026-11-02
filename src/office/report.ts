@@ -25,7 +25,7 @@ function dialog(label: string) {
 const threadUrl = (id: string) => { const url = new URL(location.href); url.searchParams.set("thread", id); url.hash = ""; return url.href; };
 const identity = (member: any) => `<dl class="paper-model"><div><dt>Harness</dt><dd>${member.provider ? esc(harnessName(member.provider)) : "Not recorded"}</dd></div><div><dt>Model</dt><dd>${esc(member.model || "Not recorded")}</dd></div><div><dt>Thinking effort</dt><dd>${esc(member.effort || "Not recorded")}</dd></div></dl>`;
 
-export async function showReport(id: string, title: string, openThread: () => void, paperId?: string, openRelated?: (id: string) => void) {
+export async function showReport(id: string, title: string, openThread: () => void, paperId?: string, openRelated?: (id: string) => void, focusQuestions = false) {
   const api = (window as any).lucid;
   const view = dialog(title);
   try {
@@ -68,6 +68,7 @@ export async function showReport(id: string, title: string, openThread: () => vo
         finally { select.disabled = false; }
       });
     });
+    if (focusQuestions) view.body.querySelector<HTMLSelectElement>("[data-human-answer]")?.focus();
     const summary = view.body.querySelector<HTMLTextAreaElement>("[data-summary]")!;
     const checks = view.body.querySelector<HTMLTextAreaElement>("[data-checks]")!;
     summary.value = p.verdict?.summary || ""; checks.value = (p.verdict?.checks || []).join("\n");

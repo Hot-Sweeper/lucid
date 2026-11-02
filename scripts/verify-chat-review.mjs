@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { transformWithOxc } from 'vite';
+
+const source = await readFile(new URL('../src/office/chat-review.ts', import.meta.url), 'utf8');
+const code = (await transformWithOxc(source, 'chat-review.ts')).code.replace(/^import .*$/gm, '').replace(/^export /gm, '').replace(/export\s*\{[^}]*\};?/g, '');
+const { parseReviewVerdict, reviewReportId, renderChatReview } = new Function('inlineChatImage', `${code};return {parseReviewVerdict,reviewReportId,renderChatReview}`)(() => '<button>Image</button>');
+const example = await readFile(new URL('./fixtures/chat-review-example.json', import.meta.url), 'utf8');
+const v = JSON.parse(example);
+assert.deepEqual(parseReviewVerdict(example), v);
+for (const text of ['ordinary prose', '```json\n' + example + '\n```', 'Example: ' + example, example + '\nExplanation', example.slice(0,-12), JSON.stringify([v]), 'null', '{"report":"oops"}', example.repeat(300)]) assert.equal(parseReviewVerdict(text), null);
+for (const patch of [{decision:'approved'}, {decision:'approve|changes|manual|pending'}, {summary:''}, {summary:null}, {visualChanged:'false'}, {checks:[{}]}, {checks:null}, {before:[2]}, {after:{}}, {humanChecks:[{question:'Yes?'}]}, {humanChecks:[null]}, {feedback:3}, {report:{}}]) assert.equal(parseReviewVerdict(JSON.stringify({...v,...patch})), null, JSON.stringify(patch));
+globalThis.location = { href: 'file:///lucid/index.html' };
+const paper = {id:v.report,threadId:'real-thread',title:'Fix update',images:[]};
+const prose = s => '<p>' + s.replaceAll('<','&lt;') + '</p>';
+const result = renderChatReview(example, false, paper, prose);
+assert(result.includes('Review on hold') && result.includes('What is needed'));
+assert(!result.includes('<h4>Before') && !result.includes('Questions for you'));
+assert.equal(renderChatReview(example,false,{...paper,id:'other'},prose),null);
+assert(renderChatReview(example.slice(0,100),true,paper,prose).includes('Review in progress'));
+assert.equal(renderChatReview(example.slice(0,100),false,paper,prose),null);
+for (const [decision,label] of [['approve','Review approved'],['manual','Needs your review'],['changes','Changes requested'],['pending','Review on hold']]) assert(renderChatReview(JSON.stringify({...v,decision}),false,paper,prose).includes(label));
+assert(renderChatReview(JSON.stringify({...v,decision:'approve',humanChecks:[{question:'Only you can check?',instructions:'Check your device.'}]}),false,paper,prose).includes('Needs your review'));
+assert.equal(reviewReportId(example),v.report);
+assert.equal(JSON.stringify(JSON.parse(example)),JSON.stringify(v),'Presentation leaves source bytes and fields untouched');
+delete globalThis.location;
+console.log('Chat review parsing passed: real screenshot payload, strict schema, prose/code isolation, bounded malformed input, streaming and truthful decisions.');

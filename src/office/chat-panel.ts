@@ -12,6 +12,7 @@ import { attachDictation } from "./dictation";
 import { sameChatMessage, type ChatMessage as Msg } from "./chat-message";
 import { chatReaderAnchor } from "./chat-scroll";
 import { chatFileUrl, chatMediaKind, inlineChatImage, prepareChatImages, chatImageFailed } from "./chat-media";
+import { reviewReportId, renderChatReview, type ChatReviewPaper } from "./chat-review";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
@@ -36,6 +37,9 @@ type Api = {
   conversationPage?(id: string, options?: { before?: HistoryCursor | null }): Promise<HistoryPage<Msg>>;
   sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
   saveAttachment(name: string, data: Uint8Array): Promise<string>;
+  reviewPapers?(conversationId: string): Promise<ChatReviewPaper[]>;
+  openReview?(paper: ChatReviewPaper, questions: boolean): void;
+  openReviewThread?(paper: ChatReviewPaper): void;
   t3?: T3Api;
 };
 
@@ -137,6 +141,8 @@ export class ChatPanel {
   private timer = 0;
   private groups = new Map<string, HTMLElement>();
   private renderedMessages = new Map<string, Msg>();
+  private reviewPapers = new Map<string, ChatReviewPaper>();
+  private reviewLookups = new Set<string>();
   private timelineIds: string[] | null = null;
   private loadingHistory = false;
   private history = new HistoryWindow<Msg>();
@@ -527,6 +533,13 @@ export class ChatPanel {
     this.el.querySelector(".cp-list")!.addEventListener("error", chatImageFailed, true);
     this.el.querySelector(".cp-list")!.addEventListener("click", (e) => {
       const t = e.target as HTMLElement;
+      const review = t.closest<HTMLElement>(".cp-review [data-review-open],.cp-review [data-review-thread]");
+      if (review) {
+        const paper = this.reviewPapers.get(review.dataset.reviewOpen || review.dataset.reviewThread || "");
+        if (paper && review.hasAttribute("data-review-open")) this.api.openReview?.(paper, review.hasAttribute("data-review-questions"));
+        else if (paper && this.api.openReviewThread && !(e as MouseEvent).ctrlKey && !(e as MouseEvent).metaKey && !(e as MouseEvent).shiftKey && !(e as MouseEvent).altKey) { e.preventDefault(); this.api.openReviewThread(paper); }
+        return;
+      }
       if (t.closest(".cp-history-more")) { void this.loadEarlier(); return; }
       const img = t.closest(".cp-att img") as HTMLImageElement | null;
       if (img && !img.closest("[data-media-src]")) this.zoom(img.src, "image", img.alt);
@@ -620,6 +633,7 @@ export class ChatPanel {
   private clearTranscript() {
     this.history = new HistoryWindow<Msg>(); this.historyGeneration++; this.loadingOlder = false;
     this.shown.clear(); this.groups.clear(); this.renderedMessages.clear(); this.timelineIds = null;
+    this.reviewPapers.clear(); this.reviewLookups.clear();
     (this.el.querySelector(".cp-list") as HTMLElement).replaceChildren();
     this.typingOn = false; this.queueLatest = []; this.queueHold = 0;
     const queue = this.el.querySelector<HTMLElement>(".cp-queue")!;
@@ -717,7 +731,10 @@ export class ChatPanel {
     this.loadingHistory = true;
     const generation = this.historyGeneration;
     let page: HistoryPage<Msg>;
-    try { page = this.api.conversationPage ? await this.api.conversationPage(id) : { messages: await this.api.conversation(id), cursor: null, hasMore: false }; }
+    try {
+      page = this.api.conversationPage ? await this.api.conversationPage(id) : { messages: await this.api.conversation(id), cursor: null, hasMore: false };
+      await this.loadReviewPapers(page.messages, id, generation);
+    }
     catch { if (id === this.threadId && generation === this.historyGeneration) this.refreshSoon(2000); return; }
     finally { this.loadingHistory = false; }
     if (id !== this.threadId || generation !== this.historyGeneration) return;
@@ -732,6 +749,7 @@ export class ChatPanel {
     this.historyButton();
     try {
       const page = await this.api.conversationPage(id, { before: cursor });
+      await this.loadReviewPapers(page.messages, id, generation);
       if (id !== this.threadId || generation !== this.historyGeneration) return;
       this.renderHistory(this.history.update(page, true), true);
     } catch {
@@ -762,6 +780,19 @@ export class ChatPanel {
     const label = this.loadingOlder ? "Loading earlier messages..." : "Load earlier messages";
     if (button.textContent !== label) button.textContent = label;
     return button;
+  }
+
+  private async loadReviewPapers(messages: Msg[], threadId: string, generation: number) {
+    if (!this.api.reviewPapers || threadId !== this.threadId || generation !== this.historyGeneration) return;
+    const ids = messages.filter(m => m.role === "assistant").map(m => reviewReportId(m.text)).filter((id): id is string => !!id && !this.reviewLookups.has(id));
+    if (!ids.length) return;
+    try {
+      const papers = await this.api.reviewPapers(threadId);
+      if (threadId !== this.threadId || generation !== this.historyGeneration) return;
+      for (const paper of papers) if (ids.includes(paper.id)) this.reviewPapers.set(paper.id, { id: paper.id, threadId: paper.threadId, title: paper.title, images: paper.images });
+      for (const id of ids) this.reviewLookups.add(id);
+      for (const m of messages) if (ids.includes(reviewReportId(m.text) || "")) this.renderedMessages.delete(m.id);
+    } catch { /* Keep the original message readable if saved history is unavailable. */ }
   }
 
   private renderHistory(msgs: Msg[], preservePosition = false) {
@@ -927,7 +958,9 @@ export class ChatPanel {
       return `<div class="cp-file" title="${esc(a.name)}"><span>${esc(a.name)}</span><i>${Math.max(1, Math.round((a.size || 0) / 1024))} KB</i></div>`;
     }).join("");
     const state = m.role === "user" && m.run === "running" ? `<em class="cp-live">It is working on this</em>` : "";
-    return `${atts ? `<div class="cp-atts">${atts}</div>` : ""}${m.text ? `<div class="cp-text">${md(m.text)}${m.streaming ? '<span class="caret"></span>' : ""}</div>` : ""}${state}<time datetime="${esc(m.at)}" title="${esc(new Date(m.at).toLocaleString())}">${when(m.at)}</time>`;
+    const paper = m.role === "assistant" ? this.reviewPapers.get(reviewReportId(m.text) || "") : null;
+    const report = paper ? renderChatReview(m.text, m.streaming, paper, md) : null;
+    return `${atts ? `<div class="cp-atts">${atts}</div>` : ""}${m.text ? `<div class="cp-text">${report ?? (md(m.text) + (m.streaming ? '<span class="caret"></span>' : ""))}</div>` : ""}${state}<time datetime="${esc(m.at)}" title="${esc(new Date(m.at).toLocaleString())}">${when(m.at)}</time>`;
   }
 
   private renderQueue(queued: Msg[]) {

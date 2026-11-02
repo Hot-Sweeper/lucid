@@ -689,6 +689,26 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .cp-text .cp-inline-media img { display: block; max-width: 100%; max-height: 360px; width: auto; height: auto; object-fit: contain; border-radius: inherit; }
 .cp-inline-media:focus-visible, .cp-atts button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .cp-media-unavailable { display: block; padding: 8px; color: inherit; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.cp-review { container-type: inline-size; }
+.cp-text .cp-review > h3 { color: var(--accent); font-size: 18px; margin: 0 0 10px; }
+.cp-review-summary { color: var(--ink); }
+.cp-review > section { margin-top: 18px; }
+.cp-text .cp-review h4 { margin: 0 0 7px; color: var(--ink); font-size: 13px; font-weight: 600; }
+.cp-text .cp-review li { margin: 7px 0; }
+.cp-review-links { display: flex; align-items: baseline; flex-wrap: wrap; gap: 9px 16px; margin-top: 18px; font-size: 12px; }
+.cp-review button.ghost { font: inherit; color: var(--accent); background: rgba(255,159,90,.09); border: 0; padding: 7px 10px; border-radius: 5px; cursor: pointer; text-align: left; }
+.cp-review button.ghost:hover { background: rgba(255,159,90,.16); }
+.cp-review :is(button,a,summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.cp-review-original { margin-top: 14px; font-size: 12px; color: var(--ink-2); }
+.cp-review-original > summary { width: fit-content; cursor: pointer; padding: 4px 0; }
+.cp-review-original .md-code pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.cp-review-progress { color: var(--ink-2); }
+.cp-review-images { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.cp-review-images figure { min-width: 0; margin: 0; }
+.cp-review-images figcaption { margin-bottom: 6px; color: var(--ink-2); font-size: 12px; }
+.cp-text .cp-review-images .cp-inline-media { display: flex; width: 100%; aspect-ratio: 16/10; align-items: center; justify-content: center; background: rgba(0,0,0,.15); overflow: hidden; }
+.cp-text .cp-review-images img { width: 100%; height: 100%; max-height: 100%; object-fit: contain; }
+@container (max-width: 380px) { .cp-review-images { grid-template-columns: minmax(0,1fr); } }
 /* your long messages fold to a preview with a toggle */
 .cp-msg.you.long .cp-text { max-height: 240px; position: relative; }
 .cp-msg.you.long .cp-text::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: linear-gradient(to bottom, transparent, var(--accent)); pointer-events: none; }
