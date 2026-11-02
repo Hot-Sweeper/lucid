@@ -1,8 +1,39 @@
 # Update retry diagnosis, 2026-11-02
 
-The user's screenshot shows a generic failed update. Its exact underlying error
-has not been recovered. None of the injected errors below establishes its cause.
-The job remains unsettled pending review and collection of that diagnostic.
+The user's screenshot shows a generic failed update. Its original in-memory
+diagnostic was not recovered. A subsequent direct run on this PC reproduced a
+concrete update blocker: divergent local and remote branches. See the outcome
+below. None of the injected errors establishes the cause of the screenshot.
+The job remains unsettled pending review.
+
+## Direct updater outcome after identifying commit 0fff050
+
+The working tree was clean. Local HEAD was `74c0f4d`, with local-only commits
+`8100410`, `eba7c93`, and `74c0f4d`; remote main had the new `0fff050` commit.
+The first direct updater run successfully built and installed pending local
+source. A fresh updater instance then attempted the remote update and failed:
+
+```text
+Checking updates
+Downloading updates
+Error: git exited with code 128.
+fatal: Not possible to fast-forward, aborting.
+```
+
+This is a reproduced Git integration failure on this PC, not a compiler error
+in `0fff050`. A backup branch,
+`backup/update-retry-before-0fff050-20261102`, preserves all original local commits.
+Rebasing onto `origin/main` succeeded without conflicts and preserved those changes
+as `4d072da`, `b786581`, and `c0a4bf2` above `0fff050`.
+
+`npm run verify:update` passed on the combined source. The full verification log
+is `E:/Lucid-validation/update-0fff050-verify.log`. The coordinated updater then
+completed `Checking updates`, `Preparing update`, `Checking code`,
+`Building update`, and `Restarting`, returning `{ updated: true }`.
+The installed manifest matches the current source with zero differences, and
+the installation completeness check passes. The CLI's `Restarting` progress text
+does not restart the running production process; no separate production restart
+was performed. The updated installation will load on the next normal app launch.
 
 ## Preserved transaction acceptance
 
