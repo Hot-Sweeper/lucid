@@ -1,9 +1,21 @@
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const path = require('node:path');
+const { readDesktopSession } = require('../electron/connect-session.cjs');
 const { createConnectClient } = require('../electron/connect-client.cjs');
 const { createRemoteBuilding } = require('../electron/remote-building.cjs');
 
 async function main() {
+  const missing = () => { throw Object.assign(Error('private path'), { code: 'ENOENT' }); };
+  const current = path.join('test-home', 'userdata', 'clerk', 'clerk-tokens.json');
+  const legacy = path.join('test-home', 'userdata', 'clerk-tokens.json');
+  const session = read => readDesktopSession({ home: 'test-home', read, decrypt: value => { assert.equal(value, 'protected'); return 'session'; } });
+  assert.equal(session(file => { assert.equal(file, current); return JSON.stringify({ __clerk_client_jwt: 'enc:protected' }); }), 'session');
+  assert.equal(session(file => file === legacy ? JSON.stringify({ __clerk_client_jwt: 'raw:legacy' }) : missing()), 'legacy');
+  assert.throws(() => session(missing), /Open T3 Code/);
+  assert.throws(() => session(() => '{broken'), /Open T3 Code/);
+  assert.throws(() => session(() => JSON.stringify({})), /Open T3 Code/);
+  assert.throws(() => session(file => file === current ? '{}' : JSON.stringify({ __clerk_client_jwt: 'raw:stale' })), /Open T3 Code/, 'an invalid current session must not revive a legacy session');
   const calls = [], jtIs = new Set(); let now = Date.now(), failOnce = false;
   let saved = { targets: [{ environmentId: 'ares', label: 'ARES' }, { environmentId: 'ares', label: 'Duplicate' }, { environmentId: 'disabled', label: 'Disabled' }, { environmentId: 'profile-label' }, {}, null], disabledEnvironmentIds: ['disabled'], profiles: [
     { environmentId: 'ares', label: 'Route', httpBaseUrl: 'http://ares.local:3773/api?secret=hidden' },

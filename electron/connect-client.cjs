@@ -1,8 +1,6 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const os = require('node:os');
 const crypto = require('node:crypto');
 const { readCatalog, decryptDesktop } = require('./connect-catalog.cjs');
+const { readDesktopSession } = require('./connect-session.cjs');
 const scopes = 'orchestration:read orchestration:operate filesystem:read';
 const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url');
 
@@ -52,9 +50,7 @@ function createConnectClient({ catalog = readCatalog, decrypt = decryptDesktop, 
   async function authorize(environmentId) {
     if (!inventory().some(t => t.environmentId === environmentId)) throw Error('This building is not saved in T3 Connect.');
     const relay = 'https://relay.t3.codes';
-    const home = process.env.T3CODE_HOME || path.join(os.homedir(), '.t3');
-    const stored = readSession ? null : JSON.parse(fs.readFileSync(path.join(home, 'userdata', 'clerk-tokens.json'), 'utf8')).__clerk_client_jwt;
-    const client = readSession ? await readSession() : stored?.startsWith('enc:') ? decrypt(stored.slice(4)) : stored?.startsWith('raw:') ? stored.slice(4) : null;
+    const client = readSession ? await readSession() : readDesktopSession({ decrypt });
     if (!client) throw Error('T3 Connect is not signed in. Open T3 Code to restore its session.');
     const signedIn = await json('https://clerk.t3.codes/v1/client', { headers: { authorization: `Bearer ${client}` } });
     const userSession = signedIn.response?.sessions?.find(s => s.status === 'active' && s.id === signedIn.response.last_active_session_id) || signedIn.response?.sessions?.find(s => s.status === 'active');
