@@ -673,13 +673,13 @@ export class BreakRoom implements RoomExtension {
     await this.walk(r, p);
     r.w.face(Math.random() < 0.5 ? "down" : "up");
     r.w.do("idle");
-    if (Math.random() < 0.25) this.later(1.2, () => r.alive && !r.held && r.w.activity === "idle" && r.w.say((Math.random() < 0.3 ? dailyLine() : null) ?? anyThought().text, 2600, true));
+    if (Math.random() < 0.25) this.later(1.2, () => r.alive && !r.held && r.w.activity === "idle" && r.w.say((Math.random() < 0.3 ? dailyLine(r.w.name) : null) ?? anyThought().text, 2600, true));
     await this.wait(2 + Math.random() * 2, r);
   }
 
   /** Something to say over a meal or a coffee: today's news sometimes, otherwise a passing thought. */
   private aside(r: Resident, extra: string[]) {
-    const line = Math.random() < 0.25 ? dailyLine() : null;
+    const line = Math.random() < 0.25 ? dailyLine(r.w.name) : null;
     r.w.say(line ?? (Math.random() < 0.5 ? pickOne(extra) : anyThought().text), undefined, !line && Math.random() < 0.5);
   }
 
@@ -810,7 +810,7 @@ export class BreakRoom implements RoomExtension {
     r.soft = true;
     r.w.do("idle");
     r.doing = { kind: "window", key };
-    if (Math.random() < 0.6) this.later(1.5, () => r.alive && !r.group && !r.held && r.w.say((Math.random() < 0.2 ? dailyLine() : null) ?? windowThought().text, undefined, true));
+    if (Math.random() < 0.6) this.later(1.5, () => r.alive && !r.group && !r.held && r.w.say((Math.random() < 0.2 ? dailyLine(r.w.name) : null) ?? windowThought().text, undefined, true));
     await this.wait(secs, r);
     r.doing = null;
   }

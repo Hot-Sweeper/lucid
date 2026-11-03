@@ -33,8 +33,7 @@ export class Orchestrator {
     void this.syncReports();
     setInterval(() => void this.learn(), 60000);
     // once a day: fresh lines for the robots, about you and each other
-    window.setTimeout(() => void this.daily(), 90000);
-    setInterval(() => void this.daily(), 60 * 60 * 1000);
+    // Daily flavor text now comes from the robots' personas (daily-writer.ts).
   }
 
   // Ask the orchestrator for today's dialog pack: about 40 short lines on a cheap model,
@@ -189,6 +188,7 @@ Rules: lines under 70 characters, kind and funny, PG, no em dashes or en dashes,
       const current = this.world.lastData;
       if (!current || current.environmentId || this.get()?.threadId !== s.threadId) return;
       const seenThreads = new Set<string>();
+      let moved = false;
       for (const p of this.papers) {
         if (seenThreads.has(p.threadId)) continue;
         seenThreads.add(p.threadId);
@@ -200,12 +200,23 @@ Rules: lines under 70 characters, kind and funny, PG, no em dashes or en dashes,
           this.world.bossDecision(p.threadId, phase, p.verdict?.summary);
         }
         this.paperStates.set(p.id, p.status);
+        // Approved work joins its worker's record and persona (counted once per paper).
+        if ((p.status === "approved" || p.status === "settled" && p.verdict?.decision === "approve") && p.robot?.id) this.world.roster.recordApproval(p.robot.id, { paper: p.id, title: p.title, project: p.project, at: p.approvedAt || p.updatedAt });
         if (t && !t.pinned && !t.settled && t.runStatus === "completed" && ["submitted", "reviewing", "approved", "manual-review"].includes(p.status) && !this.world.reports.has(t.id)) this.world.queueReport(t, p.response || "", !!p.delivered);
+        if (this.world.setReportApproved(p.threadId, p.status === "approved")) moved = true;
       }
+      if (moved && this.world.lastData) this.world.update(this.world.lastData);
       this.onChange();
     } catch (e) { console.error("Could not sync settlement papers", e); }
   }
   private paperStates = new Map<string, string>();
+  /** The latest paper for a thread, if its review is approved and waiting to be collected. */
+  approvedPaper(threadId: string) {
+    const latest = this.papers.find(p => p.threadId === threadId);
+    return latest?.status === "approved" ? latest : null;
+  }
+  /** Whether finished work goes through review (by the orchestrator or by you in its chair) before it can be collected. */
+  get reviewing() { return !!this.get()?.threadId; }
   private submittedVersions = new Set<string>();
 
   async showNotebook() {

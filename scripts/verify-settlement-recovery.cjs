@@ -25,7 +25,11 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lucid-settlement-recovery-')
   const id = service.list()[0].id;
   replies = [{streaming:false,text:JSON.stringify({report:id,decision:'approve',summary:'Verified',visualChanged:false,checks:['Actual checks']})}];
   await service.supervise();
-  assert.equal(service.list()[0].status,'approved','automatic transport failure retains approval');
+  assert.equal(service.list()[0].status,'approved','approval waits on the desk for Collect');
+  assert.equal(dispatches.length,0,'approval alone never settles');
+  await service.supervise();assert.equal(dispatches.length,0,'repeated supervision does not settle before Collect');
+  await assert.rejects(service.manual(id,'collect'),/Temporary disconnect/);
+  assert.equal(service.list()[0].status,'approved','collect transport failure retains approval');
   assert.match(service.list()[0].error,/Temporary disconnect/);
   service = createReports(deps);
   assert.equal(service.list()[0].status,'approved','approval survives restart');

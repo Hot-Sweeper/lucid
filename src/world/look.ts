@@ -95,8 +95,16 @@ export function resolveLook(look: RobotLook = {}) {
     tint: look.tint ?? LOOK_DEFAULTS.tint,
     glow: look.glow ?? null,
     blush: !!look.blush,
+    crest: look.crest ?? null,
   };
 }
+/** Managers stand out from workers: a dark graphite finish and a crown carrying their
+ * project's logo. Applied when drawn, so the robot's own saved look is unchanged. */
+export function managerLook(look: RobotLook, crest: string | null): RobotLook {
+  return { ...look, tint: "graphite", hat: "crown", crest };
+}
+const crestId = () => `crest${++crestSeq}`;
+let crestSeq = 0;
 export type FullLook = ReturnType<typeof resolveLook>;
 export const hatInfo = (k: HatKind | undefined) => HATS.find((h) => h.id === k) ?? HATS[0];
 export const accessoryInfo = (k: AccessoryKind | undefined) => ACCESSORIES.find((a) => a.id === k) ?? ACCESSORIES[0];
@@ -199,7 +207,7 @@ function cap(brimNear: boolean, opening: boolean) {
 }
 
 /** A hat, drawn over the head. `view` is which side of the robot we see. */
-export function hatSvg(kind: HatKind | undefined, view: View = "back"): string {
+export function hatSvg(kind: HatKind | undefined, view: View = "back", crest: string | null = null): string {
   const front = view === "front";
   switch (kind) {
     case "beanie": {
@@ -239,7 +247,8 @@ export function hatSvg(kind: HatKind | undefined, view: View = "back"): string {
         <path d="M560 584 L574 560 L590 592 L610 572 L610 612 L560 612 Z" fill="#e0a21f" opacity="0.5"/>
         <rect x="508" y="598" width="104" height="16" rx="5" fill="#f2b52b"/>
         <circle cx="510" cy="570" r="4.5" fill="#ffe08a"/><circle cx="546" cy="558" r="4.5" fill="#ffe08a"/><circle cx="574" cy="558" r="4.5" fill="#ffe08a"/><circle cx="610" cy="570" r="4.5" fill="#ffe08a"/>
-        <circle cx="560" cy="606" r="5.5" fill="#ff6f91"/><circle cx="534" cy="606" r="4" fill="#4fb6ff"/><circle cx="586" cy="606" r="4" fill="#4ff0a0"/>
+        ${crest ? (() => { const id = crestId(); return `<circle cx="560" cy="592" r="17" fill="#1b1f33" stroke="#f2b52b" stroke-width="4"/><clipPath id="${id}"><circle cx="560" cy="592" r="13"/></clipPath><image href="${String(crest).replace(/"/g, "&quot;")}" x="547" y="579" width="26" height="26" clip-path="url(#${id})" preserveAspectRatio="xMidYMid meet"/>`; })()
+          : `<circle cx="560" cy="606" r="5.5" fill="#ff6f91"/><circle cx="534" cy="606" r="4" fill="#4fb6ff"/><circle cx="586" cy="606" r="4" fill="#4ff0a0"/>`}
         ${hi("M518 606 L526 606", 3, 0.6)}</g>`;
     }
     case "beret":
@@ -498,7 +507,7 @@ export function portraitSvg(look: RobotLook, base: PortraitPalette, o: { size?: 
     <circle cx="634" cy="656" r="17" fill="${acc}"/><circle cx="636" cy="654" r="10" fill="var(--shade)"/>
     <rect x="490" y="600" width="140" height="118" rx="44" fill="var(--shade)"/><rect x="490" y="600" width="140" height="106" rx="44" fill="var(--shell)"/>
     <path d="M512 618 C530 606 560 604 586 608" stroke="#fff" stroke-opacity="0.5" stroke-width="7" stroke-linecap="round" fill="none"/>
-    ${face}${hatSvg(L.hat, view)}${hat.antenna === "through" ? antenna : ""}</g>`;
+    ${face}${hatSvg(L.hat, view, L.crest)}${hat.antenna === "through" ? antenna : ""}</g>`;
   let body = "";
   if (o.bust) {
     const acc2 = accessorySvg(L.accessory, view);

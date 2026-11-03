@@ -241,7 +241,7 @@ export class Park {
       this.release(v);
       await this.go(v, this.strollPoint());
       if (v.alive) await this.go(v, this.strollPoint());
-      if (Math.random() < 0.3) v.w.say((Math.random() < 0.3 ? dailyLine() : null) ?? nextThought().text, 2800);
+      if (Math.random() < 0.3) v.w.say((Math.random() < 0.3 ? dailyLine(v.w.name) : null) ?? nextThought().text, 2800);
       return;
     }
     this.take(v, s);
@@ -268,7 +268,7 @@ export class Park {
       }
     } else if (s.kind === "pond") {
       v.w.do("idle");
-      if (Math.random() < 0.35) { await wait(2); if (v.alive) v.w.say((Math.random() < 0.3 ? dailyLine() : null) ?? nextThought().text, 2800); }
+      if (Math.random() < 0.35) { await wait(2); if (v.alive) v.w.say((Math.random() < 0.3 ? dailyLine(v.w.name) : null) ?? nextThought().text, 2800); }
     } else {
       v.w.do("wave");
       await wait(1.5);

@@ -22,7 +22,8 @@ export function threadReviewLabel(thread: ReviewThread, paper?: ThreadReviewPape
     case 'manual-review': return 'Needs your review';
     case 'pending-dependency': return 'Review on hold';
     case 'changes-requested': return 'Changes requested';
-    case 'approved': case 'settled': return 'Awaiting settlement';
+    case 'approved': return 'Ready to collect';
+    case 'settled': return 'Collected';
     case 'reviewed': return 'Review in progress';
     default: return expectsReport ? 'Awaiting report' : null;
   }

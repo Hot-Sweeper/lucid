@@ -1,6 +1,7 @@
 import type { RobotLook } from "./rig";
 import { brandFor, type BrandKind } from "./brand";
 import { migrateLook, randomLook } from "../world/look";
+import { compatibleWorkers } from "./worker-match";
 import { companionClient } from "../remote-client";
 
 // The team. Robots are persistent workers: hired once with a name, a look and habits,
@@ -63,6 +64,10 @@ export interface RobotProfile {
   lastModel?: string | null;
   /** Left the floor for the staff wall. Kept with its history, never assigned work. */
   retired?: boolean;
+  retiredAt?: number;
+  /** Approved reports, newest last. Only approved work enters the persona. */
+  approved?: number;
+  log?: { at: string; title: string; project?: string; paper: string }[];
 }
 
 export const WALLPAPERS = [
@@ -263,8 +268,7 @@ export class Roster {
       const assigned = this.byThread(t.id);
       if (assigned) { if (t.model) assigned.lastModel = t.model; continue; }
       const isFree = (r: RobotProfile) => !r.retired && (!r.threadId || (settledIds.has(r.threadId) && !managers.has(r.threadId)));
-      const free = this.robots.filter((r) => isFree(r) && r.provider === t.provider && (!t.model || !r.lastModel || r.lastModel === t.model))
-        .sort((a, b) => Number(!!t.model && b.lastModel === t.model) - Number(!!t.model && a.lastModel === t.model) || b.jobs - a.jobs)[0];
+      const free = compatibleWorkers(this.robots.filter(isFree), t.provider, t.model)[0];
       if (free) { if (free.threadId) (free.done ??= []).push(free.threadId); free.threadId = t.id; free.provider = t.provider; free.jobs++; }
       else this.robots.push(this.hire(t.id, t.provider));
       if (t.model) this.byThread(t.id)!.lastModel = t.model;
@@ -277,6 +281,7 @@ export class Roster {
     const out: { thread: string; robot: RobotProfile }[] = [];
     for (const t of settled) {
       const r = this.byThread(t.id);
+      if (r?.retired) continue;   // retired workers are on the staff wall, not in the break room
       if (r) out.push({ thread: t.id, robot: r });
       else if (!companionClient() && !this.robots.some((x) => x.done?.includes(t.id))) out.push({ thread: t.id, robot: this.hireFor(t.id, t.provider) });
     }
@@ -304,6 +309,44 @@ export class Roster {
     if (role !== null) r.role = role || null;
     if (model) r.lastModel = model;
     this.save();
+  }
+
+  /** An approved report joins its worker's record and persona. Each paper counts once. */
+  recordApproval(robotId: string, entry: { paper: string; title: string; project?: string; at?: string }) {
+    const r = this.robots.find((x) => x.id === robotId);
+    if (!r || r.log?.some((e) => e.paper === entry.paper)) return false;
+    (r.log ??= []).push({ at: entry.at ?? new Date().toISOString(), title: String(entry.title).slice(0, 120), project: entry.project?.slice(0, 60), paper: entry.paper });
+    if (r.log.length > 40) r.log.splice(0, r.log.length - 40);
+    r.approved = (r.approved ?? 0) + 1;
+    this.save();
+    return true;
+  }
+
+  /** Free workers only: change harness and model. Name, look, persona and history stay. */
+  retrain(robotId: string, provider: string, model: string, settledIds: Set<string>) {
+    const r = this.freeTeam(settledIds).find((x) => x.id === robotId);
+    if (!r) throw Error("Only a free worker can be retrained. Wait until its job is collected.");
+    r.provider = provider; r.brand = brandFor(provider); r.lastModel = model;
+    this.save();
+    return r;
+  }
+
+  /** Free workers only: leave the floor for the staff wall, with everything kept. */
+  retire(robotId: string, settledIds: Set<string>) {
+    const r = this.freeTeam(settledIds).find((x) => x.id === robotId);
+    if (!r) throw Error("Only a free worker can retire. Wait until its job is collected.");
+    r.retired = true; r.retiredAt = Date.now();
+    this.save();
+    return r;
+  }
+
+  /** Back from the staff wall to the floor. */
+  rehire(robotId: string) {
+    const r = this.robots.find((x) => x.id === robotId);
+    if (!r?.retired) return null;
+    r.retired = false; r.retiredAt = undefined;
+    this.save();
+    return r;
   }
 
   freeTeam(settledIds: Set<string>) {

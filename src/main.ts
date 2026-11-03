@@ -6,6 +6,8 @@ import { formatCoins } from "./office/coin-ledger";
 import { gameSound } from "./office/sound";
 import { OfficeSoundscape } from "./office/soundscape";
 import { mountLanguageSetting } from "./office/language";
+import { DailyWriter, type DailyLinesState } from "./office/daily-writer";
+let dailyWriter: DailyWriter | null = null;
 import { openManagers } from "./office/managers";
 import { managerFace, wireFaceFallback } from "./office/manager-face";
 import "@fontsource-variable/lexend";
@@ -34,7 +36,12 @@ import { MonitorTasks, sharedPendingRequests } from "./office/monitor-tasks";
 import { Delegate, showDecisions } from "./office/delegate";
 import { showMenu, confirmDialog } from "./office/menus";
 import { openHire, BUILTIN_ROLES, type Role } from "./office/hire";
-import { openCustomizeFor } from "./office/customize";
+import { openCustomizeFor, openCustomize } from "./office/customize";
+import { openWorkerFocus, openStaffWall } from "./office/worker-focus";
+import { openChair } from "./office/chair";
+import { robotFocus } from "./office/interact";
+import { hasOfficeWork } from "./office/room-policy";
+import type { RobotProfile } from "./office/roster";
 import { Orchestrator, type OrchState } from "./office/orchestrator";
 import { openOrchestratorControls } from "./office/orchestrator-controls";
 import { progress } from "./office/progress";
@@ -162,7 +169,11 @@ const extras = document.createElement("details");
 extras.className = "sidebar-extras";
 extras.innerHTML = '<summary>Office & tools</summary><div class="sidebar-extras-body"></div>';
 const extrasBody = extras.querySelector("div")!;
-mountLanguageSetting(extrasBody);
+mountLanguageSetting(extrasBody, () => dailyWriter);
+{
+  const wall = document.createElement("button"); wall.type = "button"; wall.className = "link-btn extras-staff-wall"; wall.textContent = "Staff wall";
+  wall.addEventListener("click", () => openWall()); extrasBody.appendChild(wall);
+}
 mountPerformancePanel(extrasBody);
 mountMobileAccess(extrasBody, api as any);
 for (const selector of ["#environment-body", ".rooms", "#orch", "#company", "#wallet"]) {
@@ -181,6 +192,9 @@ world.extFactory.charging = (h, w, hh) => new ChargingRoom(h, w, hh);
 world.extFactory.queue = (h, w, hh) => new QuestionLine(h, w, hh);
 let selectedDesk: Desk | null = null;
 let coinRewards: CoinRewards | null = null;
+// Rewards in the tray are only collectible once their work may be collected (see collectible).
+let coinReady: (id: string) => boolean = () => true;
+let coinCollected: (id: string) => Promise<void> = async () => {};
 (window as any).__world = world; // debug handle for test runs
 const chat = new ChatPanel($("scene").parentElement!, {
   conversation: (id) => api.conversation(id), conversationPage: (id, options) => (api as any).conversationPage(id, options),
@@ -230,14 +244,71 @@ const answer = new AnswerCard(chat, answerDeps);
 const monitorTasks = new MonitorTasks(world, {
   answer: answerDeps,
   read: id => world.onFollowChat(id),
-  close: id => {
-    if (chat.threadId === id) chat.close();
-    if (world.focusDesk?.threadId === id) { world.unfocus(); world.revealThread(null); }
-    $("th-list").querySelector<HTMLButtonElement>(`[data-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
-  },
-  reward: id => coinRewards ? wallet.rewards.find(r => r.id === id)?.amount.toFixed(2).replace(/\.00$/, '') ?? null : null,
-  collect: (id, from) => coinRewards?.collect(id, from),
+  ready: (id, fresh) => collectible(id, fresh),
+  collect: (id, from) => collectWork(id, from),
 });
+// Finished work is collected once: approved by review (the worker brought the report back
+// to its desk), or finished while Lucid was open when reviews are off. Collecting pays the
+// coins and settles the thread, which clears the desk.
+function collectible(id: string, fresh: boolean) {
+  if (currentEnvironment || companionClient()) return null;
+  const coins = coinRewards ? wallet.rewards.find(r => r.id === id)?.amount ?? 0 : 0;
+  const amount = coins > 0 ? formatCoins(coins) : null;
+  if (orch.reviewing) {
+    const paper = orch.approvedPaper(id);
+    return paper ? { summary: String(paper.verdict?.summary || ''), coins: amount } : null;
+  }
+  return fresh ? { summary: '', coins: amount } : null;
+}
+// --- workers up close --------------------------------------------------------------------
+const settledNow = () => new Set((world.lastData?.threads ?? []).filter(t => t.settled && !t.pinned).map(t => t.id));
+function openWorkerProfile(r: RobotProfile, anchor: Element | null) {
+  if (companionClient()) return;
+  const t = r.threadId ? world.lastData?.threads.find(t => t.id === r.threadId) : null;
+  const free = world.roster.freeTeam(settledNow()).includes(r);
+  const job = t && !t.settled ? { title: t.title, status: t.question ? "Needs your answer" : hasOfficeWork(t) ? "Working on" : orch.approvedPaper(t.id) ? "Ready to collect" : world.reports.has(t.id) ? "Waiting for review" : "Finished" } : null;
+  const projectId = t?.projectId || world.lastData?.projects.find(p => !p.scratch)?.id || "";
+  const view = openWorkerFocus({
+    robot: r, anchor, job, free,
+    loadRuntime: () => (window as any).lucidT3.hireConfig({ projectId }),
+    onOpenChat: t ? () => world.onSelectThread(t.id) : undefined,
+    onCustomize: () => openCustomize({ name: r.name, provider: r.provider, look: r.look, level: world.level, onSave: (look, name) => { world.roster.setLook(r.id, look); world.roster.rename(r.id, name); view.refresh(); if (world.lastData) world.update(world.lastData); } }),
+    onRetrain: (provider, model) => { world.roster.retrain(r.id, provider, model, settledNow()); if (world.lastData) world.update(world.lastData); },
+    onRetire: () => { world.roster.retire(r.id, settledNow()); void refresh(); },
+    onStaffWall: () => openWall(),
+  });
+}
+function openWall() {
+  openStaffWall({ robots: world.roster.robots, onFocus: r => openWorkerProfile(r, null), onRehire: r => { world.roster.rehire(r.id); void refresh(); } });
+}
+world.onRobotFocus = (threadId, anchor) => { const r = world.roster.byThread(threadId); if (r) openWorkerProfile(r, anchor); };
+robotFocus.open = (id, el) => { const r = world.roster.byThread(id); if (!r || companionClient()) return false; openWorkerProfile(r, el); return true; };
+const collectingWork = new Set<string>();
+async function collectWork(id: string, from: HTMLElement) {
+  if (collectingWork.has(id)) return;
+  const paper = orch.reviewing ? orch.approvedPaper(id) : null;
+  if (orch.reviewing && !paper) throw Error('This work is not approved yet');
+  collectingWork.add(id);
+  try {
+    // Settle first: if T3 refuses, the coins stay on the desk for the retry.
+    if (paper) await (api as any).reportsManual(paper.id, 'collect');
+    else await (window as any).lucidT3.settle({ threadId: id });
+    if (!coinRewards?.collect(id, from, false)) { gameSound.play('collect'); world.deskFor(id)?.robot.react('cheer'); }
+    if (paper) orch.papers = await (api as any).reportsList();
+  } finally { collectingWork.delete(id); }
+  await refresh();
+}
+coinReady = id => {
+  const t = world.lastData?.threads.find(t => t.id === id);
+  return !t || t.settled || !!collectible(id, true);
+};
+coinCollected = async id => {
+  const t = world.lastData?.threads.find(t => t.id === id);
+  if (!t || t.settled || t.runStatus !== 'completed') return;
+  const paper = orch.reviewing ? orch.approvedPaper(id) : null;
+  if (paper) await (api as any).reportsManual(paper.id, 'collect');
+  else if (!orch.reviewing) await (window as any).lucidT3.settle({ threadId: id });
+};
 (window as any).__monitorTasks = monitorTasks;
 (window as any).__answer = answer; // isolated answer-form fixture handle
 // a chat opened without a desk (questions room, follow chip) closes itself
@@ -358,7 +429,8 @@ function renderFocus() {
   const src = logoFor(info?.provider);
   logo.hidden = !src;
   if (src) logo.src = src;
-  $("focus-title").textContent = info?.title || "Free desk";
+  // The desk is the job: its thread title, even before the detailed thread info arrives.
+  $("focus-title").textContent = info?.title || world.lastData?.threads.find(t => t.id === d.threadId)?.title || "Free desk";
   const who = d.profile ? `${d.profile.name}, ${harnessName(info?.provider)} robot` : `${harnessName(info?.provider)} robot`;
   $("focus-sub").textContent = [who, (info as any)?.model, info?.projectTitle].filter(Boolean).join(" · ");
   $("focus-sub").title = d.profile ? `Likes: ${d.profile.prefs.editor === "pad" ? "Notepad" : d.profile.prefs.editor === "vim" ? "vim" : "Studio"} editor, ${d.profile.prefs.phone === "clips" ? "short clips" : "long videos"}, subagents in the ${d.profile.prefs.subagents === "cli" ? "terminal" : "desktop app"}. Jobs done: ${d.profile.jobs}` : "";
@@ -680,6 +752,7 @@ function setupMenus() {
   };
   world.onDeskMenu = (d, x, y) => {
     const items: any[] = [
+      { label: "Worker profile", run: () => { const r = d.threadId ? world.roster.byThread(d.threadId) : null; if (r) openWorkerProfile(r, d.el.querySelector(".robot-host")); } },
       { label: "Look at its screen", run: () => world.focusScreen(d) },
       { label: "Go to its desk", run: () => world.showDesk(d) },
       { label: "Customize robot", run: () => openCustomizeFor(d, world.roster, world.level) },
@@ -806,7 +879,7 @@ async function selectBuilding(id: string) {
 }
 mountEnvironments($("environment-body"), (fresh) => (api as any).environments(fresh), selectBuilding,
   data => world.setBuildings(data.buildings, selectBuilding, id => (api as any).buildingWorld(id)));
-const settings: { buildingLayouts?: Record<string, import("./office/world").OfficeLayout>; roomOrder?: string[]; expandedRooms?: string[]; collapsedRooms?: string[]; seats?: Record<string, (string | null)[]>; hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { buildingLayouts?: Record<string, import("./office/world").OfficeLayout>; roomOrder?: string[]; expandedRooms?: string[]; collapsedRooms?: string[]; seats?: Record<string, (string | null)[]>; hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; dailyLines?: DailyLinesState; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
 world.roomOrder = Array.isArray(settings.roomOrder) ? settings.roomOrder.filter((id) => typeof id === "string" && movableRoom(id)) : [];
 world.collapsedRooms = new Set(settings.collapsedRooms ?? []);
@@ -1024,6 +1097,7 @@ $("hidden-offices").addEventListener("click", (e) => {
 const projectTitles = new Map<string, string>();
 setupMenus();
 const orch = new Orchestrator(api as any, world, () => settings.orch ?? null, (s) => { settings.orch = s; saveSettings(); });
+dailyWriter = new DailyWriter(world, () => settings.dailyLines ?? {}, s => { settings.dailyLines = s; saveSettings(); });
 orch.onChange = () => {
   renderOrch();
   if (!document.hidden) renderThreads();
@@ -1116,7 +1190,23 @@ $("orch-power-toggle").addEventListener("change", e => {
   orch.setPresence(enabled ? "awake" : "sleep");
 });
 $("orch-controls-open").addEventListener("click",()=>openOrchestratorControls(orch,()=>settings.orch??null,
-  ()=>void showReportArchive(openThread),()=>{folded.delete("orch");foldSection("orch",true,false);$("orch-body").scrollIntoView({block:"nearest"});$("orch-hire")?.focus();}));
+  ()=>void showReportArchive(openThread),()=>{folded.delete("orch");foldSection("orch",true,false);$("orch-body").scrollIntoView({block:"nearest"});$("orch-hire")?.focus();},()=>takeChair()));
+// You in the orchestrator's chair: the AI orchestrator rests until you leave.
+let inChair = false;
+function takeChair() {
+  if (inChair || !settings.orch || currentEnvironment || companionClient()) return;
+  inChair = true;
+  const before = settings.orch.paused ? settings.orch.presence ?? "sleep" : "awake";
+  orch.setPresence("away");
+  openChair({
+    papers: () => orch.papers,
+    refresh: async () => { orch.papers = await (api as any).reportsList(); return orch.papers; },
+    robotFor: p => world.roster.robots.find(r => r.id === p.robot?.id) ?? world.roster.byThread(p.threadId),
+    decide: async (p, action, values) => { await (api as any).reportsManual(p.id, action, values); orch.papers = await (api as any).reportsList(); void refresh(); },
+    openChat: id => world.onSelectThread(id),
+    onLeave: () => { inChair = false; if (settings.orch) orch.setPresence(before); },
+  });
+}
 
 // --- company progress ------------------------------------------------------------------------
 let lastCompany = "";
@@ -1218,7 +1308,8 @@ const paintWallet = (gained = 0) => {
   gsap.killTweensOf(bank);
   const bankAnimation = (bank as any).__count as gsap.core.Tween | undefined; bankAnimation?.kill();
   if (gained > 0 && !document.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    (bank as any).__count = gsap.to(target, { value: wallet.balance, duration: .65, ease: 'power2.out', onUpdate: () => { bank.textContent = formatCoins(target.value); bankAmount = target.value; } });
+    // Count up while the collected coins land on the counter (coin-rewards.ts fly).
+    (bank as any).__count = gsap.to(target, { value: wallet.balance, delay: .5, duration: .7, ease: 'power1.inOut', onUpdate: () => { bank.textContent = formatCoins(target.value); bankAmount = target.value; } });
   } else { bankAmount = wallet.balance; bank.textContent = formatCoins(bankAmount); }
   $('coin-bank').title = `${formatCoins(wallet.balance)} coins. Open shop`;
   const rb = $("rail-bal"), n = wallet.balance;
@@ -1248,7 +1339,7 @@ shopFront.onOpen = goShopping;
 world.attachShop(shopFront);
 wallet.onChange = (_bal, gained) => { paintWallet(gained); shopFront.render(); };
 $("shop-link").addEventListener("click", () => world.showShop());
-if (!companionClient()) coinRewards = new CoinRewards(wallet, world, () => (api as any).coinUsage());
+if (!companionClient()) coinRewards = new CoinRewards(wallet, world, () => (api as any).coinUsage(), { ready: id => coinReady(id), collected: id => coinCollected(id).then(() => refresh()) });
 (window as any).__coinRewards = coinRewards;
 (window as any).__wallet = wallet;
 (window as any).__gameSound = gameSound;
@@ -1431,7 +1522,7 @@ function renderThreads() {
   const dotOf = (t: typeof list[number]) => t.question ? "ask" : t.runStatus === "running" ? "work" : reviewOf(t) ? "ask" : t.lastStatus === "failed" ? "fail" : t.unseen && t.lastStatus === "completed" ? "done" : "";
   const faceOf = (t: typeof list[number], size: number, place: string, cls = "") => {
     const robot = world.roster.byThread(t.id);
-    return managerFace({ provider: robot?.provider || t.provider, look: robot?.look, picture: t.manager?.avatar, size, place, cls });
+    return managerFace({ provider: robot?.provider || t.provider, look: world.lookFor(t, robot?.look), picture: t.manager?.avatar, size, place, cls });
   };
   const managerRow = (t: typeof list[number]) => {
     const p = projects.get(t.manager?.projectId || t.projectId);
@@ -1455,16 +1546,22 @@ function renderThreads() {
     const p = projects.get(t.manager?.projectId || t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
     const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
-    if (t.settled) return `<li><button type="button" class="th-row th-settled-row" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}`)}">${icon}<span class="th-settled-title">${esc(t.title || "Untitled")}</span><span class="th-ago">${ago(t.updatedAt)}</span></button></li>`;
+    if (t.settled) return `<li><button type="button" class="th-row th-settled-row" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${world.roster.byThread(t.id) ? `
+${world.roster.byThread(t.id)!.name}` : ""}`)}">${world.roster.byThread(t.id) ? faceOf(t, 22, "s") : icon}<span class="th-settled-title">${esc(t.title || "Untitled")}</span><span class="th-ago">${ago(t.updatedAt)}</span></button></li>`;
     const state = stateOf(t);
     const robot = world.roster.byThread(t.id);
     const logo = t.pinned ? p?.icon : logoFor(t.provider);
     const sub = t.pinned ? t.manager?.role || 'Manager' : t.branch || (p?.scratch ? "" : "");
     const host = !p || p.scratch ? world.building : "";
-    return `<li><button type="button" class="th-row ${!t.settled && t.runStatus === "running" ? "on" : ""}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}`)}">
+    // Each thread shows the worker on it: its face beside the job, its name and model below.
+    return `<li><button type="button" class="th-row th-worker ${!t.settled && t.runStatus === "running" ? "on" : ""}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${robot ? `
+${robot.name}${t.model ? `, ${t.model}` : ""}` : ""}`)}">
+      ${faceOf(t, 34, "l", dotOf(t) === "work" ? "working" : "")}
+      <span class="th-text">
       <span class="th-top">${icon}<span class="th-proj">${esc(proj)}</span>${state}</span>
       <span class="th-title">${t.pinned ? '<span class="th-pin" aria-label="Pinned">●</span>' : ""}${esc(t.title)}</span>
-      <span class="th-bot"><span class="th-sub">${esc(sub || host)}</span>${robot ? `<span class="th-bot-name">${esc(robot.name)}</span>` : ""}${logo ? `<img class="th-logo" src="${logo}" alt="">` : ""}</span>
+      <span class="th-bot"><span class="th-sub">${esc(sub || host)}</span>${robot ? `<span class="th-bot-name">${esc(robot.name)}${t.model ? `<span class="th-bot-model">, ${esc(t.model)}</span>` : ""}</span>` : ""}${logo ? `<img class="th-logo" src="${logo}" alt="">` : ""}</span>
+      </span>
     </button></li>`;
   };
   const expanded = settledOpen || !!q;

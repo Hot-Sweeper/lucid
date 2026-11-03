@@ -9,6 +9,7 @@ import { PALETTES } from "../world/seated-parts";
 import "./hire.css";
 import { openCustomize, savedLevel } from "./customize";
 import { Walker } from "../world/walker";
+import { compatibleWorkers } from "./worker-match";
 import { randomLook } from "../world/look";
 import { gameSound } from "./sound";
 
@@ -27,8 +28,7 @@ export type HireChoice = { robotId: string | null; provider: string; model: stri
 // A worker's setup is its harness and model. Only free robots with exactly that setup can
 // take the job; the most experienced goes first. No match means a new hire.
 export function matchingWorkers(team: HireTeammate[], provider: string, model: string | null) {
-  return team.filter(r => r.provider === provider && !!model && (r.model ?? r.lastModel ?? null) === model)
-    .sort((a, b) => b.jobs - a.jobs || a.name.localeCompare(b.name));
+  return model ? compatibleWorkers(team, provider, model) : [];
 }
 export type Role = { name: string; brief: string };
 export const BUILTIN_ROLES: Role[] = [

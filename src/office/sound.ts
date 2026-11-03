@@ -5,7 +5,7 @@ import ambienceUrl from '../assets/audio/room-air.mp3';
 
 type BackgroundKind = 'theme' | 'ambience';
 type BackgroundTrack = { media: HTMLAudioElement; source: MediaElementAudioSourceNode; gain: GainNode; pending: boolean; fading: boolean; release: () => void };
-export type GameCue = 'collect' | 'ready' | 'purchase' | 'poke' | 'coffee' | 'phone' | 'open' | 'level'
+export type GameCue = 'collect' | 'clink' | 'ready' | 'purchase' | 'poke' | 'coffee' | 'phone' | 'open' | 'level'
   | 'rustle' | 'splash' | 'switch' | 'projector' | 'boop' | 'chirp' | 'quack'
   | 'keyboard' | 'mouse' | 'paper' | 'servo' | 'step' | 'chatter' | 'controller' | 'ping' | 'snore' | 'water' | 'clip';
 export type SoundMix = { gain: number; pan: number; lowpass?: number };
@@ -13,6 +13,7 @@ type Note = [frequency: number, delay: number, duration: number, gain: number, w
 type EmitterBus = { gain: GainNode; pan: StereoPannerNode; filter: BiquadFilterNode; trim: number; cutoff: number; mode: 'normal' | 'headphones' | 'phone' };
 // Zero frequency means a shaped noise transient, never a continuous noise loop.
 const SCORES: Record<GameCue, Note[]> = {
+  clink: [[2093, 0, .045, .1], [3135.96, .016, .06, .05]],
   collect: [[1046.5, 0, .16, .32], [1318.5, .055, .18, .28], [1568, .11, .22, .24], [2093, .18, .28, .17], [523.25, 0, .2, .15]],
   ready: [[659.25, 0, .18, .15], [987.77, .12, .28, .12]],
   purchase: [[783.99, 0, .09, .2], [659.25, .07, .1, .18], [1046.5, .15, .22, .22]],
@@ -41,7 +42,7 @@ const SCORES: Record<GameCue, Note[]> = {
   clip: [[392, 0, .09, .07, 'triangle'], [587.33, .1, .075, .065, 'triangle'], [783.99, .21, .13, .065], [0, .27, .035, .08]],
 };
 const KEY = 'lucid:sound', MAX_VOICES = 48;
-const UI_CUES = new Set<GameCue>(['collect', 'purchase', 'level', 'ready', 'open']);
+const UI_CUES = new Set<GameCue>(['collect', 'clink', 'purchase', 'level', 'ready', 'open']);
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 /** Screen-space emitter relative to the camera's listening position. No DOM reads. */

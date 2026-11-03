@@ -16,6 +16,9 @@ type Opts = {
 };
 
 const held = new WeakSet<Walker>();
+/** A second click on the same robot within a few seconds opens its focus view (main.ts). */
+export const robotFocus: { open: ((id: string, el: HTMLElement) => boolean) | null } = { open: null };
+let lastTap: { w: Walker; at: number } | null = null;
 export const isHeld = (w: Walker) => held.has(w);
 export const whenFree = async (w: Walker) => { while (held.has(w)) await new Promise((r) => setTimeout(r, 120)); };
 
@@ -79,6 +82,8 @@ export function makeInteractive(w: Walker, o: Opts = {}) {
       el.removeEventListener("pointerup", up);
       el.removeEventListener("pointercancel", up);
       if (!dragging) {
+        if (lastTap?.w === w && performance.now() - lastTap.at < 4000 && robotFocus.open?.(w.id, el)) { lastTap = null; return; }
+        lastTap = { w, at: performance.now() };
         // a click: poke it (several quick pokes and it gets grumpy)
         pokes++;
         window.clearTimeout(pokeTimer);

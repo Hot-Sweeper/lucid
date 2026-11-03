@@ -1,7 +1,7 @@
 import type { Orchestrator, OrchState } from "./orchestrator";
 import "./orchestrator-controls.css";
 
-export function openOrchestratorControls(orch: Orchestrator, get: () => OrchState | null, reports: () => void, hire: () => void) {
+export function openOrchestratorControls(orch: Orchestrator, get: () => OrchState | null, reports: () => void, hire: () => void, chair: () => void = () => {}) {
   if(document.querySelector(".orch-controls")) return;
   const restore = document.activeElement as HTMLElement | null;
   const wrap = document.createElement("div"); wrap.className="dialog-wrap";
@@ -14,7 +14,7 @@ export function openOrchestratorControls(orch: Orchestrator, get: () => OrchStat
     <label class="switch"><input type="checkbox" data-answers><span class="track" aria-hidden="true"><i></i></span><span>Handle questions and approvals for me</span></label>
     <p class="hint" data-explain></p><p class="hint">Off pauses all automatic reviews, answers, and learning. You can still review reports manually. Work already running may finish.</p></div>
     <p data-missing hidden>No orchestrator has been hired.</p>
-    <div class="dialog-actions"><button type="button" class="ghost" data-reports>Review reports</button><button type="button" class="primary" data-hire hidden>Hire orchestrator</button><button type="button" class="ghost" data-close>Close</button></div>
+    <div class="dialog-actions"><button type="button" class="primary" data-chair>Take the chair</button><button type="button" class="ghost" data-reports>Review reports</button><button type="button" class="primary" data-hire hidden>Hire orchestrator</button><button type="button" class="ghost" data-close>Close</button></div>
   </section>`;
   const dialog=wrap.querySelector<HTMLElement>(".dialog")!;
   const presence=wrap.querySelector<HTMLSelectElement>("[data-presence]")!;
@@ -26,6 +26,7 @@ export function openOrchestratorControls(orch: Orchestrator, get: () => OrchStat
     (wrap.querySelector("[data-controls]") as HTMLElement).hidden=!s;
     (wrap.querySelector("[data-missing]") as HTMLElement).hidden=!!s;
     (wrap.querySelector("[data-hire]") as HTMLElement).hidden=!!s;
+    (wrap.querySelector("[data-chair]") as HTMLElement).hidden=!s;
     if(!s)return;
     enabled.checked=!s.paused;
     (wrap.querySelector("[data-rest]") as HTMLElement).hidden=!s.paused;
@@ -49,6 +50,7 @@ export function openOrchestratorControls(orch: Orchestrator, get: () => OrchStat
   answers.addEventListener("change",()=>{orch.setAuto(answers.checked);paint();});
   wrap.querySelector("[data-close]")!.addEventListener("click",close);
   wrap.querySelector("[data-reports]")!.addEventListener("click",()=>{close();reports();});
+  wrap.querySelector("[data-chair]")!.addEventListener("click",()=>{close();chair();});
   wrap.querySelector("[data-hire]")!.addEventListener("click",()=>{close();hire();});
   wrap.addEventListener("click",e=>{if(e.target===wrap)close();});
   window.addEventListener("keydown",onKey,true);document.body.append(wrap);paint();

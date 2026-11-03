@@ -13,6 +13,10 @@ export type DailyPack = {
   botcord?: { channel?: string; user?: string; text: string }[];
   trending?: { title: string; channel?: string; views?: string }[];
   event?: { name: string; blurb?: string };
+  /** Written from the robots' personas in this language (daily-writer.cjs). */
+  language?: string;
+  /** Lines each robot says in its own voice, by robot name. */
+  robots?: Record<string, string[]>;
 };
 
 let pack: DailyPack | null = null;
@@ -48,7 +52,8 @@ export async function loadDaily() {
   const locale = getLocale();
   try {
     const source: DailyPack | null = (await (window as any).lucid?.orchDialogs?.()) ?? null;
-    const next = source ? await translatePack(source) : null;
+    // A pack written in the current language is shown as written.
+    const next = source ? source.language === locale ? (canonicalKeys.clear(), source) : await translatePack(source) : null;
     if (locale !== getLocale()) { reload = true; return; }
     pack = next;
     // Only today's pack counts: yesterday's event is over.
@@ -82,8 +87,8 @@ const fresh = <T,>(list: T[] | undefined, key: (x: T) => string): T | null => {
 
 /** A conversation from today's pack (2 to 4 alternating lines), or null. */
 export const dailyConvo = () => fresh(pack?.convos?.filter((c) => Array.isArray(c) && c.length >= 2), (c) => c[0]);
-/** A single line about the CEO or another robot, or null. */
-export const dailyLine = () => fresh([
+/** A single line about the CEO or another robot, or null. With a speaker, often its own line. */
+export const dailyLine = (speaker?: string) => (speaker && pack?.robots?.[speaker]?.length && Math.random() < 0.6 ? fresh(pack.robots[speaker], (l) => l) : null) ?? fresh([
   ...(pack?.ceo ?? []), ...(pack?.gossip ?? []),
   ...(pack?.event ? (getLocale() === "de"
     ? [`Kommst du zu ${pack.event.name}?`, `Heute ist wohl ${pack.event.name}.`, `Ich spare meinen Akku für ${pack.event.name}.`]

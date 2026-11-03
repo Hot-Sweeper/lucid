@@ -1,4 +1,5 @@
-export type ActivityThread = { id: string; runStatus: string | null; question?: string | null; settled?: boolean; pinned?: boolean; coinPending?: boolean; completionPending?: boolean; manager?: { projectId: string; role: string } };
+/** reviewPending: the worker took its report to the orchestrator; its desk waits for it. */
+export type ActivityThread = { id: string; runStatus: string | null; question?: string | null; settled?: boolean; pinned?: boolean; coinPending?: boolean; completionPending?: boolean; reviewPending?: boolean; manager?: { projectId: string; role: string } };
 const ACTIVE = new Set(["running", "queued", "queue", "waiting", "starting", "preparing", "pending", "waitingforapproval", "awaitingapproval", "approvalpending", "awaitinginput", "waitingforinput", "waitingforuser"]);
 
 export function hasOfficeWork(thread: ActivityThread) {
@@ -8,7 +9,7 @@ export function hasOfficeWork(thread: ActivityThread) {
 // History is readable without occupying a workstation. Only an explicitly assigned
 // persistent manager retains a desk when idle or settled.
 export function hasOfficeDesk(thread: ActivityThread, revealed: string | null = null) {
-  if ((thread.coinPending || thread.completionPending) && thread.runStatus === 'completed') return true;
+  if ((thread.coinPending || thread.completionPending || thread.reviewPending) && thread.runStatus === 'completed') return true;
   if (thread.pinned && thread.manager) return true;
   return !thread.settled && (hasOfficeWork(thread) || thread.id === revealed);
 }
@@ -19,7 +20,7 @@ export function hasOfficeDesk(thread: ActivityThread, revealed: string | null = 
 // job needs a desk, and then that job takes the first empty place.
 type SeatClaim = string | ActivityThread;
 const claimId = (claim: SeatClaim) => typeof claim === "string" ? claim : claim.id;
-const keepsReservation = (claim: SeatClaim) => typeof claim === "string" || !claim.settled || !!(claim.pinned && claim.manager) || !!((claim.coinPending || claim.completionPending) && claim.runStatus === "completed");
+const keepsReservation = (claim: SeatClaim) => typeof claim === "string" || !claim.settled || !!(claim.pinned && claim.manager) || !!((claim.coinPending || claim.completionPending || claim.reviewPending) && claim.runStatus === "completed");
 const needsDesk = (claim: SeatClaim, revealed: string | null) => typeof claim === "string" || hasOfficeDesk(claim, revealed);
 
 export function reserveRoomSeats(previous: (string | null)[], claims: SeatClaim[], revealed: string | null = null) {

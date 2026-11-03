@@ -16,7 +16,10 @@ const three = read('a'); await Promise.resolve(); assert.equal(reads, 2); resolv
 let failures = 0; const failing = sharedPendingRequests(async () => { failures++; throw Error('offline'); });
 await assert.rejects(failing('a')); await assert.rejects(failing('a')); assert.equal(failures, 2);
 const f = Object.create(MonitorTasks.prototype);
-Object.assign(f, { previous: new Map(), holds: new Set(), dismissed: new Map(), world: { setCompletionHolds(ids) { this.holds = [...ids]; } } });
+let reviewing = false, approved = new Set();
+// Same rule as main.ts collectible(): reviews hold only approved work; otherwise only work finished while open.
+Object.assign(f, { previous: new Map(), holds: new Set(), fresh: new Set(), collecting: new Set(), world: { setCompletionHolds(ids) { this.holds = [...ids]; } },
+  actions: { ready: (id, fresh) => reviewing ? (approved.has(id) ? { summary: 'ok', coins: null } : null) : fresh ? { summary: '', coins: null } : null } });
 const data = (status, extra = {}) => ({ threads: [{ id: 'a', runStatus: status, updatedAt: 'now', settled: false, ...extra }], projects: [] });
 f.prepare(data('completed')); assert.deepEqual(f.world.holds, [], 'Do not resurrect all old completed threads on startup');
 f.prepare(data('running')); f.prepare(data('completed')); assert.deepEqual(f.world.holds, ['a'], 'New completion retains its physical monitor until dismissed');
@@ -26,4 +29,12 @@ f.prepare(data('running')); assert.deepEqual(f.world.holds, []);
 f.prepare(data('completed')); f.prepare(data('completed', { settled: true })); assert.deepEqual(f.world.holds, []);
 f.prepare(data('running')); f.prepare(data('completed')); f.prepare({ ...data('completed'), environmentId: 'remote' }); assert.deepEqual(f.world.holds, [], 'Completion state never crosses environments');
 f.prepare({ threads: [], projects: [] }); assert.equal(f.previous.size, 0);
-console.log('Monitor tasks passed: coalesced pending reads, failed-read recovery, real completion transitions, desk retention, new work, settlement, removal and building isolation.');
+// With reviews on, finished work waits for approval before its desk shows Collect.
+reviewing = true;
+f.prepare(data('running')); f.prepare(data('completed')); assert.deepEqual(f.world.holds, [], 'Completion under review shows nothing on the desk yet');
+approved.add('a'); f.prepare(data('completed')); assert.deepEqual(f.world.holds, ['a'], 'Approval puts Collect on the desk');
+f.prepare({ threads: [], projects: [] }); f.prepare(data('completed')); assert.deepEqual(f.world.holds, ['a'], 'Approved work is collectible after a restart too');
+f.prepare(data('completed', { settled: true })); assert.deepEqual(f.world.holds, [], 'Collected (settled) work releases the desk');
+assert(hasOfficeDesk({ id: 'a', runStatus: 'completed', reviewPending: true }), 'The desk waits while the worker is at review');
+assert(!hasOfficeDesk({ id: 'a', runStatus: 'completed', reviewPending: false }));
+console.log('Monitor tasks passed: coalesced pending reads, failed-read recovery, real completion transitions, desk retention, new work, settlement, removal, building isolation, approval-gated Collect and review desk retention.');

@@ -25,7 +25,7 @@ const parseVerdict = (text, reportId = null) => {
   return null;
 };
 
-function createReports({ dir, t3, server, usage, settings, robots = () => [] }) {
+function createReports({ dir, t3, server, usage, settings, robots = () => [], hidden = () => false }) {
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, 'index.json');
   let papers = [];
@@ -132,22 +132,17 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
       return;
     }
     if (verdict.decision === 'approve') {
-      if (!p.orchestratorId || !p.sentAt || (by !== 'Orchestrator' && !p.history.some(h => h.by === 'Orchestrator' && h.action.startsWith('Review:')))) {
+      // The user may decide directly from the orchestrator's chair; elsewhere the orchestrator reviews first.
+      const fromChair = by === 'You' && verdict.chair === true;
+      if (!fromChair && (!p.orchestratorId || !p.sentAt || (by !== 'Orchestrator' && !p.history.some(h => h.by === 'Orchestrator' && h.action.startsWith('Review:'))))) {
         update(p, { status: 'manual-review', error: 'Send this report to the orchestrator for review before settlement.' });
         return;
       }
-      // Save approval before asking T3 to settle. A failed dispatch remains retryable.
-      update(p, { status: 'approved' });
-      if (automatic && !enabled()) return;
-      if (!current(p)) { update(p, { status: 'superseded' }); return; }
-      if (excludeManager(p)) return;
-      await server.settleThread(p.threadId, { excludePinned: true, expectedRunId: p.runId });
-      if (!reportState(p.threadId).settled) {
-        update(p, { status: 'approved', retryAt: Date.now() + 5000, error: 'Waiting for T3 to confirm settlement.' });
-        return;
-      }
-      event(p, 'Settled in T3', by, verdict.summary);
-      update(p, { status: 'settled', settledAt: new Date().toISOString(), error: null });
+      // Approval puts the report on the worker's desk. Settlement waits for the user's
+      // Collect, which clears the desk (see collect below).
+      if (p.collectRequested) return settle(p, by);
+      update(p, { status: 'approved', approvedAt: p.approvedAt || new Date().toISOString(), retryAt: null, error: null });
+      event(p, 'Approved, ready to collect', by, verdict.summary);
     } else if (verdict.decision === 'pending') {
       event(p, 'Waiting for dependency evidence', by, verdict.summary);
       update(p, { status: 'pending-dependency', error: null });
@@ -157,6 +152,17 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
       await t3.sendMessage({ threadId: p.threadId, message: `Lucid review of ${p.title}:\n${feedback}\n\nWhen finished, include what changed, actual checks, and before/after screenshot links for visual changes. This job remains unsettled until reviewed.` });
       event(p, 'Changes requested', by, feedback); update(p, { status: 'changes-requested', error: null });
     } else update(p, { status: 'manual-review' });
+  }
+  async function settle(p, by) {
+    if (!current(p)) { update(p, { status: 'superseded' }); return; }
+    if (excludeManager(p)) return;
+    await server.settleThread(p.threadId, { excludePinned: true, expectedRunId: p.runId });
+    if (!reportState(p.threadId).settled) {
+      update(p, { status: 'approved', retryAt: Date.now() + 5000, error: 'Waiting for T3 to confirm settlement.' });
+      return;
+    }
+    event(p, 'Collected and settled in T3', by, p.verdict?.summary);
+    update(p, { status: 'settled', settledAt: new Date().toISOString(), error: null, retryAt: null });
   }
   async function tick(arrived = []) {
     if (busy) return papers;
@@ -181,9 +187,9 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
       }
       if (!enabled()) return papers;
       const s = settings();
-      // Recover approved papers after a crash without asking the model for another verdict.
-      const approved = papers.find(p => p.status === 'approved' && (!p.retryAt || p.retryAt <= Date.now()));
-      if (approved) { actionPaper = approved; await apply(approved, approved.verdict, approved.reviewer, true); return papers; }
+      // Finish a collection whose settlement was interrupted, without asking for another verdict.
+      const approved = papers.find(p => p.status === 'approved' && p.collectRequested && (!p.retryAt || p.retryAt <= Date.now()));
+      if (approved) { actionPaper = approved; await settle(approved, 'You'); return papers; }
       const pending = papers.find(p => p.status === 'reviewing');
       if (pending) {
         actionPaper = pending;
@@ -232,6 +238,16 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
         event(p, 'Human check answered', 'You', `${check.question}: ${values.answer}`); save();
       }
       else if (action === 'retry') { event(p, 'Review retried', 'You'); update(p, { status: 'submitted', error: null }); }
+      else if (action === 'collect') {
+        if (p.status !== 'approved') throw new Error('Only approved work can be collected.');
+        // Record the intent first. If T3 is slow or Lucid closes, collection finishes on recovery.
+        update(p, { collectRequested: true, collectedAt: new Date().toISOString(), error: null }); save();
+        try { await settle(p, 'You'); }
+        catch (error) {
+          if (error.code === 'stale-review') { update(p, { status: 'superseded', error: null }); throw new Error('New work started on this thread, so there is nothing to collect yet.'); }
+          update(p, { error: String(error.message || error) }); throw error;
+        }
+      }
       else if (action === 'reopen') { await server.unsettleThread(p.threadId); event(p, 'Reopened in T3', 'You'); update(p, { status: 'manual-review', settledAt: null }); }
       else if (action === 'approve' || action === 'changes' || action === 'pending') await apply(p, { ...values, decision: action }, 'You', false);
       else throw new Error('Unknown review action.');
@@ -248,7 +264,8 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
         const boss = settings()?.threadId;
         // Submit at most one new snapshot per pass, oldest completion first.
         for (const thread of [...world.threads].reverse()) {
-          if (thread.id === boss || thread.pinned || thread.settled || thread.question || thread.runStatus !== 'completed') continue;
+          // Lucid's own helper threads (translation, daily lines) are never reviewed.
+          if (thread.id === boss || hidden(thread.id) || thread.pinned || thread.settled || thread.question || thread.runStatus !== 'completed') continue;
           const state = reportState(thread.id);
           if (papers.some(p => p.threadId === thread.id && p.runId === state.run?.id)) continue;
           if (await submit(thread.id, robots().find(r => r.threadId === thread.id))) break;

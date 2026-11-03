@@ -12,7 +12,7 @@ if(!process.versions.electron){(async()=>{
     const entry=path.join(dir,'entry.ts');fs.writeFileSync(entry,`import {latestThreadReviews,threadReviewLabel} from '${src}/src/office/thread-review';
 import '${src}/node_modules/@fontsource-variable/lexend/index.css';import '${src}/src/styles.css';import '${src}/src/office/office.css';
 const appEl=document.querySelector('#app'),$=(id)=>document.getElementById(id),esc=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
-const world={lastData:{projects:[{id:'lucid',title:'Lucid',scratch:false}],threads:[]},roster:{byThread:()=>null},building:'Tim-PC'},orch={papers:[]},settings={orch:{threadId:'orchestrator'}},delegate={phaseOf:()=>null};
+const world={lastData:{projects:[{id:'lucid',title:'Lucid',scratch:false}],threads:[]},roster:{byThread:()=>null},lookFor:(t,l)=>l,building:'Tim-PC'},orch={papers:[]},settings={orch:{threadId:'orchestrator'}},delegate={phaseOf:()=>null};
 let currentEnvironment,thSig='',settledOpen=false,settledLimit=10,managersTween=null,managersJustOpened=false;
 const folded=new Set(),beginSystem=()=>0,endSystem=()=>{},renderRail=()=>{},logoFor=()=>null,managerFace=()=>'',celebratePictures=()=>{},calm=()=>true,ago=()=> 'now';
 ${render}
@@ -33,7 +33,7 @@ else{const{app,BrowserWindow}=require('electron');app.setPath('userData',path.jo
     if(mode==='before'){check('Old row labels the unreviewed completed worker Done',await ev(`document.querySelector('[data-id="chat-report"] .th-st').textContent==='Done'`));continue;}
     check('Submitted report shows waiting for Orchestrator instead of Done',await ev(`document.querySelector('[data-id="chat-report"] .th-st').textContent==='Waiting for Orchestrator review'`));
     check('Active work retains Working and source thread order',await ev(`document.querySelector('.th-row').dataset.id==='active'&&document.querySelector('.th-row .th-st').textContent.startsWith('Working')`));
-    for(const [status,label] of [['reviewing','Orchestrator reviewing'],['manual-review','Needs your review'],['pending-dependency','Review on hold'],['changes-requested','Changes requested'],['approved','Awaiting settlement']]){
+    for(const [status,label] of [['reviewing','Orchestrator reviewing'],['manual-review','Needs your review'],['pending-dependency','Review on hold'],['changes-requested','Changes requested'],['approved','Ready to collect']]){
       await ev(`review.orch.papers=[{...paper,status:${JSON.stringify(status)}}];review.render();`);
       check('Saved '+status+' is accurately presented',await ev(`document.querySelector('[data-id="chat-report"] .th-st').textContent===${JSON.stringify(label)}`));
     }

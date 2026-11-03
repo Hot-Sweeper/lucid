@@ -102,4 +102,5 @@ export interface RobotLook {
   tint?: Tint;                                       // a slight shift of the brand shell color
   glow?: string | null;                              // eye, antenna and chest light color (null: the brand's own)
   blush?: boolean;                                   // pink cheeks under the visor
+  crest?: string | null;                             // a project logo on a manager's crown (never saved, see managerLook)
 }

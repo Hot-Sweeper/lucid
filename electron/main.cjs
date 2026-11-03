@@ -284,15 +284,19 @@ usage.setProviderLimitsReader(() => require("./t3server.cjs").usageLimits());
 ipcMain.handle("usage:get", () => usage.getUsage());
 ipcMain.handle("coins:usage", () => usage.getCoinSources(t3.coinBindings()));
 const reports = require("./reports.cjs").createReports({
+  hidden: id => languageHelpers.has(id),
   robots: () => { try { return JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "roster.json"), "utf8")); } catch { return []; } },
   dir: process.env.LUCID_SHOT ? path.join(app.getPath("userData"), "reports") : path.join(ORCH_DIR, "reports"), t3, server: require("./t3server.cjs"), usage,
   settings: () => { if (process.env.LUCID_SHOT) return null; try { return JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "settings.json"), "utf8")).orch || null; } catch { return null; } },
 });
 // Owned single-flight backend supervision continues when the office renderer is hidden.
 let reportSupervisorTimer = null, reportSupervisorStopped = false;
+// Titles follow each finished run, using T3 Code's own text generation model.
+const titleRefresh = require('./title-refresh.cjs').createTitleRefresh({ file: path.join(app.getPath('userData'), 'title-refresh.json'), world: async () => { const data = t3.world(); return { ...data, threads: data.threads.filter(t => !languageHelpers.has(t.id)) }; }, reportState: t3.reportState, dispatch: command => require('./t3server.cjs').dispatch(command) });
 async function superviseReports() {
   if (reportSupervisorStopped) return;
   try { await reports.supervise(); } catch (error) { console.error('Report supervision failed', error.message); }
+  try { await titleRefresh.tick(); } catch (error) { console.error('Title refresh failed', error.message); }
   finally { if (!reportSupervisorStopped) reportSupervisorTimer = setTimeout(superviseReports, 5000); }
 }
 if (!process.env.LUCID_SHOT && !process.env.LUCID_AUTO_SCOPE?.startsWith('(none')) {
@@ -487,6 +491,10 @@ app.on("window-all-closed", () => app.quit());
 // Handlers answer { ok, value } or { ok: false, error } so the renderer gets a clean message.
 const t3s = require("./t3server.cjs");
 const { createLocalization, createT3Translator } = require('./localization.cjs');
+// Daily flavor text from the robots' personas, on T3 Code's text generation model.
+const dailyWriter = require('./daily-writer.cjs').createDailyWriter({ t3, server: t3s, helpers: languageHelpers, dir: ORCH_DIR, settingsFile: path.join(path.dirname(t3.DB_PATH), 'settings.json') });
+ipcMain.handle("writer:daily", (_e, input) => { if (activeBuilding()) throw Error('Write daily lines on the computer that owns the robots.'); return dailyWriter.write(input); });
+ipcMain.handle("writer:model", () => dailyWriter.selection());
 const localization = createLocalization({ file: path.join(app.getPath('userData'), 'translations.json'), translate: createT3Translator({ t3, server: t3s, helpers: languageHelpers }) });
 ipcMain.handle('lucid:localize', (_e, input) => localization.localize(input));
 t3s.setRemoteDispatch(c => remote.dispatch(c));
@@ -521,6 +529,8 @@ ipcMain.handle("t3s:move-thread", t3sWrap(async (o) => {
 }));
 ipcMain.handle("t3s:reorder", t3sWrap((o) => t3s.reorderQueued(o.threadId, o.runId, o.beforeRunId ?? null)));
 ipcMain.handle("t3s:cancel", t3sWrap((o) => t3s.cancelQueued(o.threadId, o.runId)));
+// Collecting finished work without a review clears its desk by settling the thread.
+ipcMain.handle("t3s:settle", t3sWrap((o) => { if (activeBuilding()) throw Error('Collect work on the computer that owns it.'); if (typeof o?.threadId !== 'string' || !o.threadId) throw Error('Choose finished work to collect.'); const state = require('./t3.cjs').reportState(o.threadId); if (state.run?.status !== 'completed' || state.pendingRuns || state.pendingRequests) throw Error('This work is not finished yet.'); return t3s.settleThread(o.threadId, { excludePinned: true, expectedRunId: state.run.id }); }));
 ipcMain.handle("t3s:edit", t3sWrap((o) => t3s.editQueued(o.threadId, o.runId, o.text)));
 ipcMain.handle("t3s:steer", t3sWrap((o) => t3s.steerNow(o.threadId, o.queuedRunId, o.targetRunId)));
 ipcMain.handle("t3s:setModel", t3sWrap((o) => t3s.setThreadModel(o.threadId, o.selection)));

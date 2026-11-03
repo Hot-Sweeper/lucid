@@ -21,3 +21,9 @@
 .monitor-task-panel button:focus-visible { outline: 3px solid var(--accent, #ff9f5a); outline-offset: 3px; }
 .has-monitor-task .desk-coins { display: none; }
 .has-monitor-task .uac { display: none; }
+.monitor-task-result > .monitor-task-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; overflow: hidden; color: var(--ink-2, #c3c4dc); font-size: 19px; }
+.monitor-task-result > .monitor-task-summary:empty { display: none; }
+.monitor-task-result > .monitor-task-collect { font: inherit; font-size: 24px; font-weight: 600; padding: 14px 34px; border-radius: 12px; min-width: 200px; }
+.monitor-task-result > .monitor-task-collect:disabled { opacity: .7; }
+.monitor-task-result > .monitor-task-error { font-size: 16px; color: var(--accent-2, #ffb27a); min-height: 1.5em; }
+.monitor-task-result > .monitor-task-error:empty { visibility: hidden; }

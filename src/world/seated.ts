@@ -241,7 +241,7 @@ export class TopDownRobot implements SeatedRobot {
   private renderLook() {
     const L = this.look, view = this.facing ? "front" : "back";
     const hat = hatInfo(L.hat), head = this.$.head, lift = this.$.antennaLift;
-    this.$.hat.innerHTML = hatSvg(L.hat, view);
+    this.$.hat.innerHTML = hatSvg(L.hat, view, L.crest);
     // the antenna pokes out of low hats (drawn over them), sits on top of tall ones or hides under them
     if (hat.antenna === "through") { if (lift.nextSibling !== this.$.phones) head.insertBefore(lift, this.$.phones); }
     else if (head.firstChild !== lift) head.insertBefore(lift, head.firstChild);

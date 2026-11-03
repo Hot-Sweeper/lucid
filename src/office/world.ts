@@ -1,3 +1,5 @@
+import { managerLook } from "../world/look";
+import type { RobotLook } from "./rig";
 import { gameSound } from "./sound";
 import { printerArt, printerStation } from "./printer";
 import { subscriptionBatteries } from "./battery";
@@ -121,9 +123,16 @@ export class World {
   // park have walkers of their own: they hand a leaving robot over at their door and take an
   // arriving one over at the same point, so nobody pops in or out. New robots come in from
   // outside through the entrance; outdoors a robot walks in the park layer (under the night tint).
-  readonly reports = new Map<string, { title: string; arrived: boolean; sent?: boolean; writing?: boolean; started?: boolean; response?: string }>();
+  readonly reports = new Map<string, { title: string; arrived: boolean; sent?: boolean; writing?: boolean; started?: boolean; response?: string; approved?: boolean }>();
   onReportArrived: (id: string) => void = () => {};
   queueReport(t: WThread, response = "", delivered = false) { this.reports.set(t.id, { title: t.title, arrived: delivered, writing: !delivered, response }); }
+  /** An approved report sends its worker back to the desk, where the report waits to be collected. */
+  setReportApproved(id: string, approved: boolean) {
+    const report = this.reports.get(id);
+    if (!report || !!report.approved === approved) return false;
+    report.approved = approved;
+    return true;
+  }
   private topH = 0;
   private floorPlan: OfficePlan = officePlan([], []);
   private footprint = buildingFootprint([]);
@@ -225,7 +234,7 @@ export class World {
   private spawn(t: { id: string; provider: string; model?: string | null }, at: Pt, face: Facing, outdoors = this.outside(at)) {
     const profile = this.roster.byThread(t.id);
     const out = outdoors;
-    const w = new Walker(out ? this.park.layer : this.deskLayer, { id: t.id, provider: t.provider, name: profile?.name, model: t.model ?? undefined, scale: WALK_SCALE, look: profile?.look });
+    const w = new Walker(out ? this.park.layer : this.deskLayer, { id: t.id, provider: t.provider, name: profile?.name, model: t.model ?? undefined, scale: WALK_SCALE, look: this.lookFor(this.lastData?.threads.find((x) => x.id === t.id) ?? {}, profile?.look) });
     w.el.classList.add("hall-walker");
     makeInteractive(w, { bounds: () => (out ? this.outdoor : null) ?? { x: 0, y: 0, w: this.size.w, h: this.size.h }, onOpen: () => this.onSelectThread(t.id) });
     w.setPos(at.x, at.y);
@@ -645,6 +654,14 @@ export class World {
   selected: Desk | null = null;
   onSelect: (d: Desk | null) => void = () => {};
   onSelectThread: (id: string) => void = () => {};
+  /** How a thread's robot is drawn: managers wear their project's crown everywhere they go. */
+  lookFor(t: { pinned?: boolean; manager?: { projectId: string } | null; projectId?: string }, look: RobotLook | undefined) {
+    if (!look || !t.pinned || !t.manager) return look;
+    const project = this.lastData?.projects.find((p) => p.id === (t.manager!.projectId || t.projectId));
+    return project && !project.scratch ? managerLook(look, project.icon ?? null) : look;
+  }
+  /** A robot was clicked twice: open its worker focus view. `id` is its thread. */
+  onRobotFocus: (threadId: string, anchor: Element) => void = () => {};
   onRooms: (rooms: Room[]) => void = () => {};
   roomOrder: string[] = [];
   onRoomOrder: (order: string[]) => void = () => {};
@@ -807,7 +824,7 @@ export class World {
       for (const entry of this.neighbors.values()) entry.office?.rememberLayout();
       this.applyOfficeLayout(this.layoutForEnvironment(data.environmentId));
     }
-    data = { ...data, threads: data.threads.map(t => ({ ...t, coinPending: !data.environmentId && this.coinHolds.has(t.id), completionPending: this.completionHolds.has(t.id) && !t.settled })) };
+    data = { ...data, threads: data.threads.map(t => ({ ...t, coinPending: !data.environmentId && this.coinHolds.has(t.id), completionPending: this.completionHolds.has(t.id) && !t.settled, reviewPending: !data.environmentId && this.reports.has(t.id) && !t.settled })) };
     this.lastData = data;
     if (!this.hostWorld) subscriptionBatteries.setEnabled(!data.environmentId);
     for (const [id] of this.reports) {
@@ -848,7 +865,9 @@ export class World {
       residents.get(home)!.push(t);
       const report = this.reports.get(t.id);
       if (report?.writing && this.collapsedRooms.has(home)) report.writing = false;
-      const want = depleted ? "charging" : t.question ? "queue" : this.collapsedRooms.has(home) && !this.reports.has(t.id) ? "break" : (t.coinPending || t.completionPending) && t.runStatus === 'completed' ? home : this.reports.has(t.id) ? (this.reports.get(t.id)!.writing ? home : this.reports.get(t.id)!.arrived ? "break" : "queue") : hasOfficeDesk(t, this.revealedThread) ? home : "break";
+      // A worker with a report writes it at the desk, carries it to the orchestrator and waits in
+      // its line until the review is decided. Approval sends it back to its desk to be collected.
+      const want = depleted ? "charging" : t.question ? "queue" : this.collapsedRooms.has(home) && !this.reports.has(t.id) ? "break" : report ? (report.writing || report.approved ? home : "queue") : (t.coinPending || t.completionPending) && t.runStatus === 'completed' ? home : hasOfficeDesk(t, this.revealedThread) ? home : "break";
       // Existing actors finish their old-floor journey first. A newly started robot
       // waits in its current room until its physical desk can safely be opened.
       const currentRoom = this.roomOf.get(t.id) ?? null;
@@ -1192,7 +1211,7 @@ export class World {
       walker.setRunning(!!thread && hasOfficeWork(thread) && !thread.question && !!this.desks.get(id)?.el.classList.contains("arriving"));
     }
     // robots that finished longer ago than the break room's latest eight go out to the park
-    const info = (t: WThread) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name, look: this.roster.byThread(t.id)?.look });
+    const info = (t: WThread) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name, look: this.lookFor(t, this.roster.byThread(t.id)?.look) });
     // in rain, storms or snow nobody stays in the park
     const wet = this.outdoorsWet;
     this.park.wet = wet;
@@ -1377,9 +1396,12 @@ export class World {
     d.director.childItems = (id, since) => (window as any).lucid.itemsSince(id, since);
     this.allDesks.add(d);
     if (!this.hostWorld) this.wireDeskDrag(d);
+    d.onRobotFocus = (anchor) => { if (d.threadId) this.onRobotFocus(d.threadId, anchor); };
     d.el.addEventListener("click", (e) => {
       if (this.dragged) return;
       e.stopPropagation();
+      // Desk already up close: a click on its robot opens the worker's focus view.
+      if (d.threadId && this.focusDesk === d && (e.target as Element).closest?.(".robot-host")) { this.onRobotFocus(d.threadId, d.el.querySelector(".robot-host") ?? d.el); return; }
       if (d.threadId) { this.select(d); this.focusOn(d); }
       else this.onFreeDesk(d, [...this.slotDesks.entries()].find(([, v]) => v === d)?.[0] ?? "", e.clientX, e.clientY);
     });

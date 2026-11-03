@@ -135,6 +135,10 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .game-language { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--ink-2); font-size: 12px; }
 .game-language select { min-width: 0; max-width: 60%; padding: 6px 8px; color: var(--ink); background: var(--night); border: 1px solid var(--line); border-radius: 5px; font: inherit; cursor: pointer; color-scheme: dark; }
 .game-language select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.game-language-tools { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; font-size: 11px; }
+.game-language-tools .link-btn { font-size: 11px; padding: 3px 0; }
+.game-language-tools .link-btn:disabled { opacity: .6; cursor: default; }
+.game-language-status { color: var(--ink-3); }
 .panel > .usage { flex: none; border-top: 1px solid rgba(255,255,255,.07); padding-top: 12px; }
 .panel > .usage .st-head { margin-top: 12px; }
 .panel > .usage .st-ltop { flex-wrap: wrap; }

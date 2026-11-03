@@ -287,7 +287,7 @@ export class Walker {
   private updateHeadwear() {
     const side = this.facing === "left" || this.facing === "right";
     const view = this.facing === "up" ? "back" : "front";
-    const art = (suffix: string) => hatSvg(this.walkerLook.hat, view).replace(/lkp([fb])/g, `${this.lookId}-${suffix}-$1`);
+    const art = (suffix: string) => hatSvg(this.walkerLook.hat, view, this.walkerLook.crest ?? null).replace(/lkp([fb])/g, `${this.lookId}-${suffix}-$1`);
     this.$.fbHat.innerHTML = art("fb");
     this.$.sideHat.innerHTML = art("side");
     this.$.sideHat.setAttribute("transform", "translate(98 0) scale(0.82 1)");

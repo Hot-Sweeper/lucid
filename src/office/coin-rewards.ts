@@ -22,7 +22,8 @@ export class CoinRewards {
   private timer: number;
   private seen = new Set<string>();
   private initialized = false;
-  constructor(private wallet: Wallet, private world: World, private load: () => Promise<{ usage: Parameters<Wallet['observe']>[0]; sources: CoinSource[] }>) {
+  constructor(private wallet: Wallet, private world: World, private load: () => Promise<{ usage: Parameters<Wallet['observe']>[0]; sources: CoinSource[] }>,
+    private work: { ready(id: string): boolean; collected(id: string): Promise<void> } = { ready: () => true, collected: async () => {} }) {
     this.tray.className = 'coin-tray'; this.tray.hidden = true;
     this.summary.textContent = 'Coins to collect';
     this.list.className = 'coin-reward-list';
@@ -85,9 +86,11 @@ export class CoinRewards {
   private syncHolds() {
     if (this.world.setCoinHolds([...this.wallet.rewards.map(r => r.id), ...this.settling]) && this.world.lastData) this.world.update(this.world.lastData);
   }
+  /** Coins wait until their work may be collected: approved, or finished with reviews off. */
+  private get rewards() { return this.wallet.rewards.filter(r => this.work.ready(r.id)); }
   render() {
     if (this.disposed || document.hidden) return;
-    const rewards = this.wallet.rewards;
+    const rewards = this.rewards;
     const ready = new Map(rewards.map(r => [r.id, r]));
     const fresh = rewards.some(r => !this.seen.has(r.id));
     if (this.initialized && fresh) gameSound.play('ready');
@@ -112,62 +115,41 @@ export class CoinRewards {
     this.summary.textContent = `${formatCoins(rewards.reduce((sum, r) => sum + r.amount, 0))} coins to collect`;
     this.collectAllButton.setAttribute('aria-label', `Collect all ${formatCoins(rewards.reduce((sum, r) => sum + r.amount, 0))} coins`);
     if (rewards.length === 0) this.disclosure.open = false;
-    for (const [el, button] of this.deskButtons) {
-      const desk = [...this.world.desks.values()].find(d => d.el === el);
-      if (!el.isConnected || !desk?.threadId || !ready.has(desk.threadId) || this.world.lastData?.environmentId) {
-        button.remove(); this.deskButtons.delete(el);
-      }
-    }
-    if (!this.world.lastData?.environmentId) for (const [id, desk] of this.world.desks) {
-      const reward = ready.get(id); if (!reward) continue;
-      let button = this.deskButtons.get(desk.el);
-      if (!button) {
-        button = document.createElement('button'); button.type = 'button'; button.className = 'desk-coins';
-        button.innerHTML = `<span class="coin-rays" aria-hidden="true"></span><span class="coin-aura" aria-hidden="true"></span><span class="coin-screen-content"><span class="coin-screen-title">Work complete!</span><span class="desk-coin-stack" aria-hidden="true">${coinIcon(102)}${coinIcon(102)}${coinIcon(102)}</span><span class="coin-screen-total"><b></b><span>coins</span></span><span class="coin-screen-cost"></span><span class="coin-screen-action">Collect <span aria-hidden="true">\u2192</span></span></span><span class="coin-sparkles" aria-hidden="true">${Array.from({ length: 6 }, (_, i) => `<i style="--i:${i}"></i>`).join('')}</span>`;
-        const target = button;
-        button.addEventListener('pointerdown', e => e.stopPropagation());
-        button.addEventListener('dblclick', e => e.stopPropagation());
-        button.addEventListener('click', e => { e.stopPropagation(); this.collect(id, target); });
-        desk.screen.append(button); this.deskButtons.set(desk.el, button);
-        if (!document.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          button.animate([{ transform: 'translateY(8px) scale(.8)', opacity: 0 }, { transform: 'translateY(0) scale(1)', opacity: 1 }], { duration: 300, easing: 'cubic-bezier(.2,.8,.3,1.2)' });
-        }
-      }
-      const amount = `+${formatCoins(reward.amount)}`;
-      if (button.querySelector('b')!.textContent !== amount) {
-        button.querySelector('b')!.textContent = amount;
-        button.style.setProperty('--coin-amount-size', amount.length > 12 ? '42px' : '66px');
-        if (!document.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches) button.querySelector('.coin-screen-total')!.animate([{ transform: 'scale(.88)' }, { transform: 'scale(1)' }], { duration: 420, easing: 'cubic-bezier(.16,1,.3,1)' });
-      }
-      button.querySelector('.coin-screen-cost')!.textContent = `$${reward.dollars.toFixed(2)} at API prices${reward.amount - reward.dollars > .009 ? ' + bonus' : ''}`;
-      button.setAttribute('aria-label', `Collect ${formatCoins(reward.amount)} coins from ${reward.title}`);
-      button.title = `$${reward.dollars.toFixed(4)} at API prices, plus earned bonuses. $1 = 1 coin. Estimate, not a bill.`;
-    }
+    // The desk's own Collect screen (monitor-tasks.ts) is the only desk action.
+    for (const button of this.deskButtons.values()) button.remove();
+    this.deskButtons.clear();
     if (focused instanceof HTMLElement && !focused.isConnected && (focused.classList.contains('desk-coins') || focused.classList.contains('coin-reward-row'))) {
       (this.disclosure.open ? this.rows.values().next().value : document.getElementById('coin-bank'))?.focus({ preventScroll: true });
     }
   }
-  collect(id: string, from: HTMLElement) {
+  /** Pays a reward. `settle`: also clear the work's desk (the tray); the desk screen settles first itself. */
+  collect(id: string, from: HTMLElement, settle = true) {
+    if (!this.work.ready(id)) return 0;
     const origin = from.getBoundingClientRect();
     const coins = this.wallet.collect(id); // Synchronous consumption blocks double clicks.
-    if (!coins) return;
+    if (!coins) return 0;
     gameSound.play('collect');
     this.status.textContent = `Collected ${formatCoins(coins)} coins. Balance ${formatCoins(this.wallet.balance)}.`;
     this.fly(origin);
     this.world.deskFor(id)?.robot.react('cheer');
     this.syncHolds();
     this.render();
+    if (settle) void this.work.collected(id).catch(error => { this.status.textContent = `Coins collected. The desk could not be cleared yet: ${error?.message || error}`; });
+    return coins;
   }
   collectAll() {
-    const rewards = this.wallet.rewards;
+    const rewards = this.rewards;
+    if (!rewards.length) return;
     const origin = this.collectAllButton.getBoundingClientRect();
-    const coins = this.wallet.collectAll();
+    let coins = 0;
+    for (const reward of rewards) coins += this.wallet.collect(reward.id) || 0;
     if (!coins) return;
     gameSound.play('collect');
     this.status.textContent = `Collected ${formatCoins(coins)} coins from ${rewards.length} robots. Balance ${formatCoins(this.wallet.balance)}.`;
     for (const reward of rewards) this.world.deskFor(reward.id)?.robot.react('cheer');
     this.fly(origin);
     this.syncHolds(); this.render();
+    for (const reward of rewards) void this.work.collected(reward.id).catch(() => {});
     document.getElementById('coin-bank')?.focus({ preventScroll: true });
   }
   private fly(from: DOMRect) {
@@ -181,9 +163,12 @@ export class CoinRewards {
       coin.setAttribute('aria-hidden', 'true');
       const x = from.left + from.width / 2 - 10, y = from.top + from.height / 2 - 10;
       coin.style.left = `${x}px`; coin.style.top = `${y}px`; document.body.append(coin);
-      const timeline = gsap.timeline({ delay: i * .035, onComplete: () => { coin.remove(); this.effects.delete(coin); } })
+      // Each coin lands on the counter with a clink while the balance counts up.
+      const land = () => { gameSound.emit('clink', { gain: .7 + i * .05, pan: 0 }, `coin-${i}`); gsap.fromTo(bank, { scale: 1.12 }, { scale: 1, duration: .16, ease: 'power2.out', overwrite: 'auto' }); };
+      const timeline = gsap.timeline({ delay: i * .075, onComplete: () => { coin.remove(); this.effects.delete(coin); } })
         .to(coin, { x: (i - 3) * 13, y: -38 - Math.abs(i - 3) * 5, scale: 1.12, duration: .18, ease: 'power2.out' })
-        .to(coin, { x: to.left + to.width / 2 - 10 - x, y: to.top + to.height / 2 - 10 - y, scale: .55, rotation: 270 + i * 40, duration: .46, ease: 'power2.in', opacity: .3 });
+        .to(coin, { x: to.left + to.width / 2 - 10 - x, y: to.top + to.height / 2 - 10 - y, scale: .55, rotation: 270 + i * 40, duration: .46, ease: 'power2.in', opacity: .3 })
+        .call(land);
       this.effects.set(coin, timeline);
     }
   }

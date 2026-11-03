@@ -1,3 +1,4 @@
+import { managerLook } from "../world/look";
 import gsap from "gsap";
 import { gameSound } from './sound';
 import { WM } from "../os/wm";
@@ -52,6 +53,8 @@ export class Desk implements DeskStage {
   screen: HTMLElement;
   bubble: HTMLElement;
   robot: SeatedRobot;
+  /** Opens the worker's focus view (set by the world). */
+  onRobotFocus: ((anchor: Element) => void) | null = null;
   private deferredRobot: DeferredRobot;
   wm: WM;
   director: Director;
@@ -75,6 +78,7 @@ export class Desk implements DeskStage {
     el.innerHTML = `
       ${this.tableSvg()}
       <div class="desk-glow"></div>
+      <div class="mgr-side mgr-left" aria-hidden="true"><img alt=""></div><div class="mgr-side mgr-right" aria-hidden="true"><img alt=""></div>
       <div class="monitor"><div class="screen"></div><div class="screen-glare"></div></div>
       <ol class="desk-notes" aria-label="Plan"></ol>
       <div class="robot-host"></div>
@@ -146,6 +150,7 @@ export class Desk implements DeskStage {
     this.managerProject = null;
     this.managerSig = '';
     this.el.classList.remove("manager");
+    this.managerSig = ""; this.managerProject = null;
     this.profile = profile;
     this.model = thread?.model ?? null;
     this.el.classList.toggle("empty", !thread);
@@ -178,6 +183,10 @@ export class Desk implements DeskStage {
     this.managerSig = sig;
     this.managerProject = p;
     this.el.classList.toggle("manager", !!p);
+    // A manager wears its project's crown on the dark finish; side screens frame its desk.
+    if (this.profile && this.threadId) this.robot.setLook?.(p ? managerLook(this.profile.look, p.icon) : this.profile.look);
+    const side = this.el.querySelectorAll<HTMLImageElement>(".mgr-side img");
+    side.forEach(img => { img.hidden = !p?.icon; if (p?.icon) img.src = p.icon; });
     this.label(this.el.querySelector(".desk-plate i")?.textContent || "", this.info?.provider ?? null);
   }
   private label(title: string, provider: string | null) {
@@ -253,9 +262,13 @@ export class Desk implements DeskStage {
     const lines = ["Hey!", "I'm working here!", "Yes, CEO?", "That tickles.", "Boop.", "Almost done, promise.", "Did you need something?"];
     const grumpy = ["Okay, okay!", "Stop poking me.", "I will tell HR.", "Poke limit reached."];
     const stop = (e: Event) => { e.stopPropagation(); e.preventDefault(); };
+    let lastTap = 0;
     this.el.querySelector(".poke-head")!.addEventListener("click", (e) => {
       stop(e);
       if (!this.threadId) return;
+      // A second click on the robot lifts it out into its focus view.
+      if (performance.now() - lastTap < 4000 && this.onRobotFocus) { lastTap = 0; this.onRobotFocus(this.el.querySelector(".robot-host") ?? this.el); return; }
+      lastTap = performance.now();
       gameSound.play('poke');
       this.pokes++;
       window.clearTimeout(this.pokeTimer);
