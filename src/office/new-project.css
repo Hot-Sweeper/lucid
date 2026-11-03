@@ -1,0 +1,28 @@
+.dialog.new-project { width: min(460px, 100%); padding: 22px 24px; border-radius: 16px; background: var(--night-3); display: flex; flex-direction: column; gap: 14px; }
+.np-head { display: flex; align-items: center; justify-content: space-between; }
+.np-head h2 { margin: 0; font-size: 20px; font-weight: 650; }
+.np-head .np-close { width: 32px; height: 32px; padding: 0; font-size: 24px; line-height: 1; }
+.new-project p.np-from { margin: -6px 0 0; font-size: 12px; color: var(--ink-2); }
+.np-field { display: flex; flex-direction: column; gap: 5px; }
+.np-field > span, .np-where legend { color: var(--ink-3); font-size: 11px; }
+.np-field input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--night); color: var(--ink); font: 400 14px var(--font); }
+.np-field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.np-where { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px; }
+.np-choice { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.np-choice input { accent-color: var(--accent); }
+.new-project p.np-path { margin: 0 0 4px 24px; font: 400 11px "JetBrains Mono", ui-monospace, monospace; color: var(--ink-3); overflow-wrap: anywhere; }
+.np-path[hidden], .np-existing[hidden] { display: none; }
+.np-existing { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-left: 24px; }
+.np-existing button { font-size: 12px; padding: 6px 10px; }
+.np-picked { font: 400 11px "JetBrains Mono", ui-monospace, monospace; color: var(--ink-3); overflow-wrap: anywhere; }
+.new-project p.np-msg { margin: 0; min-height: 1.4em; font-size: 12px; color: var(--accent-2); }
+/* The New project action on a manager row: revealed on hover or keyboard focus, never moves the row. */
+.mg-li { position: relative; }
+.mg-new { position: absolute; right: 10px; bottom: 7px; padding: 3px 8px; font-size: 11px; border-radius: 6px; border: 0; background: var(--night-2); color: var(--accent-2); cursor: pointer; opacity: 0; pointer-events: none; transition: opacity 120ms; }
+.mg-li:hover .mg-new, .mg-li:focus-within .mg-new { opacity: 1; pointer-events: auto; }
+.mg-new:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (hover: none) { .mg-new { opacity: 1; pointer-events: auto; } }
+.th-new-project { flex: none; padding: 4px 6px; font-size: 11px; border-radius: 6px; white-space: nowrap; }
+.th-new-project span { font-weight: 700; color: var(--accent-2); }
+.th-head .th-search { flex-basis: 64px; }
+.th-head { column-gap: 8px; }

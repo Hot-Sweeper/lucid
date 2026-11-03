@@ -52,6 +52,7 @@ assert.deepEqual(reserveRoomSeats(['busy', null, 'later'], [{ id: 'busy', runSta
 assert.deepEqual(reserveRoomSeats(['done', 'busy'], [{ id: 'done', runStatus: 'completed', settled: true }, { id: 'busy', runStatus: 'running' }]), [null, 'busy']);
 assert.deepEqual(reserveRoomSeats(['boss'], [{ id: 'boss', runStatus: null, settled: true, pinned: true, manager: { projectId: 'p', role: 'Lead' } }]), ['boss'], 'managers keep their desk');
 assert.deepEqual(reserveRoomSeats([], [{ id: 'history', runStatus: 'completed', settled: true }]), [], 'history never takes a place');
+assert.deepEqual(reserveRoomSeats(['quiet', 'busy'], [{ id: 'quiet', runStatus: 'completed' }, { id: 'busy', runStatus: 'running' }]), [null, 'busy'], 'a quiet thread gives up its place, so old history cannot stretch a room');
 const reordered = reorderPhysicalSeats(reservations, [null, null, 'b'], ['b', null, null]);
 assert.deepEqual(projectRoomSeats(reordered, working, false, null).threads.map((t) => t?.id ?? null), ['b', null, null, null, null, 'c'], 'dragging moves only the dragged desks');
 assert.deepEqual(physicalSeatIndices(['old', 'a'], [null, null, null]), [0, 1, 2], 'physical desk k is reservation k');

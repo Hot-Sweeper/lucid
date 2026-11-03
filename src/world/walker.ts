@@ -8,7 +8,7 @@ import { routeSuffixLengths } from "./route-distance";
 import { beginSystem, endSystem } from "../perf/metrics";
 import { setSvgAttribute } from "../perf/svg-write";
 import type { Expression, RobotLook } from "../office/rig";
-import { bind, brandFor, clamp, defsSvg, eyesSvg, headSideSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, uid, type BrandKind } from "./parts";
+import { bind, brandFor, clamp, defsSvg, eyesSvg, headSideSvg, headSvg, lerp, paintBrand, paintCrest, paintLook, PALETTES, uid, type BrandKind } from "./parts";
 
 // The v0 robot standing on the top-down floor, the same character as the desk robot: the
 // original head on a slim tapered shell, thin two-bone arms and legs with real elbows and knees.
@@ -271,7 +271,7 @@ export class Walker {
     this.place();
   }
 
-  setBrand(provider: string) { this.batteryProvider = provider; this.refreshBattery(); this.stopBattery ||= subscriptionBatteries.subscribe(this.refreshBattery); this.brand = brandFor(provider); paintBrand(this.svg, this.$, this.brand); paintLookColors(this.svg, PALETTES[this.brand], this.walkerLook); }
+  setBrand(provider: string) { this.batteryProvider = provider; this.refreshBattery(); this.stopBattery ||= subscriptionBatteries.subscribe(this.refreshBattery); this.brand = brandFor(provider); paintBrand(this.svg, this.$, this.brand); paintCrest(this.$, this.walkerLook.crest, this.brand); paintLookColors(this.svg, PALETTES[this.brand], this.walkerLook); }
   private walkerLook: RobotLook = {};
   private lookKey = "";
   private lookId = uid("walker-look");
@@ -305,7 +305,7 @@ export class Walker {
     const key = JSON.stringify(look);
     if (key === this.lookKey) return;
     this.lookKey = key;
-    this.walkerLook = {...look}; this.updateAccessories(); paintLook(this.svg, this.$, look);
+    this.walkerLook = {...look}; this.updateAccessories(); paintLook(this.svg, this.$, look); paintCrest(this.$, look.crest, this.brand);
     paintLookColors(this.svg, PALETTES[this.brand], look);
     this.headK = headSize(look); this.updateHeadwear(); this.setExpression(this.expr);
   }

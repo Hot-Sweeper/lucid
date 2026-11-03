@@ -550,8 +550,8 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .threads { display: flex; flex-direction: column; flex: none; }
 .th-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .th-head h3 { margin: 0; }
-.th-search { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.05); color: var(--ink-3); }
-.th-search input { width: 110px; border: 0; background: none; color: var(--ink); font: inherit; font-size: 12.5px; outline: none; }
+.th-search { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.05); color: var(--ink-3); }
+.th-search input { width: 100%; min-width: 0; border: 0; background: none; color: var(--ink); font: inherit; font-size: 12.5px; outline: none; }
 .th-search:focus-within { box-shadow: inset 0 0 0 1.5px rgba(255, 159, 90, 0.6); }
 .th-list { list-style: none; margin: 8px -10px 0; padding: 0; flex: none; max-height: 42vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .th-row { width: 100%; display: flex; flex-direction: column; gap: 3px; border: 0; background: none; color: var(--ink); text-align: left; padding: 9px 10px; border-radius: 10px; cursor: pointer; font: inherit; }
@@ -903,13 +903,9 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 
 .shopfront::after { content: ""; position: absolute; inset: 0; background: #0b1030; opacity: calc(var(--night, 0) * .9); pointer-events: none; }
 
-/* Manager desks: two side screens with the project logo frame the main monitor. */
-.mgr-side { display: none; position: absolute; top: 30px; width: 74px; height: 120px; border-radius: 9px; background: linear-gradient(170deg, #2a2f45, #151927 70%); box-shadow: 0 8px 14px rgba(30, 20, 10, 0.24); }
-.mgr-side::after { content: ""; position: absolute; inset: 6px; border-radius: 5px; background: #12162e; }
-.mgr-side img { position: absolute; z-index: 1; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; object-fit: contain; opacity: .9; }
-.mgr-left { left: -26px; transform: rotate(-8deg); }
-.mgr-right { left: 352px; transform: rotate(8deg); }
-.desk-unit.manager .mgr-side { display: block; }
+/* Manager desks: walnut front panel with a gold edge, project medallion and pennant. */
+.mgr-dress { position: absolute; left: 0; top: 0; width: 400px; height: 380px; overflow: visible; pointer-events: none; }
+.mgr-dress[hidden] { display: none; }
 
 /* Thread rows carry their worker's face. */
 .th-row.th-worker { flex-direction: row; align-items: flex-start; gap: 10px; }

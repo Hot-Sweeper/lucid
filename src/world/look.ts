@@ -98,10 +98,10 @@ export function resolveLook(look: RobotLook = {}) {
     crest: look.crest ?? null,
   };
 }
-/** Managers stand out from workers: a dark graphite finish and a crown carrying their
- * project's logo. Applied when drawn, so the robot's own saved look is unchanged. */
-export function managerLook(look: RobotLook, crest: string | null): RobotLook {
-  return { ...look, tint: "graphite", hat: "crown", crest };
+/** Managers stand out from workers: a near-black finish, their project's logo on the head
+ * and the crown, and trim in the project's color. Applied when drawn, never saved. */
+export function managerLook(look: RobotLook, crest: string | null, accent?: string | null): RobotLook {
+  return { ...look, tint: "obsidian", hat: "crown", crest, accent: accent || look.accent };
 }
 const crestId = () => `crest${++crestSeq}`;
 let crestSeq = 0;
@@ -172,6 +172,8 @@ export function tintPalette<P extends { shell: string; shade: string; deep: stri
     rose: [p.deep, 0.16], sand: [p.shade, 0.24], lilac: [p.deep, 0.22],
     graphite: ["#17191e", 0.18],
   };
+  // Managers: a near-black finish, clearly not a worker's shell.
+  if (tint === "obsidian") return { ...p, shell: mix(p.shell, "#2a2d3c", 0.86), shade: mix(p.shade, "#1d1f2b", 0.86), deep: mix(p.deep, "#12131b", 0.8) };
   const shift = shifts[tint || "none"];
   if (!shift) return p;
   const [target, amount] = shift;
@@ -487,6 +489,7 @@ export function portraitSvg(look: RobotLook, base: PortraitPalette, o: { size?: 
   const hs = L.head;
   const tipY = 566 - (hat.antenna === "lift" ? hat.lift ?? 0 : 0);
   const antenna = hat.antenna === "hide" ? "" : `<rect x="557" y="${tipY + 4}" width="6" height="${610 - tipY - 4}" rx="3" fill="var(--deep)"/><circle cx="560" cy="${tipY}" r="9" fill="var(--glow)"/><circle cx="557" cy="${tipY - 3}" r="3.2" fill="#fff" opacity="0.8"/>`;
+  if (L.crest) base = { ...base, src: L.crest, mode: "image" };
   const logo = view === "front"
     ? (base.src ? (base.mode === "mask"
         ? `<mask id="${id}m" maskContentUnits="userSpaceOnUse"><image href="${base.src}" x="551" y="606" width="18" height="18"/></mask><rect x="551" y="606" width="18" height="18" fill="var(--logo)" mask="url(#${id}m)" opacity="0.8"/>`

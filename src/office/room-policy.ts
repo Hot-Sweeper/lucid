@@ -15,12 +15,12 @@ export function hasOfficeDesk(thread: ActivityThread, revealed: string | null = 
 }
 
 // Desks are fixed places. Reservation index k is physical desk k, so clearing,
-// hiring or finishing work never moves another desk. A collected (settled) job
-// releases its reservation; a quiet unsettled thread keeps its spot until a new
-// job needs a desk, and then that job takes the first empty place.
+// hiring or finishing work never moves another desk. Only threads that need a desk
+// hold a place: when one goes quiet or is collected its place becomes an empty desk,
+// and the next new job takes the first empty place. (World packs a room's places
+// once, before anything is on screen, so old saved history cannot stretch it.)
 type SeatClaim = string | ActivityThread;
 const claimId = (claim: SeatClaim) => typeof claim === "string" ? claim : claim.id;
-const keepsReservation = (claim: SeatClaim) => typeof claim === "string" || !claim.settled || !!(claim.pinned && claim.manager) || !!((claim.coinPending || claim.completionPending || claim.reviewPending) && claim.runStatus === "completed");
 const needsDesk = (claim: SeatClaim, revealed: string | null) => typeof claim === "string" || hasOfficeDesk(claim, revealed);
 
 export function reserveRoomSeats(previous: (string | null)[], claims: SeatClaim[], revealed: string | null = null) {
@@ -28,7 +28,7 @@ export function reserveRoomSeats(previous: (string | null)[], claims: SeatClaim[
   const seen = new Set<string>();
   const seats = previous.map((id) => {
     const claim = id ? byId.get(id) : undefined;
-    if (!id || !claim || seen.has(id) || !keepsReservation(claim)) return null;
+    if (!id || !claim || seen.has(id) || !needsDesk(claim, revealed)) return null;
     seen.add(id); return id;
   });
   const idle = (id: string | null) => !id || !needsDesk(byId.get(id)!, revealed);

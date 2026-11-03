@@ -39,6 +39,8 @@ import { openHire, BUILTIN_ROLES, type Role } from "./office/hire";
 import { openCustomizeFor, openCustomize } from "./office/customize";
 import { openWorkerFocus, openStaffWall } from "./office/worker-focus";
 import { openChair } from "./office/chair";
+import { openNewProject } from "./office/new-project";
+import { whenProjectColors } from "./office/project-brand";
 import { robotFocus } from "./office/interact";
 import { hasOfficeWork } from "./office/room-policy";
 import type { RobotProfile } from "./office/roster";
@@ -114,7 +116,7 @@ document.getElementById("app")!.innerHTML = `
     <section class="wallet" id="wallet"><span class="wl-coins" title="1 coin for every dollar of AI work at API prices">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></span><span class="wl-boost" id="wl-boost" hidden></span><button type="button" class="wl-shop" id="open-shop">Shop</button></section>
 
     <section class="threads">
-      <div class="th-head"><h3>Threads</h3><label class="th-search"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label>${foldButton("threads", "threads")}</div>
+      <div class="th-head"><h3>Threads</h3><label class="th-search"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label><button type="button" class="ghost th-new-project" id="th-new-project" aria-label="New project" title="New project: create a folder or add one you have"><span aria-hidden="true">+</span> Project</button>${foldButton("threads", "threads")}</div>
       <div class="fold-body" id="fold-threads"><ol class="th-list" id="th-list" aria-label="Threads. Drag one into the chat, or press R, to reference it"></ol></div>
     </section>
 
@@ -1524,17 +1526,26 @@ function renderThreads() {
     const robot = world.roster.byThread(t.id);
     return managerFace({ provider: robot?.provider || t.provider, look: world.lookFor(t, robot?.look), picture: t.manager?.avatar, size, place, cls });
   };
+  // Managers read like pinned threads: project and role, the thread title, then who and
+  // which model, with their crowned face. A manager can start a new project.
   const managerRow = (t: typeof list[number]) => {
     const p = projects.get(t.manager?.projectId || t.projectId);
-    const proj = !p || p.scratch ? "" : p.title;
+    const proj = !p || p.scratch ? "No project" : p.title;
     const role = t.manager?.role || (t.id === world.orchThread ? "Orchestrator" : "Manager");
-    const name = world.roster.byThread(t.id)?.name || t.title || "Untitled";
-    const title = t.title && t.title !== name ? t.title : "";
-    const dot = dotOf(t);
-    return `<li><button type="button" class="th-row mg-row${t.runStatus === "running" ? " on" : ""}" data-id="${esc(t.id)}" title="${esc(`${name}, ${role}${proj ? ` for ${proj}` : ""}${title ? `\n${title}` : ""}`)}">
-      ${faceOf(t, 40, "l", dot === "work" ? "working" : "")}
-      <span class="mg-text"><span class="mg-l1"><b class="mg-name">${esc(name)}</b>${stateOf(t)}</span><span class="mg-role">${esc(role)}${proj ? ` · ${esc(proj)}` : ""}</span>${title ? `<span class="mg-thread">${esc(title)}</span>` : ""}</span>
-    </button></li>`;
+    const robot = world.roster.byThread(t.id);
+    const name = robot?.name || "Manager";
+    const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
+    const dot = dotOf(t), state = stateOf(t);
+    const logo = logoFor(t.provider);
+    return `<li class="mg-li"><button type="button" class="th-row th-worker mg-row${t.runStatus === "running" ? " on" : ""}" data-id="${esc(t.id)}" title="${esc(`${name}, ${role} for ${proj}${t.title ? `
+${t.title}` : ""}`)}">
+      ${faceOf(t, 34, "l", dot === "work" ? "working" : "")}
+      <span class="th-text">
+        <span class="th-top">${icon}<span class="th-proj">${esc(proj)} · ${esc(role)}</span>${state || `<span class="th-ago">${ago(t.updatedAt)}</span>`}</span>
+        <span class="th-title"><span class="th-pin" aria-label="Pinned manager">●</span>${esc(t.title || "Untitled")}</span>
+        <span class="th-bot"><span class="th-sub">${esc(t.branch || "")}</span><span class="th-bot-name">${esc(name)}${t.model ? `<span class="th-bot-model">, ${esc(t.model)}</span>` : ""}</span>${logo ? `<img class="th-logo" src="${logo}" alt="">` : ""}</span>
+      </span>
+    </button><button type="button" class="mg-new" data-new-project="${esc(t.id)}" aria-label="New project from ${esc(name)}" title="New project">+ New project</button></li>`;
   };
   const managers = active.filter((t) => t.pinned);
   const managersOpen = !folded.has("managers") || !!q;
@@ -1615,14 +1626,25 @@ function toggleManagers() {
 wireFaceFallback($("th-list"));
 wireFaceFallback($("rail-list"));
 $("th-q").addEventListener("input", renderThreads);
+$("th-new-project").addEventListener("click", () => newProject());
+// Sampled project colors arrive later: redraw managers in them.
+whenProjectColors(() => { if (world.lastData) world.update(world.lastData); thSig = ""; renderThreads(); });
 $("th-list").addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
+  const fromManager = target.closest<HTMLElement>("[data-new-project]");
+  if (fromManager) { e.stopPropagation(); newProject(world.roster.byThread(fromManager.dataset.newProject!)?.name); return; }
   if (target.closest(".mg-toggle")) { toggleManagers(); return; }
   if (target.closest(".th-settled-toggle")) { settledOpen = !settledOpen; renderThreads(); return; }
   if (target.closest(".th-settled-more")) { settledLimit += 25; renderThreads(); return; }
   const b = (e.target as HTMLElement).closest(".th-row") as HTMLElement | null;
   if (b) openThread(b.dataset.id!);
 });
+function newProject(from?: string) {
+  if (companionClient() || currentEnvironment) return;
+  const lucid = (window as any).lucid;
+  openNewProject({ create: o => lucid.createProject(o), addExisting: o => lucid.addProject(o), pickFolder: () => lucid.pickFolder(), baseFolder: () => lucid.projectsBase() },
+    { from, onDone: () => void refresh() });
+}
 function openThread(id: string) {
   world.revealThread(id);
   if (needsAnswer(id)) { openAnswer(id); return; }

@@ -1,4 +1,5 @@
 import { managerLook } from "../world/look";
+import { projectBrand } from "./project-brand";
 import type { RobotLook } from "./rig";
 import { gameSound } from "./sound";
 import { printerArt, printerStation } from "./printer";
@@ -658,7 +659,9 @@ export class World {
   lookFor(t: { pinned?: boolean; manager?: { projectId: string } | null; projectId?: string }, look: RobotLook | undefined) {
     if (!look || !t.pinned || !t.manager) return look;
     const project = this.lastData?.projects.find((p) => p.id === (t.manager!.projectId || t.projectId));
-    return project && !project.scratch ? managerLook(look, project.icon ?? null) : look;
+    if (!project || project.scratch) return look;
+    const brand = projectBrand(project);
+    return managerLook(look, brand.crest, brand.accent);
   }
   /** A robot was clicked twice: open its worker focus view. `id` is its thread. */
   onRobotFocus: (threadId: string, anchor: Element) => void = () => {};
@@ -907,7 +910,10 @@ export class World {
         if (displacedThread && hasOfficeDesk(displacedThread, this.revealedThread)) prev.push(displaced);
         this.pendingSeat = null;
       }
-      const seats = reserveRoomSeats(prev, list, this.revealedThread);
+      let seats = reserveRoomSeats(prev, list, this.revealedThread);
+      // Nothing of this room is on screen yet: pack its places once, so empty places
+      // saved from old history never stretch the room. After this, desks never move.
+      if (!this.physicalPlans.some((p) => p.id === roomId)) seats = seats.filter((id): id is string => !!id);
       // Keep holes. Compacting them would move everyone else's desk.
       this.seats.set(roomId, seats);
       const byId = new Map(list.map((t) => [t.id, t]));
@@ -1183,7 +1189,7 @@ export class World {
         // which room it sits in now, and in shared rooms which project it works on
         d.room = s.key.split("#")[0];
         const proj = byProject.get(s.t.pinned ? s.t.manager?.projectId || s.t.projectId : s.t.projectId);
-        d.setManagerProject(s.t.pinned && proj && !proj.scratch ? { ...proj, role: s.t.manager?.role } : null);
+        d.setManagerProject(s.t.pinned && proj && !proj.scratch ? { ...proj, role: s.t.manager?.role, ...projectBrand(proj) } : null);
         d.setProject(d.room === "main" || d.room === "queue" ? (proj && !proj.scratch ? { title: proj.title, icon: proj.icon } : { title: "No project", icon: null }) : null);
       } else {
         d = here && !here.threadId ? here : this.makeDesk(s.x, s.y);

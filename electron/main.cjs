@@ -242,6 +242,27 @@ ipcMain.handle("t3:watch-set", (_e, ids) => {
 ipcMain.handle("t3:office", (_e, projectId) => { const target = remote.split(projectId); if (!target) return t3.office(projectId); const data = remote.cached(target.environmentId); return { project: data?.projects.find(p => p.id === projectId), threads: data?.threads.filter(t => t.projectId === projectId) || [] }; });
 ipcMain.handle("t3:offices", () => activeBuilding() ? (remote.cached(activeBuilding())?.projects || []).map(p => ({ ...p, threads: remote.cached(activeBuilding()).threads.filter(t => t.projectId === p.id).length })) : t3.listProjectsWithCounts());
 ipcMain.handle("project:add", (_e, o) => { if (activeBuilding()) throw Error('Add projects to this building in T3 Code.'); return t3.addProject(o); });
+// New projects live beside the others in T3 Projects. An existing non-empty folder is
+// never taken over: use "a folder I already have" for that.
+const PROJECTS_BASE = path.join(require("node:os").homedir(), "T3 Projects");
+ipcMain.handle("project:base", () => PROJECTS_BASE);
+ipcMain.handle("project:create", async (_e, o) => {
+  if (activeBuilding()) throw Error('Create projects for this building in T3 Code.');
+  const name = String(o?.name ?? "").trim().replace(/[<>:"/\|?* -]/g, "").replace(/[. ]+$/, "").slice(0, 60);
+  if (!name || /^(con|prn|aux|nul|com\d|lpt\d)$/i.test(name)) throw Error('Choose a different project name.');
+  const dir = path.join(PROJECTS_BASE, name);
+  if (path.dirname(dir) !== PROJECTS_BASE) throw Error('Choose a different project name.');
+  const fsx = require("node:fs");
+  if (fsx.existsSync(dir) && fsx.readdirSync(dir).length) throw Error(`A folder named ${name} already exists in T3 Projects. Use "a folder I already have" to add it.`);
+  fsx.mkdirSync(dir, { recursive: true });
+  await t3.addProject({ path: dir, title: name });
+  return { path: dir };
+});
+ipcMain.handle("project:pick-folder", async (e) => {
+  const { dialog } = require("electron");
+  const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), { title: "Choose a project folder", defaultPath: PROJECTS_BASE, properties: ["openDirectory", "createDirectory"] });
+  return r.canceled ? null : r.filePaths[0] || null;
+});
 // --- orchestrator -----------------------------------------------------------------
 const orch = require("./orchestrator.cjs");
 const ORCH_DIR = process.env.LUCID_SHOT ? path.join(app.getPath("userData"), "orchestrator") : path.join(require("node:os").homedir(), "T3 Projects", "Lucid Orchestrator");
