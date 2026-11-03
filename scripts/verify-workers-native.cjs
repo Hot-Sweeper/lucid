@@ -143,7 +143,14 @@ if (!process.versions.electron) {
       await capture('office');
       const seats = await ev(`(()=>{const w=window.__world;return Object.fromEntries([...w.desks].map(([id,d])=>[id,d.el.dataset.slot]))})()`);
       report.seatsBefore = seats;
-      await ev(`window.__world.showRoom('queue')`); await wait(2000); await capture('queue');
+      await ev(`window.__world.showRoom('queue')`);
+      // Workers walk to the line at walking pace along the hall; capture once they are there.
+      const arrived = baseline ? true : await until(`(()=>{const w=window.__world;return !w.transit.has('w4')&&w.rooms.find(r=>r.id==='queue').el.querySelectorAll('.world-walker[data-id="w4"]').length>0})()`, 60000);
+      if (!baseline) check('the reviewing worker reaches the orchestrator line', arrived);
+      await wait(2500); await capture('queue');
+      report.queueTrail = [];
+      for (let i = 0; i < 8; i++) { report.queueTrail.push(await ev(`(()=>{const w=window.__world,x=w.transit?.get?.('w4');return x?{x:Math.round(x.x),y:Math.round(x.y),act:x.activity,held:w.physicalLayoutHeld,room:w.roomOf.get('w4')}:{gone:true,room:w.roomOf.get('w4')}})()`)); await wait(1500); }
+      report.queueProbe = await ev(`(()=>{const w=window.__world,q=w.rooms.find(r=>r.id==='queue');return {roomOf:w.roomOf?.get?.('w4')??null,inQueueEl:q?q.el.querySelectorAll('.world-walker').length:-1,ids:q?[...q.el.querySelectorAll('.world-walker')].map(e=>e.dataset.id):[],transit:[...(w.transit?.keys?.()??[])],ext:!!w.ext?.queue,list:(w.extLists?.queue??[]).map(x=>x.id),walkers:[...document.querySelectorAll('.world-walker')].map(e=>e.dataset.id)}})()`);
       const list = await ev(`(()=>{const r=document.getElementById('th-list').closest('.panel')||document.getElementById('th-list');const b=r.getBoundingClientRect();return {x:Math.max(0,Math.floor(b.x)),y:Math.max(0,Math.floor(b.y)),width:Math.ceil(Math.min(b.width,520)),height:Math.ceil(Math.min(b.height,innerHeight-b.y))}})()`);
       await capture('thread-list', list);
       // Manager desk up close.
@@ -169,7 +176,7 @@ if (!process.versions.electron) {
         check('coins were paid on collect', await ev(`window.__wallet.rewards.every(r=>r.id!=='w3')`));
         const after = await ev(`(()=>{const w=window.__world;return Object.fromEntries([...w.desks].map(([id,d])=>[id,d.el.dataset.slot]))})()`);
         await ev(`window.__clearedSlot=${JSON.stringify(seats.w3)}`);
-        check('the collected desk stays in place as an empty hire spot', await ev(`window.__world.freeDesks.some(d=>d.el.dataset.slot===${JSON.stringify(seats.w3)})`), seats.w3);
+        check('the collected desk stays in place as an empty hire spot', await until(`window.__world.freeDesks.some(d=>d.el.dataset.slot===${JSON.stringify(seats.w3)})`, 20000), { slot: seats.w3, free: await ev(`window.__world.freeDesks.map(d=>d.el.dataset.slot)`) });
         check('no other desk moved when the job was collected', Object.entries(seats).filter(([id]) => id !== 'w3').every(([id, slot]) => after[id] === slot), { seats, after });
         await ev(`window.__world.unfocus?.();window.__world.showRoom('p:lucid')`); await wait(2200); await capture('office-after-collect');
       }
