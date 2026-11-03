@@ -554,10 +554,11 @@ function setupMenus() {
     const extra = world.extra.get(room) ?? 0;
     showMenu(x, y, room === "main" ? "Drag a thread here from the sidebar" : "Free desk", [
       ...(room === "main" ? [] : [{ label: "Hire someone for this desk", run: () => world.onFreeDesk(d, slot, x, y) }]),
-      ...(extra > 0 ? [{ label: "Remove this desk", danger: true, run: () => {
+      // Only the last desk can be removed, so no other desk ever has to move.
+      ...(extra > 0 && world.isLastDesk(slot) ? [{ label: "Remove this desk", danger: true, run: () => {
         const seats = world.seats.get(room);
         const index = Number(slot.split("#")[1]);
-        if (seats?.[index] === null) seats.splice(index, 1);
+        if (seats && index < seats.length) seats.length = index;
         world.extra.set(room, extra - 1); saveSettings(); void refresh();
       } }] : []),
     ]);
@@ -582,7 +583,6 @@ function setupMenus() {
       room, roomTitle: r?.title ?? "Office", seat: Number(idx) || 0, intent,
       team: freeTeam(), getTeam: freeTeam, projectId,
       loadRuntime: id => (window as any).lucidT3.hireConfig({ projectId: id }),
-      loadContexts: id => (window as any).lucidT3.hireContexts({ projectId: id }),
       saveAttachment: (name, bytes) => (api as any).saveAttachment(name, bytes),
       roles: [...BUILTIN_ROLES, ...(settings.roles ?? [])],
       onNewRole: (r) => { settings.roles = [...(settings.roles ?? []), r]; saveSettings(); },
@@ -590,7 +590,7 @@ function setupMenus() {
       onHire: async (c) => {
         const project = projectId || c.projectId;
         if (!project) throw new Error("Choose a project for this desk");
-        if (!companionClient() && c.robotId && world.roster.byThread(c.contextThreadId || c.requestId)?.id !== c.robotId) {
+        if (!companionClient() && c.robotId && world.roster.byThread(c.requestId)?.id !== c.robotId) {
           const latest = await api.world();
           const robot = world.roster.robots.find(r => r.id === c.robotId);
           if (!robot || robot.threadId && !latest.threads.some(t => t.id === robot.threadId && t.settled && !t.pinned)) throw new Error("That robot is no longer free. Choose another candidate.");
@@ -599,9 +599,9 @@ function setupMenus() {
         if (companionClient()) {
           const signature = JSON.stringify({ project, message, provider: c.provider, model: c.model, options: c.options });
           if (companionLaunch && companionLaunch.signature !== signature) throw Error('The previous task has already been submitted. Restore its prompt and runtime to retry its desk assignment, or open the thread from the list.');
-          companionLaunch ??= { requestId: c.requestId, signature, resuming: !!c.contextThreadId };
+          companionLaunch ??= { requestId: c.requestId, signature, resuming: false };
         }
-        const { threadId } = companionLaunch?.threadId ? { threadId: companionLaunch.threadId } : await api.startThread({ project, message, provider: c.provider, model: c.model, options: c.options, requestId: companionLaunch?.requestId ?? c.requestId, contextThreadId: c.contextThreadId });
+        const { threadId } = companionLaunch?.threadId ? { threadId: companionLaunch.threadId } : await api.startThread({ project, message, provider: c.provider, model: c.model, options: c.options, requestId: companionLaunch?.requestId ?? c.requestId });
         if (companionClient()) {
           companionLaunch!.threadId = threadId;
           const snapshot = await (api as any).remoteCommit({ kind: 'hire', threadId, robotId: c.robotId, provider: c.provider, role: c.role?.name ?? '', model: c.model, room, index: Number(idx) || 0, resuming: companionLaunch!.resuming });
@@ -611,9 +611,10 @@ function setupMenus() {
           if (desk) { world.select(desk); world.focusOn(desk); }
           return;
         }
-        world.roster.assignRobot(threadId, c.robotId, c.provider, c.role?.name ?? "", c.model, !!c.contextThreadId);
+        world.roster.assignRobot(threadId, c.robotId, c.provider, c.role?.name ?? "", c.model);
         world.homes.set(threadId, room);
         world.pendingSeat = { room, index: Number(idx) || 0, threadId };
+        world.sprint(threadId);
         saveSettings();
         await refresh();
         const nd = world.deskFor(threadId);
@@ -626,10 +627,8 @@ function setupMenus() {
     hireForOffice(room, Number(idx) || 0);
   };
   const startOfficeWork = (room: string, intent: "thread" | "delegate") => {
-    const seats = world.seats.get(room) ?? [];
-    const free = seats.indexOf(null);
     gameSound.play('open');
-    hireForOffice(room, free >= 0 ? free : seats.length, intent);
+    hireForOffice(room, world.firstFreeDesk(room), intent);
   };
   const decorate = (room: { id: string; title: string }) => {
     const SHEET = 372; // the decorate panel covers the right side of the view

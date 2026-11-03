@@ -13,17 +13,32 @@ export function hasOfficeDesk(thread: ActivityThread, revealed: string | null = 
   return !thread.settled && (hasOfficeWork(thread) || thread.id === revealed);
 }
 
-// Reservations are durable. Physical desks are only a projection of current work
-// and the one historical thread the person deliberately opened.
-export function reserveRoomSeats(previous: (string | null)[], ids: string[]) {
-  const wanted = new Set(ids), seen = new Set<string>();
+// Desks are fixed places. Reservation index k is physical desk k, so clearing,
+// hiring or finishing work never moves another desk. A collected (settled) job
+// releases its reservation; a quiet unsettled thread keeps its spot until a new
+// job needs a desk, and then that job takes the first empty place.
+type SeatClaim = string | ActivityThread;
+const claimId = (claim: SeatClaim) => typeof claim === "string" ? claim : claim.id;
+const keepsReservation = (claim: SeatClaim) => typeof claim === "string" || !claim.settled || !!(claim.pinned && claim.manager) || !!((claim.coinPending || claim.completionPending) && claim.runStatus === "completed");
+const needsDesk = (claim: SeatClaim, revealed: string | null) => typeof claim === "string" || hasOfficeDesk(claim, revealed);
+
+export function reserveRoomSeats(previous: (string | null)[], claims: SeatClaim[], revealed: string | null = null) {
+  const byId = new Map(claims.map((c) => [claimId(c), c]));
+  const seen = new Set<string>();
   const seats = previous.map((id) => {
-    if (!id || !wanted.has(id) || seen.has(id)) return null;
+    const claim = id ? byId.get(id) : undefined;
+    if (!id || !claim || seen.has(id) || !keepsReservation(claim)) return null;
     seen.add(id); return id;
   });
-  for (const id of [...wanted].sort()) if (!seen.has(id)) {
-    const free = seats.indexOf(null);
-    if (free >= 0) seats[free] = id; else seats.push(id);
+  const idle = (id: string | null) => !id || !needsDesk(byId.get(id)!, revealed);
+  for (const id of [...byId.keys()].sort()) {
+    if (seen.has(id)) continue;
+    const claim = byId.get(id)!;
+    // History without current work does not take a place.
+    if (!needsDesk(claim, revealed)) continue;
+    const free = seats.findIndex(idle);
+    if (free >= 0) { if (seats[free]) seen.delete(seats[free]!); seats[free] = id; }
+    else seats.push(id);
     seen.add(id);
   }
   return seats;
@@ -32,38 +47,27 @@ export function reserveRoomSeats(previous: (string | null)[], ids: string[]) {
 export function projectRoomSeats<T extends ActivityThread>(reservations: (string | null)[], threads: T[], expanded: boolean, revealed: string | null, extra = 0, folded = false) {
   if (folded) return { threads: [] as (T | null)[], slots: 0, collapsed: true };
   const byId = new Map(threads.map((t) => [t.id, t]));
-  const visible = reservations.flatMap((id) => {
-    const t = id ? byId.get(id) : null;
-    return t && hasOfficeDesk(t, revealed) ? [t] : [];
+  const placed = reservations.map((id) => {
+    const t = id ? byId.get(id) : undefined;
+    return t && hasOfficeDesk(t, revealed) ? t : null;
   });
-  const slots = expanded ? Math.max(1, visible.length) + Math.max(0, extra) : Math.max(1, visible.length);
-  const eligible = new Map(visible.map((t) => [t.id, t]));
-  let free = slots - visible.length;
-  const physical: (T | null)[] = [];
-  for (const id of reservations) {
-    if (id && eligible.has(id)) physical.push(eligible.get(id)!);
-    else if (!id && free > 0) { physical.push(null); free--; }
-  }
-  while (free-- > 0) physical.push(null);
-  return { threads: physical, slots, collapsed: slots === 0 };
+  let last = -1;
+  placed.forEach((t, i) => { if (t) last = i; });
+  // Interior empty desks stay where they are. Only trailing empty places fold away,
+  // so the room may shrink at its end but never shuffles.
+  const slots = Math.max(1, last + 1) + (expanded ? Math.max(0, extra) : 0);
+  const physical: (T | null)[] = Array.from({ length: slots }, (_, i) => placed[i] ?? null);
+  return { threads: physical, slots, collapsed: false };
 }
 
-export function physicalSeatIndices(reservations: (string | null)[], physical: (string | null)[]) {
-  const visible = new Set(physical.filter((id): id is string => !!id));
-  let free = physical.filter((id) => !id).length;
-  const indices = reservations.flatMap((id, index) => {
-    if (id && visible.has(id)) return [index];
-    if (!id && free > 0) { free--; return [index]; }
-    return [];
-  });
-  let next = reservations.length;
-  while (indices.length < physical.length) indices.push(next++);
-  return indices;
+/** Physical desk k is reservation k. */
+export function physicalSeatIndices(_reservations: (string | null)[], physical: (string | null)[]) {
+  return physical.map((_, i) => i);
 }
 
 export function reorderPhysicalSeats(reservations: (string | null)[], before: (string | null)[], after: (string | null)[]) {
-  const result = [...reservations], indices = physicalSeatIndices(reservations, before);
-  indices.forEach((index, i) => { while (result.length <= index) result.push(null); result[index] = after[i] ?? null; });
+  const result = [...reservations];
+  before.forEach((_, i) => { while (result.length <= i) result.push(null); result[i] = after[i] ?? null; });
   return result;
 }
 

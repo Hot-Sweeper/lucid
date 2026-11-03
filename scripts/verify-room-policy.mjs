@@ -29,28 +29,32 @@ assert.equal(hasOfficeWork(thread('x', null, 'Permission needed')), true);
 const ids = ['a', 'b', 'c', 'old'], all = ids.map((id) => thread(id));
 const reservations = reserveRoomSeats(['old', null, 'b', 'a', 'b', 'c', null], ids);
 assert.deepEqual(reservations, ['old', null, 'b', 'a', null, 'c', null]);
-assert.deepEqual(reserveRoomSeats(reservations, [...ids].reverse()), reservations, 'refresh order preserves every historical reservation');
+assert.deepEqual(reserveRoomSeats(reservations, [...ids].reverse()), reservations, 'refresh order preserves every reservation');
 const snapshot = JSON.stringify(reservations);
 let projection = projectRoomSeats(reservations, all, false, null, 10);
-assert.deepEqual({ slots: projection.slots, collapsed: projection.collapsed, threads: projection.threads }, { slots: 1, collapsed: false, threads: [null] }, 'quiet offices retain one full empty workstation');
+assert.deepEqual({ slots: projection.slots, collapsed: projection.collapsed, threads: projection.threads }, { slots: 1, collapsed: false, threads: [null] }, 'quiet offices retain one empty workstation');
 const working = all.map((t) => t.id === 'b' || t.id === 'c' ? { ...t, runStatus: 'running' } : t);
 projection = projectRoomSeats(reservations, working, false, null, 10);
-assert.equal(projection.slots, 2, 'automatic physical desks equal active work, regardless of historical free capacity');
-assert.deepEqual(projection.threads.map((t) => t?.id), ['b', 'c']);
-assert.equal(projectRoomSeats(reservations, all, false, null).collapsed, false, 'complete transition folds again');
+assert.deepEqual(projection.threads.map((t) => t?.id ?? null), [null, null, 'b', null, null, 'c'], 'every desk stays at its own fixed place');
+const onlyC = all.map((t) => t.id === 'c' ? { ...t, runStatus: 'running' } : t);
+assert.equal(projectRoomSeats(reservations, onlyC, false, null).threads.findIndex((t) => t?.id === 'c'), 5, 'clearing an earlier desk never moves a later one');
 assert.equal(JSON.stringify(reservations), snapshot, 'completion and folding never mutate saved assignments');
-assert.deepEqual(projectRoomSeats(reservations, working, false, null).threads.map((t) => t?.id), ['b', 'c'], 'reactivation returns to stable reservation order');
 projection = projectRoomSeats(reservations, all, false, 'a');
-assert.deepEqual(projection.threads.map((t) => t?.id), ['a'], 'selection opens exactly one historical desk');
+assert.deepEqual(projection.threads.map((t) => t?.id ?? null), [null, null, null, 'a'], 'an opened quiet thread returns to its own desk');
 assert.equal(projectRoomSeats(reservations, all, true, null).slots, 1, 'manual empty expansion offers one deliberate free desk');
 projection = projectRoomSeats(reservations, working, true, null, 1);
-assert.deepEqual(projection.threads.map((t) => t?.id ?? null), [null, 'b', 'c'], 'manual capacity retains a deliberate free-seat position');
-const reordered = reorderPhysicalSeats(reservations, [null, 'b', 'c'], ['c', null, 'b']);
-assert.equal(reordered.indexOf('old'), reservations.indexOf('old'));
-assert.equal(reordered.indexOf('a'), reservations.indexOf('a'));
-assert.deepEqual(projectRoomSeats(reordered, working, true, null, 1).threads.map((t) => t?.id ?? null), ['c', null, 'b'], 'desk reorder preserves inactive reservations and deliberate free slots');
-assert.deepEqual(physicalSeatIndices(['old', 'a'], [null]), [2], 'new free capacity maps after durable historical reservations');
-assert.deepEqual(reorderPhysicalSeats(['old', 'a'], [null], [null]), ['old', 'a', null]);
+assert.deepEqual(projection.threads.map((t) => t?.id ?? null), [null, null, 'b', null, null, 'c', null], 'manual capacity adds free desks after the last one');
+// New work takes the first empty place, including one held by a quiet thread, and active work is never displaced.
+const fresh = { id: 'new', runStatus: 'running', settled: false };
+assert.deepEqual(reserveRoomSeats(['busy', 'quiet'], [{ id: 'busy', runStatus: 'running' }, { id: 'quiet', runStatus: null }, fresh]), ['busy', 'new']);
+assert.deepEqual(reserveRoomSeats(['busy', null, 'later'], [{ id: 'busy', runStatus: 'running' }, { id: 'later', runStatus: 'running' }, fresh]), ['busy', 'new', 'later'], 'a hole is filled in place');
+// Collecting settles the job, which clears the desk and releases the place.
+assert.deepEqual(reserveRoomSeats(['done', 'busy'], [{ id: 'done', runStatus: 'completed', settled: true }, { id: 'busy', runStatus: 'running' }]), [null, 'busy']);
+assert.deepEqual(reserveRoomSeats(['boss'], [{ id: 'boss', runStatus: null, settled: true, pinned: true, manager: { projectId: 'p', role: 'Lead' } }]), ['boss'], 'managers keep their desk');
+assert.deepEqual(reserveRoomSeats([], [{ id: 'history', runStatus: 'completed', settled: true }]), [], 'history never takes a place');
+const reordered = reorderPhysicalSeats(reservations, [null, null, 'b'], ['b', null, null]);
+assert.deepEqual(projectRoomSeats(reordered, working, false, null).threads.map((t) => t?.id ?? null), ['b', null, null, null, null, 'c'], 'dragging moves only the dragged desks');
+assert.deepEqual(physicalSeatIndices(['old', 'a'], [null, null, null]), [0, 1, 2], 'physical desk k is reservation k');
 
 let routes = 0;
 const previousFloor = officePlan([{ id: 'main', w: 1380, h: 800 }], [{ id: 'a', w: 960, h: 580 }]);
@@ -94,7 +98,7 @@ for (const active of [0, 1, 7]) {
     }
     routes++;
   }
-  assert.equal(policy.slots, Math.max(1, active));
+  assert.equal(policy.slots, Math.max(1, active));  // newcomers fill from the front
 }
 console.log(JSON.stringify({ ok: true, statuses: 20, statusTransitionRoutes: routes, durableSeats: reservations.length }));
 

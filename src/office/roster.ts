@@ -61,6 +61,8 @@ export interface RobotProfile {
   done?: string[];
   role?: string | null;
   lastModel?: string | null;
+  /** Left the floor for the staff wall. Kept with its history, never assigned work. */
+  retired?: boolean;
 }
 
 export const WALLPAPERS = [
@@ -248,8 +250,8 @@ export class Roster {
     });
   }
 
-  // Give every working thread a robot. Robots whose thread is settled or gone are free
-  // and get reused for new threads of the same harness before anyone new is hired.
+  // Give every working thread a robot. Robots whose thread is settled or gone are free.
+  // A free worker with the same harness and model takes the job; otherwise a new one is hired.
   assign(working: { id: string; provider: string; model?: string | null }[], settledIds: Set<string>, knownIds: Set<string>, managers = new Set<string>()) {
     this.reservedManagers = managers;
     if (companionClient()) return;
@@ -260,8 +262,9 @@ export class Roster {
     for (const t of working) {
       const assigned = this.byThread(t.id);
       if (assigned) { if (t.model) assigned.lastModel = t.model; continue; }
-      const brand = brandFor(t.provider);
-      const free = this.robots.find((r) => r.brand === brand && (!r.threadId || (settledIds.has(r.threadId) && !managers.has(r.threadId))));
+      const isFree = (r: RobotProfile) => !r.retired && (!r.threadId || (settledIds.has(r.threadId) && !managers.has(r.threadId)));
+      const free = this.robots.filter((r) => isFree(r) && r.provider === t.provider && (!t.model || !r.lastModel || r.lastModel === t.model))
+        .sort((a, b) => Number(!!t.model && b.lastModel === t.model) - Number(!!t.model && a.lastModel === t.model) || b.jobs - a.jobs)[0];
       if (free) { if (free.threadId) (free.done ??= []).push(free.threadId); free.threadId = t.id; free.provider = t.provider; free.jobs++; }
       else this.robots.push(this.hire(t.id, t.provider));
       if (t.model) this.byThread(t.id)!.lastModel = t.model;
@@ -304,7 +307,7 @@ export class Roster {
   }
 
   freeTeam(settledIds: Set<string>) {
-    return this.robots.filter((r) => !r.threadId || (settledIds.has(r.threadId) && !this.reservedManagers.has(r.threadId)));
+    return this.robots.filter((r) => !r.retired && (!r.threadId || (settledIds.has(r.threadId) && !this.reservedManagers.has(r.threadId))));
   }
 
   hireFor(threadId: string, provider: string) {

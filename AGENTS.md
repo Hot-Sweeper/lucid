@@ -49,4 +49,6 @@ Localize fictional dialogue and flavor interfaces through the existing localizat
 
 Run focused checks for changed behavior and always `npm run verify:update` before handing back code. Do not claim a native visual check, audio listening test, performance measurement or live integration test unless it was performed. Check keyboard access, focus restoration, narrow layouts, long text, loading, failed requests, stale asynchronous responses and repeated actions where affected.
 
+Robots are permanent workers and desks are jobs. Follow `docs/workers-and-desks.md` for hiring, fixed desk places, the review and collect lifecycle, and planned worker features.
+
 Further references: `docs/renderer-structure.md`, `docs/camera-and-office-layout.md`, `docs/screen-fidelity.md`, `docs/request-completion.md` and `docs/rendering-performance.md`.

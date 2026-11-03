@@ -14,7 +14,7 @@ import { campusNight } from "./campus-light";
 import { campusPlan, districtPlan } from "./campus-plan";
 import { officePlan, hallRoute, hallPreference, inHall, type OfficePlan } from "./floor-plan";
 import { buildingFootprint, footprintCovers } from "./building-footprint";
-import { hasOfficeWork, hasOfficeDesk, reserveRoomSeats, projectRoomSeats, physicalSeatIndices, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, layoutSafeAt, FOLDED_OFFICE } from "./room-policy";
+import { hasOfficeWork, hasOfficeDesk, reserveRoomSeats, projectRoomSeats, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, layoutSafeAt, FOLDED_OFFICE } from "./room-policy";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
 import { Walker, SIT_HEAD, pause, type Facing } from "../world/walker";
@@ -234,6 +234,15 @@ export class World {
     return w;
   }
 
+  private sprinting = new Map<string, number>();
+  /** A worker that was just hired sprints to its desk. The mark expires if it never gets there. */
+  sprint(threadId: string) { this.sprinting.set(threadId, Date.now() + 90_000); }
+  private isSprinting(id: string) {
+    const until = this.sprinting.get(id);
+    if (until && until < Date.now()) this.sprinting.delete(id);
+    return !!until && until >= Date.now();
+  }
+
   /** Walks a list of points; at the entrance the robot steps from the hall layer to the outdoors layer or back. */
   private async walkLegs(t: WThread, pts: Pt[], trip: object, revision = this.layoutRevision) {
     let i = 0;
@@ -256,7 +265,8 @@ export class World {
       const path = room ? furniturePath(from, goal, this.furniture(room), this.walkBounds(room)) : [goal];
       if (!path) return; // stay put and let travel retry, never walk through a blocked aisle
       const current = this.lastData?.threads.find((thread) => thread.id === t.id) ?? t;
-      w.setRunning(this.reports.has(t.id) || hasOfficeWork(current) && !current.question && !!this.desks.get(t.id)?.el.classList.contains("arriving"));
+      const sprint = !this.reports.has(t.id) && this.isSprinting(t.id) && !current.question;
+      w.setRunning(sprint || this.reports.has(t.id) || hasOfficeWork(current) && !current.question && !!this.desks.get(t.id)?.el.classList.contains("arriving"), sprint);
       await w.walkPath(path);
       if (this.transit.get(t.id) !== w || this.trips.get(t.id) !== trip || revision !== this.layoutRevision) return;
       const last = pts[j - 1];
@@ -413,6 +423,7 @@ export class World {
     if (desk) {
       // It turns and sits; switch actors in the same frame, in the same chair.
       if (this.trips.get(t.id) !== trip) return;
+      this.sprinting.delete(t.id);
       desk.setSeated(true);
       done.destroy();
     } else if (to && to !== "park") {
@@ -864,19 +875,21 @@ export class World {
       // a robot hired at a specific desk sits exactly there
       const ps = this.pendingSeat;
       if (ps && ps.room === roomId && ps.threadId && list.some((t) => t.id === ps.threadId)) {
-        const physical = this.physicalPlans.find((p) => p.id === roomId);
-        const priorIds = physical ? Array.from({ length: physical.slots }, (_, i) => physical.threads[i]?.id ?? null) : [];
-        const index = physicalSeatIndices(prev, priorIds)[ps.index] ?? prev.length;
+        // Physical desk k is reservation k, so the clicked desk is the seat.
+        const index = Math.max(0, ps.index);
         while (prev.length <= index) prev.push(null);
         const old = prev.indexOf(ps.threadId);
         if (old >= 0) prev[old] = null;
         const displaced = prev[index];
         prev[index] = ps.threadId;
-        if (displaced && displaced !== ps.threadId) prev.push(displaced);
+        // A quiet thread that held this place gives it up. Active work is never
+        // under an empty desk, so nobody working is moved.
+        const displacedThread = displaced && displaced !== ps.threadId ? list.find((t) => t.id === displaced) : undefined;
+        if (displacedThread && hasOfficeDesk(displacedThread, this.revealedThread)) prev.push(displaced);
         this.pendingSeat = null;
       }
-      const seats = reserveRoomSeats(prev, list.map((t) => t.id));
-      // Keep holes and trailing slots. Compacting them silently changes everyone else's seat.
+      const seats = reserveRoomSeats(prev, list, this.revealedThread);
+      // Keep holes. Compacting them would move everyone else's desk.
       this.seats.set(roomId, seats);
       const byId = new Map(list.map((t) => [t.id, t]));
       return seats.map((id) => (id ? byId.get(id) ?? null : null));
@@ -1828,6 +1841,19 @@ export class World {
   extra = new Map<string, number>();   // room id -> desks added by hand
   homes = new Map<string, string>();   // user-assigned home, independent of the robot's current activity
   pendingSeat: { room: string; index: number; threadId?: string } | null = null;
+  /** The first empty desk in a room, or the next place after its last desk. */
+  firstFreeDesk(room: string) {
+    const plan = this.physicalPlans.find((p) => p.id === room && !p.collapsed);
+    if (plan) { const free = plan.threads.slice(0, plan.slots).findIndex((t) => !t); return free >= 0 ? free : plan.slots; }
+    const seats = this.seats.get(room) ?? [];
+    const free = seats.indexOf(null);
+    return free >= 0 ? free : seats.length;
+  }
+  isLastDesk(slot: string) {
+    const [room, index] = slot.split("#");
+    const plan = this.physicalPlans.find((p) => p.id === room);
+    return !!plan && Number(index) === plan.slots - 1;
+  }
   onFreeDesk: (desk: Desk, room: string, x: number, y: number) => void = () => {};
   onAddDesk: (room: string) => void = () => {};
   onFreeDeskMenu: (desk: Desk, room: string, x: number, y: number) => void = () => {};

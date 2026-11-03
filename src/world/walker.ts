@@ -48,6 +48,7 @@ const K = 0.38;                               // depth (toward the camera) to sc
 const SIT_DROP = 36, CROUCH_DROP = 15;
 /** From the feet up to the middle of the head of a walker sitting on a chair, in v0 units (times the scale for px). */
 export const SIT_HEAD = FEET.y - 659 - SIT_DROP + 21;   // the head rides on the neck a little above the art's middle
+const SPRINT = 430;                           // a new job: straight to the desk
 const SPEED = 105;                            // px per second (in the parent's coordinates)
 const STEP = 25;                              // half a step, v0 units
 const TAU = Math.PI * 2;
@@ -333,8 +334,8 @@ export class Walker {
 
   setPos(x: number, y: number) { this.x = x; this.y = y; this.place(); }
 
-  /** Hurry to assigned work; leisure and departures retain the walking gait. */
-  setRunning(on: boolean) { this.speed = on ? 240 : SPEED; }
+  /** Hurry to assigned work; leisure and departures retain the walking gait. A sprint is a fresh hire racing to its desk. */
+  setRunning(on: boolean, sprint = false) { this.speed = sprint ? SPRINT : on ? 240 : SPEED; }
 
   private place() {
     this.el.style.transform = `translate(${this.x.toFixed(1)}px, ${this.y.toFixed(1)}px)`;

@@ -8,10 +8,13 @@ import { portraitSvg } from "../world/look";
 import { PALETTES } from "../world/seated-parts";
 import "./hire.css";
 import { openCustomize, savedLevel } from "./customize";
-import { matchSettledContexts, contextForRobot, type SettledContext, type ContextMatch } from "./hire-context";
+import { Walker } from "../world/walker";
+import { randomLook } from "../world/look";
+import { gameSound } from "./sound";
 
-// The hiring screen: pick who sits at a free desk (a free teammate or a new hire),
-// which model it runs, and what it should do.
+// The hiring screen: a new thread for a free desk. The harness and model decide the
+// worker: a free robot with exactly that setup takes the job, otherwise a new robot is
+// hired. The chosen worker stands in the preview at full size before it runs over.
 
 export type OptionValue = string | boolean;
 export type HireSelection = { providerInstanceId: string; model: string | null; options: Record<string, OptionValue> };
@@ -19,16 +22,13 @@ export type HireOption = { id: string; label: string; type: "select" | "boolean"
 export type HireProvider = { instanceId: string; name: string; ready: boolean; models: { slug: string; name: string; isDefault: boolean; options: HireOption[] }[] };
 export type HireRuntime = { providers: HireProvider[]; selection: HireSelection | null; source: string };
 export type HireTeammate = RobotProfile & { model?: string | null };
-export type HireChoice = { robotId: string | null; provider: string; model: string; options: Record<string, OptionValue>; requestId: string; projectId: string; task: string; role: Role | null; contextThreadId?: string };
+export type HireChoice = { robotId: string | null; provider: string; model: string; options: Record<string, OptionValue>; requestId: string; projectId: string; task: string; role: Role | null };
 
-// Relevant conversation ownership first, then harness, model and role.
-export function rankTeammates(team: HireTeammate[], provider: string, model: string | null, role: string | null, matches: ContextMatch[] = []) {
-  const score = (r: HireTeammate) => {
-    const context = contextForRobot(r, matches);
-    const owns = context && (r.threadId === context.thread.id || r.done?.includes(context.thread.id));
-    return Number(!!owns) * 8 + Number(r.provider === provider) * 4 + Number(!!model && r.model === model && r.provider === provider) * 2 + Number(!!role && r.role === role);
-  };
-  return [...team].sort((a, b) => score(b) - score(a) || b.jobs - a.jobs || a.name.localeCompare(b.name));
+// A worker's setup is its harness and model. Only free robots with exactly that setup can
+// take the job; the most experienced goes first. No match means a new hire.
+export function matchingWorkers(team: HireTeammate[], provider: string, model: string | null) {
+  return team.filter(r => r.provider === provider && !!model && (r.model ?? r.lastModel ?? null) === model)
+    .sort((a, b) => b.jobs - a.jobs || a.name.localeCompare(b.name));
 }
 export type Role = { name: string; brief: string };
 export const BUILTIN_ROLES: Role[] = [
@@ -52,7 +52,6 @@ export function openHire(opts: {
   getTeam?: () => HireTeammate[];
   projectId?: string;
   loadRuntime: (projectId: string) => Promise<HireRuntime>;
-  loadContexts?: (projectId: string) => Promise<SettledContext[]>;
   saveAttachment?: (name: string, data: Uint8Array) => Promise<string>;
   roles: Role[];
   onNewRole: (r: Role) => void;
@@ -67,25 +66,37 @@ export function openHire(opts: {
     <form class="dialog hire" role="dialog" aria-modal="true" aria-labelledby="hire-title" aria-describedby="hire-location">
       <header class="hire-header"><div><h2 id="hire-title">${opts.intent === "thread" ? "New thread" : opts.intent === "delegate" ? "Delegate task" : "Hire a robot"}</h2><p id="hire-location" class="hire-sub">${esc(opts.roomTitle)} · Desk ${opts.seat + 1}</p></div><button type="button" class="ghost hire-close" data-a="cancel" aria-label="Close hiring dialog">×</button></header>
       <div class="hire-body">
-        ${opts.projects ? `<label class="hire-project hire-field"><span>Project</span><select>${opts.projects.length ? opts.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join("") : '<option value="">No projects available</option>'}</select></label>` : ""}
-        <div class="hire-composer">
-          <label class="hire-task"><span class="hire-label">What should we work on?</span><textarea rows="6" placeholder="Describe the job. Add files, screenshots, or anything your robot needs." aria-describedby="hire-file-hint"></textarea></label>
-          <div class="hire-attachments" aria-label="Attached files"></div>
-          <div class="hire-composer-tools"><button type="button" class="ghost hire-attach"><svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="m7 10 5-5a2.5 2.5 0 0 1 3.5 3.5L8 16a4 4 0 0 1-5.7-5.7l8-8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Attach files</button><span id="hire-file-hint">or drop files and paste images</span><input class="hire-files" type="file" multiple hidden></div>
-          <div class="hire-runtime-controls" aria-label="Runtime settings"></div>
+        <section class="hire-stage" aria-labelledby="hire-worker-name">
+          <div class="hire-stage-floor" aria-hidden="true"></div>
+          <div class="hire-worker">
+            <h3 id="hire-worker-name" aria-live="polite"></h3>
+            <p class="hire-worker-note"></p>
+            <div class="hire-worker-actions">
+              <div class="hire-worker-pick" hidden><button type="button" class="ghost hire-prev" aria-label="Previous free worker"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="hire-worker-count"></span><button type="button" class="ghost hire-next" aria-label="Next free worker"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="m6 3 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+              <button type="button" class="link-btn hire-customize">Customize</button>
+            </div>
+          </div>
+        </section>
+        <div class="hire-main">
+          ${opts.projects ? `<label class="hire-project hire-field"><span>Project</span><select>${opts.projects.length ? opts.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join("") : '<option value="">No projects available</option>'}</select></label>` : ""}
+          <div class="hire-composer">
+            <label class="hire-task"><span class="sr-only">Task</span><textarea rows="6" placeholder="What should we work on? Add files, screenshots, or anything the job needs." aria-describedby="hire-file-hint"></textarea></label>
+            <div class="hire-attachments" aria-label="Attached files"></div>
+            <div class="hire-composer-tools"><button type="button" class="ghost hire-attach"><svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="m7 10 5-5a2.5 2.5 0 0 1 3.5 3.5L8 16a4 4 0 0 1-5.7-5.7l8-8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Attach files</button><span id="hire-file-hint">or drop files and paste images</span><input class="hire-files" type="file" multiple hidden></div>
+            <div class="hire-runtime-controls" aria-label="Runtime settings"></div>
+          </div>
+          <div class="hire-runtime-note"><span class="hire-runtime" role="status">Loading T3 defaults...</span><button type="button" class="link-btn hire-reset" hidden>Use T3 defaults</button><button type="button" class="link-btn hire-reload" hidden>Retry</button></div>
+          <details class="hire-role"${opts.intent === "delegate" ? " open" : ""}><summary>Role <span class="hire-role-name">Optional</span></summary><div class="hire-role-body"><label class="hire-field"><span>Standing instructions</span><select class="hire-role-select"></select></label><button type="button" class="link-btn hire-new-role">New role</button><div class="role-new" hidden><input type="text" class="rn-name" aria-label="Role name" placeholder="Role name"><textarea class="rn-brief" rows="2" aria-label="Role instructions" placeholder="Instructions this robot always follows"></textarea><button type="button" class="ghost rn-save">Save role</button></div></div></details>
         </div>
-        <div class="hire-runtime-note"><span class="hire-runtime" role="status">Loading T3 defaults...</span><button type="button" class="link-btn hire-reset" hidden>Use T3 defaults</button><button type="button" class="link-btn hire-reload" hidden>Retry</button></div>
-        <details class="hire-role"${opts.intent === "delegate" ? " open" : ""}><summary>Role <span class="hire-role-name">Optional</span></summary><div class="hire-role-body"><label class="hire-field"><span>Standing instructions</span><select class="hire-role-select"></select></label><button type="button" class="link-btn hire-new-role">New role</button><div class="role-new" hidden><input type="text" class="rn-name" aria-label="Role name" placeholder="Role name"><textarea class="rn-brief" rows="2" aria-label="Role instructions" placeholder="Instructions this robot always follows"></textarea><button type="button" class="ghost rn-save">Save role</button></div></div></details>
-        <section class="hire-team" aria-labelledby="hire-team-title"><div class="hire-team-heading"><h3 id="hire-team-title">Best candidates</h3><span class="hire-team-count"></span></div><p class="hire-team-note">Relevant project context first, then model match.</p><div class="hire-cands" role="radiogroup" aria-label="Robot"></div><button type="button" class="link-btn hire-more" hidden></button></section>
       </div>
-      <footer class="hire-footer"><p class="hire-msg" role="status"></p><div class="dialog-actions"><button type="button" class="ghost" data-a="cancel">Cancel</button><button type="submit" class="primary" disabled>Hire & start</button></div></footer>
+      <footer class="hire-footer"><p class="hire-msg" role="status"></p><div class="dialog-actions"><button type="button" class="ghost" data-a="cancel">Cancel</button><button type="submit" class="primary" disabled>Hire</button></div></footer>
     </form>`;
   document.body.appendChild(wrap);
   const form = wrap.querySelector("form")!;
   const el = <T extends HTMLElement = HTMLElement>(s: string) => form.querySelector<T>(s)!;
   const taskInput = el<HTMLTextAreaElement>(".hire-task textarea");
   const runtimeEl = el(".hire-runtime-controls"), runtimeNote = el(".hire-runtime");
-  const candidates = el(".hire-cands"), submit = el<HTMLButtonElement>('button[type="submit"]');
+  const submit = el<HTMLButtonElement>('button[type="submit"]');
   const msg = el(".hire-msg");
   if (companionClient()) {
     const addRole = el<HTMLButtonElement>('.hire-new-role');
@@ -98,11 +109,9 @@ export function openHire(opts: {
     if (!writePromptDraft(promptKey(), taskInput.value)) msg.textContent = "Draft could not be saved. Copy your prompt before closing Lucid.";
   });
   let config: HireRuntime | null = null, selection: HireSelection | null = null;
-  let role: Role | null = null, selectedKey = "", manualPick = false, showAll = false;
+  let role: Role | null = null, pick = 0;
   let closed = false, busy = false, loadVersion = 0, loading = false;
-  let team = opts.team, teamSignature = "", ranked: HireTeammate[] = [];
-  let contexts: SettledContext[] = [], matches: ContextMatch[] = [];
-  let contextVersion = 0, contextLoading = false, contextError = false, freshContext = false, promptTimer = 0;
+  let team = opts.team, teamSignature = "", workers: HireTeammate[] = [];
   const drafts = new Map<string, { look: RobotLook; name: string; custom: boolean }>();
   const files: File[] = [], urls = new Set<string>(), savedPaths = new WeakMap<File, string>();
   let attempt: { signature: string; id: string } | null = null;
@@ -118,8 +127,8 @@ export function openHire(opts: {
     return result;
   };
   const optionDefault = (o: HireOption) => o.current ?? (o.type === "boolean" ? false : o.choices?.find(c => c.isDefault)?.id);
-  const updateSubmit = () => { submit.disabled = busy || contextLoading || !ready() || !selectedKey || (!!opts.projects && !project); };
-  const selectedContext = () => !freshContext && !selectedKey.startsWith("new:") ? contextForRobot(team.find(r => r.id === selectedKey) ?? { threadId: null }, matches) : null;
+  const updateSubmit = () => { submit.disabled = busy || !ready() || (!!opts.projects && !project); };
+  const chosen = () => ready() ? workers[pick] ?? null : null;
   const optionHtml = (id: string, label: string, choices: { id: string; label: string; disabled?: boolean }[], value: string) => `<label class="hire-field"><span>${esc(label)}</span><select data-setting="${esc(id)}">${choices.map(c => `<option value="${esc(c.id)}"${c.id === value ? " selected" : ""}${c.disabled ? " disabled" : ""}>${esc(c.label)}</option>`).join("")}</select></label>`;
   const renderRuntime = () => {
     const provider = currentProvider(), model = currentModel();
@@ -139,81 +148,106 @@ export function openHire(opts: {
     if (config && !loading) runtimeNote.textContent = ready() ? isDefault ? config.source : "Custom setup for this job" : "Choose an available harness and model.";
     updateSubmit();
   };
-  const renderCandidates = (resort = true) => {
-    const previousOrder = ranked.map(r => r.id);
+  // ---- the worker preview ----
+  const floor = el(".hire-stage-floor");
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let actor: Walker | null = null, actorKey = "", actorScale = 0;
+  const wantedScale = () => window.matchMedia("(max-width: 560px)").matches ? 0.27 : window.matchMedia("(max-height: 640px)").matches ? 0.29 : 0.4;
+  const freshLook = (providerId: string) => {
+    let draft = drafts.get(providerId);
+    if (!draft) { draft = { look: randomLook(Math.random, opts.level ?? savedLevel()), name: "", custom: false }; drafts.set(providerId, draft); }
+    return draft;
+  };
+  const placeActor = () => {
+    if (!actor) return;
+    // Crossing the narrow breakpoint redraws the robot at the size that fits its stage.
+    if (actorScale !== wantedScale()) { actorKey = ""; renderWorker(); return; }
+    actor.setPos(floor.clientWidth / 2, floor.clientHeight - 16);
+  };
+  const showActor = (key: string, provider: string, look: RobotLook, name: string, model: string | null, entering: "known" | "new") => {
+    if (key === actorKey && actor) { actor.setLook(look); actor.setName(name); actor.setModel(model); return; }
+    actor?.destroy(); actorKey = key; actorScale = wantedScale();
+    actor = new Walker(floor, { id: `hire-${key}`, provider, name, model: model ?? undefined, scale: actorScale, look });
+    actor.el.classList.add("hire-actor");
+    placeActor(); actor.face("down");
+    if (!still) {
+      if (entering === "new") actor.hop(); else actor.do("wave");
+      gsap.fromTo(actor.el, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "power1.out" });
+    }
+  };
+  const clearActor = () => { actor?.destroy(); actor = null; actorKey = ""; actorScale = 0; };
+  // Model names stay on one line: "gpt-6.1-sol", never "gpt-" and "6.1-sol".
+  const setNote = (note: HTMLElement, before: string, model: string, after: string) => {
+    const name = document.createElement("span"); name.className = "hire-nowrap"; name.textContent = model;
+    note.replaceChildren(before, name, after);
+  };
+  const renderWorker = (announce = false) => {
     team = opts.getTeam?.() ?? team;
     teamSignature = JSON.stringify(team);
-    matches = matchSettledContexts(taskInput.value, contexts, project, selection?.providerInstanceId || "");
-    const next = rankTeammates(team, selection?.providerInstanceId || "", selection?.model || null, role?.name || null, freshContext ? [] : matches);
-    ranked = resort ? next : next.sort((a, b) => {
-      const ai = previousOrder.indexOf(a.id), bi = previousOrder.indexOf(b.id);
-      return (ai < 0 ? Infinity : ai) - (bi < 0 ? Infinity : bi);
-    });
-    const provider = currentProvider(), providerId = selection?.providerInstanceId || "";
-    const freshKey = `new:${providerId}`;
-    if (!manualPick || (!ranked.some(r => r.id === selectedKey) && selectedKey !== freshKey)) {
-      selectedKey = ranked[0]?.id || (ready() ? freshKey : ""); manualPick = false;
+    const providerId = selection?.providerInstanceId || "", model = selection?.model || null;
+    const previous = workers[pick]?.id;
+    workers = ready() ? matchingWorkers(team, providerId, model) : [];
+    pick = Math.max(0, workers.findIndex(r => r.id === previous));
+    const nameEl = el("#hire-worker-name"), note = el(".hire-worker-note");
+    const pickRow = el(".hire-worker-pick"), customize = el<HTMLButtonElement>(".hire-customize");
+    const robot = chosen();
+    const modelName = currentModel()?.name || model || "";
+    if (!ready()) {
+      clearActor();
+      nameEl.textContent = loading ? "Finding a worker..." : "No worker yet";
+      note.textContent = loading ? "" : "Choose an available harness and model.";
+      pickRow.hidden = true; customize.hidden = true;
+    } else if (robot) {
+      showActor(robot.id, robot.provider, robot.look, robot.name, robot.model ?? robot.lastModel ?? null, "known");
+      nameEl.textContent = robot.name;
+      setNote(note, `${robot.jobs} ${robot.jobs === 1 ? "job" : "jobs"} done. Free now and runs `, modelName, ".");
+      pickRow.hidden = workers.length < 2;
+      el(".hire-worker-count").textContent = `${pick + 1} of ${workers.length}`;
+      customize.hidden = false; customize.textContent = "Customize";
+    } else {
+      const draft = freshLook(providerId);
+      showActor(`new:${providerId}`, providerId, draft.look, draft.name || "New hire", model, "new");
+      nameEl.textContent = draft.name || "New hire";
+      setNote(note, "Nobody free runs ", modelName, ` yet, so a new ${currentProvider()?.name || harnessName(providerId)} robot joins the office.`);
+      pickRow.hidden = true;
+      customize.hidden = false; customize.textContent = "Customize new robot";
     }
-    const list = showAll ? ranked : ranked.slice(0, 3);
-    const selected = ranked.find(r => r.id === selectedKey);
-    if (selected && !list.includes(selected)) list.push(selected);
-    candidates.innerHTML = ready() ? list.map(r => `<div class="cand-cell"><button type="button" role="radio" aria-checked="${selectedKey === r.id}" class="cand" data-k="${esc(r.id)}">${avatar(r.provider, r.look, 48)}<span class="cand-description"><b>${esc(r.name)}</b>${!freshContext && contextForRobot(r, matches) ? `<span>Context: ${esc(contextForRobot(r, matches)!.thread.title)}</span>` : ""}<span>${esc(r.provider !== providerId ? `Will switch to ${provider?.name || harnessName(providerId)}` : r.model === selection?.model ? `Uses ${r.model}` : r.model ? `${r.model}, will switch model` : "Ready for this model")}${role && role.name === r.role ? ` · ${esc(role.name)}` : ""}</span></span><span class="cand-meta">Free now<span>${r.jobs} ${r.jobs === 1 ? "job" : "jobs"} done</span></span><span class="cand-check" aria-hidden="true">${selectedKey === r.id ? "✓" : ""}</span></button><button type="button" class="cand-edit" data-edit="${esc(r.id)}">Customize<span class="sr-only"> ${esc(r.name)}</span></button></div>`).join("") + `<div class="cand-cell cand-new"><button type="button" role="radio" aria-checked="${selectedKey === freshKey}" class="cand" data-k="${esc(freshKey)}">${avatar(providerId, drafts.get(providerId)?.look ?? { accent: "#ff9f5a" }, 48)}<span class="cand-description"><b>${esc(drafts.get(providerId)?.name || `New ${provider?.name || harnessName(providerId)} robot`)}</b><span>${ranked.length ? "Hire a new teammate instead" : "No free teammates available. Hire someone new."}</span></span><span class="cand-check" aria-hidden="true">${selectedKey === freshKey ? "✓" : "+"}</span></button><button type="button" class="cand-edit" data-edit="${esc(freshKey)}">Customize new robot</button></div>` : '<p class="hire-none">Choose your runtime to see available teammates.</p>';
-    if (companionClient()) for (const button of candidates.querySelectorAll<HTMLButtonElement>('.cand-edit')) {
-      button.disabled = true; button.title = 'Customize this robot from its desk, or on the computer.';
-    }
-    const visibleRadios = [...candidates.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
-    visibleRadios.forEach((b, i) => b.tabIndex = b.dataset.k === selectedKey || (!selectedKey && i === 0) ? 0 : -1);
-    el(".hire-team-count").textContent = ready() ? `${ranked.length} available` : "";
-    const more = el<HTMLButtonElement>(".hire-more");
-    more.hidden = ranked.length <= 3;
-    more.textContent = showAll ? "Show best matches" : `Show all ${ranked.length} teammates`;
-    renderContextChoice();
+    if (companionClient()) { customize.disabled = true; customize.title = "Customize robots on the computer."; }
+    if (announce && actor) gameSound.play("chirp");
     updateSubmit();
   };
-  const contextChoice = document.createElement("div"); contextChoice.className = "hire-context-choice";
-  el(".hire-team").append(contextChoice);
-  const renderContextChoice = () => {
-    const match = selectedContext(), candidate = team.find(r => r.id === selectedKey);
-    contextChoice.replaceChildren();
-    const text = document.createElement("span");
-    text.textContent = contextLoading ? "Searching settled conversations in this project..." : contextError ? "Context search is unavailable. You can start with fresh context." : match ? `Continue: ${match.thread.title}` : candidate ? `Fresh context with ${candidate.name}.` : "Start a fresh conversation.";
-    contextChoice.append(text);
-    if (candidate && matches.length && !contextLoading) {
-      const toggle = document.createElement("button"); toggle.type = "button"; toggle.className = "link-btn"; toggle.textContent = freshContext ? "Use matching context" : "Use fresh context";
-      toggle.onclick = () => { freshContext = !freshContext; renderCandidates(false); };
-      contextChoice.append(toggle);
-    }
+  const step = (by: number) => {
+    if (busy || workers.length < 2) return;
+    pick = (pick + by + workers.length) % workers.length;
+    renderWorker(true);
   };
-  const loadContexts = async () => {
-    const version = ++contextVersion;
-    contexts = []; matches = []; contextError = false; freshContext = false;
-    contextLoading = !!opts.loadContexts && !!project; renderCandidates();
-    if (!contextLoading) return;
-    try {
-      const result = await opts.loadContexts!(project);
-      if (closed || version !== contextVersion) return;
-      contexts = result;
-    } catch {
-      if (closed || version !== contextVersion) return;
-      contextError = true;
-    }
-    contextLoading = false; renderCandidates();
+  el(".hire-prev").onclick = () => step(-1);
+  el(".hire-next").onclick = () => step(1);
+  el(".hire-customize").onclick = () => {
+    if (busy || !selection) return;
+    const robot = chosen(), providerId = selection.providerInstanceId;
+    const draft = freshLook(providerId);
+    openCustomize({ name: robot?.name || draft.name || "", provider: providerId, look: robot?.look || draft.look, level: opts.level ?? savedLevel(), namePlaceholder: robot ? undefined : "A random name", onSave: (look, name) => {
+      if (robot) { Roster.current?.setLook(robot.id, look); Roster.current?.rename(robot.id, name); robot.look = look; if (name) robot.name = name; }
+      else drafts.set(providerId, { look, name, custom: true });
+      renderWorker();
+    } });
   };
   const loadRuntime = async () => {
     const version = ++loadVersion;
     loading = true; submit.disabled = true;
     runtimeNote.textContent = "Loading T3 defaults..."; el(".hire-reload").hidden = true;
-    renderRuntime();
+    renderRuntime(); renderWorker();
     try {
       const next = await opts.loadRuntime(project);
       if (closed || version !== loadVersion) return;
       config = next; selection = next.selection ? structuredClone(next.selection) : null;
-      loading = false; manualPick = false; showAll = false;
-      renderRuntime(); renderCandidates();
+      loading = false; pick = 0;
+      renderRuntime(); renderWorker();
     } catch (error: any) {
       if (closed || version !== loadVersion) return;
-      loading = false; config = null; selection = null; selectedKey = "";
-      renderRuntime(); renderCandidates();
+      loading = false; config = null; selection = null;
+      renderRuntime(); renderWorker();
       runtimeNote.textContent = `Could not load T3 settings: ${error?.message || error}`;
       el(".hire-reload").hidden = false;
     }
@@ -227,55 +261,31 @@ export function openHire(opts: {
       const defaults = config.selection?.providerInstanceId === p.instanceId ? config.selection : null;
       const m = defaults?.model || p.models.find(m => m.isDefault)?.slug || p.models[0]?.slug || null;
       selection = { providerInstanceId: p.instanceId, model: m, options: validOptions(p, m, defaults?.options ?? {}) };
-      manualPick = false; freshContext = false;
+      pick = 0;
     } else if (key === "model" && selection) {
       selection = { ...selection, model: select.value, options: validOptions(currentProvider(), select.value, selection.options) };
     } else if (selection) {
       const o = currentModel()?.options.find(o => o.id === key);
       if (o) selection.options[key] = o.type === "boolean" ? select.value === "true" : select.value;
     }
-    renderRuntime(); renderCandidates();
+    renderRuntime(); renderWorker(key === "provider" || key === "model");
     runtimeEl.querySelector<HTMLSelectElement>(`select[data-setting="${CSS.escape(key)}"]`)?.focus();
   });
-  el(".hire-reset").onclick = () => { if (config?.selection) selection = structuredClone(config.selection); manualPick = false; renderRuntime(); renderCandidates(); };
+  el(".hire-reset").onclick = () => { if (config?.selection) selection = structuredClone(config.selection); pick = 0; renderRuntime(); renderWorker(true); };
   el(".hire-reload").onclick = () => void loadRuntime();
-  el<HTMLSelectElement>(".hire-project select")?.addEventListener("change", e => { writePromptDraft(promptKey(), taskInput.value); project = (e.target as HTMLSelectElement).value; taskInput.value = readPromptDraft(promptKey()); void loadContexts(); void loadRuntime(); });
-  el(".hire-more").onclick = () => { showAll = !showAll; renderCandidates(); };
-  candidates.addEventListener("click", e => {
-    const button = (e.target as HTMLElement).closest<HTMLButtonElement>(".cand, .cand-edit");
-    if (!button || busy) return;
-    if (button.classList.contains("cand-edit")) {
-      const robot = team.find(r => r.id === button.dataset.edit), providerId = robot?.provider || selection!.providerInstanceId;
-      const draft = drafts.get(providerId);
-      openCustomize({ name: robot?.name || draft?.name || "", provider: providerId, look: robot?.look || draft?.look || { accent: "#ff9f5a" }, level: opts.level ?? savedLevel(), namePlaceholder: robot ? undefined : "A random name", onSave: (look, name) => {
-        if (robot) { Roster.current?.setLook(robot.id, look); Roster.current?.rename(robot.id, name); robot.look = look; if (name) robot.name = name; }
-        else drafts.set(providerId, { look, name, custom: true });
-        renderCandidates(false);
-      } });
-    } else {
-      selectedKey = button.dataset.k!; manualPick = true; renderCandidates(false);
-      candidates.querySelector<HTMLButtonElement>(`.cand[data-k="${CSS.escape(selectedKey)}"]`)?.focus({ preventScroll: true });
-    }
-  });
-  candidates.addEventListener("keydown", e => {
-    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key) || !(e.target as HTMLElement).matches(".cand")) return;
-    e.preventDefault();
-    const radios = [...candidates.querySelectorAll<HTMLButtonElement>(".cand")], i = radios.indexOf(e.target as HTMLButtonElement);
-    const index = e.key === "Home" ? 0 : e.key === "End" ? radios.length - 1 : (i + (/Up|Left/.test(e.key) ? -1 : 1) + radios.length) % radios.length;
-    radios[index]?.click();
-  });
+  el<HTMLSelectElement>(".hire-project select")?.addEventListener("change", e => { writePromptDraft(promptKey(), taskInput.value); project = (e.target as HTMLSelectElement).value; taskInput.value = readPromptDraft(promptKey()); void loadRuntime(); });
   const renderRoles = () => {
     el<HTMLSelectElement>(".hire-role-select").innerHTML = `<option value="">No role</option>${opts.roles.map(r => `<option value="${esc(r.name)}"${role?.name === r.name ? " selected" : ""}>${esc(r.name)}</option>`).join("")}`;
     el(".hire-role-name").textContent = role?.name || "Optional";
   };
   renderRoles();
-  el(".hire-role-select").onchange = e => { role = opts.roles.find(r => r.name === (e.target as HTMLSelectElement).value) || null; renderRoles(); renderCandidates(); };
+  el(".hire-role-select").onchange = e => { role = opts.roles.find(r => r.name === (e.target as HTMLSelectElement).value) || null; renderRoles(); };
   el(".hire-new-role").onclick = () => { const box = el(".role-new"); box.hidden = !box.hidden; if (!box.hidden) el(".rn-name").focus(); };
   el(".rn-save").onclick = () => {
     const name = el<HTMLInputElement>(".rn-name").value.trim(), brief = el<HTMLTextAreaElement>(".rn-brief").value.trim();
     if (!name || !brief) { msg.textContent = "Add a role name and instructions."; return; }
     if (opts.roles.some(r => r.name.toLowerCase() === name.toLowerCase())) { msg.textContent = "Choose a different role name."; return; }
-    role = { name, brief }; opts.roles.push(role); opts.onNewRole(role); el(".role-new").hidden = true; msg.textContent = ""; renderRoles(); renderCandidates();
+    role = { name, brief }; opts.roles.push(role); opts.onNewRole(role); el(".role-new").hidden = true; msg.textContent = ""; renderRoles();
   };
   const renderFiles = () => {
     for (const url of urls) URL.revokeObjectURL(url); urls.clear();
@@ -307,7 +317,7 @@ export function openHire(opts: {
   composer.addEventListener("drop", e => { e.preventDefault(); composer.classList.remove("file-over"); addFiles(Array.from(e.dataTransfer?.files ?? [])); });
   const close = () => {
     if (closed || busy) return;
-    closed = true; ++loadVersion; ++contextVersion; window.clearTimeout(promptTimer); window.clearInterval(availabilityTimer); window.removeEventListener("keydown", onKey, true);
+    closed = true; ++loadVersion; window.clearInterval(availabilityTimer); window.removeEventListener("keydown", onKey, true); resize.disconnect(); clearActor();
     urls.forEach(url => URL.revokeObjectURL(url)); urls.clear(); gsap.killTweensOf(form);
     wrap.remove(); if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
   };
@@ -330,13 +340,12 @@ export function openHire(opts: {
     const text = taskInput.value.trim();
     if (!text) { msg.textContent = "Describe the job first."; taskInput.focus(); return; }
     if (!ready() || !selection?.model) { msg.textContent = "Choose an available harness and model first."; return; }
-    if (contextLoading) { msg.textContent = "Wait for the project context search to finish."; return; }
-    const available = opts.getTeam?.() ?? team;
-    const robot = available.find(r => r.id === selectedKey);
-    if (!selectedKey || (!selectedKey.startsWith("new:") && !robot)) { manualPick = false; renderCandidates(); msg.textContent = "That teammate is busy now. Choose an available robot."; return; }
+    // Recheck availability right before starting: someone may have taken this worker.
+    const previousWorker = chosen()?.id;
+    renderWorker();
+    const robot = chosen();
+    if (previousWorker && robot?.id !== previousWorker) { msg.textContent = "That worker just took another job. Check who is shown now and hire again."; return; }
     if (opts.projects && !project) { msg.textContent = "Choose a project first."; return; }
-    window.clearTimeout(promptTimer);
-    matches = matchSettledContexts(text, contexts, project, selection.providerInstanceId);
     busy = true; form.setAttribute("aria-busy", "true");
     const locked = [...form.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("button, input, textarea, select")].map(c => ({ c, disabled: c.disabled }));
     locked.forEach(({ c }) => c.disabled = true);
@@ -355,13 +364,15 @@ export function openHire(opts: {
       }
       const options = validOptions(currentProvider(), selection.model, selection.options);
       for (const o of currentModel()?.options ?? []) { const value = optionDefault(o); if (options[o.id] === undefined && value !== undefined) options[o.id] = value; }
-      const choice = { robotId: robot?.id || null, provider: selection.providerInstanceId, model: selection.model, options, projectId: project, task, role, contextThreadId: selectedContext()?.thread.id };
+      const choice = { robotId: robot?.id || null, provider: selection.providerInstanceId, model: selection.model, options, projectId: project, task, role };
       const signature = JSON.stringify(choice);
       if (attempt?.signature !== signature) attempt = { signature, id: crypto.randomUUID() };
+      // A new hire keeps exactly the look shown in the preview.
       const draft = drafts.get(selection.providerInstanceId);
-      if (!robot && draft?.custom) Roster.current?.prepareHire(selection.providerInstanceId, draft.look, draft.name);
-      msg.textContent = robot ? `${robot.name} is taking the job...` : "Hiring your new teammate...";
+      if (!robot && draft) Roster.current?.prepareHire(selection.providerInstanceId, draft.look, draft.name);
+      msg.textContent = robot ? `${robot.name} is taking the job...` : "Hiring a new robot...";
       await opts.onHire({ ...choice, requestId: attempt!.id });
+      gameSound.play("ready");
       writePromptDraft(promptKey(), "");
       busy = false; close();
     } catch (error: any) {
@@ -373,10 +384,10 @@ export function openHire(opts: {
   const availabilityTimer = window.setInterval(() => {
     if (closed || busy || loading || document.hidden || !opts.getTeam) return;
     const next = opts.getTeam();
-    if (JSON.stringify(next) !== teamSignature) { team = next; renderCandidates(false); }
+    if (JSON.stringify(next) !== teamSignature) { team = next; renderWorker(); }
   }, 2000);
-  taskInput.addEventListener("input", () => { window.clearTimeout(promptTimer); promptTimer = window.setTimeout(() => { if (!closed && !busy) renderCandidates(); }, 180); });
-  renderRuntime(); renderCandidates(); void loadContexts(); void loadRuntime();
+  const resize = new ResizeObserver(placeActor); resize.observe(floor);
+  renderRuntime(); renderWorker(); void loadRuntime();
   if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) gsap.fromTo(form, { opacity: 0, scale: 0.98 }, { opacity: 1, scale: 1, duration: 0.18, ease: "power2.out" });
   taskInput.focus();
 }
