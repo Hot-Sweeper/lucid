@@ -198,6 +198,7 @@ const send = (channel, payload) => { if (win && !win.isDestroyed()) win.webConte
 
 ipcMain.handle("t3:projects", () => activeBuilding() ? remote.cached(activeBuilding())?.projects || [] : t3.listProjects());
 const environments = require("./environments.cjs");
+const remoteMedia = require("./remote-media.cjs").createRemoteMedia({ client: environments.client, split: require("./remote-building.cjs").split });
 const remote = environments.remote;
 let desktopBuilding = null;
 const activeBuilding = () => mobileContext.getStore()?.environment ?? (mobileContext.getStore() ? null : desktopBuilding);
@@ -493,6 +494,11 @@ const SERVE = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp",
 
 app.whenReady().then(() => {
   protocol.handle("lucid-file", async (req) => {
+    // Files of threads on another computer come from that computer (remote-media.cjs).
+    if (new URL(req.url).hostname === "remote") {
+      const media = await remoteMedia.get(req.url);
+      return media.status === 200 ? new Response(media.body, { headers: { "content-type": media.type, "cache-control": "private, max-age=600" } }) : new Response(media.status === 403 ? "not allowed" : "missing", { status: media.status });
+    }
     try {
       const file = decodeURIComponent(new URL(req.url).pathname.slice(1));
       if (!SERVE.has(path.extname(file).toLowerCase())) return new Response("not allowed", { status: 403 });

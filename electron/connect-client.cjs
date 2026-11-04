@@ -105,6 +105,17 @@ function createConnectClient({ catalog = readCatalog, decrypt = decryptDesktop, 
         });
       });
     },
+    /** Bytes of a building route (signed media), with the same authorization as fetch. */
+    async raw(id, route, retried = false) {
+      if (!route.startsWith('/') || route.startsWith('//')) throw Error('Invalid building route.');
+      const s = await session(id), address = s.origin + route;
+      const response = await request(address, { signal: AbortSignal.timeout(20000), redirect: 'error', headers: { 'x-t3-orchestration-protocol': '2', authorization: `DPoP ${s.token}`, dpop: proof('GET', address, s.token) } });
+      if (response.status === 401 && !retried) { sessions.delete(id); return this.raw(id, route, true); }
+      if (!response.ok) { const error = new Error('The building could not send this file.'); error.status = response.status; throw error; }
+      const body = Buffer.from(await response.arrayBuffer());
+      if (body.length > 32 * 1024 * 1024) throw Error('This file is too large to show here.');
+      return { body, type: (response.headers.get('content-type') || '').split(';')[0].trim() };
+    },
     async fetch(id, route, options = {}, retried = false) {
       if (!route.startsWith('/') || route.startsWith('//')) throw Error('Invalid building route.');
       const s = await session(id), address = s.origin + route;

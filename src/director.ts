@@ -293,7 +293,7 @@ export class Director {
           const raw = String(m.text || "");
           const paths = [...raw.matchAll(/^\s*-\s*image:\s*(.+)$/gim)].map((x) => x[1].trim());
           for (const a of m.attachments || []) if (a.path && /^image\//.test(a.mime || "image/")) paths.push(a.path);
-          return { role: m.role, text: raw.replace(/\s*Attached:[\s\S]*$/, "").trim(), images: [...new Set(paths)].map((p) => fileUrl(p)) };
+          return { role: m.role, text: raw.replace(/\s*Attached:[\s\S]*$/, "").trim(), images: [...new Set(paths)].map((p) => fileUrl(p, this.info?.id ?? null)) };
         })
         .filter((m: any) => m.text || m.images.length);
       this.messages.history(past);
@@ -933,7 +933,7 @@ export class Director {
       if (done.data.viewedImagePath || done.data.output?.type === "image") {
         this.onActivity(`Looking at ${baseName(p)}`);
         this.stage.setGlow(GLOW.tool);
-        const src = fileUrl(done.data.viewedImagePath || p);
+        const src = fileUrl(done.data.viewedImagePath || p, this.info?.id ?? null);
         await this.tool.picture(baseName(p), src, () => this.image(done.data.viewedImagePath || p));
         return true;
       }
@@ -1430,12 +1430,12 @@ export class Director {
             if (mm) imgs.push({ path: mm[1].trim(), name: mm[1].trim().split(/[\\/]/).pop()!.replace(/^\d+-/, "") });
           }
         }
-        await this.messages.user(said, imgs.map((i) => fileUrl(i.path)), clicked);
+        await this.messages.user(said, imgs.map((i) => fileUrl(i.path, this.info?.id ?? null)), clicked);
         this.robot.setPose("read");
         await this.wm.sleep(Math.min(3200, 800 + said.length * 12));
         for (const img of imgs.slice(0, 2)) {
           this.onActivity(`Looking at ${img.name}`);
-          await this.tool.picture(img.name, fileUrl(img.path), () => this.image(img.path));
+          await this.tool.picture(img.name, fileUrl(img.path, this.info?.id ?? null), () => this.image(img.path));
         }
         return;
       }

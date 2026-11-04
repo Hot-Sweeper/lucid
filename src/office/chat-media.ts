@@ -20,14 +20,24 @@ export function localMediaPath(input: string): string | null {
   return null;
 }
 
-export function chatFileUrl(path: string): string {
+// A thread on another computer (its id has "::") keeps its files there. Such paths are
+// fetched from that computer by the main process (lucid-file://remote), never read locally.
+let mediaThread: string | null = null;
+/** The thread whose messages are being rendered right now (chat panel). */
+export function setMediaThread(threadId: string | null) { mediaThread = threadId; }
+const REMOTE = /^lucid-file:\/\/remote\//i;
+
+export function chatFileUrl(path: string, threadId: string | null = mediaThread): string {
+  if (REMOTE.test(path)) return path;
   const file = localMediaPath(path) ?? path;
+  if (threadId?.includes("::") && !(typeof window !== "undefined" && (window as any).lucidRemote)) return `lucid-file://remote/${encodeURIComponent(threadId)}/${encodeURIComponent(file)}`;
   return typeof window !== "undefined" && (window as any).lucidRemote
     ? `/__lucid/media/${encodeURIComponent(file)}`
     : `lucid-file://local/${encodeURIComponent(file)}`;
 }
 
 export function chatMediaSource(value: string): string | null {
+  if (REMOTE.test(value.trim())) return value.trim();
   const file = localMediaPath(value);
   if (file) return chatFileUrl(file);
   if (/^https?:\/\//i.test(value)) {

@@ -11,7 +11,7 @@ import { HistoryWindow, type HistoryCursor, type HistoryPage } from "./history-w
 import { attachDictation } from "./dictation";
 import { sameChatMessage, type ChatMessage as Msg } from "./chat-message";
 import { chatReaderAnchor } from "./chat-scroll";
-import { chatFileUrl, chatMediaKind, inlineChatImage, prepareChatImages, chatImageFailed } from "./chat-media";
+import { chatFileUrl, chatMediaKind, inlineChatImage, prepareChatImages, chatImageFailed, setMediaThread } from "./chat-media";
 import { reviewReportId, renderChatReview, renderSourceChatReport, type ChatReviewPaper } from "./chat-review";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
@@ -984,6 +984,7 @@ export class ChatPanel {
   }
 
   private render(m: Msg) {
+    setMediaThread(this.threadId);   // files of a thread on another computer load from there
     let body = m.text;
     const sent: string[] = [];
     const at = m.role === "user" ? body.match(/\n*Attached:\n((?:- (?:image|file): .+(?:\n|$))+)\s*$/) : null;

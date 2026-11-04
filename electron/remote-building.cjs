@@ -39,7 +39,14 @@ function createRemoteBuilding(client, { now = Date.now, interval = setInterval, 
     return { id, title: t.title, provider: t.providerInstanceId, projectTitle: worlds.get(split(id).environmentId)?.projects.find(p => p.id === ref(split(id).environmentId, t.projectId))?.title || '', root: '', model: t.modelSelection?.model || null, effort: t.modelSelection?.options?.find(o => /effort/i.test(o.id))?.value || null, queued: p.runs.filter(r => r.status === 'queued').map(r => ({ id: r.id, text: p.messages.find(m => m.id === r.userMessageId)?.text || '' })), run: run ? { id: run.id, status: run.status } : null };
   };
   const itemsFrom = p => p.turnItems.map(item => ({ id: item.id, runId: item.runId, ordinal: item.ordinal, type: item.type, status: item.status, title: item.title, updatedAt: item.updatedAt, data: item }));
-  const messagesFrom = p => p.messages.map(m => ({ id: m.id, role: m.role, at: m.createdAt, orderAt: m.createdAt, streaming: m.streaming, text: m.text, run: p.runs.find(r => r.id === m.runId)?.status || null, attachments: (m.attachments || []).map(a => ({ type: 'file', name: a.name, mime: a.mimeType, size: a.sizeBytes, path: '' })) }));
+  // Attachments stay on that computer: an attachment address lets lucid-file://remote fetch them.
+  const EXT = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp', 'image/svg+xml': '.svg', 'image/avif': '.avif', 'image/bmp': '.bmp' };
+  const remoteAttachment = a => {
+    const image = a.type === 'image' || /^image\//.test(a.mimeType || '');
+    const ext = EXT[a.mimeType] || (String(a.name || '').match(/\.[a-z0-9]+$/i)?.[0] ?? '');
+    return { type: image ? 'image' : 'file', id: a.id, name: a.name, mime: a.mimeType, size: a.sizeBytes, path: a.id && ext ? `/attachments/${a.id}${ext}` : '' };
+  };
+  const messagesFrom = p => p.messages.map(m => ({ id: m.id, role: m.role, at: m.createdAt, orderAt: m.createdAt, streaming: m.streaming, text: m.text, run: p.runs.find(r => r.id === m.runId)?.status || null, attachments: (m.attachments || []).map(remoteAttachment) }));
   return {
     split, ref,
     cached(id) { return worlds.get(id); },
