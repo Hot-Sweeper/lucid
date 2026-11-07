@@ -133,7 +133,13 @@ export class MonitorTasks {
         catch (e: any) {
           error.textContent = `Could not collect: ${e?.message || e}. Try again.`;
           button.disabled = false;
-        } finally { this.collecting.delete(id); this.sync(); }
+        } finally {
+          this.collecting.delete(id);
+          // Settlement keeps this panel and turns its action into Remove desk.
+          // Release the busy state on success as well as failure so it can be used again.
+          button.disabled = false;
+          this.sync();
+        }
       });
     }
     desk.wm.root.append(el);
