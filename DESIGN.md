@@ -2,7 +2,9 @@
 
 ## Robot journeys
 
-Transit robots skip only the fully offscreen prefix of their collision-checked path. A conservative viewport includes their whole body, hats, carried papers and 48 CSS pixels of approach. They run into view from that boundary; visible crossings and arrivals play continuously. Camera following, panning, zooming, glides, held robots and moving furniture disable shortcuts. No fading or teleport effects conceal a visible relocation. Leisure inside rooms keeps its existing pace. Work runs use longer strides, tucked recovery feet, bent counter-swinging arms, a forward lean and a brief airborne pose, then brake into the existing chair handoff. Reduced motion keeps the quieter existing gait. Agent execution remains independent of the commute.
+The visible office ends at the inner edges of the sidebars, including collapsed rails. Use the scene's real rectangle, subtract only panel overlap, and refresh these limits when panels resize. Remote buildings share those same clipped limits. Horizontal entry keeps a whole-body guard without an extra screen-space approach behind the sidebars.
+
+Transit robots skip only the fully offscreen prefix of their collision-checked path. A conservative viewport includes their whole body, hats, carried papers and additional vertical approach space. They run into view from that boundary; visible crossings and arrivals play continuously. Camera following, panning, zooming, glides, held robots and moving furniture disable shortcuts. No fading or teleport effects conceal a visible relocation. Leisure inside rooms keeps its existing pace. Work runs use longer strides, tucked recovery feet, bent counter-swinging arms, a forward lean and a brief airborne pose, then brake into the existing chair handoff. Reduced motion keeps the quieter existing gait. Agent execution remains independent of the commute.
 
 Extend the established living robot office. Keep its warm artwork, navy and lavender panels, peach actions, Lexend interface type and JetBrains Mono code type.
 

@@ -42,6 +42,7 @@ import { cacheStaticArt, updateStaticArt, invalidateStaticArt, destroyStaticArt 
 import { orderedRooms, moveRoomOrder, movableRoom } from "./room-order";
 import { mountTouchCamera } from "./touch-camera";
 import { phoneGestureDiagnostics, type PhoneGestureDiagnostics } from "../perf/phone-gesture";
+import { exposedScene } from "./exposed-scene";
 
 // The whole building, seen fake top-down: rooms laid out on a floor plan, one shared camera.
 // Offices hold desks (one per thread). Desks live in one layer above the rooms, so a robot
@@ -256,9 +257,11 @@ export class World {
       if (!box || box.width <= 0 || box.height <= 0 || this.cam.s <= 0) return null;
       // Coordinates in both transit layers are world coordinates. Include hats,
       // carried papers, antenna spring and a screen-space approach before entry.
-      const s = this.cam.s, padX = 90 + 48 / s, padY = 260 + 48 / s, offset = origin();
-      return { x: -this.cam.x / s - padX - offset.x, y: -this.cam.y / s - padY - offset.y,
-        w: box.width / s + 2 * padX, h: box.height / s + 2 * padY };
+      const s = this.cam.s, padX = 90, padY = 260 + 48 / s, offset = origin();
+      const visibleWidth = box.width - this.journeyInsets.left - this.journeyInsets.right;
+      if (visibleWidth <= 0) return null;
+      return { x: (this.journeyInsets.left - this.cam.x) / s - padX - offset.x, y: -this.cam.y / s - padY - offset.y,
+        w: visibleWidth / s + 2 * padX, h: box.height / s + 2 * padY };
     };
   }
 
@@ -1742,6 +1745,10 @@ export class World {
     this.resizePresentation = () => {
       if (this.scene.inert || document.hidden) { this.presentationDirty = true; return; }
       this.sceneBox = null;
+      // Read geometry only on layout changes, never in a robot's frame loop.
+      this.journeyInsets = exposedScene(s.getBoundingClientRect(),
+        [...s.parentElement!.querySelectorAll<HTMLElement>(':scope > .panel, :scope > .side-rail, :scope > .chat-panel, :scope > .cp-tab')]
+          .map(panel => panel.getBoundingClientRect()));
       const w = s.clientWidth, h = s.clientHeight;
       if (last.w && last.h && w && h && (w !== last.w || h !== last.h)) {
         if (this.frame) {
@@ -1755,7 +1762,10 @@ export class World {
       this.apply();
       this.keepFocus();
     };
-    new ResizeObserver(this.resizePresentation).observe(s);
+    this.layoutObserver?.disconnect();
+    const layoutObserver = this.layoutObserver = new ResizeObserver(this.resizePresentation);
+    layoutObserver.observe(s);
+    for (const panel of s.parentElement!.querySelectorAll(':scope > .panel, :scope > .side-rail, :scope > .chat-panel, :scope > .cp-tab')) layoutObserver.observe(panel);
   }
 
   // Coalesce fast mouse input into one commit on the display's next animation frame.
@@ -1771,6 +1781,8 @@ export class World {
     this.applyQueued = requestAnimationFrame(this.flushCamera);
   }
   private sceneBox: DOMRect | null = null;
+  private journeyInsets = { left: 0, right: 0 };
+  private layoutObserver: ResizeObserver | null = null;
   private near: boolean | null = null;
   private overviewLayers: boolean | null = null;
   private lastScale = 0;
@@ -1995,6 +2007,7 @@ export class World {
     void this.refreshBuildings();
   }
   private destroyBuildings = () => {
+    this.layoutObserver?.disconnect(); this.layoutObserver = null;
     this.finishRoomTransitions();
     window.clearInterval(this.campusTimer); this.campusTimer = 0;
     for (const entry of this.neighbors.values()) { entry.office?.rememberLayout(); entry.office?.destroyEmbedded(); this.roomTweens.get(entry.el)?.kill(); entry.el.remove(); }
@@ -2002,6 +2015,7 @@ export class World {
     this.sceneryCull?.destroy(); this.sceneryCull=null;
   };
   private destroyEmbedded() {
+    this.layoutObserver?.disconnect(); this.layoutObserver = null;
     document.removeEventListener('visibilitychange', this.visibilityPresentation);
     this.cancelCameraTween(); this.cancelOutsideWarm(); window.clearTimeout(this.zoomEnd);
     this.cancelTouchLayoutFlush();
@@ -2069,7 +2083,7 @@ export class World {
     for (const entry of this.neighbors.values()) if (entry.office) {
       const office = entry.office;
       office.cam = { x: this.cam.x + (parseFloat(entry.el.style.left) || entry.x) * this.cam.s, y: this.cam.y + (parseFloat(entry.el.style.top) || entry.y) * this.cam.s, s: this.cam.s };
-      office.sceneBox = this.sceneBox; office.root.classList.toggle('overview', this.cam.s < .3);
+      office.sceneBox = this.sceneBox; office.journeyInsets = this.journeyInsets; office.root.classList.toggle('overview', this.cam.s < .3);
       office.recull();
     }
   }
