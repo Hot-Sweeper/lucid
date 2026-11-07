@@ -5,6 +5,8 @@ import "./stats.css";
 import { logoFor, harnessName } from "../office/brand";
 
 export type Limit = {
+  /** A local fallback reading may be merged into a T3 provider window. */
+  source?: string;
   usedPercent: number | null;
   id?: string;
   pool?: string;
@@ -221,7 +223,7 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
       r.name.title = r.name.textContent || "";
       const known = typeof l.usedPercent === "number" && Number.isFinite(l.usedPercent);
       const pct = known ? Math.max(0, Math.min(100, l.usedPercent!)) : 0;
-      r.root.title = `${w.source}${l.observedAt ? `, reported ${new Date(l.observedAt).toLocaleString()}` : ""}`;
+      r.root.title = `${l.source || w.source}${l.observedAt ? `, reported ${new Date(l.observedAt).toLocaleString()}` : ""}`;
       if (l.stale) {
         r.fill.style.width = "0%";
         setText(r.pct, "");
