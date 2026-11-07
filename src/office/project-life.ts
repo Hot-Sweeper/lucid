@@ -51,6 +51,7 @@ export class ProjectLife {
     if (!this.local()) this.closeBoard?.();
     for (const room of this.world.rooms.filter(r => r.kind === 'project')) {
       const id = room.id.slice(2);
+      room.el.classList.toggle('has-project-office-board', this.local() && !room.collapsed);
       let prop = room.el.querySelector<HTMLButtonElement>('.project-office-prop');
       if (!this.local()) { prop?.remove(); continue; }
       if (!prop) {
@@ -61,10 +62,11 @@ export class ProjectLife {
       }
       prop.hidden = room.collapsed;
       const board = this.boards.get(id);
-      prop.title = tr('Open project office board', 'Projektbüro öffnen');
-      const banner = board?.banner || tr('Make room for the next big idea', 'Platz für die nächste große Idee');
-      const content = `<span class="project-prop-banner">${esc(banner)}</span><span class="project-prop-date">${esc(board?.launchDate ? countdown(board.launchDate) : tr('Goals · Calendar · Office chatter', 'Ziele · Kalender · Bürogespräche'))}</span>`;
-      if (prop.innerHTML !== content) prop.innerHTML = content;
+      const description = [tr('Open office board', 'Büroboard öffnen'), board?.banner, board?.launchDate ? countdown(board.launchDate) : ''].filter(Boolean).join(' · ');
+      prop.title = description;
+      prop.setAttribute('aria-label', description);
+      // One small clipboard beside the room control, never a text panel over the windows.
+      if (!prop.firstChild) prop.innerHTML = '<svg viewBox="0 0 32 32" width="28" height="28" fill="none" aria-hidden="true"><rect x="6" y="6" width="20" height="23" rx="3" fill="#fff8eb"/><path d="M11 6V4h10v4H11V6Z" fill="#ffbf86"/><path d="m10 14 2 2 3-4m3 2h4m-12 8 2 2 3-4m3 2h4" stroke="#51434b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       void this.load(id);
       // Existing world refreshes drive this, with no extra polling/render timer.
       const threads = this.world.lastData?.threads.filter(t => t.projectId === id) || [];

@@ -1,7 +1,8 @@
-.project-office-prop { position:absolute; left:200px; right:150px; top:26px; max-width:360px; min-height:62px; z-index:2; display:grid; gap:3px; padding:8px 14px; color:#302c45; background:#ffe1bd; border:2px solid #a5785f; border-radius:3px 3px 12px 12px; box-shadow:0 4px 0 #684e4938; font:600 15px var(--font); cursor:pointer; transition:transform 140ms cubic-bezier(.23,1,.32,1),background 140ms; }
-.project-office-prop:hover { background:#ffedda; transform:translateY(-2px); }
-.project-prop-banner { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.project-prop-date { font-size:12px; font-weight:400; }
+.room.has-project-office-board > .project-office-prop { position:absolute; right:70px; top:30px; width:40px; height:40px; z-index:3; display:grid; place-items:center; padding:0; border:0; border-radius:7px; background:#51434b; color:#fff8eb; box-shadow:0 2px 0 #302c4533; cursor:pointer; transition:background 140ms,transform 140ms cubic-bezier(.23,1,.32,1); }
+.room.has-project-office-board > .project-office-prop:hover { background:#67545c; transform:translateY(-1px); }
+.room.has-project-office-board > .project-office-prop:active { transform:translateY(1px); }
+.room.has-project-office-board > .room-size-hit { right:22px; top:30px; width:40px; min-width:40px; height:40px; padding:0; display:grid; place-items:center; border-radius:7px; }
+.room.has-project-office-board > .room-size-hit .room-size-label { display:none; }
 .project-office-wrap .project-office { width:min(900px,calc(100vw - 32px)); max-width:900px; max-height:calc(100dvh - 32px); padding:0; display:flex; flex-direction:column; overflow:hidden; background:var(--night); color:var(--ink); animation:project-office-enter 180ms cubic-bezier(.23,1,.32,1); }
 .project-office-header { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; padding:24px 26px 16px; }
 .project-office-header h2 { margin:0; overflow-wrap:anywhere; }
@@ -42,3 +43,5 @@
 .project-office-footer { flex-wrap:wrap; }
 .project-office-footer .project-office-status { flex:1 1 240px; }
 @media(max-width:640px) { .project-office-footer .project-office-status { flex:0 0 auto; } .project-office-footer .project-office-status:empty { display:none; } }
+
+@media(prefers-reduced-motion:reduce) { .room.has-project-office-board > .project-office-prop { transition:none; transform:none; } }
