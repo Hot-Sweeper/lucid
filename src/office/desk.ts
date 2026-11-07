@@ -1,3 +1,4 @@
+import { DeskPlanWidget } from "./desk-plan";
 import { managerLook } from "../world/look";
 import gsap from "gsap";
 import { gameSound } from './sound';
@@ -57,6 +58,7 @@ export class Desk implements DeskStage {
   onRobotFocus: ((anchor: Element) => void) | null = null;
   private deferredRobot: DeferredRobot;
   wm: WM;
+  private planWidget: DeskPlanWidget;
   director: Director;
   threadId: string | null = null;
   info: ThreadInfo | null = null;
@@ -108,6 +110,7 @@ export class Desk implements DeskStage {
     this.disposeStaticArt = cacheStaticArt(el.querySelector<SVGSVGElement>(".desk-table")!);
     this.wireToys();
     this.wm = new WM(this.screen, this.robot);
+    this.planWidget = new DeskPlanWidget(this.el.querySelector(".desk-notes")!, this.wm);
     this.director = new Director(this.wm, this.robot, this, services.peek, services.image, services.readText);
     this.director.onActivity = (t) => { this.activity = t; this.onActivity(t); };
     this.syncPresence();
@@ -151,6 +154,7 @@ export class Desk implements DeskStage {
 
   assign(thread: { id: string; title: string; provider: string; model?: string | null } | null, profile: RobotProfile | null = null) {
     if (this.threadId === (thread?.id ?? null)) return;
+    this.planWidget.close(false);
     this.director.reset();
     this.clearKeys();
     this.threadId = thread?.id ?? null;
@@ -335,23 +339,10 @@ export class Desk implements DeskStage {
   }
 
   planSteps: { text: string; status: string }[] = [];
-  // A readable plan pad on the desk. The complete plan opens in chat when clicked.
+  // Inspect the live plan on the monitor without disturbing the robot's desktop.
   setPlan(steps: { text: string; status: string }[]) {
     this.planSteps = steps.map((s) => ({ ...s }));
-    const list = this.el.querySelector(".desk-notes") as HTMLElement;
-    const sig = JSON.stringify(steps);
-    if (list.dataset.sig === sig) return;
-    list.dataset.sig = sig;
-    list.replaceChildren();
-    if (!steps.length) return;
-    const done = steps.filter((s) => /completed|done/.test(s.status)).length;
-    const li = document.createElement("li"), button = document.createElement("button");
-    button.type = "button";
-    button.className = "desk-plan";
-    button.setAttribute("aria-label", `Open plan, ${done} of ${steps.length} steps complete`);
-    button.innerHTML = `<b>Plan</b><span>${done} / ${steps.length}</span><small>Open</small>`;
-    button.title = steps.map((s) => `${/completed|done/.test(s.status) ? "Done" : /progress|running/.test(s.status) ? "Doing" : "To do"}: ${s.text}`).join("\n");
-    li.appendChild(button); list.appendChild(li);
+    this.planWidget.update(steps);
   }
 
   setGlow(color: string) {
@@ -490,6 +481,7 @@ export class Desk implements DeskStage {
   }
 
   destroy() {
+    this.planWidget.destroy();
     this.disposeStaticArt();
     this.clearKeys();
     this.director.reset();

@@ -77,10 +77,13 @@ export class WM {
   frameHint: Partial<Record<AppId, Frame>> = {};
   private z = 10;
   private overlayCovered = false;
+  private overlayOwners = new Set<string>();
   /** A human-facing task overlay covers the desktop without closing its apps. */
-  setOverlayCovered(covered: boolean) {
-    if (covered === this.overlayCovered) return;
-    this.overlayCovered = covered;
+  setOverlayCovered(covered: boolean, owner = "task") {
+    if (covered) this.overlayOwners.add(owner); else this.overlayOwners.delete(owner);
+    const next = this.overlayOwners.size > 0;
+    if (next === this.overlayCovered) return;
+    this.overlayCovered = next;
     this.syncOcclusion();
   }
   private cursor = { x: SCREEN.w * 0.55, y: SCREEN.h * 0.5 };

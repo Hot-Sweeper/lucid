@@ -456,7 +456,7 @@ $("scene").addEventListener("click", (e) => {
   const pad = (e.target as Element).closest(".desk-plan");
   if (!pad) return;
   const desk = [...world.desks.values()].find((d) => d.el.contains(pad));
-  if (desk) { e.stopPropagation(); world.focusOn(desk); chat.showPlan(); }
+  if (desk) world.focusOn(desk);
 }, true);
 const sceneObserver = new MutationObserver(() => ($("back-btn").hidden = !$("scene").classList.contains("screen-mode")));
 sceneObserver.observe($("scene"), { attributes: true, attributeFilter: ["class"] });

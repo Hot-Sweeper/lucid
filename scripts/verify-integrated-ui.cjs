@@ -82,13 +82,15 @@ if (!process.versions.electron) {
       await js(`window.__dailyReward(15,3)`);await wait(450);
       check(await js(`{const t=[...document.querySelectorAll('.ms-toast')].at(-1),copy=t.querySelector(':scope > div > .daily-copy'),badge=t.querySelector(':scope > .ms-badge'),r=copy.getBoundingClientRect(),p=copy.parentElement.getBoundingClientRect();copy.textContent==='Day 3 in a row. Come back tomorrow for more.' && !!badge.querySelector('svg') && !badge.textContent.includes('Come back') && r.left>=p.left-1 && r.right<=p.right+1}`),'daily reward copy stays in its text column beside the vector badge');
       await js(`document.querySelectorAll('.ms-toast').forEach(t=>t.remove())`);
-      // Open a plan through the actual desk pad, with all long steps readable in chat.
+      // Open the live plan on its monitor, then restore the existing desktop.
       await js(`{const w=window.__world,d=[...w.desks.values()].find(d=>d.threadId);window.__uiDesk=d;d.setPlan([{text:'Measure idle, crowded, panning, rain, chat and app rendering costs.',status:'completed'},{text:'Implement visibility-aware rendering without starving any visible robot.',status:'in_progress'},{text:'Run comparisons and verify the combined application.',status:'pending'}]);w.focusOn(d)}`);await wait(1100);
       const planPoint=await js(`{const r=window.__uiDesk.el.querySelector('.desk-plan').getBoundingClientRect();({x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)})}`);
       console.log('plan point',planPoint,await js(`document.elementFromPoint(${planPoint.x},${planPoint.y})?.outerHTML.slice(0,250)`));
       await click(planPoint);await wait(300);
-      check(await js(`document.querySelector('.cp-plan').open && document.querySelector('.cp-plan ol').innerText.includes('without starving any visible robot.')`),'desk plan pad opens all full-length steps');
+      check(await js(`window.__uiDesk.screen.querySelector('.desk-plan-panel ol').innerText.includes('without starving any visible robot.') && window.__uiDesk.el.querySelector('.desk-plan').getAttribute('aria-expanded')==='true'`),'desk widget opens all full-length steps on the monitor');
       await capture('readable-plan');
+      await js(`window.__uiDesk.screen.querySelector('.desk-plan-close').click()`);
+      check(await js(`!window.__uiDesk.screen.querySelector('.desk-plan-panel') && window.__uiDesk.el.querySelector('.desk-plan').getAttribute('aria-expanded')==='false'`),'closing the plan restores the monitor desktop');
       win.setSize(980,800);await wait(500);
       check(await js(`{const r=document.querySelector('.cp-form').getBoundingClientRect();document.querySelector('.scene').clientWidth>=350 && r.bottom<=innerHeight+1 && r.right<=innerWidth+1}`),'minimum window size keeps the scene and chat composer usable');
       check(await js(`{const head=document.querySelector('.cp-head'),name=head.querySelector('.cp-who').getBoundingClientRect(),buttons=[...head.querySelectorAll('button')].map(b=>b.getBoundingClientRect());buttons.every(b=>b.top>=name.bottom-1||b.left>=name.right-1||b.right<=name.left+1)}`),'narrow chat header controls do not cover the robot name or thread title');

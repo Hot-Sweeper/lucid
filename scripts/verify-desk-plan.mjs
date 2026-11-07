@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { transformWithOxc } from 'vite';
+async function load(file, names) {
+  const source = (await readFile(new URL(`../src/${file}.ts`, import.meta.url), 'utf8')).replace(/^import .*;\r?\n/gm, '');
+  const code = (await transformWithOxc(source, `${file}.ts`)).code.replace(/^export /gm, '').replace(/export\s*\{[^}]*\};?/g, '');
+  return new Function('wakeRender', `${code};return {${names}}`)(() => {});
+}
+const { WM } = await load('os/wm', 'WM');
+const wm = Object.create(WM.prototype);
+let checks = 0;
+Object.assign(wm, { overlayOwners: new Set(), overlayCovered: false, syncOcclusion() { checks++; } });
+wm.setOverlayCovered(true); assert(wm.overlayCovered);
+wm.setOverlayCovered(true, 'plan'); assert.equal(checks, 1);
+wm.setOverlayCovered(false, 'plan'); assert(wm.overlayCovered, 'Closing the plan must not uncover a question');
+wm.setOverlayCovered(false); assert(!wm.overlayCovered);
+wm.setOverlayCovered(true, 'plan'); wm.setOverlayCovered(true); wm.setOverlayCovered(false);
+assert(wm.overlayCovered, 'Removing the question must not uncover an open plan');
+wm.setOverlayCovered(false, 'plan'); assert(!wm.overlayCovered);
+const { DeskPlanWidget } = await load('office/desk-plan', 'DeskPlanWidget');
+const widget = Object.create(DeskPlanWidget.prototype);
+let renders = 0;
+Object.assign(widget, { signature: '', disposed: false, button: { parentElement: { hidden: true } }, render() { renders++; } });
+const steps = [{ text: 'Real user text', status: 'pending' }];
+widget.update(steps); assert(!widget.button.parentElement.hidden);
+steps[0].text = 'Changed upstream'; assert.equal(widget.steps[0].text, 'Real user text', 'Keep a snapshot of the actual plan');
+widget.update([{ text: 'Real user text', status: 'pending' }]); assert.equal(renders, 1, 'Unchanged polling must not rebuild the plan');
+widget.update([]); assert(widget.button.parentElement.hidden);
+widget.disposed = true; widget.update(steps); assert(widget.button.parentElement.hidden, 'Director teardown cannot revive a destroyed widget');
+console.log('Desk plan: independent screen ownership, real plan snapshots, unchanged updates, empty plans and teardown passed.');
