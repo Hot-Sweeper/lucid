@@ -1,3 +1,4 @@
+import { ProjectLife } from "./office/project-life";
 import { mountPerformancePanel } from "./office/performance";
 import { showReport, showReportArchive } from "./office/report";
 import { companionClient, readCompanionState, installCompanionOwner } from "./remote-client";
@@ -191,6 +192,7 @@ mountAppLibraryButton(document.getElementById("side-settings") ?? $("side-help")
 // robots in the original design, plus the break room and the question line
 useRobot((host, rig) => new TopDownRobot(host, rig));
 const world = new World($("scene"), { peek: (u) => api.peek(u), image: (p) => api.image(p), readText: (p) => api.readText(p) });
+const projectLife = new ProjectLife(world);
 window.addEventListener('lucid:mobile-view', () => world.refreshPresentation());
 world.extFactory.break = (h, w, hh) => new BreakRoom(h, w, hh);
 world.extFactory.charging = (h, w, hh) => new ChargingRoom(h, w, hh);
@@ -353,6 +355,7 @@ console.error = (...a: any[]) => { (window as any).__errs.push(a.map(String).joi
 
 // --- rooms --------------------------------------------------------------------------
 world.onRooms = (rooms: Room[]) => {
+  projectLife.sync();
   const list = $("room-list");
   const ordered = [...rooms.filter((r) => !movableRoom(r.id)), ...world.orderRooms(rooms.filter((r) => movableRoom(r.id)))];
   const html = ordered.map((r) => {
@@ -389,6 +392,7 @@ $("room-list").addEventListener("click", (e) => {
   if (!b) return;
   if (world.rooms.some((r) => r.id === b.dataset.room && ["main", "project", "freelance"].includes(r.kind))) world.setRoomExpanded(b.dataset.room!, true);
   world.showRoom(b.dataset.room!);
+  if (b.dataset.room?.startsWith("p:") && !companionClient()) void projectLife.open(b.dataset.room.slice(2));
   // the questions room: answer the robot at the front of the line
   if (world.rooms.find((r) => r.id === b.dataset.room)?.kind === "queue") { const t = world.lastData?.threads.find((x) => x.question); if (t) openAnswer(t.id); }
 });
@@ -742,6 +746,7 @@ function setupMenus() {
     }
     const pid = room.id.slice(2);
     showMenu(x, y, room.title, [
+      { label: "Project office board", run: () => projectLife.open(pid) },
       ...work,
       { label: "Manage project managers", run: () => manageRobot(null, pid) },
       deco, policy, ...moves,

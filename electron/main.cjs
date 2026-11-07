@@ -522,6 +522,10 @@ const { createLocalization, createT3Translator } = require('./localization.cjs')
 const dailyWriter = require('./daily-writer.cjs').createDailyWriter({ t3, server: t3s, helpers: languageHelpers, dir: ORCH_DIR, settingsFile: path.join(path.dirname(t3.DB_PATH), 'settings.json') });
 ipcMain.handle("writer:daily", (_e, input) => { if (activeBuilding()) throw Error('Write daily lines on the computer that owns the robots.'); return dailyWriter.write(input); });
 ipcMain.handle("writer:model", () => dailyWriter.selection());
+const projectLife = require('./project-life.cjs').createProjectLife({ file: path.join(app.getPath('userData'), 'project-offices.json'), t3, server: t3s, helpers: languageHelpers, settingsFile: path.join(path.dirname(t3.DB_PATH), 'settings.json'), isLocal: () => !activeBuilding() });
+ipcMain.handle('project-life:get', (_e, input) => projectLife.get(input));
+ipcMain.handle('project-life:save', (_e, input) => projectLife.save(input));
+ipcMain.handle('project-life:generate', (_e, input) => projectLife.generate(input));
 const localization = createLocalization({ file: path.join(app.getPath('userData'), 'translations.json'), translate: createT3Translator({ t3, server: t3s, helpers: languageHelpers }) });
 ipcMain.handle('lucid:localize', (_e, input) => localization.localize(input));
 t3s.setRemoteDispatch(c => remote.dispatch(c));
