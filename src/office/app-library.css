@@ -1,0 +1,37 @@
+.brand .app-library-button { order: 2; margin-left: auto; color: var(--ink-2); width: 28px; height: 28px; }
+.brand .app-library-button + .side-settings { margin-left: 2px; }
+.app-library { --al-ease: cubic-bezier(.23,1,.32,1); width: min(1180px, calc(100vw - 32px)); height: min(780px, calc(100dvh - 40px)); max-width: none; max-height: none; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--night); color: var(--ink); font-family: var(--font); overflow: hidden; }
+.app-library[open] { display: flex; flex-direction: column; animation: al-enter 240ms var(--al-ease); }
+.app-library::backdrop { background: rgba(5,8,25,.65); }
+.al-header { display: flex; justify-content: space-between; align-items: start; gap: 16px; padding: 22px 24px 16px; }
+.al-header h2 { margin: 0; font-size: 22px; font-weight: 600; }
+.al-header p, .al-footer { color: var(--ink-2); font-size: 13px; margin: 7px 0 0; }
+.al-toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: 14px; padding: 0 24px 16px; }
+.al-search { display: grid; gap: 6px; font-size: 12px; color: var(--ink-2); flex: 1 1 240px; }
+.al-search input { width: 100%; background: var(--night-2); border: 1px solid var(--ink-3); border-radius: 6px; padding: 10px 12px; font-size: 14px; color: var(--ink); }
+.al-categories { display: flex; flex-wrap: wrap; gap: 3px; }
+.al-categories button { border: 0; border-radius: 5px; background: none; color: var(--ink-2); padding: 10px; cursor: pointer; font-size: 13px; min-height: 38px; }
+.al-categories button[aria-pressed=true] { background: var(--night-3); color: var(--ink); }
+.al-content { min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(260px, .8fr) minmax(0, 1.2fr); }
+.al-browse { min-height: 0; overflow: auto; padding: 0 12px 20px 24px; scrollbar-gutter: stable; }
+.al-count { color: var(--ink-2); font-size: 12px; margin: 4px 0 12px; }
+.al-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)); gap: 6px; align-content: start; }
+.al-app { background: transparent; color: var(--ink-2); border: 0; border-radius: 8px; padding: 12px 6px; min-height: 94px; display: flex; align-items: center; flex-direction: column; gap: 8px; cursor: pointer; font-size: 12px; overflow-wrap: anywhere; line-height: 1.4; }
+.al-icon { display: inline-flex; flex: none; }
+.al-icon .ico { width: 36px; height: 36px; }
+.al-app[aria-pressed=true] { background: var(--night-3); color: var(--ink); }
+.al-app:hover, .al-categories button:hover { background: var(--night-2); color: var(--ink); }
+.al-detail { padding: 20px; background: var(--night-2); overflow: auto; min-height: 0; }
+.al-selected { display: flex; align-items: start; gap: 12px; margin-bottom: 22px; }
+.al-selected h3 { font-size: 18px; font-weight: 600; margin: 0 0 7px; }
+.al-selected p, .al-preview-note { font-size: 14px; line-height: 1.5; color: var(--ink-2); margin: 0; }
+.al-preview { display: flex; flex-direction: column; align-items: start; gap: 14px; }
+.al-frame { width: 100%; aspect-ratio: 820 / 461; border: 0; border-radius: 6px; background: var(--night); }
+.al-footer { padding: 12px 24px; margin: 0; font-size: 12px; }
+.app-library button { transition: background-color 130ms var(--al-ease), color 130ms var(--al-ease), transform 130ms var(--al-ease); }
+.app-library button:active { transform: scale(.97); }
+.app-library :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.al-empty { grid-column: 1 / -1; color: var(--ink-2); font-size: 14px; }
+@keyframes al-enter { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
+@media (max-width: 700px) { .app-library { width: calc(100vw - 16px); height: calc(100dvh - 16px); } .al-content { display: flex; flex-direction: column; overflow: auto; } .al-browse { flex: none; max-height: 34vh; } .al-detail { flex: none; overflow: visible; } .al-header { padding: 16px; } .al-toolbar { padding: 0 16px 12px; } .al-footer { padding: 10px 16px; } }
+@media (prefers-reduced-motion: reduce) { .app-library[open] { animation: none; } .app-library button { transition: none; } .app-library button:active { transform: none; } }

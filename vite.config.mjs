@@ -12,6 +12,6 @@ export default defineConfig({
   // Ordinary builds and verify:update must never replace the running office's
   // assets. The updater explicitly builds dist-update and promotes it only
   // after validation. Preview output can be discarded independently.
-  build: { outDir: "dist-build", target: "esnext", emptyOutDir: true },
+  build: { rollupOptions: { input: { main: "index.html", appLibraryPreview: "src/office/app-library-preview.html" } }, outDir: "dist-build", target: "esnext", emptyOutDir: true },
   server: { port: 5199, strictPort: true },
 });

@@ -27,6 +27,7 @@ import { ChargingRoom } from "./world/charging";
 import { QuestionLine } from "./world/queue";
 import { useRobot } from "./office/desk";
 import gsap from "gsap";
+import { mountAppLibraryButton } from "./office/app-library-button";
 import { World, type Room, type WorldData } from "./office/world";
 import { ChatPanel } from "./office/chat-panel";
 import { latestSourceReport } from "./office/chat-review";
@@ -184,6 +185,8 @@ for (const selector of ["#environment-body", ".rooms", "#orch", "#company", "#wa
 }
 $("side-panel").appendChild(extras);
 $("side-panel").appendChild($("usage"));
+
+mountAppLibraryButton(document.getElementById("side-settings") ?? $("side-help"));
 
 // robots in the original design, plus the break room and the question line
 useRobot((host, rig) => new TopDownRobot(host, rig));
