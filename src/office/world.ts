@@ -17,7 +17,7 @@ import { campusNight } from "./campus-light";
 import { campusPlan, districtPlan } from "./campus-plan";
 import { officePlan, hallRoute, hallPreference, inHall, type OfficePlan } from "./floor-plan";
 import { buildingFootprint, footprintCovers } from "./building-footprint";
-import { hasOfficeWork, hasOfficeDesk, reserveRoomSeats, projectRoomSeats, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, layoutSafeAt, FOLDED_OFFICE } from "./room-policy";
+import { hasOfficeWork, hasOfficeDesk, reserveRoomSeats, snakeSeat, projectRoomSeats, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, layoutSafeAt, FOLDED_OFFICE } from "./room-policy";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
 import { Walker, SIT_HEAD, pause, type Facing } from "../world/walker";
@@ -1136,7 +1136,7 @@ export class World {
         // worker's computer and nameplate alive throughout the layout barrier.
         const occupant = p.threads[k];
         if (occupant?.settled && !hasOfficeDesk(occupant)) continue;
-        const c = k % cols, row = Math.floor(k / cols);
+        const { c, row } = snakeSeat(k, cols);
         slots.push({ key: `${p.id}#${k}`, x: r.x + 70 + c * SLOT_W, y: r.y + WALL_FACE + 40 + row * SLOT_H, t: p.threads[k] ?? null });
       }
     });
@@ -1302,9 +1302,9 @@ export class World {
       if (!p.slots || p.kind === "queue" || p.kind === "break") return;
       const r = rooms[i];
       const { cols } = officeSize(p.slots);
-      const k = p.slots, c = k % cols, row = Math.floor(k / cols);
-      if (row > 0 && c === 0 && (this.extra.get(p.id) ?? 0) >= 6) return;
-      const fits = c !== 0; // only inside the room's current width
+      const k = p.slots, { c, row } = snakeSeat(k, cols);
+      if (row > 0 && k % cols === 0 && (this.extra.get(p.id) ?? 0) >= 6) return;
+      const fits = k % cols !== 0; // only inside the room's current width
       const b = document.createElement("button");
       b.type = "button";
       b.className = "add-desk";
@@ -1453,7 +1453,7 @@ export class World {
       let z = this.cam.s;
       const room = this.roomById(d.room)!;
       const { cols } = officeSize(entries.length);
-      const positions = original.map((_, i) => ({ x: room.x + 70 + (i % cols) * SLOT_W, y: room.y + WALL_FACE + 40 + Math.floor(i / cols) * SLOT_H }));
+      const positions = original.map((_, i) => { const { c, row } = snakeSeat(i, cols); return { x: room.x + 70 + c * SLOT_W, y: room.y + WALL_FACE + 40 + row * SLOT_H }; });
       let active = false, target = source, ended = false;
       let preview: HTMLElement | null = null;
       const arrange = (index: number) => { const order = [...original]; order.splice(source, 1); order.splice(index, 0, d); return order; };
@@ -2241,7 +2241,7 @@ function monogram(title: string) {
 
 function officeDecor(r: Room, slots: number, theme?: RoomTheme, level = 0) {
   const { w, h, kind } = r, T = 16, { cols } = officeSize(Math.max(1, slots));
-  const desks = Array.from({ length: slots }, (_, k) => ({ x: 70 + (k % cols) * SLOT_W, y: WALL_FACE + 40 + Math.floor(k / cols) * SLOT_H, w: UNIT_W, h: UNIT_H }));
+  const desks = Array.from({ length: slots }, (_, k) => { const { c, row } = snakeSeat(k, cols); return { x: 70 + c * SLOT_W, y: WALL_FACE + 40 + row * SLOT_H, w: UNIT_W, h: UNIT_H }; });
   const avoid = [{ x: 30, y: T, w: 148, h: WALL_FACE - T }, ...(kind === "main" ? [{ x: w - 112, y: T, w: 64, h: 66 }] : []), ...(kind === "freelance" ? [{ x: w - 430, y: WALL_FACE - 10, w: 310, h: 70 }] : [])];
   return placeDecor(usable(theme, level), w, h, WALL_FACE, desks, { avoid, wallTop: T });
 }

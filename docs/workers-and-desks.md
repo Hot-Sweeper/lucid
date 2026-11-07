@@ -25,7 +25,8 @@ A robot is a permanent **worker**. A desk is one **job**, which is one T3 thread
 
 ## Desks are fixed places
 
-Desk k in a room is reservation k (`src/office/room-policy.ts`). New work takes the first empty place; active work is never displaced; a collected job releases its place and the desk stays as an empty hire spot; rooms change size only at their end; only the last free desk can be removed.
+Desk k in a room is reservation k (`src/office/room-policy.ts`). The places follow a snake: the first row goes left to right, the second right to left, and subsequent rows alternate. Removing a desk closes its gap by shifting every later workstation forward in the same order, including running work, questions and managers. Existing desk objects, sessions, reports and drafts stay mounted. A launch that has only a temporary reservation holds compaction until its thread is known. Room capacity trims at the empty tail; deliberate extra capacity remains available. Placement, drag targets, add-desk controls and decoration footprints share the same snake coordinates.
+
 
 ## Job lifecycle
 

@@ -14,11 +14,9 @@ export function hasOfficeDesk(thread: ActivityThread, revealed: string | null = 
   return !thread.settled && (hasOfficeWork(thread) || thread.id === revealed);
 }
 
-// Desks are fixed places. Reservation index k is physical desk k, so clearing,
-// hiring or finishing work never moves another desk. Only threads that need a desk
-// hold a place: when one goes quiet or is collected its place becomes an empty desk,
-// and the next new job takes the first empty place. (World packs a room's places
-// once, before anything is on screen, so old saved history cannot stretch it.)
+// Reservation order follows the room's snake path. Removing a workstation shifts
+// later workstations forward in the same order, including running work. The desk
+// and its session stay mounted; only their physical position changes.
 type SeatClaim = string | ActivityThread;
 const claimId = (claim: SeatClaim) => typeof claim === "string" ? claim : claim.id;
 const needsDesk = (claim: SeatClaim, revealed: string | null) => typeof claim === "string" || hasOfficeDesk(claim, revealed);
@@ -42,7 +40,22 @@ export function reserveRoomSeats(previous: (string | null)[], claims: SeatClaim[
     else seats.push(id);
     seen.add(id);
   }
-  return seats;
+  return compactSeats(seats, byId);
+}
+
+/** Close gaps without swapping the last desk ahead of its neighbours. */
+function compactSeats(seats: (string | null)[], byId: Map<string, SeatClaim>) {
+  // A string claim is a desk reserved by a launch that has not returned a thread
+  // yet. Wait for that handoff before changing the promised physical places.
+  if (seats.some(id => id && typeof byId.get(id) === "string")) return seats;
+  const occupied = seats.filter((id): id is string => id !== null);
+  return seats.map((_, index) => occupied[index] ?? null);
+}
+
+/** Adjacent reservation indices meet at the row ends instead of jumping across. */
+export function snakeSeat(index: number, columns: number) {
+  const row = Math.floor(index / columns), offset = index % columns;
+  return { c: row % 2 ? columns - 1 - offset : offset, row };
 }
 
 export function projectRoomSeats<T extends ActivityThread>(reservations: (string | null)[], threads: T[], expanded: boolean, revealed: string | null, extra = 0, folded = false) {
