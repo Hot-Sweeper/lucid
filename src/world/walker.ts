@@ -5,6 +5,7 @@ import { flavorSpeech } from "../localization-speech";
 import { batteryWeakness, subscriptionBatteries } from "../office/battery";
 import { watch, unwatch, drawNow, sinceDraw, finishDraw } from "./budget";
 import { routeSuffixLengths } from "./route-distance";
+import { hiddenRoutePrefix, type RouteView } from "./hidden-route";
 import { beginSystem, endSystem } from "../perf/metrics";
 import { setSvgAttribute } from "../perf/svg-write";
 import type { Expression, RobotLook } from "../office/rig";
@@ -202,8 +203,10 @@ export class Walker {
   private lifeCall: gsap.core.Tween | null = null;
   private gen = 0;
   // walking
-  private mv: { pts: P2[]; tails: Float64Array; i: number; wait: number; resolve: () => void } | null = null;
+  private mv: { pts: P2[]; tails: Float64Array; i: number; wait: number; through: boolean; resolve: () => void } | null = null;
   private v = 0;
+  /** Transit only. Null keeps the entire journey continuous (including camera following). */
+  shortcutView: (() => RouteView | null) | null = null;
   private settleTl: gsap.core.Timeline | null = null;
   // antenna spring (v0 units, local to the current view)
   private spring = { phi: 0, phiV: 0, tx: 0, tvx: 0, ty: 0, tvy: 0, init: false };
@@ -335,7 +338,7 @@ export class Walker {
   setPos(x: number, y: number) { this.x = x; this.y = y; this.place(); }
 
   /** Hurry to assigned work; leisure and departures retain the walking gait. A sprint is a fresh hire racing to its desk. */
-  setRunning(on: boolean, sprint = false) { this.speed = sprint ? SPRINT : on ? 240 : SPEED; }
+  setRunning(on: boolean, sprint = false) { this.speed = sprint ? SPRINT : on ? 290 : SPEED; }
 
   private place() {
     this.el.style.transform = `translate(${this.x.toFixed(1)}px, ${this.y.toFixed(1)}px)`;
@@ -378,9 +381,9 @@ export class Walker {
   }
 
   /** Walk a list of points in order, without stopping at the corners. */
-  walkPath(pts: { x: number; y: number }[]) {
+  walkPath(pts: { x: number; y: number }[], through = false) {
     ++this.gen;
-    return this.go(pts);
+    return this.go(pts, through);
   }
 
   stop() { this.gen++; this.finishMove(true); }
@@ -388,7 +391,7 @@ export class Walker {
   /** Already sitting, without the motion (a desk robot getting up hands over to its walking self). */
   sitNow() { this.do("sit"); gsap.killTweensOf(this.st, "sit"); this.st.sit = 1; }
 
-  private go(list: P2[]): Promise<void> {
+  private go(list: P2[], through = false): Promise<void> {
     this.finishMove();
     const pts: P2[] = [];
     let p = { x: this.x, y: this.y };
@@ -399,7 +402,7 @@ export class Walker {
     const fresh = this.v < 5 && this.st.stride < 0.25;
     this.faceToward(pts[0]);
     return new Promise<void>((resolve) => {
-      this.mv = { pts, tails: routeSuffixLengths(pts), i: 0, wait: fresh ? 0.12 : 0, resolve };
+      this.mv = { pts, tails: routeSuffixLengths(pts), i: 0, wait: fresh ? 0.12 : 0, through, resolve };
       // anticipation: sink and lean back a touch, then push off
       if (fresh && !reduced()) TL().to(this.st, { crouch: 0.55, lean: -4, duration: 0.12, ease: "power2.out" })
         .to(this.st, { crouch: 0, lean: 0, duration: 0.32, ease: "power2.out" });
@@ -427,9 +430,21 @@ export class Walker {
       st.stride += (0 - st.stride) * Math.min(1, dt * 9);
       return;
     }
+    const view = this.shortcutView?.();
+    if (view) {
+      const next = hiddenRoutePrefix(this, m.pts, m.i, view);
+      if (Math.hypot(next.x - this.x, next.y - this.y) > 1) {
+        this.x = next.x; this.y = next.y; m.i = next.index; m.wait = 0;
+        this.place();
+        if (m.i >= m.pts.length) { this.finishMove(true); st.stride = 0; return; }
+        // The first visible step is already at a run, rather than accelerating at the edge.
+        this.v = this.speed * (1 - this.weakness * .6); st.stride = 1;
+        this.faceToward(m.pts[m.i]);
+      }
+    }
     if (m.wait > 0) { m.wait -= dt; return; }
     const rest = Math.hypot(m.pts[m.i].x - this.x, m.pts[m.i].y - this.y) + m.tails[m.i];
-    const cap = Math.sqrt(2 * 560 * rest) + 18;                // ease into the stop
+    const cap = m.through ? this.speed : Math.sqrt(2 * 560 * rest) + 18; // brake at the destination, not every route leg
     const want = Math.min(this.speed * (1 - this.weakness * .6), cap);
     this.v = want > this.v ? this.v + (want - this.v) * Math.min(1, dt * 7) : want;
     let step = this.v * dt;
@@ -445,12 +460,11 @@ export class Walker {
     st.stride += (strideWant - st.stride) * Math.min(1, dt * 10);
     // feet stay planted: half a cycle covers 2 * STEP * stride of floor
     const run = this.speed > SPEED ? clamp((this.v - SPEED * 0.7) / (240 - SPEED * 0.7), 0, 1) : 0;
-    const stance = 0.5 - run * 0.16;
-    st.phase += ((this.v / this.s) / (2 * STEP * (1 + run * 0.65) / stance * Math.max(0.3, st.stride))) * TAU * dt;
+    const stance = 0.5 - run * 0.18;
+    st.phase += ((this.v / this.s) / (2 * STEP * (1 + run * 0.85) / stance * Math.max(0.3, st.stride))) * TAU * dt;
     if (m.i >= m.pts.length) {
       this.mv = null;
-      this.v = 0;
-      this.settle();
+      if (!m.through) { this.v = 0; this.settle(); }
       m.resolve();
     }
   }
@@ -1114,14 +1128,16 @@ export class Walker {
     const u0 = ((st.phase / TAU) % 1 + 1) % 1;
     const foot = (off: number) => {
       const u = (u0 + off) % 1;
-      const stance = 0.5 - run * 0.16, reach = STEP * (1 + run * 0.65);
+      const stance = 0.5 - run * 0.18, reach = STEP * (1 + run * 0.85);
       if (u < stance) { const s = u / stance; return { z: reach * (1 - 2 * s), lift: 0, rot: lerp(8, -16 - run * 12, s * s) }; }
       const s = (u - stance) / (1 - stance), e = s * s * (3 - 2 * s);
       return { z: -reach + 2 * reach * e, lift: Math.sin(Math.PI * Math.pow(s, 0.8)) * (13 + run * 22), rot: lerp(-22 - run * 16, 10, e) };
     };
     const fl = foot(0), fr = foot(0.5);
     // A lower running hip keeps the longer planted leg within its real reach.
-    const bob = stride * ((4.2 + run * 4) * Math.cos(TAU * 2 * (u0 - 0.1)) + run * 16);
+    // Brief airborne passing pose, deeper planted contact, and a tucked recovery foot.
+    const flight = Math.max(0, Math.sin(TAU * 2 * (u0 - 0.32)));
+    const bob = stride * ((4.2 + run * 5) * Math.cos(TAU * 2 * (u0 - 0.1)) + run * (14 - flight * 7));
     const weight = side ? 0 : -stride * 4.5 * Math.sin(TAU * u0);   // over the standing foot
 
     // procedural layers
@@ -1321,6 +1337,7 @@ export class Walker {
   }
 
   destroy() {
+    this.shortcutView = null;
     this.speechLocale?.destroy();
     this.stopBattery?.();
     this.stop();

@@ -51,7 +51,7 @@ context.settleRoom = World.prototype.settleRoom;
 context.placed.set('one', { room: 'p:project' });
 assert.equal(context.settleRoom({ id: 'one', runStatus: 'running' }, 'charging'), 'charging');
 assert.equal(context.settleRoom({ id: 'one', runStatus: 'running' }, 'p:project'), 'p:project');
-const classification = worldSource.slice(worldSource.indexOf('    const classifiedRoom ='), worldSource.indexOf('    // Keep each robot in the seat'));
+const classification = worldSource.slice(worldSource.indexOf('    const classifiedRoom ='), worldSource.indexOf('    const seatOrder ='));
 const classify = new Function('subscriptionBatteries', 'data', 'wasHeld', 'holdPhysical', 'retiringIds', 'previousPhysical', 'hasOfficeWork', 'hasOfficeDesk', `${(await transformWithOxc(classification, 'classification.ts')).code};return {charging,queue,main,brk,orchT,classifiedRoom}`);
 const routingBank = new SubscriptionBatteries();
 routingBank.setUsage({ limits: { 't3:claudeAgent': group('claude', [window('primary', 100, 60, Date.now() + 3600000)]), 't3:codex': group('codex', [window('primary', 25, 60, Date.now() + 3600000)]) } });
@@ -95,7 +95,8 @@ assert.ok([...room.residents.values()].every(r => r.w.activity === 'charge' && r
 const first = room.residents.get('bot0');
 assert.match(first.time.textContent, /until reset/); assert.equal(first.meter.hidden, false);
 let exits = 0; room.onExit = () => { exits++; return true; };
-room.setThreads(list.slice(1)); assert.equal(first.leaving, true);
+let departures = 0; room.onDeparture = (id, actor) => { assert.equal(actor.id, id); departures++; };
+room.setThreads(list.slice(1)); assert.equal(first.leaving, true); assert.equal(departures, 1, 'departure setup runs before the first walk');
 room.setThreads(list); first.w.stop(); await flush();
 assert.equal(exits, 0, 're-exhaustion cancels an in-flight departure');
 room.setThreads(list.slice(1)); first.w.stop(); await flush();

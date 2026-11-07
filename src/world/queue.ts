@@ -23,6 +23,7 @@ export class QuestionLine implements RoomExtension {
   el: HTMLElement;
   onSelect: (id: string) => void = () => {};
   onExit?: (id: string, at: { x: number; y: number }, face: Facing) => boolean;
+  onDeparture?: (id: string, walker: Walker) => void;
   onReportArrived: (id: string) => void = () => {};
   private reports = new Set<string>();
   private entries = new Map<string, { x: number; y: number }>();
@@ -281,6 +282,7 @@ export class QuestionLine implements RoomExtension {
     gsap.delayedCall(0.6, () => this.reflow());
     await new Promise((r) => gsap.delayedCall(v?.phase === "answered" ? 3 : 1.7, r));
     if (q.alive || q.version !== version) return;
+    this.onDeparture?.(q.id, q.w);
     const side = { x: this.w / 2 + 120, y: q.w.y };
     await q.w.walkPath([side, { x: this.w / 2 + 120, y: this.door.y - 20 }, this.door]);
     if (q.alive || q.version !== version) return;

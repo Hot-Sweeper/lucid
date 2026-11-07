@@ -31,6 +31,7 @@ export interface RoomExtension {
   onSelect: (id: string) => void;
   /** A leaving robot reached the door (room coordinates); true when the hall walker takes it from there. */
   onExit?: (id: string, at: Pt, face: Facing) => boolean;
+  onDeparture?: (id: string, walker: Walker) => void;
   /** The next time this robot joins, its walker starts at this point (room coordinates), where the hall walker stopped. */
   enterFrom?(id: string, at: Pt): void;
   destroy(): void;
@@ -162,6 +163,7 @@ export class BreakRoom implements RoomExtension {
   el: HTMLElement;
   onSelect: (id: string) => void = () => {};
   onExit?: (id: string, at: Pt, face: Facing) => boolean;
+  onDeparture?: (id: string, walker: Walker) => void;
   private entries = new Map<string, Pt>();
   private opened = false;   // had residents before (later arrivals walk in through the door)
   enterFrom(id: string, at: Pt) { this.entries.set(id, { ...at }); }
@@ -438,6 +440,7 @@ export class BreakRoom implements RoomExtension {
     for (const s of [...r.stops]) s(ENDED);
     await whenFree(r.w);
     r.held = false;
+    this.onDeparture?.(r.id, r.w);
     await r.w.walkPath(this.plan({ x: r.w.x, y: r.w.y }, this.doorIn));
     // at the door the hall walker takes over on the same spot; otherwise it walks out by itself
     if (this.dead || !this.onExit?.(r.id, { x: r.w.x, y: r.w.y }, r.w.facing)) await r.w.walkTo(this.doorOut.x, this.doorOut.y + 30);

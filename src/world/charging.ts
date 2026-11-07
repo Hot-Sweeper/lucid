@@ -13,6 +13,7 @@ export class ChargingRoom implements RoomExtension {
   el: HTMLElement;
   onSelect: (id: string) => void = () => {};
   onExit?: (id: string, at: Pt, face: Facing) => boolean;
+  onDeparture?: (id: string, walker: Walker) => void;
   private stage: RoomStage;
   private residents = new Map<string, Resident>();
   private entries = new Map<string, Pt>();
@@ -100,6 +101,7 @@ export class ChargingRoom implements RoomExtension {
   private async leave(id: string, r: Resident) {
     const generation = ++r.generation, p = this.spot(r.slot);
     r.label.hidden = true; r.w.calm();
+    this.onDeparture?.(id, r.w);
     await r.w.walkPath([{ x: p.x, y: p.y + 55 }, { x: this.w / 2, y: p.y + 55 }, this.door()]);
     if (this.dead || !r.leaving || r.generation !== generation) return;
     // Remove ownership before the synchronous hall handoff can refresh residents.

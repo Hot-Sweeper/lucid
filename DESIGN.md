@@ -1,5 +1,9 @@
 # Lucid interface
 
+## Robot journeys
+
+Transit robots skip only the fully offscreen prefix of their collision-checked path. A conservative viewport includes their whole body, hats, carried papers and 48 CSS pixels of approach. They run into view from that boundary; visible crossings and arrivals play continuously. Camera following, panning, zooming, glides, held robots and moving furniture disable shortcuts. No fading or teleport effects conceal a visible relocation. Leisure inside rooms keeps its existing pace. Work runs use longer strides, tucked recovery feet, bent counter-swinging arms, a forward lean and a brief airborne pose, then brake into the existing chair handoff. Reduced motion keeps the quieter existing gait. Agent execution remains independent of the commute.
+
 Extend the established living robot office. Keep its warm artwork, navy and lavender panels, peach actions, Lexend interface type and JetBrains Mono code type.
 
 ## App library

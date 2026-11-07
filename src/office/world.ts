@@ -75,6 +75,7 @@ export interface RoomExtension {
   onSelect: (id: string) => void;
   /** A leaving robot reached the door (room coordinates); true when the hall walker takes it from there. */
   onExit?: (id: string, at: Pt, face: Facing) => boolean;
+  onDeparture?: (id: string, walker: Walker) => void;
   /** The next time this robot joins, its walker starts at this point (room coordinates), where the hall walker stopped. */
   enterFrom?(id: string, at: Pt): void;
   destroy(): void;
@@ -241,7 +242,30 @@ export class World {
     w.setPos(at.x, at.y);
     w.face(face);
     this.transit.set(t.id, w);
+    this.prepareJourney(w);
     return w;
+  }
+
+  private prepareJourney(w: Walker, origin: () => Pt = () => ({ x: 0, y: 0 })) {
+    w.shortcutView = () => {
+      // Conservative during any camera motion: the compositor may be showing an
+      // earlier camera position. Following a worker always preserves its full journey.
+      if (this.followEl || this.glideSpan || this.cameraTween?.isActive() || this.dragged || this.zooming ||
+          this.deskDragActive || this.slidingDesks.size || isHeld(w)) return null;
+      const box = this.sceneBox;
+      if (!box || box.width <= 0 || box.height <= 0 || this.cam.s <= 0) return null;
+      // Coordinates in both transit layers are world coordinates. Include hats,
+      // carried papers, antenna spring and a screen-space approach before entry.
+      const s = this.cam.s, padX = 90 + 48 / s, padY = 260 + 48 / s, offset = origin();
+      return { x: -this.cam.x / s - padX - offset.x, y: -this.cam.y / s - padY - offset.y,
+        w: box.width / s + 2 * padX, h: box.height / s + 2 * padY };
+    };
+  }
+
+  private prepareDeparture(id: string, w: Walker, origin?: () => Pt) {
+    this.prepareJourney(w, origin);
+    const t = this.lastData?.threads.find(t => t.id === id);
+    w.setRunning(!!t && hasOfficeWork(t) && !t.question, this.isSprinting(id));
   }
 
   private sprinting = new Map<string, number>();
@@ -277,7 +301,7 @@ export class World {
       const current = this.lastData?.threads.find((thread) => thread.id === t.id) ?? t;
       const sprint = !this.reports.has(t.id) && this.isSprinting(t.id) && !current.question;
       w.setRunning(sprint || this.reports.has(t.id) || hasOfficeWork(current) && !current.question && !!this.desks.get(t.id)?.el.classList.contains("arriving"), sprint);
-      await w.walkPath(path);
+      await w.walkPath(path, j < pts.length && this.outside(pts[j]) === out);
       if (this.transit.get(t.id) !== w || this.trips.get(t.id) !== trip || revision !== this.layoutRevision) return;
       const last = pts[j - 1];
       if (Math.hypot(w.x - last.x, w.y - last.y) > 8) return;   // picked up on the way: the caller plans again
@@ -435,6 +459,7 @@ export class World {
       if (this.trips.get(t.id) !== trip) return;
       this.sprinting.delete(t.id);
       desk.setSeated(true);
+      gameSound.at("servo", desk.el, .35);
       done.destroy();
     } else if (to && to !== "park") {
       // the room's own walker takes over just inside the door
@@ -807,6 +832,7 @@ export class World {
     this.park = new Park(worldEl);
     worldEl.insertBefore(this.park.layer, worldEl.querySelector(".building-plate"));
     this.park.onSelect = (id) => this.onSelectThread(id);
+    this.park.onDeparture = (id, w) => this.prepareDeparture(id, w);
     this.park.onExit = (id, at, face) => this.handOver(id, at, face);
     this.root = scene.querySelector(".world")!;
     this.roomLayer = scene.querySelector(".room-layer")!;
@@ -1049,6 +1075,7 @@ export class World {
           if (animate) this.tweenRoom(r.el, { left: r.x, top: r.y });
           else { this.roomTweens.get(r.el)?.kill(); gsap.set(r.el, { left: r.x, top: r.y }); }
           const ext = utility ? this.ext[r.kind as "break" | "queue" | "charging"] : undefined;
+          if (ext) ext.onDeparture = (id, w) => this.prepareDeparture(id, w, () => ({ x: parseFloat(r.el.style.left), y: parseFloat(r.el.style.top) }));
           if (ext) ext.onExit = (id, at, face) => this.handOver(id, { x: at.x + parseFloat(r.el.style.left), y: at.y + parseFloat(r.el.style.top) }, face);
           oldRooms.delete(r.id);
           return;
@@ -1062,6 +1089,7 @@ export class World {
         if (make) {
           const ext = make(el, r.w, r.h);
           ext.onSelect = (id) => this.onSelectThread(id);
+          ext.onDeparture = (id, w) => this.prepareDeparture(id, w, () => ({ x: parseFloat(el.style.left), y: parseFloat(el.style.top) }));
           ext.onExit = (id, at, face) => this.handOver(id, { x: at.x + r.x, y: at.y + r.y }, face);
           this.ext[r.kind as "break" | "queue" | "charging"] = ext;
         } else {el.dataset.vectorOwner=vectorOwner("room");el.innerHTML=roomSvg(r,plans[i].slots,this.themes.get(r.id),this.level,el.dataset.vectorOwner)}

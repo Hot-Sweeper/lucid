@@ -31,6 +31,7 @@ export class Park {
   onSelect: (id: string) => void = () => {};
   /** A leaving robot reached the building door; true when the world's walker takes it from there. */
   onExit: ((id: string, at: { x: number; y: number }, face: Facing) => boolean) | null = null;
+  onDeparture?: (id: string, walker: Walker) => void;
   private vis = new Map<string, Visitor>();
   private spots: Spot[] = [];
   private geo: { park: Rect; door: { x: number; y: number }; routeY?: number } | null = null;
@@ -287,6 +288,7 @@ export class Park {
     v.w.calm();
     v.w.say(this.rainSoon ? pick(["Rain's coming, pack up!", "Those clouds look wet.", "Grab the blanket, rain!", "Inside before it pours!"])
       : this.wet ? pick(["It's raining, inside!", "Nope, too wet.", "My circuits hate rain.", "Race you to the door!"]) : "Back to work!", 1600);
+    this.onDeparture?.(v.t.id, v.w);
     const g = this.geo;
     if (g) {
       await this.go(v, { x: g.park.x + 30, y: g.routeY ?? g.door.y }, true).catch(() => {});
