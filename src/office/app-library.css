@@ -1,8 +1,9 @@
 .brand .app-library-button { order: 2; margin-left: auto; color: var(--ink-2); width: 28px; height: 28px; }
 .brand .app-library-button + .side-settings { margin-left: 2px; }
-.app-library { --al-ease: cubic-bezier(.23,1,.32,1); width: min(1180px, calc(100vw - 32px)); height: min(780px, calc(100dvh - 40px)); max-width: none; max-height: none; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--night); color: var(--ink); font-family: var(--font); overflow: hidden; }
-.app-library[open] { display: flex; flex-direction: column; animation: al-enter 240ms var(--al-ease); }
-.app-library::backdrop { background: rgba(5,8,25,.65); }
+.app-library { --al-ease: cubic-bezier(.23,1,.32,1); grid-column: 2; grid-row: 1; position: relative; min-width: 0; min-height: 0; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: var(--night); color: var(--ink); font-family: var(--font); overflow: hidden; display: flex; flex-direction: column; container-type: inline-size; animation: al-enter 180ms var(--al-ease); }
+#app.app-library-open > .scene { visibility: hidden; }
+#app.app-library-open > :is(.zoom-ui, .orch-power) { visibility: hidden; }
+.brand .app-library-button[aria-expanded=true] { color: var(--ink); background: var(--night-3); }
 .al-header { display: flex; justify-content: space-between; align-items: start; gap: 16px; padding: 22px 24px 16px; }
 .al-header h2 { margin: 0; font-size: 22px; font-weight: 600; }
 .al-header p, .al-footer { color: var(--ink-2); font-size: 13px; margin: 7px 0 0; }
@@ -32,6 +33,6 @@
 .app-library button:active { transform: scale(.97); }
 .app-library :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .al-empty { grid-column: 1 / -1; color: var(--ink-2); font-size: 14px; }
-@keyframes al-enter { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
-@media (max-width: 700px) { .app-library { width: calc(100vw - 16px); height: calc(100dvh - 16px); } .al-content { display: flex; flex-direction: column; overflow: auto; } .al-browse { flex: none; max-height: 34vh; } .al-detail { flex: none; overflow: visible; } .al-header { padding: 16px; } .al-toolbar { padding: 0 16px 12px; } .al-footer { padding: 10px 16px; } }
-@media (prefers-reduced-motion: reduce) { .app-library[open] { animation: none; } .app-library button { transition: none; } .app-library button:active { transform: none; } }
+@keyframes al-enter { from { opacity: 0; } to { opacity: 1; } }
+@container (max-width: 700px) { .al-content { display: flex; flex-direction: column; overflow: auto; } .al-browse { flex: none; max-height: 34vh; } .al-detail { flex: none; overflow: visible; } .al-header { padding: 16px; } .al-toolbar { padding: 0 16px 12px; } .al-footer { padding: 10px 16px; } }
+@media (prefers-reduced-motion: reduce) { .app-library { animation: none; } .app-library button { transition: none; } .app-library button:active { transform: none; } }

@@ -1,12 +1,23 @@
 import { LIBRARY_APPS, type LibraryCategory, type LibraryApp } from "./app-library-catalog";
 import { ICONS } from "../os/icons";
 import { gameSound } from "./sound";
-let current: HTMLDialogElement | null = null;
+let current: { close: () => void } | null = null;
 export function openAppLibrary(trigger: HTMLElement) {
-  if (current) return;
-  const dialog = document.createElement("dialog"); current = dialog;
-  dialog.className = "app-library"; dialog.setAttribute("aria-labelledby", "app-library-title");
-  dialog.innerHTML = `<header class="al-header"><div><h2 id="app-library-title">App library</h2><p>Explore the apps on Lucid’s robot computers.</p></div><button type="button" class="ghost al-close" aria-label="Close app library">Close</button></header><div class="al-toolbar"><label class="al-search">Search apps<input type="search" placeholder="Games, Botcord, YouTube…" autofocus></label><nav class="al-categories" aria-label="App categories"></nav></div><div class="al-content"><section class="al-browse" aria-label="Apps"><p class="al-count" role="status"></p><div class="al-grid"></div></section><section class="al-detail" aria-label="App details"><div class="al-selected"></div><div class="al-preview"></div></section></div><footer class="al-footer">These are Lucid’s built-in apps. Previews use demo content and do not control a working robot.</footer>`;
+  if (current) { current.close(); return; }
+  const scene = document.getElementById("scene");
+  const host = scene?.parentElement;
+  if (!scene || !host) return;
+  const wasInert = scene.inert;
+  const dialog = document.createElement("section");
+  const close = () => {
+    preview.replaceChildren(); dialog.remove(); current = null;
+    scene.inert = wasInert; host.classList.remove("app-library-open");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.focus({ preventScroll: true });
+  };
+  current = { close };
+  dialog.id = "app-library"; dialog.className = "app-library"; dialog.setAttribute("aria-labelledby", "app-library-title");
+  dialog.innerHTML = `<header class="al-header"><div><h2 id="app-library-title">App library</h2><p>Explore the apps on Lucid’s robot computers.</p></div><button type="button" class="ghost al-close" aria-label="Back to office">Back to office</button></header><div class="al-toolbar"><label class="al-search">Search apps<input type="search" placeholder="Games, Botcord, YouTube…" autofocus></label><nav class="al-categories" aria-label="App categories"></nav></div><div class="al-content"><section class="al-browse" aria-label="Apps"><p class="al-count" role="status"></p><div class="al-grid"></div></section><section class="al-detail" aria-label="App details"><div class="al-selected"></div><div class="al-preview"></div></section></div><footer class="al-footer">These are Lucid’s built-in apps. Previews use demo content and do not control a working robot.</footer>`;
   const search = dialog.querySelector<HTMLInputElement>("input")!;
   const grid = dialog.querySelector<HTMLElement>(".al-grid")!;
   const preview = dialog.querySelector<HTMLElement>(".al-preview")!;
@@ -31,7 +42,7 @@ export function openAppLibrary(trigger: HTMLElement) {
         const url = new URL("src/office/app-library-preview.html", location.href); url.search = ""; url.searchParams.set("app", a.id);
         frame.addEventListener("load", () => {
           frame.contentDocument?.addEventListener("keydown", e => {
-            if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); dialog.close(); }
+            if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); close(); }
           }, true);
         });
         frame.src = url.href; preview.replaceChildren(frame);
@@ -60,9 +71,11 @@ export function openAppLibrary(trigger: HTMLElement) {
     b.addEventListener("click", () => { category = c; for (const other of b.parentElement!.children) other.setAttribute("aria-pressed", String(other === b)); paint(); }); dialog.querySelector("nav")!.append(b);
   }
   search.addEventListener("input", paint);
-  dialog.querySelector(".al-close")!.addEventListener("click", () => dialog.close());
-  dialog.addEventListener("click", e => { const r = dialog.getBoundingClientRect(); if (e.target === dialog && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) dialog.close(); });
-  dialog.addEventListener("keydown", e => { if (e.key === "Escape") e.stopImmediatePropagation(); }, true);
-  dialog.addEventListener("close", () => { preview.replaceChildren(); dialog.remove(); current = null; trigger.focus({ preventScroll: true }); }, { once: true });
-  document.body.append(dialog); paint(); show(selected); dialog.showModal(); gameSound.play("open");
+  dialog.querySelector(".al-close")!.addEventListener("click", close);
+  dialog.addEventListener("keydown", e => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); close(); }
+  });
+  host.append(dialog); scene.inert = true; host.classList.add("app-library-open");
+  trigger.setAttribute("aria-expanded", "true");
+  paint(); show(selected); search.focus({ preventScroll: true }); gameSound.play("open");
 }
