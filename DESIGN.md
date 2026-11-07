@@ -9,3 +9,7 @@ The small four-square button sits immediately before the existing settings contr
 Search includes familiar service names for the fictional counterparts. Work-only surfaces are described honestly. Available demos run original app code in a disposable document, separately from real robots and backend actions. Switching apps or closing the library removes that document.
 
 Dialog entry uses 240 ms opacity and a subtle scale on `cubic-bezier(.23,1,.32,1)`; controls use 130 ms color and press feedback. Reduced motion removes scale and entrance motion. Shared open/switch sound cues respect Lucid's existing sound settings.
+
+## Hiring
+
+Use a 900px dialog with a 232px worker column and a flexible task column. The shared legacy dialog rule must not narrow this screen back to 620px. Give the actual full-body robot the stage, retain its identity and accessories, and keep the task label visible above the composer. Runtime controls use a two-column grid, readable secondary labels, and 38px controls. The footer stays visible while the body scrolls. Narrow layouts stack a compact worker preview above the task. Press and focus feedback use the peach accent and 140ms strong ease-out; reduced motion removes transforms. Preserve the established navy/lavender surfaces and existing launch behavior.

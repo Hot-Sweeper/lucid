@@ -80,7 +80,7 @@ export function openHire(opts: {
         <div class="hire-main">
           ${opts.projects ? `<label class="hire-project hire-field"><span>Project</span><select>${opts.projects.length ? opts.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join("") : '<option value="">No projects available</option>'}</select></label>` : ""}
           <div class="hire-composer">
-            <label class="hire-task"><span class="sr-only">Task</span><textarea rows="6" placeholder="What should we work on? Add files, screenshots, or anything the job needs." aria-describedby="hire-file-hint"></textarea></label>
+            <label class="hire-task"><span>Task</span><textarea rows="6" placeholder="What should we work on? Add files, screenshots, or anything the job needs." aria-describedby="hire-file-hint"></textarea></label>
             <div class="hire-attachments" aria-label="Attached files"></div>
             <div class="hire-composer-tools"><button type="button" class="ghost hire-attach"><svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="m7 10 5-5a2.5 2.5 0 0 1 3.5 3.5L8 16a4 4 0 0 1-5.7-5.7l8-8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Attach files</button><span id="hire-file-hint">or drop files and paste images</span><input class="hire-files" type="file" multiple hidden></div>
             <div class="hire-runtime-controls" aria-label="Runtime settings"></div>
@@ -152,7 +152,7 @@ export function openHire(opts: {
   const floor = el(".hire-stage-floor");
   const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let actor: Walker | null = null, actorKey = "", actorScale = 0;
-  const wantedScale = () => window.matchMedia("(max-width: 560px)").matches ? 0.27 : window.matchMedia("(max-height: 640px)").matches ? 0.29 : 0.4;
+  const wantedScale = () => window.matchMedia("(max-width: 560px)").matches ? 0.27 : window.matchMedia("(max-height: 640px)").matches ? 0.35 : 0.54;
   const freshLook = (providerId: string) => {
     let draft = drafts.get(providerId);
     if (!draft) { draft = { look: randomLook(Math.random, opts.level ?? savedLevel()), name: "", custom: false }; drafts.set(providerId, draft); }
