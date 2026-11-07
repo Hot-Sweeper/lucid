@@ -178,6 +178,7 @@ if (!process.versions.electron) {
         if (process.env.LUCID_HISTORY_CHECKS) await require("./render-history-pagination-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_CAMERA_CHECKS) await require("./render-camera-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_CAMERA_STRESS_CHECKS) await require("./render-camera-stress-checks.cjs")({ js, wc, wait, out, setMessages: next => { messages = next; } });
+        if (process.env.LUCID_SHELF_CHECKS) await require("./render-shelf-checks.cjs")({ js, wc, wait, out, dbg });
         if (process.env.LUCID_RUNNING_CHECKS) await require("./render-running-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_HALL_CHECKS) await require("./render-hallway-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_ROOM_CHECKS) await require("./render-room-arrangement-checks.cjs")({ js, wc, wait, out });

@@ -1,0 +1,25 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { transformWithOxc } from "vite";
+const code = (await transformWithOxc((await readFile(new URL("../src/office/chat-shelf.ts", import.meta.url), "utf8")).replace(/^import[^;]+;\n/gm,""),"chat-shelf.ts")).code.replace(/^export /gm, "").replace(/export\s*\{[^}]*\};?/g, "");
+let shown = 0;
+const ChatShelf = new Function("GLIDE_MS","GLIDE_EASING","getComputedStyle","DOMMatrixReadOnly",`${code};return ChatShelf`)(200,"cubic-bezier(.2,.75,.3,1)",()=>({transform:String(shown)}),class {constructor(s){this.m41=Number(s)}});
+const names=new Set(["tabbed"]), animations=[], panel={style:{position:"",top:"",right:"",bottom:"",width:"",height:"",zIndex:"",willChange:""},inert:true,classList:{add:n=>names.add(n),remove:n=>names.delete(n)},
+ animate(frames,options){const a={frames,options,onfinish:null,cancelled:false,cancel(){this.cancelled=true;}};animations.push(a);return a;}};
+const original={...panel.style},tab={hidden:false},shelf=new ChatShelf(panel,tab);let layouts=0;
+shelf.set(false,500,true,()=>layouts++);
+assert.equal(layouts,1);assert.equal(panel.style.width,"500px");assert.equal(panel.inert,false);assert.equal(tab.hidden,true);
+assert.deepEqual(animations[0].frames,[{transform:"translateX(436px)"},{transform:"translateX(0px)"}]);
+assert.equal(animations[0].options.duration,200);
+const stale=animations[0].onfinish;shown=170;
+shelf.set(true,500,true,()=>layouts++);
+assert.equal(animations[0].cancelled,true);assert.equal(panel.inert,true);assert.equal(tab.hidden,false);
+assert.equal(animations[1].frames[0].transform,"translateX(170px)");
+stale();assert.equal(panel.style.position,"absolute","Old completions cannot hide a reversed shelf");
+shown=260;shelf.set(false,500,true,()=>layouts++);
+assert.equal(animations[2].frames[0].transform,"translateX(260px)");
+animations[2].onfinish();assert.deepEqual(panel.style,original);assert.equal(names.has("tabbed"),false);
+shelf.set(true,500,false,()=>layouts++);assert.equal(names.has("tabbed"),true);assert.equal(panel.inert,true);assert.equal(animations.length,3);
+shelf.set(false,500,true,()=>layouts++);shelf.finish();assert.equal(animations[3].cancelled,true);assert.deepEqual(panel.style,original);assert.equal(panel.inert,false);
+assert.equal(layouts,5,"Each toggle lays out exactly once, including reduced motion");
+console.log("Chat shelf: compositor-only motion, one layout, reversals, stale completion, reduced motion and resize cleanup passed.");

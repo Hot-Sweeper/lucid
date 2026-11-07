@@ -1,5 +1,9 @@
 # Lucid interface
 
+## Chat shelf motion
+
+Opening and closing the conversation uses one 200ms compositor slide with the camera's shared glide curve. The grid changes width once, the real transcript stays at its final width, and the office camera glides to its new framing. There is no delayed fade or per-frame grid resize. Reversals continue from the shown position. Closing moves focus to the rail immediately and makes the departing panel inert. Opening preserves drafts, transcript nodes and reading position. Reduced motion applies the final layout immediately. Drag resizing remains live and cancels toggle motion. A quiet shared switch cue follows animated toggles.
+
 ## Robot journeys
 
 The visible office ends at the inner edges of the sidebars, including collapsed rails. Use the scene's real rectangle, subtract only panel overlap, and refresh these limits when panels resize. Remote buildings share those same clipped limits. Horizontal entry keeps a whole-body guard without an extra screen-space approach behind the sidebars.

@@ -18,8 +18,10 @@ const submitCode = (await transformWithOxc(`const submit=${callback};`, 'chat-su
 const revoked = [], persisted = new Map(), clearedTimers = [];
 class HistoryWindow { rows = new Map(); update() { throw Error('Stale response reached replacement history'); } }
 const gsap = { killTweensOf() {}, set() {}, fromTo() {}, to() {} };
-const Fixture = new Function('HistoryWindow', 'gsap', 'window', 'document', 'matchMedia', 'URL', 'writePromptDraft',
-  `${code};return Fixture`)(HistoryWindow, gsap, { clearTimeout: id => clearedTimers.push(id) }, { activeElement: null }, () => ({ matches: true }), { revokeObjectURL: url => revoked.push(url) }, (key, text) => { persisted.set(key, text); return true; });
+const shelfCode = (await transformWithOxc((await readFile(new URL('../src/office/chat-shelf.ts', import.meta.url), 'utf8')).replace(/^import[^;]+;\n/gm, ''), 'chat-shelf.ts')).code.replace(/^export /gm, '').replace(/export\s*\{[^}]*\};?/g, '');
+const ChatShelf = new Function('GLIDE_MS', 'GLIDE_EASING', `${shelfCode};return ChatShelf`)(200, 'cubic-bezier(.2,.75,.3,1)');
+const Fixture = new Function('ChatShelf', 'HistoryWindow', 'gsap', 'window', 'document', 'matchMedia', 'URL', 'writePromptDraft',
+  `${code};return Fixture`)(ChatShelf, HistoryWindow, gsap, { clearTimeout: id => clearedTimers.push(id) }, { activeElement: null }, () => ({ matches: true }), { revokeObjectURL: url => revoked.push(url) }, (key, text) => { persisted.set(key, text); return true; });
 const classList = (initial = []) => { const names = new Set(initial); return { contains: name => names.has(name), add: name => names.add(name), remove: name => names.delete(name) }; };
 function create() {
   const fixture = new Fixture(), file = { name: 'draft.png', type: 'image/png', async arrayBuffer() { return new Uint8Array([1, 2]).buffer; } };
@@ -34,7 +36,7 @@ function create() {
   fixture.tab = { hidden: true, querySelector: () => ({}), setAttribute() {} };
   Object.assign(fixture, {
     desk: { threadId: 'A' }, history: new HistoryWindow(), historyGeneration: 10, loadingHistory: false, loadingOlder: true,
-    shown: new Map([['old', {}]]), groups: new Map([['old', {}]]), renderedMessages: new Map([['old', {}]]), timelineIds: ['old'],
+    reviewPapers: new Map(), reviewLookups: new Map(), toolGroups: new Map(), shown: new Map([['old', {}]]), groups: new Map([['old', {}]]), renderedMessages: new Map([['old', {}]]), timelineIds: ['old'],
     queueLatest: [{ text: 'Old queue' }], queueHold: 0, timer: 42, typingOn: true, collapsed: false,
     files: [file], refs: [{ id: 'reference' }], drafts: new Map(), previews: new Map([[file, 'blob:draft']]),
     pending: [{ threadId: 'earlier', text: 'Retain pending', at: 0 }], sending: new Set(), sendErrors: new Map([['earlier', 'Retain error']]),
