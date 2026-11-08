@@ -131,3 +131,16 @@ also treats the kick and bass as complementary sources. The
 describes sidechain ducking for kick/bass space, per-chain drum processing,
 reverb predelay and frequency shaping. These are technical production references,
 not evidence that the resulting compositions have been subjectively approved.
+
+## Tidal Memory remake
+
+Listener feedback distinguished preview loudness from the musical problem:
+the continuous saw-like sustain lasted too long. The remake changes the source
+and arrangement. Soft sampled electric piano, nylon plucks and celesta carry
+short questions and answers. Sine-only chord gestures have bounded durations
+and clear gaps; filtered returns support those phrases. The older overlapping
+Classic/unison renderer is retired from the authoring entry point.
+
+Preview exports must include the office's theme and master gains when described
+as default app-level listening. A full master at its measured playback trim alone
+bypasses those controls and can sound substantially louder than office playback.

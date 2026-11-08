@@ -18,9 +18,9 @@ research, sources, comparisons and limitations.
   syncopated bass, arpeggios, melodic answers, drum pickups and a contrasting
   tunnel section. A sampled snare has a short gated room; its direct attack
   remains distinct.
-- **Tidal Memory**, ambient, 66 BPM: native synth pads overlap independent
-  phrases. Original plucks become evolving washes, with sparse motifs and
-  slow releases.
+- **Tidal Memory**, ambient, 66 BPM: sampled soft electric piano, nylon
+  plucks and celesta exchange short phrases. Brief sine-only chord breaths
+  leave clear pauses, with restrained filtered reflections between the notes.
 - **Petal Breaks**, atmospheric breakcore/DnB, 164 BPM: an original eight-bar
   performance using recorded acoustic hits is sliced into musical phrases.
   Ghost notes, displaced answers and selective retriggers retain clear anchors.
@@ -73,8 +73,8 @@ predelayed room returns and quiet phrase-end echoes. Sparse metal accents sit
 beneath the sampled motif. Cassette retains its laid-back timing and sampled keys.
 
 Neon's kick now uses recorded body instead of an exaggerated oscillator sweep;
-selected snare answers carry stereo delays. Tidal remains drumless, with softer
-plucked attacks, separate near/far returns and slowly moving filtered echoes.
+selected snare answers carry stereo delays. Tidal remains drumless. Its remake uses soft sampled figures and brief chord
+breaths with genuine gaps, replacing the earlier long overlapping unison bed.
 These effects are authored into the recordings and do not run in the app.
 
 ## Direction and playback
@@ -165,8 +165,11 @@ python scripts/verify-music-masters.py --write
 
 `compose-office-genres.py` now renders only Petal Breaks. Its earlier sketches
 cannot overwrite newer sampled/native masters through the command line.
-`reference-mix-metrics.json`, `surge-mix-metrics.json`, `genre-metrics.json` and
-`story-metrics.json` retain structure and production provenance.
+`reference-mix-metrics.json`, `surge-mix-metrics.json`,
+`tidal-remake-metrics.json`, `genre-metrics.json` and `story-metrics.json` retain
+structure and production provenance. Tidal can be rebuilt separately with
+`python scripts/tidal_arrangement.py`; `surge_arrangements.py --only tidal-memory` delegates to this remake, so it
+cannot regenerate the retired sustained pad version.
 `library-mastering.json` measures actual packaged MP3 hashes, duration, DC,
 stereo correlation, silence, loudness and true peaks.
 

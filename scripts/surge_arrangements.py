@@ -1,4 +1,4 @@
-"""Neon/Tidal reference-production revisions using real Surge XT and Pedalboard.
+"""Neon production using Surge XT; Tidal dispatches to its sampled short-phrase score.
 
 No factory patches or borrowed melodies. SURGE_VST3 points to a portable native
 Surge XT 1.3.4 VST3, VCSL_DRUMS to the pinned CC0 acoustic hit subset. The app
@@ -247,70 +247,14 @@ def neon_afterglow():
                      arrangement='Lower-register question/answer lead, broken recorded-kick/bass groove, real gated snare, filtered phrase-ending echoes, contrasting B, quiet tunnel and reprise')
 
 
-def tidal_memory():
-    bpm=66;beat=60/bpm;total_beats=180;frames=round((total_beats*beat+7)*RATE)
-    events=[];motif=[];shadows=[]
-    sections=[dict(name='a distant shore',start=0,end=24*beat),dict(name='overlapping horizons',start=24*beat,end=64*beat),
-              dict(name='refracted light',start=64*beat,end=104*beat),dict(name='deep water',start=104*beat,end=132*beat),
-              dict(name='a remembered shoreline',start=132*beat,end=164*beat),dict(name='receding',start=164*beat,end=frames/RATE)]
-    # Non-periodic phrase lengths; each next voicing is voiced close to the
-    # previous one. E Lydian's A# is a color, not a constant glaring top note.
-    voicings=[[52,59,63,66],[49,56,59,63],[46,56,61,64],[47,54,58,61],
-              [52,59,66,70],[56,59,63,66],[49,56,61,64],[47,54,59,63],
-              [46,56,61,64],[42,54,58,61],[47,54,58,63],[52,59,63,66]]
-    phrase_lengths=[13,15,17,14,19,16,13,17,14,16,12,14]
-    at=0
-    for i,(chord,held) in enumerate(zip(voicings,phrase_lengths)):
-        for k,pitch in enumerate(chord):note(events,pitch,at+k*.31,held+.9,.066+(.009 if i in (4,5,10) else 0))
-        if i%3==1:note(shadows,chord[1]+12,at+6.75,7.3,.024)
-        if i%4==2:note(shadows,chord[2]+12,at+9.5,5.1,.02)
-        at+=held
-    # The authored sparse melody returns as an answer in a lower register.
-    for pos,pitch,held in [(20.5,82,3.2),(28.25,78,3.4),(39.5,75,4.1),(49.75,78,3.5),(61,73,4.2),
-                           (131.25,70,4.2),(142,66,4.4),(151.5,63,5.1),(164.25,66,4.1)]:
-        note(motif,pitch,pos,held,.035)
-    pads,info=render_part(events,bpm,frames,'atmosphere',.64)
-    pads=process_stem(pads,RATE,'pads',room='bloom',send=.17,chorus=True)
-    halo,halo_info=render_part(shadows,bpm,frames,'pad',.28)
-    halo=process_stem(halo,RATE,'pads',room='bloom',send=.16,chorus=False)
-    # One physically modelled string is transformed into a wash by native slow
-    # chorus, unsynced delay and 100%-wet reverb. It has its own overlapping
-    # phrase periods and never resets on the pad chord/section boundaries.
-    wash=np.zeros((frames,2),np.float32)
-    phrase=[76,78,83,75,78,71,73]
-    for cycle,start in enumerate(np.arange(8.75,171,10.75)):
-        pitch=phrase[cycle%len(phrase)]
-        place(wash,pluck(pitch,1.4,attack=.085,cutoff=3400),float(start),beat,.044,(-1)**cycle*.26)
-    distant=filtered_echo_return(wash,(3.1,4.7),feedback=.31,low=330,high=4500,modulation=True)
-    diffuse=Pedalboard([Reverb(room_size=.80,damping=.66,wet_level=1,dry_level=0,width=1),
-                       HighpassFilter(330),LowpassFilter(4100)])(distant.T,RATE,buffer_size=8192,reset=True).T
-    wash=distant*.16+diffuse*.84
-    bells=np.zeros((frames,2),np.float32)
-    for i,event in enumerate(motif):
-        # A soft plucked bell, with its own physical string onset, carries the
-        # old melodic identity while the native synth owns the evolving pad.
-        sound=pluck(event['pitch'],4.1,attack=.048,cutoff=4200)
-        place(bells,sound,event['beat'],beat,.064,.13 if i%2 else -.12)
-    reflections=filtered_echo_return(bells,(.68,1.03),feedback=.27,low=520,high=3600,modulation=True)
-    # Near notes stay intelligible; a separate dark repeat and diffused return
-    # place their answers further away without reverberating the whole master.
-    bells=room_send(bells,RATE,'chamber',send=.10)+reflections*.22
-    far_bells=Pedalboard([Reverb(room_size=.68,damping=.70,wet_level=1,dry_level=0,width=.94),
-                         HighpassFilter(520),LowpassFilter(3400)])(reflections.T,RATE,buffer_size=8192,reset=True).T
-    bells+=far_bells*.10
-    mixed=pads+halo+wash+bells
-    # Resolve gently on E/B rather than resetting the eight-chord list at exit.
-    ending=np.ones(frames,np.float32);start=round(173*beat*RATE)
-    ending[start:]=np.clip(np.cos(np.linspace(0,np.pi/2,frames-start,dtype=np.float32)),0,1)**1.4
-    mixed*=ending[:,None]
-    return mixed,dict(id='tidal-memory',title='Tidal Memory',genre='ambient',bpm=bpm,key=4,mode='lydian',meter=4,
-                     energy=.12,textures=['pads','transformed plucked wash','bells','unsynced delay'],
-                     sections=sections,nativeParts={'atmosphere':info,'halo':halo_info},
-                     spaceProduction=dict(dryMotif='48 ms raised-cosine attack and 4.2 kHz lowpass; alternating close positions',
-                         nearReflections='680/1030 ms stereo filtered echoes, 27% feedback, 520-3600 Hz, slow 0.073 Hz modulation',
-                         distantWash='85 ms softened string excitation; 3.1/4.7s independent filtered repeats and separate diffused reverb',
-                         master='No added master reverb, delay or percussion'),
-                     arrangement='Free-running 13/15/17/14/19-beat phrases, tied voice-leading, rounded pluck return, filtered near/far echoes, low-register motif reprise and drumless space')
+def render_tidal_remake():
+    """Tidal now has a separate short-phrase sampled arrangement.
+
+    Keep this historical authoring entry point usable without resurrecting
+    the retired sustained Classic/unison pad render.
+    """
+    import sys
+    subprocess.run([sys.executable,str(ROOT/'scripts/tidal_arrangement.py')],check=True)
 
 
 def export(samples,meta):
@@ -367,9 +311,11 @@ def export(samples,meta):
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--only',choices=['neon-afterglow','tidal-memory']);args=parser.parse_args()
+    if args.only=='tidal-memory':
+        render_tidal_remake();return
     metric_file=OUT/'surge-mix-metrics.json'
-    rows={r['id']:r for r in json.loads(metric_file.read_text())} if metric_file.exists() else {}
-    for ident,render in [('neon-afterglow',neon_afterglow),('tidal-memory',tidal_memory)]:
+    rows={r['id']:r for r in json.loads(metric_file.read_text()) if r['id']!='tidal-memory'} if metric_file.exists() else {}
+    for ident,render in [('neon-afterglow',neon_afterglow)]:
         if args.only and args.only!=ident:continue
         samples,meta=render()
         # Offline authoring cache makes headroom/encoding checks repeatable
@@ -379,6 +325,7 @@ def main():
         row=export(samples,meta);rows[ident]=row
         metric_file.write_text(json.dumps(list(rows.values()),indent=2)+'\n')
         print(json.dumps({k:row[k] for k in ['id','seconds','peakDbFS','rmsDbFS','decoded']}),flush=True)
+    if args.only is None:render_tidal_remake()
 
 
 if __name__=='__main__':main()

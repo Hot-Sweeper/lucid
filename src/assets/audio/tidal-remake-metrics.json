@@ -1,0 +1,259 @@
+[
+  {
+    "id": "tidal-memory",
+    "title": "Tidal Memory",
+    "genre": "ambient",
+    "bpm": 66,
+    "key": 4,
+    "mode": "lydian",
+    "meter": 4,
+    "energy": 0.12,
+    "revision": 5,
+    "textures": [
+      "brief sine pads",
+      "sampled electric piano",
+      "sampled nylon guitar",
+      "celesta bells",
+      "filtered reflections"
+    ],
+    "sections": [
+      {
+        "name": "small ripples",
+        "start": 0.0,
+        "end": 14.545454545454545,
+        "intent": "Sparse close keys introduce the motif space",
+        "rmsDbFS": -28.63506341476438
+      },
+      {
+        "name": "light on the water",
+        "start": 14.545454545454545,
+        "end": 43.63636363636363,
+        "intent": "High celesta questions over brief chord breaths",
+        "rmsDbFS": -24.716701265233446
+      },
+      {
+        "name": "an answering current",
+        "start": 43.63636363636363,
+        "end": 72.72727272727272,
+        "intent": "Lower nylon answer and contrasting harmony",
+        "rmsDbFS": -25.238406331550813
+      },
+      {
+        "name": "open water",
+        "start": 72.72727272727272,
+        "end": 101.81818181818181,
+        "intent": "Pad-free release with occasional distant notes",
+        "rmsDbFS": -29.114233121165217
+      },
+      {
+        "name": "a remembered shore",
+        "start": 101.81818181818181,
+        "end": 130.9090909090909,
+        "intent": "The question returns on lower electric piano",
+        "rmsDbFS": -23.01411000340011
+      },
+      {
+        "name": "tide withdrawing",
+        "start": 130.9090909090909,
+        "end": 160.0,
+        "intent": "Descending piano answers and a clear tonic close",
+        "rmsDbFS": -26.878147906039104
+      }
+    ],
+    "sampledParts": {
+      "soft electric piano": {
+        "program": 4,
+        "notes": 128,
+        "wholeStemPeakTarget": 0.145,
+        "lowpassHz": 2500
+      },
+      "nylon answers": {
+        "program": 24,
+        "notes": 53,
+        "wholeStemPeakTarget": 0.082,
+        "lowpassHz": 3000
+      },
+      "celesta glints": {
+        "program": 8,
+        "notes": 16,
+        "wholeStemPeakTarget": 0.034,
+        "lowpassHz": 1900
+      }
+    },
+    "sourceLevels": {
+      "soft electric piano": {
+        "peak": 0.14499999582767487,
+        "rms": 0.013842273503541946
+      },
+      "nylon answers": {
+        "peak": 0.0820000022649765,
+        "rms": 0.0041921669617295265
+      },
+      "celesta glints": {
+        "peak": 0.03400000184774399,
+        "rms": 0.0018653838196769357
+      }
+    },
+    "padBreaths": {
+      "count": 13,
+      "maximumSeconds": 3.22,
+      "minimumGapSeconds": 4.0600000000000005,
+      "windows": [
+        {
+          "start": 0.13636363636363635,
+          "end": 2.786363636363636,
+          "pitches": [
+            52,
+            59,
+            68
+          ]
+        },
+        {
+          "start": 14.68181818181818,
+          "end": 17.33181818181818,
+          "pitches": [
+            52,
+            59,
+            68
+          ]
+        },
+        {
+          "start": 21.954545454545453,
+          "end": 25.054545454545455,
+          "pitches": [
+            49,
+            56,
+            63
+          ]
+        },
+        {
+          "start": 29.227272727272727,
+          "end": 32.07727272727273,
+          "pitches": [
+            54,
+            61,
+            68
+          ]
+        },
+        {
+          "start": 36.5,
+          "end": 39.7,
+          "pitches": [
+            47,
+            54,
+            63
+          ]
+        },
+        {
+          "start": 43.77272727272727,
+          "end": 46.42272727272727,
+          "pitches": [
+            52,
+            59,
+            68
+          ]
+        },
+        {
+          "start": 58.31818181818182,
+          "end": 61.16818181818182,
+          "pitches": [
+            54,
+            61,
+            68
+          ]
+        },
+        {
+          "start": 101.95454545454545,
+          "end": 104.60454545454546,
+          "pitches": [
+            52,
+            59,
+            68
+          ]
+        },
+        {
+          "start": 109.22727272727273,
+          "end": 112.32727272727273,
+          "pitches": [
+            49,
+            56,
+            63
+          ]
+        },
+        {
+          "start": 116.5,
+          "end": 119.35,
+          "pitches": [
+            54,
+            61,
+            68
+          ]
+        },
+        {
+          "start": 123.77272727272728,
+          "end": 126.97272727272728,
+          "pitches": [
+            47,
+            54,
+            63
+          ]
+        },
+        {
+          "start": 131.04545454545453,
+          "end": 133.69545454545454,
+          "pitches": [
+            52,
+            59,
+            68
+          ]
+        },
+        {
+          "start": 145.5909090909091,
+          "end": 148.4409090909091,
+          "pitches": [
+            54,
+            61,
+            68
+          ]
+        }
+      ],
+      "oscillators": "Fundamental sine with second harmonic at 0.025; no saw, pulse, detuning, unison or chorus",
+      "roomSend": false
+    },
+    "arrangement": "Short sampled chord gestures and high questions, lower nylon B answer, pad-free open-water passage, piano reprise and tonic close",
+    "production": "Actual FluidR3 electric piano/nylon/celesta; brief additive sine breaths; quiet filtered room and two restrained repeat taps",
+    "seconds": 160.91297052154195,
+    "peakDbFS": -5.382165908813477,
+    "rmsDbFS": -25.30759048461914,
+    "ending": "Sampled E-major tonic cadence and natural room release, no trailing held pad",
+    "decoded": {
+      "seconds": 160.91297052154195,
+      "sampleRate": 44100,
+      "channels": 2,
+      "finite": true,
+      "integratedLUFS": -20.77,
+      "truePeakDbFS": -5.64,
+      "loudnessRangeLU": 13.8,
+      "channelCorrelation": 0.9599512961013396,
+      "dcOffset": 1.238617386434271e-07,
+      "leadingQuietSeconds": 0.0163265306122449,
+      "trailingSilenceSeconds": 0.13462585034013605,
+      "silentBodySeconds": 15
+    },
+    "sha256": "52a3475e9a5400ecb9fca565f646e914b166f8abde5f6dd33450951111e3c48d",
+    "provenance": {
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+        "packageURL": "https://deb.debian.org/debian/pool/main/f/fluid-soundfont/fluid-soundfont-gm_3.1-5.3_all.deb",
+        "licenseSource": "https://sources.debian.org/src/fluid-soundfont/3.1-5.3/COPYING/"
+      },
+      "sampledRenderer": "FluidSynth, authored notes with dry source samples",
+      "effects": "Pedalboard 0.9.26 algorithmic filtered room, original feedforward echoes",
+      "synth": "Only explicitly bounded fundamental/quiet-second-harmonic sine breaths; no Surge analog pad used",
+      "artistAudioCopied": false,
+      "auditionPerformed": false
+    }
+  }
+]

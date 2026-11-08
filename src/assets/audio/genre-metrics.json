@@ -809,192 +809,252 @@
     "mode": "lydian",
     "meter": 4,
     "energy": 0.12,
+    "revision": 5,
     "textures": [
-      "pads",
-      "transformed plucked wash",
-      "bells",
-      "unsynced delay"
+      "brief sine pads",
+      "sampled electric piano",
+      "sampled nylon guitar",
+      "celesta bells",
+      "filtered reflections"
     ],
     "sections": [
       {
-        "name": "a distant shore",
-        "start": 0,
-        "end": 21.818181818181817,
-        "rmsDbFS": -23.22058868408203
+        "name": "small ripples",
+        "start": 0.0,
+        "end": 14.545454545454545,
+        "intent": "Sparse close keys introduce the motif space",
+        "rmsDbFS": -28.63506341476438
       },
       {
-        "name": "overlapping horizons",
-        "start": 21.818181818181817,
-        "end": 58.18181818181818,
-        "rmsDbFS": -23.107118606567383
+        "name": "light on the water",
+        "start": 14.545454545454545,
+        "end": 43.63636363636363,
+        "intent": "High celesta questions over brief chord breaths",
+        "rmsDbFS": -24.716701265233446
       },
       {
-        "name": "refracted light",
-        "start": 58.18181818181818,
-        "end": 94.54545454545455,
-        "rmsDbFS": -22.742422103881836
+        "name": "an answering current",
+        "start": 43.63636363636363,
+        "end": 72.72727272727272,
+        "intent": "Lower nylon answer and contrasting harmony",
+        "rmsDbFS": -25.238406331550813
       },
       {
-        "name": "deep water",
-        "start": 94.54545454545455,
-        "end": 120.0,
-        "rmsDbFS": -22.95508575439453
+        "name": "open water",
+        "start": 72.72727272727272,
+        "end": 101.81818181818181,
+        "intent": "Pad-free release with occasional distant notes",
+        "rmsDbFS": -29.114233121165217
       },
       {
-        "name": "a remembered shoreline",
-        "start": 120.0,
-        "end": 149.0909090909091,
-        "rmsDbFS": -23.50102996826172
+        "name": "a remembered shore",
+        "start": 101.81818181818181,
+        "end": 130.9090909090909,
+        "intent": "The question returns on lower electric piano",
+        "rmsDbFS": -23.01411000340011
       },
       {
-        "name": "receding",
-        "start": 149.0909090909091,
-        "end": 170.63637188208617,
-        "rmsDbFS": -24.44542694091797
+        "name": "tide withdrawing",
+        "start": 130.9090909090909,
+        "end": 160.0,
+        "intent": "Descending piano answers and a clear tonic close",
+        "rmsDbFS": -26.878147906039104
       }
     ],
-    "nativeParts": {
-      "atmosphere": {
-        "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
-        "patch": "atmosphere",
-        "settings": {
-          "scene_mode": "Single",
-          "active_scene": 0.0,
-          "global_volume": 0.0,
-          "a_play_mode": "Poly",
-          "polyphony_limit": 32,
-          "a_osc_1_type": "Classic",
-          "a_osc_1_shape": 34,
-          "a_osc_1_unison_voices": "3 voices",
-          "a_osc_1_mute": false,
-          "a_osc_2_type": "Classic",
-          "a_osc_2_mute": false,
-          "a_osc_3_mute": true,
-          "a_filter_configuration": "Wide",
-          "a_osc_1_route": "Both",
-          "a_osc_2_route": "Both",
-          "a_feedback": 0,
-          "a_filter_1_type": "LP Vintage Ladder",
-          "a_filter_2_type": "Off",
-          "a_filter_1_cutoff": 1250,
-          "a_filter_1_resonance": 8,
-          "a_amp_eg_sustain": 70,
-          "a_filter_eg_sustain": 45,
-          "a_osc_drift": 5,
-          "a_width": 98,
-          "a_velocity_vca_gain": -18,
-          "a_amp_eg_envelope_mode": "Analog",
-          "a_filter_eg_envelope_mode": "Analog",
-          "a_osc_2_shape": -72,
-          "a_osc_2_volume": -14,
-          "a_amp_eg_attack": "1.20 s",
-          "a_amp_eg_decay": "3.49 s",
-          "a_amp_eg_release": "2.81 s",
-          "a_filter_eg_attack": "2.39 s",
-          "a_filter_eg_decay": "5.00 s",
-          "a_filter_eg_release": "2.81 s",
-          "a_osc_1_unison_detune": "9.00 cents",
-          "a_filter_1_feg_mod_amount": "13.06 semitones"
-        },
-        "events": 37,
-        "factoryPreset": false
+    "sampledParts": {
+      "soft electric piano": {
+        "program": 4,
+        "notes": 128,
+        "wholeStemPeakTarget": 0.145,
+        "lowpassHz": 2500
       },
-      "halo": {
-        "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
-        "patch": "pad",
-        "settings": {
-          "scene_mode": "Single",
-          "active_scene": 0.0,
-          "global_volume": 0.0,
-          "a_play_mode": "Poly",
-          "polyphony_limit": 32,
-          "a_osc_1_type": "Classic",
-          "a_osc_1_shape": 64,
-          "a_osc_1_unison_voices": "3 voices",
-          "a_osc_1_mute": false,
-          "a_osc_2_type": "Classic",
-          "a_osc_2_mute": false,
-          "a_osc_3_mute": true,
-          "a_filter_configuration": "Wide",
-          "a_osc_1_route": "Both",
-          "a_osc_2_route": "Both",
-          "a_feedback": 0,
-          "a_filter_1_type": "LP Vintage Ladder",
-          "a_filter_2_type": "Off",
-          "a_filter_1_cutoff": 1900,
-          "a_filter_1_resonance": 9,
-          "a_amp_eg_sustain": 73,
-          "a_filter_eg_sustain": 48,
-          "a_osc_drift": 4.5,
-          "a_width": 94,
-          "a_velocity_vca_gain": -18,
-          "a_amp_eg_envelope_mode": "Analog",
-          "a_filter_eg_envelope_mode": "Analog",
-          "a_osc_2_shape": -58,
-          "a_osc_2_volume": -11,
-          "a_amp_eg_attack": "652.5 ms",
-          "a_amp_eg_decay": "2.61 s",
-          "a_amp_eg_release": "1.74 s",
-          "a_filter_eg_attack": "1.79 s",
-          "a_filter_eg_decay": "3.58 s",
-          "a_filter_eg_release": "1.74 s",
-          "a_osc_1_unison_detune": "8.00 cents",
-          "a_filter_1_feg_mod_amount": "9.98 semitones"
-        },
-        "events": 7,
-        "factoryPreset": false
+      "nylon answers": {
+        "program": 24,
+        "notes": 53,
+        "wholeStemPeakTarget": 0.082,
+        "lowpassHz": 3000
+      },
+      "celesta glints": {
+        "program": 8,
+        "notes": 16,
+        "wholeStemPeakTarget": 0.034,
+        "lowpassHz": 1900
       }
     },
-    "spaceProduction": {
-      "dryMotif": "48 ms raised-cosine attack and 4.2 kHz lowpass; alternating close positions",
-      "nearReflections": "680/1030 ms stereo filtered echoes, 27% feedback, 520-3600 Hz, slow 0.073 Hz modulation",
-      "distantWash": "85 ms softened string excitation; 3.1/4.7s independent filtered repeats and separate diffused reverb",
-      "master": "No added master reverb, delay or percussion"
-    },
-    "arrangement": "Free-running 13/15/17/14/19-beat phrases, tied voice-leading, rounded pluck return, filtered near/far echoes, low-register motif reprise and drumless space",
-    "revision": 4,
-    "production": "Surge XT 1.3.4 original analog patches + Pedalboard 0.9.26 stem production",
-    "provenance": {
-      "instrument": {
-        "name": "Surge XT",
-        "engineVersion": "1.3.4",
-        "packageVersion": "1.3.4-7",
-        "license": "GPL-3.0-only",
-        "authoringOnly": true,
-        "officialSource": "https://github.com/surge-synthesizer/surge/tree/release_xt_1.3.4",
-        "licenseSource": "https://github.com/surge-synthesizer/surge/blob/release_xt_1.3.4/LICENSE",
-        "packageURL": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/surge-xt-vst3-1.3.4-7-x86_64.pkg.tar.zst",
-        "packageSHA256": "7a6acb25b31e640483474ff297b6c97c922f122cbc0d902b139f1ac01dfc45f4",
-        "testedBinarySHA256": "04d8a5d1eb095946d479bca4d97615b0b91d4beb7145464d8daaf17ee05e8d35",
-        "factoryPresetsUsed": false,
-        "factorySamplesUsed": false,
-        "binarySHA256": "04d8a5d1eb095946d479bca4d97615b0b91d4beb7145464d8daaf17ee05e8d35",
-        "verifiedTestedBinary": true
+    "sourceLevels": {
+      "soft electric piano": {
+        "peak": 0.14499999582767487,
+        "rms": 0.013842273503541946
       },
-      "effects": {
-        "name": "Spotify Pedalboard",
-        "version": "0.9.26",
-        "license": "GPL-3.0-only",
-        "authoringOnly": true,
-        "source": "https://github.com/spotify/pedalboard",
-        "documentation": "https://spotify.github.io/pedalboard/reference/pedalboard.html"
+      "nylon answers": {
+        "peak": 0.0820000022649765,
+        "rms": 0.0041921669617295265
       },
-      "composition": "Original Lucid scores and own explicit Classic oscillator patches; no artist melody, factory preset or factory audio copied",
-      "delivery": "Only encoded music ships in the app; native plugin and Python processors remain offline authoring dependencies"
+      "celesta glints": {
+        "peak": 0.03400000184774399,
+        "rms": 0.0018653838196769357
+      }
     },
-    "seconds": 168.4647619047619,
-    "peakDbFS": -3.0239063426874537,
-    "rmsDbFS": -23.214932802111083,
+    "padBreaths": {
+      "count": 13,
+      "maximumSeconds": 3.22,
+      "minimumGapSeconds": 4.0600000000000005,
+      "windows": [
+        {
+          "start": 0.13636363636363635,
+          "end": 2.786363636363636,
+          "pitches": [
+            52,
+            59,
+            68
+          ]
+        },
+        {
+          "start": 14.68181818181818,
+          "end": 17.33181818181818,
+          "pitches": [
+            52,
+            59,
+            68
+          ]
+        },
+        {
+          "start": 21.954545454545453,
+          "end": 25.054545454545455,
+          "pitches": [
+            49,
+            56,
+            63
+          ]
+        },
+        {
+          "start": 29.227272727272727,
+          "end": 32.07727272727273,
+          "pitches": [
+            54,
+            61,
+            68
+          ]
+        },
+        {
+          "start": 36.5,
+          "end": 39.7,
+          "pitches": [
+            47,
+            54,
+            63
+          ]
+        },
+        {
+          "start": 43.77272727272727,
+          "end": 46.42272727272727,
+          "pitches": [
+            52,
+            59,
+            68
+          ]
+        },
+        {
+          "start": 58.31818181818182,
+          "end": 61.16818181818182,
+          "pitches": [
+            54,
+            61,
+            68
+          ]
+        },
+        {
+          "start": 101.95454545454545,
+          "end": 104.60454545454546,
+          "pitches": [
+            52,
+            59,
+            68
+          ]
+        },
+        {
+          "start": 109.22727272727273,
+          "end": 112.32727272727273,
+          "pitches": [
+            49,
+            56,
+            63
+          ]
+        },
+        {
+          "start": 116.5,
+          "end": 119.35,
+          "pitches": [
+            54,
+            61,
+            68
+          ]
+        },
+        {
+          "start": 123.77272727272728,
+          "end": 126.97272727272728,
+          "pitches": [
+            47,
+            54,
+            63
+          ]
+        },
+        {
+          "start": 131.04545454545453,
+          "end": 133.69545454545454,
+          "pitches": [
+            52,
+            59,
+            68
+          ]
+        },
+        {
+          "start": 145.5909090909091,
+          "end": 148.4409090909091,
+          "pitches": [
+            54,
+            61,
+            68
+          ]
+        }
+      ],
+      "oscillators": "Fundamental sine with second harmonic at 0.025; no saw, pulse, detuning, unison or chorus",
+      "roomSend": false
+    },
+    "arrangement": "Short sampled chord gestures and high questions, lower nylon B answer, pad-free open-water passage, piano reprise and tonic close",
+    "production": "Actual FluidR3 electric piano/nylon/celesta; brief additive sine breaths; quiet filtered room and two restrained repeat taps",
+    "seconds": 160.91297052154195,
+    "peakDbFS": -5.382165908813477,
+    "rmsDbFS": -25.30759048461914,
+    "ending": "Sampled E-major tonic cadence and natural room release, no trailing held pad",
     "decoded": {
-      "seconds": 168.4647619047619,
-      "integratedLUFS": -20.31,
-      "truePeakDbFS": -3.32,
-      "loudnessRangeLU": 3.6,
-      "peakDbFS": -3.4291908740997314,
-      "rmsDbFS": -23.474367141723633,
-      "trailingSilenceSeconds": 0.24997732426303854,
-      "channelCorrelation": 0.373065063254288,
-      "finite": true
+      "seconds": 160.91297052154195,
+      "sampleRate": 44100,
+      "channels": 2,
+      "finite": true,
+      "integratedLUFS": -20.77,
+      "truePeakDbFS": -5.64,
+      "loudnessRangeLU": 13.8,
+      "channelCorrelation": 0.9599512961013396,
+      "dcOffset": 1.238617386434271e-07,
+      "leadingQuietSeconds": 0.0163265306122449,
+      "trailingSilenceSeconds": 0.13462585034013605,
+      "silentBodySeconds": 15
+    },
+    "sha256": "52a3475e9a5400ecb9fca565f646e914b166f8abde5f6dd33450951111e3c48d",
+    "provenance": {
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+        "packageURL": "https://deb.debian.org/debian/pool/main/f/fluid-soundfont/fluid-soundfont-gm_3.1-5.3_all.deb",
+        "licenseSource": "https://sources.debian.org/src/fluid-soundfont/3.1-5.3/COPYING/"
+      },
+      "sampledRenderer": "FluidSynth, authored notes with dry source samples",
+      "effects": "Pedalboard 0.9.26 algorithmic filtered room, original feedforward echoes",
+      "synth": "Only explicitly bounded fundamental/quiet-second-harmonic sine breaths; no Surge analog pad used",
+      "artistAudioCopied": false,
+      "auditionPerformed": false
     }
   },
   {

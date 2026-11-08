@@ -16,7 +16,7 @@ BASE_ORDER=['cassette-clouds','neon-afterglow','tidal-memory','petal-breaks','mi
 
 def main():
     genre={row['id']:row for row in json.loads((AUDIO/'genre-metrics.json').read_text())}
-    for name in ['reference-mix-metrics.json','surge-mix-metrics.json']:
+    for name in ['reference-mix-metrics.json','surge-mix-metrics.json','tidal-remake-metrics.json']:
         path=AUDIO/name
         if not path.exists():raise FileNotFoundError(f'Finish the {name} render before synchronizing.')
         data=json.loads(path.read_text())
@@ -29,7 +29,7 @@ def main():
     source=CATALOG.read_text()
     for row in rows:
         raw=' '.join(row['textures']).lower();tags=[]
-        for key,aliases in [('pads',['pad','drone']),('bells',['bell','vibraphone','pitched metal']),('piano',['piano','keys','rhodes','electric']),('strings',['string','cello','pizzicato']),('plucked',['plucked','harp','lute','guitar','pizzicato']),('reeds',['woodwind','reed','clarinet']),('breaks',['break']),('bass',['bass','sub','808']),('synth',['analog','arpeggio','surge','synth']),('drums',['drum','hat','percussion','snare','cymbal']),('cowbell',['cowbell'])]:
+        for key,aliases in [('pads',['pad','drone']),('bells',['bell','vibraphone','pitched metal']),('piano',['piano','keys','rhodes','electric']),('strings',['string','cello','pizzicato']),('plucked',['pluck','harp','lute','guitar','pizzicato']),('reeds',['woodwind','reed','clarinet']),('breaks',['break']),('bass',['bass','sub','808']),('synth',['analog','arpeggio','surge','synth']),('drums',['drum','hat','percussion','snare','cymbal']),('cowbell',['cowbell'])]:
             if any(word in raw for word in aliases):tags.append(key)
         values={key:row[key] for key in ['bpm','genre','energy','key','mode','meter']}
         values['textures']=tags
