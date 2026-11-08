@@ -13,15 +13,50 @@
 .ca-how { display: block; margin-top: 2px; font-size: 12.5px; font-weight: 400; color: var(--ink-3); }
 .ca-q.missing legend .ca-question { text-decoration: underline wavy rgba(255, 180, 168, 0.7); text-underline-offset: 4px; }
 
-.ca-opt { display: grid; grid-template-columns: 18px minmax(0, 1fr); column-gap: 10px; align-items: start; padding: 7px 8px; border-radius: 9px; }
-.ca-opt:hover { background: rgba(255, 255, 255, 0.05); }
-.ca-opt:has(input:checked) { background: rgba(255, 159, 90, 0.1); }
-.ca-opt > input[type="radio"], .ca-opt > input[type="checkbox"] { margin: 3px 0 0; width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
-.ca-opt > input:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.cp-answer {
+  --choice-ring: #9b9fbe;
+  --choice-face: #12153a;
+  --choice-hover: color-mix(in srgb, var(--ink, #f1edff) 6%, transparent);
+  --choice-picked: color-mix(in srgb, var(--accent, #ff9f5a) 13%, transparent);
+  --choice-ease: cubic-bezier(.23,1,.32,1);
+}
+.ca-opt { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); column-gap: 10px; align-items: start; padding: 7px 8px; border-radius: 8px; cursor: pointer; transition: background-color 130ms var(--choice-ease); }
+.ca-opt:hover { background: var(--choice-hover); }
+.ca-opt:has(> input:checked) { background: var(--choice-picked); }
+.ca-opt:has(> input:focus-visible) { background: var(--choice-hover); }
+.ca-opt > input[type="radio"], .ca-opt > input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none; box-sizing: border-box; display: grid; place-content: center;
+  position: relative; z-index: 1; flex: none; margin: 3px 0 0; width: 18px; height: 18px; padding: 0;
+  border: 1.5px solid var(--choice-ring); border-radius: 50%; background: var(--choice-face);
+  color: var(--accent, #ff9f5a); cursor: pointer;
+  transition: border-color 130ms var(--choice-ease), background-color 130ms var(--choice-ease), scale 130ms var(--choice-ease);
+}
+.ca-opt > input::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; scale: 0; transition: scale 160ms var(--choice-ease); }
+.ca-opt > input:checked { border-color: var(--accent, #ff9f5a); }
+.ca-opt > input:checked::before { scale: 1; }
+.ca-opt > input[type="checkbox"] { border-radius: 5px; }
+.ca-opt > input[type="checkbox"]::before { width: 11px; height: 11px; border-radius: 0; clip-path: polygon(12% 45%, 38% 70%, 86% 16%, 100% 29%, 39% 96%, 0% 58%); }
+.ca-opt > input[type="checkbox"]:checked { background: var(--accent, #ff9f5a); color: var(--choice-face); }
+.ca-opt > input:focus-visible { outline: 2px solid var(--ink, #f1edff); outline-offset: 3px; }
+.ca-opt:active > input:is([type="radio"], [type="checkbox"]):not(:disabled) { scale: .92; }
+.ca-opt:has(> input:disabled) { cursor: not-allowed; }
+.ca-opt > input:disabled { opacity: .5; cursor: not-allowed; }
+.ca-opt:has(> input:disabled) label { cursor: not-allowed; }
+.ca-opt:has(> input:disabled):not(:has(> input:checked)):hover { background: transparent; }
 .ca-opt label { cursor: pointer; min-width: 0; }
+/* The label activates the entire row; the custom text field stays above it. */
+.ca-opt label::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
 .ca-label { display: block; font-size: 13.5px; line-height: 1.45; color: var(--ink); }
 .ca-desc { display: block; margin-top: 1px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); overflow-wrap: anywhere; }
-.ca-other .ca-text { grid-column: 2; margin-top: 6px; }
+.ca-other .ca-text { grid-column: 2; margin-top: 6px; position: relative; z-index: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .ca-opt, .ca-opt > input, .ca-opt > input::before { transition: none; }
+  .ca-opt:active > input:is([type="radio"], [type="checkbox"]):not(:disabled) { scale: 1; }
+}
+@media (forced-colors: active) {
+  .ca-opt > input { appearance: auto; -webkit-appearance: auto; }
+  .ca-opt > input::before { display: none; }
+}
 
 .ca-text { display: block; width: 100%; box-sizing: border-box; border: 0; border-radius: 9px; padding: 7px 10px; background: #12153a;
   box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); font: inherit; font-size: 13.5px; line-height: 1.45; outline: none; transition: box-shadow 0.15s; }

@@ -123,3 +123,8 @@ Shared robot portraits use a square frame around the actual head and hat bounds 
 ## Question choice controls
 
 Use native radio and checkbox inputs with custom Lucid visuals: a crisp lavender ring over the existing dark input surface, a peach center dot for a selected radio and a dark check on a peach selected checkbox. Unselected rows stay unboxed. The whole row activates its associated input through the label, while the custom text field keeps its own hit target. Retain compact row dimensions, visible keyboard focus, disabled semantics and native arrow-key behavior. Hover fills ease in over 130ms; selection draws over 160ms and pressing gently compresses the control. Reduced motion removes these transitions and compression; forced colors restores the platform control. Choices in the chat shelf and on desk monitors share this styling.
+
+
+## Question choice controls
+
+Use native radio and checkbox inputs with custom Lucid visuals: a crisp lavender ring over the existing dark input surface, a peach center dot for a selected radio and a dark check on a peach selected checkbox. Unselected rows stay unboxed. The whole row activates its associated input through the label, while the custom text field keeps its own hit target. Retain compact row dimensions, visible keyboard focus, disabled semantics and native arrow-key behavior. Hover fills ease in over 130ms; selection draws over 160ms and pressing gently compresses the control. Reduced motion removes these transitions and compression; forced colors restores the platform control. Choices in the chat shelf and on desk monitors share this styling.

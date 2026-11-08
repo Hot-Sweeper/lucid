@@ -18,6 +18,7 @@ const world={desks:new Map([['a',desk]]),lastData:{threads:[thread]},setCompleti
 const tasks=new MonitorTasks(world,{answer:{pending:async()=>pending,t3:{status:async()=>({paired:true,error:null}),respond:async request=>{responses.push(request);throw Error('Test connection lost. Your answer is preserved.');}}},read(){},ready(){return null},collect:async()=>{}});
 tasks.prepare(world.lastData);tasks.sync();await wait(300);await document.fonts.ready;
 window.questionReview={tasks,world,desk,pending,responses};
+if(params.has('selected')) q('.ca-opt input').click();
 if(params.has('test')){
  const passed=[],check=(ok,label)=>{if(!ok)throw Error(label);passed.push(label)},inside=(el,parent)=>{const a=el.getBoundingClientRect(),b=parent.getBoundingClientRect();return a.top>=b.top-1&&a.bottom<=b.bottom+1&&a.left>=b.left-1&&a.right<=b.right+1;};
  try{
@@ -25,6 +26,16 @@ if(params.has('test')){
  check([...document.querySelectorAll('.ca-opt')].every(el=>inside(el,screen)),'Every choice and custom answer visible without scrolling');
  check(q('.monitor-task-body').scrollHeight<=q('.monitor-task-body').clientHeight+1,'No outer question scroll for the reference question');
  check(!q('.ca-desc'),'Repeated option descriptions omitted');
+ const choices=[...document.querySelectorAll('.ca-opt')], first=choices[0], second=choices[1];
+ const hit=row=>{const b=row.getBoundingClientRect();return document.elementFromPoint(b.right-12,b.top+b.height/2);};
+ check(getComputedStyle(first.querySelector('input')).appearance==='none','Choice controls use the Lucid visual style');
+ hit(second).click();check(second.querySelector('input').checked,'The empty right side of a choice activates its radio');
+ check(choices.every(row=>row.getBoundingClientRect().height>=24),'Whole-row choice targets meet minimum size');
+ const disabled=second.querySelector('input');hit(first).click();disabled.disabled=true;hit(second).click();check(!disabled.checked&&first.querySelector('input').checked,'Disabled choice cannot be selected through the row');disabled.disabled=false;
+ const own=q('.ca-other .ca-text'), ownBox=own.getBoundingClientRect();
+ check(document.elementFromPoint(ownBox.x+ownBox.width/2,ownBox.y+ownBox.height/2)===own,'Full-row label does not cover the custom answer field');
+ const checkBox=first.querySelector('input');checkBox.type='checkbox';checkBox.checked=false;hit(first).click();check(checkBox.checked&&getComputedStyle(checkBox).borderRadius==='5px','Multiple-choice checkbox retains its native interaction and square shape');checkBox.type='radio';
+
  const radio=q('.ca-opt input');radio.click();q('.ca-send').click();await wait(100);
  check(responses.length===1&&responses[0].answers.scope===labels[0],'Selected answer reaches the real submission handler');
  check(radio.checked,'Failed send preserves selection');
