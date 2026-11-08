@@ -1574,26 +1574,20 @@ function renderThreads() {
     const robot = world.roster.byThread(t.id);
     return managerFace({ provider: robot?.provider || t.provider, look: world.lookFor(t, robot?.look), picture: t.manager?.avatar, size, place, cls });
   };
-  // A persistent manager leads with their identity; their thread is supporting context.
+  // Managers are persistent project conversations, presented like the other chats.
   const managerRow = (t: typeof list[number]) => {
     const p = projects.get(t.manager?.projectId || t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
     const role = t.manager?.role || (t.id === world.orchThread ? "Orchestrator" : "Manager");
-    const robot = world.roster.byThread(t.id);
-    const name = robot?.name || "Manager";
-    const dot = dotOf(t);
-    const state = dot ? stateOf(t) : "";
+    const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
+    const state = dotOf(t) ? stateOf(t) : "";
     const sel = t.id === chat.threadId ? " sel" : "";
-    const detail = [name, `${role} for ${proj}`, t.title, t.model, t.branch].filter(Boolean).join("\n");
-    return `<li class="mg-li"><button type="button" class="th-row th-worker mg-row${t.runStatus === "running" ? " on" : ""}${sel}" data-id="${esc(t.id)}" title="${esc(detail)}">
-      ${faceOf(t, 40, "l", dot === "work" ? "working" : "")}
-      <span class="mg-text">
-        <span class="mg-name">${esc(name)}</span>
-        <span class="mg-role">${esc(proj)} · ${esc(role)}</span>
-        <span class="mg-thread">${esc(t.title || "Untitled")}</span>
-        ${state ? `<span class="mg-state">${state}</span>` : ""}
+    return `<li class="mg-li"><button type="button" class="th-row th-worker th-t3 mg-row${t.runStatus === "running" ? " on" : ""}${sel}" data-id="${esc(t.id)}" title="${esc([`${proj} · ${role}`, t.title, t.model, t.branch].filter(Boolean).join("\n"))}">
+      <span class="th-text">
+        <span class="th-top">${icon}<span class="th-proj">${esc(proj)} · ${esc(role)}</span>${state}</span>
+        <span class="th-title">${esc(t.title || "Untitled")}</span>
       </span>
-    </button><button type="button" class="mg-new" data-new-project="${esc(t.id)}" aria-label="New project with ${esc(name)}" title="New project with ${esc(name)}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11V7a2 2 0 0 0-2-2h-6l-2-2H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h8M18 14v8m-4-4h8"/></svg></button></li>`;
+    </button></li>`;
   };
   const managers = active.filter((t) => t.pinned);
   const managersOpen = !folded.has("managers") || !!q;
@@ -1679,19 +1673,17 @@ $("th-new-project").addEventListener("click", () => newProject());
 whenProjectColors(() => { if (world.lastData) world.update(world.lastData); thSig = ""; renderThreads(); });
 $("th-list").addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
-  const fromManager = target.closest<HTMLElement>("[data-new-project]");
-  if (fromManager) { e.stopPropagation(); newProject(world.roster.byThread(fromManager.dataset.newProject!)?.name); return; }
   if (target.closest(".mg-toggle")) { toggleManagers(); return; }
   if (target.closest(".th-settled-toggle")) { settledOpen = !settledOpen; renderThreads(); return; }
   if (target.closest(".th-settled-more")) { settledLimit += 25; renderThreads(); return; }
   const b = (e.target as HTMLElement).closest(".th-row") as HTMLElement | null;
   if (b) openThread(b.dataset.id!);
 });
-function newProject(from?: string) {
+function newProject() {
   if (companionClient() || currentEnvironment) return;
   const lucid = (window as any).lucid;
   openNewProject({ create: o => lucid.createProject(o), addExisting: o => lucid.addProject(o), pickFolder: () => lucid.pickFolder(), baseFolder: () => lucid.projectsBase() },
-    { from, onDone: () => void refresh() });
+    { onDone: () => void refresh() });
 }
 function openThread(id: string) {
   world.revealThread(id);

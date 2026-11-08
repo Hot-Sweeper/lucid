@@ -3,8 +3,7 @@ import { gameSound } from "./sound";
 import "./new-project.css";
 
 // New project: make a fresh folder in T3 Projects, or add a folder that already exists.
-// The office for it appears as soon as T3 registers it. Opened from the thread list and
-// from a manager's row.
+// The office for it appears as soon as T3 registers it. Opened from the sidebar.
 
 export type NewProjectApi = {
   create(o: { name: string }): Promise<{ path: string }>;
@@ -13,14 +12,13 @@ export type NewProjectApi = {
   baseFolder(): Promise<string>;
 };
 
-export function openNewProject(api: NewProjectApi, opts: { from?: string; onDone: (title: string) => void }) {
+export function openNewProject(api: NewProjectApi, opts: { onDone: (title: string) => void }) {
   if (document.querySelector(".new-project")) return;
   const previousFocus = document.activeElement as HTMLElement | null;
   const wrap = document.createElement("div");
   wrap.className = "dialog-wrap";
   wrap.innerHTML = `<form class="dialog new-project" role="dialog" aria-modal="true" aria-labelledby="np-title">
     <header class="np-head"><h2 id="np-title">New project</h2><button type="button" class="ghost np-close" aria-label="Close">×</button></header>
-    ${opts.from ? `<p class="np-from"></p>` : ""}
     <label class="np-field"><span>Name</span><input type="text" class="np-name" maxlength="60" autocomplete="off" placeholder="My new project" required></label>
     <fieldset class="np-where"><legend>Folder</legend>
       <label class="np-choice"><input type="radio" name="np-where" value="new" checked><span>Create a new folder</span></label>
@@ -35,7 +33,6 @@ export function openNewProject(api: NewProjectApi, opts: { from?: string; onDone
   const form = wrap.querySelector("form")!;
   const q = <T extends HTMLElement = HTMLElement>(s: string) => form.querySelector<T>(s)!;
   const name = q<HTMLInputElement>(".np-name"), msg = q(".np-msg"), go = q<HTMLButtonElement>(".np-go");
-  if (opts.from) q(".np-from").textContent = `Started by ${opts.from}. Its office appears once the project is created.`;
   let base = "", picked = "", busy = false;
   const mode = () => (form.querySelector<HTMLInputElement>('input[name="np-where"]:checked')?.value ?? "new") as "new" | "existing";
   const safe = (s: string) => s.trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g, "").replace(/[. ]+$/, "");

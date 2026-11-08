@@ -131,8 +131,7 @@ Use native radio and checkbox inputs with custom Lucid visuals: a crisp lavender
 
 ## Managers in the sidebar
 
-Manager entries lead with the persistent robot name and a centered 40px portrait. Project and role form one quiet context line, followed by the real thread title. Only meaningful operational status adds another line; idle timestamps, model strings, duplicate project icons and pin dots stay out of this compact view. Complete metadata remains in the tooltip. Names wrap without clipping. The new-project action uses a folder-plus control in its own reserved 32px column, revealed on hover or keyboard focus and always available on touch. It never overlays the name or title. Selected managers share the existing thread selection treatment.
-
+A manager is an ongoing conversation for its owning project. Present it with the same two-line chat row as regular threads: project and manager role, then the actual conversation title. Opening it resumes that same thread. Keep operational status and selection consistent with regular chats. Do not turn this entry into a robot contact card, foreground the robot's personal name, or put project-creation actions on it. The global New project control owns project creation. Pinned manager conversations remain easy to reach in the Managers section.
 
 ## Bottom-aligned answers
 
