@@ -1993,6 +1993,24 @@ export class World {
     const free = seats.indexOf(null);
     return free >= 0 ? free : seats.length;
   }
+  canRemoveEmptyDesk(slot: string) {
+    const [room, rawIndex] = slot.split("#"), index = Number(rawIndex);
+    const plan = this.physicalPlans.find(p => p.id === room && !p.collapsed);
+    const desk = this.slotDesks.get(slot);
+    // Recheck the real desk and reservations, including a launch still in flight.
+    return !!plan && !!desk && !desk.threadId && Number.isInteger(index) && index >= 0 && index < plan.slots
+      && !plan.threads[index] && !this.seats.get(room)?.[index]
+      && this.pendingSeat?.room !== room;
+  }
+  removeEmptyDesk(slot: string) {
+    if (!this.canRemoveEmptyDesk(slot)) return false;
+    const [room, rawIndex] = slot.split("#"), index = Number(rawIndex);
+    const seats = this.seats.get(room);
+    if (seats && index < seats.length) seats.splice(index, 1);
+    // -1 hides the otherwise automatic starter desk in an entirely empty office.
+    this.extra.set(room, Math.max(-1, (this.extra.get(room) ?? 0) - 1));
+    return true;
+  }
   isLastDesk(slot: string) {
     const [room, index] = slot.split("#");
     const plan = this.physicalPlans.find((p) => p.id === room);

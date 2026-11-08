@@ -69,7 +69,7 @@ export function projectRoomSeats<T extends ActivityThread>(reservations: (string
   placed.forEach((t, i) => { if (t) last = i; });
   // Interior empty desks stay where they are. Only trailing empty places fold away,
   // so the room may shrink at its end but never shuffles.
-  const slots = Math.max(1, last + 1) + (expanded ? Math.max(0, extra) : 0);
+  const slots = last < 0 && extra < 0 ? 0 : Math.max(1, last + 1) + (expanded ? Math.max(0, extra) : 0);
   const physical: (T | null)[] = Array.from({ length: slots }, (_, i) => placed[i] ?? null);
   return { threads: physical, slots, collapsed: false };
 }
