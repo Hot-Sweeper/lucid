@@ -125,7 +125,11 @@ export class RobotPower {
         const tongues=[[-8,17,3],[-5,23,3.2],[0,20,4],[4,30,3.8],[8,22,3.2]];
         for(let y=1;y<39;y++)for(let x=1;x<31;x++) {
           const height=baseY-y;
-          if(height<0)continue;
+          // Each column burns out at its own rounded, moving pixel boundary.
+          // The fire has no shared horizontal clipping plane at the waist.
+          const side=Math.abs(x-center)/10;
+          const columnBase=baseY+Math.round(1.4*Math.sin(x*.72+phase*.075)+.8*Math.sin(x*1.61-phase*.09)-side*side*3);
+          if(y>columnBase)continue;
           let density=0;
           const belly=(y-(baseY-8))/12;
           if(Math.abs(belly)<1) {
@@ -137,7 +141,7 @@ export class RobotPower {
             const [offset,length,width]=tongues[n];
             const h=length+Math.sin(phase*.065+n*2.2)*2.5;
             if(height>h)continue;
-            const rise=height/h;
+            const rise=Math.max(0,height/h);
             const curl=Math.sin(phase*.11+n*2+height*.36)*Math.pow(rise,.7)*3.3;
             const axis=center+offset+curl;
             const radius=width*Math.pow(1-rise,.72)*(.9+.18*Math.sin(height*.5-phase*.13+n));
@@ -151,7 +155,8 @@ export class RobotPower {
           // Large shade clusters travel upward, with touching cell edges throughout.
           const light=Math.sin(x*.9+y*.75+phase*.23)*.12;
           const shade=Math.max(0,Math.min(5,Math.floor((density+light)*6.3)));
-          c.globalAlpha=.94;c.fillStyle=shades[shade];c.fillRect(x*2,y*2,2,2);
+          c.globalAlpha=y===columnBase?.48:y===columnBase-1?.76:.94;
+          c.fillStyle=shades[shade];c.fillRect(x*2,y*2,2,2);
           // Short irregular wisps overlap the waist, never long strips over the chair.
           if(y>=baseY-5 && y<=baseY-2 && Math.abs(x-center)>=3 && Math.abs(x-center)<=7
             && mask[(y*2)*64+x*2] && Math.sin(x*1.4+y*.9-phase*.17)>.15) {
