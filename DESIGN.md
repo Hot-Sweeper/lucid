@@ -72,3 +72,10 @@ Desk and thread menus offer the same Move to office actions for click and keyboa
 ## Player-sized office widths
 
 Offices start one workstation wide and retain their chosen width as jobs arrive or leave. Additional desks wrap in the existing snake order. The right-wall grip previews horizontal resizing in whole workstation columns, then commits through the safe floor-plan transition on release. Escape, blur, hidden documents and lost pointer capture cancel the preview. Narrow and Widen buttons and the grip's arrow keys offer the same choice without dragging. Width is saved independently for each office and computer, including collapsed offices. Controls retain Lucid's navy/lavender and peach palette, 130ms press feedback and reduced-motion behavior.
+
+
+## Live office placement feedback
+
+Reuse a single destination outline while dragging, with a numbered footprint at the reservation's actual snake position. Keep room artwork visible. Use the existing peach accent for the seat, navy for the destination label and lavender text. A 140ms opacity entrance runs once per pickup, rather than restarting on every pointer event. The grabbed workstation lifts 2.5 percent and tilts at most two degrees with pointer movement, then settles in 160ms. Reduced motion disables lift, tilt and animated footprint repositioning.
+
+A transfer commits its saved home immediately. Keep an explicit Moving to label while the safe physical floor-plan handoff is pending, following current room geometry on world updates and clearing on physical placement. Do not slide a transferred desk back to its source before the handoff. Recheck the release coordinates so a quick final movement lands in the intended room. Existing robot routing, conversations and work continue throughout.

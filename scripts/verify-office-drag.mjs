@@ -4,15 +4,22 @@ import { transformWithOxc } from 'vite';
 
 // Exercise the actual pointer handlers and placement policy without live T3 writes.
 const source = await readFile(new URL('../src/office/world.ts', import.meta.url), 'utf8');
+const policyCode = (await transformWithOxc(await readFile(new URL('../src/office/room-policy.ts', import.meta.url), 'utf8'), 'room-policy.ts')).code;
+const policy = await import('data:text/javascript;base64,' + Buffer.from(policyCode).toString('base64'));
 const method = (from, to) => source.slice(source.indexOf(from), source.indexOf(to, source.indexOf(from)));
 const code = (await transformWithOxc(`class DragWorld {
 ${method('  private wireDeskDrag(', '  private threadDropPreview')}
+${method('  previewThreadDrop(', '  placeThread(')}
 ${method('  placeThread(', '\n  select(')}
 ${method('  private homeForThread(', '  private reconcilePhysicalLayout(')}
 }`, 'office-drag.ts')).code;
 class Element {
-  handlers = new Map(); style = {}; hidden = false;
-  classList = { add() {}, remove() {} };
+  handlers = new Map(); children = []; dataset = {}; style = { setProperty(name, value) { this[name] = value; } }; hidden = false;
+  append(...els) { this.children.push(...els); }
+  get firstElementChild() { return this.children[0]; }
+  get lastElementChild() { return this.children.at(-1); }
+  setAttribute() {}
+  classList = { add() {}, remove() {}, toggle() {} };
   addEventListener(name, cb) { if (!this.handlers.has(name)) this.handlers.set(name, new Set()); this.handlers.get(name).add(cb); }
   removeEventListener(name, cb) { this.handlers.get(name)?.delete(cb); }
   dispatch(name, extra = {}) {
@@ -25,16 +32,16 @@ function harness(room = 'freelance') {
   const win = new Element(), doc = { body: new Element(), createElement: () => new Element() };
   win.getSelection = () => null;
   const timers = [], cues = [];
-  const World = new Function('gsap', 'window', 'document', 'setTimeout', 'columnsForRoom', 'snakeSeat', 'reorderPhysicalSeats', 'UNIT_W', 'UNIT_H', 'WALL_FACE', 'SLOT_W', 'SLOT_H', 'gameSound', code + '; return DragWorld;')(
-    { set(el, props) { Object.assign(el.style, props); }, killTweensOf() {} }, win, doc, cb => timers.push(cb), () => 2, i => ({ c: i, row: 0 }), (_, __, after) => after,
-    400, 350, 100, 440, 400, { play: cue => cues.push(cue) });
+  const World = new Function('gsap', 'window', 'document', 'setTimeout', 'columnsForRoom', 'reserveRoomSeats', 'snakeSeat', 'reorderPhysicalSeats', 'UNIT_W', 'UNIT_H', 'WALL_FACE', 'SLOT_W', 'SLOT_H', 'gameSound', 'hasOfficeDesk', code + '; return DragWorld;')(
+    { set(el, props) { Object.assign(el.style, props); }, killTweensOf() {} }, win, doc, cb => timers.push(cb), () => 2, policy.reserveRoomSeats, policy.snakeSeat, (_, __, after) => after,
+    400, 350, 100, 440, 400, { play: cue => cues.push(cue) }, t => !t.settled);
   const w = new World(), a = { el: new Element(), room, threadId: 'a' }, b = { el: new Element(), room, threadId: 'b' };
   Object.assign(w, {
     cam: { s: 1 }, slotDesks: new Map([[`${room}#0`, a], [`${room}#1`, b]]), seats: new Map([['main', []], [room, ['a', 'b']]]),
     rooms: [{ id: 'main', kind: 'main', title: 'Main office', x: 0, y: 0, w: 1000, h: 600 }, { id: 'freelance', kind: 'freelance', x: 1100, y: 0, w: 1000, h: 600 }],
     homes: new Map(), expandedRooms: new Set(), collapsedRooms: new Set(['main']), placed: new Map(), orchThread: 'boss',
     lastData: { projects: [{ id: 'project' }], threads: [{ id: 'a', runStatus: 'running' }, { id: 'b', question: 'Help?' }] },
-    transit: new Map(), deskLayer: { appendChild() {} }, deskPos: () => ({ x: 0, y: 140 }),
+    desks: new Map(), roomColumns: new Map(), transit: new Map(), deskLayer: { appendChild() {} }, deskPos: () => ({ x: 0, y: 140 }),
     roomById(id) { return this.rooms.find(r => r.id === id); }, stopFollow() {}, cancelCameraTween() {},
     slideDesk(desk, at) { Object.assign(desk.el.style, { left: at.x, top: at.y }); },
     threadDropZone(x) { return x < 0 ? null : x > 1000 ? 'freelance' : 'main'; },
@@ -43,8 +50,9 @@ function harness(room = 'freelance') {
   });
   w.wireDeskDrag(a);
   const start = () => a.el.dispatch('pointerdown');
-  const move = x => a.el.dispatch('pointermove', { clientX: x, clientY: 20 });
-  const up = () => a.el.dispatch('pointerup');
+  let lastX = 10;
+  const move = x => { lastX = x; a.el.dispatch('pointermove', { clientX: x, clientY: 20 }); };
+  const up = () => a.el.dispatch('pointerup', { clientX: lastX, clientY: 20 });
   return { w, a, b, win, start, move, up, cues };
 }
 for (const [room, x, destination] of [['freelance', 200, 'main'], ['main', 1200, 'freelance']]) {
@@ -53,11 +61,12 @@ for (const [room, x, destination] of [['freelance', 200, 'main'], ['main', 1200,
   assert.equal(h.w.deskDragActive, true);
   h.up();
   assert.equal(h.w.homes.get('a'), destination);
+  assert.deepEqual(h.w.pendingPlacement.origin, { x: 0, y: 140 }, 'walking starts at the physical source seat, not the carried preview');
   assert.deepEqual(h.w.seats.get(room), [null, 'b']);
   assert.equal(h.w.expandedRooms.has(destination), true);
   assert.equal(h.w.collapsedRooms.has(destination), false);
   assert.equal(h.w.saves, 1);
-  assert.equal(h.w.preview, null);
+  assert.equal(h.w.preview, destination, 'feedback remains until the safe physical handoff');
   assert.equal(h.w.deskDragActive, false);
   assert.equal(h.w.homeForThread({ id: 'a', pinned: true, manager: { projectId: 'project' } }, h.w.lastData.projects), destination, 'explicit placement survives manager routing and refresh');
   assert.deepEqual(h.cues, ['switch']);
@@ -91,3 +100,54 @@ for (const end of ['escape', 'blur', 'pointercancel', 'lostpointercapture', 'hal
   assert.deepEqual(h.w.placed.get('b'), { room: 'queue' }, 'questions retain their queue while their home moves');
 }
 console.log('PASS: desk transfers to/from Main office, manager homes, same-room reorder, threshold, cancel, invalid drops and question queue');
+
+// The same preview node survives repeated motion and reconciles on world updates.
+{
+  const h = harness(); delete h.w.previewThreadDrop;
+  h.w.previewThreadDrop('main', 'a');
+  const preview = h.w.threadDropPreview;
+  assert.equal(preview.firstElementChild.textContent, 'Move to Main office');
+  assert.equal(preview.lastElementChild.textContent, 'Desk 1');
+  h.w.previewThreadDrop('main', 'a');
+  assert.equal(h.w.threadDropPreview, preview, 'pointer tracking never remounts the preview');
+  h.w.pendingPlacement = { id: 'a', room: 'main' };
+  h.w.syncPlacementPreview();
+  assert.equal(preview.firstElementChild.textContent, 'Moving to Main office');
+  h.w.desks.set('a', {room:'main'}); h.w.physicalLayoutHeld = true;
+  h.w.syncPlacementPreview(); assert.equal(h.w.threadDropPreview, preview, 'keep feedback during safe floor handoff');
+  h.w.physicalLayoutHeld = false; h.w.syncPlacementPreview();
+  assert.equal(h.w.threadDropPreview, null, 'arrival clears feedback immediately');
+  assert.equal(h.w.pendingPlacement, null);
+  h.w.rooms[0].collapsed = true;
+  h.w.previewThreadDrop('main', 'a');
+  assert.equal(h.w.threadDropPreview.lastElementChild.hidden, true);
+  assert(h.w.threadDropPreview.firstElementChild.textContent.includes('opens on drop'));
+}
+console.log('PASS: stable live landing preview, honest pending handoff, collapsed target and immediate arrival cleanup');
+
+{
+  const h = harness(); delete h.w.previewThreadDrop;
+  h.w.homes.set('b', 'main'); h.w.seats.set('main', ['b', null]);
+  h.w.previewThreadDrop('main', 'a');
+  assert.equal(h.w.threadDropPreview.lastElementChild.textContent, 'Desk 2', 'landing uses the real seat reservation policy');
+  h.w.pendingPlacement = { id: 'a', room: 'main' };
+  h.w.lastData.threads = h.w.lastData.threads.filter(t => t.id !== 'a');
+  h.w.syncPlacementPreview();
+  assert.equal(h.w.pendingPlacement, null, 'removed sessions cannot leave a permanent pending marker');
+}
+{
+  const h = harness(); h.start(); h.move(1200);
+  h.a.el.dispatch('pointerup', {clientX:200,clientY:20});
+  assert.equal(h.w.homes.get('a'),'main','release coordinates win over the previous move event');
+}
+
+{
+  const main = await readFile(new URL('../src/main.ts', import.meta.url), 'utf8');
+  const handler = main.slice(main.indexOf('  world.onAddDesk ='), main.indexOf('  world.onFreeDeskMenu ='));
+  const compiled = (await transformWithOxc(handler, 'add-desk.ts')).code;
+  const events = [], world = {lastData:{threads:[]},extra:new Map(),seats:new Map([['main',[]]]),setRoomExpanded(){},update(){events.push(['paint',this.extra.get('main'),this.seats.get('main').length]);}};
+  new Function('world','companionClient','saveSettings','refresh',compiled)(world,()=>false,()=>events.push(['save']),()=>{events.push(['network']);return new Promise(()=>{});});
+  world.onAddDesk('main');
+  assert.deepEqual(events[0],['paint',1,1],'a new desk appears locally before any network refresh can finish');
+}
+console.log('PASS: adding a desk paints the new capacity immediately, before saving or network refresh');

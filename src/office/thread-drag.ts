@@ -12,7 +12,7 @@ const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, 
 const ROW = ".th-row[data-id], .rail-th[data-id]";
 
 export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFor: (id: string) => ThreadRef | null,
-  office?: { hold?(active: boolean): void; zone(x: number, y: number): string | null; preview(room: string | null): void; place(id: string, room: string): boolean },
+  office?: { hold?(active: boolean): void; zone(x: number, y: number): string | null; preview(room: string | null, id?: string): void; place(id: string, room: string): boolean },
   reorder?: { target(id: string, x: number, y: number): { row: HTMLElement; after: boolean } | null; move(id: string, targetId: string, after: boolean): void }) {
   for (const box of containers) {
     box.addEventListener("pointerdown", (e) => start(e, box));
@@ -69,7 +69,7 @@ export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFo
       orderTarget = zone ? null : reorder?.target(ref.id, x, y) ?? null;
       orderTarget?.row.classList.add(orderTarget.after ? "th-drop-after" : "th-drop-before");
       officeZone = zone || orderTarget ? null : office?.zone(x, y) ?? null;
-      office?.preview(officeZone);
+      office?.preview(officeZone, ref.id);
       chat.dragOver(ref, zone);
       const note = ghost!.querySelector("em") as HTMLElement;
       const say = orderTarget ? "Move thread here" : officeZone ? "Move thread to this office" : zone ? "" : "Drop in the list to reorder, in an office to move, or in chat to reference";

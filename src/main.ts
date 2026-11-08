@@ -627,21 +627,18 @@ function setupMenus() {
     world.setRoomExpanded(room, true);
     world.extra.set(room, (world.extra.get(room) ?? 0) + 1);
     world.seats.get(room)?.push(null);
+    if (world.lastData) world.update(world.lastData);
     saveSettings();
     void refresh();
   };
   world.onFreeDeskMenu = (d, slot, x, y) => {
     if (companionClient()) { world.onFreeDesk(d, slot, x, y); return; }
     const room = slot.split("#")[0];
-    const extra = world.extra.get(room) ?? 0;
     showMenu(x, y, room === "main" ? "Drag a thread here from the sidebar" : "Free desk", [
       ...(room === "main" ? [] : [{ label: "Hire someone for this desk", run: () => world.onFreeDesk(d, slot, x, y) }]),
-      // Only the last desk can be removed, so no other desk ever has to move.
-      ...(extra > 0 && world.isLastDesk(slot) ? [{ label: "Remove this desk", danger: true, run: () => {
-        const seats = world.seats.get(room);
-        const index = Number(slot.split("#")[1]);
-        if (seats && index < seats.length) seats.length = index;
-        world.extra.set(room, extra - 1); saveSettings(); void refresh();
+      ...(world.canRemoveEmptyDesk(slot) ? [{ label: "Remove this desk", danger: true, run: () => {
+        if (!world.removeEmptyDesk(slot)) return;
+        gameSound.play('switch'); saveSettings(); void refresh();
       } }] : []),
     ]);
   };
