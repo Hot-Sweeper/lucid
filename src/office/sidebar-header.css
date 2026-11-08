@@ -1,0 +1,49 @@
+/* One spacer belongs to the action group, never to individual icons. The
+   group wraps as a unit when the resizable sidebar cannot fit the weather. */
+.brand .brand-actions {
+  --header-control-size: 30px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  order: 2;
+  margin-left: auto;
+}
+.brand .brand-actions > button:is(.side-help, .side-hide) {
+  order: 0;
+  flex: 0 0 var(--header-control-size);
+  width: var(--header-control-size);
+  height: var(--header-control-size);
+  min-width: var(--header-control-size);
+  min-height: var(--header-control-size);
+  margin: 0;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background-color 130ms cubic-bezier(.23,1,.32,1), color 130ms cubic-bezier(.23,1,.32,1);
+}
+.brand .brand-actions > button:hover,
+.brand .brand-actions > button.side-help[aria-expanded="true"] {
+  color: var(--ink);
+  background: var(--night-3);
+}
+.brand .brand-actions > button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.brand .brand-actions svg { display: block; }
+.brand > .mark { flex: none; }
+.brand > .wx {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand .brand-actions > button { transition: none; }
+}

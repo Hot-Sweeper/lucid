@@ -22,6 +22,7 @@ import { renderFps, onRenderWake } from "./perf/render";
 import { mobileStartRoom } from "./office/mobile-start";
 import "./office/office.css";
 import "./office/panels.css";
+import "./office/sidebar-header.css";
 import "./world/world.css";
 import "./decor/decor.css";
 import { openDecorate, type RoomTheme } from "./office/decorate";
@@ -114,7 +115,9 @@ document.getElementById("app")!.innerHTML = `
   <aside class="panel" id="side-panel">
     <header class="brand"><span class="mark" aria-hidden="true"></span><h1>Lucid</h1><button type="button" class="wx" id="wx" hidden aria-haspopup="menu"></button>
       <button class="update" id="update" type="button" title="Check for game updates">Check updates</button>
+      <div class="brand-actions">
       <button type="button" class="side-hide" id="side-hide" aria-expanded="true" aria-controls="side-panel" aria-label="Hide sidebar" title="Hide sidebar: it folds into a rail on the left (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M9.5 4L5.5 8l4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Hide<span class="sh-more"> sidebar</span></span></button>
+      </div>
     </header>
 
     <section class="company" id="company" aria-live="polite"></section>
