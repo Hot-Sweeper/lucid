@@ -10,7 +10,7 @@ const thread = { id: 'earned', runStatus: 'completed', settled: true, coinPendin
 assert(hasOfficeDesk(thread), 'uncollected completed work retains its desk even after settlement');
 assert.equal(projectRoomSeats(['earned'], [thread], false, null).slots, 1);
 assert(!hasOfficeDesk({ ...thread, coinPending: false }), 'collection releases an ordinary settled desk');
-assert.deepEqual([...projectRoomSeats(['earned'], [{ ...thread, coinPending: false }], false, null).threads], [null], 'after collection the place is an empty desk');
+assert.deepEqual([...projectRoomSeats(['earned'], [{ ...thread, coinPending: false }], false, null).threads], [], 'after collection an empty office does not recreate a desk');
 assert(!hasOfficeDesk({ ...thread, runStatus: 'failed' }), 'pending marker never converts failure to completion');
 assert(hasOfficeDesk({ ...thread, coinPending: false, pinned: true, manager: { projectId: 'p', role: 'Manager' } }), 'persistent manager desk remains independent of coins');
 assert(hasOfficeDesk({ id: 'working', runStatus: 'running' }));

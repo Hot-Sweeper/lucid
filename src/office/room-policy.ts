@@ -58,6 +58,12 @@ export function snakeSeat(index: number, columns: number) {
   return { c: row % 2 ? columns - 1 - offset : offset, row };
 }
 
+/** Hiring into deliberately added capacity uses that spare, instead of cloning it. */
+export function remainingDeskExtras(previous: (string | null)[], next: (string | null)[], extra: number) {
+  const occupied = (seats: (string | null)[]) => seats.filter(Boolean).length;
+  return Math.max(0, extra - Math.max(0, occupied(next) - occupied(previous)));
+}
+
 export function projectRoomSeats<T extends ActivityThread>(reservations: (string | null)[], threads: T[], expanded: boolean, revealed: string | null, extra = 0, folded = false) {
   if (folded) return { threads: [] as (T | null)[], slots: 0, collapsed: true };
   const byId = new Map(threads.map((t) => [t.id, t]));
@@ -67,9 +73,8 @@ export function projectRoomSeats<T extends ActivityThread>(reservations: (string
   });
   let last = -1;
   placed.forEach((t, i) => { if (t) last = i; });
-  // Interior empty desks stay where they are. Only trailing empty places fold away,
-  // so the room may shrink at its end but never shuffles.
-  const slots = last < 0 && extra < 0 ? 0 : Math.max(1, last + 1) + (expanded ? Math.max(0, extra) : 0);
+  // Vacant furniture is explicit; an empty office keeps its Add a desk control.
+  const slots = last + 1 + (expanded ? Math.max(0, extra) : 0);
   const physical: (T | null)[] = Array.from({ length: slots }, (_, i) => placed[i] ?? null);
   return { threads: physical, slots, collapsed: false };
 }

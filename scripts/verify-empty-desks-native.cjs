@@ -125,12 +125,44 @@ if (!process.versions.electron) {
         await ev(`[...document.querySelectorAll('.pop-menu:last-child button')].find(b=>b.textContent.includes('Remove this desk')).click()`);await wait(1800);
         const extra=await ev(`window.__world.extra.get('p:lucid')`);if(extra!==5)throw Error('Removal did not reduce capacity');
         await capture('after-remove');
-        await ev(`(()=>{const w=window.__world;w.extra.set('main',0);w.setRoomExpanded('main',true);w.update(w.lastData);w.showRoom('main');})()`);await wait(1500);
+        result.closeButton = await ev(`(()=>{const w=window.__world,d=[...w.slotDesks.values()].find(d=>d.room==='p:lucid'&&!d.threadId),b=d.el.querySelector('.empty-desk-remove');b.focus();b.click();return !!b&&!b.disabled})()`);
+        if(!result.closeButton)throw Error('Vacant desk close control missing or disabled');
+        await wait(1500);
+        if(await ev(`window.__world.extra.get('p:lucid')`)!==4)throw Error('Direct close did not remove one spare');
+        const priorSlots=await ev(`window.__world.physicalPlans.find(p=>p.id==='p:lucid').slots`);
+        data.threads.push(T('new-hire','Use the existing empty desk','codex','gpt-6.1-sol','running'));
+        await ev(`window.__world.update(await window.lucid.world())`);await wait(2000);
+        result.hireConsumesSpare=await ev(`window.__world.extra.get('p:lucid')===3`);
+        if(!result.hireConsumesSpare)throw Error('Hiring cloned a vacant workstation');
+        result.sameCapacity=await ev(`window.__world.physicalPlans.find(p=>p.id==='p:lucid').slots===${priorSlots}`);
+        if(!result.sameCapacity)throw Error('Using a spare unexpectedly grew the room');
+        await ev(`(()=>{const w=window.__world;w.onRoomMenu(w.rooms.find(r=>r.id==='p:lucid'),580,350)})()`);
+        await wait(250);await capture('office-cleanup-menu');
+        await ev(`(()=>{const menu=[...document.querySelectorAll('.pop-menu')].at(-1);const b=[...menu.querySelectorAll('button')].find(b=>b.textContent.includes('Remove')&&b.textContent.includes('empty desk'));if(!b)throw Error('Bulk cleanup missing');b.click()})()`);
+        for(let i=0;i<100;i++){if(await ev(`![...window.__world.slotDesks.values()].some(d=>d.room==='p:lucid'&&!d.threadId)`))break;await wait(100)}
+        result.bulkRemoved=await ev(`![...window.__world.slotDesks.values()].some(d=>d.room==='p:lucid'&&!d.threadId)`);
+        if(!result.bulkRemoved)throw Error('Bulk cleanup left vacant desks');
+        await capture('tidy-office');
+        await ev(`(()=>{const w=window.__world;w.extra.set('main',1);w.setRoomExpanded('main',true);w.update(w.lastData);w.showRoom('main');})()`);await wait(1500);
+        for(let i=0;i<100;i++){if(await ev(`window.__world.freeDesks.some(d=>d.room==='main')`))break;await wait(100)}
         await ev(`(()=>{const w=window.__world;const d=[...w.slotDesks.values()].find(d=>d.room==='main'&&!d.threadId);w.onFreeDeskMenu(d,d.el.dataset.slot,580,350)})()`);
         await wait(350);await ev(`[...document.querySelectorAll('.pop-menu:last-child button')].find(b=>b.textContent.includes('Remove this desk')).click()`);await wait(1500);
         for(let i=0;i<100;i++){if(await ev(`![...window.__world.slotDesks.values()].some(d=>d.room==='main')`))break;await wait(200)}result.lastEmptyDeskRemoved=await ev(`![...window.__world.slotDesks.values()].some(d=>d.room==='main')`);
         if(!result.lastEmptyDeskRemoved){console.log(await ev(`JSON.stringify({extra:window.__world.extra.get('main'),plans:window.__world.physicalPlans.filter(p=>p.id==='main'),pending:window.__world.pendingSeat,held:window.__world.physicalLayoutHeld})`));await capture('last-desk-debug');throw Error('Last empty desk remains');}
         await capture('after-last-desk');
+        result.addStillAvailable=await ev(`(()=>{const b=document.querySelector('.add-desk[aria-label="Add a desk to Main office"]');if(!b)throw Error('No Add a desk control after removing the last one');b.click();return true})()`);
+        for(let i=0;i<100;i++){if(await ev(`window.__world.freeDesks.some(d=>d.room==='main')`))break;await wait(100)}
+        result.addRestoresDesk=await ev(`window.__world.freeDesks.some(d=>d.room==='main')`);
+        if(!result.addRestoresDesk)throw Error('Add a desk did not restore an empty office');
+        await ev(`(()=>{const w=window.__world;w.update(w.lastData);return true})()`);
+        if(await ev(`window.__world.extra.get('p:lucid')`)!==0)throw Error('Refresh restored removed spare capacity');
+        result.workingDesksPreserved=await ev(`['w1','w2','new-hire'].every(id=>window.__world.desks.has(id))`);
+        if(!result.workingDesksPreserved)throw Error('Cleanup removed active work');
+        await wait(500);win.webContents.reload();
+        for(let i=0;i<200;i++){if(await ev(`!!window.__world?.lastData`))break;await wait(100)}
+        result.survivesReload=await ev(`window.__world.extra.get('p:lucid')===0&&window.__world.freeDesks.filter(d=>d.room==='p:lucid').length===0`);
+        if(!result.survivesReload)throw Error('Reload recreated removed empty desks');
+        await ev(`window.__world.showRoom('p:lucid')`);await wait(800);await capture('tidy-office-after-reload');
       }
       fs.writeFileSync(path.join(out,'result.json'),JSON.stringify(result,null,2));app.exit(0);
     }catch(e){console.error(e);app.exit(1)}

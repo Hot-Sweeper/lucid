@@ -48,7 +48,7 @@ import { openChair } from "./office/chair";
 import { openNewProject } from "./office/new-project";
 import { whenProjectColors } from "./office/project-brand";
 import { robotFocus } from "./office/interact";
-import { hasOfficeWork } from "./office/room-policy";
+import { hasOfficeWork, remainingDeskExtras } from "./office/room-policy";
 import type { RobotProfile } from "./office/roster";
 import { Orchestrator, type OrchState } from "./office/orchestrator";
 import { openOrchestratorControls } from "./office/orchestrator-controls";
@@ -656,21 +656,25 @@ function setupMenus() {
   world.onAddDesk = (room) => {
     if (companionClient()) return;
     world.setRoomExpanded(room, true);
-    world.extra.set(room, (world.extra.get(room) ?? 0) + 1);
+    world.extra.set(room, Math.max(0, world.extra.get(room) ?? 0) + 1);
     world.seats.get(room)?.push(null);
     if (world.lastData) world.update(world.lastData);
     saveSettings();
     void refresh();
   };
+  const applyDeskRemoval = (remove: () => number | boolean) => {
+    if (companionClient() || !remove()) return;
+    if (world.lastData) world.update(world.lastData);
+    gameSound.play('switch'); saveSettings(); void refresh();
+  };
+  world.onRemoveEmptyDesk = slot => applyDeskRemoval(() => world.removeEmptyDesk(slot));
   world.onFreeDeskMenu = (d, slot, x, y) => {
     if (companionClient()) { world.onFreeDesk(d, slot, x, y); return; }
     const room = slot.split("#")[0];
     showMenu(x, y, room === "main" ? "Drag a thread here from the sidebar" : "Free desk", [
       ...(room === "main" ? [] : [{ label: "Hire someone for this desk", run: () => world.onFreeDesk(d, slot, x, y) }]),
-      ...(world.canRemoveEmptyDesk(slot) ? [{ label: "Remove this desk", danger: true, run: () => {
-        if (!world.removeEmptyDesk(slot)) return;
-        gameSound.play('switch'); saveSettings(); void refresh();
-      } }] : []),
+      ...(world.canRemoveEmptyDesk(slot) ? [{ label: "Remove this desk", run: () => world.onRemoveEmptyDesk(slot) }] : []),
+      ...(world.emptyDeskSlots(room).length > 1 ? [{ label: "Remove empty desks in this office", run: () => applyDeskRemoval(() => world.removeEmptyDesks(room)) }] : []),
     ]);
   };
   const hireForOffice = (room: string, idx: number, intent?: "thread" | "delegate") => {
@@ -757,6 +761,8 @@ function setupMenus() {
     ];
     if (companionClient()) { showMenu(x, y, room.title, work); return; }
     const deco = { label: "Decorate", run: () => decorate(room) };
+    const free = world.emptyDeskSlots(room.id).length;
+    const cleanup = free ? [{ label: `Remove ${free} empty desk${free === 1 ? "" : "s"}`, run: () => applyDeskRemoval(() => world.removeEmptyDesks(room.id)) }] : [];
     const policy = { label: world.isRoomExpanded(room.id) ? "Collapse office" : "Expand office", run: () => world.setRoomExpanded(room.id, !world.isRoomExpanded(room.id)) };
     const order = world.orderRooms(world.rooms.filter((r) => movableRoom(r.id)));
     const index = order.findIndex((r) => r.id === room.id);
@@ -768,15 +774,15 @@ function setupMenus() {
       ...(index > 0 ? [{ label: "Move office earlier", run: () => moveOffice(order[index - 1].id) }] : []),
       ...(index >= 0 && index < order.length - 1 ? [{ label: "Move office later", run: () => moveOffice(order[index + 2]?.id ?? null) }] : []),
     ];
-    if (room.kind === "main") { showMenu(x, y, room.title, [...work, deco, policy]); return; }
+    if (room.kind === "main") { showMenu(x, y, room.title, [...work, ...cleanup, deco, policy]); return; }
     if (room.kind === "freelance") {
-      showMenu(x, y, "Freelancers", [...work, deco, policy, ...moves, { label: "Hide this office", run: () => { world.hidden.add("freelance"); saveSettings(); void refresh(); } }]);
+      showMenu(x, y, "Freelancers", [...work, ...cleanup, deco, policy, ...moves, { label: "Hide this office", run: () => { world.hidden.add("freelance"); saveSettings(); void refresh(); } }]);
       return;
     }
     const pid = room.id.slice(2);
     showMenu(x, y, room.title, [
       { label: "Project office board", run: () => projectLife.open(pid) },
-      ...work,
+      ...work, ...cleanup,
       { label: "Manage project managers", run: () => manageRobot(null, pid) },
       deco, policy, ...moves,
       { label: "Hide this office", run: () => { world.hidden.add(pid); saveSettings(); void refresh(); } },
@@ -1112,6 +1118,7 @@ installCompanionOwner({
     const previous = reserved.indexOf(input.threadId);
     if (previous >= 0 && previous !== index) reserved[previous] = null;
     reserved[index] = input.threadId;
+    world.extra.set(input.room, remainingDeskExtras(seats, reserved, world.extra.get(input.room) ?? 0));
     world.seats.set(input.room, reserved);
     if (world.lastData?.environmentId === latest.environmentId) world.pendingSeat = { room: input.room, index, threadId: input.threadId };
     await (api as any).rosterSave(JSON.stringify(world.roster.robots));

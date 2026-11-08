@@ -11,7 +11,7 @@ for (const count of [1, 2, 3, 4, 5, 6, 7, 9, 12]) {
     const seats = reserveRoomSeats(before, remaining);
     assert.deepEqual(seats.filter(Boolean), remaining.map(t => t.id), 'removal preserves the order of every surviving session');
     assert.deepEqual(reserveRoomSeats(seats, [...remaining].reverse()), seats, 'poll ordering and reloads do not shuffle the snake');
-    assert.equal(projectRoomSeats(seats, remaining, false, null).slots, Math.max(1, count - 1));
+    assert.equal(projectRoomSeats(seats, remaining, false, null).slots, Math.max(0, count - 1));
   }
 }
 assert.deepEqual(Array.from({ length: 9 }, (_, i) => snakeSeat(i, 3)), [

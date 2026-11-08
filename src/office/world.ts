@@ -20,7 +20,7 @@ import { campusNight } from "./campus-light";
 import { campusPlan, districtPlan } from "./campus-plan";
 import { officePlan, hallRoute, hallPreference, inHall, type OfficePlan } from "./floor-plan";
 import { buildingFootprint, footprintCovers } from "./building-footprint";
-import { hasOfficeWork, hasOfficeDesk, reserveRoomSeats, snakeSeat, projectRoomSeats, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, layoutSafeAt, FOLDED_OFFICE } from "./room-policy";
+import { hasOfficeWork, hasOfficeDesk, reserveRoomSeats, remainingDeskExtras, snakeSeat, projectRoomSeats, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, layoutSafeAt, FOLDED_OFFICE } from "./room-policy";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
 import { Walker, SIT_HEAD, pause, type Facing } from "../world/walker";
@@ -939,6 +939,7 @@ export class World {
     // Keep each robot in the seat it already has; newcomers take the first free seat.
     const seatOrder = (roomId: string, list: WThread[]) => {
       const prev = [...(this.seats.get(roomId) ?? [])];
+      const previousSeats = [...prev];
       // a robot hired at a specific desk sits exactly there
       const ps = this.pendingSeat;
       if (ps && ps.room === roomId && ps.threadId && list.some((t) => t.id === ps.threadId)) {
@@ -956,6 +957,8 @@ export class World {
         this.pendingSeat = null;
       }
       let seats = reserveRoomSeats(prev, list, this.revealedThread);
+      const extra = this.extra.get(roomId) ?? 0;
+      if (extra > 0) this.extra.set(roomId, remainingDeskExtras(previousSeats, seats, extra));
       // Nothing of this room is on screen yet: pack its places once, so empty places
       // saved from old history never stretch the room. After this, desks never move.
       if (!this.physicalPlans.some((p) => p.id === roomId)) seats = seats.filter((id): id is string => !!id);
@@ -966,10 +969,10 @@ export class World {
     };
     type Plan = PhysicalRoomPlan;
     const office = (id: string, kind: RoomKind, title: string, icon: string | null, threads: WThread[]): Plan => {
-      const extra = this.extra.get(id) ?? 0;
       const reserved = residents.get(id) ?? threads;
       seatOrder(id, reserved);
-      const projection = projectRoomSeats(this.seats.get(id)!, reserved, this.expandedRooms.has(id), this.revealedThread, extra, this.collapsedRooms.has(id));
+      const extra = this.extra.get(id) ?? 0;
+      const projection = projectRoomSeats(this.seats.get(id)!, reserved, this.isRoomExpanded(id), this.revealedThread, extra, this.collapsedRooms.has(id));
       const { slots, collapsed } = projection;
       const { w, h } = collapsed ? FOLDED_OFFICE : officeSize(slots, needsLounge(this.themes.get(id), this.level) ? LOUNGE : 0, officeColumns(this.roomColumns.get(id)));
       return { id, kind, title, icon, threads: projection.threads, slots, w, h, collapsed };
@@ -1254,6 +1257,7 @@ export class World {
       this.slotDesks.set(s.key, d);
       d.room = s.key.split("#")[0];
       d.el.dataset.slot = s.key;
+      d.el.querySelector<HTMLButtonElement>('.empty-desk-remove')!.disabled = !this.canRemoveEmptyDesk(s.key);
       const appearance = this.themes.get(d.room);
       const computer = appearance?.computers?.[s.key] ?? appearance?.computer ?? "classic";
       d.el.dataset.computer = ownsItem(`computer:${computer}`) ? computer : "classic";
@@ -1358,8 +1362,9 @@ export class World {
     this.tileSig = sig;
     this.deskLayer.querySelectorAll(".add-desk").forEach((e) => e.remove());
     plans.forEach((p, i) => {
-      if (!p.slots || p.kind === "queue" || p.kind === "break") return;
+      if (!["main", "project", "freelance"].includes(p.kind)) return;
       const r = rooms[i];
+      if (r.collapsed) return;
       const cols = columnsForRoom(rooms[i]);
       const k = p.slots, { c, row } = snakeSeat(k, cols);
       if (row > 0 && k % cols === 0 && (this.extra.get(p.id) ?? 0) >= 6) return;
@@ -1454,6 +1459,14 @@ export class World {
 
   private makeDesk(x: number, y: number) {
     const d = new Desk(this.deskLayer, x, y, this.services);
+    const remove = document.createElement('button');
+    remove.type = 'button'; remove.className = 'empty-desk-remove';
+    remove.title = 'Remove empty desk'; remove.setAttribute('aria-label', 'Remove empty desk');
+    remove.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+    remove.addEventListener('pointerdown', e => e.stopPropagation());
+    remove.addEventListener('dblclick', e => e.stopPropagation());
+    remove.addEventListener('click', e => { e.stopPropagation(); this.onRemoveEmptyDesk(d.el.dataset.slot || ''); });
+    d.el.append(remove);
     d.onPresenceChange = () => this.recull();
     this.cull.observe(d.el);
     d.onSay = () => this.fitBubbles();
@@ -2014,9 +2027,16 @@ export class World {
     const [room, rawIndex] = slot.split("#"), index = Number(rawIndex);
     const seats = this.seats.get(room);
     if (seats && index < seats.length) seats.splice(index, 1);
-    // -1 hides the otherwise automatic starter desk in an entirely empty office.
-    this.extra.set(room, Math.max(-1, (this.extra.get(room) ?? 0) - 1));
+    this.extra.set(room, Math.max(0, (this.extra.get(room) ?? 0) - 1));
     return true;
+  }
+  emptyDeskSlots(room: string) {
+    return [...this.slotDesks.keys()].filter(slot => slot.split('#')[0] === room && this.canRemoveEmptyDesk(slot));
+  }
+  removeEmptyDesks(room: string) {
+    // Work backwards so splicing one free reservation cannot move a later target.
+    const slots = this.emptyDeskSlots(room).sort((a,b) => Number(b.split('#')[1]) - Number(a.split('#')[1]));
+    return slots.reduce((count, slot) => count + Number(this.removeEmptyDesk(slot)), 0);
   }
   isLastDesk(slot: string) {
     const [room, index] = slot.split("#");
@@ -2025,6 +2045,7 @@ export class World {
   }
   onFreeDesk: (desk: Desk, room: string, x: number, y: number) => void = () => {};
   onAddDesk: (room: string) => void = () => {};
+  onRemoveEmptyDesk: (slot: string) => void = () => {};
   onFreeDeskMenu: (desk: Desk, room: string, x: number, y: number) => void = () => {};
   lastData: WorldData | null = null;
   focusMode: "desk" | "screen" = "desk";
@@ -2171,6 +2192,7 @@ export class World {
           office.onOpenDesk = (desk, screen) => openDesk(desk, screen);
           office.onFreeDesk = (desk, slot, x, y) => openDesk(desk, false, slot, x, y);
           office.onFreeDeskMenu = office.onFreeDesk;
+          office.onRemoveEmptyDesk = slot => { void this.openBuilding(id).then(() => { if (this.lastData?.environmentId === data.environmentId) this.onRemoveEmptyDesk(slot); }).catch(error => { entry.status.textContent = String(error.message || error); }); };
           office.onAddDesk = room => { void this.openBuilding(id).then(() => this.onAddDesk(room)).catch(error => { entry.status.textContent = String(error.message || error); }); };
           entry.office = office;
         }

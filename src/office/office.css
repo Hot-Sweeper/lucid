@@ -934,3 +934,11 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
   content: attr(data-compact-title); font-size: 14px; font-weight: 600; line-height: 1.2; order: -1; overflow-wrap: anywhere;
 }
 .world[data-label-detail="compact"] .desk-plate[data-compact-title]:not([data-compact-title=""]) { max-width: 185px; }
+/* Vacant furniture can be removed without opening a hiring dialog. */
+.empty-desk-remove { position:absolute; left:289px; top:0; z-index:8; display:grid; place-items:center; width:30px; height:30px; padding:0; border:0; border-radius:6px; background:var(--night-2); color:var(--ink-2); cursor:pointer; transition:background 130ms,transform 130ms cubic-bezier(.23,1,.32,1); }
+.desk-unit:not(.empty) .empty-desk-remove { display:none; }
+.empty-desk-remove:hover { background:var(--night-3); color:var(--ink); }
+.empty-desk-remove:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+.empty-desk-remove:active { transform:scale(.94); }
+.empty-desk-remove:disabled { opacity:.35; cursor:default; }
+@media(prefers-reduced-motion:reduce) { .empty-desk-remove { transition:none; transform:none; } }

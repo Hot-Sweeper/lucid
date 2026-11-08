@@ -11,7 +11,7 @@ assert.equal(hasOfficeDesk({ ...settledWorker, runStatus: 'running' }), false, '
 assert.equal(hasOfficeDesk({ ...settledWorker, pinned: true }), false, 'a pin alone does not designate a manager');
 const manager = { ...settledWorker, pinned: true, manager: { projectId: 'project', role: 'Uploads' } };
 assert.equal(hasOfficeDesk(manager), true, 'explicit persistent manager keeps its workstation');
-assert.equal(projectRoomSeats(['settled'], [settledWorker], false, 'settled').slots, 1);
+assert.equal(projectRoomSeats(['settled'], [settledWorker], false, 'settled').slots, 0);
 assert.equal(projectRoomSeats(['settled'], [manager], false, null).slots, 1);
 // Exercise the real held-floor slot loop: retiring a worker must remove its entire
 // desk while retaining the floor and an adjacent active manager's exact position.
