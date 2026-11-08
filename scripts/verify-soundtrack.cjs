@@ -108,6 +108,34 @@ assert.notEqual(new SoundtrackQueue(SOUNDTRACK, undefined, seeded(2)).next(date(
 const evening = new SoundtrackQueue(SOUNDTRACK, undefined, seeded(2));
 evening.next(date(19)); assert.equal(evening.chapter.id, 'night-drive');
 
+// Library picks are one-off choices. They must preserve the chosen direction
+// and listening budget while informing the automatic director of the true last song.
+const manual = new SoundtrackQueue(SOUNDTRACK, undefined, seeded(91));
+assert.equal(manual.select('cassette-clouds', date(8)).id, 'cassette-clouds');
+assert.equal(manual.chapter.id, 'warm-tape', 'a first manual pick initializes the local-time opening');
+manual.listen(42);
+const beforeInvalid = JSON.stringify(manual.state);
+assert.equal(manual.select('missing-recording', date(1)), null);
+assert.equal(JSON.stringify(manual.state), beforeInvalid, 'unknown song IDs cannot mutate director state');
+const progressBeforeChoice = manual.chapterProgress;
+const rush = manual.select('petal-breaks', date(1));
+assert.equal(manual.mode, 'journey');
+assert.equal(manual.chapter.id, 'warm-tape', 'a manual selection does not jump chapters with wall time');
+assert.equal(manual.chapterProgress, progressBeforeChoice, 'a manual selection does not invent listening time');
+assert.equal(manual.state.last, rush.id);
+assert(manual.state.played.includes(rush.id));
+const afterManualReload = new SoundtrackQueue(SOUNDTRACK, JSON.parse(JSON.stringify(manual.state)), seeded(92));
+assert.equal(afterManualReload.state.last, rush.id);
+const bridge = afterManualReload.next(date(8));
+assert.notEqual(bridge.id, rush.id, 'automatic playback does not immediately repeat a manually chosen song');
+assert(bridge.energy < rush.energy && rush.energy - bridge.energy <= .35001, 'the director settles from a manually chosen high-energy song through a real bridge');
+const manualLock = new SoundtrackQueue(SOUNDTRACK, undefined, seeded(93));
+manualLock.setMode('lofi');
+assert.equal(manualLock.select('petal-breaks', date(14)).id, 'petal-breaks');
+assert.equal(manualLock.mode, 'lofi', 'playing another genre once does not silently change the lock');
+const afterLockedReload = new SoundtrackQueue(SOUNDTRACK, JSON.parse(JSON.stringify(manualLock.state)), seeded(94));
+assert.equal(afterLockedReload.next(date(19)).genre, 'lofi', 'the configured genre resumes after a one-off manual selection');
+
 // Inspect actual packaged recordings, independently of selection policy.
 const hashes = new Set();
 for (const song of SOUNDTRACK) {
@@ -118,4 +146,4 @@ for (const song of SOUNDTRACK) {
 assert.equal(hashes.size, SOUNDTRACK.length, 'every recording is distinct');
 const metrics = [...JSON.parse(fs.readFileSync('src/assets/audio/soundtrack-metrics.json')), ...JSON.parse(fs.readFileSync('src/assets/audio/genre-metrics.json'))];
 assert(metrics.every(track => track.seconds >= 90 && track.peakDbFS <= -2.8 && track.rmsDbFS >= -22 && track.rmsDbFS <= -19));
-console.log('PASS: 19 distinct songs, listening-time chapters, coherent energy bridges, all-library fairness, persistent journey and genre locks, old-history migration, day boundaries, encoded assets and headroom.');
+console.log('PASS: 19 distinct songs, listening-time chapters, coherent energy bridges, all-library fairness, persistent journey and genre locks, old-history migration, manual song selection and energy-aware return, day boundaries, encoded assets and headroom.');

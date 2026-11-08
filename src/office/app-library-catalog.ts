@@ -1,8 +1,9 @@
 import { GAME_TITLES } from "../games/catalog";
 export type LibraryCategory = "All" | "Work" | "Social" | "Media" | "Games" | "Phone";
-export type LibraryApp = { id: string; name: string; category: LibraryCategory; icon: string; description: string; demo?: string };
+export type LibraryApp = { id: string; name: string; category: LibraryCategory; icon: string; description: string; demo?: string; live?: "soundtrack" };
 const app = (id: string, name: string, category: LibraryCategory, icon: string, description: string, demo?: string): LibraryApp => ({ id, name, category, icon, description, demo });
 export const LIBRARY_APPS: LibraryApp[] = [
+  { id: "soundtrack", name: "Song library", category: "Media", icon: "soundtrack", description: "Browse and play Lucid’s original office soundtrack.", live: "soundtrack" },
   app("social", "Botcord", "Social", "social", "The robots’ Discord: channels, memes, GIFs and group chats.", "social"),
   app("tube", "BotTube", "Media", "browser", "The robots’ YouTube, complete with videos and comments.", "tube"),
   app("botflix", "Botflix", "Media", "browser", "Shows and movies for the office’s off-duty robots.", "botflix"),

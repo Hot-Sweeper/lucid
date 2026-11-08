@@ -78,6 +78,7 @@ export class GameSound {
   private musicUnsaved = 0;
   private restoredPosition = 0;
   private skipRequested = false;
+  private requestedSong: string | null = null;
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
   private voices = new Set<AudioScheduledSourceNode>();
@@ -169,6 +170,7 @@ export class GameSound {
   }
   nextTheme() {
     if (this.disposed) return;
+    this.requestedSong = null;
     const track = this.background.get('theme');
     // Changing src during a pending play can let an old promise own the new song.
     // Collapse repeated Next presses until that one attempt has settled.
@@ -183,6 +185,32 @@ export class GameSound {
     this.musicError = false; this.musicWaiting = false; this.resetMusicClock();
     if (track) { track.media.src = this.themeSong.url; track.media.currentTime = 0; track.fading = false; }
     this.save(); this.syncBackground(); this.notifyMusic();
+  }
+  /** Play a catalogue selection through the office's existing music stream. */
+  playTheme(id: string): boolean { return this.selectTheme(id, true); }
+  private selectTheme(id: string, resume: boolean): boolean {
+    if (this.disposed || !SOUNDTRACK.some(song => song.id === id)) return false;
+    const track = this.background.get('theme');
+    if (resume) this.musicPaused = false;
+    this.skipRequested = false;
+    if (track?.pending) {
+      this.requestedSong = id;
+      this.save(); this.notifyMusic(); return true;
+    }
+    this.requestedSong = null;
+    if (this.themeSong?.id === id && track && !track.media.ended) {
+      this.musicError = false; this.musicWaiting = false;
+      this.syncBackground(); this.save(); this.notifyMusic(); return true;
+    }
+    if (track) {
+      this.recordMusic(track); track.media.pause();
+      track.gain.gain.cancelScheduledValues(this.time);
+      track.gain.gain.setValueAtTime(0, this.time);
+    }
+    this.themeSong = this.soundtrack.select(id)!; this.restoredPosition = 0;
+    this.musicError = false; this.musicWaiting = false; this.resetMusicClock();
+    if (track) { track.media.src = this.themeSong.url; track.media.currentTime = 0; track.fading = false; }
+    this.save(); this.syncBackground(); this.notifyMusic(); return true;
   }
   private resetMusicClock() { this.musicPosition = null; this.musicClock = null; }
   private recordMusic(track: BackgroundTrack, ended = false) {
@@ -333,7 +361,8 @@ export class GameSound {
       }).finally(() => {
         current.pending = false;
         if (kind === 'theme') {
-          if (this.skipRequested && !this.disposed) this.nextTheme();
+          if (this.requestedSong && !this.disposed) this.selectTheme(this.requestedSong, false);
+          else if (this.skipRequested && !this.disposed) this.nextTheme();
           else { this.recordMusic(current); this.notifyMusic(); }
         }
       });

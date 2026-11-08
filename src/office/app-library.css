@@ -36,3 +36,20 @@
 @keyframes al-enter { from { opacity: 0; } to { opacity: 1; } }
 @container (max-width: 700px) { .al-content { display: flex; flex-direction: column; overflow: auto; } .al-browse { flex: none; max-height: 34vh; } .al-detail { flex: none; overflow: visible; } .al-header { padding: 16px; } .al-toolbar { padding: 0 16px 12px; } .al-footer { padding: 10px 16px; } }
 @media (prefers-reduced-motion: reduce) { .app-library { animation: none; } .app-library button { transition: none; } .app-library button:active { transform: none; } }
+/* A real library owns a single list scroll region, separate from demo frames. */
+.al-detail-live { display: flex; flex-direction: column; overflow: hidden; }
+.al-detail-live .al-selected { flex: none; margin-bottom: 14px; }
+.al-detail-live .al-preview { flex: 1; min-height: 0; min-width: 0; width: 100%; align-items: stretch; overflow: hidden; }
+.al-back-apps { display: none; }
+@container (max-width: 700px) {
+  .al-live .al-content { overflow: hidden; }
+  .al-live .al-browse, .al-live .al-toolbar { display: none; }
+  .al-live .al-detail-live { flex: 1; min-height: 0; overflow: hidden; }
+  .al-live .al-back-apps { display: inline-flex; align-self: start; min-height: 38px; margin-bottom: 10px; }
+  .al-browsing .al-detail { display: none; }
+  .al-browsing .al-browse { flex: 1; max-height: none; }
+}
+@container (max-width: 700px) {
+  .al-live .al-header p, .al-live .al-selected p { display: none; }
+  .al-live .al-selected { margin-bottom: 6px; }
+}

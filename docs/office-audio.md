@@ -128,3 +128,26 @@ mute, bounded streams, keyboard focus, narrow layout and German labels. This is
 functional audio verification, not a subjective listening test. The fixture does
 not touch the running office or its saved settings. Stop the hidden workspace
 afterward to close both Firefox and the local QA server.
+
+## Song library
+
+Open the four-square **App library** button, then **Song library** (also listed
+under Media). It browses the real 19-song office soundtrack with title/genre
+search, genre filtering, durations and whole-row Play, Pause, Resume or Retry.
+The compact playback disclosure contains the same music-direction and Next
+controls as Office & settings. A song choice plays immediately through the
+existing office stream; the current direction resumes with the following song.
+Global mute and music volume remain authoritative.
+
+Switching apps or returning to the office keeps music playing. UI subscriptions
+are released on exit; search/filter/scroll state survives reopening. On narrow
+screens, **All apps** returns to the app grid. English/German controls update
+without changing the authored song titles. Botify remains a separate fictional
+robot-app demo.
+
+`node scripts/prepare-song-library-review.mjs --serve` builds a local browser
+acceptance fixture using the production app library, catalogue and audio engine.
+Run it in the hidden workspace, open its loopback URL in agent Firefox and press
+**Run library checks**. It checks real song selection, pause/resume, filters,
+empty results, locale switching, subscription cleanup, playback continuity,
+focus return, narrow navigation and the bounded two-stream audio pool.

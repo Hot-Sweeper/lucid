@@ -75,6 +75,21 @@ export class SoundtrackQueue {
     }
   }
 
+  /** A deliberate library choice is one song, without changing music direction. */
+  select(id: string, date = new Date()): SoundtrackSong | null {
+    const song = this.songs.find(value => value.id === id);
+    if (!song) return null;
+    if (!this.started) {
+      const period = soundtrackPeriod(date);
+      this.chapterIndex = period === 'night' ? 0 : period === 'evening' ? 2 : 1;
+      this.started = true;
+    }
+    if (this.played.size === this.songs.length) this.played.clear();
+    this.played.add(song.id); this.last = song.id;
+    if (this.mode === 'journey' && song.genre === this.chapter.genres[0]) this.chapterHeard = true;
+    return song;
+  }
+
   next(date = new Date()): SoundtrackSong {
     if (!this.songs.length) throw Error('The office soundtrack is empty.');
     if (!this.started) {
