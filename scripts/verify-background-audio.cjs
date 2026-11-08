@@ -47,6 +47,7 @@ async function main() {
   assert.equal(contexts.length, 1); assert.equal(media.length, 2);
   assert(media.every(m => m.calls === 1 && m.preload === 'none') && !media[0].loop && media[1].loop, 'only ambience loops; gestures never overlap pending plays');
   const audio = contexts[0];
+  assert.equal(sound.background.get('ambience').gain.gain.value, .36, 'default room tone is quiet without rewriting saved slider preferences');
   const assertTrim = (engine,label) => assert(Math.abs(engine.background.get('theme').gain.gain.value-engine.themeVolume*2.2*10**(engine.currentTheme.gainDb/20))<1e-9,label);
   assertTrim(sound,'the first fade applies the first recording measured playback trim');
   assert([...sound.background.values()].every(track => track.source.target === track.gain && track.gain.target === sound.master), 'both streams use the existing master');
@@ -60,7 +61,7 @@ async function main() {
   sound.configureBackground('theme', 0);
   assert(media[0].paused && !media[1].paused, 'music can stop independently of ambience');
   sound.configureBackground('ambience', .12);
-  assert.equal(sound.background.get('ambience').gain.gain.value, .48);
+  assert.equal(sound.background.get('ambience').gain.gain.value, .24, 'existing saved ambience levels use the quieter calibration');
   assert.equal(media[1].calls, 2, 'changing volume does not restart playing audio');
   sound.configureBackground('theme', .5); media[0].resolve(); await settle();
   assert.equal(media[0].currentTime, 18, 'turning a layer back on preserves its playhead');

@@ -4,6 +4,7 @@ Rebuild with Python + numpy + scipy and ffmpeg on PATH. The app only ships the
 encoded assets, never a runtime synthesizer or a dependency on these tools.
 """
 from pathlib import Path
+import argparse
 import json
 import subprocess
 import tempfile
@@ -11,6 +12,11 @@ import wave
 
 import numpy as np
 from scipy.signal import butter, sosfilt
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--only', choices=['both', 'theme', 'ambience'], default='both',
+                    help='Export just room ambience without replacing the original song.')
+args = parser.parse_args()
 
 RATE = 44100
 BPM = 78
@@ -126,8 +132,10 @@ air = np.zeros((air_length, 2), dtype=np.float32)
 t = np.arange(air_length)/RATE
 for channel in range(2):
     raw = rng.normal(0, 1, air_length+RATE*2)
-    soft = sosfilt(butter(2, [160, 1600], btype='bandpass', fs=RATE, output='sos'), raw)[RATE*2:]
-    air[:, channel] = soft*(.7+.12*np.sin(2*np.pi*t/24+channel))
+    # Keep a low, steady room tone rather than the broad hiss and noticeable
+    # swells of rain or wind. Playback calibration controls its quiet level.
+    soft = sosfilt(butter(2, [100, 650], btype='bandpass', fs=RATE, output='sos'), raw)[RATE*2:]
+    air[:, channel] = soft*(.7+.025*np.sin(2*np.pi*t/24+channel))
 # Equal-power wrap crossfade removes the noise boundary.
 fade = RATE*2
 weight = np.linspace(0, np.pi/2, fade)
@@ -151,5 +159,7 @@ def export(name, samples):
             'rmsDbFS': float(20*np.log10(np.sqrt(np.mean(samples**2))))}
 
 
-metrics = {'theme': export('little-lights', song), 'ambience': export('room-air', air)}
+metrics = {}
+if args.only in ('both', 'theme'): metrics['theme'] = export('little-lights', song)
+if args.only in ('both', 'ambience'): metrics['ambience'] = export('room-air', air)
 print(json.dumps(metrics, indent=2))

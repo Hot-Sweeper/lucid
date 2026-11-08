@@ -292,10 +292,10 @@ export class GameSound {
     if (this.context?.state === 'suspended') { this.resumeContext(); return; }
     this.syncBackground(); this.notifyMusic();
   };
-  // Asset headroom keeps the default theme around -40 dBFS RMS and air below it.
+  // Room tone stays a quiet indoor bed, including with previously saved levels.
   private backgroundLevel(kind: BackgroundKind) {
     const trim = Number.isFinite(this.themeSong?.gainDb) ? clamp(this.themeSong!.gainDb!, -4, 2) : 0;
-    return kind === 'theme' ? this.themeVolume * 2.2 * Math.pow(10, trim / 20) : this.ambienceVolume * 4;
+    return kind === 'theme' ? this.themeVolume * 2.2 * Math.pow(10, trim / 20) : this.ambienceVolume * 2;
   }
   private syncBackground() {
     const ctx = this.context, master = this.master;

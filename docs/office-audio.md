@@ -113,8 +113,11 @@ restart playback.
 
 Each piece has a measured constant playback trim targeting -20 LUFS. This
 matches playback loudness while preserving section dynamics. The separate
-room-air bed is filtered stereo air. Spatial typing, footsteps, water, birds
-and object sounds continue to follow real visible activity.
+room-air bed is quiet, low-band stereo tone (100 to 650 Hz), with restrained
+modulation rather than rain-like hiss and swells. Its playback calibration is
+6 dB lower than the earlier bed, including for previously saved slider levels;
+zero still pauses it. This layer is independent of weather. Spatial typing,
+footsteps, water, birds and object sounds follow real visible activity.
 
 ## Song library
 
@@ -167,7 +170,8 @@ cannot overwrite newer sampled/native masters through the command line.
 `library-mastering.json` measures actual packaged MP3 hashes, duration, DC,
 stereo correlation, silence, loudness and true peaks.
 
-Earlier generation tools remain `compose-office-theme.py`,
+Regenerate room air alone with `python scripts/compose-office-theme.py --only ambience`,
+which preserves every music recording. Earlier generation tools remain `compose-office-theme.py`,
 `compose-office-playlist.py` and `compose-office-encore.py`. The latter two use
 `cozy_percussion.py` and the same pinned VCSL cache, passed with `--sample-dir`
 or `LUCID_VCSL_DRUMS`. Their `--only` option can render selected recordings
