@@ -1,3 +1,4 @@
+import { officeColumns, officeDimensions, mountOfficeWidth, releaseOfficeWidth } from "./office-width";
 import "./storefront.css";
 import { managerLook } from "../world/look";
 import { projectBrand } from "./project-brand";
@@ -64,7 +65,7 @@ export type WProject = { id: string; title: string; root: string; icon: string |
 export type WorldData = { environmentId?: string; projects: WProject[]; threads: WThread[]; models?: Record<string, string[]>; prices?: Record<string, { input: number; output: number }>; shipped?: { total: number; today: number } };
 
 export type OfficeLayout = {
-  roomOrder: string[]; expandedRooms: string[]; collapsedRooms?: string[]; hidden: string[];
+  roomOrder: string[]; expandedRooms: string[]; collapsedRooms?: string[]; roomColumns?: Record<string, number>; hidden: string[];
   extra: Record<string, number>; homes: Record<string, string>;
   seats: Record<string, (string | null)[]>; themes: Record<string, RoomTheme>;
 };
@@ -85,18 +86,17 @@ export interface RoomExtension {
 }
 
 const WALL_FACE = 110;   // north wall face height
-const COLS = 3;
 const SLOT_W = UNIT_W + 20, SLOT_H = UNIT_H + 20;
 const GAP = 40, HALL = 150;
 const IN_FRONT = 300000;  // stacking bias for a walker getting into or out of a chair (desks raise themselves up to 100000 + y)
 const WALK_SCALE = 0.42;   // every walking robot (hall, rooms, park) and the desk robots (seated.ts) share this size
-const releaseRoomVectors=(el:HTMLElement)=>{destroyStaticArt(el);for(const node of [el,...el.querySelectorAll<HTMLElement>("[data-vector-owner]")])if(node.dataset.vectorOwner)releaseVectors(node.dataset.vectorOwner)};
+const releaseRoomVectors=(el:HTMLElement)=>{releaseOfficeWidth(el);destroyStaticArt(el);for(const node of [el,...el.querySelectorAll<HTMLElement>("[data-vector-owner]")])if(node.dataset.vectorOwner)releaseVectors(node.dataset.vectorOwner)};
 
 const LOUNGE = 230;      // extra floor below the desks for a rug, beanbags or a ping pong table
-function officeSize(slots: number, lounge = 0) {
-  const cols = Math.min(COLS, Math.max(1, slots)), rows = Math.ceil(Math.max(1, slots) / COLS);
-  return { w: 70 + cols * SLOT_W + 50, h: WALL_FACE + 40 + rows * SLOT_H + 30 + lounge, cols };
+function officeSize(slots: number, lounge = 0, columns = 1) {
+  return officeDimensions(slots, columns, SLOT_W, SLOT_H, lounge);
 }
+const columnsForRoom = (room: { w: number }) => officeColumns((room.w - 120) / SLOT_W);
 // Decorations the company has unlocked, out of what the room asks for.
 // Things in a room only show once they are unlocked and bought.
 let ownsItem: (key: string) => boolean = () => true;
@@ -719,6 +719,16 @@ export class World {
   private slotDesks = new Map<string, Desk>();              // "room#index" -> desk standing there
   expandedRooms = new Set<string>();
   collapsedRooms = new Set<string>();
+  roomColumns = new Map<string, number>();
+  setRoomColumns(id: string, value: number) {
+    const columns = officeColumns(value);
+    if (columns === officeColumns(this.roomColumns.get(id))) return;
+    this.roomColumns.set(id, columns);
+    const room = this.rooms.find(r => r.id === id);
+    if (room) gameSound.at('switch', room.el, .7);
+    if (this.lastData) this.update(this.lastData);
+    this.onLayoutChange();
+  }
   private revealedThread: string | null = null;
   private layoutHeld = false;
   private touchLayoutHeld = false;
@@ -957,7 +967,7 @@ export class World {
       seatOrder(id, reserved);
       const projection = projectRoomSeats(this.seats.get(id)!, reserved, this.expandedRooms.has(id), this.revealedThread, extra, this.collapsedRooms.has(id));
       const { slots, collapsed } = projection;
-      const { w, h } = collapsed ? FOLDED_OFFICE : officeSize(slots, needsLounge(this.themes.get(id), this.level) ? LOUNGE : 0);
+      const { w, h } = collapsed ? FOLDED_OFFICE : officeSize(slots, needsLounge(this.themes.get(id), this.level) ? LOUNGE : 0, officeColumns(this.roomColumns.get(id)));
       return { id, kind, title, icon, threads: projection.threads, slots, w, h, collapsed };
     };
     let top: Plan[] = [
@@ -1061,7 +1071,7 @@ export class World {
       this.wakeRoutes();
     }
 
-    const key = rooms.map((r, i) => `${r.id}:${plans[i].slots}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|") + `:L${this.level}:${[...this.themes.values()].map((t) => [...(t.decor ?? []), t.floor, t.wall].filter((k) => k).map((k) => (ownsItem(`decor:${k}`) || ownsItem(`floor:${k}`) || ownsItem(`wall:${k}`) ? 1 : 0)).join("")).join("")}`;
+    const key = rooms.map((r, i) => `${r.id}:${plans[i].slots}:${r.w}:${r.h}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|") + `:L${this.level}:${[...this.themes.values()].map((t) => [...(t.decor ?? []), t.floor, t.wall].filter((k) => k).map((k) => (ownsItem(`decor:${k}`) || ownsItem(`floor:${k}`) || ownsItem(`wall:${k}`) ? 1 : 0)).join("")).join("")}`;
     if (key !== this.lastKey) {
       this.lastKey = key;
       // Keep unchanged artwork and residents alive while neighboring rooms move.
@@ -1069,6 +1079,7 @@ export class World {
       if (!animate) this.finishRoomTransitions();
       const focused = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>('.room[data-room-id]');
       const focusedId = focused?.dataset.roomId;
+      const focusedWidth = (document.activeElement as HTMLElement | null)?.closest('.office-width-controls, .office-width-handle') ? (document.activeElement as HTMLElement).className || (document.activeElement as HTMLElement).textContent : null;
       const focusedSize = (document.activeElement as HTMLElement | null)?.classList.contains('room-size-hit');
       const oldRooms = new Map(this.rooms.map((r) => [r.id, r]));
       rooms.forEach((r, i) => {
@@ -1135,6 +1146,8 @@ export class World {
         size.addEventListener('click', event => { event.stopPropagation(); this.setRoomExpanded(r.id, !this.isRoomExpanded(r.id)); });
         size.addEventListener('pointerdown', event => event.stopPropagation());
         r.el.append(size);
+        if (!r.collapsed) mountOfficeWidth(r.el, r.title, columnsForRoom(r), SLOT_W,
+          held => this.setLayoutHeld(held), columns => this.setRoomColumns(r.id, columns));
         if (r.collapsed) {
           const open = document.createElement("button");
           open.type = "button"; open.className = "room-reopen-hit";
@@ -1145,6 +1158,10 @@ export class World {
         }
       }
       if (focusedId) rooms.find(r => r.id === focusedId)?.el.querySelector<HTMLElement>(focusedSize ? '.room-size-hit' : '.room-sign-hit')?.focus({ preventScroll: true });
+      if (focusedId && focusedWidth) {
+        const room = rooms.find(r => r.id === focusedId);
+        [...(room?.el.querySelectorAll<HTMLButtonElement>('.office-width-controls button, .office-width-handle') ?? [])].find(b => b.className === focusedWidth || b.textContent === focusedWidth)?.focus({ preventScroll: true });
+      }
       this.paintClock();
     } else rooms.forEach((r, i) => (r.el = this.rooms[i]?.el ?? r.el));
     this.rooms = rooms;
@@ -1163,7 +1180,7 @@ export class World {
     plans.forEach((p, i) => {
       if (!p.slots) return;
       const r = rooms[i];
-      const { cols } = officeSize(p.slots);
+      const cols = columnsForRoom(rooms[i]);
       for (let k = 0; k < p.slots; k++) {
         // Keep the old floor safe for departing walkers, without keeping a settled
         // worker's computer and nameplate alive throughout the layout barrier.
@@ -1337,7 +1354,7 @@ export class World {
     plans.forEach((p, i) => {
       if (!p.slots || p.kind === "queue" || p.kind === "break") return;
       const r = rooms[i];
-      const { cols } = officeSize(p.slots);
+      const cols = columnsForRoom(rooms[i]);
       const k = p.slots, { c, row } = snakeSeat(k, cols);
       if (row > 0 && k % cols === 0 && (this.extra.get(p.id) ?? 0) >= 6) return;
       const fits = k % cols !== 0; // only inside the room's current width
@@ -1490,7 +1507,7 @@ export class World {
       const start = this.deskPos(d), x0 = e.clientX, y0 = e.clientY;
       let z = this.cam.s;
       const room = this.roomById(d.room)!;
-      const { cols } = officeSize(entries.length);
+      const cols = columnsForRoom(room);
       const positions = original.map((_, i) => { const { c, row } = snakeSeat(i, cols); return { x: room.x + 70 + c * SLOT_W, y: room.y + WALL_FACE + 40 + row * SLOT_H }; });
       let active = false, target = source, ended = false;
       let destination: string | null = null;
@@ -1964,7 +1981,7 @@ export class World {
   private rememberLayout() {
     if (!this.lastData) return;
     this.layoutArchive[this.lastData.environmentId || 'local'] = {
-      roomOrder: [...this.roomOrder], expandedRooms: [...this.expandedRooms], collapsedRooms: [...this.collapsedRooms], hidden: [...this.hidden],
+      roomOrder: [...this.roomOrder], expandedRooms: [...this.expandedRooms], collapsedRooms: [...this.collapsedRooms], roomColumns: Object.fromEntries(this.roomColumns), hidden: [...this.hidden],
       extra: Object.fromEntries(this.extra), homes: Object.fromEntries(this.homes),
       seats: Object.fromEntries(this.seats), themes: Object.fromEntries(this.themes),
     };
@@ -1987,12 +2004,14 @@ export class World {
     return this.layoutArchive[key] = {
       roomOrder: legacy.roomOrder.filter(scoped), expandedRooms: legacy.expandedRooms.filter(scoped), collapsedRooms: (legacy.collapsedRooms ?? []).filter(scoped),
       hidden: legacy.hidden.filter(id => id.startsWith(threadPrefix)),
+      roomColumns: entries(legacy.roomColumns ?? {}, scoped),
       extra: entries(legacy.extra, scoped), themes: entries(legacy.themes, scoped),
       homes: entries(legacy.homes, id => id.startsWith(threadPrefix)), seats,
     };
   }
   private applyOfficeLayout(layout?: OfficeLayout) {
     this.roomOrder = [...(layout?.roomOrder ?? [])]; this.expandedRooms = new Set(layout?.expandedRooms ?? []); this.collapsedRooms = new Set(layout?.collapsedRooms ?? []);
+    this.roomColumns = new Map(Object.entries(layout?.roomColumns ?? {}).map(([id, value]) => [id, officeColumns(value)]));
     this.hidden = new Set(layout?.hidden ?? []); this.extra = new Map(Object.entries(layout?.extra ?? {}));
     this.homes = new Map(Object.entries(layout?.homes ?? {})); this.seats = new Map(Object.entries(layout?.seats ?? {}));
     this.themes = new Map(Object.entries(layout?.themes ?? {}));
@@ -2038,6 +2057,7 @@ export class World {
     this.sceneryCull?.destroy(); this.sceneryCull=null;
   };
   private destroyEmbedded() {
+    for (const room of this.rooms) releaseOfficeWidth(room.el);
     this.layoutObserver?.disconnect(); this.layoutObserver = null;
     document.removeEventListener('visibilitychange', this.visibilityPresentation);
     this.cancelCameraTween(); this.cancelOutsideWarm(); window.clearTimeout(this.zoomEnd);
@@ -2305,7 +2325,7 @@ function monogram(title: string) {
 }
 
 function officeDecor(r: Room, slots: number, theme?: RoomTheme, level = 0) {
-  const { w, h, kind } = r, T = 16, { cols } = officeSize(Math.max(1, slots));
+  const { w, h, kind } = r, T = 16, cols = columnsForRoom(r);
   const desks = Array.from({ length: slots }, (_, k) => { const { c, row } = snakeSeat(k, cols); return { x: 70 + c * SLOT_W, y: WALL_FACE + 40 + row * SLOT_H, w: UNIT_W, h: UNIT_H }; });
   const avoid = [{ x: 30, y: T, w: 148, h: WALL_FACE - T }, ...(kind === "main" ? [{ x: w - 112, y: T, w: 64, h: 66 }] : []), ...(kind === "freelance" ? [{ x: w - 430, y: WALL_FACE - 10, w: 310, h: 70 }] : [])];
   return placeDecor(usable(theme, level), w, h, WALL_FACE, desks, { avoid, wallTop: T });

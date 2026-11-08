@@ -38,6 +38,7 @@ export function mountTouchCamera(scene: HTMLElement, options: Options) {
   };
   const down = (event: PointerEvent) => {
     if (event.pointerType !== 'touch') return;
+    if ((event.target as Element)?.closest('.office-width-handle')) return;
     if (!points.size) { suppressUntil = 0; previous = null; }
     // Prevent workstation, room and toy drag handlers from claiming a phone swipe.
     // Do not cancel a single down: native click, focus and button activation must survive a tap.

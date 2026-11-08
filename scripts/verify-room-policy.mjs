@@ -18,9 +18,9 @@ assert.equal(projectRoomSeats(['settled'], [manager], false, null).slots, 1);
 const worldSource = await readFile(new URL('../src/office/world.ts', import.meta.url), 'utf8');
 const slotSource = worldSource.slice(worldSource.indexOf('    const slots: { key:'), worldSource.indexOf('    const wanted = new Set(slots'));
 const slotCode = (await transformWithOxc(slotSource, 'slots.ts')).code;
-const heldSlots = new Function('plans', 'rooms', 'officeSize', 'SLOT_W', 'SLOT_H', 'WALL_FACE', 'hasOfficeDesk', `${slotCode};return slots;`)(
+const heldSlots = new Function('plans', 'rooms', 'columnsForRoom', 'SLOT_W', 'SLOT_H', 'WALL_FACE', 'hasOfficeDesk', `${slotCode};return slots;`)(
   [{ id: 'p:project', slots: 2, threads: [settledWorker, { ...manager, id: 'manager' }] }],
-  [{ x: 0, y: 0 }], () => ({ cols: 2 }), 400, 380, 80, hasOfficeDesk);
+  [{ x: 0, y: 0 }], () => 2, 400, 380, 80, hasOfficeDesk);
 assert.deepEqual(heldSlots.map(s => [s.key, s.t.id, s.x]), [['p:project#1', 'manager', 470]]);
 const thread = (id, runStatus = null, question = null) => ({ id, runStatus, question, pinned: true, settled: false });
 for (const status of ['running', 'queued', 'waiting', 'starting', 'preparing', 'pending', 'waiting_for_approval', 'awaiting-approval', 'Waiting For Input']) assert.equal(hasOfficeWork(thread('x', status)), true, status);

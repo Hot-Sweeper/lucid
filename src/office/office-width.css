@@ -1,0 +1,12 @@
+.office-width-controls { position: absolute; right: 22px; top: 82px; display: flex; gap: 6px; z-index: 3; }
+.office-width-controls button, .office-width-handle { color: #fff0df; background: #36364e; border: 0; border-radius: 8px; font: 600 14px Lexend, sans-serif; cursor: pointer; transition: background 130ms cubic-bezier(.23,1,.32,1), transform 130ms cubic-bezier(.23,1,.32,1); }
+.office-width-controls button { min-height: 28px; padding: 4px 10px; }
+.office-width-handle { position: absolute; right: 0; top: 142px; width: 32px; height: 80px; cursor: ew-resize; touch-action: none; z-index: 4; }
+.office-width-controls button:hover:enabled, .office-width-handle:hover { background: #514b68; }
+.office-width-controls button:active:enabled, .office-width-handle:active { transform: scale(.97); }
+.office-width-controls button:disabled { opacity: .5; cursor: default; }
+.office-width-controls button:focus-visible, .office-width-handle:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.office-width-preview { position: absolute; left: 0; top: 0; height: 100%; box-sizing: border-box; border: 4px dashed #ff9f5a; pointer-events: none; z-index: 5; text-align: right; padding: 118px 24px 0; color: #fff0df; font: 600 18px Lexend, sans-serif; text-shadow: 0 1px 3px #000; }
+@media (prefers-reduced-motion: reduce) { .office-width-controls button, .office-width-handle { transition: none; } }
+
+.room:has(> .office-width-preview) { overflow: visible; }

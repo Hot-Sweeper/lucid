@@ -25,8 +25,8 @@ function harness(room = 'freelance') {
   const win = new Element(), doc = { body: new Element(), createElement: () => new Element() };
   win.getSelection = () => null;
   const timers = [], cues = [];
-  const World = new Function('gsap', 'window', 'document', 'setTimeout', 'officeSize', 'snakeSeat', 'reorderPhysicalSeats', 'UNIT_W', 'UNIT_H', 'WALL_FACE', 'SLOT_W', 'SLOT_H', 'gameSound', code + '; return DragWorld;')(
-    { set(el, props) { Object.assign(el.style, props); }, killTweensOf() {} }, win, doc, cb => timers.push(cb), () => ({ cols: 2 }), i => ({ c: i, row: 0 }), (_, __, after) => after,
+  const World = new Function('gsap', 'window', 'document', 'setTimeout', 'columnsForRoom', 'snakeSeat', 'reorderPhysicalSeats', 'UNIT_W', 'UNIT_H', 'WALL_FACE', 'SLOT_W', 'SLOT_H', 'gameSound', code + '; return DragWorld;')(
+    { set(el, props) { Object.assign(el.style, props); }, killTweensOf() {} }, win, doc, cb => timers.push(cb), () => 2, i => ({ c: i, row: 0 }), (_, __, after) => after,
     400, 350, 100, 440, 400, { play: cue => cues.push(cue) });
   const w = new World(), a = { el: new Element(), room, threadId: 'a' }, b = { el: new Element(), room, threadId: 'b' };
   Object.assign(w, {
