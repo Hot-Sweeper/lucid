@@ -1,5 +1,6 @@
 // Pure geometry checks. No app, user settings, or external service is started.
 import assert from 'node:assert/strict';
+import './verify-floor-tiles.mjs';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 const source = await transformWithOxc(await readFile(new URL('../src/office/floor-plan.ts', import.meta.url), 'utf8'), 'floor-plan.ts');

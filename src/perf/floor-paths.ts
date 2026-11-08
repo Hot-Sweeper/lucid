@@ -18,8 +18,9 @@ export function plankJoints(w: number, h: number, top: number, seam: string, own
 export function cafeTiles(w: number, h: number, top: number, floor: string, seam: string, owner?:string) {
   const shapes: string[] = [], cols = Math.ceil(w / 48);
   for (let i = 0; i < cols * Math.ceil(h / 48); i++) {
-    const row = Math.floor(i / cols), x = (i % cols) * 48 + 1, y = top + row * 48 + 1;
-    shapes.push(`<rect x="${x}" y="${y}" width="46" height="46" rx="3" fill="${(i+row)%2?floor:seam}" opacity="0.9"/>`);
+    const row = Math.floor(i / cols), col = i % cols, x = col * 48 + 1, y = top + row * 48 + 1;
+    // Row-major indices change parity with room width; grid coordinates do not.
+    shapes.push(`<rect x="${x}" y="${y}" width="46" height="46" rx="3" fill="${(col+row)%2?floor:seam}" opacity="0.9"/>`);
   }
   const markup=shapes.join("");return owner?sharedVector(markup,owner):markup;
 }
