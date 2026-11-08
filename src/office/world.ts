@@ -1,3 +1,4 @@
+import "./storefront.css";
 import { managerLook } from "../world/look";
 import { projectBrand } from "./project-brand";
 import type { RobotLook } from "./rig";
@@ -1231,6 +1232,9 @@ export class World {
       this.slotDesks.set(s.key, d);
       d.room = s.key.split("#")[0];
       d.el.dataset.slot = s.key;
+      const appearance = this.themes.get(d.room);
+      const computer = appearance?.computers?.[s.key] ?? appearance?.computer ?? "classic";
+      d.el.dataset.computer = ownsItem(`computer:${computer}`) ? computer : "classic";
       if (d.threadId && (nowRoom.get(d.threadId) !== d.room || moving.some((m) => m.t.id === d!.threadId) || this.transit.has(d.threadId))) d.setSeated(false);
       if (d.threadId) d.el.classList.toggle("orch-desk", d.threadId === this.orchThread);
       const cur = { x: parseFloat(d.el.style.left), y: parseFloat(d.el.style.top) };

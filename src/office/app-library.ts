@@ -7,14 +7,17 @@ export function openAppLibrary(trigger: HTMLElement) {
   const scene = document.getElementById("scene");
   const host = scene?.parentElement;
   if (!scene || !host) return;
+  window.dispatchEvent(new Event("lucid:center-view"));
   const wasInert = scene.inert;
   const dialog = document.createElement("section");
   const close = () => {
+    window.removeEventListener("lucid:center-view", close);
     preview.replaceChildren(); dialog.remove(); current = null;
     scene.inert = wasInert; host.classList.remove("app-library-open");
     trigger.setAttribute("aria-expanded", "false");
     trigger.focus({ preventScroll: true });
   };
+  window.addEventListener("lucid:center-view", close);
   current = { close };
   dialog.id = "app-library"; dialog.className = "app-library"; dialog.setAttribute("aria-labelledby", "app-library-title");
   dialog.innerHTML = `<header class="al-header"><div><h2 id="app-library-title">App library</h2><p>Explore the apps on Lucid’s robot computers.</p></div><button type="button" class="ghost al-close" aria-label="Back to office">Back to office</button></header><div class="al-toolbar"><label class="al-search">Search apps<input type="search" placeholder="Games, Botcord, YouTube…" autofocus></label><nav class="al-categories" aria-label="App categories"></nav></div><div class="al-content"><section class="al-browse" aria-label="Apps"><p class="al-count" role="status"></p><div class="al-grid"></div></section><section class="al-detail" aria-label="App details"><div class="al-selected"></div><div class="al-preview"></div></section></div><footer class="al-footer">These are Lucid’s built-in apps. Previews use demo content and do not control a working robot.</footer>`;

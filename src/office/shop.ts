@@ -1,3 +1,4 @@
+import { COMPUTERS, computerPreview, type ComputerId } from "./appearances";
 import gsap from "gsap";
 import { startCoinLedger, observeCoinLedger, collectCoinJob, collectible, formatCoins, roundCoins, type CoinLedger, type CoinSource } from "./coin-ledger";
 import { gameSound } from "./sound";
@@ -8,7 +9,7 @@ import { FLOORS, WALLS, DECOR, DECOR_IDS, drawFloor, drawDecor, type FloorId, ty
 // company level) and a daily reward add a little on top.
 
 export const COINS_PER_DOLLAR = 1;
-export type ShopKind = "decor" | "floor" | "wall";
+export type ShopKind = "decor" | "floor" | "wall" | "computer";
 export type Season = "spring" | "summer" | "autumn" | "winter";
 export type ShopItem = { id: string; key: string; kind: ShopKind; name: string; price: number; level: number; season?: Season };
 
@@ -21,13 +22,13 @@ const WALL_PRICE: Record<WallId, number> = { warm: 0, cool: 20, mint: 30, lilac:
 const SEASONAL_PRICE: Record<string, number> = { pumpkins: 30, leafwreath: 18, xmastree: 120, stringlights: 45, snowglobe: 35, tulips: 25, kite: 18, deskfan: 35, palm: 60, beachposter: 18 };
 const seasonOf = (id: string) => (DECOR as any)[id]?.season as Season | undefined;
 export const CATALOG: ShopItem[] = [
+  ...Object.entries(COMPUTERS).map(([id, c]) => ({ id, key: `computer:${id}`, kind: "computer" as const, name: c.name, price: c.price, level: 0 })),
   ...DECOR_IDS.map((id) => ({ id, key: `decor:${id}`, kind: "decor" as const, name: DECOR[id].name, price: seasonOf(id) ? SEASONAL_PRICE[id] ?? 40 : DECOR_PRICE[id] ?? 60, level: DECOR[id].unlockAt, season: seasonOf(id) })),
   ...(Object.keys(FLOORS) as FloorId[]).map((id) => ({ id, key: `floor:${id}`, kind: "floor" as const, name: FLOORS[id].name, price: FLOOR_PRICE[id], level: 0 })),
   ...(Object.keys(WALLS) as WallId[]).map((id) => ({ id, key: `wall:${id}`, kind: "wall" as const, name: WALLS[id].name, price: WALL_PRICE[id], level: 0 })),
 ];
 export function currentSeason(d = new Date()): Season { const m = d.getMonth(); return m < 2 || m === 11 ? "winter" : m < 5 ? "spring" : m < 8 ? "summer" : "autumn"; }
 export const seasonalNow = () => CATALOG.filter((c) => c.season === currentSeason());
-const SEASON_END: Record<Season, string> = { spring: "the end of May", summer: "the end of August", autumn: "the end of November", winter: "the end of February" };
 export const itemFor = (kind: ShopKind, id: string) => CATALOG.find((c) => c.kind === kind && c.id === id) ?? null;
 
 export type WalletState = { ledger: Record<string, number>; spent: number; owned: string[]; v?: number; daily?: { last: string; streak: number }; collection?: CoinLedger };
@@ -145,23 +146,30 @@ export class Wallet {
     if (gained) this.onChange(this.balance, gained);
   }
 
-  buy(key: string): boolean {
-    const it = CATALOG.find((c) => c.key === key);
-    if (!it || this.owns(key) || this.balance < it.price) return false;
-    if (it.season && it.season !== currentSeason()) return false;   // seasonal things only sell in their season
+  buy(key: string): boolean { return !this.owns(key) && this.buyMany([key]); }
+
+  /** Theme collections are one transaction: never spend half a bundle's price. */
+  buyMany(keys: string[]): boolean {
+    const items = [...new Set(keys)].map(key => CATALOG.find(c => c.key === key));
+    if (items.some(it => !it || it.level > this.level || it.season && it.season !== currentSeason() && !this.owns(it.key))) return false;
+    const missing = items.filter((it): it is ShopItem => !!it && !this.owns(it.key));
+    const price = missing.reduce((n, it) => n + it.price, 0);
+    if (this.balance < price) return false;
+    if (!missing.length) return true;
     const s = this.state();
-    s.spent += it.price;
-    s.owned.push(key);
+    s.spent = roundCoins(s.spent + price);
+    s.owned.push(...missing.map(it => it.key));
     this.set(s);
-    this.onChange(this.balance, -it.price);
+    this.onChange(this.balance, -price);
     return true;
   }
+
 }
 
 export const coinIcon = (size = 16) => `<svg class="coin-ico" viewBox="0 0 20 20" width="${size}" height="${size}" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#e8a93a"/><circle cx="10" cy="10" r="7" fill="#ffd27a"/><path d="M10 5.5v9M7.6 7.6h3.6a1.6 1.6 0 0 1 0 3.2H8.8a1.6 1.6 0 0 0 0 3.2h3.6" stroke="#c8861f" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>`;
-const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 export function itemPreview(it: ShopItem, w = 96, h = 72) {
+  if (it.kind === "computer") return computerPreview(it.id as ComputerId, w, h);
   if (it.kind === "floor") return `<svg viewBox="0 0 96 72" width="${w}" height="${h}" aria-hidden="true">${drawFloor(it.id as FloorId, 96, 72, 0)}</svg>`;
   if (it.kind === "wall") { const c = WALLS[it.id as WallId]; return `<svg viewBox="0 0 96 72" width="${w}" height="${h}" aria-hidden="true"><rect width="96" height="58" fill="${c.face}"/><rect y="52" width="96" height="8" fill="${c.trim}"/><rect y="60" width="96" height="12" fill="#c9a274"/></svg>`; }
   const wall = DECOR[it.id as DecorId].spot === "wall";
@@ -169,68 +177,12 @@ export function itemPreview(it: ShopItem, w = 96, h = 72) {
   return `<svg viewBox="-70 ${wall ? -100 : -110} 140 130" width="${w}" height="${h}" aria-hidden="true">${drawDecor(it.id as DecorId, 0, wall ? 20 : 0, big ? 0.5 : 0.75)}</svg>`;
 }
 
-// The shop window.
-export function openShop(o: { wallet: Wallet; level: number; onBought?: (it: ShopItem) => void }) {
-  gameSound.play('open');
-  const wrap = document.createElement("div");
-  wrap.className = "dialog-wrap shop-wrap";
-  type Tab = ShopKind | "season";
-  const season = currentSeason();
-  const tabs: [Tab, string][] = [["season", `${season[0].toUpperCase()}${season.slice(1)} specials`], ["decor", "Furniture"], ["floor", "Floors"], ["wall", "Walls"]];
-  let tab: Tab = "season";
-  wrap.innerHTML = `
-    <div class="dialog shop" role="dialog" aria-modal="true" aria-labelledby="shop-title">
-      <header class="shop-head">
-        <div><h2 id="shop-title">Shop</h2><p>Collect coins from finished robots: $1 at API prices earns 1 coin, plus bonuses. Today's lucky hour starts at ${luckyHour()}:00. Place purchases with Decorate on an office sign.</p></div>
-        <div class="shop-bal" aria-live="polite">${coinIcon(20)}<b></b></div>
-      </header>
-      <div class="shop-tabs" role="tablist">${tabs.map(([k, n]) => `<button type="button" role="tab" data-t="${k}" aria-selected="${k === tab}">${n}</button>`).join("")}</div>
-      <div class="shop-grid" role="tabpanel"></div>
-      <div class="dialog-actions"><button type="button" class="primary" data-a="close">Done</button></div>
-    </div>`;
-  document.body.appendChild(wrap);
-  const grid = wrap.querySelector(".shop-grid") as HTMLElement;
-  const bal = wrap.querySelector(".shop-bal b") as HTMLElement;
-  const paint = () => {
-    bal.textContent = formatCoins(o.wallet.balance);
-    const list = tab === "season" ? CATALOG.filter((c) => c.season === season) : CATALOG.filter((c) => c.kind === tab && !c.season);
-    const note = tab === "season" ? `<p class="shop-note">${list.length ? `Only sold until ${SEASON_END[season]}. What you buy stays yours all year.` : "The seasonal things are on their way."}</p>` : "";
-    grid.innerHTML = note + list.map((it) => {
-      const owned = o.wallet.owns(it.key), locked = it.level > o.level, short = it.price - o.wallet.balance;
-      const action = owned ? `<span class="shop-owned">${it.price ? "Owned" : "Free"}</span>`
-        : locked ? `<span class="shop-lock">Level ${it.level}</span>`
-        : `<button type="button" class="shop-buy" data-k="${it.key}" ${short > 0 ? "disabled" : ""}>${coinIcon(14)}${it.price.toLocaleString()}</button>${short > 0 ? `<small>${short.toLocaleString()} more</small>` : ""}`;
-      return `<article class="shop-item ${owned ? "is-owned" : ""} ${locked ? "is-locked" : ""}"><div class="shop-pic">${itemPreview(it)}</div><b>${esc(it.name)}</b><div class="shop-act">${action}</div></article>`;
-    }).join("");
-  };
-  paint();
-  wrap.querySelector(".shop-tabs")!.addEventListener("click", (e) => {
-    const b = (e.target as HTMLElement).closest("[data-t]") as HTMLElement | null;
-    if (!b) return;
-    tab = b.dataset.t as Tab;
-    wrap.querySelectorAll(".shop-tabs [data-t]").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
-    paint();
-  });
-  grid.addEventListener("click", (e) => {
-    const b = (e.target as HTMLElement).closest(".shop-buy") as HTMLButtonElement | null;
-    if (!b || b.disabled) return;
-    const it = CATALOG.find((c) => c.key === b.dataset.k)!;
-    const card = b.closest(".shop-item") as HTMLElement;
-    if (!o.wallet.buy(it.key)) return;
-    gameSound.play('purchase');
-    coinBurst(b);
-    paint();
-    const fresh = [...grid.querySelectorAll(".shop-item")].find((x) => x.querySelector("b")?.textContent === it.name) as HTMLElement | undefined;
-    if (fresh) gsap.fromTo(fresh, { scale: 0.94 }, { scale: 1, duration: 0.45, ease: "back.out(2.4)" });
-    void card;
-    o.onBought?.(it);
-  });
-  const close = () => { window.removeEventListener("keydown", onKey, true); gsap.to(wrap, { opacity: 0, duration: 0.15, onComplete: () => wrap.remove() }); };
-  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopImmediatePropagation(); close(); } };
-  window.addEventListener("keydown", onKey, true);
-  wrap.addEventListener("click", (e) => { if (e.target === wrap || (e.target as HTMLElement).closest('[data-a="close"]')) close(); });
-  gsap.fromTo(wrap.querySelector(".dialog"), { opacity: 0, y: 14, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(1.6)" });
-  (wrap.querySelector('[data-a="close"]') as HTMLElement).focus();
+// Keep the existing entry point and wallet, load the center storefront on demand.
+let storeLoading: Promise<void> | null = null;
+export function openShop(o: import("./storefront").StoreOptions) {
+  if (storeLoading) return storeLoading;
+  storeLoading = import("./storefront").then(({ openStorefront }) => openStorefront(o)).finally(() => { storeLoading = null; });
+  return storeLoading;
 }
 
 // A little shower of coins flying out of an element (a purchase, or coins earned).

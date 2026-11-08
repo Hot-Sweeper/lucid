@@ -5,7 +5,7 @@ import { itemFor, coinIcon, coinBurst, currentSeason, type Wallet, type ShopKind
 // Furnishing an office: pick a floor, a wall colour and decorations. Every change shows in the
 // room right away; things unlock as the company grows.
 
-export type RoomTheme = { floor?: FloorId; wall?: WallId; decor?: DecorId[] };
+export type RoomTheme = { computer?: import("./appearances").ComputerId; computers?: Record<string, import("./appearances").ComputerId>; floor?: FloorId; wall?: WallId; decor?: DecorId[] };
 
 const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 

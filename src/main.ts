@@ -1340,7 +1340,19 @@ wallet.onChange = (_bal, gained) => paintWallet(gained);
 paintWallet();
 const goShopping = () => {
   if (companionClient()) { void confirmDialog('Office shop', 'Collect coins and decorate your office on the computer.', 'OK'); return; }
-  openShop({ wallet, level: world.level, onBought: () => { void refresh(); shopFront.render(); } });
+  void openShop({ wallet, level: world.level,
+    rooms: () => world.rooms.filter(r => r.id === "main" || r.id.startsWith("p:")).map(r => ({
+      id: r.id, title: r.title, theme: world.themes.get(r.id) ?? {},
+      desks: [...document.querySelectorAll<HTMLElement>(".desk-unit[data-slot]")].filter(d => d.dataset.slot?.split("#")[0] === r.id).map(d => ({ id: d.dataset.slot!, title: `Desk ${Number(d.dataset.slot!.split("#")[1]) + 1}` })),
+    })),
+    onEquip: async (id, theme) => {
+      const before = world.themes.get(id);
+      world.themes.set(id, theme);
+      try { await saveSettings(); await refresh(); }
+      catch (e) { if (before) world.themes.set(id, before); else world.themes.delete(id); throw e; }
+    },
+    onBought: async () => { await saveSettings(); shopFront.render(); },
+  }).catch(() => { void confirmDialog("Store unavailable", "Could not open the store. Please try again.", "OK"); });
 };
 $("open-shop").addEventListener("click", goShopping);
 $("rail-coins").addEventListener("click", goShopping);
@@ -1349,8 +1361,8 @@ $("coin-bank").addEventListener("click", goShopping);
 const shopFront = new ShopFront(document.createElement("div"), wallet, () => world.level);
 shopFront.onOpen = goShopping;
 world.attachShop(shopFront);
-wallet.onChange = (_bal, gained) => { paintWallet(gained); shopFront.render(); };
-$("shop-link").addEventListener("click", () => world.showShop());
+wallet.onChange = (_bal, gained) => { paintWallet(gained); shopFront.render(); window.dispatchEvent(new Event("lucid:wallet-change")); };
+$("shop-link").addEventListener("click", goShopping);
 if (!companionClient()) coinRewards = new CoinRewards(wallet, world, () => (api as any).coinUsage(), { ready: id => coinReady(id), collected: id => coinCollected(id).then(() => refresh()) });
 (window as any).__coinRewards = coinRewards;
 (window as any).__wallet = wallet;

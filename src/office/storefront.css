@@ -1,0 +1,42 @@
+.lucid-store { --store-ease: cubic-bezier(.23,1,.32,1); grid-column:2; grid-row:1; position:relative; min-width:0; min-height:0; height:100%; display:flex; flex-direction:column; overflow:hidden; container-type:inline-size; background:var(--night); color:var(--ink); color-scheme:dark; animation:store-enter 180ms var(--store-ease); }
+#app.store-open > :is(.scene,.zoom-ui,.orch-power) { visibility:hidden; }
+.ls-head { display:flex; align-items:center; gap:18px; padding:22px 24px 18px; flex-wrap:wrap; }
+.ls-head h2 { font-size:22px; font-weight:600; margin:0; }
+.ls-head p { color:var(--ink-2); margin:6px 0 0; font-size:14px; }
+.ls-balance { display:flex; align-items:center; gap:7px; margin-left:auto; font-size:14px; font-variant-numeric:tabular-nums; }
+.ls-tools { display:flex; flex-wrap:wrap; gap:12px; padding:0 24px 16px; }
+.ls-tools label { display:flex; flex-direction:column; gap:6px; flex:1 1 170px; color:var(--ink-2); font-size:13px; min-width:0; }
+.ls-tools label[hidden] { display:none; }
+.ls-tools input,.ls-tools select { width:100%; min-width:0; min-height:40px; background:var(--night-2); color:var(--ink); border:1px solid var(--ink-3); border-radius:6px; padding:8px 10px; font:inherit; }
+.ls-tabs { display:flex; flex-wrap:wrap; gap:4px; padding:0 24px 12px; }
+.ls-tabs button { background:transparent; color:var(--ink-2); border:0; border-radius:5px; min-height:38px; padding:8px 12px; cursor:pointer; }
+.ls-tabs button[aria-pressed=true] { background:var(--night-3); color:var(--ink); }
+.ls-tabs button:last-child { margin-left:auto; }
+.ls-body { flex:1; min-height:0; overflow:auto; padding:0 24px 24px; scrollbar-gutter:stable; scrollbar-color:var(--ink-3) var(--night); }
+.ls-note { color:var(--ink-2); font-size:13px; line-height:1.5; margin:0 0 20px; max-width:70ch; }
+.ls-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr)); gap:28px 20px; align-content:start; }
+.ls-item { min-width:0; display:flex; flex-direction:column; align-items:stretch; gap:8px; }
+.ls-preview { background:var(--night-2); min-height:150px; display:grid; place-items:center; border-radius:6px; overflow:hidden; }
+.ls-item h3 { font-size:16px; font-weight:500; margin:3px 0 0; overflow-wrap:anywhere; }
+.ls-item p,.ls-item small { color:var(--ink-2); font-size:13px; margin:0; line-height:1.5; }
+.ls-item button { margin-top:auto; min-height:38px; white-space:normal; }
+.ls-room-preview { position:relative; height:150px; overflow:hidden; border-radius:6px; background:var(--wall); }
+.ls-room-preview > svg:first-child { position:absolute; bottom:0; left:0; width:100%; height:48%; border-top:6px solid var(--trim); }
+.ls-room-preview > svg:last-child { position:absolute; left:50%; bottom:14px; transform:translateX(-50%); }
+.lucid-store footer { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; padding:12px 24px; font-size:12px; line-height:1.5; color:var(--ink-2); background:var(--night-2); }
+.lucid-store button { transition:background-color 130ms var(--store-ease),color 130ms var(--store-ease),transform 130ms var(--store-ease); }
+.lucid-store button:not(:disabled):hover { filter:brightness(1.1); }
+.lucid-store button:not(:disabled):active { transform:scale(.97); }
+.lucid-store :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.ls-empty { grid-column:1/-1; color:var(--ink-2); }
+@keyframes store-enter { from { opacity:0; } to { opacity:1; } }
+@container (max-width:500px) { .ls-head,.ls-tools,.ls-tabs { padding-left:16px; padding-right:16px; } .ls-body { padding:0 16px 16px; } .ls-head { gap:12px; } .ls-balance { margin-left:0; } .ls-tools label { flex-basis:100%; } }
+@media (prefers-reduced-motion:reduce) { .lucid-store { animation:none; } .lucid-store button { transition:none; } .lucid-store button:not(:disabled):active { transform:none; } }
+
+/* Cases change around the real screen, preserving every app's geometry and fidelity. */
+.desk-unit[data-computer=cream] { --case:#eee3cb; --case-edge:#b5a68c; --case-radius:12px; }
+.desk-unit[data-computer=mint] { --case:#bfd6c7; --case-edge:#5b8274; --case-radius:12px; }
+.desk-unit[data-computer=peach] { --case:#ffc3a0; --case-edge:#b6775c; --case-radius:12px; }
+.desk-unit[data-computer=retro] { --case:#d7b48a; --case-edge:#785b3d; --case-radius:4px; }
+.desk-unit[data-computer=graphite] { --case:#454545; --case-edge:#202020; --case-radius:6px; }
+.desk-unit[data-computer]:not([data-computer=classic]) .monitor { background:linear-gradient(170deg,var(--case),var(--case-edge)); border-radius:var(--case-radius); }

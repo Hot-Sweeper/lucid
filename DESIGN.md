@@ -39,3 +39,12 @@ Use the monitor's existing navy/lavender surfaces and shared detail tiers, reada
 ## Office radio
 
 Keep the music controls inside the existing Office & settings shelf, below the volume sliders. Use an unboxed compact section, native themed genre selector, wrapping song title, plain genre/tempo text, and two 38px actions for Pause music and Next song. Preserve the navy surfaces, lavender text and peach keyboard focus. Controls respond in 130ms with the shared strong ease-out; reduced motion removes press transforms. The evolving journey is the default, with a quiet chapter description rather than a decorative visualization. Mode changes finish the current song unless Next is requested. English and German controls update instantly; song names remain authored. State comes from the audio owner, with no UI polling timer.
+
+
+## Office store and appearance collections
+
+Lucid Supply fills the center grid area, using the app library's ordinary content-view pattern. Keep the office scene mounted, make it inert while covered, preserve both side shelves, and coordinate mutually exclusive center views. Return with Back to office or Escape, restoring focus and retaining store filters and reading position.
+
+Use existing navy/lavender tokens, peach actions, Lexend, 24px gutters, compact wrapping category buttons, unboxed product entries and material previews drawn with the original floor/decor SVG functions. Theme collections combine existing floors, walls and computer casings. Classic, cream, mint, peach, retro and graphite cases preserve the actual monitor screen dimensions, applications and detail tiers. Computer choices apply to a whole office or an individual physical seat and live in its saved RoomTheme. Collections preserve decorations and explicitly replace individual computer overrides. Shared controls use 130ms feedback and entry fades in 180ms with the strong ease-out; reduced motion removes transforms and entry animation. Reuse open, switch and purchase SFX and the existing game-content localization adapter.
+
+Purchases use earned office coins. Owned pieces are reusable across offices; collections charge only for missing pieces in a single wallet transaction. Enforce affordability, season and level eligibility in the wallet, as well as the displayed action. Buying individual pieces and equipping them are distinct actions. Keep failed-save ownership visible with a retry path. Never claim these casing choices change a robot's real computing resources.
