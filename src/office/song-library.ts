@@ -12,10 +12,16 @@ const genres: [GenreFilter, string, string][] = [
   ['lofi', 'Chill lo-fi', 'Chill Lo-Fi'],
   ['synthwave', 'Synthwave', 'Synthwave'],
   ['ambient', 'Ambient', 'Ambient'],
-  ['breakcore', 'Melodic breakcore', 'Melodischer Breakcore'],
-  ['phonk', 'Chill phonk', 'Chill Phonk'],
+  ['mystical', 'Mystical', 'Mystisch'],
+  ['medieval', 'Medieval', 'Mittelalter'],
+  ['noir', 'Detective chamber', 'Detektivmusik'],
+  ['nostalgic', 'Nostalgic', 'Nostalgisch'],
+  ['breakcore', 'Breakcore / DnB', 'Breakcore / DnB'],
+  ['phonk', 'Lunar phonk', 'Lunar Phonk'],
 ];
 const genreName = (genre: SoundtrackGenre, de: boolean) => genres.find(([id]) => id === genre)![de ? 2 : 1];
+const textureWords: Record<string, [string, string]> = { pads: ['pads', 'Flächen'], bells: ['bells', 'Glocken'], strings: ['strings', 'Streicher'], piano: ['piano', 'Klavier'], plucked: ['plucked strings', 'Zupfsaiten'], reeds: ['woodwinds', 'Holzbläser'], drums: ['drums', 'Schlagzeug'], breaks: ['breaks', 'Breaks'], bass: ['bass', 'Bass'], mallets: ['mallets', 'Mallets'], synth: ['synth', 'Synth'], cowbell: ['cowbell', 'Cowbell'] };
+const textureText = (song: SoundtrackSong, de: boolean) => song.textures.map(value => textureWords[value]?.[de ? 1 : 0] ?? '').filter(Boolean).join(', ');
 const duration = (seconds: number) => {
   const rounded = Math.round(seconds);
   return `${Math.floor(rounded / 60)}:${String(rounded % 60).padStart(2, '0')}`;
@@ -94,7 +100,7 @@ export function mountSongLibrary(parent: HTMLElement): () => void {
         : active && state.paused ? (de ? 'Weiter' : 'Resume')
         : (de ? 'Abspielen' : 'Play');
       text(action, verb);
-      text(genre, `${genreName(song.genre, de)} · ${song.bpm} BPM`);
+      text(genre, `${genreName(song.genre, de)} · ${song.bpm} BPM · ${textureText(song, de)}`);
       button.setAttribute('aria-label', `${verb}: ${song.title}, ${genreName(song.genre, de)}, ${duration(song.seconds)}`);
     }
     const messages: Partial<Record<MusicState['status'], [string, string]>> = {
@@ -110,7 +116,7 @@ export function mountSongLibrary(parent: HTMLElement): () => void {
     let visible = 0;
     for (const { row, song } of rowParts.values()) {
       const match = (filter.value === 'all' || song.genre === filter.value)
-        && normalize(`${song.title} ${genreName(song.genre, false)} ${genreName(song.genre, true)}`).includes(query);
+        && normalize(`${song.title} ${genreName(song.genre, false)} ${genreName(song.genre, true)} ${textureText(song, false)} ${textureText(song, true)}`).includes(query);
       row.hidden = !match; if (match) visible++;
     }
     empty.hidden = visible > 0;
@@ -125,7 +131,7 @@ export function mountSongLibrary(parent: HTMLElement): () => void {
     section.setAttribute('aria-label', de ? 'Song-Bibliothek' : 'Song library');
     tracks.setAttribute('aria-label', de ? 'Songs' : 'Songs');
     text(searchCaption, de ? 'Songs suchen' : 'Search songs');
-    search.placeholder = de ? 'Titel oder Genre' : 'Title or genre';
+    search.placeholder = de ? 'Titel, Genre oder Instrument' : 'Title, genre or instrument';
     text(genreCaption, 'Genre');
     for (let i = 0; i < genres.length; i++) text(filter.options[i], genres[i][de ? 2 : 1]);
     text(emptyTitle, de ? 'Keine passenden Songs' : 'No matching songs');

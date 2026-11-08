@@ -1,16 +1,21 @@
 export type DayPeriod = 'morning' | 'day' | 'evening' | 'night';
-export type SoundtrackGenre = 'acoustic' | 'lofi' | 'synthwave' | 'ambient' | 'breakcore' | 'phonk';
-export type SoundtrackMode = 'journey' | SoundtrackGenre;
+export type SoundtrackGenre = 'acoustic' | 'lofi' | 'synthwave' | 'ambient' | 'breakcore' | 'phonk' | 'mystical' | 'medieval' | 'noir' | 'nostalgic';
+export type SoundtrackMode = 'journey' | 'pads' | 'bells' | SoundtrackGenre;
 export type SoundtrackSong = {
   id: string; title: string; url: string; period: DayPeriod; bpm: number;
   genre: SoundtrackGenre; energy: number; seconds: number;
+  key: number; mode: string; meter: number; textures: readonly string[]; gainDb?: number;
 };
 export type SoundtrackChapter = {
   id: string; title: string; genres: readonly SoundtrackGenre[]; energy: number; seconds: number;
 };
 export const SOUNDTRACK_CHAPTERS: readonly SoundtrackChapter[] = [
   { id: 'still-water', title: 'Still water', genres: ['ambient', 'acoustic'], energy: .16, seconds: 300 },
+  { id: 'observatory', title: 'Glass observatory', genres: ['mystical', 'ambient'], energy: .22, seconds: 240 },
+  { id: 'briar-path', title: 'Briar lanterns', genres: ['medieval', 'mystical'], energy: .34, seconds: 210 },
+  { id: 'old-postcards', title: 'Old postcards', genres: ['nostalgic', 'acoustic'], energy: .27, seconds: 240 },
   { id: 'warm-tape', title: 'Warm tape', genres: ['lofi', 'acoustic'], energy: .30, seconds: 300 },
+  { id: 'copper-casebook', title: 'Copper casebook', genres: ['noir', 'nostalgic'], energy: .43, seconds: 240 },
   { id: 'night-drive', title: 'Night drive', genres: ['phonk', 'lofi'], energy: .50, seconds: 180 },
   { id: 'neon-rise', title: 'Neon rise', genres: ['synthwave', 'phonk'], energy: .66, seconds: 180 },
   { id: 'petal-rush', title: 'Petal rush', genres: ['breakcore', 'synthwave'], energy: .82, seconds: 120 },
@@ -21,8 +26,38 @@ export type SoundtrackHistory = {
   played: string[]; last: string | null; mode: SoundtrackMode;
   chapter: string; listened: number; chapterHeard: boolean; started: boolean;
 };
-const GENRES: readonly SoundtrackGenre[] = ['acoustic', 'lofi', 'synthwave', 'ambient', 'breakcore', 'phonk'];
-const validMode = (mode: unknown): mode is SoundtrackMode => mode === 'journey' || GENRES.includes(mode as SoundtrackGenre);
+const GENRES: readonly SoundtrackGenre[] = ['acoustic', 'lofi', 'synthwave', 'ambient', 'breakcore', 'phonk', 'mystical', 'medieval', 'noir', 'nostalgic'];
+const validMode = (mode: unknown): mode is SoundtrackMode => mode === 'journey' || mode === 'pads' || mode === 'bells' || GENRES.includes(mode as SoundtrackGenre);
+
+export function songMatchesMode(song: SoundtrackSong, mode: SoundtrackMode): boolean {
+  if (mode === 'journey') return true;
+  if (mode === 'pads') return song.textures.includes('pads') && song.energy <= .35;
+  if (mode === 'bells') return song.textures.includes('bells') && song.energy <= .50;
+  return song.genre === mode;
+}
+
+/** Compare the related major scales, including the authored modal pieces. */
+const relativeMajorKey = (song: SoundtrackSong) => (song.key + (song.mode === 'minor' ? 3 : song.mode === 'dorian' ? 10 : song.mode === 'lydian' ? 7 : 0)) % 12;
+export function harmonicDistance(a: SoundtrackSong, b: SoundtrackSong): number {
+  const fifths = ((relativeMajorKey(a) - relativeMajorKey(b) + 12) * 7) % 12;
+  return Math.min(fifths, 12 - fifths);
+}
+/** Musical continuity is a selection preference, never pitch shifting or beat mixing. */
+export function songAffinity(previous: SoundtrackSong, song: SoundtrackSong): number {
+  const distance = harmonicDistance(previous, song);
+  const key = distance === 0 ? 1.45 : distance === 1 ? 1.25 : distance === 2 ? 1.1 : distance < 5 ? .9 : .65;
+  // Breakcore at 164 can sit naturally beside a half-time 82 BPM track.
+  const tempi = [song.bpm / 2, song.bpm, song.bpm * 2];
+  const tempoGap = Math.min(...tempi.map(bpm => Math.abs(Math.log2(bpm / previous.bpm))));
+  const texture = song.textures.some(value => previous.textures.includes(value)) ? 1.15 : 1;
+  return key * texture / (1 + tempoGap * 1.8);
+}
+
+const openingChapter = (date: Date) => {
+  const period = soundtrackPeriod(date);
+  const id = period === 'night' ? 'still-water' : period === 'evening' ? 'night-drive' : 'warm-tape';
+  return SOUNDTRACK_CHAPTERS.findIndex(chapter => chapter.id === id);
+};
 
 export function soundtrackPeriod(date = new Date()): DayPeriod {
   const hour = date.getHours();
@@ -80,8 +115,7 @@ export class SoundtrackQueue {
     const song = this.songs.find(value => value.id === id);
     if (!song) return null;
     if (!this.started) {
-      const period = soundtrackPeriod(date);
-      this.chapterIndex = period === 'night' ? 0 : period === 'evening' ? 2 : 1;
+      this.chapterIndex = openingChapter(date);
       this.started = true;
     }
     if (this.played.size === this.songs.length) this.played.clear();
@@ -95,8 +129,7 @@ export class SoundtrackQueue {
     if (!this.started) {
       // Time of day chooses the opening only. An office left open overnight
       // continues its musical arc rather than jumping to a wall-clock preset.
-      const period = soundtrackPeriod(date);
-      this.chapterIndex = period === 'night' ? 0 : period === 'evening' ? 2 : 1;
+      this.chapterIndex = openingChapter(date);
       this.started = true;
     } else if (this.mode === 'journey' && this.listened >= this.chapter.seconds && this.chapterHeard) {
       this.chapterIndex = (this.chapterIndex + 1) % SOUNDTRACK_CHAPTERS.length;
@@ -107,7 +140,7 @@ export class SoundtrackQueue {
     const previous = this.songs.find(song => song.id === this.last);
     let pool: readonly SoundtrackSong[];
     if (this.mode !== 'journey') {
-      pool = this.songs.filter(song => song.genre === this.mode);
+      pool = this.songs.filter(song => songMatchesMode(song, this.mode));
       if (!pool.length) throw Error(`There are no ${this.mode} songs in this soundtrack.`);
     } else {
       const chapter = this.chapter;
@@ -116,12 +149,18 @@ export class SoundtrackQueue {
       const target = primary.length ? primary : this.songs.filter(song => chapter.genres.includes(song.genre));
       // Give each chapter its defining genre before moving on. If it is too far
       // from the outgoing energy, use a real neighboring song as a bridge first.
-      const direct = target.filter(song => safe.includes(song) && (song.id !== this.last || this.songs.length === 1));
+      const direct = target.filter(song => safe.includes(song) && (song.id !== this.last || this.songs.length === 1) && (!previous || harmonicDistance(previous, song) < 5));
       if (!this.chapterHeard && direct.length) pool = direct;
       else if (!this.chapterHeard && target.length && safe.length) {
-        const toward = safe.filter(song => song.id !== this.last && (!previous || Math.abs(song.energy - chapter.energy) < Math.abs(previous.energy - chapter.energy)));
+        // A bridge must actually lead to a defining song on the next boundary.
+        // An arbitrary calm-energy cap can trap a return from a quiet lock
+        // below the synthwave step needed to reach the breakcore chapter.
+        const harmonicBridges = safe.filter(song => song.id !== this.last && previous && harmonicDistance(previous, song) < 5 && target.some(next => harmonicDistance(song, next) < 5 && next.energy - song.energy <= .30 && song.energy - next.energy <= .35));
+        const energyReady = target.filter(song => safe.includes(song) && song.id !== this.last);
+        const energyGap = (song: SoundtrackSong) => Math.min(...target.map(next => Math.abs(next.energy - song.energy)));
+        const toward = safe.filter(song => song.id !== this.last && (!previous || energyGap(song) < energyGap(previous)));
         const neighbors = safe.filter(song => song.id !== this.last);
-        pool = toward.length ? toward : neighbors.length ? neighbors : safe;
+        pool = harmonicBridges.length ? harmonicBridges : energyReady.length ? energyReady : toward.length ? toward : neighbors.length ? neighbors : safe;
       } else {
         const matches = safe.filter(song => chapter.genres.includes(song.genre));
         pool = matches.length ? matches : safe.length ? safe : this.songs;
@@ -137,7 +176,8 @@ export class SoundtrackQueue {
     const weight = (song: SoundtrackSong) => {
       const time = song.period === period ? 1.6 : 1;
       const energy = this.mode === 'journey' ? 1 / (1 + Math.abs(song.energy - this.chapter.energy) * 5) : 1;
-      return time * energy;
+      const continuity = this.mode === 'journey' && previous ? songAffinity(previous, song) : 1;
+      return time * energy * continuity;
     };
     let pick = Math.min(1 - Number.EPSILON, Math.max(0, this.random())) * pool.reduce((sum, song) => sum + weight(song), 0);
     const song = pool.find(value => { pick -= weight(value); return pick < 0; }) ?? pool[pool.length - 1];

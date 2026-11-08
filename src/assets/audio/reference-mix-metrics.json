@@ -1,0 +1,605 @@
+[
+  {
+    "id": "cassette-clouds",
+    "title": "Cassette Clouds",
+    "genre": "lofi",
+    "bpm": 82,
+    "key": 5,
+    "mode": "major",
+    "meter": 4,
+    "period": "day",
+    "energy": 0.32,
+    "textures": [
+      "sampled electric piano",
+      "nylon guitar",
+      "tape phrases",
+      "swung acoustic drums"
+    ],
+    "seconds": 155.78,
+    "revision": 3,
+    "sections": [
+      {
+        "name": "dusty window",
+        "start": 0.0,
+        "end": 11.707317073170731,
+        "authoredGain": 0.78,
+        "rmsDbFS": -24.35619209922031,
+        "instruments": [
+          "acoustic bass",
+          "answer piano",
+          "electric piano",
+          "nylon guitar"
+        ],
+        "tonalOnsets": 23
+      },
+      {
+        "name": "first verse",
+        "start": 11.707317073170731,
+        "end": 46.829268292682926,
+        "authoredGain": 0.94,
+        "rmsDbFS": -19.789249521134945,
+        "instruments": [
+          "acoustic bass",
+          "electric piano",
+          "nylon guitar"
+        ],
+        "tonalOnsets": 152
+      },
+      {
+        "name": "sunny hook",
+        "start": 46.829268292682926,
+        "end": 70.2439024390244,
+        "authoredGain": 1.04,
+        "rmsDbFS": -18.92006940494078,
+        "instruments": [
+          "acoustic bass",
+          "electric piano",
+          "nylon guitar"
+        ],
+        "tonalOnsets": 103
+      },
+      {
+        "name": "tape interlude",
+        "start": 70.2439024390244,
+        "end": 93.65853658536585,
+        "authoredGain": 0.74,
+        "rmsDbFS": -24.980546849609627,
+        "instruments": [
+          "acoustic bass",
+          "answer piano",
+          "electric piano"
+        ],
+        "tonalOnsets": 58
+      },
+      {
+        "name": "second verse",
+        "start": 93.65853658536585,
+        "end": 117.07317073170731,
+        "authoredGain": 0.96,
+        "rmsDbFS": -19.615442152197218,
+        "instruments": [
+          "acoustic bass",
+          "electric piano",
+          "nylon guitar"
+        ],
+        "tonalOnsets": 100
+      },
+      {
+        "name": "homecoming",
+        "start": 117.07317073170731,
+        "end": 140.4878048780488,
+        "authoredGain": 1.07,
+        "rmsDbFS": -18.826267408670002,
+        "instruments": [
+          "acoustic bass",
+          "answer piano",
+          "electric piano",
+          "nylon guitar"
+        ],
+        "tonalOnsets": 111
+      },
+      {
+        "name": "tape tail",
+        "start": 140.4878048780488,
+        "end": 152.1951219512195,
+        "authoredGain": 0.76,
+        "rmsDbFS": -24.193563965771276,
+        "instruments": [
+          "acoustic bass",
+          "answer piano",
+          "electric piano",
+          "nylon guitar"
+        ],
+        "tonalOnsets": 29
+      }
+    ],
+    "peakDbFS": -4.098506450653076,
+    "rmsDbFS": -20.475899474093136,
+    "ending": "Original tonic cadence, natural sample and pad release, short quiet guard",
+    "referenceComparison": {
+      "excerptSeconds": [
+        88,
+        112
+      ],
+      "bandHz": [
+        [
+          20,
+          120
+        ],
+        [
+          120,
+          500
+        ],
+        [
+          500,
+          2000
+        ],
+        [
+          2000,
+          7900
+        ]
+      ],
+      "bandEnergyPercent": [
+        42.266231536865234,
+        33.89944839477539,
+        22.928632736206055,
+        0.905696451663971
+      ],
+      "centroidHz": 357.7268105230564,
+      "detectedOnsetsPerSecond": 3.0833333333333335,
+      "upperSideMidDb": -10.287313612526056,
+      "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
+    },
+    "sources": {
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+        "url": "https://packages.debian.org/bookworm/fluid-soundfont-gm"
+      },
+      "drums": {
+        "project": "Versilian Community Sample Library",
+        "repository": "https://github.com/sgossner/VCSL",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "license": "CC0-1.0",
+        "files": [
+          {
+            "file": "snare_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+            "bytes": 305304,
+            "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+          },
+          {
+            "file": "snare_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+            "bytes": 231264,
+            "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+          },
+          {
+            "file": "snare_medium_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr1_Mid.wav",
+            "bytes": 240496,
+            "sha256": "6ec8445cb207df8f1178d8c3894f47969fd53fb2b81c404317e466de4598dc3e"
+          },
+          {
+            "file": "snare_medium_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+            "bytes": 255456,
+            "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
+          },
+          {
+            "file": "hat_soft_1.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "bytes": 247272,
+            "sha256": "e1fb54c9a030800038abcebbed1c056fb74bdeec627315f3cd5fd893c6e6b031"
+          },
+          {
+            "file": "hat_soft_2.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "bytes": 250072,
+            "sha256": "72830eafed387f4b4b5904d4d6f1da23e13b48986fa1bc09d7c5771eafbb3a1a"
+          },
+          {
+            "file": "hat_main_1.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v3_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v3_rr1_Mid.wav",
+            "bytes": 218792,
+            "sha256": "b65ca06ea4f8b5209fc8d98912094be1212911f21e01bd949cc9960db049d37c"
+          },
+          {
+            "file": "hat_main_2.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v3_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v3_rr2_Mid.wav",
+            "bytes": 279024,
+            "sha256": "fac6cf410239603afff803ea97aa78fc38ccae185b5f60217c3c8cd632c265bd"
+          },
+          {
+            "file": "hat_loose_1.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitLoose_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitLoose_rr1_Mid.wav",
+            "bytes": 488080,
+            "sha256": "1cc4aca0edbac1fb1027cff990f5fd1c52870daf4a2b0aee9e501af1c1a4d26d"
+          },
+          {
+            "file": "bass_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+            "bytes": 281616,
+            "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+          },
+          {
+            "file": "bass_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+            "bytes": 302396,
+            "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+          }
+        ]
+      }
+    },
+    "renderProcess": {
+      "acousticRenderer": "FluidSynth, dry actual sampled instruments",
+      "production": "Pedalboard 0.9.26, role-specific stem EQ, restrained chorus and filtered parallel room",
+      "phraseTreatment": "Own recorded electric piano resampled in four-bar phrases with sub-millisecond continuous drift",
+      "toneSources": "MIT FluidR3 GM electric piano, nylon guitar, piano and acoustic bass; CC0 VCSL multi-velocity drums",
+      "referenceAudioInComposition": false,
+      "auditionPerformed": false
+    },
+    "decoded": {
+      "seconds": 155.78,
+      "peakDbFS": -4.098506450653076,
+      "rmsDbFS": -20.475899474093136,
+      "channels": 2,
+      "sampleRate": 44100,
+      "integratedLUFS": -17.82,
+      "truePeakDbFS": -4.09,
+      "loudnessRangeLU": 7.0,
+      "channelCorrelation": 0.9244668827300841,
+      "sideToMidRMS": 0.19969728589057922,
+      "dcOffset": 4.6443903556792066e-05,
+      "trailingSilenceSeconds": 0.2400000000000091,
+      "finite": true,
+      "silentBodySeconds": 0
+    },
+    "activeSectionComparison": {
+      "excerptSeconds": [
+        25,
+        49
+      ],
+      "bandHz": [
+        [
+          20,
+          120
+        ],
+        [
+          120,
+          500
+        ],
+        [
+          500,
+          2000
+        ],
+        [
+          2000,
+          7900
+        ]
+      ],
+      "bandEnergyPercent": [
+        42.33980178833008,
+        33.21797561645508,
+        23.19403076171875,
+        1.2481904029846191
+      ],
+      "centroidHz": 363.9477384341463,
+      "detectedOnsetsPerSecond": 4.375,
+      "upperSideMidDb": -11.456191929804731,
+      "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
+    }
+  },
+  {
+    "id": "midnight-drift",
+    "title": "Midnight Drift",
+    "genre": "phonk",
+    "bpm": 74,
+    "key": 3,
+    "mode": "minor",
+    "meter": 4,
+    "period": "night",
+    "energy": 0.51,
+    "textures": [
+      "lunar pads",
+      "pitched metal motif",
+      "clean sliding sub",
+      "sampled drums"
+    ],
+    "seconds": 161.64,
+    "revision": 3,
+    "sections": [
+      {
+        "name": "streetlight",
+        "start": 0.0,
+        "end": 12.972972972972974,
+        "authoredGain": 0.74,
+        "rmsDbFS": -24.727993616698043,
+        "instruments": [
+          "clean sliding 808",
+          "detuned lunar pads",
+          "vibraphone answer"
+        ],
+        "tonalOnsets": 18
+      },
+      {
+        "name": "cruise",
+        "start": 12.972972972972974,
+        "end": 51.891891891891895,
+        "authoredGain": 0.98,
+        "rmsDbFS": -19.07890800710068,
+        "instruments": [
+          "clean sliding 808",
+          "detuned lunar pads",
+          "rounded bell and cowbell motif",
+          "sampled moon motif"
+        ],
+        "tonalOnsets": 168
+      },
+      {
+        "name": "side street",
+        "start": 51.891891891891895,
+        "end": 77.83783783783784,
+        "authoredGain": 0.92,
+        "rmsDbFS": -19.93414454705744,
+        "instruments": [
+          "clean sliding 808",
+          "detuned lunar pads",
+          "rounded bell and cowbell motif",
+          "sampled moon motif"
+        ],
+        "tonalOnsets": 82
+      },
+      {
+        "name": "underpass",
+        "start": 77.83783783783784,
+        "end": 103.78378378378379,
+        "authoredGain": 0.7,
+        "rmsDbFS": -25.021549736540635,
+        "instruments": [
+          "clean sliding 808",
+          "detuned lunar pads",
+          "sampled moon motif",
+          "vibraphone answer"
+        ],
+        "tonalOnsets": 37
+      },
+      {
+        "name": "night bloom",
+        "start": 103.78378378378379,
+        "end": 142.7027027027027,
+        "authoredGain": 1.07,
+        "rmsDbFS": -18.21889186273157,
+        "instruments": [
+          "clean sliding 808",
+          "detuned lunar pads",
+          "rounded bell and cowbell motif",
+          "sampled moon motif",
+          "vibraphone answer"
+        ],
+        "tonalOnsets": 185
+      },
+      {
+        "name": "distant lights",
+        "start": 142.7027027027027,
+        "end": 155.67567567567568,
+        "authoredGain": 0.75,
+        "rmsDbFS": -24.054295633031735,
+        "instruments": [
+          "clean sliding 808",
+          "detuned lunar pads",
+          "tonic pad cadence",
+          "vibraphone answer"
+        ],
+        "tonalOnsets": 20
+      }
+    ],
+    "peakDbFS": -5.333451271057129,
+    "rmsDbFS": -20.264696617003608,
+    "ending": "Original tonic cadence, natural sample and pad release, short quiet guard",
+    "referenceComparison": {
+      "excerptSeconds": [
+        88,
+        112
+      ],
+      "bandHz": [
+        [
+          20,
+          120
+        ],
+        [
+          120,
+          500
+        ],
+        [
+          500,
+          2000
+        ],
+        [
+          2000,
+          7900
+        ]
+      ],
+      "bandEnergyPercent": [
+        70.05899810791016,
+        19.065776824951172,
+        10.666367530822754,
+        0.20885366201400757
+      ],
+      "centroidHz": 174.62557557960614,
+      "detectedOnsetsPerSecond": 1.7083333333333333,
+      "upperSideMidDb": -7.027503384006125,
+      "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
+    },
+    "sources": {
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+        "url": "https://packages.debian.org/bookworm/fluid-soundfont-gm"
+      },
+      "drums": {
+        "project": "Versilian Community Sample Library",
+        "repository": "https://github.com/sgossner/VCSL",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "license": "CC0-1.0",
+        "files": [
+          {
+            "file": "snare_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+            "bytes": 305304,
+            "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+          },
+          {
+            "file": "snare_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+            "bytes": 231264,
+            "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+          },
+          {
+            "file": "hat_soft_1.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "bytes": 247272,
+            "sha256": "e1fb54c9a030800038abcebbed1c056fb74bdeec627315f3cd5fd893c6e6b031"
+          },
+          {
+            "file": "hat_soft_2.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "bytes": 250072,
+            "sha256": "72830eafed387f4b4b5904d4d6f1da23e13b48986fa1bc09d7c5771eafbb3a1a"
+          },
+          {
+            "file": "hat_main_1.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v3_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v3_rr1_Mid.wav",
+            "bytes": 218792,
+            "sha256": "b65ca06ea4f8b5209fc8d98912094be1212911f21e01bd949cc9960db049d37c"
+          },
+          {
+            "file": "hat_main_2.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v3_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v3_rr2_Mid.wav",
+            "bytes": 279024,
+            "sha256": "fac6cf410239603afff803ea97aa78fc38ccae185b5f60217c3c8cd632c265bd"
+          },
+          {
+            "file": "hat_loose_1.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitLoose_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitLoose_rr1_Mid.wav",
+            "bytes": 488080,
+            "sha256": "1cc4aca0edbac1fb1027cff990f5fd1c52870daf4a2b0aee9e501af1c1a4d26d"
+          },
+          {
+            "file": "hat_loose_2.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitLoose_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitLoose_rr2_Mid.wav",
+            "bytes": 438896,
+            "sha256": "0836f69df5ae4c6df5f9ce1d4b3679c8e07632a01a6dd513eb9cf7371ab78cb6"
+          },
+          {
+            "file": "bass_main_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v5_rr1_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v5_rr1_Sum.wav",
+            "bytes": 588092,
+            "sha256": "642aaf3375eaff1307973f7de3ccbf74d18e71fb3cf9412e021b08fc3bf1981c"
+          },
+          {
+            "file": "bass_main_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v5_rr2_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v5_rr2_Sum.wav",
+            "bytes": 614388,
+            "sha256": "a83943f8125ae39469ef5dab1d0be2fe3145c6842c0621b27be5d86aa44b325d"
+          },
+          {
+            "file": "snare_dry_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitNS_v4_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitNS_v4_rr1_Mid.wav",
+            "bytes": 166260,
+            "sha256": "6814a1ed6aa68319356e174d1c46f0c67e20560e55c28d94a8361344608c6515"
+          },
+          {
+            "file": "snare_dry_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitNS_v4_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitNS_v4_rr2_Mid.wav",
+            "bytes": 165192,
+            "sha256": "4918cea2a1d7b2bcff9d38ef76c8c76a2a993f86916da5589a5c6b6f5c9ffbe5"
+          }
+        ]
+      }
+    },
+    "renderProcess": {
+      "acousticRenderer": "FluidSynth, dry actual sampled instruments",
+      "production": "Pedalboard 0.9.26, role-specific stem EQ, restrained chorus and filtered parallel room",
+      "phraseTreatment": "A/B pitched-metal themes, sampled vibraphone answers, quiet bridge and varied reprise",
+      "toneSources": "Original detuned stereo pads, pitched metal edge, clean sine-based 808, actual sampled vibraphone motif/answers and CC0 VCSL drums",
+      "referenceAudioInComposition": false,
+      "auditionPerformed": false
+    },
+    "decoded": {
+      "seconds": 161.64,
+      "peakDbFS": -5.333451271057129,
+      "rmsDbFS": -20.264696617003608,
+      "channels": 2,
+      "sampleRate": 44100,
+      "integratedLUFS": -19.33,
+      "truePeakDbFS": -5.33,
+      "loudnessRangeLU": 8.6,
+      "channelCorrelation": 0.8912323793840493,
+      "sideToMidRMS": 0.2398333102464676,
+      "dcOffset": 0.00012853626685682684,
+      "trailingSilenceSeconds": 0.23999999999998067,
+      "finite": true,
+      "silentBodySeconds": 0
+    },
+    "activeSectionComparison": {
+      "excerptSeconds": [
+        25,
+        49
+      ],
+      "bandHz": [
+        [
+          20,
+          120
+        ],
+        [
+          120,
+          500
+        ],
+        [
+          500,
+          2000
+        ],
+        [
+          2000,
+          7900
+        ]
+      ],
+      "bandEnergyPercent": [
+        68.96913146972656,
+        20.355670928955078,
+        10.382537841796875,
+        0.29266446828842163
+      ],
+      "centroidHz": 184.47216874169916,
+      "detectedOnsetsPerSecond": 4.833333333333333,
+      "upperSideMidDb": -7.431272146038119,
+      "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
+    }
+  }
+]

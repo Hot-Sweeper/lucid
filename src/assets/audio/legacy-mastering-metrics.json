@@ -1,0 +1,734 @@
+{
+  "method": "Copy MPEG packets, retain identical decoded prefix; no re-encoding.",
+  "silenceThresholdDbFS": -65,
+  "tracks": [
+    {
+      "id": "window-garden",
+      "operation": "mpeg-packet-copy-tail-trim",
+      "silenceThresholdDbFS": -65,
+      "keptQuietTargetSeconds": 0.2,
+      "before": {
+        "seconds": 113.09090702947846,
+        "encodedSeconds": 113.090907,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.347141347705299,
+        "rmsDbFS": -20.362895264370984,
+        "integratedLUFS": -17.9,
+        "truePeakDbTP": -3.3,
+        "loudnessRangeLU": 5.2,
+        "dcMean": [
+          2.2775732063339718e-05,
+          2.2545045953708936e-05
+        ],
+        "dcDbFS": [
+          -92.85055309855107,
+          -92.9389775026267
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 2.741270029478457
+      },
+      "after": {
+        "seconds": 110.55126984126984,
+        "encodedSeconds": 110.563265,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.347141347705299,
+        "rmsDbFS": -20.264255746084487,
+        "integratedLUFS": -17.9,
+        "truePeakDbTP": -3.3,
+        "loudnessRangeLU": 5.1,
+        "dcMean": [
+          2.3299156169775633e-05,
+          2.3062861947259614e-05
+        ],
+        "dcDbFS": [
+          -92.6531961523949,
+          -92.74173601300365
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 0.20163284126984138
+      },
+      "removedSeconds": 2.5396371882086157,
+      "retainedDecodedPcmIdentical": true,
+      "reencoded": false,
+      "normalized": false,
+      "sourceSha256": "2125849cc2c845b9558cf8e03c4562cd168bfcebe0500799b8bf68b36e14adf6",
+      "outputSha256": "785713e466740f549111a53dcf6e03cdc22256b763328e9fd2e5c9508ac58b02"
+    },
+    {
+      "id": "first-coffee",
+      "operation": "mpeg-packet-copy-tail-trim",
+      "silenceThresholdDbFS": -65,
+      "keptQuietTargetSeconds": 0.2,
+      "before": {
+        "seconds": 94.0,
+        "encodedSeconds": 94.0,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -4.331268841511528,
+        "rmsDbFS": -20.362982273142734,
+        "integratedLUFS": -17.6,
+        "truePeakDbTP": -4.3,
+        "loudnessRangeLU": 5.1,
+        "dcMean": [
+          1.4750882340554498e-05,
+          1.4851510148360901e-05
+        ],
+        "dcDbFS": [
+          -96.62364002195622,
+          -96.56458767339402
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 1.988707000000005
+      },
+      "after": {
+        "seconds": 92.21331065759637,
+        "encodedSeconds": 92.225306,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -4.331268841511528,
+        "rmsDbFS": -20.279639882415616,
+        "integratedLUFS": -17.6,
+        "truePeakDbTP": -4.3,
+        "loudnessRangeLU": 5.0,
+        "dcMean": [
+          1.5037166569337826e-05,
+          1.5139522222852837e-05
+        ],
+        "dcDbFS": [
+          -96.45667978981953,
+          -96.39775660405402
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 0.2020176575963717
+      },
+      "removedSeconds": 1.7866893424036334,
+      "retainedDecodedPcmIdentical": true,
+      "reencoded": false,
+      "normalized": false,
+      "sourceSha256": "9d4d75f43bca2b574ca576da54618ffc828fc1cbc98760b45e4159ab1d7b54c8",
+      "outputSha256": "a3180b2fb8d31353aa1edaad20d4e9fbe258da9714b66571b6e6b252e86722ae"
+    },
+    {
+      "id": "paper-kites",
+      "operation": "mpeg-packet-copy-tail-trim",
+      "silenceThresholdDbFS": -65,
+      "keptQuietTargetSeconds": 0.2,
+      "before": {
+        "seconds": 98.11764172335602,
+        "encodedSeconds": 98.117642,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.296813194996326,
+        "rmsDbFS": -20.384284262802872,
+        "integratedLUFS": -17.6,
+        "truePeakDbTP": -3.3,
+        "loudnessRangeLU": 5.4,
+        "dcMean": [
+          2.410512495317175e-05,
+          2.4071678355669438e-05
+        ],
+        "dcDbFS": [
+          -92.35781225866006,
+          -92.36987256492344
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 2.344852723356013
+      },
+      "after": {
+        "seconds": 95.9749433106576,
+        "encodedSeconds": 95.986939,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.296813194996326,
+        "rmsDbFS": -20.288391892487102,
+        "integratedLUFS": -17.6,
+        "truePeakDbTP": -3.3,
+        "loudnessRangeLU": 5.2,
+        "dcMean": [
+          2.4642739484803746e-05,
+          2.4608298448412003e-05
+        ],
+        "dcDbFS": [
+          -92.16622028323636,
+          -92.17836829482904
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 0.20215431065759049
+      },
+      "removedSeconds": 2.1426984126984223,
+      "retainedDecodedPcmIdentical": true,
+      "reencoded": false,
+      "normalized": false,
+      "sourceSha256": "a7265ae1119f35856e45804200d8422e8167cbca4ec71378d0541f1fe20b6aac",
+      "outputSha256": "96040c0071f422308ea7123b4c447682bfcb85b2acd4c01e2958dd59f2f8c18d"
+    },
+    {
+      "id": "peach-parade",
+      "operation": "mpeg-packet-copy-tail-trim",
+      "silenceThresholdDbFS": -65,
+      "keptQuietTargetSeconds": 0.2,
+      "before": {
+        "seconds": 108.3478231292517,
+        "encodedSeconds": 108.347823,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.3431844402266626,
+        "rmsDbFS": -20.36539400954581,
+        "integratedLUFS": -17.8,
+        "truePeakDbTP": -3.3,
+        "loudnessRangeLU": 5.1,
+        "dcMean": [
+          2.3129565882768038e-05,
+          2.299183009878876e-05
+        ],
+        "dcDbFS": [
+          -92.71665036792321,
+          -92.76852916950591
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 2.6512701292516994
+      },
+      "after": {
+        "seconds": 105.9014739229025,
+        "encodedSeconds": 105.913469,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.3431844402266626,
+        "rmsDbFS": -20.266212154638588,
+        "integratedLUFS": -17.8,
+        "truePeakDbTP": -3.3,
+        "loudnessRangeLU": 4.9,
+        "dcMean": [
+          2.366418136710109e-05,
+          2.3523205685777555e-05
+        ],
+        "dcDbFS": [
+          -92.51817029626298,
+          -92.57006987914929
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 0.2049209229025024
+      },
+      "removedSeconds": 2.446349206349197,
+      "retainedDecodedPcmIdentical": true,
+      "reencoded": false,
+      "normalized": false,
+      "sourceSha256": "5bd97b3693b100635362bba474e7504d6cf86eb0f2b79745aa16e715a8f79e91",
+      "outputSha256": "82925903111a3bcd75a03073b38406d80d57ccef83f1ef4f0fab23ed5adff96e"
+    },
+    {
+      "id": "apricot-hour",
+      "operation": "mpeg-packet-copy-tail-trim",
+      "silenceThresholdDbFS": -65,
+      "keptQuietTargetSeconds": 0.2,
+      "before": {
+        "seconds": 130.31578231292517,
+        "encodedSeconds": 130.315782,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.297834826742712,
+        "rmsDbFS": -20.834818745336,
+        "integratedLUFS": -18.1,
+        "truePeakDbTP": -3.3,
+        "loudnessRangeLU": 5.4,
+        "dcMean": [
+          1.856998333131445e-05,
+          1.853100026875531e-05
+        ],
+        "dcDbFS": [
+          -94.62376972178103,
+          -94.64202275288132
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 3.1158503129251613
+      },
+      "after": {
+        "seconds": 127.40024943310658,
+        "encodedSeconds": 127.412245,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.297834826742712,
+        "rmsDbFS": -20.73655137409002,
+        "integratedLUFS": -18.1,
+        "truePeakDbTP": -3.3,
+        "loudnessRangeLU": 5.4,
+        "dcMean": [
+          1.8995221686227057e-05,
+          1.8955095802448396e-05
+        ],
+        "dcDbFS": [
+          -94.42711267177899,
+          -94.44548032459842
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 0.20031743310657646
+      },
+      "removedSeconds": 2.915532879818585,
+      "retainedDecodedPcmIdentical": true,
+      "reencoded": false,
+      "normalized": false,
+      "sourceSha256": "e4112336f2470c76317b9b3875cedb37e1893d05c10494bd9fad5267c09e4194",
+      "outputSha256": "a9aa36187001f58dd7c91947e08fb9aa6ecb663a4df88c1e15171f79b132ba9c"
+    },
+    {
+      "id": "tram-home",
+      "operation": "mpeg-packet-copy-tail-trim",
+      "silenceThresholdDbFS": -65,
+      "keptQuietTargetSeconds": 0.2,
+      "before": {
+        "seconds": 109.36585034013605,
+        "encodedSeconds": 109.36585,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.997343247561643,
+        "rmsDbFS": -20.35373490356383,
+        "integratedLUFS": -18.2,
+        "truePeakDbTP": -4.0,
+        "loudnessRangeLU": 4.3,
+        "dcMean": [
+          1.7651754285964944e-05,
+          1.7715152289094596e-05
+        ],
+        "dcDbFS": [
+          -95.06424253203403,
+          -95.03310219765852
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 2.248548340136054
+      },
+      "after": {
+        "seconds": 107.33820861678005,
+        "encodedSeconds": 107.350204,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.997343247561643,
+        "rmsDbFS": -20.272460993627686,
+        "integratedLUFS": -18.2,
+        "truePeakDbTP": -4.0,
+        "loudnessRangeLU": 4.1,
+        "dcMean": [
+          1.798430721489938e-05,
+          1.8049912062255527e-05
+        ],
+        "dcDbFS": [
+          -94.90212574522334,
+          -94.87049819203095
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 0.22090661678005574
+      },
+      "removedSeconds": 2.0276417233559982,
+      "retainedDecodedPcmIdentical": true,
+      "reencoded": false,
+      "normalized": false,
+      "sourceSha256": "599ba14c282ca0e2dd875b1ec79512b42d3618d298bdc56b3332e45511c7bb69",
+      "outputSha256": "73ebe9d612f166afd192a1dd1866498f929cc338bbb95b4fa3371a36e7ebe18c"
+    },
+    {
+      "id": "moonlit-desks",
+      "operation": "mpeg-packet-copy-tail-trim",
+      "silenceThresholdDbFS": -65,
+      "keptQuietTargetSeconds": 0.2,
+      "before": {
+        "seconds": 154.0,
+        "encodedSeconds": 154.0,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.3005643079594176,
+        "rmsDbFS": -20.474659406255924,
+        "integratedLUFS": -18.0,
+        "truePeakDbTP": -3.3,
+        "loudnessRangeLU": 4.6,
+        "dcMean": [
+          2.4208117012970457e-06,
+          2.273766962112162e-06
+        ],
+        "dcDbFS": [
+          -112.32077980197911,
+          -112.86508096231424
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 2.9655099999999948
+      },
+      "after": {
+        "seconds": 151.25004535147391,
+        "encodedSeconds": 151.262041,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.3005643079594176,
+        "rmsDbFS": -20.39640733527071,
+        "integratedLUFS": -18.0,
+        "truePeakDbTP": -3.3,
+        "loudnessRangeLU": 4.5,
+        "dcMean": [
+          2.4653984734651897e-06,
+          2.3156346241471416e-06
+        ],
+        "dcDbFS": [
+          -112.16225754525024,
+          -112.70659930679267
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 0.2155553514739097
+      },
+      "removedSeconds": 2.749954648526085,
+      "retainedDecodedPcmIdentical": true,
+      "reencoded": false,
+      "normalized": false,
+      "sourceSha256": "8f81ad1f10291d6a97c727ef2ed514b1e04188ddab62b5bb52a0f7410dfe7316",
+      "outputSha256": "98c1c8650acab3af5ba97356786a55096e4300934f6006b5c0b9dd53077160ea"
+    },
+    {
+      "id": "sleepy-satellites",
+      "operation": "mpeg-packet-copy-tail-trim",
+      "silenceThresholdDbFS": -65,
+      "keptQuietTargetSeconds": 0.2,
+      "before": {
+        "seconds": 145.17646258503402,
+        "encodedSeconds": 145.176463,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.2953520920501385,
+        "rmsDbFS": -21.231904248367265,
+        "integratedLUFS": -18.7,
+        "truePeakDbTP": -3.3,
+        "loudnessRangeLU": 4.2,
+        "dcMean": [
+          1.0825341893364998e-06,
+          1.03923766343957e-06
+        ],
+        "dcDbFS": [
+          -119.31116757144196,
+          -119.6657024440976
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 2.9604085850340027
+      },
+      "after": {
+        "seconds": 142.42065759637188,
+        "encodedSeconds": 142.432653,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -3.2953520920501385,
+        "rmsDbFS": -21.14867201653585,
+        "integratedLUFS": -18.7,
+        "truePeakDbTP": -3.3,
+        "loudnessRangeLU": 4.1,
+        "dcMean": [
+          1.1030993211071033e-06,
+          1.0593756126837792e-06
+        ],
+        "dcDbFS": [
+          -119.1477076538832,
+          -119.49900057890082
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 0.20460359637186798
+      },
+      "removedSeconds": 2.7558049886621347,
+      "retainedDecodedPcmIdentical": true,
+      "reencoded": false,
+      "normalized": false,
+      "sourceSha256": "2bc0baa102d11a6249795e7fd8e1f671f67fc0ec2a7f12e5f3257383f1834524",
+      "outputSha256": "1ef1698a5d9605693b2c809ebceffc6f0c4e6a2a1198f5a3e3d1a05c8e028aa8"
+    },
+    {
+      "id": "pocket-sunrise",
+      "operation": "mpeg-packet-copy-tail-trim",
+      "silenceThresholdDbFS": -65,
+      "keptQuietTargetSeconds": 0.2,
+      "before": {
+        "seconds": 134.23077097505669,
+        "encodedSeconds": 134.230771,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -4.720822020332837,
+        "rmsDbFS": -20.301017189005222,
+        "integratedLUFS": -17.9,
+        "truePeakDbTP": -4.7,
+        "loudnessRangeLU": 5.8,
+        "dcMean": [
+          3.526111016417828e-05,
+          3.3800762955960726e-05
+        ],
+        "dcDbFS": [
+          -89.0540803690455,
+          -89.42146993301256
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 3.524262975056672
+      },
+      "after": {
+        "seconds": 130.92678004535148,
+        "encodedSeconds": 130.938776,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -4.720822020332837,
+        "rmsDbFS": -20.192781215010935,
+        "integratedLUFS": -17.9,
+        "truePeakDbTP": -4.7,
+        "loudnessRangeLU": 5.8,
+        "dcMean": [
+          3.6149436273816446e-05,
+          3.465253675668429e-05
+        ],
+        "dcDbFS": [
+          -88.83796941694904,
+          -89.20529934277296
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 0.22027204535146439
+      },
+      "removedSeconds": 3.3039909297052077,
+      "retainedDecodedPcmIdentical": true,
+      "reencoded": false,
+      "normalized": false,
+      "sourceSha256": "1557a0501362717bceddfe85cdb874f5f863ae666c62ff56d77f984c64cd0126",
+      "outputSha256": "95304eb3846236faf52b88d3951d639d0f283c06849ba3e6b0f4a74b4a95aab5"
+    },
+    {
+      "id": "cloud-arcade",
+      "operation": "mpeg-packet-copy-tail-trim",
+      "silenceThresholdDbFS": -65,
+      "keptQuietTargetSeconds": 0.2,
+      "before": {
+        "seconds": 127.18181405895692,
+        "encodedSeconds": 127.181814,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -5.332944016111131,
+        "rmsDbFS": -20.295939857547232,
+        "integratedLUFS": -17.6,
+        "truePeakDbTP": -5.3,
+        "loudnessRangeLU": 6.7,
+        "dcMean": [
+          3.4807351225549615e-05,
+          3.306707857323561e-05
+        ],
+        "dcDbFS": [
+          -89.1665804891526,
+          -89.61208345314289
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 3.5571880589569105
+      },
+      "after": {
+        "seconds": 123.84759637188209,
+        "encodedSeconds": 123.859592,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -5.332944016111131,
+        "rmsDbFS": -20.180565528197945,
+        "integratedLUFS": -17.6,
+        "truePeakDbTP": -5.3,
+        "loudnessRangeLU": 6.6,
+        "dcMean": [
+          3.574538638051072e-05,
+          3.3958252154035156e-05
+        ],
+        "dcDbFS": [
+          -88.93560008357186,
+          -89.38109342356316
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 0.22297037188208435
+      },
+      "removedSeconds": 3.334217687074826,
+      "retainedDecodedPcmIdentical": true,
+      "reencoded": false,
+      "normalized": false,
+      "sourceSha256": "8a2ef90ad0274c2bf278f5a913e0c618bf9f1fa5f8b8f9d76f49403dafc7ca6e",
+      "outputSha256": "680b6d7cbec850ebf26c5f2752b3a4fb4f00136b910b75abca4eb4dcfd65a37d"
+    },
+    {
+      "id": "velvet-elevator",
+      "operation": "mpeg-packet-copy-tail-trim",
+      "silenceThresholdDbFS": -65,
+      "keptQuietTargetSeconds": 0.2,
+      "before": {
+        "seconds": 161.2790702947846,
+        "encodedSeconds": 161.27907,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -5.098949358829189,
+        "rmsDbFS": -20.29719065468334,
+        "integratedLUFS": -17.4,
+        "truePeakDbTP": -5.1,
+        "loudnessRangeLU": 6.8,
+        "dcMean": [
+          5.4623251952405466e-06,
+          5.479632350499596e-06
+        ],
+        "dcDbFS": [
+          -105.25244896091435,
+          -105.22497158033289
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 3.3625622947845955
+      },
+      "after": {
+        "seconds": 158.12024943310658,
+        "encodedSeconds": 158.132245,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -5.098949358829189,
+        "rmsDbFS": -20.211285450198886,
+        "integratedLUFS": -17.4,
+        "truePeakDbTP": -5.1,
+        "loudnessRangeLU": 6.8,
+        "dcMean": [
+          5.57133639847738e-06,
+          5.58911011218555e-06
+        ],
+        "dcDbFS": [
+          -105.08081235911233,
+          -105.05314668353266
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 0.2037414331065861
+      },
+      "removedSeconds": 3.1588208616780094,
+      "retainedDecodedPcmIdentical": true,
+      "reencoded": false,
+      "normalized": false,
+      "sourceSha256": "393e02aa6d31bd816c4e99a5eb4ccf0b27361e59dc001c9295451024a4aa52c9",
+      "outputSha256": "1b211d33966954e76be07938e9f079e79096b0efe2972df1dec65d82f8ad27bc"
+    },
+    {
+      "id": "lantern-carousel",
+      "operation": "mpeg-packet-copy-tail-trim",
+      "silenceThresholdDbFS": -65,
+      "keptQuietTargetSeconds": 0.2,
+      "before": {
+        "seconds": 134.23077097505669,
+        "encodedSeconds": 134.230771,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -5.347331124858861,
+        "rmsDbFS": -20.300921952407545,
+        "integratedLUFS": -17.3,
+        "truePeakDbTP": -5.3,
+        "loudnessRangeLU": 6.8,
+        "dcMean": [
+          2.109779634713835e-05,
+          1.9006539387666822e-05
+        ],
+        "dcDbFS": [
+          -93.51525808291528,
+          -94.42193900057056
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 2.5067119750566746
+      },
+      "after": {
+        "seconds": 131.94555555555556,
+        "encodedSeconds": 131.957551,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -5.347331124858861,
+        "rmsDbFS": -20.22634876695347,
+        "integratedLUFS": -17.3,
+        "truePeakDbTP": -5.3,
+        "loudnessRangeLU": 6.8,
+        "dcMean": [
+          2.1462942635707028e-05,
+          1.933553534640111e-05
+        ],
+        "dcDbFS": [
+          -93.36621470346942,
+          -94.27287598072002
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 0.2214965555555466
+      },
+      "removedSeconds": 2.285215419501128,
+      "retainedDecodedPcmIdentical": true,
+      "reencoded": false,
+      "normalized": false,
+      "sourceSha256": "1f9445f276451388d94bafde041bd2ed5a92921b9918cc7be9dd8dfccd0b49df",
+      "outputSha256": "43e85eced6a75b327cbe8070697b9b64e841d1f9b6e54bdfe43382258db900e3"
+    },
+    {
+      "id": "the-last-constellation",
+      "operation": "mpeg-packet-copy-tail-trim",
+      "silenceThresholdDbFS": -65,
+      "keptQuietTargetSeconds": 0.2,
+      "before": {
+        "seconds": 191.66666666666666,
+        "encodedSeconds": 191.666667,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -4.077540249104461,
+        "rmsDbFS": -20.2945901573966,
+        "integratedLUFS": -17.5,
+        "truePeakDbTP": -4.1,
+        "loudnessRangeLU": 6.4,
+        "dcMean": [
+          -3.0163535485321888e-06,
+          -2.6556001431820967e-08
+        ],
+        "dcDbFS": [
+          -110.41035511826169,
+          -151.51674633218488
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 3.188253666666668
+      },
+      "after": {
+        "seconds": 188.68351473922903,
+        "encodedSeconds": 188.69551,
+        "sampleRate": 44100,
+        "channels": 2,
+        "finite": true,
+        "peakDbFS": -4.077540249104461,
+        "rmsDbFS": -20.226463833354792,
+        "integratedLUFS": -17.5,
+        "truePeakDbTP": -4.1,
+        "loudnessRangeLU": 6.4,
+        "dcMean": [
+          -3.0644387757344623e-06,
+          -2.7343594136991247e-08
+        ],
+        "dcDbFS": [
+          -110.27298101944866,
+          -151.26288801681818
+        ],
+        "leadingQuietSeconds": 0.0,
+        "trailingQuietSeconds": 0.20510173922903618
+      },
+      "removedSeconds": 2.983151927437632,
+      "retainedDecodedPcmIdentical": true,
+      "reencoded": false,
+      "normalized": false,
+      "sourceSha256": "110549814f51946f60e0b2bb2f8f6f1114ce5c1b378fa1ab508ef2f00db46566",
+      "outputSha256": "87a723203e444147ed76adeaa418cac92a001bd1fe2b551be20e83a8f33f3fe8"
+    }
+  ]
+}

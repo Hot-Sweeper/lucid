@@ -1,0 +1,4 @@
+# Offline authoring only. No new application/runtime dependencies.
+numpy==2.4.6
+scipy==1.17.1
+pedalboard==0.9.26

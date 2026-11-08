@@ -18,6 +18,7 @@ import '${root}/src/styles.css';
 import {gameSound} from '${root}/src/office/sound';
 import {mountMusicControls} from '${root}/src/office/music-controls';
 import {SOUNDTRACK} from '${root}/src/office/soundtrack';
+import {songMatchesMode} from '${root}/src/office/soundtrack-queue';
 import {setLocale} from '${root}/src/localization';
 const cleanup=mountMusicControls(document.querySelector('#radio')!);
 const output=document.querySelector('#checks')!;
@@ -39,16 +40,14 @@ document.querySelector('#run')!.addEventListener('click',async()=>{
   const track=engine.background.get('theme');
   const analyser=ctx.createAnalyser();analyser.fftSize=2048;track.gain.connect(analyser);analyser.connect(silent);
   assert(engine.background.size===2,'two shared streaming sources');
-  for(const mode of ['lofi','synthwave','ambient','breakcore','phonk'] as const){
+  for(const mode of ['lofi','synthwave','ambient','breakcore','phonk','mystical','medieval','noir','nostalgic','pads','bells'] as const){
    const before=gameSound.currentTheme!.id;
    gameSound.configureMusic(mode);
    assert(gameSound.currentTheme!.id===before,mode+' setting waits for boundary');
    gameSound.nextTheme();
-   await until(()=>gameSound.musicState.status==='playing'&&gameSound.currentTheme!.genre===mode,mode+' did not load');
-   await wait(900);
-   const data=new Float32Array(2048);analyser.getFloatTimeDomainData(data);
-   const rms=Math.sqrt(data.reduce((n,v)=>n+v*v,0)/data.length);
-   assert(rms>.000001,mode+' real decoded signal');
+   await until(()=>gameSound.musicState.status==='playing'&&songMatchesMode(gameSound.currentTheme!,mode),mode+' did not load');
+   await until(()=>{const data=new Float32Array(2048);analyser.getFloatTimeDomainData(data);return Math.sqrt(data.reduce((n,v)=>n+v*v,0)/data.length)>.000001;},mode+' decoded signal');
+   assert(true,mode+' real decoded signal');
   }
   gameSound.pauseTheme(true);const position=track.media.currentTime;
   await wait(250);assert(track.media.paused&&track.media.currentTime===position,'pause retains playhead');

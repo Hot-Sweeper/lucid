@@ -1,5 +1,6 @@
 import { gameSound, type MusicState } from './sound';
-import { type SoundtrackMode } from './soundtrack-queue';
+import { songMatchesMode, type SoundtrackMode } from './soundtrack-queue';
+import { SOUNDTRACK } from './soundtrack';
 import { getLocale, onLocaleChange } from '../localization';
 import './music-controls.css';
 
@@ -8,18 +9,26 @@ const directions: [SoundtrackMode, string, string][] = [
   ['lofi', 'Chill lo-fi', 'Chill Lo-Fi'],
   ['synthwave', 'Synthwave', 'Synthwave'],
   ['ambient', 'Ambient', 'Ambient'],
-  ['breakcore', 'Melodic breakcore', 'Melodischer Breakcore'],
-  ['phonk', 'Chill phonk', 'Chill Phonk'],
+  ['pads', 'Ambient pads', 'Ambient-Flächen'],
+  ['bells', 'Bells & wonder', 'Glocken & Staunen'],
+  ['mystical', 'Mystical', 'Mystisch'],
+  ['medieval', 'Medieval', 'Mittelalter'],
+  ['noir', 'Detective chamber', 'Detektivmusik'],
+  ['nostalgic', 'Nostalgic', 'Nostalgisch'],
+  ['breakcore', 'Breakcore / DnB', 'Breakcore / DnB'],
+  ['phonk', 'Lunar phonk', 'Lunar Phonk'],
   ['acoustic', 'Cozy instrumentals', 'Gemütliche Instrumentals'],
 ];
 const chapters: Record<string, string> = {
   'still-water': 'Stilles Wasser', 'warm-tape': 'Warmes Tonband',
   'night-drive': 'Nachtfahrt', 'neon-rise': 'Neonaufstieg', 'petal-rush': 'Blütenrausch',
+  observatory: 'Gläsernes Observatorium', 'briar-path': 'Laternen im Hain',
+  'old-postcards': 'Alte Postkarten', 'copper-casebook': 'Kupfernes Fallbuch',
   afterglow: 'Nachglühen', 'soft-landing': 'Sanfte Landung',
 };
 const genreNames: Record<string, string> = {
   acoustic: 'Instrumental', lofi: 'Lo-fi', synthwave: 'Synthwave', ambient: 'Ambient',
-  breakcore: 'Breakcore', phonk: 'Phonk',
+  breakcore: 'Breakcore', phonk: 'Phonk', mystical: 'Mystical', medieval: 'Medieval', noir: 'Detective chamber', nostalgic: 'Nostalgic',
 };
 
 /** Small controls in the existing settings shelf. All state comes from the audio owner. */
@@ -54,16 +63,16 @@ export function mountMusicControls(parent: HTMLElement): () => void {
     for (let i = 0; i < directions.length; i++) text(select.options[i], directions[i][de ? 2 : 1]);
     select.value = state.mode;
     text(title, state.song?.title ?? (de ? 'Die Musik wartet auf dich' : 'Music is ready when you are'));
-    text(detail, state.song ? `${genreNames[state.song.genre]} · ${state.song.bpm} BPM` : (de ? '19 eigene Instrumentals' : '19 original instrumentals'));
+    text(detail, state.song ? `${directions.find(([id]) => id === state.song!.genre)?.[de ? 2 : 1] ?? genreNames[state.song.genre]} · ${state.song.bpm} BPM` : (de ? `${SOUNDTRACK.length} eigene Instrumentals` : `${SOUNDTRACK.length} original instrumentals`));
     const mood = state.chapter ? (de ? chapters[state.chapter.id] ?? state.chapter.title : state.chapter.title) : '';
     text(journey, state.mode === 'journey'
       ? (de ? `Stimmung: ${mood}. Entwickelt sich beim Zuhören.` : `Mood: ${mood}. Develops as you listen.`)
-      : (de ? 'Diese Musikrichtung bleibt ausgewählt.' : 'Stays in this genre until you change it.'));
+      : (de ? 'Diese Musikrichtung bleibt ausgewählt.' : 'Stays in this direction until you change it.'));
     text(pause, state.paused ? (de ? 'Fortsetzen' : 'Resume music') : (de ? 'Musik pausieren' : 'Pause music'));
     pause.setAttribute('aria-pressed', String(state.paused));
     text(next, de ? 'Nächster Song' : 'Next song');
     next.disabled = state.status === 'loading';
-    const pending = state.song && state.mode !== 'journey' && state.song.genre !== state.mode;
+    const pending = state.song && state.mode !== 'journey' && !songMatchesMode(state.song, state.mode);
     const messages: Record<string, [string, string]> = {
       loading: ['Loading song…', 'Song wird geladen…'],
       error: ['Could not play this song. Choose Next song to try again.', 'Song konnte nicht abgespielt werden. Versuche den nächsten Song.'],

@@ -47,6 +47,8 @@ async function main() {
   assert.equal(contexts.length, 1); assert.equal(media.length, 2);
   assert(media.every(m => m.calls === 1 && m.preload === 'none') && !media[0].loop && media[1].loop, 'only ambience loops; gestures never overlap pending plays');
   const audio = contexts[0];
+  const assertTrim = (engine,label) => assert(Math.abs(engine.background.get('theme').gain.gain.value-engine.themeVolume*2.2*10**(engine.currentTheme.gainDb/20))<1e-9,label);
+  assertTrim(sound,'the first fade applies the first recording measured playback trim');
   assert([...sound.background.values()].every(track => track.source.target === track.gain && track.gain.target === sound.master), 'both streams use the existing master');
   sound.configure(false);
   for (const m of media) m.resolve();
@@ -76,6 +78,7 @@ async function main() {
   assert.equal(sound.background.get('theme').gain.gain.value, 0, 'outgoing music has a gentle tail fade');
   media[0].finish();
   assert.notEqual(sound.currentTheme.id, firstSong, 'an ended song advances automatically');
+  assertTrim(sound,'automatic rotation applies the incoming recording trim rather than the outgoing trim');
   assert.equal(media.length, 2, 'rotation reuses the existing two streams');
   media[0].resolve(); await settle();
   assert(!media[0].paused && !sound.background.get('theme').fading);

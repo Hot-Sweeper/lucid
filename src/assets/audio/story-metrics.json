@@ -1,0 +1,436 @@
+[
+  {
+    "id": "the-glass-observatory",
+    "title": "The Glass Observatory",
+    "genre": "mystical",
+    "bpm": 72,
+    "meter": 4,
+    "key": 4,
+    "mode": "dorian",
+    "energy": 0.18,
+    "period": "night",
+    "textures": [
+      "pads",
+      "bells",
+      "bowed-strings",
+      "harp"
+    ],
+    "seconds": 175.45,
+    "peakDbFS": -5.967351394747422,
+    "rmsDbFS": -20.128649716798613,
+    "stereoCorrelation": 0.9747343516164271,
+    "monoFoldDownDb": -0.06913258731025505,
+    "dc": 3.15964462060947e-05,
+    "sections": [
+      {
+        "name": "a distant light",
+        "bar": 0,
+        "bars": 4,
+        "start": 0.0,
+        "end": 13.333333333333334,
+        "rmsDbFS": -24.544534226419167
+      },
+      {
+        "name": "glass question",
+        "bar": 4,
+        "bars": 8,
+        "start": 13.333333333333334,
+        "end": 40.0,
+        "rmsDbFS": -17.997013241461634
+      },
+      {
+        "name": "orbiting answer",
+        "bar": 12,
+        "bars": 8,
+        "start": 40.0,
+        "end": 66.66666666666667,
+        "rmsDbFS": -22.971110701861374
+      },
+      {
+        "name": "eclipse",
+        "bar": 20,
+        "bars": 8,
+        "start": 66.66666666666667,
+        "end": 93.33333333333334,
+        "rmsDbFS": -24.673053817007485
+      },
+      {
+        "name": "stars emerge",
+        "bar": 28,
+        "bars": 8,
+        "start": 93.33333333333334,
+        "end": 120.0,
+        "rmsDbFS": -22.179586176314782
+      },
+      {
+        "name": "the observatory opens",
+        "bar": 36,
+        "bars": 12,
+        "start": 120.0,
+        "end": 160.0,
+        "rmsDbFS": -17.221523184990296
+      },
+      {
+        "name": "last reflection",
+        "bar": 48,
+        "bars": 4,
+        "start": 160.0,
+        "end": 173.33333333333334,
+        "rmsDbFS": -22.29767133928192
+      }
+    ],
+    "noteEvents": 295,
+    "acousticRenderer": "FluidSynth with MIT FluidR3 GM 3.1; authored articulations and CC11 breath/bow phrases",
+    "productionChain": "Pedalboard 0.9.26 chamber stem EQ, centered low end, filtered parallel room send",
+    "expression": "Per-instrument MIDI CC11 phrase envelopes for sustained reeds and bowed strings; individual key/pluck velocities",
+    "soundfontSha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+    "soundfontPrograms": {
+      "cello": 42,
+      "harp": 46,
+      "recorder": 74,
+      "viola": 41
+    },
+    "decoded": {
+      "seconds": 175.45,
+      "peakDbFS": -6.2236461123452225,
+      "rmsDbFS": -20.394579157170504,
+      "stereoCorrelation": 0.974734571797535,
+      "monoFoldDownDb": -0.06913601168272529,
+      "dc": 3.0235940357670188e-05,
+      "trailingQuietSeconds": 0.25,
+      "integratedLufs": -17.7,
+      "truePeakDbFS": -6.2
+    },
+    "sectionDynamicRangeDb": 7.451530632017189,
+    "tailPaddingSeconds": 0.25,
+    "loudnessSummary": "Summary:\n\n  Integrated loudness:\n    I:         -17.7 LUFS\n    Threshold: -27.8 LUFS\n\n  Loudness range:\n    LRA:         8.9 LU\n    Threshold: -37.8 LUFS\n    LRA low:   -23.4 LUFS\n    LRA high:  -14.4 LUFS\n\n  True peak:\n    Peak:       -6.2 dBFS\n[out#0/null @ 0x562e9d1b1e00] video:0KiB audio:30224KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown\nsize=N/A time=00:02:55.45 bitrate=N/A speed= 434x elapsed=0:00:00.40"
+  },
+  {
+    "id": "briar-lanterns",
+    "title": "Briar Lanterns",
+    "genre": "medieval",
+    "bpm": 90,
+    "meter": 3,
+    "key": 2,
+    "mode": "dorian",
+    "energy": 0.34,
+    "period": "morning",
+    "textures": [
+      "lute",
+      "woodwind",
+      "drone",
+      "hand-percussion"
+    ],
+    "seconds": 171.01,
+    "peakDbFS": -4.098614839541469,
+    "rmsDbFS": -20.205733206807977,
+    "stereoCorrelation": 0.9788931531176042,
+    "monoFoldDownDb": -0.046171287102468955,
+    "dc": 8.515135050402023e-06,
+    "sections": [
+      {
+        "name": "the stone gate",
+        "bar": 0,
+        "bars": 4,
+        "start": 0.0,
+        "end": 8.0,
+        "rmsDbFS": -24.499138036902934
+      },
+      {
+        "name": "lantern procession",
+        "bar": 4,
+        "bars": 16,
+        "start": 8.0,
+        "end": 40.0,
+        "rmsDbFS": -19.593590568091656
+      },
+      {
+        "name": "courtyard dance",
+        "bar": 20,
+        "bars": 16,
+        "start": 40.0,
+        "end": 72.0,
+        "rmsDbFS": -19.306327450427023
+      },
+      {
+        "name": "mist on the path",
+        "bar": 36,
+        "bars": 8,
+        "start": 72.0,
+        "end": 88.0,
+        "rmsDbFS": -24.04249239017482
+      },
+      {
+        "name": "the other road",
+        "bar": 44,
+        "bars": 16,
+        "start": 88.0,
+        "end": 120.0,
+        "rmsDbFS": -19.273980649088298
+      },
+      {
+        "name": "lanterns return",
+        "bar": 60,
+        "bars": 16,
+        "start": 120.0,
+        "end": 152.0,
+        "rmsDbFS": -19.496437856833133
+      },
+      {
+        "name": "the gate closes",
+        "bar": 76,
+        "bars": 8,
+        "start": 152.0,
+        "end": 168.0,
+        "rmsDbFS": -23.290770184831615
+      }
+    ],
+    "noteEvents": 718,
+    "acousticRenderer": "FluidSynth with MIT FluidR3 GM 3.1; authored articulations and CC11 breath/bow phrases",
+    "productionChain": "Pedalboard 0.9.26 chamber stem EQ, centered low end, filtered parallel room send",
+    "expression": "Per-instrument MIDI CC11 phrase envelopes for sustained reeds and bowed strings; individual key/pluck velocities",
+    "soundfontSha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+    "soundfontPrograms": {
+      "harp": 46,
+      "lute": 24,
+      "recorder": 74,
+      "strings": 48,
+      "viola": 41
+    },
+    "decoded": {
+      "seconds": 171.01,
+      "peakDbFS": -4.366003903318967,
+      "rmsDbFS": -20.471438649138683,
+      "stereoCorrelation": 0.9788761310899957,
+      "monoFoldDownDb": -0.04620278665988306,
+      "dc": 9.110950486501679e-06,
+      "trailingQuietSeconds": 0.32,
+      "integratedLufs": -18.0,
+      "truePeakDbFS": -4.4
+    },
+    "sectionDynamicRangeDb": 5.225157387814637,
+    "tailPaddingSeconds": 0.25,
+    "loudnessSummary": "Summary:\n\n  Integrated loudness:\n    I:         -18.0 LUFS\n    Threshold: -28.1 LUFS\n\n  Loudness range:\n    LRA:         5.1 LU\n    Threshold: -38.0 LUFS\n    LRA low:   -22.0 LUFS\n    LRA high:  -16.8 LUFS\n\n  True peak:\n    Peak:       -4.4 dBFS\n[out#0/null @ 0x563e8e07be00] video:0KiB audio:29459KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown\nsize=N/A time=00:02:51.01 bitrate=N/A speed= 421x elapsed=0:00:00.40"
+  },
+  {
+    "id": "the-copper-casebook",
+    "title": "The Copper Casebook",
+    "genre": "noir",
+    "bpm": 96,
+    "meter": 3,
+    "key": 2,
+    "mode": "minor",
+    "energy": 0.44,
+    "period": "evening",
+    "textures": [
+      "pizzicato",
+      "reed",
+      "bowed-strings",
+      "piano"
+    ],
+    "seconds": 166.17,
+    "peakDbFS": -4.087275038341457,
+    "rmsDbFS": -20.24908696139468,
+    "stereoCorrelation": 0.9067070842319144,
+    "monoFoldDownDb": -0.20913914694289115,
+    "dc": 0.00019305161549709737,
+    "sections": [
+      {
+        "name": "the case opens",
+        "bar": 0,
+        "bars": 4,
+        "start": 0.0,
+        "end": 7.5,
+        "rmsDbFS": -25.896841253414117
+      },
+      {
+        "name": "the question",
+        "bar": 4,
+        "bars": 16,
+        "start": 7.5,
+        "end": 37.5,
+        "rmsDbFS": -19.49129340827159
+      },
+      {
+        "name": "footsteps in fog",
+        "bar": 20,
+        "bars": 16,
+        "start": 37.5,
+        "end": 67.5,
+        "rmsDbFS": -19.980365281829457
+      },
+      {
+        "name": "a deduction",
+        "bar": 36,
+        "bars": 12,
+        "start": 67.5,
+        "end": 90.0,
+        "rmsDbFS": -19.2420733555266
+      },
+      {
+        "name": "the false lead",
+        "bar": 48,
+        "bars": 8,
+        "start": 90.0,
+        "end": 105.0,
+        "rmsDbFS": -25.839815250186938
+      },
+      {
+        "name": "the reveal",
+        "bar": 56,
+        "bars": 16,
+        "start": 105.0,
+        "end": 135.0,
+        "rmsDbFS": -19.414097426351436
+      },
+      {
+        "name": "one last clue",
+        "bar": 72,
+        "bars": 12,
+        "start": 135.0,
+        "end": 157.5,
+        "rmsDbFS": -19.790309096094273
+      },
+      {
+        "name": "case closed",
+        "bar": 84,
+        "bars": 4,
+        "start": 157.5,
+        "end": 165.0,
+        "rmsDbFS": -24.833962257192606
+      }
+    ],
+    "noteEvents": 695,
+    "acousticRenderer": "FluidSynth with MIT FluidR3 GM 3.1; authored articulations and CC11 breath/bow phrases",
+    "productionChain": "Pedalboard 0.9.26 chamber stem EQ, centered low end, filtered parallel room send",
+    "expression": "Per-instrument MIDI CC11 phrase envelopes for sustained reeds and bowed strings; individual key/pluck velocities",
+    "soundfontSha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+    "soundfontPrograms": {
+      "basspluck": 45,
+      "cello": 42,
+      "clarinet": 71,
+      "feltpiano": 0,
+      "pizz": 45,
+      "strings": 48,
+      "viola": 41
+    },
+    "decoded": {
+      "seconds": 166.17,
+      "peakDbFS": -4.3474929081467435,
+      "rmsDbFS": -20.51493568586821,
+      "stereoCorrelation": 0.9066789095591596,
+      "monoFoldDownDb": -0.20920087001939539,
+      "dc": 0.00018819989054463804,
+      "trailingQuietSeconds": 0.27,
+      "integratedLufs": -18.7,
+      "truePeakDbFS": -4.3
+    },
+    "sectionDynamicRangeDb": 6.654767897887517,
+    "tailPaddingSeconds": 0.25,
+    "loudnessSummary": "Summary:\n\n  Integrated loudness:\n    I:         -18.7 LUFS\n    Threshold: -28.9 LUFS\n\n  Loudness range:\n    LRA:         7.0 LU\n    Threshold: -38.8 LUFS\n    LRA low:   -23.8 LUFS\n    LRA high:  -16.8 LUFS\n\n  True peak:\n    Peak:       -4.3 dBFS\n[out#0/null @ 0x55ccd404de00] video:0KiB audio:28625KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown\nsize=N/A time=00:02:46.17 bitrate=N/A speed= 410x elapsed=0:00:00.40"
+  },
+  {
+    "id": "postcards-from-home",
+    "title": "Postcards from Home",
+    "genre": "nostalgic",
+    "bpm": 78,
+    "meter": 4,
+    "key": 8,
+    "mode": "major",
+    "energy": 0.25,
+    "period": "evening",
+    "textures": [
+      "felt-piano",
+      "cello",
+      "soft-strings"
+    ],
+    "seconds": 162.01,
+    "peakDbFS": -3.677780756564149,
+    "rmsDbFS": -20.364619498108752,
+    "stereoCorrelation": 0.44885763466207396,
+    "monoFoldDownDb": -1.4068779504793958,
+    "dc": 3.16296900564339e-05,
+    "sections": [
+      {
+        "name": "the porch light",
+        "bar": 0,
+        "bars": 4,
+        "start": 0.0,
+        "end": 12.307692307692308,
+        "rmsDbFS": -23.829227333115792
+      },
+      {
+        "name": "the first letter",
+        "bar": 4,
+        "bars": 8,
+        "start": 12.307692307692308,
+        "end": 36.92307692307693,
+        "rmsDbFS": -19.725419816049715
+      },
+      {
+        "name": "a familiar refrain",
+        "bar": 12,
+        "bars": 8,
+        "start": 36.92307692307693,
+        "end": 61.53846153846154,
+        "rmsDbFS": -19.387296378405317
+      },
+      {
+        "name": "a faded photograph",
+        "bar": 20,
+        "bars": 8,
+        "start": 61.53846153846154,
+        "end": 86.15384615384616,
+        "rmsDbFS": -23.16988691114434
+      },
+      {
+        "name": "remembering",
+        "bar": 28,
+        "bars": 8,
+        "start": 86.15384615384616,
+        "end": 110.76923076923077,
+        "rmsDbFS": -20.153087235565415
+      },
+      {
+        "name": "homeward",
+        "bar": 36,
+        "bars": 12,
+        "start": 110.76923076923077,
+        "end": 147.6923076923077,
+        "rmsDbFS": -19.071999639583794
+      },
+      {
+        "name": "the last postcard",
+        "bar": 48,
+        "bars": 4,
+        "start": 147.6923076923077,
+        "end": 160.0,
+        "rmsDbFS": -21.897882719389887
+      }
+    ],
+    "noteEvents": 519,
+    "acousticRenderer": "FluidSynth with MIT FluidR3 GM 3.1; authored articulations and CC11 breath/bow phrases",
+    "productionChain": "Pedalboard 0.9.26 chamber stem EQ, centered low end, filtered parallel room send",
+    "expression": "Per-instrument MIDI CC11 phrase envelopes for sustained reeds and bowed strings; individual key/pluck velocities",
+    "soundfontSha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+    "soundfontPrograms": {
+      "cello": 42,
+      "feltpiano": 0,
+      "strings": 48
+    },
+    "decoded": {
+      "seconds": 162.01,
+      "peakDbFS": -3.950456555005606,
+      "rmsDbFS": -20.629140692284086,
+      "stereoCorrelation": 0.44884382871635853,
+      "monoFoldDownDb": -1.4069845586235434,
+      "dc": 3.180326530127786e-05,
+      "trailingQuietSeconds": 0.25,
+      "integratedLufs": -17.3,
+      "truePeakDbFS": -3.9
+    },
+    "sectionDynamicRangeDb": 4.757227693531998,
+    "tailPaddingSeconds": 0.25,
+    "loudnessSummary": "Summary:\n\n  Integrated loudness:\n    I:         -17.3 LUFS\n    Threshold: -27.9 LUFS\n\n  Loudness range:\n    LRA:         4.7 LU\n    Threshold: -37.9 LUFS\n    LRA low:   -20.9 LUFS\n    LRA high:  -16.2 LUFS\n\n  True peak:\n    Peak:       -3.9 dBFS\n[out#0/null @ 0x555bc13bae00] video:0KiB audio:27909KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown\nsize=N/A time=00:02:42.01 bitrate=N/A speed= 439x elapsed=0:00:00.36"
+  }
+]

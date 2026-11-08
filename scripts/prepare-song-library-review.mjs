@@ -17,6 +17,7 @@ import '${root}/src/styles.css';
 import '${root}/src/office/app-library.css';
 import {openAppLibrary} from '${root}/src/office/app-library';
 import {gameSound} from '${root}/src/office/sound';
+import {SOUNDTRACK} from '${root}/src/office/soundtrack';
 import {setLocale} from '${root}/src/localization';
 const trigger=document.querySelector('#library')! as HTMLButtonElement;
 trigger.onclick=()=>openAppLibrary(trigger);
@@ -42,7 +43,7 @@ document.querySelector('#run')!.addEventListener('click',async()=>{
   await until(()=>gameSound.musicState.status==='playing','initial playback');
   const baseline=engine.musicListeners.size;
   openAppLibrary(trigger);
-  assert(document.querySelectorAll('.sl-track').length===19,'all 19 real songs appear');
+  assert(document.querySelectorAll('.sl-track').length===SOUNDTRACK.length,'all '+SOUNDTRACK.length+' real songs appear');
   assert(!document.querySelector('.al-frame'),'real song library does not mount a demo frame');
   const list=document.querySelector('.sl-tracks')! as HTMLElement;
   assert(list.clientHeight>100&&list.scrollHeight>list.clientHeight,'song list has a usable bounded scroll region');
@@ -60,6 +61,8 @@ document.querySelector('#run')!.addEventListener('click',async()=>{
   choose('[data-song-id="cassette-clouds"]');
   await until(()=>gameSound.musicState.status==='playing','resume');
   assert(track.media.currentTime>=position,'row resumes the retained song');
+  filter('mystical');assert(visible().length===1&&visible()[0].querySelector('[data-song-id="the-glass-observatory"]'),'new story genre finds its authored recording');
+  filter('all');input(search(),'Glocken');assert(visible().length>=5,'localized instrument search finds bell textures');
   input(search(),'neon');assert(visible().length===1,'title search filters the real catalogue');
   filter('breakcore');assert(visible().length===0&&!document.querySelector('.sl-empty')!.hasAttribute('hidden'),'empty search explains no matches');
   input(search(),'');assert(visible().length===1,'genre filter finds melodic breakcore');

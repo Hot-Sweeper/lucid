@@ -1,108 +1,159 @@
 # Office music and ambience
 
-The soundtrack now contains nineteen original pieces, about 45 minutes in total:
+The Song library contains 23 original pieces, with ten genre directions and two
+texture directions. The original Little Lights recording is preserved.
 
-- Morning: **Window Garden** (bright mallets, 88 BPM) and **First Coffee**
-  (electric-piano waltz, 96 BPM).
-- Daytime: **Little Lights** (78 BPM), **Paper Kites** (plucked melody,
-  102 BPM) and **Peach Parade** (mallets and soft percussion, 92 BPM).
-- Evening: **Apricot Hour** (warm jazz harmony, 76 BPM) and **Tram Home**
-  (minor-key waltz, 82 BPM).
-- Night: **Moonlit Desks** (sparse glass tones, 64 BPM) and **Sleepy Satellites**
-  (soft pads and keys, 68 BPM).
+## Current arrangements
 
-Five encore pieces extend the score with separate authored hooks and arrangements:
+The five electronic recordings have been rebuilt with distinct sources and
+arrangements, informed by the user's Lunar Phonk, Breakcore/DnB and Lofi Girl
+references. See [music-production-research.md](music-production-research.md) for
+research, sources, comparisons and limitations.
 
-- **Pocket Sunrise**, morning, 104 BPM: syncopated marimba, plucked chords and a
-  light bossa pulse, with an ascending hook that returns in a fuller final section.
-- **Cloud Arcade**, daytime, 110 BPM: rounded triangle-synth melody, offbeat
-  plucks and soft electronic drums, with a contrasting piano bridge.
-- **Velvet Elevator**, evening, 86 BPM: swung tine piano, walking bass answers,
-  brushed percussion and a borrowed minor chord in the turnaround.
-- **Lantern Carousel**, night, 78 BPM: a music-box waltz in A minor, with rolled
-  chords, a rising middle phrase and a quiet low-register reprise.
-- **The Last Constellation**, night, 72 BPM: a slow, spacious synth melody over
-  major-ninth harmony, soft pads and restrained half-time percussion.
+- **Cassette Clouds**, lo-fi, 82 BPM: sampled electric piano, nylon guitar,
+  piano replies and acoustic bass in complementary registers. An original
+  four-bar keys performance is resampled over relaxed acoustic drums with
+  ghost strokes, alternate takes and restrained drift.
+- **Neon Afterglow**, synthwave, 104 BPM: original Surge XT analog patches,
+  syncopated bass, arpeggios, melodic answers, drum pickups and a contrasting
+  tunnel section. A sampled snare has a short gated room; its direct attack
+  remains distinct.
+- **Tidal Memory**, ambient, 66 BPM: native synth pads overlap independent
+  phrases. Original plucks become evolving washes, with sparse motifs and
+  slow releases.
+- **Petal Breaks**, atmospheric breakcore/DnB, 164 BPM: an original eight-bar
+  performance using recorded acoustic hits is sliced into musical phrases.
+  Ghost notes, displaced answers and selective retriggers retain clear anchors.
+  Drumless and half-time resets, a bell-led middle and a brighter return give
+  the dense sections a purpose.
+- **Midnight Drift**, lunar phonk, 74 BPM with a 148 BPM feel: a clean mono
+  808, stereo pads, an original pitched-metal motif with sampled vibraphone
+  body, developed hats and a quiet underpass. No reference melody or vocal
+  recording is included.
 
-These five recordings add roughly 12½ minutes. Their intro, contrasting bridge,
-quiet middle, reprise and closing cadence are rendered into the audio files.
+Four chamber pieces add separate story moods:
 
-## Genre journeys
+- **The Glass Observatory**, mystical, 72 BPM, E Dorian: suspended pads,
+  bell questions, harp and bowed-string responses.
+- **Briar Lanterns**, medieval, 90 BPM in 3/4, D Dorian: lute-like plucks,
+  recorder, an open drone and restrained hand percussion.
+- **The Copper Casebook**, detective, 96 BPM in 3/4, D minor: pizzicato,
+  clarinet, piano and chromatic questions that resolve in the returning theme.
+- **Postcards from Home**, nostalgic, 78 BPM, A-flat major: piano and cello
+  trade phrases over quiet strings and a contrasting middle.
 
-The five genre recordings add 13 minutes with different production approaches:
+FluidSynth renders actual FluidR3 instrument samples for the chamber parts.
+Sustained instruments receive authored breath/bow expression; keys and plucks
+retain velocity and articulation. Stem-specific EQ and filtered room sends
+support the arrangement. FluidR3 is a modest sample bank, without the
+articulation depth of a large contemporary orchestral library.
 
-- **Cassette Clouds**, lo-fi, 82 BPM (2:38): dusty, detuned keys and plucked
-  guitar over swung drums; a stripped middle gives the returning hook space.
-- **Neon Afterglow**, synthwave, 104 BPM (2:34): detuned saw and pulse leads,
-  sequenced arpeggios, pumping pads and a gated snare.
-- **Tidal Memory**, ambient, 66 BPM (2:43): drumless overlapping textures,
-  slow stereo blooms, shimmer and a sparse motif.
-- **Petal Breaks**, melodic breakcore, 164 BPM (2:26): an original synthetic
-  break is physically sliced, rearranged, reversed and ratcheted around an airy
-  melody, with quiet respite sections between the denser passages.
-- **Midnight Drift**, chill phonk, 88 BPM (2:39): a dark cowbell hook, gliding
-  808 sub-bass, crisp hats and a half-time groove.
+The earlier score remains available: Little Lights, Window Garden, First
+Coffee, Paper Kites, Peach Parade, Apricot Hour, Tram Home, Moonlit Desks,
+Sleepy Satellites, Pocket Sunrise, Cloud Arcade, Velvet Elevator, Lantern
+Carousel and The Last Constellation. Thirteen older additions had 34.43 seconds
+of unwanted trailing silence removed by packet copying. Every retained decoded
+sample matches its earlier recording exactly.
 
-**Office radio**, in Office & settings below the volume controls, defaults to
-**Evolving journey**. Seven chapters develop the mood: Still water, Warm tape,
-Night drive, Neon rise, Petal rush, Afterglow, and Soft landing. Their listening
-budgets range from two to five minutes; they turn only between songs after the
-chapter's defining genre has played. Energy-aware bridge songs build toward the
-faster material and settle afterward. Each piece also contains its own authored
-arrangement and breakdowns.
+## Direction and playback
 
-Only actual, active media playback advances this arc. Muting, pausing, hiding
-Lucid, waiting for media, seeking and wall-clock time do not advance it. Local
-time chooses the initial chapter and lightly weights later selections; it never
-interrupts the current song. Genre, chapter progress, playback position and pause
-state persist locally across restarts. Older soundtrack history migrates.
+**Office radio**, below the volume controls, defaults to **Evolving journey**.
+Eleven listening-time chapters develop the mood: Still water, Observatory,
+Briar path, Old postcards, Warm tape, Copper casebook, Night drive, Neon rise,
+Petal rush, Afterglow and Soft landing. Chapter budgets range from two to five
+minutes and advance between complete songs, after their defining genre has
+played. Each recording also contains its own authored development.
 
-Unheard songs get preference within compatible chapters. Rare genres can return
-before every cozy instrumental has played, keeping the journey varied; all songs
-remain reachable. There are no adjacent repeats in the normal journey. A genre
-lock stays in that style, intentionally repeating its recording when only one is
-available. **Cozy instrumentals** retains access to the older light arrangements.
-The mode selector schedules the next song; **Next song** applies it immediately.
-**Pause music** leaves room ambience and the rest of the game sound alone.
+Selections consider energy, related major/minor/modal keys, half/double-time
+tempo relationships and shared textures. A compatible bridge can lead into a
+remote key or larger energy change. This is song-boundary curation, without
+live beat matching or time stretching. No adjacent songs repeat in the journey.
+Unheard tracks get preference within compatible pools; every piece is reachable.
 
-Lucid's original theme, **Little Lights**, is a 64-bar, 78 BPM instrumental in
-D major (3:17). A short bell melody returns between warm electric-piano passages,
-rounded bass, soft pads and brushed percussion. The middle thins out before the
-melody returns. This recording is preserved. The first eight additions have separate
-authored chord progressions, hooks, rhythms and arrangements.
+Only active media playback advances the journey. Pausing, muting, hiding Lucid,
+buffering, seeking and wall-clock time do not count. Local time chooses the
+initial chapter and lightly weights later selections. Chapter progress,
+history, playback position, pause state and direction persist across restarts.
+Older saved chapter IDs still migrate.
 
-The separate room-air bed is quiet, filtered stereo air. Existing spatial typing,
-footsteps, park water, birds and object sounds still follow actual visible activity.
-The ambience does not imply rain, conversations or agent activity.
+Choose a genre to stay in it, **Ambient pads** for quiet pad-led pieces, or
+**Bells & wonder** for gentle bell material. A direction schedules the next
+song; **Next song** applies it immediately. A one-song genre may repeat when
+locked. **Pause music** leaves room ambience and game sounds alone.
 
-In Office & tools, **Sound volume** controls everything. **Theme music** and
-**Room ambience** adjust the two background layers independently; zero pauses
-that layer. The existing Sound on/off button mutes everything. Settings persist.
-Audio starts only after a trusted gesture, pauses while hidden, and fades back in
-from its previous position after the next gesture. The tracks use the singleton
-audio context and master gain, with two reused local streaming sources and no new
-timers. Only room air loops. The music player advances on the actual media-ended
-event and uses media time updates for its tail fade. Muting or hiding the office
-prevents a late song-ending event from restarting playback.
+**Sound volume** controls everything. **Theme music** and **Room ambience**
+adjust the background layers independently; zero pauses that layer. Global
+mute remains authoritative. Trusted user input unlocks audio. Hidden music
+resumes from its position after the next gesture. Two reused local streaming
+sources feed the singleton audio context and master gain. Only room air loops;
+songs rotate on actual media-ended events. Muted or hidden late events cannot
+restart playback.
 
-The assets in `src/assets/audio` contain original synthesis with no third-party
-samples or services. To regenerate the original theme and air, run
-`python scripts/compose-office-theme.py`. To regenerate the eight added songs,
-run `python scripts/compose-office-playlist.py`. To regenerate the five encore
-pieces, run `python scripts/compose-office-encore.py`. All three use numpy, scipy
-and ffmpeg. Run `python scripts/compose-office-genres.py` for the five genre
-recordings. These are authoring tools only, not app dependencies. Per-song source PCM levels
-and durations are recorded in `src/assets/audio/soundtrack-metrics.json` and
-`src/assets/audio/genre-metrics.json`; the new
-pieces have roughly matched average levels around -20 dBFS RMS. The original source PCM theme measures
--2.85 dBFS peak and -19.86 dBFS RMS; room air measures -13.98 dBFS peak and
--29.01 dBFS RMS. At default gains the calculated theme RMS is about -40.3 dBFS,
-and the air about -48.7 dBFS, before device volume. These are digital signal levels,
-not measured listening loudness or device performance.
+Each piece has a measured constant playback trim targeting -20 LUFS. This
+matches playback loudness while preserving section dynamics. The separate
+room-air bed is filtered stereo air. Spatial typing, footsteps, water, birds
+and object sounds continue to follow real visible activity.
 
-Regression checks:
+## Song library
 
+Open **App library**, then **Song library** under Media. The 23-song catalogue
+supports title, genre and texture search, genre filters, durations and whole-row
+Play, Pause, Resume or Retry. The playback disclosure contains the same music
+direction and Next controls. A chosen song plays immediately through the office
+stream, then the selected direction resumes with the following song.
+
+Switching apps or returning to the office keeps playback running. Exiting the
+library releases subscriptions; search, filters and scroll position survive
+reopening. Narrow views offer **All apps** to return to the grid. English/German
+labels update without changing authored song titles. Botify remains a separate
+fictional robot-app demo.
+
+## Authoring and provenance
+
+These are offline tools. The app ships MP3 recordings and needs no plug-in,
+sample bank, Python process or music service at runtime. Install Python
+dependencies from `scripts/requirements-music.txt`; FFmpeg and FluidSynth are
+separate prerequisites.
+
+Acoustic hits come from the CC0
+[Versilian Community Sample Library](https://github.com/sgossner/VCSL).
+`scripts/assets/vcsl-drums.json` pins 23 paths, sizes and SHA256 hashes:
+
+```bash
+python scripts/fetch-vcsl-drums.py --output-dir /tmp/lucid-vcsl-drums
 ```
+
+Use the MIT FluidR3 GM bank through `FLUID_SOUNDFONT`. Its notice is retained
+in `docs/licenses/FluidR3-GM.txt`. For synth renders, `SURGE_VST3` points to a
+compatible Linux Surge XT VST3; `SURGE_DATA_HOME` can identify portable data.
+Original patch parameters and source information are recorded with the renders.
+Factory presets and reference recordings are not composition inputs.
+
+```bash
+python scripts/reference_mixes.py --soundfont "$FLUID_SOUNDFONT" --drums /tmp/lucid-vcsl-drums
+VCSL_DRUMS=/tmp/lucid-vcsl-drums python scripts/surge_arrangements.py
+python scripts/compose-office-genres.py --only petal-breaks --sample-dir /tmp/lucid-vcsl-drums
+python scripts/compose-office-stories.py
+python scripts/sync-music-catalog.py
+python scripts/verify-music-masters.py --write
+```
+
+`compose-office-genres.py` now renders only Petal Breaks. Its earlier sketches
+cannot overwrite newer sampled/native masters through the command line.
+`reference-mix-metrics.json`, `surge-mix-metrics.json`, `genre-metrics.json` and
+`story-metrics.json` retain structure and production provenance.
+`library-mastering.json` measures actual packaged MP3 hashes, duration, DC,
+stereo correlation, silence, loudness and true peaks.
+
+Earlier generation tools remain `compose-office-theme.py`,
+`compose-office-playlist.py` and `compose-office-encore.py`. After regenerating
+older additions, run `master-office-legacy.py`, then measure the library again.
+That trimming pass is idempotent.
+
+## Verification
+
+```bash
+python scripts/verify-music-masters.py
 node scripts/verify-game-sound.cjs
 node scripts/verify-background-audio.cjs
 node scripts/verify-soundtrack.cjs
@@ -111,43 +162,23 @@ node scripts/verify-background-audio-native.cjs
 npm run verify:update
 ```
 
-The native fixture uses real Chromium decoding and an analyser, with its output
-muted. It checks the entire soundtrack for codec coverage and separately checks
-real ended-event rotation,
-nonzero signal, the bounded two-stream pool, the ambience loop and controls.
-It seeks near song endings to exercise the transitions. It is not a listening test.
+Encoded-master checks reject dead starts/tails, invalid samples, poor peak
+headroom, stale durations and inconsistent playback loudness. Director checks
+exercise 24 seeded persisted journeys, genre/texture locks, harmonic bridges,
+manual choices and older saved-state migration.
 
-For a local Firefox acceptance fixture using the production controls, director,
-and audio engine, run `node scripts/prepare-music-review.mjs --serve` inside the
-hidden agent workspace. Open its printed loopback URL in agent Firefox and press
-**Run checks**. The loopback origin permits real Web Audio analysis; separate
-`file://` media files are blocked from the analyser by Firefox origin isolation. It routes
-audio into a zero-gain output, checks all five genres for real decoded signal,
-then checks pause/resume, delayed mode changes, actual listening time, seeking,
-mute, bounded streams, keyboard focus, narrow layout and German labels. This is
-functional audio verification, not a subjective listening test. The fixture does
-not touch the running office or its saved settings. Stop the hidden workspace
-afterward to close both Firefox and the local QA server.
+For browser acceptance, run `node scripts/prepare-music-review.mjs --serve`
+in the hidden agent workspace. Open its loopback URL in agent Firefox and
+press **Run checks**. Production controls, the director and the audio engine
+feed an analyser through a zero-gain output. Checks cover every new direction,
+decoded signal, pause/resume, listening time, seeking, mute, bounded streams,
+keyboard focus, narrow layout and German labels. A loopback origin is necessary
+because Firefox isolates separate `file://` media from analysis.
 
-## Song library
+`node scripts/prepare-song-library-review.mjs --serve` similarly exercises
+the production app library, real selection, filters, empty results, locale,
+cleanup, playback continuity, focus and narrow navigation. Neither fixture
+touches the running office's saved settings. Stop its hidden workspace afterward.
 
-Open the four-square **App library** button, then **Song library** (also listed
-under Media). It browses the real 19-song office soundtrack with title/genre
-search, genre filtering, durations and whole-row Play, Pause, Resume or Retry.
-The compact playback disclosure contains the same music-direction and Next
-controls as Office & settings. A song choice plays immediately through the
-existing office stream; the current direction resumes with the following song.
-Global mute and music volume remain authoritative.
-
-Switching apps or returning to the office keeps music playing. UI subscriptions
-are released on exit; search/filter/scroll state survives reopening. On narrow
-screens, **All apps** returns to the app grid. English/German controls update
-without changing the authored song titles. Botify remains a separate fictional
-robot-app demo.
-
-`node scripts/prepare-song-library-review.mjs --serve` builds a local browser
-acceptance fixture using the production app library, catalogue and audio engine.
-Run it in the hidden workspace, open its loopback URL in agent Firefox and press
-**Run library checks**. It checks real song selection, pause/resume, filters,
-empty results, locale switching, subscription cleanup, playback continuity,
-focus return, narrow navigation and the bounded two-stream audio pool.
+Signal analysis and functional checks do not establish musical enjoyment.
+No subjective listening approval is claimed by these automated tools.

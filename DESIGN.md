@@ -137,3 +137,9 @@ Manager entries lead with the persistent robot name and a centered 40px portrait
 ## Bottom-aligned answers
 
 On a monitor showing one question, keep the question at the top and align its answer choices, including Other, to the bottom of the available content area just above the fixed Send footer. Keep at least 12px between the prompt and choices. Let long content overflow naturally into the existing content scroll region, and keep multiple questions in normal reading order. Chat-shelf question layout is unchanged.
+
+## Authored music moods and curation
+
+Extend the existing song rows with plain genre, tempo and localized instrument text. Search covers instruments as well as titles and genres; avoid extra badges or a separate player. Mystical, medieval, detective and nostalgic directions join the electronic genres. Ambient pads and Bells & wonder filter by authored textures and gentle energy, rather than assuming every ambient piece sounds alike. Keep English/German controls, native selects, existing focus behavior and the same two shared streams.
+
+The eleven-chapter journey uses active listening time, energy, related modal keys, half/double-time tempo and shared textures. Songs finish their written endings before a transition. Compatible bridge pieces can prepare a distant key or energy change. Constant measured playback trims match loudness while preserving arrangement dynamics. The library plays original encoded recordings; all sampling, native synth rendering and stem effects happen offline.

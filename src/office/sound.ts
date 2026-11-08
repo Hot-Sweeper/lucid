@@ -293,7 +293,10 @@ export class GameSound {
     this.syncBackground(); this.notifyMusic();
   };
   // Asset headroom keeps the default theme around -40 dBFS RMS and air below it.
-  private backgroundLevel(kind: BackgroundKind) { return kind === 'theme' ? this.themeVolume * 2.2 : this.ambienceVolume * 4; }
+  private backgroundLevel(kind: BackgroundKind) {
+    const trim = Number.isFinite(this.themeSong?.gainDb) ? clamp(this.themeSong!.gainDb!, -4, 2) : 0;
+    return kind === 'theme' ? this.themeVolume * 2.2 * Math.pow(10, trim / 20) : this.ambienceVolume * 4;
+  }
   private syncBackground() {
     const ctx = this.context, master = this.master;
     if (!ctx || !master || !this.authorized || !this.active) return;
@@ -349,7 +352,9 @@ export class GameSound {
       // Fade in from the retained playhead, including when a hidden office returns.
       gain.gain.cancelScheduledValues(ctx.currentTime);
       gain.gain.setValueAtTime(0, ctx.currentTime);
-      gain.gain.setTargetAtTime(track.fading ? 0 : level, ctx.currentTime, .65);
+      // Initial selection and an ended-event rotation may change themeSong
+      // above. Apply the incoming recording's measured trim to its fade.
+      gain.gain.setTargetAtTime(track.fading ? 0 : this.backgroundLevel(kind), ctx.currentTime, .65);
       track.pending = true;
       if (kind === 'theme') { this.musicError = false; this.musicWaiting = false; this.notifyMusic(); }
       const current = track;
