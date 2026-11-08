@@ -77,5 +77,6 @@
 .mt-gallery-heading { flex-wrap: wrap; }
 
 /* A completed task is recognizable beside its title, before reading the report. */
-.monitor-task-done:has(.mt-chip[data-state="done"]) > header > div { position: relative; padding-left: 32px; }
-.monitor-task-done:has(.mt-chip[data-state="done"]) > header > div::before { content: ""; position: absolute; left: 3px; top: 2px; width: 11px; height: 20px; border: solid #7ee2a8; border-width: 0 4px 4px 0; transform: rotate(45deg); }
+.monitor-task-done:has(.mt-chip[data-state="done"]) > header > div { position: relative; padding-left: 40px; }
+.monitor-task-done:has(.mt-chip[data-state="done"]) > header > div::before { content: ""; position: absolute; left: 0; top: 1px; width: 28px; height: 28px; border-radius: 50%; background: #7ee2a8; }
+.monitor-task-done:has(.mt-chip[data-state="done"]) > header > div::after { content: ""; position: absolute; left: 9px; top: 5px; width: 7px; height: 13px; border: solid #171d3b; border-width: 0 3px 3px 0; transform: rotate(45deg); }
