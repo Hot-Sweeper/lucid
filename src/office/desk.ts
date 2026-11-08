@@ -161,6 +161,7 @@ export class Desk implements DeskStage {
     this.director.reset();
     this.clearKeys();
     this.threadId = thread?.id ?? null;
+    this.setCompactTitle("");
     this.managerProject = null;
     this.managerSig = '';
     this.el.classList.remove("manager");
@@ -188,6 +189,11 @@ export class Desk implements DeskStage {
     this.label(thread?.title ?? "Free desk", thread?.provider ?? null);
   }
 
+  setCompactTitle(title: string) {
+    const plate = this.el.querySelector<HTMLElement>(".desk-plate")!;
+    if (plate.dataset.compactTitle !== title) plate.dataset.compactTitle = title;
+    (plate.querySelector("span") as HTMLElement).dataset.compactTitle = title;
+  }
   private labelSig = "";
   private managerProject: { title: string; icon: string | null; role?: string } | null = null;
   private managerSig = '';
@@ -223,6 +229,7 @@ export class Desk implements DeskStage {
     if (who) plate.querySelector("b")!.textContent = who;
     if (this.managerProject && who) plate.querySelector('b')!.textContent = `${who}, ${this.managerProject.role || 'Manager'}`;
     plate.querySelector("i")!.textContent = title;
+    plate.setAttribute("aria-label", [title, who].filter(Boolean).join(", "));
     plate.title = [this.managerProject ? `${this.managerProject.title} manager` : "", who, title, this.model, this.profile?.prefs.hobby ? `Free time: ${HOBBY_LABEL[this.profile.prefs.hobby]}` : ""].filter(Boolean).join("\n");
   }
 

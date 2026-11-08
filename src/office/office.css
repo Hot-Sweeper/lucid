@@ -927,3 +927,10 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .th-bot-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .th-bot-model { color: var(--ink-3); }
 .th-row.th-settled-row > .mg-face { flex: none; }
+
+/* Semantic zoom: stable topics at room scale, full names on pointer inspection. */
+.world[data-label-detail="compact"] .desk-plate[data-compact-title]:not([data-compact-title=""]):not(:hover) span i { display: none; }
+.world[data-label-detail="compact"] .desk-plate[data-compact-title]:not([data-compact-title=""]):not(:hover) span::before {
+  content: attr(data-compact-title); font-size: 14px; font-weight: 600; line-height: 1.2; order: -1; overflow-wrap: anywhere;
+}
+.world[data-label-detail="compact"] .desk-plate[data-compact-title]:not([data-compact-title=""]) { max-width: 185px; }

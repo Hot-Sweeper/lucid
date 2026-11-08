@@ -54,6 +54,7 @@ import { wireDeskChatTargets } from "./desk-chat-targets";
 
 export type WThread = {
   id: string; projectId: string; title: string; updatedAt: string; provider: string;
+  compactTitle?: string;
   ultra?: boolean; fast?: boolean; effort?: string;
   runStatus: string | null; pinned: boolean; settled: boolean; question: string | null; model: string | null;
   manager?: { projectId: string; role: string; avatar?: string | null };
@@ -1239,6 +1240,7 @@ export class World {
           d.folder = s.t.folder ?? null;
           this.desks.set(s.t.id, d);
         }
+        d.setCompactTitle(s.t.compactTitle || "");
         // which room it sits in now, and in shared rooms which project it works on
         d.room = s.key.split("#")[0];
         const proj = byProject.get(s.t.pinned ? s.t.manager?.projectId || s.t.projectId : s.t.projectId);
@@ -1916,6 +1918,8 @@ export class World {
     const started = beginSystem();
     this.clampCam();
     this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
+    const labelDetail = this.cam.s < 1.15 ? "compact" : "full";
+    if (this.root.dataset.labelDetail !== labelDetail) this.root.dataset.labelDetail = labelDetail;
     this.recull();
     this.syncBuildings();
     // Translation can reuse composited pixels. Scaling must let Chromium choose a

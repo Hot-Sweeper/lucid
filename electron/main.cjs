@@ -393,6 +393,7 @@ ipcMain.handle("t3:attach-dir", () => require("node:path").join(process.env.T3CO
 ipcMain.handle("t3:world", async () => {
   const data = managers.world(activeBuilding() ? await remote.world(activeBuilding()) : undefined);
   data.threads = data.threads.filter(t => !languageHelpers.has(t.id));
+  if (!activeBuilding()) threadLabels.decorate(data, !process.env.LUCID_SHOT);
   return data;
 });
 ipcMain.handle("t3:tasks", () => { if (activeBuilding()) return []; try { return t3.officeTasks(); } catch { return []; } });
@@ -538,6 +539,7 @@ app.on("window-all-closed", () => app.quit());
 const t3s = require("./t3server.cjs");
 const { createLocalization, createT3Translator } = require('./localization.cjs');
 // Daily flavor text from the robots' personas, on T3 Code's text generation model.
+const threadLabels = require('./thread-labels.cjs').createThreadLabels({ file: path.join(app.getPath('userData'), 'thread-labels.json'), t3, server: t3s, helpers: languageHelpers, settingsFile: path.join(path.dirname(t3.DB_PATH), 'settings.json') });
 const dailyWriter = require('./daily-writer.cjs').createDailyWriter({ t3, server: t3s, helpers: languageHelpers, dir: ORCH_DIR, settingsFile: path.join(path.dirname(t3.DB_PATH), 'settings.json') });
 ipcMain.handle("writer:daily", (_e, input) => { if (activeBuilding()) throw Error('Write daily lines on the computer that owns the robots.'); return dailyWriter.write(input); });
 ipcMain.handle("writer:model", () => dailyWriter.selection());
