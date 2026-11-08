@@ -1,3 +1,4 @@
+import { parseThreadReference, threadCardMarkup, hydrateThreadCards, type ThreadReference, type ThreadCardInfo } from "./chat-thread-card";
 import { readPromptDraft, writePromptDraft } from "./prompt-draft";
 import gsap from "gsap";
 import type { Desk } from "./desk";
@@ -11,7 +12,7 @@ import { HistoryWindow, type HistoryCursor, type HistoryPage } from "./history-w
 import { attachDictation } from "./dictation";
 import { sameChatMessage, type ChatMessage as Msg } from "./chat-message";
 import { chatReaderAnchor } from "./chat-scroll";
-import { chatFileUrl, chatMediaKind, inlineChatImage, prepareChatImages, chatImageFailed, setMediaThread } from "./chat-media";
+import { chatFileUrl, chatMediaKind, inlineChatImage, prepareChatImages, chatImageFailed, setMediaThread , inlineChatFile, mountChatArtifact } from "./chat-media";
 import { reviewReportId, renderChatReview, renderSourceChatReport, type ChatReviewPaper } from "./chat-review";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
@@ -33,6 +34,8 @@ export type T3Api = {
   setModel(o: { threadId: string; selection: { providerInstanceId: string; model: string; options: Record<string, OptionValue> } }): Promise<unknown>;
 };
 type Api = {
+  threadCard?(ref: ThreadReference): ThreadCardInfo | null;
+  openThreadCard?(ref: ThreadReference): void;
   conversation(id: string): Promise<Msg[]>;
   conversationPage?(id: string, options?: { before?: HistoryCursor | null }): Promise<HistoryPage<Msg>>;
   sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
@@ -89,8 +92,9 @@ const HINT = "Enter to send, Shift+Enter for a new line";
 export const fileUrl = chatFileUrl;
 function mediaAttachment(path: string, name: string, mime = "", reveal = false) {
   const kind = chatMediaKind(path, mime);
-  if (!kind && reveal) return `<button type="button" class="cp-file" data-file-path="${esc(path)}" aria-label="Show ${esc(name)} in its folder" title="${esc(path)}"><span>${esc(name)}</span><i>Show in folder</i></button>`;
-  if (!kind) return `<div class="cp-file"><span>${esc(name)}</span><i>file</i></div>`;
+  if (kind === "video" || kind === "audio") return inlineChatFile(path, name);
+  if (!kind && reveal) return inlineChatFile(path, name) + `<button type="button" class="cp-file" data-file-path="${esc(path)}" aria-label="Show ${esc(name)} in its folder" title="${esc(path)}"><span>${esc(name)}</span><i>Show in folder</i></button>`;
+  if (!kind) return inlineChatFile(path, name);
   return `<button type="button" class="${kind === "image" ? "cp-att" : "cp-file"}" data-media-src="${fileUrl(path)}" data-media-kind="${kind}" data-media-name="${esc(name)}" aria-label="Preview ${esc(name)}">${kind === "image" ? `<img src="${fileUrl(path)}" alt="${esc(name)}" loading="lazy">` : `<span>${esc(name)}</span><i>Open ${kind}</i>`}</button>`;
 }
 
@@ -102,7 +106,12 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 const FENCE: Record<string, string> = { ts: "c", tsx: "c", js: "c", jsx: "c", typescript: "c", javascript: "c", rust: "c", go: "c", java: "c", c: "c", cpp: "c", cs: "c", py: "hash", python: "hash", sh: "hash", bash: "hash", shell: "hash", powershell: "hash", ps1: "hash", yaml: "hash", yml: "hash", toml: "hash", json: "json", html: "markup", xml: "markup", svg: "markup", css: "css", scss: "css", md: "text", markdown: "text", text: "text", txt: "text" };
 const mdParser = new Marked({ gfm: true, breaks: true });
 mdParser.use({
+  extensions: [{ name: "t3thread", level: "inline", start: (text: string) => text.indexOf("t3-thread://"),
+    tokenizer(text: string) { const match = /^t3-thread:\/\/v2\/[a-z0-9-]+\/[^\s<>`]+/i.exec(text); if (!match) return; const raw = match[0].replace(/[.,;!]+$/, ""); return parseThreadReference(raw) ? { type: "t3thread", raw, href: raw } : undefined; },
+    renderer(token: any) { return threadCardMarkup(token.href); },
+  }],
   renderer: {
+    codespan({ text }: { text: string }) { return parseThreadReference(text) ? threadCardMarkup(text) : `<code>${esc(text)}</code>`; },
     image({ href, text, title }: { href: string; text: string; title?: string | null }) {
       return inlineChatImage(href, text, title);
     },
@@ -112,9 +121,10 @@ mdParser.use({
       return `<div class="md-code"><div class="md-code-head"><span>${esc(l || "code")}</span><button type="button" class="md-copy">Copy</button></div><pre><code>${body}</code></pre></div>`;
     },
     link(this: any, { href, tokens }: { href: string; tokens: any[] }) {
+      if (parseThreadReference(href)) return threadCardMarkup(href);
       const inner = this.parser.parseInline(tokens);
       if (/^(https?:|mailto:)/i.test(href)) return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${inner}</a>`;
-      return `<span class="md-file" title="${esc(href)}">${inner}</span>`;
+      return inlineChatFile(href, tokens.map((t: any) => t.text ?? "").join("") || href);
     },
     table(this: any, token: any) {
       const head = token.header.map((c: any) => `<th>${this.parser.parseInline(c.tokens)}</th>`).join("");
@@ -391,6 +401,19 @@ export class ChatPanel {
         <div class="cp-drop" hidden>Drop to attach</div>
       </form>`;
     host.appendChild(this.el);
+    this.el.addEventListener("click", event => {
+      const file = (event.target as Element)?.closest<HTMLAnchorElement>("a.cp-download");
+      const download = (window as any).lucid?.downloadAnswer;
+      if (file && download && file.href.startsWith("lucid-file:")) {
+        event.preventDefault();
+        void download(file.href, file.download).catch((error: Error) => this.note(`Could not download: ${error.message}`));
+        return;
+      }
+      const card = (event.target as Element)?.closest<HTMLElement>("[data-thread-ref]");
+      const ref = card && parseThreadReference(card.dataset.threadRef || "");
+      if (ref && this.api.threadCard?.(ref)) { event.preventDefault(); this.api.openThreadCard?.(ref); }
+    });
+
     this.el.querySelector('.cp-manage')!.addEventListener('click', () => { if (this.threadId) this.onManage(this.threadId); });
     // folded, the chat is a tab on the right edge with the robot's name
     this.tab = document.createElement("button");
@@ -837,6 +860,7 @@ export class ChatPanel {
       this.renderedMessages.set(m.id, m);
     }
     const reordered = !this.timelineIds || timeline.length !== this.timelineIds.length || timeline.some((m, i) => m.id !== this.timelineIds![i]);
+    for (const node of this.shown.values()) hydrateThreadCards(node, this.api.threadCard);
     if (!changed.size && !reordered) { endSystem("chat", started); return; }
     this.timelineIds = timeline.map(m => m.id);
     // Read layout only when the visible timeline actually needs an update.
@@ -862,6 +886,7 @@ export class ChatPanel {
       if (changed.has(m.id)) {
         const expanded = el.classList.contains("open");
         el.innerHTML = m.event ? this.renderEvent(m) : this.render(m);
+        if (m.artifact) mountChatArtifact(el, m.artifact);
         if (m.role === "user" && m.text.length > 700) {
           el.classList.add("long");
           el.classList.toggle("open", expanded);
@@ -876,6 +901,7 @@ export class ChatPanel {
       if (m.role !== "event" && prev?.role === m.role && Math.floor(Date.parse(prev.messages[0].at) / 60000) === minute) prev.messages.push(m);
       else batches.push({ key: m.id, role: m.role, messages: [m] });
     }
+    for (const node of this.shown.values()) hydrateThreadCards(node, this.api.threadCard);
     const activeGroups = new Set<string>();
     let previous: HTMLElement | null = historyButton;
     for (const batch of batches) {

@@ -79,3 +79,12 @@ Offices start one workstation wide and retain their chosen width as jobs arrive 
 Reuse a single destination outline while dragging, with a numbered footprint at the reservation's actual snake position. Keep room artwork visible. Use the existing peach accent for the seat, navy for the destination label and lavender text. A 140ms opacity entrance runs once per pickup, rather than restarting on every pointer event. The grabbed workstation lifts 2.5 percent and tilts at most two degrees with pointer movement, then settles in 160ms. Reduced motion disables lift, tilt and animated footprint repositioning.
 
 A transfer commits its saved home immediately. Keep an explicit Moving to label while the safe physical floor-plan handoff is pending, following current room geometry on world updates and clearing on physical placement. Do not slide a transferred desk back to its source before the handoff. Recheck the release coordinates so a quick final movement lands in the intended room. Existing robot routing, conversations and work continue throughout.
+
+
+## Answer embeds and robot power
+
+Assistant answers retain real T3 `html_render` visuals in the transcript, outside the progress fold. Local image, audio, video and file links resolve through the owning environment. Inline players never autoplay; downloads use a native save dialog. HTML visuals run in a separate sandbox without a preload, same-origin access, network requests or form submission. The companion keeps a static document fallback.
+
+Native T3 references use compact robot portrait buttons with the current title, harness and model. Preserve the complete thread ID and environment identity. The whole card responds to keyboard activation; unavailable references say so.
+
+Ultra fire uses a 64 by 80 heat field, injected around the lower robot body, advected upward with turbulent drift and cooling, and quantized into violet contribution-grid shades. Flames render behind the existing robot, without a contour glow or chair emitter. Six small embers rise and expire. Fast mode adds warm lightning and a 1.5 movement multiplier through the existing path follower. Flags come from active run options, with configured thread options as fallback, and are scoped to their own office. Reduced motion retains a still fire field and lightning with normal walking speed. Hidden/offscreen effects pause; actors release their ticker and graphics on removal.

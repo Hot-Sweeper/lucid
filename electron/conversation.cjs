@@ -1,4 +1,5 @@
 // Bounded history reads with stable keyset pagination, including equal timestamps.
+const { answerArtifacts } = require("./answer-artifacts.cjs");
 const { historyEvents } = require("./chat-history.cjs");
 const parse = (s) => { try { return JSON.parse(s); } catch { return null; } };
 function readConversation(db, threadId, options = {}, attachmentPath = () => null) {
@@ -71,6 +72,7 @@ function readConversation(db, threadId, options = {}, attachmentPath = () => nul
   });
   const since = hasMore ? boundary?.at : undefined;
   const events = historyEvents(db, threadId, since).filter((m) => !before || m.at <= before.at);
+  messages.push(...answerArtifacts(db, threadId, { since, before: before?.at }));
   const rank = (m) => m.role === "user" ? 0 : m.role === "event" ? 1 : 2;
   return { messages: [...messages, ...events].sort((a, b) => a.orderAt.localeCompare(b.orderAt) || rank(a) - rank(b)),
     cursor: boundary ? { at: boundary.at, rowid: boundary.rowid } : null, hasMore };

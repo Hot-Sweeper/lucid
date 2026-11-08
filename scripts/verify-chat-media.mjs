@@ -25,7 +25,7 @@ const unsafeLabel = '<img src=x onerror=alert(1)>"';
 const html = media.inlineChatImage(path, unsafeLabel);
 assert(!html.includes('<img src=x'));
 assert(html.includes('&lt;img') && html.includes('type="button"') && html.includes('data-media-kind="image"'));
-assert(media.inlineChatImage('https://example.com/clip.mp4', 'Clip').includes('Open video'));
+assert(media.inlineChatImage('https://example.com/clip.mp4', 'Clip').includes('<video'));
 assert(media.inlineChatImage('javascript:alert(1)', 'Missing').includes('Image unavailable'));
 globalThis.window = { lucidRemote: true };
 assert.equal(media.chatMediaSource(path), `/__lucid/media/${encodeURIComponent(path)}`);

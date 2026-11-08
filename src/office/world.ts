@@ -1,3 +1,4 @@
+import { setRobotModes } from "../world/robot-power";
 import { officeColumns, officeDimensions, mountOfficeWidth, releaseOfficeWidth } from "./office-width";
 import "./storefront.css";
 import { managerLook } from "../world/look";
@@ -53,6 +54,7 @@ import { wireDeskChatTargets } from "./desk-chat-targets";
 
 export type WThread = {
   id: string; projectId: string; title: string; updatedAt: string; provider: string;
+  ultra?: boolean; fast?: boolean; effort?: string;
   runStatus: string | null; pinned: boolean; settled: boolean; question: string | null; model: string | null;
   manager?: { projectId: string; role: string; avatar?: string | null };
   schedule?: { nextRunAt: string | null; everyMs: number | null } | null;
@@ -62,7 +64,7 @@ export type WThread = {
   completionPending?: boolean;
 };
 export type WProject = { id: string; title: string; root: string; icon: string | null; scratch: boolean };
-export type WorldData = { environmentId?: string; projects: WProject[]; threads: WThread[]; models?: Record<string, string[]>; prices?: Record<string, { input: number; output: number }>; shipped?: { total: number; today: number } };
+export type WorldData = { nativeEnvironmentId?: string; environmentId?: string; projects: WProject[]; threads: WThread[]; models?: Record<string, string[]>; prices?: Record<string, { input: number; output: number }>; shipped?: { total: number; today: number } };
 
 export type OfficeLayout = {
   roomOrder: string[]; expandedRooms: string[]; collapsedRooms?: string[]; roomColumns?: Record<string, number>; hidden: string[];
@@ -870,6 +872,7 @@ export class World {
     }
     data = { ...data, threads: data.threads.map(t => ({ ...t, coinPending: !data.environmentId && this.coinHolds.has(t.id), completionPending: this.completionHolds.has(t.id) && !t.settled, reviewPending: !data.environmentId && this.reports.has(t.id) && !t.settled })) };
     this.lastData = data;
+    setRobotModes(data.threads, this.root);
     if (!this.hostWorld) subscriptionBatteries.setEnabled(!data.environmentId);
     for (const [id] of this.reports) {
       const t = data.threads.find(t => t.id === id);

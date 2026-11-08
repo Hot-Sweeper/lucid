@@ -196,6 +196,24 @@ ${typeof out === "string" ? out : JSON.stringify(out, null, 1)}
 
 const send = (channel, payload) => { if (win && !win.isDestroyed()) win.webContents.send(channel, payload); };
 
+ipcMain.handle("fs:download-answer", async (_e, input) => {
+  const url = new URL(String(input?.src || ""));
+  if (url.protocol !== "lucid-file:" || !["local", "remote"].includes(url.hostname)) throw Error("Unsupported file address");
+  const name = path.basename(String(input?.name || "download")).replace(/[\x00-\x1f]/g, "");
+  const picked = await require("electron").dialog.showSaveDialog(win, { defaultPath: name });
+  if (picked.canceled || !picked.filePath) return false;
+  if (url.hostname === "remote") {
+    const media = await remoteMedia.get(url.href);
+    if (media.status !== 200) throw Error("This remote file is no longer available");
+    await fsp.writeFile(picked.filePath, media.body);
+  } else {
+    const file = decodeURIComponent(url.pathname.slice(1));
+    if (!(await fsp.stat(file)).isFile()) throw Error("This file is no longer available");
+    if (path.resolve(file) !== path.resolve(picked.filePath)) await fsp.copyFile(file, picked.filePath);
+  }
+  return true;
+});
+
 ipcMain.handle("t3:projects", () => activeBuilding() ? remote.cached(activeBuilding())?.projects || [] : t3.listProjects());
 const environments = require("./environments.cjs");
 const remoteMedia = require("./remote-media.cjs").createRemoteMedia({ client: environments.client, split: require("./remote-building.cjs").split });
@@ -489,10 +507,11 @@ ipcMain.handle("app:version", () => app.getVersion());
 
 // lucid-file://local/<encoded path> serves images and text files the agents worked with,
 // so the robots' screens and the chat can show them. Only known media and text types.
-protocol.registerSchemesAsPrivileged([{ scheme: "lucid-file", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
+protocol.registerSchemesAsPrivileged([{ scheme: "lucid-artifact", privileges: { standard: true, secure: true, supportFetchAPI: true } }, { scheme: "lucid-file", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
 const SERVE = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif", ".mp4", ".webm", ".mov", ".m4v", ".ogv", ".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".opus"]);
 
 app.whenReady().then(() => {
+  require("./answer-visuals.cjs").installAnswerVisuals({ protocol, ipcMain });
   protocol.handle("lucid-file", async (req) => {
     // Files of threads on another computer come from that computer (remote-media.cjs).
     if (new URL(req.url).hostname === "remote") {
