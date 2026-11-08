@@ -440,14 +440,14 @@
       "sampled drums"
     ],
     "seconds": 161.66,
-    "revision": 4,
+    "revision": 5,
     "sections": [
       {
         "name": "streetlight",
         "start": 0.0,
         "end": 12.972972972972974,
         "authoredGain": 0.74,
-        "rmsDbFS": -23.959161668979707,
+        "rmsDbFS": -24.01303518073984,
         "instruments": [
           "detuned lunar pads",
           "rounded stable-pitch sub",
@@ -461,7 +461,7 @@
         "start": 12.972972972972974,
         "end": 51.891891891891895,
         "authoredGain": 0.98,
-        "rmsDbFS": -19.110466474058402,
+        "rmsDbFS": -19.116463925324844,
         "instruments": [
           "detuned lunar pads",
           "rounded bell and cowbell motif",
@@ -475,7 +475,7 @@
         "start": 51.891891891891895,
         "end": 77.83783783783784,
         "authoredGain": 0.92,
-        "rmsDbFS": -20.139660513269696,
+        "rmsDbFS": -20.11006598195534,
         "instruments": [
           "detuned lunar pads",
           "rounded bell and cowbell motif",
@@ -489,7 +489,7 @@
         "start": 77.83783783783784,
         "end": 103.78378378378379,
         "authoredGain": 0.7,
-        "rmsDbFS": -24.263683540805662,
+        "rmsDbFS": -24.31793646606966,
         "instruments": [
           "detuned lunar pads",
           "rounded stable-pitch sub",
@@ -502,7 +502,7 @@
         "start": 103.78378378378379,
         "end": 142.7027027027027,
         "authoredGain": 1.07,
-        "rmsDbFS": -18.276564816244314,
+        "rmsDbFS": -18.271558105418837,
         "instruments": [
           "detuned lunar pads",
           "rounded bell and cowbell motif",
@@ -517,7 +517,7 @@
         "start": 142.7027027027027,
         "end": 155.67567567567568,
         "authoredGain": 0.75,
-        "rmsDbFS": -23.34794726911238,
+        "rmsDbFS": -23.401318135127642,
         "instruments": [
           "detuned lunar pads",
           "rounded stable-pitch sub",
@@ -527,8 +527,8 @@
         "tonalOnsets": 20
       }
     ],
-    "peakDbFS": -6.590846061706543,
-    "rmsDbFS": -20.230835984636634,
+    "peakDbFS": -6.53561544418335,
+    "rmsDbFS": -20.2337803788663,
     "ending": "Original tonic cadence, natural sample and pad release, short quiet guard",
     "referenceComparison": {
       "excerptSeconds": [
@@ -554,14 +554,14 @@
         ]
       ],
       "bandEnergyPercent": [
-        71.60577392578125,
-        17.595346450805664,
-        10.49623966217041,
-        0.30265459418296814
+        70.94841766357422,
+        17.531583786010742,
+        11.221111297607422,
+        0.298860639333725
       ],
-      "centroidHz": 177.22856762810767,
+      "centroidHz": 181.3646407956869,
       "detectedOnsetsPerSecond": 1.5416666666666667,
-      "upperSideMidDb": -6.496724473615045,
+      "upperSideMidDb": -6.585332641656544,
       "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
     },
     "activeSectionComparison": {
@@ -588,28 +588,28 @@
         ]
       ],
       "bandEnergyPercent": [
-        72.27977752685547,
-        16.695138931274414,
-        10.604146957397461,
-        0.420942485332489
+        71.44508361816406,
+        16.722837448120117,
+        11.417866706848145,
+        0.4142104983329773
       ],
-      "centroidHz": 182.81618572437353,
+      "centroidHz": 187.60603731338568,
       "detectedOnsetsPerSecond": 4.583333333333333,
-      "upperSideMidDb": -6.328262579876879,
+      "upperSideMidDb": -6.459052375082991,
       "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
     },
     "decoded": {
       "seconds": 161.66,
-      "peakDbFS": -6.590846061706543,
-      "rmsDbFS": -20.230835984636634,
+      "peakDbFS": -6.53561544418335,
+      "rmsDbFS": -20.2337803788663,
       "channels": 2,
       "sampleRate": 44100,
-      "integratedLUFS": -19.52,
-      "truePeakDbFS": -6.59,
+      "integratedLUFS": -19.5,
+      "truePeakDbFS": -6.53,
       "loudnessRangeLU": 7.6,
-      "channelCorrelation": 0.8791837763391449,
-      "sideToMidRMS": 0.2535587549209595,
-      "dcOffset": 0.00010404988279333338,
+      "channelCorrelation": 0.878484427255179,
+      "sideToMidRMS": 0.25434184074401855,
+      "dcOffset": 9.869686618912965e-05,
       "trailingSilenceSeconds": 0.23999999999998067,
       "finite": true,
       "silentBodySeconds": 0
@@ -880,6 +880,16 @@
       "toneSources": "Original detuned stereo pads, pitched metal edge, clean sine-based 808, actual sampled vibraphone motif/answers and CC0 VCSL drums",
       "referenceAudioInComposition": false,
       "auditionPerformed": false
+    },
+    "bellRelease": {
+      "syntheticRingSeconds": 4.0,
+      "syntheticFinalFadeMs": 80,
+      "sampledMinimumUndampedSeconds": 1.45,
+      "soundfontReleaseSeconds": 1.0,
+      "voiceOwnership": "15 independent melodic MIDI channels, excluding percussion channel9",
+      "melodyStartsAndVelocitiesPreserved": true,
+      "percussionMixUnchanged": true,
+      "ending": "Natural overlapping strikes; no short melody-gate cutoff"
     }
   }
 ]

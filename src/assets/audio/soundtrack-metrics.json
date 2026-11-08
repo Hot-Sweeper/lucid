@@ -426,8 +426,9 @@
     "bpm": 64,
     "meter": 4,
     "seconds": 151.25004535147391,
-    "peakDbFS": -2.8533496856689453,
-    "rmsDbFS": -20.027950286865234
+    "peakDbFS": -3.3498215675354004,
+    "rmsDbFS": -20.802724838256836,
+    "bellArticulation": "Independent5.5s glass strikes, natural overlapping decay, quiet450ms terminal taper; original note placement retained"
   },
   {
     "id": "sleepy-satellites",
@@ -435,9 +436,10 @@
     "period": "night",
     "bpm": 68,
     "meter": 4,
-    "seconds": 142.42065759637188,
-    "peakDbFS": -2.8533496856689453,
-    "rmsDbFS": -20.7851505279541
+    "seconds": 142.3945351473923,
+    "peakDbFS": -3.3498215675354004,
+    "rmsDbFS": -21.502803802490234,
+    "bellArticulation": "Independent5.5s glass strikes, natural overlapping decay, quiet450ms terminal taper; original note placement retained"
   },
   {
     "id": "pocket-sunrise",
@@ -698,8 +700,8 @@
     "bpm": 78,
     "meter": 3,
     "seconds": 131.94555555555556,
-    "peakDbFS": -4.891988754272461,
-    "rmsDbFS": -19.854190826416016,
+    "peakDbFS": -4.6363959312438965,
+    "rmsDbFS": -19.855224609375,
     "percussion": {
       "revision": 2,
       "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
@@ -745,7 +747,8 @@
         "hat": 0
       },
       "auditionPerformed": false
-    }
+    },
+    "bellArticulation": "Independent5.5s music-box strikes, natural overlapping decay, quiet450ms terminal taper; original note placement retained"
   },
   {
     "id": "the-last-constellation",

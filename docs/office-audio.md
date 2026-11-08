@@ -1,7 +1,8 @@
 # Office music and ambience
 
 The Song library contains 23 original pieces, with ten genre directions and two
-texture directions. The original Little Lights recording is preserved.
+texture directions. Little Lights retains its original melody and arrangement,
+with corrected bell releases.
 
 ## Current arrangements
 
@@ -56,7 +57,7 @@ of unwanted trailing silence removed by packet copying. That cleanup retained
 every decoded sample before the trim. A later percussion pass rebuilt the six
 daytime additions and five encore recordings with recorded CC0 drums, leaving
 their written harmonies and hooks in place. Two earlier drumless ambient pieces
-and Little Lights retain their recordings.
+and Little Lights subsequently received the same natural bell-release correction.
 
 ## Percussion and space
 
@@ -214,3 +215,13 @@ touches the running office's saved settings. Stop its hidden workspace afterward
 
 Signal analysis and functional checks do not establish musical enjoyment.
 No subjective listening approval is claimed by these automated tools.
+
+## Bell articulation
+
+Bell strikes ring independently of the short written melody gate. The release
+correction preserves their attack, note placement and written phrases, while
+allowing modest overlap and a final taper only after the ring is quiet. This
+applies to Little Lights, Moonlit Desks, Sleepy Satellites, Lantern Carousel,
+The Glass Observatory, Petal Breaks and Midnight Drift. Midnight's sampled
+vibraphone also uses independent MIDI voices so an earlier note-off cannot
+choke a repeated strike. Tidal's sampled celesta already has a natural release.

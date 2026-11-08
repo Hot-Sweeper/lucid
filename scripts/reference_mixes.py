@@ -78,6 +78,44 @@ def sampled_instrument(notes, frames, program, pan=0, spread=0):
         return audio
 
 
+def sampled_bell_strikes(notes, frames, pan=0):
+    """Let independent vibraphone strikes ring beyond their melody gate.
+
+    A minimum 1.45s undamped body feeds the bank's natural 1s release. Separate
+    MIDI channels keep a previous strike's note-off from damping a newer hit
+    of the same pitch. Written starts and velocities remain unchanged.
+    """
+    channels=[ch for ch in range(16) if ch!=9]
+    available={ch:0. for ch in channels}
+    queue=[(0,0,b'\xff\x51\x03\x07\xa1\x20')]
+    for channel in channels:
+        queue.extend([(0,0,bytes([0xc0|channel,11])),(0,0,bytes([0xb0|channel,7,90])),
+                      (0,0,bytes([0xb0|channel,10,round(64+pan*55)])),
+                      (0,0,bytes([0xb0|channel,91,0])),(0,0,bytes([0xb0|channel,93,0]))])
+    for at,pitch,held,velocity in sorted(notes):
+        channel=min(channels,key=available.get)
+        if available[channel]>at:raise RuntimeError('Bell strike exceeds the bounded independent voice pool.')
+        held=max(held,1.45)
+        start=max(0,round(at*960));stop=max(start+1,round((at+held)*960))
+        queue.extend([(start,2,bytes([0x90|channel,int(pitch),int(np.clip(velocity,1,120))])),
+                      (stop,1,bytes([0x80|channel,int(pitch),0]))])
+        available[channel]=at+held+1.05
+    queue.sort(key=lambda event:(event[0],event[1]))
+    track=bytearray();previous=0
+    for tick,_,message in queue:track+=vlq(tick-previous)+message;previous=tick
+    track+=b'\x00\xff\x2f\x00'
+    midi=b'MThd'+struct.pack('>IHHH',6,0,1,480)+b'MTrk'+struct.pack('>I',len(track))+track
+    with tempfile.TemporaryDirectory(prefix='lucid-bell-strikes-') as directory:
+        source=Path(directory)/'original.mid';source.write_bytes(midi);target=Path(directory)/'sampled.wav'
+        subprocess.run(['fluidsynth','-ni','-a','file','-F',str(target),'-T','wav','-r',str(RATE),
+                        '-g','.45','-R','0','-C','0',str(SF),str(source)],check=True,capture_output=True)
+        raw=subprocess.check_output(['ffmpeg','-v','error','-i',str(target),'-ac','2','-ar',str(RATE),'-f','f32le','-'])
+        rendered=np.frombuffer(raw,dtype='<f4').reshape(-1,2)
+        audio=np.zeros((frames,2),np.float32);n=min(frames,len(rendered));audio[:n]=rendered[:n]
+    assert np.isfinite(audio).all()
+    return audio
+
+
 @lru_cache(maxsize=32)
 def kit(name):
     USED_SAMPLES.add(name)
@@ -375,6 +413,9 @@ def cassette_clouds():
 
 @lru_cache(maxsize=96)
 def lunar_voice(pitch,seconds,kind):
+    # A bell is a decaying strike, not a gated oscillator. Its ring is
+    # independent of the short written melody duration, with a quiet4s cap.
+    if kind=='bell':seconds=max(seconds,4.0)
     t=np.arange(round(seconds*RATE),dtype=np.float64)/RATE;hz=440*2**((pitch-69)/12)
     phase=2*np.pi*hz*t
     if kind=='pad':
@@ -394,7 +435,9 @@ def lunar_voice(pitch,seconds,kind):
         body=np.sin(phase)+.48*np.sin(phase*1.487)+.24*np.sin(phase*2.97)+.12*np.sin(phase*4.13)
         body=np.tanh(body*1.6)/1.6
         env=(1-np.exp(-390*t))*np.exp(-t/.145)
-    return (body*env*np.clip((seconds-t)/.035,0,1)).astype(np.float32)
+    signal=(body*env*np.clip((seconds-t)/(.08 if kind=='bell' else .035),0,1)).astype(np.float32)
+    if kind=='bell':signal[-1]=0
+    return signal
 
 
 def clean_sub(pitch,seconds):
@@ -482,7 +525,7 @@ def midnight_drift():
                 # A rounded pitched metal body and quiet cowbell edge share
                 # one authored motif; changing register answers the A theme.
                 if section=='side street':pitch-=12
-                score.put('lunar motif',lunar_voice(pitch,round((held+.7)*score.beat,3),'bell'),at+pos,.079,.15)
+                score.put('lunar motif',lunar_voice(pitch,4.0,'bell'),at+pos,.079,.15)
                 if event==0 or (i+event)%3==0:
                     score.put('cowbell edge',lunar_voice(pitch,round(.48*score.beat,3),'cowbell'),at+pos,.016,-.10)
                 score.note('sampled moon motif',pitch,at+pos,held+.15,58+int(score.rng.integers(-4,5)))
@@ -505,10 +548,10 @@ def midnight_drift():
         score.record('tonic pad cadence',pitch,end-1,6.4/score.beat)
     score.put('sub',clean_sub(27,2.8),end-1,.18)
     score.note('vibraphone answer',75,end-.6,3.4,46)
-    score.stems['vibraphone answer']=sampled_instrument(score.notes['vibraphone answer'],score.frames,11,-.38)
+    score.stems['vibraphone answer']=sampled_bell_strikes(score.notes['vibraphone answer'],score.frames,-.38)
     score.stems['vibraphone answer']=process_stem(scale_stem(pingpong(score.stems['vibraphone answer'],score.beat,.24),.014),
                                                 RATE,'keys',room='bloom',send=.15)
-    score.stems['sampled moon motif']=sampled_instrument(score.notes['sampled moon motif'],score.frames,11,.18)
+    score.stems['sampled moon motif']=sampled_bell_strikes(score.notes['sampled moon motif'],score.frames,.18)
     # Open selected phrase endings with dark tempo-locked echoes, while the
     # main sampled theme stays clearer between those musical responses.
     response_feed=np.zeros((score.frames,2),dtype=np.float32)
@@ -543,6 +586,11 @@ def midnight_drift():
     score.percussion_metrics.update(subPitchSweepOnAttack=False,subAttackMs=11,subReleaseMs=85,
                                     kickSubDuck=dict(lookaheadMs=6,holdMs=18,recoveryMs=125,minimumGain=.58),
                                     motifResponseThrows=len(score.motif_throws),cowbell='Quiet sparse accents under the sampled motif')
+    score.bell_metrics=dict(syntheticRingSeconds=4.0,syntheticFinalFadeMs=80,
+                            sampledMinimumUndampedSeconds=1.45,soundfontReleaseSeconds=1.0,
+                            voiceOwnership='15 independent melodic MIDI channels, excluding percussion channel9',
+                            melodyStartsAndVelocitiesPreserved=True,percussionMixUnchanged=True,
+                            ending='Natural overlapping strikes; no short melody-gate cutoff')
     lunar_voice.cache_clear()
     return score
 
@@ -683,6 +731,8 @@ def main():
                                   'toneSources':('MIT FluidR3 GM electric piano, nylon guitar, piano and acoustic bass; CC0 VCSL multi-velocity drums'
                                                  if track['id']=='cassette-clouds' else 'Original detuned stereo pads, pitched metal edge, clean sine-based 808, actual sampled vibraphone motif/answers and CC0 VCSL drums'),
                                   'referenceAudioInComposition':False,'auditionPerformed':False})
+        if hasattr(score,'bell_metrics'):
+            row['revision']=5;row['bellRelease']=score.bell_metrics
         results[track['id']]=row
         old.write_text(json.dumps([results[track['id']] for track in TRACKS if track['id'] in results],indent=2)+'\n')
         print(json.dumps({key:row[key] for key in ('id','seconds','peakDbFS','rmsDbFS','referenceComparison')}),flush=True)

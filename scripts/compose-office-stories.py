@@ -37,6 +37,10 @@ def filt(sound, frequency, high=False):
 @lru_cache(maxsize=64)
 def instrument(pitch, seconds, kind):
     """Original electronic textures; acoustic notes use the licensed renderer."""
+    # A struck bell's decay belongs to its resonating body, not the rhythmic
+    # gate used to place the next melodic attack. Every strike gets its own
+    # modest ringing voice and can overlap the following notes naturally.
+    if kind=='celesta':seconds=5.0
     t=np.arange(round(seconds*RATE),dtype=np.float64)/RATE
     hz=440*2**((pitch-69)/12);phase=2*np.pi*hz*t
     body=np.zeros(len(t),dtype=np.float64)
@@ -45,6 +49,10 @@ def instrument(pitch, seconds, kind):
         for ratio,level,decay in zip(ratios,levels,decays):
             if hz*ratio<17000:body+=level*np.sin(phase*ratio)*np.exp(-t*decay)
         env=1-np.exp(-t*240)
+        # Preserve the first 350 ms of the original body. Then smoothly increase
+        # damping so the slow fundamental settles instead of becoming a drone.
+        late=np.maximum(t-.35,0)
+        env*=np.exp(-1.25*(late-.20*(1-np.exp(-late/.20))))
     elif kind=='auralpad':
         for h,level in [(1,.56),(2,.22),(3,.12),(5,.042)]:
             body+=level*np.sin(phase*h+.4*np.sin(t*(.21+h*.017)+h))
@@ -54,7 +62,10 @@ def instrument(pitch, seconds, kind):
         body=filt(body,3100)
     else:raise ValueError(kind)
     body*=1/(1+.16*np.sqrt(np.mean(body**2)))
-    env*=np.clip((seconds-t)/.045,0,1)
+    if kind=='celesta':
+        remaining=np.clip((seconds-t)/.50,0,1)
+        env*=np.sin(remaining*np.pi/2)**2
+    else:env*=np.clip((seconds-t)/.045,0,1)
     return (body*env).astype(np.float32)
 
 
@@ -81,8 +92,10 @@ class Score:
         seconds=round(beats*self.beat+.22,2)
         if kind not in GM:
             self.put(instrument(pitch,seconds,kind),at,level,pan,echo)
-        self.events.append(dict(at=max(0,round(at*self.beat+self.rng.uniform(-.009,.009),4)),pitch=pitch,
-                               instrument=kind,level=level*self.rng.uniform(.94,1.05),seconds=seconds,pan=pan))
+        event=dict(at=max(0,round(at*self.beat+self.rng.uniform(-.009,.009),4)),pitch=pitch,
+                   instrument=kind,level=level*self.rng.uniform(.94,1.05),seconds=seconds,pan=pan)
+        if kind=='celesta':event['ringSeconds']=5.0
+        self.events.append(event)
     def each(self):
         for sec in self.sections:
             for i in range(sec['bars']):yield sec['name'],i,sec['bar']+i
@@ -379,6 +392,11 @@ def main():
         row['acousticRenderer']='FluidSynth with MIT FluidR3 GM 3.1; authored articulations and CC11 breath/bow phrases'
         row['productionChain']='Pedalboard 0.9.26 chamber stem EQ, centered low end, filtered parallel room send'
         row['expression']='Per-instrument MIDI CC11 phrase envelopes for sustained reeds and bowed strings; individual key/pluck velocities'
+        if any(e['instrument']=='celesta' for e in score.events):
+            row['bellArticulation']=dict(revision=2,independentOneShotSeconds=5.0,
+                dampingBeginsSeconds=.35,terminalTaperSeconds=.50,
+                articulation='Written gates place attacks; each original bell strike decays independently and overlaps naturally',
+                phrasePlacement='Original melody, voicings, onset positions and echo timing preserved')
         row['soundfontSha256']=SOUNDFONT_HASH
         row['soundfontPrograms']={kind:GM[kind] for kind in sorted({e['instrument'] for e in score.events if e['instrument'] in GM})}
         with tempfile.TemporaryDirectory(prefix='lucid-story-') as tmp:
@@ -409,6 +427,8 @@ def main():
             row['decoded']['integratedLufs']=float(integrated.group(1)) if integrated else None
             row['decoded']['truePeakDbFS']=float(true_peak.group(1)) if true_peak else None
         rows.append(row)
+        order={piece['id']:i for i,piece in enumerate(PIECES)}
+        rows.sort(key=lambda value:order.get(value['id'],len(order)))
         print(json.dumps({k:v for k,v in row.items() if k not in ('sections','loudnessSummary')}),flush=True)
         metric_file.write_text(json.dumps(rows,indent=2)+'\n')
 

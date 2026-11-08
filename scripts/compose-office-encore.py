@@ -85,6 +85,7 @@ PIECES = [
 
 @lru_cache(maxsize=128)
 def instrument(pitch, seconds, kind):
+    if kind == 'musicbox': seconds = 5.5
     t = np.arange(round(seconds*RATE), dtype=np.float64)/RATE
     ph = 2*np.pi*440*2**((pitch-69)/12)*t
     if kind == 'bass':
@@ -107,13 +108,16 @@ def instrument(pitch, seconds, kind):
     elif kind == 'musicbox':
         body = np.sin(ph)+.20*np.sin(ph*2.002)*np.exp(-3*t)+.12*np.sin(ph*4.01)*np.exp(-6*t)
         env = (1-np.exp(-190*t))*np.exp(-t/1.4)
+        env *= np.exp(-.72*np.maximum(0,t-.3))
     elif kind == 'aurora':
         body = np.sin(ph+.3*np.sin(2*ph)*np.exp(-2*t))+.12*np.sin(ph*2.001)
         env = (1-np.exp(-18*t))*np.exp(-t/2.1)
     else:  # softly plucked accompaniment
         body = np.sin(ph)+.22*np.sin(2*ph)*np.exp(-6*t)+.10*np.sin(3*ph)*np.exp(-10*t)
         env = (1-np.exp(-160*t))*np.exp(-t/.55)
-    return (body*env*np.clip((seconds-t)/.18,0,1)).astype(np.float32)
+    remaining=np.clip((seconds-t)/(.45 if kind=='musicbox' else .18),0,1)
+    taper=np.sin(remaining*np.pi/2)**2 if kind=='musicbox' else remaining
+    return (body*env*taper).astype(np.float32)
 
 
 def render(p, seed, sample_dir=None):
@@ -236,6 +240,8 @@ def main():
         row.update(seconds=len(song)/RATE,peakDbFS=float(20*np.log10(np.max(np.abs(song)))),
                    rmsDbFS=float(20*np.log10(np.sqrt(np.mean(song**2)))))
         row['percussion']=percussion
+        if p['tone']=='musicbox':
+            row['bellArticulation']='Independent5.5s music-box strikes, natural overlapping decay, quiet450ms terminal taper; original note placement retained'
         metrics[p['id']]=row
         print(json.dumps(row),flush=True)
     (OUT/'soundtrack-metrics.json').write_text(json.dumps(list(metrics.values()),indent=2)+'\n')

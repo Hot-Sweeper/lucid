@@ -16,11 +16,11 @@
       "harp"
     ],
     "seconds": 175.45,
-    "peakDbFS": -5.967351394747422,
-    "rmsDbFS": -20.128649716798613,
-    "stereoCorrelation": 0.9747343516164271,
-    "monoFoldDownDb": -0.06913258731025505,
-    "dc": 3.15964462060947e-05,
+    "peakDbFS": -5.4045403105670475,
+    "rmsDbFS": -20.14910373976815,
+    "stereoCorrelation": 0.9746473140110378,
+    "monoFoldDownDb": -0.06923075244458425,
+    "dc": 3.0087812774581835e-05,
     "sections": [
       {
         "name": "a distant light",
@@ -28,7 +28,7 @@
         "bars": 4,
         "start": 0.0,
         "end": 13.333333333333334,
-        "rmsDbFS": -24.544534226419167
+        "rmsDbFS": -24.82379117569739
       },
       {
         "name": "glass question",
@@ -36,7 +36,7 @@
         "bars": 8,
         "start": 13.333333333333334,
         "end": 40.0,
-        "rmsDbFS": -17.997013241461634
+        "rmsDbFS": -17.950737220784518
       },
       {
         "name": "orbiting answer",
@@ -44,7 +44,7 @@
         "bars": 8,
         "start": 40.0,
         "end": 66.66666666666667,
-        "rmsDbFS": -22.971110701861374
+        "rmsDbFS": -22.86163322475957
       },
       {
         "name": "eclipse",
@@ -52,7 +52,7 @@
         "bars": 8,
         "start": 66.66666666666667,
         "end": 93.33333333333334,
-        "rmsDbFS": -24.673053817007485
+        "rmsDbFS": -24.93696959479564
       },
       {
         "name": "stars emerge",
@@ -60,7 +60,7 @@
         "bars": 8,
         "start": 93.33333333333334,
         "end": 120.0,
-        "rmsDbFS": -22.179586176314782
+        "rmsDbFS": -22.363979897768495
       },
       {
         "name": "the observatory opens",
@@ -68,7 +68,7 @@
         "bars": 12,
         "start": 120.0,
         "end": 160.0,
-        "rmsDbFS": -17.221523184990296
+        "rmsDbFS": -17.212773100225522
       },
       {
         "name": "last reflection",
@@ -76,13 +76,21 @@
         "bars": 4,
         "start": 160.0,
         "end": 173.33333333333334,
-        "rmsDbFS": -22.29767133928192
+        "rmsDbFS": -22.445077243811895
       }
     ],
     "noteEvents": 295,
     "acousticRenderer": "FluidSynth with MIT FluidR3 GM 3.1; authored articulations and CC11 breath/bow phrases",
     "productionChain": "Pedalboard 0.9.26 chamber stem EQ, centered low end, filtered parallel room send",
     "expression": "Per-instrument MIDI CC11 phrase envelopes for sustained reeds and bowed strings; individual key/pluck velocities",
+    "bellArticulation": {
+      "revision": 2,
+      "independentOneShotSeconds": 5.0,
+      "dampingBeginsSeconds": 0.35,
+      "terminalTaperSeconds": 0.5,
+      "articulation": "Written gates place attacks; each original bell strike decays independently and overlaps naturally",
+      "phrasePlacement": "Original melody, voicings, onset positions and echo timing preserved"
+    },
     "soundfontSha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
     "soundfontPrograms": {
       "cello": 42,
@@ -92,18 +100,18 @@
     },
     "decoded": {
       "seconds": 175.45,
-      "peakDbFS": -6.2236461123452225,
-      "rmsDbFS": -20.394579157170504,
-      "stereoCorrelation": 0.974734571797535,
-      "monoFoldDownDb": -0.06913601168272529,
-      "dc": 3.0235940357670188e-05,
+      "peakDbFS": -5.664326289245761,
+      "rmsDbFS": -20.41501818600537,
+      "stereoCorrelation": 0.9746472080057073,
+      "monoFoldDownDb": -0.06923455088434634,
+      "dc": 2.869215859391261e-05,
       "trailingQuietSeconds": 0.25,
-      "integratedLufs": -17.7,
-      "truePeakDbFS": -6.2
+      "integratedLufs": -17.8,
+      "truePeakDbFS": -5.6
     },
-    "sectionDynamicRangeDb": 7.451530632017189,
+    "sectionDynamicRangeDb": 7.724196494570119,
     "tailPaddingSeconds": 0.25,
-    "loudnessSummary": "Summary:\n\n  Integrated loudness:\n    I:         -17.7 LUFS\n    Threshold: -27.8 LUFS\n\n  Loudness range:\n    LRA:         8.9 LU\n    Threshold: -37.8 LUFS\n    LRA low:   -23.4 LUFS\n    LRA high:  -14.4 LUFS\n\n  True peak:\n    Peak:       -6.2 dBFS\n[out#0/null @ 0x562e9d1b1e00] video:0KiB audio:30224KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown\nsize=N/A time=00:02:55.45 bitrate=N/A speed= 434x elapsed=0:00:00.40"
+    "loudnessSummary": "Summary:\n\n  Integrated loudness:\n    I:         -17.8 LUFS\n    Threshold: -27.8 LUFS\n\n  Loudness range:\n    LRA:         9.1 LU\n    Threshold: -37.8 LUFS\n    LRA low:   -23.5 LUFS\n    LRA high:  -14.4 LUFS\n\n  True peak:\n    Peak:       -5.6 dBFS\n[out#0/null @ 0x55fd31427e00] video:0KiB audio:30224KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown\nsize=N/A time=00:02:55.45 bitrate=N/A speed= 432x elapsed=0:00:00.40"
   },
   {
     "id": "briar-lanterns",

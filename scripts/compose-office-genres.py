@@ -52,6 +52,10 @@ def harmonic_wave(phase, hz, kind, brightness=1):
 
 @lru_cache(maxsize=48)
 def voice(pitch, seconds, kind):
+    # A struck bell's written gate describes the phrase, not a damper. Keep
+    # each ring independent so another hit can overlap without cutting it off.
+    if kind == 'feltbell':
+        seconds = 4.9
     t = np.arange(round(seconds*RATE), dtype=np.float64)/RATE
     hz = freq(pitch)
     phase = 2*np.pi*hz*t
@@ -122,6 +126,11 @@ def voice(pitch, seconds, kind):
         else:
             body = np.sin(phase)+.17*np.sin(phase*2.005)*np.exp(-2*t)
             env = (1-np.exp(-18*t))*np.exp(-t/1.7)
+            # Preserve the original attack and early color. A smooth later
+            # damping keeps the ring modest instead of leaving a long drone.
+            later = np.maximum(0,t-.35)
+            damping_time = later-.12*(1-np.exp(-later/.12))
+            env *= np.exp(-damping_time)
     elif kind == 'breakpad':
         body = .32*harmonic_wave(phase*.998,hz,'saw',1.6)+.29*harmonic_wave(phase*1.002,hz,'saw',1.6)
         body += .24*np.sin(phase+.08*np.sin(2*np.pi*.21*t))
@@ -145,6 +154,11 @@ def voice(pitch, seconds, kind):
         env = np.sin(np.pi*t/seconds)**1.1
     else:
         raise ValueError(kind)
+    if kind == 'feltbell':
+        # At this point the natural fundamental is already below -55 dB.
+        # The half-second cosine tail therefore cannot produce the old gate.
+        quiet_tail = np.clip((seconds-t)/.5,0,1)
+        return (body*env*(.5-.5*np.cos(np.pi*quiet_tail))).astype(np.float32)
     return (body*release(env,t,seconds,.10 if kind.endswith('pad') else .035)).astype(np.float32)
 
 
@@ -557,7 +571,7 @@ def petal_breaks(sample_dir=None):
     room_return_rms=float(np.sqrt(np.mean(wet_room.astype(np.float64)**2)))
     s.drums+=wet_room
     del wet_room,room_input
-    s.production=dict(revision=4,drumSource='Original eight-bar performance from separate VCSL acoustic hits',
+    s.production=dict(revision=5,drumSource='Original eight-bar performance from separate VCSL acoustic hits',
                       sourceLicense=kit.manifest['license'],sourceCommit=kit.manifest['commit'],
                       sourceManifest='scripts/assets/vcsl-drums.json',sourceHitCount=len(kit.manifest['files']),
                       sourcePerformanceEvents=len(kit.events),phraseBars=8,
@@ -571,6 +585,10 @@ def petal_breaks(sample_dir=None):
                       reversedFragments=sum(edit['reverse'] for edit in edits),
                       rateChangedFragments=sum(edit['speed']!=1 for edit in edits),
                       drumProcessing='Pedalboard 0.9.26, 27 Hz high-pass, 1.35:1 transient-preserving compression, selective parallel snare/tom room',
+                      bellArticulation=dict(ringSeconds=4.9,earlyBodyPreservedSeconds=.35,
+                          terminalTaperSeconds=.5,terminalTaperStartsAfterNaturalDb=-55,
+                          method='Independent overlapping struck-bell one-shots; no rhythmic note-off gate; smooth later damping',
+                          placement='Original melody, note onsets, rhythm and echo placements retained'),
                       rhythm='Performed syncopation and soft ghost strokes, eight-bar call and response, restrained phrase-end retriggers, half-time and drumless contrasts')
     return s,s.finish(12500)
 

@@ -349,21 +349,21 @@
         "sampleRate": 44100,
         "channels": 2,
         "finite": true,
-        "peakDbFS": -3.3005643079594176,
-        "rmsDbFS": -20.474659406255924,
-        "integratedLUFS": -18.0,
-        "truePeakDbTP": -3.3,
-        "loudnessRangeLU": 4.6,
+        "peakDbFS": -3.7942473813246735,
+        "rmsDbFS": -21.24949204817274,
+        "integratedLUFS": -18.8,
+        "truePeakDbTP": -3.8,
+        "loudnessRangeLU": 4.7,
         "dcMean": [
-          2.4208117012970457e-06,
-          2.273766962112162e-06
+          2.3214413916520695e-06,
+          2.1662696511966845e-06
         ],
         "dcDbFS": [
-          -112.32077980197911,
-          -112.86508096231424
+          -112.68484552579203,
+          -113.28574969163026
         ],
         "leadingQuietSeconds": 0.0,
-        "trailingQuietSeconds": 2.9655099999999948
+        "trailingQuietSeconds": 2.9686169999999947
       },
       "after": {
         "seconds": 151.25004535147391,
@@ -371,28 +371,28 @@
         "sampleRate": 44100,
         "channels": 2,
         "finite": true,
-        "peakDbFS": -3.3005643079594176,
-        "rmsDbFS": -20.39640733527071,
-        "integratedLUFS": -18.0,
-        "truePeakDbTP": -3.3,
+        "peakDbFS": -3.7942473813246735,
+        "rmsDbFS": -21.17123997726945,
+        "integratedLUFS": -18.8,
+        "truePeakDbTP": -3.8,
         "loudnessRangeLU": 4.5,
         "dcMean": [
-          2.4653984734651897e-06,
-          2.3156346241471416e-06
+          2.364099594159583e-06,
+          2.2061385143484076e-06
         ],
         "dcDbFS": [
-          -112.16225754525024,
-          -112.70659930679267
+          -112.52668463125688,
+          -113.12734446956966
         ],
         "leadingQuietSeconds": 0.0,
-        "trailingQuietSeconds": 0.2155553514739097
+        "trailingQuietSeconds": 0.21866235147390967
       },
       "removedSeconds": 2.749954648526085,
       "retainedDecodedPcmIdentical": true,
       "reencoded": false,
       "normalized": false,
-      "sourceSha256": "8f81ad1f10291d6a97c727ef2ed514b1e04188ddab62b5bb52a0f7410dfe7316",
-      "outputSha256": "98c1c8650acab3af5ba97356786a55096e4300934f6006b5c0b9dd53077160ea"
+      "sourceSha256": "3b43b0116b7224e7d48055a91f033c384ec95ad2bb330824caffa52a273e2104",
+      "outputSha256": "296958bde0ca5d15cecdb72b09786eaac37d4915d7770de108b35502c87f97c3"
     },
     {
       "id": "sleepy-satellites",
@@ -405,50 +405,50 @@
         "sampleRate": 44100,
         "channels": 2,
         "finite": true,
-        "peakDbFS": -3.2953520920501385,
-        "rmsDbFS": -21.231904248367265,
-        "integratedLUFS": -18.7,
-        "truePeakDbTP": -3.3,
-        "loudnessRangeLU": 4.2,
+        "peakDbFS": -3.79341484821532,
+        "rmsDbFS": -21.949605931945246,
+        "integratedLUFS": -19.4,
+        "truePeakDbTP": -3.8,
+        "loudnessRangeLU": 3.9,
         "dcMean": [
-          1.0825341893364998e-06,
-          1.03923766343957e-06
+          9.781060604384833e-07,
+          1.1315597527134482e-06
         ],
         "dcDbFS": [
-          -119.31116757144196,
-          -119.6657024440976
+          -120.19228100310757,
+          -118.92645015829362
         ],
         "leadingQuietSeconds": 0.0,
-        "trailingQuietSeconds": 2.9604085850340027
+        "trailingQuietSeconds": 2.9884575850340127
       },
       "after": {
-        "seconds": 142.42065759637188,
-        "encodedSeconds": 142.432653,
+        "seconds": 142.3945351473923,
+        "encodedSeconds": 142.406531,
         "sampleRate": 44100,
         "channels": 2,
         "finite": true,
-        "peakDbFS": -3.2953520920501385,
-        "rmsDbFS": -21.14867201653585,
-        "integratedLUFS": -18.7,
-        "truePeakDbTP": -3.3,
-        "loudnessRangeLU": 4.1,
+        "peakDbFS": -3.79341484821532,
+        "rmsDbFS": -21.86557705542083,
+        "integratedLUFS": -19.4,
+        "truePeakDbTP": -3.8,
+        "loudnessRangeLU": 3.8,
         "dcMean": [
-          1.1030993211071033e-06,
-          1.0593756126837792e-06
+          9.971651117855694e-07,
+          1.1533896760225993e-06
         ],
         "dcDbFS": [
-          -119.1477076538832,
-          -119.49900057890082
+          -120.0246584947425,
+          -118.76047880545029
         ],
         "leadingQuietSeconds": 0.0,
-        "trailingQuietSeconds": 0.20460359637186798
+        "trailingQuietSeconds": 0.20653014739230002
       },
-      "removedSeconds": 2.7558049886621347,
+      "removedSeconds": 2.7819274376417127,
       "retainedDecodedPcmIdentical": true,
       "reencoded": false,
       "normalized": false,
-      "sourceSha256": "2bc0baa102d11a6249795e7fd8e1f671f67fc0ec2a7f12e5f3257383f1834524",
-      "outputSha256": "1ef1698a5d9605693b2c809ebceffc6f0c4e6a2a1198f5a3e3d1a05c8e028aa8"
+      "sourceSha256": "157f507464d8c0ac2287886a03b249191b1b12bfb0b417cd2358e8f60bf73446",
+      "outputSha256": "2f37708f019b079edcb57385dab7aceeb13f477ad8ae1ae2b6b60666c478a2fa"
     },
     {
       "id": "pocket-sunrise",
@@ -629,21 +629,21 @@
         "sampleRate": 44100,
         "channels": 2,
         "finite": true,
-        "peakDbFS": -5.340666453109863,
-        "rmsDbFS": -20.3008982822494,
+        "peakDbFS": -5.091646253028842,
+        "rmsDbFS": -20.30193089137878,
         "integratedLUFS": -17.3,
-        "truePeakDbTP": -5.3,
-        "loudnessRangeLU": 6.8,
+        "truePeakDbTP": -5.1,
+        "loudnessRangeLU": 6.7,
         "dcMean": [
-          1.552007488435552e-05,
-          1.3753942551857226e-05
+          1.5956312053240582e-05,
+          1.3701721808800169e-05
         ],
         "dcDbFS": [
-          -96.18212375204124,
-          -97.2314558794546
+          -95.94134957800952,
+          -97.26449708741939
         ],
         "leadingQuietSeconds": 0.0,
-        "trailingQuietSeconds": 2.5067119750566746
+        "trailingQuietSeconds": 2.506688975056676
       },
       "after": {
         "seconds": 131.94555555555556,
@@ -651,28 +651,28 @@
         "sampleRate": 44100,
         "channels": 2,
         "finite": true,
-        "peakDbFS": -5.340666453109863,
-        "rmsDbFS": -20.226325096796867,
+        "peakDbFS": -5.091646253028842,
+        "rmsDbFS": -20.22735770594572,
         "integratedLUFS": -17.3,
-        "truePeakDbTP": -5.3,
-        "loudnessRangeLU": 6.8,
+        "truePeakDbTP": -5.1,
+        "loudnessRangeLU": 6.6,
         "dcMean": [
-          1.5788500929136342e-05,
-          1.3991860599207957e-05
+          1.623211790780771e-05,
+          1.393865885350156e-05
         ],
         "dcDbFS": [
-          -96.03318205988498,
-          -97.08249060760352
+          -95.79249622619174,
+          -97.1155802213799
         ],
         "leadingQuietSeconds": 0.0,
-        "trailingQuietSeconds": 0.2214965555555466
+        "trailingQuietSeconds": 0.22147355555554782
       },
       "removedSeconds": 2.285215419501128,
       "retainedDecodedPcmIdentical": true,
       "reencoded": false,
       "normalized": false,
-      "sourceSha256": "544d65af84d652299de7e65c1d14ead1e318e46a18a5a5a1f29dad176eba4376",
-      "outputSha256": "51b32d78815b2e1dea09db088ee58af1202dfba33cff4c3fc7d6793416a1659d"
+      "sourceSha256": "8f4c0d2f7a55702adb8cba7b147f5bf14596c42d8d42eb3923c6239f2ad93fea",
+      "outputSha256": "f05d8f34a6bfcabbb5898d33ba469f976e751d71dab9c1c4f878eedf3ad125e5"
     },
     {
       "id": "the-last-constellation",

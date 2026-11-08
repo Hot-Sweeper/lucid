@@ -81,6 +81,7 @@ def render(piece, seed, sample_dir=None):
             song[start:start+count] += stereo[:count] * level
 
     def note(midi, seconds, kind):
+        if kind == 'glass': seconds = 5.5
         t = np.arange(round(seconds*RATE)) / RATE
         phase = 2*np.pi*440*2**((midi-69)/12)*t
         if kind == 'bass':
@@ -98,10 +99,13 @@ def render(piece, seed, sample_dir=None):
         elif kind == 'glass':
             body = np.sin(phase)+.13*np.sin(phase*2.003)*np.exp(-t*2)
             env = (1-np.exp(-t*55))*np.exp(-t/1.6)
+            env *= np.exp(-.78*np.maximum(0,t-.32))
         else:
             body = np.sin(phase)+.25*np.sin(phase*3.99)*np.exp(-t*7)
             env = (1-np.exp(-t*150))*np.exp(-t/.9)
-        return (body*env*np.clip((seconds-t)/.16,0,1)).astype(np.float32)
+        remaining=np.clip((seconds-t)/(.45 if kind=='glass' else .16),0,1)
+        taper=np.sin(remaining*np.pi/2)**2 if kind=='glass' else remaining
+        return (body*env*taper).astype(np.float32)
 
     for bar in range(bars):
         part = bar // 8
@@ -169,6 +173,8 @@ def main():
         row={k:piece[k] for k in ['id','title','period','bpm','meter']}
         row.update(seconds=len(song)/RATE,peakDbFS=float(20*np.log10(np.max(np.abs(song)))),rmsDbFS=float(20*np.log10(np.sqrt(np.mean(song**2)))))
         if percussion:row['percussion']=percussion
+        if piece['tone']=='glass':
+            row['bellArticulation']='Independent5.5s glass strikes, natural overlapping decay, quiet450ms terminal taper; original note placement retained'
         metrics[piece['id']]=row;print(json.dumps(row),flush=True)
     metrics_file.write_text(json.dumps(list(metrics.values()),indent=2)+'\n',encoding='utf-8')
 

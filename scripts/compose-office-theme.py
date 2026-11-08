@@ -42,6 +42,7 @@ def place(samples, beat, level, pan=0, echo=True):
 
 
 def instrument(midi, seconds, kind):
+    if kind == 'bell': seconds = 5.2
     t = np.arange(round(seconds * RATE)) / RATE
     hz = 440 * 2 ** ((midi-69)/12)
     phase = 2*np.pi*hz*t
@@ -53,13 +54,17 @@ def instrument(midi, seconds, kind):
     elif kind == 'bell':
         body = np.sin(phase) + .23*np.sin(phase*2)*np.exp(-t*2.7) + .10*np.sin(phase*3.99)*np.exp(-t*5)
         envelope = (1-np.exp(-t*150))*np.exp(-t/1.1)
+        # The melody gate sets phrasing, not the lifetime of a struck bell.
+        # Keep the attack, then settle the ring before a quiet final taper.
+        envelope *= np.exp(-.65*np.maximum(0,t-.3))
     elif kind == 'bass':
         body = np.sin(phase) + .23*np.sin(phase*2)*np.exp(-t*2) + .07*np.sin(phase*3)*np.exp(-t*4)
         envelope = (1-np.exp(-t*65))*np.exp(-t/1.1)
     else:
         body = .55*np.sin(phase) + .22*np.sin(phase*1.0015) + .12*np.sin(phase*2)
         envelope = np.sin(np.pi*t/seconds)**1.7
-    release = np.minimum(1, (seconds-t)/.12)
+    remaining = np.clip((seconds-t)/(.45 if kind=='bell' else .12),0,1)
+    release = np.sin(remaining*np.pi/2)**2 if kind=='bell' else remaining
     return (body*envelope*release).astype(np.float32)
 
 
@@ -124,7 +129,7 @@ dry = song.copy()
 for delay, level in [(.083,.09), (.131,.07), (.197,.055), (.311,.045), (.433,.035), (.619,.025), (.887,.016)]:
     song += np.roll(dry[:, ::-1], round(delay*RATE), axis=0)*level
 song = sosfilt(butter(2, 7400, fs=RATE, output='sos'), song, axis=0).astype(np.float32)
-song *= .72 / np.max(np.abs(song))
+song *= .70 / np.max(np.abs(song))
 
 # Quiet, nonliteral room air. No invented conversations, notifications or weather.
 air_length = RATE*48
