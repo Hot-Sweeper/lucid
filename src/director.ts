@@ -352,7 +352,7 @@ export class Director {
       // The mirror uses its own cancellable tab lifecycle; it never sends UI clicks.
       if (!initial && (it.type === 'command_execution' || it.type === 'dynamic_tool')) {
         const output = outText(it.data.output);
-        const url = frontendUrlFromOutput(output) || frontendUrlFromOutput(String(it.data.input?.cmd || it.data.input?.command || ""));
+        const url = frontendUrlFromOutput(output);
         if (url && this.frontendSignals.get(it.id) !== url) {
           this.frontendSignals.set(it.id, url);
           void this.browser.open(url, { instant: true, read: false, real: true }).catch(() => {});

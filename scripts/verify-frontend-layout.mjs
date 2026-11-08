@@ -14,3 +14,13 @@ const {localFrontendUrl,frontendUrlFromOutput}=new Function(`${await compile('os
 assert.equal(frontendUrlFromOutput('VITE ready\nLocal: http://localhost:5173/'),'http://localhost:5173/');
 assert.equal(frontendUrlFromOutput('https://example.com/api'),null);assert.equal(localFrontendUrl('http://localhost.evil.test'),null);
 console.log('Frontend layout: real scene geometry, line/shape filtering, release and streaming URL detection passed.');
+
+for (const output of [
+  'curl http://127.0.0.1:5711',
+  'curl: (7) Failed to connect to http://127.0.0.1:5711',
+  'API endpoint: http://localhost:3000/api',
+  'fetch("http://localhost:3000")',
+]) assert.equal(frontendUrlFromOutput(output), null, output);
+assert.equal(frontendUrlFromOutput('Server listening on http://127.0.0.1:3000'), 'http://127.0.0.1:3000/');
+const director = await readFile(new URL('../src/director.ts',import.meta.url),'utf8');
+assert.ok(!director.includes('frontendUrlFromOutput(String(it.data.input'), 'Shell input cannot announce a frontend');

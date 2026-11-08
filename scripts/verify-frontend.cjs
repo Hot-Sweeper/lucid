@@ -7,13 +7,13 @@ const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
 const root = path.resolve(__dirname, '..');
 const windows = [];
-let captures = 0, revision = 1, holdCapture, releaseCapture;
+let captures = 0, revision = 1, holdCapture, releaseCapture, unavailable = false;
 class WebContents extends EventEmitter {
   setWindowOpenHandler(fn) { this.popup = fn; }
   setAudioMuted() {}
   setBackgroundThrottling(value) { this.throttled = value; }
   setZoomFactor() {}
-  async loadURL(url) { this.url = url; this.emit('did-finish-load'); }
+  async loadURL(url) { this.url = url; if (unavailable) throw Error('ERR_CONNECTION_REFUSED'); this.emit('did-finish-load'); }
   async executeJavaScript(source) {
     if (source.includes('function install')) return;
     return { width: 960, height: 540, shapes: [], background: '#fff', revision, title: 'Real frontend', animated: false };
@@ -68,6 +68,16 @@ const run = async () => {
     for (let i=0;i<8;i++) await api.frame(1,{id:`bounded${i}`,target:{html:`<h1>${i}</h1>`},mode:'lines'});
     assert.ok(windows.filter(w=>!w.dead).length<=6,'Persistent renderers have a hard bound');
     for(let i=0;i<8;i++) await api.frame(1,{id:`bounded${i}`,close:true});
+    unavailable = true;
+    const beforeFailure = captures;
+    r = await api.frame(1, {id:'recovery',target:{url:'http://127.0.0.1:5711'},mode:'full'});
+    assert.equal(r.ok, false);assert.match(r.error, /reconnect automatically/);
+    r = await api.frame(1, {id:'recovery',mode:'full'});
+    assert.equal(r.ok, false);assert.equal(captures,beforeFailure,'Unavailable pages never capture an error document');
+    unavailable = false;
+    r = await api.frame(1, {id:'recovery',mode:'full'});
+    assert.equal(r.ok,true);assert.ok(r.image,'Same preview recovers when the server starts');
+    await api.frame(1,{id:'recovery',close:true});
     console.log('Frontend backend: sandbox, source scope, stable frames, LOD suppression/resume, ownership, coalescing, close and pool bounds passed.');
   } finally { fs.rmSync(folder,{recursive:true,force:true}); }
 };

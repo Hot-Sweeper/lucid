@@ -59,11 +59,24 @@ async function create(key, source, owner) {
     });
   }
   wc.on('did-finish-load', () => { s.state = null; s.imageRevision = -1; s.hasImage = false; wc.executeJavaScript(page.install).catch(() => {}); });
-  let timeout;
-  try { await Promise.race([wc.loadURL(source.url), new Promise((_,reject) => { timeout = setTimeout(() => reject(Error('The preview page took too long to load.')), 10000); timeout.unref(); })]); }
-  catch { s.loadError = 'The frontend is not available yet. Start its dev server or save the HTML file.'; }
-  finally { clearTimeout(timeout); }
+  await load(s);
   return s;
+}
+
+// Failed startup and retries share the same bounded navigation path. Never sample
+// Chromium's error document or turn a refused connection into a generic failure.
+async function load(s) {
+  let timeout;
+  try {
+    await Promise.race([s.win.webContents.loadURL(s.source.url), new Promise((_, reject) => {
+      timeout = setTimeout(() => reject(Error('Preview load timed out')), 10000); timeout.unref?.();
+    })]);
+    s.loadError = null;
+  } catch {
+    s.loadError = s.source.file
+      ? 'Waiting for the HTML file. Save it to refresh this preview.'
+      : 'Waiting for the dev server. This preview will reconnect automatically when it is available.';
+  } finally { clearTimeout(timeout); }
 }
 
 async function frame(owner, req) {
@@ -71,11 +84,11 @@ async function frame(owner, req) {
   const key = `${owner}:${req.id}`;
   if (req.close) { close(key); return { ok: true }; }
   try {
-    let s = sessions.get(key);
+    let s = sessions.get(key), created = false;
     if (req.target) {
       const source = sourceOf(req.target);
       if (s && source.key !== s.source.key) { close(key); s = null; }
-      if (!s) s = await create(key, source, owner);
+      if (!s) { s = await create(key, source, owner); created = true; }
     }
     if (!s || s.win.isDestroyed()) return { ok: false, missing: true, error: 'Preview session ended.' };
     s.used = Date.now(); touch(s);
@@ -91,7 +104,8 @@ async function frame(owner, req) {
         s.height = height; s.density = density; s.hasImage = false; s.state = null;
         wc.setZoomFactor(density); s.win.setContentSize(Math.ceil(960 * density), Math.ceil(height * density));
       }
-      if (s.loadError) { await wc.loadURL(s.source.url); s.loadError = null; }
+      if (s.loadError && !created) await load(s);
+      if (s.loadError) return { ok: false, error: s.loadError };
       await wc.executeJavaScript(page.install);
       const version = await wc.executeJavaScript(page.version);
       const actionKey = JSON.stringify(req.action || null);

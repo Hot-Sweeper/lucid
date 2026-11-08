@@ -97,7 +97,10 @@ export function localFrontendUrl(value: unknown): string | null {
 /** Only an actual server URL in tool output starts a mirror. Never scan ports. */
 export function frontendUrlFromOutput(output: string) {
   const clean = output.replace(/\x1b\[[0-9;]*m/g, '');
-  const candidates = clean.match(/https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]):\d{2,5}(?:\/[^\s<>"']*)?/gi) || [];
+  // Only server readiness announcements count. Commands, curl errors and API
+  // endpoints in ordinary tool results are not frontend launches.
+  const announced = clean.split(/\r?\n/).filter(line => /(?:\bLocal\s*:|\b(?:ready|running|listening|available|started|serving)\b)/i.test(line) && !/\b(?:error|failed|refused|curl|fetch)\b/i.test(line)).join('\n');
+  const candidates = announced.match(/https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]):\d{2,5}(?:\/[^\s<>"']*)?/gi) || [];
   for (const candidate of candidates) { const url = localFrontendUrl(candidate.replace(/[),.;]+$/, '')); if (url) return url; }
   return null;
 }
