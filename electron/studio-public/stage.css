@@ -1,0 +1,237 @@
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-serif} :root{--accent:#ff9f5a;--accent-ink:#2a1407;--r-sm:4px;--r-lg:6px;--mono:ui-monospace,monospace;--stage:#141a33;--muted:#b9bfe6;--frame-shadow:none;color-scheme:dark}body{display:flex}.stage{width:100%;height:100%;position:relative!important;left:auto!important;top:auto!important} .frame-holder{top:24px!important} .empty-line{font-size:13px} .live-frame{position:absolute;border:0;top:24px;transform-origin:0 0;background:#fff} @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+/* ---------- stage ---------- */
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--stage);
+}
+.frame-holder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  background: #fff;
+}
+.frame-holder:not([data-viewport="desktop"]) {
+  top: 24px;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--frame-shadow);
+}
+.site-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+.site-frame.is-back { opacity: 0; pointer-events: none; z-index: -1; }
+.site-frame.is-leaving { z-index: 1; pointer-events: none; }
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 2;
+}
+.empty { display: none; }
+/* Hidden, not display:none, so a page loading behind the empty state still has real layout to measure. */
+.stage.is-empty .frame-holder { visibility: hidden; }
+.stage.is-empty .empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.empty-inner { width: min(420px, 100%); }
+.empty-line { margin: 0; color: var(--muted); font-size: 15px; text-align: center; text-wrap: balance; }
+.empty-inner .menu-new { padding: 0; }
+.empty-inner h2 { margin: 0 0 14px; font-size: 18px; font-weight: 600; }
+
+/* The agent's cursor and what it draws. */
+.agent-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  transition: opacity .3s;
+  will-change: transform;
+  z-index: 3;
+}
+.agent-cursor.is-shown { opacity: 1; }
+.agent-cursor.is-shown.is-idle { opacity: .55; }
+.agent-cursor svg { display: block; overflow: visible; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .35)); }
+.agent-cursor .fill { fill: var(--accent); stroke: #1a0c02; stroke-width: 1.1; stroke-linejoin: round; }
+.agent-cursor .halo { fill: none; stroke: #1a0c02; stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
+.agent-cursor .line { fill: none; stroke: var(--accent); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+/* One cursor, several tools: pointer, text, crosshair (drawing) and resize. Hotspots line up with the cursor position. */
+.cursor-shape { position: absolute; top: 0; left: 0; display: none; transform: rotate(var(--lean, 0deg)) scale(var(--press, 1)); transform-origin: 2px 2px; }
+.agent-cursor[data-shape="arrow"] .cursor-shape[data-for="arrow"] { display: block; }
+.agent-cursor[data-shape="text"] .cursor-shape[data-for="text"] { display: block; left: -6px; top: -11px; transform-origin: 6px 11px; }
+.agent-cursor[data-shape="cross"] .cursor-shape[data-for="cross"] { display: block; left: -10px; top: -10px; transform-origin: 10px 10px; }
+.agent-cursor[data-shape="resize"] .cursor-shape[data-for="resize"] { display: block; left: -10px; top: -10px; transform-origin: 10px 10px; }
+.agent-tag {
+  position: absolute;
+  top: 18px;
+  left: 13px;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  max-width: 300px;
+  padding: 2px 7px 3px;
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11.5px;
+  line-height: 1.35;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+}
+.agent-tag b { font-weight: 600; }
+.agent-tag span { overflow: hidden; text-overflow: ellipsis; opacity: .82; }
+.agent-cursor:not(.has-label) .agent-tag span { display: none; }
+.agent-cursor.is-idle .agent-tag { opacity: 0; transition: opacity .4s 1.2s; }
+.agent-caret {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0;
+  z-index: 2;
+}
+.agent-caret.is-on { opacity: 1; }
+.agent-caret.is-on.is-blink { animation: ares-blink 1s steps(1, end) infinite; }
+@keyframes ares-blink { 50% { opacity: 0; } }
+
+/* Playback overlay. Curves: --ease-out-strong for things appearing, see DESIGN.md. */
+.overlay { --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1); }
+.ov-box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 1.5px solid var(--accent);
+  will-change: transform, width, height;
+  transition: border-color .3s ease, border-width .3s ease;
+}
+.ov-box.is-drag { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.ov-box.is-faint { border-width: 1px; border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.ov-box.is-trail { border-width: 1px; border-color: color-mix(in srgb, var(--accent) 38%, transparent); }
+.ov-box.is-trail .ov-size { opacity: 0; transition: opacity .2s ease; }
+.ov-box .h { display: none; position: absolute; width: 7px; height: 7px; background: #fff; border: 1.5px solid var(--accent); }
+.ov-box.has-handles .h { display: block; animation: ares-handle .24s var(--ease-out-strong) both; }
+.ov-box .tl { top: -4px; left: -4px; }
+.ov-box .tr { top: -4px; right: -4px; animation-delay: .03s !important; }
+.ov-box .bl { bottom: -4px; left: -4px; animation-delay: .06s !important; }
+.ov-box .br { bottom: -4px; right: -4px; animation-delay: .09s !important; }
+@keyframes ares-handle { from { opacity: 0; transform: scale(.5); } }
+.ov-size {
+  position: absolute;
+  top: 100%;
+  left: -1.5px;
+  margin-top: 6px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 500 10px/1.5 var(--mono);
+  font-stretch: 87.5%;
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+  animation: ares-label .22s var(--ease-out-strong) both;
+}
+.ov-size:empty { display: none; }
+.ov-size .num { font-variant-numeric: tabular-nums; }
+.ov-size .sw {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin: 0 3px;
+  border-radius: 2px;
+  vertical-align: -1px;
+  box-shadow: 0 0 0 1px rgba(26, 12, 2, .45);
+}
+@keyframes ares-label { from { opacity: 0; transform: translateY(-3px); } }
+.ov-sel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-radius: 2px;
+}
+.ov-sel { background: color-mix(in srgb, var(--accent) 32%, transparent); }
+/* Text box: hugs the words typed so far, so it grows as they arrive. */
+.ov-tbox {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+}
+/* Grey placeholder a freshly drawn box carries until its fill is set. */
+.ov-veil { position: absolute; top: 0; left: 0; }
+/* Corner radius handle, dragged in from the corner. */
+.ov-radius {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid var(--accent);
+  animation: ares-handle .2s var(--ease-out-strong) both;
+}
+.ov-ripple {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  transform: translate(-50%, -50%);
+}
+.ov-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 50% 50%;
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.ov-guide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  background: repeating-linear-gradient(to bottom, var(--accent) 0 4px, transparent 4px 7px);
+  opacity: .8;
+}
+.ov-edge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+}
+.look-scan {
+  position: absolute;
+  top: 0;
+  height: 2px;
+  background: var(--accent);
+  z-index: 2;
+}
+.look-scan::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  height: 56px;
+  background: linear-gradient(to bottom, transparent, var(--accent-soft));
+}
+
