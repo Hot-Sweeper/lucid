@@ -1,0 +1,7 @@
+/* Keep the desktop mounted and measurable while a full-screen monitor view owns it.
+   Opacity also contains children with explicit visibility or very large window z-indices. */
+.os[data-desktop-covered] > :is(.wallpaper, .win-layer, .dock, .os-clock, .toast-layer, .cursor, .click-ring, .alttab, .launcher) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}

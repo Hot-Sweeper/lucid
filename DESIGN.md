@@ -167,3 +167,8 @@ An active root compaction event for the robot's current T3 run covers its comple
 ## Arcade picture alignment
 
 The break-room TV has a fixed 24 by 10 SVG inset and a 152 by 86 picture. Keep that placement in an outer viewport group and draw each boot/game scene in its own inner group. Screen shakes and other game effects only transform the inner scene, returning to its local zero. They must never overwrite the TV inset or leave a black strip after a hit. Preserve the existing fighting game, kart race, bezel, power controls and animation ownership.
+
+
+## Monitor desktop coverage
+
+Full-screen plan, question, report and compaction views own desktop coverage through the existing window manager. Hide the mounted desktop window layer, dock, wallpaper, clock, transient surfaces and simulated pointer while any owner remains. Keep app geometry and state intact, make the desktop window layer and dock inert, and restore their visibility and keyboard access only when the last owner closes. Overlay windows retain their existing priorities and opaque surfaces. No desktop chrome should bleed through a full-screen plan.

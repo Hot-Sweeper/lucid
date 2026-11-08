@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import "./monitor-cover.css";
 import { uiText, onLocaleChange } from "../localization";
 import { localizeGameDOM } from "../localization-dom";
 import type { SeatedRobot as Robot } from "../office/rig";
@@ -84,6 +85,9 @@ export class WM {
     const next = this.overlayOwners.size > 0;
     if (next === this.overlayCovered) return;
     this.overlayCovered = next;
+    this.root.toggleAttribute("data-desktop-covered", next);
+    this.layer.inert = next;
+    this.dock.inert = next;
     this.syncOcclusion();
   }
   private cursor = { x: SCREEN.w * 0.55, y: SCREEN.h * 0.5 };
