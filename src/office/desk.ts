@@ -91,7 +91,7 @@ export class Desk implements DeskStage {
       <div class="monitor"><div class="screen"></div><div class="screen-glare"></div></div>
       <ol class="desk-notes" aria-label="Plan"></ol>
       <div class="robot-host"></div>
-      <button type="button" class="poke poke-head" aria-label="Poke the robot" style="left:${GEOM.head.x - 34}px;top:${GEOM.head.y - 46}px"></button>
+      <button type="button" class="poke poke-head" aria-label="Open robot chat" style="left:${GEOM.head.x - 34}px;top:${GEOM.head.y - 46}px"></button>
       <button type="button" class="poke poke-mug" aria-label="Hand it its coffee" style="left:${GEOM.mug.x - 16}px;top:${GEOM.mug.y - 20}px"></button>
       <button type="button" class="poke poke-phone" aria-label="Buzz its phone" style="left:${GEOM.phoneRest.x - 16}px;top:${GEOM.phoneRest.y - 24}px"></button>
       <div class="desk-plate"><img alt=""><span></span></div>
@@ -278,13 +278,9 @@ export class Desk implements DeskStage {
     const lines = ["Hey!", "I'm working here!", "Yes, CEO?", "That tickles.", "Boop.", "Almost done, promise.", "Did you need something?"];
     const grumpy = ["Okay, okay!", "Stop poking me.", "I will tell HR.", "Poke limit reached."];
     const stop = (e: Event) => { e.stopPropagation(); e.preventDefault(); };
-    let lastTap = 0;
     this.el.querySelector(".poke-head")!.addEventListener("click", (e) => {
       stop(e);
       if (!this.threadId) return;
-      // A second click on the robot lifts it out into its focus view.
-      if (performance.now() - lastTap < 4000 && this.onRobotFocus) { lastTap = 0; this.onRobotFocus(this.el.querySelector(".robot-host") ?? this.el); return; }
-      lastTap = performance.now();
       gameSound.play('poke');
       this.pokes++;
       window.clearTimeout(this.pokeTimer);

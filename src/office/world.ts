@@ -43,6 +43,7 @@ import { orderedRooms, moveRoomOrder, movableRoom } from "./room-order";
 import { mountTouchCamera } from "./touch-camera";
 import { phoneGestureDiagnostics, type PhoneGestureDiagnostics } from "../perf/phone-gesture";
 import { exposedScene } from "./exposed-scene";
+import { wireDeskChatTargets } from "./desk-chat-targets";
 
 // The whole building, seen fake top-down: rooms laid out on a floor plan, one shared camera.
 // Offices hold desks (one per thread). Desks live in one layer above the rooms, so a robot
@@ -1432,13 +1433,14 @@ export class World {
     d.director.attachDir = this.attachDir;
     d.director.childItems = (id, since) => (window as any).lucid.itemsSince(id, since);
     this.allDesks.add(d);
+    const chatClicks = wireDeskChatTargets(d.el, () => d.threadId, () => this.dragged,
+      id => this.hostWorld ? this.onSelectThread(id) : this.onWatchChat(id));
     if (!this.hostWorld) this.wireDeskDrag(d);
     d.onRobotFocus = (anchor) => { if (d.threadId) this.onRobotFocus(d.threadId, anchor); };
     d.el.addEventListener("click", (e) => {
       if (this.dragged) return;
       e.stopPropagation();
-      // Desk already up close: a click on its robot opens the worker's focus view.
-      if (d.threadId && this.focusDesk === d && (e.target as Element).closest?.(".robot-host")) { this.onRobotFocus(d.threadId, d.el.querySelector(".robot-host") ?? d.el); return; }
+      if (this.hostWorld && chatClicks.has(e)) return;
       if (d.threadId) { this.select(d); this.focusOn(d); }
       else this.onFreeDesk(d, [...this.slotDesks.entries()].find(([, v]) => v === d)?.[0] ?? "", e.clientX, e.clientY);
     });
@@ -1450,6 +1452,7 @@ export class World {
     d.monitor.addEventListener("click", (e) => {
       if (this.dragged || !d.threadId) return;
       e.stopPropagation();
+      if (this.hostWorld && chatClicks.has(e)) return;
       this.select(d);
       // first click brings the desk close, a click on the monitor then fills the view with the screen
       if (this.focusDesk === d && this.focusMode === "desk") this.focusScreen(d); else this.focusOn(d);
