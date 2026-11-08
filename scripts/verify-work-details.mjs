@@ -17,6 +17,9 @@ try {
   assert.equal(result.reportHtml.startsWith('<verified>Working result.'), true);
   const remote = buildWorkDetails(messages, 'machine::thread', s => s);
   assert(remote.images[0].url.startsWith('lucid-file://remote/'));
+  const comparison = buildWorkDetails([{ role: 'assistant', text: '| Before | After |\n| --- | --- |\n| ![Before](</tmp/before table.png>) | [After](/tmp/after.png) |\n\n![Again](/tmp/after.png)' }], 'machine::thread', s => s);
+  assert.deepEqual(comparison.images.map(i => i.name), ['Before', 'After']);
+  assert(comparison.images.every(i => i.url.startsWith('lucid-file://remote/')));
   const empty = buildWorkDetails([], 'local', s => s);
   assert.equal(empty.report, ''); assert.deepEqual(empty.images, []);
   assert.equal(buildWorkDetails([{ role:'assistant', text: 'Only text' }], 'local', s => s).report, 'Only text');

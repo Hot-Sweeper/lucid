@@ -19,7 +19,11 @@
 .monitor-task-done .mt-label { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: normal; text-transform: none; color: var(--ink); }
 .monitor-task-done .mt-report { max-height: none; max-inline-size: 70ch; overflow: visible; line-height: 1.6; overflow-wrap: anywhere; }
 .monitor-task-done .mt-report.md strong { color: var(--ink); }
-.monitor-task-done .mt-report .cp-inline-media:has(img) { display: none; }
+/* Standalone pictures use the gallery; comparisons retain their cell context. */
+.monitor-task-done .mt-report .cp-inline-media:has(img):not(td *, th *) { display: none; }
+.monitor-task-done .mt-report :is(td, th) .cp-inline-media { display: inline-flex; max-width: 100%; padding: 0; border: 0; border-radius: 6px; background: transparent; cursor: zoom-in; vertical-align: top; }
+.monitor-task-done .mt-report :is(td, th) img { display: block; max-width: 100%; max-height: 240px; width: auto; height: auto; object-fit: contain; border-radius: inherit; }
+.monitor-task-done .mt-report .md-table:has(img) table { table-layout: fixed; }
 .monitor-task-done .mt-task-disclosure { color: var(--ink-2); font-size: 15px; }
 .monitor-task-done .mt-task-disclosure summary { cursor: pointer; padding-block: 6px; }
 .monitor-task-done .mt-task { display: block; margin-top: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -71,3 +75,7 @@
 .mt-result-layout, .monitor-task-done .mt-shots, .mt-shot-rail { min-width: 0; max-width: 100%; }
 .monitor-task-done .mt-shot-main { width: 100%; min-width: 0; }
 .mt-gallery-heading { flex-wrap: wrap; }
+
+/* A completed task is recognizable beside its title, before reading the report. */
+.monitor-task-done:has(.mt-chip[data-state="done"]) > header > div { position: relative; padding-left: 32px; }
+.monitor-task-done:has(.mt-chip[data-state="done"]) > header > div::before { content: ""; position: absolute; left: 3px; top: 2px; width: 11px; height: 20px; border: solid #7ee2a8; border-width: 0 4px 4px 0; transform: rotate(45deg); }

@@ -1,4 +1,4 @@
-import { fillReportGallery } from "./report-gallery";
+import { fillReportGallery, openReportImage } from "./report-gallery";
 import { thumbSrc } from "./chat-media";
 import gsap from 'gsap';
 import { AnswerCard, type AnswerDeps, type PendingRequest } from './answer';
@@ -208,7 +208,18 @@ export class MonitorTasks {
     view.el.querySelector<HTMLElement>('.mt-task-disclosure')!.hidden = !d?.task; task.textContent = d?.task || '';
     when.textContent = d?.endedAt ? ` · ${ago(d.endedAt)}${d.messages ? ` · ${d.messages} messages` : ''}` : '';
     view.galleryCleanup?.();
-    view.galleryCleanup = fillReportGallery(shots, d?.images ?? []);
+    const clearGallery = fillReportGallery(shots, d?.images ?? []);
+    let closeInline: (() => void) | undefined;
+    for (const button of report.querySelectorAll<HTMLElement>('td .cp-inline-media, th .cp-inline-media')) {
+      button.onclick = () => {
+        const url = button.dataset.mediaSrc;
+        if (!url) return;
+        closeInline?.(); closeInline = openReportImage(url, button.dataset.mediaName || 'Screenshot', button);
+      };
+      const img = button.querySelector('img');
+      if (img) img.onerror = () => { button.textContent = `Image unavailable: ${img.alt || 'Screenshot'}`; };
+    }
+    view.galleryCleanup = () => { clearGallery(); closeInline?.(); };
   }
 
   private remove(view: View) {

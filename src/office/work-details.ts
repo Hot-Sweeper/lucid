@@ -23,6 +23,10 @@ export function buildWorkDetails(messages: Message[], threadId: string, markdown
     for (const t of tokens) {
       if (t.type === 'image' || t.type === 'link') add(t.href, t.text);
       if ('tokens' in t && t.tokens) walk(t.tokens);
+      if (t.type === 'table') {
+        for (const cell of t.header) walk(cell.tokens);
+        for (const row of t.rows) for (const cell of row) walk(cell.tokens);
+      }
       if (t.type === 'list') for (const item of t.items) walk(item.tokens);
     }
   };

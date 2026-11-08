@@ -18,7 +18,7 @@ const world = { desks:new Map([['a',desk]]), lastData:{threads:[thread]}, setCom
 const images = [];
 if (params.get('after')) images.push(`![After: working hiring screen](${location.origin}${params.get('after')})`);
 if (params.get('before')) images.push(`![Before: original hiring screen](${location.origin}${params.get('before')})`);
-const details = buildWorkDetails([{role:'user',text:'Fix visible Markdown markers and improve the hiring screen.'}, {role:'assistant',text:`The hiring screen now has harness logos, a larger writing surface and an unboxed robot preview.\n\n${images.join('\n\n')}\n\nTypeScript, production build and browser checks passed. Drafts, retries and keyboard focus are preserved.`,at:new Date().toISOString()}], thread.id, renderChatMarkdown);
+const details = buildWorkDetails([{role:'user',text:'Fix visible Markdown markers and improve the hiring screen.'}, {role:'assistant',text:`${params.has('table') ? 'Report image comparisons keep each screenshot under its label.' : 'The hiring screen now has harness logos, a larger writing surface and an unboxed robot preview.'}\n\n${params.has('table') ? '| After | Before |\n| --- | --- |\n| ' + images.join(' | ') + ' |' : images.join('\n\n')}\n\nTypeScript, production build and browser checks passed. Drafts, retries and keyboard focus are preserved.`,at:new Date().toISOString()}], thread.id, renderChatMarkdown);
 let collected=0, reads=0;
 const tasks = new MonitorTasks(world, {answer:{},read(){reads++},ready(){return {summary:'Completed work',coins:'.74',state:'done'}},collect:async()=>{collected++;throw Error('Test retry')},details:async()=>details});
 tasks.prepare(world.lastData);tasks.sync();await wait(100);
@@ -26,6 +26,13 @@ window.reportReview = {tasks,world,desk};
 if(tests) {
  const passed=[],check=(ok,label)=>{if(!ok)throw Error(label);passed.push(label)};
  try {
+  if(params.has('table')) {
+   const cells=[...document.querySelectorAll('.mt-report td .cp-inline-media')];
+   await Promise.all(cells.map(b=>{const i=b.querySelector('img');return i.complete?Promise.resolve():new Promise(r=>{i.addEventListener('load',r,{once:true});i.addEventListener('error',r,{once:true});setTimeout(r,3000)})}));
+   check(cells.length===2&&cells.every(b=>b.getBoundingClientRect().height>20&&b.querySelector('img').naturalWidth>0),'Table images are visible and decoded');
+   check(details.images.length===2,'Table evidence reaches gallery');
+   cells[0].click();check(q('.mt-image-viewer')?.open,'Table image opens original');q('.mt-image-viewer button').click();await wait(40);check(document.activeElement===cells[0],'Table preview restores focus');
+  }
   if(params.has('narrow')) check(q('.monitor-task-body').scrollWidth <= q('.monitor-task-body').clientWidth + 1, '320px report has no horizontal overflow');
   check(getComputedStyle(q('.mt-report')).maxHeight === 'none','Report is in the main scrolling body');
   if(details.images.length){
