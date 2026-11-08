@@ -4,16 +4,20 @@ const path = require('node:path');
 const out = path.resolve(process.env.LUCID_STUDIO_QA_OUT || process.argv.at(-1) || '/tmp/lucid-studio-native');
 fs.mkdirSync(out, { recursive: true });
 if (!process.versions.electron) {
-  const env = { ...process.env, LUCID_STUDIO_QA_OUT: out, LUCID_SHOT: out, LUCID_SHOT_EVERY: '3600000', LUCID_DEV_URL: require('node:url').pathToFileURL(path.resolve(__dirname, '../dist-build/index.html')).href };
+  const candidate = path.join(out, 'candidate');
+  fs.cpSync(path.resolve(__dirname, '../dist-build'), candidate, { recursive: true });
+  const env = { ...process.env, LUCID_STUDIO_QA_OUT: out, LUCID_SHOT: out, LUCID_SHOT_EVERY: '3600000', LUCID_DEV_URL: require('node:url').pathToFileURL(path.join(candidate, 'index.html')).href };
   delete env.ELECTRON_RUN_AS_NODE;
   require('node:child_process').spawn(require('electron'), ['--ozone-platform=x11', __filename, out], { env, stdio: 'inherit' }).on('exit', code => process.exit(code || 0));
 } else {
   const { app, webContents } = require('electron');
   app.setPath('temp', out);
-  let main = null, count = 0, busy = false, commandId = null;
+  let main = null, count = 0, busy = false, commandId = null, recordTimer = null, nativeFetch = globalThis.fetch;
   app.on('browser-window-created', (_event, win) => {
     if (main) return; main = win;
     win.webContents.once('did-finish-load', () => {
+      // This window belongs to the hidden agent desktop, never the user's display.
+      win.setFocusable(true); win.setPosition(0, 0); win.showInactive();
       const timer = setInterval(async () => {
         if (busy || win.isDestroyed()) return; busy = true;
         try {
@@ -22,7 +26,12 @@ if (!process.versions.electron) {
             commandId = command.id;
             try {
               if (command.quit) { clearInterval(timer); app.quit(); return; }
-              if (command.size) win.setContentSize(...command.size);
+              if (command.size) { win.setMinimumSize(320, 480); win.setContentSize(...command.size); }
+              if (command.capture) fs.writeFileSync(path.join(out, String(command.capture).replace(/[^a-z0-9-]/gi, '') + '.png'), (await win.webContents.capturePage()).toPNG());
+              if (command.media) { if (!win.webContents.debugger.isAttached()) win.webContents.debugger.attach('1.3'); await win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: command.media }] }); }
+              if ('connectionFault' in command) globalThis.fetch = command.connectionFault ? (url, ...args) => String(url).includes('ares.tailfce843.ts.net:8446/lucid-runner') ? Promise.reject(new TypeError('Injected tailnet connection loss')) : nativeFetch(url, ...args) : nativeFetch;
+              if ('record' in command) { clearInterval(recordTimer); recordTimer = null; if (command.record) { let n = 0, capturing = false; recordTimer = setInterval(async () => { if (capturing || win.isDestroyed()) return; capturing = true; try { const image = (await win.webContents.capturePage()).resize({width:1280}); fs.writeFileSync(path.join(out, `demo-${String(++n).padStart(6, '0')}.jpg`), image.toJPEG(82)); } finally { capturing = false; } }, 50); } }
+
               let target = win.webContents.mainFrame;
               if (command.frame === 'canvas') target = target.frames.find(f => f.url.includes('/__lucid/studio'));
               if (command.frame === 'site') { const host = target.frames.find(f => f.url.includes('/__lucid/studio')); target = host?.frames.find(f => !f.url.includes('/__lucid/frame') && f.url.startsWith('http:')); }

@@ -122,7 +122,7 @@ function officeTasks() {
 
 function threadInfo(threadId) {
   const t = getDb()
-    .prepare(`select t.thread_id as id, t.title, coalesce(t.provider_instance_id, t.default_provider) as provider, t.payload_json as payload,
+    .prepare(`select t.thread_id as id, t.project_id as projectId, t.title, coalesce(t.provider_instance_id, t.default_provider) as provider, t.payload_json as payload,
                      p.title as projectTitle, p.workspace_root as root
               from orchestration_v2_projection_threads t left join projection_projects p on p.project_id = t.project_id
               where t.thread_id = ?`)
@@ -141,13 +141,14 @@ function threadInfo(threadId) {
     .map(({ id, text }) => ({ id, text }));
   return {
     id: t.id,
+    projectId: t.projectId,
     queued,
     title: t.title,
     provider: t.provider,
     model: payload.modelSelection?.model || payload.model || null,
     effort: effortOf(payload.modelSelection?.options),
     projectTitle: t.projectTitle,
-    root: t.root,
+    root: payload.worktreePath || t.root,
     run: run ? { id: run.id, status: run.status } : null,
   };
 }

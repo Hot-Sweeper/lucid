@@ -176,10 +176,23 @@ export class Director {
     this.idleLife.onActivity = (t) => this.onActivity(t);
   }
 
+  private websiteCanvas: string | null = null;
+  /** An explicit Ares studio session may use this robot's screen while its T3 job is idle. */
+  async watchWebsiteCanvas(url: string | null) {
+    this.websiteCanvas = url;
+    if (!url) { this.wm.cursorEl.style.visibility = ''; this.idle(); return; }
+    if (this.info?.run?.status === 'running') return;
+    this.idleLife.halt(); this.robot.setPose('read'); this.stage.setGlow(GLOW.browser);
+    this.wm.cursorEl.style.visibility = 'hidden'; // the canvas owns the one visible cursor
+    this.onActivity('Website studio on Ares');
+    await this.browser.open(url, { instant: true, read: false, real: true, title: 'Website studio on Ares' });
+  }
+
   reset() {
     window.clearTimeout(this.historyTimer);
     this.historyTimer = 0; this.historyThread = null; this.historyGeneration++; this.historyCut = 0;
     this.notePresentation.reset();
+    this.websiteCanvas = null; this.wm.cursorEl.style.visibility = '';
     this.idleLife.stop();
     for (const s of this.sessions.values()) window.clearInterval(s.timer);
     this.sessions.clear();
@@ -227,6 +240,7 @@ export class Director {
     this.codex.setInfo(info);
     this.term.setCwd(info.root || null);
     const status = info.run?.status || "";
+    if (status === "running" && this.websiteCanvas) { this.websiteCanvas = null; this.wm.cursorEl.style.visibility = ""; }
     if (status === "running" && this.idleLife.isActive) {
       // New work started (maybe from T3 itself): no more fun, but a sleeping robot only wakes
       // once the first event (usually your message) reaches it, see play().
@@ -338,7 +352,7 @@ export class Director {
       // The mirror uses its own cancellable tab lifecycle; it never sends UI clicks.
       if (!initial && (it.type === 'command_execution' || it.type === 'dynamic_tool')) {
         const output = outText(it.data.output);
-        const url = frontendUrlFromOutput(output);
+        const url = frontendUrlFromOutput(output) || frontendUrlFromOutput(String(it.data.input?.cmd || it.data.input?.command || ""));
         if (url && this.frontendSignals.get(it.id) !== url) {
           this.frontendSignals.set(it.id, url);
           void this.browser.open(url, { instant: true, read: false, real: true }).catch(() => {});
@@ -709,6 +723,7 @@ export class Director {
     if (this.writingReport) return;
     this.wasIdle = true;
     if (!this.present()) return;
+    if (this.websiteCanvas && this.info?.run?.status !== 'running') { this.robot.setPose('read'); this.onActivity('Website studio on Ares'); return; }
     if (this.waitingForUser) { this.robot.setPose("read"); this.onActivity("Watching you type"); void this.messages.youTyping(true).catch(() => {}); return; }
     if (this.phoneUp) { this.mobile = false; void this.phone(false); }
     // Helpers still at work: wait for them and look in on them now and then.
@@ -1144,7 +1159,7 @@ export class Director {
       for (const u of w.urls.slice(0, 3)) { this.onActivity(`Reading ${hostOf(u)}`); await this.browser.open(u, { instant }); }
       return;
     }
-    const results: Result[] = (d.results || []).filter((r: any) => r?.url && r?.title).map((r: any) => ({ url: String(r.url), title: String(r.title), snippet: r.snippet ? String(r.snippet).slice(0, 240) : undefined }));
+    const results: Result[] = (d.results || []).filter((r: any) => r?.url && r?.title).map((r: any) => ({ url: String(r.url), title: String(r.title), snippet: r.snippet ? String(r.snippet).slice(0, 240) : undefined, image: r.image || r.thumbnail || r.image_url || undefined }));
     const queries = w.queries.slice(0, 2);
     const then = this.nextPages(it);
     for (const [i, q] of queries.entries()) {

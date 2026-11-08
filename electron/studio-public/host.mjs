@@ -1,13 +1,15 @@
 import { Stage } from './stage.mjs';
 const stage = new Stage({ stage: document.querySelector('.stage'), holder: document.querySelector('.frame-holder'), overlay: document.querySelector('.overlay'), onReady: () => report(), onFollowChange: on => report({ follow: on }) });
-window.__lucidCanvas = { stage, inspect: () => ({ version, shown: stage.shownVersion, latest: stage.latestVersion, playback, mode, cursorCount: document.querySelectorAll('.agent-cursor').length, text: stage.front?.contentDocument?.body?.innerText?.slice(0, 800), pending: stage.front?.contentDocument?.querySelectorAll('[data-ares-pending]').length, width: stage.front?.contentWindow?.innerWidth, height: stage.front?.contentWindow?.innerHeight, errors: current.error }) };
-let stopped = false, running = false, version = -1, playback = false, live = null, current = {}, mode = 'build';
+let paused = false; const plans = [];
+stage.onPlan = plan => { plans.push(plan.steps.map(s => ({ kind: s.kind, id: s.el?.id || '', tag: s.el?.tagName || '' }))); if (plans.length > 30) plans.shift(); };
+window.__lucidCanvas = { stage, pause: value => { paused = !!value; if (paused) { stage.cancel(true); cancelAnimationFrame(stage.raf); stage.raf = 0; stage.cursorEl.classList.remove('is-shown'); } }, inspect: () => ({ version, plans, shown: stage.shownVersion, latest: stage.latestVersion, playback, mode, cursorCount: document.querySelectorAll('.agent-cursor').length, text: stage.front?.contentDocument?.body?.innerText?.slice(0, 800), pending: stage.front?.contentDocument?.querySelectorAll('[data-ares-pending]').length, width: stage.front?.contentWindow?.innerWidth, height: stage.front?.contentWindow?.innerHeight, errors: current.error }) };
+let stopped = false, running = false, version = -1, playback = false, live = null, current = {}, mode = 'build', lastError = null;
 function report(extra = {}) { parent.postMessage({ type: 'lucid:canvas', playback, mode, version, ...extra }, '*'); }
 stage.onPlayback = active => { playback = active; report(); };
 stage.onError = error => report({ error: error.message });
 function fitLive() {
-  if (!live) return; const w = current.width || 1440, box = document.body.getBoundingClientRect(), scale = Math.max(.05, Math.min(1, (box.width - 48) / w));
-  Object.assign(live.style, { width: `${w}px`, height: `${Math.max(100, (box.height - 48) / scale)}px`, transform: `scale(${scale})`, left: `${Math.max(24, (box.width - w * scale) / 2)}px` });
+  if (!live) return; const w = current.width || 1440, box = document.body.getBoundingClientRect(), h = w === 390 ? 844 : w === 820 ? 1180 : 900, scale = Math.max(.05, Math.min(1, (box.width - 48) / w, (box.height - 48) / h));
+  Object.assign(live.style, { width: `${w}px`, height: `${h}px`, transform: `scale(${scale})`, left: `${Math.max(24, (box.width - w * scale) / 2)}px` });
 }
 const resize = new ResizeObserver(fitLive); resize.observe(document.body);
 function useLive() {
@@ -27,16 +29,18 @@ window.addEventListener('message', e => {
   if (a.action === 'theme') { document.documentElement.style.setProperty('--stage', a.theme === 'light' ? '#e8e5ef' : '#141a33'); }
 });
 async function poll() {
-  if (running || stopped) return; running = true;
+  if (running || stopped) return; if (paused) { setTimeout(poll, 1000); return; } running = true;
   try {
     const response = await fetch('/__lucid/state'), state = await response.json(); current = state; stage.setWorking(state.working);
-    if (state.error) { document.querySelector('.empty-line').textContent = state.error; report({ error: state.error }); }
+    if (state.error !== lastError) { lastError = state.error || null; report({ error: lastError }); }
+    if (state.error) document.querySelector('.empty-line').textContent = state.error;
     if (state.version >= 0 && state.version !== version) {
       version = state.version;
       stage.setViewport(state.width === 390 ? 'phone' : state.width === 820 ? 'tablet' : 'desktop');
-      if (!stage.project) { await stage.openProject('current', { hasSite: false, version }); }
-      if (mode === 'build') void stage.update(version).then(() => report());
-      else { stage.latestVersion = version; if (live) live.src = state.liveUrl; }
+      const initial = !stage.project;
+      if (initial) { await stage.openProject('current', { hasSite: true, version }); }
+      if (mode === 'build' && !initial) void stage.update(version).then(() => report());
+      else if (mode === 'live') { stage.latestVersion = version; if (live) live.src = state.liveUrl; }
       report({ error: null });
     }
   } catch (e) { report({ error: e.message }); } finally { running = false; if (!stopped) setTimeout(poll, document.hidden ? 1800 : 600); }

@@ -80,6 +80,7 @@ async function frame(owner, req) {
     if (!s || s.win.isDestroyed()) return { ok: false, missing: true, error: 'Preview session ended.' };
     s.used = Date.now(); touch(s);
     s.win.webContents.setBackgroundThrottling(req.mode !== 'full');
+    if (s.source.url.includes('/__lucid/studio')) await s.win.webContents.executeJavaScript(`window.__lucidCanvas?.pause(${req.mode === 'paused'})`).catch(() => {});
     if (req.mode === 'paused') return { ok: true };
     if (s.busy) return s.busy;
     s.busy = (async () => {

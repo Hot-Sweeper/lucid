@@ -189,11 +189,12 @@ ${typeof out === "string" ? out : JSON.stringify(out, null, 1)}
   }
   // links in chat messages open in the real browser; only web and mail links are allowed
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^(https?:|mailto:)/i.test(url)) shell.openExternal(url);
+    void require("./external-links.cjs").open(shell, url);
     return { action: "deny" };
   });
 }
 
+require("./external-links.cjs").register(ipcMain, shell);
 const send = (channel, payload) => { if (win && !win.isDestroyed()) win.webContents.send(channel, payload); };
 
 ipcMain.handle("fs:download-answer", async (_e, input) => {
@@ -590,6 +591,7 @@ ipcMain.handle("t3s:respond", t3sWrap((o) => t3s.respondToRequest(o.threadId, o.
 app.on("before-quit", () => t3s.closeSock());
 
 // Office documents the agents wrote (docx, xlsx, pptx, csv...), read for the robots' office apps.
+require("./studio.cjs").register(ipcMain, app);
 require("./office.cjs").register(ipcMain);
 // Real Bitcoin candles and prices for the robots' Tradebot (cached, rate limited).
 require("./market.cjs").register(ipcMain);

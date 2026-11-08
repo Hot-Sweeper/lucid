@@ -373,6 +373,7 @@ export class Stage {
     } else if (old) requestAnimationFrame(() => old.remove());
     this.layout();
     this.onReady?.();
+    if (plan) this.onPlan?.(plan);
     this.onPlayback?.(!!plan?.steps.length);
     if (plan?.steps.length) await this.play(plan);
     this.onPlayback?.(false);
@@ -435,10 +436,11 @@ export class Stage {
       hs.left = '0px';
     } else {
       const gutter = 24;
-      const s = Math.max(.05, Math.min(1, (availW - gutter * 2) / want));
+      const height = this.viewport === 'phone' ? 844 : this.viewport === 'tablet' ? 1180 : 900;
+      const s = Math.max(.05, Math.min(1, (availW - gutter * 2) / want, (availH - gutter * 2) / height));
       this.scale = s;
       hs.width = `${want}px`;
-      hs.height = `${Math.max(100, (availH - gutter * 2) / s)}px`;
+      hs.height = `${height}px`;
       hs.transform = `scale(${s})`;
       hs.left = `${Math.max(gutter, (availW - want * s) / 2)}px`;
     }
@@ -1613,6 +1615,8 @@ export class Stage {
     if (c.placed) {
       const [x, y] = this.toOverlay(c.x, c.y, m);
       this.cursorEl.style.transform = `translate(${x}px, ${y}px)`;
+      const tag = this.cursorEl.querySelector('.agent-tag');
+      if (tag) { tag.style.left = x > this.overlay.clientWidth - 260 ? 'auto' : '13px'; tag.style.right = x > this.overlay.clientWidth - 260 ? '8px' : 'auto'; tag.style.top = y > this.overlay.clientHeight - 50 ? '-32px' : '18px'; }
       // Lean slightly into horizontal motion (pointer only); squish on press.
       const lean = this.cursorEl.dataset.shape === 'arrow' ? clamp(c.vx / 1400, -1, 1) * 7 : 0;
       this.cursorEl.style.setProperty('--lean', `${lean.toFixed(2)}deg`);

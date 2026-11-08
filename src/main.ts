@@ -1,3 +1,4 @@
+import { mountWebsiteStudio } from "./office/website-studio";
 import { buildWorkDetails } from "./office/work-details";
 import { ProjectLife } from "./office/project-life";
 import { mountPerformancePanel } from "./office/performance";
@@ -190,6 +191,7 @@ $("side-panel").appendChild(extras);
 $("side-panel").appendChild($("usage"));
 
 mountAppLibraryButton(document.getElementById("side-settings") ?? $("side-help"));
+mountWebsiteStudio(document.getElementById("side-settings") ?? $("side-help"));
 
 // robots in the original design, plus the break room and the question line
 useRobot((host, rig) => new TopDownRobot(host, rig));
@@ -1864,3 +1866,13 @@ function checkMilestones(shipped: { total: number; today: number }) {
 }
 
 void refresh();
+
+// Ares studio is explicit about the execution host; existing T3 work keeps screen priority.
+document.addEventListener('lucid:studio-preview', event => {
+  const d = (event as CustomEvent<{ threadId: string; url: string | null }>).detail;
+  if (!d?.threadId) return;
+  const desk = world.deskFor(d.threadId);
+  if (!desk) return;
+  if (d.url) { try { const u = new URL(d.url); if (u.hostname !== '127.0.0.1' || u.pathname !== '/__lucid/studio') return; } catch { return; } }
+  void desk.director.watchWebsiteCanvas(d.url).catch(() => {});
+});

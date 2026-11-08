@@ -12,4 +12,11 @@ function projectFile(root, input) {
   return real;
 }
 const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.mp4': 'video/mp4', '.webm': 'video/webm' };
-module.exports = { projectFile, mime };
+function publicAssetPath(value) {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.length > 8192) throw Error('Invalid project asset path.');
+  let decoded; try { decoded = decodeURIComponent(value.split('?')[0]); } catch { throw Error('Invalid project asset path.'); }
+  const parts = decoded.replace(/^\//, '').split('/');
+  if (/[\\\0\r\n]/.test(decoded) || parts.some((part, i) => part === '..' || part.startsWith('.') && !(part === '.vite' && i === 1 && parts[0] === 'node_modules' && parts[2] === 'deps')) || parts.includes('@fs') || parts[0] === '__open-in-editor' || /\.(?:pem|key)$/i.test(decoded)) throw Error('Private project path.');
+  return value;
+}
+module.exports = { projectFile, publicAssetPath, mime };

@@ -1,3 +1,5 @@
+.cp-link-error { display: block; margin-block: 6px; color: var(--ink-2); font-size: 12px; overflow-wrap: anywhere; }
+.cp-link-error button { margin-inline-start: 8px; }
 /* ---------- folding the sidebar, its sections and the chat ---------- */
 #app > .panel, #app > .side-rail { grid-column: 1; grid-row: 1; }
 #app > .scene { grid-column: 2; grid-row: 1; }

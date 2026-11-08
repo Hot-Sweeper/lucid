@@ -3,8 +3,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
+const { tunnel } = require('./studio-socket.cjs');
 const { signedHeaders } = require('./studio-auth.cjs');
 const gateways = new Map();
+const cleanup = setInterval(() => { for (const [id, g] of gateways) if (Date.now() - g.lastUsed > 300000) { g.closed = true; g.server.closeAllConnections(); g.server.close(); g.liveServer?.closeAllConnections(); g.liveServer?.close(); gateways.delete(id); } }, 60000); cleanup.unref();
 const CONFIG = () => process.env.LUCID_ARES_CONFIG || path.join(os.homedir(), '.config', 'lucid', 'ares.json');
 function configuration() {
   let c; try { c = JSON.parse(fs.readFileSync(CONFIG(), 'utf8')); } catch { throw Error('Ares is not connected. Run the Lucid Ares setup on the two computers.'); }
@@ -27,9 +29,9 @@ async function gateway(projectId) {
   async function synchronize(force = false) {
     if (state.pending || state.closed || (!force && Date.now() - state.lastCheck < 500)) return;
     state.pending = true; state.lastCheck = Date.now();
-    const width = state.width, theme = state.theme;
+    const width = state.width, theme = state.theme; let currentProject;
     try {
-      const p = await remote('GET', `/projects/${projectId}`); state.working = !!p.turn;
+      const p = currentProject = await remote('GET', `/projects/${projectId}?after=9007199254740991`); state.working = !!p.turn;
       const key = `${p.version}-${width}-${theme}`;
       if (key !== state.render?.key) {
         const render = await remote('GET', `/projects/${projectId}/render?width=${width}&theme=${theme}`);
@@ -40,7 +42,7 @@ async function gateway(projectId) {
         while (state.snapshots.size > 4) state.snapshots.delete(state.snapshots.keys().next().value);
       }
       state.error = null;
-    } catch (e) { state.error = e.message; } finally { state.pending = false; }
+    } catch (e) { state.error = !state.render && /HTTP 404/.test(e.message) ? 'Waiting for the first saved page.' : e.message; } finally { state.pending = false; }
   }
   const publicDir = path.join(__dirname, 'studio-public');
   const handler = async (req, res, assetsOnly = false) => {
@@ -52,7 +54,7 @@ async function gateway(projectId) {
     if (!['GET', 'HEAD'].includes(req.method)) return send(405, 'text/plain', 'Preview is read only.');
     try {
       if (!assetsOnly && url.pathname === '/__lucid/state') { await synchronize(); return send(200, 'application/json', JSON.stringify({ version: state.render?.version ?? -1, working: state.working, error: state.error, width: state.width, theme: state.theme, liveUrl: state.liveUrl, problems: state.render?.problems })); }
-      if (!assetsOnly && url.pathname === '/__lucid/frame') { const v = Number(url.searchParams.get('ares')); const html = state.snapshots.get(v) || state.snapshots.get(state.render?.version); if (!html) return send(404, 'text/plain', 'Waiting for a rendered page.'); return send(200, 'text/html; charset=utf-8', html); }
+      if (!assetsOnly && url.pathname === '/__lucid/frame') { const v = Number(url.searchParams.get('ares')); const html = state.snapshots.get(v) || state.snapshots.get(state.render?.version); if (!html) return send(404, 'text/plain', 'Waiting for a rendered page.'); res.setHeader('Content-Security-Policy', "script-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'"); return send(200, 'text/html; charset=utf-8', html); }
       if (!assetsOnly && ['/__lucid/studio', '/__lucid/stage.mjs', '/__lucid/host.mjs', '/__lucid/stage.css'].includes(url.pathname)) {
         const file = url.pathname === '/__lucid/studio' ? 'index.html' : url.pathname.split('/').pop();
         // Restrict the trusted wrapper itself. Generated pages use a separate child frame.
@@ -64,11 +66,19 @@ async function gateway(projectId) {
       const result = await remote('GET', `/projects/${projectId}/asset?path=${encodeURIComponent(req.url)}`, undefined, true);
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Content-Security-Policy', "object-src 'none'");
-      return send(200, result.type, result.body);
+      const body = url.pathname === '/@vite/client' ? result.body.toString().replace(/const directSocketHost = [^;]+;/, 'const directSocketHost = `${location.host}/`;') : result.body;
+      return send(200, result.type, body);
     } catch (e) { return send(502, 'text/plain; charset=utf-8', e.message); }
   };
   const server = http.createServer((req, res) => void handler(req, res));
   const liveServer = http.createServer((req, res) => void handler(req, res, true));
+  liveServer.on('upgrade', (req, socket, head) => {
+    try {
+      if (req.headers.origin !== state.liveUrl.replace(/\/$/, '')) throw Error('Unexpected preview origin.');
+      const c = configuration(), target = `/projects/${projectId}/socket?path=${encodeURIComponent(req.url)}`;
+      tunnel(req, socket, head, new URL(c.url + target), signedHeaders(c.privateKey, 'GET', target));
+    } catch { socket.destroy(); }
+  });
   await new Promise(resolve => liveServer.listen(0, '127.0.0.1', resolve));
   state.liveServer = liveServer; state.liveUrl = `http://127.0.0.1:${liveServer.address().port}/`;
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -80,7 +90,7 @@ async function action(input) {
   switch (input?.action) {
     case 'status': return remote('GET', '/status');
     case 'create': return remote('POST', '/projects', { name: input.name, dir: input.dir || undefined, localProjectId: input.localProjectId });
-    case 'project': return remote('GET', `/projects/${id(input.id)}`);
+    case 'project': return remote('GET', `/projects/${id(input.id)}${Number.isSafeInteger(input.after) && input.after > 0 ? '?after=' + input.after : ''}`);
     case 'send': return remote('POST', `/projects/${id(input.id)}/send`, { text: input.text, requestId: input.requestId, model: input.model, effort: input.effort });
     case 'stop': return remote('POST', `/projects/${id(input.id)}/stop`, {});
     case 'approval': return remote('POST', `/projects/${id(input.id)}/approval`, { id: input.requestId, decision: input.decision, answers: input.answers });

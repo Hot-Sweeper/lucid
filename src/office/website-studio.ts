@@ -6,7 +6,7 @@ import { getLocale } from '../localization';
 import './website-studio.css';
 
 type Model = { id: string; name: string; efforts: string[]; defaultEffort: string; isDefault: boolean };
-type Project = { id: string; name: string; dir: string; localProjectId?: string; threadId?: string; model?: string; effort?: string; turn: { id: string; status: string } | null; lastTurn?: { status: string; error?: string }; activity?: string; entries: any[]; approvals: any[]; version: number; host: string };
+type Project = { sequence?: number; id: string; name: string; dir: string; localProjectId?: string; threadId?: string; model?: string; effort?: string; turn: { id: string; status: string } | null; lastTurn?: { status: string; error?: string }; activity?: string; entries: any[]; approvals: any[]; version: number; host: string };
 const bridge = () => (window as any).lucid;
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const copy = (en: string, de: string) => getLocale() === 'de' ? de : en;
@@ -29,7 +29,7 @@ class WebsiteStudio {
   private project: Project | null = null;
   private models: Model[] = [];
   private projects: any[] = [];
-  private api = (input: object) => bridge().studio(input);
+  private api = async (input: object) => { try { return await bridge().studio(input); } catch (e) { throw Error((e as Error).message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '')); } };
   private timer = 0;
   private dead = false;
   private busy = false;
@@ -37,6 +37,7 @@ class WebsiteStudio {
   private generation = 0;
   private playback = false;
   private replay = false;
+  private canvasError: string | null = null;
   private connected = false;
   private rendered = new Map<string, { el: HTMLElement; signature: string }>();
   private answers: AnswerCard;
@@ -52,13 +53,13 @@ class WebsiteStudio {
     const data = event.data; this.playback = !!data.playback; if (typeof data.replay === 'boolean') this.replay = data.replay;
     if (typeof data.follow === 'boolean') this.el.querySelector('[data-action=follow]')?.setAttribute('aria-pressed', String(data.follow));
     this.el.querySelector('[data-action=live]')?.setAttribute('aria-pressed', String(data.mode === 'live'));
-    if (data.error) this.status(data.error); else this.paintState();
+    if ('error' in data) this.canvasError = typeof data.error === 'string' ? data.error : null; this.paintState();
   };
   constructor(private context?: { threadId?: string; projectId?: string; name?: string }) {
     this.el.className = 'website-studio'; this.el.setAttribute('aria-label', copy('Website studio', 'Website-Studio')); this.el.dataset.pane = 'site';
     this.el.innerHTML = `<header class="ws-head"><button type="button" data-action="close" class="ghost">${copy('Back to office', 'Zurück ins Büro')}</button><strong>${copy('Website studio', 'Website-Studio')}</strong><span class="ws-host">Ares</span><label class="ws-project-label"><span class="sr-only">${copy('Project on Ares', 'Projekt auf Ares')}</span><select class="ws-project" aria-label="${copy('Project on Ares', 'Projekt auf Ares')}"><option>${copy('Connecting to Ares…', 'Verbinde mit Ares…')}</option></select></label><button type="button" data-action="new" class="ghost">${copy('New project', 'Neues Projekt')}</button><button type="button" data-action="theme" class="ghost" aria-label="${copy('Switch canvas theme', 'Canvas-Design wechseln')}">◐</button></header>
       <form class="ws-new" hidden><label>${copy('Project name', 'Projektname')}<input name="name" required maxlength="160" autocomplete="off"></label><details><summary>${copy('Use an existing Ares folder', 'Vorhandenen Ares-Ordner verwenden')}</summary><label>${copy('Path within an allowed Ares project root', 'Pfad innerhalb eines erlaubten Ares-Projektordners')}<input name="dir" placeholder="C:\\…" autocomplete="off"></label></details><button type="submit" class="primary">${copy('Create', 'Erstellen')}</button><button type="button" data-action="cancel-new" class="ghost">${copy('Cancel', 'Abbrechen')}</button></form>
-      <div class="ws-body"><section class="ws-canvas" aria-label="${copy('Website preview', 'Website-Vorschau')}"><nav class="ws-toolbar" aria-label="${copy('Preview controls', 'Vorschausteuerung')}"><select class="ws-viewport" aria-label="${copy('Preview width', 'Vorschaubreite')}"><option value="1440">Desktop · 1440</option><option value="820">Tablet · 820</option><option value="390">${copy('Phone', 'Mobil')} · 390</option></select><button type="button" class="ghost" data-action="follow" aria-pressed="true">Follow</button><button type="button" class="ghost" data-action="replay">Replay</button><button type="button" class="ghost" data-action="live" aria-pressed="false">${copy('Use website', 'Website benutzen')}</button><button type="button" class="ghost ws-mobile" data-action="chat">Chat</button><details class="ws-help"><summary aria-label="${copy('About build playback', 'Über die Aufbauwiedergabe')}">?</summary><p>${copy('The cursor reconstructs saved changes from the actual rendered page. It is build playback, not recorded mouse input. Use website opens the running, interactive page. Replay starts a reconstruction from blank.', 'Der Cursor rekonstruiert gespeicherte Änderungen der gerenderten Seite. Dies ist eine Aufbauwiedergabe, keine Mausaufzeichnung. Website benutzen öffnet die interaktive Seite. Replay beginnt eine Rekonstruktion von einer leeren Fläche.')}</p></details></nav><iframe class="ws-frame" title="${copy('Website canvas', 'Website-Canvas')}" sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer"></iframe></section>
+      <div class="ws-body"><section class="ws-canvas" aria-label="${copy('Website preview', 'Website-Vorschau')}"><nav class="ws-toolbar" aria-label="${copy('Preview controls', 'Vorschausteuerung')}"><select class="ws-viewport" aria-label="${copy('Preview width', 'Vorschaubreite')}"><option value="1440">Desktop · 1440</option><option value="820">Tablet · 820</option><option value="390">${copy('Phone', 'Mobil')} · 390</option></select><button type="button" class="ghost" data-action="follow" aria-pressed="true">Follow</button><button type="button" class="ghost" data-action="replay">Replay</button><button type="button" class="ghost" data-action="live" aria-pressed="false">${copy('Use website', 'Website benutzen')}</button><button type="button" class="ghost ws-mobile" data-action="chat">Chat</button><details class="ws-help"><summary aria-label="${copy('About build playback', 'Über die Aufbauwiedergabe')}">?</summary><p>${copy('The cursor reconstructs saved changes from the actual rendered page. It is build playback, not recorded mouse input. Use website opens the running, interactive page. Replay starts a reconstruction from blank.', 'Der Cursor rekonstruiert gespeicherte Änderungen der gerenderten Seite. Dies ist eine Aufbauwiedergabe, keine Mausaufzeichnung. Website benutzen öffnet die interaktive Seite. Replay beginnt eine Rekonstruktion von einer leeren Fläche.')}</p></details></nav><iframe class="ws-frame" title="${copy('Website canvas', 'Website-Canvas')}" sandbox="allow-scripts allow-same-origin allow-forms allow-downloads" referrerpolicy="no-referrer"></iframe></section>
       <div class="ws-divider" role="separator" aria-label="${copy('Resize chat', 'Chatbreite ändern')}" aria-orientation="vertical" aria-valuemin="280" aria-valuemax="720" aria-valuenow="380" tabindex="0"></div>
       <aside class="ws-chat"><header class="ws-chat-head"><strong>${copy('Design with Codex', 'Mit Codex gestalten')}</strong><button type="button" class="ghost ws-mobile" data-action="site">${copy('Canvas', 'Canvas')}</button><button type="button" class="ghost" data-action="reconnect">${copy('Reconnect', 'Neu verbinden')}</button></header><p class="ws-status" role="status">${copy('Connecting to Ares…', 'Verbinde mit Ares…')}</p><p class="ws-location"></p><div class="ws-messages cp-list" role="log" aria-label="${copy('Project conversation', 'Projektgespräch')}" aria-live="off"></div><button type="button" class="ghost ws-bottom" hidden>${copy('New messages ↓', 'Neue Nachrichten ↓')}</button><form class="cp-form ws-compose"><div class="ws-models"><select aria-label="Codex model" class="ws-model" disabled></select><select aria-label="${copy('Reasoning effort', 'Denkaufwand')}" class="ws-effort" disabled></select></div><label class="sr-only" for="ws-prompt">${copy('Describe your website or a refinement', 'Beschreibe deine Website oder eine Änderung')}</label><textarea id="ws-prompt" rows="3" placeholder="${copy('Describe your website…', 'Beschreibe deine Website…')}"></textarea><div class="ws-send-row"><span class="ws-send-error" role="alert"></span><button type="button" data-action="stop" class="ghost" disabled>${copy('Stop', 'Stoppen')}</button><button type="submit" class="primary ws-send" disabled>${copy('Send', 'Senden')}</button></div></form></aside></div>`;
     document.body.append(this.el); this.el.showModal();
@@ -75,14 +76,14 @@ class WebsiteStudio {
     this.model.addEventListener('change', () => { this.fillEfforts(); this.saveChoices(); }); this.effort.addEventListener('change', () => this.saveChoices());
     this.el.querySelector('.ws-viewport')!.addEventListener('change', () => void this.viewport());
     this.el.querySelector('.ws-bottom')!.addEventListener('click', () => { this.list.scrollTop = this.list.scrollHeight; (this.el.querySelector('.ws-bottom') as HTMLElement).hidden = true; });
-    window.addEventListener('message', this.message); this.resize(); void this.connect(); this.input.focus();
+    window.addEventListener('message', this.message); this.resize(); void this.connect(); this.input.focus(); gameSound.play('switch');
   }
   private status(text: string) { this.el.querySelector('.ws-status')!.textContent = text; }
   private paintState() {
-    if (!this.connected) return;
-    const p = this.project, t = p?.turn;
-    this.status(!p ? copy('Choose or create a project on Ares.', 'Wähle oder erstelle ein Projekt auf Ares.') : p.approvals.length ? copy('Waiting for your answer', 'Wartet auf deine Antwort') : t ? (t.status === 'starting' ? copy('Starting on Ares…', 'Startet auf Ares…') : p.activity === 'Inspecting the actual website' ? copy('Inspecting the website', 'Website wird geprüft') : copy('Working on Ares', 'Arbeitet auf Ares')) : this.playback ? (this.replay ? copy('Replay', 'Wiedergabe') : copy('Codex finished. Playback is catching up…', 'Codex ist fertig. Die Wiedergabe holt auf…')) : p.lastTurn?.status === 'failed' ? (p.lastTurn.error || copy('Codex failed. Send a follow-up to retry.', 'Codex ist fehlgeschlagen. Erneut versuchen.')) : p.lastTurn?.status === 'interrupted' ? copy('Stopped. Your files and conversation are saved.', 'Gestoppt. Dateien und Gespräch sind gespeichert.') : copy('Ready on Ares', 'Bereit auf Ares'));
-    (this.el.querySelector('[data-action=stop]') as HTMLButtonElement).disabled = !t || this.busy;
+    if (!this.connected) { (this.el.querySelector('.ws-send') as HTMLButtonElement).disabled = true; this.model.disabled = this.effort.disabled = true; return; }
+    const p = this.project, t = p?.turn, lastError = !t && p?.entries.at(-1)?.kind === 'error' ? p.entries.at(-1)?.text : null;
+    this.status(p?.approvals.length ? copy('Waiting for your answer', 'Wartet auf deine Antwort') : lastError ? lastError : this.canvasError ? this.canvasError : !p ? copy('Choose or create a project on Ares.', 'Wähle oder erstelle ein Projekt auf Ares.') : p.approvals.length ? copy('Waiting for your answer', 'Wartet auf deine Antwort') : t ? (t.status === 'starting' ? copy('Starting on Ares…', 'Startet auf Ares…') : p.activity === 'Inspecting the actual website' ? copy('Inspecting the website', 'Website wird geprüft') : copy('Working on Ares', 'Arbeitet auf Ares')) : this.playback ? (this.replay ? copy('Replay', 'Wiedergabe') : copy('Codex finished. Playback is catching up…', 'Codex ist fertig. Die Wiedergabe holt auf…')) : p.lastTurn?.status === 'failed' ? (p.lastTurn.error || copy('Codex failed. Send a follow-up to retry.', 'Codex ist fehlgeschlagen. Erneut versuchen.')) : p.lastTurn?.status === 'interrupted' ? copy('Stopped. Your files and conversation are saved.', 'Gestoppt. Dateien und Gespräch sind gespeichert.') : copy('Ready on Ares', 'Bereit auf Ares'));
+    (this.el.querySelector('[data-action=stop]') as HTMLButtonElement).disabled = !t && !(this.busy && this.pending);
     (this.el.querySelector('.ws-send') as HTMLButtonElement).disabled = !p || !!t || this.busy || !this.models.length;
     this.model.disabled = this.effort.disabled = !!t || this.busy || !this.models.length;
   }
@@ -91,6 +92,7 @@ class WebsiteStudio {
   private async connect() {
     this.status(copy('Connecting to Ares…', 'Verbinde mit Ares…'));
     try {
+      if (this.context?.threadId && !this.context.projectId) { const info = await bridge().threadInfo(this.context.threadId); if (info?.projectId) this.context.projectId = info.projectId; }
       const s = await this.api({ action: 'status' }); if (this.dead) return;
       if (String(s.host).toLowerCase() !== 'ares') throw Error(`Unexpected execution host: ${s.host}. Expected Ares.`);
       this.connected = true; this.projects = s.projects; this.models = s.models; this.model.replaceChildren(...this.models.map(m => new Option(m.name, m.id))); this.model.value = this.models.find(m => m.isDefault)?.id || this.models[0]?.id || ''; this.fillEfforts();
@@ -113,25 +115,26 @@ class WebsiteStudio {
       const selected = choice?.model || p.model; if (this.models.some(m => m.id === selected)) this.model.value = selected; this.fillEfforts(choice?.effort || p.effort);
       if (old && old !== id) void this.api({ action: 'close', id: old });
       const { url } = await this.api({ action: 'preview', id }); if (this.dead || generation !== this.generation) return;
-      this.iframe.src = url; this.playback = false; this.replay = false; this.render(p); void this.poll();
+      this.canvasError = null; this.iframe.src = url; if (this.context?.threadId) document.dispatchEvent(new CustomEvent('lucid:studio-preview', { detail: { threadId: this.context.threadId, url, projectId: id } })); this.playback = false; this.replay = false; this.render(p); void this.poll();
     } catch (e) { this.status((e as Error).message); }
   }
   private rememberDraft() { if (this.project) localStorage.setItem(`lucid:studio:draft:${this.project.id}`, this.input.value); }
   private async poll() {
     if (this.dead || !this.project || this.pollBusy) return; this.pollBusy = true; const id = this.project.id, generation = this.generation;
-    try { const p = await this.api({ action: 'project', id }); if (this.dead || generation !== this.generation) return; this.connected = true; this.project = p; this.render(p); await this.answers.refresh(); }
+    try { const p = await this.api({ action: 'project', id, after: this.project?.sequence || 0 }); if (this.dead || generation !== this.generation) return; this.connected = true; const entries = new Map(this.project?.entries.map(e => [e.id, e])); for (const e of p.entries) entries.set(e.id, e); this.project = { ...p, entries: [...entries.values()] }; this.render(p); await this.answers.refresh(); }
     catch (e) { if (!this.dead) { this.connected = false; this.status((e as Error).message); } }
     finally { this.pollBusy = false; if (!this.dead && generation === this.generation) this.timer = window.setTimeout(() => void this.poll(), document.hidden ? 2000 : 700); }
   }
   private render(p: Project) {
     const bottom = this.list.scrollHeight - this.list.scrollTop - this.list.clientHeight < 70; let changed = false;
     for (const e of p.entries) {
-      let item = this.rendered.get(e.id); const signature = JSON.stringify(e); if (item?.signature === signature) continue;
+      let item = this.rendered.get(e.id); const signature = e.revision ? String(e.revision) : JSON.stringify(e); if (item?.signature === signature) continue;
       changed = true;
-      if (!item) { const el = document.createElement(['user', 'agent', 'inspection', 'error'].includes(e.kind) ? 'section' : 'details'); item = { el, signature: '' }; this.rendered.set(e.id, item); this.list.append(el); }
+      if (!item) { const el = document.createElement(['user', 'agent', 'inspection', 'error', 'research'].includes(e.kind) ? 'section' : 'details'); item = { el, signature: '' }; this.rendered.set(e.id, item); this.list.append(el); }
       item.signature = signature; const el = item.el;
       if (e.kind === 'user' || e.kind === 'agent') { el.className = `cp-msg ${e.kind === 'user' ? 'you' : 'bot'}`; el.innerHTML = `<div class="cp-prose">${renderChatMarkdown(e.text || '')}</div>`; }
       else if (e.kind === 'inspection') { el.className = 'ws-inspection'; el.innerHTML = `<details><summary>${copy('Looked at the website', 'Website geprüft')} · ${esc(e.viewport)}</summary><p>${esc(e.text)}</p>${e.image?.startsWith('data:image/jpeg;base64,') ? `<img alt="${copy('Actual website inspection on Ares', 'Echte Website-Prüfung auf Ares')}" src="${esc(e.image)}">` : ''}</details>`; }
+      else if (e.kind === 'research') { el.className = 'ws-research'; el.innerHTML = `<p>${esc(e.text)}</p><div>${(e.images || []).filter((i: any) => /^https:\/\/(?:upload|thumb)\.wikimedia\.org\//.test(i.image) && /^https:\/\/commons\.wikimedia\.org\//.test(i.source)).map((i: any) => `<a href="${esc(i.source)}"><img src="${esc(i.image)}" alt="${esc(i.title)}" loading="lazy"><span>${esc(i.title)}</span><small>${esc(i.license)} · ${esc(i.artist)}</small></a>`).join('')}</div>`; }
       else if (e.kind === 'error') { el.className = 'ws-run-error'; el.textContent = e.text; }
       else { el.className = 'ws-tool'; const expanded = (el as HTMLDetailsElement).open; el.innerHTML = `<summary>${esc(e.kind === 'end' ? e.text : e.kind === 'files' ? copy('Updated files', 'Dateien geändert') : e.kind === 'reasoning' ? copy('Reasoning', 'Überlegungen') : e.kind === 'search' ? copy('Searched the web', 'Im Web gesucht') : e.kind === 'look' ? copy('Rendering website', 'Website wird gerendert') : e.label || e.kind)}${e.status ? ` · ${esc(e.status)}` : ''}</summary><pre>${esc(e.text || '')}${e.output ? '\n' + esc(e.output) : ''}</pre>`; (el as HTMLDetailsElement).open = expanded; }
     }
@@ -180,6 +183,6 @@ class WebsiteStudio {
   }
   private close() {
     this.dead = true; this.generation++; this.rememberDraft(); clearTimeout(this.timer); this.answers.destroy(); window.removeEventListener('message', this.message);
-    if (this.project) void this.api({ action: 'close', id: this.project.id }); this.el.close(); this.el.remove(); studio = null; this.previous?.focus({ preventScroll: true });
+    if (this.project && !this.context?.threadId) void this.api({ action: 'close', id: this.project.id }); this.el.close(); this.el.remove(); studio = null; this.previous?.focus({ preventScroll: true });
   }
 }

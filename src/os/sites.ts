@@ -7,7 +7,7 @@ import DOMPurify from "dompurify";
 import { esc } from "./typing";
 import { parseDiff } from "./classify";
 
-export type Result = { url: string; title: string; snippet?: string };
+export type Result = { url: string; title: string; snippet?: string; image?: string };
 export type PageView = { title: string; html: string; site: "github" | "hf" | "wiki" | "web" | "search" | "raw" | "local" | "shot"; url: string; kind?: string };
 export type PrFile = { path: string; adds: number; dels: number; status?: string; patch?: string };
 export type PrData = {
@@ -527,6 +527,10 @@ export async function loadPage(url: string, peek: (url: string) => Promise<any>,
     else if (/\.wikipedia\.org$/.test(h)) v = await wikipedia(url);
     if (v) return v;
   } catch (err) { console.warn("site page failed", url, err); }
+  // Unknown sites get their real rendered appearance before the text-only reader.
+  // Known data views above remain fast and readable on small robot monitors.
+  const rendered = /^https?:/.test(url) ? await realPage(url, opts) : null;
+  if (rendered) return rendered;
   const res = /^https?:/.test(url) ? await peek(url).catch(() => null) : null;
   const v = plainArticle(url, res);
   // known sites still get their own header when only the plain text could be read
@@ -546,7 +550,8 @@ export function searchHtml(query: string, results: Result[] | null) {
   const rows = (results || []).slice(0, 8).map((r) => {
     let crumb = shortUrl(r.url);
     try { const u = new URL(r.url); crumb = `${u.hostname.replace(/^www\./, "")}${u.pathname.length > 1 ? " › " + u.pathname.split("/").filter(Boolean).slice(0, 3).map(decodeURIComponent).join(" › ") : ""}`; } catch {}
-    return `<li class="se-r" data-key="${esc(urlKey(r.url))}"><div class="se-src">${favHtml(r.url)}<span><b>${esc(siteName(r.url))}</b><small>${esc(crumb)}</small></span></div><h3>${esc(r.title || shortUrl(r.url))}</h3>${r.snippet ? `<p>${esc(r.snippet)}</p>` : ""}</li>`;
+    const photo = r.image && /^https?:\/\//.test(r.image) ? `<img class="se-photo" src="${esc(r.image)}" alt="${esc(r.title)}" loading="lazy">` : "";
+    return `<li class="se-r" data-key="${esc(urlKey(r.url))}">${photo}<div class="se-src">${favHtml(r.url)}<span><b>${esc(siteName(r.url))}</b><small>${esc(crumb)}</small></span></div><h3>${esc(r.title || shortUrl(r.url))}</h3>${r.snippet ? `<p>${esc(r.snippet)}</p>` : ""}</li>`;
   }).join("");
   const none = results === null ? `<p class="se-none">The results could not be loaded here.</p>` : `<p class="se-none">No results to show.</p>`;
   return `<div class="se"><div class="se-top"><div class="se-box">${IC.search}<span class="se-q">${esc(query)}</span></div></div><ol class="se-list">${rows || none}</ol></div>`;

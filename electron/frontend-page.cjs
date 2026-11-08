@@ -10,13 +10,18 @@ function install() {
 function sample(mode, action) {
   const width = innerWidth, height = innerHeight;
   const scene = [];
-  const rect = r => ({ x: Math.max(0, r.left), y: Math.max(0, r.top), w: Math.max(0, Math.min(width, r.right) - Math.max(0, r.left)), h: Math.max(0, Math.min(height, r.bottom) - Math.max(0, r.top)) });
+  let sourceDocument = document, sourceWindow = window, offsetX = 0, offsetY = 0, scale = 1;
+  const canvasFrame = window.__lucidCanvas?.stage?.front;
+  if (canvasFrame?.contentDocument) { sourceDocument = canvasFrame.contentDocument; sourceWindow = canvasFrame.contentWindow; const fr = canvasFrame.getBoundingClientRect(); offsetX = fr.left; offsetY = fr.top; scale = fr.width / canvasFrame.clientWidth; }
+  const mapped = r => ({ left: offsetX + r.left * scale, right: offsetX + r.right * scale, top: offsetY + r.top * scale, bottom: offsetY + r.bottom * scale });
+  const clip = r => ({ x: Math.max(0, r.left), y: Math.max(0, r.top), w: Math.max(0, Math.min(width, r.right) - Math.max(0, r.left)), h: Math.max(0, Math.min(height, r.bottom) - Math.max(0, r.top)) });
+  const rect = r => clip(mapped(r));
   const visible = r => r.w > 1 && r.h > 1;
-  const elements = document.body ? document.body.querySelectorAll('*') : [];
+  const elements = sourceDocument.body ? sourceDocument.body.querySelectorAll('*') : [];
   for (let i = 0; i < Math.min(elements.length, 500) && scene.length < 550; i++) {
     const el = elements[i], tag = el.tagName;
     if (/^(SCRIPT|STYLE|LINK|META|NOSCRIPT|BR)$/.test(tag)) continue;
-    const style = getComputedStyle(el);
+    const style = sourceWindow.getComputedStyle(el);
     if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) continue;
     const r = rect(el.getBoundingClientRect());
     if (!visible(r)) continue;
@@ -25,7 +30,7 @@ function sample(mode, action) {
     // Keep text geometry even in the shapes tier so zooming back to lines is instant.
     for (const node of el.childNodes) {
       if (node.nodeType !== 3 || !node.textContent.trim()) continue;
-      const range = document.createRange(); range.selectNodeContents(node);
+      const range = sourceDocument.createRange(); range.selectNodeContents(node);
       for (const line of Array.from(range.getClientRects()).slice(0, 8)) {
         const t = rect(line); if (visible(t)) scene.push({ ...t, y: t.y + t.h * .45, h: Math.max(2, t.h * .16), color: style.color, text: true, opacity: .55 });
         if (scene.length >= 550) break;
@@ -45,6 +50,7 @@ function sample(mode, action) {
     // An ambiguous or stale reference must not invent a cursor destination.
     if (matches.length === 1) { const r = rect(matches[0].getBoundingClientRect()); if (visible(r)) target = r; }
   }
+  if (canvasFrame) { const cursor = document.querySelector('.agent-cursor.is-shown'); if (cursor) { const c = cursor.getBoundingClientRect(); scene.push({ x: c.x, y: c.y, w: 4, h: 8, color: '#ff9f5a' }); } }
   let pointer = null;
   if (Number.isFinite(action?.x) && Number.isFinite(action?.y)) {
     const x = action.x * width / (action.viewportWidth || width), y = action.y * height / (action.viewportHeight || height);

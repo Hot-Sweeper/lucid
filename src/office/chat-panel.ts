@@ -1,3 +1,4 @@
+import { wireChatLinks } from "./chat-links";
 import { parseThreadReference, threadCardMarkup, hydrateThreadCards, type ThreadReference, type ThreadCardInfo } from "./chat-thread-card";
 import { readPromptDraft, writePromptDraft } from "./prompt-draft";
 import gsap from "gsap";
@@ -370,6 +371,7 @@ export class ChatPanel {
       <header class="cp-head">
         <img class="cp-logo" alt="">
         <div class="cp-who"><b></b><span></span></div>
+        <button type="button" class="cp-studio cp-icon" aria-label="Design a website on Ares" title="Website studio on Ares"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="1.3"/><path d="M1.5 6h13M10.5 6v7.5"/></svg></button>
         <button type="button" class="cp-view ghost"></button>
         <button type="button" class="cp-hide ghost" aria-expanded="true" title="Hide the chat for more room. It stays as a tab on the right edge.">Hide chat</button>
         <button type="button" class="cp-close" aria-label="Back to the office" title="Back to the office (Esc)"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
@@ -403,6 +405,7 @@ export class ChatPanel {
         <div class="cp-drop" hidden>Drop to attach</div>
       </form>`;
     host.appendChild(this.el);
+    if ((window as any).lucid?.openExternal) wireChatLinks(this.el, url => (window as any).lucid.openExternal(url));
     this.el.addEventListener("click", event => {
       const file = (event.target as Element)?.closest<HTMLAnchorElement>("a.cp-download");
       const download = (window as any).lucid?.downloadAnswer;
@@ -431,6 +434,7 @@ export class ChatPanel {
     this.tab.title = "Choose a thread to chat";
     this.el.querySelectorAll(".cp-hide").forEach((b) => b.addEventListener("click", () => this.setCollapsed(true)));
     this.el.querySelector(".cp-close")!.addEventListener("click", () => this.onClose());
+    this.el.querySelector(".cp-studio")!.addEventListener("click", () => { document.dispatchEvent(new CustomEvent("lucid:website-studio", { detail: { threadId: this.threadId, name: this.threadFacts(this.threadId || "")?.title } })); });
     this.el.querySelector(".cp-view")!.addEventListener("click", () => this.onToggleView());
     const form = this.el.querySelector(".cp-form") as HTMLFormElement;
     const ta = form.querySelector("textarea")!;
