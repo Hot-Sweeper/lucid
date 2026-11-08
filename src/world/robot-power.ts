@@ -12,12 +12,14 @@ export function setRobotModes(threads: ({ id: string } & Mode)[], root: Element)
 export class RobotPower {
   private canvas = document.createElement("canvas");
   private ctx: CanvasRenderingContext2D;
+  private foreground = document.createElement("canvas");
+  private front: CanvasRenderingContext2D;
   private last = -1;
   private checkedAt = 0;
   private signature = "";
   private mask: Uint8Array | null = null;
-  private heat = new Float32Array(64 * 80);
-  private heatNext = new Float32Array(64 * 80);
+  private heat = new Float32Array(32 * 40);
+  private heatNext = new Float32Array(32 * 40);
   private fireTick = 0;
   private busy = false;
   private sampled = 0;
@@ -54,6 +56,9 @@ export class RobotPower {
     this.canvas.width = 64; this.canvas.height = 80; this.canvas.setAttribute("aria-hidden", "true");
     this.canvas.style.cssText = `position:absolute;pointer-events:none;image-rendering:pixelated;left:${box.x}px;top:${box.y}px;width:${box.w}px;height:${box.h}px;display:none`;
     this.ctx = this.canvas.getContext("2d")!; host.prepend(this.canvas); gsap.ticker.add(this.frame);
+    this.foreground.width=64; this.foreground.height=80; this.foreground.setAttribute("aria-hidden", "true");
+    this.foreground.style.cssText=this.canvas.style.cssText+";z-index:1";
+    this.front=this.foreground.getContext("2d")!; host.append(this.foreground);
     motionQuery?.addEventListener("change", this.motionChanged);
   }
   private motionChanged = () => { this.last=-1; this.checkedAt=0; this.frame(); };
@@ -67,54 +72,77 @@ export class RobotPower {
     const signature = `${!!mode.ultra}:${!!mode.fast}`;
 
     this.canvas.style.display = mode.ultra || mode.fast ? "" : "none";
+    this.foreground.style.display = mode.ultra ? "" : "none";
     if (!mode.ultra && !mode.fast) { this.heat.fill(0); this.fireTick=0; return; }
     const rect = this.host.getBoundingClientRect();
-    if (rect.right < -200 || rect.left > innerWidth + 200 || rect.bottom < -200 || rect.top > innerHeight + 300 || this.host.closest('.arriving,.empty,[inert]')) { this.canvas.style.display = "none"; return; }
+    if (rect.right < -200 || rect.left > innerWidth + 200 || rect.bottom < -200 || rect.top > innerHeight + 300 || this.host.closest('.arriving,.empty,[inert]')) { this.canvas.style.display = this.foreground.style.display = "none"; return; }
     if (signature === this.signature && tick === this.last && this.mask) return;
     this.signature = signature; this.last = tick;
-    const c = this.ctx; c.clearRect(0, 0, 64, 80);
+    const c = this.ctx, front=this.front; c.clearRect(0, 0, 64, 80); front.clearRect(0,0,64,80);
     if (mode.ultra) {
       if (!reduced || !this.mask) void this.sample(now);
       const mask = this.mask;
       if (mask) {
-        // Heat comes from the lower body volume, not from a dilated contour.
-        // Two upward advection steps per paint let tongues split, curl and cool.
-        let bottom = 50;
-        for (let y=79;y>10;y--) if(mask[y*64+31] || mask[y*64+32]) { bottom=y; break; }
-        const seedY=Math.min(75,bottom-2), center=32;
-        const steps = reduced ? (this.fireTick ? 0 : 45) : this.fireTick ? 2 : 30;
+        // The approved reference uses touching, coarse cells: a compact body fire,
+        // rising tongues behind the head, arm-side fire and a little foreground overlap.
+        let bottom=54;
+        for(let y=75;y>15;y--) if(mask[y*64+31]||mask[y*64+32]) {bottom=y;break;}
+        const seedY=Math.min(36,Math.floor(bottom/2)), center=16;
+        const steps=reduced?(this.fireTick?0:36):this.fireTick?2:30;
         for(let step=0;step<steps;step++) {
-          const t=++this.fireTick;
-          const next=this.heatNext; next.fill(0);
-          for(let y=1;y<seedY+3;y++) for(let x=2;x<62;x++) {
-            const wind=Math.round(Math.sin(x*.56+t*.19+y*.11)*.8);
-            const sx=Math.max(1,Math.min(62,x+wind)), row=(y+1)*64;
-            const value=this.heat[row+sx]*.56+(this.heat[row+sx-1]+this.heat[row+sx+1])*.17+this.heat[Math.min(79,y+2)*64+sx]*.1;
-            const cooling=.003+.005*(.5+.5*Math.sin(x*.71+y*.37+t*.24));
-            next[y*64+x]=Math.max(0,value*.994-cooling);
+          const t=++this.fireTick, next=this.heatNext;next.fill(0);
+          for(let y=1;y<seedY+3;y++)for(let x=1;x<31;x++) {
+            const wind=Math.round(Math.sin(x*.79+y*.13+t*.17)*.68);
+            const sx=Math.max(1,Math.min(30,x+wind));
+            const value=this.heat[(y+1)*32+sx]*.76+(this.heat[(y+1)*32+sx-1]+this.heat[(y+1)*32+sx+1])*.12;
+            const cooling=.012+.016*(.5+.5*Math.sin(x*1.17+y*.63+t*.29));
+            next[y*32+x]=Math.max(0,value*.99-cooling);
           }
-          for(let x=center-21;x<=center+21;x++) {
-            const edge=Math.abs(x-center)/21;
-            const source=(1-edge*edge)*(.65+.35*Math.sin(x*.72+t*.23));
-            const y=seedY+Math.round(Math.sin(x*.44+t*.15)*2);
-            next[y*64+x]=Math.max(next[y*64+x],source);
-            next[(y-1)*64+x]=Math.max(next[(y-1)*64+x],source*.8);
+          for(let x=center-10;x<=center+10;x++) {
+            const edge=Math.abs(x-center)/11;
+            const y=seedY+Math.round(Math.sin(x*.8+t*.14));
+            const source=(1-edge*edge*.55)*(.82+.18*Math.sin(x*1.3+t*.31));
+            next[y*32+x]=Math.max(next[y*32+x],source);
+            next[(y-1)*32+x]=Math.max(next[(y-1)*32+x],source*.9);
           }
-          this.heatNext=this.heat; this.heat=next;
+          // Shoulder-side risers feed tall, uneven tongues behind the head.
+          // They are small burning volumes, not a border following the limbs.
+          for(const side of [-1,1]) {
+            const x=center+side*7+Math.round(Math.sin(t*.12+side)*1.2);
+            const y=seedY-11+(side<0?2:0);
+            const pulse=.76+.2*Math.sin(t*.21+side*2);
+            next[y*32+x]=Math.max(next[y*32+x],pulse);
+            next[(y+1)*32+x]=Math.max(next[(y+1)*32+x],pulse);
+            next[y*32+x+side]=Math.max(next[y*32+x+side],pulse*.72);
+          }
+          this.heatNext=this.heat;this.heat=next;
         }
-        const shades=['#512080','#7d2dba','#a23bdd','#be4bee','#d276f5','#e4acff'];
-        for(let y=1;y<79;y++) for(let x=1;x<63;x++) {
-          const heat=this.heat[y*64+x];
-          if(heat<.075)continue;
-          // Filled square cells form connected flames; subtle shade separation recalls activity cells.
-          const level=Math.min(5,Math.floor(heat*7));
-          c.globalAlpha=(.25+Math.min(.65,heat*.8))*Math.min(1,y/10);
-          c.fillStyle=shades[level]; c.fillRect(x,y,1,1);
+        const shades=['#4a086d','#6e0c99','#8e14b8','#ad27d5','#c244eb','#dc84f5'];
+        for(let y=1;y<39;y++)for(let x=1;x<31;x++) {
+          let heat=this.heat[y*32+x];
+          const peak=center+5+Math.sin(this.fireTick*.09);
+          const tongueHeight=20+Math.round(3*Math.sin(x*1.23-this.fireTick*.18)+10*Math.exp(-Math.pow((x-peak)/3.2,2)));
+          const height=seedY-y, side=Math.abs(x-center)/11;
+          if(side>1 || height>tongueHeight || y>seedY-3-Math.round(side*side*4))continue;
+          // A coherent burning volume keeps the base connected while the heat field
+          // supplies moving shade clusters and the unequal tongues rise and taper.
+          heat=Math.max(heat,Math.max(0,1-height/tongueHeight)*.8*(1-side*side*.25));
+          if(heat<.12)continue;
+          // A small advected shade variation makes visible pixel clusters, not smooth smoke.
+          const shade=Math.min(5,Math.max(0,Math.floor((heat-.2)*7+Math.sin(x*1.8+y*.9-this.fireTick*.18)*.7)));
+          c.globalAlpha=heat<.32?.8:.96;c.fillStyle=shades[shade];
+          c.fillRect(x*2,y*2,2,2); // contiguous cells, deliberately no gutters or outlines
+          // Lower-body edge wisps can pass in front; the face and provider logo stay clear.
+          if(y>=seedY-8 && y<=seedY-5 && Math.abs(x-center)>=3 && Math.abs(x-center)<=8
+            && mask[(y*2)*64+x*2] && heat>.38) {
+            front.globalAlpha=.72;front.fillStyle=shades[Math.min(5,shade+1)];front.fillRect(x*2,y*2,2,2);
+          }
         }
-        if(!reduced)for(let n=0;n<6;n++) {
-          const age=((tick+n*9)%31)/31, x=center+Math.round(Math.sin(n*4.1)*15+Math.sin(age*4+n)*2);
-          const y=seedY-20-Math.round(age*28);
-          if(y>0 && this.heat[y*64+x]<.1) {c.globalAlpha=(1-age)*.5;c.fillStyle='#be63ee';c.fillRect(x,y,1,1);}
+        if(!reduced)for(let n=0;n<5;n++) {
+          const age=((tick+n*11)%27)/27;
+          const x=center+Math.round(Math.sin(n*3.7)*9+Math.sin(age*3+n));
+          const y=seedY-9-Math.round(age*16);
+          if(y>0&&this.heat[y*32+x]<.22) {c.globalAlpha=(1-age)*.9;c.fillStyle=n%2?'#d36af0':'#9e1ec6';c.fillRect(x*2,y*2,2,2);}
         }
       }
     }
@@ -128,5 +156,5 @@ export class RobotPower {
     }
     this.host.dataset.power = mode.ultra && mode.fast ? 'Ultra, fast' : mode.ultra ? 'Ultra' : 'Fast';
   };
-  destroy() { this.dead = true; motionQuery?.removeEventListener("change", this.motionChanged); gsap.ticker.remove(this.frame); this.canvas.remove(); }
+  destroy() { this.dead = true; motionQuery?.removeEventListener("change", this.motionChanged); gsap.ticker.remove(this.frame); this.canvas.remove(); this.foreground.remove(); }
 }

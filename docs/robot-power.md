@@ -1,0 +1,9 @@
+# Robot power visuals
+
+The accepted direction is the generated reference at `/home/spacestation/.t3/scratch/2026-11-08-you-know-the-effect-they-3a829d24/approved-reference/robot-purple-pixel-fire.png`, checkpointed separately as `keep/2026-11-08-purple-pixel-fire`. It is design reference art, not application evidence.
+
+Use compact, saturated purple flames made of touching square cells. There are no gutters, grid lines or cell outlines. Coarse violet, magenta and lavender clusters join into a body fire, with uneven rising tongues behind the shoulders and head. Keep the actual robot art and provider logo readable. Small lower-body edge clusters can pass in front; the chair and nameplate are not emitters. Do not substitute a dilated contour, translucent smoke ribbons or rectangular tiled curtain.
+
+`src/world/robot-power.ts` uses a 32 by 40 heat field on a 64 by 80 pixel canvas. Body sources and narrow shoulder-side burning regions feed upward advection, drift and cooling. A separate foreground surface carries only lower-body edge wisps. All cells touch and use nearest-neighbor scaling. Existing active-run mode flags and the original movement controller remain authoritative. Fast lightning can coexist with the flames. Reduced motion freezes the fire while retaining the mode cue, hidden/offscreen actors suspend drawing, and actor teardown releases both surfaces and listeners.
+
+Run `scripts/verify-approved-fire-native.cjs` through the authorized hidden workspace to inspect actual app frames, animation, foreground overlap, mode combinations and reduced motion. `LUCID_QA_CANDIDATE` can point to a copied candidate build so concurrent builds cannot remove its lazy chunks. This check uses real robot artwork and records, changes only the isolated renderer's mode projection, and never changes T3 runtime configuration or starts a task.

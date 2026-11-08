@@ -87,7 +87,7 @@ Assistant answers retain real T3 `html_render` visuals in the transcript, outsid
 
 Native T3 references use compact robot portrait buttons with the current title, harness and model. Preserve the complete thread ID and environment identity. The whole card responds to keyboard activation; unavailable references say so.
 
-Ultra fire uses a 64 by 80 heat field, injected around the lower robot body, advected upward with turbulent drift and cooling, and quantized into violet contribution-grid shades. Flames render behind the existing robot, without a contour glow or chair emitter. Six small embers rise and expire. Fast mode adds warm lightning and a 1.5 movement multiplier through the existing path follower. Flags come from active run options, with configured thread options as fallback, and are scoped to their own office. Reduced motion retains a still fire field and lightning with normal walking speed. Hidden/offscreen effects pause; actors release their ticker and graphics on removal.
+Ultra fire follows the approved compact purple pixel-fire reference documented in `docs/robot-power.md`. A 32 by 40 upward-advected heat field uses touching violet, magenta and lavender cells, with no gutters or cell outlines. Shoulder-side sources feed uneven tongues behind the head, while a separate layer adds lower-body foreground wisps. Preserve the actual robot, face, logo, chair and nameplate. Active run options still determine Ultra and fast state; reduced motion freezes the field and actor teardown releases both surfaces.
 
 
 ## Completion reports on monitors
