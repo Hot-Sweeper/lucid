@@ -1,0 +1,22 @@
+/* Windows-style update blue belongs to the robot OS, independent of office lighting. */
+.os > .win.compaction-screen { position:absolute; inset:0; z-index:2999999; display:flex; flex-direction:column; width:auto; height:auto; margin:0; border:0; border-radius:inherit; background:#064fa7; color:#fff; box-shadow:none; will-change:auto; cursor:default; }
+.compaction-screen > .cc-content { flex:1; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:35px 45px 15px; text-align:center; }
+.compaction-screen h2 { margin:24px 0 12px; color:#fff; font:400 32px/1.25 var(--font); }
+.compaction-screen p { max-width:620px; margin:0; color:#fff; font:400 18px/1.55 var(--font); }
+.compaction-screen > footer { flex:none; padding:15px 30px 35px; color:#fff; font:400 14px/1.4 var(--font); text-align:center; }
+.cc-dots { position:relative; width:58px; height:58px; }
+.cc-dots > i { position:absolute; inset:0; animation:cc-orbit 2.8s cubic-bezier(.45,0,.55,1) infinite; }
+.cc-dots > i::before { content:''; position:absolute; left:26px; top:0; width:6px; height:6px; border-radius:50%; background:#fff; }
+.cc-dots > i:nth-child(2) { animation-delay:-.16s; }
+.cc-dots > i:nth-child(3) { animation-delay:-.32s; }
+.cc-dots > i:nth-child(4) { animation-delay:-.48s; }
+.cc-dots > i:nth-child(5) { animation-delay:-.64s; }
+.compaction-screen[data-paused="true"] .cc-dots > i, .render-paused .cc-dots > i { animation-play-state:paused; }
+@keyframes cc-orbit { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) {
+  .cc-dots > i { animation:none; transform:rotate(0deg); }
+  .cc-dots > i:nth-child(2) { transform:rotate(72deg); }
+  .cc-dots > i:nth-child(3) { transform:rotate(144deg); }
+  .cc-dots > i:nth-child(4) { transform:rotate(216deg); }
+  .cc-dots > i:nth-child(5) { transform:rotate(288deg); }
+}

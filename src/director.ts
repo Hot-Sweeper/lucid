@@ -1,3 +1,4 @@
+import { CompactionScreen } from './os/compaction';
 import { Botword } from "./office-apps/botword";
 import { reportDocument } from "./office-apps/word-markdown";
 import { uiText } from "./localization";
@@ -110,7 +111,7 @@ type Helper = { session: HarnessSession; child: string | null; prompt: string; s
 const cleanCmd = (c: any) => String(c || "").replace(/^"[^"]*powershell[^"]*"\s+-Command\s+/i, "").slice(0, 160);
 const lastLine = (o: any) => (o ? String(o).split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 120) : undefined);
 
-const SKIP = new Set(["checkpoint", "notification", "system_notice", "handoff", "run_interrupt_request", "run_interrupt_result"]);
+const SKIP = new Set(["checkpoint", "notification", "system_notice", "handoff", "compaction", "run_interrupt_request", "run_interrupt_result"]);
 
 // Plays real thread events as scenes on the robot's computer, one at a time.
 export class Director {
@@ -126,6 +127,7 @@ export class Director {
   private pendingInitial: Item[] | null = null;
   private files: FilesApp; private editor: EditorApp; private term: TerminalApp;
   private uac: UacPrompt;
+  private compaction: CompactionScreen;
   private browser: BrowserApp; private codex: CodexApp; private chat: T3CodeApp; private nativeMessages: T3CodeApp;
   private get messages() { return this.wm.prefs?.chatApp === "t3code" ? this.chat : this.nativeMessages; }
   private attachmentChat: { id: string; app: T3CodeApp } | null = null;
@@ -151,6 +153,7 @@ export class Director {
   private imageRefresh = new ImageRefreshGate();
 
   constructor(private wm: WM, private robot: Robot, private stage: Stage, peek: (url: string) => Promise<any>, private image: (path: string) => Promise<string | null>, private readText: (path: string) => Promise<string | null>) {
+    this.compaction = new CompactionScreen(wm);
     this.files = new FilesApp(wm);
     this.editor = new EditorApp(wm);
     this.term = new TerminalApp(wm);
@@ -191,6 +194,7 @@ export class Director {
   }
 
   reset() {
+    this.compaction.clear();
     window.clearTimeout(this.historyTimer);
     this.historyTimer = 0; this.historyThread = null; this.historyGeneration++; this.historyCut = 0;
     this.notePresentation.reset();
@@ -263,6 +267,18 @@ export class Director {
       const items = this.pendingInitial;
       this.pendingInitial = null;
       this.push(items, true);
+    }
+    this.syncCompaction([]);
+  }
+
+  private syncCompaction(items: Item[], quiet = false) {
+    const wasUp = this.compaction.isUp;
+    this.compaction.sync(items, this.info, quiet);
+    if (this.compaction.isUp) {
+      if (!wasUp) { this.busyToken++; this.idleLife.halt(); this.stage.say(null); }
+      this.onActivity(uiText('Compacting context'));
+    } else if (wasUp && this.pumpEpoch === -1) {
+      if (this.queue.length) void this.pump(); else this.idle();
     }
   }
 
@@ -399,6 +415,7 @@ export class Director {
     }
     // Plans update in place while the run goes on.
     for (const it of items) if (it.type === "todo_list" && this.played.has(it.id)) { this.stage.setPlan(it.data.steps || []); this.queuePlan(it); }
+    this.syncCompaction(items, initial);
     this.queue.sort((a, b) => this.items.get(a)!.ordinal - this.items.get(b)!.ordinal);
     if (initial) this.catchingUp = this.queue.length > 0;
     if (this.queue.length && this.idleLife.isActive) this.idleLife.halt();
@@ -589,6 +606,7 @@ export class Director {
   setPresentationVisible(visible: boolean) {
     const wasVisible = this.wm.presentationVisible;
     this.wm.setPresentationVisible(visible);
+    this.compaction.setVisible(visible);
     if (!visible && this.writingReport) this.wm.reset();
     if (!visible) {
       window.clearTimeout(this.historyTimer); this.historyTimer = 0;
@@ -673,11 +691,11 @@ export class Director {
   }
 
   private async pump() {
-    if (this.writingReport) return;
+    if (this.writingReport || this.compaction.isUp) return;
     if (this.pumpEpoch === this.wm.epoch) return;
     const epoch = (this.pumpEpoch = this.wm.epoch);
     try {
-      while (this.queue.length) {
+      while (this.queue.length && !this.compaction.isUp) {
         const backlog = this.queue.length - 1;
         this.wm.speed = Math.min(4.5, (this.catchingUp ? 2.2 : 1) + backlog * 0.45);
         const id = this.queue.shift()!;
@@ -726,12 +744,13 @@ export class Director {
     } finally {
       if (this.pumpEpoch === epoch) this.pumpEpoch = -1;
       // interrupted with scenes still waiting: pick them up again instead of leaving them stuck
-      if (this.queue.length && this.pumpEpoch === -1) window.setTimeout(() => void this.pump(), 60);
+      if (this.queue.length && this.pumpEpoch === -1 && !this.compaction.isUp) window.setTimeout(() => void this.pump(), 60);
     }
   }
 
   private idle() {
     if (this.writingReport) return;
+    if (this.compaction.isUp) { this.onActivity(uiText('Compacting context')); return; }
     this.wasIdle = true;
     if (!this.present()) return;
     if (this.websiteCanvas && this.info?.run?.status !== 'running') { this.robot.setPose('read'); this.onActivity('Website studio on Ares'); return; }
@@ -771,7 +790,7 @@ export class Director {
   private busyToken = 0;
   private async busyWhileWaiting(epoch: number) {
     const tok = ++this.busyToken;
-    const still = () => this.present() && tok === this.busyToken && epoch === this.wm.epoch && !this.queue.length && this.pumpEpoch === -1 && this.info?.run?.status === "running" && !this.waitingForUser;
+    const still = () => !this.compaction.isUp && this.present() && tok === this.busyToken && epoch === this.wm.epoch && !this.queue.length && this.pumpEpoch === -1 && this.info?.run?.status === "running" && !this.waitingForUser;
     try {
       await this.wm.sleep(1200, epoch);
       if (!still()) return;
@@ -1626,16 +1645,6 @@ export class Director {
         this.onActivity("Writing down your queued messages");
         this.stage.setGlow(GLOW.tasks);
         await this.tasks.syncQueue(d.list || [], { instant: this.catchingUp || d.instant, title: this.info?.title });
-        return;
-      }
-      case "compaction": {
-        this.onActivity(it.status === "failed" ? "Context compaction failed" : it.status === "running" || it.status === "pending" ? "Compacting context" : "Context compacted");
-        this.stage.say(null);
-        this.robot.setPose("stretch");
-        await this.wm.sleep(1400);
-        await this.robot.drink();
-        this.robot.setPose("rest");
-        await this.wm.sleep(800);
         return;
       }
       case "error": {
