@@ -3,7 +3,7 @@ const path = require('node:path');
 // Reject secrets, traversal, symlink escapes and source maps at the serving boundary.
 function projectFile(root, input) {
   let rel; try { rel = decodeURIComponent(input.split('?')[0]); } catch { throw Error('Invalid path.'); }
-  if (/[\\\0]/.test(rel) || rel.split('/').some(s => s === '..' || s.startsWith('.')) || /(?:^|\/)(?:node_modules|data|package-lock\.json)(?:\/|$)/i.test(rel) || /\.(?:pem|key|map)$/i.test(rel)) throw Error('Private project path.');
+  if (/[\\\0]/.test(rel) || rel.split('/').some(s => s === '..' || s.startsWith('.')) || /(?:^|\/)(?:node_modules|package-lock\.json)(?:\/|$)/i.test(rel) || /\.(?:pem|key|map)$/i.test(rel)) throw Error('Private project path.');
   let candidate = path.resolve(root, '.' + '/' + rel.replace(/^\/+/, ''));
   if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) candidate = path.join(candidate, 'index.html');
   const realRoot = fs.realpathSync(root), real = fs.realpathSync(candidate);

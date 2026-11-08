@@ -30,6 +30,16 @@ async function main() {
   for (const value of ['javascript:alert(1)', 'file:///tmp/private', 'https://u:p@example.com', 'https://example.com\n']) assert.equal(externalUrl(value), null);
   let opened; assert((await open({ openExternal: async url => { opened = url; } }, 'https://example.com/site')).ok); assert.equal(opened, 'https://example.com/site');
   assert.equal((await open({ openExternal: async () => { throw Error('No browser'); } }, 'https://example.com')).ok, false);
+  const tsModule = async file => import('data:text/javascript;base64,' + Buffer.from(require('node:module').stripTypeScriptTypes(fs.readFileSync(path.resolve(__dirname, '../src/office', file), 'utf8'))).toString('base64'));
+  const { studioLink } = await tsModule('studio-links.ts');
+  assert.equal(studioLink('http://localhost:5173/cats?q=a#profile', 'http://127.0.0.1:42123/', ['http://127.0.0.1:5173/']), 'http://127.0.0.1:42123/cats?q=a#profile');
+  assert.equal(studioLink('http://127.0.0.1:5198/status', 'http://127.0.0.1:42123/', ['http://127.0.0.1:5173/']), null, 'Never send an unregistered Ares localhost URL to Spacestation');
+  assert.equal(studioLink('https://example.com/cats', null, []), 'https://example.com/cats');
+  const { wireChatLinks } = await tsModule('chat-links.ts'), listeners = {}, links = [];
+  wireChatLinks({ addEventListener: (name, callback) => { listeners[name] = callback; }, querySelectorAll: () => [] }, async url => { links.push(url); return {ok:true}; });
+  let prevented = 0; const click = (download, button = 0) => { const link = { closest: () => false, getAttribute: () => 'https://example.com/cat', hasAttribute: () => download }; listeners.click({ button, target: {closest:()=>link}, preventDefault:()=>prevented++, stopPropagation(){} }); };
+  click(false); click(true); click(false, 2); await Promise.resolve();
+  assert.deepEqual(links, ['https://example.com/cat']); assert.equal(prevented, 1, 'Native opening must preserve artifact download handling');
   const { Stage, matchChildren } = await import(pathToFileURL(path.resolve(__dirname, '../electron/studio-public/stage.mjs')));
   const el = (id, text, cls = '') => ({ id, textContent: text, tagName: 'SECTION', getAttribute: key => key === 'class' ? cls : null });
   assert.deepEqual(matchChildren([el('hero', 'Old'), el('cats', 'Cats')], [el('cats', 'Cats'), el('hero', 'New')]), [[0, 1], [1, 0]], 'Stable ids survive rewrites and moves');

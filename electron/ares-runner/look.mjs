@@ -56,7 +56,8 @@ export async function getBrowser() {
 export async function lookAtPage(url, { viewport = 'desktop', fullPage = true, selector = null, theme = 'light' } = {}) {
   const size = VIEWPORTS[viewport] || VIEWPORTS.desktop;
   const browser = await getBrowser();
-  const context = await browser.newContext({ viewport: size, deviceScaleFactor: 1, colorScheme: theme === 'dark' ? 'dark' : 'light' });
+  const context = await browser.newContext({ serviceWorkers: 'block', viewport: size, deviceScaleFactor: 1, colorScheme: theme === 'dark' ? 'dark' : 'light' });
+  await context.route('**/*', route => ['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort('blockedbyclient'));
   const page = await context.newPage();
   const problems = [];
   page.on('console', (m) => {
@@ -69,7 +70,7 @@ export async function lookAtPage(url, { viewport = 'desktop', fullPage = true, s
   page.on('response', (r) => { if (r.status() >= 400) problems.push(`HTTP ${r.status()} for ${r.url()}`); });
   try {
     await page.goto(url, { waitUntil: 'load', timeout: 20000 });
-    await page.evaluate(() => document.fonts?.ready).catch(() => {});
+    await page.evaluate(() => Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 1500))])).catch(() => {});
     await page.waitForTimeout(450);
     const info = await page.evaluate(() => ({
       title: document.title,

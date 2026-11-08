@@ -53,8 +53,8 @@ async function gateway(projectId) {
     const send = (status, type, data) => { res.writeHead(status, { ...headers, 'Content-Type': type }); res.end(req.method === 'HEAD' ? undefined : data); };
     if (!['GET', 'HEAD'].includes(req.method)) return send(405, 'text/plain', 'Preview is read only.');
     try {
-      if (!assetsOnly && url.pathname === '/__lucid/state') { await synchronize(); return send(200, 'application/json', JSON.stringify({ version: state.render?.version ?? -1, working: state.working, error: state.error, width: state.width, theme: state.theme, liveUrl: state.liveUrl, problems: state.render?.problems })); }
-      if (!assetsOnly && url.pathname === '/__lucid/frame') { const v = Number(url.searchParams.get('ares')); const html = state.snapshots.get(v) || state.snapshots.get(state.render?.version); if (!html) return send(404, 'text/plain', 'Waiting for a rendered page.'); res.setHeader('Content-Security-Policy', "script-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'"); return send(200, 'text/html; charset=utf-8', html); }
+      if (!assetsOnly && url.pathname === '/__lucid/state') { await synchronize(); return send(200, 'application/json', JSON.stringify({ version: state.render?.version ?? -1, working: state.working, error: state.error, width: state.width, theme: state.theme, liveUrl: state.liveUrl, hmr: !!state.hmr, problems: state.render?.problems })); }
+      if (!assetsOnly && url.pathname === '/__lucid/frame') { const v = Number(url.searchParams.get('ares')); const html = state.snapshots.get(v) || state.snapshots.get(state.render?.version); if (!html) return send(404, 'text/plain', 'Waiting for a rendered page.'); res.setHeader('Content-Security-Policy', "script-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'"); return send(200, 'text/html; charset=utf-8', html); }
       if (!assetsOnly && ['/__lucid/studio', '/__lucid/stage.mjs', '/__lucid/host.mjs', '/__lucid/stage.css'].includes(url.pathname)) {
         const file = url.pathname === '/__lucid/studio' ? 'index.html' : url.pathname.split('/').pop();
         // Restrict the trusted wrapper itself. Generated pages use a separate child frame.
@@ -76,7 +76,8 @@ async function gateway(projectId) {
     try {
       if (req.headers.origin !== state.liveUrl.replace(/\/$/, '')) throw Error('Unexpected preview origin.');
       const c = configuration(), target = `/projects/${projectId}/socket?path=${encodeURIComponent(req.url)}`;
-      tunnel(req, socket, head, new URL(c.url + target), signedHeaders(c.privateKey, 'GET', target));
+      const upstream = tunnel(req, socket, head, new URL(c.url + target), signedHeaders(c.privateKey, 'GET', target));
+      if (req.headers['sec-websocket-protocol'] === 'vite-hmr') { upstream.once('upgrade', () => { state.hmr = true; }); socket.once('close', () => { state.hmr = false; }); }
     } catch { socket.destroy(); }
   });
   await new Promise(resolve => liveServer.listen(0, '127.0.0.1', resolve));
@@ -94,7 +95,7 @@ async function action(input) {
     case 'send': return remote('POST', `/projects/${id(input.id)}/send`, { text: input.text, requestId: input.requestId, model: input.model, effort: input.effort });
     case 'stop': return remote('POST', `/projects/${id(input.id)}/stop`, {});
     case 'approval': return remote('POST', `/projects/${id(input.id)}/approval`, { id: input.requestId, decision: input.decision, answers: input.answers });
-    case 'preview': return { url: await gateway(id(input.id)) };
+    case 'preview': { const key = id(input.id), url = await gateway(key); return { url, liveUrl: gateways.get(key).liveUrl }; }
     case 'viewport': { const g = gateways.get(id(input.id)); if (g) { if (![1440, 820, 390].includes(input.width)) throw Error('Unsupported viewport.'); g.width = input.width; g.theme = input.theme === 'dark' ? 'dark' : 'light'; await g.synchronize(true); } return { ok: true }; }
     case 'close': { const key = id(input.id), g = gateways.get(key); if (g) { g.closed = true; g.server.closeAllConnections(); g.server.close(); g.liveServer?.closeAllConnections(); g.liveServer?.close(); gateways.delete(key); } return { ok: true }; }
     default: throw Error('Unknown studio action.');

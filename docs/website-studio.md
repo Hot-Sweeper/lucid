@@ -2,7 +2,7 @@
 
 Open Lucid and choose **Website studio** in the office toolbar, or the canvas button in a robot's chat. Select an Ares project or create one, choose a model and reasoning level from the actual Ares Codex account, and describe the website. The execution host and its working folder are shown in chat. This is a native Lucid workspace, not a separately published web application.
 
-The configured authenticated runner route is `https://ares.tailfce843.ts.net:8446/lucid-runner`. Opening it directly in a browser should fail authentication. The old Ares Studio root on that port remains unchanged. Preview pages are proxied through project-specific loopback origins on Spacestation; the browser is never sent an Ares loopback address. Preview URLs are owned by the running Lucid process and expire when closed.
+The configured authenticated runner route is `https://ares.tailfce843.ts.net:8446/lucid-runner`. Opening it directly in a browser should fail authentication. The old Ares Studio root on that port remains unchanged. Preview pages are proxied through project-specific loopback origins on Spacestation; the browser is never sent an Ares loopback address. Chat links to a registered Ares localhost server are rewritten to this project proxy, so they open on Spacestation correctly. Unregistered Ares localhost links show a clear error. Preview URLs are owned by the running Lucid process and expire when closed.
 
 ## Run and restart
 
@@ -22,7 +22,7 @@ Check the signed connection from Spacestation with:
 node scripts/ares-setup.cjs
 ```
 
-The response includes the real hostname, process IDs, Node version, projects and current Codex model catalog. No authentication files are copied or read by setup. Spacestation's signing identity is in `~/.config/lucid/ares.json`, mode 0600. Never put that file in a project, generated page or repository. Ares `runner.json` holds only the public verification key, loopback port and allowed existing project roots. A new connection can generate a separate identity with `node scripts/ares-setup.cjs --init --url <discovered HTTPS runner route>`; do not overwrite an existing identity casually.
+The response includes the real hostname, process IDs, Node version, projects and current Codex model catalog. No Codex authentication files are copied or read by setup. Spacestation's signing identity is in `~/.config/lucid/ares.json`, mode 0600. Never put that file in a project, generated page or repository. Ares `runner.json` holds only the public verification key, loopback port and allowed existing project roots. A new connection can generate a separate identity with `node scripts/ares-setup.cjs --init --url <discovered HTTPS runner route>`; do not overwrite an existing identity casually.
 
 The runner source is `electron/ares-runner/`, with `studio-auth.cjs`, `studio-paths.cjs` and `studio-socket.cjs` in its parent directory. The current installation uses the prototype's existing `playwright-core` dependency through a directory junction, without modifying the prototype. Keep that dependency available, or install `playwright-core` in the runner folder before removing the prototype. Chromium/Edge discovery and installed Codex executable paths are local to Ares. The installed app-server JSON schema was generated from Codex 0.167.0 during integration; Node was v24.13.0.
 
@@ -32,7 +32,7 @@ New project folders live under the runner's data directory. Existing Ares folder
 
 Static HTML/CSS/JS runs directly. For React/Vite and other supported dev servers, Codex starts the project's normal server through its scoped command tool, then calls `register_preview` with its actual printed loopback URL. Dependencies, binding or project commands may require an explicit approval in Lucid. The runner does not execute generated npm scripts as its own unrestricted child. A server that exits or needs restarting produces a recoverable preview error. Reconnect and ask Codex to start/register it again.
 
-`view_page` renders the actual project on Ares and returns a screenshot plus console, network and overflow diagnostics. Those inspections are visible in chat. `find_images` returns actual Wikimedia Commons images, source links and license metadata, displayed as thumbnails. Built-in search activity only shows information actually provided by Codex; missing historical search results are not fabricated.
+`view_page` renders the actual project on Ares and returns a screenshot plus console, network and overflow diagnostics. Those inspections are visible in chat. Inspection browsers block mutating network methods and service workers; use the interactive website for intentional form actions. `find_images` returns actual Wikimedia Commons images, source links and license metadata, displayed as thumbnails. Built-in search activity only shows information actually provided by Codex; missing historical search results are not fabricated.
 
 ## Cursor and interaction
 

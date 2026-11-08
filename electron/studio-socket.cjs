@@ -18,5 +18,6 @@ function tunnel(req, socket, head, target, headers) {
   });
   upstream.on('response', response => { socket.end(`HTTP/1.1 ${response.statusCode || 502} Preview socket unavailable\r\nConnection: close\r\n\r\n`); response.resume(); });
   upstream.on('error', () => socket.destroy()); socket.on('close', () => upstream.destroy()); upstream.end();
+  return upstream;
 }
 module.exports = { tunnel };

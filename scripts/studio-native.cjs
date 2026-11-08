@@ -8,11 +8,11 @@ if (!process.versions.electron) {
   fs.cpSync(path.resolve(__dirname, '../dist-build'), candidate, { recursive: true });
   const env = { ...process.env, LUCID_STUDIO_QA_OUT: out, LUCID_SHOT: out, LUCID_SHOT_EVERY: '3600000', LUCID_DEV_URL: require('node:url').pathToFileURL(path.join(candidate, 'index.html')).href };
   delete env.ELECTRON_RUN_AS_NODE;
-  require('node:child_process').spawn(require('electron'), ['--ozone-platform=x11', __filename, out], { env, stdio: 'inherit' }).on('exit', code => process.exit(code || 0));
+  require('node:child_process').spawn(require('electron'), ['--ozone-platform=x11', ...(process.env.LUCID_TEST_REDUCED_MOTION ? ['--force-prefers-reduced-motion=reduce'] : []), __filename, out], { env, stdio: 'inherit' }).on('exit', code => process.exit(code || 0));
 } else {
   const { app, webContents } = require('electron');
   app.setPath('temp', out);
-  let main = null, count = 0, busy = false, commandId = null, recordTimer = null, nativeFetch = globalThis.fetch;
+  let main = null, count = 0, busy = false, commandId = null, recordTimer = null, nativeFetch = globalThis.fetch, linkOpenCalls = [], nativeOpen = require('electron').shell.openExternal;
   app.on('browser-window-created', (_event, win) => {
     if (main) return; main = win;
     win.webContents.once('did-finish-load', () => {
@@ -27,8 +27,16 @@ if (!process.versions.electron) {
             try {
               if (command.quit) { clearInterval(timer); app.quit(); return; }
               if (command.size) { win.setMinimumSize(320, 480); win.setContentSize(...command.size); }
+              if ('linkProbe' in command) { require('electron').shell.openExternal = command.linkProbe ? async url => { linkOpenCalls.push(url); if (command.linkProbe === 'failure') throw Error('QA browser unavailable'); } : nativeOpen; }
+              if (command.linkCalls) { fs.writeFileSync(path.join(out, 'link-calls.json'), JSON.stringify(linkOpenCalls)); }
               if (command.capture) fs.writeFileSync(path.join(out, String(command.capture).replace(/[^a-z0-9-]/gi, '') + '.png'), (await win.webContents.capturePage()).toPNG());
-              if (command.media) { if (!win.webContents.debugger.isAttached()) win.webContents.debugger.attach('1.3'); await win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: command.media }] }); }
+              if (command.media) {
+                const dbg = win.webContents.debugger; if (!dbg.isAttached()) dbg.attach('1.3');
+                const params = { features: [{ name: 'prefers-reduced-motion', value: command.media }] }; await dbg.sendCommand('Emulation.setEmulatedMedia', params);
+                const targets = await dbg.sendCommand('Target.getTargets');
+                for (const target of targets.targetInfos.filter(t => t.type === 'iframe' && t.url.includes('/__lucid/studio'))) { const {sessionId} = await dbg.sendCommand('Target.attachToTarget', { targetId: target.targetId, flatten: true }); await dbg.sendCommand('Emulation.setEmulatedMedia', params, sessionId); }
+              }
+              if (command.key) { win.webContents.focus(); win.webContents.sendInputEvent({type:'keyDown',keyCode:command.key}); win.webContents.sendInputEvent({type:'keyUp',keyCode:command.key}); }
               if ('connectionFault' in command) globalThis.fetch = command.connectionFault ? (url, ...args) => String(url).includes('ares.tailfce843.ts.net:8446/lucid-runner') ? Promise.reject(new TypeError('Injected tailnet connection loss')) : nativeFetch(url, ...args) : nativeFetch;
               if ('record' in command) { clearInterval(recordTimer); recordTimer = null; if (command.record) { let n = 0, capturing = false; recordTimer = setInterval(async () => { if (capturing || win.isDestroyed()) return; capturing = true; try { const image = (await win.webContents.capturePage()).resize({width:1280}); fs.writeFileSync(path.join(out, `demo-${String(++n).padStart(6, '0')}.jpg`), image.toJPEG(82)); } finally { capturing = false; } }, 50); } }
 

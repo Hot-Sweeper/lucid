@@ -1,3 +1,4 @@
+import { studioLink } from './studio-links';
 import { AnswerCard, type PendingRequest } from './answer';
 import { renderChatMarkdown } from './chat-panel';
 import { wireChatLinks } from './chat-links';
@@ -37,6 +38,7 @@ class WebsiteStudio {
   private generation = 0;
   private playback = false;
   private replay = false;
+  private previewLiveUrl: string | null = null;
   private canvasError: string | null = null;
   private connected = false;
   private rendered = new Map<string, { el: HTMLElement; signature: string }>();
@@ -64,9 +66,10 @@ class WebsiteStudio {
       <aside class="ws-chat"><header class="ws-chat-head"><strong>${copy('Design with Codex', 'Mit Codex gestalten')}</strong><button type="button" class="ghost ws-mobile" data-action="site">${copy('Canvas', 'Canvas')}</button><button type="button" class="ghost" data-action="reconnect">${copy('Reconnect', 'Neu verbinden')}</button></header><p class="ws-status" role="status">${copy('Connecting to Ares…', 'Verbinde mit Ares…')}</p><p class="ws-location"></p><div class="ws-messages cp-list" role="log" aria-label="${copy('Project conversation', 'Projektgespräch')}" aria-live="off"></div><button type="button" class="ghost ws-bottom" hidden>${copy('New messages ↓', 'Neue Nachrichten ↓')}</button><form class="cp-form ws-compose"><div class="ws-models"><select aria-label="Codex model" class="ws-model" disabled></select><select aria-label="${copy('Reasoning effort', 'Denkaufwand')}" class="ws-effort" disabled></select></div><label class="sr-only" for="ws-prompt">${copy('Describe your website or a refinement', 'Beschreibe deine Website oder eine Änderung')}</label><textarea id="ws-prompt" rows="3" placeholder="${copy('Describe your website…', 'Beschreibe deine Website…')}"></textarea><div class="ws-send-row"><span class="ws-send-error" role="alert"></span><button type="button" data-action="stop" class="ghost" disabled>${copy('Stop', 'Stoppen')}</button><button type="submit" class="primary ws-send" disabled>${copy('Send', 'Senden')}</button></div></form></aside></div>`;
     document.body.append(this.el); this.el.showModal();
     this.iframe = this.el.querySelector('.ws-frame')!; this.list = this.el.querySelector('.ws-messages')!; this.input = this.el.querySelector('textarea')!; this.model = this.el.querySelector('.ws-model')!; this.effort = this.el.querySelector('.ws-effort')!; this.picker = this.el.querySelector('.ws-project')!;
+    this.iframe.addEventListener('load', () => { this.post('theme', {theme:this.el.dataset.theme || 'dark'}); this.post('follow', {on:this.el.querySelector('[data-action=follow]')!.getAttribute('aria-pressed') === 'true'}); this.post('model', {name:this.model.selectedOptions[0]?.textContent || 'Codex'}); void this.viewport(); });
     const owner = { el: this.el.querySelector('.ws-chat') as HTMLElement, get isOpen() { return true; }, get threadId() { return studio?.project?.id || null; } };
     this.answers = new AnswerCard(owner, { poll: false, autoFocus: false, pending: async () => this.approvals(), t3: { status: async () => ({ paired: this.connected, error: null }), respond: async a => { await this.api({ action: 'approval', id: this.project!.id, requestId: a.requestId, decision: a.decision, answers: a.answers }); await this.poll(); } } });
-    if (bridge()?.openExternal) wireChatLinks(this.list, url => bridge().openExternal(url));
+    if (bridge()?.openExternal) wireChatLinks(this.list, url => { const mapped = studioLink(url, this.previewLiveUrl, this.registeredOrigins()); return mapped ? bridge().openExternal(mapped) : Promise.resolve({ok:false,error:copy('This address is local to Ares. Use the website preview to open this project.', 'Diese Adresse gehört zu Ares. Öffne das Projekt über die Website-Vorschau.')}); });
     this.el.addEventListener('cancel', event => { event.preventDefault(); this.close(); });
     this.el.addEventListener('click', event => { const a = (event.target as Element).closest<HTMLElement>('[data-action]')?.dataset.action; if (a) void this.control(a); });
     this.el.querySelector('.ws-compose')!.addEventListener('submit', e => { e.preventDefault(); void this.send(); });
@@ -114,8 +117,8 @@ class WebsiteStudio {
       let choice; try { choice = JSON.parse(localStorage.getItem(`lucid:studio:model:${id}`) || 'null'); } catch {}
       const selected = choice?.model || p.model; if (this.models.some(m => m.id === selected)) this.model.value = selected; this.fillEfforts(choice?.effort || p.effort);
       if (old && old !== id) void this.api({ action: 'close', id: old });
-      const { url } = await this.api({ action: 'preview', id }); if (this.dead || generation !== this.generation) return;
-      this.canvasError = null; this.iframe.src = url; if (this.context?.threadId) document.dispatchEvent(new CustomEvent('lucid:studio-preview', { detail: { threadId: this.context.threadId, url, projectId: id } })); this.playback = false; this.replay = false; this.render(p); void this.poll();
+      const { url, liveUrl } = await this.api({ action: 'preview', id }); if (this.dead || generation !== this.generation) return;
+      this.previewLiveUrl = liveUrl; this.canvasError = null; this.iframe.src = url; if (this.context?.threadId) document.dispatchEvent(new CustomEvent('lucid:studio-preview', { detail: { threadId: this.context.threadId, url, projectId: id } })); this.playback = false; this.replay = false; this.render(p); void this.poll();
     } catch (e) { this.status((e as Error).message); }
   }
   private rememberDraft() { if (this.project) localStorage.setItem(`lucid:studio:draft:${this.project.id}`, this.input.value); }
@@ -125,6 +128,7 @@ class WebsiteStudio {
     catch (e) { if (!this.dead) { this.connected = false; this.status((e as Error).message); } }
     finally { this.pollBusy = false; if (!this.dead && generation === this.generation) this.timer = window.setTimeout(() => void this.poll(), document.hidden ? 2000 : 700); }
   }
+  private registeredOrigins() { return (this.project?.entries || []).filter(e => e.kind === 'tool' && /^Project dev server: /.test(e.text || '')).map(e => e.text.slice('Project dev server: '.length)); }
   private render(p: Project) {
     const bottom = this.list.scrollHeight - this.list.scrollTop - this.list.clientHeight < 70; let changed = false;
     for (const e of p.entries) {
@@ -132,7 +136,7 @@ class WebsiteStudio {
       changed = true;
       if (!item) { const el = document.createElement(['user', 'agent', 'inspection', 'error', 'research'].includes(e.kind) ? 'section' : 'details'); item = { el, signature: '' }; this.rendered.set(e.id, item); this.list.append(el); }
       item.signature = signature; const el = item.el;
-      if (e.kind === 'user' || e.kind === 'agent') { el.className = `cp-msg ${e.kind === 'user' ? 'you' : 'bot'}`; el.innerHTML = `<div class="cp-prose">${renderChatMarkdown(e.text || '')}</div>`; }
+      if (e.kind === 'user' || e.kind === 'agent') { el.className = `cp-msg ${e.kind === 'user' ? 'you' : 'bot'}`; el.innerHTML = `<div class="cp-prose">${renderChatMarkdown(e.text || '')}</div>`; for (const link of el.querySelectorAll<HTMLAnchorElement>('a[href]')) { const mapped = studioLink(link.href, this.previewLiveUrl, this.registeredOrigins()); if (mapped && mapped !== link.href) { link.href = mapped; link.title = copy('Open this Ares project through Lucid’s preview', 'Dieses Ares-Projekt über Lucids Vorschau öffnen'); } } }
       else if (e.kind === 'inspection') { el.className = 'ws-inspection'; el.innerHTML = `<details><summary>${copy('Looked at the website', 'Website geprüft')} · ${esc(e.viewport)}</summary><p>${esc(e.text)}</p>${e.image?.startsWith('data:image/jpeg;base64,') ? `<img alt="${copy('Actual website inspection on Ares', 'Echte Website-Prüfung auf Ares')}" src="${esc(e.image)}">` : ''}</details>`; }
       else if (e.kind === 'research') { el.className = 'ws-research'; el.innerHTML = `<p>${esc(e.text)}</p><div>${(e.images || []).filter((i: any) => /^https:\/\/(?:upload|thumb)\.wikimedia\.org\//.test(i.image) && /^https:\/\/commons\.wikimedia\.org\//.test(i.source)).map((i: any) => `<a href="${esc(i.source)}"><img src="${esc(i.image)}" alt="${esc(i.title)}" loading="lazy"><span>${esc(i.title)}</span><small>${esc(i.license)} · ${esc(i.artist)}</small></a>`).join('')}</div>`; }
       else if (e.kind === 'error') { el.className = 'ws-run-error'; el.textContent = e.text; }

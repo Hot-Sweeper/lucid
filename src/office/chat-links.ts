@@ -3,7 +3,7 @@ export function wireChatLinks(root: HTMLElement, open: (url: string) => Promise<
   const activate = (event: MouseEvent) => {
     if (event.button !== 0 && event.button !== 1) return;
     const link = (event.target as Element | null)?.closest<HTMLAnchorElement>('a[href]');
-    if (!link || link.closest('[data-review-thread],[data-review-open]')) return;
+    if (!link || link.hasAttribute('download') || link.closest('[data-review-thread],[data-review-open]')) return;
     const url = link.getAttribute('href') || '';
     if (!/^(https?:|mailto:)/i.test(url)) return;
     event.preventDefault(); event.stopPropagation();
