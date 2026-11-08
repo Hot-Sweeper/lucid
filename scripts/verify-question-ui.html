@@ -26,6 +26,10 @@ if(params.has('test')){
  check([...document.querySelectorAll('.ca-opt')].every(el=>inside(el,screen)),'Every choice and custom answer visible without scrolling');
  check(q('.monitor-task-body').scrollHeight<=q('.monitor-task-body').clientHeight+1,'No outer question scroll for the reference question');
  check(!q('.ca-desc'),'Repeated option descriptions omitted');
+ const group=q('.ca-options').getBoundingClientRect(), area=q('.ca-content').getBoundingClientRect();
+ check(area.bottom-group.bottom<=12&&area.bottom>=group.bottom,'Answer choices sit at the bottom next to the submit footer');
+ check(group.top-q('legend').getBoundingClientRect().bottom>=12,'Question and answers retain a comfortable gap');
+
  const choices=[...document.querySelectorAll('.ca-opt')], first=choices[0], second=choices[1];
  const hit=row=>{const b=row.getBoundingClientRect();return document.elementFromPoint(b.right-12,b.top+b.height/2);};
  check(getComputedStyle(first.querySelector('input')).appearance==='none','Choice controls use the Lucid visual style');

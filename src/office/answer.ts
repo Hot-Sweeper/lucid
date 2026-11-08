@@ -293,7 +293,7 @@ export class AnswerCard {
     }
     return `<fieldset class="ca-q" data-q="${esc(q.id)}" data-key="${key}">
       <legend id="${key}-l">${head}<span class="ca-question">${esc(legend)}</span>${how}</legend>
-      ${opts}${other}
+      <div class="ca-options">${opts}${other}</div>
     </fieldset>`;
   }
 

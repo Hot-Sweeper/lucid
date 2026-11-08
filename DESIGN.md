@@ -132,3 +132,8 @@ Use native radio and checkbox inputs with custom Lucid visuals: a crisp lavender
 ## Managers in the sidebar
 
 Manager entries lead with the persistent robot name and a centered 40px portrait. Project and role form one quiet context line, followed by the real thread title. Only meaningful operational status adds another line; idle timestamps, model strings, duplicate project icons and pin dots stay out of this compact view. Complete metadata remains in the tooltip. Names wrap without clipping. The new-project action uses a folder-plus control in its own reserved 32px column, revealed on hover or keyboard focus and always available on touch. It never overlays the name or title. Selected managers share the existing thread selection treatment.
+
+
+## Bottom-aligned answers
+
+On a monitor showing one question, keep the question at the top and align its answer choices, including Other, to the bottom of the available content area just above the fixed Send footer. Keep at least 12px between the prompt and choices. Let long content overflow naturally into the existing content scroll region, and keep multiple questions in normal reading order. Chat-shelf question layout is unchanged.

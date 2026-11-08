@@ -115,3 +115,9 @@
 .monitor-task-question .ca-req + .ca-req { margin-top: 8px; padding-top: 8px; }
 .monitor-task-question .cp-answer:has(> .ca-req ~ .ca-req) { overflow: auto; }
 .monitor-task-question .cp-answer:has(> .ca-req ~ .ca-req) > .ca-req { flex: none; min-height: 260px; }
+
+/* Keep a single question's reading position at the top and its response group
+   next to Send. Long or multiple questions retain their natural reading flow. */
+.monitor-task-question .ca-content:has(> .ca-q:only-of-type) { display: flex; flex-direction: column; }
+.monitor-task-question .ca-content > .ca-q:only-of-type { flex: 1 0 auto; display: flex; flex-direction: column; margin-bottom: 6px; }
+.monitor-task-question .ca-content > .ca-q:only-of-type > .ca-options { margin-top: auto; padding-top: 12px; flex: none; }
