@@ -114,7 +114,17 @@ async function frame(owner, req) {
       if (!state || !Array.isArray(state.shapes)) throw Error('Page layout is unavailable.');
       let image;
       if (req.mode === 'full' && (!s.hasImage || s.imageRevision !== state.revision || state.animated)) {
-        const captured = await wc.capturePage();
+        // Chromium can stall a hidden surface after a refused navigation.
+        // Release that renderer so the next poll can create a healthy session.
+        let captureTimeout, captured;
+        try {
+          captured = await Promise.race([wc.capturePage(undefined, { stayHidden: true, stayAwake: true }), new Promise((_, reject) => {
+            captureTimeout = setTimeout(() => reject(Error('Preview capture timed out')), 4000); captureTimeout.unref?.();
+          })]);
+        } catch {
+          close(key);
+          return { ok: false, missing: true, error: 'Reconnecting to the frontend…' };
+        } finally { clearTimeout(captureTimeout); }
         if (!captured.isEmpty()) { const bounded = captured.resize({ width: Math.ceil(960 * density), height: Math.ceil(height * density) }); image = bounded.toDataURL(); s.hasImage = true; s.imageRevision = state.revision; }
       }
       s.state = state; s.actionKey = actionKey;

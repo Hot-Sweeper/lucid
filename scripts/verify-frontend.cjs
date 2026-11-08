@@ -7,7 +7,7 @@ const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
 const root = path.resolve(__dirname, '..');
 const windows = [];
-let captures = 0, revision = 1, holdCapture, releaseCapture, unavailable = false;
+let captures = 0, revision = 1, holdCapture, releaseCapture, unavailable = false, captureFailure = false;
 class WebContents extends EventEmitter {
   setWindowOpenHandler(fn) { this.popup = fn; }
   setAudioMuted() {}
@@ -19,7 +19,7 @@ class WebContents extends EventEmitter {
     return { width: 960, height: 540, shapes: [], background: '#fff', revision, title: 'Real frontend', animated: false };
   }
   async capturePage() {
-    captures++; if (holdCapture) await new Promise(resolve => releaseCapture = resolve);
+    captures++; if (captureFailure) throw Error('Renderer capture failed'); if (holdCapture) await new Promise(resolve => releaseCapture = resolve);
     return { isEmpty: () => false, resize: () => ({ toDataURL: () => 'data:image/png;base64,frame' }) };
   }
   reload() { this.emit('did-finish-load'); }
@@ -78,6 +78,13 @@ const run = async () => {
     r = await api.frame(1, {id:'recovery',mode:'full'});
     assert.equal(r.ok,true);assert.ok(r.image,'Same preview recovers when the server starts');
     await api.frame(1,{id:'recovery',close:true});
+    captureFailure = true;
+    r = await api.frame(1,{id:'capture-recovery',target:{html:'<h1>Capture retry</h1>'},mode:'full'});
+    assert.equal(r.missing,true);assert.equal(windows.at(-1).dead,true,'Failed capture releases its renderer');
+    captureFailure = false;
+    r = await api.frame(1,{id:'capture-recovery',target:{html:'<h1>Capture retry</h1>'},mode:'full'});
+    assert.ok(r.ok && r.image,'Next poll recreates a working renderer');
+    await api.frame(1,{id:'capture-recovery',close:true});
     console.log('Frontend backend: sandbox, source scope, stable frames, LOD suppression/resume, ownership, coalescing, close and pool bounds passed.');
   } finally { fs.rmSync(folder,{recursive:true,force:true}); }
 };
