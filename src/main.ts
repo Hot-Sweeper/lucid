@@ -58,7 +58,7 @@ import { mountEnvironments } from "./office/environments";
 import { Wallet, openShop, coinIcon, boostNow, luckyHour, type WalletState } from "./office/shop";
 import { ShopFront } from "./office/shopfront";
 import { watchDaily } from "./office/daily";
-import { MILESTONES, check as checkMs, celebrateMilestone, openMilestones, type Stats as MsStats } from "./office/milestones";
+import { MILESTONES, check as checkMs, celebrateMilestone, celebrateDailyReward, openMilestones, type Stats as MsStats } from "./office/milestones";
 import { CATALOG } from "./office/shop";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
@@ -1330,15 +1330,7 @@ const paintBoost = () => {
 };
 paintBoost();
 setInterval(paintBoost, 60000);
-wallet.onDaily = (coins, streak) => {
-  const el = document.createElement("div");
-  el.className = "ms-toast";
-  el.setAttribute("role", "status");
-  el.innerHTML = `<span class="ms-badge" aria-hidden="true">${coinIcon(24)}</span><div><b>Daily reward</b><span class="daily-copy"></span></div><em>${coinIcon(14)} +${coins}</em>`;
-  (el.querySelector(":scope > div > .daily-copy") as HTMLElement).textContent = streak > 1 ? `Day ${streak} in a row. Come back tomorrow for more.` : "Come back tomorrow to start a streak.";
-  document.body.appendChild(el);
-  gsap.timeline({ onComplete: () => el.remove() }).fromTo(el, { opacity: 0, y: -16 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }).to(el, { opacity: 0, duration: 0.35, delay: 4 });
-};
+wallet.onDaily = celebrateDailyReward;
 (window as any).__dailyReward = wallet.onDaily; // visual-only fixture; does not award coins
 window.setTimeout(() => { if (lastShipped) checkMilestones(lastShipped); }, 0);
 world.owns = (key) => wallet.owns(key);

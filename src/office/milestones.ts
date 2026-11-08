@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { runsFor } from "./progress";
 import { coinIcon } from "./shop";
+import './milestone-toast.css';
 
 // Milestones: a road of level rewards plus achievements earned from real work. Each one pays
 // coins once, celebrates when reached, and shows what is next.
@@ -39,17 +40,58 @@ export const LEVEL_REWARDS: Record<number, string> = {
 /** Newly reached milestones (not yet celebrated). */
 export function check(stats: Stats, seen: Set<string>) { return MILESTONES.filter((m) => !seen.has(m.id) && m.done(stats)); }
 
+type Celebration = Pick<Milestone, "id" | "title" | "detail" | "coins"> & { badge?: string };
+const celebrations: Celebration[] = [];
+const celebrating = new Set<string>();
+let celebration: Animation | null = null;
+let toast: HTMLElement | null = null;
+const visibility = () => { if (document.hidden) celebration?.pause(); else if (celebration) celebration.play(); else showNextMilestone(); };
+function clearCelebrations() {
+  celebration?.cancel(); celebration = null; toast?.remove(); toast = null;
+  celebrations.length = 0; celebrating.clear();
+  document.removeEventListener('visibilitychange', visibility);
+  window.removeEventListener('pagehide', clearCelebrations);
+}
 export function celebrateMilestone(m: Milestone) {
+  enqueueCelebration({ ...m, title: `Milestone: ${m.title}` });
+}
+export function celebrateDailyReward(coins: number, streak: number) {
+  enqueueCelebration({ id: `daily-${streak}`, title: 'Daily reward', coins, badge: coinIcon(24),
+    detail: streak > 1 ? `Day ${streak} in a row. Come back tomorrow for more.` : 'Come back tomorrow to start a streak.' });
+}
+function enqueueCelebration(m: Celebration) {
+  if (celebrating.has(m.id)) return;
+  celebrating.add(m.id); celebrations.push(m);
+  document.addEventListener('visibilitychange', visibility);
+  window.addEventListener('pagehide', clearCelebrations);
+  if (!celebration) showNextMilestone();
+}
+function showNextMilestone() {
+  if (document.hidden) return;
+  const m = celebrations.shift();
+  if (!m) { clearCelebrations(); return; }
   const el = document.createElement("div");
-  el.className = "ms-toast";
+  toast = el; el.className = "milestone-toast";
   el.setAttribute("role", "status");
-  el.innerHTML = `<span class="ms-badge" aria-hidden="true">★</span><div><b></b><span></span></div><em>${coinIcon(14)} +${m.coins}</em>`;
-  el.querySelector("b")!.textContent = `Milestone: ${m.title}`;
-  (el.querySelector("div span") as HTMLElement).textContent = m.detail;
+  el.setAttribute("aria-atomic", "true");
+  el.innerHTML = `<span class="milestone-badge" aria-hidden="true">★</span><div class="milestone-copy"><b></b><span class="milestone-detail"></span></div><em>${coinIcon(14)} +${m.coins}</em>`;
+  el.querySelector("b")!.textContent = m.title;
+  if (m.badge) el.querySelector(".milestone-badge")!.innerHTML = m.badge;
+  el.querySelector(".milestone-detail")!.textContent = m.detail;
   document.body.appendChild(el);
-  gsap.timeline({ onComplete: () => el.remove() })
-    .fromTo(el, { opacity: 0, y: -16, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "back.out(2)" })
-    .to(el, { opacity: 0, y: -8, duration: 0.35, delay: 4.2 });
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // One-shot notifications finish even when the office's ambient GSAP clock sleeps.
+  const shift = (y: number) => `translateX(-50%) translateY(${reduced ? 0 : y}px)`;
+  celebration = el.animate([
+    { opacity: 0, transform: shift(-12), offset: 0, easing: 'cubic-bezier(.23,1,.32,1)' },
+    { opacity: 1, transform: shift(0), offset: .2 / 4.55 },
+    { opacity: 1, transform: shift(0), offset: 4.4 / 4.55, easing: 'ease-out' },
+    { opacity: 0, transform: shift(-8), offset: 1 },
+  ], { duration: 4550, fill: 'both' });
+  celebration.onfinish = () => {
+    celebration?.cancel(); el.remove(); toast = null; celebration = null;
+    celebrating.delete(m.id); showNextMilestone();
+  };
 }
 
 export function openMilestones(stats: Stats, seen: Set<string>) {
