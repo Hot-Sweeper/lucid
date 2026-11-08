@@ -10,7 +10,7 @@ const date = hour => new Date(2026, 10, 2, hour);
 const seeded = initial => { let seed = initial; return () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2**32); };
 const ids = songs => Array.from(songs, song => song.id);
 for (const [hour, period] of [[0,'night'],[5,'night'],[6,'morning'],[10,'morning'],[11,'day'],[16,'day'],[17,'evening'],[21,'evening'],[22,'night'],[23,'night']]) assert.equal(soundtrackPeriod(date(hour)), period);
-assert.equal(SOUNDTRACK.length, 23);
+assert.equal(SOUNDTRACK.length, 47);
 assert.equal(new Set(ids(SOUNDTRACK)).size, SOUNDTRACK.length);
 assert(SOUNDTRACK.every(song => song.energy >= 0 && song.energy <= 1 && song.seconds >= 90));
 assert.equal(new Set(SOUNDTRACK.map(song => song.genre)).size, 10);
@@ -45,6 +45,24 @@ for (let seed = 1; seed <= 24; seed++) {
   }
   assert.equal(seen.size, SOUNDTRACK.length, `seed ${seed}: all recordings remain reachable; missing ${ids(SOUNDTRACK).filter(id => !seen.has(id)).join(', ')}`);
   assert.equal(chapters.size, SOUNDTRACK_CHAPTERS.length, `seed ${seed}: the journey must reach every chapter; missing ${SOUNDTRACK_CHAPTERS.filter(chapter => !chapters.has(chapter.id)).map(chapter => chapter.id).join(', ')}`);
+}
+
+// A mood preference must never replay its small pool while the wider rotation
+// is unheard. Each pass covers the whole library, including after reloads.
+for (let seed = 1; seed <= 32; seed++) {
+  let rotation = new SoundtrackQueue(SOUNDTRACK, undefined, seeded(seed * 593));
+  let previous;
+  for (let pass = 0; pass < 3; pass++) {
+    const heard = new Set();
+    for (let index = 0; index < SOUNDTRACK.length; index++) {
+      const song = rotation.next(date((seed + index * 5) % 24));
+      assert(!heard.has(song.id), `rotation ${pass}, seed ${seed}: ${song.id} repeated before all recordings were heard`);
+      if (previous) assert(song.energy - previous.energy <= .30001 && previous.energy - song.energy <= .35001, 'the full rotation retains a usable energy route');
+      heard.add(song.id); rotation.listen(song.seconds); previous = song;
+      if (index % 3 === 1) rotation = new SoundtrackQueue(SOUNDTRACK, JSON.parse(JSON.stringify(rotation.state)), seeded(seed * 997 + pass * 100 + index));
+    }
+    assert.equal(heard.size, SOUNDTRACK.length);
+  }
 }
 
 // Waiting, skipping and crossing midnight do not move the musical clock.
@@ -90,13 +108,71 @@ for (const genre of new Set(SOUNDTRACK.map(song => song.genre))) {
   assert(Math.abs(next.energy - previous.energy) <= .35001, 'locks return through a nearby energy level');
 }
 
+// Every locked direction resets its own complete rotation. Global history and
+// time spent in another direction must not turn it back into random repeats.
+for (const mode of [...new Set(SOUNDTRACK.map(song => song.genre)), 'pads', 'bells']) {
+  let locked = new SoundtrackQueue(SOUNDTRACK, undefined, seeded(27));
+  locked.setMode(mode);
+  const pool = SOUNDTRACK.filter(song => songMatchesMode(song, mode));
+  let previous;
+  for (let pass = 0; pass < 4; pass++) {
+    const seen = new Set();
+    for (let index = 0; index < pool.length; index++) {
+      const song = locked.next(date(8));
+      assert(!seen.has(song.id), `${mode} pass ${pass} repeats before its own pool is complete`);
+      if (pool.length > 1 && previous) assert.notEqual(song.id, previous.id, 'new locked rotations avoid the outgoing song');
+      seen.add(song.id); previous = song;
+      locked = new SoundtrackQueue(SOUNDTRACK, JSON.parse(JSON.stringify(locked.state)), seeded(index + pass * 100));
+    }
+    assert.equal(seen.size, pool.length);
+  }
+}
+
+// Overlapping directions share actual listening credit, so returning to bells
+// cannot immediately replay the ambient bell just heard in another direction.
+const overlapSongs = [
+  {...SOUNDTRACK[0],id:'bell-only',genre:'acoustic',textures:['bells']},
+  {...SOUNDTRACK[0],id:'shared-bell',genre:'ambient',textures:['bells','pads']},
+  {...SOUNDTRACK[0],id:'ambient-only',genre:'ambient',textures:['pads']},
+];
+let overlap = new SoundtrackQueue(overlapSongs,undefined,()=>0);
+overlap.setMode('bells'); assert.equal(overlap.next(date(8)).id,'bell-only');
+overlap.setMode('ambient'); assert.equal(overlap.next(date(8)).id,'shared-bell');
+overlap = new SoundtrackQueue(overlapSongs,JSON.parse(JSON.stringify(overlap.state)),()=>0);
+overlap.setMode('bells'); assert.equal(overlap.next(date(8)).id,'bell-only','overlap heard in another mode completes the earlier rotation');
+overlap.select('shared-bell',date(8));
+overlap.setMode('ambient'); assert.equal(overlap.next(date(8)).id,'ambient-only','a manual choice also credits initialized matching directions');
+
+const manualCycleSongs = ['a','b','c'].map(id => ({...SOUNDTRACK[0],id,genre:'lofi'}));
+manualCycleSongs.push({...SOUNDTRACK[0],id:'outside',genre:'ambient'});
+let manualCycle = new SoundtrackQueue(manualCycleSongs,undefined,()=>0);
+manualCycle.setMode('lofi');
+assert.deepEqual([manualCycle.next().id,manualCycle.next().id,manualCycle.next().id],['a','b','c']);
+manualCycle.select('a');
+manualCycle = new SoundtrackQueue(manualCycleSongs,JSON.parse(JSON.stringify(manualCycle.state)),()=>0);
+assert.deepEqual([manualCycle.next().id,manualCycle.next().id],['b','c'],'manual choice after a completed lock starts its next rotation');
+
+// Independent, disjoint genre bags retain their place while another one plays.
+let switching = new SoundtrackQueue(SOUNDTRACK,undefined,seeded(593));
+switching.setMode('acoustic');
+const acousticFirst = switching.next(date(8));
+switching.setMode('ambient'); switching.next(date(22));
+switching = new SoundtrackQueue(SOUNDTRACK,JSON.parse(JSON.stringify(switching.state)),seeded(88));
+switching.setMode('acoustic');
+const acousticRest = new Set([acousticFirst.id]);
+for(let i=1;i<SOUNDTRACK.filter(song=>song.genre==='acoustic').length;i++) {
+  const song = switching.next(date(8));
+  assert(!acousticRest.has(song.id),'switching directions retains the unfinished genre rotation');
+  acousticRest.add(song.id);
+}
+
 // An older saved shuffle bag is migrated, preserving heard tracks. New genres
 // receive chapters without resetting the user's history or requiring a new day.
 const additions = ['the-glass-observatory','briar-lanterns','the-copper-casebook','postcards-from-home'];
 const heard = ids(SOUNDTRACK).filter(id => !additions.includes(id));
 const migrated = new SoundtrackQueue(SOUNDTRACK, { played: heard, last: heard.at(-1) }, seeded(7));
 assert.equal(migrated.mode, 'journey');
-assert.equal(migrated.state.played.length, 19);
+assert.equal(migrated.state.played.length, SOUNDTRACK.length - additions.length);
 const newHeard = new Set();
 for (let i = 0; i < 60; i++) {
   const song = migrated.next(date(14));
@@ -267,8 +343,8 @@ for (const song of SOUNDTRACK) {
   assert(measurement.leadingQuietSeconds<=.5 && measurement.trailingQuietSeconds<=.65,`${song.title} has no unwanted start or end gap`);
 }
 assert.equal(hashes.size, SOUNDTRACK.length, 'every recording is distinct');
-const metrics = [...JSON.parse(fs.readFileSync('src/assets/audio/soundtrack-metrics.json')), ...JSON.parse(fs.readFileSync('src/assets/audio/genre-metrics.json')), ...JSON.parse(fs.readFileSync('src/assets/audio/story-metrics.json'))];
+const metrics = ['soundtrack-metrics.json','genre-metrics.json','story-metrics.json','cozy-expansion-metrics.json','electronic-expansion-metrics.json','chamber-expansion-metrics.json'].flatMap(file => JSON.parse(fs.readFileSync('src/assets/audio/'+file)));
 // Stem/arrangement crest factors differ. Encoded LUFS and actual playback trims
 // above establish listening-level consistency without flattening the ambient mix.
 assert(metrics.every(track => track.seconds >= 90 && track.peakDbFS <= -2.8 && Number.isFinite(track.rmsDbFS)));
-console.log('PASS: 23 distinct songs across 11 listening-time chapters, library fairness, energy and harmonic bridges, relative/modal keys, half-time continuity, persistent genre and calm texture locks, old-history migration, manual selection, packaged assets and measured headroom.');
+console.log('PASS: 47 distinct songs across 11 listening-time chapters, complete rotations without repeats, independent genre/texture cycles, overlapping locks and manual choice credit, persistent history, harmonic/energy routes, exact packaged assets and measured headroom.');

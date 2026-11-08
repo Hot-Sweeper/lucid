@@ -1,0 +1,4909 @@
+[
+  {
+    "id": "honeycomb-hours",
+    "title": "Honeycomb Hours",
+    "genre": "lofi",
+    "bpm": 76,
+    "key": 10,
+    "mode": "major",
+    "energy": 0.27,
+    "period": "day",
+    "meter": 4,
+    "revision": 1,
+    "textures": [
+      "sampled electric piano",
+      "sampled nylon guitar",
+      "sampled upright bass",
+      "recorded acoustic drums"
+    ],
+    "seconds": 165.92936507936508,
+    "peakDbFS": -3.943927764892578,
+    "rmsDbFS": -23.412854317902703,
+    "sections": [
+      {
+        "name": "opening",
+        "bars": 4,
+        "bar": 0,
+        "start": 0.0,
+        "end": 12.631578947368421,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -28.105165189462454
+      },
+      {
+        "name": "the theme",
+        "bars": 16,
+        "bar": 4,
+        "start": 12.631578947368421,
+        "end": 63.15789473684211,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -23.140127205301457
+      },
+      {
+        "name": "a different shore",
+        "bars": 8,
+        "bar": 20,
+        "start": 63.15789473684211,
+        "end": 88.42105263157895,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -22.5413093316782
+      },
+      {
+        "name": "weightless",
+        "bars": 4,
+        "bar": 28,
+        "start": 88.42105263157895,
+        "end": 101.05263157894737,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -27.77815877852493
+      },
+      {
+        "name": "homeward",
+        "bars": 16,
+        "bar": 32,
+        "start": 101.05263157894737,
+        "end": 151.57894736842104,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -22.86013215047386
+      },
+      {
+        "name": "last light",
+        "bars": 4,
+        "bar": 48,
+        "start": 151.57894736842104,
+        "end": 164.21052631578948,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -27.381034056020606
+      }
+    ],
+    "composition": {
+      "motif": "D-F-D-C dotted turn, lower answer, borrowed Eb-minor middle and Bb close",
+      "themeBars": 8,
+      "theme": [
+        [
+          [
+            0.5,
+            74,
+            0.6
+          ],
+          [
+            1.5,
+            77,
+            0.4
+          ],
+          [
+            2.25,
+            74,
+            0.7
+          ],
+          [
+            3.25,
+            72,
+            0.4
+          ]
+        ],
+        [
+          [
+            0,
+            70,
+            1.5
+          ],
+          [
+            2.5,
+            69,
+            0.5
+          ],
+          [
+            3.25,
+            67,
+            0.5
+          ]
+        ],
+        [
+          [
+            0.5,
+            75,
+            0.6
+          ],
+          [
+            1.5,
+            79,
+            0.4
+          ],
+          [
+            2.25,
+            75,
+            0.7
+          ],
+          [
+            3.25,
+            74,
+            0.4
+          ]
+        ],
+        [
+          [
+            0,
+            72,
+            1.6
+          ],
+          [
+            2.5,
+            69,
+            0.55
+          ],
+          [
+            3.25,
+            65,
+            0.5
+          ]
+        ],
+        [
+          [
+            0.5,
+            74,
+            0.6
+          ],
+          [
+            1.5,
+            77,
+            0.4
+          ],
+          [
+            2.25,
+            74,
+            0.7
+          ],
+          [
+            3.25,
+            72,
+            0.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            75,
+            1.2
+          ],
+          [
+            2.25,
+            74,
+            0.5
+          ],
+          [
+            3,
+            72,
+            0.75
+          ]
+        ],
+        [
+          [
+            0,
+            69,
+            0.75
+          ],
+          [
+            1,
+            67,
+            0.6
+          ],
+          [
+            2.5,
+            65,
+            1.1
+          ]
+        ],
+        [
+          [
+            0,
+            70,
+            3.2
+          ]
+        ]
+      ],
+      "relatedTheme": [
+        [
+          [
+            0.5,
+            72,
+            0.6
+          ],
+          [
+            1.5,
+            75,
+            0.4
+          ],
+          [
+            2.25,
+            74,
+            0.7
+          ],
+          [
+            3.25,
+            70,
+            0.4
+          ]
+        ],
+        [
+          [
+            0,
+            67,
+            1.5
+          ],
+          [
+            2.5,
+            70,
+            0.5
+          ],
+          [
+            3.25,
+            74,
+            0.5
+          ]
+        ],
+        [
+          [
+            0.5,
+            73,
+            0.6
+          ],
+          [
+            1.5,
+            75,
+            0.4
+          ],
+          [
+            2.25,
+            73,
+            0.7
+          ],
+          [
+            3.25,
+            70,
+            0.4
+          ]
+        ],
+        [
+          [
+            0,
+            68,
+            1.6
+          ],
+          [
+            2.5,
+            65,
+            1.0
+          ]
+        ],
+        [
+          [
+            0.5,
+            72,
+            0.6
+          ],
+          [
+            1.5,
+            75,
+            0.4
+          ],
+          [
+            2.25,
+            74,
+            0.7
+          ],
+          [
+            3.25,
+            72,
+            0.4
+          ]
+        ],
+        [
+          [
+            0,
+            69,
+            1.5
+          ],
+          [
+            2.5,
+            67,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            65,
+            1.2
+          ],
+          [
+            2,
+            69,
+            1.2
+          ]
+        ],
+        [
+          [
+            0,
+            70,
+            3.2
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          46,
+          [
+            57,
+            60,
+            62,
+            65
+          ]
+        ],
+        [
+          43,
+          [
+            53,
+            57,
+            58,
+            62
+          ]
+        ],
+        [
+          48,
+          [
+            55,
+            58,
+            62,
+            63
+          ]
+        ],
+        [
+          41,
+          [
+            55,
+            57,
+            60,
+            63
+          ]
+        ],
+        [
+          50,
+          [
+            58,
+            62,
+            65,
+            69
+          ]
+        ],
+        [
+          39,
+          [
+            55,
+            58,
+            62,
+            65
+          ]
+        ],
+        [
+          41,
+          [
+            55,
+            57,
+            60,
+            63
+          ]
+        ],
+        [
+          46,
+          [
+            57,
+            60,
+            62,
+            65
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          39,
+          [
+            55,
+            58,
+            62,
+            65
+          ]
+        ],
+        [
+          43,
+          [
+            53,
+            57,
+            58,
+            62
+          ]
+        ],
+        [
+          39,
+          [
+            54,
+            58,
+            61,
+            65
+          ]
+        ],
+        [
+          44,
+          [
+            55,
+            60,
+            63,
+            68
+          ]
+        ],
+        [
+          48,
+          [
+            55,
+            58,
+            62,
+            63
+          ]
+        ],
+        [
+          41,
+          [
+            55,
+            57,
+            60,
+            63
+          ]
+        ],
+        [
+          41,
+          [
+            55,
+            57,
+            60,
+            63
+          ]
+        ],
+        [
+          46,
+          [
+            57,
+            60,
+            62,
+            65
+          ]
+        ]
+      ],
+      "groove": "laid back",
+      "form": "Hint, full theme, related contrasting phrase, exposed fragments, recognisable return and tonic cadence",
+      "randomMelody": false
+    },
+    "sampledParts": {
+      "lead": {
+        "program": 24,
+        "notes": 106,
+        "wholeStemActiveRMSTarget": 0.039,
+        "peakCeiling": 0.15
+      },
+      "comp": {
+        "program": 4,
+        "notes": 291,
+        "wholeStemActiveRMSTarget": 0.029,
+        "peakCeiling": 0.12
+      },
+      "middle": {
+        "program": 0,
+        "notes": 24,
+        "wholeStemActiveRMSTarget": 0.034,
+        "peakCeiling": 0.14
+      },
+      "bass": {
+        "program": 32,
+        "notes": 87,
+        "wholeStemActiveRMSTarget": 0.036,
+        "peakCeiling": 0.15
+      }
+    },
+    "padBreaths": [],
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.76,
+      "truePeakDbFS": -4.21,
+      "loudnessRangeLU": 6.1,
+      "channelCorrelation": 0.9354762708807203,
+      "dcOffset": 3.7156783605496457e-07,
+      "leadingQuietSeconds": 0.022244897959183673,
+      "trailingSilenceSeconds": 0.23444444444444446
+    },
+    "sha256": "548d5b42c3554784bd4222f79f77ede5cf2e940cc3eaf8aa502cf700b353dacf",
+    "provenance": {
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+        "licenseFile": "docs/licenses/FluidR3-GM.txt"
+      },
+      "rendering": "FluidSynth dry sampled instruments, Pedalboard filtered room sends; independent vibraphone voices",
+      "pads": "Explicit bounded sine fundamental plus second harmonic at .035, no saw/unison/noise",
+      "percussion": {
+        "revision": 2,
+        "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+        "license": "CC0-1.0",
+        "repository": "https://github.com/sgossner/VCSL",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "files": [
+          {
+            "file": "snare_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+            "bytes": 305304,
+            "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+          },
+          {
+            "file": "snare_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+            "bytes": 231264,
+            "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+          },
+          {
+            "file": "snare_medium_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+            "bytes": 255456,
+            "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
+          },
+          {
+            "file": "hat_soft_1.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "bytes": 247272,
+            "sha256": "e1fb54c9a030800038abcebbed1c056fb74bdeec627315f3cd5fd893c6e6b031"
+          },
+          {
+            "file": "hat_soft_2.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "bytes": 250072,
+            "sha256": "72830eafed387f4b4b5904d4d6f1da23e13b48986fa1bc09d7c5771eafbb3a1a"
+          },
+          {
+            "file": "bass_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+            "bytes": 281616,
+            "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+          },
+          {
+            "file": "bass_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+            "bytes": 302396,
+            "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+          }
+        ],
+        "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+        "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+        "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+        "hitCounts": {
+          "kick": 108,
+          "snare": 90,
+          "hat": 328
+        },
+        "auditionPerformed": false
+      },
+      "referenceAudioCopied": false,
+      "auditionPerformed": false
+    }
+  },
+  {
+    "id": "blue-hour-bookshop",
+    "title": "Blue Hour Bookshop",
+    "genre": "lofi",
+    "bpm": 84,
+    "key": 7,
+    "mode": "minor",
+    "energy": 0.34,
+    "period": "evening",
+    "meter": 4,
+    "revision": 1,
+    "textures": [
+      "sampled piano",
+      "sampled guitar",
+      "sampled upright bass",
+      "recorded acoustic drums"
+    ],
+    "seconds": 150.04226757369614,
+    "peakDbFS": -3.958956241607666,
+    "rmsDbFS": -23.665859107195306,
+    "sections": [
+      {
+        "name": "opening",
+        "bars": 4,
+        "bar": 0,
+        "start": 0.0,
+        "end": 11.428571428571429,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -31.442509573861326
+      },
+      {
+        "name": "the theme",
+        "bars": 16,
+        "bar": 4,
+        "start": 11.428571428571429,
+        "end": 57.142857142857146,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -23.797299814707458
+      },
+      {
+        "name": "a different shore",
+        "bars": 8,
+        "bar": 20,
+        "start": 57.142857142857146,
+        "end": 80.0,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -22.580517109944346
+      },
+      {
+        "name": "weightless",
+        "bars": 4,
+        "bar": 28,
+        "start": 80.0,
+        "end": 91.42857142857143,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -29.69600874338515
+      },
+      {
+        "name": "homeward",
+        "bars": 16,
+        "bar": 32,
+        "start": 91.42857142857143,
+        "end": 137.14285714285714,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -22.499605730468183
+      },
+      {
+        "name": "last light",
+        "bars": 4,
+        "bar": 48,
+        "start": 137.14285714285714,
+        "end": 148.57142857142858,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -29.685996146835162
+      }
+    ],
+    "composition": {
+      "motif": "D-Eb-D neighbour, falling Bb-A-G answer and F#-G dominant resolution",
+      "themeBars": 8,
+      "theme": [
+        [
+          [
+            0,
+            74,
+            0.55
+          ],
+          [
+            0.75,
+            75,
+            0.32
+          ],
+          [
+            1.25,
+            74,
+            1.2
+          ],
+          [
+            3,
+            70,
+            0.65
+          ]
+        ],
+        [
+          [
+            0.5,
+            69,
+            1.0
+          ],
+          [
+            2,
+            67,
+            1.6
+          ]
+        ],
+        [
+          [
+            0,
+            74,
+            0.55
+          ],
+          [
+            0.75,
+            75,
+            0.32
+          ],
+          [
+            1.25,
+            74,
+            1.2
+          ],
+          [
+            3,
+            72,
+            0.65
+          ]
+        ],
+        [
+          [
+            0.5,
+            70,
+            1.0
+          ],
+          [
+            2,
+            69,
+            0.65
+          ],
+          [
+            3,
+            65,
+            0.65
+          ]
+        ],
+        [
+          [
+            0,
+            72,
+            0.55
+          ],
+          [
+            0.75,
+            74,
+            0.32
+          ],
+          [
+            1.25,
+            75,
+            1.2
+          ],
+          [
+            3,
+            74,
+            0.65
+          ]
+        ],
+        [
+          [
+            0.5,
+            72,
+            1
+          ],
+          [
+            2,
+            69,
+            1.6
+          ]
+        ],
+        [
+          [
+            0,
+            70,
+            1.1
+          ],
+          [
+            1.5,
+            69,
+            0.65
+          ],
+          [
+            2.5,
+            66,
+            1
+          ]
+        ],
+        [
+          [
+            0,
+            67,
+            3.2
+          ]
+        ]
+      ],
+      "relatedTheme": [
+        [
+          [
+            0,
+            77,
+            1.3
+          ],
+          [
+            1.75,
+            74,
+            0.5
+          ],
+          [
+            2.75,
+            72,
+            0.8
+          ]
+        ],
+        [
+          [
+            0.5,
+            70,
+            1.2
+          ],
+          [
+            2.5,
+            74,
+            0.9
+          ]
+        ],
+        [
+          [
+            0,
+            75,
+            1.3
+          ],
+          [
+            1.75,
+            74,
+            0.5
+          ],
+          [
+            2.75,
+            72,
+            0.8
+          ]
+        ],
+        [
+          [
+            0.5,
+            69,
+            1.2
+          ],
+          [
+            2.5,
+            66,
+            0.9
+          ]
+        ],
+        [
+          [
+            0,
+            74,
+            1.3
+          ],
+          [
+            1.75,
+            72,
+            0.5
+          ],
+          [
+            2.75,
+            70,
+            0.8
+          ]
+        ],
+        [
+          [
+            0.5,
+            69,
+            1.2
+          ],
+          [
+            2.5,
+            67,
+            0.9
+          ]
+        ],
+        [
+          [
+            0,
+            66,
+            1.2
+          ],
+          [
+            2,
+            69,
+            1.2
+          ]
+        ],
+        [
+          [
+            0,
+            67,
+            3.2
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          43,
+          [
+            58,
+            62,
+            65,
+            69
+          ]
+        ],
+        [
+          39,
+          [
+            55,
+            58,
+            62,
+            65
+          ]
+        ],
+        [
+          45,
+          [
+            57,
+            60,
+            62,
+            65
+          ]
+        ],
+        [
+          46,
+          [
+            57,
+            62,
+            65,
+            69
+          ]
+        ],
+        [
+          48,
+          [
+            55,
+            58,
+            62,
+            63
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            60,
+            63,
+            69
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            60,
+            63,
+            69
+          ]
+        ],
+        [
+          43,
+          [
+            55,
+            58,
+            62,
+            65
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          46,
+          [
+            57,
+            62,
+            65,
+            69
+          ]
+        ],
+        [
+          39,
+          [
+            55,
+            58,
+            62,
+            65
+          ]
+        ],
+        [
+          48,
+          [
+            55,
+            58,
+            62,
+            63
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            60,
+            63,
+            69
+          ]
+        ],
+        [
+          39,
+          [
+            55,
+            58,
+            62,
+            65
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            58,
+            62,
+            63
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            60,
+            63,
+            69
+          ]
+        ],
+        [
+          43,
+          [
+            55,
+            58,
+            62,
+            65
+          ]
+        ]
+      ],
+      "groove": "halftime",
+      "form": "Hint, full theme, related contrasting phrase, exposed fragments, recognisable return and tonic cadence",
+      "randomMelody": false
+    },
+    "sampledParts": {
+      "lead": {
+        "program": 26,
+        "notes": 98,
+        "wholeStemActiveRMSTarget": 0.039,
+        "peakCeiling": 0.15
+      },
+      "comp": {
+        "program": 0,
+        "notes": 291,
+        "wholeStemActiveRMSTarget": 0.029,
+        "peakCeiling": 0.12
+      },
+      "middle": {
+        "program": 4,
+        "notes": 20,
+        "wholeStemActiveRMSTarget": 0.034,
+        "peakCeiling": 0.14
+      },
+      "bass": {
+        "program": 32,
+        "notes": 87,
+        "wholeStemActiveRMSTarget": 0.036,
+        "peakCeiling": 0.15
+      }
+    },
+    "padBreaths": [],
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.77,
+      "truePeakDbFS": -4.24,
+      "loudnessRangeLU": 9.9,
+      "channelCorrelation": 0.9430856713368465,
+      "dcOffset": 5.170477948013286e-07,
+      "leadingQuietSeconds": 0.011496598639455782,
+      "trailingSilenceSeconds": 0.2599319727891157
+    },
+    "sha256": "a5833ee8ce89544bccb123a8f368596b92a82ad73bc415d151c90753f64f91a8",
+    "provenance": {
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+        "licenseFile": "docs/licenses/FluidR3-GM.txt"
+      },
+      "rendering": "FluidSynth dry sampled instruments, Pedalboard filtered room sends; independent vibraphone voices",
+      "pads": "Explicit bounded sine fundamental plus second harmonic at .035, no saw/unison/noise",
+      "percussion": {
+        "revision": 2,
+        "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+        "license": "CC0-1.0",
+        "repository": "https://github.com/sgossner/VCSL",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "files": [
+          {
+            "file": "snare_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+            "bytes": 305304,
+            "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+          },
+          {
+            "file": "snare_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+            "bytes": 231264,
+            "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+          },
+          {
+            "file": "hat_soft_1.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "bytes": 247272,
+            "sha256": "e1fb54c9a030800038abcebbed1c056fb74bdeec627315f3cd5fd893c6e6b031"
+          },
+          {
+            "file": "hat_soft_2.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "bytes": 250072,
+            "sha256": "72830eafed387f4b4b5904d4d6f1da23e13b48986fa1bc09d7c5771eafbb3a1a"
+          },
+          {
+            "file": "bass_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+            "bytes": 281616,
+            "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+          },
+          {
+            "file": "bass_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+            "bytes": 302396,
+            "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+          }
+        ],
+        "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+        "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+        "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+        "hitCounts": {
+          "kick": 108,
+          "snare": 50,
+          "hat": 328
+        },
+        "auditionPerformed": false
+      },
+      "referenceAudioCopied": false,
+      "auditionPerformed": false
+    }
+  },
+  {
+    "id": "sunday-signal",
+    "title": "Sunday Signal",
+    "genre": "lofi",
+    "bpm": 92,
+    "key": 4,
+    "mode": "minor",
+    "energy": 0.39,
+    "period": "morning",
+    "meter": 4,
+    "revision": 1,
+    "textures": [
+      "sampled electric piano",
+      "vibraphone bells",
+      "sampled upright bass",
+      "recorded acoustic drums"
+    ],
+    "seconds": 137.09995464852608,
+    "peakDbFS": -5.0166850090026855,
+    "rmsDbFS": -23.064939215514638,
+    "sections": [
+      {
+        "name": "opening",
+        "bars": 4,
+        "bar": 0,
+        "start": 0.0,
+        "end": 10.434782608695652,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -28.469831526401652
+      },
+      {
+        "name": "the theme",
+        "bars": 16,
+        "bar": 4,
+        "start": 10.434782608695652,
+        "end": 52.173913043478265,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -22.588595648624494
+      },
+      {
+        "name": "a different shore",
+        "bars": 8,
+        "bar": 20,
+        "start": 52.173913043478265,
+        "end": 73.04347826086956,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -24.15346213629505
+      },
+      {
+        "name": "weightless",
+        "bars": 4,
+        "bar": 28,
+        "start": 73.04347826086956,
+        "end": 83.47826086956522,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -28.424668902397343
+      },
+      {
+        "name": "homeward",
+        "bars": 16,
+        "bar": 32,
+        "start": 83.47826086956522,
+        "end": 125.21739130434783,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -21.732072813998904
+      },
+      {
+        "name": "last light",
+        "bars": 4,
+        "bar": 48,
+        "start": 125.21739130434783,
+        "end": 135.65217391304347,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -28.029849451391307
+      }
+    ],
+    "composition": {
+      "motif": "Syncopated G-E-D-B fall, repeated rhythm with an ascending B answer",
+      "themeBars": 8,
+      "theme": [
+        [
+          [
+            0,
+            79,
+            0.45
+          ],
+          [
+            0.75,
+            76,
+            0.45
+          ],
+          [
+            1.5,
+            74,
+            0.8
+          ],
+          [
+            3.25,
+            71,
+            0.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            72,
+            1.2
+          ],
+          [
+            2.25,
+            71,
+            0.5
+          ],
+          [
+            3,
+            67,
+            0.7
+          ]
+        ],
+        [
+          [
+            0,
+            76,
+            0.45
+          ],
+          [
+            0.75,
+            72,
+            0.45
+          ],
+          [
+            1.5,
+            71,
+            0.8
+          ],
+          [
+            3.25,
+            69,
+            0.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            75,
+            1.2
+          ],
+          [
+            2.25,
+            74,
+            0.5
+          ],
+          [
+            3,
+            71,
+            0.7
+          ]
+        ],
+        [
+          [
+            0,
+            79,
+            0.45
+          ],
+          [
+            0.75,
+            76,
+            0.45
+          ],
+          [
+            1.5,
+            74,
+            0.8
+          ],
+          [
+            3.25,
+            71,
+            0.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            72,
+            1.2
+          ],
+          [
+            2.25,
+            76,
+            0.5
+          ],
+          [
+            3,
+            74,
+            0.7
+          ]
+        ],
+        [
+          [
+            0,
+            72,
+            0.8
+          ],
+          [
+            1.5,
+            69,
+            0.7
+          ],
+          [
+            2.75,
+            75,
+            0.8
+          ]
+        ],
+        [
+          [
+            0,
+            76,
+            3
+          ]
+        ]
+      ],
+      "relatedTheme": [
+        [
+          [
+            0.25,
+            76,
+            1.2
+          ],
+          [
+            1.75,
+            79,
+            0.5
+          ],
+          [
+            2.75,
+            78,
+            0.8
+          ]
+        ],
+        [
+          [
+            0.25,
+            76,
+            1.2
+          ],
+          [
+            1.75,
+            74,
+            0.5
+          ],
+          [
+            2.75,
+            71,
+            0.8
+          ]
+        ],
+        [
+          [
+            0.25,
+            74,
+            1.2
+          ],
+          [
+            1.75,
+            76,
+            0.5
+          ],
+          [
+            2.75,
+            78,
+            0.8
+          ]
+        ],
+        [
+          [
+            0.25,
+            75,
+            1.2
+          ],
+          [
+            1.75,
+            71,
+            0.5
+          ],
+          [
+            2.75,
+            69,
+            0.8
+          ]
+        ],
+        [
+          [
+            0.25,
+            72,
+            1.2
+          ],
+          [
+            1.75,
+            76,
+            0.5
+          ],
+          [
+            2.75,
+            79,
+            0.8
+          ]
+        ],
+        [
+          [
+            0.25,
+            78,
+            1.2
+          ],
+          [
+            1.75,
+            76,
+            0.5
+          ],
+          [
+            2.75,
+            72,
+            0.8
+          ]
+        ],
+        [
+          [
+            0.25,
+            75,
+            1.2
+          ],
+          [
+            1.75,
+            74,
+            0.5
+          ],
+          [
+            2.75,
+            71,
+            0.8
+          ]
+        ],
+        [
+          [
+            0,
+            76,
+            3
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          40,
+          [
+            55,
+            59,
+            62,
+            66
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            59,
+            64,
+            67
+          ]
+        ],
+        [
+          45,
+          [
+            55,
+            59,
+            60,
+            64
+          ]
+        ],
+        [
+          35,
+          [
+            54,
+            57,
+            63,
+            66
+          ]
+        ],
+        [
+          43,
+          [
+            55,
+            59,
+            62,
+            64
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            60,
+            64,
+            69
+          ]
+        ],
+        [
+          42,
+          [
+            57,
+            60,
+            64,
+            66
+          ]
+        ],
+        [
+          40,
+          [
+            55,
+            59,
+            62,
+            64
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          45,
+          [
+            55,
+            59,
+            60,
+            64
+          ]
+        ],
+        [
+          40,
+          [
+            55,
+            59,
+            62,
+            66
+          ]
+        ],
+        [
+          42,
+          [
+            57,
+            60,
+            64,
+            66
+          ]
+        ],
+        [
+          35,
+          [
+            54,
+            57,
+            63,
+            66
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            59,
+            64,
+            67
+          ]
+        ],
+        [
+          45,
+          [
+            55,
+            59,
+            60,
+            64
+          ]
+        ],
+        [
+          35,
+          [
+            54,
+            57,
+            63,
+            66
+          ]
+        ],
+        [
+          40,
+          [
+            55,
+            59,
+            62,
+            64
+          ]
+        ]
+      ],
+      "groove": "broken bossa",
+      "form": "Hint, full theme, related contrasting phrase, exposed fragments, recognisable return and tonic cadence",
+      "randomMelody": false
+    },
+    "sampledParts": {
+      "lead": {
+        "program": 11,
+        "notes": 106,
+        "wholeStemActiveRMSTarget": 0.039,
+        "peakCeiling": 0.15
+      },
+      "comp": {
+        "program": 4,
+        "notes": 291,
+        "wholeStemActiveRMSTarget": 0.029,
+        "peakCeiling": 0.12
+      },
+      "middle": {
+        "program": 24,
+        "notes": 24,
+        "wholeStemActiveRMSTarget": 0.034,
+        "peakCeiling": 0.14
+      },
+      "bass": {
+        "program": 32,
+        "notes": 87,
+        "wholeStemActiveRMSTarget": 0.036,
+        "peakCeiling": 0.15
+      }
+    },
+    "padBreaths": [],
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.77,
+      "truePeakDbFS": -5.28,
+      "loudnessRangeLU": 8.2,
+      "channelCorrelation": 0.9334929064837331,
+      "dcOffset": 2.348589447365157e-07,
+      "leadingQuietSeconds": 0.008820861678004535,
+      "trailingSilenceSeconds": 0.2598412698412698
+    },
+    "sha256": "24ec241e8a8b5b716acb742691c11caeb8397f7fb195bdb2e47b11cf1671d2c4",
+    "provenance": {
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+        "licenseFile": "docs/licenses/FluidR3-GM.txt"
+      },
+      "rendering": "FluidSynth dry sampled instruments, Pedalboard filtered room sends; independent vibraphone voices",
+      "pads": "Explicit bounded sine fundamental plus second harmonic at .035, no saw/unison/noise",
+      "percussion": {
+        "revision": 2,
+        "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+        "license": "CC0-1.0",
+        "repository": "https://github.com/sgossner/VCSL",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "files": [
+          {
+            "file": "snare_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+            "bytes": 305304,
+            "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+          },
+          {
+            "file": "snare_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+            "bytes": 231264,
+            "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+          },
+          {
+            "file": "snare_medium_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+            "bytes": 255456,
+            "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
+          },
+          {
+            "file": "hat_soft_1.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "bytes": 247272,
+            "sha256": "e1fb54c9a030800038abcebbed1c056fb74bdeec627315f3cd5fd893c6e6b031"
+          },
+          {
+            "file": "hat_soft_2.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "bytes": 250072,
+            "sha256": "72830eafed387f4b4b5904d4d6f1da23e13b48986fa1bc09d7c5771eafbb3a1a"
+          },
+          {
+            "file": "bass_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+            "bytes": 281616,
+            "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+          },
+          {
+            "file": "bass_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+            "bytes": 302396,
+            "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+          }
+        ],
+        "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+        "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+        "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+        "hitCounts": {
+          "kick": 108,
+          "snare": 90,
+          "hat": 168
+        },
+        "auditionPerformed": false
+      },
+      "referenceAudioCopied": false,
+      "auditionPerformed": false
+    }
+  },
+  {
+    "id": "snowglobe-orbit",
+    "title": "Snowglobe Orbit",
+    "genre": "ambient",
+    "bpm": 60,
+    "key": 9,
+    "mode": "lydian",
+    "energy": 0.1,
+    "period": "night",
+    "meter": 4,
+    "revision": 1,
+    "textures": [
+      "sampled harp",
+      "sampled electric piano",
+      "brief sine pads"
+    ],
+    "seconds": 146.5166439909297,
+    "peakDbFS": -5.386258125305176,
+    "rmsDbFS": -24.475298972792096,
+    "sections": [
+      {
+        "name": "first light",
+        "bars": 4,
+        "bar": 0,
+        "start": 0.0,
+        "end": 16.0,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -29.730151003406583
+      },
+      {
+        "name": "the theme",
+        "bars": 8,
+        "bar": 4,
+        "start": 16.0,
+        "end": 48.0,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -22.85648665591573
+      },
+      {
+        "name": "a different shore",
+        "bars": 8,
+        "bar": 12,
+        "start": 48.0,
+        "end": 80.0,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -25.860326165412687
+      },
+      {
+        "name": "weightless",
+        "bars": 4,
+        "bar": 20,
+        "start": 80.0,
+        "end": 96.0,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -33.60288670673168
+      },
+      {
+        "name": "homeward",
+        "bars": 8,
+        "bar": 24,
+        "start": 96.0,
+        "end": 128.0,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -22.20710208732776
+      },
+      {
+        "name": "last light",
+        "bars": 4,
+        "bar": 32,
+        "start": 128.0,
+        "end": 144.0,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -27.817007952511034
+      }
+    ],
+    "composition": {
+      "motif": "Long E-C#-B falling phrase, D# Lydian light and A resolution",
+      "themeBars": 8,
+      "theme": [
+        [
+          [
+            0,
+            76,
+            1.75
+          ],
+          [
+            2.5,
+            73,
+            1.0
+          ]
+        ],
+        [
+          [
+            1,
+            71,
+            2.2
+          ]
+        ],
+        [
+          [
+            0,
+            76,
+            1.75
+          ],
+          [
+            2.5,
+            75,
+            1.0
+          ]
+        ],
+        [
+          [
+            1,
+            73,
+            2.2
+          ]
+        ],
+        [
+          [
+            0,
+            78,
+            1.75
+          ],
+          [
+            2.5,
+            76,
+            1.0
+          ]
+        ],
+        [
+          [
+            1,
+            73,
+            1.5
+          ],
+          [
+            3,
+            71,
+            0.7
+          ]
+        ],
+        [
+          [
+            0,
+            75,
+            1.3
+          ],
+          [
+            2,
+            73,
+            1.2
+          ]
+        ],
+        [
+          [
+            0,
+            71,
+            0.9
+          ],
+          [
+            1.5,
+            69,
+            2.1
+          ]
+        ]
+      ],
+      "relatedTheme": [
+        [
+          [
+            0,
+            73,
+            1.75
+          ],
+          [
+            2.5,
+            71,
+            1.0
+          ]
+        ],
+        [
+          [
+            1,
+            68,
+            2.2
+          ]
+        ],
+        [
+          [
+            0,
+            75,
+            1.75
+          ],
+          [
+            2.5,
+            73,
+            1.0
+          ]
+        ],
+        [
+          [
+            1,
+            71,
+            2.2
+          ]
+        ],
+        [
+          [
+            0,
+            76,
+            1.75
+          ],
+          [
+            2.5,
+            75,
+            1.0
+          ]
+        ],
+        [
+          [
+            1,
+            73,
+            2.2
+          ]
+        ],
+        [
+          [
+            0,
+            71,
+            1.3
+          ],
+          [
+            2,
+            68,
+            1.2
+          ]
+        ],
+        [
+          [
+            0,
+            69,
+            3.1
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          45,
+          [
+            57,
+            61,
+            64,
+            68
+          ]
+        ],
+        [
+          44,
+          [
+            56,
+            59,
+            64,
+            68
+          ]
+        ],
+        [
+          45,
+          [
+            59,
+            63,
+            66,
+            71
+          ]
+        ],
+        [
+          49,
+          [
+            56,
+            59,
+            61,
+            64
+          ]
+        ],
+        [
+          42,
+          [
+            57,
+            61,
+            64,
+            68
+          ]
+        ],
+        [
+          44,
+          [
+            56,
+            59,
+            64,
+            68
+          ]
+        ],
+        [
+          47,
+          [
+            59,
+            63,
+            66,
+            68
+          ]
+        ],
+        [
+          45,
+          [
+            57,
+            61,
+            64,
+            68
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          42,
+          [
+            57,
+            61,
+            64,
+            68
+          ]
+        ],
+        [
+          44,
+          [
+            56,
+            59,
+            64,
+            68
+          ]
+        ],
+        [
+          47,
+          [
+            59,
+            63,
+            66,
+            68
+          ]
+        ],
+        [
+          44,
+          [
+            56,
+            59,
+            64,
+            68
+          ]
+        ],
+        [
+          49,
+          [
+            56,
+            59,
+            61,
+            64
+          ]
+        ],
+        [
+          45,
+          [
+            59,
+            63,
+            66,
+            71
+          ]
+        ],
+        [
+          44,
+          [
+            56,
+            59,
+            64,
+            68
+          ]
+        ],
+        [
+          45,
+          [
+            57,
+            61,
+            64,
+            68
+          ]
+        ]
+      ],
+      "groove": "open water",
+      "form": "Hint, full theme, related contrasting phrase, exposed fragments, recognisable return and tonic cadence",
+      "randomMelody": false
+    },
+    "sampledParts": {
+      "lead": {
+        "program": 4,
+        "notes": 34,
+        "wholeStemActiveRMSTarget": 0.033,
+        "peakCeiling": 0.15
+      },
+      "comp": {
+        "program": 46,
+        "notes": 71,
+        "wholeStemActiveRMSTarget": 0.023,
+        "peakCeiling": 0.12
+      },
+      "middle": {
+        "program": 0,
+        "notes": 14,
+        "wholeStemActiveRMSTarget": 0.029,
+        "peakCeiling": 0.14
+      },
+      "bass": {
+        "program": 4,
+        "notes": 34,
+        "wholeStemActiveRMSTarget": 0.027,
+        "peakCeiling": 0.15
+      }
+    },
+    "padBreaths": [
+      {
+        "start": 0.18,
+        "seconds": 2.8,
+        "pitches": [
+          57,
+          61,
+          64
+        ]
+      },
+      {
+        "start": 16.18,
+        "seconds": 2.8,
+        "pitches": [
+          57,
+          61,
+          64
+        ]
+      },
+      {
+        "start": 32.18,
+        "seconds": 3.15,
+        "pitches": [
+          57,
+          61,
+          64
+        ]
+      },
+      {
+        "start": 48.18,
+        "seconds": 2.8,
+        "pitches": [
+          57,
+          61,
+          64
+        ]
+      },
+      {
+        "start": 64.18,
+        "seconds": 3.15,
+        "pitches": [
+          56,
+          59,
+          61
+        ]
+      },
+      {
+        "start": 96.18,
+        "seconds": 2.8,
+        "pitches": [
+          57,
+          61,
+          64
+        ]
+      },
+      {
+        "start": 112.18,
+        "seconds": 3.15,
+        "pitches": [
+          57,
+          61,
+          64
+        ]
+      }
+    ],
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.77,
+      "truePeakDbFS": -5.65,
+      "loudnessRangeLU": 9.5,
+      "channelCorrelation": 0.8824232985376405,
+      "dcOffset": 1.970972789422376e-07,
+      "leadingQuietSeconds": 0.00927437641723356,
+      "trailingSilenceSeconds": 0.06870748299319727
+    },
+    "sha256": "a54e8f6a1006c0083de4f47784753781449f025ca715abcc267bbe87eabc0459",
+    "provenance": {
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+        "licenseFile": "docs/licenses/FluidR3-GM.txt"
+      },
+      "rendering": "FluidSynth dry sampled instruments, Pedalboard filtered room sends; independent vibraphone voices",
+      "pads": "Explicit bounded sine fundamental plus second harmonic at .035, no saw/unison/noise",
+      "percussion": null,
+      "referenceAudioCopied": false,
+      "auditionPerformed": false
+    }
+  },
+  {
+    "id": "mosslight",
+    "title": "Mosslight",
+    "genre": "ambient",
+    "bpm": 62,
+    "key": 2,
+    "mode": "dorian",
+    "energy": 0.17,
+    "period": "night",
+    "meter": 4,
+    "revision": 1,
+    "textures": [
+      "sampled electric piano",
+      "sampled nylon guitar",
+      "brief sine pads"
+    ],
+    "seconds": 141.5871201814059,
+    "peakDbFS": -5.419490814208984,
+    "rmsDbFS": -23.642299045844887,
+    "sections": [
+      {
+        "name": "first light",
+        "bars": 4,
+        "bar": 0,
+        "start": 0.0,
+        "end": 15.483870967741936,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -27.02466623097715
+      },
+      {
+        "name": "the theme",
+        "bars": 8,
+        "bar": 4,
+        "start": 15.483870967741936,
+        "end": 46.45161290322581,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -23.58614435174422
+      },
+      {
+        "name": "a different shore",
+        "bars": 8,
+        "bar": 12,
+        "start": 46.45161290322581,
+        "end": 77.41935483870968,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -21.711005663457822
+      },
+      {
+        "name": "weightless",
+        "bars": 4,
+        "bar": 20,
+        "start": 77.41935483870968,
+        "end": 92.90322580645162,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -28.30380064290757
+      },
+      {
+        "name": "homeward",
+        "bars": 8,
+        "bar": 24,
+        "start": 92.90322580645162,
+        "end": 123.87096774193549,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -23.380883634932566
+      },
+      {
+        "name": "last light",
+        "bars": 4,
+        "bar": 32,
+        "start": 123.87096774193549,
+        "end": 139.35483870967744,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -26.517226307019147
+      }
+    ],
+    "composition": {
+      "motif": "F-A question, G-E answer, modal B expansion and D resting point",
+      "themeBars": 8,
+      "theme": [
+        [
+          [
+            0.5,
+            65,
+            1.25
+          ],
+          [
+            2.5,
+            69,
+            0.9
+          ]
+        ],
+        [
+          [
+            0.5,
+            67,
+            1.2
+          ],
+          [
+            2.5,
+            64,
+            1.0
+          ]
+        ],
+        [
+          [
+            0.5,
+            65,
+            1.25
+          ],
+          [
+            2.5,
+            69,
+            0.9
+          ]
+        ],
+        [
+          [
+            0.5,
+            71,
+            1.2
+          ],
+          [
+            2.5,
+            67,
+            1.0
+          ]
+        ],
+        [
+          [
+            0.5,
+            69,
+            1.25
+          ],
+          [
+            2.5,
+            65,
+            0.9
+          ]
+        ],
+        [
+          [
+            0.5,
+            64,
+            1.2
+          ],
+          [
+            2.5,
+            62,
+            1.0
+          ]
+        ],
+        [
+          [
+            0.5,
+            64,
+            1.1
+          ],
+          [
+            2,
+            65,
+            0.65
+          ],
+          [
+            3,
+            67,
+            0.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            62,
+            2.9
+          ]
+        ]
+      ],
+      "relatedTheme": [
+        [
+          [
+            0.5,
+            69,
+            1.25
+          ],
+          [
+            2.5,
+            72,
+            0.9
+          ]
+        ],
+        [
+          [
+            0.5,
+            71,
+            1.2
+          ],
+          [
+            2.5,
+            67,
+            1.0
+          ]
+        ],
+        [
+          [
+            0.5,
+            67,
+            1.25
+          ],
+          [
+            2.5,
+            71,
+            0.9
+          ]
+        ],
+        [
+          [
+            0.5,
+            69,
+            1.2
+          ],
+          [
+            2.5,
+            64,
+            1.0
+          ]
+        ],
+        [
+          [
+            0.5,
+            65,
+            1.25
+          ],
+          [
+            2.5,
+            69,
+            0.9
+          ]
+        ],
+        [
+          [
+            0.5,
+            67,
+            1.2
+          ],
+          [
+            2.5,
+            64,
+            1.0
+          ]
+        ],
+        [
+          [
+            0.5,
+            65,
+            1.1
+          ],
+          [
+            2,
+            64,
+            0.65
+          ],
+          [
+            3,
+            60,
+            0.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            62,
+            2.9
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          38,
+          [
+            53,
+            57,
+            60,
+            64
+          ]
+        ],
+        [
+          43,
+          [
+            55,
+            59,
+            62,
+            64
+          ]
+        ],
+        [
+          48,
+          [
+            55,
+            59,
+            62,
+            64
+          ]
+        ],
+        [
+          45,
+          [
+            55,
+            57,
+            60,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            53,
+            57,
+            60,
+            64
+          ]
+        ],
+        [
+          43,
+          [
+            55,
+            59,
+            62,
+            64
+          ]
+        ],
+        [
+          40,
+          [
+            55,
+            59,
+            62,
+            65
+          ]
+        ],
+        [
+          38,
+          [
+            53,
+            57,
+            60,
+            62
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          41,
+          [
+            53,
+            57,
+            60,
+            64
+          ]
+        ],
+        [
+          43,
+          [
+            55,
+            59,
+            62,
+            64
+          ]
+        ],
+        [
+          40,
+          [
+            55,
+            59,
+            62,
+            64
+          ]
+        ],
+        [
+          45,
+          [
+            55,
+            57,
+            60,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            53,
+            57,
+            60,
+            64
+          ]
+        ],
+        [
+          48,
+          [
+            55,
+            59,
+            62,
+            64
+          ]
+        ],
+        [
+          48,
+          [
+            55,
+            60,
+            64,
+            67
+          ]
+        ],
+        [
+          38,
+          [
+            53,
+            57,
+            60,
+            62
+          ]
+        ]
+      ],
+      "groove": "forest space",
+      "form": "Hint, full theme, related contrasting phrase, exposed fragments, recognisable return and tonic cadence",
+      "randomMelody": false
+    },
+    "sampledParts": {
+      "lead": {
+        "program": 24,
+        "notes": 38,
+        "wholeStemActiveRMSTarget": 0.033,
+        "peakCeiling": 0.15
+      },
+      "comp": {
+        "program": 4,
+        "notes": 71,
+        "wholeStemActiveRMSTarget": 0.023,
+        "peakCeiling": 0.12
+      },
+      "middle": {
+        "program": 74,
+        "notes": 18,
+        "wholeStemActiveRMSTarget": 0.029,
+        "peakCeiling": 0.14
+      },
+      "bass": {
+        "program": 4,
+        "notes": 34,
+        "wholeStemActiveRMSTarget": 0.027,
+        "peakCeiling": 0.15
+      }
+    },
+    "padBreaths": [
+      {
+        "start": 0.17419354838709677,
+        "seconds": 2.8,
+        "pitches": [
+          53,
+          57,
+          60
+        ]
+      },
+      {
+        "start": 15.658064516129032,
+        "seconds": 2.8,
+        "pitches": [
+          53,
+          57,
+          60
+        ]
+      },
+      {
+        "start": 31.14193548387097,
+        "seconds": 3.15,
+        "pitches": [
+          53,
+          57,
+          60
+        ]
+      },
+      {
+        "start": 46.6258064516129,
+        "seconds": 2.8,
+        "pitches": [
+          53,
+          57,
+          60
+        ]
+      },
+      {
+        "start": 62.109677419354846,
+        "seconds": 3.15,
+        "pitches": [
+          53,
+          57,
+          60
+        ]
+      },
+      {
+        "start": 93.07741935483872,
+        "seconds": 2.8,
+        "pitches": [
+          53,
+          57,
+          60
+        ]
+      },
+      {
+        "start": 108.56129032258066,
+        "seconds": 3.15,
+        "pitches": [
+          53,
+          57,
+          60
+        ]
+      }
+    ],
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.78,
+      "truePeakDbFS": -5.69,
+      "loudnessRangeLU": 6.5,
+      "channelCorrelation": 0.9669332692776936,
+      "dcOffset": 3.0507175097227446e-07,
+      "leadingQuietSeconds": 0.019229024943310656,
+      "trailingSilenceSeconds": 0.21426303854875284
+    },
+    "sha256": "cb8fbe64b854e7df6d9e8f21dfe2dd91148d9071ab1c9f362583d2aacb004b10",
+    "provenance": {
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+        "licenseFile": "docs/licenses/FluidR3-GM.txt"
+      },
+      "rendering": "FluidSynth dry sampled instruments, Pedalboard filtered room sends; independent vibraphone voices",
+      "pads": "Explicit bounded sine fundamental plus second harmonic at .035, no saw/unison/noise",
+      "percussion": null,
+      "referenceAudioCopied": false,
+      "auditionPerformed": false
+    }
+  },
+  {
+    "id": "quiet-constellations",
+    "title": "Quiet Constellations",
+    "genre": "ambient",
+    "bpm": 70,
+    "key": 11,
+    "mode": "major",
+    "energy": 0.2,
+    "period": "night",
+    "meter": 4,
+    "revision": 1,
+    "textures": [
+      "sampled electric piano",
+      "vibraphone bells",
+      "brief sine pads"
+    ],
+    "seconds": 125.4952380952381,
+    "peakDbFS": -5.1628875732421875,
+    "rmsDbFS": -23.493401728953,
+    "sections": [
+      {
+        "name": "first light",
+        "bars": 4,
+        "bar": 0,
+        "start": 0.0,
+        "end": 13.714285714285714,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -27.57079202836886
+      },
+      {
+        "name": "the theme",
+        "bars": 8,
+        "bar": 4,
+        "start": 13.714285714285714,
+        "end": 41.14285714285714,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -22.854388330257265
+      },
+      {
+        "name": "a different shore",
+        "bars": 8,
+        "bar": 12,
+        "start": 41.14285714285714,
+        "end": 68.57142857142857,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -23.008589819921955
+      },
+      {
+        "name": "weightless",
+        "bars": 4,
+        "bar": 20,
+        "start": 68.57142857142857,
+        "end": 82.28571428571428,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -29.91857365513542
+      },
+      {
+        "name": "homeward",
+        "bars": 8,
+        "bar": 24,
+        "start": 82.28571428571428,
+        "end": 109.71428571428571,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -21.914600817998874
+      },
+      {
+        "name": "last light",
+        "bars": 4,
+        "bar": 32,
+        "start": 109.71428571428571,
+        "end": 123.42857142857142,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -26.20862261777613
+      }
+    ],
+    "composition": {
+      "motif": "Held F# and late D#-C# sigh, augmented lower piano answer and B close",
+      "themeBars": 8,
+      "theme": [
+        [
+          [
+            0.25,
+            78,
+            1.45
+          ],
+          [
+            2.5,
+            75,
+            0.7
+          ],
+          [
+            3.5,
+            73,
+            0.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            71,
+            2.7
+          ]
+        ],
+        [
+          [
+            0.25,
+            78,
+            1.45
+          ],
+          [
+            2.5,
+            80,
+            0.7
+          ],
+          [
+            3.5,
+            78,
+            0.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            75,
+            1.2
+          ],
+          [
+            2.5,
+            73,
+            1.0
+          ]
+        ],
+        [
+          [
+            0.25,
+            78,
+            1.45
+          ],
+          [
+            2.5,
+            75,
+            0.7
+          ],
+          [
+            3.5,
+            73,
+            0.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            76,
+            1.2
+          ],
+          [
+            2.5,
+            75,
+            1.0
+          ]
+        ],
+        [
+          [
+            0.25,
+            73,
+            1.4
+          ],
+          [
+            2,
+            70,
+            1.2
+          ]
+        ],
+        [
+          [
+            0.5,
+            71,
+            2.7
+          ]
+        ]
+      ],
+      "relatedTheme": [
+        [
+          [
+            0.25,
+            76,
+            1.45
+          ],
+          [
+            2.5,
+            75,
+            0.7
+          ],
+          [
+            3.5,
+            73,
+            0.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            75,
+            2.7
+          ]
+        ],
+        [
+          [
+            0.25,
+            73,
+            1.45
+          ],
+          [
+            2.5,
+            71,
+            0.7
+          ],
+          [
+            3.5,
+            68,
+            0.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            70,
+            1.2
+          ],
+          [
+            2.5,
+            73,
+            1.0
+          ]
+        ],
+        [
+          [
+            0.25,
+            75,
+            1.45
+          ],
+          [
+            2.5,
+            73,
+            0.7
+          ],
+          [
+            3.5,
+            71,
+            0.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            68,
+            1.2
+          ],
+          [
+            2.5,
+            66,
+            1.0
+          ]
+        ],
+        [
+          [
+            0.25,
+            70,
+            1.4
+          ],
+          [
+            2,
+            73,
+            1.2
+          ]
+        ],
+        [
+          [
+            0.5,
+            71,
+            2.7
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          35,
+          [
+            54,
+            58,
+            61,
+            63
+          ]
+        ],
+        [
+          44,
+          [
+            54,
+            59,
+            63,
+            66
+          ]
+        ],
+        [
+          40,
+          [
+            56,
+            59,
+            63,
+            66
+          ]
+        ],
+        [
+          42,
+          [
+            54,
+            58,
+            61,
+            64
+          ]
+        ],
+        [
+          39,
+          [
+            54,
+            58,
+            59,
+            63
+          ]
+        ],
+        [
+          37,
+          [
+            56,
+            59,
+            63,
+            64
+          ]
+        ],
+        [
+          42,
+          [
+            54,
+            58,
+            61,
+            64
+          ]
+        ],
+        [
+          35,
+          [
+            54,
+            58,
+            61,
+            63
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          40,
+          [
+            56,
+            59,
+            63,
+            66
+          ]
+        ],
+        [
+          39,
+          [
+            54,
+            58,
+            59,
+            63
+          ]
+        ],
+        [
+          37,
+          [
+            56,
+            59,
+            63,
+            64
+          ]
+        ],
+        [
+          42,
+          [
+            54,
+            58,
+            61,
+            64
+          ]
+        ],
+        [
+          44,
+          [
+            54,
+            59,
+            63,
+            66
+          ]
+        ],
+        [
+          40,
+          [
+            56,
+            59,
+            63,
+            66
+          ]
+        ],
+        [
+          42,
+          [
+            54,
+            58,
+            61,
+            64
+          ]
+        ],
+        [
+          35,
+          [
+            54,
+            58,
+            61,
+            63
+          ]
+        ]
+      ],
+      "groove": "bell space",
+      "form": "Hint, full theme, related contrasting phrase, exposed fragments, recognisable return and tonic cadence",
+      "randomMelody": false
+    },
+    "sampledParts": {
+      "lead": {
+        "program": 11,
+        "notes": 40,
+        "wholeStemActiveRMSTarget": 0.033,
+        "peakCeiling": 0.15
+      },
+      "comp": {
+        "program": 4,
+        "notes": 71,
+        "wholeStemActiveRMSTarget": 0.023,
+        "peakCeiling": 0.12
+      },
+      "middle": {
+        "program": 0,
+        "notes": 19,
+        "wholeStemActiveRMSTarget": 0.029,
+        "peakCeiling": 0.14
+      },
+      "bass": {
+        "program": 4,
+        "notes": 34,
+        "wholeStemActiveRMSTarget": 0.027,
+        "peakCeiling": 0.15
+      }
+    },
+    "padBreaths": [
+      {
+        "start": 0.15428571428571428,
+        "seconds": 2.8,
+        "pitches": [
+          54,
+          58,
+          61
+        ]
+      },
+      {
+        "start": 13.868571428571428,
+        "seconds": 2.8,
+        "pitches": [
+          54,
+          58,
+          61
+        ]
+      },
+      {
+        "start": 27.58285714285714,
+        "seconds": 3.15,
+        "pitches": [
+          54,
+          58,
+          59
+        ]
+      },
+      {
+        "start": 41.29714285714285,
+        "seconds": 2.8,
+        "pitches": [
+          56,
+          59,
+          63
+        ]
+      },
+      {
+        "start": 55.011428571428574,
+        "seconds": 3.15,
+        "pitches": [
+          54,
+          59,
+          63
+        ]
+      },
+      {
+        "start": 82.44,
+        "seconds": 2.8,
+        "pitches": [
+          54,
+          58,
+          61
+        ]
+      },
+      {
+        "start": 96.15428571428572,
+        "seconds": 3.15,
+        "pitches": [
+          54,
+          58,
+          59
+        ]
+      }
+    ],
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.76,
+      "truePeakDbFS": -5.42,
+      "loudnessRangeLU": 6.7,
+      "channelCorrelation": 0.8399713751145633,
+      "dcOffset": 2.000129057933009e-07,
+      "leadingQuietSeconds": 0.01925170068027211,
+      "trailingSilenceSeconds": 0.2384126984126984
+    },
+    "sha256": "0b2347def12e889c0c97744e5567ee22ff126ef06b515909532798a873d376ee",
+    "provenance": {
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+        "licenseFile": "docs/licenses/FluidR3-GM.txt"
+      },
+      "rendering": "FluidSynth dry sampled instruments, Pedalboard filtered room sends; independent vibraphone voices",
+      "pads": "Explicit bounded sine fundamental plus second harmonic at .035, no saw/unison/noise",
+      "percussion": null,
+      "referenceAudioCopied": false,
+      "auditionPerformed": false
+    }
+  },
+  {
+    "id": "maple-street-morning",
+    "title": "Maple Street Morning",
+    "genre": "acoustic",
+    "bpm": 94,
+    "key": 7,
+    "mode": "major",
+    "energy": 0.36,
+    "period": "morning",
+    "meter": 3,
+    "revision": 1,
+    "textures": [
+      "sampled nylon guitar",
+      "sampled marimba",
+      "sampled upright bass",
+      "recorded acoustic drums"
+    ],
+    "seconds": 123.74698412698413,
+    "peakDbFS": -3.9042136669158936,
+    "rmsDbFS": -22.895392715916223,
+    "sections": [
+      {
+        "name": "opening",
+        "bars": 4,
+        "bar": 0,
+        "start": 0.0,
+        "end": 7.659574468085107,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -27.717695640790122
+      },
+      {
+        "name": "the theme",
+        "bars": 16,
+        "bar": 4,
+        "start": 7.659574468085107,
+        "end": 38.297872340425535,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -21.893955924083464
+      },
+      {
+        "name": "a different shore",
+        "bars": 16,
+        "bar": 20,
+        "start": 38.297872340425535,
+        "end": 68.93617021276596,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -24.042089308698
+      },
+      {
+        "name": "weightless",
+        "bars": 8,
+        "bar": 36,
+        "start": 68.93617021276596,
+        "end": 84.25531914893618,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -27.47455487671507
+      },
+      {
+        "name": "homeward",
+        "bars": 16,
+        "bar": 44,
+        "start": 84.25531914893618,
+        "end": 114.8936170212766,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -21.367519984279767
+      },
+      {
+        "name": "last light",
+        "bars": 4,
+        "bar": 60,
+        "start": 114.8936170212766,
+        "end": 122.55319148936171,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -27.18493698483509
+      }
+    ],
+    "composition": {
+      "motif": "D-G-F#-D waltz turn, lyrical wider B and borrowed C-minor colour",
+      "themeBars": 8,
+      "theme": [
+        [
+          [
+            0,
+            74,
+            0.55
+          ],
+          [
+            0.75,
+            79,
+            0.45
+          ],
+          [
+            1.5,
+            78,
+            0.45
+          ],
+          [
+            2.25,
+            74,
+            0.55
+          ]
+        ],
+        [
+          [
+            0,
+            76,
+            0.85
+          ],
+          [
+            1.5,
+            74,
+            0.45
+          ],
+          [
+            2.25,
+            71,
+            0.5
+          ]
+        ],
+        [
+          [
+            0,
+            74,
+            0.55
+          ],
+          [
+            0.75,
+            79,
+            0.45
+          ],
+          [
+            1.5,
+            81,
+            0.45
+          ],
+          [
+            2.25,
+            79,
+            0.55
+          ]
+        ],
+        [
+          [
+            0,
+            78,
+            1.25
+          ],
+          [
+            1.75,
+            74,
+            0.75
+          ]
+        ],
+        [
+          [
+            0,
+            76,
+            0.55
+          ],
+          [
+            0.75,
+            79,
+            0.45
+          ],
+          [
+            1.5,
+            78,
+            0.45
+          ],
+          [
+            2.25,
+            76,
+            0.55
+          ]
+        ],
+        [
+          [
+            0,
+            75,
+            0.85
+          ],
+          [
+            1.5,
+            74,
+            0.45
+          ],
+          [
+            2.25,
+            72,
+            0.5
+          ]
+        ],
+        [
+          [
+            0,
+            74,
+            0.75
+          ],
+          [
+            1,
+            72,
+            0.5
+          ],
+          [
+            2,
+            69,
+            0.75
+          ]
+        ],
+        [
+          [
+            0,
+            71,
+            0.8
+          ],
+          [
+            1.25,
+            67,
+            1.4
+          ]
+        ]
+      ],
+      "relatedTheme": [
+        [
+          [
+            0,
+            76,
+            0.85
+          ],
+          [
+            1.5,
+            79,
+            0.45
+          ],
+          [
+            2.25,
+            83,
+            0.5
+          ]
+        ],
+        [
+          [
+            0,
+            81,
+            1.25
+          ],
+          [
+            1.75,
+            79,
+            0.75
+          ]
+        ],
+        [
+          [
+            0,
+            78,
+            0.85
+          ],
+          [
+            1.5,
+            76,
+            0.45
+          ],
+          [
+            2.25,
+            74,
+            0.5
+          ]
+        ],
+        [
+          [
+            0,
+            73,
+            1.25
+          ],
+          [
+            1.75,
+            69,
+            0.75
+          ]
+        ],
+        [
+          [
+            0,
+            74,
+            0.85
+          ],
+          [
+            1.5,
+            76,
+            0.45
+          ],
+          [
+            2.25,
+            78,
+            0.5
+          ]
+        ],
+        [
+          [
+            0,
+            79,
+            0.85
+          ],
+          [
+            1.5,
+            78,
+            0.45
+          ],
+          [
+            2.25,
+            76,
+            0.5
+          ]
+        ],
+        [
+          [
+            0,
+            74,
+            0.75
+          ],
+          [
+            1,
+            72,
+            0.5
+          ],
+          [
+            2,
+            69,
+            0.75
+          ]
+        ],
+        [
+          [
+            0,
+            71,
+            0.8
+          ],
+          [
+            1.25,
+            67,
+            1.4
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          43,
+          [
+            55,
+            59,
+            62
+          ]
+        ],
+        [
+          40,
+          [
+            55,
+            59,
+            62
+          ]
+        ],
+        [
+          48,
+          [
+            55,
+            60,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            60,
+            62
+          ]
+        ],
+        [
+          48,
+          [
+            55,
+            60,
+            64
+          ]
+        ],
+        [
+          48,
+          [
+            55,
+            60,
+            63
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            60,
+            62
+          ]
+        ],
+        [
+          43,
+          [
+            55,
+            59,
+            62
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          48,
+          [
+            55,
+            60,
+            64
+          ]
+        ],
+        [
+          45,
+          [
+            55,
+            60,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            60,
+            62
+          ]
+        ],
+        [
+          45,
+          [
+            55,
+            61,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            60,
+            62
+          ]
+        ],
+        [
+          43,
+          [
+            55,
+            59,
+            62
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            60,
+            62
+          ]
+        ],
+        [
+          43,
+          [
+            55,
+            59,
+            62
+          ]
+        ]
+      ],
+      "groove": "waltz",
+      "form": "Hint, full theme, related contrasting phrase, exposed fragments, recognisable return and tonic cadence",
+      "randomMelody": false
+    },
+    "sampledParts": {
+      "lead": {
+        "program": 12,
+        "notes": 106,
+        "wholeStemActiveRMSTarget": 0.039,
+        "peakCeiling": 0.15
+      },
+      "comp": {
+        "program": 24,
+        "notes": 255,
+        "wholeStemActiveRMSTarget": 0.029,
+        "peakCeiling": 0.12
+      },
+      "middle": {
+        "program": 0,
+        "notes": 46,
+        "wholeStemActiveRMSTarget": 0.034,
+        "peakCeiling": 0.14
+      },
+      "bass": {
+        "program": 32,
+        "notes": 64,
+        "wholeStemActiveRMSTarget": 0.036,
+        "peakCeiling": 0.15
+      }
+    },
+    "padBreaths": [],
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.84,
+      "truePeakDbFS": -4.17,
+      "loudnessRangeLU": 7.2,
+      "channelCorrelation": 0.9074586891461245,
+      "dcOffset": 2.402571226411965e-07,
+      "leadingQuietSeconds": 0.009659863945578231,
+      "trailingSilenceSeconds": 0.25136054421768705
+    },
+    "sha256": "c9590b44ed83194c7994cd7daa79cd21f9ca20b5ff9efc7157661d400615e741",
+    "provenance": {
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+        "licenseFile": "docs/licenses/FluidR3-GM.txt"
+      },
+      "rendering": "FluidSynth dry sampled instruments, Pedalboard filtered room sends; independent vibraphone voices",
+      "pads": "Explicit bounded sine fundamental plus second harmonic at .035, no saw/unison/noise",
+      "percussion": {
+        "revision": 2,
+        "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+        "license": "CC0-1.0",
+        "repository": "https://github.com/sgossner/VCSL",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "files": [
+          {
+            "file": "snare_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+            "bytes": 305304,
+            "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+          },
+          {
+            "file": "snare_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+            "bytes": 231264,
+            "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+          },
+          {
+            "file": "hat_soft_1.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "bytes": 247272,
+            "sha256": "e1fb54c9a030800038abcebbed1c056fb74bdeec627315f3cd5fd893c6e6b031"
+          },
+          {
+            "file": "hat_soft_2.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "bytes": 250072,
+            "sha256": "72830eafed387f4b4b5904d4d6f1da23e13b48986fa1bc09d7c5771eafbb3a1a"
+          },
+          {
+            "file": "bass_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+            "bytes": 281616,
+            "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+          },
+          {
+            "file": "bass_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+            "bytes": 302396,
+            "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+          }
+        ],
+        "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+        "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+        "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+        "hitCounts": {
+          "kick": 60,
+          "snare": 96,
+          "hat": 144
+        },
+        "auditionPerformed": false
+      },
+      "referenceAudioCopied": false,
+      "auditionPerformed": false
+    }
+  },
+  {
+    "id": "seaside-post-office",
+    "title": "Seaside Post Office",
+    "genre": "acoustic",
+    "bpm": 86,
+    "key": 2,
+    "mode": "major",
+    "energy": 0.42,
+    "period": "day",
+    "meter": 4,
+    "revision": 1,
+    "textures": [
+      "sampled nylon guitar",
+      "sampled piano",
+      "sampled upright bass",
+      "recorded acoustic drums"
+    ],
+    "seconds": 146.66,
+    "peakDbFS": -3.897484540939331,
+    "rmsDbFS": -23.799605614334,
+    "sections": [
+      {
+        "name": "opening",
+        "bars": 4,
+        "bar": 0,
+        "start": 0.0,
+        "end": 11.162790697674419,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -28.866971897850995
+      },
+      {
+        "name": "the theme",
+        "bars": 16,
+        "bar": 4,
+        "start": 11.162790697674419,
+        "end": 55.81395348837209,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -23.454409929370797
+      },
+      {
+        "name": "a different shore",
+        "bars": 8,
+        "bar": 20,
+        "start": 55.81395348837209,
+        "end": 78.13953488372093,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -22.952237608506792
+      },
+      {
+        "name": "weightless",
+        "bars": 4,
+        "bar": 28,
+        "start": 78.13953488372093,
+        "end": 89.30232558139535,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -28.508870587256773
+      },
+      {
+        "name": "homeward",
+        "bars": 16,
+        "bar": 32,
+        "start": 89.30232558139535,
+        "end": 133.95348837209303,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -23.18367923099136
+      },
+      {
+        "name": "last light",
+        "bars": 4,
+        "bar": 48,
+        "start": 133.95348837209303,
+        "end": 145.11627906976744,
+        "instruments": [
+          "lead",
+          "comp",
+          "middle",
+          "bass"
+        ],
+        "rmsDbFS": -28.530916136377826
+      }
+    ],
+    "composition": {
+      "motif": "A-B-D pickup and C# answer, wider G/F# arc, G-minor borrowing and D close",
+      "themeBars": 8,
+      "theme": [
+        [
+          [
+            0,
+            69,
+            0.7
+          ],
+          [
+            1,
+            71,
+            0.45
+          ],
+          [
+            1.75,
+            74,
+            1.1
+          ],
+          [
+            3.25,
+            73,
+            0.45
+          ]
+        ],
+        [
+          [
+            0.25,
+            71,
+            1.1
+          ],
+          [
+            1.75,
+            69,
+            0.65
+          ],
+          [
+            3,
+            66,
+            0.65
+          ]
+        ],
+        [
+          [
+            0,
+            67,
+            0.7
+          ],
+          [
+            1,
+            69,
+            0.45
+          ],
+          [
+            1.75,
+            71,
+            1.1
+          ],
+          [
+            3.25,
+            74,
+            0.45
+          ]
+        ],
+        [
+          [
+            0.25,
+            73,
+            1.1
+          ],
+          [
+            1.75,
+            71,
+            0.65
+          ],
+          [
+            3,
+            69,
+            0.65
+          ]
+        ],
+        [
+          [
+            0,
+            71,
+            0.7
+          ],
+          [
+            1,
+            74,
+            0.45
+          ],
+          [
+            1.75,
+            78,
+            1.1
+          ],
+          [
+            3.25,
+            76,
+            0.45
+          ]
+        ],
+        [
+          [
+            0.25,
+            75,
+            1.1
+          ],
+          [
+            1.75,
+            74,
+            0.65
+          ],
+          [
+            3,
+            70,
+            0.65
+          ]
+        ],
+        [
+          [
+            0,
+            69,
+            0.8
+          ],
+          [
+            1.25,
+            66,
+            0.7
+          ],
+          [
+            2.5,
+            64,
+            1.0
+          ]
+        ],
+        [
+          [
+            0,
+            66,
+            0.8
+          ],
+          [
+            1.25,
+            62,
+            2.0
+          ]
+        ]
+      ],
+      "relatedTheme": [
+        [
+          [
+            0,
+            74,
+            1.4
+          ],
+          [
+            2,
+            71,
+            0.7
+          ],
+          [
+            3,
+            67,
+            0.6
+          ]
+        ],
+        [
+          [
+            0.25,
+            69,
+            1.1
+          ],
+          [
+            1.75,
+            71,
+            0.65
+          ],
+          [
+            3,
+            74,
+            0.65
+          ]
+        ],
+        [
+          [
+            0,
+            76,
+            1.4
+          ],
+          [
+            2,
+            73,
+            0.7
+          ],
+          [
+            3,
+            71,
+            0.6
+          ]
+        ],
+        [
+          [
+            0.25,
+            69,
+            1.1
+          ],
+          [
+            1.75,
+            66,
+            0.65
+          ],
+          [
+            3,
+            64,
+            0.65
+          ]
+        ],
+        [
+          [
+            0,
+            71,
+            1.4
+          ],
+          [
+            2,
+            74,
+            0.7
+          ],
+          [
+            3,
+            76,
+            0.6
+          ]
+        ],
+        [
+          [
+            0.25,
+            75,
+            1.1
+          ],
+          [
+            1.75,
+            74,
+            0.65
+          ],
+          [
+            3,
+            70,
+            0.65
+          ]
+        ],
+        [
+          [
+            0,
+            69,
+            0.8
+          ],
+          [
+            1.25,
+            67,
+            0.7
+          ],
+          [
+            2.5,
+            64,
+            1.0
+          ]
+        ],
+        [
+          [
+            0,
+            66,
+            0.8
+          ],
+          [
+            1.25,
+            62,
+            2.0
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          38,
+          [
+            54,
+            57,
+            61,
+            64
+          ]
+        ],
+        [
+          35,
+          [
+            54,
+            57,
+            61,
+            64
+          ]
+        ],
+        [
+          40,
+          [
+            55,
+            59,
+            62,
+            66
+          ]
+        ],
+        [
+          45,
+          [
+            55,
+            59,
+            61,
+            66
+          ]
+        ],
+        [
+          43,
+          [
+            54,
+            57,
+            59,
+            62
+          ]
+        ],
+        [
+          43,
+          [
+            55,
+            58,
+            62,
+            63
+          ]
+        ],
+        [
+          42,
+          [
+            54,
+            57,
+            62,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            57,
+            61,
+            64
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          43,
+          [
+            54,
+            57,
+            59,
+            62
+          ]
+        ],
+        [
+          40,
+          [
+            55,
+            59,
+            62,
+            66
+          ]
+        ],
+        [
+          45,
+          [
+            55,
+            59,
+            61,
+            66
+          ]
+        ],
+        [
+          42,
+          [
+            54,
+            57,
+            62,
+            64
+          ]
+        ],
+        [
+          43,
+          [
+            54,
+            57,
+            59,
+            62
+          ]
+        ],
+        [
+          43,
+          [
+            55,
+            58,
+            62,
+            63
+          ]
+        ],
+        [
+          45,
+          [
+            55,
+            58,
+            61,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            57,
+            61,
+            64
+          ]
+        ]
+      ],
+      "groove": "coastal bossa",
+      "form": "Hint, full theme, related contrasting phrase, exposed fragments, recognisable return and tonic cadence",
+      "randomMelody": false
+    },
+    "sampledParts": {
+      "lead": {
+        "program": 0,
+        "notes": 110,
+        "wholeStemActiveRMSTarget": 0.039,
+        "peakCeiling": 0.15
+      },
+      "comp": {
+        "program": 24,
+        "notes": 291,
+        "wholeStemActiveRMSTarget": 0.029,
+        "peakCeiling": 0.12
+      },
+      "middle": {
+        "program": 12,
+        "notes": 25,
+        "wholeStemActiveRMSTarget": 0.034,
+        "peakCeiling": 0.14
+      },
+      "bass": {
+        "program": 32,
+        "notes": 87,
+        "wholeStemActiveRMSTarget": 0.036,
+        "peakCeiling": 0.15
+      }
+    },
+    "padBreaths": [],
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -21.16,
+      "truePeakDbFS": -4.16,
+      "loudnessRangeLU": 7.3,
+      "channelCorrelation": 0.7668855788550324,
+      "dcOffset": 2.0423225066679151e-07,
+      "leadingQuietSeconds": 0.008662131519274377,
+      "trailingSilenceSeconds": 0.25804988662131517
+    },
+    "sha256": "41b84df18e2a46a9cf6217e23cfad4808d25194a022b0fe97a95a1a777f8a78d",
+    "provenance": {
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+        "licenseFile": "docs/licenses/FluidR3-GM.txt"
+      },
+      "rendering": "FluidSynth dry sampled instruments, Pedalboard filtered room sends; independent vibraphone voices",
+      "pads": "Explicit bounded sine fundamental plus second harmonic at .035, no saw/unison/noise",
+      "percussion": {
+        "revision": 2,
+        "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+        "license": "CC0-1.0",
+        "repository": "https://github.com/sgossner/VCSL",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "files": [
+          {
+            "file": "snare_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+            "bytes": 305304,
+            "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+          },
+          {
+            "file": "snare_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+            "bytes": 231264,
+            "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+          },
+          {
+            "file": "snare_medium_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+            "bytes": 255456,
+            "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
+          },
+          {
+            "file": "hat_soft_1.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+            "bytes": 247272,
+            "sha256": "e1fb54c9a030800038abcebbed1c056fb74bdeec627315f3cd5fd893c6e6b031"
+          },
+          {
+            "file": "hat_soft_2.wav",
+            "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+            "bytes": 250072,
+            "sha256": "72830eafed387f4b4b5904d4d6f1da23e13b48986fa1bc09d7c5771eafbb3a1a"
+          },
+          {
+            "file": "bass_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+            "bytes": 281616,
+            "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+          },
+          {
+            "file": "bass_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+            "bytes": 302396,
+            "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+          }
+        ],
+        "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+        "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+        "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+        "hitCounts": {
+          "kick": 108,
+          "snare": 90,
+          "hat": 168
+        },
+        "auditionPerformed": false
+      },
+      "referenceAudioCopied": false,
+      "auditionPerformed": false
+    }
+  }
+]

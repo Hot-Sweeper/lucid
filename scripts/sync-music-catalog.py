@@ -12,6 +12,7 @@ ROOT=Path(__file__).resolve().parents[1]
 AUDIO=ROOT/'src/assets/audio'
 CATALOG=ROOT/'src/office/soundtrack.ts'
 BASE_ORDER=['cassette-clouds','neon-afterglow','tidal-memory','petal-breaks','midnight-drift']
+EXPANSION_REPORTS=['cozy-expansion-metrics.json','electronic-expansion-metrics.json','chamber-expansion-metrics.json']
 
 
 def main():
@@ -26,14 +27,31 @@ def main():
     assert set(genre)==set(BASE_ORDER)
     (AUDIO/'genre-metrics.json').write_text(json.dumps([genre[ident] for ident in BASE_ORDER],indent=2)+'\n')
     rows=list(genre.values())+json.loads((AUDIO/'story-metrics.json').read_text())
+    for name in EXPANSION_REPORTS:
+        path=AUDIO/name
+        if not path.exists():raise FileNotFoundError(f'Finish the {name} render before synchronizing.')
+        rows+=json.loads(path.read_text())
+    assert len({row['id'] for row in rows})==len(rows),'Duplicate authored song ID'
     source=CATALOG.read_text()
     for row in rows:
         raw=' '.join(row['textures']).lower();tags=[]
-        for key,aliases in [('pads',['pad','drone']),('bells',['bell','vibraphone','pitched metal']),('piano',['piano','keys','rhodes','electric']),('strings',['string','cello','pizzicato']),('plucked',['pluck','harp','lute','guitar','pizzicato']),('reeds',['woodwind','reed','clarinet']),('breaks',['break']),('bass',['bass','sub','808']),('synth',['analog','arpeggio','surge','synth']),('drums',['drum','hat','percussion','snare','cymbal']),('cowbell',['cowbell'])]:
+        for key,aliases in [('pads',['pad','drone']),('bells',['bell','vibraphone','pitched metal']),('mallets',['mallet','marimba']),('piano',['piano','keys','rhodes','electric']),('strings',['string','cello','pizzicato']),('plucked',['pluck','harp','lute','guitar','pizzicato']),('reeds',['woodwind','reed','clarinet','recorder']),('breaks',['break']),('bass',['bass','sub','808']),('synth',['analog','arpeggio','surge','synth']),('drums',['drum','hat','percussion','snare','cymbal']),('cowbell',['cowbell'])]:
             if any(word in raw for word in aliases):tags.append(key)
         values={key:row[key] for key in ['bpm','genre','energy','key','mode','meter']}
         values['textures']=tags
-        match=re.search(r"(  \{ id: '"+row['id']+r"'.*?)( \},)",source);assert match,row['id']
+        match=re.search(r"(  \{ id: '"+row['id']+r"'.*?)( \},)",source)
+        if not match:
+            assert re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*',row['id']),row['id']
+            assert (AUDIO/(row['id']+'.mp3')).is_file(),row['id']+' has no rendered recording'
+            symbol=''.join(part if i==0 else part.title() for i,part in enumerate(row['id'].split('-')))
+            assert not re.search(r'^import '+symbol+r'\b',source,re.M),symbol+' import collision'
+            source=source.replace("import type { SoundtrackSong }",f"import {symbol} from '../assets/audio/{row['id']}.mp3';\nimport type {{ SoundtrackSong }}")
+            entry=(f"  {{ id: '{row['id']}', title: {json.dumps(row['title'],ensure_ascii=False)}, url: {symbol}, "
+                   f"period: '{row['period']}', bpm: {row['bpm']}, genre: '{row['genre']}', energy: {row['energy']}, "
+                   f"seconds: {row['seconds']:.4f}, key: {row['key']}, mode: '{row['mode']}', meter: {row['meter']}, "
+                   f"textures: {json.dumps(tags)}, gainDb: 0.00 }},")
+            source=source.replace('\n];','\n'+entry+'\n];')
+            match=re.search(r"(  \{ id: '"+row['id']+r"'.*?)( \},)",source);assert match,row['id']
         text=match[1]
         for key,value in values.items():
             encoded="'"+value+"'" if isinstance(value,str) else json.dumps(value)

@@ -1,0 +1,4697 @@
+[
+  {
+    "id": "electric-horizon",
+    "title": "Electric Horizon",
+    "genre": "synthwave",
+    "bpm": 112,
+    "key": 0,
+    "mode": "minor",
+    "energy": 0.63,
+    "period": "evening",
+    "motif": "Eb-G-Eb-D question and falling C-G answer; returning high Bb then a quiet C close",
+    "meter": 4,
+    "sections": [
+      {
+        "name": "street lamps",
+        "start": 0.0,
+        "end": 8.571428571428571,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -28.573837953726446
+      },
+      {
+        "name": "the main road",
+        "start": 8.571428571428571,
+        "end": 42.857142857142854,
+        "foreground": "Main theme",
+        "rmsDbFS": -22.12423203336245
+      },
+      {
+        "name": "a different skyline",
+        "start": 42.857142857142854,
+        "end": 60.0,
+        "foreground": "Related B theme",
+        "rmsDbFS": -23.055809626150566
+      },
+      {
+        "name": "headlights fade",
+        "start": 60.0,
+        "end": 77.14285714285714,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -30.33360155758585
+      },
+      {
+        "name": "homeward current",
+        "start": 77.14285714285714,
+        "end": 111.42857142857143,
+        "foreground": "Main theme",
+        "rmsDbFS": -22.317827548342404
+      },
+      {
+        "name": "last light",
+        "start": 111.42857142857143,
+        "end": 128.57142857142856,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -30.70594097582811
+      }
+    ],
+    "textures": [
+      "native analog synth",
+      "pads",
+      "arpeggio",
+      "bass",
+      "recorded drums"
+    ],
+    "composition": {
+      "themeBars": 8,
+      "theme": [
+        [
+          [
+            0,
+            75,
+            0.5
+          ],
+          [
+            0.75,
+            79,
+            0.5
+          ],
+          [
+            1.5,
+            75,
+            1
+          ],
+          [
+            3,
+            74,
+            0.5
+          ]
+        ],
+        [
+          [
+            0.5,
+            72,
+            1.3
+          ],
+          [
+            2.5,
+            67,
+            1
+          ]
+        ],
+        [
+          [
+            0,
+            75,
+            0.5
+          ],
+          [
+            0.75,
+            79,
+            0.5
+          ],
+          [
+            1.5,
+            82,
+            1
+          ],
+          [
+            3,
+            79,
+            0.5
+          ]
+        ],
+        [
+          [
+            0.5,
+            77,
+            1.3
+          ],
+          [
+            2.5,
+            74,
+            1
+          ]
+        ],
+        [
+          [
+            0,
+            77,
+            0.5
+          ],
+          [
+            0.75,
+            80,
+            0.5
+          ],
+          [
+            1.5,
+            79,
+            1.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            75,
+            1
+          ],
+          [
+            2,
+            72,
+            1.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            74,
+            0.75
+          ],
+          [
+            1.5,
+            72,
+            0.5
+          ],
+          [
+            2.5,
+            71,
+            1
+          ]
+        ],
+        [
+          [
+            0,
+            79,
+            0.6
+          ],
+          [
+            1,
+            75,
+            0.6
+          ],
+          [
+            2.25,
+            72,
+            1.4
+          ]
+        ]
+      ],
+      "relatedAnswer": [
+        [
+          [
+            0.5,
+            80,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            77,
+            1.2
+          ],
+          [
+            2.5,
+            74,
+            0.9
+          ]
+        ],
+        [
+          [
+            0.5,
+            79,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            77,
+            1.2
+          ],
+          [
+            2.5,
+            74,
+            0.9
+          ]
+        ],
+        [
+          [
+            0.5,
+            77,
+            1.3
+          ],
+          [
+            2.25,
+            75,
+            1
+          ]
+        ],
+        [
+          [
+            0.5,
+            74,
+            1.3
+          ],
+          [
+            2.25,
+            72,
+            1
+          ]
+        ],
+        [
+          [
+            0,
+            71,
+            1
+          ],
+          [
+            1.5,
+            74,
+            0.6
+          ],
+          [
+            2.5,
+            71,
+            0.9
+          ]
+        ],
+        [
+          [
+            0.5,
+            72,
+            2.5
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          36,
+          [
+            55,
+            58,
+            62
+          ]
+        ],
+        [
+          32,
+          [
+            55,
+            60,
+            63
+          ]
+        ],
+        [
+          39,
+          [
+            55,
+            58,
+            62
+          ]
+        ],
+        [
+          34,
+          [
+            53,
+            60,
+            62
+          ]
+        ],
+        [
+          41,
+          [
+            56,
+            60,
+            63
+          ]
+        ],
+        [
+          32,
+          [
+            55,
+            60,
+            63
+          ]
+        ],
+        [
+          31,
+          [
+            53,
+            59,
+            62
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            58,
+            60
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          32,
+          [
+            55,
+            60,
+            63
+          ]
+        ],
+        [
+          34,
+          [
+            53,
+            58,
+            62
+          ]
+        ],
+        [
+          39,
+          [
+            55,
+            58,
+            62
+          ]
+        ],
+        [
+          43,
+          [
+            55,
+            58,
+            62
+          ]
+        ],
+        [
+          41,
+          [
+            56,
+            60,
+            63
+          ]
+        ],
+        [
+          38,
+          [
+            53,
+            56,
+            60
+          ]
+        ],
+        [
+          31,
+          [
+            53,
+            59,
+            62
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            58,
+            60
+          ]
+        ]
+      ],
+      "motif": "Eb-G-Eb-D question and falling C-G answer; returning high Bb then a quiet C close",
+      "arrangement": "One primary theme, related contrasting phrase, sparse own-motif interlude, recognizable full return and explicit tonic close"
+    },
+    "stemLevels": {
+      "pad": {
+        "peak": 0.03281699866056442,
+        "rms": 0.0029318344313651323,
+        "events": 177
+      },
+      "lead": {
+        "peak": 0.12922076880931854,
+        "rms": 0.00969711970537901,
+        "events": 101
+      },
+      "answer": {
+        "peak": 0.10589393228292465,
+        "rms": 0.003893788205459714,
+        "events": 16
+      },
+      "arp": {
+        "peak": 0.047464340925216675,
+        "rms": 0.0015771654434502125,
+        "events": 60
+      },
+      "bass": {
+        "peak": 0.11062446236610413,
+        "rms": 0.007311342284083366,
+        "events": 179
+      }
+    },
+    "drumPerformance": {
+      "kick": 110,
+      "snare": 80,
+      "hats": 310,
+      "ghost": 0,
+      "edits": 0
+    },
+    "provenance": {
+      "synth": {
+        "name": "Surge XT",
+        "engineVersion": "1.3.4",
+        "packageVersion": "1.3.4-7",
+        "license": "GPL-3.0-only",
+        "authoringOnly": true,
+        "officialSource": "https://github.com/surge-synthesizer/surge/tree/release_xt_1.3.4",
+        "licenseSource": "https://github.com/surge-synthesizer/surge/blob/release_xt_1.3.4/LICENSE",
+        "packageURL": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/surge-xt-vst3-1.3.4-7-x86_64.pkg.tar.zst",
+        "packageSHA256": "7a6acb25b31e640483474ff297b6c97c922f122cbc0d902b139f1ac01dfc45f4",
+        "testedBinarySHA256": "04d8a5d1eb095946d479bca4d97615b0b91d4beb7145464d8daaf17ee05e8d35",
+        "factoryPresetsUsed": false,
+        "factorySamplesUsed": false,
+        "binarySHA256": "04d8a5d1eb095946d479bca4d97615b0b91d4beb7145464d8daaf17ee05e8d35",
+        "verifiedTestedBinary": true
+      },
+      "nativeParts": {
+        "pad": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "pad",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 32,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": 64,
+            "a_osc_1_unison_voices": "3 voices",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": false,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Wide",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 1350,
+            "a_filter_1_resonance": 9,
+            "a_amp_eg_sustain": 48,
+            "a_filter_eg_sustain": 48,
+            "a_osc_drift": 4.5,
+            "a_width": 94,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_osc_2_shape": -58,
+            "a_osc_2_volume": -18,
+            "a_amp_eg_attack": "401.1 ms",
+            "a_amp_eg_decay": "2.61 s",
+            "a_amp_eg_release": "601.7 ms",
+            "a_filter_eg_attack": "1.79 s",
+            "a_filter_eg_decay": "3.58 s",
+            "a_filter_eg_release": "601.7 ms",
+            "a_osc_1_unison_detune": "4.00 cents",
+            "a_filter_1_feg_mod_amount": "9.98 semitones"
+          },
+          "events": 177,
+          "factoryPreset": false
+        },
+        "lead": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "lead",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 16,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": -45,
+            "a_osc_1_unison_voices": "2 voices",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": false,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Serial 1",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 2400,
+            "a_filter_1_resonance": 13,
+            "a_amp_eg_sustain": 42,
+            "a_filter_eg_sustain": 15,
+            "a_osc_drift": 3.5,
+            "a_width": 82,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_osc_2_shape": -90,
+            "a_osc_2_volume": -17,
+            "a_amp_eg_attack": "8.0 ms",
+            "a_amp_eg_decay": "360.0 ms",
+            "a_amp_eg_release": "179.9 ms",
+            "a_filter_eg_attack": "4.0 ms",
+            "a_filter_eg_decay": "480.3 ms",
+            "a_filter_eg_release": "179.9 ms",
+            "a_osc_1_unison_detune": "4.00 cents",
+            "a_filter_1_feg_mod_amount": "19.01 semitones"
+          },
+          "events": 101,
+          "factoryPreset": false
+        },
+        "answer": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "lead",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 16,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": -45,
+            "a_osc_1_unison_voices": "2 voices",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": false,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Serial 1",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 2400,
+            "a_filter_1_resonance": 13,
+            "a_amp_eg_sustain": 42,
+            "a_filter_eg_sustain": 15,
+            "a_osc_drift": 3.5,
+            "a_width": 82,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_osc_2_shape": -90,
+            "a_osc_2_volume": -17,
+            "a_amp_eg_attack": "8.0 ms",
+            "a_amp_eg_decay": "360.0 ms",
+            "a_amp_eg_release": "179.9 ms",
+            "a_filter_eg_attack": "4.0 ms",
+            "a_filter_eg_decay": "480.3 ms",
+            "a_filter_eg_release": "179.9 ms",
+            "a_osc_1_unison_detune": "4.00 cents",
+            "a_filter_1_feg_mod_amount": "19.01 semitones"
+          },
+          "events": 16,
+          "factoryPreset": false
+        },
+        "arp": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "arp",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 16,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": -35,
+            "a_osc_1_unison_voices": "1 voice",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": true,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Serial 1",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 2700,
+            "a_filter_1_resonance": 16,
+            "a_amp_eg_sustain": 8,
+            "a_filter_eg_sustain": 0,
+            "a_osc_drift": 2,
+            "a_width": 68,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_amp_eg_attack": "4.0 ms",
+            "a_amp_eg_decay": "179.9 ms",
+            "a_amp_eg_release": "69.8 ms",
+            "a_filter_eg_attack": "4.0 ms",
+            "a_filter_eg_decay": "130.0 ms",
+            "a_filter_eg_release": "69.8 ms",
+            "a_osc_1_unison_detune": "0.00 cents",
+            "a_filter_1_feg_mod_amount": "15.94 semitones"
+          },
+          "events": 60,
+          "factoryPreset": false
+        },
+        "bass": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "bass",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 16,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": 0,
+            "a_osc_1_unison_voices": "1 voice",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": false,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Serial 1",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 650,
+            "a_filter_1_resonance": 12,
+            "a_amp_eg_sustain": 36,
+            "a_filter_eg_sustain": 0,
+            "a_osc_drift": 1,
+            "a_width": 0,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_osc_2_shape": -100,
+            "a_osc_2_volume": -16,
+            "a_amp_eg_attack": "4.0 ms",
+            "a_amp_eg_decay": "189.9 ms",
+            "a_amp_eg_release": "94.9 ms",
+            "a_filter_eg_attack": "4.0 ms",
+            "a_filter_eg_decay": "150.2 ms",
+            "a_filter_eg_release": "94.9 ms",
+            "a_osc_1_unison_detune": "0.00 cents",
+            "a_filter_1_feg_mod_amount": "19.97 semitones",
+            "a_osc_1_sub_mix": 28
+          },
+          "events": 179,
+          "factoryPreset": false
+        }
+      },
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0"
+      },
+      "drumSource": {
+        "project": "VCSL",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "manifest": "scripts/assets/vcsl-drums.json",
+        "individualSampleNormalization": false
+      },
+      "effects": "Pedalboard role EQ and filtered parallel room; original feedforward phrase echoes",
+      "factoryPresetsUsed": false,
+      "referenceAudioCopied": false,
+      "auditionPerformed": false,
+      "mastering": "Whole-performance calibration, smooth 0.68 soft ceiling on isolated attacks, then static measured loudness/headroom gain"
+    },
+    "revision": 1,
+    "seconds": 128.63866213151928,
+    "peakDbFS": -6.683398246765137,
+    "rmsDbFS": -23.782177441368326,
+    "sha256": "66397e4c96b2c746dd6a48a38bd9ff011d637f6002bd1826c3a14f5234cf6d0a",
+    "ending": "Written tonic cadence with natural instrument release and short quiet guard",
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.6,
+      "truePeakDbFS": -6.67,
+      "loudnessRangeLU": 11.2,
+      "leadingQuietSeconds": 0.0007482993197278912,
+      "trailingSilenceSeconds": 0.0463718820861678,
+      "channelCorrelation": 0.9676917780567955,
+      "dcOffset": 0.00014479416131507605
+    }
+  },
+  {
+    "id": "violet-motorway",
+    "title": "Violet Motorway",
+    "genre": "synthwave",
+    "bpm": 100,
+    "key": 9,
+    "mode": "major",
+    "energy": 0.58,
+    "period": "evening",
+    "motif": "C#-E-C# syncopation answers a held G#; the F# apex falls through E-D-C# to A",
+    "meter": 4,
+    "sections": [
+      {
+        "name": "street lamps",
+        "start": 0.0,
+        "end": 9.6,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -29.547280648447458
+      },
+      {
+        "name": "the main road",
+        "start": 9.6,
+        "end": 48.0,
+        "foreground": "Main theme",
+        "rmsDbFS": -22.674026570126227
+      },
+      {
+        "name": "a different skyline",
+        "start": 48.0,
+        "end": 67.2,
+        "foreground": "Related B theme",
+        "rmsDbFS": -23.877744803472165
+      },
+      {
+        "name": "headlights fade",
+        "start": 67.2,
+        "end": 86.39999999999999,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -31.993767807991567
+      },
+      {
+        "name": "homeward current",
+        "start": 86.39999999999999,
+        "end": 124.8,
+        "foreground": "Main theme",
+        "rmsDbFS": -22.49407212094884
+      },
+      {
+        "name": "last light",
+        "start": 124.8,
+        "end": 144.0,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -30.864308444797416
+      }
+    ],
+    "textures": [
+      "native analog synth",
+      "pads",
+      "arpeggio",
+      "bass",
+      "recorded drums"
+    ],
+    "composition": {
+      "themeBars": 8,
+      "theme": [
+        [
+          [
+            0.25,
+            73,
+            0.35
+          ],
+          [
+            1,
+            76,
+            0.35
+          ],
+          [
+            1.75,
+            73,
+            0.35
+          ],
+          [
+            2.5,
+            71,
+            1
+          ]
+        ],
+        [
+          [
+            0.25,
+            68,
+            2.2
+          ],
+          [
+            3,
+            71,
+            0.55
+          ]
+        ],
+        [
+          [
+            0.25,
+            73,
+            0.35
+          ],
+          [
+            1,
+            76,
+            0.35
+          ],
+          [
+            1.75,
+            78,
+            1.6
+          ]
+        ],
+        [
+          [
+            0,
+            76,
+            0.8
+          ],
+          [
+            1.5,
+            74,
+            0.65
+          ],
+          [
+            2.5,
+            73,
+            1
+          ]
+        ],
+        [
+          [
+            0.25,
+            73,
+            0.35
+          ],
+          [
+            1,
+            76,
+            0.35
+          ],
+          [
+            1.75,
+            73,
+            0.35
+          ],
+          [
+            2.5,
+            71,
+            1
+          ]
+        ],
+        [
+          [
+            0.25,
+            78,
+            1.5
+          ],
+          [
+            2.5,
+            76,
+            1
+          ]
+        ],
+        [
+          [
+            0,
+            74,
+            0.8
+          ],
+          [
+            1.5,
+            73,
+            0.6
+          ],
+          [
+            2.5,
+            71,
+            1
+          ]
+        ],
+        [
+          [
+            0.25,
+            73,
+            0.8
+          ],
+          [
+            1.5,
+            71,
+            0.6
+          ],
+          [
+            2.5,
+            69,
+            1.1
+          ]
+        ]
+      ],
+      "relatedAnswer": [
+        [
+          [
+            0.5,
+            78,
+            1.5
+          ],
+          [
+            2.5,
+            76,
+            1
+          ]
+        ],
+        [
+          [
+            0.5,
+            76,
+            1.5
+          ],
+          [
+            2.5,
+            71,
+            1
+          ]
+        ],
+        [
+          [
+            0.5,
+            73,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            76,
+            1.5
+          ],
+          [
+            2.5,
+            73,
+            1
+          ]
+        ],
+        [
+          [
+            0.5,
+            74,
+            1.5
+          ],
+          [
+            2.5,
+            73,
+            1
+          ]
+        ],
+        [
+          [
+            0.5,
+            71,
+            2.4
+          ]
+        ],
+        [
+          [
+            0,
+            68,
+            1
+          ],
+          [
+            1.5,
+            71,
+            0.65
+          ],
+          [
+            2.5,
+            68,
+            1
+          ]
+        ],
+        [
+          [
+            0.5,
+            69,
+            2.5
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          33,
+          [
+            56,
+            61,
+            64
+          ]
+        ],
+        [
+          32,
+          [
+            56,
+            59,
+            64
+          ]
+        ],
+        [
+          30,
+          [
+            57,
+            61,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            57,
+            61,
+            66
+          ]
+        ],
+        [
+          37,
+          [
+            56,
+            59,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            57,
+            61,
+            66
+          ]
+        ],
+        [
+          35,
+          [
+            57,
+            62,
+            66
+          ]
+        ],
+        [
+          33,
+          [
+            57,
+            61,
+            64
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          38,
+          [
+            57,
+            61,
+            66
+          ]
+        ],
+        [
+          40,
+          [
+            56,
+            59,
+            64
+          ]
+        ],
+        [
+          37,
+          [
+            56,
+            61,
+            64
+          ]
+        ],
+        [
+          30,
+          [
+            57,
+            61,
+            64
+          ]
+        ],
+        [
+          35,
+          [
+            57,
+            62,
+            66
+          ]
+        ],
+        [
+          38,
+          [
+            57,
+            61,
+            66
+          ]
+        ],
+        [
+          40,
+          [
+            56,
+            59,
+            62
+          ]
+        ],
+        [
+          33,
+          [
+            57,
+            61,
+            64
+          ]
+        ]
+      ],
+      "motif": "C#-E-C# syncopation answers a held G#; the F# apex falls through E-D-C# to A",
+      "arrangement": "One primary theme, related contrasting phrase, sparse own-motif interlude, recognizable full return and explicit tonic close"
+    },
+    "stemLevels": {
+      "pad": {
+        "peak": 0.034990839660167694,
+        "rms": 0.002738553797826171,
+        "events": 177
+      },
+      "lead": {
+        "peak": 0.13197338581085205,
+        "rms": 0.013541210442781448,
+        "events": 105
+      },
+      "answer": {
+        "peak": 0.11877987533807755,
+        "rms": 0.005386269651353359,
+        "events": 16
+      },
+      "arp": {
+        "peak": 0.04722345992922783,
+        "rms": 0.0017358121694996953,
+        "events": 60
+      },
+      "bass": {
+        "peak": 0.10972017049789429,
+        "rms": 0.0066934204660356045,
+        "events": 179
+      }
+    },
+    "drumPerformance": {
+      "kick": 100,
+      "snare": 80,
+      "hats": 310,
+      "ghost": 0,
+      "edits": 0
+    },
+    "provenance": {
+      "synth": {
+        "name": "Surge XT",
+        "engineVersion": "1.3.4",
+        "packageVersion": "1.3.4-7",
+        "license": "GPL-3.0-only",
+        "authoringOnly": true,
+        "officialSource": "https://github.com/surge-synthesizer/surge/tree/release_xt_1.3.4",
+        "licenseSource": "https://github.com/surge-synthesizer/surge/blob/release_xt_1.3.4/LICENSE",
+        "packageURL": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/surge-xt-vst3-1.3.4-7-x86_64.pkg.tar.zst",
+        "packageSHA256": "7a6acb25b31e640483474ff297b6c97c922f122cbc0d902b139f1ac01dfc45f4",
+        "testedBinarySHA256": "04d8a5d1eb095946d479bca4d97615b0b91d4beb7145464d8daaf17ee05e8d35",
+        "factoryPresetsUsed": false,
+        "factorySamplesUsed": false,
+        "binarySHA256": "04d8a5d1eb095946d479bca4d97615b0b91d4beb7145464d8daaf17ee05e8d35",
+        "verifiedTestedBinary": true
+      },
+      "nativeParts": {
+        "pad": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "pad",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 32,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": 64,
+            "a_osc_1_unison_voices": "3 voices",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": false,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Wide",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 1350,
+            "a_filter_1_resonance": 9,
+            "a_amp_eg_sustain": 48,
+            "a_filter_eg_sustain": 48,
+            "a_osc_drift": 4.5,
+            "a_width": 94,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_osc_2_shape": -58,
+            "a_osc_2_volume": -18,
+            "a_amp_eg_attack": "401.1 ms",
+            "a_amp_eg_decay": "2.61 s",
+            "a_amp_eg_release": "601.7 ms",
+            "a_filter_eg_attack": "1.79 s",
+            "a_filter_eg_decay": "3.58 s",
+            "a_filter_eg_release": "601.7 ms",
+            "a_osc_1_unison_detune": "4.00 cents",
+            "a_filter_1_feg_mod_amount": "9.98 semitones"
+          },
+          "events": 177,
+          "factoryPreset": false
+        },
+        "lead": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "lead",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 16,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": -78,
+            "a_osc_1_unison_voices": "2 voices",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": false,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Serial 1",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 2100,
+            "a_filter_1_resonance": 13,
+            "a_amp_eg_sustain": 50,
+            "a_filter_eg_sustain": 15,
+            "a_osc_drift": 3.5,
+            "a_width": 82,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_osc_2_shape": -90,
+            "a_osc_2_volume": -20,
+            "a_amp_eg_attack": "8.0 ms",
+            "a_amp_eg_decay": "530.3 ms",
+            "a_amp_eg_release": "279.7 ms",
+            "a_filter_eg_attack": "4.0 ms",
+            "a_filter_eg_decay": "480.3 ms",
+            "a_filter_eg_release": "279.7 ms",
+            "a_osc_1_unison_detune": "3.00 cents",
+            "a_filter_1_feg_mod_amount": "19.01 semitones"
+          },
+          "events": 105,
+          "factoryPreset": false
+        },
+        "answer": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "lead",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 16,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": -78,
+            "a_osc_1_unison_voices": "2 voices",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": false,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Serial 1",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 2100,
+            "a_filter_1_resonance": 13,
+            "a_amp_eg_sustain": 50,
+            "a_filter_eg_sustain": 15,
+            "a_osc_drift": 3.5,
+            "a_width": 82,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_osc_2_shape": -90,
+            "a_osc_2_volume": -20,
+            "a_amp_eg_attack": "8.0 ms",
+            "a_amp_eg_decay": "530.3 ms",
+            "a_amp_eg_release": "279.7 ms",
+            "a_filter_eg_attack": "4.0 ms",
+            "a_filter_eg_decay": "480.3 ms",
+            "a_filter_eg_release": "279.7 ms",
+            "a_osc_1_unison_detune": "3.00 cents",
+            "a_filter_1_feg_mod_amount": "19.01 semitones"
+          },
+          "events": 16,
+          "factoryPreset": false
+        },
+        "arp": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "arp",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 16,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": -35,
+            "a_osc_1_unison_voices": "1 voice",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": true,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Serial 1",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 2250,
+            "a_filter_1_resonance": 16,
+            "a_amp_eg_sustain": 8,
+            "a_filter_eg_sustain": 0,
+            "a_osc_drift": 2,
+            "a_width": 68,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_amp_eg_attack": "4.0 ms",
+            "a_amp_eg_decay": "240.0 ms",
+            "a_amp_eg_release": "69.8 ms",
+            "a_filter_eg_attack": "4.0 ms",
+            "a_filter_eg_decay": "130.0 ms",
+            "a_filter_eg_release": "69.8 ms",
+            "a_osc_1_unison_detune": "0.00 cents",
+            "a_filter_1_feg_mod_amount": "15.94 semitones"
+          },
+          "events": 60,
+          "factoryPreset": false
+        },
+        "bass": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "bass",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 16,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": 0,
+            "a_osc_1_unison_voices": "1 voice",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": false,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Serial 1",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 650,
+            "a_filter_1_resonance": 12,
+            "a_amp_eg_sustain": 36,
+            "a_filter_eg_sustain": 0,
+            "a_osc_drift": 1,
+            "a_width": 0,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_osc_2_shape": -100,
+            "a_osc_2_volume": -16,
+            "a_amp_eg_attack": "4.0 ms",
+            "a_amp_eg_decay": "189.9 ms",
+            "a_amp_eg_release": "94.9 ms",
+            "a_filter_eg_attack": "4.0 ms",
+            "a_filter_eg_decay": "150.2 ms",
+            "a_filter_eg_release": "94.9 ms",
+            "a_osc_1_unison_detune": "0.00 cents",
+            "a_filter_1_feg_mod_amount": "19.97 semitones",
+            "a_osc_1_sub_mix": 28
+          },
+          "events": 179,
+          "factoryPreset": false
+        }
+      },
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0"
+      },
+      "drumSource": {
+        "project": "VCSL",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "manifest": "scripts/assets/vcsl-drums.json",
+        "individualSampleNormalization": false
+      },
+      "effects": "Pedalboard role EQ and filtered parallel room; original feedforward phrase echoes",
+      "factoryPresetsUsed": false,
+      "referenceAudioCopied": false,
+      "auditionPerformed": false,
+      "mastering": "Whole-performance calibration, smooth 0.68 soft ceiling on isolated attacks, then static measured loudness/headroom gain"
+    },
+    "revision": 1,
+    "seconds": 143.97913832199546,
+    "peakDbFS": -7.408152103424072,
+    "rmsDbFS": -24.25251112192141,
+    "sha256": "18cfcd14c005e97d8b6d7c4355ed8ceccc2dc46aa2e1f9cdc869595ce3664519",
+    "ending": "Written tonic cadence with natural instrument release and short quiet guard",
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.62,
+      "truePeakDbFS": -7.41,
+      "loudnessRangeLU": 13.8,
+      "leadingQuietSeconds": 0.0003854875283446712,
+      "trailingSilenceSeconds": 0.14458049886621316,
+      "channelCorrelation": 0.974756727732797,
+      "dcOffset": 7.007513340795413e-05
+    }
+  },
+  {
+    "id": "city-of-comets",
+    "title": "City of Comets",
+    "genre": "synthwave",
+    "bpm": 118,
+    "key": 4,
+    "mode": "minor",
+    "energy": 0.72,
+    "period": "night",
+    "motif": "G-D leap followed by B-A-G, against a sparse three-plus-three-plus-two pluck pulse",
+    "meter": 4,
+    "sections": [
+      {
+        "name": "street lamps",
+        "start": 0.0,
+        "end": 8.135593220338983,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -30.050159334539003
+      },
+      {
+        "name": "the main road",
+        "start": 8.135593220338983,
+        "end": 40.67796610169491,
+        "foreground": "Main theme",
+        "rmsDbFS": -21.612511950312516
+      },
+      {
+        "name": "a different skyline",
+        "start": 40.67796610169491,
+        "end": 56.94915254237288,
+        "foreground": "Related B theme",
+        "rmsDbFS": -22.130623230577868
+      },
+      {
+        "name": "headlights fade",
+        "start": 56.94915254237288,
+        "end": 73.22033898305085,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -31.04474548576054
+      },
+      {
+        "name": "homeward current",
+        "start": 73.22033898305085,
+        "end": 105.76271186440678,
+        "foreground": "Main theme",
+        "rmsDbFS": -21.674292416927862
+      },
+      {
+        "name": "last light",
+        "start": 105.76271186440678,
+        "end": 122.03389830508473,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -30.653785083439175
+      }
+    ],
+    "textures": [
+      "native analog synth",
+      "pads",
+      "arpeggio",
+      "bass",
+      "recorded drums"
+    ],
+    "composition": {
+      "themeBars": 8,
+      "theme": [
+        [
+          [
+            0,
+            67,
+            0.55
+          ],
+          [
+            0.75,
+            74,
+            1.3
+          ],
+          [
+            2.5,
+            71,
+            0.55
+          ],
+          [
+            3.25,
+            69,
+            0.45
+          ]
+        ],
+        [
+          [
+            0.25,
+            67,
+            2.25
+          ]
+        ],
+        [
+          [
+            0,
+            67,
+            0.55
+          ],
+          [
+            0.75,
+            74,
+            1.3
+          ],
+          [
+            2.5,
+            76,
+            0.55
+          ],
+          [
+            3.25,
+            74,
+            0.45
+          ]
+        ],
+        [
+          [
+            0.25,
+            71,
+            1.25
+          ],
+          [
+            2.5,
+            69,
+            0.95
+          ]
+        ],
+        [
+          [
+            0,
+            72,
+            0.55
+          ],
+          [
+            0.75,
+            76,
+            1.3
+          ],
+          [
+            2.5,
+            74,
+            0.55
+          ],
+          [
+            3.25,
+            71,
+            0.45
+          ]
+        ],
+        [
+          [
+            0.25,
+            67,
+            1.25
+          ],
+          [
+            2.5,
+            64,
+            0.95
+          ]
+        ],
+        [
+          [
+            0,
+            66,
+            0.65
+          ],
+          [
+            1.25,
+            69,
+            0.65
+          ],
+          [
+            2.5,
+            63,
+            1.1
+          ]
+        ],
+        [
+          [
+            0.25,
+            64,
+            2.5
+          ]
+        ]
+      ],
+      "relatedAnswer": [
+        [
+          [
+            0,
+            76,
+            1.5
+          ],
+          [
+            2,
+            74,
+            1.25
+          ]
+        ],
+        [
+          [
+            0,
+            74,
+            1.5
+          ],
+          [
+            2,
+            69,
+            1.25
+          ]
+        ],
+        [
+          [
+            0,
+            71,
+            1.5
+          ],
+          [
+            2,
+            74,
+            1.25
+          ]
+        ],
+        [
+          [
+            0,
+            76,
+            2.7
+          ]
+        ],
+        [
+          [
+            0,
+            72,
+            1.5
+          ],
+          [
+            2,
+            71,
+            1.25
+          ]
+        ],
+        [
+          [
+            0,
+            69,
+            1.5
+          ],
+          [
+            2,
+            66,
+            1.25
+          ]
+        ],
+        [
+          [
+            0,
+            63,
+            1.5
+          ],
+          [
+            2,
+            66,
+            1.25
+          ]
+        ],
+        [
+          [
+            0,
+            64,
+            2.7
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          40,
+          [
+            55,
+            59,
+            62
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            59,
+            64
+          ]
+        ],
+        [
+          31,
+          [
+            55,
+            59,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            57,
+            64
+          ]
+        ],
+        [
+          33,
+          [
+            55,
+            59,
+            64
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            59,
+            64
+          ]
+        ],
+        [
+          35,
+          [
+            54,
+            57,
+            63
+          ]
+        ],
+        [
+          40,
+          [
+            55,
+            59,
+            64
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          36,
+          [
+            55,
+            59,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            57,
+            64
+          ]
+        ],
+        [
+          35,
+          [
+            55,
+            59,
+            62
+          ]
+        ],
+        [
+          40,
+          [
+            55,
+            59,
+            64
+          ]
+        ],
+        [
+          33,
+          [
+            55,
+            59,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            57,
+            62
+          ]
+        ],
+        [
+          35,
+          [
+            54,
+            57,
+            63
+          ]
+        ],
+        [
+          40,
+          [
+            55,
+            59,
+            64
+          ]
+        ]
+      ],
+      "motif": "G-D leap followed by B-A-G, against a sparse three-plus-three-plus-two pluck pulse",
+      "arrangement": "One primary theme, related contrasting phrase, sparse own-motif interlude, recognizable full return and explicit tonic close"
+    },
+    "stemLevels": {
+      "pad": {
+        "peak": 0.028192847967147827,
+        "rms": 0.0004683482984546572,
+        "events": 3
+      },
+      "lead": {
+        "peak": 0.13971982896327972,
+        "rms": 0.006024572532624006,
+        "events": 93
+      },
+      "answer": {
+        "peak": 0.10562143474817276,
+        "rms": 0.0019371021771803498,
+        "events": 16
+      },
+      "arp": {
+        "peak": 0.04453599080443382,
+        "rms": 0.001400026842020452,
+        "events": 147
+      },
+      "bass": {
+        "peak": 0.11618933081626892,
+        "rms": 0.01016313023865223,
+        "events": 339
+      }
+    },
+    "drumPerformance": {
+      "kick": 160,
+      "snare": 80,
+      "hats": 310,
+      "ghost": 0,
+      "edits": 0
+    },
+    "provenance": {
+      "synth": {
+        "name": "Surge XT",
+        "engineVersion": "1.3.4",
+        "packageVersion": "1.3.4-7",
+        "license": "GPL-3.0-only",
+        "authoringOnly": true,
+        "officialSource": "https://github.com/surge-synthesizer/surge/tree/release_xt_1.3.4",
+        "licenseSource": "https://github.com/surge-synthesizer/surge/blob/release_xt_1.3.4/LICENSE",
+        "packageURL": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/surge-xt-vst3-1.3.4-7-x86_64.pkg.tar.zst",
+        "packageSHA256": "7a6acb25b31e640483474ff297b6c97c922f122cbc0d902b139f1ac01dfc45f4",
+        "testedBinarySHA256": "04d8a5d1eb095946d479bca4d97615b0b91d4beb7145464d8daaf17ee05e8d35",
+        "factoryPresetsUsed": false,
+        "factorySamplesUsed": false,
+        "binarySHA256": "04d8a5d1eb095946d479bca4d97615b0b91d4beb7145464d8daaf17ee05e8d35",
+        "verifiedTestedBinary": true
+      },
+      "nativeParts": {
+        "pad": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "pad",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 32,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": 64,
+            "a_osc_1_unison_voices": "3 voices",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": false,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Wide",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 1350,
+            "a_filter_1_resonance": 9,
+            "a_amp_eg_sustain": 48,
+            "a_filter_eg_sustain": 48,
+            "a_osc_drift": 4.5,
+            "a_width": 94,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_osc_2_shape": -58,
+            "a_osc_2_volume": -18,
+            "a_amp_eg_attack": "401.1 ms",
+            "a_amp_eg_decay": "2.61 s",
+            "a_amp_eg_release": "601.7 ms",
+            "a_filter_eg_attack": "1.79 s",
+            "a_filter_eg_decay": "3.58 s",
+            "a_filter_eg_release": "601.7 ms",
+            "a_osc_1_unison_detune": "4.00 cents",
+            "a_filter_1_feg_mod_amount": "9.98 semitones"
+          },
+          "events": 3,
+          "factoryPreset": false
+        },
+        "lead": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "lead",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 16,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": 22,
+            "a_osc_1_unison_voices": "2 voices",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": false,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Serial 1",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 2850,
+            "a_filter_1_resonance": 13,
+            "a_amp_eg_sustain": 28,
+            "a_filter_eg_sustain": 15,
+            "a_osc_drift": 3.5,
+            "a_width": 82,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_osc_2_shape": -90,
+            "a_osc_2_volume": -16,
+            "a_amp_eg_attack": "8.0 ms",
+            "a_amp_eg_decay": "240.0 ms",
+            "a_amp_eg_release": "130.0 ms",
+            "a_filter_eg_attack": "4.0 ms",
+            "a_filter_eg_decay": "480.3 ms",
+            "a_filter_eg_release": "130.0 ms",
+            "a_osc_1_unison_detune": "5.00 cents",
+            "a_filter_1_feg_mod_amount": "19.01 semitones"
+          },
+          "events": 93,
+          "factoryPreset": false
+        },
+        "answer": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "lead",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 16,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": 22,
+            "a_osc_1_unison_voices": "2 voices",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": false,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Serial 1",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 2850,
+            "a_filter_1_resonance": 13,
+            "a_amp_eg_sustain": 28,
+            "a_filter_eg_sustain": 15,
+            "a_osc_drift": 3.5,
+            "a_width": 82,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_osc_2_shape": -90,
+            "a_osc_2_volume": -16,
+            "a_amp_eg_attack": "8.0 ms",
+            "a_amp_eg_decay": "240.0 ms",
+            "a_amp_eg_release": "130.0 ms",
+            "a_filter_eg_attack": "4.0 ms",
+            "a_filter_eg_decay": "480.3 ms",
+            "a_filter_eg_release": "130.0 ms",
+            "a_osc_1_unison_detune": "5.00 cents",
+            "a_filter_1_feg_mod_amount": "19.01 semitones"
+          },
+          "events": 16,
+          "factoryPreset": false
+        },
+        "arp": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "arp",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 16,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": -35,
+            "a_osc_1_unison_voices": "1 voice",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": true,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Serial 1",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 3200,
+            "a_filter_1_resonance": 16,
+            "a_amp_eg_sustain": 8,
+            "a_filter_eg_sustain": 0,
+            "a_osc_drift": 2,
+            "a_width": 68,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_amp_eg_attack": "4.0 ms",
+            "a_amp_eg_decay": "130.0 ms",
+            "a_amp_eg_release": "69.8 ms",
+            "a_filter_eg_attack": "4.0 ms",
+            "a_filter_eg_decay": "130.0 ms",
+            "a_filter_eg_release": "69.8 ms",
+            "a_osc_1_unison_detune": "0.00 cents",
+            "a_filter_1_feg_mod_amount": "15.94 semitones"
+          },
+          "events": 147,
+          "factoryPreset": false
+        },
+        "bass": {
+          "engine": "Surge XT 1.3.4 native VST3 through Pedalboard 0.9.26",
+          "patch": "bass",
+          "settings": {
+            "scene_mode": "Single",
+            "active_scene": 0.0,
+            "global_volume": 0.0,
+            "a_play_mode": "Poly",
+            "polyphony_limit": 16,
+            "a_osc_1_type": "Classic",
+            "a_osc_1_shape": 0,
+            "a_osc_1_unison_voices": "1 voice",
+            "a_osc_1_mute": false,
+            "a_osc_2_type": "Classic",
+            "a_osc_2_mute": false,
+            "a_osc_3_mute": true,
+            "a_filter_configuration": "Serial 1",
+            "a_osc_1_route": "Both",
+            "a_osc_2_route": "Both",
+            "a_feedback": 0,
+            "a_filter_1_type": "LP Vintage Ladder",
+            "a_filter_2_type": "Off",
+            "a_filter_1_cutoff": 650,
+            "a_filter_1_resonance": 12,
+            "a_amp_eg_sustain": 36,
+            "a_filter_eg_sustain": 0,
+            "a_osc_drift": 1,
+            "a_width": 0,
+            "a_velocity_vca_gain": -18,
+            "a_amp_eg_envelope_mode": "Analog",
+            "a_filter_eg_envelope_mode": "Analog",
+            "a_osc_2_shape": -100,
+            "a_osc_2_volume": -16,
+            "a_amp_eg_attack": "4.0 ms",
+            "a_amp_eg_decay": "189.9 ms",
+            "a_amp_eg_release": "94.9 ms",
+            "a_filter_eg_attack": "4.0 ms",
+            "a_filter_eg_decay": "150.2 ms",
+            "a_filter_eg_release": "94.9 ms",
+            "a_osc_1_unison_detune": "0.00 cents",
+            "a_filter_1_feg_mod_amount": "19.97 semitones",
+            "a_osc_1_sub_mix": 28
+          },
+          "events": 339,
+          "factoryPreset": false
+        }
+      },
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0"
+      },
+      "drumSource": {
+        "project": "VCSL",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "manifest": "scripts/assets/vcsl-drums.json",
+        "individualSampleNormalization": false
+      },
+      "effects": "Pedalboard role EQ and filtered parallel room; original feedforward phrase echoes",
+      "factoryPresetsUsed": false,
+      "referenceAudioCopied": false,
+      "auditionPerformed": false,
+      "mastering": "Whole-performance calibration, smooth 0.68 soft ceiling on isolated attacks, then static measured loudness/headroom gain"
+    },
+    "revision": 1,
+    "seconds": 122.22580498866213,
+    "peakDbFS": -5.728165626525879,
+    "rmsDbFS": -23.235371721672642,
+    "sha256": "ef347a6fdaee364f940780feaa4836d2b72a753575dc6933c75a0fbbeda6d782",
+    "ending": "Written tonic cadence with natural instrument release and short quiet guard",
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.62,
+      "truePeakDbFS": -5.71,
+      "loudnessRangeLU": 11.0,
+      "leadingQuietSeconds": 0.0011564625850340137,
+      "trailingSilenceSeconds": 0.1267800453514739,
+      "channelCorrelation": 0.9952416997310969,
+      "dcOffset": 0.00028147228294983506
+    }
+  },
+  {
+    "id": "fern-frequency",
+    "title": "Fern Frequency",
+    "genre": "breakcore",
+    "bpm": 168,
+    "key": 7,
+    "mode": "minor",
+    "energy": 0.77,
+    "period": "day",
+    "motif": "G-D-Eb-D suspension; two-bar piano phrases soften the edited acoustic break",
+    "meter": 4,
+    "sections": [
+      {
+        "name": "first spores",
+        "start": 0.0,
+        "end": 11.428571428571429,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -21.57814616250169
+      },
+      {
+        "name": "the unfolding",
+        "start": 11.428571428571429,
+        "end": 34.285714285714285,
+        "foreground": "Main theme",
+        "rmsDbFS": -20.464969233162282
+      },
+      {
+        "name": "another orbit",
+        "start": 34.285714285714285,
+        "end": 57.142857142857146,
+        "foreground": "Related B theme",
+        "rmsDbFS": -20.790079755757958
+      },
+      {
+        "name": "suspended air",
+        "start": 57.142857142857146,
+        "end": 68.57142857142857,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -21.651220357568427
+      },
+      {
+        "name": "the full bloom",
+        "start": 68.57142857142857,
+        "end": 91.42857142857143,
+        "foreground": "Main theme",
+        "rmsDbFS": -20.456893251138965
+      },
+      {
+        "name": "a quieter answer",
+        "start": 91.42857142857143,
+        "end": 114.28571428571429,
+        "foreground": "Related B theme",
+        "rmsDbFS": -20.995608404837224
+      },
+      {
+        "name": "leaving the garden",
+        "start": 114.28571428571429,
+        "end": 137.14285714285714,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -21.94895800042263
+      }
+    ],
+    "textures": [
+      "sampled piano",
+      "quiet pads",
+      "bass",
+      "recorded break drums"
+    ],
+    "composition": {
+      "themeBars": 16,
+      "theme": [
+        [
+          [
+            0.5,
+            67,
+            1.2
+          ],
+          [
+            2,
+            74,
+            1.5
+          ],
+          [
+            5,
+            75,
+            1.2
+          ],
+          [
+            7,
+            74,
+            0.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            70,
+            2.2
+          ],
+          [
+            4,
+            67,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            67,
+            1.2
+          ],
+          [
+            2,
+            74,
+            1.5
+          ],
+          [
+            5,
+            77,
+            1.2
+          ],
+          [
+            7,
+            75,
+            0.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            72,
+            2.2
+          ],
+          [
+            4,
+            69,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            70,
+            1.2
+          ],
+          [
+            2,
+            75,
+            1.5
+          ],
+          [
+            5,
+            74,
+            1.2
+          ],
+          [
+            7,
+            72,
+            0.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            70,
+            2.2
+          ],
+          [
+            4,
+            67,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            69,
+            1.2
+          ],
+          [
+            2,
+            66,
+            1.5
+          ],
+          [
+            5,
+            69,
+            1.2
+          ],
+          [
+            7,
+            66,
+            0.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            67,
+            5.5
+          ]
+        ]
+      ],
+      "relatedAnswer": [
+        [
+          [
+            0.5,
+            70,
+            2.2
+          ],
+          [
+            4,
+            69,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            69,
+            2.2
+          ],
+          [
+            4,
+            65,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            70,
+            2.2
+          ],
+          [
+            4,
+            74,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            72,
+            2.2
+          ],
+          [
+            4,
+            69,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            67,
+            1.2
+          ],
+          [
+            2,
+            70,
+            1.5
+          ],
+          [
+            5,
+            75,
+            1.8
+          ]
+        ],
+        [
+          [
+            0.5,
+            74,
+            2.2
+          ],
+          [
+            4,
+            70,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            69,
+            2.2
+          ],
+          [
+            4,
+            66,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            67,
+            5.5
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          31,
+          [
+            58,
+            62,
+            65
+          ]
+        ],
+        [
+          39,
+          [
+            55,
+            58,
+            62
+          ]
+        ],
+        [
+          34,
+          [
+            57,
+            62,
+            65
+          ]
+        ],
+        [
+          29,
+          [
+            57,
+            60,
+            67
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            58,
+            62
+          ]
+        ],
+        [
+          39,
+          [
+            55,
+            58,
+            62
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            60,
+            63
+          ]
+        ],
+        [
+          31,
+          [
+            55,
+            58,
+            62
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          39,
+          [
+            55,
+            58,
+            62
+          ]
+        ],
+        [
+          29,
+          [
+            57,
+            60,
+            65
+          ]
+        ],
+        [
+          34,
+          [
+            57,
+            62,
+            65
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            57,
+            60
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            58,
+            62
+          ]
+        ],
+        [
+          39,
+          [
+            55,
+            58,
+            62
+          ]
+        ],
+        [
+          38,
+          [
+            54,
+            60,
+            63
+          ]
+        ],
+        [
+          31,
+          [
+            55,
+            58,
+            62
+          ]
+        ]
+      ],
+      "motif": "G-D-Eb-D suspension; two-bar piano phrases soften the edited acoustic break",
+      "arrangement": "One primary theme, related contrasting phrase, sparse own-motif interlude, recognizable full return and explicit tonic close"
+    },
+    "stemLevels": {
+      "pad": {
+        "peak": 0.028618361800909042,
+        "rms": 0.004890078213065863,
+        "events": 144
+      },
+      "lead": {
+        "peak": 0.10466236621141434,
+        "rms": 0.008681723847985268,
+        "events": 55
+      },
+      "answer": {
+        "peak": 0.08416008204221725,
+        "rms": 0.0058599114418029785,
+        "events": 34
+      }
+    },
+    "drumPerformance": {
+      "kick": 160,
+      "snare": 112,
+      "hats": 496,
+      "ghost": 160,
+      "edits": 24
+    },
+    "provenance": {
+      "synth": "Original additive quiet pads and stable fundamental sub",
+      "nativeParts": {
+        "lead": {
+          "renderer": "FluidSynth",
+          "program": 0,
+          "independentBellVoices": false
+        },
+        "answer": {
+          "renderer": "FluidSynth",
+          "program": 0,
+          "independentBellVoices": false
+        }
+      },
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0"
+      },
+      "drumSource": {
+        "project": "VCSL",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "manifest": "scripts/assets/vcsl-drums.json",
+        "individualSampleNormalization": false
+      },
+      "effects": "Pedalboard role EQ and filtered parallel room; original feedforward phrase echoes",
+      "factoryPresetsUsed": false,
+      "referenceAudioCopied": false,
+      "auditionPerformed": false,
+      "mastering": "Whole-performance calibration, smooth 0.68 soft ceiling on isolated attacks, then static measured loudness/headroom gain"
+    },
+    "revision": 1,
+    "seconds": 137.41444444444446,
+    "peakDbFS": -6.137239933013916,
+    "rmsDbFS": -21.01828421370449,
+    "sha256": "4cd6ba6980633fd0603ee082ebaa39ff783a9954bbdd890ab78f441d4736c764",
+    "ending": "Written tonic cadence with natural instrument release and short quiet guard",
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.61,
+      "truePeakDbFS": -6.13,
+      "loudnessRangeLU": 3.6,
+      "leadingQuietSeconds": 0.002380952380952381,
+      "trailingSilenceSeconds": 0.24476190476190476,
+      "channelCorrelation": 0.9399170877578609,
+      "dcOffset": 7.031254790490493e-05
+    }
+  },
+  {
+    "id": "blue-hour-breaks",
+    "title": "Blue Hour Breaks",
+    "genre": "breakcore",
+    "bpm": 160,
+    "key": 11,
+    "mode": "minor",
+    "energy": 0.74,
+    "period": "evening",
+    "motif": "Held B-F# rise and D-C# sigh, answered by a related electric-piano phrase",
+    "meter": 4,
+    "sections": [
+      {
+        "name": "first spores",
+        "start": 0.0,
+        "end": 12.0,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -23.270374038335188
+      },
+      {
+        "name": "the unfolding",
+        "start": 12.0,
+        "end": 36.0,
+        "foreground": "Main theme",
+        "rmsDbFS": -20.53999150704528
+      },
+      {
+        "name": "another orbit",
+        "start": 36.0,
+        "end": 60.0,
+        "foreground": "Related B theme",
+        "rmsDbFS": -22.029433290310664
+      },
+      {
+        "name": "suspended air",
+        "start": 60.0,
+        "end": 72.0,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -23.998178692036895
+      },
+      {
+        "name": "the full bloom",
+        "start": 72.0,
+        "end": 96.0,
+        "foreground": "Main theme",
+        "rmsDbFS": -20.55743644096716
+      },
+      {
+        "name": "a quieter answer",
+        "start": 96.0,
+        "end": 120.0,
+        "foreground": "Related B theme",
+        "rmsDbFS": -22.196405335325082
+      },
+      {
+        "name": "leaving the garden",
+        "start": 120.0,
+        "end": 144.0,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -24.034676288638256
+      }
+    ],
+    "textures": [
+      "sampled electric piano",
+      "quiet pads",
+      "bass",
+      "recorded break drums"
+    ],
+    "composition": {
+      "themeBars": 16,
+      "theme": [
+        [
+          [
+            0,
+            71,
+            1.4
+          ],
+          [
+            2,
+            78,
+            1.2
+          ],
+          [
+            4.5,
+            74,
+            1.1
+          ],
+          [
+            6.5,
+            73,
+            1
+          ]
+        ],
+        [
+          [
+            0.5,
+            71,
+            3.0
+          ],
+          [
+            5,
+            69,
+            1.7
+          ]
+        ],
+        [
+          [
+            0,
+            73,
+            1.4
+          ],
+          [
+            2,
+            76,
+            1.2
+          ],
+          [
+            4.5,
+            73,
+            1.1
+          ],
+          [
+            6.5,
+            71,
+            1
+          ]
+        ],
+        [
+          [
+            0.5,
+            68,
+            3
+          ],
+          [
+            5,
+            66,
+            1.7
+          ]
+        ],
+        [
+          [
+            0,
+            71,
+            1.4
+          ],
+          [
+            2,
+            74,
+            1.2
+          ],
+          [
+            4.5,
+            78,
+            2.1
+          ]
+        ],
+        [
+          [
+            0.5,
+            76,
+            1.4
+          ],
+          [
+            2.5,
+            74,
+            1
+          ],
+          [
+            5,
+            71,
+            1.7
+          ]
+        ],
+        [
+          [
+            0,
+            73,
+            1.4
+          ],
+          [
+            2,
+            70,
+            1.2
+          ],
+          [
+            4.5,
+            73,
+            2.1
+          ]
+        ],
+        [
+          [
+            0.5,
+            74,
+            1.7
+          ],
+          [
+            3,
+            73,
+            1
+          ],
+          [
+            5,
+            71,
+            2.1
+          ]
+        ]
+      ],
+      "relatedAnswer": [
+        [
+          [
+            0.5,
+            74,
+            2.4
+          ],
+          [
+            4,
+            71,
+            2.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            73,
+            2.4
+          ],
+          [
+            4,
+            69,
+            2.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            74,
+            2.4
+          ],
+          [
+            4,
+            78,
+            2.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            76,
+            2.4
+          ],
+          [
+            4,
+            73,
+            2.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            71,
+            2.4
+          ],
+          [
+            4,
+            67,
+            2.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            66,
+            2.4
+          ],
+          [
+            4,
+            67,
+            2.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            70,
+            2.4
+          ],
+          [
+            4,
+            73,
+            2.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            71,
+            5.5
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          35,
+          [
+            57,
+            61,
+            66
+          ]
+        ],
+        [
+          38,
+          [
+            57,
+            61,
+            66
+          ]
+        ],
+        [
+          33,
+          [
+            56,
+            61,
+            64
+          ]
+        ],
+        [
+          40,
+          [
+            56,
+            59,
+            66
+          ]
+        ],
+        [
+          31,
+          [
+            55,
+            59,
+            62
+          ]
+        ],
+        [
+          40,
+          [
+            55,
+            59,
+            62
+          ]
+        ],
+        [
+          30,
+          [
+            54,
+            58,
+            61
+          ]
+        ],
+        [
+          35,
+          [
+            54,
+            57,
+            62
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          31,
+          [
+            55,
+            59,
+            62
+          ]
+        ],
+        [
+          33,
+          [
+            57,
+            61,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            57,
+            61,
+            66
+          ]
+        ],
+        [
+          30,
+          [
+            54,
+            58,
+            61
+          ]
+        ],
+        [
+          40,
+          [
+            55,
+            59,
+            62
+          ]
+        ],
+        [
+          31,
+          [
+            55,
+            59,
+            62
+          ]
+        ],
+        [
+          30,
+          [
+            54,
+            58,
+            61
+          ]
+        ],
+        [
+          35,
+          [
+            54,
+            57,
+            62
+          ]
+        ]
+      ],
+      "motif": "Held B-F# rise and D-C# sigh, answered by a related electric-piano phrase",
+      "arrangement": "One primary theme, related contrasting phrase, sparse own-motif interlude, recognizable full return and explicit tonic close"
+    },
+    "stemLevels": {
+      "pad": {
+        "peak": 0.028217481449246407,
+        "rms": 0.00489466730505228,
+        "events": 144
+      },
+      "lead": {
+        "peak": 0.10898727923631668,
+        "rms": 0.023303750902414322,
+        "events": 57
+      },
+      "answer": {
+        "peak": 0.08307691663503647,
+        "rms": 0.015025372616946697,
+        "events": 32
+      }
+    },
+    "drumPerformance": {
+      "kick": 160,
+      "snare": 112,
+      "hats": 496,
+      "ghost": 160,
+      "edits": 16
+    },
+    "provenance": {
+      "synth": "Original additive quiet pads and stable fundamental sub",
+      "nativeParts": {
+        "lead": {
+          "renderer": "FluidSynth",
+          "program": 4,
+          "independentBellVoices": false
+        },
+        "answer": {
+          "renderer": "FluidSynth",
+          "program": 4,
+          "independentBellVoices": false
+        }
+      },
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0"
+      },
+      "drumSource": {
+        "project": "VCSL",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "manifest": "scripts/assets/vcsl-drums.json",
+        "individualSampleNormalization": false
+      },
+      "effects": "Pedalboard role EQ and filtered parallel room; original feedforward phrase echoes",
+      "factoryPresetsUsed": false,
+      "referenceAudioCopied": false,
+      "auditionPerformed": false,
+      "mastering": "Whole-performance calibration, smooth 0.68 soft ceiling on isolated attacks, then static measured loudness/headroom gain"
+    },
+    "revision": 1,
+    "seconds": 144.27659863945578,
+    "peakDbFS": -7.96055269241333,
+    "rmsDbFS": -21.96702608087304,
+    "sha256": "1aa77f7e9ca3f49427fa9193f71a5853aa56b072fd37a6742a0a43314dc6b920",
+    "ending": "Written tonic cadence with natural instrument release and short quiet guard",
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.63,
+      "truePeakDbFS": -7.96,
+      "loudnessRangeLU": 5.6,
+      "leadingQuietSeconds": 0.0025396825396825397,
+      "trailingSilenceSeconds": 0.25891156462585035,
+      "channelCorrelation": 0.9753119609460935,
+      "dcOffset": 7.09587984601967e-05
+    }
+  },
+  {
+    "id": "orbital-bloom",
+    "title": "Orbital Bloom",
+    "genre": "breakcore",
+    "bpm": 174,
+    "key": 5,
+    "mode": "minor",
+    "energy": 0.86,
+    "period": "night",
+    "motif": "Ab-C-Eb reaching cell, repeated toward G before falling into the F-minor cadence",
+    "meter": 4,
+    "sections": [
+      {
+        "name": "first spores",
+        "start": 0.0,
+        "end": 11.03448275862069,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -21.70328845515579
+      },
+      {
+        "name": "the unfolding",
+        "start": 11.03448275862069,
+        "end": 33.10344827586207,
+        "foreground": "Main theme",
+        "rmsDbFS": -20.651143732442986
+      },
+      {
+        "name": "another orbit",
+        "start": 33.10344827586207,
+        "end": 55.17241379310345,
+        "foreground": "Related B theme",
+        "rmsDbFS": -20.445751913572984
+      },
+      {
+        "name": "suspended air",
+        "start": 55.17241379310345,
+        "end": 66.20689655172414,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -21.693978422479574
+      },
+      {
+        "name": "the full bloom",
+        "start": 66.20689655172414,
+        "end": 88.27586206896552,
+        "foreground": "Main theme",
+        "rmsDbFS": -20.658370462470465
+      },
+      {
+        "name": "a quieter answer",
+        "start": 88.27586206896552,
+        "end": 110.3448275862069,
+        "foreground": "Related B theme",
+        "rmsDbFS": -20.685306879691044
+      },
+      {
+        "name": "leaving the garden",
+        "start": 110.3448275862069,
+        "end": 132.41379310344828,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -22.129951374061502
+      }
+    ],
+    "textures": [
+      "sampled piano",
+      "quiet pads",
+      "bass",
+      "recorded break drums",
+      "natural vibraphone bells"
+    ],
+    "composition": {
+      "themeBars": 16,
+      "theme": [
+        [
+          [
+            0.75,
+            68,
+            0.8
+          ],
+          [
+            2,
+            72,
+            1.1
+          ],
+          [
+            4.5,
+            75,
+            1.5
+          ],
+          [
+            7,
+            72,
+            0.5
+          ]
+        ],
+        [
+          [
+            0.75,
+            73,
+            2.0
+          ],
+          [
+            4.5,
+            72,
+            2.1
+          ]
+        ],
+        [
+          [
+            0.75,
+            68,
+            0.8
+          ],
+          [
+            2,
+            72,
+            1.1
+          ],
+          [
+            4.5,
+            79,
+            1.5
+          ],
+          [
+            7,
+            75,
+            0.5
+          ]
+        ],
+        [
+          [
+            0.75,
+            77,
+            2
+          ],
+          [
+            4.5,
+            75,
+            2.1
+          ]
+        ],
+        [
+          [
+            0.75,
+            77,
+            0.8
+          ],
+          [
+            2,
+            72,
+            1.1
+          ],
+          [
+            4.5,
+            68,
+            1.5
+          ],
+          [
+            7,
+            70,
+            0.5
+          ]
+        ],
+        [
+          [
+            0.75,
+            73,
+            2
+          ],
+          [
+            4.5,
+            72,
+            2.1
+          ]
+        ],
+        [
+          [
+            0.75,
+            70,
+            0.8
+          ],
+          [
+            2,
+            67,
+            1.1
+          ],
+          [
+            4.5,
+            64,
+            1.5
+          ],
+          [
+            7,
+            67,
+            0.5
+          ]
+        ],
+        [
+          [
+            0.75,
+            65,
+            5.7
+          ]
+        ]
+      ],
+      "relatedAnswer": [
+        [
+          [
+            0.75,
+            77,
+            2
+          ],
+          [
+            4.5,
+            75,
+            2.1
+          ]
+        ],
+        [
+          [
+            0.75,
+            75,
+            2
+          ],
+          [
+            4.5,
+            70,
+            2.1
+          ]
+        ],
+        [
+          [
+            0.75,
+            72,
+            2
+          ],
+          [
+            4.5,
+            68,
+            2.1
+          ]
+        ],
+        [
+          [
+            0.75,
+            67,
+            2
+          ],
+          [
+            4.5,
+            64,
+            2.1
+          ]
+        ],
+        [
+          [
+            0.75,
+            65,
+            0.8
+          ],
+          [
+            2,
+            68,
+            1.1
+          ],
+          [
+            4.5,
+            72,
+            2.1
+          ]
+        ],
+        [
+          [
+            0.75,
+            73,
+            2
+          ],
+          [
+            4.5,
+            72,
+            2.1
+          ]
+        ],
+        [
+          [
+            0.75,
+            70,
+            2
+          ],
+          [
+            4.5,
+            67,
+            2.1
+          ]
+        ],
+        [
+          [
+            0.75,
+            65,
+            5.7
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          29,
+          [
+            56,
+            60,
+            63
+          ]
+        ],
+        [
+          37,
+          [
+            56,
+            60,
+            65
+          ]
+        ],
+        [
+          32,
+          [
+            55,
+            60,
+            63
+          ]
+        ],
+        [
+          39,
+          [
+            55,
+            58,
+            65
+          ]
+        ],
+        [
+          34,
+          [
+            56,
+            60,
+            65
+          ]
+        ],
+        [
+          37,
+          [
+            56,
+            60,
+            65
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            58,
+            64
+          ]
+        ],
+        [
+          29,
+          [
+            56,
+            60,
+            65
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          37,
+          [
+            56,
+            60,
+            65
+          ]
+        ],
+        [
+          39,
+          [
+            55,
+            58,
+            63
+          ]
+        ],
+        [
+          32,
+          [
+            55,
+            60,
+            63
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            58,
+            64
+          ]
+        ],
+        [
+          34,
+          [
+            56,
+            60,
+            65
+          ]
+        ],
+        [
+          37,
+          [
+            56,
+            60,
+            65
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            58,
+            64
+          ]
+        ],
+        [
+          29,
+          [
+            56,
+            60,
+            65
+          ]
+        ]
+      ],
+      "motif": "Ab-C-Eb reaching cell, repeated toward G before falling into the F-minor cadence",
+      "arrangement": "One primary theme, related contrasting phrase, sparse own-motif interlude, recognizable full return and explicit tonic close"
+    },
+    "stemLevels": {
+      "pad": {
+        "peak": 0.026287436485290527,
+        "rms": 0.004923763684928417,
+        "events": 144
+      },
+      "lead": {
+        "peak": 0.10510171949863434,
+        "rms": 0.007827243767678738,
+        "events": 55
+      },
+      "answer": {
+        "peak": 0.08183079957962036,
+        "rms": 0.008634538389742374,
+        "events": 34
+      }
+    },
+    "drumPerformance": {
+      "kick": 172,
+      "snare": 112,
+      "hats": 496,
+      "ghost": 160,
+      "edits": 48
+    },
+    "provenance": {
+      "synth": "Original additive quiet pads and stable fundamental sub",
+      "nativeParts": {
+        "lead": {
+          "renderer": "FluidSynth",
+          "program": 0,
+          "independentBellVoices": false
+        },
+        "answer": {
+          "renderer": "FluidSynth",
+          "program": 11,
+          "independentBellVoices": true
+        }
+      },
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0"
+      },
+      "drumSource": {
+        "project": "VCSL",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "manifest": "scripts/assets/vcsl-drums.json",
+        "individualSampleNormalization": false
+      },
+      "effects": "Pedalboard role EQ and filtered parallel room; original feedforward phrase echoes",
+      "factoryPresetsUsed": false,
+      "referenceAudioCopied": false,
+      "auditionPerformed": false,
+      "mastering": "Whole-performance calibration, smooth 0.68 soft ceiling on isolated attacks, then static measured loudness/headroom gain"
+    },
+    "revision": 1,
+    "seconds": 132.51102040816326,
+    "peakDbFS": -7.72016716003418,
+    "rmsDbFS": -21.003859737503234,
+    "sha256": "1ba3286409b9131b2b6e6bcd70148857a9def20c1034d85f4c4ec36b0fe4f2be",
+    "ending": "Written tonic cadence with natural instrument release and short quiet guard",
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.61,
+      "truePeakDbFS": -7.71,
+      "loudnessRangeLU": 3.1,
+      "leadingQuietSeconds": 0.002471655328798186,
+      "trailingSilenceSeconds": 0.09263038548752835,
+      "channelCorrelation": 0.9386154114422676,
+      "dcOffset": 7.44821663829498e-05
+    }
+  },
+  {
+    "id": "mercury-boulevard",
+    "title": "Mercury Boulevard",
+    "genre": "phonk",
+    "bpm": 78,
+    "key": 1,
+    "mode": "minor",
+    "energy": 0.47,
+    "period": "night",
+    "motif": "Repeated G#-G#-B metal-soft mallet cell with a C# answer; quiet upper-key B section",
+    "meter": 4,
+    "sections": [
+      {
+        "name": "radio opens",
+        "start": 0.0,
+        "end": 12.307692307692308,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -22.793402745282233
+      },
+      {
+        "name": "night signal",
+        "start": 12.307692307692308,
+        "end": 36.92307692307693,
+        "foreground": "Main theme",
+        "rmsDbFS": -21.47244063446905
+      },
+      {
+        "name": "a warmer frequency",
+        "start": 36.92307692307693,
+        "end": 61.53846153846154,
+        "foreground": "Related B theme",
+        "rmsDbFS": -20.52226753944819
+      },
+      {
+        "name": "under the bridge",
+        "start": 61.53846153846154,
+        "end": 86.15384615384616,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -23.036122126266967
+      },
+      {
+        "name": "the signal returns",
+        "start": 86.15384615384616,
+        "end": 135.3846153846154,
+        "foreground": "Main theme",
+        "rmsDbFS": -21.444728488357335
+      },
+      {
+        "name": "radio closes",
+        "start": 135.3846153846154,
+        "end": 147.6923076923077,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -23.1723912343862
+      }
+    ],
+    "textures": [
+      "natural vibraphone bells",
+      "quiet pads",
+      "sub bass",
+      "recorded drums",
+      "pitched metal accents"
+    ],
+    "composition": {
+      "themeBars": 8,
+      "theme": [
+        [
+          [
+            0.5,
+            68,
+            0.45
+          ],
+          [
+            1.5,
+            68,
+            0.45
+          ],
+          [
+            2.5,
+            71,
+            1
+          ]
+        ],
+        [
+          [
+            0.5,
+            73,
+            1.5
+          ],
+          [
+            2.5,
+            71,
+            0.75
+          ]
+        ],
+        [
+          [
+            0.5,
+            69,
+            0.45
+          ],
+          [
+            1.5,
+            68,
+            0.45
+          ],
+          [
+            2.5,
+            66,
+            1
+          ]
+        ],
+        [
+          [
+            0.5,
+            68,
+            1.5
+          ],
+          [
+            2.5,
+            63,
+            0.75
+          ]
+        ],
+        [
+          [
+            0.5,
+            68,
+            0.45
+          ],
+          [
+            1.5,
+            68,
+            0.45
+          ],
+          [
+            2.5,
+            71,
+            1
+          ]
+        ],
+        [
+          [
+            0.5,
+            73,
+            1.5
+          ],
+          [
+            2.5,
+            69,
+            0.75
+          ]
+        ],
+        [
+          [
+            0.5,
+            66,
+            0.45
+          ],
+          [
+            1.5,
+            63,
+            0.45
+          ],
+          [
+            2.5,
+            60,
+            1
+          ]
+        ],
+        [
+          [
+            0.5,
+            61,
+            2.5
+          ]
+        ]
+      ],
+      "relatedAnswer": [
+        [
+          [
+            0.5,
+            76,
+            1.4
+          ],
+          [
+            2.5,
+            73,
+            0.85
+          ]
+        ],
+        [
+          [
+            0.5,
+            75,
+            1.4
+          ],
+          [
+            2.5,
+            71,
+            0.85
+          ]
+        ],
+        [
+          [
+            0.5,
+            73,
+            1.4
+          ],
+          [
+            2.5,
+            71,
+            0.85
+          ]
+        ],
+        [
+          [
+            0.5,
+            68,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            69,
+            1.4
+          ],
+          [
+            2.5,
+            66,
+            0.85
+          ]
+        ],
+        [
+          [
+            0.5,
+            64,
+            2.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            63,
+            1.4
+          ],
+          [
+            2.5,
+            60,
+            0.85
+          ]
+        ],
+        [
+          [
+            0.5,
+            61,
+            2.4
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          37,
+          [
+            56,
+            59,
+            63
+          ]
+        ],
+        [
+          33,
+          [
+            56,
+            61,
+            64
+          ]
+        ],
+        [
+          30,
+          [
+            57,
+            61,
+            64
+          ]
+        ],
+        [
+          32,
+          [
+            56,
+            60,
+            63
+          ]
+        ],
+        [
+          40,
+          [
+            56,
+            59,
+            63
+          ]
+        ],
+        [
+          30,
+          [
+            57,
+            61,
+            64
+          ]
+        ],
+        [
+          32,
+          [
+            54,
+            60,
+            63
+          ]
+        ],
+        [
+          37,
+          [
+            56,
+            59,
+            61
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          33,
+          [
+            56,
+            61,
+            64
+          ]
+        ],
+        [
+          35,
+          [
+            54,
+            59,
+            63
+          ]
+        ],
+        [
+          40,
+          [
+            56,
+            59,
+            63
+          ]
+        ],
+        [
+          32,
+          [
+            56,
+            60,
+            63
+          ]
+        ],
+        [
+          30,
+          [
+            57,
+            61,
+            64
+          ]
+        ],
+        [
+          33,
+          [
+            56,
+            61,
+            64
+          ]
+        ],
+        [
+          32,
+          [
+            54,
+            60,
+            63
+          ]
+        ],
+        [
+          37,
+          [
+            56,
+            59,
+            61
+          ]
+        ]
+      ],
+      "motif": "Repeated G#-G#-B metal-soft mallet cell with a C# answer; quiet upper-key B section",
+      "arrangement": "One primary theme, related contrasting phrase, sparse own-motif interlude, recognizable full return and explicit tonic close"
+    },
+    "stemLevels": {
+      "pad": {
+        "peak": 0.03666319698095322,
+        "rms": 0.005882559344172478,
+        "events": 144
+      },
+      "lead": {
+        "peak": 0.09273967146873474,
+        "rms": 0.013547426089644432,
+        "events": 64
+      },
+      "answer": {
+        "peak": 0.09733924269676208,
+        "rms": 0.010309221222996712,
+        "events": 15
+      }
+    },
+    "drumPerformance": {
+      "kick": 80,
+      "snare": 64,
+      "hats": 448,
+      "ghost": 8,
+      "edits": 0
+    },
+    "provenance": {
+      "synth": "Original additive quiet pads and stable fundamental sub",
+      "nativeParts": {
+        "lead": {
+          "renderer": "FluidSynth",
+          "program": 11,
+          "independentBellVoices": true
+        },
+        "answer": {
+          "renderer": "FluidSynth",
+          "program": 4,
+          "independentBellVoices": false
+        }
+      },
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0"
+      },
+      "drumSource": {
+        "project": "VCSL",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "manifest": "scripts/assets/vcsl-drums.json",
+        "individualSampleNormalization": false
+      },
+      "effects": "Pedalboard role EQ and filtered parallel room; original feedforward phrase echoes",
+      "factoryPresetsUsed": false,
+      "referenceAudioCopied": false,
+      "auditionPerformed": false,
+      "subBassDucking": {
+        "kickEvents": 80,
+        "depth": 0.4,
+        "lookaheadMs": 4,
+        "recoveryMs": 180,
+        "otherStemsDucked": false
+      },
+      "mastering": "Whole-performance calibration, smooth 0.68 soft ceiling on isolated attacks, then static measured loudness/headroom gain"
+    },
+    "revision": 1,
+    "seconds": 147.07045351473923,
+    "peakDbFS": -9.407793998718262,
+    "rmsDbFS": -21.719109708485572,
+    "sha256": "04561a64967c0cc3653e7d134583d908bfaeb7168d6a45d6e8c18cd2139c5658",
+    "ending": "Written tonic cadence with natural instrument release and short quiet guard",
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.62,
+      "truePeakDbFS": -9.41,
+      "loudnessRangeLU": 5.3,
+      "leadingQuietSeconds": 0.0022448979591836735,
+      "trailingSilenceSeconds": 0.035192743764172335,
+      "channelCorrelation": 0.9502948317232985,
+      "dcOffset": 6.84768456267193e-05
+    }
+  },
+  {
+    "id": "velvet-transmission",
+    "title": "Velvet Transmission",
+    "genre": "phonk",
+    "bpm": 70,
+    "key": 9,
+    "mode": "minor",
+    "energy": 0.52,
+    "period": "evening",
+    "motif": "E-C-D lilt in a low mallet register, with a nylon-guitar middle and a G#-A cadence",
+    "meter": 4,
+    "sections": [
+      {
+        "name": "radio opens",
+        "start": 0.0,
+        "end": 13.714285714285714,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -22.428572935375698
+      },
+      {
+        "name": "night signal",
+        "start": 13.714285714285714,
+        "end": 41.14285714285714,
+        "foreground": "Main theme",
+        "rmsDbFS": -20.879381818201953
+      },
+      {
+        "name": "a warmer frequency",
+        "start": 41.14285714285714,
+        "end": 68.57142857142857,
+        "foreground": "Related B theme",
+        "rmsDbFS": -22.15532450035889
+      },
+      {
+        "name": "under the bridge",
+        "start": 68.57142857142857,
+        "end": 96.0,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -22.847422801337363
+      },
+      {
+        "name": "the signal returns",
+        "start": 96.0,
+        "end": 150.85714285714286,
+        "foreground": "Main theme",
+        "rmsDbFS": -20.869779595980628
+      },
+      {
+        "name": "radio closes",
+        "start": 150.85714285714286,
+        "end": 164.57142857142856,
+        "foreground": "Motif fragments",
+        "rmsDbFS": -22.72165843130377
+      }
+    ],
+    "textures": [
+      "natural vibraphone bells",
+      "quiet pads",
+      "sub bass",
+      "recorded drums",
+      "pitched metal accents"
+    ],
+    "composition": {
+      "themeBars": 8,
+      "theme": [
+        [
+          [
+            0.25,
+            64,
+            0.8
+          ],
+          [
+            1.5,
+            60,
+            0.45
+          ],
+          [
+            2.5,
+            62,
+            1.1
+          ]
+        ],
+        [
+          [
+            0.25,
+            64,
+            1.5
+          ],
+          [
+            2.5,
+            60,
+            1
+          ]
+        ],
+        [
+          [
+            0.25,
+            65,
+            0.8
+          ],
+          [
+            1.5,
+            64,
+            0.45
+          ],
+          [
+            2.5,
+            62,
+            1.1
+          ]
+        ],
+        [
+          [
+            0.25,
+            59,
+            1.5
+          ],
+          [
+            2.5,
+            56,
+            1
+          ]
+        ],
+        [
+          [
+            0.25,
+            64,
+            0.8
+          ],
+          [
+            1.5,
+            67,
+            0.45
+          ],
+          [
+            2.5,
+            71,
+            1.1
+          ]
+        ],
+        [
+          [
+            0.25,
+            69,
+            1.5
+          ],
+          [
+            2.5,
+            65,
+            1
+          ]
+        ],
+        [
+          [
+            0.25,
+            64,
+            0.8
+          ],
+          [
+            1.5,
+            62,
+            0.45
+          ],
+          [
+            2.5,
+            59,
+            1.1
+          ]
+        ],
+        [
+          [
+            0.25,
+            60,
+            0.8
+          ],
+          [
+            1.5,
+            59,
+            0.45
+          ],
+          [
+            2.5,
+            57,
+            1.1
+          ]
+        ]
+      ],
+      "relatedAnswer": [
+        [
+          [
+            0.25,
+            69,
+            1.5
+          ],
+          [
+            2.5,
+            65,
+            1
+          ]
+        ],
+        [
+          [
+            0.25,
+            67,
+            1.5
+          ],
+          [
+            2.5,
+            62,
+            1
+          ]
+        ],
+        [
+          [
+            0.25,
+            64,
+            2.5
+          ]
+        ],
+        [
+          [
+            0.25,
+            62,
+            1.5
+          ],
+          [
+            2.5,
+            59,
+            1
+          ]
+        ],
+        [
+          [
+            0.25,
+            65,
+            1.5
+          ],
+          [
+            2.5,
+            64,
+            1
+          ]
+        ],
+        [
+          [
+            0.25,
+            60,
+            2.5
+          ]
+        ],
+        [
+          [
+            0.25,
+            59,
+            1.5
+          ],
+          [
+            2.5,
+            56,
+            1
+          ]
+        ],
+        [
+          [
+            0.25,
+            57,
+            2.5
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          33,
+          [
+            55,
+            59,
+            64
+          ]
+        ],
+        [
+          29,
+          [
+            57,
+            60,
+            64
+          ]
+        ],
+        [
+          38,
+          [
+            57,
+            60,
+            64
+          ]
+        ],
+        [
+          40,
+          [
+            56,
+            59,
+            62
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            59,
+            64
+          ]
+        ],
+        [
+          29,
+          [
+            57,
+            60,
+            64
+          ]
+        ],
+        [
+          40,
+          [
+            56,
+            59,
+            62
+          ]
+        ],
+        [
+          33,
+          [
+            57,
+            60,
+            64
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          29,
+          [
+            57,
+            60,
+            64
+          ]
+        ],
+        [
+          31,
+          [
+            55,
+            59,
+            62
+          ]
+        ],
+        [
+          36,
+          [
+            55,
+            59,
+            64
+          ]
+        ],
+        [
+          40,
+          [
+            56,
+            59,
+            62
+          ]
+        ],
+        [
+          38,
+          [
+            57,
+            60,
+            64
+          ]
+        ],
+        [
+          29,
+          [
+            57,
+            60,
+            64
+          ]
+        ],
+        [
+          40,
+          [
+            56,
+            59,
+            62
+          ]
+        ],
+        [
+          33,
+          [
+            57,
+            60,
+            64
+          ]
+        ]
+      ],
+      "motif": "E-C-D lilt in a low mallet register, with a nylon-guitar middle and a G#-A cadence",
+      "arrangement": "One primary theme, related contrasting phrase, sparse own-motif interlude, recognizable full return and explicit tonic close"
+    },
+    "stemLevels": {
+      "pad": {
+        "peak": 0.03659309446811676,
+        "rms": 0.005911310203373432,
+        "events": 144
+      },
+      "lead": {
+        "peak": 0.09174676239490509,
+        "rms": 0.013338438235223293,
+        "events": 70
+      },
+      "answer": {
+        "peak": 0.07806895673274994,
+        "rms": 0.003511633025482297,
+        "events": 15
+      }
+    },
+    "drumPerformance": {
+      "kick": 80,
+      "snare": 64,
+      "hats": 448,
+      "ghost": 8,
+      "edits": 0
+    },
+    "provenance": {
+      "synth": "Original additive quiet pads and stable fundamental sub",
+      "nativeParts": {
+        "lead": {
+          "renderer": "FluidSynth",
+          "program": 11,
+          "independentBellVoices": true
+        },
+        "answer": {
+          "renderer": "FluidSynth",
+          "program": 24,
+          "independentBellVoices": false
+        }
+      },
+      "soundfont": {
+        "name": "FluidR3 GM",
+        "license": "MIT",
+        "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0"
+      },
+      "drumSource": {
+        "project": "VCSL",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+        "manifest": "scripts/assets/vcsl-drums.json",
+        "individualSampleNormalization": false
+      },
+      "effects": "Pedalboard role EQ and filtered parallel room; original feedforward phrase echoes",
+      "factoryPresetsUsed": false,
+      "referenceAudioCopied": false,
+      "auditionPerformed": false,
+      "subBassDucking": {
+        "kickEvents": 80,
+        "depth": 0.4,
+        "lookaheadMs": 4,
+        "recoveryMs": 180,
+        "otherStemsDucked": false
+      },
+      "mastering": "Whole-performance calibration, smooth 0.68 soft ceiling on isolated attacks, then static measured loudness/headroom gain"
+    },
+    "revision": 1,
+    "seconds": 163.86351473922903,
+    "peakDbFS": -8.522382736206055,
+    "rmsDbFS": -21.612942540235345,
+    "sha256": "3f5fb002de2ca56e8aff1c3968a2c89828eac4b2292fdedcd334b644d4f3cb8e",
+    "ending": "Written tonic cadence with natural instrument release and short quiet guard",
+    "decoded": {
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "integratedLUFS": -20.62,
+      "truePeakDbFS": -8.52,
+      "loudnessRangeLU": 4.5,
+      "leadingQuietSeconds": 0.0022675736961451248,
+      "trailingSilenceSeconds": 0.032517006802721085,
+      "channelCorrelation": 0.953042681979136,
+      "dcOffset": 6.564245268236846e-05
+    }
+  }
+]

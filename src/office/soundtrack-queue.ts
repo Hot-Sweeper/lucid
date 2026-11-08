@@ -25,6 +25,7 @@ export const SOUNDTRACK_CHAPTERS: readonly SoundtrackChapter[] = [
 export type SoundtrackHistory = {
   played: string[]; last: string | null; mode: SoundtrackMode;
   chapter: string; listened: number; chapterHeard: boolean; started: boolean;
+  modePlayed?: Partial<Record<SoundtrackMode, string[]>>; recent?: string[];
 };
 const GENRES: readonly SoundtrackGenre[] = ['acoustic', 'lofi', 'synthwave', 'ambient', 'breakcore', 'phonk', 'mystical', 'medieval', 'noir', 'nostalgic'];
 const validMode = (mode: unknown): mode is SoundtrackMode => mode === 'journey' || mode === 'pads' || mode === 'bells' || GENRES.includes(mode as SoundtrackGenre);
@@ -65,11 +66,13 @@ export function soundtrackPeriod(date = new Date()): DayPeriod {
 }
 
 /** A listening-time music director. Chapters turn only between complete songs.
- * Rare genres may return during a journey while unheard songs remain preferred
- * within each chapter. This keeps a growing acoustic library from burying them.
+ * The whole-library rotation takes priority over a chapter's genre preference.
+ * Genre/texture locks own separate rotations, retained across mode changes.
  */
 export class SoundtrackQueue {
   private played = new Set<string>();
+  private modePlayed = new Map<SoundtrackMode, Set<string>>();
+  private recent: string[] = [];
   private last: string | null = null;
   private selectedMode: SoundtrackMode = 'journey';
   private chapterIndex = 0;
@@ -80,8 +83,17 @@ export class SoundtrackQueue {
   constructor(private songs: readonly SoundtrackSong[], saved?: Partial<SoundtrackHistory> | null, private random = Math.random) {
     const ids = new Set(songs.map(song => song.id));
     if (Array.isArray(saved?.played)) for (const id of saved.played) if (ids.has(id)) this.played.add(id);
+    if (saved?.modePlayed && typeof saved.modePlayed === 'object') {
+      for (const [mode, heard] of Object.entries(saved.modePlayed)) {
+        if (!validMode(mode) || mode === 'journey' || !Array.isArray(heard)) continue;
+        this.modePlayed.set(mode, new Set(heard.filter(id => ids.has(id) && songMatchesMode(songs.find(song => song.id === id)!, mode))));
+      }
+    }
+    if (Array.isArray(saved?.recent)) this.recent = saved.recent.filter(id => ids.has(id)).slice(-24);
     if (typeof saved?.last === 'string' && ids.has(saved.last)) this.last = saved.last;
     if (validMode(saved?.mode)) this.selectedMode = saved.mode;
+    const current = songs.find(song => song.id === this.last);
+    if (current) this.creditLocks(current, false);
     const chapter = SOUNDTRACK_CHAPTERS.findIndex(value => value.id === saved?.chapter);
     if (chapter >= 0) {
       this.chapterIndex = chapter;
@@ -96,7 +108,8 @@ export class SoundtrackQueue {
   get chapterProgress() { return Math.min(1, this.listened / this.chapter.seconds); }
   get state(): SoundtrackHistory {
     return { played: [...this.played], last: this.last, mode: this.mode, chapter: this.chapter.id,
-      listened: this.listened, chapterHeard: this.chapterHeard, started: this.started };
+      listened: this.listened, chapterHeard: this.chapterHeard, started: this.started,
+      modePlayed: Object.fromEntries([...this.modePlayed].map(([mode, heard]) => [mode, [...heard]])), recent: [...this.recent] };
   }
   setMode(mode: unknown): boolean {
     if (!validMode(mode)) return false;
@@ -110,6 +123,66 @@ export class SoundtrackQueue {
     }
   }
 
+  private rotation(mode: SoundtrackMode, songs: readonly SoundtrackSong[]) {
+    if (mode === 'journey') return this.played;
+    let heard = this.modePlayed.get(mode);
+    if (!heard) {
+      // Legacy history still counts, including when the expanded library adds
+      // more songs to a formerly single-recording genre.
+      heard = new Set(songs.filter(song => this.played.has(song.id)).map(song => song.id));
+      this.modePlayed.set(mode, heard);
+    }
+    return heard;
+  }
+
+  private remember(song: SoundtrackSong) {
+    this.played.add(song.id); this.last = song.id;
+    this.recent.push(song.id); this.recent = this.recent.slice(-24);
+    if (this.mode !== 'journey' && songMatchesMode(song, this.mode)) {
+      this.rotation(this.mode, this.songs.filter(value => songMatchesMode(value, this.mode)));
+    }
+    this.creditLocks(song);
+  }
+
+  private creditLocks(song: SoundtrackSong, newlySelected = true) {
+    // An ambient bell heard in another direction is still heard. Otherwise an
+    // overlapping lock can retain it as its sole "unheard" song and replay it.
+    for (const [mode, heard] of this.modePlayed) if (songMatchesMode(song, mode)) {
+      // A manual or overlapping choice can be the first song of a new pass.
+      // Restoring the current song only reconciles credit; it is not a replay.
+      if (newlySelected && this.songs.filter(value => songMatchesMode(value, mode)).every(value => heard.has(value.id))) heard.clear();
+      heard.add(song.id);
+    }
+  }
+
+  /** Keep the remaining energy route connected before spending its last bridge. */
+  private canContinue(song: SoundtrackSong, remaining: readonly SoundtrackSong[], memo: Map<string, boolean>, budget: { left: number }): boolean {
+    const rest = remaining.filter(value => value.id !== song.id).sort((a, b) => a.energy - b.energy);
+    if (!rest.length) return true;
+    const key = song.energy + '|' + rest.map(value => value.energy).join(',');
+    const cached = memo.get(key);
+    if (cached !== undefined) return cached;
+    if (--budget.left < 0) return false;
+    if (rest.some((value, index) => index > 0 && value.energy - rest[index - 1].energy > .35001)) return false;
+    const reached = new Set<string>();
+    let frontier = [song];
+    while (frontier.length) {
+      const next = rest.filter(value => !reached.has(value.id) && frontier.some(from => value.energy - from.energy <= .30001 && from.energy - value.energy <= .35001));
+      next.forEach(value => reached.add(value.id)); frontier = next;
+    }
+    if (reached.size !== rest.length) { memo.set(key, false); return false; }
+    // Find a complete route, including the way back from an energetic peak.
+    // Equivalent energy values share a branch. A fixed work budget bounds this
+    // preference; the unheard rotation remains authoritative if it runs out.
+    const choices = rest.filter((value, index) => (index === 0 || value.energy !== rest[index - 1].energy)
+      && value.energy - song.energy <= .30001 && song.energy - value.energy <= .35001);
+    const degree = (from: SoundtrackSong) => rest.filter(value => value.id !== from.id && value.energy - from.energy <= .30001 && from.energy - value.energy <= .35001).length;
+    choices.sort((a, b) => degree(a) - degree(b) || Math.abs(a.energy - song.energy) - Math.abs(b.energy - song.energy));
+    const possible = choices.some(value => this.canContinue(value, rest, memo, budget));
+    memo.set(key, possible);
+    return possible;
+  }
+
   /** A deliberate library choice is one song, without changing music direction. */
   select(id: string, date = new Date()): SoundtrackSong | null {
     const song = this.songs.find(value => value.id === id);
@@ -119,7 +192,7 @@ export class SoundtrackQueue {
       this.started = true;
     }
     if (this.played.size === this.songs.length) this.played.clear();
-    this.played.add(song.id); this.last = song.id;
+    this.remember(song);
     if (this.mode === 'journey' && song.genre === this.chapter.genres[0]) this.chapterHeard = true;
     return song;
   }
@@ -140,13 +213,31 @@ export class SoundtrackQueue {
     const previous = this.songs.find(song => song.id === this.last);
     let pool: readonly SoundtrackSong[];
     if (this.mode !== 'journey') {
-      pool = this.songs.filter(song => songMatchesMode(song, this.mode));
-      if (!pool.length) throw Error(`There are no ${this.mode} songs in this soundtrack.`);
+      const matches = this.songs.filter(song => songMatchesMode(song, this.mode));
+      if (!matches.length) throw Error(`There are no ${this.mode} songs in this soundtrack.`);
+      const heard = this.rotation(this.mode, matches);
+      if (matches.every(song => heard.has(song.id))) heard.clear();
+      pool = matches.filter(song => !heard.has(song.id));
     } else {
       const chapter = this.chapter;
-      const safe = this.songs.filter(song => !previous || song.energy - previous.energy <= .30 && previous.energy - song.energy <= .35);
-      const primary = this.songs.filter(song => song.genre === chapter.genres[0]);
-      const target = primary.length ? primary : this.songs.filter(song => chapter.genres.includes(song.genre));
+      const unheard = this.songs.filter(song => !this.played.has(song.id));
+      const fits = (song: SoundtrackSong) => !previous || song.energy - previous.energy <= .30001 && previous.energy - song.energy <= .35001;
+      let safe = unheard.filter(fits);
+      const memo = new Map<string, boolean>(), budget = { left: 4000 };
+      const connected = safe.filter(song => this.canContinue(song, unheard, memo, budget));
+      if (connected.length) safe = connected;
+      // A legacy/custom rotation can have spent all its bridge songs. Complete
+      // the remaining recordings with the nearest energy instead of replaying
+      // familiar music or discarding the saved bag.
+      if (!safe.length) {
+        const nearest = Math.min(...unheard.map(song => Math.abs(song.energy - (previous?.energy ?? song.energy))));
+        safe = unheard.filter(song => Math.abs(song.energy - (previous?.energy ?? song.energy)) <= nearest + .00001);
+      }
+      const primary = unheard.filter(song => song.genre === chapter.genres[0]);
+      const target = primary.length ? primary : unheard.filter(song => chapter.genres.includes(song.genre));
+      // A chapter whose defining recordings were already heard this rotation
+      // yields to other unheard music instead of repeatedly replaying them.
+      if (!primary.length) this.chapterHeard = true;
       // Give each chapter its defining genre before moving on. If it is too far
       // from the outgoing energy, use a real neighboring song as a bridge first.
       const direct = target.filter(song => safe.includes(song) && (song.id !== this.last || this.songs.length === 1) && (!previous || harmonicDistance(previous, song) < 5));
@@ -166,12 +257,13 @@ export class SoundtrackQueue {
         pool = matches.length ? matches : safe.length ? safe : this.songs;
       }
       // A small/custom catalogue can lack bridge songs; still remain usable.
-      if (!pool.length) pool = this.songs;
+      if (!pool.length) pool = unheard;
     }
     if (pool.length > 1) pool = pool.filter(song => song.id !== this.last);
-    // Prefer unheard songs without starving a one-song genre for an entire bag.
-    const fresh = pool.filter(song => !this.played.has(song.id));
-    if (fresh.length) pool = fresh;
+    // At a completed rotation, leave recent recordings until later in the next
+    // pass. Never throw away an unheard song to satisfy this soft preference.
+    const lessRecent = pool.filter(song => !this.recent.includes(song.id));
+    if (lessRecent.length) pool = lessRecent;
     const period = soundtrackPeriod(date);
     const weight = (song: SoundtrackSong) => {
       const time = song.period === period ? 1.6 : 1;
@@ -181,7 +273,7 @@ export class SoundtrackQueue {
     };
     let pick = Math.min(1 - Number.EPSILON, Math.max(0, this.random())) * pool.reduce((sum, song) => sum + weight(song), 0);
     const song = pool.find(value => { pick -= weight(value); return pick < 0; }) ?? pool[pool.length - 1];
-    this.played.add(song.id); this.last = song.id;
+    this.remember(song);
     if (this.mode === 'journey' && song.genre === this.chapter.genres[0]) this.chapterHeard = true;
     // A custom library with no primary genre must not get stuck in one chapter.
     if (this.mode === 'journey' && !this.songs.some(value => value.genre === this.chapter.genres[0])) this.chapterHeard = true;

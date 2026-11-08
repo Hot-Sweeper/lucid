@@ -1,9 +1,16 @@
 # Office music and ambience
 
-The Song library contains 23 original pieces, with ten genre directions and two
-texture directions. The first fourteen cozy recordings are preserved. The nine
-newer pieces use phrase-aligned harmonic plans and recurring written themes,
-rather than separate short lead and chord loops.
+The Song library contains 47 original pieces, with ten genre directions and two
+texture directions, totaling about 110 minutes. All 23 recordings from before
+the expansion are preserved. New pieces use phrase-aligned harmonic plans and
+recurring written themes.
+
+The 24-song expansion adds three lo-fi, three ambient, two acoustic, three
+synthwave, three atmospheric breaks, two chill phonk, and two each of mystical,
+medieval, detective and nostalgic pieces. Every addition has its own authored
+melody and harmonic plan, contrasting material and return. The three expansion
+scores reuse the licensed instruments and production helpers, with separate
+output targets and provenance reports.
 
 ## Current arrangements
 
@@ -90,13 +97,17 @@ Eleven listening-time chapters develop the mood: Still water, Observatory,
 Briar path, Old postcards, Warm tape, Copper casebook, Night drive, Neon rise,
 Petal rush, Afterglow and Soft landing. Chapter budgets range from two to five
 minutes and advance between complete songs, after their defining genre has
-played. Each recording also contains its own authored development.
+played or its recordings were already heard in this rotation. Each recording
+also contains its own authored development.
 
 Selections consider energy, related major/minor/modal keys, half/double-time
 tempo relationships and shared textures. A compatible bridge can lead into a
 remote key or larger energy change. This is song-boundary curation, without
-live beat matching or time stretching. No adjacent songs repeat in the journey.
-Unheard tracks get preference within compatible pools; every piece is reachable.
+live beat matching or time stretching. The journey completes the whole library
+before automatically repeating a recording. Genre preference applies inside
+the unheard rotation. A bounded route search reserves energy bridges for the
+return from a peak; a legacy/custom bag with no remaining bridge finishes its
+unheard songs using the nearest energy instead of replaying familiar music.
 
 Only active media playback advances the journey. Pausing, muting, hiding Lucid,
 buffering, seeking and wall-clock time do not count. Local time chooses the
@@ -106,8 +117,12 @@ Older saved chapter IDs still migrate.
 
 Choose a genre to stay in it, **Ambient pads** for quiet pad-led pieces, or
 **Bells & wonder** for gentle bell material. A direction schedules the next
-song; **Next song** applies it immediately. A one-song genre may repeat when
-locked. **Pause music** leaves room ambience and game sounds alone.
+song; **Next song** applies it immediately. Each genre and texture direction
+completes its own eligible rotation, independently of the whole-library bag.
+Songs heard through another matching direction or a manual pick count toward
+that rotation too. Completed bags reset at the next choice, with recent history
+discouraging repeats near the boundary. **Pause music** leaves room ambience
+and game sounds alone.
 
 **Sound volume** controls everything. **Theme music** and **Room ambience**
 adjust the background layers independently; zero pauses that layer. Global
@@ -127,7 +142,7 @@ footsteps, water, birds and object sounds follow real visible activity.
 
 ## Song library
 
-Open **App library**, then **Song library** under Media. The 23-song catalogue
+Open **App library**, then **Song library** under Media. The 47-song catalogue
 supports title, genre and texture search, genre filters, durations and whole-row
 Play, Pause, Resume or Retry. The playback disclosure contains the same music
 direction and Next controls. A chosen song plays immediately through the office
@@ -165,6 +180,9 @@ python scripts/reference_mixes.py --soundfont "$FLUID_SOUNDFONT" --drums /tmp/lu
 VCSL_DRUMS=/tmp/lucid-vcsl-drums python scripts/surge_arrangements.py
 python scripts/compose-office-genres.py --only petal-breaks --sample-dir /tmp/lucid-vcsl-drums
 python scripts/compose-office-stories.py
+python scripts/compose-office-cozy-expansion.py
+python scripts/compose-office-electronic-expansion.py
+python scripts/compose-office-chamber-expansion.py
 python scripts/sync-music-catalog.py
 python scripts/verify-music-masters.py --write
 ```
@@ -176,6 +194,10 @@ cannot overwrite newer sampled/native masters through the command line.
 structure and production provenance. Tidal can be rebuilt separately with
 `python scripts/tidal_arrangement.py`; `surge_arrangements.py --only tidal-memory` delegates to this remake, so it
 cannot regenerate the retired sustained pad version.
+The three `*-expansion-metrics.json` reports retain the additional 24 scores.
+The synchronizer registers their real rendered assets in the catalog. Measure
+encoded masters afterward before building, so every new row has its actual
+duration and constant playback trim.
 `library-mastering.json` measures actual packaged MP3 hashes, duration, DC,
 stereo correlation, silence, loudness and true peaks.
 
