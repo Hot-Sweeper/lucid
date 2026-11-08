@@ -110,12 +110,18 @@ export class Arcade {
     this.syncPower();
   }
 
+  /** Keep the TV's fixed inset outside the transforms used by game effects. */
+  private scene() {
+    const viewport = this.node("g", { transform: "translate(24 10)" });
+    return this.node("g", {}, viewport);
+  }
+
   /** Console boots: a start-up logo sweeps in. */
   async boot() {
     this.playing = true;
     this.syncPower();
     this.screen.innerHTML = "";
-    const g = this.node("g", { transform: "translate(24 10)" });
+    const g = this.scene();
     this.node("rect", { width: SW, height: SH, fill: "#f6f2ea" }, g);
     const logo = this.node("g", { transform: `translate(${SW / 2} ${SH / 2})` }, g);
     this.node("rect", { x: -18, y: -12, width: 36, height: 24, rx: 9, fill: "#3a3f4f" }, logo);
@@ -158,7 +164,7 @@ export class Arcade {
   async fight(brands: [BrandKind, BrandKind], ev: (e: GameEvent) => void): Promise<0 | 1> {
     this.screen.innerHTML = "";
     gsap.set(this.glow, { opacity: 0.16, fill: "#ff9f5a" });
-    const g = this.node("g", { transform: "translate(24 10)" });
+    const g = this.scene();
     g.innerHTML = `
       <defs><linearGradient id="${this.id}-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9f5a"/><stop offset="1" stop-color="#ff6f91"/></linearGradient></defs>
       <rect width="${SW}" height="${SH}" fill="url(#${this.id}-sky)"/>
@@ -236,7 +242,7 @@ export class Arcade {
   async race(brands: [BrandKind, BrandKind], ev: (e: GameEvent) => void): Promise<0 | 1> {
     this.screen.innerHTML = "";
     gsap.set(this.glow, { opacity: 0.16, fill: "#7cc8ff" });
-    const g = this.node("g", { transform: "translate(24 10)" });
+    const g = this.scene();
     const H = 42;
     const halves = [0, 1].map((i) => {
       const h = this.node("g", { transform: `translate(0 ${i * (H + 2)})` }, g);

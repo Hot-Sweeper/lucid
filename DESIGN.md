@@ -162,3 +162,8 @@ Empty offices show Add a desk without automatically creating furniture. A job th
 ## Compaction update screen
 
 An active root compaction event for the robot's current T3 run covers its complete monitor with a Windows-style blue update screen. Keep Lexend, centered white compaction text and five small orbiting dots. Say Compacting context and Please don’t turn off your robot; never invent a percentage, elapsed estimate or completion stage. The desktop and its state remain mounted, and the compaction overlay owns coverage independently of plan, question and completion screens. Human questions and explicitly opened plans keep priority. Start and finish follow real item and run statuses immediately, outside cosmetic playback. Old turns, nested helpers and stale running snapshots cannot trigger or reopen the screen. A stopped, failed or finished run dismisses it. Reuse the shared quiet switch cue on live entry/exit. CSS dot motion pauses offscreen and hidden; reduced motion leaves a static five-dot ring. English/German controls update in place.
+
+
+## Arcade picture alignment
+
+The break-room TV has a fixed 24 by 10 SVG inset and a 152 by 86 picture. Keep that placement in an outer viewport group and draw each boot/game scene in its own inner group. Screen shakes and other game effects only transform the inner scene, returning to its local zero. They must never overwrite the TV inset or leave a black strip after a hit. Preserve the existing fighting game, kart race, bezel, power controls and animation ownership.
