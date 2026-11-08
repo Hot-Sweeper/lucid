@@ -1,8 +1,9 @@
 # Office music and ambience
 
 The Song library contains 23 original pieces, with ten genre directions and two
-texture directions. Little Lights retains its original melody and arrangement,
-with corrected bell releases.
+texture directions. The first fourteen cozy recordings are preserved. The nine
+newer pieces use phrase-aligned harmonic plans and recurring written themes,
+rather than separate short lead and chord loops.
 
 ## Current arrangements
 
@@ -12,25 +13,29 @@ references. See [music-production-research.md](music-production-research.md) for
 research, sources, comparisons and limitations.
 
 - **Cassette Clouds**, lo-fi, 82 BPM: sampled electric piano, nylon guitar,
-  piano replies and acoustic bass in complementary registers. An original
+  a recurring eight-bar tune with open and closed sixteen-bar endings, piano
+  development and acoustic bass in complementary registers. An original
   four-bar keys performance is resampled over relaxed acoustic drums with
   ghost strokes, alternate takes and restrained drift.
 - **Neon Afterglow**, synthwave, 104 BPM: original Surge XT analog patches,
-  syncopated bass, arpeggios, melodic answers, drum pickups and a contrasting
-  tunnel section. A sampled snare has a short gated room; its direct attack
-  remains distinct.
+  a syncopated repeated-note hook, connected bass, restrained lower arpeggios,
+  drum pickups and a contrasting tunnel section. The pad sits behind the lead.
+  A sampled snare has a short gated room; its direct attack remains distinct.
 - **Tidal Memory**, ambient, 66 BPM: sampled soft electric piano, nylon
-  plucks and celesta exchange short phrases. Brief sine-only chord breaths
-  leave clear pauses, with restrained filtered reflections between the notes.
+  guitar and occasional celesta. An eight-bar falling theme develops on piano,
+  slows into a pad-free interlude and returns on nylon. Brief sine-only chord
+  breaths leave clear pauses, with restrained filtered reflections.
 - **Petal Breaks**, atmospheric breakcore/DnB, 164 BPM: an original eight-bar
   performance using recorded acoustic hits is sliced into musical phrases.
   Ghost notes, displaced answers and selective retriggers retain clear anchors.
-  Drumless and half-time resets, a bell-led middle and a brighter return give
-  the dense sections a purpose.
+  A sixteen-bar falling theme uses actual sampled acoustic piano. Drumless and
+  half-time resets, a related bell variation and the theme's return give the
+  dense sections a purpose.
 - **Midnight Drift**, lunar phonk, 74 BPM with a 148 BPM feel: a clean mono
   808, stereo pads, an original pitched-metal motif with sampled vibraphone
-  body, developed hats and a quiet underpass. No reference melody or vocal
-  recording is included.
+  body, developed hats and a quiet underpass. A recurring Eb-Gb-Bb cell follows
+  two-bar common-tone harmonies and develops through sixteen-bar sentences.
+  No reference melody or vocal recording is included.
 
 Four chamber pieces add separate story moods:
 
@@ -215,6 +220,18 @@ touches the running office's saved settings. Stop its hidden workspace afterward
 
 Signal analysis and functional checks do not establish musical enjoyment.
 No subjective listening approval is claimed by these automated tools.
+
+## Themes and phrasing
+
+The newer scores have explicit multi-bar melodies with repeated identifying
+rhythms, connected bass movement and written phrase endings. Development uses
+the theme's own material, then makes its return recognizable. Supporting parts
+leave gaps around the lead; reducing unrelated counterlines and excessive high
+register decoration is part of the arrangement. The first fourteen recordings
+remain byte-for-byte identical to the approved cozy collection at this revision.
+
+Source note tables and render sidecars record these decisions for review. They
+document the writing rather than assign it an automatic musical-quality score.
 
 ## Bell articulation
 

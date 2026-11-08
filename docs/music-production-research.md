@@ -76,6 +76,21 @@ rules defining the genres.
 The effects and instruments run only during authoring. There is no new live DSP,
 plug-in process or sample-bank dependency in the office application.
 
+## Composition review
+
+The user's later feedback distinguished the successful earlier cozy pieces from
+newer recordings that sounded like chord loops with arbitrary melodies. Reviewing
+the scores found independent short melodic and harmonic cycles, excessive high
+register decoration and phrase endings without matching harmonic resolution.
+Better sample sources and effects had not corrected those writing problems.
+
+The newer nine arrangements now use deliberately written multi-bar themes,
+phrase-aligned harmonic plans, recurring rhythmic cells, clear cadences and
+related contrasting material. Supporting parts leave room for a primary line.
+Tidal's quiet interlude augments its own falling motif; it does not introduce
+another unrelated bell figure. The earlier fourteen recordings are preserved.
+These are inspectable composition decisions, not evidence of listener approval.
+
 ## Primary production sources
 
 - [Renoise sampler manual](https://tutorials.renoise.com/wiki/Sampler) and

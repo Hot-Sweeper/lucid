@@ -21,43 +21,43 @@
         "name": "first lights",
         "start": 0.0,
         "end": 9.23076923076923,
-        "rmsDbFS": -29.090248107910156
+        "rmsDbFS": -31.79315757751465
       },
       {
         "name": "night-drive question",
         "start": 9.23076923076923,
         "end": 46.153846153846146,
-        "rmsDbFS": -21.068628311157227
+        "rmsDbFS": -22.07059669494629
       },
       {
         "name": "horizon answer",
         "start": 46.153846153846146,
         "end": 64.61538461538461,
-        "rmsDbFS": -21.152135848999023
+        "rmsDbFS": -22.688142776489258
       },
       {
         "name": "tunnel respite",
         "start": 64.61538461538461,
         "end": 83.07692307692307,
-        "rmsDbFS": -29.662006378173828
+        "rmsDbFS": -31.16915512084961
       },
       {
         "name": "rising side street",
         "start": 83.07692307692307,
         "end": 101.53846153846153,
-        "rmsDbFS": -21.185760498046875
+        "rmsDbFS": -22.591732025146484
       },
       {
         "name": "neon homecoming",
         "start": 101.53846153846153,
         "end": 138.46153846153845,
-        "rmsDbFS": -20.98226547241211
+        "rmsDbFS": -21.91964340209961
       },
       {
         "name": "distant afterglow",
         "start": 138.46153846153845,
         "end": 156.9230769230769,
-        "rmsDbFS": -28.934309005737305
+        "rmsDbFS": -30.272022247314453
       }
     ],
     "nativeParts": {
@@ -103,7 +103,7 @@
           "a_osc_1_unison_detune": "8.00 cents",
           "a_filter_1_feg_mod_amount": "9.98 semitones"
         },
-        "events": 163,
+        "events": 85,
         "factoryPreset": false
       },
       "bass": {
@@ -192,7 +192,7 @@
           "a_osc_1_unison_detune": "0.00 cents",
           "a_filter_1_feg_mod_amount": "15.94 semitones"
         },
-        "events": 138,
+        "events": 108,
         "factoryPreset": false
       },
       "lead": {
@@ -237,7 +237,7 @@
           "a_osc_1_unison_detune": "7.00 cents",
           "a_filter_1_feg_mod_amount": "19.01 semitones"
         },
-        "events": 139,
+        "events": 171,
         "factoryPreset": false
       }
     },
@@ -330,8 +330,17 @@
       "groove": "Four-bar broken kick cycle, softer recorded pickups, alternate snare/hat takes, phrase-end hat gaps",
       "snareSpace": "Short filtered gated room; selected phrase-ending 3/16 and 1/4 note stereo throws, 18% feedback, 480-3900 Hz"
     },
-    "arrangement": "Lower-register question/answer lead, broken recorded-kick/bass groove, real gated snare, filtered phrase-ending echoes, contrasting B, quiet tunnel and reprise",
-    "revision": 4,
+    "tonalWriting": {
+      "themeBars": 16,
+      "leadRegister": "G4 to F5; quiet lower-register tunnel fragments",
+      "motif": "Syncopated D-D-A repeated-note/falling-fourth cell and offbeat answer; paired eight-bar sentences with distinct cadences",
+      "development": "Exact melodic return, broad descending B, lower fragmented tunnel, progressively quieter opening motif in coda",
+      "harmony": "Two-bar Dm7, Bbmaj7, Fadd9; Cadd9 and A7 turnaround. B opens Bbmaj7 and Cadd9, then Gm7 and suspended dominant",
+      "bass": "Explicit four-bar syncopated root/fifth figures with diatonic approaches into the next harmony",
+      "accompaniment": "Low sparse repeating arpeggio cell, opened beneath the longer-note B theme; no competing high chord-top decorations"
+    },
+    "arrangement": "Sixteen-bar original synth hook, connected root/fifth bass, real recorded gated snare, restrained low arpeggios, broader B, fragmented tunnel and exact thematic homecoming",
+    "revision": 5,
     "production": "Surge XT 1.3.4 original analog patches + Pedalboard 0.9.26 stem production",
     "provenance": {
       "instrument": {
@@ -361,18 +370,18 @@
       "composition": "Original Lucid scores and own explicit Classic oscillator patches; no artist melody, factory preset or factory audio copied",
       "delivery": "Only encoded music ships in the app; native plugin and Python processors remain offline authoring dependencies"
     },
-    "seconds": 159.95777777777778,
+    "seconds": 159.6822222222222,
     "peakDbFS": -3.0239063426874537,
-    "rmsDbFS": -22.399628788911414,
+    "rmsDbFS": -23.548875253448745,
     "decoded": {
-      "seconds": 159.95777777777778,
-      "integratedLUFS": -19.36,
-      "truePeakDbFS": -3.21,
-      "loudnessRangeLU": 9.7,
-      "peakDbFS": -3.251296281814575,
-      "rmsDbFS": -22.661087036132812,
-      "trailingSilenceSeconds": 0.31526077097505667,
-      "channelCorrelation": 0.5223573205525173,
+      "seconds": 159.6822222222222,
+      "integratedLUFS": -20.44,
+      "truePeakDbFS": -3.39,
+      "loudnessRangeLU": 11.3,
+      "peakDbFS": -3.4091994762420654,
+      "rmsDbFS": -23.811800003051758,
+      "trailingSilenceSeconds": 0.24997732426303854,
+      "channelCorrelation": 0.7562012818046567,
       "finite": true
     }
   }

@@ -5,7 +5,7 @@ models provide the original pads and bells. Acoustic parts are rendered with
 FluidSynth and the explicitly supplied MIT-licensed FluidR3 GM SoundFont.
 No commercial factory content is used. The SoundFont is an authoring dependency,
 not bundled with the app. Pass --soundfont or set FLUID_SOUNDFONT.
-Each piece has separate A/B themes, a development, countermelody and cadence.
+Each piece has phrase-aligned A/B themes, a development and a written cadence.
 The rendered MP3s are streamed by Lucid; none of this synthesis runs in the app.
 """
 from pathlib import Path
@@ -194,158 +194,276 @@ def render_soundfont(events,frames,bpm=80,meter=4):
         return result*.95
 
 
-# The glass question leaves two beats of room before its answering phrase.
-GLASS_A=[[(0,76,1.2),(2,83,.7),(3,78,.7)],[(.5,79,1.4),(3,74,.6)],
-         [(0,78,1),(1.5,81,.5),(3,76,.7)],[(.5,74,1.2),(2.5,73,.8)],
-         [(0,76,.7),(1.5,79,.5),(2.5,83,1.1)],[(0,85,1.4),(2,83,.7),(3,81,.6)],
-         [(.5,79,1.3),(2.5,78,.8)],[(0,76,2.1),(3,71,.6)]]
-GLASS_B=[[(0,81,1),(2,78,1.3)],[(.5,76,.7),(2,74,1.4)],[(0,73,1.2),(2,76,1.4)],
-         [(.5,78,1),(2.5,81,1)],[(0,83,1.5),(2.5,85,1)],[(0,81,1.4),(2,79,.7)],
-         [(.5,78,1.3),(2.5,74,.8)],[(0,76,2.7)]]
+# The themes are written as complete eight-bar sentences. Their first two bars
+# establish a rhythmic/intervallic idea, bars 3/4 answer it, and bars 5..8 return
+# and close it. They are not generated from the current chord's note indexes.
+# Accompaniment and melody use the same phrase plan, including the cadence.
+GLASS_A=[[(0,76,1.3),(1.5,78,.38),(2,79,.8)],[(.5,78,1.35),(2.5,71,1.0)],
+         [(0,76,1.3),(1.5,78,.38),(2,79,.8)],[(.5,81,1.35),(2.5,78,1.0)],
+         [(0,76,1.3),(1.5,78,.38),(2,83,.8)],[(.5,81,1.35),(2.5,79,1.0)],
+         [(0,78,1.1),(1.5,81,.4),(2.5,79,.65)],[(0,76,3.25)]]
+GLASS_B=[[(0,71,1.3),(1.5,74,.38),(2,76,.8)],[(.5,74,1.35),(2.5,69,1.0)],
+         [(0,71,1.3),(1.5,74,.38),(2,76,.8)],[(.5,73,1.35),(2.5,76,1.0)],
+         [(0,76,1.3),(1.5,79,.38),(2,83,.8)],[(.5,81,1.35),(2.5,78,1.0)],
+         [(0,73,1.1),(1.5,71,.4),(2.5,69,.65)],[(0,76,3.25)]]
+GLASS_HARMONY_A=[(40,[59,64,66]),(42,[57,62,66]),(43,[59,64,67]),(47,[57,62,66]),
+                 (49,[55,59,64]),(45,[57,61,67]),(42,[57,62,66]),(40,[59,64,67])]
+GLASS_HARMONY_B=[(43,[59,62,64]),(42,[57,62,66]),(47,[57,62,66]),(45,[57,61,64]),
+                 (43,[59,64,67]),(42,[57,62,66]),(45,[57,61,64]),(40,[59,64,67])]
 
 
 def glass_observatory():
-    s=Score(72,4,[('a distant light',4),('glass question',8),('orbiting answer',8),('eclipse',8),('stars emerge',8),('the observatory opens',12),('last reflection',4)],34001)
-    harmony=[[52,59,66,69],[49,57,64,71],[50,57,64,69],[47,54,64,66],
-             [52,59,62,66],[45,57,61,64],[50,57,64,69],[47,54,61,66]]
+    s=Score(72,4,[('a distant light',4),('glass question',8),('orbiting answer',8),
+                  ('eclipse',8),('stars emerge',8),('the observatory opens',8),('last reflection',4)],34001)
     for sec,i,b in s.each():
-        at=b*4;chord=harmony[i%8]
+        at=b*4
+        answer=sec in ('orbiting answer','stars emerge')
+        root,chord=(GLASS_HARMONY_B if answer else GLASS_HARMONY_A)[i%8]
+        if sec=='eclipse':
+            root,chord=[GLASS_HARMONY_A[0],GLASS_HARMONY_A[0],GLASS_HARMONY_A[1],GLASS_HARMONY_A[1],
+                        GLASS_HARMONY_B[0],GLASS_HARMONY_B[0],GLASS_HARMONY_B[2],GLASS_HARMONY_A[7]][i]
+        closing=sec=='last reflection' and i==3
+        if closing:root,chord=GLASS_HARMONY_A[7]
         hush=sec in ('a distant light','eclipse','last reflection')
-        for k,n in enumerate(chord[1:]):s.note(n,at-.15+k*.05,5.2,'auralpad',.038 if hush else .053,(k-1)*.38)
-        if i%2==0:s.note(chord[0]-12,at,6,'cello',.029 if hush else .043,-.12)
-        if sec in ('glass question','the observatory opens'):
-            s.melody(GLASS_A,i,at,'celesta',.096 if sec=='glass question' else .11,.19,echo=.17)
-        elif sec=='orbiting answer':s.melody(GLASS_B,i,at,'harp',.12,-.21,echo=.13)
+        # Close voiced swells release before the next harmony. No unrelated
+        # inner line or high note is added simply because a new bar begins.
+        if sec!='eclipse' or i%2==0:
+            held=7.35 if sec=='eclipse' else 4.1 if closing else 3.55
+            for k,n in enumerate(chord):s.note(n,at+.02*k,held,'auralpad',.023 if hush else .032,(k-1)*.32)
+        if i%2==0:s.note(root,at+.05,5.7 if sec=='eclipse' else 2.7,'cello',.031 if hush else .045,-.12)
+        if closing:s.note(40,at+.05,3.6,'cello',.031,-.12)
+        if sec=='glass question':
+            s.melody(GLASS_A,i,at,'celesta',.088,.16,echo=.12)
+        elif sec=='orbiting answer':
+            s.melody(GLASS_B,i,at,'harp',.11,-.2,echo=.075)
         elif sec=='stars emerge':
-            s.melody(GLASS_B,i,at,'recorder',.045,.1,octave=-12)
-            if i%2==0:s.note(chord[-1]+12,at+2,2.3,'celesta',.055,-.24,echo=.18)
-        elif i%2==0:s.note(chord[2]+12,at+1.5,2.7,'celesta',.05,.25,echo=.22)
-        if sec=='the observatory opens':
-            # A descending inner voice answers the high glass motif.
-            s.note([67,66,64,62,61,64,66,59][i%8],at+.5,2.3,'viola',.037,-.25)
-            if i>=8:s.note(chord[1]+12,at+2.5,1,'harp',.07,-.3)
-    for n in [40,59,64,66,71]:s.note(n,(s.bars-1)*4,6,'auralpad',.048,(n%3-1)*.25)
+            s.melody(GLASS_B,i,at,'recorder',.060,.08)
+            # A glass answer lives only in the breath at the end of a phrase.
+            if i==3:s.note(71,at+3.65,.5,'celesta',.036,-.22,echo=.10)
+        elif sec=='the observatory opens':
+            s.melody(GLASS_A,i,at,'celesta',.102,.16,echo=.12)
+            if i in (1,3,5):s.note([66,69,67][(i-1)//2],at+3.6,.65,'viola',.035,-.24)
+        elif sec=='a distant light':
+            if i==0:s.note(76,at+.4,1.5,'harp',.066,-.18)
+            if i==2:
+                s.note(78,at+.5,.75,'celesta',.043,.16,echo=.12)
+                s.note(79,at+2,.9,'celesta',.045,.16,echo=.12)
+        elif sec=='eclipse':
+            # Augment the opening cell across two bars instead of inventing
+            # another arpeggio. The second four bars answer downward.
+            if i in (0,4):s.note(76 if i==0 else 74,at,2.6,'harp',.075,-.2,echo=.10)
+            if i in (2,6):s.note(78 if i==2 else 71,at+.5,2.4,'harp',.065,-.2,echo=.10)
+        elif sec=='last reflection':
+            # Two-bar recollection, then a full tonic bar and natural release.
+            if i==0:
+                s.note(76,at,1.35,'celesta',.067,.16,echo=.10)
+                s.note(78,at+1.5,.4,'celesta',.049,.16,echo=.10)
+            if i==1:s.note(79,at+.5,1.9,'harp',.069,-.2)
+            if i==3:
+                s.note(76,at,3.2,'celesta',.057,.16,echo=.08)
+    s.composition=dict(revision=3,theme='E-F#-G question, with a long B answer; return expands the third note to B',
+        form='Four-bar hint, eight-bar question, related answer, augmented cell, woodwind answer, complete question return, tonic coda',
+        harmonyA=['Em(add9)','D/F#','Em/G','Bm7','C#m7b5','A7','D/F#','Em'],
+        harmonyB=['G6','D/F#','Bm7','A','Em/G','D/F#','A','Em'],
+        arrangement='One foreground voice at a time; viola answers only in breath gaps; pad swells release before changes')
     return s,s.finish([(.079,.10),(.139,.09),(.227,.07),(.383,.055),(.617,.04),(1.037,.03),(1.419,.02)])
 
 
-BRIAR_A=[[(0,74,.7),(1,77,.4),(1.5,79,.4),(2,81,.6)],[(0,79,1.2),(1.5,77,.4),(2,76,.6)],
-         [(0,74,.7),(1,76,.4),(1.5,77,.4),(2,79,.6)],[(0,81,1.5),(2,79,.6)],
-         [(0,77,.7),(1,79,.4),(1.5,81,.4),(2,83,.6)],[(0,81,.7),(1,79,.6),(2,77,.6)],
-         [(0,76,.7),(1,74,.6),(2,72,.6)],[(0,74,2.2)]]
-BRIAR_B=[[(0,69,.6),(1,74,.6),(2,77,.6)],[(0,79,.9),(1.5,77,.4),(2,74,.6)],
-         [(0,76,.6),(1,79,.6),(2,83,.6)],[(0,81,1.8),(2,79,.5)],
-         [(0,77,.6),(1,74,.6),(2,72,.6)],[(0,74,.8),(1.5,76,.4),(2,77,.6)],
-         [(0,76,.6),(1,72,.6),(2,69,.6)],[(0,74,2.2)]]
+# A compact modal dance: the same short-long turn returns three times, while
+# its final note changes the phrase's direction. The Dorian B appears over G.
+BRIAR_A=[[(0,74,.7),(1,69,.35),(1.5,74,.35),(2,77,.7)],[(0,76,1.45),(2,74,.7)],
+         [(0,74,.7),(1,69,.35),(1.5,74,.35),(2,79,.7)],[(0,77,1.45),(2,76,.7)],
+         [(0,74,.7),(1,77,.35),(1.5,79,.35),(2,81,.7)],[(0,79,1.45),(2,76,.7)],
+         [(0,76,.7),(1,74,.7),(2,71,.7)],[(0,74,2.5)]]
+BRIAR_B=[[(0,77,.7),(1,74,.35),(1.5,77,.35),(2,81,.7)],[(0,79,1.45),(2,77,.7)],
+         [(0,76,.7),(1,71,.35),(1.5,76,.35),(2,79,.7)],[(0,76,1.45),(2,69,.7)],
+         [(0,71,.7),(1,74,.35),(1.5,76,.35),(2,79,.7)],[(0,77,1.45),(2,74,.7)],
+         [(0,76,.7),(1,74,.7),(2,72,.7)],[(0,74,2.5)]]
+BRIAR_HARMONY_A=[(50,[57,62,65]),(50,[57,62,65]),(48,[55,60,64]),(45,[57,60,64]),
+                 (50,[57,62,65]),(48,[55,60,64]),(55,[55,59,62]),(50,[57,62,65])]
+BRIAR_HARMONY_B=[(53,[57,60,65]),(48,[55,60,64]),(52,[55,59,64]),(45,[57,60,64]),
+                 (55,[55,59,62]),(50,[57,62,65]),(48,[55,60,64]),(50,[57,62,65])]
 
 
 def briar_lanterns():
-    s=Score(90,3,[('the stone gate',4),('lantern procession',16),('courtyard dance',16),('mist on the path',8),('the other road',16),('lanterns return',16),('the gate closes',8)],34019,tail=6)
-    roots=[50,50,48,55,53,55,48,50]
-    voicings=[[57,62,65],[57,62,67],[55,60,64],[55,62,65],[53,60,65],[55,59,62],[55,60,64],[57,62,65]]
+    s=Score(90,3,[('the stone gate',4),('lantern procession',16),('courtyard dance',16),
+                  ('mist on the path',8),('the other road',16),('lanterns return',16),('the gate closes',8)],34019,tail=6)
     rng=np.random.default_rng(14159)
     t=np.arange(round(.25*RATE))/RATE
     hand=np.sin(2*np.pi*(110*t+1.1*(1-np.exp(-35*t))))*np.exp(-t*25)
     hand+=filt(rng.normal(0,1,len(t)),2600)*np.exp(-t*50)*.13
     tap=filt(rng.normal(0,1,round(.09*RATE)),4200)*np.exp(-np.arange(round(.09*RATE))/RATE*55)
     for sec,i,b in s.each():
-        at=b*3;root=roots[i%8];chord=voicings[i%8];hush=sec in ('the stone gate','mist on the path','the gate closes')
-        # Open fifth pedal and modal broken strings, with no jazz chord bed.
-        if i%2==0:
-            s.note(38,at,5.4,'strings',.025,-.35)
-            s.note(57,at+.1,5,'strings',.019,.32)
-        pattern=[(0,root),(1,chord[0]),(1.5,chord[1]),(2,chord[2]),(2.5,chord[1])]
-        for pos,n in pattern:s.note(n,at+pos,.8 if pos==0 else .46,'lute',.145 if not hush else .105,(-1 if pos%1 else 1)*.23)
-        if sec in ('lantern procession','lanterns return'):
-            s.melody(BRIAR_A,i,at,'recorder',.068,.12)
-        elif sec in ('courtyard dance','the other road'):
-            s.melody(BRIAR_B,i,at,'harp',.15,-.14)
-            if i%4 in (1,3):s.note(chord[1]+12,at+1.5,.7,'recorder',.04,.28)
-        elif i%4==2:s.note(chord[-1]+12,at+1,1.6,'recorder',.042,.1)
+        at=b*3;answer=sec in ('courtyard dance','the other road')
+        root,chord=(BRIAR_HARMONY_B if answer else BRIAR_HARMONY_A)[i%8]
+        if sec=='the gate closes' and i<4:root,chord=BRIAR_HARMONY_A[i+4]
+        hush=sec in ('the stone gate','mist on the path','the gate closes')
+        # The lute speaks in a dance pulse, rather than filling every eighth
+        # note. Open D/A remains the modal center in the exposed passages.
+        s.note(root,at,.82,'lute',.105 if hush else .145,-.17)
         if not hush:
-            s.put(hand,at,.13,-.05)
-            s.put(tap,at+1,.055,.24);s.put(tap,at+2,.038,-.19)
-            if i%8==7:s.put(tap,at+2.5,.045,.2)
-        if sec=='lanterns return' and i>=8:
-            s.note([62,65,64,62,60,59,60,62][i%8],at+.25,2,'viola',.043,-.25)
-    # A Picardy third appears only in the last cadence, not throughout the mode.
-    for n in [38,50,57,62,66]:s.note(n,(s.bars-1)*3,4.5,'harp',.12,(n%3-1)*.25)
+            for pos in (1,2):
+                for n in chord[1:]:s.note(n,at+pos,.46,'lute',.062 if pos==1 else .052,.15)
+        elif i%2==0:s.note(57,at+1.5,.7,'lute',.072,.16)
+        if hush and i%2==0:
+            s.note(38,at,5.5,'strings',.024,-.3)
+            s.note(57,at+.04,5.45,'strings',.017,.26)
+        if sec in ('lantern procession','lanterns return'):
+            s.melody(BRIAR_A,i,at,'recorder',.074 if sec=='lantern procession' else .079,.10)
+            # A single low answer is reserved for the long eighth-bar tonic.
+            if sec=='lanterns return' and i==15:
+                s.note(62,at+1.6,.9,'viola',.038,-.22)
+        elif sec in ('courtyard dance','the other road'):
+            s.melody(BRIAR_B,i,at,'harp',.15 if sec=='courtyard dance' else .16,-.12)
+        elif sec=='mist on the path':
+            if i in (0,4):s.note(74,at,2.4,'recorder',.047,.10)
+            if i in (2,6):s.note(69 if i==2 else 71,at+.5,1.9,'recorder',.043,.10)
+        elif sec=='the stone gate' and i==2:
+            s.note(74,at,.7,'recorder',.048,.10)
+            s.note(69,at+1.5,.6,'recorder',.041,.10)
+        elif sec=='the gate closes':
+            if i<4:s.melody(BRIAR_A,i+4,at,'recorder',.060,.10)
+            if i==7:
+                for n in [38,50,57,62]:s.note(n,at,4.1,'harp',.10,(n%3-1)*.2)
+                s.note(74,at,2.3,'recorder',.044,.10)
+        if not hush:
+            s.put(hand,at,.105,-.05)
+            s.put(tap,at+1,.035,.22);s.put(tap,at+2,.026,-.18)
+            # Keep the eighth-bar cadence empty of a fill.
+    s.composition=dict(revision=3,theme='D-A-D-F short-long turn, repeated with G and then A as the goal; Dorian B answers over G',
+        form='Processional strain A, brighter harp strain B, drone interlude, B return, A return, open-fifth coda',
+        harmonyA=['Dm','Dm','C','Am','Dm','C','G','Dm'],
+        harmonyB=['F','C','Em','Am','G','Dm','C','Dm'],
+        arrangement='Three-beat lute pulse, exposed D/A drone, one melodic instrument at a time, no unrelated recorder fill')
     return s,s.finish([(.061,.09),(.117,.065),(.193,.045),(.317,.035),(.509,.025)],9500)
 
 
-CASE_A=[[(0,74,.35),(.5,75,.3),(1,74,.55),(2,69,.5)],[(.5,70,.4),(1.25,73,.35),(2,74,.6)],
-        [(0,77,.7),(1,76,.4),(1.5,74,.4),(2.25,72,.5)],[(0,73,.7),(1.5,69,.45),(2.25,68,.5)],
-        [(0,74,.4),(.5,75,.3),(1,74,.55),(2,81,.55)],[(0,79,.7),(1,77,.4),(2,76,.6)],
-        [(.5,74,.55),(1.5,73,.4),(2.25,70,.5)],[(0,69,1),(1.5,73,.35),(2.25,74,.5)]]
-CASE_B=[[(0,65,.8),(1.5,69,.4),(2.25,72,.5)],[(0,70,1),(1.5,67,.4),(2.25,65,.5)],
-        [(0,64,.7),(1,67,.4),(2,70,.6)],[(0,73,1.6),(2.25,72,.4)],
-        [(0,74,.7),(1,77,.4),(2,79,.6)],[(0,76,1),(1.5,73,.4),(2.25,70,.5)],
-        [(0,69,.7),(1,68,.4),(2,67,.6)],[(0,66,.6),(1,64,.5),(2,62,.8)]]
+# The semitone neighbour is the clue. Its rhythm recurs over i/V, reaches a
+# single A at the centre of the sentence, then C# resolves to D at the close.
+CASE_A=[[(0,74,.38),(.5,75,.24),(.875,74,.66),(2,69,.68)],[(.5,70,.34),(1,69,.55),(2,73,.68)],
+        [(0,74,.38),(.5,75,.24),(.875,74,.66),(2,77,.68)],[(0,76,.85),(1.25,73,.5),(2,69,.68)],
+        [(0,74,.38),(.5,75,.24),(.875,74,.66),(2,81,.68)],[(0,79,.68),(1,77,.68),(2,76,.68)],
+        [(0,73,.68),(1,74,.5),(2,73,.68)],[(0,74,2.3)]]
+CASE_B=[[(0,65,1.3),(1.5,69,.4),(2.25,70,.5)],[(0,69,1.45),(2,65,.68)],
+        [(0,67,1.3),(1.5,70,.4),(2.25,74,.5)],[(0,73,1.45),(2,69,.68)],
+        [(0,74,.68),(1,77,.68),(2,76,.68)],[(0,70,1.45),(2,67,.68)],
+        [(0,69,.68),(1,67,.6),(2,73,.68)],[(0,74,2.3)]]
+CASE_HARMONY_A=[(50,[62,65,69]),(45,[61,64,67]),(50,[62,65,69]),(45,[61,64,67]),
+                (46,[62,65,69]),(43,[58,62,67]),(45,[61,64,70]),(50,[62,65,69])]
+CASE_HARMONY_B=[(46,[58,62,65]),(45,[60,65,69]),(43,[58,62,67]),(45,[61,64,67]),
+                (46,[62,65,69]),(43,[58,62,67]),(45,[61,64,67]),(50,[62,65,69])]
 
 
 def copper_casebook():
-    s=Score(96,3,[('the case opens',4),('the question',16),('footsteps in fog',16),('a deduction',12),('the false lead',8),('the reveal',16),('one last clue',12),('case closed',4)],34031)
-    roots=[50,46,55,45,50,43,52,45]
-    chords=[[62,65,69],[58,62,65],[58,62,67],[57,61,64],[62,65,69],[58,62,67],[58,62,64],[57,61,67]]
+    s=Score(96,3,[('the case opens',4),('the question',16),('footsteps in fog',16),
+                  ('a deduction',8),('the false lead',8),('the reveal',16),('one last clue',8),('case closed',4)],34031)
     for sec,i,b in s.each():
-        at=b*3;root=roots[i%8];chord=chords[i%8];hush=sec in ('the case opens','the false lead','case closed')
-        s.note(root-12,at,.8,'basspluck',.11 if hush else .19,-.05)
-        for pos,n in [(1,chord[0]),(1.5,chord[1]),(2,chord[2])]:
-            s.note(n,at+pos,.35,'pizz',.12 if not hush else .075,(-1 if pos==1 else 1)*.25)
-        if not hush and i%2==1:s.note(root-13,at+2.65,.25,'pizz',.08,-.15)
-        if sec in ('the question','the reveal'):
-            s.melody(CASE_A,i,at,'clarinet',.084,.13)
-        elif sec in ('footsteps in fog','one last clue'):
-            s.melody(CASE_B,i,at,'viola',.082,-.18)
-        elif sec=='a deduction':
-            s.melody(CASE_B,i,at,'feltpiano',.17,.08,octave=12 if i>=8 else 0)
-        elif i%2==1:s.note(chord[1]+12,at+1,.8,'clarinet',.045,.15)
-        if sec in ('footsteps in fog','the reveal') and i%4 in (0,2):
-            for n in chord[:2]:s.note(n-12,at+.2,2.5,'strings',.026,-.27)
-        if sec=='the reveal' and i>=8:
-            # A chromatic inner countermelody resolves against the reed phrase.
-            s.note([65,64,62,61,62,60,58,57][i%8],at+.35,1.9,'cello',.043,-.3)
+        at=b*3;answer=sec in ('footsteps in fog','one last clue')
+        root,chord=(CASE_HARMONY_B if answer else CASE_HARMONY_A)[i%8]
+        if sec=='case closed' and i==3:root,chord=CASE_HARMONY_A[7]
+        hush=sec in ('the case opens','the false lead','case closed')
         if sec=='the false lead':
-            for n in [57,60,63,66] if i<4 else [57,61,64,67]:s.note(n,at+.15,2.4,'strings',.025,(n%3-1)*.3)
-    for n in [38,50,57,62,65]:s.note(n,(s.bars-1)*3,4,'feltpiano',.11,(n%3-1)*.2)
-    return s,s.finish([(.043,.075),(.089,.055),(.149,.04),(.241,.025),(.397,.015)],10500)
+            root=45;chord=[60,63,66] if i<4 else [61,64,67]
+        s.note(root-12,at,.78,'basspluck',.10 if hush else .165,-.04)
+        # Quiet two-beat chord stabs give the waltz a floor. The lead's
+        # chromatic neighbour is the only repeated high semitone gesture.
+        for pos in (1,2):
+            for n in chord:s.note(n,at+pos,.30,'pizz',.047 if hush else .071,(-1 if pos==1 else 1)*.18)
+        if not hush and i%8==6:s.note(49,at+2.72,.17,'basspluck',.075,-.04)
+        if sec in ('the question','the reveal'):
+            s.melody(CASE_A,i,at,'clarinet',.092 if sec=='the question' else .102,.12)
+        elif sec in ('footsteps in fog','one last clue'):
+            s.melody(CASE_B,i,at,'viola',.084,-.16)
+        elif sec=='a deduction':
+            s.melody(CASE_A,i,at,'feltpiano',.16,.06,octave=-12)
+        elif sec=='the case opens':
+            if i==0:
+                s.note(74,at,.38,'clarinet',.062,.12)
+                s.note(75,at+.5,.24,'clarinet',.055,.12)
+                s.note(74,at+.875,.66,'clarinet',.062,.12)
+            if i==3:s.note(73,at+1.5,.9,'clarinet',.058,.12)
+        elif sec=='the false lead':
+            if i in (0,2,4,6):
+                for n in chord:s.note(n,at+.15,2.3,'strings',.026,(n%3-1)*.2)
+                s.note(75 if i<4 else 73,at+.5,1.65,'clarinet',.056,.12)
+        elif sec=='case closed':
+            if i==0:
+                s.note(74,at,.38,'clarinet',.073,.12)
+                s.note(75,at+.5,.24,'clarinet',.054,.12)
+                s.note(74,at+.875,1.0,'clarinet',.068,.12)
+            if i==3:
+                for n in [38,50,57,62,65]:s.note(n,at,3.6,'feltpiano',.078,(n%3-1)*.16)
+                s.note(74,at,2.3,'clarinet',.069,.12)
+        # Supporting bowed voices answer only the cadence, instead of playing
+        # another independent eight-note theme under an active reed melody.
+        if sec=='the reveal' and i==15:s.note(50,at+1.5,1.2,'cello',.047,-.25)
+    s.composition=dict(revision=3,theme='D-Eb-D neighbour with a falling fifth; C#-D resolution closes each eight-bar question',
+        form='Clue, repeated question, legato answer, piano deduction, diminished false lead, complete reed reveal, answer, tonic close',
+        harmonyA=['Dm','A7b9','Dm','A7','Bbmaj7','Gm6','A7b9','Dm'],
+        harmonyB=['Bbmaj7','F/A','Gm','A7','Bbmaj7','Gm','A7','Dm'],
+        arrangement='One melodic line; two quiet waltz stabs; the chromatic clue and its dominant resolution share one harmonic plan')
+    return s,s.finish([(.043,.075),(.089,.055),(.149,.04),(.241,.025),(.397,.015)])
 
 
-POST_A=[[(0,72,1.1),(1.5,75,.5),(2.5,79,1)],[(.5,77,1.1),(2,75,.7),(3,72,.7)],
-        [(0,70,1),(1.5,72,.5),(2.5,75,1)],[(0,74,1.6),(2.5,70,1)],
-        [(0,72,.9),(1.5,75,.5),(2.5,80,1)],[(.5,79,1.1),(2,77,.7),(3,75,.7)],
-        [(0,74,1),(1.5,72,.5),(2.5,70,.9)],[(0,72,2.5)]]
-POST_B=[[(0,68,1),(1.5,72,.5),(2.5,75,1)],[(.5,73,1.2),(2.5,72,1)],
-        [(0,70,.9),(1.5,68,.5),(2.5,65,1)],[(.5,67,1),(2,70,1.3)],
-        [(0,72,1),(1.5,75,.5),(2.5,77,1)],[(0,76,1.2),(2,73,.7),(3,70,.7)],
-        [(0,72,1.1),(1.5,70,.5),(2.5,67,1)],[(0,68,2.7)]]
+# A song-like descending phrase in a sixth, not a treble arpeggio. Its long
+# opening note, short sigh and held response recur over a directed bass line.
+POST_A=[[(0,75,1.25),(1.5,72,.35),(2,70,.7),(3,68,.7)],[(0,72,2.5),(3,75,.7)],
+        [(0,75,1.25),(1.5,72,.35),(2,73,.7),(3,77,.7)],[(0,75,2.5),(3,70,.7)],
+        [(0,75,1.25),(1.5,72,.35),(2,70,.7),(3,68,.7)],[(0,77,1.25),(1.5,75,.35),(2,73,1.5)],
+        [(0,72,1.25),(1.5,70,.35),(2,70,1.5)],[(0,68,3.3)]]
+POST_B=[[(0,77,1.25),(1.5,75,.35),(2,72,1.5)],[(0,75,1.25),(1.5,73,.35),(2,72,1.5)],
+        [(0,77,1.25),(1.5,75,.35),(2,73,1.5)],[(0,76,2.5),(3,73,.7)],
+        [(0,75,1.25),(1.5,72,.35),(2,68,1.5)],[(0,73,1.25),(1.5,72,.35),(2,70,1.5)],
+        [(0,70,1.5),(2,67,1.35)],[(0,68,3.3)]]
+POST_HARMONY_A=[(44,[56,60,63]),(41,[56,60,63]),(49,[56,60,65]),(51,[55,58,61]),
+                (48,[56,60,63]),(49,[56,60,65]),(51,[55,58,61]),(44,[56,60,63])]
+POST_HARMONY_B=[(41,[56,60,63]),(48,[55,58,63]),(49,[56,60,65]),(49,[56,61,64]),
+                (51,[56,60,63]),(46,[56,61,64]),(51,[55,58,61]),(44,[56,60,63])]
 
 
 def postcards_home():
-    s=Score(78,4,[('the porch light',4),('the first letter',8),('a familiar refrain',8),('a faded photograph',8),('remembering',8),('homeward',12),('the last postcard',4)],34057)
-    # Abmaj9, Fm9, Dbmaj9, Eb6; Db minor colors the central photograph.
-    roots=[44,41,49,51,44,46,49,51]
-    chords=[[56,60,63,67],[53,56,60,63],[53,56,61,65],[55,58,63,67],[56,60,63,68],[53,58,61,65],[53,56,61,65],[55,58,61,67]]
+    s=Score(78,4,[('the porch light',4),('the first letter',8),('a familiar refrain',8),
+                  ('a faded photograph',8),('remembering',8),('homeward',16),('the last postcard',4)],34057)
     for sec,i,b in s.each():
-        at=b*4;root=roots[i%8];chord=chords[i%8]
+        at=b*4;answer=sec in ('a faded photograph','remembering')
+        root,chord=(POST_HARMONY_B if answer else POST_HARMONY_A)[i%8]
+        if sec=='the last postcard' and i==3:root,chord=POST_HARMONY_A[7]
         hush=sec in ('the porch light','a faded photograph','the last postcard')
-        if sec=='a faded photograph':
-            chord=([53,56,61,65] if i<4 else [52,56,61,64]);root=49
-        s.note(root,at,2.8,'feltpiano',.135 if hush else .17,-.15)
-        for k,n in enumerate(chord):s.note(n,at+.06*k,2.9,'feltpiano',.072 if hush else .085,(k-1.5)*.15)
-        if not hush:
-            for pos,k in [(1.6,1),(2.6,3),(3.35,2)]:s.note(chord[k],at+pos,.7,'feltpiano',.055,-.23)
+        # A quiet low bass plus two inner voices leaves the tune's register
+        # clear. There are no extra treble chord-index notes between phrases.
+        s.note(root,at,2.7,'feltpiano',.10 if hush else .13,-.1)
+        for k,n in enumerate(chord):s.note(n,at+.05+k*.025,2.4,'feltpiano',.042 if hush else .051,-.12)
+        if not hush and i%8 not in (3,7):
+            for n in chord[1:]:s.note(n,at+2.5,.75,'feltpiano',.033,-.12)
         if sec in ('the first letter','a familiar refrain','homeward'):
-            s.melody(POST_A,i,at,'feltpiano',.125 if sec!='homeward' else .14,.12)
-        elif sec=='remembering':s.melody(POST_B,i,at,'cello',.070,-.2,octave=-12)
-        elif i%2==0:s.note(chord[-1]+12,at+1.5,1.7,'feltpiano',.07,.2)
-        if sec in ('a familiar refrain','homeward'):
-            s.note([60,58,56,55,56,58,61,58][i%8],at+.3,3.1,'cello',.045,-.25)
-            if sec=='homeward' and i>=4:
-                for n in chord[1:3]:s.note(n,at-.08,4.6,'strings',.024,.23)
-        if sec=='a faded photograph':s.note(68 if i<4 else 64,at+.7,3.4,'strings',.026,.25)
-    for n in [44,56,60,63,68]:s.note(n,(s.bars-1)*4,6,'feltpiano',.105,(n%3-1)*.2)
-    song=s.finish([(.067,.09),(.127,.065),(.211,.045),(.347,.03),(.557,.018)],9400)
-    return s,song
+            s.melody(POST_A,i,at,'feltpiano',.145 if sec=='homeward' else .135,.08)
+        elif sec=='a faded photograph':
+            s.melody(POST_B,i,at,'feltpiano',.112,.08)
+        elif sec=='remembering':
+            s.melody(POST_B,i,at,'cello',.079,-.12,octave=-12)
+        elif sec=='the porch light':
+            if i==0:
+                s.note(75,at,1.25,'feltpiano',.10,.08)
+                s.note(72,at+1.5,.35,'feltpiano',.08,.08)
+            if i==2:s.note(70,at+.5,1.5,'feltpiano',.085,.08)
+        elif sec=='the last postcard':
+            if i==0:
+                s.note(75,at,1.25,'feltpiano',.115,.08)
+                s.note(72,at+1.5,.35,'feltpiano',.09,.08)
+                s.note(70,at+2,1.2,'feltpiano',.085,.08)
+            if i==1:s.note(68,at,2.7,'feltpiano',.105,.08)
+            if i==3:
+                for k,n in enumerate([44,56,60,63,68]):s.note(n,at+k*.04,4.5,'feltpiano',.075 if n<68 else .10,-.03)
+        if sec in ('a familiar refrain','homeward') and i%8 in (0,2,4,6):
+            s.note(root,at+.12,2.8,'cello',.037,-.2)
+        if sec=='homeward' and i>=8 and i%8 in (0,2,4,6):
+            for n in chord[:2]:s.note(n,at+.1,3.45,'strings',.018,.18)
+    s.composition=dict(revision=3,theme='Eb-C-Bb-Ab sigh, with a repeated long-short-held rhythm and one F as the high point',
+        form='Hint, eight-bar melody, refrain, borrowed-minor photograph, cello answer, two complete homeward sentences, tonic coda',
+        harmonyA=['Ab','Fm7','Dbmaj7','Eb7','Ab/C','Dbmaj7','Eb7','Ab'],
+        harmonyB=['Fm7','Cm7','Dbmaj7','Dbm','Ab/Eb','Bbm7b5','Eb7','Ab'],
+        arrangement='Lower inner accompaniment; treble reserved for the tune; borrowed Fb is supported by Db minor; cello later takes the related answer')
+    return s,s.finish([(.067,.09),(.127,.065),(.211,.045),(.347,.03),(.557,.018)],9400)
 
 
 PIECES=[
@@ -389,6 +507,7 @@ def main():
             level=float(20*np.log10(max(1e-12,np.sqrt(np.mean(song[start:end].astype(np.float64)**2)))))
             row['sections'].append({**sec,'rmsDbFS':level})
         row['noteEvents']=len(score.events)
+        row['composition']=score.composition
         row['acousticRenderer']='FluidSynth with MIT FluidR3 GM 3.1; authored articulations and CC11 breath/bow phrases'
         row['productionChain']='Pedalboard 0.9.26 chamber stem EQ, centered low end, filtered parallel room send'
         row['expression']='Per-instrument MIDI CC11 phrase envelopes for sustained reeds and bowed strings; individual key/pluck velocities'
@@ -396,7 +515,7 @@ def main():
             row['bellArticulation']=dict(revision=2,independentOneShotSeconds=5.0,
                 dampingBeginsSeconds=.35,terminalTaperSeconds=.50,
                 articulation='Written gates place attacks; each original bell strike decays independently and overlaps naturally',
-                phrasePlacement='Original melody, voicings, onset positions and echo timing preserved')
+                phrasePlacement='Phrase-aligned eight-bar question and answer; independent ringing retained across rewritten note placement')
         row['soundfontSha256']=SOUNDFONT_HASH
         row['soundfontPrograms']={kind:GM[kind] for kind in sorted({e['instrument'] for e in score.events if e['instrument'] in GM})}
         with tempfile.TemporaryDirectory(prefix='lucid-story-') as tmp:

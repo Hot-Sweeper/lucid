@@ -99,13 +99,50 @@ def arrange(font):
     frames=round((sum(bars for _,bars in form)*4*BEAT+5)*RATE)
     events={name:[] for name in PROGRAMS};sections=[];pad_windows=[]
     pads=np.zeros((frames,2),np.float32)
-    harmony=[[52,59,63,66,68],[49,56,59,63,66],[54,61,63,68,70],[47,54,58,61,63]]
-    contrasting=[[44,51,54,59,63],[42,49,58,61,63],[49,56,59,63,68],[52,59,63,68,70]]
-    pad_voicings=[[52,59,68],[49,56,63],[54,61,68],[47,54,63]]
-    questions=[[(.5,82,.8),(2.5,78,.9)],[(.75,75,1.1),(3.25,78,.7)],
-               [(.5,73,1.15),(2.75,78,.75)],[(.75,75,.8),(3,71,1.2)]]
-    answers=[[(.5,70,.95),(2.75,68,.8)],[(1,66,1.15),(3.25,63,.75)],
-             [(.75,66,1.2),(3.25,68,.7)],[(1,70,.9),(2.75,68,1.0)]]
+    # One connected eight-bar melody, written across the changing bass rather
+    # than derived from whichever chord happens to be playing. B-G#-F# is the
+    # recurring falling cell. Its first answer rests on E, the second reaches
+    # A# (the Lydian colour), and the consequent finally settles F# onto E.
+    # Pitch range D#4-C#5 keeps the line close instead of scattering high bells.
+    theme=[[(.5,71,.65),(1.5,68,1.10),(3,66,.60)],
+           [(0,64,2.20),(3,66,.45)],
+           [(.5,68,.65),(1.5,71,1.10),(3,70,.60)],
+           [(0,68,1.70),(2.5,66,.85)],
+           [(.5,73,.65),(1.5,71,1.10),(3,70,.60)],
+           [(0,68,1.70),(2.5,66,.85)],
+           [(.5,63,.65),(1.5,66,1.10),(3,68,.60)],
+           [(0,66,.90),(1.5,64,2.00)]]
+    # A second phrase develops the SAME falling rhythm in the lower register.
+    # Longer endings and two completely empty second halves let it breathe.
+    development=[[(.5,68,.65),(1.5,66,1.10),(3,63,.60)],
+                 [(0,61,2.60)],
+                 [(.5,66,.65),(1.5,68,1.10),(3,70,.60)],
+                 [(0,71,2.60)],
+                 [(.5,73,.65),(1.5,71,1.10),(3,70,.60)],
+                 [(0,68,2.35)],
+                 [(.5,66,.65),(1.5,63,1.10),(3,66,.60)],
+                 [(0,64,2.75)]]
+    # Bass and three close inner voices follow the phrase. Common tones stay
+    # put; the descending E-D#-C#-B bass makes the first four bars one motion.
+    # (symbol, bass, upper voices). No bass doubles a melody in its register.
+    harmony=[('Emaj9',40,[56,59,63]),('Badd11/D#',39,[54,59,63]),
+             ('C#m13',37,[56,59,63]),('G#m7/B',35,[54,56,59]),
+             ('F#add9/A#',34,[54,56,61]),('C#m11/G#',32,[52,59,63]),
+             ('B6add9/F#',42,[51,59,61]),('E6add9',40,[56,59,61])]
+    alternate=[('C#m9',37,[52,59,63]),('C#m9/B',35,[52,56,63]),
+               ('F#add9/A#',34,[54,56,61]),('Bmaj7',35,[54,58,63]),
+               ('F#add9/A#',34,[54,56,61]),('G#m7',32,[54,59,63]),
+               ('Badd9/F#',42,[51,59,61]),('Emaj9',40,[56,59,63])]
+    # Accompaniment is a quiet two-voice exchange with a separate bass. It does
+    # not roll the same five-note chord at every even bar beneath a second loop.
+    comp=[[(.06,0,.95),(.22,2,1.10),(2.75,1,.65)],
+          [(.18,1,.95),(2.10,0,.80)],
+          [(.08,0,1.10),(.26,2,1.20),(2.85,1,.65)],
+          [(.12,1,1.15),(2.80,2,.65)],
+          [(.06,0,1.00),(.25,2,1.15),(2.60,1,.75)],
+          [(.18,1,1.05),(2.10,0,.80)],
+          [(.07,0,.95),(.24,2,1.05),(2.70,1,.70)],
+          [(.12,0,1.35),(.28,2,1.45)]]
     def add(name,pitch,beat,held,velocity):
         events[name].append(dict(pitch=int(pitch),beat=max(0,float(beat)),heldSeconds=float(held),
                                  velocity=int(velocity),instrument=name))
@@ -113,31 +150,39 @@ def arrange(font):
     for section_index,(section,bars) in enumerate(form):
         start=bar*4*BEAT
         for local in range(bars):
-            at=bar*4;cycle=(local//2)%4;chord=(contrasting if section in ('an answering current','open water') else harmony)[cycle]
+            at=bar*4;cycle=local%8
+            symbol,bass,voices=(alternate if section in ('an answering current','open water') else harmony)[cycle]
             quiet=section in ('small ripples','open water','tide withdrawing')
-            # Rolled compact chords are actual sampled notes, released within
-            # roughly a second. The next bar is an answer, not another pad.
-            if local%2==0:
-                held=.82 if quiet else 1.18
-                for k,pitch in enumerate(chord[1:]):
-                    add('soft electric piano',pitch,at+.025+k*.13,held,32+(k%3)*3+(0 if quiet else 6))
-                add('soft electric piano',chord[0],at+.015,.95,34 if quiet else 43)
-            else:
-                for k,pitch in enumerate([chord[2],chord[1]+12]):
-                    add('nylon answers',pitch,at+1.1+k*1.75,.75 if quiet else 1.0,39 if quiet else 48)
-            if section=='light on the water' and local%2==1:
-                for pos,pitch,held in questions[cycle]:add('celesta glints',pitch,at+pos,held,43 if cycle!=3 else 39)
-            elif section=='an answering current' and local%2==1:
-                for pos,pitch,held in answers[cycle]:add('nylon answers',pitch,at+pos,held,48)
-                if cycle in (1,3):add('celesta glints',chord[-1]+12,at+.65,.65,34)
-            elif section=='a remembered shore' and local%2==1:
-                for pos,pitch,held in questions[cycle]:
-                    add('soft electric piano',pitch-12,at+pos,held,47)
-                if cycle in (0,2):add('celesta glints',chord[2]+12,at+3.25,.7,34)
-            elif section=='open water' and local in (1,4,7):
-                add('celesta glints',[78,75,73][(1,4,7).index(local)],at+1.45,1.1,32)
-            elif section=='tide withdrawing' and local in (1,3,5):
-                for pos,pitch,held in answers[(local//2)%4]:add('soft electric piano',pitch,at+pos,held*.9,36)
+            # The opening and coda withhold alternate bass entries. In the open
+            # water passage the accompaniment disappears for whole bars.
+            if not (section=='open water' and local in (1,3,5,7)):
+                if not (section in ('small ripples','tide withdrawing') and local%2):
+                    add('soft electric piano',bass,at+.015,1.20,33 if quiet else 39)
+                pattern=comp[cycle][:1] if quiet else comp[cycle]
+                for pos,voice,held in pattern:
+                    add('soft electric piano',voices[voice],at+pos,held,29 if quiet else 34)
+            if section=='small ripples' and local in (0,2):
+                # The first two notes of the later theme are heard in half time.
+                add('nylon answers',71 if local==0 else 68,at+.65,1.75,43)
+            elif section=='light on the water':
+                for pos,pitch,held in theme[cycle]:
+                    add('nylon answers',pitch,at+pos,held*BEAT,57 if pos==.5 else 53)
+            elif section=='an answering current':
+                for pos,pitch,held in development[cycle]:
+                    add('soft electric piano',pitch,at+pos,held*BEAT,57 if pos==.5 else 53)
+                # A single delayed E or B marks each four-bar phrase ending.
+                if local in (3,7):add('celesta glints',71 if local==3 else 76,at+3.35,.95,31)
+            elif section=='open water' and local in (0,2,4,6):
+                # Augmentation of the falling cell, not an unrelated interlude.
+                add('nylon answers',[71,68,66,64][local//2],at+.65,2.20,41)
+            elif section=='a remembered shore':
+                # Exact recognisable return, followed by a changed final answer.
+                phrase=theme[cycle] if cycle<6 else development[cycle]
+                for pos,pitch,held in phrase:
+                    add('nylon answers',pitch,at+pos,held*BEAT,58 if pos==.5 else 54)
+                if local in (1,5):add('celesta glints',76 if local==1 else 75,at+3.55,.90,29)
+            elif section=='tide withdrawing' and local in (0,2,4,6):
+                add('soft electric piano',[71,68,66,64][local//2],at+.65,1.85,43-local)
             # A short chord breath every two bars, with long *zero-pad* gaps.
             # The entire open-water passage is pad-free, as is the late coda.
             use_pad=(local%2==0 and section not in ('open water',))
@@ -145,23 +190,23 @@ def arrange(font):
             if section=='an answering current':use_pad=local in (0,4)
             if section=='tide withdrawing':use_pad=local in (0,4)
             if use_pad:
-                seconds=[2.65,3.10,2.85,3.20][cycle]
+                seconds=[2.65,3.10,2.85,3.20][cycle//2]
                 placement=at+.15;first=round(placement*BEAT*RATE)
-                pitches=pad_voicings[cycle]
+                pitches=voices
                 for k,pitch in enumerate(pitches):
                     sound=sine_breath(pitch,seconds,.0095 if quiet else .012,[-.2,.2,0][k])
                     n=min(len(sound),frames-first);pads[first:first+n]+=sound[:n]
                 pad_windows.append(dict(start=placement*BEAT,end=placement*BEAT+seconds,pitches=pitches))
             bar+=1
         sections.append(dict(name=section,start=start,end=bar*4*BEAT,
-                             intent={'small ripples':'Sparse close keys introduce the motif space',
-                                     'light on the water':'High celesta questions over brief chord breaths',
-                                     'an answering current':'Lower nylon answer and contrasting harmony',
-                                     'open water':'Pad-free release with occasional distant notes',
-                                     'a remembered shore':'The question returns on lower electric piano',
-                                     'tide withdrawing':'Descending piano answers and a clear tonic close'}[section]))
+                             intent={'small ripples':'Two half-time nylon notes seed the falling motif',
+                                     'light on the water':'One eight-bar nylon theme follows a descending bass and settles onto E',
+                                     'an answering current':'The falling rhythm develops on piano over a related contrasting bass plan',
+                                     'open water':'Pad-free augmentation of B-G#-F#-E with whole-bar rests',
+                                     'a remembered shore':'The recognisable nylon theme returns with the developed final answer',
+                                     'tide withdrawing':'The same cell slows into a quiet tonic close'}[section]))
     cadence=(bar-1)*4
-    for k,pitch in enumerate([52,59,63,68]):add('soft electric piano',pitch,cadence+.08+k*.18,1.05,35-k)
+    for k,pitch in enumerate([40,56,59,64]):add('soft electric piano',pitch,cadence+.08+k*.18,1.05,35-k)
     add('nylon answers',64,cadence+1.8,1.25,38)
     add('celesta glints',76,cadence+2.25,.95,28)
     mixed=pads.copy();parts={};raw_measures={}
@@ -172,7 +217,7 @@ def arrange(font):
         audio=filt(audio,low=85 if name=='soft electric piano' else 170 if name=='nylon answers' else 430,high=cutoff)
         # Whole-instrument calibration preserves note velocities and section
         # dynamics. It does not normalize every individual note to unit peak.
-        target={'soft electric piano':.145,'nylon answers':.082,'celesta glints':.034}[name]
+        target={'soft electric piano':.120,'nylon answers':.105,'celesta glints':.025}[name]
         audio*=target/max(1e-9,float(np.abs(audio).max()))
         produced=audio+room_return(audio,.15 if name!='celesta glints' else .12)
         if name in ('nylon answers','celesta glints'):produced+=echoes(audio)
@@ -197,12 +242,15 @@ def arrange(font):
     keep=min(frames,int(audible[-1]+round(.28*RATE)));mixed=mixed[:keep].copy()
     mixed[-round(.04*RATE):]*=np.linspace(1,0,round(.04*RATE))[:,None]
     return mixed,dict(id='tidal-memory',title='Tidal Memory',genre='ambient',bpm=BPM,key=4,mode='lydian',meter=4,energy=.12,
-                      revision=5,textures=['brief sine pads','sampled electric piano','sampled nylon guitar','celesta bells','filtered reflections'],
+                      revision=6,textures=['brief sine pads','sampled electric piano','sampled nylon guitar','celesta bells','filtered reflections'],
                       sections=sections,sampledParts=parts,sourceLevels=raw_measures,
+                      composition=dict(theme=theme,development=development,harmony=harmony,contrastingHarmony=alternate,
+                                       motif='B-G#-F# with a recurring offbeat-long-short rhythm, developed toward E',
+                                       melodicRange='D#4-C#5 theme, C#4-C#5 development',lead='One primary line at a time; celesta only in phrase-ending gaps'),
                       padBreaths=dict(count=len(pad_windows),maximumSeconds=float(max(spans)),minimumGapSeconds=float(min(gaps)),
                                       windows=pad_windows,oscillators='Fundamental sine with second harmonic at 0.025; no saw, pulse, detuning, unison or chorus',
                                       roomSend=False),
-                      arrangement='Short sampled chord gestures and high questions, lower nylon B answer, pad-free open-water passage, piano reprise and tonic close',
+                      arrangement='Connected eight-bar nylon theme, descending bass and close voice leading; related piano development, pad-free augmented motif, recognisable nylon return and quiet E close',
                       production='Actual FluidR3 electric piano/nylon/celesta; brief additive sine breaths; quiet filtered room and two restrained repeat taps')
 
 

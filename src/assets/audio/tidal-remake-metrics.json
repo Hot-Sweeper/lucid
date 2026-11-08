@@ -8,7 +8,7 @@
     "mode": "lydian",
     "meter": 4,
     "energy": 0.12,
-    "revision": 5,
+    "revision": 6,
     "textures": [
       "brief sine pads",
       "sampled electric piano",
@@ -21,78 +21,447 @@
         "name": "small ripples",
         "start": 0.0,
         "end": 14.545454545454545,
-        "intent": "Sparse close keys introduce the motif space",
-        "rmsDbFS": -28.63506341476438
+        "intent": "Two half-time nylon notes seed the falling motif",
+        "rmsDbFS": -33.074813785309175
       },
       {
         "name": "light on the water",
         "start": 14.545454545454545,
         "end": 43.63636363636363,
-        "intent": "High celesta questions over brief chord breaths",
-        "rmsDbFS": -24.716701265233446
+        "intent": "One eight-bar nylon theme follows a descending bass and settles onto E",
+        "rmsDbFS": -25.552148820297617
       },
       {
         "name": "an answering current",
         "start": 43.63636363636363,
         "end": 72.72727272727272,
-        "intent": "Lower nylon answer and contrasting harmony",
-        "rmsDbFS": -25.238406331550813
+        "intent": "The falling rhythm develops on piano over a related contrasting bass plan",
+        "rmsDbFS": -20.309026161683246
       },
       {
         "name": "open water",
         "start": 72.72727272727272,
         "end": 101.81818181818181,
-        "intent": "Pad-free release with occasional distant notes",
-        "rmsDbFS": -29.114233121165217
+        "intent": "Pad-free augmentation of B-G#-F#-E with whole-bar rests",
+        "rmsDbFS": -35.94466918870001
       },
       {
         "name": "a remembered shore",
         "start": 101.81818181818181,
         "end": 130.9090909090909,
-        "intent": "The question returns on lower electric piano",
-        "rmsDbFS": -23.01411000340011
+        "intent": "The recognisable nylon theme returns with the developed final answer",
+        "rmsDbFS": -25.247288919127932
       },
       {
         "name": "tide withdrawing",
         "start": 130.9090909090909,
         "end": 160.0,
-        "intent": "Descending piano answers and a clear tonic close",
-        "rmsDbFS": -26.878147906039104
+        "intent": "The same cell slows into a quiet tonic close",
+        "rmsDbFS": -28.60874730690966
       }
     ],
     "sampledParts": {
       "soft electric piano": {
         "program": 4,
-        "notes": 128,
-        "wholeStemPeakTarget": 0.145,
+        "notes": 134,
+        "wholeStemPeakTarget": 0.12,
         "lowpassHz": 2500
       },
       "nylon answers": {
         "program": 24,
-        "notes": 53,
-        "wholeStemPeakTarget": 0.082,
+        "notes": 46,
+        "wholeStemPeakTarget": 0.105,
         "lowpassHz": 3000
       },
       "celesta glints": {
         "program": 8,
-        "notes": 16,
-        "wholeStemPeakTarget": 0.034,
+        "notes": 5,
+        "wholeStemPeakTarget": 0.025,
         "lowpassHz": 1900
       }
     },
     "sourceLevels": {
       "soft electric piano": {
-        "peak": 0.14499999582767487,
-        "rms": 0.013842273503541946
+        "peak": 0.11999999731779099,
+        "rms": 0.013991337269544601
       },
       "nylon answers": {
-        "peak": 0.0820000022649765,
-        "rms": 0.0041921669617295265
+        "peak": 0.10499999672174454,
+        "rms": 0.006270324345678091
       },
       "celesta glints": {
-        "peak": 0.03400000184774399,
-        "rms": 0.0018653838196769357
+        "peak": 0.02500000037252903,
+        "rms": 0.0008583716698922217
       }
+    },
+    "composition": {
+      "theme": [
+        [
+          [
+            0.5,
+            71,
+            0.65
+          ],
+          [
+            1.5,
+            68,
+            1.1
+          ],
+          [
+            3,
+            66,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            64,
+            2.2
+          ],
+          [
+            3,
+            66,
+            0.45
+          ]
+        ],
+        [
+          [
+            0.5,
+            68,
+            0.65
+          ],
+          [
+            1.5,
+            71,
+            1.1
+          ],
+          [
+            3,
+            70,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            68,
+            1.7
+          ],
+          [
+            2.5,
+            66,
+            0.85
+          ]
+        ],
+        [
+          [
+            0.5,
+            73,
+            0.65
+          ],
+          [
+            1.5,
+            71,
+            1.1
+          ],
+          [
+            3,
+            70,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            68,
+            1.7
+          ],
+          [
+            2.5,
+            66,
+            0.85
+          ]
+        ],
+        [
+          [
+            0.5,
+            63,
+            0.65
+          ],
+          [
+            1.5,
+            66,
+            1.1
+          ],
+          [
+            3,
+            68,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            66,
+            0.9
+          ],
+          [
+            1.5,
+            64,
+            2.0
+          ]
+        ]
+      ],
+      "development": [
+        [
+          [
+            0.5,
+            68,
+            0.65
+          ],
+          [
+            1.5,
+            66,
+            1.1
+          ],
+          [
+            3,
+            63,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            61,
+            2.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            66,
+            0.65
+          ],
+          [
+            1.5,
+            68,
+            1.1
+          ],
+          [
+            3,
+            70,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            71,
+            2.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            73,
+            0.65
+          ],
+          [
+            1.5,
+            71,
+            1.1
+          ],
+          [
+            3,
+            70,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            68,
+            2.35
+          ]
+        ],
+        [
+          [
+            0.5,
+            66,
+            0.65
+          ],
+          [
+            1.5,
+            63,
+            1.1
+          ],
+          [
+            3,
+            66,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            64,
+            2.75
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          "Emaj9",
+          40,
+          [
+            56,
+            59,
+            63
+          ]
+        ],
+        [
+          "Badd11/D#",
+          39,
+          [
+            54,
+            59,
+            63
+          ]
+        ],
+        [
+          "C#m13",
+          37,
+          [
+            56,
+            59,
+            63
+          ]
+        ],
+        [
+          "G#m7/B",
+          35,
+          [
+            54,
+            56,
+            59
+          ]
+        ],
+        [
+          "F#add9/A#",
+          34,
+          [
+            54,
+            56,
+            61
+          ]
+        ],
+        [
+          "C#m11/G#",
+          32,
+          [
+            52,
+            59,
+            63
+          ]
+        ],
+        [
+          "B6add9/F#",
+          42,
+          [
+            51,
+            59,
+            61
+          ]
+        ],
+        [
+          "E6add9",
+          40,
+          [
+            56,
+            59,
+            61
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          "C#m9",
+          37,
+          [
+            52,
+            59,
+            63
+          ]
+        ],
+        [
+          "C#m9/B",
+          35,
+          [
+            52,
+            56,
+            63
+          ]
+        ],
+        [
+          "F#add9/A#",
+          34,
+          [
+            54,
+            56,
+            61
+          ]
+        ],
+        [
+          "Bmaj7",
+          35,
+          [
+            54,
+            58,
+            63
+          ]
+        ],
+        [
+          "F#add9/A#",
+          34,
+          [
+            54,
+            56,
+            61
+          ]
+        ],
+        [
+          "G#m7",
+          32,
+          [
+            54,
+            59,
+            63
+          ]
+        ],
+        [
+          "Badd9/F#",
+          42,
+          [
+            51,
+            59,
+            61
+          ]
+        ],
+        [
+          "Emaj9",
+          40,
+          [
+            56,
+            59,
+            63
+          ]
+        ]
+      ],
+      "motif": "B-G#-F# with a recurring offbeat-long-short rhythm, developed toward E",
+      "melodicRange": "D#4-C#5 theme, C#4-C#5 development",
+      "lead": "One primary line at a time; celesta only in phrase-ending gaps"
     },
     "padBreaths": {
       "count": 13,
@@ -103,26 +472,26 @@
           "start": 0.13636363636363635,
           "end": 2.786363636363636,
           "pitches": [
-            52,
+            56,
             59,
-            68
+            63
           ]
         },
         {
           "start": 14.68181818181818,
           "end": 17.33181818181818,
           "pitches": [
-            52,
+            56,
             59,
-            68
+            63
           ]
         },
         {
           "start": 21.954545454545453,
           "end": 25.054545454545455,
           "pitches": [
-            49,
             56,
+            59,
             63
           ]
         },
@@ -131,17 +500,17 @@
           "end": 32.07727272727273,
           "pitches": [
             54,
-            61,
-            68
+            56,
+            61
           ]
         },
         {
           "start": 36.5,
           "end": 39.7,
           "pitches": [
-            47,
-            54,
-            63
+            51,
+            59,
+            61
           ]
         },
         {
@@ -150,7 +519,7 @@
           "pitches": [
             52,
             59,
-            68
+            63
           ]
         },
         {
@@ -158,25 +527,25 @@
           "end": 61.16818181818182,
           "pitches": [
             54,
-            61,
-            68
+            56,
+            61
           ]
         },
         {
           "start": 101.95454545454545,
           "end": 104.60454545454546,
           "pitches": [
-            52,
+            56,
             59,
-            68
+            63
           ]
         },
         {
           "start": 109.22727272727273,
           "end": 112.32727272727273,
           "pitches": [
-            49,
             56,
+            59,
             63
           ]
         },
@@ -185,26 +554,26 @@
           "end": 119.35,
           "pitches": [
             54,
-            61,
-            68
+            56,
+            61
           ]
         },
         {
           "start": 123.77272727272728,
           "end": 126.97272727272728,
           "pitches": [
-            47,
-            54,
-            63
+            51,
+            59,
+            61
           ]
         },
         {
           "start": 131.04545454545453,
           "end": 133.69545454545454,
           "pitches": [
-            52,
+            56,
             59,
-            68
+            63
           ]
         },
         {
@@ -212,35 +581,35 @@
           "end": 148.4409090909091,
           "pitches": [
             54,
-            61,
-            68
+            56,
+            61
           ]
         }
       ],
       "oscillators": "Fundamental sine with second harmonic at 0.025; no saw, pulse, detuning, unison or chorus",
       "roomSend": false
     },
-    "arrangement": "Short sampled chord gestures and high questions, lower nylon B answer, pad-free open-water passage, piano reprise and tonic close",
+    "arrangement": "Connected eight-bar nylon theme, descending bass and close voice leading; related piano development, pad-free augmented motif, recognisable nylon return and quiet E close",
     "production": "Actual FluidR3 electric piano/nylon/celesta; brief additive sine breaths; quiet filtered room and two restrained repeat taps",
-    "seconds": 160.91297052154195,
-    "peakDbFS": -5.382165908813477,
-    "rmsDbFS": -25.30759048461914,
+    "seconds": 160.29034013605443,
+    "peakDbFS": -6.18216609954834,
+    "rmsDbFS": -24.850284576416016,
     "ending": "Sampled E-major tonic cadence and natural room release, no trailing held pad",
     "decoded": {
-      "seconds": 160.91297052154195,
+      "seconds": 160.29034013605443,
       "sampleRate": 44100,
       "channels": 2,
       "finite": true,
-      "integratedLUFS": -20.77,
-      "truePeakDbFS": -5.64,
-      "loudnessRangeLU": 13.8,
-      "channelCorrelation": 0.9599512961013396,
-      "dcOffset": 1.238617386434271e-07,
-      "leadingQuietSeconds": 0.0163265306122449,
-      "trailingSilenceSeconds": 0.13462585034013605,
-      "silentBodySeconds": 15
+      "integratedLUFS": -20.76,
+      "truePeakDbFS": -6.44,
+      "loudnessRangeLU": 15.9,
+      "channelCorrelation": 0.9322957265172329,
+      "dcOffset": 3.260840486518646e-08,
+      "leadingQuietSeconds": 0.01634920634920635,
+      "trailingSilenceSeconds": 0.03306122448979592,
+      "silentBodySeconds": 16
     },
-    "sha256": "52a3475e9a5400ecb9fca565f646e914b166f8abde5f6dd33450951111e3c48d",
+    "sha256": "eca5598aa6fa131e02c3d9c86c4b1e36210a64eb3f509a9164521cfc5d5b2475",
     "provenance": {
       "soundfont": {
         "name": "FluidR3 GM",

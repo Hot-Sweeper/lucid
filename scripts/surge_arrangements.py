@@ -130,19 +130,35 @@ def neon_afterglow():
         expanded=room_send(source,RATE,'small',send=.20)
         t=np.arange(len(expanded))/RATE;gate=np.clip((.255-t)/.035,0,1)
         sounds[k]=(expanded.mean(axis=1)*gate).astype(np.float32)
-    harmony=[[50,57,60,65],[46,53,57,62],[53,60,65,69],[48,55,60,64],
-             [43,50,53,58],[46,53,57,62],[45,52,55,60],[45,52,57,61]]
-    bridge=[[46,53,57,62],[48,55,60,64],[53,60,65,69],[50,57,60,65],
-            [43,50,53,58],[46,53,57,62],[52,59,62,67],[45,52,57,61]]
-    hook=[[(0,65,.65),(.75,69,.4),(1.5,72,.8),(3,69,.7)],
-          [(.5,70,.8),(2,65,1.4)],[(0,69,.6),(1,72,.6),(2,77,1.2)],
-          [(.5,76,.7),(1.5,72,.6),(3,67,.7)],[(0,70,1.2),(1.5,69,.4),(2.5,65,.9)],
-          [(0,65,.7),(1.5,62,.6),(3,65,.7)],[(.5,64,.6),(1.5,67,.6),(2.5,72,.9)],
-          [(0,73,.7),(1.5,69,.6),(3,61,.7)]]
-    response=[[(.5,74,1.3),(2.5,72,.8)],[(0,76,.7),(1.5,72,.7),(3,67,.6)],
-              [(0,77,1.6),(2.5,72,.9)],[(.5,69,.8),(2,65,1.5)],
-              [(0,70,1),(1.5,74,.6),(3,69,.7)],[(0,65,1),(2,62,1.5)],
-              [(.5,67,.7),(1.5,64,.7),(3,62,.6)],[(0,61,1.5),(2.5,64,.6)]]
+    # Two-bar harmonic breathing lets the listener learn a hook before its
+    # colors change. Common-tone voicings stay below the lead's sung register.
+    harmony=[[50,57,60,65],[50,57,60,65],[46,57,62,65],[46,57,62,65],
+             [53,57,60,67],[53,57,60,67],[48,55,62,64],[45,55,61,64]]
+    bridge=[[46,57,62,65],[46,57,62,65],[48,55,62,64],[48,55,62,64],
+            [43,53,58,62],[43,53,58,62],[45,55,62,64],[45,55,61,64]]
+    # A clipped repeated-note cell falls a fourth before its offbeat answer.
+    # The recognizably synthetic rhythm differs from Petal's lyrical falling
+    # piano phrase. Paired eight-bar sentences end in different cadences.
+    hook=[[(.25,74,.5),(1,74,.25),(1.75,69,.75),(3,72,.6)],
+          [(.25,74,.6),(1.25,77,1.1),(2.75,76,.35),(3.25,74,.55)],
+          [(.25,74,.5),(1,74,.25),(1.75,69,.75),(3,72,.6)],
+          [(.25,74,.6),(1.25,77,1.1),(2.75,74,.35),(3.25,72,.55)],
+          [(.25,72,.5),(1,72,.25),(1.75,67,.75),(3,69,.6)],
+          [(.25,69,.6),(1.25,72,1.1),(2.75,74,.35),(3.25,72,.55)],
+          [(.25,72,.5),(1,72,.25),(1.75,67,.75),(3,74,.6)],
+          [(.25,73,1.1),(1.75,76,.35),(2.5,69,.5),(3.25,73,.55)]]
+    # B is a broader descending line, with the same phrase-final rest. Its
+    # long notes make space for the motorik synth accompaniment underneath.
+    response=[[(.25,77,2.4),(3,76,.65)],[(.25,74,2.5)],
+              [(.25,76,2.4),(3,74,.65)],[(.25,72,2.5)],
+              [(.25,74,2.4),(3,70,.65)],[(.25,69,1.35),(2,70,1.35)],
+              [(.25,74,1.35),(2,76,1.35)],[(.25,73,1.35),(2,69,1.35)]]
+    bass_pitches=[[38,38,45,38,38],[38,45,38,36],[34,34,41,34],
+                  [34,41,34,36],[41,41,48,41,41],[41,48,41,40],
+                  [36,36,43,37],[33,33,40,37]]
+    bridge_bass=[[34,34,41,34,34],[34,41,34,36],[36,36,43,36],
+                 [36,43,36,38],[31,31,38,31,31],[31,38,31,33],
+                 [33,33,40,33],[33,40,33,37]]
     bass_rhythms=[[(0,.65),(.75,.35),(1.5,.4),(2.5,.7),(3.75,.2)],
                   [(0,.8),(1.25,.35),(2,.45),(2.75,.4)],
                   [(.0,.45),(.75,.5),(2.5,.8),(3.5,.3)],
@@ -158,10 +174,11 @@ def neon_afterglow():
             # Common pad tones are tied by the native renderer; envelope state
             # continues over the entire song instead of resetting every sample.
             for k,pitch in enumerate(chord[1:]):note(parts['pad'],pitch,at-.06*k,4.2,velocity*(1+k*.04))
+            in_bridge=section in ('horizon answer','rising side street')
             if not quiet:
                 for j,(pos,held) in enumerate(bass_rhythms[i%4]):
-                    octave=12 if j==2 and i%4==1 else 0
-                    note(parts['bass'],chord[0]-12+octave,at+pos,held,.095 if j==0 else .075)
+                    pitches=(bridge_bass if in_bridge else bass_pitches)[i%8]
+                    note(parts['bass'],pitches[j],at+pos,held,.095 if j==0 else .075)
                 kicks=[[0,1.75,2.5],[0,.75,2.5,3.75],[0,1.5,2.75],[0,2.5]][i%4]
                 if i%8==7:kicks=[0,2.5] # leave room for the written phrase ending
                 for j,pos in enumerate(kicks):
@@ -183,29 +200,48 @@ def neon_afterglow():
                 if i%2 and i%8!=7:place(drums,sounds['open'],at+2.5,beat,.020,.25)
                 if i%8==7:
                     for pos,level in [(3.25,.026),(3.625,.019)]:place(drums,sounds['snare2'],at+pos,beat,level,-.08)
-                # Arps answer the lead in the gaps, rather than continuously
-                # filling every half beat with the same ostinato.
-                for j,pos in enumerate([.5,2.25,3.5] if i%2 else [1.25,2.75]):
-                    note(parts['arp'],chord[1+j%3]+12,at+pos,.22,.035)
+                # One lower repeating cell provides propulsion. The lead owns
+                # the upper register; disconnected high answering twinkles
+                # no longer compete with every phrase. B opens this cell up.
+                cell=[chord[1],chord[2],chord[3],chord[2]]
+                positions=[0,.5,2,2.5] if in_bridge else [0,2] if i%2 else []
+                for j,pos in enumerate(positions):
+                    note(parts['arp'],cell[j],at+pos,.24,.028 if in_bridge else .019)
             else:
                 if not (section=='distant afterglow' and i==bars-1):
                     note(parts['bass'],chord[0]-12,at,2.6,.055)
-                if i%2==0:note(parts['arp'],chord[-1]+12,at+1.5,.5,.026)
+                if section=='first lights':
+                    # The intro exposes the accompaniment first, leaving the
+                    # complete melodic hook for the first groove entrance.
+                    for j,pos in enumerate([0,1.5,2.5]):
+                        note(parts['arp'],[chord[1],chord[2],chord[3]][j],at+pos,.34,.024)
             if section in ('night-drive question','neon homecoming'):
-                for pos,pitch,held in hook[i%8]:note(parts['lead'],pitch,at+pos,held,.082 if section=='neon homecoming' else .075)
-                if section=='neon homecoming' and i%4==2:
-                    for pos,pitch in [(1.25,chord[2]),(3.5,chord[1])]:note(parts['arp'],pitch+12,at+pos,.45,.04)
+                melody=hook[i%8]
+                if i>=8 and i%8==7:
+                    # A consequent ends on the tonic suspension, released by
+                    # the next section's downbeat, rather than another A.
+                    melody=[(.25,73,1.1),(1.75,76,.35),(2.5,74,1.1)]
+                for j,(pos,pitch,held) in enumerate(melody):
+                    level=.078 if section=='neon homecoming' else .071
+                    note(parts['lead'],pitch,at+pos,held,level*(.91 if j==0 else 1.06 if j==2 else 1))
             elif section in ('horizon answer','rising side street'):
-                for pos,pitch,held in response[i%8]:note(parts['lead'],pitch,at+pos,held,.074)
-            elif section=='tunnel respite' and i%2==0:
-                note(parts['lead'],chord[2]+12,at+1.5,1.4,.047)
+                for pos,pitch,held in response[i%8]:note(parts['lead'],pitch,at+pos,held,.069)
+            elif section=='tunnel respite' and i in (0,4):
+                for pos,pitch,held in [(.25,62,.5),(1,62,.25),(1.75,57,.75),(3,60,.6)]:
+                    note(parts['lead'],pitch,at+pos,held,.038)
+            elif section=='distant afterglow' and i in (0,4):
+                for pos,pitch,held in [(.25,74,.5),(1,74,.25),(1.75,69,.75),(3,72,.6)]:
+                    note(parts['lead'],pitch,at+pos,held,.043 if i==0 else .033)
             bar+=1
     # Deliberate D-minor cadence, not A-major left unresolved into silence.
     cadence=(bar-1)*4
     for pitch in [50,57,62,65,69]:note(parts['pad'],pitch,cadence,5,.075)
     note(parts['bass'],38,cadence,3.5,.07);note(parts['lead'],74,cadence+.5,2.5,.057)
     mixed=np.zeros((frames,2),np.float32);native={}
-    for role,gain in [('pad',.64),('bass',.60),('arp',.42),('lead',.52)]:
+    # Let the bass groove and melodic sentence carry the piece. The old broad
+    # pad stack was roughly 8 dB above the lead's average energy, masking the
+    # phrasing and reducing every passage to a foreground wash of chords.
+    for role,gain in [('pad',.32),('bass',.80),('arp',.36),('lead',.58)]:
         audio,info=render_part(parts[role],bpm,frames,role,gain);native[role]=info
         audio=process_stem(audio,RATE,'pads' if role=='pad' else role if role in ('bass','lead') else 'keys',
                            room='small' if role=='lead' else 'none',send=.10,chorus=role=='pad')
@@ -244,7 +280,13 @@ def neon_afterglow():
                          kickTreatment='28 Hz highpass, gentle 90 Hz shelf, 360 Hz mud cut, damped natural room, dry mono',
                          groove='Four-bar broken kick cycle, softer recorded pickups, alternate snare/hat takes, phrase-end hat gaps',
                          snareSpace='Short filtered gated room; selected phrase-ending 3/16 and 1/4 note stereo throws, 18% feedback, 480-3900 Hz'),
-                     arrangement='Lower-register question/answer lead, broken recorded-kick/bass groove, real gated snare, filtered phrase-ending echoes, contrasting B, quiet tunnel and reprise')
+                     tonalWriting=dict(themeBars=16,leadRegister='G4 to F5; quiet lower-register tunnel fragments',
+                         motif='Syncopated D-D-A repeated-note/falling-fourth cell and offbeat answer; paired eight-bar sentences with distinct cadences',
+                         development='Exact melodic return, broad descending B, lower fragmented tunnel, progressively quieter opening motif in coda',
+                         harmony='Two-bar Dm7, Bbmaj7, Fadd9; Cadd9 and A7 turnaround. B opens Bbmaj7 and Cadd9, then Gm7 and suspended dominant',
+                         bass='Explicit four-bar syncopated root/fifth figures with diatonic approaches into the next harmony',
+                         accompaniment='Low sparse repeating arpeggio cell, opened beneath the longer-note B theme; no competing high chord-top decorations'),
+                     arrangement='Sixteen-bar original synth hook, connected root/fifth bass, real recorded gated snare, restrained low arpeggios, broader B, fragmented tunnel and exact thematic homecoming')
 
 
 def render_tidal_remake():
@@ -291,7 +333,7 @@ def export(samples,meta):
     assert np.isfinite(pcm).all() and np.max(np.abs(pcm))<.8 and tail<.45,dict(
         finite=bool(np.isfinite(pcm).all()),peak=float(np.abs(pcm).max()),tail=float(tail))
     assert -.1<float(np.corrcoef(pcm.T)[0,1])
-    meta.update(revision=4,production='Surge XT 1.3.4 original analog patches + Pedalboard 0.9.26 stem production',
+    meta.update(revision=5,production='Surge XT 1.3.4 original analog patches + Pedalboard 0.9.26 stem production',
                 provenance=dict(instrument=authoring_provenance(),
                     effects=dict(name='Spotify Pedalboard',version='0.9.26',license='GPL-3.0-only',authoringOnly=True,
                         source='https://github.com/spotify/pedalboard',

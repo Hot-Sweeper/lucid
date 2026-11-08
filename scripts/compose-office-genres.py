@@ -1,7 +1,9 @@
 """Five original genre scores for Lucid, rendered offline.
 
 Offline authoring: Python 3, numpy, scipy and ffmpeg; Petal additionally uses
-Pedalboard 0.9.26 and the pinned CC0 VCSL drum hits fetched by
+Pedalboard 0.9.26, FluidSynth with the MIT FluidR3 GM bank (FLUID_SOUNDFONT,
+or the verified ~/.cache/lucid-audio-authoring/fluidr3 authoring cache), and
+the pinned CC0 VCSL drum hits fetched by
 scripts/fetch-vcsl-drums.py. Its original break is performed from separate hits,
 not a borrowed recording. No external service or runtime synthesizer is used.
 Each renderer owns its harmony, melody, form and rhythmic vocabulary. Run with
@@ -448,8 +450,45 @@ def tidal_memory():
 def petal_breaks(sample_dir=None):
     from acoustic_breaks import AcousticBreak
     from music_production import process_stem, center_low_end, room_send
+    import hashlib
+    import struct
     s=Score(164,[('petal drift',8),('first fracture',24),('open sky',8),('glass garden',16),('still centre',8),('bloom fragments',24),('falling petals',8)])
     kit=AcousticBreak(sample_dir, s.bpm)
+    piano_events=[]
+    def piano(pitch,at,held,velocity=60):
+        piano_events.append(dict(pitch=pitch,beat=at,held=held,velocity=velocity))
+        s.events.append(dict(beat=at,pitch=pitch,held=held,instrument='sampled acoustic piano',level=velocity/127))
+    def piano_stem():
+        # One complete sampled performance, not a synthesized bell masquerading
+        # as piano. The licensed bank remains an offline authoring dependency.
+        font=Path(os.environ.get('FLUID_SOUNDFONT',str(Path.home()/'.cache/lucid-audio-authoring/fluidr3/usr/share/sounds/sf2/FluidR3_GM.sf2')))
+        assert hashlib.sha256(font.read_bytes()).hexdigest()=='74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0'
+        def vlq(number):
+            number=int(number);out=[number&127];number>>=7
+            while number:out.insert(0,128|(number&127));number>>=7
+            return bytes(out)
+        queue=[(0,0,b'\xff\x51\x03\x07\xa1\x20'),(0,0,b'\xc0\x00'),
+               (0,0,bytes([0xb0,7,90])),(0,0,bytes([0xb0,10,68])),
+               (0,0,bytes([0xb0,91,0])),(0,0,bytes([0xb0,93,0]))]
+        for event in piano_events:
+            start=round(event['beat']*s.beat*960)
+            end=round((event['beat']+event['held'])*s.beat*960)
+            queue.extend([(max(0,start),2,bytes([0x90,event['pitch'],event['velocity']])),
+                          (max(start+1,end),1,bytes([0x80,event['pitch'],0]))])
+        queue.sort(key=lambda e:(e[0],e[1]));track=bytearray();previous=0
+        for tick,_,message in queue:track+=vlq(tick-previous)+message;previous=tick
+        track+=b'\x00\xff\x2f\x00'
+        midi=b'MThd'+struct.pack('>IHHH',6,0,1,480)+b'MTrk'+struct.pack('>I',len(track))+track
+        with tempfile.TemporaryDirectory(prefix='lucid-petal-piano-') as temp:
+            source=Path(temp)/'piano.mid';source.write_bytes(midi);target=Path(temp)/'piano.wav'
+            subprocess.run(['fluidsynth','-ni','-a','file','-F',str(target),'-T','wav','-r',str(RATE),
+                            '-g','.4','-R','0','-C','0',str(font),str(source)],capture_output=True,check=True)
+            raw=subprocess.check_output(['ffmpeg','-v','error','-i',str(target),'-ac','2','-ar',str(RATE),'-f','f32le','-'])
+        decoded=np.frombuffer(raw,dtype='<f4').reshape(-1,2)
+        rendered=np.zeros_like(s.music);length=min(len(rendered),len(decoded));rendered[:length]=decoded[:length]
+        rendered=sosfilt(butter(2,[125,4200],btype='bandpass',fs=RATE,output='sos'),rendered,axis=0).astype(np.float32)
+        rendered*=.112/max(1e-9,float(np.abs(rendered).max()))
+        return process_stem(rendered,RATE,role='keys',room='small',send=.075)
     edits=[]
     room_input=np.zeros_like(s.drums)
     throws=0
@@ -462,25 +501,41 @@ def petal_breaks(sample_dir=None):
         s.put(kit.fragment(source,beats,reverse=reverse,speed=speed,cymbals=cymbal_level),at,gain,drums=True)
         send_room(kit.fragment(source,beats,reverse=reverse,speed=speed,stem='room'),at,gain)
         edits.append(dict(beat=at,sourceBeat=source,beats=beats,reverse=reverse,speed=speed))
-    harmony=[[50,57,60,65,69],[46,53,57,60,65],[53,60,64,67,72],[48,55,58,62,67],
-             [43,50,53,57,62],[46,53,57,62,65],[45,52,55,60,64],[45,52,57,61,64]]
-    hook=[[(0,81,1),(1.5,84,.5),(2.5,89,1)],[(.5,86,1),(2,81,1.5)],
-          [(0,84,.7),(1,88,.7),(2.5,91,1)],[(.5,86,1),(2,82,.8),(3,79,.7)],
-          [(0,82,1.2),(1.5,81,.5),(2.5,77,1)],[(0,77,.8),(1.5,74,.6),(3,77,.7)],
-          [(.5,76,1),(2,79,.6),(3,84,.7)],[(0,85,1),(1.5,81,.7),(3,73,.7)]]
-    glass_harmony=[[46,53,57,60,65],[48,55,60,64,67],[50,57,60,65,69],[53,60,64,67,72],
-                   [43,50,53,57,62],[46,53,57,62,65],[52,59,62,67,71],[45,52,57,61,64]]
-    glass_hook=[[(.0,77,1.7),(2,81,.8)],[(.5,79,1.4),(2.5,76,1)],
-                [(0,77,.8),(1.5,81,.8),(3,84,.7)],[(.5,88,1.5),(2.5,84,1)],
-                [(0,86,1.6),(2,82,.8)],[(.5,81,.8),(2,77,1.5)],
-                [(0,79,.8),(1.5,76,.8),(3,74,.7)],[(.5,73,1.5),(2.5,76,.9)]]
+    # Sixteen-bar melody: a falling third, then fourth, open both sentences.
+    # Its answering half rises once, then descends to a leading-tone turnaround.
+    # Every list spans TWO bars. These are written phrases, not notes chosen
+    # afresh from whatever chord happens to be sounding at a grid position.
+    harmony=[[50,57,60,65,69],[46,53,57,62,65],[53,57,60,64,67],[48,55,60,62,64],
+             [43,50,53,58,62],[51,58,62,67,70],[52,58,62,67],[45,52,55,61,64]]
+    hook=[[(.5,77,.65),(1.5,74,2.5),(4.5,69,1.5),(6.5,72,.5),(7.25,74,.6)],
+          [(.5,77,.65),(1.5,74,2.5),(4.5,69,1.5),(6.5,70,1.1)],
+          [(.5,76,.65),(1.5,72,2.5),(4.5,69,1.5),(6.5,72,.5),(7.25,74,.6)],
+          [(.5,76,.65),(1.5,72,2.5),(4.5,67,1.5),(6.5,69,1.1)],
+          [(.5,77,2.0),(3,74,1),(4.5,70,1.3),(6.5,69,.8)],
+          [(.5,79,.65),(1.5,77,2.5),(4.5,74,1.5),(6.5,70,1.1)],
+          [(.5,79,1.5),(2.5,77,.8),(4,76,1.5),(6,74,1.2)],
+          [(.5,73,1.5),(3,76,.8),(4.5,69,1.8),(7,73,.55)]]
+    glass_harmony=[[46,53,57,62,65],[48,55,60,62,64],[50,57,60,65,69],[50,57,60,65,69],
+                   [43,50,53,58,62],[46,53,57,62,65],[52,58,62,67],[45,52,55,61,64]]
+    glass_hook=[[(.75,77,3),(4.75,74,2),(7,72,.6)],
+                [(.75,76,3),(4.75,72,2),(7,69,.6)],
+                [(.75,77,3),(4.75,74,2),(7,72,.6)],
+                [(.75,74,3),(4.75,69,2)],
+                [(.75,70,3),(4.75,74,2),(7,77,.6)],
+                [(.75,77,3),(4.75,74,2)],
+                [(.75,76,3),(4.75,74,2)],
+                [(.75,73,2),(4,69,1.5),(6.5,73,.7)]]
     s.section_levels={'petal drift':.76,'first fracture':.96,'open sky':.82,'glass garden':1.01,'still centre':.64,'bloom fragments':1.09,'falling petals':.74}
     for sec,i,b in s.bars_iter():
         # The final return opens the cymbal layer; the bell-led middle leaves
         # it softer. This changes actual performed layers rather than applying
         # a blanket treble boost to every instrument in the song.
         cymbal_level=1.45 if sec=='bloom fragments' else .9 if sec=='glass garden' else 1.12
-        chord=(glass_harmony if sec=='glass garden' else harmony)[(i//2)%8]; at=b*4
+        phrase=(i//2)%8
+        # Eight additional bars after a complete statement turn the last four
+        # phrases into a lower reply; they do not restart half of the melody.
+        if sec in ('first fracture','bloom fragments') and i>=16:phrase=4+(i-16)//2
+        chord=(glass_harmony if sec=='glass garden' else harmony)[phrase]; at=b*4
         if i%2==0:
             for k,n in enumerate(chord[1:]): s.note(n,at-.15,8.4,'breakpad',.052,(k-1.5)*.49)
         active=sec in ('first fracture','glass garden','bloom fragments')
@@ -544,20 +599,31 @@ def petal_breaks(sample_dir=None):
                 s.put(kit.hit('open',.5,i),at+3.5,.55,drums=True)
         elif sec=='petal drift' and i>=4:
             break_phrase(at,((i-4)%4)*4,4,.18)
-        if sec in ('first fracture','glass garden','bloom fragments'):
-            # A half-time piano hook holds the musical thread across rapid drums.
-            melodic_phrase = glass_hook if sec=='glass garden' else hook
-            for pos,n,dur in melodic_phrase[(i//2)%8]:
-                if i%2==0:
-                    # Alternate phrases breathe; final phrase returns an octave
-                    # answer rather than stacking a constant lead over the break.
-                    s.note(n,at+pos*2,dur*1.5,'feltbell' if sec=='glass garden' else 'breakpiano',.089,.12,.23)
-            if sec=='bloom fragments' and i%8==5:
-                s.note(chord[2]+12,at+.5,2,'lofiguitar',.052,-.32,.2)
-        elif i%4==0:
-            s.note(chord[-1]+12,at+1,4,'feltbell',.06,.3,.35)
+        if sec in ('first fracture','bloom fragments') and i%2==0:
+            for event,(pos,n,dur) in enumerate(hook[phrase]):
+                # Only the eight-bar reply changes register. The first full
+                # reprise keeps its original pitch/rhythm, so it is recognizable.
+                lower=i>=16
+                velocity=(58 if lower else 65 if sec=='bloom fragments' else 61)
+                velocity+=3 if event in (1,2) else -5
+                piano(n-(12 if lower else 0),at+pos,dur,velocity)
+        elif sec=='glass garden' and i%2==0:
+            for pos,n,dur in glass_hook[phrase]:
+                s.note(n,at+pos,dur,'feltbell',.057,.14,.15)
+        elif sec in ('petal drift','open sky','still centre','falling petals'):
+            # Theme fragments are placed as replies with actual space around
+            # them; no free chord-top bell is inserted every fourth bar.
+            if sec=='petal drift' and i in (1,5):
+                for pos,n,dur in [(.5,77,.65),(1.5,74,2.5)]:piano(n,at+pos,dur,46)
+            elif sec=='open sky' and i in (1,5):
+                for pos,n,dur in [(0,77,2),(2.5,74,2.2)]:piano(n-12,at+pos,dur,51)
+            elif sec=='still centre' and i in (1,5):
+                for pos,n,dur in [(0,74,2),(3,69,2)]:s.note(n,at+pos,dur,'feltbell',.041,.12,.10)
+            elif sec=='falling petals' and i in (0,4):
+                for pos,n,dur in [(.5,77,.65),(1.5,74,2.5),(4.5,69,1.5)]:piano(n-12,at+pos,dur,47)
     s.cadence([50,57,60,65,69],'breakpad',.062)
-    s.note(74,s.bars*4-.5,4,'feltbell',.05,.18,.28)
+    piano(62,s.bars*4-.5,3.5,47)
+    s.music+=piano_stem()
     s.reflections([(.113,.09),(.263,.07),(.491,.05),(.817,.03)])
     # Open the existing voiced upper stage while keeping its low register mono.
     side=(s.music[:,0]-s.music[:,1])*.5
@@ -571,7 +637,7 @@ def petal_breaks(sample_dir=None):
     room_return_rms=float(np.sqrt(np.mean(wet_room.astype(np.float64)**2)))
     s.drums+=wet_room
     del wet_room,room_input
-    s.production=dict(revision=5,drumSource='Original eight-bar performance from separate VCSL acoustic hits',
+    s.production=dict(revision=6,drumSource='Original eight-bar performance from separate VCSL acoustic hits',
                       sourceLicense=kit.manifest['license'],sourceCommit=kit.manifest['commit'],
                       sourceManifest='scripts/assets/vcsl-drums.json',sourceHitCount=len(kit.manifest['files']),
                       sourcePerformanceEvents=len(kit.events),phraseBars=8,
@@ -588,7 +654,13 @@ def petal_breaks(sample_dir=None):
                       bellArticulation=dict(ringSeconds=4.9,earlyBodyPreservedSeconds=.35,
                           terminalTaperSeconds=.5,terminalTaperStartsAfterNaturalDb=-55,
                           method='Independent overlapping struck-bell one-shots; no rhythmic note-off gate; smooth later damping',
-                          placement='Original melody, note onsets, rhythm and echo placements retained'),
+                          placement='Connected middle-register sixteen-bar variation, independent natural overlapping releases'),
+                      tonalWriting=dict(themeBars=16,themeRegister='A4 to G5, with lower octave replies',
+                          development='Falling-third/fourth motif; paired eight-bar sentences; lower closing reply, bell augmentation, exact thematic homecoming',
+                          harmony='D minor, Bb major, F major, C add9; G minor and borrowed Eb lead through E half-diminished to A7',
+                          piano='MIT FluidR3 GM program 0 acoustic piano, authored note lengths and velocities, one whole-stem calibration',
+                          fontSHA256='74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0',
+                          melodicEvents=len(piano_events)),
                       rhythm='Performed syncopation and soft ghost strokes, eight-bar call and response, restrained phrase-end retriggers, half-time and drumless contrasts')
     return s,s.finish(12500)
 

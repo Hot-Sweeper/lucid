@@ -311,50 +311,92 @@ def percussion_finish(score,lunar=False):
 
 
 def cassette_clouds():
-    score=Arrangement(82,[('dusty window',4,.78),('first verse',12,.94),('sunny hook',8,1.04),
-                         ('tape interlude',8,.74),('second verse',8,.96),('homecoming',8,1.07),
-                         ('tape tail',4,.76)],104729)
-    harmony=[[53,57,60,64,67],[50,53,57,60,64],[55,58,62,65,69],[48,52,55,58,62],
-             [58,62,65,69,72],[58,61,65,68,72],[53,57,60,64,67],[48,52,55,58,62]]
-    bridge=[[58,61,65,68,72],[51,55,58,62,65],[56,60,63,67,70],[48,52,55,58,61],
-            [50,53,57,60,64],[55,58,62,65,69],[48,52,55,58,62],[48,52,55,58,61]]
-    hook=[[(0,76,.7),(1.65,79,.4),(2.5,81,.8)],[(.5,77,1.2),(2.65,76,.8)],
-          [(0,74,.7),(1.65,77,.4),(2.5,81,.8)],[(.5,79,.65),(1.65,76,.4),(3,74,.7)],
-          [(0,77,1.2),(1.65,81,.4),(2.65,84,.8)],[(.5,80,.7),(2,77,1)],
-          [(0,76,.7),(1.65,74,.4),(2.65,72,.8)],[(.5,74,.7),(2,72,1.6)]]
-    answer=[[(.5,77,.7),(2,80,.7)],[(0,79,1.2),(2.65,77,.6)],
-            [(.5,75,.8),(2,72,1)],[(0,73,.6),(1.65,74,.4),(2.5,76,1)],
-            [(0,77,.8),(2,76,.7)],[(.5,74,1.3),(2.65,77,.5)],
-            [(0,76,.7),(1.65,74,.4),(3,72,.6)],[(.5,73,.7),(2,72,1.5)]]
+    # One eight-bar tune is stated twice to make a sixteen-bar sentence. The
+    # second ending resolves its open dominant; the middle develops the same
+    # rhythm in borrowed harmony rather than inventing an unrelated melody.
+    score=Arrangement(82,[('dusty window',4,.76),('first verse',16,.94),('sunny hook',8,1.02),
+                         ('tape interlude',8,.78),('homecoming',16,1.04),('tape tail',4,.72)],104729)
+    # Explicit bass plus close, voice-led inner parts. Their top line stays
+    # below the theme and does not jump an octave on alternate bars.
+    harmony=[(41,[57,60,64,67]),(38,[53,57,60,64]),(43,[53,57,58,62]),(36,[52,58,62,67]),
+             (45,[53,60,64,67]),(46,[53,57,60,62]),(43,[53,57,58,62]),(36,[52,58,62,67])]
+    bridge=[(46,[53,56,60,61]),(39,[55,58,61,65]),(44,[55,58,60,63]),(37,[53,56,60,63]),
+            (38,[53,57,60,64]),(43,[53,57,58,62]),(36,[52,58,62,69]),(36,[52,58,61,67])]
+    theme=[[(.67,69,.48),(1.50,72,.35),(2.25,74,1.05)],
+           [(.17,72,.60),(1.25,69,1.35),(3.50,67,.32)],
+           [(.67,69,.48),(1.50,70,.35),(2.25,74,1.05)],
+           [(.17,72,.60),(1.25,67,1.50),(3.50,69,.32)],
+           [(.67,69,.48),(1.50,72,.35),(2.25,76,1.05)],
+           [(.17,74,.60),(1.25,72,.80),(2.50,69,.95)],
+           [(.67,67,.48),(1.50,69,.35),(2.25,70,1.05)],
+           [(.17,69,.60),(1.25,67,.60),(2.50,64,.85)]]
+    middle=[[(.67,68,.48),(1.50,72,.35),(2.25,73,1.05)],
+            [(.17,72,.60),(1.25,70,1.35)],
+            [(.67,67,.48),(1.50,70,.35),(2.25,72,1.05)],
+            [(.17,68,.60),(1.25,65,1.45)],
+            [(.67,69,.48),(1.50,72,.35),(2.25,74,1.05)],
+            [(.17,74,.60),(1.25,72,.80),(2.50,69,.95)],
+            [(.67,67,.48),(1.50,69,.35),(2.25,70,1.05)],
+            [(.17,68,.60),(1.25,67,.60),(2.50,64,1.05)]]
+    comp=[[(.025,1.65,53),(2.70,.55,37)],[(.56,1.65,48),(3.25,.45,34)],
+          [(.025,1.40,50),(2.55,.65,38)],[(.60,1.55,47),(2.65,.75,42)]]
     for section,i,bar in score.each():
         at=bar*4;sparse=section in ('dusty window','tape interlude','tape tail')
-        chord=(bridge if section in ('tape interlude','second verse') else harmony)[i%8]
-        # The EP is a compact inner voice; guitar carries the upper theme, and
-        # answering piano uses open intervals instead of copying the EP block.
-        voicing=[chord[1],chord[3],chord[4],chord[2]+12]
-        if i%2:voicing=[voicing[0],voicing[1]+12,voicing[2],voicing[3]]
-        strike=.07 if i%2 else .015
-        for k,pitch in enumerate(voicing):
-            score.note('electric piano',pitch,at+strike+k*.029,2.25 if sparse else 1.7,
-                       (47 if sparse else 57)+int(score.rng.integers(-5,6)))
-            if not sparse:
-                score.note('electric piano',pitch,at+2.64+k*.019,.63,43+int(score.rng.integers(-5,5)))
-        score.note('acoustic bass',chord[0]-12,at+.015,1.7 if sparse else 1.35,64)
+        root,voicing=(bridge if section=='tape interlude' else harmony)[i%8]
+        # No repeated offbeat stabs behind a held lead note. Comp accents and
+        # releases belong to a written four-bar pocket, not random velocity.
+        strokes=comp[i%4] if not sparse else [(.04,2.35,43)]
+        if section=='tape tail':
+            root,voicing=[(41,[57,60,64,67]),(38,[53,57,60,64]),
+                          (36,[52,58,62,67]),(41,[57,60,64,69])][i]
+        final_bar=section=='tape tail' and i==3
+        # The final written cadence below owns this bar. Re-striking the same
+        # keys/bass before its note-offs would let the old MIDI gates choke it.
+        if final_bar:strokes=[]
+        cadence=(section in ('first verse','homecoming') and i%16==15) or section=='sunny hook' and i==7
+        for pos,held,velocity in strokes:
+            if cadence and pos>2.5:continue
+            for k,pitch in enumerate(voicing):
+                score.note('electric piano',pitch,at+pos+k*.018,held,velocity+[0,-3,-1,-5][k])
+        # The bass follows the written harmonic destination, including the
+        # semitone approach into C, rather than using root-minus-one each bar.
+        if not final_bar:
+            score.note('acoustic bass',root,at+.015,1.8 if sparse else 1.45,62)
         if not sparse:
-            score.note('acoustic bass',chord[0]-5,at+2.51,.75,51)
-            if i%4==3:score.note('acoustic bass',chord[0]-13,at+3.66,.23,43)
-        if section in ('first verse','sunny hook','second verse','homecoming'):
-            phrase=answer if section=='second verse' else hook
-            for event,(pos,pitch,held) in enumerate(phrase[i%8]):
-                if section=='first verse' and i%4==3 and event==2:continue
-                score.note('nylon guitar',pitch,at+pos,held,66+int(score.rng.integers(-7,7)))
-            if section=='homecoming' and i%2:
-                for pos,pitch in [(1.1,chord[2]+12),(3.32,chord[1]+12)]:
-                    score.note('answer piano',pitch,at+pos,.7,47)
+            next_root=harmony[(i+1)%8][0]
+            if cadence:
+                score.note('acoustic bass',40,at+2.50,.18,45)
+            else:
+                score.note('acoustic bass',root+7,at+2.50,.65,49)
+            if i%4==3 and not cadence:
+                approach=next_root+1 if next_root<=root else next_root-1
+                score.note('acoustic bass',approach,at+3.65,.25,43)
+        if section in ('first verse','sunny hook','homecoming'):
+            phrase=theme[i%8]
+            if cadence:phrase=[(.17,69,.60),(1.25,67,.60),(2.75,65,1.20)]
+            for event,(pos,pitch,held) in enumerate(phrase):
+                # The title motif repeats literally before its changed ending.
+                # Only the final return extends the high E into a gentle F.
+                if section=='homecoming' and i==12 and event==2:pitch,held=77,1.20
+                score.note('nylon guitar',pitch,at+pos,held,[67,61,72][event])
+            if cadence:
+                score.note('acoustic bass',41,at+2.75,1.2,58)
+                for k,pitch in enumerate([57,60,64,67]):
+                    score.note('electric piano',pitch,at+2.75+k*.018,1.25,47-k)
         elif section=='tape interlude':
-            for pos,pitch,held in answer[i%8]:
-                score.note('answer piano',pitch-12,at+pos,held*1.2,46)
-        elif i%2==0:score.note('answer piano',chord[-1]+12,at+1.15,1.6,42)
+            # Same identifying short-short-long rhythm, played more quietly
+            # on close piano; no new lead competes with this phrase.
+            for event,(pos,pitch,held) in enumerate(middle[i%8]):
+                score.note('answer piano',pitch,at+pos,held*1.12,[55,49,59][event])
+        elif section=='dusty window' and i in (2,3):
+            for event,(pos,pitch,held) in enumerate(theme[i-2]):
+                if i==2 and event==2:continue
+                score.note('nylon guitar',pitch,at+pos,held,48+event*2)
+        elif section=='tape tail':
+            ending=[[(.67,69,.50),(1.50,72,.42),(2.25,74,1.0)],
+                    [(.17,72,.70),(1.25,69,1.50)],
+                    [(.67,67,.55),(1.50,64,.70)],[(.60,65,2.8)]]
+            for pos,pitch,held in ending[i]:score.note('nylon guitar',pitch,at+pos,held,54-i*3)
         active=not sparse or section=='dusty window' and i>=2
         if active:
             kicks=([0,1.74,2.52] if i%2==0 else [0,.78,2.76])
@@ -384,11 +426,20 @@ def cassette_clouds():
             for pos in [.57,1.57,2.57,3.57]:
                 drum_hit(score,'hat_soft_'+str(1+i%2),at+pos,.023,.30,short=.075)
     end=score.bars*4
-    for k,pitch in enumerate([53,60,64,67,69]):score.note('electric piano',pitch,end-1+k*.026,5.1,52)
-    score.note('acoustic bass',41,end-1,2.5,58)
-    score.note('nylon guitar',77,end-.5,3.3,54)
-    for name,program,pan,target in [('electric piano',4,-.30,.043),('nylon guitar',24,.27,.030),
-                                   ('answer piano',0,-.46,.015),('acoustic bass',32,0,.048)]:
+    # The tonic is already heard in the written last bar. Let its original
+    # performance and room die away instead of adding an unrelated high note.
+    for k,pitch in enumerate([53,60,64,69]):score.note('electric piano',pitch,end-3.4+k*.026,4.8,42-k)
+    score.note('acoustic bass',41,end-3.4,2.8,48)
+    score.composition=dict(revision=6,themeBars=8,sentenceBars=16,
+        theme='A-C-D short-short-long cell; repeat, lower answer, E/F apex, dominant question and tonic answer',
+        melodyMIDI=theme,contrastingMelodyMIDI=middle,
+        voiceLeading='Explicit close inner voices, with A-C and F-A common-tone pairs; separate lower bass',
+        development=['Two literal statements with distinct open and closed endings',
+                     'Borrowed B-flat-minor middle develops the same rhythm on close piano',
+                     'Return preserves the theme, one late F peak, then a four-bar fragment cadence'],
+        accompaniment='Four-bar syncopated comp with written velocities; no alternating octave blocks or chord-indexed counterline')
+    for name,program,pan,target in [('electric piano',4,-.30,.043),('nylon guitar',24,.22,.035),
+                                   ('answer piano',0,-.24,.024),('acoustic bass',32,0,.048)]:
         audio=sampled_instrument(score.notes.get(name,[]),score.frames,program,
                                  -.02 if name=='electric piano' else pan,.66 if name=='electric piano' else 0)
         if name=='electric piano':audio=sampled_phrase_tape(audio,score.beat)
@@ -402,7 +453,7 @@ def cassette_clouds():
     # Sparse reverse swells use only our own newly recorded EP, beneath the B
     # section entrances. They are not lifted from any reference recording.
     own=score.stems['electric piano'];swells=np.zeros_like(own)
-    for bar in [24,28,32,40]:
+    for bar in [28,36]:
         position=round(bar*4*score.beat*RATE);n=round(.7*score.beat*RATE)
         source=own[position:min(len(own),position+n)][::-1].copy()
         source*=np.linspace(0,1,len(source),dtype=np.float32)[:,None]
@@ -452,37 +503,45 @@ def clean_sub(pitch,seconds):
 
 
 def midnight_drift():
-    score=Arrangement(74,[('streetlight',4,.74),('cruise',12,.98),('side street',8,.92),
-                         ('underpass',8,.70),('night bloom',12,1.07),('distant lights',4,.75)],503)
-    harmony=[[51,58,63,66],[47,54,58,63],[44,51,56,59],[46,53,58,61],
-             [51,58,63,66],[47,54,58,63],[44,51,56,59],[46,53,58,62]]
-    bridge=[[47,54,58,63],[49,56,61,65],[54,61,66,70],[51,58,63,66],
-            [44,51,56,59],[47,54,58,63],[46,53,58,61],[46,53,58,62]]
-    hook=[[(0,75,.35),(.75,82,.3),(1.5,78,.55),(2.75,75,.45)],
-          [(.5,78,.4),(1.25,75,.35),(2.5,70,.65),(3.5,73,.3)],
-          [(0,75,.35),(.75,80,.3),(1.5,78,.55),(3,75,.45)],
-          [(.5,77,.45),(1.5,73,.4),(2.75,70,.6)],
-          [(0,75,.35),(.75,82,.3),(1.5,87,.55),(2.75,82,.45)],
-          [(.5,85,.4),(1.25,82,.4),(2.5,78,.6),(3.5,75,.3)],
-          [(0,80,.35),(.75,78,.35),(1.5,75,.55),(3,68,.5)],
-          [(.5,70,.45),(1.5,74,.4),(2.75,75,.8)]]
-    answer=[[ (.5,70,.55),(1.75,75,.45),(3,78,.7)],[(0,73,.65),(1.5,77,.55),(3,73,.65)],
-            [(.75,78,.5),(2,82,.6),(3.25,78,.45)],[(0,78,.7),(2,75,1.1)],
-            [(.5,80,.55),(1.75,78,.45),(3,75,.65)],[(0,78,.6),(1.5,75,.6),(3,70,.7)],
-            [(.5,73,.7),(2,70,1.1)],[(.5,74,.7),(2,75,1.6)]]
+    score=Arrangement(74,[('streetlight',4,.74),('cruise',16,.98),('side street',8,.91),
+                         ('underpass',8,.70),('night bloom',16,1.05),('distant lights',4,.72)],503)
+    # Harmony changes every TWO bars. Common tones stay in place, and the
+    # lead's rests can reveal the bass pocket instead of another chord attack.
+    harmony=[(27,[54,58,61]),(35,[54,58,63]),(32,[56,59,63]),(34,[53,56,62])]
+    bridge=[(35,[54,58,63]),(37,[56,61,65]),(30,[54,58,61]),(34,[53,56,62])]
+    theme=[[(.50,63,.42),(1.25,66,.42),(2.50,70,1.20)],
+           [(.50,68,.55),(1.50,66,.50),(2.75,63,.90)],
+           [(.50,63,.42),(1.25,66,.42),(2.50,70,1.20)],
+           [(.50,73,.85),(2.00,70,1.40)],
+           [(.50,63,.42),(1.25,66,.42),(2.50,68,1.20)],
+           [(.50,71,.85),(2.00,70,.60),(3.00,66,.60)],
+           [(.50,65,.42),(1.25,68,.42),(2.50,70,1.20)],
+           [(.50,68,.55),(1.50,65,.55),(2.75,62,.90)]]
+    middle=[[(.50,63,.42),(1.25,66,.42),(2.50,70,1.20)],
+            [(.50,66,.85),(2.00,63,1.40)],
+            [(.50,65,.42),(1.25,68,.42),(2.50,73,1.20)],
+            [(.50,70,.85),(2.00,68,1.40)],
+            [(.50,66,.42),(1.25,68,.42),(2.50,70,1.20)],
+            [(.50,73,.85),(2.00,70,1.40)],
+            [(.50,68,.55),(1.50,65,.55)],
+            [(.75,62,1.05),(2.75,63,1.05)]]
     kicks=[]
     for section,i,bar in score.each():
         at=bar*4;sparse=section in ('streetlight','underpass','distant lights')
-        chord=(bridge if section=='side street' else harmony)[i%8]
-        for k,pitch in enumerate(chord[1:]):
-            pad=lunar_voice(pitch,round(5.2*score.beat,3),'pad')
-            score.put('lunar pads',pad,at-.20,.034 if sparse else .042)
-            score.record('detuned lunar pads',pitch,at-.20,5.2)
-        root=chord[0]-24
-        while root<26:root+=12
+        root,voicing=(bridge if section=='side street' else harmony)[(i//2)%4]
+        if section=='distant lights':root,voicing=harmony[0]
+        cadence=i%16==15 and section in ('cruise','night bloom')
+        if i%2==0:
+            # 5.9 held beats leave a real breath before the next eight-beat
+            # harmony. Independent smooth envelopes preserve the quiet gaps.
+            seconds=(4.8 if section=='distant lights' else 5.9)*score.beat
+            for pitch in voicing:
+                score.put('lunar pads',lunar_voice(pitch,round(seconds,3),'pad'),at+.025,.032 if sparse else .039)
+                score.record('detuned lunar pads',pitch,at+.025,seconds/score.beat)
         pattern=([(0,1.8,0),(2.75,.8,7)] if section=='side street' else
                  [(0,1.4,0),(1.75,.5,12),(2.5,.95,0),(3.5,.48,7)])
-        if sparse:pattern=[(0,3.0,0)]
+        if sparse:pattern=[(0,2.8,0)]
+        if cadence:pattern=[(0,1.4,0),(1.75,.5,12),(2.50,.18,-8)]
         for j,(pos,held,offset) in enumerate(pattern):
             pitch=root+offset
             score.put('sub',clean_sub(pitch,held*score.beat),at+pos+.012,.23 if j==0 else .17)
@@ -519,35 +578,54 @@ def midnight_drift():
                 for j,pos in enumerate([3.52,3.65,3.77,3.90]):
                     drum_hit(score,'hat_soft_'+str(1+j%2),at+pos,.072-j*.007,-.32+j*.15,short=.075,
                              delay=.10 if j==3 else 0)
-            phrase=answer if section=='side street' else hook
-            for event,(pos,pitch,held) in enumerate(phrase[i%8]):
-                if section=='cruise' and i%4==3 and event==2:continue
-                # A rounded pitched metal body and quiet cowbell edge share
-                # one authored motif; changing register answers the A theme.
-                if section=='side street':pitch-=12
-                score.put('lunar motif',lunar_voice(pitch,4.0,'bell'),at+pos,.079,.15)
-                if event==0 or (i+event)%3==0:
+            phrase=middle[i%8] if section=='side street' else theme[i%8]
+            if cadence:phrase=[(.50,68,.55),(1.50,65,.55),(2.75,63,1.10)]
+            for event,(pos,pitch,held) in enumerate(phrase):
+                if section=='night bloom' and i==12 and event==2:pitch,held=73,1.45
+                # The same Eb-Gb-Bb rhythm identifies the song every time it
+                # returns. Color comes from harmony and register, not extra
+                # unrelated notes between all the spaces in the main tune.
+                score.put('lunar motif',lunar_voice(pitch,4.0,'bell'),at+pos,.072,.15)
+                if event==0 and i%4==0:
                     score.put('cowbell edge',lunar_voice(pitch,round(.48*score.beat,3),'cowbell'),at+pos,.016,-.10)
-                score.note('sampled moon motif',pitch,at+pos,held+.15,58+int(score.rng.integers(-4,5)))
-                if event==len(phrase[i%8])-1 and i%4==3:score.motif_throws.append(at+pos)
+                score.note('sampled moon motif',pitch,at+pos,held+.15,[62,56,65][event])
+                if event==len(phrase)-1 and i%4==3:score.motif_throws.append(at+pos)
                 score.record('rounded bell and cowbell motif',pitch,at+pos,held)
-            if section=='night bloom' and i%2:
-                for pos,pitch in [(1.27,chord[2]+12),(3.37,chord[1]+12)]:
-                    score.note('vibraphone answer',pitch,at+pos,.8,49)
+            if cadence:
+                score.put('sub',clean_sub(27,1.20*score.beat),at+2.75,.18)
+                score.record('resolved tonic sub',27,at+2.75,1.20)
+                for pitch in [54,58,63]:
+                    score.put('lunar pads',lunar_voice(pitch,3.0,'pad'),at+2.65,.026)
+                    score.record('resolved tonic pad',pitch,at+2.65,3.0/score.beat)
         else:
-            if i%2==0:
-                score.note('vibraphone answer',chord[2]+12,at+1.1,2.1,48)
+            # Written fragments introduce and recall the same theme. No
+            # chord-indexed single notes are generated as a second melody.
+            fragments={
+                'streetlight':{1:[(.50,63,.75),(1.50,66,.65)],3:[(1.00,70,1.6)]},
+                'underpass':{0:[(.50,70,1.1)],2:[(.50,66,1.1)],
+                             4:[(.50,63,.55),(1.25,66,.55)],6:[(.50,65,.7)],7:[(2.75,62,.9)]},
+                'distant lights':{0:[(.50,70,.8),(1.75,66,.8)],1:[(.75,63,1.7)],
+                                  2:[(1.00,66,1.0)],3:[(.60,63,2.8)]}}
+            for pos,pitch,held in fragments[section].get(i,[]):
+                score.note('vibraphone answer',pitch,at+pos,held,44 if section!='underpass' else 40)
             if section=='underpass' and i>=4:
                 drum_hit(score,'snare_soft_'+str(1+i%2),at+3.02,.075,-.1,short=.21,
                          room=.21,delay=.20 if i%4==3 else 0)
                 for pos in [.5,1.5,2.5,3.5]:
                     drum_hit(score,'hat_soft_'+str(1+i%2),at+pos,.024,.25,short=.07)
     end=score.bars*4
-    for pitch in [58,63,66,70]:
-        score.put('lunar pads',lunar_voice(pitch,6.4,'pad'),end-1,.047)
-        score.record('tonic pad cadence',pitch,end-1,6.4/score.beat)
-    score.put('sub',clean_sub(27,2.8),end-1,.18)
-    score.note('vibraphone answer',75,end-.6,3.4,46)
+    for pitch in [54,58,63]:
+        score.put('lunar pads',lunar_voice(pitch,6.0,'pad'),end-2.6,.032)
+        score.record('tonic pad cadence',pitch,end-2.6,6.0/score.beat)
+    score.put('sub',clean_sub(27,2.8),end-2.6,.14)
+    score.composition=dict(revision=6,themeBars=8,sentenceBars=16,
+        theme='Eb-Gb-Bb short-short-long cell, its falling answer and a D-to-Eb cadential resolution',
+        melodyMIDI=theme,contrastingMelodyMIDI=middle,harmonicRhythmBars=2,
+        development=['Two-bar breathing harmony under the recurring identifying rhythm',
+                     'B-major / Db-major / Gb-major middle keeps the rhythmic cell',
+                     'Underpass recalls fragments without drums or a second full tune',
+                     'Sixteen-bar return with one Db peak, then a descending three-note coda'],
+        accompaniment='Stable bass pocket, common-tone pads with gaps, and no chord-derived answering line')
     score.stems['vibraphone answer']=sampled_bell_strikes(score.notes['vibraphone answer'],score.frames,-.38)
     score.stems['vibraphone answer']=process_stem(scale_stem(pingpong(score.stems['vibraphone answer'],score.beat,.24),.014),
                                                 RATE,'keys',room='bloom',send=.15)
@@ -567,7 +645,7 @@ def midnight_drift():
     response=pingpong(response_feed,score.beat,.48)-response_feed
     score.stems['motif response echoes']=process_stem(scale_stem(response,.007),RATE,'lead',room='chamber',send=.11)
     score.stems['lunar pads']=process_stem(scale_stem(score.stem('lunar pads'),.034),RATE,'pads',room='bloom',send=.20,chorus=True)
-    score.stems['lunar motif']=process_stem(scale_stem(pingpong(score.stem('lunar motif'),score.beat,.25),.010),
+    score.stems['lunar motif']=process_stem(scale_stem(pingpong(score.stem('lunar motif'),score.beat,.25),.007),
                                           RATE,'lead',room='small',send=.07)
     score.stems['cowbell edge']=process_stem(score.stem('cowbell edge'),RATE,'lead',room='none')
     score.stems['sub']=process_stem(scale_stem(score.stem('sub'),.075),RATE,'bass')
@@ -589,7 +667,7 @@ def midnight_drift():
     score.bell_metrics=dict(syntheticRingSeconds=4.0,syntheticFinalFadeMs=80,
                             sampledMinimumUndampedSeconds=1.45,soundfontReleaseSeconds=1.0,
                             voiceOwnership='15 independent melodic MIDI channels, excluding percussion channel9',
-                            melodyStartsAndVelocitiesPreserved=True,percussionMixUnchanged=True,
+                            naturalReleasePreserved=True,percussionProductionPreserved=True,
                             ending='Natural overlapping strikes; no short melody-gate cutoff')
     lunar_voice.cache_clear()
     return score
@@ -711,7 +789,7 @@ def main():
                              'rmsDbFS':float(20*np.log10(np.sqrt(np.mean(decoded[start:end].astype(np.float64)**2)))),
                              'instruments':sorted({event['instrument'] for event in events}),'tonalOnsets':len(events)})
         row={key:value for key,value in track.items() if key!='render'}
-        row.update(seconds=len(decoded)/RATE,revision=4,sections=sections,
+        row.update(seconds=len(decoded)/RATE,revision=6,sections=sections,composition=score.composition,
                    peakDbFS=float(20*np.log10(np.max(np.abs(decoded)))),
                    rmsDbFS=float(20*np.log10(np.sqrt(np.mean(decoded.astype(np.float64)**2)))),
                    ending='Original tonic cadence, natural sample and pad release, short quiet guard',
@@ -727,12 +805,12 @@ def main():
                    renderProcess={'acousticRenderer':'FluidSynth, dry actual sampled instruments',
                                   'production':'Pedalboard 0.9.26, role-specific stem EQ, restrained chorus and filtered parallel room',
                                   'phraseTreatment':('Own recorded electric piano resampled in four-bar phrases with sub-millisecond continuous drift'
-                                                      if track['id']=='cassette-clouds' else 'A/B pitched-metal themes, sampled vibraphone answers, quiet bridge and varied reprise'),
+                                                      if track['id']=='cassette-clouds' else 'Eight-bar recurring pitched-metal motif, two-bar common-tone harmony, fragmentary underpass and sixteen-bar return'),
                                   'toneSources':('MIT FluidR3 GM electric piano, nylon guitar, piano and acoustic bass; CC0 VCSL multi-velocity drums'
                                                  if track['id']=='cassette-clouds' else 'Original detuned stereo pads, pitched metal edge, clean sine-based 808, actual sampled vibraphone motif/answers and CC0 VCSL drums'),
                                   'referenceAudioInComposition':False,'auditionPerformed':False})
         if hasattr(score,'bell_metrics'):
-            row['revision']=5;row['bellRelease']=score.bell_metrics
+            row['bellRelease']=score.bell_metrics
         results[track['id']]=row
         old.write_text(json.dumps([results[track['id']] for track in TRACKS if track['id'] in results],indent=2)+'\n')
         print(json.dumps({key:row[key] for key in ('id','seconds','peakDbFS','rmsDbFS','referenceComparison')}),flush=True)

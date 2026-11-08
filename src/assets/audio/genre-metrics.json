@@ -15,106 +15,369 @@
       "tape phrases",
       "swung acoustic drums"
     ],
-    "seconds": 155.88,
-    "revision": 4,
+    "seconds": 165.5,
+    "revision": 6,
     "sections": [
       {
         "name": "dusty window",
         "start": 0.0,
         "end": 11.707317073170731,
-        "authoredGain": 0.78,
-        "rmsDbFS": -24.447825688517383,
+        "authoredGain": 0.76,
+        "rmsDbFS": -24.32476119734472,
         "instruments": [
           "acoustic bass",
-          "answer piano",
           "electric piano",
           "nylon guitar"
         ],
-        "tonalOnsets": 23
+        "tonalOnsets": 25
       },
       {
         "name": "first verse",
         "start": 11.707317073170731,
-        "end": 46.829268292682926,
+        "end": 58.536585365853654,
         "authoredGain": 0.94,
-        "rmsDbFS": -19.896184118441898,
+        "rmsDbFS": -19.92156039825327,
         "instruments": [
           "acoustic bass",
           "electric piano",
           "nylon guitar"
         ],
-        "tonalOnsets": 152
+        "tonalOnsets": 212
       },
       {
         "name": "sunny hook",
-        "start": 46.829268292682926,
-        "end": 70.2439024390244,
-        "authoredGain": 1.04,
-        "rmsDbFS": -18.96200023102397,
+        "start": 58.536585365853654,
+        "end": 81.95121951219512,
+        "authoredGain": 1.02,
+        "rmsDbFS": -19.114897125934757,
         "instruments": [
           "acoustic bass",
           "electric piano",
           "nylon guitar"
         ],
-        "tonalOnsets": 103
+        "tonalOnsets": 106
       },
       {
         "name": "tape interlude",
-        "start": 70.2439024390244,
-        "end": 93.65853658536585,
-        "authoredGain": 0.74,
-        "rmsDbFS": -24.260374912914287,
+        "start": 81.95121951219512,
+        "end": 105.36585365853658,
+        "authoredGain": 0.78,
+        "rmsDbFS": -23.422763056323287,
         "instruments": [
           "acoustic bass",
           "answer piano",
           "electric piano"
         ],
-        "tonalOnsets": 58
-      },
-      {
-        "name": "second verse",
-        "start": 93.65853658536585,
-        "end": 117.07317073170731,
-        "authoredGain": 0.96,
-        "rmsDbFS": -19.715172570636952,
-        "instruments": [
-          "acoustic bass",
-          "electric piano",
-          "nylon guitar"
-        ],
-        "tonalOnsets": 101
+        "tonalOnsets": 62
       },
       {
         "name": "homecoming",
-        "start": 117.07317073170731,
-        "end": 140.4878048780488,
-        "authoredGain": 1.07,
-        "rmsDbFS": -18.60437921274844,
+        "start": 105.36585365853658,
+        "end": 152.1951219512195,
+        "authoredGain": 1.04,
+        "rmsDbFS": -19.025136847307266,
         "instruments": [
           "acoustic bass",
-          "answer piano",
           "electric piano",
           "nylon guitar"
         ],
-        "tonalOnsets": 110
+        "tonalOnsets": 212
       },
       {
         "name": "tape tail",
-        "start": 140.4878048780488,
-        "end": 152.1951219512195,
-        "authoredGain": 0.76,
-        "rmsDbFS": -23.508760144008303,
+        "start": 152.1951219512195,
+        "end": 163.90243902439025,
+        "authoredGain": 0.72,
+        "rmsDbFS": -24.43788025728901,
         "instruments": [
           "acoustic bass",
-          "answer piano",
           "electric piano",
           "nylon guitar"
         ],
-        "tonalOnsets": 29
+        "tonalOnsets": 28
       }
     ],
-    "peakDbFS": -4.555693626403809,
-    "rmsDbFS": -20.420563434475362,
+    "composition": {
+      "revision": 6,
+      "themeBars": 8,
+      "sentenceBars": 16,
+      "theme": "A-C-D short-short-long cell; repeat, lower answer, E/F apex, dominant question and tonic answer",
+      "melodyMIDI": [
+        [
+          [
+            0.67,
+            69,
+            0.48
+          ],
+          [
+            1.5,
+            72,
+            0.35
+          ],
+          [
+            2.25,
+            74,
+            1.05
+          ]
+        ],
+        [
+          [
+            0.17,
+            72,
+            0.6
+          ],
+          [
+            1.25,
+            69,
+            1.35
+          ],
+          [
+            3.5,
+            67,
+            0.32
+          ]
+        ],
+        [
+          [
+            0.67,
+            69,
+            0.48
+          ],
+          [
+            1.5,
+            70,
+            0.35
+          ],
+          [
+            2.25,
+            74,
+            1.05
+          ]
+        ],
+        [
+          [
+            0.17,
+            72,
+            0.6
+          ],
+          [
+            1.25,
+            67,
+            1.5
+          ],
+          [
+            3.5,
+            69,
+            0.32
+          ]
+        ],
+        [
+          [
+            0.67,
+            69,
+            0.48
+          ],
+          [
+            1.5,
+            72,
+            0.35
+          ],
+          [
+            2.25,
+            76,
+            1.05
+          ]
+        ],
+        [
+          [
+            0.17,
+            74,
+            0.6
+          ],
+          [
+            1.25,
+            72,
+            0.8
+          ],
+          [
+            2.5,
+            69,
+            0.95
+          ]
+        ],
+        [
+          [
+            0.67,
+            67,
+            0.48
+          ],
+          [
+            1.5,
+            69,
+            0.35
+          ],
+          [
+            2.25,
+            70,
+            1.05
+          ]
+        ],
+        [
+          [
+            0.17,
+            69,
+            0.6
+          ],
+          [
+            1.25,
+            67,
+            0.6
+          ],
+          [
+            2.5,
+            64,
+            0.85
+          ]
+        ]
+      ],
+      "contrastingMelodyMIDI": [
+        [
+          [
+            0.67,
+            68,
+            0.48
+          ],
+          [
+            1.5,
+            72,
+            0.35
+          ],
+          [
+            2.25,
+            73,
+            1.05
+          ]
+        ],
+        [
+          [
+            0.17,
+            72,
+            0.6
+          ],
+          [
+            1.25,
+            70,
+            1.35
+          ]
+        ],
+        [
+          [
+            0.67,
+            67,
+            0.48
+          ],
+          [
+            1.5,
+            70,
+            0.35
+          ],
+          [
+            2.25,
+            72,
+            1.05
+          ]
+        ],
+        [
+          [
+            0.17,
+            68,
+            0.6
+          ],
+          [
+            1.25,
+            65,
+            1.45
+          ]
+        ],
+        [
+          [
+            0.67,
+            69,
+            0.48
+          ],
+          [
+            1.5,
+            72,
+            0.35
+          ],
+          [
+            2.25,
+            74,
+            1.05
+          ]
+        ],
+        [
+          [
+            0.17,
+            74,
+            0.6
+          ],
+          [
+            1.25,
+            72,
+            0.8
+          ],
+          [
+            2.5,
+            69,
+            0.95
+          ]
+        ],
+        [
+          [
+            0.67,
+            67,
+            0.48
+          ],
+          [
+            1.5,
+            69,
+            0.35
+          ],
+          [
+            2.25,
+            70,
+            1.05
+          ]
+        ],
+        [
+          [
+            0.17,
+            68,
+            0.6
+          ],
+          [
+            1.25,
+            67,
+            0.6
+          ],
+          [
+            2.5,
+            64,
+            1.05
+          ]
+        ]
+      ],
+      "voiceLeading": "Explicit close inner voices, with A-C and F-A common-tone pairs; separate lower bass",
+      "development": [
+        "Two literal statements with distinct open and closed endings",
+        "Borrowed B-flat-minor middle develops the same rhythm on close piano",
+        "Return preserves the theme, one late F peak, then a four-bar fragment cadence"
+      ],
+      "accompaniment": "Four-bar syncopated comp with written velocities; no alternating octave blocks or chord-indexed counterline"
+    },
+    "peakDbFS": -5.055133819580078,
+    "rmsDbFS": -20.307242951876887,
     "ending": "Original tonic cadence, natural sample and pad release, short quiet guard",
     "referenceComparison": {
       "excerptSeconds": [
@@ -140,14 +403,14 @@
         ]
       ],
       "bandEnergyPercent": [
-        34.604774475097656,
-        38.66374206542969,
-        25.593664169311523,
-        1.1378133296966553
+        41.705352783203125,
+        43.018550872802734,
+        14.113990783691406,
+        1.162114143371582
       ],
-      "centroidHz": 402.0836309401042,
-      "detectedOnsetsPerSecond": 3.75,
-      "upperSideMidDb": -10.109402023503693,
+      "centroidHz": 325.48749405478213,
+      "detectedOnsetsPerSecond": 2.5416666666666665,
+      "upperSideMidDb": -9.246309796442883,
       "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
     },
     "activeSectionComparison": {
@@ -174,29 +437,29 @@
         ]
       ],
       "bandEnergyPercent": [
-        33.00590896606445,
-        37.711483001708984,
-        27.655168533325195,
-        1.6274378299713135
+        30.11459732055664,
+        45.515525817871094,
+        23.163433074951172,
+        1.206445574760437
       ],
-      "centroidHz": 423.8726716387656,
-      "detectedOnsetsPerSecond": 4.833333333333333,
-      "upperSideMidDb": -11.252420343079294,
+      "centroidHz": 413.30731355111266,
+      "detectedOnsetsPerSecond": 4.5,
+      "upperSideMidDb": -12.251682420657154,
       "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
     },
     "decoded": {
-      "seconds": 155.88,
-      "peakDbFS": -4.555693626403809,
-      "rmsDbFS": -20.420563434475362,
+      "seconds": 165.5,
+      "peakDbFS": -5.055133819580078,
+      "rmsDbFS": -20.307242951876887,
       "channels": 2,
       "sampleRate": 44100,
-      "integratedLUFS": -17.54,
-      "truePeakDbFS": -4.55,
-      "loudnessRangeLU": 7.1,
-      "channelCorrelation": 0.9085802233262413,
-      "sideToMidRMS": 0.22053036093711853,
-      "dcOffset": 5.637338472297415e-05,
-      "trailingSilenceSeconds": 0.23999999999998067,
+      "integratedLUFS": -17.71,
+      "truePeakDbFS": -5.05,
+      "loudnessRangeLU": 6.3,
+      "channelCorrelation": 0.9232350129710304,
+      "sideToMidRMS": 0.20040123164653778,
+      "dcOffset": 0.00015454553067684174,
+      "trailingSilenceSeconds": 0.2400000000000091,
       "finite": true,
       "silentBodySeconds": 0
     },
@@ -213,26 +476,26 @@
       "buses": {
         "kick": {
           "targetActiveRMS": 0.029,
-          "performanceGain": 2.8926040829146342,
-          "peakDbFS": -14.718767166137695,
-          "active10msWindows": 3956,
-          "events": 114,
+          "performanceGain": 2.8308466289535015,
+          "peakDbFS": -14.906225204467773,
+          "active10msWindows": 4370,
+          "events": 126,
           "wet": false
         },
         "snare": {
           "targetActiveRMS": 0.022,
-          "performanceGain": 5.710111535120064,
-          "peakDbFS": -16.506845474243164,
-          "active10msWindows": 2287,
-          "events": 99,
+          "performanceGain": 5.686690083433997,
+          "peakDbFS": -16.542543411254883,
+          "active10msWindows": 2522,
+          "events": 109,
           "wet": "Selected separate sends"
         },
         "hats": {
           "targetActiveRMS": 0.009,
-          "performanceGain": 10.025308051926814,
-          "peakDbFS": -17.521995544433594,
-          "active10msWindows": 4116,
-          "events": 340,
+          "performanceGain": 9.279037549859634,
+          "peakDbFS": -18.150009155273438,
+          "active10msWindows": 4555,
+          "events": 374,
           "wet": "Selected separate sends"
         }
       },
@@ -253,8 +516,8 @@
         "hats": 2.5
       },
       "noSimultaneousOpenAndClosedHat": true,
-      "selectedRoomEvents": 88,
-      "selectedDelayEvents": 21,
+      "selectedRoomEvents": 100,
+      "selectedDelayEvents": 23,
       "primaryProductionReferences": [
         "https://www.toontrack.com/blog/how-to-program-drums/",
         "https://www.izotope.com/community/blog/9-tips-for-using-reverb-with-drums",
@@ -445,43 +708,43 @@
         "name": "first lights",
         "start": 0.0,
         "end": 9.23076923076923,
-        "rmsDbFS": -29.090248107910156
+        "rmsDbFS": -31.79315757751465
       },
       {
         "name": "night-drive question",
         "start": 9.23076923076923,
         "end": 46.153846153846146,
-        "rmsDbFS": -21.068628311157227
+        "rmsDbFS": -22.07059669494629
       },
       {
         "name": "horizon answer",
         "start": 46.153846153846146,
         "end": 64.61538461538461,
-        "rmsDbFS": -21.152135848999023
+        "rmsDbFS": -22.688142776489258
       },
       {
         "name": "tunnel respite",
         "start": 64.61538461538461,
         "end": 83.07692307692307,
-        "rmsDbFS": -29.662006378173828
+        "rmsDbFS": -31.16915512084961
       },
       {
         "name": "rising side street",
         "start": 83.07692307692307,
         "end": 101.53846153846153,
-        "rmsDbFS": -21.185760498046875
+        "rmsDbFS": -22.591732025146484
       },
       {
         "name": "neon homecoming",
         "start": 101.53846153846153,
         "end": 138.46153846153845,
-        "rmsDbFS": -20.98226547241211
+        "rmsDbFS": -21.91964340209961
       },
       {
         "name": "distant afterglow",
         "start": 138.46153846153845,
         "end": 156.9230769230769,
-        "rmsDbFS": -28.934309005737305
+        "rmsDbFS": -30.272022247314453
       }
     ],
     "nativeParts": {
@@ -527,7 +790,7 @@
           "a_osc_1_unison_detune": "8.00 cents",
           "a_filter_1_feg_mod_amount": "9.98 semitones"
         },
-        "events": 163,
+        "events": 85,
         "factoryPreset": false
       },
       "bass": {
@@ -616,7 +879,7 @@
           "a_osc_1_unison_detune": "0.00 cents",
           "a_filter_1_feg_mod_amount": "15.94 semitones"
         },
-        "events": 138,
+        "events": 108,
         "factoryPreset": false
       },
       "lead": {
@@ -661,7 +924,7 @@
           "a_osc_1_unison_detune": "7.00 cents",
           "a_filter_1_feg_mod_amount": "19.01 semitones"
         },
-        "events": 139,
+        "events": 171,
         "factoryPreset": false
       }
     },
@@ -754,8 +1017,17 @@
       "groove": "Four-bar broken kick cycle, softer recorded pickups, alternate snare/hat takes, phrase-end hat gaps",
       "snareSpace": "Short filtered gated room; selected phrase-ending 3/16 and 1/4 note stereo throws, 18% feedback, 480-3900 Hz"
     },
-    "arrangement": "Lower-register question/answer lead, broken recorded-kick/bass groove, real gated snare, filtered phrase-ending echoes, contrasting B, quiet tunnel and reprise",
-    "revision": 4,
+    "tonalWriting": {
+      "themeBars": 16,
+      "leadRegister": "G4 to F5; quiet lower-register tunnel fragments",
+      "motif": "Syncopated D-D-A repeated-note/falling-fourth cell and offbeat answer; paired eight-bar sentences with distinct cadences",
+      "development": "Exact melodic return, broad descending B, lower fragmented tunnel, progressively quieter opening motif in coda",
+      "harmony": "Two-bar Dm7, Bbmaj7, Fadd9; Cadd9 and A7 turnaround. B opens Bbmaj7 and Cadd9, then Gm7 and suspended dominant",
+      "bass": "Explicit four-bar syncopated root/fifth figures with diatonic approaches into the next harmony",
+      "accompaniment": "Low sparse repeating arpeggio cell, opened beneath the longer-note B theme; no competing high chord-top decorations"
+    },
+    "arrangement": "Sixteen-bar original synth hook, connected root/fifth bass, real recorded gated snare, restrained low arpeggios, broader B, fragmented tunnel and exact thematic homecoming",
+    "revision": 5,
     "production": "Surge XT 1.3.4 original analog patches + Pedalboard 0.9.26 stem production",
     "provenance": {
       "instrument": {
@@ -785,18 +1057,18 @@
       "composition": "Original Lucid scores and own explicit Classic oscillator patches; no artist melody, factory preset or factory audio copied",
       "delivery": "Only encoded music ships in the app; native plugin and Python processors remain offline authoring dependencies"
     },
-    "seconds": 159.95777777777778,
+    "seconds": 159.6822222222222,
     "peakDbFS": -3.0239063426874537,
-    "rmsDbFS": -22.399628788911414,
+    "rmsDbFS": -23.548875253448745,
     "decoded": {
-      "seconds": 159.95777777777778,
-      "integratedLUFS": -19.36,
-      "truePeakDbFS": -3.21,
-      "loudnessRangeLU": 9.7,
-      "peakDbFS": -3.251296281814575,
-      "rmsDbFS": -22.661087036132812,
-      "trailingSilenceSeconds": 0.31526077097505667,
-      "channelCorrelation": 0.5223573205525173,
+      "seconds": 159.6822222222222,
+      "integratedLUFS": -20.44,
+      "truePeakDbFS": -3.39,
+      "loudnessRangeLU": 11.3,
+      "peakDbFS": -3.4091994762420654,
+      "rmsDbFS": -23.811800003051758,
+      "trailingSilenceSeconds": 0.24997732426303854,
+      "channelCorrelation": 0.7562012818046567,
       "finite": true
     }
   },
@@ -809,7 +1081,7 @@
     "mode": "lydian",
     "meter": 4,
     "energy": 0.12,
-    "revision": 5,
+    "revision": 6,
     "textures": [
       "brief sine pads",
       "sampled electric piano",
@@ -822,78 +1094,447 @@
         "name": "small ripples",
         "start": 0.0,
         "end": 14.545454545454545,
-        "intent": "Sparse close keys introduce the motif space",
-        "rmsDbFS": -28.63506341476438
+        "intent": "Two half-time nylon notes seed the falling motif",
+        "rmsDbFS": -33.074813785309175
       },
       {
         "name": "light on the water",
         "start": 14.545454545454545,
         "end": 43.63636363636363,
-        "intent": "High celesta questions over brief chord breaths",
-        "rmsDbFS": -24.716701265233446
+        "intent": "One eight-bar nylon theme follows a descending bass and settles onto E",
+        "rmsDbFS": -25.552148820297617
       },
       {
         "name": "an answering current",
         "start": 43.63636363636363,
         "end": 72.72727272727272,
-        "intent": "Lower nylon answer and contrasting harmony",
-        "rmsDbFS": -25.238406331550813
+        "intent": "The falling rhythm develops on piano over a related contrasting bass plan",
+        "rmsDbFS": -20.309026161683246
       },
       {
         "name": "open water",
         "start": 72.72727272727272,
         "end": 101.81818181818181,
-        "intent": "Pad-free release with occasional distant notes",
-        "rmsDbFS": -29.114233121165217
+        "intent": "Pad-free augmentation of B-G#-F#-E with whole-bar rests",
+        "rmsDbFS": -35.94466918870001
       },
       {
         "name": "a remembered shore",
         "start": 101.81818181818181,
         "end": 130.9090909090909,
-        "intent": "The question returns on lower electric piano",
-        "rmsDbFS": -23.01411000340011
+        "intent": "The recognisable nylon theme returns with the developed final answer",
+        "rmsDbFS": -25.247288919127932
       },
       {
         "name": "tide withdrawing",
         "start": 130.9090909090909,
         "end": 160.0,
-        "intent": "Descending piano answers and a clear tonic close",
-        "rmsDbFS": -26.878147906039104
+        "intent": "The same cell slows into a quiet tonic close",
+        "rmsDbFS": -28.60874730690966
       }
     ],
     "sampledParts": {
       "soft electric piano": {
         "program": 4,
-        "notes": 128,
-        "wholeStemPeakTarget": 0.145,
+        "notes": 134,
+        "wholeStemPeakTarget": 0.12,
         "lowpassHz": 2500
       },
       "nylon answers": {
         "program": 24,
-        "notes": 53,
-        "wholeStemPeakTarget": 0.082,
+        "notes": 46,
+        "wholeStemPeakTarget": 0.105,
         "lowpassHz": 3000
       },
       "celesta glints": {
         "program": 8,
-        "notes": 16,
-        "wholeStemPeakTarget": 0.034,
+        "notes": 5,
+        "wholeStemPeakTarget": 0.025,
         "lowpassHz": 1900
       }
     },
     "sourceLevels": {
       "soft electric piano": {
-        "peak": 0.14499999582767487,
-        "rms": 0.013842273503541946
+        "peak": 0.11999999731779099,
+        "rms": 0.013991337269544601
       },
       "nylon answers": {
-        "peak": 0.0820000022649765,
-        "rms": 0.0041921669617295265
+        "peak": 0.10499999672174454,
+        "rms": 0.006270324345678091
       },
       "celesta glints": {
-        "peak": 0.03400000184774399,
-        "rms": 0.0018653838196769357
+        "peak": 0.02500000037252903,
+        "rms": 0.0008583716698922217
       }
+    },
+    "composition": {
+      "theme": [
+        [
+          [
+            0.5,
+            71,
+            0.65
+          ],
+          [
+            1.5,
+            68,
+            1.1
+          ],
+          [
+            3,
+            66,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            64,
+            2.2
+          ],
+          [
+            3,
+            66,
+            0.45
+          ]
+        ],
+        [
+          [
+            0.5,
+            68,
+            0.65
+          ],
+          [
+            1.5,
+            71,
+            1.1
+          ],
+          [
+            3,
+            70,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            68,
+            1.7
+          ],
+          [
+            2.5,
+            66,
+            0.85
+          ]
+        ],
+        [
+          [
+            0.5,
+            73,
+            0.65
+          ],
+          [
+            1.5,
+            71,
+            1.1
+          ],
+          [
+            3,
+            70,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            68,
+            1.7
+          ],
+          [
+            2.5,
+            66,
+            0.85
+          ]
+        ],
+        [
+          [
+            0.5,
+            63,
+            0.65
+          ],
+          [
+            1.5,
+            66,
+            1.1
+          ],
+          [
+            3,
+            68,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            66,
+            0.9
+          ],
+          [
+            1.5,
+            64,
+            2.0
+          ]
+        ]
+      ],
+      "development": [
+        [
+          [
+            0.5,
+            68,
+            0.65
+          ],
+          [
+            1.5,
+            66,
+            1.1
+          ],
+          [
+            3,
+            63,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            61,
+            2.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            66,
+            0.65
+          ],
+          [
+            1.5,
+            68,
+            1.1
+          ],
+          [
+            3,
+            70,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            71,
+            2.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            73,
+            0.65
+          ],
+          [
+            1.5,
+            71,
+            1.1
+          ],
+          [
+            3,
+            70,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            68,
+            2.35
+          ]
+        ],
+        [
+          [
+            0.5,
+            66,
+            0.65
+          ],
+          [
+            1.5,
+            63,
+            1.1
+          ],
+          [
+            3,
+            66,
+            0.6
+          ]
+        ],
+        [
+          [
+            0,
+            64,
+            2.75
+          ]
+        ]
+      ],
+      "harmony": [
+        [
+          "Emaj9",
+          40,
+          [
+            56,
+            59,
+            63
+          ]
+        ],
+        [
+          "Badd11/D#",
+          39,
+          [
+            54,
+            59,
+            63
+          ]
+        ],
+        [
+          "C#m13",
+          37,
+          [
+            56,
+            59,
+            63
+          ]
+        ],
+        [
+          "G#m7/B",
+          35,
+          [
+            54,
+            56,
+            59
+          ]
+        ],
+        [
+          "F#add9/A#",
+          34,
+          [
+            54,
+            56,
+            61
+          ]
+        ],
+        [
+          "C#m11/G#",
+          32,
+          [
+            52,
+            59,
+            63
+          ]
+        ],
+        [
+          "B6add9/F#",
+          42,
+          [
+            51,
+            59,
+            61
+          ]
+        ],
+        [
+          "E6add9",
+          40,
+          [
+            56,
+            59,
+            61
+          ]
+        ]
+      ],
+      "contrastingHarmony": [
+        [
+          "C#m9",
+          37,
+          [
+            52,
+            59,
+            63
+          ]
+        ],
+        [
+          "C#m9/B",
+          35,
+          [
+            52,
+            56,
+            63
+          ]
+        ],
+        [
+          "F#add9/A#",
+          34,
+          [
+            54,
+            56,
+            61
+          ]
+        ],
+        [
+          "Bmaj7",
+          35,
+          [
+            54,
+            58,
+            63
+          ]
+        ],
+        [
+          "F#add9/A#",
+          34,
+          [
+            54,
+            56,
+            61
+          ]
+        ],
+        [
+          "G#m7",
+          32,
+          [
+            54,
+            59,
+            63
+          ]
+        ],
+        [
+          "Badd9/F#",
+          42,
+          [
+            51,
+            59,
+            61
+          ]
+        ],
+        [
+          "Emaj9",
+          40,
+          [
+            56,
+            59,
+            63
+          ]
+        ]
+      ],
+      "motif": "B-G#-F# with a recurring offbeat-long-short rhythm, developed toward E",
+      "melodicRange": "D#4-C#5 theme, C#4-C#5 development",
+      "lead": "One primary line at a time; celesta only in phrase-ending gaps"
     },
     "padBreaths": {
       "count": 13,
@@ -904,26 +1545,26 @@
           "start": 0.13636363636363635,
           "end": 2.786363636363636,
           "pitches": [
-            52,
+            56,
             59,
-            68
+            63
           ]
         },
         {
           "start": 14.68181818181818,
           "end": 17.33181818181818,
           "pitches": [
-            52,
+            56,
             59,
-            68
+            63
           ]
         },
         {
           "start": 21.954545454545453,
           "end": 25.054545454545455,
           "pitches": [
-            49,
             56,
+            59,
             63
           ]
         },
@@ -932,17 +1573,17 @@
           "end": 32.07727272727273,
           "pitches": [
             54,
-            61,
-            68
+            56,
+            61
           ]
         },
         {
           "start": 36.5,
           "end": 39.7,
           "pitches": [
-            47,
-            54,
-            63
+            51,
+            59,
+            61
           ]
         },
         {
@@ -951,7 +1592,7 @@
           "pitches": [
             52,
             59,
-            68
+            63
           ]
         },
         {
@@ -959,25 +1600,25 @@
           "end": 61.16818181818182,
           "pitches": [
             54,
-            61,
-            68
+            56,
+            61
           ]
         },
         {
           "start": 101.95454545454545,
           "end": 104.60454545454546,
           "pitches": [
-            52,
+            56,
             59,
-            68
+            63
           ]
         },
         {
           "start": 109.22727272727273,
           "end": 112.32727272727273,
           "pitches": [
-            49,
             56,
+            59,
             63
           ]
         },
@@ -986,26 +1627,26 @@
           "end": 119.35,
           "pitches": [
             54,
-            61,
-            68
+            56,
+            61
           ]
         },
         {
           "start": 123.77272727272728,
           "end": 126.97272727272728,
           "pitches": [
-            47,
-            54,
-            63
+            51,
+            59,
+            61
           ]
         },
         {
           "start": 131.04545454545453,
           "end": 133.69545454545454,
           "pitches": [
-            52,
+            56,
             59,
-            68
+            63
           ]
         },
         {
@@ -1013,35 +1654,35 @@
           "end": 148.4409090909091,
           "pitches": [
             54,
-            61,
-            68
+            56,
+            61
           ]
         }
       ],
       "oscillators": "Fundamental sine with second harmonic at 0.025; no saw, pulse, detuning, unison or chorus",
       "roomSend": false
     },
-    "arrangement": "Short sampled chord gestures and high questions, lower nylon B answer, pad-free open-water passage, piano reprise and tonic close",
+    "arrangement": "Connected eight-bar nylon theme, descending bass and close voice leading; related piano development, pad-free augmented motif, recognisable nylon return and quiet E close",
     "production": "Actual FluidR3 electric piano/nylon/celesta; brief additive sine breaths; quiet filtered room and two restrained repeat taps",
-    "seconds": 160.91297052154195,
-    "peakDbFS": -5.382165908813477,
-    "rmsDbFS": -25.30759048461914,
+    "seconds": 160.29034013605443,
+    "peakDbFS": -6.18216609954834,
+    "rmsDbFS": -24.850284576416016,
     "ending": "Sampled E-major tonic cadence and natural room release, no trailing held pad",
     "decoded": {
-      "seconds": 160.91297052154195,
+      "seconds": 160.29034013605443,
       "sampleRate": 44100,
       "channels": 2,
       "finite": true,
-      "integratedLUFS": -20.77,
-      "truePeakDbFS": -5.64,
-      "loudnessRangeLU": 13.8,
-      "channelCorrelation": 0.9599512961013396,
-      "dcOffset": 1.238617386434271e-07,
-      "leadingQuietSeconds": 0.0163265306122449,
-      "trailingSilenceSeconds": 0.13462585034013605,
-      "silentBodySeconds": 15
+      "integratedLUFS": -20.76,
+      "truePeakDbFS": -6.44,
+      "loudnessRangeLU": 15.9,
+      "channelCorrelation": 0.9322957265172329,
+      "dcOffset": 3.260840486518646e-08,
+      "leadingQuietSeconds": 0.01634920634920635,
+      "trailingSilenceSeconds": 0.03306122448979592,
+      "silentBodySeconds": 16
     },
-    "sha256": "52a3475e9a5400ecb9fca565f646e914b166f8abde5f6dd33450951111e3c48d",
+    "sha256": "eca5598aa6fa131e02c3d9c86c4b1e36210a64eb3f509a9164521cfc5d5b2475",
     "provenance": {
       "soundfont": {
         "name": "FluidR3 GM",
@@ -1074,106 +1715,105 @@
       "bells"
     ],
     "seconds": 146.16,
-    "peakDbFS": -5.2992063308060455,
-    "rmsDbFS": -20.186101094684506,
-    "revision": 5,
+    "peakDbFS": -5.026605941933364,
+    "rmsDbFS": -20.21030431127992,
+    "revision": 6,
     "sections": [
       {
         "name": "petal drift",
         "start": 0.0,
         "end": 11.707317073170731,
-        "rmsDbFS": -28.925092697143555,
+        "rmsDbFS": -28.455808639526367,
         "instruments": [
           "breakpad",
-          "feltbell",
-          "roundbass"
+          "roundbass",
+          "sampled acoustic piano"
         ],
-        "tonalOnsets": 22,
+        "tonalOnsets": 24,
         "authoredGain": 0.76
       },
       {
         "name": "first fracture",
         "start": 11.707317073170731,
         "end": 46.829268292682926,
-        "rmsDbFS": -18.825246810913086,
+        "rmsDbFS": -18.951583862304688,
         "instruments": [
           "breakpad",
-          "breakpiano",
-          "breaksub"
+          "breaksub",
+          "sampled acoustic piano"
         ],
-        "tonalOnsets": 118,
+        "tonalOnsets": 132,
         "authoredGain": 0.96
       },
       {
         "name": "open sky",
         "start": 46.829268292682926,
         "end": 58.536585365853654,
-        "rmsDbFS": -24.87354278564453,
+        "rmsDbFS": -24.232330322265625,
         "instruments": [
           "breakpad",
           "breaksub",
-          "feltbell"
+          "sampled acoustic piano"
         ],
-        "tonalOnsets": 30,
+        "tonalOnsets": 32,
         "authoredGain": 0.82
       },
       {
         "name": "glass garden",
         "start": 58.536585365853654,
         "end": 81.95121951219512,
-        "rmsDbFS": -19.208301544189453,
+        "rmsDbFS": -19.165874481201172,
         "instruments": [
           "breakpad",
           "breaksub",
           "feltbell"
         ],
-        "tonalOnsets": 74,
+        "tonalOnsets": 76,
         "authoredGain": 1.01
       },
       {
         "name": "still centre",
         "start": 81.95121951219512,
         "end": 93.65853658536585,
-        "rmsDbFS": -30.105913162231445,
+        "rmsDbFS": -29.35569953918457,
         "instruments": [
           "breakpad",
           "feltbell",
           "roundbass"
         ],
-        "tonalOnsets": 22,
+        "tonalOnsets": 24,
         "authoredGain": 0.64
       },
       {
         "name": "bloom fragments",
         "start": 93.65853658536585,
         "end": 128.78048780487805,
-        "rmsDbFS": -17.870710372924805,
+        "rmsDbFS": -17.949520111083984,
         "instruments": [
           "breakpad",
-          "breakpiano",
           "breaksub",
-          "lofiguitar"
+          "sampled acoustic piano"
         ],
-        "tonalOnsets": 121,
+        "tonalOnsets": 132,
         "authoredGain": 1.09
       },
       {
         "name": "falling petals",
         "start": 128.78048780487805,
         "end": 140.4878048780488,
-        "rmsDbFS": -28.72351837158203,
+        "rmsDbFS": -28.09795379638672,
         "instruments": [
           "breakpad",
-          "feltbell",
-          "roundbass"
+          "roundbass",
+          "sampled acoustic piano"
         ],
-        "tonalOnsets": 25,
+        "tonalOnsets": 29,
         "authoredGain": 0.74
       }
     ],
     "ending": "Resolved tonic cadence with natural sustained release",
     "production": {
-      "revision": 5,
+      "revision": 6,
       "drumSource": "Original eight-bar performance from separate VCSL acoustic hits",
       "sourceLicense": "CC0-1.0",
       "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
@@ -1200,23 +1840,32 @@
         "terminalTaperSeconds": 0.5,
         "terminalTaperStartsAfterNaturalDb": -55,
         "method": "Independent overlapping struck-bell one-shots; no rhythmic note-off gate; smooth later damping",
-        "placement": "Original melody, note onsets, rhythm and echo placements retained"
+        "placement": "Connected middle-register sixteen-bar variation, independent natural overlapping releases"
+      },
+      "tonalWriting": {
+        "themeBars": 16,
+        "themeRegister": "A4 to G5, with lower octave replies",
+        "development": "Falling-third/fourth motif; paired eight-bar sentences; lower closing reply, bell augmentation, exact thematic homecoming",
+        "harmony": "D minor, Bb major, F major, C add9; G minor and borrowed Eb lead through E half-diminished to A7",
+        "piano": "MIT FluidR3 GM program 0 acoustic piano, authored note lengths and velocities, one whole-stem calibration",
+        "fontSHA256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0",
+        "melodicEvents": 115
       },
       "rhythm": "Performed syncopation and soft ghost strokes, eight-bar call and response, restrained phrase-end retriggers, half-time and drumless contrasts"
     },
     "decoded": {
       "seconds": 146.16,
-      "peakDbFS": -5.69204044342041,
-      "rmsDbFS": -20.629728317260742,
+      "peakDbFS": -5.340508460998535,
+      "rmsDbFS": -20.652965545654297,
       "channels": 2,
       "sampleRate": 44100,
-      "integratedLUFS": -18.63,
-      "truePeakDbFS": -5.68,
-      "loudnessRangeLU": 12.4,
-      "channelCorrelation": 0.9286651170944149,
-      "sideToMidRMS": 0.19296002388000488,
-      "dcOffset": 1.6349797078873962e-05,
-      "trailingSilenceSeconds": 0.29999999999998295,
+      "integratedLUFS": -19.19,
+      "truePeakDbFS": -5.32,
+      "loudnessRangeLU": 11.0,
+      "channelCorrelation": 0.9005068557821048,
+      "sideToMidRMS": 0.22880308330059052,
+      "dcOffset": 4.443483703653328e-06,
+      "trailingSilenceSeconds": 0.28000000000000114,
       "finite": true,
       "silentBodySeconds": 0
     }
@@ -1237,96 +1886,358 @@
       "rounded sub bass",
       "sampled drums"
     ],
-    "seconds": 161.66,
-    "revision": 5,
+    "seconds": 186.42,
+    "revision": 6,
     "sections": [
       {
         "name": "streetlight",
         "start": 0.0,
         "end": 12.972972972972974,
         "authoredGain": 0.74,
-        "rmsDbFS": -24.01303518073984,
+        "rmsDbFS": -24.16308313481617,
         "instruments": [
           "detuned lunar pads",
           "rounded stable-pitch sub",
-          "sampled moon motif",
           "vibraphone answer"
         ],
-        "tonalOnsets": 19
+        "tonalOnsets": 13
       },
       {
         "name": "cruise",
         "start": 12.972972972972974,
-        "end": 51.891891891891895,
+        "end": 64.86486486486487,
         "authoredGain": 0.98,
-        "rmsDbFS": -19.116463925324844,
+        "rmsDbFS": -19.12434760539567,
         "instruments": [
           "detuned lunar pads",
+          "resolved tonic pad",
+          "resolved tonic sub",
           "rounded bell and cowbell motif",
           "rounded stable-pitch sub",
           "sampled moon motif"
         ],
-        "tonalOnsets": 167
+        "tonalOnsets": 183
       },
       {
         "name": "side street",
-        "start": 51.891891891891895,
-        "end": 77.83783783783784,
-        "authoredGain": 0.92,
-        "rmsDbFS": -20.11006598195534,
+        "start": 64.86486486486487,
+        "end": 90.81081081081082,
+        "authoredGain": 0.91,
+        "rmsDbFS": -20.61615255616854,
         "instruments": [
           "detuned lunar pads",
           "rounded bell and cowbell motif",
           "rounded stable-pitch sub",
           "sampled moon motif"
         ],
-        "tonalOnsets": 82
+        "tonalOnsets": 66
       },
       {
         "name": "underpass",
-        "start": 77.83783783783784,
-        "end": 103.78378378378379,
+        "start": 90.81081081081082,
+        "end": 116.75675675675676,
         "authoredGain": 0.7,
-        "rmsDbFS": -24.31793646606966,
+        "rmsDbFS": -24.386277177817085,
         "instruments": [
           "detuned lunar pads",
           "rounded stable-pitch sub",
           "vibraphone answer"
         ],
-        "tonalOnsets": 36
+        "tonalOnsets": 26
       },
       {
         "name": "night bloom",
-        "start": 103.78378378378379,
-        "end": 142.7027027027027,
-        "authoredGain": 1.07,
-        "rmsDbFS": -18.271558105418837,
+        "start": 116.75675675675676,
+        "end": 168.64864864864865,
+        "authoredGain": 1.05,
+        "rmsDbFS": -18.575646422403565,
         "instruments": [
           "detuned lunar pads",
+          "resolved tonic pad",
+          "resolved tonic sub",
           "rounded bell and cowbell motif",
           "rounded stable-pitch sub",
-          "sampled moon motif",
-          "vibraphone answer"
+          "sampled moon motif"
         ],
-        "tonalOnsets": 186
+        "tonalOnsets": 183
       },
       {
         "name": "distant lights",
-        "start": 142.7027027027027,
-        "end": 155.67567567567568,
-        "authoredGain": 0.75,
-        "rmsDbFS": -23.401318135127642,
+        "start": 168.64864864864865,
+        "end": 181.62162162162164,
+        "authoredGain": 0.72,
+        "rmsDbFS": -24.19900255572057,
         "instruments": [
           "detuned lunar pads",
           "rounded stable-pitch sub",
           "tonic pad cadence",
           "vibraphone answer"
         ],
-        "tonalOnsets": 20
+        "tonalOnsets": 18
       }
     ],
-    "peakDbFS": -6.53561544418335,
-    "rmsDbFS": -20.2337803788663,
+    "composition": {
+      "revision": 6,
+      "themeBars": 8,
+      "sentenceBars": 16,
+      "theme": "Eb-Gb-Bb short-short-long cell, its falling answer and a D-to-Eb cadential resolution",
+      "melodyMIDI": [
+        [
+          [
+            0.5,
+            63,
+            0.42
+          ],
+          [
+            1.25,
+            66,
+            0.42
+          ],
+          [
+            2.5,
+            70,
+            1.2
+          ]
+        ],
+        [
+          [
+            0.5,
+            68,
+            0.55
+          ],
+          [
+            1.5,
+            66,
+            0.5
+          ],
+          [
+            2.75,
+            63,
+            0.9
+          ]
+        ],
+        [
+          [
+            0.5,
+            63,
+            0.42
+          ],
+          [
+            1.25,
+            66,
+            0.42
+          ],
+          [
+            2.5,
+            70,
+            1.2
+          ]
+        ],
+        [
+          [
+            0.5,
+            73,
+            0.85
+          ],
+          [
+            2.0,
+            70,
+            1.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            63,
+            0.42
+          ],
+          [
+            1.25,
+            66,
+            0.42
+          ],
+          [
+            2.5,
+            68,
+            1.2
+          ]
+        ],
+        [
+          [
+            0.5,
+            71,
+            0.85
+          ],
+          [
+            2.0,
+            70,
+            0.6
+          ],
+          [
+            3.0,
+            66,
+            0.6
+          ]
+        ],
+        [
+          [
+            0.5,
+            65,
+            0.42
+          ],
+          [
+            1.25,
+            68,
+            0.42
+          ],
+          [
+            2.5,
+            70,
+            1.2
+          ]
+        ],
+        [
+          [
+            0.5,
+            68,
+            0.55
+          ],
+          [
+            1.5,
+            65,
+            0.55
+          ],
+          [
+            2.75,
+            62,
+            0.9
+          ]
+        ]
+      ],
+      "contrastingMelodyMIDI": [
+        [
+          [
+            0.5,
+            63,
+            0.42
+          ],
+          [
+            1.25,
+            66,
+            0.42
+          ],
+          [
+            2.5,
+            70,
+            1.2
+          ]
+        ],
+        [
+          [
+            0.5,
+            66,
+            0.85
+          ],
+          [
+            2.0,
+            63,
+            1.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            65,
+            0.42
+          ],
+          [
+            1.25,
+            68,
+            0.42
+          ],
+          [
+            2.5,
+            73,
+            1.2
+          ]
+        ],
+        [
+          [
+            0.5,
+            70,
+            0.85
+          ],
+          [
+            2.0,
+            68,
+            1.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            66,
+            0.42
+          ],
+          [
+            1.25,
+            68,
+            0.42
+          ],
+          [
+            2.5,
+            70,
+            1.2
+          ]
+        ],
+        [
+          [
+            0.5,
+            73,
+            0.85
+          ],
+          [
+            2.0,
+            70,
+            1.4
+          ]
+        ],
+        [
+          [
+            0.5,
+            68,
+            0.55
+          ],
+          [
+            1.5,
+            65,
+            0.55
+          ]
+        ],
+        [
+          [
+            0.75,
+            62,
+            1.05
+          ],
+          [
+            2.75,
+            63,
+            1.05
+          ]
+        ]
+      ],
+      "harmonicRhythmBars": 2,
+      "development": [
+        "Two-bar breathing harmony under the recurring identifying rhythm",
+        "B-major / Db-major / Gb-major middle keeps the rhythmic cell",
+        "Underpass recalls fragments without drums or a second full tune",
+        "Sixteen-bar return with one Db peak, then a descending three-note coda"
+      ],
+      "accompaniment": "Stable bass pocket, common-tone pads with gaps, and no chord-derived answering line"
+    },
+    "peakDbFS": -6.722177505493164,
+    "rmsDbFS": -20.204635381513185,
     "ending": "Original tonic cadence, natural sample and pad release, short quiet guard",
     "referenceComparison": {
       "excerptSeconds": [
@@ -1352,14 +2263,14 @@
         ]
       ],
       "bandEnergyPercent": [
-        70.94841766357422,
-        17.531583786010742,
-        11.221111297607422,
-        0.298860639333725
+        84.58773040771484,
+        14.045866012573242,
+        1.255367398262024,
+        0.11103262007236481
       ],
-      "centroidHz": 181.3646407956869,
-      "detectedOnsetsPerSecond": 1.5416666666666667,
-      "upperSideMidDb": -6.585332641656544,
+      "centroidHz": 102.00355282648843,
+      "detectedOnsetsPerSecond": 0.5416666666666666,
+      "upperSideMidDb": -6.043202287003365,
       "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
     },
     "activeSectionComparison": {
@@ -1386,29 +2297,29 @@
         ]
       ],
       "bandEnergyPercent": [
-        71.44508361816406,
-        16.722837448120117,
-        11.417866706848145,
-        0.4142104983329773
+        73.35529327392578,
+        24.439926147460938,
+        1.7807544469833374,
+        0.42402639985084534
       ],
-      "centroidHz": 187.60603731338568,
-      "detectedOnsetsPerSecond": 4.583333333333333,
-      "upperSideMidDb": -6.459052375082991,
+      "centroidHz": 154.30730892142077,
+      "detectedOnsetsPerSecond": 4.5,
+      "upperSideMidDb": -7.224051666543754,
       "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
     },
     "decoded": {
-      "seconds": 161.66,
-      "peakDbFS": -6.53561544418335,
-      "rmsDbFS": -20.2337803788663,
+      "seconds": 186.42,
+      "peakDbFS": -6.722177505493164,
+      "rmsDbFS": -20.204635381513185,
       "channels": 2,
       "sampleRate": 44100,
-      "integratedLUFS": -19.5,
-      "truePeakDbFS": -6.53,
-      "loudnessRangeLU": 7.6,
-      "channelCorrelation": 0.878484427255179,
-      "sideToMidRMS": 0.25434184074401855,
-      "dcOffset": 9.869686618912965e-05,
-      "trailingSilenceSeconds": 0.23999999999998067,
+      "integratedLUFS": -19.47,
+      "truePeakDbFS": -6.67,
+      "loudnessRangeLU": 8.6,
+      "channelCorrelation": 0.9047957747076475,
+      "sideToMidRMS": 0.22361049056053162,
+      "dcOffset": 9.362181299366057e-05,
+      "trailingSilenceSeconds": 0.2799999999999727,
       "finite": true,
       "silentBodySeconds": 0
     },
@@ -1425,26 +2336,26 @@
       "buses": {
         "kick": {
           "targetActiveRMS": 0.031,
-          "performanceGain": 1.6593863213760234,
-          "peakDbFS": -17.00336456298828,
-          "active10msWindows": 3052,
-          "events": 99,
+          "performanceGain": 1.65379784232197,
+          "peakDbFS": -17.03651237487793,
+          "active10msWindows": 3824,
+          "events": 124,
           "wet": false
         },
         "snare": {
           "targetActiveRMS": 0.022,
-          "performanceGain": 3.3270364086099153,
-          "peakDbFS": -15.542171478271484,
-          "active10msWindows": 1891,
-          "events": 84,
+          "performanceGain": 3.288555081929259,
+          "peakDbFS": -15.643219947814941,
+          "active10msWindows": 2349,
+          "events": 104,
           "wet": "Selected separate sends"
         },
         "hats": {
           "targetActiveRMS": 0.012,
-          "performanceGain": 4.848657889494718,
-          "peakDbFS": -18.816410064697266,
-          "active10msWindows": 5528,
-          "events": 490,
+          "performanceGain": 4.873481582719522,
+          "peakDbFS": -18.76919174194336,
+          "active10msWindows": 6940,
+          "events": 614,
           "wet": "Selected separate sends"
         }
       },
@@ -1465,8 +2376,8 @@
         "hats": 2.5
       },
       "noSimultaneousOpenAndClosedHat": true,
-      "selectedRoomEvents": 100,
-      "selectedDelayEvents": 17,
+      "selectedRoomEvents": 124,
+      "selectedDelayEvents": 21,
       "primaryProductionReferences": [
         "https://www.toontrack.com/blog/how-to-program-drums/",
         "https://www.izotope.com/community/blog/9-tips-for-using-reverb-with-drums",
@@ -1547,7 +2458,7 @@
         "recoveryMs": 125,
         "minimumGain": 0.58
       },
-      "motifResponseThrows": 5,
+      "motifResponseThrows": 10,
       "cowbell": "Quiet sparse accents under the sampled motif"
     },
     "sources": {
@@ -1674,7 +2585,7 @@
     "renderProcess": {
       "acousticRenderer": "FluidSynth, dry actual sampled instruments",
       "production": "Pedalboard 0.9.26, role-specific stem EQ, restrained chorus and filtered parallel room",
-      "phraseTreatment": "A/B pitched-metal themes, sampled vibraphone answers, quiet bridge and varied reprise",
+      "phraseTreatment": "Eight-bar recurring pitched-metal motif, two-bar common-tone harmony, fragmentary underpass and sixteen-bar return",
       "toneSources": "Original detuned stereo pads, pitched metal edge, clean sine-based 808, actual sampled vibraphone motif/answers and CC0 VCSL drums",
       "referenceAudioInComposition": false,
       "auditionPerformed": false
@@ -1685,8 +2596,8 @@
       "sampledMinimumUndampedSeconds": 1.45,
       "soundfontReleaseSeconds": 1.0,
       "voiceOwnership": "15 independent melodic MIDI channels, excluding percussion channel9",
-      "melodyStartsAndVelocitiesPreserved": true,
-      "percussionMixUnchanged": true,
+      "naturalReleasePreserved": true,
+      "percussionProductionPreserved": true,
       "ending": "Natural overlapping strikes; no short melody-gate cutoff"
     }
   }
