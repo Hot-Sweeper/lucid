@@ -66,7 +66,19 @@ function createRemoteBuilding(client, { now = Date.now, interval = setInterval, 
     async items(id) { return itemsFrom(await detail(id)); },
     async conversation(id) { return messagesFrom(await detail(id)); },
     async conversationPage(id) { return { messages: messagesFrom(await detail(id)), hasMore: false, nextCursor: null }; },
-    async pending(id) { return (await detail(id)).runtimeRequests.filter(r => !['resolved', 'cancelled', 'expired', 'failed'].includes(r.status)); },
+    async pending(id) {
+      const p = await detail(id);
+      const regular = p.runtimeRequests.filter(r => !['resolved', 'cancelled', 'expired', 'failed'].includes(r.status)).map(r => {
+        const item = [...p.turnItems].reverse().find(i => ['user_input_request','approval_request'].includes(i.type) && i.requestId === r.id) || {};
+        const cap = r.responseCapability || {};
+        const base = {id:r.id,at:r.createdAt,answerable:cap.type !== 'not_resumable',reason:cap.type === 'not_resumable' ? cap.reason || null : null};
+        if(r.kind === 'user_input' || item.type === 'user_input_request') return {...base,type:'input',questions:(item.questions || r.questions || []).map(q=>({id:String(q.id),header:q.header||'',question:q.question||'',options:(q.options||[]).map(o=>({label:o.label,description:o.description||'',value:o.value??null})),multiSelect:!!q.multiSelect,allowCustomAnswer:q.allowCustomAnswer!==false,initialAnswer:q.initialAnswer??null}))};
+        return {...base,type:'approval',requestKind:item.requestKind||r.kind,prompt:item.prompt||'',detail:item.reason||'',options:(item.options||[]).map(o=>({decision:o.decision,label:o.label,warning:o.warning||null}))};
+      });
+      const secrets = p.turnItems.filter(i=>i.type==='secret_request'&&i.secretStatus==='pending').map(i=>({id:i.id,type:'input',sensitive:true,label:i.label,detail:i.reason,placeholder:i.placeholder||'',questions:[],at:i.updatedAt,answerable:true,reason:null}));
+      return [...regular,...secrets];
+    },
+    async answerSecret(id, turnItemId, answer) { const target=split(id); if(!target) throw Error('Choose a remote thread.'); await client.rpc(target.environmentId,'secrets.answerRequest',{threadId:target.id,turnItemId,answer}); detailCache.delete(id); return true; },
     async selection(id) { const ms = (await detail(id)).thread.modelSelection; return { providerInstanceId: ms.instanceId, model: ms.model, options: Object.fromEntries((ms.options || []).map(o => [o.id, o.value])) }; },
     async providers(environmentId) {
       const config = await client.rpc(environmentId, 'server.getConfig', {});

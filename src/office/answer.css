@@ -98,3 +98,6 @@ textarea.ca-text { resize: vertical; min-height: 54px; max-height: 200px; }
 .ca-boss[hidden] { display: none; }
 .ca-boss[data-state="failed"] { color: #ffcf9e; }
 .ca-alt.ca-suggested { box-shadow: inset 0 0 0 1px rgba(255, 159, 90, 0.6); }
+
+.ca-secret { display: block; width: 100%; margin-top: 7px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: var(--night); font: 13px var(--mono); }
+.ca-secret:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

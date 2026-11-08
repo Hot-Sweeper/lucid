@@ -16,14 +16,14 @@ export type InputQuestion = {
   multiSelect: boolean; allowCustomAnswer: boolean; initialAnswer: string | null;
 };
 export type PendingRequest =
-  | { id: string; type: "input"; at: string; answerable: boolean; reason: string | null; questions: InputQuestion[] }
+  | { id: string; type: "input"; at: string; answerable: boolean; reason: string | null; questions: InputQuestion[]; sensitive?: boolean; label?: string; detail?: string; placeholder?: string }
   | { id: string; type: "approval"; at: string; answerable: boolean; reason: string | null; requestKind: string; prompt: string; detail: string;
       options: { decision: string; label: string; warning: string | null }[] };
 
 type Answers = Record<string, string | string[]>;
 type T3 = {
   status(o: { connect?: boolean; threadId?: string | null }): Promise<{ paired: boolean; error: string | null }>;
-  respond(o: { threadId: string; requestId: string; answers?: Answers; decision?: string }): Promise<unknown>;
+  respond(o: { threadId: string; requestId: string; answers?: Answers; decision?: string; secret?: string; declineSecret?: boolean }): Promise<unknown>;
 };
 export type AnswerDeps = { pending(threadId: string): Promise<PendingRequest[]>; t3?: T3; advice?(requestId: string): Advice | null; poll?: boolean; autoFocus?: boolean };
 type AnswerHost = Pick<ChatPanel, "el" | "isOpen" | "threadId">;
@@ -206,7 +206,10 @@ export class AnswerCard {
     form.noValidate = true;
     const n = ++uid;
     let body = "", actions = "";
-    if (r.type === "input") {
+    if (r.type === 'input' && r.sensitive) {
+      body = `<h3 class="ca-title">${esc(r.label || 'Secret requested')}</h3>${r.detail ? `<p class="ca-detail">${esc(r.detail)}</p>` : ''}<label for="ca${n}-secret">Secure value</label><input id="ca${n}-secret" class="ca-secret" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(r.placeholder || '')}"><p class="ca-detail">Sent securely to T3. Never added to chat history.</p>`;
+      actions = this.foot(r, '<button type="submit" name="secretAction" value="decline" class="ghost ca-alt">Decline</button><button type="submit" class="cp-send ca-send">Send securely</button>');
+    } else if (r.type === "input") {
       body = r.questions.map((q, i) => this.question(q, `ca${n}-${i}`, r.questions.length)).join("");
       const many = r.questions.length > 1;
       actions = this.foot(r, `<button type="submit" class="cp-send ca-send">${many ? "Send answers" : "Send answer"}</button>`);
@@ -229,7 +232,7 @@ export class AnswerCard {
     if (adv?.suggestion && r.type === "input" && (adv.state === "asked" || adv.state === "failed")) this.preselect(form, r, adv);
     if (adv?.decision && r.type === "approval" && (adv.state === "asked" || adv.state === "failed")) form.querySelector<HTMLButtonElement>(`button[value="${CSS.escape(adv.decision)}"]`)?.classList.add("ca-suggested");
     if (!r.answerable) form.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, textarea, button").forEach((x) => (x.disabled = true));
-    if (r.type === "input") form.setAttribute("aria-label", r.questions.length > 1 ? "Questions for you" : "Question for you");
+    if (r.type === "input") form.setAttribute("aria-label", r.sensitive ? "Secure input requested" : r.questions.length > 1 ? "Questions for you" : "Question for you");
     return form;
   }
 
@@ -374,8 +377,12 @@ export class AnswerCard {
     const state = form.querySelector(".ca-state") as HTMLElement;
     if (!r || !threadId || form.classList.contains("sending") || !r.answerable) return;
     if (!t3 || this.paired === false) { this.paintConnect(); form.querySelector<HTMLElement>(".ca-connect button")?.focus(); return; }
-    let payload: { answers?: Answers; decision?: string };
-    if (r.type === "input") {
+    let payload: { answers?: Answers; decision?: string; secret?: string; declineSecret?: boolean };
+    if (r.type === 'input' && r.sensitive) {
+      const field = form.querySelector<HTMLInputElement>('.ca-secret')!;
+      if (submitter?.value === 'decline') payload = {declineSecret:true};
+      else { if (!field.value.trim()) { state.textContent = 'Enter a value or decline.'; field.focus(); return; } payload = {secret:field.value}; }
+    } else if (r.type === "input") {
       const { answers, missing } = this.collect(form, r);
       if (missing) {
         state.textContent = r.questions.length > 1 ? "Answer every question to send." : "Pick an answer or type your own.";
@@ -397,9 +404,10 @@ export class AnswerCard {
     this.busy = true;
     try {
       await t3.respond({ threadId, requestId: r.id, ...payload });
+      if (r.type === 'input' && r.sensitive) { const field=form.querySelector<HTMLInputElement>('.ca-secret'); if(field)field.value=''; delete payload.secret; }
       if (this.disposed || this.threadId !== threadId || this.chat.threadId !== threadId) return;
       gameSound.play('switch');
-      const verb = r.type === "input" ? "Answer sent" : payload.decision?.startsWith("accept") ? "Approved" : "Denied";
+      const verb = r.type === 'input' && r.sensitive ? (payload.declineSecret ? 'Declined' : 'Secure value sent') : r.type === "input" ? "Answer sent" : payload.decision?.startsWith("accept") ? "Approved" : "Denied";
       this.sent.set(r.id, `${verb}. It carries on.`);
       state.textContent = `${verb}. Waiting for it to carry on.`;
       form.classList.add("sent");
@@ -407,6 +415,7 @@ export class AnswerCard {
       form.classList.remove("sending");
       controls.forEach((c) => (c.disabled = false));
       if (err?.code === "unauthorized" || err?.code === "pair-failed") { this.paired = false; this.paintConnect(); }
+      if (r.type === 'input' && r.sensitive) { const field=form.querySelector<HTMLInputElement>('.ca-secret'); if(field)field.value=''; delete payload.secret; state.textContent='Not sent. Enter the value again or decline.'; state.classList.add('err'); return; }
       state.textContent = `Not sent: ${err?.message || "T3 did not answer."}${err?.code === "rejected" ? "" : " Your answer is still here."}`;
       state.classList.add("err");
     } finally {

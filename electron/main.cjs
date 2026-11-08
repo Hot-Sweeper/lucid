@@ -551,6 +551,7 @@ ipcMain.handle('project-life:generate', (_e, input) => projectLife.generate(inpu
 const localization = createLocalization({ file: path.join(app.getPath('userData'), 'translations.json'), translate: createT3Translator({ t3, server: t3s, helpers: languageHelpers }) });
 ipcMain.handle('lucid:localize', (_e, input) => localization.localize(input));
 t3s.setRemoteDispatch(c => remote.dispatch(c));
+t3s.setRemoteSecret((id, item, answer) => remote.answerSecret(id, item, answer));
 const managerT3 = { ...t3, world: () => activeBuilding() ? structuredClone(remote.cached(activeBuilding())) : t3.world(),
   threadInfo: id => remote.split(id) ? remote.info(id) : t3.threadInfo(id),
   conversation: id => remote.split(id) ? remote.conversation(id) : t3.conversation(id),

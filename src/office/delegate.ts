@@ -65,6 +65,7 @@ function textOf(r: PendingRequest) {
 }
 /** Why a request is always yours (null when the orchestrator may answer it). */
 export function alwaysYours(r: PendingRequest): string | null {
+  if (r.type === 'input' && r.sensitive) return 'Secure values can only be supplied by you.';
   if (CREDENTIALS.test(textOf(r))) return "Credentials require your input.";
   return null;
 }

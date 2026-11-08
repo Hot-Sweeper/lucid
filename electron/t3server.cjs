@@ -286,7 +286,7 @@ async function call(tag, payload, { timeout = 15_000, pairedOnly = false } = {})
 }
 
 /** Sends one orchestration command, with a fresh UUID commandId like T3's web app. */
-let remoteDispatch = null;
+let remoteDispatch = null, remoteSecret = null;
 function dispatch(command) {
   if (remoteDispatch && [command.threadId, command.projectId].some(id => typeof id === 'string' && id.includes('::'))) return remoteDispatch(command);
   return call("orchestration.dispatchCommand", { commandId: crypto.randomUUID(), ...command });
@@ -310,7 +310,13 @@ const DECISIONS = ["accept", "acceptForSession", "acceptAlways", "decline", "can
  * questions: `answers` keyed by question id, each a string (one choice or your own words)
  * or an array of strings (several choices); approvals: a `decision`.
  */
-function respondToRequest(threadId, requestId, { answers, decision, feedback } = {}) {
+function respondToRequest(threadId, requestId, { answers, decision, feedback, secret, declineSecret } = {}) {
+  if (secret !== undefined || declineSecret) {
+    if (typeof threadId !== 'string' || !threadId || typeof requestId !== 'string' || !requestId || (!declineSecret && (typeof secret !== 'string' || !secret.trim() || secret.length > 65536))) return Promise.reject(new T3ServerError('Enter a value or decline this request.', 'invalid'));
+    const answer = declineSecret ? {type:'decline'} : {type:'save',secret};
+    const send = threadId.includes('::') ? (remoteSecret ? remoteSecret(threadId,requestId,answer) : Promise.reject(Error('Remote secret input unavailable'))) : call('secrets.answerRequest',{threadId,turnItemId:requestId,answer});
+    return send.then(() => true).catch(() => { throw new T3ServerError('The secure request could not be answered. It may have expired. Try again.', 'secret-failed'); });
+  }
   if (!threadId || !requestId) return Promise.reject(new T3ServerError("This question is gone.", "invalid"));
   if (decision !== undefined) {
     if (!DECISIONS.includes(decision)) return Promise.reject(new T3ServerError("Unknown choice for this approval.", "invalid"));
@@ -485,6 +491,7 @@ async function status({ connect = false, threadId = null } = {}) {
 }
 
 module.exports = {
+  setRemoteSecret: fn => { remoteSecret = fn; },
   setRemoteDispatch: fn => { remoteDispatch = fn; },
   ensurePaired, status, dispatch, call, listProviders, hireConfig, startHire, hireContexts: projectId => require('./hire-context.cjs').settledContexts(getDb(), projectId), selection, usageLimits,
   settleThread, unsettleThread, reorderQueued, cancelQueued, editQueued, steerNow, setThreadModel, respondToRequest,

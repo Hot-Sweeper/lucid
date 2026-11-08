@@ -366,6 +366,7 @@ function world(limit = 40) {
     }
   } catch {}
   const activeSelection = db.prepare("select payload_json as p from orchestration_v2_projection_runs where thread_id = ? and status in ('running','starting','preparing','waiting','awaiting_input') order by ordinal desc limit 1");
+  const secretQuestion = db.prepare("select json_extract(payload_json, '$.label') as label from orchestration_v2_projection_turn_items where thread_id = ? and type = 'secret_request' and json_extract(payload_json, '$.secretStatus') = 'pending' order by ordinal desc limit 1");
   const threads = rows.map((r) => {
     r.lastItemAt = latestActivity.get(r.id);
     const p = safeJson(r.payload) || {};
@@ -376,6 +377,8 @@ function world(limit = 40) {
       const qp = q ? safeJson(q.p) : null;
       question = qp?.questions?.map((x) => x.question).join(" ") || (approvalStmt.get(r.id) ? "Needs your approval" : "Needs your answer");
     }
+    const secure = secretQuestion.get(r.id);
+    if (secure) question = secure.label || 'Needs secure input';
     // Explicit completion wins over recent output. Activity is only a fallback
     // for native sessions that have no projected run state yet.
     const busy = r.runStatus === "running" || r.runStatus === "queued" || (!r.runStatus && r.lastItemAt && Date.now() - Date.parse(r.lastItemAt) < 90000);
@@ -523,7 +526,7 @@ function pendingRequests(threadId) {
   const itemStmt = db.prepare(`select payload_json as p from orchestration_v2_projection_turn_items
                                where thread_id = ? and type in ('user_input_request','approval_request') and json_extract(payload_json, '$.requestId') = ?
                                order by ordinal desc limit 1`);
-  return rows.map((r) => {
+  const regular = rows.map((r) => {
     const rp = safeJson(r.p) || {};
     const item = safeJson(itemStmt.get(threadId, r.id)?.p) || {};
     const cap = rp.responseCapability || {};
@@ -541,6 +544,8 @@ function pendingRequests(threadId) {
       options: (item.options || []).map((o) => ({ decision: o.decision, label: o.label, warning: o.warning || null })),
     };
   });
+  const secrets = db.prepare("select turn_item_id as id, updated_at as at, payload_json as p from orchestration_v2_projection_turn_items where thread_id = ? and type = 'secret_request' and json_extract(payload_json, '$.secretStatus') = 'pending' order by ordinal").all(threadId);
+  return [...regular, ...secrets.map(row => { const p = safeJson(row.p) || {}; return {id:row.id,type:'input',sensitive:true,label:p.label || 'Secret',detail:p.reason || '',placeholder:p.placeholder || '',questions:[],at:row.at,answerable:true,reason:null}; })];
 }
 
 // --- the orchestrator deciding questions ---------------------------------------------------
