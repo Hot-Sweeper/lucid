@@ -38,7 +38,7 @@ import { AnswerCard } from "./office/answer";
 import { MonitorTasks, sharedPendingRequests } from "./office/monitor-tasks";
 import { Delegate, showDecisions } from "./office/delegate";
 import { showMenu, confirmDialog } from "./office/menus";
-import { openHire, BUILTIN_ROLES, type Role } from "./office/hire";
+import { openHire, avatar, BUILTIN_ROLES, type Role } from "./office/hire";
 import { openCustomizeFor, openCustomize } from "./office/customize";
 import { openWorkerFocus, openStaffWall } from "./office/worker-focus";
 import { openChair } from "./office/chair";
@@ -205,6 +205,18 @@ let coinReady: (id: string) => boolean = () => true;
 let coinCollected: (id: string) => Promise<void> = async () => {};
 (window as any).__world = world; // debug handle for test runs
 const chat = new ChatPanel($("scene").parentElement!, {
+  threadCard: ref => {
+    const data = world.lastData;
+    const id = data?.nativeEnvironmentId === ref.environmentId ? ref.threadId : `${ref.environmentId}::${ref.threadId}`;
+    const thread = data?.threads.find(t => t.id === id);
+    if (!thread) return null;
+    const robot = world.roster.byThread(id);
+    return { title: thread.title, provider: harnessName(thread.provider), model: thread.model, name: robot?.name, portrait: avatar(thread.provider, robot?.look, 44) };
+  },
+  openThreadCard: ref => {
+    const id = world.lastData?.nativeEnvironmentId === ref.environmentId ? ref.threadId : `${ref.environmentId}::${ref.threadId}`;
+    if (world.lastData?.threads.some(t => t.id === id)) { gameSound.play('open'); openThread(id); }
+  },
   conversation: (id) => api.conversation(id), conversationPage: (id, options) => (api as any).conversationPage(id, options),
   sendMessage: (o) => api.sendMessage(o), saveAttachment: (n, d) => (api as any).saveAttachment(n, d), revealFile: (api as any).revealFile ? (p) => (api as any).revealFile(p) : undefined, t3: (window as any).lucidT3,
   // Saved reports belong to this environment's actual review conversation.

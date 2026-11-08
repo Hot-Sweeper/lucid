@@ -54,6 +54,8 @@ contextBridge.exposeInMainWorld("lucid", {
   usage: () => ipcRenderer.invoke("usage:get"),
   coinUsage: () => ipcRenderer.invoke("coins:usage"),
   weather: () => ipcRenderer.invoke("weather:get"),
+  answerVisual: (html) => ipcRenderer.invoke("answer:visual", html),
+  downloadAnswer: (src, name) => ipcRenderer.invoke("fs:download-answer", { src, name }),
   saveAttachment: (name, data) => ipcRenderer.invoke("attach:save", { name, data }),
   rosterSave: (json) => ipcRenderer.invoke("roster:save", json),
   conversation: (id) => ipcRenderer.invoke("t3:conversation", id),

@@ -364,6 +364,7 @@ function world(limit = 40) {
       schedules.set(s.id, { nextRunAt: s.nextRunAt, everyMs: sj.everyMs || null });
     }
   } catch {}
+  const activeSelection = db.prepare("select payload_json as p from orchestration_v2_projection_runs where thread_id = ? and status in ('running','starting','preparing','waiting','awaiting_input') order by ordinal desc limit 1");
   const threads = rows.map((r) => {
     r.lastItemAt = latestActivity.get(r.id);
     const p = safeJson(r.payload) || {};
@@ -380,6 +381,7 @@ function world(limit = 40) {
     return {
       id: r.id, projectId: r.projectId, title: r.title, updatedAt: r.updatedAt, provider: r.provider, runStatus: busy ? "running" : r.runStatus,
       pinned: !!p.pinnedAt, settled, question, model: p.modelSelection?.model || null,
+      ...require("./robot-mode.cjs").robotMode(safeJson(activeSelection.get(r.id)?.p)?.modelSelection || p.modelSelection),
       createdAt: p.createdAt, unsettledAt: p.unsettledAt, settledAt: p.settledAt,
       pinOrderKey: p.pinOrderKey ?? null, activeOrderKey: p.activeOrderKey ?? null,
       schedule: schedules.get(r.id) || null,
@@ -408,7 +410,7 @@ function world(limit = 40) {
   const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
   const shippedRow = db.prepare(`select count(*) as total, sum(case when completed_at >= ? then 1 else 0 end) as today
                                  from orchestration_v2_projection_runs where status = 'completed'`).get(midnight.toISOString());
-  return { projects, threads: require('./thread-order.cjs').sortThreads(threads), models, prices: modelPrices(Object.values(models).flat()), shipped: { total: shippedRow.total || 0, today: shippedRow.today || 0 } };
+  return { nativeEnvironmentId: fs.readFileSync(path.join(T3_HOME, "userdata", "environment-id"), "utf8").trim(), projects, threads: require('./thread-order.cjs').sortThreads(threads), models, prices: modelPrices(Object.values(models).flat()), shipped: { total: shippedRow.total || 0, today: shippedRow.today || 0 } };
 }
 
 let rateDoc = null;

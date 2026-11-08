@@ -111,7 +111,7 @@ if (!process.versions.electron) {
     let win;
     try {
       for(let i=0;i<100&&!win;i++){win=BrowserWindow.getAllWindows()[0];await wait(100)}
-      win.webContents.on('console-message',(_e,_l,m)=>console.log('renderer:',m));win.setPosition(0,0);win.setSize(1280,800);win.show();
+      win.webContents.on('console-message',(_e,_l,m)=>console.log('renderer:',m));win.setFocusable(true);win.focus();win.setPosition(0,0);win.setSize(1280,800);win.show();
       const ev=code=>win.webContents.executeJavaScript('(async()=>{try{return await (async()=>{return '+code+'})()}catch(e){return {error:e.message,stack:e.stack}}})()',true).then(r=>{if(r?.error)throw Error(JSON.stringify(r));return r});
       for(let i=0;i<200;i++){if(await ev('!!window.__world?.lastData'))break;await wait(100)}
       await ev(`(()=>{const w=window.__world;w.reports.clear();w.roomColumns.set('p:lucid',4);w.extra.set('p:lucid',6);w.expandedRooms.add('p:lucid');w.setRoomExpanded('p:lucid',true);w.update(w.lastData);w.showRoom('p:lucid');})()`);
@@ -119,15 +119,15 @@ if (!process.versions.electron) {
       const capture=async name=>fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());
       await ev(`(()=>{const w=window.__world;const d=[...w.slotDesks.values()].find(d=>d.room==='p:lucid'&&!d.threadId);window.__emptySlot=d.el.dataset.slot;w.onFreeDeskMenu(d,d.el.dataset.slot,580,350)})()`);
       await wait(350);await capture('empty-desk-menu');
-      const result=await ev(`(()=>{const b=[...document.querySelectorAll('.pop-menu button')].find(b=>b.textContent.includes('Remove this desk'));return {removeAvailable:!!b,slot:window.__emptySlot,extras:window.__world.extra.get('p:lucid')}})()`);
+      const result=await ev(`(()=>{const b=[...document.querySelectorAll('.pop-menu:last-child button')].find(b=>b.textContent.includes('Remove this desk'));return {removeAvailable:!!b,slot:window.__emptySlot,extras:window.__world.extra.get('p:lucid')}})()`);
       if(!baseline){
         if(!result.removeAvailable)throw Error('Remove action missing');
-        await ev(`[...document.querySelectorAll('.pop-menu button')].find(b=>b.textContent.includes('Remove this desk')).click()`);await wait(1800);
+        await ev(`[...document.querySelectorAll('.pop-menu:last-child button')].find(b=>b.textContent.includes('Remove this desk')).click()`);await wait(1800);
         const extra=await ev(`window.__world.extra.get('p:lucid')`);if(extra!==5)throw Error('Removal did not reduce capacity');
         await capture('after-remove');
         await ev(`(()=>{const w=window.__world;w.extra.set('main',0);w.setRoomExpanded('main',true);w.update(w.lastData);w.showRoom('main');})()`);await wait(1500);
         await ev(`(()=>{const w=window.__world;const d=[...w.slotDesks.values()].find(d=>d.room==='main'&&!d.threadId);w.onFreeDeskMenu(d,d.el.dataset.slot,580,350)})()`);
-        await wait(350);console.log('main before',await ev(`JSON.stringify({extra:window.__world.extra.get('main'),slots:[...window.__world.slotDesks].filter(([s])=>s.startsWith('main#')).map(([s])=>[s,window.__world.canRemoveEmptyDesk(s)]),menus:[...document.querySelectorAll('.pop-menu')].map(m=>m.textContent)})`));await ev(`[...document.querySelectorAll('.pop-menu button')].find(b=>b.textContent.includes('Remove this desk')).click()`);console.log('main after',await ev(`window.__world.extra.get('main')`));await wait(1500);
+        await wait(350);await ev(`[...document.querySelectorAll('.pop-menu:last-child button')].find(b=>b.textContent.includes('Remove this desk')).click()`);await wait(1500);
         for(let i=0;i<100;i++){if(await ev(`![...window.__world.slotDesks.values()].some(d=>d.room==='main')`))break;await wait(200)}result.lastEmptyDeskRemoved=await ev(`![...window.__world.slotDesks.values()].some(d=>d.room==='main')`);
         if(!result.lastEmptyDeskRemoved){console.log(await ev(`JSON.stringify({extra:window.__world.extra.get('main'),plans:window.__world.physicalPlans.filter(p=>p.id==='main'),pending:window.__world.pendingSeat,held:window.__world.physicalLayoutHeld})`));await capture('last-desk-debug');throw Error('Last empty desk remains');}
         await capture('after-last-desk');

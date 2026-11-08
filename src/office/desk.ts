@@ -1,3 +1,4 @@
+import { RobotPower } from "../world/robot-power";
 import { DeskPlanWidget } from "./desk-plan";
 import { managerLook } from "../world/look";
 import gsap from "gsap";
@@ -54,6 +55,7 @@ export class Desk implements DeskStage {
   screen: HTMLElement;
   bubble: HTMLElement;
   robot: SeatedRobot;
+  private power: RobotPower;
   /** Opens the worker's focus view (set by the world). */
   onRobotFocus: ((anchor: Element) => void) | null = null;
   private deferredRobot: DeferredRobot;
@@ -105,6 +107,7 @@ export class Desk implements DeskStage {
     this.bubble = el.querySelector(".bubble")!;
     gsap.set(el.querySelector(".phone-held"), { scale: PHONE_SCALE, transformOrigin: "0 0" });
     const robotHost = el.querySelector(".robot-host") as HTMLElement;
+    this.power = new RobotPower(robotHost, () => this.threadId, { x: 115, y: 197, w: 170, h: 160 });
     this.deferredRobot = new DeferredRobot(robotHost, () => robotFactory(robotHost, this.rig()));
     this.robot = this.deferredRobot;
     this.disposeStaticArt = cacheStaticArt(el.querySelector<SVGSVGElement>(".desk-table")!);
@@ -477,6 +480,7 @@ export class Desk implements DeskStage {
   }
 
   destroy() {
+    this.power.destroy();
     this.planWidget.destroy();
     this.disposeStaticArt();
     this.clearKeys();

@@ -1,3 +1,4 @@
+import { RobotPower, robotModeFor } from "./robot-power";
 import { ModelSticker } from "./model-sticker";
 import { accessorySvg, blushSvg, hatInfo, hatSvg, paintLookColors, styledEyes } from "./look";
 import gsap from "gsap";
@@ -158,6 +159,7 @@ export class Walker {
   private deskEdge: number | null = null;
   private s: number;
   private speed: number;
+  private power: RobotPower;
   private weakness = 0;
   private remainingBattery: number | null = null;
   private batteryProvider = "";
@@ -248,6 +250,7 @@ export class Walker {
       this.placeBubble();
     });
     this.el = el;
+    this.power = new RobotPower(el, () => this.id, { x: -88, y: -225, w: 176, h: 230 });
     this.svg = el.querySelector("svg")!;
     this.$ = bind(this.svg);
     for (const key of ["antenna", "sideAntenna"]) {
@@ -425,6 +428,7 @@ export class Walker {
 
   private moveStep(dt: number) {
     const st = this.st, m = this.mv;
+    const speed = this.speed * (robotModeFor(this.id, this.el).fast && !reduced() ? 1.5 : 1);
     if (!m) {
       this.v = 0;
       st.stride += (0 - st.stride) * Math.min(1, dt * 9);
@@ -438,14 +442,14 @@ export class Walker {
         this.place();
         if (m.i >= m.pts.length) { this.finishMove(true); st.stride = 0; return; }
         // The first visible step is already at a run, rather than accelerating at the edge.
-        this.v = this.speed * (1 - this.weakness * .6); st.stride = 1;
+        this.v = speed * (1 - this.weakness * .6); st.stride = 1;
         this.faceToward(m.pts[m.i]);
       }
     }
     if (m.wait > 0) { m.wait -= dt; return; }
     const rest = Math.hypot(m.pts[m.i].x - this.x, m.pts[m.i].y - this.y) + m.tails[m.i];
-    const cap = m.through ? this.speed : Math.sqrt(2 * 560 * rest) + 18; // brake at the destination, not every route leg
-    const want = Math.min(this.speed * (1 - this.weakness * .6), cap);
+    const cap = m.through ? speed : Math.sqrt(2 * 560 * rest) + 18; // brake at the destination, not every route leg
+    const want = Math.min(speed * (1 - this.weakness * .6), cap);
     this.v = want > this.v ? this.v + (want - this.v) * Math.min(1, dt * 7) : want;
     let step = this.v * dt;
     while (step > 0 && m.i < m.pts.length) {
@@ -456,10 +460,10 @@ export class Walker {
       } else { this.x += ((q.x - this.x) / d) * step; this.y += ((q.y - this.y) / d) * step; step = 0; }
     }
     this.place();
-    const strideWant = 0.35 + 0.65 * Math.min(1, this.v / this.speed);
+    const strideWant = 0.35 + 0.65 * Math.min(1, this.v / speed);
     st.stride += (strideWant - st.stride) * Math.min(1, dt * 10);
     // feet stay planted: half a cycle covers 2 * STEP * stride of floor
-    const run = this.speed > SPEED ? clamp((this.v - SPEED * 0.7) / (240 - SPEED * 0.7), 0, 1) : 0;
+    const run = speed > SPEED ? clamp((this.v - SPEED * 0.7) / (240 - SPEED * 0.7), 0, 1) : 0;
     const stance = 0.5 - run * 0.18;
     st.phase += ((this.v / this.s) / (2 * STEP * (1 + run * 0.85) / stance * Math.max(0.3, st.stride))) * TAU * dt;
     if (m.i >= m.pts.length) {
@@ -1341,6 +1345,7 @@ export class Walker {
     this.speechLocale?.destroy();
     this.stopBattery?.();
     this.stop();
+    this.power.destroy();
     gsap.ticker.remove(this.frame);
     unwatch(this.svg);
     this.clearAct();
