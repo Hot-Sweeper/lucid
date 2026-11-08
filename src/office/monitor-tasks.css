@@ -86,3 +86,32 @@
 .mt-far[data-state="kept"] span { color: #9fb3d6; }
 .mt-actions > .monitor-task-collect.mt-remove { background: #2c3550; color: #e6ecff; box-shadow: inset 0 0 0 1px #46557a; }
 .mt-actions > .monitor-task-collect.mt-remove:hover { background: #3a2a3a; color: #ffd6dc; box-shadow: inset 0 0 0 1px #8a4a5a; }
+
+/* Questions use the whole monitor; only unusually long content scrolls. Actions
+   are outside that scroll area, so answering never requires finding the footer. */
+.monitor-task-panel.monitor-task-question { display: flex; flex-direction: column; }
+.monitor-task-question > header { gap: 12px; padding: 12px 20px; }
+.monitor-task-question h2 { font-size: 23px; }
+.monitor-task-question .monitor-task-name { font-size: 14px; margin-top: 3px; }
+.monitor-task-question > header button { font-size: 14px; padding: 8px 12px; }
+.monitor-task-question .monitor-task-body { display: flex; flex: 1; overflow: hidden; }
+.monitor-task-question .monitor-task-body > .cp-answer { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; padding: 12px 20px 0; overflow: hidden; }
+.monitor-task-question .cp-answer[hidden] { display: none; }
+.monitor-task-question .ca-req { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
+.monitor-task-question .ca-content { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #777a9d #171d3b; padding: 0 2px 2px; }
+.monitor-task-question .ca-actions { flex: none; padding: 8px 2px 12px; background: #171d3b; border-top: 1px solid var(--line, #343b62); }
+.monitor-task-question .ca-foot { margin-top: 0; }
+.monitor-task-question .ca-state { max-height: 64px; overflow: auto; overflow-wrap: anywhere; }
+.monitor-task-question .ca-q { margin-bottom: 6px; }
+.monitor-task-question .ca-q legend, .monitor-task-question .ca-title { font-size: 18px; line-height: 1.4; margin-bottom: 8px; }
+.monitor-task-question .ca-label { font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
+.monitor-task-question .ca-desc, .monitor-task-question .ca-how, .monitor-task-question .ca-state, .monitor-task-question .ca-detail, .monitor-task-question .ca-connect, .monitor-task-question .ca-boss { font-size: 14px; line-height: 1.4; }
+.monitor-task-question .ca-text, .monitor-task-question .ca-alt, .monitor-task-question .cp-send { font-size: 16px; }
+.monitor-task-question .ca-opt { padding: 6px 8px; grid-template-columns: 18px minmax(0, 1fr); }
+.monitor-task-question .ca-opt > input[type=radio], .monitor-task-question .ca-opt > input[type=checkbox] { width: 18px; height: 18px; }
+.monitor-task-question .ca-other { grid-template-columns: 18px auto minmax(0, 1fr); align-items: center; }
+.monitor-task-question .ca-other .ca-text { grid-column: 3; margin-top: 0; min-width: 0; }
+.monitor-task-question .ca-prompt { max-height: none; }
+.monitor-task-question .ca-req + .ca-req { margin-top: 8px; padding-top: 8px; }
+.monitor-task-question .cp-answer:has(> .ca-req ~ .ca-req) { overflow: auto; }
+.monitor-task-question .cp-answer:has(> .ca-req ~ .ca-req) > .ca-req { flex: none; min-height: 260px; }

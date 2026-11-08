@@ -99,3 +99,8 @@ Use navy/lavender/peach tokens, Lexend, 18px body gutters, 24px column gaps, 6px
 ## Thread labels at room scale
 
 Below camera scale 1.15, desk plates show a cached 2 to 4 word topic in 14px Lexend, with the existing robot name underneath. Close views and hovered plates show the original full title. The full title remains in the tooltip and accessible label. Labels are presentation metadata, separate from T3 titles. A bounded background writer uses T3's configured text generation selection (Luna fallback), caches by thread id and exact title, and never runs in response to a zoom gesture. Missing or failed labels retain the original title. Remote environments retain their own titles without local generation.
+
+
+## Questions that fit the monitor
+
+The monitor question screen uses a compact 23px header, 18px question and 16px choices at the existing 820 by 461 logical screen size. Suppress descriptions that only repeat the option label. Keep Other and its text field on one row. Question content owns one scroll region for unusually long requests; a separate fixed footer keeps Send answer, approval controls and retry feedback visible. Preserve distinct descriptions, actual question text, selections, custom answers, keyboard focus, and the existing submission path. The sidebar answer card keeps its established typography and layout.

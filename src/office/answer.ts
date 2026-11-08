@@ -205,11 +205,11 @@ export class AnswerCard {
     form.dataset.req = r.id;
     form.noValidate = true;
     const n = ++uid;
-    let body = "";
+    let body = "", actions = "";
     if (r.type === "input") {
       body = r.questions.map((q, i) => this.question(q, `ca${n}-${i}`, r.questions.length)).join("");
       const many = r.questions.length > 1;
-      body += this.foot(r, `<button type="submit" class="cp-send ca-send">${many ? "Send answers" : "Send answer"}</button>`);
+      actions = this.foot(r, `<button type="submit" class="cp-send ca-send">${many ? "Send answers" : "Send answer"}</button>`);
     } else {
       const title = APPROVAL_TITLE[r.requestKind] ?? "Allow this?";
       const opts = r.options.length ? r.options : [{ decision: "decline", label: "Deny", warning: null }, { decision: "accept", label: "Approve", warning: null }];
@@ -218,11 +218,11 @@ export class AnswerCard {
       const buttons = sorted.map((o) => `<button type="submit" name="decision" value="${esc(o.decision)}" class="${o.decision === "accept" ? "cp-send ca-send" : "ghost ca-alt"}"${o.warning ? ` title="${esc(o.warning)}"` : ""}>${esc(o.decision === "decline" && /^decline$/i.test(o.label) ? "Deny" : o.label)}</button>`).join("");
       body = `<h3 class="ca-title" id="ca${n}-t">${esc(title)}</h3>
         ${r.prompt ? `<pre class="ca-prompt" aria-labelledby="ca${n}-t">${esc(r.prompt)}</pre>` : ""}
-        ${r.detail ? `<p class="ca-detail">${esc(r.detail)}</p>` : ""}
-        ${this.foot(r, `<span class="ca-btns">${buttons}</span>`)}`;
+        ${r.detail ? `<p class="ca-detail">${esc(r.detail)}</p>` : ""}`;
+      actions = this.foot(r, `<span class="ca-btns">${buttons}</span>`);
       form.setAttribute("aria-labelledby", `ca${n}-t`);
     }
-    form.innerHTML = `<p class="ca-boss" role="status" hidden></p>` + body;
+    form.innerHTML = `<div class="ca-content"><p class="ca-boss" role="status" hidden></p>${body}</div><div class="ca-actions">${actions}</div>`;
     const adv = this.deps.advice?.(r.id) ?? null;
     form.dataset.adv = adviceKey(adv);
     this.paintAdvice(form, adv);
@@ -275,8 +275,12 @@ export class AnswerCard {
     const how = q.multiSelect ? `<span class="ca-how">Choose any that apply</span>` : "";
     const opts = q.options.map((o, i) => {
       const id = `${key}-o${i}`;
-      return `<div class="ca-opt"><input type="${type}" id="${id}" name="${key}" value="${esc(o.value ?? o.label)}"${o.description ? ` aria-describedby="${id}-d"` : ""}>
-        <label for="${id}"><span class="ca-label">${esc(o.label)}</span>${o.description ? `<span class="ca-desc" id="${id}-d">${esc(o.description)}</span>` : ""}</label></div>`;
+      // Some providers repeat the label as its description. Show it once, keeping
+      // genuinely different context and its accessible description intact.
+      const normalize = (text: string) => text.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+      const description = normalize(o.description ?? "") === normalize(o.label) ? "" : o.description;
+      return `<div class="ca-opt"><input type="${type}" id="${id}" name="${key}" value="${esc(o.value ?? o.label)}"${description ? ` aria-describedby="${id}-d"` : ""}>
+        <label for="${id}"><span class="ca-label">${esc(o.label)}</span>${description ? `<span class="ca-desc" id="${id}-d">${esc(description)}</span>` : ""}</label></div>`;
     }).join("");
     let other = "";
     if (q.allowCustomAnswer) {

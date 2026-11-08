@@ -1,0 +1,43 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Lucid question panel</title><body>
+<script type="module">
+import '@fontsource-variable/lexend';
+import '@fontsource-variable/jetbrains-mono';
+import '/src/styles.css';
+import '/src/office/office.css';
+import { MonitorTasks } from '/src/office/monitor-tasks.ts';
+const params=new URLSearchParams(location.search), q=s=>document.querySelector(s), wait=ms=>new Promise(r=>setTimeout(r,ms));
+document.body.style.cssText='display:grid;place-items:center;background:#b88762;overflow:hidden';
+const screen=document.createElement('div');screen.style.cssText='position:relative;width:min(96vw,820px);height:461px;border:18px solid #282d40;border-radius:24px;overflow:hidden;box-sizing:content-box';document.body.append(screen);
+const root=document.createElement('div');screen.append(root);
+const labels=['Live desk and office changes','Both','Code updates without reopening'];
+const question={id:'scope',header:'Live changes',question:'By “update in realtime,” do you mean desk moves and office changes appearing immediately, or new Lucid code updates loading without reopening the app?',options:labels.map(label=>({label,description:label,value:null})),multiSelect:false,allowCustomAnswer:true,initialAnswer:null};
+let pending=[{id:'request',type:'input',at:'now',answerable:true,reason:null,questions:[question]}],responses=[];
+const thread={id:'question-review',title:'Drag desks and threads',provider:'codex',runStatus:'waiting',question:question.question,settled:false};
+const desk={threadId:thread.id,el:screen,screen,profile:{name:'Ratchet'},wm:{root,setOverlayCovered(){}}};
+const world={desks:new Map([['a',desk]]),lastData:{threads:[thread]},setCompletionHolds(){}};
+const tasks=new MonitorTasks(world,{answer:{pending:async()=>pending,t3:{status:async()=>({paired:true,error:null}),respond:async request=>{responses.push(request);throw Error('Test connection lost. Your answer is preserved.');}}},read(){},ready(){return null},collect:async()=>{}});
+tasks.prepare(world.lastData);tasks.sync();await wait(300);await document.fonts.ready;
+window.questionReview={tasks,world,desk,pending,responses};
+if(params.has('test')){
+ const passed=[],check=(ok,label)=>{if(!ok)throw Error(label);passed.push(label)},inside=(el,parent)=>{const a=el.getBoundingClientRect(),b=parent.getBoundingClientRect();return a.top>=b.top-1&&a.bottom<=b.bottom+1&&a.left>=b.left-1&&a.right<=b.right+1;};
+ try{
+ check(inside(q('.ca-send'),screen),'Send answer visible without scrolling');
+ check([...document.querySelectorAll('.ca-opt')].every(el=>inside(el,screen)),'Every choice and custom answer visible without scrolling');
+ check(q('.monitor-task-body').scrollHeight<=q('.monitor-task-body').clientHeight+1,'No outer question scroll for the reference question');
+ check(!q('.ca-desc'),'Repeated option descriptions omitted');
+ const radio=q('.ca-opt input');radio.click();q('.ca-send').click();await wait(100);
+ check(responses.length===1&&responses[0].answers.scope===labels[0],'Selected answer reaches the real submission handler');
+ check(radio.checked,'Failed send preserves selection');
+ check(inside(q('.ca-state'),screen),'Retry error remains visible');
+ // A much longer request scrolls its content while keeping actions on screen.
+ const content=q('.ca-content');for(let i=0;i<8;i++){const p=document.createElement('p');p.textContent=question.question;content.append(p);}
+ check(content.scrollHeight>content.clientHeight,'Long questions retain a usable scroll region');
+ check(inside(q('.ca-send'),screen),'Long content cannot hide submission');
+ content.scrollTop=content.scrollHeight;check(inside(q('.ca-send'),screen),'Submission remains visible after content scrolling');
+ content.querySelectorAll(':scope > p:not(.ca-boss)').forEach(el=>el.remove());content.scrollTop=0;
+ if(params.has('narrow')){screen.style.width='320px';await wait(100);check(q('.ca-content').scrollWidth<=q('.ca-content').clientWidth+1,'Narrow content has no horizontal overflow');check(inside(q('.ca-send'),screen),'Narrow submit visible');}
+ document.title='PASS: '+passed.length+' question checks';
+ await fetch('/__question_result',{method:'POST',body:JSON.stringify({ok:true,passed})});
+ }catch(error){document.title='FAIL: '+error.message;await fetch('/__question_result',{method:'POST',body:JSON.stringify({ok:false,error:String(error),passed})});}
+}
+</script></body></html>
