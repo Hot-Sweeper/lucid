@@ -52,3 +52,12 @@ Purchases use earned office coins. Owned pieces are reusable across offices; col
 ## Song library
 
 The app library includes a live Song library entry in Media, separate from the robots' Botify demo. Show the real office soundtrack as compact title/genre/duration rows with whole-row Play, Pause and Resume actions. The existing radio controls sit in a compact disclosure above search and genre filtering. Preserve row nodes, focus, search and scrolling during playback updates. Use one constrained list scroll region, established navy/lavender/peach tokens, 130ms press feedback and reduced-motion support. Narrow app-library views give the songs the content area and offer All apps to return to the app grid. Leaving or closing the library releases UI subscriptions while office music continues through its existing audio owner. Song choices play once, then the selected music direction resumes.
+
+
+## Hiring a robot
+
+Keep the task as the primary writing surface, with attachments inside it and runtime choices below. Use an unboxed, full-body worker preview and plain name/availability text. Harnesses are a wrapping native radio group with Lucid's existing official logos, a visible selection check and peach keyboard focus. Model and provider-specific options retain semantic selects. Preserve Lexend, navy/lavender tokens, peach actions, drafts, retries, roles, customization and the worker arrival feedback.
+
+The dialog uses a 980px maximum width, 30px desktop gutters and a 210px portrait column. At 560px it becomes one scrollable column with a compact horizontal portrait. The footer stays reachable independently of body scrolling. Use 8px composer corners, 6px choice corners and the shared 140ms strong ease-out; reduced motion removes transitions. Text uses existing ink tokens, and control boundaries use the existing higher-contrast hire control token.
+
+Reasoning summaries render safe inline emphasis as real bold/italic/code elements in both the activity history and current status. Commands, tool output and user prompts retain their literal contents. Status text clips visually without truncating Markdown delimiters, and the complete readable summary is available in its title.

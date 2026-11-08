@@ -2,7 +2,7 @@ import { readPromptDraft, writePromptDraft } from "./prompt-draft";
 import gsap from "gsap";
 import { Roster, type RobotProfile } from "./roster";
 import { companionClient } from "../remote-client";
-import { brandFor, harnessName } from "./brand";
+import { brandFor, harnessName, logoFor } from "./brand";
 import type { RobotLook } from "./rig";
 import { portraitSvg } from "../world/look";
 import { PALETTES } from "../world/seated-parts";
@@ -83,8 +83,8 @@ export function openHire(opts: {
             <label class="hire-task"><span>Task</span><textarea rows="6" placeholder="What should we work on? Add files, screenshots, or anything the job needs." aria-describedby="hire-file-hint"></textarea></label>
             <div class="hire-attachments" aria-label="Attached files"></div>
             <div class="hire-composer-tools"><button type="button" class="ghost hire-attach"><svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="m7 10 5-5a2.5 2.5 0 0 1 3.5 3.5L8 16a4 4 0 0 1-5.7-5.7l8-8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Attach files</button><span id="hire-file-hint">or drop files and paste images</span><input class="hire-files" type="file" multiple hidden></div>
-            <div class="hire-runtime-controls" aria-label="Runtime settings"></div>
           </div>
+          <div class="hire-runtime-controls" aria-label="Runtime settings"></div>
           <div class="hire-runtime-note"><span class="hire-runtime" role="status">Loading T3 defaults...</span><button type="button" class="link-btn hire-reset" hidden>Use T3 defaults</button><button type="button" class="link-btn hire-reload" hidden>Retry</button></div>
           <details class="hire-role"${opts.intent === "delegate" ? " open" : ""}><summary>Role <span class="hire-role-name">Optional</span></summary><div class="hire-role-body"><label class="hire-field"><span>Standing instructions</span><select class="hire-role-select"></select></label><button type="button" class="link-btn hire-new-role">New role</button><div class="role-new" hidden><input type="text" class="rn-name" aria-label="Role name" placeholder="Role name"><textarea class="rn-brief" rows="2" aria-label="Role instructions" placeholder="Instructions this robot always follows"></textarea><button type="button" class="ghost rn-save">Save role</button></div></div></details>
         </div>
@@ -134,7 +134,10 @@ export function openHire(opts: {
     const provider = currentProvider(), model = currentModel();
     const providers = config?.providers ?? [];
     runtimeEl.innerHTML = config ? [
-      optionHtml("provider", "Harness", [...providers.map(p => ({ id: p.instanceId, label: p.name + (p.ready ? "" : " (unavailable)"), disabled: !p.ready })), ...(!provider ? [{ id: selection?.providerInstanceId || "", label: selection?.providerInstanceId ? `${harnessName(selection.providerInstanceId)} (unavailable)` : "Choose harness", disabled: true }] : [])], selection?.providerInstanceId || ""),
+      `<fieldset class="hire-harnesses"><legend>Harness</legend><div class="hire-harness-list">${providers.map(p => {
+        const logo = logoFor(p.instanceId);
+        return `<label class="hire-harness"><input type="radio" name="hire-harness" data-setting="provider" value="${esc(p.instanceId)}"${p.instanceId === selection?.providerInstanceId ? " checked" : ""}${!p.ready || loading || busy ? " disabled" : ""}><span>${logo ? `<img src="${esc(logo)}" alt="" width="22" height="22">` : ""}<span>${esc(p.name)}${p.ready ? "" : '<small>Unavailable</small>'}</span><svg class="hire-harness-check" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="m3 8 3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></label>`;
+      }).join("")}</div></fieldset>`,
       optionHtml("model", "Model", [...(provider?.models ?? []).map(m => ({ id: m.slug, label: m.name || m.slug })), ...(!model ? [{ id: selection?.model || "", label: selection?.model ? `${selection.model} (unavailable)` : "Choose model", disabled: true }] : [])], selection?.model || ""),
       ...(model?.options ?? []).filter(o => o.type === "boolean" || o.choices?.length).map(o => {
         const v = selection?.options[o.id] ?? optionDefault(o);
@@ -253,11 +256,12 @@ export function openHire(opts: {
     }
   };
   runtimeEl.addEventListener("change", e => {
-    const select = e.target as HTMLSelectElement;
+    const select = e.target as HTMLSelectElement | HTMLInputElement;
     const key = select.dataset.setting;
-    if (!key || !config || busy) return;
+    if (!key || !config || busy || loading) return;
     if (key === "provider") {
-      const p = config.providers.find(p => p.instanceId === select.value)!;
+      const p = config.providers.find(p => p.instanceId === select.value);
+      if (!p?.ready) return;
       const defaults = config.selection?.providerInstanceId === p.instanceId ? config.selection : null;
       const m = defaults?.model || p.models.find(m => m.isDefault)?.slug || p.models[0]?.slug || null;
       selection = { providerInstanceId: p.instanceId, model: m, options: validOptions(p, m, defaults?.options ?? {}) };
@@ -269,7 +273,7 @@ export function openHire(opts: {
       if (o) selection.options[key] = o.type === "boolean" ? select.value === "true" : select.value;
     }
     renderRuntime(); renderWorker(key === "provider" || key === "model");
-    runtimeEl.querySelector<HTMLSelectElement>(`select[data-setting="${CSS.escape(key)}"]`)?.focus();
+    runtimeEl.querySelector<HTMLElement>(key === "provider" ? 'input[name="hire-harness"]:checked' : `select[data-setting="${CSS.escape(key)}"]`)?.focus();
   });
   el(".hire-reset").onclick = () => { if (config?.selection) selection = structuredClone(config.selection); pick = 0; renderRuntime(); renderWorker(true); };
   el(".hire-reload").onclick = () => void loadRuntime();

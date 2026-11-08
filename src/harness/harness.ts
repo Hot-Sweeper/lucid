@@ -3,6 +3,7 @@
 // brief into a session tab, and the tab streams the helper's real activity.
 // Each harness comes in a terminal (CLI/TUI) flavour and, where one exists, a desktop app
 // flavour. The robot's habit (prefs.subagents) picks which one it drives.
+import { setActivityText } from "./inline-text";
 import { logoSvg } from "./logos";
 import gsap from "gsap";
 import { renderLoop, renderFps, presentationFrame } from "../perf/render";
@@ -678,6 +679,7 @@ class Session implements HarnessSession {
       if (ev.kind === "tool") row.append(el("b", "hx-l", ev.text));
       else row.append(el("b", "hx-l", k === "cursor" && ev.kind === "search" ? "Grepped" : APP_VERB[ev.kind]), el("span", "hx-t", text));
       if (ev.detail && ev.kind !== "think") row.append(el("span", "hx-dt", ev.detail));
+      if (ev.kind === "think") setActivityText(row.querySelector<HTMLElement>(".hx-t")!, text);
       line.append(row);
       return line;
     }
@@ -702,6 +704,7 @@ class Session implements HarnessSession {
       st.dataset.done = c.state[1];
       row.append(st);
     }
+    if (ev.kind === "think") setActivityText(row.querySelector<HTMLElement>(".hx-t")!, text);
     line.append(row);
     const detail = ev.detail;
     if (detail) {
@@ -856,7 +859,10 @@ class Session implements HarnessSession {
   // --- internals used by the app ---------------------------------------------------
   private setVerb(t: string) {
     const v = t.replace(/\s+/g, " ").trim();
-    if (v) this.verbEl.textContent = v.length > 48 ? v.slice(0, 46).trimEnd() + "…" : v;
+    if (v) {
+      setActivityText(this.verbEl, v);
+      this.verbEl.title = this.verbEl.textContent || "";
+    }
   }
 
   setStatus(on: boolean) {

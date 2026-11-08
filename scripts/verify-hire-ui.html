@@ -1,0 +1,67 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Hiring UI checks</title><body><script type="module">
+import '@fontsource-variable/lexend';
+import '@fontsource-variable/jetbrains-mono';
+import '/src/styles.css';
+import '/src/office/office.css';
+import '/src/world/world.css';
+import { openHire } from '/src/office/hire.ts';
+import { setActivityText } from '/src/harness/inline-text.ts';
+const results = [];
+const check = (ok, label) => { if (!ok) throw Error(label); results.push(label); };
+const tick = () => new Promise(r => setTimeout(r, 40));
+const q = s => document.querySelector(s);
+const cancel = () => q('.hire [data-a="cancel"]')?.click();
+const draftKey = 'lucid:prompt:hire:hire-ui-test';
+const originalDraft = localStorage.getItem(draftKey);
+const runtime = { source: 'T3 defaults', selection: { providerInstanceId: 'codex', model: 'gpt', options: {} }, providers: [
+  { instanceId: 'codex', name: 'Codex', ready: true, models: [{ slug: 'gpt', name: 'GPT test model', isDefault: true, options: [] }] },
+  { instanceId: 'claudeAgent', name: 'Claude Code', ready: true, models: [{ slug: 'opus', name: 'Opus test model', isDefault: true, options: [] }] },
+  { instanceId: 'offline', name: 'Disconnected harness', ready: false, models: [] },
+] };
+let calls = [], reject;
+const opts = { room: 'p:hire-ui-test', roomTitle: 'UI verification', projectId: 'hire-ui-test', seat: 0, team: [], roles: [], projects: null, onNewRole() {}, loadRuntime: async () => structuredClone(runtime), onHire: c => { calls.push(c); return new Promise((_, r) => reject = r); } };
+try {
+  const span = document.createElement('span');
+  setActivityText(span, '**Preparing metadata backups**');
+  check(span.textContent === 'Preparing metadata backups' && !!span.querySelector('strong'), 'Reasoning markers become bold text');
+  setActivityText(span, 'Use `**literal**` and **bold _nested_**');
+  check(span.querySelector('code')?.textContent === '**literal**' && !!span.querySelector('strong em'), 'Code literals and nested emphasis remain intact');
+  setActivityText(span, '<img src=x onerror=alert(1)> [link](https://example.com)');
+  check(!span.querySelector('img,a') && span.textContent.includes('<img'), 'Activity cannot inject HTML or external resources');
+  openHire(opts); await tick();
+  check(document.activeElement === q('.hire-task textarea'), 'Task receives initial focus');
+  check(q('.hire-harness input:checked')?.value === 'codex' && document.querySelectorAll('.hire-harness img').length === 2, 'Real harness logos and default selection appear');
+  check(q('input[value="offline"]').disabled, 'Unavailable harness cannot be selected');
+  const task = q('.hire-task textarea'); task.value = 'Keep my task **exactly**'; task.dispatchEvent(new Event('input'));
+  q('input[value="claudeAgent"]').click();
+  check(q('[data-setting="model"]').value === 'opus' && document.activeElement === q('input:checked'), 'Changing harness updates model and restores keyboard focus');
+  check(task.value === 'Keep my task **exactly**', 'Harness change preserves task text');
+  q('.hire').requestSubmit(); q('.hire').requestSubmit();
+  check(calls.length === 1 && calls[0].provider === 'claudeAgent' && calls[0].model === 'opus', 'Submission uses selected harness and prevents duplicate starts');
+  check([...document.querySelectorAll('.hire-harness input')].every(i => i.disabled), 'Harness choice locks while starting');
+  reject(Error('Test connection failure')); await tick();
+  check(q('.hire-task textarea').value === 'Keep my task **exactly**' && !q('input:checked').disabled && q('.hire-msg').textContent.includes('Test connection failure'), 'Failed start retains task, restores controls and explains retry');
+  const requestId = calls[0].requestId; q('.hire').requestSubmit();
+  check(calls.length === 2 && calls[1].requestId === requestId, 'Retry retains idempotency key');
+  reject(Error('Test connection failure')); await tick(); cancel(); await tick();
+  openHire(opts); await tick();
+  check(q('.hire-task textarea').value === 'Keep my task **exactly**', 'Closing and reopening preserves draft');
+  window.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape', bubbles:true}));
+  check(!q('.hire-wrap'), 'Escape closes dialog');
+  document.title = 'PASS: Hiring UI checks';
+  if (new URLSearchParams(location.search).has('narrow')) {
+    const frame = document.createElement('iframe'); frame.width = '320'; frame.height = '620';
+    frame.style.cssText = 'position:fixed;inset:0;border:0;background:#141a33';
+    frame.src = '/customize-demo.html?dialog=hire'; document.body.append(frame);
+    await new Promise(r => frame.onload = r); await tick();
+    const f = frame.contentDocument.querySelector('.hire');
+    check(f.scrollWidth <= 320 && frame.contentDocument.querySelector('.hire-body').scrollWidth <= 320, '320px layout has no horizontal overflow');
+  }
+} catch (e) { results.push('FAIL: ' + e.message); document.title = 'FAIL: Hiring UI checks'; }
+finally {
+  cancel();
+  if (originalDraft === null) localStorage.removeItem(draftKey); else localStorage.setItem(draftKey, originalDraft);
+  // Test data uses a dedicated project key and never calls the application backend.
+  const pre = document.createElement('pre'); pre.style.cssText = 'padding:24px;white-space:pre-wrap;font:16px/1.8 monospace'; pre.textContent = results.join('\n'); document.body.append(pre);
+}
+</script></body></html>

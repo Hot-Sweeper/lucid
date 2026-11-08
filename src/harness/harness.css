@@ -437,3 +437,7 @@
 /* Desktop chat apps (Claude, Codex, Antigravity...) switch chats in their left sidebar, not with
    terminal style tabs along the top. */
 .hx.hx-f-app > .hx-tabs { display: none; }
+
+/* Activity emphasis belongs to the summary, never the command or tool output. */
+.hx-ev-think .hx-t strong, .hx-verb strong { font-weight: 700; font-style: normal; color: var(--hx-ink); }
+.hx-verb { max-width: 48ch; white-space: nowrap; }
