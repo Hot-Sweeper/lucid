@@ -8,6 +8,14 @@
 .monitor-task-done .mt-main { gap: var(--mt-gap); }
 .monitor-task-done .mt-state { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
 .monitor-task-done .mt-chip { background: transparent; padding: 0; border-radius: 0; color: var(--ink); font-weight: 600; }
+/* Keep the same state colors as the distant monitor sign at reading distance. */
+.monitor-task-done .mt-chip[data-state="done"] { color: #7ee2a8; }
+.monitor-task-done .mt-chip[data-state="done"]::before { content: ""; display: inline-block; width: .4em; height: .7em; margin-inline: .2em .65em; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); vertical-align: .05em; }
+.monitor-task-done .mt-chip[data-state="stopped"] { color: #ffcf8a; }
+.monitor-task-done .mt-chip[data-state="settled"] { color: #ffd36e; }
+.monitor-task-done .mt-chip[data-state="background"] { color: #9cc8ff; }
+.monitor-task-done .mt-chip[data-state="job-failed"] { color: #ff9a9a; }
+.monitor-task-done .mt-chip[data-state="kept"] { color: #cfe0ff; }
 .monitor-task-done .mt-label { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: normal; text-transform: none; color: var(--ink); }
 .monitor-task-done .mt-report { max-height: none; max-inline-size: 70ch; overflow: visible; line-height: 1.6; overflow-wrap: anywhere; }
 .monitor-task-done .mt-report.md strong { color: var(--ink); }
@@ -52,7 +60,7 @@
 }
 @media (prefers-reduced-motion: reduce) { .monitor-task-done :is(.mt-shot,.mt-shot-thumb) { transition: none; } }
 
-.monitor-task-done .mt-chip[data-state] { background: transparent; color: var(--ink); }
+.monitor-task-done .mt-chip[data-state] { background: transparent; }
 
 .mt-result-layout { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); align-items: start; gap: 24px; }
 .mt-written { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
