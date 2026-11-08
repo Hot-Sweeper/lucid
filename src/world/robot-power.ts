@@ -117,25 +117,45 @@ export class RobotPower {
           }
           this.heatNext=this.heat;this.heat=next;
         }
-        const shades=['#4a086d','#6e0c99','#8e14b8','#ad27d5','#c244eb','#dc84f5'];
+        const shades=['#4b086d','#700aa0','#9415c4','#b52cde','#d34df0','#e893ff'];
+        const baseY=seedY-4, phase=this.fireTick;
+        // Broad connected fire at the waist, plus individually tapered tongues.
+        // The tongues carry their own bright cores outside the robot silhouette,
+        // rather than hiding all the light behind its opaque body.
+        const tongues=[[-8,17,3],[-5,23,3.2],[0,20,4],[4,30,3.8],[8,22,3.2]];
         for(let y=1;y<39;y++)for(let x=1;x<31;x++) {
-          let heat=this.heat[y*32+x];
-          const peak=center+5+Math.sin(this.fireTick*.09);
-          const tongueHeight=20+Math.round(3*Math.sin(x*1.23-this.fireTick*.18)+10*Math.exp(-Math.pow((x-peak)/3.2,2)));
-          const height=seedY-y, side=Math.abs(x-center)/11;
-          if(side>1 || height>tongueHeight || y>seedY-3-Math.round(side*side*4))continue;
-          // A coherent burning volume keeps the base connected while the heat field
-          // supplies moving shade clusters and the unequal tongues rise and taper.
-          heat=Math.max(heat,Math.max(0,1-height/tongueHeight)*.8*(1-side*side*.25));
-          if(heat<.12)continue;
-          // A small advected shade variation makes visible pixel clusters, not smooth smoke.
-          const shade=Math.min(5,Math.max(0,Math.floor((heat-.2)*7+Math.sin(x*1.8+y*.9-this.fireTick*.18)*.7)));
-          c.globalAlpha=heat<.32?.8:.96;c.fillStyle=shades[shade];
-          c.fillRect(x*2,y*2,2,2); // contiguous cells, deliberately no gutters or outlines
-          // Lower-body edge wisps can pass in front; the face and provider logo stay clear.
-          if(y>=seedY-8 && y<=seedY-5 && Math.abs(x-center)>=3 && Math.abs(x-center)<=8
-            && mask[(y*2)*64+x*2] && heat>.38) {
-            front.globalAlpha=.72;front.fillStyle=shades[Math.min(5,shade+1)];front.fillRect(x*2,y*2,2,2);
+          const height=baseY-y;
+          if(height<0)continue;
+          let density=0;
+          const belly=(y-(baseY-8))/12;
+          if(Math.abs(belly)<1) {
+            const radius=9.5*Math.sqrt(1-belly*belly);
+            const d=radius-Math.abs(x-center);
+            if(d>0)density=.2+Math.min(.3,d*.09);
+          }
+          for(let n=0;n<tongues.length;n++) {
+            const [offset,length,width]=tongues[n];
+            const h=length+Math.sin(phase*.065+n*2.2)*2.5;
+            if(height>h)continue;
+            const rise=height/h;
+            const curl=Math.sin(phase*.11+n*2+height*.36)*Math.pow(rise,.7)*3.3;
+            const axis=center+offset+curl;
+            const radius=width*Math.pow(1-rise,.72)*(.9+.18*Math.sin(height*.5-phase*.13+n));
+            const distance=Math.abs(x-axis);
+            if(distance>radius)continue;
+            const core=1-distance/Math.max(.5,radius);
+            const value=.23+core*(.5+.15*Math.sin(height*.9-phase*.25+n))+this.heat[y*32+x]*.14;
+            density=Math.max(density,value);
+          }
+          if(density===0)continue;
+          // Large shade clusters travel upward, with touching cell edges throughout.
+          const light=Math.sin(x*.9+y*.75+phase*.23)*.12;
+          const shade=Math.max(0,Math.min(5,Math.floor((density+light)*6.3)));
+          c.globalAlpha=.94;c.fillStyle=shades[shade];c.fillRect(x*2,y*2,2,2);
+          // Short irregular wisps overlap the waist, never long strips over the chair.
+          if(y>=baseY-5 && y<=baseY-2 && Math.abs(x-center)>=3 && Math.abs(x-center)<=7
+            && mask[(y*2)*64+x*2] && Math.sin(x*1.4+y*.9-phase*.17)>.15) {
+            front.globalAlpha=.82;front.fillStyle=shades[4+((x+y)%2)];front.fillRect(x*2,y*2,2,2);
           }
         }
         if(!reduced)for(let n=0;n<5;n++) {
