@@ -7,13 +7,15 @@
 // wallet all follow the price on screen.
 import { Kit, runApp, rnd, chance, pick, h, canvas, calm, typeInto, marker, type SoHost, type SoOpts } from "../social/kit";
 import { realKlines, realPrice, INTERVAL_MS, INTERVALS, type Interval } from "./market";
+import { chartPattern, PATTERNS, type ChartPoint } from "./trading-patterns";
 import "./trading.css";
 
 type Candle = { t: number; o: number; h: number; l: number; c: number };
 type Line = { a: [number, number]; b: [number, number]; col: string; label?: string };   // [candle time, price]
+type Doodle = { strokes: ChartPoint[][]; revealed: number; color: string };
 type Market = {
   sym: string; name: string; real: boolean; fictional: boolean; price: number; shown: number; candles: Candle[]; step: number;
-  open: number; drift: number; vol: number; ticks: number; lines: Line[]; note: string; interval: Interval; el?: HTMLElement;
+  open: number; drift: number; vol: number; ticks: number; lines: Line[]; note: string; interval: Interval; el?: HTMLElement; doodle?: Doodle;
 };
 type Pos = { m: Market; side: 1 | -1; margin: number; lev: number; entry: number };
 
@@ -57,8 +59,8 @@ class Tradebot {
       <main class="tb-main">
         <header class="tb-head"><div class="tb-pair"><b></b><small></small></div><span class="tb-px"></span><span class="tb-chg"></span></header>
         <div class="tb-bar"><nav class="tb-tf">${INTERVALS.map((t, i) => `<span data-tf="${t}" class="${i === 0 ? "on" : ""}">${t}</span>`).join("")}</nav>
-          <nav class="tb-tools"><span class="tb-tool" data-tool="line">Line</span><span class="tb-tool" data-tool="text">Note</span></nav></div>
-        <div class="tb-chart"><canvas></canvas></div>
+          <nav class="tb-tools"><span class="tb-tool" data-tool="doodle">Doodle</span><span class="tb-tool" data-tool="line">Line</span><span class="tb-tool" data-tool="text">Note</span></nav></div>
+        <div class="tb-chart"><canvas role="img" aria-label="Market candles and robot chart doodles"></canvas></div><div class="tb-analysis" hidden><span>Robot doodle</span><b></b><span class="tb-analysis-copy"></span></div>
       </main>
       <aside class="tb-order">
         <div class="tb-sides"><span class="on" data-side="1">Buy</span><span data-side="-1">Sell</span></div>
@@ -125,6 +127,7 @@ class Tradebot {
     m.interval = interval;
     m.step = INTERVAL_MS[interval];
     m.lines = [];
+    m.doodle = undefined;
     if (real) {
       m.candles = real.candles;
       const last = real.candles[real.candles.length - 1];
@@ -243,6 +246,20 @@ class Tradebot {
       c.strokeStyle = ln.col; c.lineWidth = 1.7;
       c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
       if (ln.label) { c.fillStyle = ln.col; c.font = "600 10px 'Lexend Variable', sans-serif"; c.fillText(ln.label, Math.max(4, Math.min(x1 - 30, W - 150)), y1 - 9); c.font = "9px 'JetBrains Mono Variable', monospace"; }
+    }
+    // These are deliberate joke annotations. The underlying prices stay untouched.
+    if (m.doodle) {
+      c.save(); c.beginPath(); c.rect(0, 0, W - 64, PH); c.clip();
+      c.strokeStyle = m.doodle.color; c.lineWidth = 2; c.lineCap = 'round'; c.lineJoin = 'round';
+      let segment = 0;
+      for (const stroke of m.doodle.strokes) for (let i = 1; i < stroke.length; i++) {
+        const amount = Math.min(1, Math.max(0, m.doodle.revealed - segment++));
+        if (!amount) continue;
+        const a = stroke[i-1], b = stroke[i];
+        c.beginPath(); c.moveTo(this.xOf(a[0]), this.yOf(a[1], r));
+        c.lineTo(this.xOf(a[0] + (b[0]-a[0])*amount), this.yOf(a[1] + (b[1]-a[1])*amount, r)); c.stroke();
+      }
+      c.restore();
     }
     // entry and liquidation of the open position
     if (this.pos && this.pos.m === m) {
@@ -390,6 +407,60 @@ class Tradebot {
     this.root.querySelectorAll(".tb-tool").forEach((e) => e.classList.remove("on"));
   }
 
+  /** The robot confidently draws complete nonsense with its one existing cursor. */
+  private async memeAnalysis() {
+    const k = this.k, m = this.cur;
+    if (!m.candles.length) return;
+    const caption = this.root.querySelector<HTMLElement>('.tb-analysis')!;
+    caption.hidden = false;
+    const copy = caption.querySelector<HTMLElement>('.tb-analysis-copy')!; copy.textContent = '';
+    const chart = this.root.querySelector<HTMLElement>('.tb-chart')!;
+    this.cw = chart.clientWidth; this.chh = chart.clientHeight;
+    this.ctx = canvas(chart.querySelector('canvas')!, this.cw, this.chh);
+    const kind = pick(PATTERNS), r = this.range(m), W = this.cw - 66, H = this.plotH() - 12;
+    // The god-candle joke points at an actual candle, never a fabricated price spike.
+    const green = m.candles.filter(c => c.c > c.o);
+    const biggest = (green.length ? green : m.candles).reduce((a,b) => Math.abs(b.c-b.o)>Math.abs(a.c-a.o)?b:a);
+    const anchor: ChartPoint = [(this.xOf(biggest.t)-6)/W, (this.yOf((biggest.h+biggest.l)/2,r)-6)/H];
+    const pattern = chartPattern(kind, anchor);
+    const first = m.candles[0].t;
+    const doodle: Doodle = { strokes:pattern.strokes.map(stroke=>stroke.map(([x,y])=>[first+(x*m.candles.length-.5)*m.step, r.hi-y*(r.hi-r.lo)] as ChartPoint)), revealed:0, color:GOLD };
+    // Keep the real candle at the center of its halo, even near the plot's edge.
+    if (kind === 'god-candle') {
+      const dx = biggest.t - (first+(Math.max(.08,Math.min(.92,anchor[0]))*m.candles.length-.5)*m.step);
+      const dy = (biggest.h+biggest.l)/2 - (r.hi-Math.max(.24,Math.min(.84,anchor[1]))*(r.hi-r.lo));
+      doodle.strokes.forEach(stroke=>stroke.forEach(p=>{p[0]+=dx;p[1]+=dy;}));
+    }
+    await this.pickTool('doodle');
+    m.lines = []; m.doodle = doodle;
+    caption.querySelector('b')!.textContent = pattern.title;
+    // The fixed-height caption keeps the plot stable while the verdict is typed.
+    this.dirty = true;
+    k.host.react('focus');
+    try {
+      const total = doodle.strokes.reduce((n,s)=>n+s.length-1,0);
+      if (calm()) { doodle.revealed = total; this.dirty = true; }
+      else {
+        let completed = 0;
+        for (const stroke of doodle.strokes) {
+          const a = stroke[0];
+          await k.point(this.mark(this.xOf(a[0]),this.yOf(a[1],r)),0,0,360); await k.click();
+          for (let i=1;i<stroke.length;i++) {
+            const a=stroke[i-1],b=stroke[i];
+            const x=this.xOf(b[0]),y=this.yOf(b[1],r);
+            const duration=k.moveSecs(Math.hypot(x-this.xOf(a[0]),y-this.yOf(a[1],r)),340);
+            const tween=k.to(doodle,{revealed:++completed,duration,ease:'none',onUpdate:()=>{this.dirty=true;}});
+            await k.point(this.mark(x,y),0,0,340); tween.progress(1); this.dirty=true;
+          }
+        }
+      }
+      if (calm()) copy.textContent=pattern.verdict;
+      else await typeInto(k,copy,pattern.verdict,{skill:1});
+      k.host.react('cheer');
+      await k.sleep(1100);
+    } finally { this.root.querySelectorAll('.tb-tool').forEach(e=>e.classList.remove('on')); }
+  }
+
   private async setSide(side: 1 | -1) {
     const el = this.root.querySelector(`[data-side="${side}"]`) as HTMLElement;
     if (el.classList.contains("on")) return;
@@ -483,7 +554,8 @@ class Tradebot {
     await this.openMarket(m);
     if (m.real && chance(0.55)) await this.pickTimeframe(pick(["5m", "15m", "1h"] as Interval[]));
     await k.sleep(rnd(600, 1100));
-    await this.trendLine(chance(0.7));
+    if (chance(0.85)) await this.memeAnalysis();
+    else await this.trendLine(chance(0.7));
     if (m.real) await this.tradeBitcoin(m);
     else await this.tradeMeme(m);
     m.drift = 0;

@@ -53,3 +53,9 @@
 .tb-toast b { font-weight: 600; }
 .tb-toast span { color: #848e9c; font-size: 9px; }
 @media (prefers-reduced-motion: reduce) { .tb * { transition: none !important; } }
+
+.tb-analysis { flex:none; display:flex; align-items:baseline; flex-wrap:wrap; gap:3px 7px; padding:7px 9px; height:44px; min-height:44px; overflow:hidden; background:#0b0e11; font-size:9px; line-height:1.4; }
+.tb-analysis[hidden] { display:none; }
+.tb-analysis > span:first-child { color:#848e9c; }
+.tb-analysis > b { color:#f0b90b; font-weight:500; }
+.tb-analysis-copy { color:#eaecef; flex-basis:100%; }

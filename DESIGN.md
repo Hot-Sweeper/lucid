@@ -146,3 +146,7 @@ The eleven-chapter journey uses active listening time, energy, related modal key
 ## Sidebar header actions
 
 Keep App library, Website studio, Office & settings, Help and Hide in one compact action group. Only the group absorbs spare header width. Its 30px buttons use 4px gaps, 6px corners, lavender icons and peach focus; visual order follows keyboard order. At narrow sidebar widths the whole group moves below the weather instead of spreading or wrapping individual icons. Long weather labels ellipsize within the header, retaining their full accessible text and existing tooltip. Update keeps its separate row. Hover feedback takes 130 ms and respects reduced motion.
+
+## Tradebot chart jokes
+
+The robot can use the existing Tradebot cursor to draw a dinosaur outline, circle a real candle as god-candle analysis, scribble spaghetti divergence or project a trust-me-bro rally. Keep the near-black exchange, actual candles and price axes intact. These are bounded canvas annotations stored separately from market data, with a compact Robot doodle caption and an absurd verdict typed after the drawing. The god-candle halo follows an actual candle; no fake candle or price spike is added to Bitcoin. Fictional coin trades keep their existing simulation. Stroke growth follows the one existing cursor and stops through the shared Kit when real work returns. Reduced motion shows the complete drawing and verdict immediately. Use existing click/typing feedback, robot focus and celebration, localization and render scheduling.
