@@ -205,6 +205,7 @@ let coinRewards: CoinRewards | null = null;
 let coinReady: (id: string) => boolean = () => true;
 let coinCollected: (id: string) => Promise<void> = async () => {};
 (window as any).__world = world; // debug handle for test runs
+const threadCardPortraits = new Map<string, { signature: string; svg: string }>();
 const chat = new ChatPanel($("scene").parentElement!, {
   threadCard: ref => {
     const data = world.lastData;
@@ -212,7 +213,13 @@ const chat = new ChatPanel($("scene").parentElement!, {
     const thread = data?.threads.find(t => t.id === id);
     if (!thread) return null;
     const robot = world.roster.byThread(id);
-    return { title: thread.title, provider: harnessName(thread.provider), model: thread.model, name: robot?.name, portrait: avatar(thread.provider, robot?.look, 44) };
+    const signature = JSON.stringify([thread.provider, robot?.look]);
+    let portrait = threadCardPortraits.get(id);
+    if (!portrait || portrait.signature !== signature) {
+      portrait = { signature, svg: avatar(thread.provider, robot?.look, 44) }; threadCardPortraits.set(id, portrait);
+      if (threadCardPortraits.size > 500) threadCardPortraits.delete(threadCardPortraits.keys().next().value!);
+    }
+    return { title: thread.title, provider: harnessName(thread.provider), model: thread.model, name: robot?.name, portrait: portrait.svg };
   },
   openThreadCard: ref => {
     const id = world.lastData?.nativeEnvironmentId === ref.environmentId ? ref.threadId : `${ref.environmentId}::${ref.threadId}`;

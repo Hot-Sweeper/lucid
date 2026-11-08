@@ -35,7 +35,9 @@ if (!process.versions.electron) {
           result.images.push(...await frame.executeJavaScript('([...document.images].map(i=>({src:i.src,loaded:i.complete&&i.naturalWidth>0})))'));
         }
         if (!result.images.length || result.images.some(i => !i.loaded)) throw Error('Recovered artifact media failed to load: ' + JSON.stringify(result.images));
-        await js(`window.__chat.el.querySelector('.cp-thread-card:not(:disabled)').click()`); await wait(1000);
+        await js(`{const card=[...window.__chat.el.querySelectorAll('.cp-thread-card:not(:disabled)')].find(b=>b.getClientRects().length)||window.__chat.el.querySelector('.cp-thread-card:not(:disabled)');if(card.closest('details'))card.closest('details').open=true;card.scrollIntoView({block:'center'});card.focus();undefined}`);
+        await wait(200);fs.writeFileSync(out+'/thread-card.png',(await wc.capturePage()).toPNG());
+        result.keyFocus=await js(`({tag:document.activeElement.tagName,card:document.activeElement.classList.contains('cp-thread-card')})`);wc.sendInputEvent({type:'keyDown',keyCode:'Enter'});wc.sendInputEvent({type:'char',keyCode:'\r'});wc.sendInputEvent({type:'keyUp',keyCode:'Enter'});await wait(1000);
         result.navigation = await js(`window.__chat.threadId`);
         if (result.navigation !== 'mcp:launch:d86e4a6d134ebf15de52d9a95c14e4b73059359efff25cf1f56b3a777d3381ca') throw Error('Thread card navigated to wrong thread');
         const modeId = await js(`(()=>{
@@ -70,7 +72,7 @@ if (!process.versions.electron) {
         await js(`{window.__testActor.destroy();window.__modeTest.w.transit.delete(window.__modeTest.t.id);undefined}`);
         wc.debugger.attach('1.3');await wc.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await wait(300);
         result.reduced=await js(`(()=>{const p=window.__modeTest.d.power;return {matches:matchMedia("(prefers-reduced-motion: reduce)").matches,tick:p.last,pixels:p.ctx.getImageData(0,0,64,80).data.filter((v,i)=>i%4===3&&v>0).length}})()`);
-        if(result.reduced.tick!==0||!result.reduced.pixels)throw Error('Reduced motion should retain a still mode cue');
+        if(!result.reduced.matches||result.reduced.tick>0||!result.reduced.pixels)throw Error('Reduced motion should retain a still mode cue');
         wc.debugger.detach();
         // Real files through the production Markdown renderer, protocol, media decoders and save handler.
         fs.writeFileSync(out+'/download-source.txt','Lucid answer download, exact bytes.');

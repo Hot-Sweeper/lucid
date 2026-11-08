@@ -50,7 +50,7 @@ export function chatMediaSource(value: string): string | null {
   if (/^https?:\/\//i.test(value)) {
     try { const url = new URL(value); return url.username || url.password ? null : url.href; } catch { return null; }
   }
-  if (/^data:image\/(?:png|jpeg|gif|webp|avif|bmp|svg\+xml)[;,]/i.test(value)) return value;
+  if (/^data:(?:image\/(?:png|jpeg|gif|webp|avif|bmp|svg\+xml)|audio\/[a-z0-9.+-]+|video\/[a-z0-9.+-]+)[;,]/i.test(value)) return value;
   return null;
 }
 
@@ -95,13 +95,20 @@ export function prepareChatImages(html: string): string {
 }
 
 export function chatImageFailed(event: Event): void {
-  const img = event.target;
-  if (!(img instanceof HTMLImageElement) || !img.closest(".cp-text,.cp-atts")) return;
-  const message = document.createElement("span");
-  message.className = "cp-media-unavailable";
-  message.textContent = `Image unavailable: ${img.alt || "Image"}. Check that the file is still available.`;
-  img.replaceWith(message);
-  const link = document.createElement("a"); link.className = "cp-download"; link.href = img.src; link.download = img.alt || "Image"; link.textContent = "Download original"; message.after(link);
+  const media = event.target;
+  if (!(media instanceof HTMLElement) || !media.closest(".cp-text,.cp-atts")) return;
+  if (media instanceof HTMLMediaElement) {
+    if (media.parentElement?.querySelector(".cp-media-unavailable")) return;
+    const note = document.createElement("span"); note.className = "cp-media-unavailable";
+    note.textContent = "Playback unavailable. Download the original to open it in another app."; media.after(note); return;
+  }
+  if (!(media instanceof HTMLImageElement)) return;
+  const preview = media.closest<HTMLElement>("[data-media-src]");
+  const message = document.createElement("span"); message.className = "cp-media-unavailable";
+  message.textContent = `Image unavailable: ${media.alt || "Image"}. Check that the file is still available. `;
+  const link = document.createElement("a"); link.className = "cp-download";
+  link.href = preview?.dataset.mediaSrc || media.src; link.download = media.alt || "Image"; link.textContent = "Download original";
+  message.append(link); (preview || media).replaceWith(message);
 }
 
 /** Every file keeps an actionable link, including formats the media player cannot decode. */
