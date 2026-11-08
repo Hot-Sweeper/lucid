@@ -1,8 +1,13 @@
-﻿// Original local sound design. All sources share one gesture-unlocked audio graph.
+// Original local sound design. All sources share one gesture-unlocked audio graph.
 import { SOUNDTRACK } from './soundtrack';
-import { SoundtrackQueue, type SoundtrackSong } from './soundtrack-queue';
+import { SoundtrackQueue, type SoundtrackSong, type SoundtrackMode } from './soundtrack-queue';
 import ambienceUrl from '../assets/audio/room-air.mp3';
 
+export type MusicState = {
+  song: SoundtrackSong | null; mode: SoundtrackMode;
+  chapter: SoundtrackQueue['chapter']; chapterProgress: number; paused: boolean;
+  status: 'playing' | 'loading' | 'error' | 'paused' | 'muted' | 'hidden' | 'locked';
+};
 type BackgroundKind = 'theme' | 'ambience';
 type BackgroundTrack = { media: HTMLAudioElement; source: MediaElementAudioSourceNode; gain: GainNode; pending: boolean; fading: boolean; release: () => void };
 export type GameCue = 'collect' | 'clink' | 'ready' | 'purchase' | 'poke' | 'coffee' | 'phone' | 'open' | 'level'
@@ -63,6 +68,16 @@ export class GameSound {
   private background = new Map<BackgroundKind, BackgroundTrack>();
   private soundtrack = new SoundtrackQueue(SOUNDTRACK);
   private themeSong: SoundtrackSong | null = null;
+  private musicPaused = false;
+  private musicError = false;
+  private musicWaiting = false;
+  private musicListeners = new Set<(state: MusicState) => void>();
+  private musicSignature = '';
+  private musicPosition: number | null = null;
+  private musicClock: number | null = null;
+  private musicUnsaved = 0;
+  private restoredPosition = 0;
+  private skipRequested = false;
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
   private voices = new Set<AudioScheduledSourceNode>();
@@ -85,6 +100,13 @@ export class GameSound {
       if (Number.isFinite(saved?.themeVolume)) this.themeVolume = clamp(saved.themeVolume, 0, 1);
       if (Number.isFinite(saved?.ambienceVolume)) this.ambienceVolume = clamp(saved.ambienceVolume, 0, 1);
       this.soundtrack = new SoundtrackQueue(SOUNDTRACK, saved?.soundtrack);
+      if (typeof saved?.musicPaused === 'boolean') this.musicPaused = saved.musicPaused;
+      if (typeof saved?.currentTheme?.id === 'string') {
+        this.themeSong = SOUNDTRACK.find(song => song.id === saved.currentTheme.id) ?? null;
+        if (this.themeSong && Number.isFinite(saved.currentTheme.position)) {
+          this.restoredPosition = clamp(saved.currentTheme.position, 0, Math.max(0, this.themeSong.seconds - 2));
+        }
+      }
     } catch { /* Storage is optional. */ }
     window.addEventListener('pointerdown', this.gesture, true);
     window.addEventListener('keydown', this.gesture, true);
@@ -94,6 +116,91 @@ export class GameSound {
   get active() { return !this.disposed && this.authorized && this.enabled && this.volume > 0 && !document.hidden && this.context?.state === 'running'; }
   get time() { return this.context?.currentTime ?? 0; }
   get currentTheme() { return this.themeSong; }
+  get musicState(): MusicState {
+    const track = this.background.get('theme');
+    const status: MusicState['status'] = this.disposed || this.musicPaused ? 'paused'
+      : !this.enabled || !this.volume || !this.themeVolume ? 'muted'
+      : document.hidden ? 'hidden'
+      : !this.authorized ? 'locked'
+      : this.musicError ? 'error'
+      : this.context?.state !== 'running' ? 'locked'
+      : track?.pending || this.musicWaiting ? 'loading'
+      : track && !track.media.paused ? 'playing' : 'paused';
+    return { song: this.themeSong, mode: this.soundtrack.mode, chapter: this.soundtrack.chapter,
+      chapterProgress: this.soundtrack.chapterProgress, paused: this.musicPaused, status };
+  }
+  subscribeMusic(listener: (state: MusicState) => void) {
+    if (this.disposed) return () => {};
+    this.musicListeners.add(listener);
+    try { listener(this.musicState); } catch { /* An observer cannot own playback. */ }
+    return () => { this.musicListeners.delete(listener); };
+  }
+  private notifyMusic() {
+    const state = this.musicState;
+    // Chapter progress is UI guidance, not a per-frame animation or clock.
+    const signature = JSON.stringify([state.song?.id, state.mode, state.chapter.id,
+      Math.floor(state.chapterProgress * 100), state.paused, state.status]);
+    if (signature === this.musicSignature) return;
+    this.musicSignature = signature;
+    for (const listener of this.musicListeners) {
+      try { listener(state); } catch { /* A stale control cannot interrupt sound. */ }
+    }
+  }
+  configureMusic(mode: SoundtrackMode) {
+    if (this.disposed) return;
+    const track = this.background.get('theme'); if (track) this.recordMusic(track);
+    if (!this.soundtrack.setMode(mode)) return;
+    // Finish the current composition. The user's Next action can apply it now.
+    this.save(); this.notifyMusic();
+  }
+  pauseTheme(paused: boolean) {
+    if (this.disposed || typeof paused !== 'boolean') return;
+    const track = this.background.get('theme');
+    if (track) this.recordMusic(track);
+    this.musicPaused = paused;
+    if (paused) { track?.media.pause(); this.resetMusicClock(); }
+    else this.syncBackground();
+    this.save(); this.notifyMusic();
+  }
+  retryTheme() {
+    if (this.disposed) return;
+    this.musicError = false; this.musicWaiting = false;
+    this.syncBackground(); this.notifyMusic();
+  }
+  nextTheme() {
+    if (this.disposed) return;
+    const track = this.background.get('theme');
+    // Changing src during a pending play can let an old promise own the new song.
+    // Collapse repeated Next presses until that one attempt has settled.
+    if (track?.pending) { this.skipRequested = true; return; }
+    this.skipRequested = false;
+    if (track) {
+      this.recordMusic(track); track.media.pause();
+      track.gain.gain.cancelScheduledValues(this.time);
+      track.gain.gain.setValueAtTime(0, this.time);
+    }
+    this.themeSong = this.soundtrack.next(); this.restoredPosition = 0;
+    this.musicError = false; this.musicWaiting = false; this.resetMusicClock();
+    if (track) { track.media.src = this.themeSong.url; track.media.currentTime = 0; track.fading = false; }
+    this.save(); this.syncBackground(); this.notifyMusic();
+  }
+  private resetMusicClock() { this.musicPosition = null; this.musicClock = null; }
+  private recordMusic(track: BackgroundTrack, ended = false) {
+    const media = track.media, position = media.currentTime, clock = this.time;
+    const audible = this.active && !this.musicPaused && this.themeVolume > 0
+      && (!media.paused || ended) && !media.seeking && !track.pending;
+    if (audible && Number.isFinite(position) && this.musicPosition !== null && this.musicClock !== null) {
+      const delta = position - this.musicPosition, elapsed = clock - this.musicClock;
+      // A seek cannot spend listening time. AudioContext time also stops on suspension.
+      if (delta > 0 && elapsed >= 0 && delta <= elapsed + .5) {
+        const heard = Math.min(delta, elapsed + .05);
+        this.soundtrack.listen(heard); this.musicUnsaved += heard;
+        if (this.musicUnsaved >= 15) { this.musicUnsaved = 0; this.save(); }
+      }
+    }
+    this.musicPosition = audible && Number.isFinite(position) ? position : null;
+    this.musicClock = audible ? clock : null;
+  }
   position(key: string, mix: SoundMix) {
     if (!this.context || !Number.isFinite(mix.gain) || !Number.isFinite(mix.pan)) return;
     for (const bus of this.emitterBuses.get(key) ?? []) {
@@ -125,22 +232,37 @@ export class GameSound {
         this.master.connect(this.context.destination);
         this.context.addEventListener('statechange', this.audioState);
       }
-      if (this.context.state === 'suspended') void this.context.resume().then(this.audioState).catch(() => {});
-      this.syncBackground();
-    } catch { /* A missing audio device cannot block the game. */ }
+      if (this.context.state === 'suspended') this.resumeContext();
+      this.syncBackground(); this.notifyMusic();
+    } catch { this.musicError = true; this.notifyMusic(); /* A missing device cannot block the game. */ }
+  }
+  private resumeContext() {
+    const ctx = this.context;
+    if (!ctx || ctx.state !== 'suspended') return;
+    void ctx.resume().then(() => {
+      if (this.context === ctx) this.audioState();
+    }).catch(() => {
+      if (!this.disposed) { this.musicError = true; this.notifyMusic(); }
+    });
   }
   private stop() {
+    const theme = this.background.get('theme'); if (theme) this.recordMusic(theme);
+    this.resetMusicClock();
     for (const track of this.background.values()) track.media.pause();
     for (const voice of [...this.voices]) { try { voice.stop(); } catch { /* Already ended. */ } this.releases.get(voice)?.(); }
   }
   private audioState = () => {
     // A resume may finish after mute, hide, or teardown. Recheck the actual owner.
-    if (!this.active) {
+    const wanted = !this.disposed && this.authorized && this.enabled && this.volume > 0 && !document.hidden;
+    if (!wanted) {
       for (const track of this.background.values()) track.media.pause();
       if (this.context?.state === 'running') void this.context.suspend().catch(() => {});
-      return;
+      this.resetMusicClock(); this.notifyMusic(); return;
     }
-    this.syncBackground();
+    // A pending mute suspension may settle after the user has already unmuted.
+    // Follow current intent rather than leaving a valid listener stuck as locked.
+    if (this.context?.state === 'suspended') { this.resumeContext(); return; }
+    this.syncBackground(); this.notifyMusic();
   };
   // Asset headroom keeps the default theme around -40 dBFS RMS and air below it.
   private backgroundLevel(kind: BackgroundKind) { return kind === 'theme' ? this.themeVolume * 2.2 : this.ambienceVolume * 4; }
@@ -150,7 +272,7 @@ export class GameSound {
     for (const kind of ['theme', 'ambience'] as const) {
       const level = this.backgroundLevel(kind);
       let track = this.background.get(kind);
-      if (!level) { track?.media.pause(); continue; }
+      if (!level || kind === 'theme' && this.musicPaused) { track?.media.pause(); continue; }
       if (!track) {
         // Stream local compressed audio instead of decoding a whole song into RAM.
         if (kind === 'theme' && !this.themeSong) { this.themeSong = this.soundtrack.next(); this.save(); }
@@ -164,42 +286,62 @@ export class GameSound {
           const current = track;
           const ended = () => {
             if (this.disposed || this.background.get('theme') !== current) return;
+            this.recordMusic(current, true); this.resetMusicClock();
             current.fading = false;
             // A hidden/muted ending waits for the next authorized resume.
-            if (this.active && this.backgroundLevel('theme')) this.syncBackground();
+            if (this.active && this.backgroundLevel('theme') && !this.musicPaused) this.syncBackground();
+            this.notifyMusic();
           };
           const tail = () => {
+            this.recordMusic(current); this.notifyMusic();
             const remaining = media.duration - media.currentTime;
-            if (!this.active || current.fading || !Number.isFinite(remaining) || remaining <= 0 || remaining > 1.8) return;
+            if (!this.active || this.musicPaused || current.fading || !Number.isFinite(remaining) || remaining <= 0 || remaining > 1.8) return;
             current.fading = true;
             gain.gain.cancelScheduledValues(this.time);
             gain.gain.setTargetAtTime(0, this.time, Math.max(.08, remaining / 4));
           };
-          media.addEventListener('ended', ended); media.addEventListener('timeupdate', tail);
-          current.release = () => { media.removeEventListener('ended', ended); media.removeEventListener('timeupdate', tail); };
+          const seeking = () => { this.resetMusicClock(); };
+          const playing = () => { this.musicWaiting = false; this.musicError = false; this.notifyMusic(); };
+          const waiting = () => { this.musicWaiting = true; this.notifyMusic(); };
+          const failed = () => { this.musicError = true; this.musicWaiting = false; this.notifyMusic(); };
+          const events: [string, EventListener][] = [['ended', ended], ['timeupdate', tail],
+            ['seeking', seeking], ['seeked', seeking], ['playing', playing], ['waiting', waiting], ['error', failed]];
+          for (const [event, listener] of events) media.addEventListener(event, listener);
+          current.release = () => { for (const [event, listener] of events) media.removeEventListener(event, listener); };
+          if (this.restoredPosition) { media.currentTime = this.restoredPosition; this.restoredPosition = 0; }
         }
       }
       const { media, gain } = track;
       if (!media.paused || track.pending) continue;
       if (kind === 'theme' && media.ended) {
-        this.themeSong = this.soundtrack.next(); this.save();
+        this.themeSong = this.soundtrack.next();
         media.src = this.themeSong.url; media.currentTime = 0; track.fading = false;
+        this.musicError = false; this.musicWaiting = false; this.resetMusicClock(); this.save();
       }
       // Fade in from the retained playhead, including when a hidden office returns.
       gain.gain.cancelScheduledValues(ctx.currentTime);
       gain.gain.setValueAtTime(0, ctx.currentTime);
       gain.gain.setTargetAtTime(track.fading ? 0 : level, ctx.currentTime, .65);
       track.pending = true;
+      if (kind === 'theme') { this.musicError = false; this.musicWaiting = false; this.notifyMusic(); }
       const current = track;
       void media.play().then(() => {
-        if (!this.active || !this.backgroundLevel(kind) || this.background.get(kind) !== current) media.pause();
-      }).catch(() => { /* Retry on the next gesture, never block work or loop retries. */ })
-        .finally(() => { current.pending = false; });
+        if (!this.active || !this.backgroundLevel(kind) || kind === 'theme' && this.musicPaused || this.background.get(kind) !== current) media.pause();
+      }).catch(() => {
+        if (kind === 'theme' && !this.disposed) this.musicError = true;
+        // Retry on the next gesture, never block work or loop retries.
+      }).finally(() => {
+        current.pending = false;
+        if (kind === 'theme') {
+          if (this.skipRequested && !this.disposed) this.nextTheme();
+          else { this.recordMusic(current); this.notifyMusic(); }
+        }
+      });
     }
   }
   configureBackground(kind: BackgroundKind, volume: number) {
     if (!Number.isFinite(volume) || this.disposed) return;
-    if (kind === 'theme') this.themeVolume = clamp(volume, 0, 1);
+    if (kind === 'theme') { const track = this.background.get('theme'); if (track) this.recordMusic(track); this.themeVolume = clamp(volume, 0, 1); }
     else this.ambienceVolume = clamp(volume, 0, 1);
     const track = this.background.get(kind);
     if (track && this.context) {
@@ -207,20 +349,22 @@ export class GameSound {
       track.gain.gain.setTargetAtTime(track.fading ? 0 : this.backgroundLevel(kind), this.time, .08);
       if (!this.backgroundLevel(kind)) track.media.pause();
     }
-    this.syncBackground(); this.save();
+    this.syncBackground(); this.save(); this.notifyMusic();
   }
   private save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ enabled: this.enabled, volume: this.volume, themeVolume: this.themeVolume, ambienceVolume: this.ambienceVolume, soundtrack: this.soundtrack.state })); } catch { /* Optional persistence. */ }
+    const position = this.background.get('theme')?.media.currentTime ?? this.restoredPosition;
+    try { localStorage.setItem(KEY, JSON.stringify({ enabled: this.enabled, volume: this.volume, themeVolume: this.themeVolume, ambienceVolume: this.ambienceVolume, musicPaused: this.musicPaused, currentTheme: this.themeSong ? { id: this.themeSong.id, position: Number.isFinite(position) ? position : 0 } : null, soundtrack: this.soundtrack.state })); } catch { /* Optional persistence. */ }
   }
   private visibility = () => {
     if (document.hidden) {
       this.authorized = false;
-      this.stop(); this.last.clear();
+      this.stop(); this.save(); this.notifyMusic(); this.last.clear();
       if (this.context?.state === 'running') void this.context.suspend().catch(() => {});
     }
     // A returning window stays quiet until the next user gesture, with no backlog.
   };
   configure(enabled: boolean, volume = this.volume) {
+    const theme = this.background.get('theme'); if (theme) this.recordMusic(theme);
     this.enabled = enabled;
     this.volume = Number.isFinite(volume) ? clamp(volume, 0, 1) : this.volume;
     if (!enabled || !this.volume) {
@@ -228,7 +372,7 @@ export class GameSound {
       if (this.context?.state === 'running') void this.context.suspend().catch(() => {});
     } else if (this.authorized && !document.hidden) this.unlock();
     if (this.master && this.context) this.master.gain.setTargetAtTime(enabled ? this.volume * .32 : 0, this.context.currentTime, .015);
-    this.save();
+    this.save(); this.notifyMusic();
   }
   play(cue: GameCue) { this.emit(cue, { gain: 1, pan: 0 }, 'ui'); }
   /** Player actions on physical objects use their current position and camera scale. */
@@ -323,7 +467,9 @@ export class GameSound {
     }
   }
   destroy = () => {
-    this.disposed = true; this.stop(); this.last.clear(); this.view = null; this.noise = null;
+    if (this.disposed) return;
+    const theme = this.background.get('theme'); if (theme) this.recordMusic(theme); this.save();
+    this.disposed = true; this.stop(); this.skipRequested = false; this.musicListeners.clear(); this.last.clear(); this.view = null; this.noise = null;
     window.removeEventListener('pointerdown', this.gesture, true);
     window.removeEventListener('keydown', this.gesture, true);
     document.removeEventListener('visibilitychange', this.visibility);

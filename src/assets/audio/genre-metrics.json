@@ -1,0 +1,267 @@
+[
+  {
+    "id": "cassette-clouds",
+    "title": "Cassette Clouds",
+    "genre": "lofi",
+    "bpm": 82,
+    "period": "day",
+    "seconds": 158.1951247165533,
+    "peakDbFS": -5.608402202698947,
+    "rmsDbFS": -20.220680635609813,
+    "sections": [
+      {
+        "name": "dusty window",
+        "start": 0.0,
+        "end": 11.707317073170731
+      },
+      {
+        "name": "first verse",
+        "start": 11.707317073170731,
+        "end": 46.829268292682926
+      },
+      {
+        "name": "sunny hook",
+        "start": 46.829268292682926,
+        "end": 70.2439024390244
+      },
+      {
+        "name": "tape interlude",
+        "start": 70.2439024390244,
+        "end": 93.65853658536585
+      },
+      {
+        "name": "second verse",
+        "start": 93.65853658536585,
+        "end": 117.07317073170731
+      },
+      {
+        "name": "homecoming",
+        "start": 117.07317073170731,
+        "end": 140.4878048780488
+      },
+      {
+        "name": "tape tail",
+        "start": 140.4878048780488,
+        "end": 152.1951219512195
+      }
+    ],
+    "decoded": {
+      "seconds": 158.1951247165533,
+      "peakDbFS": -6.0124735832214355,
+      "rmsDbFS": -20.667354583740234,
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "silentBodySeconds": 0
+    }
+  },
+  {
+    "id": "neon-afterglow",
+    "title": "Neon Afterglow",
+    "genre": "synthwave",
+    "bpm": 104,
+    "period": "evening",
+    "seconds": 153.69231292517006,
+    "peakDbFS": -6.590383349254655,
+    "rmsDbFS": -20.052211870350956,
+    "sections": [
+      {
+        "name": "ignition",
+        "start": 0.0,
+        "end": 18.46153846153846
+      },
+      {
+        "name": "night drive",
+        "start": 18.46153846153846,
+        "end": 55.38461538461538
+      },
+      {
+        "name": "horizon turn",
+        "start": 55.38461538461538,
+        "end": 73.84615384615384
+      },
+      {
+        "name": "tunnel lights",
+        "start": 73.84615384615384,
+        "end": 92.30769230769229
+      },
+      {
+        "name": "neon return",
+        "start": 92.30769230769229,
+        "end": 129.23076923076923
+      },
+      {
+        "name": "afterglow",
+        "start": 129.23076923076923,
+        "end": 147.69230769230768
+      }
+    ],
+    "decoded": {
+      "seconds": 153.69231292517006,
+      "peakDbFS": -6.95530366897583,
+      "rmsDbFS": -20.497377395629883,
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "silentBodySeconds": 0
+    }
+  },
+  {
+    "id": "tidal-memory",
+    "title": "Tidal Memory",
+    "genre": "ambient",
+    "bpm": 66,
+    "period": "night",
+    "seconds": 162.72727891156464,
+    "peakDbFS": -7.104045630836328,
+    "rmsDbFS": -20.04785157424149,
+    "sections": [
+      {
+        "name": "incoming tide",
+        "start": 0.0,
+        "end": 21.818181818181817
+      },
+      {
+        "name": "first horizon",
+        "start": 21.818181818181817,
+        "end": 50.90909090909091
+      },
+      {
+        "name": "luminous water",
+        "start": 50.90909090909091,
+        "end": 80.0
+      },
+      {
+        "name": "deep water",
+        "start": 80.0,
+        "end": 109.0909090909091
+      },
+      {
+        "name": "remembering",
+        "start": 109.0909090909091,
+        "end": 138.1818181818182
+      },
+      {
+        "name": "receding tide",
+        "start": 138.1818181818182,
+        "end": 152.72727272727272
+      }
+    ],
+    "decoded": {
+      "seconds": 162.72727891156464,
+      "peakDbFS": -7.534351825714111,
+      "rmsDbFS": -20.49484634399414,
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "silentBodySeconds": 0
+    }
+  },
+  {
+    "id": "petal-breaks",
+    "title": "Petal Breaks",
+    "genre": "breakcore",
+    "bpm": 164,
+    "period": "day",
+    "seconds": 146.48780045351475,
+    "peakDbFS": -5.073121918206393,
+    "rmsDbFS": -20.07443917239889,
+    "sections": [
+      {
+        "name": "petal drift",
+        "start": 0.0,
+        "end": 11.707317073170731
+      },
+      {
+        "name": "first fracture",
+        "start": 11.707317073170731,
+        "end": 46.829268292682926
+      },
+      {
+        "name": "open sky",
+        "start": 46.829268292682926,
+        "end": 58.536585365853654
+      },
+      {
+        "name": "glass garden",
+        "start": 58.536585365853654,
+        "end": 81.95121951219512
+      },
+      {
+        "name": "still centre",
+        "start": 81.95121951219512,
+        "end": 93.65853658536585
+      },
+      {
+        "name": "bloom fragments",
+        "start": 93.65853658536585,
+        "end": 128.78048780487805
+      },
+      {
+        "name": "falling petals",
+        "start": 128.78048780487805,
+        "end": 140.4878048780488
+      }
+    ],
+    "decoded": {
+      "seconds": 146.48780045351475,
+      "peakDbFS": -5.153009414672852,
+      "rmsDbFS": -20.51468276977539,
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "silentBodySeconds": 0
+    }
+  },
+  {
+    "id": "midnight-drift",
+    "title": "Midnight Drift",
+    "genre": "phonk",
+    "bpm": 88,
+    "period": "night",
+    "seconds": 158.72727891156464,
+    "peakDbFS": -5.886927357792152,
+    "rmsDbFS": -20.079232759212204,
+    "sections": [
+      {
+        "name": "streetlight",
+        "start": 0.0,
+        "end": 10.909090909090908
+      },
+      {
+        "name": "cruise",
+        "start": 10.909090909090908,
+        "end": 54.54545454545454
+      },
+      {
+        "name": "side street",
+        "start": 54.54545454545454,
+        "end": 76.36363636363636
+      },
+      {
+        "name": "underpass",
+        "start": 76.36363636363636,
+        "end": 98.18181818181817
+      },
+      {
+        "name": "night bloom",
+        "start": 98.18181818181817,
+        "end": 141.8181818181818
+      },
+      {
+        "name": "distant lights",
+        "start": 141.8181818181818,
+        "end": 152.72727272727272
+      }
+    ],
+    "decoded": {
+      "seconds": 158.72727891156464,
+      "peakDbFS": -6.2810564041137695,
+      "rmsDbFS": -20.52435874938965,
+      "channels": 2,
+      "sampleRate": 44100,
+      "finite": true,
+      "silentBodySeconds": 0
+    }
+  }
+]

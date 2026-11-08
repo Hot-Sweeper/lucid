@@ -5,6 +5,7 @@ import { companionClient, readCompanionState, installCompanionOwner } from "./re
 import { CoinRewards } from "./office/coin-rewards";
 import { formatCoins } from "./office/coin-ledger";
 import { gameSound } from "./office/sound";
+import { mountMusicControls } from "./office/music-controls";
 import { OfficeSoundscape } from "./office/soundscape";
 import { mountLanguageSetting } from "./office/language";
 import { DailyWriter, type DailyLinesState } from "./office/daily-writer";
@@ -1287,6 +1288,7 @@ for (const [kind, label, value] of [
   slider.addEventListener('input', () => gameSound.configureBackground(kind, Number(slider.value) / 100));
   control.append(text, slider); extrasBody.append(control);
 }
+mountMusicControls(extrasBody);
 let bankAmount = wallet.balance;
 // boosts and the daily reward
 const paintBoost = () => {

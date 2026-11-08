@@ -1,6 +1,6 @@
 # Office music and ambience
 
-The soundtrack now contains fourteen original pieces, about 32 minutes in total:
+The soundtrack now contains nineteen original pieces, about 45 minutes in total:
 
 - Morning: **Window Garden** (bright mallets, 88 BPM) and **First Coffee**
   (electric-piano waltz, 96 BPM).
@@ -27,16 +27,48 @@ Five encore pieces extend the score with separate authored hooks and arrangement
 These five recordings add roughly 12½ minutes. Their intro, contrasting bridge,
 quiet middle, reprise and closing cadence are rendered into the audio files.
 
-A persistent shuffle bag plays every piece before repeating one and avoids an
-immediate repeat when the bag refills. Local time weights the next choice toward
-morning (06:00 to 11:00), day (11:00 to 17:00), evening (17:00 to 22:00), or night.
-It does not interrupt the current song at a time boundary. The outgoing song
-fades down and the next fades in. History survives app restarts.
+## Genre journeys
+
+The five genre recordings add 13 minutes with different production approaches:
+
+- **Cassette Clouds**, lo-fi, 82 BPM (2:38): dusty, detuned keys and plucked
+  guitar over swung drums; a stripped middle gives the returning hook space.
+- **Neon Afterglow**, synthwave, 104 BPM (2:34): detuned saw and pulse leads,
+  sequenced arpeggios, pumping pads and a gated snare.
+- **Tidal Memory**, ambient, 66 BPM (2:43): drumless overlapping textures,
+  slow stereo blooms, shimmer and a sparse motif.
+- **Petal Breaks**, melodic breakcore, 164 BPM (2:26): an original synthetic
+  break is physically sliced, rearranged, reversed and ratcheted around an airy
+  melody, with quiet respite sections between the denser passages.
+- **Midnight Drift**, chill phonk, 88 BPM (2:39): a dark cowbell hook, gliding
+  808 sub-bass, crisp hats and a half-time groove.
+
+**Office radio**, in Office & settings below the volume controls, defaults to
+**Evolving journey**. Seven chapters develop the mood: Still water, Warm tape,
+Night drive, Neon rise, Petal rush, Afterglow, and Soft landing. Their listening
+budgets range from two to five minutes; they turn only between songs after the
+chapter's defining genre has played. Energy-aware bridge songs build toward the
+faster material and settle afterward. Each piece also contains its own authored
+arrangement and breakdowns.
+
+Only actual, active media playback advances this arc. Muting, pausing, hiding
+Lucid, waiting for media, seeking and wall-clock time do not advance it. Local
+time chooses the initial chapter and lightly weights later selections; it never
+interrupts the current song. Genre, chapter progress, playback position and pause
+state persist locally across restarts. Older soundtrack history migrates.
+
+Unheard songs get preference within compatible chapters. Rare genres can return
+before every cozy instrumental has played, keeping the journey varied; all songs
+remain reachable. There are no adjacent repeats in the normal journey. A genre
+lock stays in that style, intentionally repeating its recording when only one is
+available. **Cozy instrumentals** retains access to the older light arrangements.
+The mode selector schedules the next song; **Next song** applies it immediately.
+**Pause music** leaves room ambience and the rest of the game sound alone.
 
 Lucid's original theme, **Little Lights**, is a 64-bar, 78 BPM instrumental in
 D major (3:17). A short bell melody returns between warm electric-piano passages,
 rounded bass, soft pads and brushed percussion. The middle thins out before the
-melody returns. This recording is preserved. The eight additions have separate
+melody returns. This recording is preserved. The first eight additions have separate
 authored chord progressions, hooks, rhythms and arrangements.
 
 The separate room-air bed is quiet, filtered stereo air. Existing spatial typing,
@@ -58,9 +90,10 @@ samples or services. To regenerate the original theme and air, run
 `python scripts/compose-office-theme.py`. To regenerate the eight added songs,
 run `python scripts/compose-office-playlist.py`. To regenerate the five encore
 pieces, run `python scripts/compose-office-encore.py`. All three use numpy, scipy
-and ffmpeg.
-These are authoring tools only, not app dependencies. Per-song source PCM levels
-and durations are recorded in `src/assets/audio/soundtrack-metrics.json`; the new
+and ffmpeg. Run `python scripts/compose-office-genres.py` for the five genre
+recordings. These are authoring tools only, not app dependencies. Per-song source PCM levels
+and durations are recorded in `src/assets/audio/soundtrack-metrics.json` and
+`src/assets/audio/genre-metrics.json`; the new
 pieces have roughly matched average levels around -20 dBFS RMS. The original source PCM theme measures
 -2.85 dBFS peak and -19.86 dBFS RMS; room air measures -13.98 dBFS peak and
 -29.01 dBFS RMS. At default gains the calculated theme RMS is about -40.3 dBFS,
@@ -79,6 +112,19 @@ npm run verify:update
 ```
 
 The native fixture uses real Chromium decoding and an analyser, with its output
-muted. It checks the entire soundtrack, real ended-event rotation without repetitions,
+muted. It checks the entire soundtrack for codec coverage and separately checks
+real ended-event rotation,
 nonzero signal, the bounded two-stream pool, the ambience loop and controls.
 It seeks near song endings to exercise the transitions. It is not a listening test.
+
+For a local Firefox acceptance fixture using the production controls, director,
+and audio engine, run `node scripts/prepare-music-review.mjs --serve` inside the
+hidden agent workspace. Open its printed loopback URL in agent Firefox and press
+**Run checks**. The loopback origin permits real Web Audio analysis; separate
+`file://` media files are blocked from the analyser by Firefox origin isolation. It routes
+audio into a zero-gain output, checks all five genres for real decoded signal,
+then checks pause/resume, delayed mode changes, actual listening time, seeking,
+mute, bounded streams, keyboard focus, narrow layout and German labels. This is
+functional audio verification, not a subjective listening test. The fixture does
+not touch the running office or its saved settings. Stop the hidden workspace
+afterward to close both Firefox and the local QA server.

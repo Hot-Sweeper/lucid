@@ -46,18 +46,41 @@ if (!process.versions.electron) {
         const metrics = tracks.map((track, i) => { const data=new Float32Array(2048); analysers[i].getFloatTimeDomainData(data); return {duration:track.media.duration, position:track.media.currentTime, rms:Math.sqrt(data.reduce((n,v)=>n+v*v,0)/data.length), loop:track.media.loop}; });
         assert(metrics.every(m => m.rms > .00001) && !metrics[0].loop && metrics[1].loop, 'songs stream through the shared graph while only air loops');
         assert(metrics[0].duration > 90 && metrics[0].duration < 200 && metrics[1].duration > 40, 'unexpected packaged asset duration');
-        const songs = [{id:sound.currentTheme.id,duration:tracks[0].media.duration}];
-        for(let i=1;i<SOUNDTRACK.length;i++) {
-          const last=sound.currentTheme.id;
-          tracks[0].media.currentTime=tracks[0].media.duration-.12;
-          await until(()=>sound.currentTheme.id!==last&&!tracks[0].pending&&!tracks[0].media.paused&&tracks[0].media.currentTime>.12,'next song did not decode or advance');
-          await wait(350);
+        // One actual ended event verifies automatic song-boundary rotation.
+        const first = sound.currentTheme.id;
+        tracks[0].media.currentTime=tracks[0].media.duration-.12;
+        await until(()=>sound.currentTheme.id!==first&&!tracks[0].pending&&!tracks[0].media.paused&&tracks[0].media.currentTime>.12,'next song did not decode or advance');
+        const next = sound.currentTheme.id;
+        sound.configureMusic('phonk');
+        assert(sound.currentTheme.id===next,'genre changes must finish the current composition');
+        sound.nextTheme();
+        await until(()=>sound.currentTheme.genre==='phonk'&&!tracks[0].pending&&!tracks[0].media.paused,'manual Next must apply the chosen genre');
+        const position = tracks[0].media.currentTime;
+        sound.pauseTheme(true); await wait(150);
+        assert(tracks[0].media.paused&&Math.abs(tracks[0].media.currentTime-position)<.1&&!tracks[1].media.paused,'music pause preserves its playhead independently');
+        sound.pauseTheme(false);
+        await until(()=>!tracks[0].pending&&!tracks[0].media.paused,'music resume must keep the song');
+        sound.pauseTheme(true);
+        // Codec coverage is separate from journey sequencing. Reuse the real
+        // theme media/source/gain, seek to an audible passage, decode every file.
+        // Seeking deliberately does not stand in for actual listening time.
+        const songs = [];
+        for(const song of SOUNDTRACK) {
+          tracks[0].media.pause(); tracks[0].media.src=song.url;
+          tracks[0].gain.gain.cancelScheduledValues(ctx.currentTime);
+          tracks[0].gain.gain.setValueAtTime(.5,ctx.currentTime);
+          await tracks[0].media.play();
+          await until(()=>Number.isFinite(tracks[0].media.duration)&&tracks[0].media.duration>90,'catalogue asset did not decode');
+          tracks[0].media.currentTime=20;
+          await until(()=>tracks[0].media.currentTime>20.1,'decoded file did not play');
+          await wait(160);
           const data=new Float32Array(2048);analysers[0].getFloatTimeDomainData(data);
           const rms=Math.sqrt(data.reduce((n,v)=>n+v*v,0)/data.length);
-          assert(rms>.00001,'new song must produce a real decoded signal');
-          songs.push({id:sound.currentTheme.id,duration:tracks[0].media.duration,rms});
+          assert(rms>.00001,'every packaged recording must produce a real decoded signal');
+          songs.push({id:song.id,duration:tracks[0].media.duration,rms});
         }
-        assert(new Set(songs.map(s=>s.id)).size===SOUNDTRACK.length,'full rotation must play every recording');
+        tracks[0].media.pause(); sound.pauseTheme(false);
+        await until(()=>!tracks[0].pending&&!tracks[0].media.paused,'engine playback must resume after codec coverage');
         assert(sound.background.size===2,'rotation must not grow the streaming source pool');
         tracks[1].media.currentTime=tracks[1].media.duration-.12;await wait(650);
         assert(!tracks[1].media.paused&&tracks[1].media.currentTime<2,'room air still loops independently');
@@ -67,9 +90,9 @@ if (!process.versions.electron) {
         sound.destroy();
         assert(tracks.every(t => t.media.paused && !t.media.getAttribute('src')), 'teardown must release media');
         for(const a of analysers) a.disconnect(); output.disconnect();
-        return {metrics, songs, fullLibraryRotation:true, ambienceLooping:true, muteAndResume:true, independentLevels:true, cleanup:true, listeningTest:false};
+        return {metrics, songs, songBoundaryRotation:true, fullLibraryDecoded:true, genreControls:true, independentPause:true, ambienceLooping:true, muteAndResume:true, independentLevels:true, cleanup:true, listeningTest:false};
       })()`, true);
-      console.log('PASS: native Chromium decoding of the full soundtrack, nonzero signal, real ended-event rotation, ambience loop, controls and teardown.');
+      console.log('PASS: native Chromium decoding of the full soundtrack, nonzero signal, real ended-event rotation, deferred genre selection, independent music pause, ambience loop, controls and teardown.');
       fs.writeFileSync(path.join(directory, 'result.json'), JSON.stringify(result, null, 2));
       console.log('Evidence: ' + directory);
       console.log(JSON.stringify(result, null, 2));
