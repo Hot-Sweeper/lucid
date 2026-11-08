@@ -12,7 +12,7 @@
 
 /* Manager profile pictures: the robot portrait sits underneath and a custom picture covers it. */
 .mg-face { position: relative; flex: none; width: var(--mg-size); height: var(--mg-size); border-radius: calc(var(--mg-size) * 0.3); overflow: hidden; display: grid; place-items: center; background: #2a3166; isolation: isolate; }
-.mg-face > svg { width: 115%; height: 115%; margin-top: 18%; pointer-events: none; }
+.mg-face > svg { width: 100%; height: 100%; display: block; pointer-events: none; }
 .mg-face > img, .rail-th .mg-face > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
 .mg-face > img[hidden] { display: none; }
 .mg-face.working::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 2px #6fb6ff; animation: mg-breathe 2.4s ease-in-out infinite; }

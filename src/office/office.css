@@ -921,8 +921,8 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .mgr-dress[hidden] { display: none; }
 
 /* Thread rows carry their worker's face. */
-.th-row.th-worker { flex-direction: row; align-items: flex-start; gap: 10px; }
-.th-row.th-worker > .mg-face { flex: none; margin-top: 2px; }
+.th-row.th-worker { flex-direction: row; align-items: center; gap: 10px; }
+.th-row.th-worker > .mg-face { flex: none; }
 .th-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .th-bot-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .th-bot-model { color: var(--ink-3); }

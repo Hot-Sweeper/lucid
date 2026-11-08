@@ -114,3 +114,12 @@ There is one visible canvas cursor. It reconstructs real saved render changes, w
 Playback uses inert serialized DOM from an actual Chromium render on Ares, with saved CSS inlined. Project scripts run only in the isolated inspection browser or the separate interactive preview origin, never in playback frames. Use website promptly switches to the real running project. The chat distinguishes actual execution from playback catching up. Actual visual inspection and image-search results appear in the conversation; ordinary tool details remain expandable.
 
 Ares owns Codex execution, project files and its existing sign-in. Spacestation signs project-scoped requests from the Electron backend; generated pages never receive the connector key. The runner accepts only signed requests, rejects replayed nonces and browser Origin headers, and binds to Ares loopback behind its HTTPS tailnet route. Project approvals use Lucid's existing AnswerCard and only explicit once/decline decisions. Framework scripts start through Codex's normal scoped command tools, not an unrestricted runner child. An associated idle robot can mirror the canvas through the existing frontend/LOD pipeline, with the ordinary OS pointer hidden while the canvas owns its cursor.
+
+## Robot portrait alignment
+
+Shared robot portraits use a square frame around the actual head and hat bounds with equal padding. Remove downward SVG offsets and oversizing. Center the portrait vertically beside the complete thread text block, including manager rows, at every sidebar width. Custom profile pictures retain their existing cover framing.
+
+
+## Question choice controls
+
+Use native radio and checkbox inputs with custom Lucid visuals: a crisp lavender ring over the existing dark input surface, a peach center dot for a selected radio and a dark check on a peach selected checkbox. Unselected rows stay unboxed. The whole row activates its associated input through the label, while the custom text field keeps its own hit target. Retain compact row dimensions, visible keyboard focus, disabled semantics and native arrow-key behavior. Hover fills ease in over 130ms; selection draws over 160ms and pressing gently compresses the control. Reduced motion removes these transitions and compression; forced colors restores the platform control. Choices in the chat shelf and on desk monitors share this styling.

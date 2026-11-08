@@ -11,6 +11,21 @@ export function portraitFor(provider: string, look: RobotLook | undefined, size:
   let svg = portraits.get(key);
   if (!svg) {
     svg = robotPortrait(provider, look ?? {}, size);
+    // Frame the actual head and hat, rather than the portrait's roomy artboard.
+    // Measure only on a cache miss; detached SVGs have no usable bounds in Chromium.
+    const frame = document.createElement("div");
+    frame.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;visibility:hidden;pointer-events:none;contain:strict";
+    frame.innerHTML = svg;
+    document.body.append(frame);
+    try {
+      const bounds = frame.querySelector("svg")!.getBBox();
+      const side = Math.max(bounds.width, bounds.height) * 1.2;
+      if (side > 0) {
+        const x = bounds.x + bounds.width / 2 - side / 2;
+        const y = bounds.y + bounds.height / 2 - side / 2;
+        svg = svg.replace(/viewBox="[^"]*"/, `viewBox="${x} ${y} ${side} ${side}"`);
+      }
+    } finally { frame.remove(); }
     portraits.set(key, svg);
     while (portraits.size > 200) portraits.delete(portraits.keys().next().value!);
   }
