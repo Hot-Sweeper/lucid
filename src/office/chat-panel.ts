@@ -1,3 +1,4 @@
+import { watchLucidMedia } from "./media-player";
 import { wireChatLinks } from "./chat-links";
 import { parseThreadReference, threadCardMarkup, hydrateThreadCards, type ThreadReference, type ThreadCardInfo } from "./chat-thread-card";
 import { readPromptDraft, writePromptDraft } from "./prompt-draft";
@@ -405,6 +406,7 @@ export class ChatPanel {
         <div class="cp-drop" hidden>Drop to attach</div>
       </form>`;
     host.appendChild(this.el);
+    watchLucidMedia(this.el);
     if ((window as any).lucid?.openExternal) wireChatLinks(this.el, url => (window as any).lucid.openExternal(url));
     this.el.addEventListener("click", event => {
       const file = (event.target as Element)?.closest<HTMLAnchorElement>("a.cp-download");
@@ -1639,6 +1641,7 @@ export class ChatPanel {
     }
     const media = document.createElement(kind === "video" ? "video" : kind === "audio" ? "audio" : "img");
     media.src = src;
+    media.setAttribute("aria-label", name);
     if (media instanceof HTMLImageElement) media.alt = name;
     else { media.controls = true; media.preload = "metadata"; }
     media.addEventListener("error", () => {

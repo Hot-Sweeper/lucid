@@ -510,6 +510,7 @@ ipcMain.handle("app:version", () => app.getVersion());
 // lucid-file://local/<encoded path> serves images and text files the agents worked with,
 // so the robots' screens and the chat can show them. Only known media and text types.
 protocol.registerSchemesAsPrivileged([{ scheme: "lucid-artifact", privileges: { standard: true, secure: true, supportFetchAPI: true } }, { scheme: "lucid-file", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
+const { fileMediaResponse, bufferMediaResponse } = require("./media-response.cjs");
 const SERVE = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif", ".mp4", ".webm", ".mov", ".m4v", ".ogv", ".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".opus"]);
 
 app.whenReady().then(() => {
@@ -518,12 +519,14 @@ app.whenReady().then(() => {
     // Files of threads on another computer come from that computer (remote-media.cjs).
     if (new URL(req.url).hostname === "remote") {
       const media = await remoteMedia.get(req.url);
-      return media.status === 200 ? new Response(media.body, { headers: { "content-type": media.type, "cache-control": "private, max-age=600" } }) : new Response(media.status === 403 ? "not allowed" : "missing", { status: media.status });
+      return media.status === 200 ? bufferMediaResponse(req, media.body, media.type) : new Response(media.status === 403 ? "not allowed" : "missing", { status: media.status });
     }
     try {
       const file = decodeURIComponent(new URL(req.url).pathname.slice(1));
       if (!SERVE.has(path.extname(file).toLowerCase())) return new Response("not allowed", { status: 403 });
       await fsp.access(file);
+      const playable = await fileMediaResponse(req, file);
+      if (playable) return playable;
       return net.fetch(pathToFileURL(file).toString(), { headers: req.headers.has("range") ? { Range: req.headers.get("range") } : {} });
     } catch {
       return new Response("missing", { status: 404 });

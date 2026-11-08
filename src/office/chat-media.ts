@@ -98,6 +98,7 @@ export function chatImageFailed(event: Event): void {
   const media = event.target;
   if (!(media instanceof HTMLElement) || !media.closest(".cp-text,.cp-atts")) return;
   if (media instanceof HTMLMediaElement) {
+    if (media.closest(".lucid-player")) return;
     if (media.parentElement?.querySelector(".cp-media-unavailable")) return;
     const note = document.createElement("span"); note.className = "cp-media-unavailable";
     note.textContent = "Playback unavailable. Download the original to open it in another app."; media.after(note); return;
