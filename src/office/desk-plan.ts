@@ -46,7 +46,7 @@ export class DeskPlanWidget {
     const panel = document.createElement('section');
     panel.id = this.id; panel.className = 'win focused desk-plan-panel';
     panel.setAttribute('role', 'region'); panel.setAttribute('aria-label', label('Agent plan', 'Agentenplan'));
-    panel.innerHTML = '<header><div><h2></h2><p class="desk-plan-summary" role="status"></p></div><button type="button" class="ghost desk-plan-close"></button></header><div class="win-body desk-plan-body" tabindex="0" role="group"><ol></ol><p class="desk-plan-empty" hidden></p></div>';
+    panel.innerHTML = '<header><div class="desk-plan-heading"><h2></h2><p class="desk-plan-summary" role="status"></p></div><button type="button" class="ghost desk-plan-close"></button><div class="desk-plan-progress" aria-hidden="true"></div></header><div class="win-body desk-plan-body" tabindex="0" role="group"><ol></ol><p class="desk-plan-empty" hidden></p></div>';
     // This is part of the screen, so it uses the same detail tiers as every other app.
     this.panel = panel; this.wm.root.append(panel);
     this.wm.setOverlayCovered(true, 'plan');
@@ -89,6 +89,9 @@ export class DeskPlanWidget {
     if (!this.panel) return;
     this.panel.querySelector('h2')!.textContent = label('The plan', 'Der Plan');
     this.panel.querySelector('.desk-plan-summary')!.textContent = summary;
+    this.panel.querySelector('.desk-plan-progress')!.replaceChildren(...this.steps.map(step => {
+      const segment = document.createElement('span'); segment.dataset.state = state(step); return segment;
+    }));
     const close = this.panel.querySelector<HTMLButtonElement>('.desk-plan-close')!;
     close.textContent = label('Back to desktop', 'Zurück zum Desktop');
     const body = this.panel.querySelector<HTMLElement>('.desk-plan-body')!, list = body.querySelector('ol')!;
@@ -97,6 +100,7 @@ export class DeskPlanWidget {
     list.replaceChildren(...this.steps.map((step, index) => {
       const li = document.createElement('li'); li.dataset.state = state(step);
       const number = document.createElement('span'); number.className = 'desk-plan-step-number'; number.textContent = state(step) === 'done' ? '✓' : String(index + 1); number.setAttribute('aria-hidden', 'true');
+      if (state(step) === 'doing') li.setAttribute('aria-current', 'step');
       const text = document.createElement('div'); const status = document.createElement('span'); status.className = 'desk-plan-step-state';
       status.textContent = state(step) === 'done' ? label('Done', 'Erledigt') : state(step) === 'doing' ? label('In progress', 'In Arbeit') : label('Next', 'Als Nächstes');
       const title = document.createElement('p'); title.textContent = step.text;
