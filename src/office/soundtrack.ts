@@ -7,6 +7,11 @@ import apricotHour from '../assets/audio/apricot-hour.mp3';
 import tramHome from '../assets/audio/tram-home.mp3';
 import moonlitDesks from '../assets/audio/moonlit-desks.mp3';
 import sleepySatellites from '../assets/audio/sleepy-satellites.mp3';
+import pocketSunrise from '../assets/audio/pocket-sunrise.mp3';
+import cloudArcade from '../assets/audio/cloud-arcade.mp3';
+import velvetElevator from '../assets/audio/velvet-elevator.mp3';
+import lanternCarousel from '../assets/audio/lantern-carousel.mp3';
+import lastConstellation from '../assets/audio/the-last-constellation.mp3';
 import type { SoundtrackSong } from './soundtrack-queue';
 
 export const SOUNDTRACK: readonly SoundtrackSong[] = [
@@ -19,4 +24,9 @@ export const SOUNDTRACK: readonly SoundtrackSong[] = [
   { id: 'tram-home', title: 'Tram Home', url: tramHome, period: 'evening', bpm: 82 },
   { id: 'moonlit-desks', title: 'Moonlit Desks', url: moonlitDesks, period: 'night', bpm: 64 },
   { id: 'sleepy-satellites', title: 'Sleepy Satellites', url: sleepySatellites, period: 'night', bpm: 68 },
+  { id: 'pocket-sunrise', title: 'Pocket Sunrise', url: pocketSunrise, period: 'morning', bpm: 104 },
+  { id: 'cloud-arcade', title: 'Cloud Arcade', url: cloudArcade, period: 'day', bpm: 110 },
+  { id: 'velvet-elevator', title: 'Velvet Elevator', url: velvetElevator, period: 'evening', bpm: 86 },
+  { id: 'lantern-carousel', title: 'Lantern Carousel', url: lanternCarousel, period: 'night', bpm: 78 },
+  { id: 'the-last-constellation', title: 'The Last Constellation', url: lastConstellation, period: 'night', bpm: 72 },
 ];

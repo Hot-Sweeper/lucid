@@ -47,7 +47,7 @@ if (!process.versions.electron) {
         assert(metrics.every(m => m.rms > .00001) && !metrics[0].loop && metrics[1].loop, 'songs stream through the shared graph while only air loops');
         assert(metrics[0].duration > 90 && metrics[0].duration < 200 && metrics[1].duration > 40, 'unexpected packaged asset duration');
         const songs = [{id:sound.currentTheme.id,duration:tracks[0].media.duration}];
-        for(let i=1;i<9;i++) {
+        for(let i=1;i<SOUNDTRACK.length;i++) {
           const last=sound.currentTheme.id;
           tracks[0].media.currentTime=tracks[0].media.duration-.12;
           await until(()=>sound.currentTheme.id!==last&&!tracks[0].pending&&!tracks[0].media.paused&&tracks[0].media.currentTime>.12,'next song did not decode or advance');
@@ -57,7 +57,7 @@ if (!process.versions.electron) {
           assert(rms>.00001,'new song must produce a real decoded signal');
           songs.push({id:sound.currentTheme.id,duration:tracks[0].media.duration,rms});
         }
-        assert(new Set(songs.map(s=>s.id)).size===9,'full rotation must play nine different recordings');
+        assert(new Set(songs.map(s=>s.id)).size===SOUNDTRACK.length,'full rotation must play every recording');
         assert(sound.background.size===2,'rotation must not grow the streaming source pool');
         tracks[1].media.currentTime=tracks[1].media.duration-.12;await wait(650);
         assert(!tracks[1].media.paused&&tracks[1].media.currentTime<2,'room air still loops independently');
@@ -67,9 +67,9 @@ if (!process.versions.electron) {
         sound.destroy();
         assert(tracks.every(t => t.media.paused && !t.media.getAttribute('src')), 'teardown must release media');
         for(const a of analysers) a.disconnect(); output.disconnect();
-        return {metrics, songs, nineSongRotation:true, ambienceLooping:true, muteAndResume:true, independentLevels:true, cleanup:true, listeningTest:false};
+        return {metrics, songs, fullLibraryRotation:true, ambienceLooping:true, muteAndResume:true, independentLevels:true, cleanup:true, listeningTest:false};
       })()`, true);
-      console.log('PASS: native Chromium decoding of all nine songs, nonzero signal, real ended-event rotation, ambience loop, controls and teardown.');
+      console.log('PASS: native Chromium decoding of the full soundtrack, nonzero signal, real ended-event rotation, ambience loop, controls and teardown.');
       fs.writeFileSync(path.join(directory, 'result.json'), JSON.stringify(result, null, 2));
       console.log('Evidence: ' + directory);
       console.log(JSON.stringify(result, null, 2));

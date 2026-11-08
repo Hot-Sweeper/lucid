@@ -27,19 +27,25 @@ for (let cycle = 0; cycle < 20; cycle++) {
 for (const [hour, period] of [[8,'morning'],[14,'day'],[19,'evening'],[1,'night']]) {
   let matches = 0;
   for (let i = 0; i < 1000; i++) if (new SoundtrackQueue(SOUNDTRACK, undefined, random).next(date(hour)).period === period) matches++;
-  assert(matches > 430, `${period} favorites must be preferred over a uniform 2/9 share`);
+  assert(matches > 430, `${period} favorites must be preferred over their unweighted library share`);
 }
 const invalid = new SoundtrackQueue(SOUNDTRACK, { played: ['removed-song', null], last: 'removed-song' }, random);
 assert.equal(invalid.state.played.length, 0);
-assert(SOUNDTRACK.some(song => song.id === invalid.next().id));
-assert.equal(SOUNDTRACK.length, 9);
+const recoveredSong = invalid.next();
+assert(SOUNDTRACK.some(song => song.id === recoveredSong.id));
+// Upgrading an already-heard library must make all five additions available.
+const additions = ['pocket-sunrise','cloud-arcade','velvet-elevator','lantern-carousel','the-last-constellation'];
+const heard = SOUNDTRACK.filter(song => !additions.includes(song.id)).map(song => song.id);
+const upgraded = new SoundtrackQueue(SOUNDTRACK, { played: heard, last: heard.at(-1) }, random);
+assert.deepEqual(Array.from({length:5}, () => upgraded.next().id).sort(), additions.sort());
+assert.equal(SOUNDTRACK.length, 14);
 const hashes = new Set();
 for (const song of SOUNDTRACK) {
   const file = 'src/assets/audio/' + song.id + '.mp3';
   assert(fs.statSync(file).size > 500000, `${song.title} is a real full-length encoded asset`);
   hashes.add(crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'));
 }
-assert.equal(hashes.size, 9, 'nine distinct recordings are shipped');
+assert.equal(hashes.size, SOUNDTRACK.length, 'every recording is distinct');
 const metrics = JSON.parse(fs.readFileSync('src/assets/audio/soundtrack-metrics.json'));
 assert(metrics.every(track => track.seconds >= 90 && track.peakDbFS <= -2.8 && track.rmsDbFS >= -22 && track.rmsDbFS <= -19));
-console.log('PASS: nine distinct songs, full-library shuffle, no adjacent repeats, persisted history, all day-period boundaries and preferences, packaged assets and digital headroom.');
+console.log('PASS: fourteen distinct songs, full-library shuffle, no adjacent repeats, persisted history, all day-period boundaries and preferences, packaged assets and digital headroom.');

@@ -1,6 +1,6 @@
 # Office music and ambience
 
-The soundtrack now contains nine original pieces, about 19 minutes in total:
+The soundtrack now contains fourteen original pieces, about 32 minutes in total:
 
 - Morning: **Window Garden** (bright mallets, 88 BPM) and **First Coffee**
   (electric-piano waltz, 96 BPM).
@@ -10,6 +10,22 @@ The soundtrack now contains nine original pieces, about 19 minutes in total:
   (minor-key waltz, 82 BPM).
 - Night: **Moonlit Desks** (sparse glass tones, 64 BPM) and **Sleepy Satellites**
   (soft pads and keys, 68 BPM).
+
+Five encore pieces extend the score with separate authored hooks and arrangements:
+
+- **Pocket Sunrise**, morning, 104 BPM: syncopated marimba, plucked chords and a
+  light bossa pulse, with an ascending hook that returns in a fuller final section.
+- **Cloud Arcade**, daytime, 110 BPM: rounded triangle-synth melody, offbeat
+  plucks and soft electronic drums, with a contrasting piano bridge.
+- **Velvet Elevator**, evening, 86 BPM: swung tine piano, walking bass answers,
+  brushed percussion and a borrowed minor chord in the turnaround.
+- **Lantern Carousel**, night, 78 BPM: a music-box waltz in A minor, with rolled
+  chords, a rising middle phrase and a quiet low-register reprise.
+- **The Last Constellation**, night, 72 BPM: a slow, spacious synth melody over
+  major-ninth harmony, soft pads and restrained half-time percussion.
+
+These five recordings add roughly 12½ minutes. Their intro, contrasting bridge,
+quiet middle, reprise and closing cadence are rendered into the audio files.
 
 A persistent shuffle bag plays every piece before repeating one and avoids an
 immediate repeat when the bag refills. Local time weights the next choice toward
@@ -40,7 +56,9 @@ prevents a late song-ending event from restarting playback.
 The assets in `src/assets/audio` contain original synthesis with no third-party
 samples or services. To regenerate the original theme and air, run
 `python scripts/compose-office-theme.py`. To regenerate the eight added songs,
-run `python scripts/compose-office-playlist.py`. Both use numpy, scipy and ffmpeg.
+run `python scripts/compose-office-playlist.py`. To regenerate the five encore
+pieces, run `python scripts/compose-office-encore.py`. All three use numpy, scipy
+and ffmpeg.
 These are authoring tools only, not app dependencies. Per-song source PCM levels
 and durations are recorded in `src/assets/audio/soundtrack-metrics.json`; the new
 pieces have roughly matched average levels around -20 dBFS RMS. The original source PCM theme measures
@@ -61,6 +79,6 @@ npm run verify:update
 ```
 
 The native fixture uses real Chromium decoding and an analyser, with its output
-muted. It checks all nine songs, real ended-event rotation without repetitions,
+muted. It checks the entire soundtrack, real ended-event rotation without repetitions,
 nonzero signal, the bounded two-stream pool, the ambience loop and controls.
 It seeks near song endings to exercise the transitions. It is not a listening test.

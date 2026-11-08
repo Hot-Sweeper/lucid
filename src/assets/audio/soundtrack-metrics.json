@@ -78,5 +78,55 @@
     "seconds": 145.17646258503402,
     "peakDbFS": -2.8533496856689453,
     "rmsDbFS": -20.7851505279541
+  },
+  {
+    "id": "pocket-sunrise",
+    "title": "Pocket Sunrise",
+    "period": "morning",
+    "bpm": 104,
+    "meter": 4,
+    "seconds": 134.23077097505669,
+    "peakDbFS": -4.276980876922607,
+    "rmsDbFS": -19.854326248168945
+  },
+  {
+    "id": "cloud-arcade",
+    "title": "Cloud Arcade",
+    "period": "day",
+    "bpm": 110,
+    "meter": 4,
+    "seconds": 127.18181405895692,
+    "peakDbFS": -4.886874198913574,
+    "rmsDbFS": -19.84930992126465
+  },
+  {
+    "id": "velvet-elevator",
+    "title": "Velvet Elevator",
+    "period": "evening",
+    "bpm": 86,
+    "meter": 4,
+    "seconds": 161.2790702947846,
+    "peakDbFS": -4.664454936981201,
+    "rmsDbFS": -19.850635528564453
+  },
+  {
+    "id": "lantern-carousel",
+    "title": "Lantern Carousel",
+    "period": "night",
+    "bpm": 78,
+    "meter": 3,
+    "seconds": 134.23077097505669,
+    "peakDbFS": -4.904646873474121,
+    "rmsDbFS": -19.854185104370117
+  },
+  {
+    "id": "the-last-constellation",
+    "title": "The Last Constellation",
+    "period": "night",
+    "bpm": 72,
+    "meter": 4,
+    "seconds": 191.66666666666666,
+    "peakDbFS": -3.6325621604919434,
+    "rmsDbFS": -19.847930908203125
   }
 ]
