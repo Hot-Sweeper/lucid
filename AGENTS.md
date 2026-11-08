@@ -52,3 +52,7 @@ Run focused checks for changed behavior and always `npm run verify:update` befor
 Robots are permanent workers and desks are jobs. Follow `docs/workers-and-desks.md` for hiring, fixed desk places, the review and collect lifecycle, and planned worker features.
 
 Further references: `docs/renderer-structure.md`, `docs/camera-and-office-layout.md`, `docs/screen-fidelity.md`, `docs/request-completion.md` and `docs/rendering-performance.md`.
+
+# Lucid completion skill
+
+For work in this repository, read `electron/skills/lucid/SKILL.md`. Include real screenshots of working visual results in the final report, using labeled Markdown images with stable absolute paths. Explain checks and remaining limitations honestly. Lucid also supplies this skill to jobs launched through its hiring flow, across harnesses.

@@ -88,3 +88,10 @@ Assistant answers retain real T3 `html_render` visuals in the transcript, outsid
 Native T3 references use compact robot portrait buttons with the current title, harness and model. Preserve the complete thread ID and environment identity. The whole card responds to keyboard activation; unavailable references say so.
 
 Ultra fire uses a 64 by 80 heat field, injected around the lower robot body, advected upward with turbulent drift and cooling, and quantized into violet contribution-grid shades. Flames render behind the existing robot, without a contour glow or chair emitter. Six small embers rise and expire. Fast mode adds warm lightning and a 1.5 movement multiplier through the existing path follower. Flags come from active run options, with configured thread options as fallback, and are scoped to their own office. Reduced motion retains a still fire field and lightning with normal walking speed. Hidden/offscreen effects pause; actors release their ticker and graphics on removal.
+
+
+## Completion reports on monitors
+
+Completion reports use unboxed evidence and narrative columns, with the captured result leading and a single scrolling body. Keep original aspect ratios, descriptive captions, a wrapping thumbnail rail and full-original viewing in a native modal. At 620px, the result and narrative stack. The original task lives in a disclosure. No nested report scrollbar, uppercase kicker or colored status capsule. Preserve the existing collect/settle action and failure retry.
+
+Use navy/lavender/peach tokens, Lexend, 18px body gutters, 24px column gaps, 6px media frames, quiet 140ms background feedback and visible peach focus. Reduced motion removes gallery transitions. Empty evidence and load failures remain explicit; uploaded user references are separate from assistant results. Only assistant screenshots linked or attached in real messages populate the result gallery.

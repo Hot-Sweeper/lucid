@@ -1,3 +1,5 @@
+import { fillReportGallery } from "./report-gallery";
+import { thumbSrc } from "./chat-media";
 import gsap from 'gsap';
 import { AnswerCard, type AnswerDeps, type PendingRequest } from './answer';
 import type { Desk } from './desk';
@@ -17,9 +19,13 @@ export function sharedPendingRequests(read: AnswerDeps['pending']): AnswerDeps['
   };
 }
 
-type View = { desk: Desk; id: string; mode: 'question' | 'done'; el: HTMLElement; body: HTMLElement; answer: AnswerCard | null; stamp: string };
-/** Work that can be collected now: approved by review, or finished when reviews are off. */
-export type Collectible = { summary: string; coins: string | null };
+type View = { desk: Desk; id: string; mode: 'question' | 'done'; el: HTMLElement; body: HTMLElement; answer: AnswerCard | null; stamp: string; detailsFor: string; galleryCleanup?: () => void };
+/** Work that can be settled or collected now. `done`: finished (and approved, with reviews);
+ * `stopped`: ended before finishing; `settled`: already settled, its coins still waiting;
+ * `kept`: settled and collected, its desk kept until you remove it. */
+export type Collectible = { summary: string; coins: string | null; state: 'done' | 'stopped' | 'settled' | 'kept' | 'background' | 'job-failed'; job?: string };
+/** What a session was asked, what it reported, and its newest screenshots. */
+export type WorkDetails = { task: string; report: string; reportHtml?: string; images: { url: string; name: string }[]; endedAt: string | null; messages: number };
 type Actions = {
   answer: AnswerDeps;
   read(id: string): void;
@@ -27,6 +33,7 @@ type Actions = {
   ready(id: string, fresh: boolean): Collectible | null;
   /** Coins, then settlement, which clears the desk. Rejects with a readable reason. */
   collect(id: string, from: HTMLElement): Promise<void>;
+  details(id: string): Promise<WorkDetails>;
 };
 
 /** Only actual pending questions and collectible work interrupt a desktop. The
@@ -57,7 +64,7 @@ export class MonitorTasks {
     for (const t of data.threads) {
       if (t.runStatus === 'completed' && !t.settled && this.previous.has(t.id) && this.previous.get(t.id) !== 'completed') this.fresh.add(t.id);
       if (t.runStatus !== 'completed' || t.settled) this.fresh.delete(t.id);
-      else if (!data.environmentId && this.actions.ready(t.id, this.fresh.has(t.id))) this.holds.add(t.id);
+      if (!data.environmentId && this.actions.ready(t.id, this.fresh.has(t.id))) this.holds.add(t.id);
       this.previous.set(t.id, t.runStatus);
     }
     this.world.setCompletionHolds(this.holds);
@@ -70,13 +77,13 @@ export class MonitorTasks {
     const desks = new Set(this.world.desks.values());
     for (const [desk, view] of this.views) {
       const t = desk.threadId ? threads.get(desk.threadId) : null;
-      const done = !!t && !t.question && t.runStatus === 'completed' && this.holds.has(t.id);
-      if (!desks.has(desk) || !desk.el.isConnected || desk.threadId !== view.id || !t || t.settled || (!t.question && !done)) this.remove(view);
+      const done = !!t && !t.question && this.holds.has(t.id);
+      if (!desks.has(desk) || !desk.el.isConnected || desk.threadId !== view.id || !t || (!t.question && !done)) this.remove(view);
     }
     for (const desk of desks) {
       const t = desk.threadId ? threads.get(desk.threadId) : null;
-      if (!t || t.settled) continue;
-      const ready = !t.question && t.runStatus === 'completed' && this.holds.has(t.id) ? this.actions.ready(t.id, this.fresh.has(t.id)) : null;
+      if (!t || t.settled && !this.holds.has(t.id)) continue;
+      const ready = !t.question && this.holds.has(t.id) ? this.actions.ready(t.id, this.fresh.has(t.id)) : null;
       const mode = t.question ? 'question' : ready ? 'done' : null;
       const stamp = `${t.id}:${t.updatedAt}:${t.runStatus}`;
       if (!mode) continue;
@@ -84,13 +91,29 @@ export class MonitorTasks {
       if (view && view.mode !== mode) { this.remove(view); view = undefined; }
       if (!view) view = this.mount(desk, t.id, mode);
       view.stamp = stamp;
-      view.el.querySelector('h2')!.textContent = mode === 'question' ? 'Your answer is needed' : t.title;
-      view.el.querySelector('.monitor-task-name')!.textContent = desk.profile?.name || t.title;
+      // set text only when it changed: rewriting it every sync forced layout across all desks
+      setText(view.el.querySelector('h2')!, mode === 'question' ? 'Your answer is needed' : t.title);
+      setText(view.el.querySelector('.monitor-task-name')!, desk.profile?.name || t.title);
+      const far = desk.screen.querySelector<HTMLElement>(':scope > .mt-far');
+      if (far) {
+        const farState = mode === 'question' ? 'question' : ready?.state ?? 'done';
+        setText(far.querySelector('b')!, mode === 'question' ? 'Your answer' : ready?.state === 'kept' ? 'Settled' : ready?.state === 'settled' ? 'Collect' : ready?.state === 'stopped' ? 'Stopped' : ready?.state === 'background' ? 'In background' : ready?.state === 'job-failed' ? 'Job failed' : 'Done');
+        setText(far.querySelector('span')!, mode === 'question' ? 'Needs you' : ready?.state === 'kept' ? 'Remove desk' : ready?.coins ? `${ready.coins} coins` : ready?.state === 'background' ? 'Still running' : 'Settle');
+        if (far.dataset.state !== farState) far.dataset.state = farState;
+      }
       if (view.answer) { void view.answer.refresh(); }
       else if (ready) {
-        view.body.querySelector('.monitor-task-summary')!.textContent = ready.summary;
+        const chip = view.el.querySelector<HTMLElement>('.mt-chip')!;
+        setText(chip, ready.state === 'kept' ? 'Settled' : ready.state === 'settled' ? 'Settled · coins waiting' : ready.state === 'stopped' ? 'Stopped' : ready.state === 'background' ? 'Running in the background' : ready.state === 'job-failed' ? 'Background job failed' : 'Finished');
+        // the job's live line (its latest progress, or why it stopped) updates with every refresh
+        const jobLine = view.el.querySelector<HTMLElement>('.mt-job')!;
+        setText(jobLine, ready.job || ''); if (jobLine.hidden !== !ready.job) jobLine.hidden = !ready.job;
+        if (chip.dataset.state !== ready.state) chip.dataset.state = ready.state;
         const collect = view.el.querySelector<HTMLButtonElement>('[data-task-collect]')!;
-        if (!this.collecting.has(t.id)) collect.textContent = ready.coins ? `Collect ${ready.coins} coins` : 'Collect';
+        collect.classList.toggle('mt-remove', ready.state === 'kept');
+        if (!this.collecting.has(t.id)) setText(collect, ready.state === 'kept' ? 'Remove desk' : ready.state === 'settled' ? `Collect ${ready.coins} coins` : ready.coins ? `Settle & collect ${ready.coins} coins` : 'Settle session');
+        // the report, the task and screenshots: loaded once per change of the thread
+        if (view.detailsFor !== stamp) { view.detailsFor = stamp; void this.fill(view, t.id, ready, stamp); }
       }
     }
   }
@@ -101,10 +124,13 @@ export class MonitorTasks {
     el.setAttribute('aria-label', mode === 'question' ? 'Answer this robot' : 'Completed work');
     el.innerHTML = mode === 'question'
       ? `<header><div><h2></h2><p class="monitor-task-name"></p></div><button type="button" class="ghost" data-task-read>Read chat</button></header><div class="win-body monitor-task-body"></div>`
-      : `<header><div><h2></h2><p class="monitor-task-name"></p></div></header><div class="win-body monitor-task-body"></div>`;
+      : `<header><div><h2></h2><p class="monitor-task-name"></p></div><button type="button" class="ghost" data-task-read>Continue session</button></header><div class="win-body monitor-task-body"></div>`;
     const body = el.querySelector<HTMLElement>('.monitor-task-body')!;
-    const view: View = { desk, id, mode, el, body, answer: null, stamp: '' };
-    for (const type of ['click', 'dblclick', 'keydown', 'wheel']) el.addEventListener(type, e => e.stopPropagation());
+    const view: View = { desk, id, mode, el, body, answer: null, stamp: '', detailsFor: '' };
+    for (const type of ['click', 'dblclick', 'keydown']) el.addEventListener(type, e => e.stopPropagation());
+    // The wheel stays with the panel only while it can scroll that way (a long answer);
+    // otherwise it reaches the office and zooms, as it does over every other monitor.
+    el.addEventListener('wheel', e => { if (canScroll(e.target, el, e.deltaY)) e.stopPropagation(); }, { passive: true });
     el.addEventListener('pointerdown', e => { if (e.button === 0) e.stopPropagation(); });
     el.querySelector('[data-task-read]')?.addEventListener('click', () => { gameSound.play('open'); this.actions.read(id); });
     if (mode === 'question') {
@@ -124,15 +150,26 @@ export class MonitorTasks {
       }, poll: false, autoFocus: false });
       body.append(view.answer.el);
     } else {
-      body.innerHTML = `<div class="monitor-task-result"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="28" fill="#8bcca8"/><path d="m18 33 9 9 20-22" fill="none" stroke="#20354a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg><p class="monitor-task-summary"></p><button type="button" class="cp-send monitor-task-collect" data-task-collect>Collect</button><p class="monitor-task-error" role="status"></p></div>`;
-      const button = body.querySelector<HTMLButtonElement>('[data-task-collect]')!, error = body.querySelector<HTMLElement>('.monitor-task-error')!;
+      body.innerHTML = `<div class="monitor-task-result mt-done">
+        <div class="mt-main">
+          <p class="mt-state"><span class="mt-chip"></span><span class="mt-when"></span></p>
+          <p class="mt-job" role="status" hidden></p>
+          <div class="mt-result-layout"><div class="mt-shots" hidden></div>
+          <section class="mt-written"><h3 class="mt-label">What changed</h3>
+          <div class="mt-report monitor-task-summary">Loading the session...</div></section></div>
+          <details class="mt-task-disclosure" hidden><summary>Original task</summary><p class="mt-task"></p></details>
+        </div>
+      </div>`;
+      const footer = document.createElement('footer'); footer.className = 'mt-actions';
+      footer.innerHTML = `<p class="monitor-task-error" role="status"></p><button type="button" class="cp-send monitor-task-collect" data-task-collect>Settle session</button>`;
+      el.append(footer);
+      const button = el.querySelector<HTMLButtonElement>('[data-task-collect]')!, error = el.querySelector<HTMLElement>('.monitor-task-error')!;
       button.addEventListener('click', async () => {
         if (this.collecting.has(id)) return;
         this.collecting.add(id); button.disabled = true; error.textContent = '';
         try { await this.actions.collect(id, button); }
         catch (e: any) {
-          error.textContent = `Could not collect: ${e?.message || e}. Try again.`;
-          button.disabled = false;
+          error.textContent = `${button.classList.contains('mt-remove') ? 'Could not remove the desk' : 'Could not settle'}: ${e?.message || e}`;
         } finally {
           this.collecting.delete(id);
           // Settlement keeps this panel and turns its action into Remove desk.
@@ -143,6 +180,10 @@ export class MonitorTasks {
       });
     }
     desk.wm.root.append(el);
+    // Zoomed out the panel is too small to read; a big sign on the monitor says what is going on.
+    const far = document.createElement('div'); far.className = 'mt-far'; far.setAttribute('aria-hidden', 'true');
+    far.innerHTML = '<b></b><span></span>';
+    desk.screen.append(far);
     desk.wm.setOverlayCovered(true);
     desk.el.classList.add('has-monitor-task');
     this.views.set(desk, view);
@@ -151,8 +192,28 @@ export class MonitorTasks {
     return view;
   }
 
+  private async fill(view: View, id: string, ready: Collectible, stamp: string) {
+    const report = view.el.querySelector<HTMLElement>('.mt-report')!, task = view.el.querySelector<HTMLElement>('.mt-task')!;
+    const when = view.el.querySelector<HTMLElement>('.mt-when')!, shots = view.el.querySelector<HTMLElement>('.mt-shots')!;
+    let d: WorkDetails | null = null;
+    try { d = await this.actions.details(id); } catch { /* keep the summary below */ }
+    if (view.detailsFor !== stamp || !view.el.isConnected) return;
+    // the robot's report as the chat shows it: tables, lists, code and emphasis, sanitized
+    if (d?.reportHtml) {
+      report.innerHTML = d.reportHtml; report.classList.add('md');
+      // pictures in the report are small here; opening one still shows the original
+      for (const img of report.querySelectorAll<HTMLImageElement>('.cp-inline-media img')) img.src = thumbSrc(img.getAttribute('src') || '', 960);
+    }
+    else { report.textContent = d?.report || ready.summary; report.classList.remove('md'); }
+    view.el.querySelector<HTMLElement>('.mt-task-disclosure')!.hidden = !d?.task; task.textContent = d?.task || '';
+    when.textContent = d?.endedAt ? ` · ${ago(d.endedAt)}${d.messages ? ` · ${d.messages} messages` : ''}` : '';
+    view.galleryCleanup?.();
+    view.galleryCleanup = fillReportGallery(shots, d?.images ?? []);
+  }
+
   private remove(view: View) {
-    view.answer?.destroy(); gsap.killTweensOf(view.el); view.el.remove();
+    view.galleryCleanup?.(); view.answer?.destroy(); gsap.killTweensOf(view.el); view.el.remove();
+    view.desk.screen.querySelector(':scope > .mt-far')?.remove();
     view.desk.wm.setOverlayCovered(false);
     view.desk.el.classList.remove('has-monitor-task'); this.views.delete(view.desk);
   }
@@ -164,3 +225,25 @@ export class MonitorTasks {
     this.holds.clear(); this.fresh.clear(); this.world.setCompletionHolds([]);
   };
 }
+
+/** Whether an element between target and root can still scroll vertically in the wheel's direction. */
+function canScroll(target: EventTarget | null, root: HTMLElement, deltaY: number) {
+  for (let el = target instanceof Element ? target : null; el && root.contains(el); el = el.parentElement) {
+    if (!(el instanceof HTMLElement) || el.scrollHeight <= el.clientHeight + 1) continue;
+    const overflow = getComputedStyle(el).overflowY;
+    if (overflow !== 'auto' && overflow !== 'scroll') continue;
+    if (deltaY < 0 ? el.scrollTop > 0 : el.scrollTop + el.clientHeight < el.scrollHeight - 1) return true;
+  }
+  return false;
+}
+
+function ago(iso: string) {
+  const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+  if (!Number.isFinite(s)) return '';
+  if (s < 90) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400 * 1.5) return `${Math.round(s / 3600)} h ago`;
+  return `${Math.round(s / 86400)} days ago`;
+}
+
+function setText(el: Element, text: string) { if (el.textContent !== text) el.textContent = text; }

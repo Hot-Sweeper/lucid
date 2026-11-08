@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Lucid report review</title><body>
+<script type="module">
+import '@fontsource-variable/lexend';
+import '@fontsource-variable/jetbrains-mono';
+import '/src/styles.css';
+import '/src/office/office.css';
+import { renderChatMarkdown } from '/src/office/chat-panel.ts';
+import { MonitorTasks } from '/src/office/monitor-tasks.ts';
+import { buildWorkDetails } from '/src/office/work-details.ts';
+const q = s => document.querySelector(s), wait = ms => new Promise(r=>setTimeout(r,ms));
+const params = new URLSearchParams(location.search), tests = params.has('test');
+document.body.style.cssText = 'display:grid;place-items:center;background:#10152b;overflow:auto';
+const screen = document.createElement('div'); screen.style.cssText = 'position:relative;width:min(100vw,820px);height:600px;max-height:95dvh;border-radius:12px;overflow:hidden'; if(params.has('narrow')) screen.style.width='320px'; document.body.append(screen);
+const root = document.createElement('div'); screen.append(root);
+const thread = { id:'report-review', title:'Improve Codex rendering and robot hiring', provider:'codex', runStatus:'completed', updatedAt:'1', settled:false };
+const desk = { threadId:thread.id, el:screen, screen, profile:{name:'Volt'}, wm:{root,setOverlayCovered(){}} };
+const world = { desks:new Map([['a',desk]]), lastData:{threads:[thread]}, setCompletionHolds(){} };
+const images = [];
+if (params.get('after')) images.push(`![After: working hiring screen](${location.origin}${params.get('after')})`);
+if (params.get('before')) images.push(`![Before: original hiring screen](${location.origin}${params.get('before')})`);
+const details = buildWorkDetails([{role:'user',text:'Fix visible Markdown markers and improve the hiring screen.'}, {role:'assistant',text:`The hiring screen now has harness logos, a larger writing surface and an unboxed robot preview.\n\n${images.join('\n\n')}\n\nTypeScript, production build and browser checks passed. Drafts, retries and keyboard focus are preserved.`,at:new Date().toISOString()}], thread.id, renderChatMarkdown);
+let collected=0, reads=0;
+const tasks = new MonitorTasks(world, {answer:{},read(){reads++},ready(){return {summary:'Completed work',coins:'.74',state:'done'}},collect:async()=>{collected++;throw Error('Test retry')},details:async()=>details});
+tasks.prepare(world.lastData);tasks.sync();await wait(100);
+window.reportReview = {tasks,world,desk};
+if(tests) {
+ const passed=[],check=(ok,label)=>{if(!ok)throw Error(label);passed.push(label)};
+ try {
+  if(params.has('narrow')) check(q('.monitor-task-body').scrollWidth <= q('.monitor-task-body').clientWidth + 1, '320px report has no horizontal overflow');
+  check(getComputedStyle(q('.mt-report')).maxHeight === 'none','Report is in the main scrolling body');
+  if(details.images.length){
+   check(q('.mt-shot-main img').alt.includes('After'),'Captured result is the lead image');
+   q('.mt-shot-main').click();check(q('.mt-image-viewer')?.open,'Screenshot opens at full size');
+   q('.mt-image-viewer button').click();await wait(40);check(!q('.mt-image-viewer')&&document.activeElement===q('.mt-shot-main'),'Closing image restores focus');
+   if(details.images.length>1){q('.mt-shot-thumb:last-child').click();check(q('.mt-shot-main img').alt.includes('Before'),'Evidence selection switches screenshot');q('.mt-shot-thumb').click();}
+  }else check(q('.mt-no-evidence').textContent.includes('No result'),'Missing screenshots are disclosed');
+  q('[data-task-read]').click();check(reads===1,'Continue session stays connected');
+  q('[data-task-collect]').click();await wait(20);check(collected===1&&!q('[data-task-collect]').disabled&&q('.monitor-task-error').textContent.includes('Test retry'),'Failed collection retains retry');
+  q('.monitor-task-error').textContent='';
+  const body=q('.monitor-task-body');body.scrollTop=80;const savedTop=body.scrollTop;tasks.sync();check(body.scrollTop===savedTop,'Unchanged refresh preserves reading position');body.scrollTop=0;
+  document.title='PASS: Lucid report checks';
+  const out=document.createElement('output');out.style.cssText='position:fixed;bottom:0;left:0;color:#b9bfe6;font:12px monospace;background:#141a33';out.textContent=passed.join(' · ');document.body.append(out);
+ } catch(e){document.title='FAIL: '+e.message;document.body.insertAdjacentText('beforeend',e.message);}
+}
+if(params.has('viewer')) q('.mt-shot-main')?.click();
+</script></body></html>

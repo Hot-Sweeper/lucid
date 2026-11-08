@@ -27,3 +27,62 @@
 .monitor-task-result > .monitor-task-collect:disabled { opacity: .7; }
 .monitor-task-result > .monitor-task-error { font-size: 16px; color: var(--accent-2, #ffb27a); min-height: 1.5em; }
 .monitor-task-result > .monitor-task-error:empty { visibility: hidden; }
+/* Finished work: what it was asked, what it reported, its screenshots, and settle/collect. */
+.monitor-task-panel.monitor-task-done { display: flex; flex-direction: column; }
+.monitor-task-done .monitor-task-body { flex: 1; }
+.monitor-task-result.mt-done { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 22px; align-items: start; justify-content: stretch; min-height: 0; padding: 16px 26px 12px; }
+.mt-main { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.mt-state { margin: 0; font-size: 15px; color: var(--ink-2, #c3c4dc); }
+.mt-chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-weight: 600; background: #2c5a46; color: #c9f2dc; }
+.mt-chip[data-state="stopped"] { background: #5a4424; color: #ffe0b0; }
+.mt-chip[data-state="settled"] { background: #3d3a6a; color: #e4dcff; }
+.mt-task { margin: 2px 0 0; font-size: 16px; line-height: 1.4; color: var(--ink-2, #c3c4dc); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.mt-label { margin: 6px 0 0; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #9aa0c8; }
+.mt-report { margin: 0; max-height: 196px; overflow: auto; font-size: 17px; line-height: 1.5; white-space: pre-line; color: var(--ink, #f1edff); overscroll-behavior: contain; }
+.mt-shots { display: flex; flex-direction: column; gap: 10px; width: 210px; }
+.mt-shot { display: block; padding: 0; border: 1px solid #3a4170; border-radius: 10px; overflow: hidden; background: #0f1430; cursor: pointer; }
+.mt-shot img { display: block; width: 208px; height: 117px; object-fit: cover; }
+.mt-shot:hover { border-color: #ff9f5a; }
+.monitor-task-done > .mt-actions { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 12px 26px 16px; border-top: 1px solid var(--line, #343b62); }
+.mt-actions > .monitor-task-collect { font: inherit; font-size: 20px; font-weight: 600; padding: 11px 26px; border-radius: 12px; }
+.mt-actions > .monitor-task-collect:disabled { opacity: .7; }
+.mt-actions > .monitor-task-error { flex: 1; margin: 0; font-size: 15px; color: var(--accent-2, #ffb27a); }
+
+.mt-chip[data-state="background"] { background: #25466e; color: #cfe4ff; }
+.mt-chip[data-state="job-failed"] { background: #6a2b2b; color: #ffd6d6; }
+.mt-job { margin: 6px 0 0; font: 12px/1.45 var(--mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.mt-job[hidden] { display: none; }
+/* The report keeps the robot's formatting (rendered Markdown), sized for the desk monitor. */
+.mt-report.md { white-space: normal; }
+.mt-report.md > :first-child { margin-top: 0; }
+.mt-report.md > :last-child { margin-bottom: 0; }
+.mt-report.md p { margin: 0 0 8px; }
+.mt-report.md ul, .mt-report.md ol { margin: 0 0 8px; padding-left: 1.3em; }
+.mt-report.md li { margin: 2px 0; }
+.mt-report.md h1, .mt-report.md h2, .mt-report.md h3, .mt-report.md h4 { margin: 10px 0 6px; font-size: 1.05em; font-weight: 700; }
+.mt-report.md strong { color: #fff; }
+.mt-report.md code { font: 0.86em var(--mono); padding: 1px 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.08); }
+.mt-report.md .md-table { margin: 4px 0 10px; }
+.mt-report.md .md-table table { font-size: 0.86em; }
+.mt-report.md .md-code { font-size: 0.8em; margin: 4px 0 10px; }
+.mt-report.md a { color: var(--accent-2); }
+.mt-report.md .md-copy { display: none; }
+
+/* Zoomed out: one big sign on the monitor instead of the panel (desk.lod-far, set by World). */
+.mt-far { display: none; position: absolute; inset: 0; z-index: 3000001; flex-direction: column; align-items: center; justify-content: center; gap: 10px; border-radius: inherit; background: #171d3b; color: #fff; text-align: center; pointer-events: none; }
+.desk-unit.lod-far .mt-far { display: flex; }
+.mt-far b { max-width: 92%; font: 700 100px/1.05 var(--font); letter-spacing: -0.01em; }
+.mt-far span { font: 600 64px/1 var(--font); color: var(--ink-2); }
+.mt-far[data-state="done"] b { color: #7ee2a8; }
+.mt-far[data-state="stopped"] b { color: #ffcf8a; }
+.mt-far[data-state="settled"] b, .mt-far[data-state="settled"] span { color: #ffd36e; }
+.mt-far[data-state="background"] b { color: #9cc8ff; }
+.mt-far[data-state="job-failed"] b { color: #ff9a9a; }
+.mt-far[data-state="question"] { background: #3a2a10; }
+.mt-far[data-state="question"] b { color: #ffd27a; }
+/* A kept desk (settled and collected): calm, and its one action is to remove the desk. */
+.mt-chip[data-state="kept"] { background: #2c3a52; color: #cfe0ff; }
+.mt-far[data-state="kept"] b { color: #cfe0ff; }
+.mt-far[data-state="kept"] span { color: #9fb3d6; }
+.mt-actions > .monitor-task-collect.mt-remove { background: #2c3550; color: #e6ecff; box-shadow: inset 0 0 0 1px #46557a; }
+.mt-actions > .monitor-task-collect.mt-remove:hover { background: #3a2a3a; color: #ffd6dc; box-shadow: inset 0 0 0 1px #8a4a5a; }

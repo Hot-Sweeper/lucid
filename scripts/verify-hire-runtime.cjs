@@ -46,6 +46,7 @@ server.setTestTransport(async (tag, data) => { if (tag === 'server.getConfig') r
   assert.equal(resolved.providers[0].models[0].options[1].current, false);
   await server.startHire(request); await server.startHire(request);
   assert.equal(commands[0].tag, 'orchestration.launchThread');
+  assert(commands[0].data.initialMessage.text.startsWith(request.message + '\n\n<lucid-work-skill>'), 'Every hired harness receives the packaged evidence skill');
   assert.equal(JSON.stringify(commands[0]), JSON.stringify(commands[1]));
   assert.equal(commands[0].data.modelSelection.options[0].value, 'high');
   await assert.rejects(server.startHire({ ...request, options: { reasoningEffort: 'invented' } }), /setting changed/);

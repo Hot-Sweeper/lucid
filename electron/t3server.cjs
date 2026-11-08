@@ -446,6 +446,7 @@ async function startHire(opts) {
     const option = model.options.find(o => o.id === id);
     if (!option || (option.type === 'boolean' ? typeof value !== 'boolean' : !option.choices?.some(c => c.id === value))) throw new T3ServerError('A model setting changed in T3. Reload the runtime settings and retry.', 'invalid');
   }
+  opts = { ...opts, message: require('./lucid-skill.cjs').withLucidSkill(opts.message) };
   if (opts.contextThreadId) return require('./hire-context.cjs').continueHire(getDb(), opts, dispatch);
   const payload = require('./hire-runtime.cjs').launchPayload(opts, config.runtimeMode);
   const result = await call('orchestration.launchThread', payload, { timeout: 60_000 });

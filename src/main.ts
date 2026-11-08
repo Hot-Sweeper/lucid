@@ -1,3 +1,4 @@
+import { buildWorkDetails } from "./office/work-details";
 import { ProjectLife } from "./office/project-life";
 import { mountPerformancePanel } from "./office/performance";
 import { showReport, showReportArchive } from "./office/report";
@@ -31,11 +32,11 @@ import { useRobot } from "./office/desk";
 import gsap from "gsap";
 import { mountAppLibraryButton } from "./office/app-library-button";
 import { World, type Room, type WorldData } from "./office/world";
-import { ChatPanel } from "./office/chat-panel";
+import { ChatPanel, renderChatMarkdown } from "./office/chat-panel";
 import { latestSourceReport } from "./office/chat-review";
 import { latestThreadReviews, threadReviewLabel } from "./office/thread-review";
 import { AnswerCard } from "./office/answer";
-import { MonitorTasks, sharedPendingRequests } from "./office/monitor-tasks";
+import { MonitorTasks, sharedPendingRequests, type Collectible, type WorkDetails } from "./office/monitor-tasks";
 import { Delegate, showDecisions } from "./office/delegate";
 import { showMenu, confirmDialog } from "./office/menus";
 import { openHire, avatar, BUILTIN_ROLES, type Role } from "./office/hire";
@@ -266,19 +267,25 @@ const monitorTasks = new MonitorTasks(world, {
   read: id => world.onFollowChat(id),
   ready: (id, fresh) => collectible(id, fresh),
   collect: (id, from) => collectWork(id, from),
+  details: id => workDetails(id),
 });
 // Finished work is collected once: approved by review (the worker brought the report back
 // to its desk), or finished while Lucid was open when reviews are off. Collecting pays the
 // coins and settles the thread, which clears the desk.
-function collectible(id: string, fresh: boolean) {
+function collectible(id: string, fresh: boolean): Collectible | null {
   if (currentEnvironment || companionClient()) return null;
   const coins = coinRewards ? wallet.rewards.find(r => r.id === id)?.amount ?? 0 : 0;
   const amount = coins > 0 ? formatCoins(coins) : null;
   if (orch.reviewing) {
     const paper = orch.approvedPaper(id);
-    return paper ? { summary: String(paper.verdict?.summary || ''), coins: amount } : null;
+    return paper ? { summary: String(paper.verdict?.summary || ''), coins: amount, state: 'done' } : null;
   }
-  return fresh ? { summary: '', coins: amount } : null;
+  return fresh ? { summary: '', coins: amount, state: 'done' } : null;
+}
+/** What a finished session was about and what it reported, for its desk monitor. */
+async function workDetails(id: string): Promise<WorkDetails> {
+  const messages: any[] = await (window as any).lucid.conversation(id).catch(() => []);
+  return buildWorkDetails(Array.isArray(messages) ? messages : [], id, renderChatMarkdown);
 }
 // --- workers up close --------------------------------------------------------------------
 const settledNow = () => new Set((world.lastData?.threads ?? []).filter(t => t.settled && !t.pinned).map(t => t.id));

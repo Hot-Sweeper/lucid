@@ -148,6 +148,8 @@ const when = (iso: string) => {
   return d.toDateString() === now.toDateString() ? t : `${d.toLocaleDateString([], { month: "short", day: "numeric" })}, ${t}`;
 };
 
+export const renderChatMarkdown = (text: string) => md(text);
+
 export class ChatPanel {
   el: HTMLElement;
   private desk: Desk | null = null;

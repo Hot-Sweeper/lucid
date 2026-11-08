@@ -1,3 +1,10 @@
+/** A smaller copy of a local picture for places that show it small (electron/thumbs.cjs serves
+ * it). Other addresses come back unchanged, and previews still open the original. */
+export function thumbSrc(src: string, width: number) {
+  if (!src.startsWith("lucid-file://local/")) return src;
+  try { const u = new URL(src); u.searchParams.set("w", String(Math.round(width))); return u.toString(); } catch { return src; }
+}
+
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** Markdown can contain native paths, file URLs or the slash-prefixed paths used

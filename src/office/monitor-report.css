@@ -1,0 +1,65 @@
+/* The completion screen is a readable report, with its working result in the foreground. */
+.monitor-task-done { --mt-gap: 18px; container-type: inline-size; }
+.monitor-task-panel.monitor-task-done > header { align-items: flex-start; gap: 18px; }
+.monitor-task-done > header > div { min-width: 0; }
+.monitor-task-done h2 { font-size: 25px; overflow-wrap: anywhere; }
+.monitor-task-done .monitor-task-body { scrollbar-gutter: stable; overscroll-behavior: contain; }
+.monitor-task-done .monitor-task-result.mt-done { display: block; padding: 18px 26px 26px; }
+.monitor-task-done .mt-main { gap: var(--mt-gap); }
+.monitor-task-done .mt-state { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.monitor-task-done .mt-chip { background: transparent; padding: 0; border-radius: 0; color: var(--ink); font-weight: 600; }
+.monitor-task-done .mt-label { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: normal; text-transform: none; color: var(--ink); }
+.monitor-task-done .mt-report { max-height: none; max-inline-size: 70ch; overflow: visible; line-height: 1.6; overflow-wrap: anywhere; }
+.monitor-task-done .mt-report.md strong { color: var(--ink); }
+.monitor-task-done .mt-report .cp-inline-media:has(img) { display: none; }
+.monitor-task-done .mt-task-disclosure { color: var(--ink-2); font-size: 15px; }
+.monitor-task-done .mt-task-disclosure summary { cursor: pointer; padding-block: 6px; }
+.monitor-task-done .mt-task { display: block; margin-top: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.monitor-task-done .mt-shots { display: flex; width: auto; gap: 10px; flex-direction: column; }
+.monitor-task-done .mt-shots[hidden] { display: none; }
+.mt-gallery-heading { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.mt-gallery-heading h3 { margin: 0; color: var(--ink); font-size: 19px; font-weight: 600; }
+.mt-gallery-heading > span { color: var(--ink-2); font-size: 14px; font-variant-numeric: tabular-nums; }
+.monitor-task-done .mt-shot { border: 0; border-radius: 6px; text-align: left; background: var(--night); color: var(--ink); }
+.monitor-task-done .mt-shot-main img { width: 100%; height: 220px; object-fit: contain; }
+.mt-shot-caption { display: block; padding: 9px 12px; color: var(--ink-2); font: 14px/1.45 var(--font); overflow-wrap: anywhere; }
+.mt-shot-error { display: block; padding: 26px 16px; font: 16px/1.5 var(--font); }
+.mt-shot-error[hidden] { display: none; }
+.mt-shot-rail { display: flex; gap: 10px; overflow-x: auto; padding: 3px; scrollbar-gutter: stable; }
+.mt-shot-rail[hidden] { display: none; }
+.mt-shot-thumb { flex: 0 0 146px; padding: 5px; border: 0; border-radius: 5px; background: transparent; color: var(--ink-2); font: 13px/1.4 var(--font); cursor: pointer; text-align: left; }
+.mt-shot-thumb img { display: block; width: 136px; height: 76px; object-fit: contain; background: var(--night); border-radius: 3px; }
+.mt-shot-thumb span { display: block; margin-top: 5px; overflow-wrap: anywhere; }
+.mt-shot-thumb[aria-pressed="true"] { background: var(--night-3); color: var(--ink); }
+.mt-shot-thumb:hover { background: var(--night-3); }
+.mt-no-evidence { margin: 0; font-size: 15px; line-height: 1.5; color: var(--ink-2); }
+.monitor-task-done .mt-actions > .monitor-task-collect { font-size: 18px; border-radius: 8px; }
+.monitor-task-done :is(button,summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.monitor-task-done :is(.mt-shot,.mt-shot-thumb) { transition: background-color 140ms cubic-bezier(.23,1,.32,1); }
+.mt-image-viewer { width: min(1200px, 96vw); max-height: 94dvh; margin: auto; padding: 18px; border: 0; border-radius: 10px; background: var(--night-2); color: var(--ink); overflow: auto; }
+.mt-image-viewer::backdrop { background: #080c20db; }
+.mt-image-viewer header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 14px; }
+.mt-image-viewer header strong { overflow-wrap: anywhere; }
+.mt-image-viewer button { min-height: 40px; flex: none; }
+.mt-image-viewer > img { display: block; max-width: 100%; max-height: 74dvh; object-fit: contain; margin: auto; }
+.mt-image-viewer > a { display: inline-block; padding: 12px 0 0; color: var(--accent-2); }
+@container (max-width: 540px) {
+  .monitor-task-panel.monitor-task-done > header { padding: 16px; flex-wrap: wrap; }
+  .monitor-task-done h2 { font-size: 22px; }
+  .monitor-task-done .monitor-task-result.mt-done { padding: 16px; }
+  .monitor-task-done .mt-shot-main img { height: 150px; }
+  .monitor-task-done .mt-actions { flex-wrap: wrap; padding: 12px 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .monitor-task-done :is(.mt-shot,.mt-shot-thumb) { transition: none; } }
+
+.monitor-task-done .mt-chip[data-state] { background: transparent; color: var(--ink); }
+
+.mt-result-layout { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); align-items: start; gap: 24px; }
+.mt-written { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.mt-result-layout:has(.mt-no-evidence) { display: flex; flex-direction: column; gap: 18px; }
+.mt-result-layout:has(.mt-no-evidence) .mt-shots { order: 1; }
+.mt-shots[hidden] + .mt-written { grid-column: 1 / -1; }
+@container (max-width: 620px) { .mt-result-layout { display: flex; flex-direction: column; } .mt-result-layout > * { width: 100%; } }
+.mt-result-layout, .monitor-task-done .mt-shots, .mt-shot-rail { min-width: 0; max-width: 100%; }
+.monitor-task-done .mt-shot-main { width: 100%; min-width: 0; }
+.mt-gallery-heading { flex-wrap: wrap; }
