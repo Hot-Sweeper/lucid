@@ -61,3 +61,10 @@ Keep the task as the primary writing surface, with attachments inside it and run
 The dialog uses a 980px maximum width, 30px desktop gutters and a 210px portrait column. At 560px it becomes one scrollable column with a compact horizontal portrait. The footer stays reachable independently of body scrolling. Use 8px composer corners, 6px choice corners and the shared 140ms strong ease-out; reduced motion removes transitions. Text uses existing ink tokens, and control boundaries use the existing higher-contrast hire control token.
 
 Reasoning summaries render safe inline emphasis as real bold/italic/code elements in both the activity history and current status. Commands, tool output and user prompts retain their literal contents. Status text clips visually without truncating Markdown delimiters, and the complete readable summary is available in its title.
+
+
+## Moving work between offices
+
+Drag an occupied desk by its existing desk or nameplate surface into Main office, a project office or Freelancers. Reuse the office drop outline and saved thread-home assignment used by sidebar thread drops. The grabbed desk follows the pointer, while a drop in its original room retains snake reordering. Escape, lost capture, a cancelled pointer or window blur restores the original order; releasing in a corridor cancels. Main office expands when work is placed there. Explicit homes also apply to managers without changing their real T3 project, role or pin. The orchestrator retains its dedicated chair.
+
+Desk and thread menus offer the same Move to office actions for click and keyboard use through the existing menu. Successful desk transfers use the shared switch cue. Preserve the existing artwork, drag lift, reduced-motion settling and mute behavior.

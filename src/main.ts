@@ -769,6 +769,7 @@ function setupMenus() {
       { label: "Customize robot", run: () => openCustomizeFor(d, world.roster, world.level) },
       { label: world.lastData?.threads.find(t => t.id === d.threadId)?.pinned ? "Edit or demote manager" : "Promote to manager", run: () => manageRobot(d.threadId) },
     ];
+    if (d.threadId) items.push(...officeMoveItems(d.threadId));
     if (d.room === "freelance" && d.folder) {
       items.push({ input: "Turn this work into a project", placeholder: "Project name", value: (d.info?.title || "").slice(0, 40), submit: "Create project",
         run: async (name: string) => { await api.addProject({ path: d.folder!, title: name }); await refresh(); } });
@@ -1759,6 +1760,14 @@ function referenceInChat(id: string, x: number, y: number) {
   if (chat.isOpen && chat.threadId) { chat.addReference(ref); return; }
   showMenu(x, y, "Open a robot's chat to reference this thread", [{ label: "Chat with this thread's robot", run: () => openThread(id) }]);
 }
+function officeMoveItems(id: string) {
+  if (companionClient() || id === world.orchThread) return [];
+  const current = world.homes.get(id) ?? world.deskFor(id)?.room;
+  return world.rooms.filter(r => ["main", "project", "freelance"].includes(r.kind) && r.id !== current).map(r => ({
+    label: `Move to ${r.title}`,
+    run: () => { if (world.placeThread(id, r.id)) gameSound.play("switch"); },
+  }));
+}
 function threadMenu(row: HTMLElement, x: number, y: number) {
   const id = row.dataset.id!, ref = threadRef(id);
   if (!ref) return;
@@ -1767,6 +1776,7 @@ function threadMenu(row: HTMLElement, x: number, y: number) {
   if (previous) items.push({ label: "Move up (Alt+Up)", run: () => { void moveThread(id, previous.id, false); } });
   if (next) items.push({ label: "Move down (Alt+Down)", run: () => { void moveThread(id, next.id, true); } });
   if (chat.isOpen && chat.threadId && chat.threadId !== id) items.unshift({ label: "Reference in chat (R)", run: () => { chat.addReference(ref); } });
+  items.push(...officeMoveItems(id));
   showMenu(x, y, ref.title, items);
 }
 for (const box of [$("th-list"), $("rail-list")]) {

@@ -801,10 +801,10 @@ export class World {
     else this.touchLayoutTimer = window.setTimeout(flush, 32);
   }
   private homeForThread(t: WThread, projects: WProject[]) {
-    if (t.pinned && t.manager && projects.some(p => p.id === t.manager!.projectId)) return `p:${t.manager.projectId}`;
     const saved = this.homes.get(t.id), p = projects.find((p) => p.id === t.projectId);
-    return saved === "main" || saved === "freelance" || (saved?.startsWith("p:") && projects.some((p) => p.id === saved.slice(2)))
-      ? saved : (!p || p.scratch ? "freelance" : `p:${p.id}`);
+    if (saved === "main" || saved === "freelance" || (saved?.startsWith("p:") && projects.some((p) => p.id === saved.slice(2)))) return saved;
+    if (t.pinned && t.manager && projects.some(p => p.id === t.manager!.projectId)) return `p:${t.manager.projectId}`;
+    return !p || p.scratch ? "freelance" : `p:${p.id}`;
   }
   private reconcilePhysicalLayout(force = false) {
     if ((!this.physicalLayoutHeld && !force) || this.layoutUpdateQueued) return;
@@ -1493,6 +1493,8 @@ export class World {
       const { cols } = officeSize(entries.length);
       const positions = original.map((_, i) => { const { c, row } = snakeSeat(i, cols); return { x: room.x + 70 + c * SLOT_W, y: room.y + WALL_FACE + 40 + row * SLOT_H }; });
       let active = false, target = source, ended = false;
+      let destination: string | null = null;
+      let lastX = x0, lastY = y0;
       let preview: HTMLElement | null = null;
       const arrange = (index: number) => { const order = [...original]; order.splice(source, 1); order.splice(index, 0, d); return order; };
       const move = (ev: PointerEvent) => {
@@ -1509,9 +1511,16 @@ export class World {
           this.deskLayer.appendChild(preview);
         }
         ev.preventDefault();
-        const x = Math.max(room.x + 22, Math.min(room.x + room.w - UNIT_W - 22, start.x + (ev.clientX - x0) / z));
-        const y = Math.max(room.y + WALL_FACE + 12, Math.min(room.y + room.h - UNIT_H - 22, start.y + (ev.clientY - y0) / z));
+        lastX = ev.clientX; lastY = ev.clientY;
+        const over = d.threadId && d.threadId !== this.orchThread ? this.threadDropZone(ev.clientX, ev.clientY) : null;
+        const nextDestination = over && over !== room.id ? over : null;
+        if (nextDestination !== destination) { destination = nextDestination; this.previewThreadDrop(destination); }
+        const rawX = start.x + (ev.clientX - x0) / z, rawY = start.y + (ev.clientY - y0) / z;
+        const x = d.threadId ? rawX : Math.max(room.x + 22, Math.min(room.x + room.w - UNIT_W - 22, rawX));
+        const y = d.threadId ? rawY : Math.max(room.y + WALL_FACE + 12, Math.min(room.y + room.h - UNIT_H - 22, rawY));
         gsap.set(d.el, { left: x, top: y });
+        preview!.hidden = !!destination;
+        if (destination) return;
         let next = target, distance = Infinity;
         positions.forEach((p, i) => { const dist = Math.hypot(x - p.x, y - p.y); if (dist < distance) { distance = dist; next = i; } });
         if (next !== target) { target = next; arrange(target).forEach((desk, i) => { if (desk !== d) this.slideDesk(desk, positions[i]); }); }
@@ -1525,10 +1534,14 @@ export class World {
         window.removeEventListener("keydown", key, true); window.removeEventListener("blur", cancel);
         try { d.el.releasePointerCapture(e.pointerId); } catch {}
         if (!active) return;
-        const order = commit ? arrange(target) : original;
+        const transfer = commit && destination && d.threadId;
+        // A release in the hall cancels; another office uses the shared home assignment.
+        const reorder = commit && !transfer && (!d.threadId || this.threadDropZone(lastX, lastY) === room.id);
+        const order = reorder ? arrange(target) : original;
         order.forEach((desk, i) => { this.slotDesks.set(entries[i][0], desk); this.slideDesk(desk, positions[i]); });
-        if (commit) this.seats.set(d.room, reorderPhysicalSeats(this.seats.get(d.room) ?? [], original.map((desk) => desk.threadId), order.map((desk) => desk.threadId)));
+        if (reorder) this.seats.set(d.room, reorderPhysicalSeats(this.seats.get(d.room) ?? [], original.map((desk) => desk.threadId), order.map((desk) => desk.threadId)));
         preview?.remove(); d.el.classList.remove("desk-grabbed"); document.body.classList.remove("desk-dragging");
+        this.previewThreadDrop(null);
         this.deskDragActive = false;
         // Capture phase also suppresses monitor and toy click handlers on release.
         const eat = (event: Event) => { event.preventDefault(); event.stopImmediatePropagation(); };
@@ -1538,8 +1551,11 @@ export class World {
         };
         if (waitForRelease) window.addEventListener("pointerup", eatClick, { capture: true, once: true }); else eatClick();
         setTimeout(() => { this.dragged = false; }, 0);
-        if (this.lastData) this.update(this.lastData);
-        if (commit) this.onLayoutChange();
+        if (transfer && this.placeThread(transfer, destination!)) gameSound.play("switch");
+        else {
+          if (this.lastData) this.update(this.lastData);
+          if (reorder) this.onLayoutChange();
+        }
       };
       const up = () => finish(true), cancel = () => finish(false);
       const key = (ev: KeyboardEvent) => { if (ev.key === "Escape") { ev.preventDefault(); ev.stopImmediatePropagation(); finish(false, true); } };
