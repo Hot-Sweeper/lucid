@@ -1574,26 +1574,26 @@ function renderThreads() {
     const robot = world.roster.byThread(t.id);
     return managerFace({ provider: robot?.provider || t.provider, look: world.lookFor(t, robot?.look), picture: t.manager?.avatar, size, place, cls });
   };
-  // Managers read like pinned threads: project and role, the thread title, then who and
-  // which model, with their crowned face. A manager can start a new project.
+  // A persistent manager leads with their identity; their thread is supporting context.
   const managerRow = (t: typeof list[number]) => {
     const p = projects.get(t.manager?.projectId || t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
     const role = t.manager?.role || (t.id === world.orchThread ? "Orchestrator" : "Manager");
     const robot = world.roster.byThread(t.id);
     const name = robot?.name || "Manager";
-    const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
-    const dot = dotOf(t), state = stateOf(t);
-    const logo = logoFor(t.provider);
-    return `<li class="mg-li"><button type="button" class="th-row th-worker mg-row${t.runStatus === "running" ? " on" : ""}" data-id="${esc(t.id)}" title="${esc(`${name}, ${role} for ${proj}${t.title ? `
-${t.title}` : ""}`)}">
-      ${faceOf(t, 34, "l", dot === "work" ? "working" : "")}
-      <span class="th-text">
-        <span class="th-top">${icon}<span class="th-proj">${esc(proj)} · ${esc(role)}</span>${state || `<span class="th-ago">${ago(t.updatedAt)}</span>`}</span>
-        <span class="th-title"><span class="th-pin" aria-label="Pinned manager">●</span>${esc(t.title || "Untitled")}</span>
-        <span class="th-bot"><span class="th-sub">${esc(t.branch || "")}</span><span class="th-bot-name">${esc(name)}${t.model ? `<span class="th-bot-model">, ${esc(t.model)}</span>` : ""}</span>${logo ? `<img class="th-logo" src="${logo}" alt="">` : ""}</span>
+    const dot = dotOf(t);
+    const state = dot ? stateOf(t) : "";
+    const sel = t.id === chat.threadId ? " sel" : "";
+    const detail = [name, `${role} for ${proj}`, t.title, t.model, t.branch].filter(Boolean).join("\n");
+    return `<li class="mg-li"><button type="button" class="th-row th-worker mg-row${t.runStatus === "running" ? " on" : ""}${sel}" data-id="${esc(t.id)}" title="${esc(detail)}">
+      ${faceOf(t, 40, "l", dot === "work" ? "working" : "")}
+      <span class="mg-text">
+        <span class="mg-name">${esc(name)}</span>
+        <span class="mg-role">${esc(proj)} · ${esc(role)}</span>
+        <span class="mg-thread">${esc(t.title || "Untitled")}</span>
+        ${state ? `<span class="mg-state">${state}</span>` : ""}
       </span>
-    </button><button type="button" class="mg-new" data-new-project="${esc(t.id)}" aria-label="New project from ${esc(name)}" title="New project">+ New project</button></li>`;
+    </button><button type="button" class="mg-new" data-new-project="${esc(t.id)}" aria-label="New project with ${esc(name)}" title="New project with ${esc(name)}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11V7a2 2 0 0 0-2-2h-6l-2-2H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h8M18 14v8m-4-4h8"/></svg></button></li>`;
   };
   const managers = active.filter((t) => t.pinned);
   const managersOpen = !folded.has("managers") || !!q;

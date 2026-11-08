@@ -128,3 +128,7 @@ Use native radio and checkbox inputs with custom Lucid visuals: a crisp lavender
 ## Question choice controls
 
 Use native radio and checkbox inputs with custom Lucid visuals: a crisp lavender ring over the existing dark input surface, a peach center dot for a selected radio and a dark check on a peach selected checkbox. Unselected rows stay unboxed. The whole row activates its associated input through the label, while the custom text field keeps its own hit target. Retain compact row dimensions, visible keyboard focus, disabled semantics and native arrow-key behavior. Hover fills ease in over 130ms; selection draws over 160ms and pressing gently compresses the control. Reduced motion removes these transitions and compression; forced colors restores the platform control. Choices in the chat shelf and on desk monitors share this styling.
+
+## Managers in the sidebar
+
+Manager entries lead with the persistent robot name and a centered 40px portrait. Project and role form one quiet context line, followed by the real thread title. Only meaningful operational status adds another line; idle timestamps, model strings, duplicate project icons and pin dots stay out of this compact view. Complete metadata remains in the tooltip. Names wrap without clipping. The new-project action uses a folder-plus control in its own reserved 32px column, revealed on hover or keyboard focus and always available on touch. It never overlays the name or title. Selected managers share the existing thread selection treatment.
