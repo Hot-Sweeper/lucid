@@ -6,9 +6,10 @@ import type { WM } from "./wm";
 import { el, typeInto } from "./typing";
 import { loadPage, favHtml, searchHtml, webSearch, urlKey, shortUrl, hostOf, cleanQuery, loadingHtml, prFromApi, prHtml, compareHtml, setPrMerged, type Result, type PageView, type PrData } from "./sites";
 import "./web.css";
+import type { BrowserObservation } from './workspace-browser';
 import { FrontendView, localFrontendUrl, type FrontendTarget, type FrontendAction } from './frontend';
 
-type Tab = { key: string; url: string; title: string; kind: "page" | "search"; el: HTMLElement; page: HTMLElement; results: Result[]; view: PageView | null; loading: Promise<void> | null; used: number; live?: FrontendView };
+type Tab = { key: string; url: string; title: string; kind: "page" | "search"; el: HTMLElement; page: HTMLElement; results: Result[]; view: PageView | null; loading: Promise<void> | null; used: number; live?: FrontendView; workspace?: boolean };
 const MAX_TABS = 5;
 
 export type PrInfo = Omit<PrData, "checks" | "comments" | "state"> & { state?: PrData["state"] };
@@ -27,6 +28,16 @@ export class BrowserApp {
     t.live = new FrontendView(target, () => this.active === t, title => { if (t.title !== title) this.look(t, title, t.url); });
     t.page.replaceChildren(t.live.root);
     t.view = { title: t.title, html: '', site: 'shot', url: t.url };
+  }
+
+  async followWorkspace(observation: BrowserObservation) {
+    const b = await this.ensure(), key = `workspace:${observation.workspace.id}:${observation.workspace.appId}`;
+    let t = this.tabs.find(t => t.key === key);
+    if (!t) t = this.addTab(b, key, observation.url, observation.title, 'page', true);
+    t.workspace = true; t.url = observation.url;
+    this.look(t, observation.title, observation.url);
+    this.show(b, t);
+    if (!t.live) this.mountFrontend(t, { workspace: observation.workspace });
   }
 
   /** A saved HTML file can be previewed before there is a dev server. */
@@ -109,6 +120,7 @@ export class BrowserApp {
 
   private show(b: HTMLElement, t: Tab) {
     this.active = t;
+    b.classList.toggle("browser-workspace", !!t.workspace);
     t.used = Date.now();
     for (const x of this.tabs) { x.el.classList.toggle("on", x === t); x.page.classList.toggle("on", x === t); }
     this.q(b, ".b-addr").textContent = t.kind === "search" ? t.title : shortUrl(t.url);

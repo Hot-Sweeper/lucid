@@ -1,8 +1,9 @@
 import { renderFps, renderPixelRatio } from '../perf/render';
 import { setDetailScene, clearDetailScene, type DetailScene } from '../perf/detail-scene';
 import './frontend.css';
+import type { WorkspaceBrowserTarget } from './workspace-browser';
 
-export type FrontendTarget = { url?: string; html?: string; file?: string; root?: string };
+export type FrontendTarget = { workspace?: WorkspaceBrowserTarget; url?: string; html?: string; file?: string; root?: string };
 export type FrontendAction = { selector?: string; role?: string; name?: string; x?: number; y?: number; viewportWidth?: number; viewportHeight?: number };
 type Frame = DetailScene & { ok: boolean; unchanged?: boolean; missing?: boolean; error?: string; image?: string; title?: string; pointer?: { x: number; y: number }; target?: { x: number; y: number; w: number; h: number } };
 type Api = { frontendFrame(req: object): Promise<Frame> };
@@ -31,7 +32,9 @@ export class FrontendView {
   constructor(target: FrontendTarget, private active: () => boolean, private title: (title: string) => void) {
     this.target = target;
     this.root.className = 'frontend-view';
-    this.image.className = 'frontend-frame'; this.image.alt = ''; this.image.draggable = false;
+    this.root.classList.toggle('workspace-browser-view', !!target.workspace);
+    if (target.workspace) this.image.alt = 'The agent’s actual browser window';
+    this.image.className = 'frontend-frame'; if (!target.workspace) this.image.alt = ''; this.image.draggable = false;
     this.status.className = 'frontend-status'; this.status.textContent = 'Opening the frontend…';
     this.marker.className = 'frontend-target'; this.pointer.className = 'frontend-pointer';
     this.marker.hidden = this.pointer.hidden = true;
@@ -42,7 +45,7 @@ export class FrontendView {
     this.resize.observe(this.root);
     this.timer = window.setTimeout(() => void this.poll(), 0);
   }
-  update(target: FrontendTarget) { this.target = target; this.opened = false; this.revision++; }
+  update(target: FrontendTarget) { this.root.classList.toggle('workspace-browser-view', !!target.workspace); this.target = target; this.opened = false; this.revision++; }
   point(action: FrontendAction) { this.action = action; this.actionUntil = performance.now() + 2200; }
   stop() {
     if (this.dead) return;
@@ -56,7 +59,7 @@ export class FrontendView {
     else if (this.bound) { this.stop(); return; }
     const host = this.root.closest<HTMLElement>('.screen, .phone-screen');
     const mode = host?.dataset.screenDetail || 'full';
-    let delay = mode === 'full' ? (this.target.url?.includes('/__lucid/studio') ? 33 : 125) : mode === 'lines' ? 750 : 1500;
+    let delay = this.target.workspace ? 1000 : mode === 'full' ? (this.target.url?.includes('/__lucid/studio') ? 33 : 125) : mode === 'lines' ? 750 : 1500;
     try {
       if (!this.root.isConnected || !this.active() || !renderFps(this.root) || mode === 'icon') {
         if (this.opened && !this.paused) { this.paused = true; await this.api?.frontendFrame({ id: this.id, mode: 'paused' }); }
@@ -72,6 +75,7 @@ export class FrontendView {
       if (revision !== this.revision) return;
       if (!frame.ok) { if (frame.missing) this.opened = false; this.status.hidden = false; this.status.textContent = frame.error || 'Waiting for the frontend…'; delay = 2000; return; }
       this.opened = true;
+      this.status.hidden = true;
       if (frame.unchanged) return;
       if (frame.title) this.title(frame.title);
       const scene: DetailScene = { width: frame.width, height: frame.height, background: frame.background, shapes: frame.shapes };

@@ -1,5 +1,9 @@
 # Lucid interface
 
+## Actual agent browser pages
+
+When a tool identifies a browser launched in an agent workspace, the robot browser follows that exact window through a read-only capture. Retain native tabs, authentication, navigation and scroll position. Hide the duplicate Lucid tab and address bars while showing this source. Fit the complete window without stretching or cropping, on the existing navy surface. Visible views refresh once per second; covered or hidden views pause. Stopped apps and reused workspace sessions show an explicit waiting state. Never attach these handles to the host browser or to a different linked environment. Existing local frontend and HTML previews keep their own lifecycle.
+
 ## Chat shelf motion
 
 Opening and closing the conversation uses one 200ms compositor slide with the camera's shared glide curve. The grid changes width once, the real transcript stays at its final width, and the office camera glides to its new framing. There is no delayed fade or per-frame grid resize. Reversals continue from the shown position. Closing moves focus to the rail immediately and makes the departing panel inert. Opening preserves drafts, transcript nodes and reading position. Reduced motion applies the final layout immediately. Drag resizing remains live and cancels toggle motion. A quiet shared switch cue follows animated toggles.

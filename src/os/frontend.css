@@ -6,3 +6,8 @@
 .frontend-pointer { position: absolute; width: 10px; height: 14px; clip-path: polygon(0 0, 100% 65%, 48% 67%, 30% 100%); background: #fff; filter: drop-shadow(0 1px 1px #000); pointer-events: none; transition: left .16s ease-out, top .16s ease-out; }
 @media (prefers-reduced-motion: reduce) { .frontend-pointer { transition: none; } }
 .b-page.frontend-page { overflow: hidden; padding: 0; }
+
+/* The captured browser includes its own real tabs and address bar. */
+.browser.browser-workspace > .b-tabs, .browser.browser-workspace > .b-bar, .browser.browser-workspace > .b-progress { display: none; }
+.browser .workspace-browser-view { background: var(--night-2, #141a33); }
+.workspace-browser-view .frontend-frame { object-fit: contain; }

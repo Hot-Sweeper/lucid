@@ -35,7 +35,7 @@ const electron = { BrowserWindow: Window, session: { fromPartition() {
   const s = new EventEmitter();s.webRequest={onBeforeRequest:fn=>s.filter=fn};s.setPermissionRequestHandler = fn => s.permission = fn;s.setPermissionCheckHandler = fn => s.permissionCheck = fn;s.clearStorageData = async () => { s.cleared = true; };partitions.push(s);return s;
 } } };
 const moduleObject = { exports: {} };
-const context = { require: name => name === 'electron' ? electron : name === './frontend-page.cjs' ? require('../electron/frontend-page.cjs') : require(name), module: moduleObject, exports: moduleObject.exports, Buffer, URL, setTimeout, clearTimeout, console };
+const context = { require: name => name === 'electron' ? electron : name === './workspace-browser.cjs' ? {has:()=>false,close(){},closeOwner(){}} : name === './frontend-page.cjs' ? require('../electron/frontend-page.cjs') : require(name), module: moduleObject, exports: moduleObject.exports, Buffer, URL, setTimeout, clearTimeout, console };
 vm.runInNewContext(fs.readFileSync(path.join(root, 'electron/frontend.cjs'), 'utf8'), context);
 const api = moduleObject.exports;
 const run = async () => {

@@ -6,7 +6,7 @@ const source=(await readFile(new URL('../src/os/frontend.ts',import.meta.url),'u
 const code=(await transformWithOxc(source,'frontend.ts')).code.replace(/export\s*\{[^}]*\};?/g,'').replace(/^export /gm,'');
 const host={dataset:{}},timers=new Map(),requests=[];let next=0,active=true,drawAllowed=true,scenes=0,clears=0,resolveFrame;
 class Element {
-  constructor(){this.isConnected=false;this.children=[];this.style={};this.dataset={};this.hidden=false;}
+  constructor(){this.classList={toggle(){}};this.isConnected=false;this.children=[];this.style={};this.dataset={};this.hidden=false;}
   append(...children){this.children.push(...children);}
   closest(){return host;}
   removeAttribute(name){delete this[name];}
@@ -21,6 +21,8 @@ const frame={ok:true,width:960,height:540,background:'#fff',shapes:[],title:'Act
 const view=new FrontendView({url:'http://localhost:5173/'},()=>active,()=>{});view.root.isConnected=true;
 await tick();assert.equal(requests.length,1);assert.equal(timers.size,0,'No next request while capture is pending');
 resolveFrame(frame);await new Promise(resolve=>setImmediate(resolve));assert.equal(scenes,1);assert.equal(timers.size,1);
+await tick();resolveFrame({ok:false,error:'Browser temporarily unavailable'});await new Promise(resolve=>setImmediate(resolve));assert.equal(view['status'].hidden,false);
+await tick();resolveFrame({ok:true,unchanged:true});await new Promise(resolve=>setImmediate(resolve));assert.equal(view['status'].hidden,true,'An unchanged recovered browser frame clears the waiting message');
 host.dataset.screenDetail='lines';await tick();assert.equal(requests.at(-1).mode,'lines');resolveFrame({...frame,image:undefined});await new Promise(resolve=>setImmediate(resolve));assert.equal(scenes,1,'Unchanged geometry does not invalidate every LOD cache');
 host.dataset.screenDetail='icon';await tick();assert.equal(requests.at(-1).mode,'paused');const paused=requests.length;await tick();assert.equal(requests.length,paused,'Icon views stop capture requests');
 delete host.dataset.screenDetail;await tick();assert.equal(requests.at(-1).mode,'full');

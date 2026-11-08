@@ -23,6 +23,7 @@ function sourceOf(target) {
   throw Error('A local dev page or project HTML file is required.');
 }
 function close(key) {
+  require('./workspace-browser.cjs').close(key);
   const s = sessions.get(key); if (!s) return;
   sessions.delete(key); clearTimeout(s.expiry); clearTimeout(s.reload); s.watcher?.close();
   if (!s.win.isDestroyed()) s.win.destroy();
@@ -84,6 +85,10 @@ async function frame(owner, req) {
   const key = `${owner}:${req.id}`;
   if (req.close) { close(key); return { ok: true }; }
   try {
+    const workspace = require('./workspace-browser.cjs');
+    if (req.target?.workspace && sessions.has(key)) close(key);
+    if (req.target && !req.target.workspace) workspace.close(key);
+    if (req.target?.workspace || workspace.has(key)) return await workspace.frame(key, req);
     let s = sessions.get(key), created = false;
     if (req.target) {
       const source = sourceOf(req.target);
@@ -137,9 +142,9 @@ function register(ipcMain, app) {
   const owners = new Set();
   ipcMain.handle('frontend:frame', (event, req) => {
     const owner = event.sender.id;
-    if (!owners.has(owner)) { owners.add(owner); event.sender.once('destroyed', () => { owners.delete(owner); for (const [key,s] of sessions) if (s.owner === owner) close(key); }); }
+    if (!owners.has(owner)) { owners.add(owner); event.sender.once('destroyed', () => { owners.delete(owner); require('./workspace-browser.cjs').closeOwner(owner); for (const [key,s] of sessions) if (s.owner === owner) close(key); }); }
     return frame(owner, req);
   });
-  app.once('before-quit', () => { for (const key of sessions.keys()) close(key); });
+  app.once('before-quit', () => { require('./workspace-browser.cjs').closeOwner(); for (const key of sessions.keys()) close(key); });
 }
 module.exports = { register, frame, close, localUrl, sourceOf };

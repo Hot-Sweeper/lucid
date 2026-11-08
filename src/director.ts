@@ -1,6 +1,7 @@
 import { Botword } from "./office-apps/botword";
 import { reportDocument } from "./office-apps/word-markdown";
 import { uiText } from "./localization";
+import { WorkspaceBrowserTracker } from './os/workspace-browser';
 import { frontendUrlFromOutput } from "./os/frontend";
 import { renderFps } from "./perf/render";
 import gsap from "gsap";
@@ -117,6 +118,7 @@ export class Director {
   private queue: string[] = [];
   private played = new Set<string>();
   private pumpEpoch = -1;
+  private workspaceBrowser = new WorkspaceBrowserTracker();
   private frontendSignals = new Map<string, string>();
   private catchingUp = false;
   private info: ThreadInfo | null = null;
@@ -211,6 +213,7 @@ export class Director {
     if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
     this.lastEventAt = 0;
     this.frontendSignals.clear();
+    this.workspaceBrowser.reset();
     this.toolWatch.clear();
     this.wm.reset();
     this.items.clear();
@@ -358,6 +361,14 @@ export class Director {
           void this.browser.open(url, { instant: true, read: false, real: true }).catch(() => {});
         }
         const tool = String(it.data.toolName || '');
+        if (!this.info?.id?.includes('::')) {
+          const observation = this.workspaceBrowser.observe(tool, it.data.input, it.data.output, it.status);
+          const signal = observation && `workspace:${JSON.stringify(observation.workspace)}`;
+          if (observation && this.frontendSignals.get(it.id) !== signal) {
+            this.frontendSignals.set(it.id, signal!);
+            void this.browser.followWorkspace(observation).catch(() => {});
+          }
+        }
         if (/html_(render|preview)$/.test(tool) && typeof it.data.input?.html === 'string') this.browser.refreshFrontendHtml(it.data.input.html);
       }
       this.items.set(it.id, it);
@@ -1037,6 +1048,16 @@ export class Director {
       this.helperHints.set(child, hint);
       await this.openHelper(id, { child, prompt: String(inp.task || inp.prompt || inp.title || "Help with this"), title: String(inp.title || "Subtask"), ...hint });
       return true;
+    }
+    if (base.startsWith('workspace_') && !this.info?.id?.includes('::')) {
+      const done = await this.settle(id, 10000);
+      const observation = this.workspaceBrowser.observe(name, done.data.input, done.data.output, done.status);
+      if (observation) {
+        this.stage.setGlow(GLOW.browser);
+        this.onActivity('Watching the actual browser page');
+        await this.browser.followWorkspace(observation);
+        return true;
+      }
     }
     const browserActs: Record<string, string> = {
       preview_click: "Clicking on the page", preview_evaluate: "Running a script on the page", preview_snapshot: "Reading the page",
