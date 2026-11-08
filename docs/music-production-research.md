@@ -111,3 +111,23 @@ Those checks establish a functioning and more deliberate production process.
 They cannot establish that a piece is moving, memorable or enjoyable. Musical
 quality still needs audition, revision and the listener's judgment; no subjective
 listening approval is claimed by these automated checks.
+
+## Percussion revision after listener feedback
+
+The next source audit found that some samplers normalized every soft take and
+hard take to the same peak, erasing much of the recorded velocity behavior.
+Several older generators also used a pronounced oscillator pitch fall for every
+kick and noise bursts for other drum parts. The revision restores shared
+instrument-family calibration, alternate takes, recorded attacks and separately
+controlled kick/snare/hat stems. Longer room and delay treatments belong to
+selected upper percussion and melodic replies; deep bass stays focused.
+
+[Sound On Sound's reverb production guide](https://www.soundonsound.com/advanced-reverberation-0)
+explains the low-end smear caused by obvious kick reverb and the usefulness of
+short ambience and filtered returns. Its
+[drum recording guide](https://www.soundonsound.com/techniques/recording-drums)
+also treats the kick and bass as complementary sources. The
+[Ableton effect reference](https://www.ableton.com/en/manual/live-audio-effect-reference/)
+describes sidechain ducking for kick/bass space, per-chain drum processing,
+reverb predelay and frequency shaping. These are technical production references,
+not evidence that the resulting compositions have been subjectively approved.

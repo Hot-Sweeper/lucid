@@ -52,8 +52,30 @@ The earlier score remains available: Little Lights, Window Garden, First
 Coffee, Paper Kites, Peach Parade, Apricot Hour, Tram Home, Moonlit Desks,
 Sleepy Satellites, Pocket Sunrise, Cloud Arcade, Velvet Elevator, Lantern
 Carousel and The Last Constellation. Thirteen older additions had 34.43 seconds
-of unwanted trailing silence removed by packet copying. Every retained decoded
-sample matches its earlier recording exactly.
+of unwanted trailing silence removed by packet copying. That cleanup retained
+every decoded sample before the trim. A later percussion pass rebuilt the six
+daytime additions and five encore recordings with recorded CC0 drums, leaving
+their written harmonies and hooks in place. Two earlier drumless ambient pieces
+and Little Lights retain their recordings.
+
+## Percussion and space
+
+The percussion revision replaces swept oscillator kicks and generated noise hits
+in eleven earlier arrangements, Neon and Petal with recorded drum sources. Family
+calibration retains the quieter levels and tonal differences of soft strokes and
+alternate takes. Kick, snare and hat material is treated separately; the kick
+stays centered and dry, with excessive acoustic ring gently damped.
+
+Midnight also has stable-note sub attacks instead of sweeping from the previous
+bass pitch at every hit. Smooth kick-triggered ducking makes room for the kick
+without pumping every musical layer. Its snare and hats get selective filtered,
+predelayed room returns and quiet phrase-end echoes. Sparse metal accents sit
+beneath the sampled motif. Cassette retains its laid-back timing and sampled keys.
+
+Neon's kick now uses recorded body instead of an exaggerated oscillator sweep;
+selected snare answers carry stereo delays. Tidal remains drumless, with softer
+plucked attacks, separate near/far returns and slowly moving filtered echoes.
+These effects are authored into the recordings and do not run in the app.
 
 ## Direction and playback
 
@@ -146,9 +168,12 @@ cannot overwrite newer sampled/native masters through the command line.
 stereo correlation, silence, loudness and true peaks.
 
 Earlier generation tools remain `compose-office-theme.py`,
-`compose-office-playlist.py` and `compose-office-encore.py`. After regenerating
-older additions, run `master-office-legacy.py`, then measure the library again.
-That trimming pass is idempotent.
+`compose-office-playlist.py` and `compose-office-encore.py`. The latter two use
+`cozy_percussion.py` and the same pinned VCSL cache, passed with `--sample-dir`
+or `LUCID_VCSL_DRUMS`. Their `--only` option can render selected recordings
+without deleting other metadata rows. After regenerating older additions, run
+`master-office-legacy.py`, then measure the library again. That trimming pass
+is idempotent.
 
 ## Verification
 

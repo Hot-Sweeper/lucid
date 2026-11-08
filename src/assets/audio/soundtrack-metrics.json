@@ -6,8 +6,68 @@
     "bpm": 88,
     "meter": 4,
     "seconds": 110.55126984126984,
-    "peakDbFS": -2.900209426879883,
-    "rmsDbFS": -19.916154861450195
+    "peakDbFS": -3.3498215675354004,
+    "rmsDbFS": -20.411762237548828,
+    "percussion": {
+      "revision": 2,
+      "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+      "license": "CC0-1.0",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "files": [
+        {
+          "file": "snare_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+          "bytes": 305304,
+          "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+        },
+        {
+          "file": "snare_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+          "bytes": 231264,
+          "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+        },
+        {
+          "file": "snare_medium_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr1_Mid.wav",
+          "bytes": 240496,
+          "sha256": "6ec8445cb207df8f1178d8c3894f47969fd53fb2b81c404317e466de4598dc3e"
+        },
+        {
+          "file": "snare_medium_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+          "bytes": 255456,
+          "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
+        },
+        {
+          "file": "bass_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+          "bytes": 281616,
+          "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+        },
+        {
+          "file": "bass_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+          "bytes": 302396,
+          "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+        }
+      ],
+      "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+      "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+      "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+      "hitCounts": {
+        "kick": 48,
+        "snare": 78,
+        "hat": 0
+      },
+      "auditionPerformed": false
+    }
   },
   {
     "id": "first-coffee",
@@ -16,8 +76,68 @@
     "bpm": 96,
     "meter": 3,
     "seconds": 92.21331065759637,
-    "peakDbFS": -3.884420871734619,
-    "rmsDbFS": -19.91618537902832
+    "peakDbFS": -3.9274163246154785,
+    "rmsDbFS": -19.916259765625,
+    "percussion": {
+      "revision": 2,
+      "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+      "license": "CC0-1.0",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "files": [
+        {
+          "file": "snare_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+          "bytes": 305304,
+          "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+        },
+        {
+          "file": "snare_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+          "bytes": 231264,
+          "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+        },
+        {
+          "file": "snare_medium_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr1_Mid.wav",
+          "bytes": 240496,
+          "sha256": "6ec8445cb207df8f1178d8c3894f47969fd53fb2b81c404317e466de4598dc3e"
+        },
+        {
+          "file": "snare_medium_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+          "bytes": 255456,
+          "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
+        },
+        {
+          "file": "bass_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+          "bytes": 281616,
+          "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+        },
+        {
+          "file": "bass_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+          "bytes": 302396,
+          "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+        }
+      ],
+      "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+      "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+      "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+      "hitCounts": {
+        "kick": 32,
+        "snare": 72,
+        "hat": 0
+      },
+      "auditionPerformed": false
+    }
   },
   {
     "id": "paper-kites",
@@ -26,8 +146,68 @@
     "bpm": 102,
     "meter": 4,
     "seconds": 95.9749433106576,
-    "peakDbFS": -2.8533496856689453,
-    "rmsDbFS": -19.9375057220459
+    "peakDbFS": -3.3498215675354004,
+    "rmsDbFS": -20.41680335998535,
+    "percussion": {
+      "revision": 2,
+      "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+      "license": "CC0-1.0",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "files": [
+        {
+          "file": "snare_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+          "bytes": 305304,
+          "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+        },
+        {
+          "file": "snare_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+          "bytes": 231264,
+          "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+        },
+        {
+          "file": "snare_medium_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr1_Mid.wav",
+          "bytes": 240496,
+          "sha256": "6ec8445cb207df8f1178d8c3894f47969fd53fb2b81c404317e466de4598dc3e"
+        },
+        {
+          "file": "snare_medium_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+          "bytes": 255456,
+          "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
+        },
+        {
+          "file": "bass_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+          "bytes": 281616,
+          "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+        },
+        {
+          "file": "bass_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+          "bytes": 302396,
+          "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+        }
+      ],
+      "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+      "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+      "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+      "hitCounts": {
+        "kick": 48,
+        "snare": 78,
+        "hat": 0
+      },
+      "auditionPerformed": false
+    }
   },
   {
     "id": "peach-parade",
@@ -36,8 +216,68 @@
     "bpm": 92,
     "meter": 4,
     "seconds": 105.9014739229025,
-    "peakDbFS": -2.899179220199585,
-    "rmsDbFS": -19.91869354248047
+    "peakDbFS": -3.3498215675354004,
+    "rmsDbFS": -20.363195419311523,
+    "percussion": {
+      "revision": 2,
+      "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+      "license": "CC0-1.0",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "files": [
+        {
+          "file": "snare_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+          "bytes": 305304,
+          "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+        },
+        {
+          "file": "snare_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+          "bytes": 231264,
+          "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+        },
+        {
+          "file": "snare_medium_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr1_Mid.wav",
+          "bytes": 240496,
+          "sha256": "6ec8445cb207df8f1178d8c3894f47969fd53fb2b81c404317e466de4598dc3e"
+        },
+        {
+          "file": "snare_medium_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+          "bytes": 255456,
+          "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
+        },
+        {
+          "file": "bass_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+          "bytes": 281616,
+          "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+        },
+        {
+          "file": "bass_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+          "bytes": 302396,
+          "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+        }
+      ],
+      "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+      "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+      "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+      "hitCounts": {
+        "kick": 48,
+        "snare": 78,
+        "hat": 0
+      },
+      "auditionPerformed": false
+    }
   },
   {
     "id": "apricot-hour",
@@ -46,8 +286,68 @@
     "bpm": 76,
     "meter": 4,
     "seconds": 127.40024943310658,
-    "peakDbFS": -2.8533496856689453,
-    "rmsDbFS": -20.388038635253906
+    "peakDbFS": -3.3498215675354004,
+    "rmsDbFS": -20.85300064086914,
+    "percussion": {
+      "revision": 2,
+      "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+      "license": "CC0-1.0",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "files": [
+        {
+          "file": "snare_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+          "bytes": 305304,
+          "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+        },
+        {
+          "file": "snare_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+          "bytes": 231264,
+          "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+        },
+        {
+          "file": "snare_medium_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr1_Mid.wav",
+          "bytes": 240496,
+          "sha256": "6ec8445cb207df8f1178d8c3894f47969fd53fb2b81c404317e466de4598dc3e"
+        },
+        {
+          "file": "snare_medium_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+          "bytes": 255456,
+          "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
+        },
+        {
+          "file": "bass_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+          "bytes": 281616,
+          "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+        },
+        {
+          "file": "bass_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+          "bytes": 302396,
+          "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+        }
+      ],
+      "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+      "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+      "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+      "hitCounts": {
+        "kick": 48,
+        "snare": 78,
+        "hat": 0
+      },
+      "auditionPerformed": false
+    }
   },
   {
     "id": "tram-home",
@@ -56,8 +356,68 @@
     "bpm": 82,
     "meter": 3,
     "seconds": 107.33820861678005,
-    "peakDbFS": -3.551600933074951,
-    "rmsDbFS": -19.90693473815918
+    "peakDbFS": -3.5303280353546143,
+    "rmsDbFS": -19.906993865966797,
+    "percussion": {
+      "revision": 2,
+      "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+      "license": "CC0-1.0",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "files": [
+        {
+          "file": "snare_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+          "bytes": 305304,
+          "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+        },
+        {
+          "file": "snare_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+          "bytes": 231264,
+          "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+        },
+        {
+          "file": "snare_medium_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr1_Mid.wav",
+          "bytes": 240496,
+          "sha256": "6ec8445cb207df8f1178d8c3894f47969fd53fb2b81c404317e466de4598dc3e"
+        },
+        {
+          "file": "snare_medium_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+          "bytes": 255456,
+          "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
+        },
+        {
+          "file": "bass_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+          "bytes": 281616,
+          "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+        },
+        {
+          "file": "bass_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+          "bytes": 302396,
+          "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+        }
+      ],
+      "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+      "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+      "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+      "hitCounts": {
+        "kick": 32,
+        "snare": 72,
+        "hat": 0
+      },
+      "auditionPerformed": false
+    }
   },
   {
     "id": "moonlit-desks",
@@ -86,8 +446,82 @@
     "bpm": 104,
     "meter": 4,
     "seconds": 130.92678004535148,
-    "peakDbFS": -4.276980876922607,
-    "rmsDbFS": -19.854326248168945
+    "peakDbFS": -4.267908573150635,
+    "rmsDbFS": -19.854402542114258,
+    "percussion": {
+      "revision": 2,
+      "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+      "license": "CC0-1.0",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "files": [
+        {
+          "file": "snare_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+          "bytes": 305304,
+          "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+        },
+        {
+          "file": "snare_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+          "bytes": 231264,
+          "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+        },
+        {
+          "file": "snare_medium_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr1_Mid.wav",
+          "bytes": 240496,
+          "sha256": "6ec8445cb207df8f1178d8c3894f47969fd53fb2b81c404317e466de4598dc3e"
+        },
+        {
+          "file": "snare_medium_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+          "bytes": 255456,
+          "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
+        },
+        {
+          "file": "hat_soft_1.wav",
+          "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+          "bytes": 247272,
+          "sha256": "e1fb54c9a030800038abcebbed1c056fb74bdeec627315f3cd5fd893c6e6b031"
+        },
+        {
+          "file": "hat_soft_2.wav",
+          "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+          "bytes": 250072,
+          "sha256": "72830eafed387f4b4b5904d4d6f1da23e13b48986fa1bc09d7c5771eafbb3a1a"
+        },
+        {
+          "file": "bass_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+          "bytes": 281616,
+          "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+        },
+        {
+          "file": "bass_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+          "bytes": 302396,
+          "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+        }
+      ],
+      "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+      "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+      "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+      "hitCounts": {
+        "kick": 80,
+        "snare": 90,
+        "hat": 280
+      },
+      "auditionPerformed": false
+    }
   },
   {
     "id": "cloud-arcade",
@@ -96,8 +530,82 @@
     "bpm": 110,
     "meter": 4,
     "seconds": 123.84759637188209,
-    "peakDbFS": -4.886874198913574,
-    "rmsDbFS": -19.84930992126465
+    "peakDbFS": -5.013177871704102,
+    "rmsDbFS": -19.84939193725586,
+    "percussion": {
+      "revision": 2,
+      "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+      "license": "CC0-1.0",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "files": [
+        {
+          "file": "snare_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+          "bytes": 305304,
+          "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+        },
+        {
+          "file": "snare_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+          "bytes": 231264,
+          "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+        },
+        {
+          "file": "snare_medium_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr1_Mid.wav",
+          "bytes": 240496,
+          "sha256": "6ec8445cb207df8f1178d8c3894f47969fd53fb2b81c404317e466de4598dc3e"
+        },
+        {
+          "file": "snare_medium_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+          "bytes": 255456,
+          "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
+        },
+        {
+          "file": "hat_soft_1.wav",
+          "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+          "bytes": 247272,
+          "sha256": "e1fb54c9a030800038abcebbed1c056fb74bdeec627315f3cd5fd893c6e6b031"
+        },
+        {
+          "file": "hat_soft_2.wav",
+          "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+          "bytes": 250072,
+          "sha256": "72830eafed387f4b4b5904d4d6f1da23e13b48986fa1bc09d7c5771eafbb3a1a"
+        },
+        {
+          "file": "bass_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+          "bytes": 281616,
+          "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+        },
+        {
+          "file": "bass_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+          "bytes": 302396,
+          "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+        }
+      ],
+      "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+      "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+      "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+      "hitCounts": {
+        "kick": 80,
+        "snare": 90,
+        "hat": 280
+      },
+      "auditionPerformed": false
+    }
   },
   {
     "id": "velvet-elevator",
@@ -105,9 +613,83 @@
     "period": "evening",
     "bpm": 86,
     "meter": 4,
-    "seconds": 158.12024943310658,
-    "peakDbFS": -4.664454936981201,
-    "rmsDbFS": -19.850635528564453
+    "seconds": 158.14637188208616,
+    "peakDbFS": -4.647578239440918,
+    "rmsDbFS": -19.850666046142578,
+    "percussion": {
+      "revision": 2,
+      "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+      "license": "CC0-1.0",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "files": [
+        {
+          "file": "snare_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+          "bytes": 305304,
+          "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+        },
+        {
+          "file": "snare_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+          "bytes": 231264,
+          "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+        },
+        {
+          "file": "snare_medium_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr1_Mid.wav",
+          "bytes": 240496,
+          "sha256": "6ec8445cb207df8f1178d8c3894f47969fd53fb2b81c404317e466de4598dc3e"
+        },
+        {
+          "file": "snare_medium_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+          "bytes": 255456,
+          "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
+        },
+        {
+          "file": "hat_soft_1.wav",
+          "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr1_Mid.wav",
+          "bytes": 247272,
+          "sha256": "e1fb54c9a030800038abcebbed1c056fb74bdeec627315f3cd5fd893c6e6b031"
+        },
+        {
+          "file": "hat_soft_2.wav",
+          "repositoryPath": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+          "bytes": 250072,
+          "sha256": "72830eafed387f4b4b5904d4d6f1da23e13b48986fa1bc09d7c5771eafbb3a1a"
+        },
+        {
+          "file": "bass_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+          "bytes": 281616,
+          "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+        },
+        {
+          "file": "bass_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+          "bytes": 302396,
+          "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+        }
+      ],
+      "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+      "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+      "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+      "hitCounts": {
+        "kick": 40,
+        "snare": 90,
+        "hat": 280
+      },
+      "auditionPerformed": false
+    }
   },
   {
     "id": "lantern-carousel",
@@ -116,8 +698,54 @@
     "bpm": 78,
     "meter": 3,
     "seconds": 131.94555555555556,
-    "peakDbFS": -4.904646873474121,
-    "rmsDbFS": -19.854185104370117
+    "peakDbFS": -4.891988754272461,
+    "rmsDbFS": -19.854190826416016,
+    "percussion": {
+      "revision": 2,
+      "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+      "license": "CC0-1.0",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "files": [
+        {
+          "file": "snare_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+          "bytes": 305304,
+          "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+        },
+        {
+          "file": "snare_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+          "bytes": 231264,
+          "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+        },
+        {
+          "file": "bass_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+          "bytes": 281616,
+          "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+        },
+        {
+          "file": "bass_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+          "bytes": 302396,
+          "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+        }
+      ],
+      "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+      "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+      "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+      "hitCounts": {
+        "kick": 40,
+        "snare": 80,
+        "hat": 0
+      },
+      "auditionPerformed": false
+    }
   },
   {
     "id": "the-last-constellation",
@@ -126,7 +754,53 @@
     "bpm": 72,
     "meter": 4,
     "seconds": 188.68351473922903,
-    "peakDbFS": -3.6325621604919434,
-    "rmsDbFS": -19.847930908203125
+    "peakDbFS": -3.6301791667938232,
+    "rmsDbFS": -19.847938537597656,
+    "percussion": {
+      "revision": 2,
+      "source": "Recorded VCSL acoustic hits, no generated drum oscillators/noise",
+      "license": "CC0-1.0",
+      "repository": "https://github.com/sgossner/VCSL",
+      "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "files": [
+        {
+          "file": "snare_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr1_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr1_Mid.wav",
+          "bytes": 305304,
+          "sha256": "3d71765aa0d1e13260abeb003720aef0841432df601883177bf70e97d9af6c99"
+        },
+        {
+          "file": "snare_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v3_rr2_Mid.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
+          "bytes": 231264,
+          "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+        },
+        {
+          "file": "bass_soft_1.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+          "bytes": 281616,
+          "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+        },
+        {
+          "file": "bass_soft_2.wav",
+          "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+          "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+          "bytes": 302396,
+          "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+        }
+      ],
+      "dynamicCalibration": "One peak reference per drum family, retaining source velocity and alternate-take differences",
+      "kick": "Damped recorded soft bass drum, centered and dry, no imposed pitch sweep",
+      "space": "12ms-predelayed filtered short upper-percussion room and selected phrase-end half-beat echoes",
+      "hitCounts": {
+        "kick": 40,
+        "snare": 40,
+        "hat": 0
+      },
+      "auditionPerformed": false
+    }
   }
 ]

@@ -433,13 +433,20 @@ def tidal_memory():
 
 def petal_breaks(sample_dir=None):
     from acoustic_breaks import AcousticBreak
-    from music_production import process_stem, center_low_end
+    from music_production import process_stem, center_low_end, room_send
     s=Score(164,[('petal drift',8),('first fracture',24),('open sky',8),('glass garden',16),('still centre',8),('bloom fragments',24),('falling petals',8)])
     kit=AcousticBreak(sample_dir, s.bpm)
     edits=[]
+    room_input=np.zeros_like(s.drums)
+    throws=0
+    def send_room(signal,at,gain=1):
+        start=round(at*s.beat*RATE); skip=max(0,-start); start=max(0,start)
+        length=min(len(signal)-skip,s.frames-start)
+        if length>0: room_input[start:start+length]+=signal[skip:skip+length]*gain
     cymbal_level=1
     def break_phrase(at, source, beats, gain=1, reverse=False, speed=1):
         s.put(kit.fragment(source,beats,reverse=reverse,speed=speed,cymbals=cymbal_level),at,gain,drums=True)
+        send_room(kit.fragment(source,beats,reverse=reverse,speed=speed,stem='room'),at,gain)
         edits.append(dict(beat=at,sourceBeat=source,beats=beats,reverse=reverse,speed=speed))
     harmony=[[50,57,60,65,69],[46,53,57,60,65],[53,60,64,67,72],[48,55,58,62,67],
              [43,50,53,57,62],[46,53,57,62,65],[45,52,55,60,64],[45,52,57,61,64]]
@@ -505,10 +512,20 @@ def petal_breaks(sample_dir=None):
                 break_phrase(at,source,4,level)
             if i==0:
                 s.put(kit.hit('crash',.8),at,.7,drums=True)
+            if position==7:
+                # A quiet dotted-eighth answer on the turnaround only. Filter
+                # the actual snare phrase, leaving kick and bass out of delays.
+                throw=band(kit.fragment(3,.5,stem='room').mean(axis=1),500,4300)
+                edge=min(round(.007*RATE),len(throw))
+                throw[-edge:]*=np.linspace(1,0,edge,dtype=np.float32)
+                for delay,gain,pan in [(.75,.065,-.23),(1.5,.027,.23)]:
+                    s.put(throw,at+2.5+delay,level*gain,pan,drums=True)
+                throws+=1
         elif sec=='open sky':
             # A genuine half-time reset separates the two full-speed passages.
             for pos in [0,2.75]: s.put(kit.hit('kick',.7,i),at+pos,.49,drums=True)
             s.put(kit.hit('snare',.54,i),at+2,.55,drums=True)
+            send_room(kit.hit('snare',.54,i),at+2,.55)
             if i%2:
                 s.put(kit.hit('open',.5,i),at+3.5,.55,drums=True)
         elif sec=='petal drift' and i>=4:
@@ -533,15 +550,27 @@ def petal_breaks(sample_dir=None):
     s.music[:,0]+=side*.35; s.music[:,1]-=side*.35
     s.music=center_low_end(s.music,RATE,cutoff_hz=180)
     s.drums=process_stem(s.drums*1.85,RATE,role='drums',room='none')
-    s.production=dict(revision=3,drumSource='Original eight-bar performance from separate VCSL acoustic hits',
+    # A parallel room belongs only to the snare/tom bus. Its filtered return
+    # continues past the phrase cuts; no reverb is placed on the kick or sub.
+    room_input*=1.85
+    wet_room=room_send(room_input,RATE,room='small',send=.13)-room_input
+    room_return_rms=float(np.sqrt(np.mean(wet_room.astype(np.float64)**2)))
+    s.drums+=wet_room
+    del wet_room,room_input
+    s.production=dict(revision=4,drumSource='Original eight-bar performance from separate VCSL acoustic hits',
                       sourceLicense=kit.manifest['license'],sourceCommit=kit.manifest['commit'],
                       sourceManifest='scripts/assets/vcsl-drums.json',sourceHitCount=len(kit.manifest['files']),
                       sourcePerformanceEvents=len(kit.events),phraseBars=8,
                       snareVelocityLayers=3,alternateTakes=2,phraseEdits=len(edits),
+                      sampleCalibration='One shared gain per instrument/articulation against its strongest recorded layer; relative take and velocity amplitudes retained',
+                      velocityResponse='Continuous blending of recorded soft, medium and main layers; no independent per-hit peak normalization',
+                      kickProduction='Real damped acoustic body, exact mono, no synthetic pitched reinforcement and no room/delay send',
+                      percussionRoom='Short filtered Pedalboard room on snare and tom material only, parallel send 0.13',
+                      roomReturnRMS=room_return_rms,phraseEndThrows=throws,
                       cymbalDevelopment='Restrained first break, quieter bell-led middle, open final return',
                       reversedFragments=sum(edit['reverse'] for edit in edits),
                       rateChangedFragments=sum(edit['speed']!=1 for edit in edits),
-                      drumProcessing='Pedalboard 0.9.26, 27 Hz high-pass, 1.35:1 transient-preserving compression, dry',
+                      drumProcessing='Pedalboard 0.9.26, 27 Hz high-pass, 1.35:1 transient-preserving compression, selective parallel snare/tom room',
                       rhythm='Performed syncopation and soft ghost strokes, eight-bar call and response, restrained phrase-end retriggers, half-time and drumless contrasts')
     return s,s.finish(12500)
 

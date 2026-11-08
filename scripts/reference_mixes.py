@@ -19,6 +19,7 @@ import tempfile
 import wave
 import numpy as np
 from scipy.signal import butter, sosfilt, resample_poly, stft, find_peaks
+from pedalboard import Pedalboard, PeakFilter, Reverb, HighpassFilter, LowpassFilter
 from music_production import process_stem, center_low_end
 
 RATE = 44100
@@ -26,6 +27,9 @@ OUT = Path(__file__).resolve().parents[1] / 'src/assets/audio'
 SF = None
 DRUMS = None
 USED_SAMPLES = set()
+# One recording gain per physical instrument, shared by every velocity and
+# alternate take. A quiet played stroke must stay quieter than a hard stroke.
+KIT_RECORDING_GAIN = {'bass':2.30, 'snare':3.33, 'hat':2.48}
 
 
 def filt(audio, low=None, high=None):
@@ -80,11 +84,11 @@ def kit(name):
     raw = subprocess.check_output(['ffmpeg','-v','error','-i',str(DRUMS/(name+'.wav')),
                                    '-ar',str(RATE),'-ac','2','-f','f32le','-'])
     audio = np.frombuffer(raw,dtype='<f4').reshape(-1,2).copy()
-    # Trim leading air and preserve recorded attack, then retain the natural
-    # decay. Peak scaling is consistent across round robins of the same role.
+    # Trim leading air, retaining 2.7 ms before the recorded attack. Do not
+    # normalize individual hits: that previously erased the played dynamics.
     active = np.flatnonzero(np.max(np.abs(audio),axis=1)>10**(-52/20))
     if len(active): audio = audio[max(0,active[0]-120):active[-1]+240]
-    return audio / max(.08,float(np.max(np.abs(audio))))
+    return audio * KIT_RECORDING_GAIN[name.split('_')[0]]
 
 
 def scale_stem(audio, target):
@@ -104,6 +108,8 @@ class Arrangement:
             bar+=bars
         self.bars=bar;self.frames=round((bar*4*self.beat+tail)*RATE)
         self.stems={};self.notes={};self.events=[];self.rng=np.random.default_rng(seed)
+        self.drum_rng=np.random.default_rng(seed+271);self.percussion_events=[]
+        self.percussion_metrics={};self.motif_throws=[]
     def stem(self,name):
         if name not in self.stems:self.stems[name]=np.zeros((self.frames,2),dtype=np.float32)
         return self.stems[name]
@@ -152,13 +158,118 @@ def sampled_phrase_tape(audio, beat):
     return np.tanh(result*1.12)/1.12
 
 
-def drum_hit(score,name,at,level,pan=0,short=None,lowpass=None):
-    audio=kit(name)
+@lru_cache(maxsize=192)
+def shaped_drum(name,short,lowpass):
+    """Keep the recorded transient, control acoustic ringing and cymbal wash."""
+    audio=kit(name).copy();family=name.split('_')[0]
+    t=np.arange(len(audio),dtype=np.float64)/RATE
+    if family=='bass':
+        # These are recorded concert-bass-drum hits with a long 80-90 Hz ring.
+        # A damped body retains their real impact without a boomy sustained tone.
+        audio=np.repeat(audio.mean(axis=1)[:,None],2,axis=1)
+        audio=filt(audio,low=31,high=min(lowpass or 3400,3400))
+        audio*=np.exp(-np.maximum(t-.065,0)/.105).astype(np.float32)[:,None]
+        audio=Pedalboard([PeakFilter(235,gain_db=-2.2,q=.85)])(audio.T,RATE,reset=True).T
+        onset=min(len(audio),round(.002*RATE))
+        audio[:onset]*=np.sin(np.linspace(0,np.pi/2,onset,dtype=np.float32))[:,None]
+    elif family=='snare':
+        audio=filt(audio,low=115,high=lowpass or 10500)
+        audio=Pedalboard([PeakFilter(215,gain_db=-2.3,q=2.0),PeakFilter(335,gain_db=-1.5,q=2.7)])(
+            audio.T,RATE,reset=True).T
+        audio*=np.exp(-np.maximum(t-.075,0)/.16).astype(np.float32)[:,None]
+    else:
+        # Recorded hats include low shell/stand energy. Leave the stick detail
+        # and metallic air while removing the low-mid gong-like ring.
+        audio=filt(audio,low=760,high=lowpass or 11200)
     if short:
         audio=audio[:round(short*RATE)].copy();fade=min(len(audio),round(.025*RATE))
-        audio[-fade:]*=np.linspace(1,0,fade,dtype=np.float32)[:,None]
-    if lowpass:audio=filt(audio,high=lowpass)
-    score.put('drums',audio,at,level,pan)
+        audio[-fade:]*=(.5+.5*np.cos(np.linspace(0,np.pi,fade,dtype=np.float32)))[:,None]
+    return np.ascontiguousarray(audio,dtype=np.float32)
+
+
+def drum_hit(score,name,at,level,pan=0,short=None,lowpass=None,room=0,delay=0):
+    USED_SAMPLES.add(name)
+    family={'bass':'kick','snare':'snare','hat':'hats'}[name.split('_')[0]]
+    audio=shaped_drum(name,short,lowpass)
+    jitter=.0012 if family=='kick' else .0025
+    at+=float(score.drum_rng.uniform(-jitter,jitter))/score.beat
+    level*=float(score.drum_rng.uniform(.95,1.045))
+    score.put(family,audio,at,level,0 if family=='kick' else pan)
+    # Kicks never enter a reverb or delay bus. The send is written by the
+    # performance, so only chosen backbeats and cymbal openings gain space.
+    if family!='kick':
+        if room:score.put(family+' room feed',audio,at,level*room,pan)
+        if delay:score.put(family+' delay feed',audio,at,level*delay,pan)
+    score.percussion_events.append(dict(beat=at,kind=family,source=name,level=level,room=room,delay=delay,
+                                       maximumSeconds=short,lowpassHz=lowpass))
+
+
+def calibrated_stem(audio,target):
+    scaled=scale_stem(audio,target)
+    peak=float(np.max(np.abs(audio)))
+    gain=float(np.max(np.abs(scaled)))/peak if peak>1e-12 else 1
+    return scaled,gain
+
+
+def percussion_finish(score,lunar=False):
+    """Separate dry recorded shells and hats from selected filtered returns."""
+    targets={'kick':.031 if lunar else .029,'snare':.022,'hats':.012 if lunar else .009}
+    room_feed=np.zeros((score.frames,2),dtype=np.float32);delay_feed=np.zeros_like(room_feed)
+    buses={}
+    for family,target in targets.items():
+        audio,gain=calibrated_stem(score.stem(family),target)
+        # Compression is gentle and belongs to snare/hat buses only. The kick
+        # remains dry, mono and free of pitch, distortion, chorus or room FX.
+        score.stems[family]=process_stem(audio,RATE,'bass' if family=='kick' else 'drums',room='none')
+        for destination,feed in [('room',room_feed),('delay',delay_feed)]:
+            name=family+' '+destination+' feed'
+            if name in score.stems:feed+=score.stems.pop(name)*gain
+        produced=score.stems[family]
+        windows=produced[:len(produced)//441*441].reshape(-1,441,2)
+        peaks=np.max(np.abs(windows),axis=(1,2))
+        live=np.flatnonzero(peaks>1e-5)
+        buses[family]=dict(targetActiveRMS=target,performanceGain=gain,
+                           peakDbFS=float(20*np.log10(max(np.max(np.abs(produced)),1e-12))),
+                           active10msWindows=len(live),events=sum(e['kind']==family for e in score.percussion_events),
+                           wet=False if family=='kick' else 'Selected separate sends')
+    # Predelay separates the recorded backbeat from its ambience. Return EQ
+    # removes low energy before the algorithmic room and darkens the tail.
+    wet=Pedalboard([HighpassFilter(460),Reverb(room_size=.34 if lunar else .23,damping=.79,
+                                             wet_level=1,dry_level=0,width=1),LowpassFilter(4900)])(
+        room_feed.T,RATE,buffer_size=8192,reset=True).T
+    offset=round((.024 if lunar else .014)*RATE)
+    returned=np.zeros_like(wet);returned[offset:]=wet[:-offset]
+    score.stems['selected percussion room']=returned
+    echoes=np.zeros_like(delay_feed)
+    for beats,level,cut in [(.75,.72,4500),(1.5,.34,3300),(2.25,.13,2500)]:
+        offset=round(beats*score.beat*RATE)
+        echoes[offset:]+=filt(delay_feed[:-offset],low=600,high=cut)[:,::-1]*level
+    score.stems['selected percussion echoes']=echoes
+    score.percussion_metrics=dict(recordingGainByInstrument=KIT_RECORDING_GAIN,
+                                  individualSampleNormalization=False,kickPitchProcessing=False,
+                                  kickRoomSend=0,kickDelaySend=0,buses=buses,
+                                  roomPredelayMs=24 if lunar else 14,roomReturnBandHz=[460,4900],
+                                  delayBeatOffsets=[.75,1.5,2.25],delayReturnHighpassHz=600,
+                                  timingVariationMs={'kick':1.2,'snare':2.5,'hats':2.5},
+                                  noSimultaneousOpenAndClosedHat=True,
+                                  selectedRoomEvents=sum(e['room']>0 for e in score.percussion_events),
+                                  selectedDelayEvents=sum(e['delay']>0 for e in score.percussion_events),
+                                  primaryProductionReferences=[
+                                      'https://www.toontrack.com/blog/how-to-program-drums/',
+                                      'https://www.izotope.com/community/blog/9-tips-for-using-reverb-with-drums',
+                                      'https://www.izotope.com/community/blog/reverb-pre-delay'])
+    diagnostics={}
+    for name in sorted({event['source'] for event in score.percussion_events}):
+        event=next(event for event in score.percussion_events if event['source']==name)
+        raw=kit(name);shaped=shaped_drum(name,event['maximumSeconds'],event['lowpassHz'])
+        row=dict(sourcePeakAfterSharedGainDbFS=float(20*np.log10(max(np.max(np.abs(raw)),1e-12))),
+                 shapedPeakDbFS=float(20*np.log10(max(np.max(np.abs(shaped)),1e-12))))
+        if name.startswith('bass'):
+            body=np.sqrt(np.mean(shaped[round(.03*RATE):round(.11*RATE)].astype(np.float64)**2))
+            late=np.sqrt(np.mean(shaped[round(.15*RATE):round(.26*RATE)].astype(np.float64)**2))
+            row['late150To260msVersusBody30To110msDb']=float(20*np.log10(max(late,1e-12)/max(body,1e-12)))
+        diagnostics[name]=row
+    score.percussion_metrics['recordedHitDiagnostics']=diagnostics
 
 
 def cassette_clouds():
@@ -210,21 +321,28 @@ def cassette_clouds():
         if active:
             kicks=([0,1.74,2.52] if i%2==0 else [0,.78,2.76])
             for j,pos in enumerate(kicks):
-                drum_hit(score,'bass_soft_'+str(1+(i+j)%2),at+pos,.20 if j==0 else .15,short=.32,lowpass=5800)
+                accent=section in ('sunny hook','homecoming') and i%4==0 and j==0
+                sample=('bass_main_' if accent else 'bass_soft_')+str(1+(i+j)%2)
+                drum_hit(score,sample,at+pos,.10 if accent else .20 if j==0 else .14,short=.34,lowpass=3200)
             for j,pos in enumerate([1.045,3.055]):
-                drum_hit(score,'snare_medium_'+str(1+(i+j)%2),at+pos,.115,-.09,short=.23,lowpass=7200)
+                drum_hit(score,'snare_medium_'+str(1+(i+j)%2),at+pos,.115*(1.05 if i%4==3 else .97),-.09,
+                         short=.25,lowpass=7600,room=.12 if j else .065,
+                         delay=.14 if j==1 and i%4==3 else 0)
             if i%2:
-                drum_hit(score,'snare_soft_'+str(1+i%2),at+2.87,.037,-.18,short=.12,lowpass=6400)
+                drum_hit(score,'snare_soft_'+str(1+i%2),at+2.87,.050,-.18,short=.15,lowpass=6800)
             for step in range(8):
+                if step==5 and section in ('sunny hook','homecoming') and i%2==0:continue
                 pos=step*.5+(.073 if step%2 else 0)+float(score.rng.uniform(-.012,.013))
-                drum_hit(score,'hat_soft_'+str(1+(i+step)%2),at+pos,.038 if step%2 else .028,.32,short=.095)
+                drum_hit(score,'hat_soft_'+str(1+(i+step)%2),at+pos,.043 if step%2 else .031,.32,short=.115)
             if i%4==3:
                 for j,pos in enumerate([3.49,3.71]):
-                    drum_hit(score,'hat_main_'+str(1+j%2),at+pos,.023,-.25+j*.3,short=.07)
+                    drum_hit(score,'hat_main_'+str(1+j%2),at+pos,.017,-.25+j*.3,short=.085,
+                             delay=.075 if j==1 else 0)
             if section in ('sunny hook','homecoming') and i%2==0:
-                drum_hit(score,'hat_loose_'+str(1+i%2),at+2.58,.032,-.28,short=.20,lowpass=7600)
+                drum_hit(score,'hat_loose_'+str(1+i%2),at+2.58,.018,-.28,short=.23,lowpass=8500,room=.07)
         elif section=='tape interlude' and i>=4:
-            drum_hit(score,'snare_soft_'+str(1+i%2),at+3.06,.052,-.15,short=.20,lowpass=6200)
+            drum_hit(score,'snare_soft_'+str(1+i%2),at+3.06,.065,-.15,short=.22,lowpass=6800,
+                     room=.13,delay=.13 if i%4==3 else 0)
             for pos in [.57,1.57,2.57,3.57]:
                 drum_hit(score,'hat_soft_'+str(1+i%2),at+pos,.023,.30,short=.075)
     end=score.bars*4
@@ -242,7 +360,7 @@ def cassette_clouds():
                                        room='none' if name=='acoustic bass' else 'chamber' if name=='electric piano' else 'small',
                                        send=.18 if name=='electric piano' else .12,
                                        chorus=name=='electric piano')
-    score.stems['drums']=process_stem(scale_stem(score.stem('drums'),.046),RATE,'drums',room='small',send=.035)
+    percussion_finish(score)
     # Sparse reverse swells use only our own newly recorded EP, beneath the B
     # section entrances. They are not lifted from any reference recording.
     own=score.stems['electric piano'];swells=np.zeros_like(own)
@@ -279,12 +397,14 @@ def lunar_voice(pitch,seconds,kind):
     return (body*env*np.clip((seconds-t)/.035,0,1)).astype(np.float32)
 
 
-def clean_sub(pitch,seconds,previous=None):
+def clean_sub(pitch,seconds):
+    """Stable-pitch bass, with rounded onset and release, not a swept kick."""
     t=np.arange(round(seconds*RATE),dtype=np.float64)/RATE;hz=440*2**((pitch-69)/12)
-    start=hz if previous is None else 440*2**((previous-69)/12)
-    hz_t=hz+(start-hz)*np.exp(-t/.045);phase=2*np.pi*np.cumsum(hz_t)/RATE
-    body=np.sin(phase)+.105*np.sin(phase*2)+.035*np.sin(phase*3)
-    env=(1-np.exp(-270*t))*np.exp(-t/1.5)*np.clip((seconds-t)/.055,0,1)
+    phase=2*np.pi*hz*t
+    body=np.sin(phase)+.070*np.sin(phase*2)+.015*np.sin(phase*3)
+    attack=np.sin(np.minimum(t/.011,1)*np.pi/2)**2
+    release=np.sin(np.minimum(np.maximum(seconds-t,0)/.085,1)*np.pi/2)**2
+    env=attack*np.exp(-t/1.5)*release
     return (body*env).astype(np.float32)
 
 
@@ -307,7 +427,7 @@ def midnight_drift():
             [(.75,78,.5),(2,82,.6),(3.25,78,.45)],[(0,78,.7),(2,75,1.1)],
             [(.5,80,.55),(1.75,78,.45),(3,75,.65)],[(0,78,.6),(1.5,75,.6),(3,70,.7)],
             [(.5,73,.7),(2,70,1.1)],[(.5,74,.7),(2,75,1.6)]]
-    previous=39;kicks=[]
+    kicks=[]
     for section,i,bar in score.each():
         at=bar*4;sparse=section in ('streetlight','underpass','distant lights')
         chord=(bridge if section=='side street' else harmony)[i%8]
@@ -322,28 +442,40 @@ def midnight_drift():
         if sparse:pattern=[(0,3.0,0)]
         for j,(pos,held,offset) in enumerate(pattern):
             pitch=root+offset
-            score.put('sub',clean_sub(pitch,held*score.beat,previous),at+pos,.23 if j==0 else .17)
-            previous=pitch;score.record('clean sliding 808',pitch,at+pos,held)
+            score.put('sub',clean_sub(pitch,held*score.beat),at+pos+.012,.23 if j==0 else .17)
+            score.record('rounded stable-pitch sub',pitch,at+pos+.012,held)
         if not sparse:
             # Main snare on 2/4 at 74 BPM, fine hats establish the 148 BPM
             # movement. Recorded velocities/round robins keep the pocket alive.
-            kick_pattern=[0,1.73,2.51] if i%2==0 else [0,.77,2.76,3.49]
+            kick_pattern=[0,1.73,2.51] if i%2==0 else [0,.77,2.76]
+            if section=='night bloom' and i%4==3:kick_pattern.append(3.49)
             for j,pos in enumerate(kick_pattern):
-                drum_hit(score,'bass_main_'+str(1+(i+j)%2),at+pos,.17 if j==0 else .13,short=.22,lowpass=7200)
+                sample=('bass_main_' if j==0 else 'bass_soft_')+str(1+(i+j)%2)
+                drum_hit(score,sample,at+pos,.13 if j==0 else .25,short=.30,lowpass=3100)
                 kicks.append((at+pos)*score.beat)
             for j,pos in enumerate([1.015,3.022]):
-                drum_hit(score,'snare_dry_'+str(1+(i+j)%2),at+pos,.17,-.06,short=.18)
+                # The softer center-hit sample carries the relaxed backbeat;
+                # the harder dry articulation is reserved for phrase arrivals.
+                accent=i%4==3 and j==1 and section!='side street'
+                sample=('snare_dry_' if accent else 'snare_medium_')+str(1+(i+j)%2)
+                drum_hit(score,sample,at+pos,.075 if accent else .16,-.06,short=.24,
+                         lowpass=9200,room=.18 if j else .07,
+                         delay=.18 if j==1 and i%4==3 else 0)
             if i%2:
-                drum_hit(score,'snare_soft_'+str(1+i%2),at+2.84,.056,.15,short=.09,lowpass=8500)
+                drum_hit(score,'snare_soft_'+str(1+i%2),at+2.84,.066,.15,short=.14,lowpass=8500)
             for step in range(16):
-                if step in (6,14) and i%2==0:continue
+                if step==2 or step in (6,14) and i%2==0:continue
+                if i%4==3 and step in (14,15):continue
+                if section=='side street' and step in (5,11,15):continue
                 pos=step*.25+(.025 if step%2 else 0)+float(score.rng.uniform(-.006,.008))
-                drum_hit(score,'hat_main_'+str(1+(i+step)%2),at+pos,
-                         .076 if step%4==0 else .057 if step%2==0 else .038,.30 if step%2 else .12,short=.085)
-            drum_hit(score,'hat_loose_'+str(1+i%2),at+.52,.068,-.34,short=.18)
+                sample=('hat_soft_' if step%2 else 'hat_main_')+str(1+(i+step)%2)
+                drum_hit(score,sample,at+pos,.060 if step%4==0 else .043 if step%2==0 else .075,
+                         .30 if step%2 else .12,short=.10)
+            drum_hit(score,'hat_loose_'+str(1+i%2),at+.52,.025,-.34,short=.20,room=.055)
             if i%4==3:
                 for j,pos in enumerate([3.52,3.65,3.77,3.90]):
-                    drum_hit(score,'hat_soft_'+str(1+j%2),at+pos,.054-j*.005,-.32+j*.15,short=.060)
+                    drum_hit(score,'hat_soft_'+str(1+j%2),at+pos,.072-j*.007,-.32+j*.15,short=.075,
+                             delay=.10 if j==3 else 0)
             phrase=answer if section=='side street' else hook
             for event,(pos,pitch,held) in enumerate(phrase[i%8]):
                 if section=='cruise' and i%4==3 and event==2:continue
@@ -351,8 +483,10 @@ def midnight_drift():
                 # one authored motif; changing register answers the A theme.
                 if section=='side street':pitch-=12
                 score.put('lunar motif',lunar_voice(pitch,round((held+.7)*score.beat,3),'bell'),at+pos,.079,.15)
-                score.put('cowbell edge',lunar_voice(pitch,round(.48*score.beat,3),'cowbell'),at+pos,.027,-.10)
+                if event==0 or (i+event)%3==0:
+                    score.put('cowbell edge',lunar_voice(pitch,round(.48*score.beat,3),'cowbell'),at+pos,.016,-.10)
                 score.note('sampled moon motif',pitch,at+pos,held+.15,58+int(score.rng.integers(-4,5)))
+                if event==len(phrase[i%8])-1 and i%4==3:score.motif_throws.append(at+pos)
                 score.record('rounded bell and cowbell motif',pitch,at+pos,held)
             if section=='night bloom' and i%2:
                 for pos,pitch in [(1.27,chord[2]+12),(3.37,chord[1]+12)]:
@@ -361,7 +495,8 @@ def midnight_drift():
             if i%2==0:
                 score.note('vibraphone answer',chord[2]+12,at+1.1,2.1,48)
             if section=='underpass' and i>=4:
-                drum_hit(score,'snare_soft_'+str(1+i%2),at+3.02,.060,-.1,short=.18)
+                drum_hit(score,'snare_soft_'+str(1+i%2),at+3.02,.075,-.1,short=.21,
+                         room=.21,delay=.20 if i%4==3 else 0)
                 for pos in [.5,1.5,2.5,3.5]:
                     drum_hit(score,'hat_soft_'+str(1+i%2),at+pos,.024,.25,short=.07)
     end=score.bars*4
@@ -374,21 +509,40 @@ def midnight_drift():
     score.stems['vibraphone answer']=process_stem(scale_stem(pingpong(score.stems['vibraphone answer'],score.beat,.24),.014),
                                                 RATE,'keys',room='bloom',send=.15)
     score.stems['sampled moon motif']=sampled_instrument(score.notes['sampled moon motif'],score.frames,11,.18)
-    score.stems['sampled moon motif']=process_stem(scale_stem(pingpong(score.stems['sampled moon motif'],score.beat,.28),.026),
+    # Open selected phrase endings with dark tempo-locked echoes, while the
+    # main sampled theme stays clearer between those musical responses.
+    response_feed=np.zeros((score.frames,2),dtype=np.float32)
+    for beat in score.motif_throws:
+        start=round(beat*score.beat*RATE);n=min(round(.85*score.beat*RATE),score.frames-start)
+        part=score.stems['sampled moon motif'][start:start+n].copy()
+        edge=min(round(.015*RATE),n//3)
+        part[:edge]*=np.linspace(0,1,edge,dtype=np.float32)[:,None]
+        part[-edge:]*=np.linspace(1,0,edge,dtype=np.float32)[:,None]
+        response_feed[start:start+n]+=part
+    score.stems['sampled moon motif']=process_stem(scale_stem(pingpong(score.stems['sampled moon motif'],score.beat,.16),.026),
                                                  RATE,'keys',room='small',send=.11)
+    response=pingpong(response_feed,score.beat,.48)-response_feed
+    score.stems['motif response echoes']=process_stem(scale_stem(response,.007),RATE,'lead',room='chamber',send=.11)
     score.stems['lunar pads']=process_stem(scale_stem(score.stem('lunar pads'),.034),RATE,'pads',room='bloom',send=.20,chorus=True)
-    score.stems['lunar motif']=process_stem(scale_stem(pingpong(score.stem('lunar motif'),score.beat,.31),.014),
+    score.stems['lunar motif']=process_stem(scale_stem(pingpong(score.stem('lunar motif'),score.beat,.25),.010),
                                           RATE,'lead',room='small',send=.07)
     score.stems['cowbell edge']=process_stem(score.stem('cowbell edge'),RATE,'lead',room='none')
     score.stems['sub']=process_stem(scale_stem(score.stem('sub'),.075),RATE,'bass')
-    # Leave kick attack room in the 808, with smooth short release. No other
-    # stem receives this envelope, preserving the atmospheric harmonic stage.
+    # A short look-ahead ramp avoids abruptly cutting an already sounding
+    # bass wave when a kick arrives. Only sub receives this smooth envelope.
     duck=np.ones(score.frames,dtype=np.float32)
     for at in kicks:
-        start=round(at*RATE);n=min(round(.13*RATE),score.frames-start)
-        if n>0:duck[start:start+n]=np.minimum(duck[start:start+n],1-.40*np.exp(-np.arange(n)/(.035*RATE)))
+        start=round(at*RATE)-round(.006*RATE)
+        down=.5+.5*np.cos(np.linspace(0,np.pi,round(.006*RATE),dtype=np.float32))
+        up=.5-.5*np.cos(np.linspace(0,np.pi,round(.125*RATE),dtype=np.float32))
+        shape=np.concatenate((.58+.42*down,np.full(round(.018*RATE),.58,np.float32),.58+.42*up))
+        skip=max(0,-start);start=max(0,start);n=min(len(shape)-skip,score.frames-start)
+        if n>0:duck[start:start+n]=np.minimum(duck[start:start+n],shape[skip:skip+n])
     score.stems['sub']*=duck[:,None]
-    score.stems['drums']=process_stem(scale_stem(score.stem('drums'),.044),RATE,'drums',room='small',send=.04)
+    percussion_finish(score,lunar=True)
+    score.percussion_metrics.update(subPitchSweepOnAttack=False,subAttackMs=11,subReleaseMs=85,
+                                    kickSubDuck=dict(lookaheadMs=6,holdMs=18,recoveryMs=125,minimumGain=.58),
+                                    motifResponseThrows=len(score.motif_throws),cowbell='Quiet sparse accents under the sampled motif')
     lunar_voice.cache_clear()
     return score
 
@@ -466,7 +620,7 @@ TRACKS=[dict(id='cassette-clouds',title='Cassette Clouds',genre='lofi',bpm=82,ke
              period='day',energy=.32,textures=['sampled electric piano','nylon guitar','tape phrases','swung acoustic drums'],
              render=cassette_clouds),
         dict(id='midnight-drift',title='Midnight Drift',genre='phonk',bpm=74,key=3,mode='minor',meter=4,
-             period='night',energy=.51,textures=['lunar pads','pitched metal motif','clean sliding sub','sampled drums'],
+             period='night',energy=.51,textures=['lunar pads','pitched metal motif','rounded sub bass','sampled drums'],
              render=midnight_drift)]
 
 
@@ -487,7 +641,7 @@ def main():
     old=OUT/'reference-mix-metrics.json';results={r['id']:r for r in json.loads(old.read_text())} if old.exists() else {}
     for track in TRACKS:
         if args.only and args.only!=track['id']:continue
-        USED_SAMPLES.clear();kit.cache_clear()
+        USED_SAMPLES.clear();kit.cache_clear();shaped_drum.cache_clear()
         print('Rendering '+track['title'],flush=True);score=track['render']();audio=master(score)
         destination=OUT/(track['id']+'.mp3')
         with tempfile.TemporaryDirectory(prefix='lucid-reference-master-') as directory:
@@ -509,13 +663,14 @@ def main():
                              'rmsDbFS':float(20*np.log10(np.sqrt(np.mean(decoded[start:end].astype(np.float64)**2)))),
                              'instruments':sorted({event['instrument'] for event in events}),'tonalOnsets':len(events)})
         row={key:value for key,value in track.items() if key!='render'}
-        row.update(seconds=len(decoded)/RATE,revision=3,sections=sections,
+        row.update(seconds=len(decoded)/RATE,revision=4,sections=sections,
                    peakDbFS=float(20*np.log10(np.max(np.abs(decoded)))),
                    rmsDbFS=float(20*np.log10(np.sqrt(np.mean(decoded.astype(np.float64)**2)))),
                    ending='Original tonic cadence, natural sample and pad release, short quiet guard',
                    referenceComparison=comparison(decoded),
                    activeSectionComparison=comparison(decoded,25),
                    decoded=encoded_metrics(decoded,destination),
+                   percussionProduction=score.percussion_metrics,
                    sources={'soundfont':dict(name='FluidR3 GM',license='MIT',sha256=hashlib.sha256(SF.read_bytes()).hexdigest(),
                                               url='https://packages.debian.org/bookworm/fluid-soundfont-gm'),
                             'drums':dict(project=manifest['project'],repository=manifest['repository'],

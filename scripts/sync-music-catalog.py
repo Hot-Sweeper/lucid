@@ -40,7 +40,15 @@ def main():
             text,n=re.subn(key+r': (?:\[[^\]]*\]|\x27[^\x27]*\x27|[-\d.]+)',key+': '+encoded,text)
             assert n==1,(row['id'],key)
         source=source[:match.start()]+text+match[2]+source[match.end():]
+    for row in json.loads((AUDIO/'soundtrack-metrics.json').read_text()):
+        if not sum(row.get('percussion',{}).get('hitCounts',{}).values()):continue
+        match=re.search(r"(  \{ id: '"+row['id']+r"'.*?)( \},)",source);assert match,row['id']
+        tags_match=re.search(r'textures: (\[[^\]]*\])',match[1]);assert tags_match
+        tags=json.loads(tags_match[1])
+        if 'drums' not in tags:tags.append('drums')
+        line=match[1][:tags_match.start(1)]+json.dumps(tags)+match[1][tags_match.end(1):]
+        source=source[:match.start()]+line+match[2]+source[match.end():]
     CATALOG.write_text(source)
-    print('Synced nine authored identities; now run verify-music-masters.py --write for encoded duration and playback trims.')
+    print('Synced current musical identities and recorded percussion tags; now run verify-music-masters.py --write for encoded duration and playback trims.')
 
 if __name__=='__main__':main()

@@ -21,7 +21,7 @@ import tempfile
 import wave
 import numpy as np
 from scipy.signal import butter, sosfilt, lfilter
-from pedalboard import Pedalboard, Chorus, Reverb, Delay, HighpassFilter, LowpassFilter
+from pedalboard import Pedalboard, Chorus, Reverb, Delay, HighpassFilter, LowpassFilter, PeakFilter, LowShelfFilter
 from music_production import process_stem, room_send
 from surge_instruments import render_surge_part, authoring_provenance
 
@@ -62,21 +62,47 @@ def hit(name,seconds=None):
     return a.astype(np.float32),dict(original,license=manifest['license'],commit=manifest['commit'])
 
 
-def synthetic_kick():
-    t=np.arange(round(.34*RATE))/RATE
-    hz=45+85*np.exp(-t*38)
-    phase=np.cumsum(hz)/RATE*2*np.pi
-    a=np.sin(phase)*np.exp(-t*17)*(1-np.exp(-t*800))
-    return (np.tanh(a*1.1)/1.1).astype(np.float32)
+def recorded_kick(source):
+    """Keep a real membrane's transient/body; gently damp its recorded room."""
+    a=Pedalboard([HighpassFilter(28),LowShelfFilter(90,gain_db=1.0),
+                 PeakFilter(360,gain_db=-2.0,q=.9),LowpassFilter(4500)])(source,RATE)
+    t=np.arange(len(a))/RATE
+    a*=np.exp(-np.maximum(0,t-.065)/.19)
+    a[:round(.001*RATE)]*=np.linspace(0,1,round(.001*RATE))
+    a[-round(.035*RATE):]*=np.linspace(1,0,round(.035*RATE))
+    return (a/max(.05,float(np.abs(a).max()))).astype(np.float32)
 
 
-def pluck(pitch,seconds=1.2):
+def filtered_echo_return(audio,seconds,feedback=.22,low=430,high=4200,modulation=False):
+    """A fully wet stereo send. Source transients and centered bass stay dry.
+
+    Left/right delay lengths differ deliberately. The return is band limited
+    before and after the delays, with optional very slow native modulation.
+    """
+    out=np.zeros_like(audio)
+    for channel,delay in enumerate(seconds):
+        chain=Pedalboard([HighpassFilter(low),LowpassFilter(high),
+                         Delay(delay_seconds=delay,feedback=feedback,mix=1),LowpassFilter(high)])
+        out[:,channel]=chain(np.ascontiguousarray(audio[:,channel]),RATE,buffer_size=8192,reset=True)
+    if modulation:
+        out=Pedalboard([Chorus(rate_hz=.073,depth=.12,centre_delay_ms=13,
+                              feedback=.02,mix=.13)])(out.T,RATE,buffer_size=8192,reset=True).T
+    assert out.shape==audio.shape and np.isfinite(out).all()
+    return np.ascontiguousarray(out,dtype=np.float32)
+
+
+def pluck(pitch,seconds=1.2,attack=.048,cutoff=4200):
     hz=440*2**((pitch-69)/12);size=round(seconds*RATE)
     delay=max(8,round(RATE/hz-.5));rng=np.random.default_rng(77000+pitch)
     exc=np.zeros(size);exc[:delay]=rng.normal(0,.6,delay);exc[:delay]-=exc[:delay].mean()
     denominator=np.zeros(delay+2);denominator[0]=1;denominator[delay:delay+2]=-.496
     a=lfilter([1],denominator,exc);a/=max(.1,np.abs(a).max())
-    t=np.arange(size)/RATE;a*=np.exp(-t/1.5)*np.minimum(1,t/.003)
+    # A rounded onset removes the old three-millisecond broadband click. The
+    # ringing string still carries the melody instead of becoming pure reverb.
+    a=Pedalboard([HighpassFilter(170),LowpassFilter(cutoff)])(a.astype(np.float32),RATE)
+    t=np.arange(size)/RATE
+    ramp=.5-.5*np.cos(np.pi*np.clip(t/attack,0,1))
+    a*=np.exp(-t/1.5)*ramp
     a[-round(.03*RATE):]*=np.linspace(1,0,round(.03*RATE))
     return a.astype(np.float32)
 
@@ -91,9 +117,12 @@ def neon_afterglow():
     form=[('first lights',4),('night-drive question',16),('horizon answer',8),('tunnel respite',8),('rising side street',8),('neon homecoming',16),('distant afterglow',8)]
     frames=round((sum(n for _,n in form)*4*beat+5)*RATE)
     parts={name:[] for name in ['pad','lead','arp','bass']};drums=np.zeros((frames,2),np.float32)
+    snare_throws=np.zeros_like(drums)
     sounds={};provenance=[]
-    for k,filename in [('snare1','snare_main_1'),('snare2','snare_main_2'),('hat1','hat_main_1'),('hat2','hat_main_2'),('open','hat_open_1')]:
-        a,source=hit(filename,.38 if k.startswith('snare') else .18);sounds[k]=a;provenance.append(source)
+    for k,filename in [('kick1','bass_main_1'),('kick2','bass_main_2'),('kickSoft1','bass_soft_1'),('kickSoft2','bass_soft_2'),
+                       ('snare1','snare_main_1'),('snare2','snare_main_2'),('hat1','hat_main_1'),('hat2','hat_main_2'),('open','hat_open_1')]:
+        duration=.48 if k.startswith('kick') else .38 if k.startswith('snare') else .18
+        a,source=hit(filename,duration);sounds[k]=recorded_kick(a) if k.startswith('kick') else a;provenance.append(source)
     # A real snare gets a controlled, short gated room. The direct transient
     # stays present; the tail does not blur the bass groove.
     for k in ('snare1','snare2'):
@@ -101,7 +130,6 @@ def neon_afterglow():
         expanded=room_send(source,RATE,'small',send=.20)
         t=np.arange(len(expanded))/RATE;gate=np.clip((.255-t)/.035,0,1)
         sounds[k]=(expanded.mean(axis=1)*gate).astype(np.float32)
-    kick=synthetic_kick()
     harmony=[[50,57,60,65],[46,53,57,62],[53,60,65,69],[48,55,60,64],
              [43,50,53,58],[46,53,57,62],[45,52,55,60],[45,52,57,61]]
     bridge=[[46,53,57,62],[48,55,60,64],[53,60,65,69],[50,57,60,65],
@@ -120,7 +148,6 @@ def neon_afterglow():
                   [(.0,.45),(.75,.5),(2.5,.8),(3.5,.3)],
                   [(.0,.9),(1.5,.4),(2.75,.45),(3.75,.2)]]
     sections=[];bar=0
-    rng=np.random.default_rng(91001)
     for section,bars in form:
         sections.append(dict(name=section,start=bar*4*beat,end=(bar+bars)*4*beat))
         for i in range(bars):
@@ -135,16 +162,25 @@ def neon_afterglow():
                 for j,(pos,held) in enumerate(bass_rhythms[i%4]):
                     octave=12 if j==2 and i%4==1 else 0
                     note(parts['bass'],chord[0]-12+octave,at+pos,held,.095 if j==0 else .075)
-                kicks=[0,1.75,2.5] if i%2==0 else [0,.75,2.5,3.75]
-                if i%8==7:kicks=[0,1.75,2.5] # a breath before the next phrase
-                for pos in kicks:place(drums,kick,at+pos,beat,.14 if pos==0 else .105)
-                for j,pos in enumerate([1,3]):place(drums,sounds['snare1' if (i+j)%2 else 'snare2'],at+pos+.015,beat,.10,-.035)
+                kicks=[[0,1.75,2.5],[0,.75,2.5,3.75],[0,1.5,2.75],[0,2.5]][i%4]
+                if i%8==7:kicks=[0,2.5] # leave room for the written phrase ending
+                for j,pos in enumerate(kicks):
+                    soft=pos in (.75,1.75,3.75)
+                    take=('kickSoft' if soft else 'kick')+str(1+(i+j)%2)
+                    place(drums,sounds[take],at+pos,beat,.125 if pos==0 else .075 if soft else .098)
+                for j,pos in enumerate([1,3]):
+                    snare=sounds['snare1' if (i+j)%2 else 'snare2']
+                    place(drums,snare,at+pos+.015,beat,.091 if j==0 else .104,-.025)
+                    if j==1 and i%8 in (3,7):
+                        place(snare_throws,snare,at+pos+.015,beat,.027,.10 if i%8==3 else -.10)
                 for j in range(8):
+                    if i%8==7 and j==7:continue
                     # Alternate recorded takes and 13% velocity accents; only a
                     # tiny timing displacement, not random off-grid smearing.
                     pos=j*.5+(0.016 if j%2 else 0)
-                    place(drums,sounds['hat1' if (i+j)%2 else 'hat2'],at+pos,beat,.018*(.87 if j%2 else 1),.27)
-                if i%2:place(drums,sounds['open'],at+2.5,beat,.021,.26)
+                    accent=1.12 if j in (0,4) else .80 if j%2 else .94
+                    place(drums,sounds['hat1' if (i+j)%2 else 'hat2'],at+pos,beat,.017*accent,.24)
+                if i%2 and i%8!=7:place(drums,sounds['open'],at+2.5,beat,.020,.25)
                 if i%8==7:
                     for pos,level in [(3.25,.026),(3.625,.019)]:place(drums,sounds['snare2'],at+pos,beat,level,-.08)
                 # Arps answer the lead in the gaps, rather than continuously
@@ -197,10 +233,18 @@ def neon_afterglow():
         print('Stem',role,'peak',float(np.abs(audio).max()),'rms',float(np.sqrt(np.mean(audio**2))),flush=True)
         mixed+=audio
     mixed+=process_stem(drums,RATE,'drums')
+    # Echo only selected snare phrase endings. The kick/bass never enter this
+    # return, and its upper-band repeats cannot smear the downbeat's low end.
+    throw_return=filtered_echo_return(snare_throws,(.75*beat,beat),feedback=.18,low=480,high=3900)
+    mixed+=room_send(throw_return,RATE,'small',send=.06)
     return mixed,dict(id='neon-afterglow',title='Neon Afterglow',genre='synthwave',bpm=bpm,key=2,mode='minor',meter=4,
-                     energy=.65,textures=['analog leads','pads','arpeggios','gated acoustic snare','syncopated bass'],
+                     energy=.65,textures=['analog leads','pads','arpeggios','recorded bass drum','gated acoustic snare','syncopated bass'],
                      sections=sections,nativeParts=native,sampleSources=provenance,
-                     arrangement='Lower-register question/answer lead, broken kick/bass groove, real gated snare, contrasting B, quiet tunnel and reprise')
+                     percussionProduction=dict(kick='Four verified VCSL recorded takes; no synthesized oscillator layer',
+                         kickTreatment='28 Hz highpass, gentle 90 Hz shelf, 360 Hz mud cut, damped natural room, dry mono',
+                         groove='Four-bar broken kick cycle, softer recorded pickups, alternate snare/hat takes, phrase-end hat gaps',
+                         snareSpace='Short filtered gated room; selected phrase-ending 3/16 and 1/4 note stereo throws, 18% feedback, 480-3900 Hz'),
+                     arrangement='Lower-register question/answer lead, broken recorded-kick/bass groove, real gated snare, filtered phrase-ending echoes, contrasting B, quiet tunnel and reprise')
 
 
 def tidal_memory():
@@ -235,18 +279,25 @@ def tidal_memory():
     wash=np.zeros((frames,2),np.float32)
     phrase=[76,78,83,75,78,71,73]
     for cycle,start in enumerate(np.arange(8.75,171,10.75)):
-        pitch=phrase[cycle%len(phrase)];place(wash,pluck(pitch,.9),float(start),beat,.035,(-1)**cycle*.3)
-    processors=Pedalboard([HighpassFilter(270),Chorus(rate_hz=.11,depth=.16,centre_delay_ms=13,mix=.25),
-                          Delay(delay_seconds=3.7,feedback=.30,mix=.44),
-                          Reverb(room_size=.82,damping=.61,wet_level=1,dry_level=0,width=1),LowpassFilter(6100)])
-    wash=processors(wash.T,RATE,buffer_size=8192,reset=True).T
+        pitch=phrase[cycle%len(phrase)]
+        place(wash,pluck(pitch,1.4,attack=.085,cutoff=3400),float(start),beat,.044,(-1)**cycle*.26)
+    distant=filtered_echo_return(wash,(3.1,4.7),feedback=.31,low=330,high=4500,modulation=True)
+    diffuse=Pedalboard([Reverb(room_size=.80,damping=.66,wet_level=1,dry_level=0,width=1),
+                       HighpassFilter(330),LowpassFilter(4100)])(distant.T,RATE,buffer_size=8192,reset=True).T
+    wash=distant*.16+diffuse*.84
     bells=np.zeros((frames,2),np.float32)
-    for event in motif:
+    for i,event in enumerate(motif):
         # A soft plucked bell, with its own physical string onset, carries the
         # old melodic identity while the native synth owns the evolving pad.
-        sound=pluck(event['pitch'],4.1)
-        place(bells,sound,event['beat'],beat,.07,.15)
-    bells=room_send(bells,RATE,'chamber',send=.15)
+        sound=pluck(event['pitch'],4.1,attack=.048,cutoff=4200)
+        place(bells,sound,event['beat'],beat,.064,.13 if i%2 else -.12)
+    reflections=filtered_echo_return(bells,(.68,1.03),feedback=.27,low=520,high=3600,modulation=True)
+    # Near notes stay intelligible; a separate dark repeat and diffused return
+    # place their answers further away without reverberating the whole master.
+    bells=room_send(bells,RATE,'chamber',send=.10)+reflections*.22
+    far_bells=Pedalboard([Reverb(room_size=.68,damping=.70,wet_level=1,dry_level=0,width=.94),
+                         HighpassFilter(520),LowpassFilter(3400)])(reflections.T,RATE,buffer_size=8192,reset=True).T
+    bells+=far_bells*.10
     mixed=pads+halo+wash+bells
     # Resolve gently on E/B rather than resetting the eight-chord list at exit.
     ending=np.ones(frames,np.float32);start=round(173*beat*RATE)
@@ -255,7 +306,11 @@ def tidal_memory():
     return mixed,dict(id='tidal-memory',title='Tidal Memory',genre='ambient',bpm=bpm,key=4,mode='lydian',meter=4,
                      energy=.12,textures=['pads','transformed plucked wash','bells','unsynced delay'],
                      sections=sections,nativeParts={'atmosphere':info,'halo':halo_info},
-                     arrangement='Free-running 13/15/17/14/19-beat phrases, tied voice-leading, transformed pluck return, low-register motif reprise and drumless space')
+                     spaceProduction=dict(dryMotif='48 ms raised-cosine attack and 4.2 kHz lowpass; alternating close positions',
+                         nearReflections='680/1030 ms stereo filtered echoes, 27% feedback, 520-3600 Hz, slow 0.073 Hz modulation',
+                         distantWash='85 ms softened string excitation; 3.1/4.7s independent filtered repeats and separate diffused reverb',
+                         master='No added master reverb, delay or percussion'),
+                     arrangement='Free-running 13/15/17/14/19-beat phrases, tied voice-leading, rounded pluck return, filtered near/far echoes, low-register motif reprise and drumless space')
 
 
 def export(samples,meta):
@@ -292,7 +347,7 @@ def export(samples,meta):
     assert np.isfinite(pcm).all() and np.max(np.abs(pcm))<.8 and tail<.45,dict(
         finite=bool(np.isfinite(pcm).all()),peak=float(np.abs(pcm).max()),tail=float(tail))
     assert -.1<float(np.corrcoef(pcm.T)[0,1])
-    meta.update(revision=3,production='Surge XT 1.3.4 original analog patches + Pedalboard 0.9.26 stem production',
+    meta.update(revision=4,production='Surge XT 1.3.4 original analog patches + Pedalboard 0.9.26 stem production',
                 provenance=dict(instrument=authoring_provenance(),
                     effects=dict(name='Spotify Pedalboard',version='0.9.26',license='GPL-3.0-only',authoringOnly=True,
                         source='https://github.com/spotify/pedalboard',

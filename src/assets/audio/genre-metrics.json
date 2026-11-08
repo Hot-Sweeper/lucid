@@ -15,15 +15,15 @@
       "tape phrases",
       "swung acoustic drums"
     ],
-    "seconds": 155.78,
-    "revision": 3,
+    "seconds": 155.88,
+    "revision": 4,
     "sections": [
       {
         "name": "dusty window",
         "start": 0.0,
         "end": 11.707317073170731,
         "authoredGain": 0.78,
-        "rmsDbFS": -24.35619209922031,
+        "rmsDbFS": -24.447825688517383,
         "instruments": [
           "acoustic bass",
           "answer piano",
@@ -37,7 +37,7 @@
         "start": 11.707317073170731,
         "end": 46.829268292682926,
         "authoredGain": 0.94,
-        "rmsDbFS": -19.789249521134945,
+        "rmsDbFS": -19.896184118441898,
         "instruments": [
           "acoustic bass",
           "electric piano",
@@ -50,7 +50,7 @@
         "start": 46.829268292682926,
         "end": 70.2439024390244,
         "authoredGain": 1.04,
-        "rmsDbFS": -18.92006940494078,
+        "rmsDbFS": -18.96200023102397,
         "instruments": [
           "acoustic bass",
           "electric piano",
@@ -63,7 +63,7 @@
         "start": 70.2439024390244,
         "end": 93.65853658536585,
         "authoredGain": 0.74,
-        "rmsDbFS": -24.980546849609627,
+        "rmsDbFS": -24.260374912914287,
         "instruments": [
           "acoustic bass",
           "answer piano",
@@ -76,34 +76,34 @@
         "start": 93.65853658536585,
         "end": 117.07317073170731,
         "authoredGain": 0.96,
-        "rmsDbFS": -19.615442152197218,
+        "rmsDbFS": -19.715172570636952,
         "instruments": [
           "acoustic bass",
           "electric piano",
           "nylon guitar"
         ],
-        "tonalOnsets": 100
+        "tonalOnsets": 101
       },
       {
         "name": "homecoming",
         "start": 117.07317073170731,
         "end": 140.4878048780488,
         "authoredGain": 1.07,
-        "rmsDbFS": -18.826267408670002,
+        "rmsDbFS": -18.60437921274844,
         "instruments": [
           "acoustic bass",
           "answer piano",
           "electric piano",
           "nylon guitar"
         ],
-        "tonalOnsets": 111
+        "tonalOnsets": 110
       },
       {
         "name": "tape tail",
         "start": 140.4878048780488,
         "end": 152.1951219512195,
         "authoredGain": 0.76,
-        "rmsDbFS": -24.193563965771276,
+        "rmsDbFS": -23.508760144008303,
         "instruments": [
           "acoustic bass",
           "answer piano",
@@ -113,8 +113,8 @@
         "tonalOnsets": 29
       }
     ],
-    "peakDbFS": -4.098506450653076,
-    "rmsDbFS": -20.475899474093136,
+    "peakDbFS": -4.555693626403809,
+    "rmsDbFS": -20.420563434475362,
     "ending": "Original tonic cadence, natural sample and pad release, short quiet guard",
     "referenceComparison": {
       "excerptSeconds": [
@@ -140,15 +140,179 @@
         ]
       ],
       "bandEnergyPercent": [
-        42.266231536865234,
-        33.89944839477539,
-        22.928632736206055,
-        0.905696451663971
+        34.604774475097656,
+        38.66374206542969,
+        25.593664169311523,
+        1.1378133296966553
       ],
-      "centroidHz": 357.7268105230564,
-      "detectedOnsetsPerSecond": 3.0833333333333335,
-      "upperSideMidDb": -10.287313612526056,
+      "centroidHz": 402.0836309401042,
+      "detectedOnsetsPerSecond": 3.75,
+      "upperSideMidDb": -10.109402023503693,
       "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
+    },
+    "activeSectionComparison": {
+      "excerptSeconds": [
+        25,
+        49
+      ],
+      "bandHz": [
+        [
+          20,
+          120
+        ],
+        [
+          120,
+          500
+        ],
+        [
+          500,
+          2000
+        ],
+        [
+          2000,
+          7900
+        ]
+      ],
+      "bandEnergyPercent": [
+        33.00590896606445,
+        37.711483001708984,
+        27.655168533325195,
+        1.6274378299713135
+      ],
+      "centroidHz": 423.8726716387656,
+      "detectedOnsetsPerSecond": 4.833333333333333,
+      "upperSideMidDb": -11.252420343079294,
+      "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
+    },
+    "decoded": {
+      "seconds": 155.88,
+      "peakDbFS": -4.555693626403809,
+      "rmsDbFS": -20.420563434475362,
+      "channels": 2,
+      "sampleRate": 44100,
+      "integratedLUFS": -17.54,
+      "truePeakDbFS": -4.55,
+      "loudnessRangeLU": 7.1,
+      "channelCorrelation": 0.9085802233262413,
+      "sideToMidRMS": 0.22053036093711853,
+      "dcOffset": 5.637338472297415e-05,
+      "trailingSilenceSeconds": 0.23999999999998067,
+      "finite": true,
+      "silentBodySeconds": 0
+    },
+    "percussionProduction": {
+      "recordingGainByInstrument": {
+        "bass": 2.3,
+        "snare": 3.33,
+        "hat": 2.48
+      },
+      "individualSampleNormalization": false,
+      "kickPitchProcessing": false,
+      "kickRoomSend": 0,
+      "kickDelaySend": 0,
+      "buses": {
+        "kick": {
+          "targetActiveRMS": 0.029,
+          "performanceGain": 2.8926040829146342,
+          "peakDbFS": -14.718767166137695,
+          "active10msWindows": 3956,
+          "events": 114,
+          "wet": false
+        },
+        "snare": {
+          "targetActiveRMS": 0.022,
+          "performanceGain": 5.710111535120064,
+          "peakDbFS": -16.506845474243164,
+          "active10msWindows": 2287,
+          "events": 99,
+          "wet": "Selected separate sends"
+        },
+        "hats": {
+          "targetActiveRMS": 0.009,
+          "performanceGain": 10.025308051926814,
+          "peakDbFS": -17.521995544433594,
+          "active10msWindows": 4116,
+          "events": 340,
+          "wet": "Selected separate sends"
+        }
+      },
+      "roomPredelayMs": 14,
+      "roomReturnBandHz": [
+        460,
+        4900
+      ],
+      "delayBeatOffsets": [
+        0.75,
+        1.5,
+        2.25
+      ],
+      "delayReturnHighpassHz": 600,
+      "timingVariationMs": {
+        "kick": 1.2,
+        "snare": 2.5,
+        "hats": 2.5
+      },
+      "noSimultaneousOpenAndClosedHat": true,
+      "selectedRoomEvents": 88,
+      "selectedDelayEvents": 21,
+      "primaryProductionReferences": [
+        "https://www.toontrack.com/blog/how-to-program-drums/",
+        "https://www.izotope.com/community/blog/9-tips-for-using-reverb-with-drums",
+        "https://www.izotope.com/community/blog/reverb-pre-delay"
+      ],
+      "recordedHitDiagnostics": {
+        "bass_main_1": {
+          "sourcePeakAfterSharedGainDbFS": -2.400339126586914,
+          "shapedPeakDbFS": -3.5053598880767822,
+          "late150To260msVersusBody30To110msDb": -24.364376492088233
+        },
+        "bass_soft_1": {
+          "sourcePeakAfterSharedGainDbFS": -14.953862190246582,
+          "shapedPeakDbFS": -15.485967636108398,
+          "late150To260msVersusBody30To110msDb": -25.920653236594106
+        },
+        "bass_soft_2": {
+          "sourcePeakAfterSharedGainDbFS": -16.547725677490234,
+          "shapedPeakDbFS": -17.336097717285156,
+          "late150To260msVersusBody30To110msDb": -26.162158203294
+        },
+        "hat_loose_1": {
+          "sourcePeakAfterSharedGainDbFS": 0.32838284969329834,
+          "shapedPeakDbFS": -3.9614760875701904
+        },
+        "hat_main_1": {
+          "sourcePeakAfterSharedGainDbFS": -7.657042503356934,
+          "shapedPeakDbFS": -11.398664474487305
+        },
+        "hat_main_2": {
+          "sourcePeakAfterSharedGainDbFS": -10.774150848388672,
+          "shapedPeakDbFS": -12.574524879455566
+        },
+        "hat_soft_1": {
+          "sourcePeakAfterSharedGainDbFS": -17.82632827758789,
+          "shapedPeakDbFS": -19.413488388061523
+        },
+        "hat_soft_2": {
+          "sourcePeakAfterSharedGainDbFS": -18.568614959716797,
+          "shapedPeakDbFS": -17.33378028869629
+        },
+        "snare_medium_1": {
+          "sourcePeakAfterSharedGainDbFS": -11.567331314086914,
+          "shapedPeakDbFS": -13.334259033203125
+        },
+        "snare_medium_2": {
+          "sourcePeakAfterSharedGainDbFS": -12.991942405700684,
+          "shapedPeakDbFS": -14.760444641113281
+        },
+        "snare_soft_1": {
+          "sourcePeakAfterSharedGainDbFS": -19.19968605041504,
+          "shapedPeakDbFS": -21.68695068359375
+        },
+        "snare_soft_2": {
+          "sourcePeakAfterSharedGainDbFS": -18.140039443969727,
+          "shapedPeakDbFS": -20.643558502197266
+        }
+      }
     },
     "sources": {
       "soundfont": {
@@ -239,6 +403,13 @@
             "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
             "bytes": 302396,
             "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+          },
+          {
+            "file": "bass_main_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v5_rr1_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v5_rr1_Sum.wav",
+            "bytes": 588092,
+            "sha256": "642aaf3375eaff1307973f7de3ccbf74d18e71fb3cf9412e021b08fc3bf1981c"
           }
         ]
       }
@@ -250,56 +421,6 @@
       "toneSources": "MIT FluidR3 GM electric piano, nylon guitar, piano and acoustic bass; CC0 VCSL multi-velocity drums",
       "referenceAudioInComposition": false,
       "auditionPerformed": false
-    },
-    "decoded": {
-      "seconds": 155.78,
-      "peakDbFS": -4.098506450653076,
-      "rmsDbFS": -20.475899474093136,
-      "channels": 2,
-      "sampleRate": 44100,
-      "integratedLUFS": -17.82,
-      "truePeakDbFS": -4.09,
-      "loudnessRangeLU": 7.0,
-      "channelCorrelation": 0.9244668827300841,
-      "sideToMidRMS": 0.19969728589057922,
-      "dcOffset": 4.6443903556792066e-05,
-      "trailingSilenceSeconds": 0.2400000000000091,
-      "finite": true,
-      "silentBodySeconds": 0
-    },
-    "activeSectionComparison": {
-      "excerptSeconds": [
-        25,
-        49
-      ],
-      "bandHz": [
-        [
-          20,
-          120
-        ],
-        [
-          120,
-          500
-        ],
-        [
-          500,
-          2000
-        ],
-        [
-          2000,
-          7900
-        ]
-      ],
-      "bandEnergyPercent": [
-        42.33980178833008,
-        33.21797561645508,
-        23.19403076171875,
-        1.2481904029846191
-      ],
-      "centroidHz": 363.9477384341463,
-      "detectedOnsetsPerSecond": 4.375,
-      "upperSideMidDb": -11.456191929804731,
-      "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
     }
   },
   {
@@ -315,6 +436,7 @@
       "analog leads",
       "pads",
       "arpeggios",
+      "recorded bass drum",
       "gated acoustic snare",
       "syncopated bass"
     ],
@@ -323,43 +445,43 @@
         "name": "first lights",
         "start": 0.0,
         "end": 9.23076923076923,
-        "rmsDbFS": -28.52727699279785
+        "rmsDbFS": -29.090248107910156
       },
       {
         "name": "night-drive question",
         "start": 9.23076923076923,
         "end": 46.153846153846146,
-        "rmsDbFS": -20.59986114501953
+        "rmsDbFS": -21.068628311157227
       },
       {
         "name": "horizon answer",
         "start": 46.153846153846146,
         "end": 64.61538461538461,
-        "rmsDbFS": -20.868642807006836
+        "rmsDbFS": -21.152135848999023
       },
       {
         "name": "tunnel respite",
         "start": 64.61538461538461,
         "end": 83.07692307692307,
-        "rmsDbFS": -29.11444091796875
+        "rmsDbFS": -29.662006378173828
       },
       {
         "name": "rising side street",
         "start": 83.07692307692307,
         "end": 101.53846153846153,
-        "rmsDbFS": -20.813791275024414
+        "rmsDbFS": -21.185760498046875
       },
       {
         "name": "neon homecoming",
         "start": 101.53846153846153,
         "end": 138.46153846153845,
-        "rmsDbFS": -20.525358200073242
+        "rmsDbFS": -20.98226547241211
       },
       {
         "name": "distant afterglow",
         "start": 138.46153846153845,
         "end": 156.9230769230769,
-        "rmsDbFS": -28.73218536376953
+        "rmsDbFS": -28.934309005737305
       }
     ],
     "nativeParts": {
@@ -545,6 +667,42 @@
     },
     "sampleSources": [
       {
+        "file": "bass_main_1.wav",
+        "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v5_rr1_Sum.wav",
+        "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v5_rr1_Sum.wav",
+        "bytes": 588092,
+        "sha256": "642aaf3375eaff1307973f7de3ccbf74d18e71fb3cf9412e021b08fc3bf1981c",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e"
+      },
+      {
+        "file": "bass_main_2.wav",
+        "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v5_rr2_Sum.wav",
+        "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v5_rr2_Sum.wav",
+        "bytes": 614388,
+        "sha256": "a83943f8125ae39469ef5dab1d0be2fe3145c6842c0621b27be5d86aa44b325d",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e"
+      },
+      {
+        "file": "bass_soft_1.wav",
+        "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+        "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+        "bytes": 281616,
+        "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e"
+      },
+      {
+        "file": "bass_soft_2.wav",
+        "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+        "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+        "bytes": 302396,
+        "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e"
+      },
+      {
         "file": "snare_main_1.wav",
         "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v7_rr1_Mid.wav",
         "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v7_rr1_Mid.wav",
@@ -590,8 +748,14 @@
         "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e"
       }
     ],
-    "arrangement": "Lower-register question/answer lead, broken kick/bass groove, real gated snare, contrasting B, quiet tunnel and reprise",
-    "revision": 3,
+    "percussionProduction": {
+      "kick": "Four verified VCSL recorded takes; no synthesized oscillator layer",
+      "kickTreatment": "28 Hz highpass, gentle 90 Hz shelf, 360 Hz mud cut, damped natural room, dry mono",
+      "groove": "Four-bar broken kick cycle, softer recorded pickups, alternate snare/hat takes, phrase-end hat gaps",
+      "snareSpace": "Short filtered gated room; selected phrase-ending 3/16 and 1/4 note stereo throws, 18% feedback, 480-3900 Hz"
+    },
+    "arrangement": "Lower-register question/answer lead, broken recorded-kick/bass groove, real gated snare, filtered phrase-ending echoes, contrasting B, quiet tunnel and reprise",
+    "revision": 4,
     "production": "Surge XT 1.3.4 original analog patches + Pedalboard 0.9.26 stem production",
     "provenance": {
       "instrument": {
@@ -621,18 +785,18 @@
       "composition": "Original Lucid scores and own explicit Classic oscillator patches; no artist melody, factory preset or factory audio copied",
       "delivery": "Only encoded music ships in the app; native plugin and Python processors remain offline authoring dependencies"
     },
-    "seconds": 159.939410430839,
+    "seconds": 159.95777777777778,
     "peakDbFS": -3.0239063426874537,
-    "rmsDbFS": -21.98051447220606,
+    "rmsDbFS": -22.399628788911414,
     "decoded": {
-      "seconds": 159.939410430839,
-      "integratedLUFS": -18.96,
-      "truePeakDbFS": -3.33,
-      "loudnessRangeLU": 9.8,
-      "peakDbFS": -3.3318092823028564,
-      "rmsDbFS": -22.241470336914062,
-      "trailingSilenceSeconds": 0.25,
-      "channelCorrelation": 0.5246938795189932,
+      "seconds": 159.95777777777778,
+      "integratedLUFS": -19.36,
+      "truePeakDbFS": -3.21,
+      "loudnessRangeLU": 9.7,
+      "peakDbFS": -3.251296281814575,
+      "rmsDbFS": -22.661087036132812,
+      "trailingSilenceSeconds": 0.31526077097505667,
+      "channelCorrelation": 0.5223573205525173,
       "finite": true
     }
   },
@@ -656,37 +820,37 @@
         "name": "a distant shore",
         "start": 0,
         "end": 21.818181818181817,
-        "rmsDbFS": -22.118240356445312
+        "rmsDbFS": -23.22058868408203
       },
       {
         "name": "overlapping horizons",
         "start": 21.818181818181817,
         "end": 58.18181818181818,
-        "rmsDbFS": -21.86944007873535
+        "rmsDbFS": -23.107118606567383
       },
       {
         "name": "refracted light",
         "start": 58.18181818181818,
         "end": 94.54545454545455,
-        "rmsDbFS": -21.44585418701172
+        "rmsDbFS": -22.742422103881836
       },
       {
         "name": "deep water",
         "start": 94.54545454545455,
         "end": 120.0,
-        "rmsDbFS": -21.814895629882812
+        "rmsDbFS": -22.95508575439453
       },
       {
         "name": "a remembered shoreline",
         "start": 120.0,
         "end": 149.0909090909091,
-        "rmsDbFS": -22.29055404663086
+        "rmsDbFS": -23.50102996826172
       },
       {
         "name": "receding",
         "start": 149.0909090909091,
         "end": 170.63637188208617,
-        "rmsDbFS": -22.940261840820312
+        "rmsDbFS": -24.44542694091797
       }
     ],
     "nativeParts": {
@@ -781,8 +945,14 @@
         "factoryPreset": false
       }
     },
-    "arrangement": "Free-running 13/15/17/14/19-beat phrases, tied voice-leading, transformed pluck return, low-register motif reprise and drumless space",
-    "revision": 3,
+    "spaceProduction": {
+      "dryMotif": "48 ms raised-cosine attack and 4.2 kHz lowpass; alternating close positions",
+      "nearReflections": "680/1030 ms stereo filtered echoes, 27% feedback, 520-3600 Hz, slow 0.073 Hz modulation",
+      "distantWash": "85 ms softened string excitation; 3.1/4.7s independent filtered repeats and separate diffused reverb",
+      "master": "No added master reverb, delay or percussion"
+    },
+    "arrangement": "Free-running 13/15/17/14/19-beat phrases, tied voice-leading, rounded pluck return, filtered near/far echoes, low-register motif reprise and drumless space",
+    "revision": 4,
     "production": "Surge XT 1.3.4 original analog patches + Pedalboard 0.9.26 stem production",
     "provenance": {
       "instrument": {
@@ -812,18 +982,18 @@
       "composition": "Original Lucid scores and own explicit Classic oscillator patches; no artist melody, factory preset or factory audio copied",
       "delivery": "Only encoded music ships in the app; native plugin and Python processors remain offline authoring dependencies"
     },
-    "seconds": 168.47802721088436,
+    "seconds": 168.4647619047619,
     "peakDbFS": -3.0239063426874537,
-    "rmsDbFS": -21.976236489010432,
+    "rmsDbFS": -23.214932802111083,
     "decoded": {
-      "seconds": 168.47802721088436,
-      "integratedLUFS": -19.07,
-      "truePeakDbFS": -3.2,
-      "loudnessRangeLU": 3.5,
-      "peakDbFS": -3.247191905975342,
-      "rmsDbFS": -22.23556900024414,
-      "trailingSilenceSeconds": 0.27931972789115644,
-      "channelCorrelation": 0.3816826571998778,
+      "seconds": 168.4647619047619,
+      "integratedLUFS": -20.31,
+      "truePeakDbFS": -3.32,
+      "loudnessRangeLU": 3.6,
+      "peakDbFS": -3.4291908740997314,
+      "rmsDbFS": -23.474367141723633,
+      "trailingSilenceSeconds": 0.24997732426303854,
+      "channelCorrelation": 0.373065063254288,
       "finite": true
     }
   },
@@ -843,16 +1013,16 @@
       "pads",
       "bells"
     ],
-    "seconds": 146.14,
-    "peakDbFS": -5.037628131198899,
-    "rmsDbFS": -20.195670769038156,
-    "revision": 3,
+    "seconds": 146.16,
+    "peakDbFS": -5.294126866936373,
+    "rmsDbFS": -20.18641515346491,
+    "revision": 4,
     "sections": [
       {
         "name": "petal drift",
         "start": 0.0,
         "end": 11.707317073170731,
-        "rmsDbFS": -29.058311462402344,
+        "rmsDbFS": -28.731647491455078,
         "instruments": [
           "breakpad",
           "feltbell",
@@ -865,7 +1035,7 @@
         "name": "first fracture",
         "start": 11.707317073170731,
         "end": 46.829268292682926,
-        "rmsDbFS": -18.803665161132812,
+        "rmsDbFS": -18.81610679626465,
         "instruments": [
           "breakpad",
           "breakpiano",
@@ -878,7 +1048,7 @@
         "name": "open sky",
         "start": 46.829268292682926,
         "end": 58.536585365853654,
-        "rmsDbFS": -24.698610305786133,
+        "rmsDbFS": -24.776647567749023,
         "instruments": [
           "breakpad",
           "breaksub",
@@ -891,7 +1061,7 @@
         "name": "glass garden",
         "start": 58.536585365853654,
         "end": 81.95121951219512,
-        "rmsDbFS": -19.365123748779297,
+        "rmsDbFS": -19.288259506225586,
         "instruments": [
           "breakpad",
           "breaksub",
@@ -904,7 +1074,7 @@
         "name": "still centre",
         "start": 81.95121951219512,
         "end": 93.65853658536585,
-        "rmsDbFS": -30.35173797607422,
+        "rmsDbFS": -29.948474884033203,
         "instruments": [
           "breakpad",
           "feltbell",
@@ -917,7 +1087,7 @@
         "name": "bloom fragments",
         "start": 93.65853658536585,
         "end": 128.78048780487805,
-        "rmsDbFS": -17.833351135253906,
+        "rmsDbFS": -17.861711502075195,
         "instruments": [
           "breakpad",
           "breakpiano",
@@ -931,7 +1101,7 @@
         "name": "falling petals",
         "start": 128.78048780487805,
         "end": 140.4878048780488,
-        "rmsDbFS": -28.941686630249023,
+        "rmsDbFS": -28.53878402709961,
         "instruments": [
           "breakpad",
           "feltbell",
@@ -943,7 +1113,7 @@
     ],
     "ending": "Resolved tonic cadence with natural sustained release",
     "production": {
-      "revision": 3,
+      "revision": 4,
       "drumSource": "Original eight-bar performance from separate VCSL acoustic hits",
       "sourceLicense": "CC0-1.0",
       "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
@@ -954,25 +1124,31 @@
       "snareVelocityLayers": 3,
       "alternateTakes": 2,
       "phraseEdits": 126,
+      "sampleCalibration": "One shared gain per instrument/articulation against its strongest recorded layer; relative take and velocity amplitudes retained",
+      "velocityResponse": "Continuous blending of recorded soft, medium and main layers; no independent per-hit peak normalization",
+      "kickProduction": "Real damped acoustic body, exact mono, no synthetic pitched reinforcement and no room/delay send",
+      "percussionRoom": "Short filtered Pedalboard room on snare and tom material only, parallel send 0.13",
+      "roomReturnRMS": 0.0033511130478449808,
+      "phraseEndThrows": 8,
       "cymbalDevelopment": "Restrained first break, quieter bell-led middle, open final return",
       "reversedFragments": 3,
       "rateChangedFragments": 3,
-      "drumProcessing": "Pedalboard 0.9.26, 27 Hz high-pass, 1.35:1 transient-preserving compression, dry",
+      "drumProcessing": "Pedalboard 0.9.26, 27 Hz high-pass, 1.35:1 transient-preserving compression, selective parallel snare/tom room",
       "rhythm": "Performed syncopation and soft ghost strokes, eight-bar call and response, restrained phrase-end retriggers, half-time and drumless contrasts"
     },
     "decoded": {
-      "seconds": 146.14,
-      "peakDbFS": -5.413037300109863,
-      "rmsDbFS": -20.639278411865234,
+      "seconds": 146.16,
+      "peakDbFS": -5.6818013191223145,
+      "rmsDbFS": -20.63051986694336,
       "channels": 2,
       "sampleRate": 44100,
-      "integratedLUFS": -18.59,
-      "truePeakDbFS": -5.4,
-      "loudnessRangeLU": 12.9,
-      "channelCorrelation": 0.9346286664209944,
-      "sideToMidRMS": 0.18432091176509857,
-      "dcOffset": 2.5824889235082082e-05,
-      "trailingSilenceSeconds": 0.2799999999999727,
+      "integratedLUFS": -18.65,
+      "truePeakDbFS": -5.68,
+      "loudnessRangeLU": 12.4,
+      "channelCorrelation": 0.9292024429615638,
+      "sideToMidRMS": 0.19215275347232819,
+      "dcOffset": 1.325526500295382e-05,
+      "trailingSilenceSeconds": 0.29999999999998295,
       "finite": true,
       "silentBodySeconds": 0
     }
@@ -990,49 +1166,50 @@
     "textures": [
       "lunar pads",
       "pitched metal motif",
-      "clean sliding sub",
+      "rounded sub bass",
       "sampled drums"
     ],
-    "seconds": 161.64,
-    "revision": 3,
+    "seconds": 161.66,
+    "revision": 4,
     "sections": [
       {
         "name": "streetlight",
         "start": 0.0,
         "end": 12.972972972972974,
         "authoredGain": 0.74,
-        "rmsDbFS": -24.727993616698043,
+        "rmsDbFS": -23.959161668979707,
         "instruments": [
-          "clean sliding 808",
           "detuned lunar pads",
+          "rounded stable-pitch sub",
+          "sampled moon motif",
           "vibraphone answer"
         ],
-        "tonalOnsets": 18
+        "tonalOnsets": 19
       },
       {
         "name": "cruise",
         "start": 12.972972972972974,
         "end": 51.891891891891895,
         "authoredGain": 0.98,
-        "rmsDbFS": -19.07890800710068,
+        "rmsDbFS": -19.110466474058402,
         "instruments": [
-          "clean sliding 808",
           "detuned lunar pads",
           "rounded bell and cowbell motif",
+          "rounded stable-pitch sub",
           "sampled moon motif"
         ],
-        "tonalOnsets": 168
+        "tonalOnsets": 167
       },
       {
         "name": "side street",
         "start": 51.891891891891895,
         "end": 77.83783783783784,
         "authoredGain": 0.92,
-        "rmsDbFS": -19.93414454705744,
+        "rmsDbFS": -20.139660513269696,
         "instruments": [
-          "clean sliding 808",
           "detuned lunar pads",
           "rounded bell and cowbell motif",
+          "rounded stable-pitch sub",
           "sampled moon motif"
         ],
         "tonalOnsets": 82
@@ -1042,47 +1219,46 @@
         "start": 77.83783783783784,
         "end": 103.78378378378379,
         "authoredGain": 0.7,
-        "rmsDbFS": -25.021549736540635,
+        "rmsDbFS": -24.263683540805662,
         "instruments": [
-          "clean sliding 808",
           "detuned lunar pads",
-          "sampled moon motif",
+          "rounded stable-pitch sub",
           "vibraphone answer"
         ],
-        "tonalOnsets": 37
+        "tonalOnsets": 36
       },
       {
         "name": "night bloom",
         "start": 103.78378378378379,
         "end": 142.7027027027027,
         "authoredGain": 1.07,
-        "rmsDbFS": -18.21889186273157,
+        "rmsDbFS": -18.276564816244314,
         "instruments": [
-          "clean sliding 808",
           "detuned lunar pads",
           "rounded bell and cowbell motif",
+          "rounded stable-pitch sub",
           "sampled moon motif",
           "vibraphone answer"
         ],
-        "tonalOnsets": 185
+        "tonalOnsets": 186
       },
       {
         "name": "distant lights",
         "start": 142.7027027027027,
         "end": 155.67567567567568,
         "authoredGain": 0.75,
-        "rmsDbFS": -24.054295633031735,
+        "rmsDbFS": -23.34794726911238,
         "instruments": [
-          "clean sliding 808",
           "detuned lunar pads",
+          "rounded stable-pitch sub",
           "tonic pad cadence",
           "vibraphone answer"
         ],
         "tonalOnsets": 20
       }
     ],
-    "peakDbFS": -5.333451271057129,
-    "rmsDbFS": -20.264696617003608,
+    "peakDbFS": -6.590846061706543,
+    "rmsDbFS": -20.230835984636634,
     "ending": "Original tonic cadence, natural sample and pad release, short quiet guard",
     "referenceComparison": {
       "excerptSeconds": [
@@ -1108,15 +1284,203 @@
         ]
       ],
       "bandEnergyPercent": [
-        70.05899810791016,
-        19.065776824951172,
-        10.666367530822754,
-        0.20885366201400757
+        71.60577392578125,
+        17.595346450805664,
+        10.49623966217041,
+        0.30265459418296814
       ],
-      "centroidHz": 174.62557557960614,
-      "detectedOnsetsPerSecond": 1.7083333333333333,
-      "upperSideMidDb": -7.027503384006125,
+      "centroidHz": 177.22856762810767,
+      "detectedOnsetsPerSecond": 1.5416666666666667,
+      "upperSideMidDb": -6.496724473615045,
       "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
+    },
+    "activeSectionComparison": {
+      "excerptSeconds": [
+        25,
+        49
+      ],
+      "bandHz": [
+        [
+          20,
+          120
+        ],
+        [
+          120,
+          500
+        ],
+        [
+          500,
+          2000
+        ],
+        [
+          2000,
+          7900
+        ]
+      ],
+      "bandEnergyPercent": [
+        72.27977752685547,
+        16.695138931274414,
+        10.604146957397461,
+        0.420942485332489
+      ],
+      "centroidHz": 182.81618572437353,
+      "detectedOnsetsPerSecond": 4.583333333333333,
+      "upperSideMidDb": -6.328262579876879,
+      "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
+    },
+    "decoded": {
+      "seconds": 161.66,
+      "peakDbFS": -6.590846061706543,
+      "rmsDbFS": -20.230835984636634,
+      "channels": 2,
+      "sampleRate": 44100,
+      "integratedLUFS": -19.52,
+      "truePeakDbFS": -6.59,
+      "loudnessRangeLU": 7.6,
+      "channelCorrelation": 0.8791837763391449,
+      "sideToMidRMS": 0.2535587549209595,
+      "dcOffset": 0.00010404988279333338,
+      "trailingSilenceSeconds": 0.23999999999998067,
+      "finite": true,
+      "silentBodySeconds": 0
+    },
+    "percussionProduction": {
+      "recordingGainByInstrument": {
+        "bass": 2.3,
+        "snare": 3.33,
+        "hat": 2.48
+      },
+      "individualSampleNormalization": false,
+      "kickPitchProcessing": false,
+      "kickRoomSend": 0,
+      "kickDelaySend": 0,
+      "buses": {
+        "kick": {
+          "targetActiveRMS": 0.031,
+          "performanceGain": 1.6593863213760234,
+          "peakDbFS": -17.00336456298828,
+          "active10msWindows": 3052,
+          "events": 99,
+          "wet": false
+        },
+        "snare": {
+          "targetActiveRMS": 0.022,
+          "performanceGain": 3.3270364086099153,
+          "peakDbFS": -15.542171478271484,
+          "active10msWindows": 1891,
+          "events": 84,
+          "wet": "Selected separate sends"
+        },
+        "hats": {
+          "targetActiveRMS": 0.012,
+          "performanceGain": 4.848657889494718,
+          "peakDbFS": -18.816410064697266,
+          "active10msWindows": 5528,
+          "events": 490,
+          "wet": "Selected separate sends"
+        }
+      },
+      "roomPredelayMs": 24,
+      "roomReturnBandHz": [
+        460,
+        4900
+      ],
+      "delayBeatOffsets": [
+        0.75,
+        1.5,
+        2.25
+      ],
+      "delayReturnHighpassHz": 600,
+      "timingVariationMs": {
+        "kick": 1.2,
+        "snare": 2.5,
+        "hats": 2.5
+      },
+      "noSimultaneousOpenAndClosedHat": true,
+      "selectedRoomEvents": 100,
+      "selectedDelayEvents": 17,
+      "primaryProductionReferences": [
+        "https://www.toontrack.com/blog/how-to-program-drums/",
+        "https://www.izotope.com/community/blog/9-tips-for-using-reverb-with-drums",
+        "https://www.izotope.com/community/blog/reverb-pre-delay"
+      ],
+      "recordedHitDiagnostics": {
+        "bass_main_1": {
+          "sourcePeakAfterSharedGainDbFS": -2.400339126586914,
+          "shapedPeakDbFS": -3.5062716007232666,
+          "late150To260msVersusBody30To110msDb": -24.365144302123234
+        },
+        "bass_main_2": {
+          "sourcePeakAfterSharedGainDbFS": -3.137206554412842,
+          "shapedPeakDbFS": -4.080465793609619,
+          "late150To260msVersusBody30To110msDb": -25.044442629659734
+        },
+        "bass_soft_1": {
+          "sourcePeakAfterSharedGainDbFS": -14.953862190246582,
+          "shapedPeakDbFS": -15.485154151916504,
+          "late150To260msVersusBody30To110msDb": -25.921922218636077
+        },
+        "bass_soft_2": {
+          "sourcePeakAfterSharedGainDbFS": -16.547725677490234,
+          "shapedPeakDbFS": -17.335411071777344,
+          "late150To260msVersusBody30To110msDb": -26.163439922105983
+        },
+        "hat_loose_1": {
+          "sourcePeakAfterSharedGainDbFS": 0.32838284969329834,
+          "shapedPeakDbFS": -2.2516086101531982
+        },
+        "hat_loose_2": {
+          "sourcePeakAfterSharedGainDbFS": -0.35963502526283264,
+          "shapedPeakDbFS": -2.2130117416381836
+        },
+        "hat_main_1": {
+          "sourcePeakAfterSharedGainDbFS": -7.657042503356934,
+          "shapedPeakDbFS": -11.398664474487305
+        },
+        "hat_main_2": {
+          "sourcePeakAfterSharedGainDbFS": -10.774150848388672,
+          "shapedPeakDbFS": -12.574524879455566
+        },
+        "hat_soft_1": {
+          "sourcePeakAfterSharedGainDbFS": -17.82632827758789,
+          "shapedPeakDbFS": -19.413488388061523
+        },
+        "hat_soft_2": {
+          "sourcePeakAfterSharedGainDbFS": -18.568614959716797,
+          "shapedPeakDbFS": -17.33378028869629
+        },
+        "snare_dry_1": {
+          "sourcePeakAfterSharedGainDbFS": -2.0327110290527344,
+          "shapedPeakDbFS": -3.625331163406372
+        },
+        "snare_medium_1": {
+          "sourcePeakAfterSharedGainDbFS": -11.567331314086914,
+          "shapedPeakDbFS": -13.289470672607422
+        },
+        "snare_medium_2": {
+          "sourcePeakAfterSharedGainDbFS": -12.991942405700684,
+          "shapedPeakDbFS": -14.644865036010742
+        },
+        "snare_soft_1": {
+          "sourcePeakAfterSharedGainDbFS": -19.19968605041504,
+          "shapedPeakDbFS": -21.695789337158203
+        },
+        "snare_soft_2": {
+          "sourcePeakAfterSharedGainDbFS": -18.140039443969727,
+          "shapedPeakDbFS": -20.636356353759766
+        }
+      },
+      "subPitchSweepOnAttack": false,
+      "subAttackMs": 11,
+      "subReleaseMs": 85,
+      "kickSubDuck": {
+        "lookaheadMs": 6,
+        "holdMs": 18,
+        "recoveryMs": 125,
+        "minimumGain": 0.58
+      },
+      "motifResponseThrows": 5,
+      "cowbell": "Quiet sparse accents under the sampled motif"
     },
     "sources": {
       "soundfont": {
@@ -1144,6 +1508,20 @@
             "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v3_rr2_Mid.wav",
             "bytes": 231264,
             "sha256": "770a0b6bfe95583c11014d5f9af9c94c425a15bd05234c86213aec356a2ffe29"
+          },
+          {
+            "file": "snare_medium_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr1_Mid.wav",
+            "bytes": 240496,
+            "sha256": "6ec8445cb207df8f1178d8c3894f47969fd53fb2b81c404317e466de4598dc3e"
+          },
+          {
+            "file": "snare_medium_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr2_Mid.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr2_Mid.wav",
+            "bytes": 255456,
+            "sha256": "6d563828174cf9f29d221b14e1d3309ad4db8a4ac2cf10ff0ae4f0564e0d2590"
           },
           {
             "file": "hat_soft_1.wav",
@@ -1188,6 +1566,20 @@
             "sha256": "0836f69df5ae4c6df5f9ce1d4b3679c8e07632a01a6dd513eb9cf7371ab78cb6"
           },
           {
+            "file": "bass_soft_1.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+            "bytes": 281616,
+            "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+          },
+          {
+            "file": "bass_soft_2.wav",
+            "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+            "bytes": 302396,
+            "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+          },
+          {
             "file": "bass_main_1.wav",
             "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v5_rr1_Sum.wav",
             "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v5_rr1_Sum.wav",
@@ -1207,13 +1599,6 @@
             "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitNS_v4_rr1_Mid.wav",
             "bytes": 166260,
             "sha256": "6814a1ed6aa68319356e174d1c46f0c67e20560e55c28d94a8361344608c6515"
-          },
-          {
-            "file": "snare_dry_2.wav",
-            "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitNS_v4_rr2_Mid.wav",
-            "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitNS_v4_rr2_Mid.wav",
-            "bytes": 165192,
-            "sha256": "4918cea2a1d7b2bcff9d38ef76c8c76a2a993f86916da5589a5c6b6f5c9ffbe5"
           }
         ]
       }
@@ -1225,56 +1610,6 @@
       "toneSources": "Original detuned stereo pads, pitched metal edge, clean sine-based 808, actual sampled vibraphone motif/answers and CC0 VCSL drums",
       "referenceAudioInComposition": false,
       "auditionPerformed": false
-    },
-    "decoded": {
-      "seconds": 161.64,
-      "peakDbFS": -5.333451271057129,
-      "rmsDbFS": -20.264696617003608,
-      "channels": 2,
-      "sampleRate": 44100,
-      "integratedLUFS": -19.33,
-      "truePeakDbFS": -5.33,
-      "loudnessRangeLU": 8.6,
-      "channelCorrelation": 0.8912323793840493,
-      "sideToMidRMS": 0.2398333102464676,
-      "dcOffset": 0.00012853626685682684,
-      "trailingSilenceSeconds": 0.23999999999998067,
-      "finite": true,
-      "silentBodySeconds": 0
-    },
-    "activeSectionComparison": {
-      "excerptSeconds": [
-        25,
-        49
-      ],
-      "bandHz": [
-        [
-          20,
-          120
-        ],
-        [
-          120,
-          500
-        ],
-        [
-          500,
-          2000
-        ],
-        [
-          2000,
-          7900
-        ]
-      ],
-      "bandEnergyPercent": [
-        68.96913146972656,
-        20.355670928955078,
-        10.382537841796875,
-        0.29266446828842163
-      ],
-      "centroidHz": 184.47216874169916,
-      "detectedOnsetsPerSecond": 4.833333333333333,
-      "upperSideMidDb": -7.431272146038119,
-      "caveat": "Objective excerpt proxies, not audition or perceptual-quality scores. Energy is mono STFT power."
     }
   }
 ]

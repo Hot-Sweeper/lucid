@@ -1,9 +1,9 @@
 """An original eight-bar drum performance made from pinned VCSL CC0 hits.
 
 These are separately recorded acoustic percussion hits, not a vintage drumkit
-loop or a copyrighted break. The concert bass drum is deliberately damped and
-quietly reinforced by an authored sub transient. Three recorded snare dynamics
-and alternate takes preserve differences that turning down one hard hit cannot.
+loop or a copyrighted break. The concert bass drum is deliberately damped,
+without a synthetic pitched kick layered over it. Recorded velocity layers and
+alternate takes retain their relative amplitudes under a shared calibration.
 
 Primary source and license: https://github.com/sgossner/VCSL
 Phrase, sample-offset, retrigger, note-delay and mute-group implementation
@@ -45,7 +45,28 @@ class AcousticBreak:
             if audio.ndim == 1:
                 audio = np.column_stack((audio, audio))
             self.samples[path.stem] = self._prepare(audio, path.stem)
-        self.source, self.cymbals, self.events = self._perform()
+        # Calibrate once per instrument/articulation, against its strongest
+        # recorded layer. Do not turn every quiet stroke and alternate take
+        # into the same full-peak hit before adding performance velocities.
+        families = {
+            'snare': ('snare_main_', ('snare_soft_', 'snare_medium_', 'snare_main_')),
+            'bass': ('bass_main_', ('bass_soft_', 'bass_main_')),
+            'closed hat': ('hat_main_', ('hat_soft_', 'hat_main_')),
+            'open hat': ('hat_open_', ('hat_open_',)),
+            'loose hat': ('hat_loose_', ('hat_loose_',)),
+            'dry snare': ('snare_dry_', ('snare_dry_',)),
+            'tom': ('tom_', ('tom_',)),
+            'crash': ('crash_', ('crash_',)),
+        }
+        self.calibration = {}
+        for family, (reference, prefixes) in families.items():
+            peak = max(float(np.max(np.abs(audio))) for name, audio in self.samples.items() if name.startswith(reference))
+            gain = .82 / max(1e-5, peak)
+            for name in self.samples:
+                if name.startswith(prefixes):
+                    self.samples[name] *= gain
+            self.calibration[family] = dict(referencePeak=peak, sharedGain=gain)
+        self.source, self.cymbals, self.room_source, self.events = self._perform()
 
     @staticmethod
     def _prepare(audio, name):
@@ -55,15 +76,15 @@ class AcousticBreak:
         onset = np.flatnonzero(amplitude > amplitude.max() * .025)[0]
         audio = audio[max(0, onset - round(.0015 * RATE)):].copy()
         if name.startswith('bass'):
-            duration, low, high = .34, 30, 2600
+            duration, low, high = .40, 38, 2600
         elif name.startswith('snare'):
             duration, low, high = (.32 if 'soft' in name else .43), 115, 12600
         elif name.startswith('hat_open'):
-            duration, low, high = .48, 900, 13500
+            duration, low, high = .48, 900, 9800
         elif name.startswith('hat_loose'):
-            duration, low, high = .22, 1000, 13500
+            duration, low, high = .24, 1000, 9800
         elif name.startswith('hat'):
-            duration, low, high = .12, 1200, 13500
+            duration, low, high = .16, 1000, 9800
         elif name.startswith('tom'):
             duration, low, high = .4, 65, 9000
         else:
@@ -74,43 +95,60 @@ class AcousticBreak:
             # A concert bass drum is not presented as a pedal kick. Its real
             # attack stays, while a short damping envelope controls its boom.
             t = np.arange(len(audio)) / RATE
-            audio *= np.exp(-t / .10)[:, None]
-        # Normalize recordings within each velocity group; actual performed
-        # dynamics below remain distinct, including a truly soft snare take.
-        audio *= .82 / max(1e-5, np.max(np.abs(audio)))
-        edge = min(round(.025 * RATE), len(audio) // 3)
+            audio *= np.exp(-t / .12)[:, None]
+        edge = min(round(.035 * RATE), len(audio) // 3)
         audio[-edge:] *= np.linspace(1, 0, edge, dtype=np.float32)[:, None]
         audio[:48] *= np.linspace(0, 1, 48, dtype=np.float32)[:, None]
         return audio
 
+    def _velocity_layers(self, layers, velocity, take):
+        """Blend recorded dynamics without independently boosting each layer.
+
+        The recording supplies most of the soft-to-hard change. Scale only
+        below/above the anchor range, avoiding a second full velocity envelope
+        that would bury the already quiet ghost recording or jump at a switch.
+        """
+        if velocity <= layers[0][0]:
+            return self.samples[f'{layers[0][1]}_{take}'] * (velocity/layers[0][0])**.8
+        if velocity >= layers[-1][0]:
+            return self.samples[f'{layers[-1][1]}_{take}'] * (velocity/layers[-1][0])**.8
+        for (lower, first), (upper, second) in zip(layers, layers[1:]):
+            if lower <= velocity < upper:
+                weight = (velocity-lower)/(upper-lower)
+                a, b = self.samples[f'{first}_{take}'], self.samples[f'{second}_{take}']
+                audio = np.zeros((max(len(a),len(b)),2),dtype=np.float32)
+                audio[:len(a)] += a * (1-weight)
+                audio[:len(b)] += b * weight
+                return audio
+        raise ValueError(velocity)
+
     def hit(self, kind, velocity=1, alternate=0):
         take = alternate % 2 + 1
         if kind == 'snare':
-            dynamic = 'soft' if velocity < .38 else 'medium' if velocity < .76 else 'main'
-            name = f'snare_{dynamic}_{take}'
-            level = .225 * velocity
+            audio = self._velocity_layers([(.20,'snare_soft'),(.56,'snare_medium'),(.94,'snare_main')],velocity,take)
+            level = .225
         elif kind == 'kick':
-            name = f"bass_{'soft' if velocity < .65 else 'main'}_{take}"
-            level = .23 * velocity
+            audio = self._velocity_layers([(.50,'bass_soft'),(.95,'bass_main')],velocity,take)
+            level = .23
         elif kind == 'hat':
-            name = f"hat_{'soft' if velocity < .55 else 'main'}_{take}"
-            level = .053 * velocity
+            audio = self._velocity_layers([(.46,'hat_soft'),(.67,'hat_main')],velocity,take)
+            level = .0355
         elif kind in ('loose', 'open'):
-            name, level = f'hat_{kind}_{take}', .052 * velocity
+            audio, level = self.samples[f'hat_{kind}_{take}'], .047 * velocity
         elif kind == 'tom':
-            name, level = f'tom_{take}', .105 * velocity
+            audio, level = self.samples[f'tom_{take}'], .105 * velocity
         elif kind == 'dry':
-            name, level = f'snare_dry_{take}', .13 * velocity
+            audio, level = self.samples[f'snare_dry_{take}'], .12 * velocity
         elif kind == 'crash':
-            name, level = 'crash_short', .028 * velocity
+            audio, level = self.samples['crash_short'], .025 * velocity
         else:
             raise ValueError(kind)
-        audio = self.samples[name] * level
+        audio = audio * level
         if kind == 'kick':
-            t = np.arange(len(audio)) / RATE
-            sub = np.sin(2 * np.pi * (53 * t + .7 * (1 - np.exp(-45 * t))))
-            sub *= np.exp(-t / .055) * (1 - np.exp(-900 * t)) * .055 * velocity
-            audio = audio + sub[:, None]
+            # The real drum body provides the attack and decay. The score's
+            # separate melodic sub already supplies its sustained low end.
+            mono = audio.mean(axis=1)
+            return np.column_stack((mono,mono)).astype(np.float32)
         # The lower kit stays centered. Cymbals have a restrained natural width.
         mid = audio.mean(axis=1)
         side = (audio[:, 0] - audio[:, 1]) * (.20 if kind in ('kick', 'snare', 'dry') else .4)
@@ -166,6 +204,7 @@ class AcousticBreak:
         events.sort(key=lambda item: item['beat'])
         source = np.zeros((round((32*self.beat+.8)*RATE),2), dtype=np.float32)
         cymbals = np.zeros_like(source)
+        room_source = np.zeros_like(source)
         for index, item in enumerate(events):
             audio = self.hit(item['kind'], item['velocity'], item['alternate'])
             if item['kind'] in ('open', 'loose'):
@@ -180,17 +219,22 @@ class AcousticBreak:
             source[start:end] += audio[:end-start]
             if item['kind'] in ('hat','loose','open','crash'):
                 cymbals[start:end] += audio[:end-start]
-        return source, cymbals, events
+            if item['kind'] in ('snare','dry','tom'):
+                room_source[start:end] += audio[:end-start]
+        return source, cymbals, room_source, events
 
-    def fragment(self, source_beat, beats, *, reverse=False, speed=1, cymbals=1):
+    def fragment(self, source_beat, beats, *, reverse=False, speed=1, cymbals=1, stem='full'):
         """Cut performed phrases, retaining intra-phrase velocity and timing."""
         from scipy.signal import resample_poly
         from fractions import Fraction
         start = round(source_beat * self.beat * RATE)
         length = round(beats * self.beat * RATE)
         overlap = round(.003*RATE)
-        audio = self.source[start:start+length+overlap].copy()
-        if cymbals != 1:
+        if stem not in ('full','room'):
+            raise ValueError(stem)
+        source = self.room_source if stem == 'room' else self.source
+        audio = source[start:start+length+overlap].copy()
+        if cymbals != 1 and stem == 'full':
             audio += self.cymbals[start:start+length+overlap] * (cymbals-1)
         if reverse:
             audio = audio[::-1].copy()

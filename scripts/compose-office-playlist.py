@@ -1,16 +1,18 @@
-"""Eight original Lucid instrumentals. Offline authoring only, no external samples.
+"""Eight original Lucid instrumentals, with recorded CC0 percussion.
 
-Requires numpy, scipy and ffmpeg, like compose-office-theme.py. Each piece has
+Requires numpy, scipy, Pedalboard, FFmpeg and the pinned VCSL drum cache. Each piece has
 its own harmony, melodic phrases, meter/tempo and five-part arrangement.
 Existing Little Lights and room air are deliberately left intact.
 """
 from pathlib import Path
+import argparse
 import json
 import subprocess
 import tempfile
 import wave
 import numpy as np
 from scipy.signal import butter, sosfilt
+from cozy_percussion import CozyPercussion
 
 RATE = 44100
 OUT = Path(__file__).resolve().parents[1] / 'src/assets/audio'
@@ -60,13 +62,14 @@ PIECES = [
 ]
 
 
-def render(piece, seed):
+def render(piece, seed, sample_dir=None):
     rng = np.random.default_rng(seed)
     beat = 60 / piece['bpm']
     # Waltzes get an extra phrase so they remain full pieces, not short loops.
     bars = 48 if piece['meter'] == 3 else 40
     length = round((bars * piece['meter'] * beat + 4) * RATE)
     song = np.zeros((length, 2), dtype=np.float32)
+    percussion = CozyPercussion(length,seed+709,sample_dir) if piece['period']!='night' else None
 
     def place(samples, at, gain, pan=0, echo=True):
         stereo = samples[:, None] * np.array([np.sqrt((1-pan)/2), np.sqrt((1+pan)/2)]) * gain
@@ -126,31 +129,37 @@ def render(piece, seed):
             place(note(chord[-1]+12, 3.6, 'glass'), at+1, .04, .3)
         if part != 0 and not sparse and not night:
             for hit in ([0] if piece['meter']==3 else [0,2]):
-                t = np.arange(round(.22*RATE))/RATE
-                kick = np.sin(2*np.pi*(46*t+2.1*(1-np.exp(-t*26))))*np.exp(-t*24)*(1-np.exp(-t*400))
-                place(kick, at+hit, .08, 0, False)
+                percussion.hit('kick',(at+hit)*beat,.19 if hit==0 else .16)
             for hit in range(1,piece['meter']):
-                raw = rng.normal(0,1,round(.09*RATE))
-                brush = sosfilt(butter(2,[900,4600],btype='bandpass',fs=RATE,output='sos'),raw)
-                place(brush*np.exp(-np.arange(len(raw))/RATE*40),at+hit+.04,.022,-.25,False)
+                percussion.hit('snare',(at+hit+.04)*beat,.065,accent=hit==1,throw=index==7 and hit==piece['meter']-1)
+            if index%4==3:
+                percussion.hit('snare',(at+piece['meter']-.22)*beat,.032)
     dry = song.copy()
     for delay, gain in [(.083,.08),(.139,.06),(.227,.045),(.379,.03),(.617,.018)]:
         shift = round(delay*RATE)
         song[shift:] += dry[:-shift,::-1]*gain
     song = sosfilt(butter(2,6500 if piece['period']=='night' else 7400,fs=RATE,output='sos'),song,axis=0).astype(np.float32)
+    if percussion: song += percussion.mix(beat)
     # Match Little Lights' average level; no louder surprises between pieces.
-    song *= min(.72/np.max(np.abs(song)), .1016/np.sqrt(np.mean(song**2)))
+    song *= min(.68/np.max(np.abs(song)), .1016/np.sqrt(np.mean(song**2)))
     fade = round(1.4*RATE)
     song[:fade] *= np.linspace(0,1,fade)[:,None]
     song[-fade:] *= np.linspace(1,0,fade)[:,None]
-    return song
+    return song, percussion.provenance() if percussion else None
 
 
 def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--only',nargs='+',choices=[p['id'] for p in PIECES])
+    parser.add_argument('--sample-dir',type=Path)
+    args=parser.parse_args()
     OUT.mkdir(parents=True,exist_ok=True)
-    metrics=[]
+    metrics_file=OUT/'soundtrack-metrics.json'
+    old=json.loads(metrics_file.read_text()) if metrics_file.exists() else []
+    metrics={row['id']:row for row in old}
     for i,piece in enumerate(PIECES):
-        song=render(piece,314159+i*101)
+        if args.only and piece['id'] not in args.only: continue
+        song,percussion=render(piece,314159+i*101,args.sample_dir)
         with tempfile.TemporaryDirectory(prefix='lucid-song-') as tmp:
             wav=Path(tmp)/'master.wav'
             with wave.open(str(wav),'wb') as writer:
@@ -159,8 +168,9 @@ def main():
             subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-y','-i',str(wav),'-c:a','libmp3lame','-b:a','160k',str(OUT/f"{piece['id']}.mp3")],check=True)
         row={k:piece[k] for k in ['id','title','period','bpm','meter']}
         row.update(seconds=len(song)/RATE,peakDbFS=float(20*np.log10(np.max(np.abs(song)))),rmsDbFS=float(20*np.log10(np.sqrt(np.mean(song**2)))))
-        metrics.append(row);print(json.dumps(row),flush=True)
-    (OUT/'soundtrack-metrics.json').write_text(json.dumps(metrics,indent=2)+'\n',encoding='utf-8')
+        if percussion:row['percussion']=percussion
+        metrics[piece['id']]=row;print(json.dumps(row),flush=True)
+    metrics_file.write_text(json.dumps(list(metrics.values()),indent=2)+'\n',encoding='utf-8')
 
 
 if __name__=='__main__':

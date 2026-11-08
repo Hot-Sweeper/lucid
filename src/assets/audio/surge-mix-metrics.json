@@ -12,6 +12,7 @@
       "analog leads",
       "pads",
       "arpeggios",
+      "recorded bass drum",
       "gated acoustic snare",
       "syncopated bass"
     ],
@@ -20,43 +21,43 @@
         "name": "first lights",
         "start": 0.0,
         "end": 9.23076923076923,
-        "rmsDbFS": -28.52727699279785
+        "rmsDbFS": -29.090248107910156
       },
       {
         "name": "night-drive question",
         "start": 9.23076923076923,
         "end": 46.153846153846146,
-        "rmsDbFS": -20.59986114501953
+        "rmsDbFS": -21.068628311157227
       },
       {
         "name": "horizon answer",
         "start": 46.153846153846146,
         "end": 64.61538461538461,
-        "rmsDbFS": -20.868642807006836
+        "rmsDbFS": -21.152135848999023
       },
       {
         "name": "tunnel respite",
         "start": 64.61538461538461,
         "end": 83.07692307692307,
-        "rmsDbFS": -29.11444091796875
+        "rmsDbFS": -29.662006378173828
       },
       {
         "name": "rising side street",
         "start": 83.07692307692307,
         "end": 101.53846153846153,
-        "rmsDbFS": -20.813791275024414
+        "rmsDbFS": -21.185760498046875
       },
       {
         "name": "neon homecoming",
         "start": 101.53846153846153,
         "end": 138.46153846153845,
-        "rmsDbFS": -20.525358200073242
+        "rmsDbFS": -20.98226547241211
       },
       {
         "name": "distant afterglow",
         "start": 138.46153846153845,
         "end": 156.9230769230769,
-        "rmsDbFS": -28.73218536376953
+        "rmsDbFS": -28.934309005737305
       }
     ],
     "nativeParts": {
@@ -242,6 +243,42 @@
     },
     "sampleSources": [
       {
+        "file": "bass_main_1.wav",
+        "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v5_rr1_Sum.wav",
+        "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v5_rr1_Sum.wav",
+        "bytes": 588092,
+        "sha256": "642aaf3375eaff1307973f7de3ccbf74d18e71fb3cf9412e021b08fc3bf1981c",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e"
+      },
+      {
+        "file": "bass_main_2.wav",
+        "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v5_rr2_Sum.wav",
+        "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v5_rr2_Sum.wav",
+        "bytes": 614388,
+        "sha256": "a83943f8125ae39469ef5dab1d0be2fe3145c6842c0621b27be5d86aa44b325d",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e"
+      },
+      {
+        "file": "bass_soft_1.wav",
+        "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+        "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr1_Sum.wav",
+        "bytes": 281616,
+        "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e"
+      },
+      {
+        "file": "bass_soft_2.wav",
+        "repositoryPath": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+        "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v2_rr2_Sum.wav",
+        "bytes": 302396,
+        "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59",
+        "license": "CC0-1.0",
+        "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e"
+      },
+      {
         "file": "snare_main_1.wav",
         "repositoryPath": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v7_rr1_Mid.wav",
         "url": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v7_rr1_Mid.wav",
@@ -287,8 +324,14 @@
         "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e"
       }
     ],
-    "arrangement": "Lower-register question/answer lead, broken kick/bass groove, real gated snare, contrasting B, quiet tunnel and reprise",
-    "revision": 3,
+    "percussionProduction": {
+      "kick": "Four verified VCSL recorded takes; no synthesized oscillator layer",
+      "kickTreatment": "28 Hz highpass, gentle 90 Hz shelf, 360 Hz mud cut, damped natural room, dry mono",
+      "groove": "Four-bar broken kick cycle, softer recorded pickups, alternate snare/hat takes, phrase-end hat gaps",
+      "snareSpace": "Short filtered gated room; selected phrase-ending 3/16 and 1/4 note stereo throws, 18% feedback, 480-3900 Hz"
+    },
+    "arrangement": "Lower-register question/answer lead, broken recorded-kick/bass groove, real gated snare, filtered phrase-ending echoes, contrasting B, quiet tunnel and reprise",
+    "revision": 4,
     "production": "Surge XT 1.3.4 original analog patches + Pedalboard 0.9.26 stem production",
     "provenance": {
       "instrument": {
@@ -318,18 +361,18 @@
       "composition": "Original Lucid scores and own explicit Classic oscillator patches; no artist melody, factory preset or factory audio copied",
       "delivery": "Only encoded music ships in the app; native plugin and Python processors remain offline authoring dependencies"
     },
-    "seconds": 159.939410430839,
+    "seconds": 159.95777777777778,
     "peakDbFS": -3.0239063426874537,
-    "rmsDbFS": -21.98051447220606,
+    "rmsDbFS": -22.399628788911414,
     "decoded": {
-      "seconds": 159.939410430839,
-      "integratedLUFS": -18.96,
-      "truePeakDbFS": -3.33,
-      "loudnessRangeLU": 9.8,
-      "peakDbFS": -3.3318092823028564,
-      "rmsDbFS": -22.241470336914062,
-      "trailingSilenceSeconds": 0.25,
-      "channelCorrelation": 0.5246938795189932,
+      "seconds": 159.95777777777778,
+      "integratedLUFS": -19.36,
+      "truePeakDbFS": -3.21,
+      "loudnessRangeLU": 9.7,
+      "peakDbFS": -3.251296281814575,
+      "rmsDbFS": -22.661087036132812,
+      "trailingSilenceSeconds": 0.31526077097505667,
+      "channelCorrelation": 0.5223573205525173,
       "finite": true
     }
   },
@@ -353,37 +396,37 @@
         "name": "a distant shore",
         "start": 0,
         "end": 21.818181818181817,
-        "rmsDbFS": -22.118240356445312
+        "rmsDbFS": -23.22058868408203
       },
       {
         "name": "overlapping horizons",
         "start": 21.818181818181817,
         "end": 58.18181818181818,
-        "rmsDbFS": -21.86944007873535
+        "rmsDbFS": -23.107118606567383
       },
       {
         "name": "refracted light",
         "start": 58.18181818181818,
         "end": 94.54545454545455,
-        "rmsDbFS": -21.44585418701172
+        "rmsDbFS": -22.742422103881836
       },
       {
         "name": "deep water",
         "start": 94.54545454545455,
         "end": 120.0,
-        "rmsDbFS": -21.814895629882812
+        "rmsDbFS": -22.95508575439453
       },
       {
         "name": "a remembered shoreline",
         "start": 120.0,
         "end": 149.0909090909091,
-        "rmsDbFS": -22.29055404663086
+        "rmsDbFS": -23.50102996826172
       },
       {
         "name": "receding",
         "start": 149.0909090909091,
         "end": 170.63637188208617,
-        "rmsDbFS": -22.940261840820312
+        "rmsDbFS": -24.44542694091797
       }
     ],
     "nativeParts": {
@@ -478,8 +521,14 @@
         "factoryPreset": false
       }
     },
-    "arrangement": "Free-running 13/15/17/14/19-beat phrases, tied voice-leading, transformed pluck return, low-register motif reprise and drumless space",
-    "revision": 3,
+    "spaceProduction": {
+      "dryMotif": "48 ms raised-cosine attack and 4.2 kHz lowpass; alternating close positions",
+      "nearReflections": "680/1030 ms stereo filtered echoes, 27% feedback, 520-3600 Hz, slow 0.073 Hz modulation",
+      "distantWash": "85 ms softened string excitation; 3.1/4.7s independent filtered repeats and separate diffused reverb",
+      "master": "No added master reverb, delay or percussion"
+    },
+    "arrangement": "Free-running 13/15/17/14/19-beat phrases, tied voice-leading, rounded pluck return, filtered near/far echoes, low-register motif reprise and drumless space",
+    "revision": 4,
     "production": "Surge XT 1.3.4 original analog patches + Pedalboard 0.9.26 stem production",
     "provenance": {
       "instrument": {
@@ -509,18 +558,18 @@
       "composition": "Original Lucid scores and own explicit Classic oscillator patches; no artist melody, factory preset or factory audio copied",
       "delivery": "Only encoded music ships in the app; native plugin and Python processors remain offline authoring dependencies"
     },
-    "seconds": 168.47802721088436,
+    "seconds": 168.4647619047619,
     "peakDbFS": -3.0239063426874537,
-    "rmsDbFS": -21.976236489010432,
+    "rmsDbFS": -23.214932802111083,
     "decoded": {
-      "seconds": 168.47802721088436,
-      "integratedLUFS": -19.07,
-      "truePeakDbFS": -3.2,
-      "loudnessRangeLU": 3.5,
-      "peakDbFS": -3.247191905975342,
-      "rmsDbFS": -22.23556900024414,
-      "trailingSilenceSeconds": 0.27931972789115644,
-      "channelCorrelation": 0.3816826571998778,
+      "seconds": 168.4647619047619,
+      "integratedLUFS": -20.31,
+      "truePeakDbFS": -3.32,
+      "loudnessRangeLU": 3.6,
+      "peakDbFS": -3.4291908740997314,
+      "rmsDbFS": -23.474367141723633,
+      "trailingSilenceSeconds": 0.24997732426303854,
+      "channelCorrelation": 0.373065063254288,
       "finite": true
     }
   }

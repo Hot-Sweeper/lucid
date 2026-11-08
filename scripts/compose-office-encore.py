@@ -1,10 +1,12 @@
-"""Five original Lucid encore instrumentals, authored without samples or services.
+"""Five original Lucid encore instrumentals, with recorded CC0 percussion.
 
-Offline: Python + numpy/scipy + ffmpeg. Each score has a hand-written eight-bar
+Offline: Python + numpy/scipy/Pedalboard, FFmpeg and the pinned VCSL drum cache.
+Each score has a hand-written eight-bar
 hook, its own harmony/groove/timbres, a bridge, a quiet middle and a final reprise.
 Only these five MP3s and their metrics are replaced when this script runs.
 """
 from pathlib import Path
+import argparse
 from functools import lru_cache
 import json
 import subprocess
@@ -12,6 +14,7 @@ import tempfile
 import wave
 import numpy as np
 from scipy.signal import butter, sosfilt
+from cozy_percussion import CozyPercussion
 
 RATE = 44100
 OUT = Path(__file__).resolve().parents[1] / 'src/assets/audio'
@@ -113,13 +116,14 @@ def instrument(pitch, seconds, kind):
     return (body*env*np.clip((seconds-t)/.18,0,1)).astype(np.float32)
 
 
-def render(p, seed):
+def render(p, seed, sample_dir=None):
     rng = np.random.default_rng(seed)
     beat, meter = 60/p['bpm'], p['meter']
     # One intro, two statements, contrasting bridge, breakdown, full reprise, coda.
     sections = [('intro',4),('a',8),('a2',8),('bridge',8),('quiet',8),('return',8),('final',8),('outro',4)]
     frames = round((sum(n for _,n in sections)*meter*beat+5)*RATE)
     song = np.zeros((frames,2),dtype=np.float32)
+    percussion = CozyPercussion(frames,seed+709,sample_dir)
 
     def place(samples, at, gain, pan=0, echoes=False):
         stereo = samples[:,None]*np.array([np.sqrt((1-pan)/2),np.sqrt((1+pan)/2)],dtype=np.float32)*gain
@@ -132,13 +136,6 @@ def render(p, seed):
     def play(pitch, held, kind, at, gain, pan=0, echoes=False):
         place(instrument(pitch,round(held*beat+.65,3),kind),at,gain,pan,echoes)
 
-    t = np.arange(round(.24*RATE))/RATE
-    kick = (np.sin(2*np.pi*(43*t+2.3*(1-np.exp(-30*t))))*np.exp(-23*t)*(1-np.exp(-500*t))).astype(np.float32)
-    def noise(seconds, low, high, decay):
-        t = np.arange(round(seconds*RATE))/RATE
-        n = sosfilt(butter(2,[low,high],btype='bandpass',fs=RATE,output='sos'),rng.normal(0,1,len(t)))
-        return (n*np.exp(-decay*t)*(1-np.exp(-600*t))).astype(np.float32)
-    brush, hat = noise(.17,800,4200,28), noise(.07,3600,7600,70)
     bar = 0
     for section,count in sections:
         for index in range(count):
@@ -182,14 +179,17 @@ def render(p, seed):
                 play(chord[-1]+12,1.8,p['tone'],at+1,.043,.24,True)
             if not thin:
                 hits = [0,2] if p['groove'] in ('electro','bossa') else [0]
-                for pos in hits: place(kick,at+pos,.065 if not night else .027)
+                for pos in hits: percussion.hit('kick',(at+pos)*beat,.18 if not night else .075)
                 for pos in ([1,3] if meter==4 else [1,2]):
                     if p['groove']=='halftime' and pos==1: continue
-                    place(brush,at+pos+.025,.029 if not night else .012,-.22)
+                    percussion.hit('snare',(at+pos+.025)*beat,.070 if not night else .034,
+                                   accent=pos==1 and not night,throw=index%8==7 and pos==3)
                 if not night:
                     for pos in np.arange(.5,meter,.5):
                         swing = .16 if p['groove']=='swing' and pos%1 else 0
-                        place(hat,at+float(pos)+swing,.012 if pos%1 else .007,.32)
+                        percussion.hit('hat',(at+float(pos)+swing)*beat,.046 if pos%1 else .035)
+                if not night and index%4==3:
+                    percussion.hit('snare',(at+meter-.24)*beat,.029)
             bar += 1
     # A real tonic cadence, then space for its natural release.
     end = (bar-1)*meter
@@ -203,21 +203,27 @@ def render(p, seed):
     song = sosfilt(butter(2,6900 if night else 7800,fs=RATE,output='sos'),song,axis=0).astype(np.float32)
     # Soft saturation tames piano transients before matching the library's RMS.
     song = np.tanh(song*1.25)/1.25
+    song += percussion.mix(beat)
     song *= .102/np.sqrt(np.mean(song**2))
     if np.max(np.abs(song))>.70: song *= .70/np.max(np.abs(song))
     fade = round(1.6*RATE)
     song[:fade] *= np.linspace(0,1,fade,dtype=np.float32)[:,None]
     song[-2*RATE:] *= np.linspace(1,0,2*RATE,dtype=np.float32)[:,None]
     instrument.cache_clear()
-    return song
+    return song,percussion.provenance()
 
 
 def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--only',nargs='+',choices=[p['id'] for p in PIECES])
+    parser.add_argument('--sample-dir',type=Path)
+    args=parser.parse_args()
     old = json.loads((OUT/'soundtrack-metrics.json').read_text())
     ids = {p['id'] for p in PIECES}
-    metrics = [row for row in old if row['id'] not in ids]
+    metrics = {row['id']:row for row in old}
     for i,p in enumerate(PIECES):
-        song = render(p,8675309+i*137)
+        if args.only and p['id'] not in args.only:continue
+        song,percussion = render(p,8675309+i*137,args.sample_dir)
         with tempfile.TemporaryDirectory(prefix='lucid-encore-') as tmp:
             wav = Path(tmp)/'master.wav'
             with wave.open(str(wav),'wb') as w:
@@ -229,8 +235,9 @@ def main():
         row = {k:p[k] for k in ('id','title','period','bpm','meter')}
         row.update(seconds=len(song)/RATE,peakDbFS=float(20*np.log10(np.max(np.abs(song)))),
                    rmsDbFS=float(20*np.log10(np.sqrt(np.mean(song**2)))))
-        metrics.append(row)
+        row['percussion']=percussion
+        metrics[p['id']]=row
         print(json.dumps(row),flush=True)
-    (OUT/'soundtrack-metrics.json').write_text(json.dumps(metrics,indent=2)+'\n')
+    (OUT/'soundtrack-metrics.json').write_text(json.dumps(list(metrics.values()),indent=2)+'\n')
 
 if __name__=='__main__': main()
