@@ -1,5 +1,7 @@
 /* Shared T3 state colors retain Lucid's existing palette in Night blue and OLED. */
 :root {
+  --thread-title: #ececec;
+  --thread-title-working: #bfc1c8;
   --thread-work: #6fb6ff;
   --thread-ask: #ffd27a;
   --thread-review: var(--accent);
@@ -31,3 +33,6 @@
 .panel .th-row.th-worker:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .panel .th-row.th-worker[data-state].sel { background: rgba(255,255,255,.085); }
 .panel .th-row.th-worker[data-state].sel:hover { background: rgba(255,255,255,.11); }
+
+.panel .th-row.th-worker[data-state="work"] .th-title { color: var(--thread-title-working); }
+.panel .th-row.th-worker[data-state=""] .th-title { color: var(--thread-title); }
