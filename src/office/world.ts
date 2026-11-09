@@ -606,7 +606,7 @@ export class World {
     if (!this.outArgs) return;
     const { look, g } = this.ground();
     // puddles, frost and heat are part of the drawing, in coarse steps, so it is redrawn only when they change class
-    const sig = JSON.stringify(look) + groundSig(g) + this.forestSig;
+    const sig = JSON.stringify(look) + groundSig(g) + this.forestSig + (document.documentElement.dataset.theme ?? "");
     if (!force && sig === this.lookSig) return;
     this.lookSig = sig;
     // Finite static garden artwork, with no animated forest or extra cache owners.
@@ -860,6 +860,7 @@ export class World {
     if (!hostWorld) window.addEventListener('pagehide', () => document.removeEventListener('visibilitychange', this.visibilityPresentation), { once: true });
     this.daylight();
     if (!hostWorld) setInterval(() => this.daylight(), 60000);
+    if (!hostWorld) window.addEventListener("lucid:interface-theme", () => this.daylight());
   }
 
   // --- layout -------------------------------------------------------------------
@@ -2355,6 +2356,9 @@ export class World {
   // --- daylight and the wall clock --------------------------------------------------
   daylight(now = new Date()) {
     if (this.hostWorld) { this.paintClock(); return; }
+    // OLED interface: always midnight, under a true black sky (the wall clock keeps real time).
+    const oled = document.documentElement.dataset.theme === "oled";
+    if (oled) { now = new Date(now); now.setHours(0, 30, 0, 0); }
     const h = now.getHours() + now.getMinutes() / 60;
     const S = (sky1: string, sky2: string, stars: number, lamp: number, night: number, city: number) => ({ sky1, sky2, stars, lamp, night, city });
     const v = h < 5 || h >= 21.5 ? S("#0b1030", "#262c62", 1, 1, 0.3, 1)
@@ -2365,7 +2369,7 @@ export class World {
       : S("#2a2f6a", "#e0708a", 0.5, 0.95, 0.2, 0.9);
     // rain greys the sky and dims the light, storms more so
     const darkness = campusNight(now, this.weather);
-    const sky = darkness > .6 ? { ...v, sky1: "#080e24", sky2: "#172039", lamp: 1, stars: 1 } : v;
+    const sky = oled ? { ...v, sky1: "#000000", sky2: "#08080b", lamp: 1, stars: 1 } : darkness > .6 ? { ...v, sky1: "#080e24", sky2: "#172039", lamp: 1, stars: 1 } : v;
     const t = applySkyTint(sky, this.weather);
     const night = Math.min(.9, darkness + t.dim);
     const st = this.root.style;

@@ -4,7 +4,7 @@
 // the current season, weather and ground. Drawing is deterministic, so neighbouring tiles meet
 // without seams and a redraw for new weather keeps every tree where it was.
 
-import { mix, rnd, SNOW, type Look } from "./outdoor-art";
+import { mix, moonlit, rnd, SNOW, type Look } from "./outdoor-art";
 
 export type LRect = { x: number; y: number; w: number; h: number };
 type P = [number, number];
@@ -248,7 +248,9 @@ export function landColors(L: LandLook) {
   const lawn = mix(mix(pal.ground, "#9ed27a", 0.16), SNOW, snow * 0.9);
   const autumn = L.season === "autumn";
   const floor = snow > 0.3 ? mix(SNOW, "#9db0c8", 0.32) : mix(mix(grass, "#2c4a2c", 0.36), "#7a5a30", autumn ? 0.18 : 0);
-  const ever = L.season === "winter" ? EVERGREEN_WINTER : EVERGREEN;
+  // OLED: the palette is already moonlit (lookFor); fixed colours sink the same way.
+  const night = <T,>(v: T) => L.oled ? moonlit(v) : v;
+  const ever = night(L.season === "winter" ? EVERGREEN_WINTER : EVERGREEN);
   const edge = mix(mix(ever[0], "#16301f", 0.35), "#8d9fb3", snow * 0.45);
   return {
     grass, lawn, floor, ever, edge,
@@ -257,10 +259,10 @@ export function landColors(L: LandLook) {
     tuftDark: mix(pal.tuft, "#2d5a32", 0.25), tuftLight: mix(grass, "#d8eaa0", 0.4),
     meadow: mix(mix(grass, "#c7c46a", autumn ? 0.45 : 0.22), SNOW, snow * 0.8),
     path: mix(pal.path, SNOW, snow * 0.42), pathEdge: mix(mix(pal.path, "#6e5c44", 0.38), "#a9b4c2", snow * 0.5), stone: mix(pal.path, "#fff6e0", 0.28),
-    trail: mix(mix("#b39368", grass, 0.12), "#d6dce4", snow * 0.6), trailEdge: mix(mix("#7f6646", grass, 0.25), "#aeb8c6", snow * 0.5),
-    water: L.frozen ? "#cfe5ef" : snow > 0.3 ? "#6aa7c4" : "#5aa9cc", waterDeep: L.frozen ? "#b4d4e2" : "#3f8db4", bank: mix(mix("#7d8f55", "#6b5a3e", 0.4), SNOW, snow * 0.7),
+    trail: night(mix(mix("#b39368", grass, 0.12), "#d6dce4", snow * 0.6)), trailEdge: night(mix(mix("#7f6646", grass, 0.25), "#aeb8c6", snow * 0.5)),
+    water: night(L.frozen ? "#cfe5ef" : snow > 0.3 ? "#6aa7c4" : "#5aa9cc"), waterDeep: night(L.frozen ? "#b4d4e2" : "#3f8db4"), bank: night(mix(mix("#7d8f55", "#6b5a3e", 0.4), SNOW, snow * 0.7)),
     shadow: snow > 0 ? mix(pal.shadow, "#3a4a68", snow) : pal.shadow,
-    rock: ["#8c929a", "#a9aeb5", "#c9ccd0"], wood: ["#6e5038", "#8a6648", "#b48b62"],
+    rock: night(["#8c929a", "#a9aeb5", "#c9ccd0"]), wood: night(["#6e5038", "#8a6648", "#b48b62"]),
     bush: pal.bush,
   };
 }

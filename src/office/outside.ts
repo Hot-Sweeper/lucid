@@ -6,7 +6,7 @@
 // benches, pond and picnic spots all year.
 
 import { seasonPalette, type Season } from "../weather/season";
-import { Grove, Shapes, SNOW, bushInto, fill, mix, n1, n2, rnd, seedAt, timing, treeInto, type Look } from "./outdoor-art";
+import { Grove, Shapes, SNOW, bushInto, fill, mix, moonlit, n1, n2, oledArt, rnd, seedAt, timing, treeInto, type Look } from "./outdoor-art";
 import { groundsLayout, FADE, MEADOW, PARK_K, PARK_BASE_W, PARK_BASE_H, type Grounds, type Rect } from "./grounds";
 import { puddleSvg, snowman, sprinkler, weatherPal, type GroundWx, type Puddle } from "../weather/ground";
 import type { BuildingFootprint } from "./building-footprint";
@@ -307,7 +307,9 @@ export function lookFor(o: Pick<OutsideOpts, "season" | "snowCover" | "wx">): Lo
   const pal0 = weatherPal(seasonPalette(season), o.wx, snow);
   // shadows on snow look cool blue-grey, not green
   const pal = snow > 0 ? { ...pal0, shadow: mix(pal0.shadow, "#3a4a68", snow) } : pal0;
-  return { pal, snow, season, wx: o.wx };
+  // OLED interface: a moonlit midnight version of the same season, hues kept.
+  const oled = oledArt();
+  return { pal: oled ? moonlit(pal) : pal, snow, season, wx: o.wx, oled };
 }
 
 /** The woodland's crown colours (dark, mid, light): the season's trees with evergreens among them. */

@@ -41,5 +41,82 @@
 :root[data-theme="oled"] ::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.16); }
 :root[data-theme="oled"] ::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, 0.3); }
 
+/* ---- The office at midnight -------------------------------------------------------------
+   world.ts forces midnight lighting in OLED. Its night tint becomes neutral black instead of
+   navy, so the scene reads deep and dark while lamps, windows and screens glow. */
+:root[data-theme="oled"] .scene { background: color-mix(in srgb, #000 calc(var(--scene-night) * 92%), var(--scene-ground, #78b066)); }
+:root[data-theme="oled"] .night-shade,
+:root[data-theme="oled"] .shopfront::after { background: #000; }
+/* outside.ts writes this tint inline; only its color changes, its opacity stays live. */
+:root[data-theme="oled"] .outside-tint[style*="#0a1236"] { background: #000 !important; opacity: calc(var(--outdoor-night, 0) * .42) !important; }
+/* The grounds are already drawn moonlit (lookFor), so the outdoor tint is lighter. Indoors gets a deeper midnight so lamps and screens carry the light. */
+:root[data-theme="oled"] .night-shade { opacity: calc(var(--night) * 1.45); }
+:root[data-theme="oled"] .night-shade path { fill: #000; }
+
+/* ---- Robot computers: the desktop OS goes OLED too ----------------------------------------
+   App brands (browser pages, harness replicas, games, Botflix) keep their own look. */
+:root[data-theme="oled"] .screen,
+:root[data-theme="oled"] .bm-front { background: #000; }
+/* Each robot keeps its own wallpaper hue, as a glow sinking into black. */
+:root[data-theme="oled"] .wallpaper::before { content: ""; position: absolute; inset: 0; background: radial-gradient(130% 110% at 50% 115%, rgba(0, 0, 0, 0.35) 0%, #000 62%); pointer-events: none; }
+:root[data-theme="oled"] .wallpaper > .wall-logo { position: relative; }
+:root[data-theme="oled"] .lock { background: radial-gradient(90% 70% at 50% 120%, #1e1a16 0%, #000 65%); }
+:root[data-theme="oled"] .win { background: #0d0d0e; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09), 0 10px 26px rgba(0, 0, 0, 0.6); }
+:root[data-theme="oled"] .win-bar { background: #161618; color: #bdbdbd; }
+:root[data-theme="oled"] .win.focused .win-bar { background: #222225; color: #fff; }
+:root[data-theme="oled"] .dock,
+:root[data-theme="oled"] .monitor .dock { background: rgba(18, 18, 20, 0.88); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+:root[data-theme="oled"] .os-clock { background: rgba(0, 0, 0, 0.6); color: #e6e6e6; }
+:root[data-theme="oled"] .os-flyout { background: rgba(16, 16, 18, 0.97); }
+:root[data-theme="oled"] .alttab { background: rgba(14, 14, 16, 0.95); }
+:root[data-theme="oled"] .uac { background: rgba(0, 0, 0, 0.78); }
+:root[data-theme="oled"] .uac-box { background: #121214; }
+:root[data-theme="oled"] .uac-head { background: #1c1c1f; }
+:root[data-theme="oled"] .uac-btns span { background: #26262a; }
+:root[data-theme="oled"] .files-top { background: #141416; }
+:root[data-theme="oled"] .search-box { background: #000; }
+:root[data-theme="oled"] .search-box.active { background: #000; }
+:root[data-theme="oled"] .editor,
+:root[data-theme="oled"] .tab.on { background: #070708; }
+:root[data-theme="oled"] .tabs { background: #121214; }
+:root[data-theme="oled"] .term { background: #000; }
+:root[data-theme="oled"] .chat,
+:root[data-theme="oled"] .chat-app { background: #050506; }
+:root[data-theme="oled"] .chat-compose { background: #0b0b0c; }
+:root[data-theme="oled"] .cc-field { background: #1b1b1e; }
+:root[data-theme="oled"] .cc-send { background: #2a2a2e; }
+:root[data-theme="oled"] .msg.bot p { background: #1f1f23; }
+:root[data-theme="oled"] .tool { background: #0d0d0e; }
+:root[data-theme="oled"] .b-action { background: rgba(22, 22, 24, 0.94); }
+:root[data-theme="oled"] .pic,
+:root[data-theme="oled"] .sheet,
+:root[data-theme="oled"] .game { background: #050506; }
+:root[data-theme="oled"] .sh-stage,
+:root[data-theme="oled"] .sh-f { background-color: #000; }
+:root[data-theme="oled"] .calc { background: #0b0b0c; }
+:root[data-theme="oled"] .calc-screen { background: #000; }
+:root[data-theme="oled"] .calc .ck { background: #1f1f22; }
+:root[data-theme="oled"] .calc .ck.fn { background: #2a2a2e; color: #c4c4c4; }
+:root[data-theme="oled"] .calc .ck.op { background: #2e2619; }
+:root[data-theme="oled"] .fx { --fx-bg: #0a0a0b; --fx-bar: #141416; --fx-low: #050506; --fx-sel: rgba(255, 159, 90, 0.2); --fx-dim: #8c8c8c; }
+:root[data-theme="oled"] .tk { background: #050506; }
+:root[data-theme="oled"] .tk-col { background: rgba(255, 255, 255, 0.04); }
+:root[data-theme="oled"] .tk-card { background: #1b1b1e; }
+:root[data-theme="oled"] .tk-card.doing,
+:root[data-theme="oled"] .tk-q-row.lift { background: #26262a; }
+:root[data-theme="oled"] .tk-card.done { background: #121214; }
+:root[data-theme="oled"] .tool.tv { --tv-ink: #ececec; --tv-muted: #8c8c8c; --tv-line: rgba(255, 255, 255, 0.1); --tv-run: #b4b4b4; }
+:root[data-theme="oled"] .t3.lucid-chat { --bg: #000; --card: #0a0a0a; --ink: #ececec; --muted: #b4b4b4; --faint: #8c8c8c; }
+
+/* Lucid's own monitor screens: task reports, questions, plans. */
+:root[data-theme="oled"] .monitor-task-panel,
+:root[data-theme="oled"] .mt-far,
+:root[data-theme="oled"] .monitor-task-question .ca-actions { background: #000; }
+:root[data-theme="oled"] .mt-shot { background: #0a0a0a; border-color: rgba(255, 255, 255, 0.12); }
+:root[data-theme="oled"] .mt-chip[data-state="settled"],
+:root[data-theme="oled"] .mt-chip[data-state="kept"],
+:root[data-theme="oled"] .mt-actions > .monitor-task-collect.mt-remove { background: #222225; }
+:root[data-theme="oled"] .mt-image-viewer::backdrop { background: rgba(0, 0, 0, 0.88); }
+
 /* Theme switch: one 260ms crossfade of the snapshot (View Transitions), no per-element transitions. */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 260ms; animation-timing-function: cubic-bezier(.23, 1, .32, 1); }

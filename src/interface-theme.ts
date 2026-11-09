@@ -13,6 +13,7 @@ const read = (): InterfaceTheme => {
 const apply = (theme: InterfaceTheme) => {
   const root = document.documentElement;
   if (theme === "oled") root.dataset.theme = "oled"; else delete root.dataset.theme;
+  window.dispatchEvent(new Event("lucid:interface-theme"));
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "oled" ? "#000000" : "#1b2246");
 };
 
