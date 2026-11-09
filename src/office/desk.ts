@@ -451,24 +451,24 @@ export class Desk implements DeskStage {
         const x = kb.x + c * colW + 1.2, y = kb.y + 2 + r * rowH + 0.8;
         this.keyCenters.set(ch, { x: x + colW / 2 - 1.2, y: y + rowH / 2 - 0.8, hand: c < 6 ? "left" : "right" });
         const geometry={x:Number(x.toFixed(1)),y:Number(y.toFixed(1)),w:Number((colW-2.4).toFixed(1)),h:Number((rowH-1.6).toFixed(1)),r:1.6};
-        this.keys.set(ch,geometry);keys.push(`<rect x="${geometry.x}" y="${geometry.y}" width="${geometry.w}" height="${geometry.h}" rx="${geometry.r}" fill="#5a6177"/>`);
+        this.keys.set(ch,geometry);keys.push(`<rect x="${geometry.x}" y="${geometry.y}" width="${geometry.w}" height="${geometry.h}" rx="${geometry.r}" style="fill:var(--wd-key, #5a6177)"/>`);
       });
     });
     const sy = kb.y + 2 + 4 * rowH + 0.6;
     this.keyCenters.set(" ", { x: kb.x + kb.w / 2, y: sy + 2.5, hand: "right" });
-    const space={x:kb.x+colW*3,y:sy,w:colW*6,h:5,r:2};this.keys.set(" ",space);keys.push(`<rect x="${space.x}" y="${space.y}" width="${space.w}" height="${space.h}" rx="${space.r}" fill="#5a6177"/>`);
+    const space={x:kb.x+colW*3,y:sy,w:colW*6,h:5,r:2};this.keys.set(" ",space);keys.push(`<rect x="${space.x}" y="${space.y}" width="${space.w}" height="${space.h}" rx="${space.r}" style="fill:var(--wd-key, #5a6177)"/>`);
     return /* svg */ `
     <svg class="desk-table" viewBox="0 0 ${UNIT.w} ${UNIT.h}" aria-hidden="true">
       ${sharedVector(`
       <ellipse cx="${t.x + t.w / 2}" cy="${t.y + t.h + t.front + 8}" rx="${t.w / 2 + 6}" ry="12" fill="#2b1d10" opacity="0.18"/>
-      <rect x="${t.x}" y="${t.y + t.h - 4}" width="${t.w}" height="${t.front + 4}" rx="6" fill="#b48a5e"/>
-      <rect x="${t.x}" y="${t.y}" width="${t.w}" height="${t.h}" rx="8" fill="#d7b48a"/>
-      <rect x="${t.x + 6}" y="${t.y + 4}" width="${t.w - 12}" height="3" rx="1.5" fill="#fff" opacity="0.25"/>
+      <rect x="${t.x}" y="${t.y + t.h - 4}" width="${t.w}" height="${t.front + 4}" rx="6" style="fill:var(--wd-desk-front, #b48a5e)"/>
+      <rect x="${t.x}" y="${t.y}" width="${t.w}" height="${t.h}" rx="8" style="fill:var(--wd-desk-top, #d7b48a)"/>
+      <rect x="${t.x + 6}" y="${t.y + 4}" width="${t.w - 12}" height="3" rx="1.5" fill="#fff" style="opacity:var(--wd-desk-sheen, 0.25)"/>
       <ellipse cx="${st.x}" cy="${st.base}" rx="30" ry="9" fill="#4a5063"/>
       <ellipse cx="${st.x}" cy="${st.base - 2}" rx="24" ry="6" fill="#5a6177"/>
       <rect x="${st.x - 7}" y="${st.top}" width="14" height="${st.base - st.top - 2}" fill="#3a3f4f"/>
       <g class="papers"><rect x="96" y="194" width="38" height="30" rx="3" fill="#f4f1ea" transform="rotate(-7 115 209)"/><rect x="100" y="197" width="38" height="30" rx="3" fill="#fbf9f4" transform="rotate(5 119 212)"/></g>
-      <rect x="${kb.x - 5}" y="${kb.y - 3}" width="${kb.w + 10}" height="${kb.h + 7}" rx="7" fill="#2e3242"/>
+      <rect x="${kb.x - 5}" y="${kb.y - 3}" width="${kb.w + 10}" height="${kb.h + 7}" rx="7" style="fill:var(--wd-keyboard, #2e3242)"/>
       `,this.vectorOwner)}
       <g class="keys">${sharedVector(keys.join(""),this.vectorOwner,"key")}</g>
       <rect x="${m.x - 24}" y="${m.y - 22}" width="48" height="44" rx="10" fill="#4a5063" opacity="0.55"/>

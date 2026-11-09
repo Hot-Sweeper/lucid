@@ -45,6 +45,34 @@
   --world-indoor-shade-k: 1.45;
   --world-sky-layer: none;          /* cloud shadows are lighter than black and boxed the outdoors */
 
+  /* office materials: dark oak floors and desks, warm charcoal walls, black frames and casings */
+  --wd-floor: #3b2a1e;
+  --wd-seam: #23180f;
+  --wd-tile: #3a271d;
+  --wd-tile-seam: #2a1c14;
+  --wd-wall: #1d1b1a;
+  --wd-trim: #2a2725;
+  --wd-frame: #0b0b0b;
+  --wd-desk-top: #4e3523;
+  --wd-desk-front: #2f2016;
+  --wd-desk-sheen: 0.1;
+  --wd-keyboard: #17171a;
+  --wd-key: #393940;
+  --wd-bezel: #1a1a1c;
+  --wd-bezel-edge: #050505;
+  --wd-hall-a: #24221f;
+  --wd-hall-b: #201e1c;
+  --wd-hall-runner: #3a281c;
+  --wd-sign: #1c1a19;
+  --wd-sign-ink: #e4ded6;
+  --wd-plate: rgba(22, 20, 19, 0.94);
+  --wd-plate-ink: #e6e1da;
+  --wd-plate-sub: #a39b91;
+  --wd-add: #1d1a17;
+  --wd-add-hover: #2a241f;
+  --wd-add-line: #3d3128;
+  --wd-add-ink: #eadbc6;
+
   /* robot computers */
   --os-ink: #e6e6e6;
   --os-desk: #000000;

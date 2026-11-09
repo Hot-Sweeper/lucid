@@ -78,14 +78,14 @@ function shellSvg(id: string, w: number, h: number, pal: Palette, wallArt: strin
       <linearGradient id="${id}-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--sky1, #6fb2ee)"/><stop offset="1" style="stop-color:var(--sky2, #d4ecfb)"/></linearGradient>
       <radialGradient id="${id}-pool"><stop offset="0" stop-color="#ffe6b0" stop-opacity="0.3"/><stop offset="1" stop-color="#ffe6b0" stop-opacity="0"/></radialGradient>
     </defs>
-    <rect y="${WALL}" width="${w}" height="${h - WALL}" fill="${pal.floor}"/>
-    ${floorArt ?? plankJoints(w,h,WALL,pal.seam,id)}
+    <rect y="${WALL}" width="${w}" height="${h - WALL}" style="fill:var(--wd-floor, ${pal.floor})"/>
+    ${floorArt ?? plankJoints(w,h,WALL,`var(--wd-seam, ${pal.seam})`,id)}
     ${lamps.join("")}
     <rect y="${WALL}" width="${w}" height="20" fill="#000" opacity="0.07"/>
-    <rect width="${w}" height="${WALL}" fill="${pal.wall}"/>
-    <rect y="${WALL - 10}" width="${w}" height="10" fill="${pal.trim}"/>
+    <rect width="${w}" height="${WALL}" style="fill:var(--wd-wall, ${pal.wall})"/>
+    <rect y="${WALL - 10}" width="${w}" height="10" style="fill:var(--wd-trim, ${pal.trim})"/>
     ${wallArt.replace(/SKY/g, `url(#${id}-sky)`)}
-    <rect width="${w}" height="${T}" fill="${PAL.top}"/>
+    <rect width="${w}" height="${T}" style="fill:var(--wd-frame, ${PAL.top})"/>
   </svg>`;
 }
 
@@ -93,12 +93,12 @@ function frontSvg(w: number, h: number, pal: Palette) {
   const d0 = w / 2 - DOOR / 2;
   return /* svg */ `
   <svg class="world-room-front" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">
-    <rect width="${T}" height="${h}" fill="${PAL.top}"/>
-    <rect x="${w - T}" width="${T}" height="${h}" fill="${PAL.top}"/>
-    <rect y="${h - T}" width="${d0}" height="${T}" fill="${PAL.top}"/>
-    <rect x="${d0 + DOOR}" y="${h - T}" width="${w - d0 - DOOR}" height="${T}" fill="${PAL.top}"/>
-    <rect x="${d0 - 6}" y="${h - T - 4}" width="8" height="${T + 4}" rx="2" fill="${pal.trim}"/>
-    <rect x="${d0 + DOOR - 2}" y="${h - T - 4}" width="8" height="${T + 4}" rx="2" fill="${pal.trim}"/>
+    <rect width="${T}" height="${h}" style="fill:var(--wd-frame, ${PAL.top})"/>
+    <rect x="${w - T}" width="${T}" height="${h}" style="fill:var(--wd-frame, ${PAL.top})"/>
+    <rect y="${h - T}" width="${d0}" height="${T}" style="fill:var(--wd-frame, ${PAL.top})"/>
+    <rect x="${d0 + DOOR}" y="${h - T}" width="${w - d0 - DOOR}" height="${T}" style="fill:var(--wd-frame, ${PAL.top})"/>
+    <rect x="${d0 - 6}" y="${h - T - 4}" width="8" height="${T + 4}" rx="2" style="fill:var(--wd-trim, ${pal.trim})"/>
+    <rect x="${d0 + DOOR - 2}" y="${h - T - 4}" width="8" height="${T + 4}" rx="2" style="fill:var(--wd-trim, ${pal.trim})"/>
   </svg>`;
 }
 

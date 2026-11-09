@@ -54,6 +54,21 @@ html:root[data-theme] .shopfront::after { background: var(--world-night-tint); }
 html:root[data-theme] .outside-tint[style*="#0a1236"] { background: var(--world-outdoor-tint) !important; opacity: calc(var(--outdoor-night, 0) * var(--world-outdoor-tint-k)) !important; }
 html:root[data-theme] .weather-sky-view { display: var(--world-sky-layer); }
 
+/* ---- Office materials ------------------------------------------------------------------- */
+html:root[data-theme] .hall:not(.hall-network),
+html:root[data-theme] .hall-strip:not(.hall-strip-vertical) { background: repeating-linear-gradient(90deg, var(--wd-hall-a) 0 64px, var(--wd-hall-b) 64px 128px); }
+html:root[data-theme] .hall-strip-vertical { background: repeating-linear-gradient(0deg, var(--wd-hall-a) 0 64px, var(--wd-hall-b) 64px 128px); }
+html:root[data-theme] .hall::after,
+html:root[data-theme] .hall-strip::after { background: var(--wd-hall-runner); }
+html:root[data-theme] .desk-unit:not([data-computer]) .monitor,
+html:root[data-theme] .desk-unit[data-computer=classic] .monitor { background: linear-gradient(170deg, var(--wd-bezel), var(--wd-bezel-edge)); }
+
+html:root[data-theme] .room-name { color: var(--wd-sign-ink); }
+html:root[data-theme] .desk-plate { background: var(--wd-plate); color: var(--wd-plate-ink); }
+html:root[data-theme] .desk-plate span b { color: var(--wd-plate-sub); }
+html:root[data-theme] .add-desk { background: var(--wd-add); border-color: var(--wd-add-line); color: var(--wd-add-ink); }
+html:root[data-theme] .add-desk:hover { background: var(--wd-add-hover); }
+
 /* ---- Robot computers ---------------------------------------------------------------------- */
 html:root[data-theme] .os { color: var(--os-ink); }
 html:root[data-theme] .screen,

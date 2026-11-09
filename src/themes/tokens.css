@@ -39,6 +39,31 @@
   --world-indoor-shade-k: 0.9;      /* indoor shade strength */
   --world-sky-layer: block;         /* cloud shadows and fog banks */
 
+  /* ---- Office materials (room art in world.ts, desks in desk.ts) ----
+     Room floors, walls and trim are per room type, so their tokens have no default here:
+     --wd-floor, --wd-seam, --wd-wall, --wd-trim, --wd-tile, --wd-tile-seam. A theme that sets
+     them restyles every default room; purchased floors and walls keep their own look. */
+  --wd-frame: #3a3f4f;              /* the dark outline round each room */
+  --wd-desk-top: #d7b48a;
+  --wd-desk-front: #b48a5e;
+  --wd-desk-sheen: 0.25;
+  --wd-keyboard: #2e3242;
+  --wd-key: #5a6177;
+  --wd-bezel: #2a2f45;              /* the classic computer casing */
+  --wd-bezel-edge: #151927;
+  --wd-hall-a: #a9a294;             /* corridor planks and runner */
+  --wd-hall-b: #a29b8d;
+  --wd-hall-runner: #8f6d5a;
+  --wd-sign: #ffffff;               /* room name cards */
+  --wd-sign-ink: #3a3f4f;
+  --wd-plate: rgba(255, 255, 255, 0.93);   /* desk nameplates */
+  --wd-plate-ink: #2d3142;
+  --wd-plate-sub: #5d6278;
+  --wd-add: #fff7e8;                /* the Add a desk button */
+  --wd-add-hover: #f4e3cb;
+  --wd-add-line: #d7c2a7;
+  --wd-add-ink: #4a3a28;
+
   /* ---- Robot computers ---- */
   --os-ink: #e9ecff;
   --os-desk: #0e1233;

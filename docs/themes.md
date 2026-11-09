@@ -10,6 +10,10 @@ Lucid's interface, office lighting and robot computers are themed together. Nigh
 - `src/themes/<id>.css` sets token values on `:root[data-theme="<id>"]` and nothing else.
 - `src/interface-theme.ts` applies the saved theme before the interface is built, builds the Interface selector in Office & settings from the registry, and crossfades switches with View Transitions (instant under reduced motion). The world relights on the `lucid:interface-theme` event.
 
+## Office materials
+
+Room art, desks and labels read `--wd-*` tokens: `--wd-frame`, desk wood (`--wd-desk-top`, `--wd-desk-front`, `--wd-desk-sheen`), keyboard and keys, the classic computer casing (`--wd-bezel`, `--wd-bezel-edge`), corridor (`--wd-hall-*`), room name cards (`--wd-sign`, `--wd-sign-ink`), desk nameplates (`--wd-plate*`) and the Add a desk button (`--wd-add*`). Floors, walls and trim differ per room type, so `--wd-floor`, `--wd-seam`, `--wd-wall`, `--wd-trim`, `--wd-tile` and `--wd-tile-seam` have no default: each room keeps its own colour unless a theme sets them. The free starter materials (Honey planks, Warm white) follow these tokens; purchased floors, walls and computer casings keep their look. SVG art uses `style="fill:var(--token, original)"` because a var() cannot sit in a fill attribute.
+
 ## Adding a theme
 
 1. Add an entry to `THEMES` in `registry.ts`.

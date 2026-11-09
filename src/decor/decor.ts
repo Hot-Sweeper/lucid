@@ -78,8 +78,10 @@ let seq = 0;
 const uid = (p: string) => `dc${p}${(++seq).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 const f = (v: number) => (Math.round(v * 10) / 10).toString();
 const op = (o?: number) => (o == null || o === 1 ? "" : ` opacity="${o}"`);
+// Theme tokens (var(...)) cannot sit in a fill attribute, so they go in a style.
+const paint = (fill: string) => fill.startsWith("var(") ? `style="fill:${fill}"` : `fill="${fill}"`;
 const rect = (x: number, y: number, w: number, h: number, fill: string, rx = 0, o?: number, extra = "") =>
-  `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}"${rx ? ` rx="${f(rx)}"` : ""} fill="${fill}"${op(o)}${extra}/>`;
+  `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}"${rx ? ` rx="${f(rx)}"` : ""} ${paint(fill)}${op(o)}${extra}/>`;
 const ell = (cx: number, cy: number, rx: number, ry: number, fill: string, o?: number, extra = "") =>
   `<ellipse cx="${f(cx)}" cy="${f(cy)}" rx="${f(rx)}" ry="${f(ry)}" fill="${fill}"${op(o)}${extra}/>`;
 const circ = (cx: number, cy: number, r: number, fill: string, o?: number, extra = "") =>
@@ -130,18 +132,19 @@ export function drawFloor(id: FloorId, w: number, h: number, top: number): strin
   const r = rng(id.length * 7919 + 13);
 
   if (id === "wood") {
-    // honey planks, 26px rows, staggered seams, a few planks lighter or darker
-    const tones = ["#c9a274", "#cda779", "#c49d6e", "#d0ab7e", "#c69f71"];
-    let body = rect(0, 0, 540, 78, "#c9a274");
+    // honey planks, 26px rows, staggered seams, a few planks lighter or darker. The free
+    // starter floor follows the interface theme's default floor (--wd-floor, --wd-seam).
+    const tones = ["#c9a274", "#cda779", "#c49d6e", "#d0ab7e", "#c69f71"].map((t) => `var(--wd-floor, ${t})`);
+    let body = rect(0, 0, 540, 78, "var(--wd-floor, #c9a274)");
     for (let row = 0; row < 3; row++) {
       const off = (row * 97) % 180;
       for (let k = -1; k < 4; k++) {
         const x = k * 180 + off;
         body += rect(x, row * 26, 180, 25, tones[(row * 3 + k + 5) % tones.length]);
-        body += rect(x + 30 + ((row + k) % 3) * 30, row * 26 + 8 + ((k + row) % 2) * 6, 70, 1.6, "#b88f61", 0.8, 0.8);
-        body += rect(x, row * 26, 1.2, 25, "#b38a5c", 0, 0.7);
+        body += rect(x + 30 + ((row + k) % 3) * 30, row * 26 + 8 + ((k + row) % 2) * 6, 70, 1.6, "var(--wd-seam, #b88f61)", 0.8, 0.8);
+        body += rect(x, row * 26, 1.2, 25, "var(--wd-seam, #b38a5c)", 0, 0.7);
       }
-      body += rect(0, row * 26 + 25, 540, 1.2, "#b38a5c", 0, 0.7);
+      body += rect(0, row * 26 + 25, 540, 1.2, "var(--wd-seam, #b38a5c)", 0, 0.7);
     }
     return pat(540, 78, body) + area(`url(#${p})`);
   }
@@ -240,7 +243,8 @@ export function windowSlots(w: number): { x: number; w: number }[] {
 
 /** The north wall face (0..wallFace) with its baseboard trim, plus brick texture for "brick". */
 export function drawWall(id: WallId, w: number, wallFace: number): string {
-  const c = WALLS[id];
+  // The free starter wall follows the interface theme's default wall (--wd-wall, --wd-trim).
+  const c = id === "warm" ? { ...WALLS[id], face: `var(--wd-wall, ${WALLS[id].face})`, trim: `var(--wd-trim, ${WALLS[id].trim})` } : WALLS[id];
   let out = rect(0, 0, w, wallFace, c.face);
   if (id === "brick") {
     const p = uid("b");
