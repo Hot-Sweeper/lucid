@@ -73,10 +73,20 @@
   --wd-add-line: #3d3128;
   --wd-add-ink: #eadbc6;
 
+  /* robots: dark bodies in their own hue, managers more strongly tinted */
+  --robot-dark: 100%;
+  --robot-tint: 26%;
+  --robot-mgr-tint: 52%;
+
   /* robot computers */
   --os-ink: #e6e6e6;
   --os-desk: #000000;
-  --os-veil: radial-gradient(130% 110% at 50% 115%, rgba(0, 0, 0, 0.35) 0%, #000 62%);
+  /* Wallpapers: true black with two light pools in the robot's own colours, a brighter one low
+     on the left and a faint one top right. */
+  --os-veil: #000;
+  --os-veil-mask: radial-gradient(82% 74% at 10% 112%, transparent 0%, rgba(0, 0, 0, 0.3) 34%, rgba(0, 0, 0, 0.8) 62%, #000 84%), radial-gradient(52% 46% at 98% -8%, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.8) 52%, #000 86%);
+  --os-logo-opacity: 0.13;
+  --os-logo-filter: grayscale(1) brightness(2.6);   /* a soft silver mark, not a brown smudge */
   --os-lock: radial-gradient(90% 70% at 50% 120%, #1e1a16 0%, #000 65%);
   --os-window: #0d0d0e;
   --os-window-edge: rgba(255, 255, 255, 0.09);

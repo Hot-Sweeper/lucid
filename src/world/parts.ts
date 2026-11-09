@@ -7,6 +7,7 @@ import antigravityLogo from "../assets/harness/antigravity.svg";
 import museLogo from "../assets/harness/muse.svg";
 import { brandFor, type BrandKind } from "../office/brand";
 import type { Expression, Pt, RobotLook } from "../office/rig";
+import { bodyColors } from "./look";
 
 // Shared pieces of the v0 robot: palettes, the head (back view with the embossed logo,
 // front view with the visor face, side view), antenna tips, stickers, eyes and the two-bone
@@ -222,7 +223,7 @@ export function eyesSvg(e: Expression, xs: number[] = [540, 580], cy = 657) {
 export function paintBrand(el: Element, $: Record<string, SVGElement>, kind: BrandKind) {
   const p = PALETTES[kind];
   const st = (el as HTMLElement).style;
-  st.setProperty("--shell", p.shell); st.setProperty("--shade", p.shade); st.setProperty("--deep", p.deep);
+  for (const [k, v] of Object.entries(bodyColors(p, p.deep))) st.setProperty(k, v);
   st.setProperty("--glow", p.glow); st.setProperty("--visor", p.visor); st.setProperty("--logo", p.logo); st.setProperty("--rim", p.rim);
   const show = (k: string, on: boolean) => { if ($[k]) $[k].style.display = on ? "" : "none"; };
   for (const k of ["logoMaskImg", "faceMaskImg"]) if ($[k] && p.src) $[k].setAttribute("href", p.src);

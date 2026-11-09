@@ -1,3 +1,9 @@
+/* Robot body colours are typed, so computed styles (and the canvas robots that read them)
+   get a resolved colour rather than the color-mix() formula from world/look.ts bodyColors. */
+@property --shell { syntax: "<color>"; inherits: true; initial-value: #c9d3e6; }
+@property --shade { syntax: "<color>"; inherits: true; initial-value: #9eabc6; }
+@property --deep { syntax: "<color>"; inherits: true; initial-value: #6d7b9b; }
+
 /* Theme tokens: the default values are Lucid's night look, exactly as the components drew it.
    A theme file overrides any of these on :root[data-theme="<id>"]; surfaces.css applies them.
    Core interface tokens (--night, --night-2, --night-3, --ink*, --line, --accent, --mint) live
@@ -64,10 +70,18 @@
   --wd-add-line: #d7c2a7;
   --wd-add-ink: #4a3a28;
 
+  /* ---- Robots (world/look.ts bodyColors) ---- */
+  --robot-dark: 0%;                 /* 0% the light bodies, 100% dark bodies in each robot's hue */
+  --robot-tint: 30%;                /* hue strength of a dark worker body */
+  --robot-mgr-tint: 55%;            /* managers: a stronger hue instead of the obsidian finish */
+
   /* ---- Robot computers ---- */
   --os-ink: #e9ecff;
   --os-desk: #0e1233;
   --os-veil: none;                  /* laid over each robot's own wallpaper */
+  --os-veil-mask: none;
+  --os-logo-opacity: 0.07;          /* the brand mark in the middle of the wallpaper */
+  --os-logo-filter: none;             /* holes in the veil where the wallpaper shows through */
   --os-lock: radial-gradient(120% 90% at 30% 10%, #3a3f99 0%, #1e2262 50%, #101334 100%);
   --os-window: #1d2252;
   --os-window-edge: transparent;

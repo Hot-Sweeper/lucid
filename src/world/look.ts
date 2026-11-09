@@ -180,11 +180,29 @@ export function tintPalette<P extends { shell: string; shade: string; deep: stri
   return { ...p, shell: mix(p.shell, target, amount), shade: mix(p.shade, target, amount * 0.7), deep: mix(p.deep, target, amount * 0.4) };
 }
 
+/**
+ * Body colour variables. The theme can turn bodies dark while keeping each robot's own hue:
+ * --robot-dark (0% keeps the light body, 100% the dark one) and the hue strength
+ * --robot-tint (workers) or --robot-mgr-tint (managers) come from the theme tokens.
+ */
+export function bodyColors(p: { shell: string; shade: string; deep: string }, hue: string, manager = false) {
+  const k = manager ? "var(--robot-mgr-tint, 55%)" : "var(--robot-tint, 30%)";
+  const dark = (amount: string, base: string) => `color-mix(in srgb, ${hue} ${amount}, ${base})`;
+  const pick = (night: string, oled: string) => `color-mix(in srgb, ${oled} var(--robot-dark, 0%), ${night})`;
+  return {
+    "--shell": pick(p.shell, dark(k, "#121214")),
+    "--shade": pick(p.shade, dark(`calc(${k} - 8%)`, "#09090b")),
+    "--deep": pick(p.deep, dark(`calc(${k} + 22%)`, "#050506")),
+  };
+}
+
 /** Sets the colour variables a look needs on a robot root (call after the brand is painted). */
 export function paintLookColors(el: Element, base: { shell: string; shade: string; deep: string; glow: string }, look: RobotLook) {
   const st = (el as HTMLElement | SVGElement).style;
-  const p = tintPalette(base, look.tint);
-  st.setProperty("--shell", p.shell); st.setProperty("--shade", p.shade); st.setProperty("--deep", p.deep);
+  const p = tintPalette(base, look.tint), manager = look.tint === "obsidian";
+  // The dark body's hue: the robot's own tinted colour (managers: before the obsidian finish).
+  const hue = (manager ? tintPalette(base, undefined) : p).deep;
+  for (const [k, v] of Object.entries(bodyColors(p, hue, manager))) st.setProperty(k, v);
   st.setProperty("--glow", look.glow || base.glow);
   st.setProperty("--acc", look.accent || "#ff9f5a");
   return look.glow || base.glow;
@@ -527,6 +545,7 @@ export function portraitSvg(look: RobotLook, base: PortraitPalette, o: { size?: 
   const vb = o.bust ? "448 478 224 372" : "452 486 216 240";
   const size = o.size ?? 56;
   const [w, h] = o.bust ? [size * 224 / 372, size] : [size * 216 / 240, size];
-  const style = `--shell:${p.shell};--shade:${p.shade};--deep:${p.deep};--glow:${glow};--visor:${base.visor};--logo:${base.logo};--acc:${acc}`;
+  const manager = L.tint === "obsidian", bodyVars = bodyColors(p, (manager ? tintPalette(base, undefined) : p).deep, manager);
+  const style = `${Object.entries(bodyVars).map(([k, v]) => `${k}:${v}`).join(";")};--glow:${glow};--visor:${base.visor};--logo:${base.logo};--acc:${acc}`;
   return `<svg class="${o.cls ?? "av"}" viewBox="${vb}" width="${w.toFixed(0)}" height="${h.toFixed(0)}" style="${style}" ${o.label ? `role="img" aria-label="${o.label}"` : `aria-hidden="true"`}>${body}${head}</svg>`;
 }

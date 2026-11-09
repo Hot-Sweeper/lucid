@@ -14,6 +14,10 @@ Lucid's interface, office lighting and robot computers are themed together. Nigh
 
 Room art, desks and labels read `--wd-*` tokens: `--wd-frame`, desk wood (`--wd-desk-top`, `--wd-desk-front`, `--wd-desk-sheen`), keyboard and keys, the classic computer casing (`--wd-bezel`, `--wd-bezel-edge`), corridor (`--wd-hall-*`), room name cards (`--wd-sign`, `--wd-sign-ink`), desk nameplates (`--wd-plate*`) and the Add a desk button (`--wd-add*`). Floors, walls and trim differ per room type, so `--wd-floor`, `--wd-seam`, `--wd-wall`, `--wd-trim`, `--wd-tile` and `--wd-tile-seam` have no default: each room keeps its own colour unless a theme sets them. The free starter materials (Honey planks, Warm white) follow these tokens; purchased floors, walls and computer casings keep their look. SVG art uses `style="fill:var(--token, original)"` because a var() cannot sit in a fill attribute.
 
+## Robots and wallpapers
+
+Robot bodies come from `bodyColors()` in `src/world/look.ts`: each body colour is a `color-mix()` between the light body and a dark one tinted with the robot's own hue, weighted by `--robot-dark` (0% in Night blue, 100% in OLED). `--robot-tint` sets the hue strength for workers and `--robot-mgr-tint` for managers, whose obsidian finish becomes a stronger tint under a dark theme. `--shell`, `--shade` and `--deep` are registered with `@property` so computed styles and canvas robots get resolved colours. Wallpapers take a veil (`--os-veil`) with holes cut by `--os-veil-mask`, plus `--os-logo-opacity` and `--os-logo-filter` for the brand mark.
+
 ## Adding a theme
 
 1. Add an entry to `THEMES` in `registry.ts`.
