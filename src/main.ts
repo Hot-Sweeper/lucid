@@ -1,3 +1,4 @@
+import { completionFirst, reconcileThreadList } from "./office/thread-list";
 import { threadState } from "./office/thread-state";
 import { mountInterfaceThemeSetting } from "./interface-theme";
 import { mountWebsiteStudio } from "./office/website-studio";
@@ -25,6 +26,7 @@ import { mobileStartRoom } from "./office/mobile-start";
 import "./office/office.css";
 import "./office/panels.css";
 import "./office/thread-state.css";
+import "./office/thread-list.css";
 import "./office/sidebar-header.css";
 import "./world/world.css";
 import "./decor/decor.css";
@@ -1566,7 +1568,7 @@ function renderThreads() {
   const projects = new Map(data.projects.map((p) => [p.id, p]));
   // The bridge supplies T3 Code's sidebar order, independent of live activity.
   const list = data.threads.filter((t) => !q || t.title.toLowerCase().includes(q) || (t.manager?.role || '').toLowerCase().includes(q) || (projects.get(t.manager?.projectId || t.projectId)?.title ?? "").toLowerCase().includes(q));
-  const active = list.filter((t) => !t.settled);
+  const active = q ? list.filter((t) => !t.settled) : completionFirst(list.filter((t) => !t.settled));
   const settled = list.filter((t) => t.settled);
   const reviews = latestThreadReviews(currentEnvironment ? [] : orch.papers);
   const reviewOf = (t: typeof list[number]) => threadReviewLabel(t, reviews.get(t.id), !currentEnvironment && !!settings.orch && t.id !== settings.orch.threadId);
@@ -1625,16 +1627,16 @@ ${robot.name}${t.model ? `, ${t.model}` : ""}` : ""}`)}">
     </button></li>`;
   };
   const expanded = settledOpen || !!q;
-  const rows = managersHtml + active.filter((t) => !t.pinned).map(row).join("") + (settled.length ? `<li><button type="button" class="th-settled-toggle" aria-expanded="${expanded}" aria-controls="th-settled-list"><span>Settled</span><span class="th-settled-count">${settled.length}</span><span aria-hidden="true">${expanded ? "⌄" : "›"}</span></button><ol id="th-settled-list" class="th-settled-list"${expanded ? "" : " hidden"}>${expanded ? settled.slice(0, q ? settled.length : settledLimit).map(row).join("") : ""}</ol>${expanded && !q && settled.length > settledLimit ? `<button type="button" class="th-settled-more">⌄ &nbsp; Show ${Math.min(25, settled.length - settledLimit)} more</button>` : ""}</li>` : "");
+  const rows = `<li class="th-active-shell" id="th-active-shell"><ol class="th-active-list" id="th-active-list">${managersHtml}${active.filter((t) => !t.pinned).map(row).join("") || (managersHtml ? "" : '<li class="th-empty">No threads match.</li>')}</ol></li>` + (settled.length ? `<li class="th-settled-section" id="th-settled-section"><button type="button" class="th-settled-toggle" aria-expanded="${expanded}" aria-controls="th-settled-body"><span>Settled</span><span class="th-settled-count">${settled.length}</span><span aria-hidden="true">${expanded ? "⌄" : "›"}</span></button><div id="th-settled-body" class="th-settled-body"${expanded ? "" : " hidden"}><ol id="th-settled-list" class="th-settled-list">${expanded ? settled.slice(0, q ? settled.length : settledLimit).map(row).join("") : ""}</ol>${expanded && !q && settled.length > settledLimit ? `<button type="button" class="th-settled-more">⌄ &nbsp; Show ${Math.min(25, settled.length - settledLimit)} more</button>` : ""}</div></li>` : "");
   const sig = rows + q;
   if (sig === thSig) { endSystem("ui", started); return; }
   thSig = sig;
   const focused = document.activeElement as HTMLElement | null;
   const focusedId = focused?.closest<HTMLElement>(".th-row")?.dataset.id;
-  const scrollBox = $("th-list").closest(".panel") || $("th-list").parentElement!;
+  const scrollBox = document.getElementById("th-active-shell") || $("th-list");
   const scrollTop = scrollBox.scrollTop;
   managersTween?.kill(); managersTween = null;
-  $("th-list").innerHTML = rows || `<li class="th-empty">No threads match.</li>`;
+  reconcileThreadList($("th-list"), rows);
   celebratePictures(managers);
   if (managersJustOpened) {
     managersJustOpened = false;
@@ -1721,8 +1723,7 @@ function renderRail() {
   const data = world.lastData;
   if (!data || !ui.rail || document.body.classList.contains("th-dragging")) return;
   const projects = new Map(data.projects.map((p) => [p.id, p]));
-  const list = [...data.threads]
-    .slice(0, 40);
+  const list = completionFirst(data.threads).slice(0, 40);
   const reviews = latestThreadReviews(currentEnvironment ? [] : orch.papers);
   const html = list.map((t) => {
     const p = projects.get(t.manager?.projectId || t.projectId);
@@ -1740,7 +1741,7 @@ ${proj}${said ? ` · ${said[0].toUpperCase()}${said.slice(1)}` : ""}`)}">`
   }).join("");
   if (html === railSig) return;
   railSig = html;
-  $("rail-list").innerHTML = html;
+  reconcileThreadList($("rail-list"), html);
 }
 $("rail-list").addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest(".rail-th") as HTMLElement | null;
