@@ -3,6 +3,7 @@
 @property --shell { syntax: "<color>"; inherits: true; initial-value: #c9d3e6; }
 @property --shade { syntax: "<color>"; inherits: true; initial-value: #9eabc6; }
 @property --deep { syntax: "<color>"; inherits: true; initial-value: #6d7b9b; }
+@property --acc-cloth { syntax: "<color>"; inherits: true; initial-value: #ff9f5a; }
 
 /* Theme tokens: the default values are Lucid's night look, exactly as the components drew it.
    A theme file overrides any of these on :root[data-theme="<id>"]; surfaces.css applies them.
@@ -79,6 +80,13 @@
   --robot-dark: 0%;                 /* 0% the light bodies, 100% dark bodies in each robot's hue */
   --robot-tint: 30%;                /* hue strength of a dark worker body */
   --robot-mgr-tint: 55%;            /* managers: a stronger hue instead of the obsidian finish */
+
+  /* ---- Robot accessories (world/look.ts hats and accessories) ----
+     Fixed materials fall back to their original colours, so only --acc-dark has a default:
+     --acc-ink (headsets, straps), --acc-card (lanyard badge), --acc-metal, --acc-metal-2
+     (jetpack), --acc-leather, --acc-leather-2, --acc-leather-band (cowboy hat),
+     --acc-robe, --acc-robe-2 (wizard hat), --acc-silk, --acc-silk-2, --acc-silk-3 (top hat). */
+  --acc-dark: 0%;                   /* how far accent fabric deepens toward black */
 
   /* ---- Robot computers ---- */
   --os-ink: #e9ecff;

@@ -83,6 +83,21 @@
   --robot-tint: 26%;
   --robot-mgr-tint: 52%;
 
+  /* accessories: deeper accent fabric; materials with a night look; iconic pieces unchanged */
+  --acc-dark: 34%;
+  --acc-ink: #4a4a53;               /* graphite, so headsets and straps show on dark bodies */
+  --acc-card: #1d1d21;
+  --acc-metal: #555a66;
+  --acc-metal-2: #34373f;
+  --acc-leather: #5c3a1f;
+  --acc-leather-2: #6b4426;
+  --acc-leather-band: #2a1a0e;
+  --acc-robe: #1c1644;
+  --acc-robe-2: #2a2263;
+  --acc-silk: #0c0c0e;
+  --acc-silk-2: #18181b;
+  --acc-silk-3: #26262b;
+
   /* robot computers */
   --os-ink: #e6e6e6;
   --os-desk: #000000;

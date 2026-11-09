@@ -205,11 +205,18 @@ export function paintLookColors(el: Element, base: { shell: string; shade: strin
   for (const [k, v] of Object.entries(bodyColors(p, hue, manager))) st.setProperty(k, v);
   st.setProperty("--glow", look.glow || base.glow);
   st.setProperty("--acc", look.accent || "#ff9f5a");
+  st.setProperty("--acc-cloth", accCloth(look.accent || "#ff9f5a"));
   return look.glow || base.glow;
 }
 
 // ---- hats ---------------------------------------------------------------------------------
-const INK = "#2b2f3d";
+// Accessories have a light and a dark look. Fabric in the robot's accent deepens under a dark
+// theme (--acc-dark), and fixed materials read theme tokens (--acc-ink, --acc-card, --acc-metal,
+// --acc-leather*, --acc-robe*, --acc-silk*), falling back to their original colours. Iconic
+// pieces (crown gold, propeller, santa, chef, flowers) look the same in both.
+/** The accent as fabric: the accent itself, deepened by the theme's --acc-dark. */
+export const accCloth = (acc: string) => `color-mix(in srgb, ${acc}, #0d0d10 var(--acc-dark, 0%))`;
+const INK = "var(--acc-ink, #2b2f3d)";
 const hi = (d: string, w = 6, o = 0.35) => `<path d="${d}" fill="none" stroke="#fff" stroke-opacity="${o}" stroke-width="${w}" stroke-linecap="round"/>`;
 const mirror = (svg: string, on: boolean) => (on ? `<g transform="translate(1120 0) scale(-1 1)">${svg}</g>` : svg);
 
@@ -232,23 +239,23 @@ export function hatSvg(kind: HatKind | undefined, view: View = "back", crest: st
   switch (kind) {
     case "beanie": {
       const ribs = Array.from({ length: 11 }, (_, i) => `<rect x="${497 + i * 12}" y="612" width="3" height="20" rx="1.5" fill="#000" opacity="0.08"/>`).join("");
-      return `<path d="M490 628 C487 590 518 564 560 564 C602 564 633 590 630 628 Z" fill="var(--acc)"/>
+      return `<path d="M490 628 C487 590 518 564 560 564 C602 564 633 590 630 628 Z" fill="var(--acc-cloth, var(--acc))"/>
         <path d="M566 565 C600 568 630 592 630 628 L606 628 C606 598 592 576 566 565 Z" fill="#000" opacity="0.1"/>
         ${hi("M506 604 C512 586 528 574 546 570", 6)}
-        <rect x="483" y="606" width="154" height="30" rx="15" fill="var(--acc)"/><rect x="483" y="606" width="154" height="30" rx="15" fill="#000" opacity="0.13"/>${ribs}
+        <rect x="483" y="606" width="154" height="30" rx="15" fill="var(--acc-cloth, var(--acc))"/><rect x="483" y="606" width="154" height="30" rx="15" fill="#000" opacity="0.13"/>${ribs}
         ${hi("M498 613 L560 611", 3.5, 0.28)}`;
     }
     case "cap": return cap(front, !front);
     case "capBack": return cap(!front, front);
     case "tophat":
-      return `<ellipse cx="560" cy="606" rx="68" ry="12" fill="#1c1f29"/>
-        <path d="M518 604 L520 536 C520 530 600 530 600 536 L602 604 C602 612 518 612 518 604 Z" fill="#2a2e3b"/>
-        <rect x="518" y="584" width="84" height="15" fill="var(--acc)"/><rect x="518" y="584" width="84" height="15" fill="#000" opacity="0.12"/>
+      return `<ellipse cx="560" cy="606" rx="68" ry="12" fill="var(--acc-silk, #1c1f29)"/>
+        <path d="M518 604 L520 536 C520 530 600 530 600 536 L602 604 C602 612 518 612 518 604 Z" fill="var(--acc-silk-2, #2a2e3b)"/>
+        <rect x="518" y="584" width="84" height="15" fill="var(--acc-cloth, var(--acc))"/><rect x="518" y="584" width="84" height="15" fill="#000" opacity="0.12"/>
         <rect x="530" y="542" width="8" height="38" rx="4" fill="#fff" opacity="0.12"/>
-        <ellipse cx="560" cy="535" rx="40" ry="8" fill="#3b4152"/>`;
+        <ellipse cx="560" cy="535" rx="40" ry="8" fill="var(--acc-silk-3, #3b4152)"/>`;
     case "party": {
       const stripes = `<path d="M545 560 L575 572" stroke="#fff" stroke-opacity="0.55" stroke-width="7"/><path d="M533 588 L587 606" stroke="#fff" stroke-opacity="0.55" stroke-width="7"/>`;
-      return `<g transform="rotate(${front ? 8 : -8} 560 610)"><path d="M520 610 L560 522 L600 610 Z" fill="var(--acc)"/>
+      return `<g transform="rotate(${front ? 8 : -8} 560 610)"><path d="M520 610 L560 522 L600 610 Z" fill="var(--acc-cloth, var(--acc))"/>
         <clipPath id="lkp${front ? "f" : "b"}"><path d="M520 610 L560 522 L600 610 Z"/></clipPath><g clip-path="url(#lkp${front ? "f" : "b"})">${stripes}</g>
         <path d="M560 522 L600 610 L580 610 Z" fill="#000" opacity="0.1"/>
         <ellipse cx="560" cy="610" rx="41" ry="7" fill="#000" opacity="0.15"/>
@@ -256,7 +263,7 @@ export function hatSvg(kind: HatKind | undefined, view: View = "back", crest: st
     }
     case "headset": {
       const boom = front
-        ? `<path d="M638 668 C640 694 618 704 594 702" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><circle cx="590" cy="702" r="7" fill="var(--acc)"/>`
+        ? `<path d="M638 668 C640 694 618 704 594 702" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><circle cx="590" cy="702" r="7" fill="var(--acc-cloth, var(--acc))"/>`
         : `<path d="M478 668 C472 684 476 698 486 706" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>`;
       return `<path d="M484 646 C480 604 512 590 560 590 C608 590 640 604 636 646" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/>
         ${boom}<g transform="${front ? "translate(1120 0) scale(-1 1)" : ""}"><rect x="469" y="638" width="24" height="38" rx="11" fill="${INK}"/><rect x="474" y="644" width="7" height="18" rx="3.5" fill="#fff" opacity="0.25"/></g>`;
@@ -273,11 +280,11 @@ export function hatSvg(kind: HatKind | undefined, view: View = "back", crest: st
     }
     case "beret":
       return mirror(`<g transform="rotate(-10 556 602)">
-        <path d="M486 606 C480 584 508 566 552 566 C600 566 630 580 628 600 C626 616 596 624 556 624 C516 624 490 618 486 606 Z" fill="var(--acc)"/>
+        <path d="M486 606 C480 584 508 566 552 566 C600 566 630 580 628 600 C626 616 596 624 556 624 C516 624 490 618 486 606 Z" fill="var(--acc-cloth, var(--acc))"/>
         <path d="M490 606 C506 616 600 620 626 602 C622 616 596 626 556 626 C518 626 494 618 490 606 Z" fill="#000" opacity="0.22"/>
         <path d="M600 572 C618 580 628 590 628 600 C626 610 616 616 600 619 C606 604 606 586 600 572 Z" fill="#000" opacity="0.08"/>
         ${hi("M502 590 C512 578 534 571 560 571", 5, 0.3)}
-        <rect x="548" y="556" width="7" height="12" rx="3.5" fill="var(--acc)"/><rect x="548" y="556" width="7" height="12" rx="3.5" fill="#000" opacity="0.25"/></g>`, front);
+        <rect x="548" y="556" width="7" height="12" rx="3.5" fill="var(--acc-cloth, var(--acc))"/><rect x="548" y="556" width="7" height="12" rx="3.5" fill="#000" opacity="0.25"/></g>`, front);
     case "propeller": {
       const seg = (d: string, c: string) => `<path d="${d}" fill="${c}"/>`;
       return `${seg("M496 628 C494 594 524 574 560 574 L560 628 Z", "#ff6f91")}${seg("M560 574 C596 574 626 594 624 628 L560 628 Z", "#4fb6ff")}
@@ -296,8 +303,8 @@ export function hatSvg(kind: HatKind | undefined, view: View = "back", crest: st
         <rect x="510" y="590" width="100" height="22" rx="8" fill="#eceae1"/><path d="M526 592 L526 610 M546 592 L546 610 M566 592 L566 610 M586 592 L586 610" stroke="#000" stroke-opacity="0.07" stroke-width="3"/>`;
     case "wizard": {
       const star = (x: number, y: number, s: number) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6 Z" fill="#ffd23f"/>`;
-      return mirror(`<ellipse cx="560" cy="608" rx="70" ry="13" fill="#372d7d"/>
-        <path d="M514 608 C530 572 546 528 566 496 C574 482 590 478 600 486 C586 490 580 504 582 524 C586 560 598 588 606 608 Z" fill="#4b3fa4"/>
+      return mirror(`<ellipse cx="560" cy="608" rx="70" ry="13" fill="var(--acc-robe, #372d7d)"/>
+        <path d="M514 608 C530 572 546 528 566 496 C574 482 590 478 600 486 C586 490 580 504 582 524 C586 560 598 588 606 608 Z" fill="var(--acc-robe-2, #4b3fa4)"/>
         <path d="M566 496 C574 482 590 478 600 486 C586 490 580 504 582 524 C586 560 598 588 606 608 L590 608 C580 574 572 540 566 496 Z" fill="#000" opacity="0.12"/>
         <rect x="514" y="592" width="92" height="12" fill="#ffd23f" opacity="0.85"/>
         ${star(544, 566, 1.2)}${star(570, 540, 0.9)}${star(574, 578, 0.7)}<circle cx="601" cy="486" r="5" fill="#ffd23f"/>`, front);
@@ -323,25 +330,25 @@ export function hatSvg(kind: HatKind | undefined, view: View = "back", crest: st
         <rect x="486" y="598" width="148" height="24" rx="12" fill="#fbfaf5"/><path d="M500 604 L620 604" stroke="#000" stroke-opacity="0.05" stroke-width="5" stroke-linecap="round"/>
         <circle cx="648" cy="652" r="12" fill="#fbfaf5"/><circle cx="645" cy="648" r="4" fill="#fff"/>`, front);
     case "cowboy":
-      return `<ellipse cx="560" cy="604" rx="86" ry="17" fill="#99602f"/>
+      return `<ellipse cx="560" cy="604" rx="86" ry="17" fill="var(--acc-leather, #99602f)"/>
         <path d="M478 600 C478 616 520 624 560 624 C600 624 642 616 642 600 C636 612 600 618 560 618 C520 618 484 612 478 600 Z" fill="#000" opacity="0.15"/>
-        <path d="M520 606 C516 584 518 562 534 556 C544 552 552 560 560 560 C568 560 576 552 586 556 C602 562 604 584 600 606 Z" fill="#b5743d"/>
+        <path d="M520 606 C516 584 518 562 534 556 C544 552 552 560 560 560 C568 560 576 552 586 556 C602 562 604 584 600 606 Z" fill="var(--acc-leather-2, #b5743d)"/>
         <path d="M560 560 C568 560 576 552 586 556 C602 562 604 584 600 606 L584 606 C586 586 580 568 560 560 Z" fill="#000" opacity="0.1"/>
-        <path d="M519 592 C540 598 580 598 601 592 L601 602 C580 608 540 608 519 602 Z" fill="#5a3a22"/>
+        <path d="M519 592 C540 598 580 598 601 592 L601 602 C580 608 540 608 519 602 Z" fill="var(--acc-leather-band, #5a3a22)"/>
         ${hi("M530 570 C534 562 540 560 546 561", 4, 0.3)}`;
     case "catEars": {
       const ear = (x: number, flip: number) => `<g transform="translate(${x} 604) scale(${flip} 1)">
         <path d="M-26 6 C-28 -14 -24 -34 -16 -46 C-6 -38 6 -22 14 -6 Z" fill="var(--shell)"/>
-        <path d="M-20 2 C-21 -12 -18 -26 -14 -34 C-8 -28 0 -16 5 -6 Z" fill="var(--acc)"/>
+        <path d="M-20 2 C-21 -12 -18 -26 -14 -34 C-8 -28 0 -16 5 -6 Z" fill="var(--acc-cloth, var(--acc))"/>
         <path d="M-26 6 C-28 -14 -24 -34 -16 -46 L-20 -10 Z" fill="#fff" opacity="0.18"/></g>`;
       return ear(524, 1) + ear(596, -1);
     }
     case "bow":
       return mirror(`<g transform="translate(516 606) rotate(-18)">
-        <path d="M0 0 C-12 -20 -34 -22 -36 -6 C-38 10 -16 14 0 0 Z" fill="var(--acc)"/><path d="M0 0 C12 -20 34 -22 36 -6 C38 10 16 14 0 0 Z" fill="var(--acc)"/>
+        <path d="M0 0 C-12 -20 -34 -22 -36 -6 C-38 10 -16 14 0 0 Z" fill="var(--acc-cloth, var(--acc))"/><path d="M0 0 C12 -20 34 -22 36 -6 C38 10 16 14 0 0 Z" fill="var(--acc-cloth, var(--acc))"/>
         <path d="M0 0 C12 -20 34 -22 36 -6 C38 10 16 14 0 0 Z" fill="#000" opacity="0.12"/>
-        <path d="M-6 4 L-14 22 L-4 18 Z M6 4 L14 22 L4 18 Z" fill="var(--acc)"/>
-        <ellipse cx="0" cy="0" rx="8" ry="9" fill="var(--acc)"/><ellipse cx="0" cy="0" rx="8" ry="9" fill="#000" opacity="0.18"/>
+        <path d="M-6 4 L-14 22 L-4 18 Z M6 4 L14 22 L4 18 Z" fill="var(--acc-cloth, var(--acc))"/>
+        <ellipse cx="0" cy="0" rx="8" ry="9" fill="var(--acc-cloth, var(--acc))"/><ellipse cx="0" cy="0" rx="8" ry="9" fill="#000" opacity="0.18"/>
         ${hi("M-28 -10 C-24 -14 -18 -14 -14 -11", 3.5, 0.45)}</g>`, front);
     default:
       return "";
@@ -358,29 +365,29 @@ export function accessorySvg(kind: AccessoryKind | undefined, view: View = "back
   switch (kind) {
     case "scarf": {
       const stripes = (x0: number, y0: number, h: number) => [0, 1, 2].map((i) => `<rect x="${x0}" y="${y0 + 8 + i * 13}" width="18" height="4" fill="#fff" opacity="0.55"/>`).join("") + `<rect x="${x0}" y="${y0 + h - 4}" width="18" height="4" fill="#000" opacity="0.15"/>`;
-      const band = `<rect x="514" y="726" width="92" height="26" rx="13" fill="var(--acc)"/><rect x="514" y="740" width="92" height="12" rx="6" fill="#000" opacity="0.12"/>${hi("M526 732 L594 732", 3.5, 0.35)}`;
+      const band = `<rect x="514" y="726" width="92" height="26" rx="13" fill="var(--acc-cloth, var(--acc))"/><rect x="514" y="740" width="92" height="12" rx="6" fill="#000" opacity="0.12"/>${hi("M526 732 L594 732", 3.5, 0.35)}`;
       const tail = (x: number, y: number, rot: number) => `<g data-sway="1" data-px="${x + 9}" data-py="${y}" data-k="${front ? 0.6 : 1}"><g transform="rotate(${rot} ${x + 9} ${y})">
-        <rect x="${x}" y="${y}" width="18" height="52" rx="6" fill="var(--acc)"/>${stripes(x, y, 52)}
-        <path d="M${x + 2} ${y + 52} l0 6 M${x + 7} ${y + 52} l0 6 M${x + 12} ${y + 52} l0 6 M${x + 16} ${y + 52} l0 6" stroke="var(--acc)" stroke-width="2.5" stroke-linecap="round"/></g></g>`;
+        <rect x="${x}" y="${y}" width="18" height="52" rx="6" fill="var(--acc-cloth, var(--acc))"/>${stripes(x, y, 52)}
+        <path d="M${x + 2} ${y + 52} l0 6 M${x + 7} ${y + 52} l0 6 M${x + 12} ${y + 52} l0 6 M${x + 16} ${y + 52} l0 6" stroke="var(--acc-cloth, var(--acc))" stroke-width="2.5" stroke-linecap="round"/></g></g>`;
       return front
         ? { under: "", pack: "", over: `${band}${tail(526, 742, 6)}${tail(540, 744, -4)}` }
         : { under: "", pack: "", over: `${tail(574, 742, -8)}${band}` };
     }
     case "bowtie": {
       if (!front) return { ...none, over: collar };
-      return { ...none, over: `${collar}<path d="M560 750 L536 738 C530 736 528 762 536 762 Z" fill="var(--acc)"/><path d="M560 750 L584 738 C590 736 592 762 584 762 Z" fill="var(--acc)"/>
-        <path d="M560 750 L584 738 C590 736 592 762 584 762 Z" fill="#000" opacity="0.14"/><rect x="553" y="742" width="14" height="16" rx="5" fill="var(--acc)"/><rect x="553" y="742" width="14" height="16" rx="5" fill="#000" opacity="0.2"/>` };
+      return { ...none, over: `${collar}<path d="M560 750 L536 738 C530 736 528 762 536 762 Z" fill="var(--acc-cloth, var(--acc))"/><path d="M560 750 L584 738 C590 736 592 762 584 762 Z" fill="var(--acc-cloth, var(--acc))"/>
+        <path d="M560 750 L584 738 C590 736 592 762 584 762 Z" fill="#000" opacity="0.14"/><rect x="553" y="742" width="14" height="16" rx="5" fill="var(--acc-cloth, var(--acc))"/><rect x="553" y="742" width="14" height="16" rx="5" fill="#000" opacity="0.2"/>` };
     }
     case "tie": {
       if (!front) return { ...none, over: collar };
-      return { ...none, over: `${collar}<path d="M550 742 L570 742 L566 756 L554 756 Z" fill="var(--acc)"/><path d="M550 742 L570 742 L566 756 L554 756 Z" fill="#000" opacity="0.18"/>
-        <path d="M554 756 L566 756 L574 800 L560 814 L546 800 Z" fill="var(--acc)"/><path d="M560 756 L566 756 L574 800 L560 814 Z" fill="#000" opacity="0.12"/>
+      return { ...none, over: `${collar}<path d="M550 742 L570 742 L566 756 L554 756 Z" fill="var(--acc-cloth, var(--acc))"/><path d="M550 742 L570 742 L566 756 L554 756 Z" fill="#000" opacity="0.18"/>
+        <path d="M554 756 L566 756 L574 800 L560 814 L546 800 Z" fill="var(--acc-cloth, var(--acc))"/><path d="M560 756 L566 756 L574 800 L560 814 Z" fill="#000" opacity="0.12"/>
         <path d="M549 790 L571 776" stroke="#fff" stroke-opacity="0.35" stroke-width="3.5"/><path d="M548 802 L573 787" stroke="#fff" stroke-opacity="0.35" stroke-width="3.5"/>` };
     }
     case "lanyard": {
-      if (!front) return { ...none, over: `<path d="M526 736 C540 752 580 752 594 736" fill="none" stroke="var(--acc)" stroke-width="4.5" stroke-linecap="round"/>` };
-      return { ...none, over: `<path d="M528 738 L544 784 M592 738 L552 784" fill="none" stroke="var(--acc)" stroke-width="4.5" stroke-linecap="round"/>
-        <rect x="532" y="780" width="32" height="36" rx="5" fill="#fbfaf5"/><rect x="544" y="776" width="8" height="8" rx="2" fill="${INK}" opacity="0.6"/>
+      if (!front) return { ...none, over: `<path d="M526 736 C540 752 580 752 594 736" fill="none" stroke="var(--acc-cloth, var(--acc))" stroke-width="4.5" stroke-linecap="round"/>` };
+      return { ...none, over: `<path d="M528 738 L544 784 M592 738 L552 784" fill="none" stroke="var(--acc-cloth, var(--acc))" stroke-width="4.5" stroke-linecap="round"/>
+        <rect x="532" y="780" width="32" height="36" rx="5" fill="var(--acc-card, #fbfaf5)"/><rect x="544" y="776" width="8" height="8" rx="2" fill="${INK}" opacity="0.6"/>
         <rect x="538" y="788" width="12" height="12" rx="3" fill="var(--glow)" opacity="0.8"/><rect x="538" y="804" width="20" height="3" rx="1.5" fill="${INK}" opacity="0.35"/><rect x="553" y="790" width="6" height="3" rx="1.5" fill="${INK}" opacity="0.35"/>` };
     }
     case "flower": {
@@ -390,33 +397,33 @@ export function accessorySvg(kind: AccessoryKind | undefined, view: View = "back
     }
     case "bandana": {
       const dots = (pts: [number, number][]) => pts.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.6" fill="#fff" opacity="0.7"/>`).join("");
-      if (!front) return { ...none, over: `<path d="M522 734 C536 748 584 748 598 734 L598 744 C584 756 536 756 522 744 Z" fill="var(--acc)"/>
-        <g data-sway="1" data-px="560" data-py="746" data-k="0.7"><path d="M556 744 L544 766 L554 764 Z M564 744 L576 766 L566 764 Z" fill="var(--acc)"/><circle cx="560" cy="746" r="6" fill="var(--acc)"/><circle cx="560" cy="746" r="6" fill="#000" opacity="0.15"/></g>` };
-      return { ...none, over: `<path d="M522 736 C536 748 584 748 598 736 L564 792 C562 796 558 796 556 792 Z" fill="var(--acc)"/>
+      if (!front) return { ...none, over: `<path d="M522 734 C536 748 584 748 598 734 L598 744 C584 756 536 756 522 744 Z" fill="var(--acc-cloth, var(--acc))"/>
+        <g data-sway="1" data-px="560" data-py="746" data-k="0.7"><path d="M556 744 L544 766 L554 764 Z M564 744 L576 766 L566 764 Z" fill="var(--acc-cloth, var(--acc))"/><circle cx="560" cy="746" r="6" fill="var(--acc-cloth, var(--acc))"/><circle cx="560" cy="746" r="6" fill="#000" opacity="0.15"/></g>` };
+      return { ...none, over: `<path d="M522 736 C536 748 584 748 598 736 L564 792 C562 796 558 796 556 792 Z" fill="var(--acc-cloth, var(--acc))"/>
         <path d="M560 744 L598 736 L564 792 C562 796 560 796 560 794 Z" fill="#000" opacity="0.1"/>${dots([[540, 750], [558, 758], [576, 750], [550, 772], [568, 772], [560, 786]])}` };
     }
     case "backpack": {
-      if (front) return { ...none, over: `<path d="M530 734 C528 760 532 790 536 812 M590 734 C592 760 588 790 584 812" fill="none" stroke="var(--acc)" stroke-width="8" stroke-linecap="round"/>
+      if (front) return { ...none, over: `<path d="M530 734 C528 760 532 790 536 812 M590 734 C592 760 588 790 584 812" fill="none" stroke="var(--acc-cloth, var(--acc))" stroke-width="8" stroke-linecap="round"/>
         <path d="M530 734 C528 760 532 790 536 812 M590 734 C592 760 588 790 584 812" fill="none" stroke="#000" stroke-opacity="0.15" stroke-width="8" stroke-linecap="round"/>
         <rect x="527" y="776" width="13" height="9" rx="2.5" fill="${INK}" opacity="0.5"/><rect x="580" y="776" width="13" height="9" rx="2.5" fill="${INK}" opacity="0.5"/>` };
       return { ...none, pack: `<path d="M546 744 C546 732 574 732 574 744" fill="none" stroke="${INK}" stroke-width="4.5" stroke-opacity="0.6"/>
-        <rect x="522" y="742" width="76" height="66" rx="20" fill="var(--acc)"/><path d="M574 742 L578 742 C590 742 598 752 598 764 L598 788 C598 800 590 808 578 808 L574 808 Z" fill="#000" opacity="0.1"/>
+        <rect x="522" y="742" width="76" height="66" rx="20" fill="var(--acc-cloth, var(--acc))"/><path d="M574 742 L578 742 C590 742 598 752 598 764 L598 788 C598 800 590 808 578 808 L574 808 Z" fill="#000" opacity="0.1"/>
         ${hi("M532 756 C534 750 540 747 548 747", 4, 0.35)}
         <rect x="532" y="768" width="56" height="34" rx="11" fill="#000" opacity="0.12"/><rect x="551" y="765" width="18" height="5" rx="2.5" fill="${INK}" opacity="0.45"/>`,
-        over: `<rect x="522" y="730" width="12" height="18" rx="5" fill="var(--acc)"/><rect x="586" y="730" width="12" height="18" rx="5" fill="var(--acc)"/>` };
+        over: `<rect x="522" y="730" width="12" height="18" rx="5" fill="var(--acc-cloth, var(--acc))"/><rect x="586" y="730" width="12" height="18" rx="5" fill="var(--acc-cloth, var(--acc))"/>` };
     }
     case "jetpack": {
-      if (front) return { ...none, over: `<path d="M532 734 L540 792 M588 734 L580 792" stroke="#7b849a" stroke-width="7" stroke-linecap="round"/><circle cx="540" cy="792" r="5" fill="var(--acc)"/><circle cx="580" cy="792" r="5" fill="var(--acc)"/>` };
-      const tank = (x: number) => `<rect x="${x}" y="738" width="32" height="70" rx="16" fill="#aab2c4"/><rect x="${x + 20}" y="742" width="9" height="62" rx="4.5" fill="#000" opacity="0.12"/>
-        <rect x="${x + 6}" y="746" width="6" height="40" rx="3" fill="#fff" opacity="0.45"/><rect x="${x}" y="738" width="32" height="12" rx="6" fill="var(--acc)"/>`;
-      return { ...none, pack: `<rect x="548" y="748" width="24" height="44" rx="6" fill="#7b849a"/>${tank(518)}${tank(570)}<circle cx="560" cy="758" r="4" fill="var(--glow)"/>` };
+      if (front) return { ...none, over: `<path d="M532 734 L540 792 M588 734 L580 792" stroke="var(--acc-metal-2, #7b849a)" stroke-width="7" stroke-linecap="round"/><circle cx="540" cy="792" r="5" fill="var(--acc-cloth, var(--acc))"/><circle cx="580" cy="792" r="5" fill="var(--acc-cloth, var(--acc))"/>` };
+      const tank = (x: number) => `<rect x="${x}" y="738" width="32" height="70" rx="16" fill="var(--acc-metal, #aab2c4)"/><rect x="${x + 20}" y="742" width="9" height="62" rx="4.5" fill="#000" opacity="0.12"/>
+        <rect x="${x + 6}" y="746" width="6" height="40" rx="3" fill="#fff" opacity="0.45"/><rect x="${x}" y="738" width="32" height="12" rx="6" fill="var(--acc-cloth, var(--acc))"/>`;
+      return { ...none, pack: `<rect x="548" y="748" width="24" height="44" rx="6" fill="var(--acc-metal-2, #7b849a)"/>${tank(518)}${tank(570)}<circle cx="560" cy="758" r="4" fill="var(--glow)"/>` };
     }
     case "cape": {
       if (front) return {
-        under: `<g data-sway="1" data-px="560" data-py="736" data-k="0.5"><path d="M500 736 C478 772 466 808 458 846 L662 846 C654 808 642 772 620 736 Z" fill="var(--acc)"/><path d="M500 736 C478 772 466 808 458 846 L662 846 C654 808 642 772 620 736 Z" fill="#000" opacity="0.3"/></g>`,
+        under: `<g data-sway="1" data-px="560" data-py="736" data-k="0.5"><path d="M500 736 C478 772 466 808 458 846 L662 846 C654 808 642 772 620 736 Z" fill="var(--acc-cloth, var(--acc))"/><path d="M500 736 C478 772 466 808 458 846 L662 846 C654 808 642 772 620 736 Z" fill="#000" opacity="0.3"/></g>`,
         pack: "", over: `<circle cx="526" cy="740" r="6" fill="#ffcc3d"/><circle cx="594" cy="740" r="6" fill="#ffcc3d"/><path d="M532 740 Q560 750 588 740" fill="none" stroke="#ffcc3d" stroke-width="2.5"/>` };
-      return { under: "", over: `<path d="M512 734 C536 742 584 742 608 734 L606 746 C584 754 536 754 514 746 Z" fill="var(--acc)"/><path d="M512 734 C536 742 584 742 608 734 L606 746 C584 754 536 754 514 746 Z" fill="#000" opacity="0.2"/>`,
-        pack: `<g data-sway="1" data-px="560" data-py="738" data-k="1"><path d="M512 738 C536 746 584 746 608 738 C622 772 630 806 636 842 C612 850 592 838 572 846 C552 838 532 850 486 842 C492 806 500 772 512 738 Z" fill="var(--acc)"/>
+      return { under: "", over: `<path d="M512 734 C536 742 584 742 608 734 L606 746 C584 754 536 754 514 746 Z" fill="var(--acc-cloth, var(--acc))"/><path d="M512 734 C536 742 584 742 608 734 L606 746 C584 754 536 754 514 746 Z" fill="#000" opacity="0.2"/>`,
+        pack: `<g data-sway="1" data-px="560" data-py="738" data-k="1"><path d="M512 738 C536 746 584 746 608 738 C622 772 630 806 636 842 C612 850 592 838 572 846 C552 838 532 850 486 842 C492 806 500 772 512 738 Z" fill="var(--acc-cloth, var(--acc))"/>
           <path d="M572 744 C584 744 596 742 608 738 C622 772 630 806 636 842 C620 846 606 842 594 842 C590 806 584 772 572 744 Z" fill="#000" opacity="0.12"/>
           ${hi("M522 756 C516 780 512 800 510 820", 5, 0.25)}</g>` };
     }
@@ -546,6 +553,6 @@ export function portraitSvg(look: RobotLook, base: PortraitPalette, o: { size?: 
   const size = o.size ?? 56;
   const [w, h] = o.bust ? [size * 224 / 372, size] : [size * 216 / 240, size];
   const manager = L.tint === "obsidian", bodyVars = bodyColors(p, (manager ? tintPalette(base, undefined) : p).deep, manager);
-  const style = `${Object.entries(bodyVars).map(([k, v]) => `${k}:${v}`).join(";")};--glow:${glow};--visor:${base.visor};--logo:${base.logo};--acc:${acc}`;
+  const style = `${Object.entries(bodyVars).map(([k, v]) => `${k}:${v}`).join(";")};--glow:${glow};--visor:${base.visor};--logo:${base.logo};--acc:${acc};--acc-cloth:${accCloth(acc)}`;
   return `<svg class="${o.cls ?? "av"}" viewBox="${vb}" width="${w.toFixed(0)}" height="${h.toFixed(0)}" style="${style}" ${o.label ? `role="img" aria-label="${o.label}"` : `aria-hidden="true"`}>${body}${head}</svg>`;
 }
