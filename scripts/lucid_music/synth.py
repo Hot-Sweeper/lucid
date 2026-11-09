@@ -77,6 +77,8 @@ def render(patch, events, frames, gain=1., params=None, legato=False):
     msgs.sort(key=lambda m: (m[1], m[0][0] == 0x90))
     out = plugin(msgs, duration=duration, sample_rate=SR, num_channels=2, buffer_size=1024, reset=True)
     out = np.ascontiguousarray(out.T[int(pre * SR):int(pre * SR) + frames], dtype=np.float32) * gain
+    if len(out) < frames:     # rounding can leave the plugin one block short
+        out = np.pad(out, ((0, frames - len(out)), (0, 0)))
     if not np.isfinite(out).all():
         raise RuntimeError(f'{patch}: non-finite output')
     return out

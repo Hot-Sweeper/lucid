@@ -62,6 +62,10 @@ def build():
 
     s.notes('pad', ('surge', 'Super Jupiter'), parts.pad(harmony, 'A3', 'E5', 4, .6), level=-26.5, duck=.35,
             reverb=.12, chain=lambda a, s: sw.pad_chain(a, s))
+    # Bridge: a sustained, unducked string layer keeps the half-time section full
+    # between the sparse kicks instead of pumping.
+    s.notes('bridge strings', ('surge', 'Juno-60 Strings'), parts.pad(sw.at(BRIDGE, 52), 'G3', 'D5', 4, .55),
+            level=-24.5, reverb=.18, chain=lambda a, s: sw.pad_chain(a, s))
     stab_prog = [c for c in harmony if any(a * 4 <= c[0] < b * 4 for a, b in chorus_spans)]
     stabs = parts.comp(stab_prog, [(i * .5, .32, 1. if i % 2 == 0 else .72) for i in range(8)],
                        lo='C4', hi='G5', n=4, vel=.6)
@@ -98,9 +102,11 @@ def build():
     rest, snare = sw.split_snares(hits)
     kit = sw.kit('mid', tune=50, decay=.3)
     ride = lambda a, s: fx.automate(a, [(0, -9), (s.sec(16, False), -9), (s.sec(32 - .5, False), 0),
+                                        (s.sec(52 * 4 - .5, False), 0), (s.sec(52 * 4, False), -3),
+                                        (s.sec(60 * 4 - .5, False), -3), (s.sec(60 * 4, False), 0),
                                         (s.sec(68 * 4, False), 0), (s.sec(72 * 4, False), -6)])
-    s.drums('drums', kit, rest, level=-22, chain=lambda a, s: ride(sw.drums_chain(a, s), s), humanize_ms=2)
-    s.drums('snare', kit, snare, level=-25.5, chain=sw.snare_chain, humanize_ms=2, reverb=.06)
+    s.drums('drums', kit, rest, level=-23.5, chain=lambda a, s: ride(sw.drums_chain(a, s), s), humanize_ms=2)
+    s.drums('snare', kit, snare, level=-27, chain=sw.snare_chain, humanize_ms=2, reverb=.06)
 
     s.bus_chain['music'] = sw.sweep([(0, 600), (7.5, 2800), (8, 16000), (70, 16000), (76, 900), (78, 600)], s)
     s.master_chain = sw.outro_fade()

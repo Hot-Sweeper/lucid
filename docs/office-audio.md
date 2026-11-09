@@ -1,94 +1,44 @@
 # Office music and ambience
 
-The Song library contains 47 original pieces, with ten genre directions and two
-texture directions, totaling about 110 minutes. All 23 recordings from before
-the expansion are preserved. New pieces use phrase-aligned harmonic plans and
-recurring written themes.
+The Song library holds 51 pieces, about two hours of music, in seven genres:
+lo-fi (7), jazz (6), ambient (9), lunar phonk (6), synthwave (6), atmospheric
+breakcore (6) and the 11 acoustic pieces of the original cozy collection. The
+14 original recordings (Little Lights, Window Garden, First Coffee, Paper Kites,
+Peach Parade, Apricot Hour, Tram Home, Moonlit Desks, Sleepy Satellites, Pocket
+Sunrise, Cloud Arcade, Velvet Elevator, Lantern Carousel, The Last
+Constellation) are unchanged. The 37 genre pieces replace an earlier set that
+was rejected for random-sounding melodies, weak beats and poor instruments.
 
-The 24-song expansion adds three lo-fi, three ambient, two acoustic, three
-synthwave, three atmospheric breaks, two chill phonk, and two each of mystical,
-medieval, detective and nostalgic pieces. Every addition has its own authored
-melody and harmonic plan, contrasting material and return. The three expansion
-scores reuse the licensed instruments and production helpers, with separate
-output targets and provenance reports.
+## How the genre pieces are made
 
-## Current arrangements
+Every genre piece is a score written by hand in
+`scripts/lucid_music/songs/<id>.py`: chord progressions chosen bar by bar,
+melodies written note by note from a short motif that is repeated, sequenced
+and answered, and idiomatic parts (voice-led comping, walking bass, boom-bap,
+swing ride, Memphis hats, chopped breaks). Each has an intro and outro soft
+enough for crossfading, a contrasting middle section and a varied return.
+`parts.clashes` checks every melody against its harmony on strong beats.
 
-The five electronic recordings have been rebuilt with distinct sources and
-arrangements, informed by the user's Lunar Phonk, Breakcore/DnB and Lofi Girl
-references. See [music-production-research.md](music-production-research.md) for
-research, sources, comparisons and limitations.
+Instruments are real recordings or professional synth patches:
 
-- **Cassette Clouds**, lo-fi, 82 BPM: sampled electric piano, nylon guitar,
-  a recurring eight-bar tune with open and closed sixteen-bar endings, piano
-  development and acoustic bass in complementary registers. An original
-  four-bar keys performance is resampled over relaxed acoustic drums with
-  ghost strokes, alternate takes and restrained drift.
-- **Neon Afterglow**, synthwave, 104 BPM: original Surge XT analog patches,
-  a syncopated repeated-note hook, connected bass, restrained lower arpeggios,
-  drum pickups and a contrasting tunnel section. The pad sits behind the lead.
-  A sampled snare has a short gated room; its direct attack remains distinct.
-- **Tidal Memory**, ambient, 66 BPM: sampled soft electric piano, nylon
-  guitar and occasional celesta. An eight-bar falling theme develops on piano,
-  slows into a pad-free interlude and returns on nylon. Brief sine-only chord
-  breaths leave clear pauses, with restrained filtered reflections.
-- **Petal Breaks**, atmospheric breakcore/DnB, 164 BPM: an original eight-bar
-  performance using recorded acoustic hits is sliced into musical phrases.
-  Ghost notes, displaced answers and selective retriggers retain clear anchors.
-  A sixteen-bar falling theme uses actual sampled acoustic piano. Drumless and
-  half-time resets, a related bell variation and the theme's return give the
-  dense sections a purpose.
-- **Midnight Drift**, lunar phonk, 74 BPM with a 148 BPM feel: a clean mono
-  808, stereo pads, an original pitched-metal motif with sampled vibraphone
-  body, developed hats and a quiet underpass. A recurring Eb-Gb-Bb cell follows
-  two-bar common-tone harmonies and develops through sixteen-bar sentences.
-  No reference melody or vocal recording is included.
+- Rhodes Mark I (jRhodes3d), Wurlitzer EP200 and Yamaha CP80 (Greg Sullivan
+  E-Pianos), Salamander Grand Piano V3, Karoryfer Sneakybass (pizzicato double
+  bass), Karoryfer x Bigcat cello, VCSL vibraphone, harp and claps.
+- Virtuosity Drums (multi-velocity, round-robin kit in "lofi" and "mid" mic
+  perspectives, plus shaker, tambourine, congas and cowbell).
+- Surge XT 1.3.4 factory and third-party patches for pads, leads, plucks and
+  synth basses, loaded through the plug-in state.
+- Small DSP voices for genre staples: a gliding 808 sub, TR-808 style kick,
+  clap, hats and the two-oscillator 808 cowbell used for phonk melodies.
 
-Four chamber pieces add separate story moods:
-
-- **The Glass Observatory**, mystical, 72 BPM, E Dorian: suspended pads,
-  bell questions, harp and bowed-string responses.
-- **Briar Lanterns**, medieval, 90 BPM in 3/4, D Dorian: lute-like plucks,
-  recorder, an open drone and restrained hand percussion.
-- **The Copper Casebook**, detective, 96 BPM in 3/4, D minor: pizzicato,
-  clarinet, piano and chromatic questions that resolve in the returning theme.
-- **Postcards from Home**, nostalgic, 78 BPM, A-flat major: piano and cello
-  trade phrases over quiet strings and a contrasting middle.
-
-FluidSynth renders actual FluidR3 instrument samples for the chamber parts.
-Sustained instruments receive authored breath/bow expression; keys and plucks
-retain velocity and articulation. Stem-specific EQ and filtered room sends
-support the arrangement. FluidR3 is a modest sample bank, without the
-articulation depth of a large contemporary orchestral library.
-
-The earlier score remains available: Little Lights, Window Garden, First
-Coffee, Paper Kites, Peach Parade, Apricot Hour, Tram Home, Moonlit Desks,
-Sleepy Satellites, Pocket Sunrise, Cloud Arcade, Velvet Elevator, Lantern
-Carousel and The Last Constellation. Thirteen older additions had 34.43 seconds
-of unwanted trailing silence removed by packet copying. That cleanup retained
-every decoded sample before the trim. A later percussion pass rebuilt the six
-daytime additions and five encore recordings with recorded CC0 drums, leaving
-their written harmonies and hooks in place. Two earlier drumless ambient pieces
-and Little Lights subsequently received the same natural bell-release correction.
-
-## Percussion and space
-
-The percussion revision replaces swept oscillator kicks and generated noise hits
-in eleven earlier arrangements, Neon and Petal with recorded drum sources. Family
-calibration retains the quieter levels and tonal differences of soft strokes and
-alternate takes. Kick, snare and hat material is treated separately; the kick
-stays centered and dry, with excessive acoustic ring gently damped.
-
-Midnight also has stable-note sub attacks instead of sweeping from the previous
-bass pitch at every hit. Smooth kick-triggered ducking makes room for the kick
-without pumping every musical layer. Its snare and hats get selective filtered,
-predelayed room returns and quiet phrase-end echoes. Sparse metal accents sit
-beneath the sampled motif. Cassette retains its laid-back timing and sampled keys.
-
-Neon's kick now uses recorded body instead of an exaggerated oscillator sweep;
-selected snare answers carry stereo delays. Tidal remains drumless. Its remake uses soft sampled figures and brief chord
-breaths with genuine gaps, replacing the earlier long overlapping unison bed.
-These effects are authored into the recordings and do not run in the app.
+Mixing happens per part (level targets, EQ, sidechain from the kick, shared
+reverb and tempo-synced delay sends, tape and vinyl character where the genre
+wants it), then a master stage sets -18 LUFS with true peaks at or below
+-3.4 dBTP. The genre writing rules are in
+[scripts/lucid_music/COMPOSING.md](../scripts/lucid_music/COMPOSING.md).
+Background on the user's reference playlists is in
+[music-production-research.md](music-production-research.md); its comments on
+individual songs describe the retired set.
 
 ## Direction and playback
 
@@ -173,58 +123,29 @@ fictional robot-app demo.
 ## Authoring and provenance
 
 These are offline tools. The app ships MP3 recordings and needs no plug-in,
-sample bank, Python process or music service at runtime. Install Python
-dependencies from `scripts/requirements-music.txt`; FFmpeg and FluidSynth are
-separate prerequisites.
-
-Acoustic hits come from the CC0
-[Versilian Community Sample Library](https://github.com/sgossner/VCSL).
-`scripts/assets/vcsl-drums.json` pins 23 paths, sizes and SHA256 hashes:
+sample library, Python process or music service at runtime.
 
 ```bash
-python scripts/fetch-vcsl-drums.py --output-dir /tmp/lucid-vcsl-drums
-```
-
-Use the MIT FluidR3 GM bank through `FLUID_SOUNDFONT`. Its notice is retained
-in `docs/licenses/FluidR3-GM.txt`. For synth renders, `SURGE_VST3` points to a
-compatible Linux Surge XT VST3; `SURGE_DATA_HOME` can identify portable data.
-Original patch parameters and source information are recorded with the renders.
-Factory presets and reference recordings are not composition inputs.
-
-```bash
-python scripts/reference_mixes.py --soundfont "$FLUID_SOUNDFONT" --drums /tmp/lucid-vcsl-drums
-VCSL_DRUMS=/tmp/lucid-vcsl-drums python scripts/surge_arrangements.py
-python scripts/compose-office-genres.py --only petal-breaks --sample-dir /tmp/lucid-vcsl-drums
-python scripts/compose-office-stories.py
-python scripts/compose-office-cozy-expansion.py
-python scripts/compose-office-electronic-expansion.py
-python scripts/compose-office-chamber-expansion.py
-python scripts/sync-music-catalog.py
+python scripts/render-music.py <song_module> [--png] [--preview 30]
+python scripts/sync-music-catalog.py      # installs renders, rewrites soundtrack.ts
 python scripts/verify-music-masters.py --write
 ```
 
-`compose-office-genres.py` now renders only Petal Breaks. Its earlier sketches
-cannot overwrite newer sampled/native masters through the command line.
-`reference-mix-metrics.json`, `surge-mix-metrics.json`,
-`tidal-remake-metrics.json`, `genre-metrics.json` and `story-metrics.json` retain
-structure and production provenance. Tidal can be rebuilt separately with
-`python scripts/tidal_arrangement.py`; `surge_arrangements.py --only tidal-memory` delegates to this remake, so it
-cannot regenerate the retired sustained pad version.
-The three `*-expansion-metrics.json` reports retain the additional 24 scores.
-The synchronizer registers their real rendered assets in the catalog. Measure
-encoded masters afterward before building, so every new row has its actual
-duration and constant playback trim.
-`library-mastering.json` measures actual packaged MP3 hashes, duration, DC,
-stereo correlation, silence, loudness and true peaks.
+Use a Python environment with `scripts/requirements-music.txt` and FFmpeg.
+Sample libraries live in `~/.cache/lucid-audio-authoring/libs` (fetched from
+the sfzinstruments and VCSL GitHub repositories); `LUCID_MUSIC_LIBS` and
+`SURGE_VST3` override the default locations. Renders, JSON track reports and
+spectrograms go to `~/.cache/lucid-audio-authoring/renders`.
+`src/assets/audio/library-songs.json` records each piece's source module,
+sections, parts and the libraries and licenses used. `library-mastering.json`
+measures the packaged MP3 hashes, duration, loudness, true peak, silence, DC and
+stereo correlation.
 
-Regenerate room air alone with `python scripts/compose-office-theme.py --only ambience`,
-which preserves every music recording. Earlier generation tools remain `compose-office-theme.py`,
-`compose-office-playlist.py` and `compose-office-encore.py`. The latter two use
-`cozy_percussion.py` and the same pinned VCSL cache, passed with `--sample-dir`
-or `LUCID_VCSL_DRUMS`. Their `--only` option can render selected recordings
-without deleting other metadata rows. After regenerating older additions, run
-`master-office-legacy.py`, then measure the library again. That trimming pass
-is idempotent.
+The original cozy recordings came from `compose-office-theme.py`,
+`compose-office-playlist.py` and `compose-office-encore.py` (with
+`cozy_percussion.py`, `music_production.py` and the pinned VCSL drums from
+`fetch-vcsl-drums.py`). Regenerate room air alone with
+`python scripts/compose-office-theme.py --only ambience`.
 
 ## Verification
 
@@ -234,49 +155,13 @@ node scripts/verify-game-sound.cjs
 node scripts/verify-background-audio.cjs
 node scripts/verify-soundtrack.cjs
 node scripts/verify-soundscape.cjs
-node scripts/verify-background-audio-native.cjs
 npm run verify:update
 ```
 
-Encoded-master checks reject dead starts/tails, invalid samples, poor peak
-headroom, stale durations and inconsistent playback loudness. Director checks
-exercise 24 seeded persisted journeys, genre/texture locks, harmonic bridges,
-manual choices and older saved-state migration.
+Encoded-master checks reject dead starts and tails, invalid samples, poor
+headroom, stale durations and inconsistent loudness. The soundtrack checks walk
+the real catalogue and a synthetic one through the genre graph, energy cap,
+rotations, locks, crossfades and saved-state migration.
 
-For browser acceptance, run `node scripts/prepare-music-review.mjs --serve`
-in the hidden agent workspace. Open its loopback URL in agent Firefox and
-press **Run checks**. Production controls, the director and the audio engine
-feed an analyser through a zero-gain output. Checks cover every new direction,
-decoded signal, pause/resume, listening time, seeking, mute, bounded streams,
-keyboard focus, narrow layout and German labels. A loopback origin is necessary
-because Firefox isolates separate `file://` media from analysis.
-
-`node scripts/prepare-song-library-review.mjs --serve` similarly exercises
-the production app library, real selection, filters, empty results, locale,
-cleanup, playback continuity, focus and narrow navigation. Neither fixture
-touches the running office's saved settings. Stop its hidden workspace afterward.
-
-Signal analysis and functional checks do not establish musical enjoyment.
-No subjective listening approval is claimed by these automated tools.
-
-## Themes and phrasing
-
-The newer scores have explicit multi-bar melodies with repeated identifying
-rhythms, connected bass movement and written phrase endings. Development uses
-the theme's own material, then makes its return recognizable. Supporting parts
-leave gaps around the lead; reducing unrelated counterlines and excessive high
-register decoration is part of the arrangement. The first fourteen recordings
-remain byte-for-byte identical to the approved cozy collection at this revision.
-
-Source note tables and render sidecars record these decisions for review. They
-document the writing rather than assign it an automatic musical-quality score.
-
-## Bell articulation
-
-Bell strikes ring independently of the short written melody gate. The release
-correction preserves their attack, note placement and written phrases, while
-allowing modest overlap and a final taper only after the ring is quiet. This
-applies to Little Lights, Moonlit Desks, Sleepy Satellites, Lantern Carousel,
-The Glass Observatory, Petal Breaks and Midnight Drift. Midnight's sampled
-vibraphone also uses independent MIDI voices so an earlier note-off cannot
-choke a repeated strike. Tidal's sampled celesta already has a natural release.
+Signal analysis and functional checks do not establish musical enjoyment. No
+subjective listening approval is claimed by these automated tools.

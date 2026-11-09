@@ -99,8 +99,8 @@ def build():
     kit = sw.kit('mid')
     ride = lambda a, s: fx.automate(a, [(0, -9), (s.sec(4 * 4, False), -9), (s.sec(8 * 4 - .5, False), 0),
                                         (s.sec(68 * 4, False), 0), (s.sec(72 * 4, False), -5)])
-    s.drums('drums', kit, rest, level=-22, chain=lambda a, s: ride(sw.drums_chain(a, s), s), humanize_ms=2)
-    s.drums('snare', kit, snare, level=-25, chain=sw.snare_chain, humanize_ms=2, reverb=.06)
+    s.drums('drums', kit, rest, level=-23.5, chain=lambda a, s: ride(sw.drums_chain(a, s), s), humanize_ms=2)
+    s.drums('snare', kit, snare, level=-26.5, chain=sw.snare_chain, humanize_ms=2, reverb=.06)
 
     s.bus_chain['music'] = sw.sweep([(0, 500), (7.5, 2500), (8, 16000), (70, 16000), (76, 900), (78, 600)], s)
     s.master_chain = sw.outro_fade()

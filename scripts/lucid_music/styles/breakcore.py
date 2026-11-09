@@ -8,6 +8,7 @@ real kit resonance travels with each slice. Kinds:
   edit    busier jungle edits, stutter fill every 4 bars, big fill at the end
   half    half-time break, small fill closing 8 bars
   build   half-time that turns into a snare roll over its last 2 bars
+  glitch  intricate edits (stutters, reversed/pitched slices, gaps), fill closing 8 bars
 """
 from __future__ import annotations
 import numpy as np
@@ -26,6 +27,14 @@ BIG_FILL = ('0 1 2 3 4 5 6 7 12 12/2 12 12/2 4 4/2 r4 +4 '
 STUTTER = '0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 20/2 20 r21 24 25 26 27 28 28/2 +28/2 +28/2'
 ROLL = ('20 . . . 20 . . . 20 . 20 . 20 . 20 . '
         '20 20 20 20 20 20 20 20 20/2 20/2 20/2 20/2 +20/2 +20/2 +20/2 +20/2')
+
+# Intricate second-half edits (Sxnctuary-style): displaced kicks, 32nd stutters,
+# reversed and pitched ghost slices, and tiny silences that make the next hit land.
+GLITCH_A = '0 1 2 3 4 4/2 6 7 8 9 r10 11 12 13 12/2 15 16 17 2 3 20 21 22 22/2 24 +25 26 27 28 28/2 r30 31'
+GLITCH_B = '0 0/2 2 3 4 5 6 7 8 9 10 11 12 12/2 12/2 12/2 16 17 18 19 4 5 22 23 -24 25 26 27 28 29 +28/2 +28/2'
+GLITCH_C = '0 1 r2 3 4 5 . 7 0 1 10 11 12 13 14 -15 16 17 18 . 20 21 20/2 23 24 25 26 27 28 r29 28/2 31'
+GLITCH_FILL = ('0 1 2 3 4 4/2 4/2 4/2 8 9 10 11 12 12/2 +12/2 +12/2 '
+               '20/2 20/2 20/2 20/2 28/2 28/2 +28/2 +28/2 r28 r29 r30 r31 . . 28 .')
 
 HALF = {'k': 'x.........x.....|x.....x...x.....', 's': '........x.......|........x.....g.',
         'g': '...g......g.....|..g.......g..g..', 'h': 'x.x.x.x.x.x.x.x.|x.x.x.x.x.x.xox.'}
@@ -46,6 +55,8 @@ def _sequences(kind, units):
             seq = SMALL_FILL if phrase_end else STRAIGHT
         elif kind == 'build':
             seq = ROLL if last else STRAIGHT
+        elif kind == 'glitch':
+            seq = GLITCH_FILL if phrase_end or last else (GLITCH_A, GLITCH_B, GLITCH_C)[u % 4 % 3]
         else:
             raise ValueError(kind)
         out.append(seq)

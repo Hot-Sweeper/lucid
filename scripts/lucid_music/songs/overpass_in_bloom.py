@@ -67,7 +67,8 @@ def build():
     cym = [(b * 4, 'crash', .7) for b in (24, 48, 64)] + [(b * 4, 'crash', .5) for b in (8, 32, 56, 72)]
     for start in (24, 32, 64, 72):
         cym += drums.loop({'ride': 'x...x...x...x...'}, 8, start)
-    s.drums('cymbals', kit, cym, level=-30, reverb=.12, humanize_ms=3)
+    s.drums('cymbals', kit, cym, level=-31, reverb=.12, humanize_ms=3,
+            chain=lambda a, s: fx.comp(fx.eq(a, hp=300, lp=10000), -24, 3, 1, 120))
 
     end = s.sec(88 * 4, False)
     s.bus_chain['music'] = lambda a, s: fx.filter_sweep(a, [(0, 1100), (s.sec(28, False), 1600), (s.sec(32, False), 15000),

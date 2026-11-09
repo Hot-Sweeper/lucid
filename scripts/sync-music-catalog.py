@@ -67,7 +67,7 @@ def main():
         engine='scripts/lucid_music (sampled instruments, Surge XT patches, offline mastering)',
         libraries=['jRhodes3d (Jeff Learman, free use)', 'Salamander Grand Piano V3 (Alexander Holm, CC-BY 3.0)',
                    'Karoryfer Sneakybass (CC0)', 'Greg Sullivan E-Pianos', 'Virtuosity Drums (CC0)',
-                   'VCSL vibraphone, harp, claps (CC0)', 'Surge XT 1.3.4 factory and third-party patches (GPL-3.0)'],
+                   'VCSL vibraphone, harp, claps (CC0)', 'Karoryfer x Bigcat cello (CC0)', 'Surge XT 1.3.4 factory and third-party patches (GPL-3.0)'],
         songs=provenance), indent=1) + '\n')
     print(f'{len(ORIGINALS)} originals + {len(new_rows)} new songs written to {CATALOG.relative_to(ROOT)}')
 

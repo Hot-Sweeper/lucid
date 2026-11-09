@@ -133,3 +133,56 @@ def outro_fade(seconds=7., floor_db=-36):
         end = s.sec(s.length_beats, False)
         return fx.automate(a, [(0, 0), (end - seconds, 0), (end, floor_db * .6), (end + 1.5, floor_db), (end + 30, floor_db)])
     return chain
+
+
+# ---- wave 2 additions: gated toms and their routing --------------------------
+TOM_FILLS = {
+    'toms': {'ht': '........x.x.....', 'lt': '............x.x.', 's': '....x...........'},
+    'toms_long': {'ht': '....x.x.x.......', 'lt': '..........x.x.xX', 's': '................'},
+}
+
+
+def add_toms(k, mic='mid'):
+    """Real high/low toms (Virtuosity) for 80s gated fills."""
+    k['ht'] = drums._virt(mic, 'htom', 'center', gain_db=-4, pan=-.25, max_len=1.5)
+    k['lt'] = drums._virt(mic, 'ltom', 'center', gain_db=-3, pan=.25, max_len=1.8)
+    return k
+
+
+def tom_bar(kind, bar, fill='toms', crash=False):
+    """A groove bar whose last half carries a tom fill."""
+    g = dict(GROOVES[kind])
+    for piece, pat in TOM_FILLS[fill].items():
+        g[piece] = pat
+    if 'k' in g:
+        g['k'] = g['k'][:8] + '........'
+    if 'h' in g:
+        g['h'] = g['h'][:8] + '........'
+    hits = drums.loop(g, 1, bar)
+    if crash:
+        hits.append((bar * 4, 'crash', .75))
+    return hits
+
+
+def split_gated(hits):
+    """Snare, clap and toms go to the gated-reverb track."""
+    gated = [h for h in hits if h[1] in ('s', 'clap808', 'ht', 'lt')]
+    rest = [h for h in hits if h[1] not in ('s', 'clap808', 'ht', 'lt')]
+    return rest, gated
+
+
+def rain(frames, s, level=.02, seed=21):
+    """Soft rain bed: band-limited noise with slow swells and sparse droplets."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    n = rng.standard_normal((frames, 2)).astype(np.float32)
+    bed = fx.eq(n, hp=900, lp=7000, peaks=[(3000, -3, .7)])
+    t = np.arange(frames) / 44100
+    swell = .75 + .25 * np.sin(2 * np.pi * .05 * t + 1)
+    drops = np.zeros((frames, 2), np.float32)
+    for p in rng.integers(0, frames - 400, int(frames / 44100 * 25)):
+        L = int(rng.integers(60, 300))
+        d = rng.standard_normal(L) * np.exp(-np.arange(L) / (L / 5)) * rng.uniform(.2, 1)
+        drops[p:p + L, int(rng.integers(0, 2))] += d
+    drops = fx.eq(drops, hp=1800, lp=9000)
+    return (bed * swell[:, None] + drops * 1.5) * level

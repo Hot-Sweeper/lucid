@@ -131,7 +131,10 @@ def voice(c: Chord, lo='C3', hi='C5', n=4, prev=None, rootless=False, drop_fifth
     while len(ints) > n:
         removable = [i for i in ints if i % 12 == 0] or [i for i in ints if i % 12 == 7] or ints[:1]
         ints.remove(removable[0])
+    altered_fifth = any(i % 12 in (6, 8) for i in c.intervals)
     for extra in (7, 0):          # thin chords: add the fifth, then the root
+        if extra == 7 and altered_fifth:
+            continue              # never a natural 5th next to b5/#11 or #5/b13
         if len(ints) < n and extra not in [i % 12 for i in ints] and (extra != 0 or not rootless):
             ints.append(extra)
     if len(ints) < n:

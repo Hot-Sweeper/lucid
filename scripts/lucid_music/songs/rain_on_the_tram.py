@@ -45,7 +45,7 @@ def build():
     # Rhodes: chord on 1, anticipated push on the 'and' of 2, quiet answer on 4.
     rh = parts.comp(full, [(0, 1.4, 1), (1.75, .9, .72), (3.5, .45, .5)], lo='A2', hi='E4', n=4,
                     vel=.5, rootless=True, spread=.012)
-    s.notes('rhodes', sampler.rhodes(), rh, level=-25, reverb=.16, duck=.22, humanize_ms=7,
+    s.notes('rhodes', sampler.rhodes(), rh, level=-23, reverb=.16, duck=.22, humanize_ms=7,
             chain=lambda a, s: fx.chorus(fx.eq(a, hp=120, lp=7000, peaks=[(400, -2, .8)]), rate=.4, depth=.12, mix=.3))
 
     # Felt-soft grand: theme, answer, theme 8va over the return.

@@ -48,4 +48,19 @@ def comp_cells(prog, cells, lo='C3', hi='E4', n=4, vel=.55, rootless=True, sprea
                 out.append(Note(t + j * spread, d, p, min(1, vel * vm)))
         b += 1
         k += 1
+    return drop_clashing_fifths(out, prog)
+
+
+def drop_clashing_fifths(notes, prog):
+    """theory.voice() pads thin rootless chords with a perfect fifth. On chords
+    that already hold a b5/#11 or #5/b13 (m7b5, dim, 7#11, 7b13, 7alt, aug)
+    that fifth rubs a semitone away, so remove it from comping voicings."""
+    from lucid_music.theory import chord_at
+    out = []
+    for n in notes:
+        c = chord_at(prog, n.t + 1e-6)
+        ints = {i % 12 for i in c.intervals}
+        if 7 not in ints and (6 in ints or 8 in ints) and n.p % 12 == (c.root + 7) % 12:
+            continue
+        out.append(n)
     return out

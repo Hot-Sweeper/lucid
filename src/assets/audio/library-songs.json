@@ -7,9 +7,73 @@
   "Greg Sullivan E-Pianos",
   "Virtuosity Drums (CC0)",
   "VCSL vibraphone, harp, claps (CC0)",
+  "Karoryfer x Bigcat cello (CC0)",
   "Surge XT 1.3.4 factory and third-party patches (GPL-3.0)"
  ],
  "songs": [
+  {
+   "id": "night-conservatory",
+   "title": "Night Conservatory",
+   "genre": "ambient",
+   "bpm": 58,
+   "source": "scripts/lucid_music/songs/night_conservatory.py",
+   "sections": [
+    {
+     "name": "intro",
+     "startBar": 0,
+     "bars": 4
+    },
+    {
+     "name": "cello theme",
+     "startBar": 4,
+     "bars": 8
+    },
+    {
+     "name": "piano answer",
+     "startBar": 12,
+     "bars": 8
+    },
+    {
+     "name": "interlude",
+     "startBar": 20,
+     "bars": 4
+    },
+    {
+     "name": "theme return",
+     "startBar": 24,
+     "bars": 8
+    },
+    {
+     "name": "coda",
+     "startBar": 32,
+     "bars": 4
+    }
+   ],
+   "renderLUFS": -18.0,
+   "renderTruePeak": -3.69,
+   "tracks": [
+    {
+     "name": "piano lh",
+     "kind": "notes",
+     "items": 204
+    },
+    {
+     "name": "piano rh",
+     "kind": "notes",
+     "items": 41
+    },
+    {
+     "name": "cello",
+     "kind": "notes",
+     "items": 57
+    },
+    {
+     "name": "strings pad",
+     "kind": "notes",
+     "items": 69
+    }
+   ]
+  },
   {
    "id": "reservoir-moon",
    "title": "Reservoir Moon",
@@ -165,7 +229,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -5.68,
+   "renderTruePeak": -5.92,
    "tracks": [
     {
      "name": "rhodes chords",
@@ -186,6 +250,74 @@
      "name": "bass",
      "kind": "notes",
      "items": 41
+    }
+   ]
+  },
+  {
+   "id": "honey-on-the-windowsill",
+   "title": "Honey on the Windowsill",
+   "genre": "ambient",
+   "bpm": 72,
+   "source": "scripts/lucid_music/songs/honey_on_the_windowsill.py",
+   "sections": [
+    {
+     "name": "intro",
+     "startBar": 0,
+     "bars": 4
+    },
+    {
+     "name": "bell theme",
+     "startBar": 4,
+     "bars": 8
+    },
+    {
+     "name": "rhodes answer",
+     "startBar": 12,
+     "bars": 8
+    },
+    {
+     "name": "warm middle",
+     "startBar": 20,
+     "bars": 8
+    },
+    {
+     "name": "theme together",
+     "startBar": 28,
+     "bars": 8
+    },
+    {
+     "name": "coda",
+     "startBar": 36,
+     "bars": 4
+    }
+   ],
+   "renderLUFS": -18.0,
+   "renderTruePeak": -3.97,
+   "tracks": [
+    {
+     "name": "rhodes",
+     "kind": "notes",
+     "items": 166
+    },
+    {
+     "name": "harp",
+     "kind": "notes",
+     "items": 304
+    },
+    {
+     "name": "bells",
+     "kind": "notes",
+     "items": 59
+    },
+    {
+     "name": "rhodes lead",
+     "kind": "notes",
+     "items": 62
+    },
+    {
+     "name": "pad",
+     "kind": "notes",
+     "items": 44
     }
    ]
   },
@@ -233,7 +365,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -3.66,
+   "renderTruePeak": -3.95,
    "tracks": [
     {
      "name": "pluck",
@@ -264,6 +396,94 @@
      "name": "heartbeat",
      "kind": "drums",
      "items": 242
+    }
+   ]
+  },
+  {
+   "id": "soft-focus",
+   "title": "Soft Focus",
+   "genre": "lofi",
+   "bpm": 76,
+   "source": "scripts/lucid_music/songs/soft_focus.py",
+   "sections": [
+    {
+     "name": "intro",
+     "startBar": 0,
+     "bars": 4
+    },
+    {
+     "name": "theme",
+     "startBar": 4,
+     "bars": 8
+    },
+    {
+     "name": "answer",
+     "startBar": 12,
+     "bars": 8
+    },
+    {
+     "name": "bridge",
+     "startBar": 20,
+     "bars": 8
+    },
+    {
+     "name": "theme return",
+     "startBar": 28,
+     "bars": 8
+    },
+    {
+     "name": "answer",
+     "startBar": 36,
+     "bars": 8
+    },
+    {
+     "name": "outro",
+     "startBar": 44,
+     "bars": 4
+    }
+   ],
+   "renderLUFS": -18.0,
+   "renderTruePeak": -3.67,
+   "tracks": [
+    {
+     "name": "wurli",
+     "kind": "notes",
+     "items": 384
+    },
+    {
+     "name": "pad",
+     "kind": "notes",
+     "items": 125
+    },
+    {
+     "name": "harp",
+     "kind": "notes",
+     "items": 146
+    },
+    {
+     "name": "harp ripples",
+     "kind": "notes",
+     "items": 96
+    },
+    {
+     "name": "wurli tune",
+     "kind": "notes",
+     "items": 33
+    },
+    {
+     "name": "upright bass",
+     "kind": "notes",
+     "items": 123
+    },
+    {
+     "name": "kit",
+     "kind": "drums",
+     "items": 980
+    },
+    {
+     "name": "vinyl",
+     "kind": "audio",
+     "items": 0
     }
    ]
   },
@@ -351,6 +571,84 @@
    ]
   },
   {
+   "id": "umbrella-hour",
+   "title": "Umbrella Hour",
+   "genre": "lofi",
+   "bpm": 70,
+   "source": "scripts/lucid_music/songs/umbrella_hour.py",
+   "sections": [
+    {
+     "name": "intro",
+     "startBar": 0,
+     "bars": 4
+    },
+    {
+     "name": "theme",
+     "startBar": 4,
+     "bars": 8
+    },
+    {
+     "name": "answer",
+     "startBar": 12,
+     "bars": 8
+    },
+    {
+     "name": "bridge",
+     "startBar": 20,
+     "bars": 8
+    },
+    {
+     "name": "theme return",
+     "startBar": 28,
+     "bars": 8
+    },
+    {
+     "name": "outro",
+     "startBar": 36,
+     "bars": 4
+    }
+   ],
+   "renderLUFS": -18.0,
+   "renderTruePeak": -3.82,
+   "tracks": [
+    {
+     "name": "rhodes",
+     "kind": "notes",
+     "items": 502
+    },
+    {
+     "name": "vibes",
+     "kind": "notes",
+     "items": 114
+    },
+    {
+     "name": "rhodes tune",
+     "kind": "notes",
+     "items": 62
+    },
+    {
+     "name": "upright bass",
+     "kind": "notes",
+     "items": 91
+    },
+    {
+     "name": "kit",
+     "kind": "drums",
+     "items": 448
+    },
+    {
+     "name": "rain",
+     "kind": "audio",
+     "items": 0
+    },
+    {
+     "name": "vinyl",
+     "kind": "audio",
+     "items": 0
+    }
+   ]
+  },
+  {
    "id": "rain-on-the-tram",
    "title": "Rain on the Tram",
    "genre": "lofi",
@@ -389,12 +687,12 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -3.71,
+   "renderTruePeak": -3.67,
    "tracks": [
     {
      "name": "rhodes",
      "kind": "notes",
-     "items": 516
+     "items": 514
     },
     {
      "name": "piano lead",
@@ -415,6 +713,84 @@
      "name": "kit",
      "kind": "drums",
      "items": 535
+    },
+    {
+     "name": "vinyl",
+     "kind": "audio",
+     "items": 0
+    }
+   ]
+  },
+  {
+   "id": "margins-in-pencil",
+   "title": "Margins in Pencil",
+   "genre": "lofi",
+   "bpm": 82,
+   "source": "scripts/lucid_music/songs/margins_in_pencil.py",
+   "sections": [
+    {
+     "name": "intro",
+     "startBar": 0,
+     "bars": 4
+    },
+    {
+     "name": "theme",
+     "startBar": 4,
+     "bars": 8
+    },
+    {
+     "name": "answer",
+     "startBar": 12,
+     "bars": 8
+    },
+    {
+     "name": "bridge",
+     "startBar": 20,
+     "bars": 8
+    },
+    {
+     "name": "theme return",
+     "startBar": 28,
+     "bars": 8
+    },
+    {
+     "name": "answer",
+     "startBar": 36,
+     "bars": 8
+    },
+    {
+     "name": "outro",
+     "startBar": 44,
+     "bars": 4
+    }
+   ],
+   "renderLUFS": -18.0,
+   "renderTruePeak": -3.71,
+   "tracks": [
+    {
+     "name": "rhodes",
+     "kind": "notes",
+     "items": 604
+    },
+    {
+     "name": "piano lead",
+     "kind": "notes",
+     "items": 203
+    },
+    {
+     "name": "piano edge",
+     "kind": "notes",
+     "items": 40
+    },
+    {
+     "name": "upright bass",
+     "kind": "notes",
+     "items": 133
+    },
+    {
+     "name": "kit",
+     "kind": "drums",
+     "items": 709
     },
     {
      "name": "vinyl",
@@ -467,7 +843,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -3.65,
+   "renderTruePeak": -3.66,
    "tracks": [
     {
      "name": "wurli chords",
@@ -638,12 +1014,12 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -4.96,
+   "renderTruePeak": -5.47,
    "tracks": [
     {
      "name": "piano",
      "kind": "notes",
-     "items": 379
+     "items": 378
     },
     {
      "name": "vibraphone",
@@ -701,12 +1077,12 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -3.53,
+   "renderTruePeak": -3.55,
    "tracks": [
     {
      "name": "rhodes",
      "kind": "notes",
-     "items": 850
+     "items": 819
     },
     {
      "name": "vibraphone",
@@ -727,6 +1103,89 @@
      "name": "percussion",
      "kind": "drums",
      "items": 1464
+    }
+   ]
+  },
+  {
+   "id": "waltz-for-the-window-seat",
+   "title": "Waltz for the Window Seat",
+   "genre": "jazz",
+   "bpm": 160,
+   "source": "scripts/lucid_music/songs/waltz_for_the_window_seat.py",
+   "sections": [
+    {
+     "name": "intro",
+     "startBar": 0,
+     "bars": 8
+    },
+    {
+     "name": "head A",
+     "startBar": 8,
+     "bars": 16
+    },
+    {
+     "name": "head A2",
+     "startBar": 24,
+     "bars": 16
+    },
+    {
+     "name": "bridge",
+     "startBar": 40,
+     "bars": 16
+    },
+    {
+     "name": "head A2",
+     "startBar": 56,
+     "bars": 16
+    },
+    {
+     "name": "piano solo",
+     "startBar": 72,
+     "bars": 16
+    },
+    {
+     "name": "bridge",
+     "startBar": 88,
+     "bars": 16
+    },
+    {
+     "name": "head out",
+     "startBar": 104,
+     "bars": 16
+    },
+    {
+     "name": "outro",
+     "startBar": 120,
+     "bars": 8
+    }
+   ],
+   "renderLUFS": -18.0,
+   "renderTruePeak": -3.42,
+   "tracks": [
+    {
+     "name": "rhodes head",
+     "kind": "notes",
+     "items": 229
+    },
+    {
+     "name": "piano solo",
+     "kind": "notes",
+     "items": 85
+    },
+    {
+     "name": "piano comp",
+     "kind": "notes",
+     "items": 887
+    },
+    {
+     "name": "upright bass",
+     "kind": "notes",
+     "items": 352
+    },
+    {
+     "name": "kit",
+     "kind": "drums",
+     "items": 813
     }
    ]
   },
@@ -847,12 +1306,12 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -4.37,
+   "renderTruePeak": -3.69,
    "tracks": [
     {
      "name": "piano comp",
      "kind": "notes",
-     "items": 632
+     "items": 625
     },
     {
      "name": "piano lead",
@@ -868,6 +1327,94 @@
      "name": "kit",
      "kind": "drums",
      "items": 679
+    }
+   ]
+  },
+  {
+   "id": "indigo-stairwell",
+   "title": "Indigo Stairwell",
+   "genre": "jazz",
+   "bpm": 110,
+   "source": "scripts/lucid_music/songs/indigo_stairwell.py",
+   "sections": [
+    {
+     "name": "intro",
+     "startBar": 0,
+     "bars": 8
+    },
+    {
+     "name": "A vibes",
+     "startBar": 8,
+     "bars": 8
+    },
+    {
+     "name": "A piano",
+     "startBar": 16,
+     "bars": 8
+    },
+    {
+     "name": "B vibes",
+     "startBar": 24,
+     "bars": 8
+    },
+    {
+     "name": "A together",
+     "startBar": 32,
+     "bars": 8
+    },
+    {
+     "name": "trading fours",
+     "startBar": 40,
+     "bars": 16
+    },
+    {
+     "name": "B",
+     "startBar": 56,
+     "bars": 8
+    },
+    {
+     "name": "A",
+     "startBar": 64,
+     "bars": 8
+    },
+    {
+     "name": "outro",
+     "startBar": 72,
+     "bars": 4
+    }
+   ],
+   "renderLUFS": -18.0,
+   "renderTruePeak": -3.72,
+   "tracks": [
+    {
+     "name": "vibes",
+     "kind": "notes",
+     "items": 207
+    },
+    {
+     "name": "piano lead",
+     "kind": "notes",
+     "items": 81
+    },
+    {
+     "name": "piano shadow",
+     "kind": "notes",
+     "items": 66
+    },
+    {
+     "name": "piano comp",
+     "kind": "notes",
+     "items": 945
+    },
+    {
+     "name": "upright bass",
+     "kind": "notes",
+     "items": 294
+    },
+    {
+     "name": "kit",
+     "kind": "drums",
+     "items": 645
     }
    ]
   },
@@ -910,7 +1457,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -5.18,
+   "renderTruePeak": -5.69,
    "tracks": [
     {
      "name": "pad",
@@ -993,7 +1540,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -5.45,
+   "renderTruePeak": -5.63,
    "tracks": [
     {
      "name": "pad",
@@ -1029,6 +1576,94 @@
      "name": "drums",
      "kind": "drums",
      "items": 909
+    }
+   ]
+  },
+  {
+   "id": "astral-ferry",
+   "title": "Astral Ferry",
+   "genre": "phonk",
+   "bpm": 128,
+   "source": "scripts/lucid_music/songs/astral_ferry.py",
+   "sections": [
+    {
+     "name": "intro",
+     "startBar": 0,
+     "bars": 8
+    },
+    {
+     "name": "hook",
+     "startBar": 8,
+     "bars": 16
+    },
+    {
+     "name": "lift",
+     "startBar": 24,
+     "bars": 16
+    },
+    {
+     "name": "break",
+     "startBar": 40,
+     "bars": 8
+    },
+    {
+     "name": "hook return",
+     "startBar": 48,
+     "bars": 16
+    },
+    {
+     "name": "outro",
+     "startBar": 64,
+     "bars": 8
+    }
+   ],
+   "renderLUFS": -18.0,
+   "renderTruePeak": -7.01,
+   "tracks": [
+    {
+     "name": "pad",
+     "kind": "notes",
+     "items": 132
+    },
+    {
+     "name": "air",
+     "kind": "notes",
+     "items": 39
+    },
+    {
+     "name": "vibes",
+     "kind": "notes",
+     "items": 96
+    },
+    {
+     "name": "bell",
+     "kind": "notes",
+     "items": 48
+    },
+    {
+     "name": "vibes call",
+     "kind": "notes",
+     "items": 12
+    },
+    {
+     "name": "lift lead",
+     "kind": "notes",
+     "items": 36
+    },
+    {
+     "name": "cowbell",
+     "kind": "audio",
+     "items": 0
+    },
+    {
+     "name": "808",
+     "kind": "notes",
+     "items": 136
+    },
+    {
+     "name": "drums",
+     "kind": "drums",
+     "items": 670
     }
    ]
   },
@@ -1071,7 +1706,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -4.8,
+   "renderTruePeak": -4.53,
    "tracks": [
     {
      "name": "pad",
@@ -1149,7 +1784,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -5.91,
+   "renderTruePeak": -5.99,
    "tracks": [
     {
      "name": "piano",
@@ -1180,6 +1815,94 @@
      "name": "drums",
      "kind": "drums",
      "items": 1065
+    }
+   ]
+  },
+  {
+   "id": "aurora-run",
+   "title": "Aurora Run",
+   "genre": "phonk",
+   "bpm": 135,
+   "source": "scripts/lucid_music/songs/aurora_run.py",
+   "sections": [
+    {
+     "name": "intro",
+     "startBar": 0,
+     "bars": 8
+    },
+    {
+     "name": "hook",
+     "startBar": 8,
+     "bars": 16
+    },
+    {
+     "name": "lift",
+     "startBar": 24,
+     "bars": 16
+    },
+    {
+     "name": "break",
+     "startBar": 40,
+     "bars": 8
+    },
+    {
+     "name": "hook return",
+     "startBar": 48,
+     "bars": 16
+    },
+    {
+     "name": "outro",
+     "startBar": 64,
+     "bars": 8
+    }
+   ],
+   "renderLUFS": -18.0,
+   "renderTruePeak": -6.34,
+   "tracks": [
+    {
+     "name": "pad",
+     "kind": "notes",
+     "items": 171
+    },
+    {
+     "name": "lift pad",
+     "kind": "notes",
+     "items": 46
+    },
+    {
+     "name": "bell hook",
+     "kind": "notes",
+     "items": 196
+    },
+    {
+     "name": "hook body",
+     "kind": "notes",
+     "items": 147
+    },
+    {
+     "name": "lift bell",
+     "kind": "notes",
+     "items": 42
+    },
+    {
+     "name": "break bell",
+     "kind": "notes",
+     "items": 14
+    },
+    {
+     "name": "cowbell",
+     "kind": "audio",
+     "items": 0
+    },
+    {
+     "name": "808",
+     "kind": "notes",
+     "items": 134
+    },
+    {
+     "name": "drums",
+     "kind": "drums",
+     "items": 986
     }
    ]
   },
@@ -1237,7 +1960,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -4.22,
+   "renderTruePeak": -3.63,
    "tracks": [
     {
      "name": "lead",
@@ -1345,7 +2068,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -3.66,
+   "renderTruePeak": -3.67,
    "tracks": [
     {
      "name": "lead",
@@ -1391,6 +2114,104 @@
      "name": "snare",
      "kind": "drums",
      "items": 201
+    }
+   ]
+  },
+  {
+   "id": "taillights-in-the-rain",
+   "title": "Taillights in the Rain",
+   "genre": "synthwave",
+   "bpm": 88,
+   "source": "scripts/lucid_music/songs/taillights_in_the_rain.py",
+   "sections": [
+    {
+     "name": "intro",
+     "startBar": 0,
+     "bars": 4
+    },
+    {
+     "name": "verse",
+     "startBar": 4,
+     "bars": 8
+    },
+    {
+     "name": "chorus",
+     "startBar": 12,
+     "bars": 8
+    },
+    {
+     "name": "interlude",
+     "startBar": 20,
+     "bars": 4
+    },
+    {
+     "name": "verse",
+     "startBar": 24,
+     "bars": 8
+    },
+    {
+     "name": "chorus",
+     "startBar": 32,
+     "bars": 8
+    },
+    {
+     "name": "bridge",
+     "startBar": 40,
+     "bars": 8
+    },
+    {
+     "name": "chorus",
+     "startBar": 48,
+     "bars": 8
+    },
+    {
+     "name": "outro",
+     "startBar": 56,
+     "bars": 6
+    }
+   ],
+   "renderLUFS": -18.0,
+   "renderTruePeak": -4.49,
+   "tracks": [
+    {
+     "name": "sax lead",
+     "kind": "notes",
+     "items": 195
+    },
+    {
+     "name": "pad",
+     "kind": "notes",
+     "items": 140
+    },
+    {
+     "name": "strings",
+     "kind": "notes",
+     "items": 82
+    },
+    {
+     "name": "electric piano",
+     "kind": "notes",
+     "items": 600
+    },
+    {
+     "name": "bass",
+     "kind": "notes",
+     "items": 284
+    },
+    {
+     "name": "drums",
+     "kind": "drums",
+     "items": 965
+    },
+    {
+     "name": "gated snare and toms",
+     "kind": "drums",
+     "items": 208
+    },
+    {
+     "name": "rain",
+     "kind": "audio",
+     "items": 0
     }
    ]
   },
@@ -1458,7 +2279,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -3.69,
+   "renderTruePeak": -4.81,
    "tracks": [
     {
      "name": "lead",
@@ -1479,6 +2300,11 @@
      "name": "pad",
      "kind": "notes",
      "items": 139
+    },
+    {
+     "name": "bridge strings",
+     "kind": "notes",
+     "items": 17
     },
     {
      "name": "poly stabs",
@@ -1504,6 +2330,129 @@
      "name": "snare",
      "kind": "drums",
      "items": 256
+    }
+   ]
+  },
+  {
+   "id": "coin-op-daybreak",
+   "title": "Coin-Op Daybreak",
+   "genre": "synthwave",
+   "bpm": 120,
+   "source": "scripts/lucid_music/songs/coin_op_daybreak.py",
+   "sections": [
+    {
+     "name": "intro",
+     "startBar": 0,
+     "bars": 8
+    },
+    {
+     "name": "verse",
+     "startBar": 8,
+     "bars": 8
+    },
+    {
+     "name": "pre-chorus",
+     "startBar": 16,
+     "bars": 4
+    },
+    {
+     "name": "chorus",
+     "startBar": 20,
+     "bars": 8
+    },
+    {
+     "name": "interlude",
+     "startBar": 28,
+     "bars": 4
+    },
+    {
+     "name": "verse",
+     "startBar": 32,
+     "bars": 8
+    },
+    {
+     "name": "pre-chorus",
+     "startBar": 40,
+     "bars": 4
+    },
+    {
+     "name": "chorus",
+     "startBar": 44,
+     "bars": 8
+    },
+    {
+     "name": "bridge",
+     "startBar": 52,
+     "bars": 8
+    },
+    {
+     "name": "chorus",
+     "startBar": 60,
+     "bars": 8
+    },
+    {
+     "name": "outro",
+     "startBar": 68,
+     "bars": 8
+    }
+   ],
+   "renderLUFS": -18.0,
+   "renderTruePeak": -3.69,
+   "tracks": [
+    {
+     "name": "lead",
+     "kind": "notes",
+     "items": 199
+    },
+    {
+     "name": "lead low double",
+     "kind": "notes",
+     "items": 31
+    },
+    {
+     "name": "teaser",
+     "kind": "notes",
+     "items": 15
+    },
+    {
+     "name": "bridge pluck",
+     "kind": "notes",
+     "items": 21
+    },
+    {
+     "name": "pad",
+     "kind": "notes",
+     "items": 158
+    },
+    {
+     "name": "offbeat stabs",
+     "kind": "notes",
+     "items": 336
+    },
+    {
+     "name": "poly pump",
+     "kind": "notes",
+     "items": 672
+    },
+    {
+     "name": "arp",
+     "kind": "notes",
+     "items": 544
+    },
+    {
+     "name": "bass",
+     "kind": "notes",
+     "items": 443
+    },
+    {
+     "name": "drums",
+     "kind": "drums",
+     "items": 1153
+    },
+    {
+     "name": "snare",
+     "kind": "drums",
+     "items": 255
     }
    ]
   },
@@ -1571,7 +2520,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -3.61,
+   "renderTruePeak": -4.68,
    "tracks": [
     {
      "name": "lead",
@@ -1678,8 +2627,8 @@
      "bars": 8
     }
    ],
-   "renderLUFS": -18.84,
-   "renderTruePeak": -3.45,
+   "renderLUFS": -18.0,
+   "renderTruePeak": -4.8,
    "tracks": [
     {
      "name": "rhodes",
@@ -1787,7 +2736,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -3.66,
+   "renderTruePeak": -3.98,
    "tracks": [
     {
      "name": "rhodes",
@@ -1823,6 +2772,119 @@
      "name": "perc",
      "kind": "drums",
      "items": 265
+    }
+   ]
+  },
+  {
+   "id": "lemonade-skyline",
+   "title": "Lemonade Skyline",
+   "genre": "breakcore",
+   "bpm": 168,
+   "source": "scripts/lucid_music/songs/lemonade_skyline.py",
+   "sections": [
+    {
+     "name": "intro",
+     "startBar": 0,
+     "bars": 8
+    },
+    {
+     "name": "verse",
+     "startBar": 8,
+     "bars": 8
+    },
+    {
+     "name": "verse",
+     "startBar": 16,
+     "bars": 8
+    },
+    {
+     "name": "chorus",
+     "startBar": 24,
+     "bars": 8
+    },
+    {
+     "name": "chorus",
+     "startBar": 32,
+     "bars": 8
+    },
+    {
+     "name": "breakdown",
+     "startBar": 40,
+     "bars": 8
+    },
+    {
+     "name": "build",
+     "startBar": 48,
+     "bars": 8
+    },
+    {
+     "name": "verse",
+     "startBar": 56,
+     "bars": 8
+    },
+    {
+     "name": "verse",
+     "startBar": 64,
+     "bars": 8
+    },
+    {
+     "name": "chorus",
+     "startBar": 72,
+     "bars": 8
+    },
+    {
+     "name": "chorus",
+     "startBar": 80,
+     "bars": 8
+    },
+    {
+     "name": "outro",
+     "startBar": 88,
+     "bars": 8
+    }
+   ],
+   "renderLUFS": -18.0,
+   "renderTruePeak": -4.79,
+   "tracks": [
+    {
+     "name": "rhodes",
+     "kind": "notes",
+     "items": 1120
+    },
+    {
+     "name": "pad",
+     "kind": "notes",
+     "items": 212
+    },
+    {
+     "name": "vibes",
+     "kind": "notes",
+     "items": 324
+    },
+    {
+     "name": "bell lead",
+     "kind": "notes",
+     "items": 151
+    },
+    {
+     "name": "harp",
+     "kind": "notes",
+     "items": 512
+    },
+    {
+     "name": "sub",
+     "kind": "notes",
+     "items": 144
+    },
+    {
+     "name": "breaks",
+     "kind": "audio",
+     "items": 0
+    },
+    {
+     "name": "perc",
+     "kind": "drums",
+     "items": 710
     }
    ]
   },
@@ -1895,7 +2957,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -6.01,
+   "renderTruePeak": -5.55,
    "tracks": [
     {
      "name": "pad",
@@ -2003,7 +3065,7 @@
     }
    ],
    "renderLUFS": -18.0,
-   "renderTruePeak": -3.69,
+   "renderTruePeak": -3.68,
    "tracks": [
     {
      "name": "pad",
@@ -2024,6 +3086,119 @@
      "name": "pluck arp",
      "kind": "notes",
      "items": 256
+    },
+    {
+     "name": "sub",
+     "kind": "notes",
+     "items": 80
+    },
+    {
+     "name": "breaks",
+     "kind": "audio",
+     "items": 0
+    },
+    {
+     "name": "crash",
+     "kind": "drums",
+     "items": 8
+    }
+   ]
+  },
+  {
+   "id": "letters-i-never-sent",
+   "title": "Letters I Never Sent",
+   "genre": "breakcore",
+   "bpm": 174,
+   "source": "scripts/lucid_music/songs/letters_i_never_sent.py",
+   "sections": [
+    {
+     "name": "intro",
+     "startBar": 0,
+     "bars": 8
+    },
+    {
+     "name": "verse",
+     "startBar": 8,
+     "bars": 8
+    },
+    {
+     "name": "verse",
+     "startBar": 16,
+     "bars": 8
+    },
+    {
+     "name": "chorus",
+     "startBar": 24,
+     "bars": 8
+    },
+    {
+     "name": "chorus",
+     "startBar": 32,
+     "bars": 8
+    },
+    {
+     "name": "breakdown",
+     "startBar": 40,
+     "bars": 8
+    },
+    {
+     "name": "build",
+     "startBar": 48,
+     "bars": 8
+    },
+    {
+     "name": "verse",
+     "startBar": 56,
+     "bars": 8
+    },
+    {
+     "name": "verse",
+     "startBar": 64,
+     "bars": 8
+    },
+    {
+     "name": "chorus",
+     "startBar": 72,
+     "bars": 8
+    },
+    {
+     "name": "chorus",
+     "startBar": 80,
+     "bars": 8
+    },
+    {
+     "name": "outro",
+     "startBar": 88,
+     "bars": 8
+    }
+   ],
+   "renderLUFS": -18.0,
+   "renderTruePeak": -3.69,
+   "tracks": [
+    {
+     "name": "pad",
+     "kind": "notes",
+     "items": 216
+    },
+    {
+     "name": "strings",
+     "kind": "notes",
+     "items": 66
+    },
+    {
+     "name": "piano",
+     "kind": "notes",
+     "items": 270
+    },
+    {
+     "name": "piano low",
+     "kind": "notes",
+     "items": 11
+    },
+    {
+     "name": "bell",
+     "kind": "notes",
+     "items": 52
     },
     {
      "name": "sub",
