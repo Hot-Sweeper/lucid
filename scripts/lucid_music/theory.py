@@ -187,7 +187,7 @@ def melody(text: str, start=0., octave_shift=0, vel=.78):
     Suffixes after the length: '>' accent, '_' soft, "'" staccato, '~' legato
     (slight overlap into the next note). '|' marks bars and is ignored."""
     notes, t = [], float(start)
-    for tok in text.split():
+    for tok in text.replace('|', ' | ').split():
         if tok == '|':
             continue
         m = re.fullmatch(r"(\[[^\]]+\]|[A-Ga-g][#b]?-?\d|r):([\d./]+)([>_'~]*)", tok)
@@ -205,7 +205,7 @@ def melody(text: str, start=0., octave_shift=0, vel=.78):
 
 
 def length_of(text: str) -> float:
-    return sum(_dur(tok.split(':')[1].rstrip(">_'~")) for tok in text.split() if tok != '|')
+    return sum(_dur(tok.split(':')[1].rstrip(">_'~")) for tok in text.replace('|', ' | ').split() if tok != '|')
 
 
 def scale(root: str, mode='major'):

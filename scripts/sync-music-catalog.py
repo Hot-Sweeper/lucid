@@ -1,72 +1,76 @@
-"""Merge the current authored render reports into canonical catalogue metadata.
+"""Install rendered songs into Lucid and regenerate the catalog.
 
-Run after all render jobs complete, then verify-music-masters.py --write. The
-latter measures actual encoded duration and loudness; this only handles musical
-identity. Render-specific detail remains in its provenance report.
+The 14 original cozy recordings keep their rows untouched. Every song module in
+scripts/lucid_music/songs/ is installed from its latest render
+(~/.cache/lucid-audio-authoring/renders/<id>.mp3 + .json). Afterwards run
+`python scripts/verify-music-masters.py --write` to measure durations and
+playback trims from the encoded files.
 """
 from pathlib import Path
+import importlib
 import json
 import re
+import shutil
+import sys
 
-ROOT=Path(__file__).resolve().parents[1]
-AUDIO=ROOT/'src/assets/audio'
-CATALOG=ROOT/'src/office/soundtrack.ts'
-BASE_ORDER=['cassette-clouds','neon-afterglow','tidal-memory','petal-breaks','midnight-drift']
-EXPANSION_REPORTS=['cozy-expansion-metrics.json','electronic-expansion-metrics.json','chamber-expansion-metrics.json']
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'scripts'))
+AUDIO = ROOT / 'src/assets/audio'
+CATALOG = ROOT / 'src/office/soundtrack.ts'
+RENDERS = Path.home() / '.cache/lucid-audio-authoring/renders'
+ORIGINALS = ['little-lights', 'window-garden', 'first-coffee', 'paper-kites', 'peach-parade', 'apricot-hour',
+             'tram-home', 'moonlit-desks', 'sleepy-satellites', 'pocket-sunrise', 'cloud-arcade',
+             'velvet-elevator', 'lantern-carousel', 'the-last-constellation']
+GENRE_ORDER = ['ambient', 'lofi', 'jazz', 'phonk', 'synthwave', 'breakcore']
+
+
+def camel(ident):
+    head, *rest = ident.split('-')
+    name = head + ''.join(w.capitalize() for w in rest)
+    return name if not name[0].isdigit() else 'song' + name
 
 
 def main():
-    genre={row['id']:row for row in json.loads((AUDIO/'genre-metrics.json').read_text())}
-    for name in ['reference-mix-metrics.json','surge-mix-metrics.json','tidal-remake-metrics.json']:
-        path=AUDIO/name
-        if not path.exists():raise FileNotFoundError(f'Finish the {name} render before synchronizing.')
-        data=json.loads(path.read_text())
-        for row in data if isinstance(data,list) else data['tracks']:
-            assert row['id'] in BASE_ORDER
-            genre[row['id']]=row
-    assert set(genre)==set(BASE_ORDER)
-    (AUDIO/'genre-metrics.json').write_text(json.dumps([genre[ident] for ident in BASE_ORDER],indent=2)+'\n')
-    rows=list(genre.values())+json.loads((AUDIO/'story-metrics.json').read_text())
-    for name in EXPANSION_REPORTS:
-        path=AUDIO/name
-        if not path.exists():raise FileNotFoundError(f'Finish the {name} render before synchronizing.')
-        rows+=json.loads(path.read_text())
-    assert len({row['id'] for row in rows})==len(rows),'Duplicate authored song ID'
-    source=CATALOG.read_text()
-    for row in rows:
-        raw=' '.join(row['textures']).lower();tags=[]
-        for key,aliases in [('pads',['pad','drone']),('bells',['bell','vibraphone','pitched metal']),('mallets',['mallet','marimba']),('piano',['piano','keys','rhodes','electric']),('strings',['string','cello','pizzicato']),('plucked',['pluck','harp','lute','guitar','pizzicato']),('reeds',['woodwind','reed','clarinet','recorder']),('breaks',['break']),('bass',['bass','sub','808']),('synth',['analog','arpeggio','surge','synth']),('drums',['drum','hat','percussion','snare','cymbal']),('cowbell',['cowbell'])]:
-            if any(word in raw for word in aliases):tags.append(key)
-        values={key:row[key] for key in ['bpm','genre','energy','key','mode','meter']}
-        values['textures']=tags
-        match=re.search(r"(  \{ id: '"+row['id']+r"'.*?)( \},)",source)
-        if not match:
-            assert re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*',row['id']),row['id']
-            assert (AUDIO/(row['id']+'.mp3')).is_file(),row['id']+' has no rendered recording'
-            symbol=''.join(part if i==0 else part.title() for i,part in enumerate(row['id'].split('-')))
-            assert not re.search(r'^import '+symbol+r'\b',source,re.M),symbol+' import collision'
-            source=source.replace("import type { SoundtrackSong }",f"import {symbol} from '../assets/audio/{row['id']}.mp3';\nimport type {{ SoundtrackSong }}")
-            entry=(f"  {{ id: '{row['id']}', title: {json.dumps(row['title'],ensure_ascii=False)}, url: {symbol}, "
-                   f"period: '{row['period']}', bpm: {row['bpm']}, genre: '{row['genre']}', energy: {row['energy']}, "
-                   f"seconds: {row['seconds']:.4f}, key: {row['key']}, mode: '{row['mode']}', meter: {row['meter']}, "
-                   f"textures: {json.dumps(tags)}, gainDb: 0.00 }},")
-            source=source.replace('\n];','\n'+entry+'\n];')
-            match=re.search(r"(  \{ id: '"+row['id']+r"'.*?)( \},)",source);assert match,row['id']
-        text=match[1]
-        for key,value in values.items():
-            encoded="'"+value+"'" if isinstance(value,str) else json.dumps(value)
-            text,n=re.subn(key+r': (?:\[[^\]]*\]|\x27[^\x27]*\x27|[-\d.]+)',key+': '+encoded,text)
-            assert n==1,(row['id'],key)
-        source=source[:match.start()]+text+match[2]+source[match.end():]
-    for row in json.loads((AUDIO/'soundtrack-metrics.json').read_text()):
-        if not sum(row.get('percussion',{}).get('hitCounts',{}).values()):continue
-        match=re.search(r"(  \{ id: '"+row['id']+r"'.*?)( \},)",source);assert match,row['id']
-        tags_match=re.search(r'textures: (\[[^\]]*\])',match[1]);assert tags_match
-        tags=json.loads(tags_match[1])
-        if 'drums' not in tags:tags.append('drums')
-        line=match[1][:tags_match.start(1)]+json.dumps(tags)+match[1][tags_match.end(1):]
-        source=source[:match.start()]+line+match[2]+source[match.end():]
-    CATALOG.write_text(source)
-    print('Synced current musical identities and recorded percussion tags; now run verify-music-masters.py --write for encoded duration and playback trims.')
+    source = CATALOG.read_text()
+    imports = [l for l in source.splitlines() if l.startswith('import ') and 'soundtrack-queue' not in l]
+    rows = re.findall(r"^  \{ id: '([a-z0-9-]+)'.*$", source, re.M)
+    keep_rows = {i: re.search(r"^  \{ id: '" + i + r"'.*$", source, re.M)[0] for i in rows if i in ORIGINALS}
+    assert list(keep_rows) == ORIGINALS, 'original rows changed'
+    keep_imports = [l for l in imports if any(f"/{i}.mp3'" in l for i in ORIGINALS)]
 
-if __name__=='__main__':main()
+    songs = []
+    for f in sorted((ROOT / 'scripts/lucid_music/songs').glob('[a-z]*.py')):
+        meta = json.loads((RENDERS / f'{f.stem.replace("_", "-")}.json').read_text())
+        assert meta['id'] == f.stem.replace('_', '-'), f
+        songs.append((f.stem, meta))
+    songs.sort(key=lambda x: (GENRE_ORDER.index(x[1]['genre']), x[1]['energy'], x[1]['id']))
+
+    new_imports, new_rows, provenance = [], [], []
+    for module, m in songs:
+        shutil.copy(RENDERS / f'{m["id"]}.mp3', AUDIO / f'{m["id"]}.mp3')
+        var = camel(m['id'])
+        new_imports.append(f"import {var} from '../assets/audio/{m['id']}.mp3';")
+        new_rows.append(
+            f"  {{ id: '{m['id']}', title: {json.dumps(m['title'])}, url: {var}, period: '{m['period']}', "
+            f"bpm: {m['bpm']}, genre: '{m['genre']}', energy: {m['energy']}, seconds: {m['seconds']:.4f}, "
+            f"key: {m['key']}, mode: '{m['mode']}', meter: {m['meter']}, textures: {json.dumps(m['textures'])}, gainDb: 0.00 }},")
+        provenance.append(dict(id=m['id'], title=m['title'], genre=m['genre'], bpm=m['bpm'],
+                               source=f'scripts/lucid_music/songs/{module}.py', sections=m.get('sections', []),
+                               renderLUFS=m['lufs'], renderTruePeak=m['truePeak'],
+                               tracks=[dict(name=t['track'], kind=t['kind'], items=t['items']) for t in m['tracks']]))
+
+    head = '\n'.join(keep_imports + new_imports) + "\nimport type { SoundtrackSong } from './soundtrack-queue';\n\n"
+    body = 'export const SOUNDTRACK: readonly SoundtrackSong[] = [\n' + '\n'.join(
+        [keep_rows[i] for i in ORIGINALS] + new_rows) + '\n];\n'
+    CATALOG.write_text(head + body)
+    (AUDIO / 'library-songs.json').write_text(json.dumps(dict(
+        engine='scripts/lucid_music (sampled instruments, Surge XT patches, offline mastering)',
+        libraries=['jRhodes3d (Jeff Learman, free use)', 'Salamander Grand Piano V3 (Alexander Holm, CC-BY 3.0)',
+                   'Karoryfer Sneakybass (CC0)', 'Greg Sullivan E-Pianos', 'Virtuosity Drums (CC0)',
+                   'VCSL vibraphone, harp, claps (CC0)', 'Surge XT 1.3.4 factory and third-party patches (GPL-3.0)'],
+        songs=provenance), indent=1) + '\n')
+    print(f'{len(ORIGINALS)} originals + {len(new_rows)} new songs written to {CATALOG.relative_to(ROOT)}')
+
+
+if __name__ == '__main__':
+    main()

@@ -135,7 +135,7 @@ def arp(prog, order=(0, 1, 2, 3, 2, 1), step=.5, lo='C4', hi='C6', n=4, vel=.55,
         k, t = 0, 0.
         while t < length - 1e-6:
             idx = order[k % len(order)]
-            p = v[idx % n] + 12 * (idx // n)
+            p = v[idx % len(v)] + 12 * (idx // len(v))   # triads may voice fewer than n notes
             a = accents[k % len(accents)] if accents else 1
             out.append(Note(start + s + t, step * gate, p, min(1, vel * a)))
             k += 1

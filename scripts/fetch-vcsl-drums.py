@@ -2,7 +2,7 @@
 
 The source WAVs are an offline authoring input, not an application dependency.
 Run: python scripts/fetch-vcsl-drums.py --output-dir /tmp/lucid-vcsl-drums
-Then pass that directory to compose-office-genres.py with --sample-dir.
+Then pass that directory to compose-office-playlist.py or compose-office-encore.py with --sample-dir.
 """
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor

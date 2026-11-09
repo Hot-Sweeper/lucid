@@ -106,9 +106,10 @@ class MultiSampler:
             r = self.pick(p, v)
             sample = load(r.path)
             end = start + dur
-            for a, b in pedal:     # held by the sustain pedal
+            for a, b in pedal:     # held by the sustain pedal until it lifts
                 if a <= end < b:
                     end = b
+                    break
             rel = r.release if r.release is not None else self.release
             hold = max(.01, end - start)
             length = min(hold + rel, self.max_seconds)

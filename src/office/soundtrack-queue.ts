@@ -60,7 +60,8 @@ export function songMatchesMode(song: SoundtrackSong, mode: SoundtrackMode): boo
 }
 
 /** Compare the related major scales, including the authored modal pieces. */
-const relativeMajorKey = (song: SoundtrackSong) => (song.key + (song.mode === 'minor' ? 3 : song.mode === 'dorian' ? 10 : song.mode === 'lydian' ? 7 : 0)) % 12;
+const MODE_TO_MAJOR: Record<string, number> = { minor: 3, dorian: 10, phrygian: 8, lydian: 7, mixolydian: 5 };
+const relativeMajorKey = (song: SoundtrackSong) => (song.key + (MODE_TO_MAJOR[song.mode] ?? 0)) % 12;
 export function harmonicDistance(a: SoundtrackSong, b: SoundtrackSong): number {
   const fifths = ((relativeMajorKey(a) - relativeMajorKey(b) + 12) * 7) % 12;
   return Math.min(fifths, 12 - fifths);
