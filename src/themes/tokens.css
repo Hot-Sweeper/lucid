@@ -63,6 +63,8 @@
   --wd-chair-frame: #3a3f4f;
   --wd-chair-wheel: #2a2e3b;
   --wd-bought-shade: 0;             /* shade laid over purchased floors and walls */
+  --world-prop-filter: none;        /* room furniture and fittings drawn with fixed colours */
+  --world-cloud-filter: none;       /* clouds in the window views */
   --wd-hall-a: #a9a294;             /* corridor planks and runner */
   --wd-hall-b: #a29b8d;
   --wd-hall-runner: #8f6d5a;

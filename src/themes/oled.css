@@ -65,6 +65,8 @@
   --wd-chair-frame: #141416;
   --wd-chair-wheel: #0b0b0c;
   --wd-bought-shade: 0.62;
+  --world-prop-filter: brightness(0.56) saturate(0.88);
+  --world-cloud-filter: brightness(0.32);
   --wd-hall-a: #24221f;
   --wd-hall-b: #201e1c;
   --wd-hall-runner: #3a281c;

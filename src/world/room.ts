@@ -84,7 +84,7 @@ function shellSvg(id: string, w: number, h: number, pal: Palette, wallArt: strin
     <rect y="${WALL}" width="${w}" height="20" fill="#000" opacity="0.07"/>
     <rect width="${w}" height="${WALL}" style="fill:var(--wd-wall, ${pal.wall})"/>
     <rect y="${WALL - 10}" width="${w}" height="10" style="fill:var(--wd-trim, ${pal.trim})"/>
-    ${wallArt.replace(/SKY/g, `url(#${id}-sky)`)}
+    <g class="world-wall-art">${wallArt.replace(/SKY/g, `url(#${id}-sky)`)}</g>
     <rect width="${w}" height="${T}" style="fill:var(--wd-frame, ${PAL.top})"/>
   </svg>`;
 }
@@ -106,13 +106,13 @@ function frontSvg(w: number, h: number, pal: Palette) {
 export function windowArt(x: number, w: number, pal: Palette) {
   const top = T + 12, hh = WALL - T - 34;
   const stars = Array.from({ length: 7 }, (_, k) => `<circle cx="${x + 10 + ((k * 61) % (w - 20))}" cy="${top + 8 + ((k * 23) % (hh - 16))}" r="${k % 3 ? 1 : 1.6}" fill="#fff"/>`).join("");
-  return `<rect x="${x - 6}" y="${top - 6}" width="${w + 12}" height="${hh + 12}" rx="6" fill="${pal.trim}"/>
+  return `<rect x="${x - 6}" y="${top - 6}" width="${w + 12}" height="${hh + 12}" rx="6" style="fill:var(--wd-trim, ${pal.trim})"/>
     <rect x="${x}" y="${top}" width="${w}" height="${hh}" rx="3" fill="SKY"/>
     <g style="opacity:var(--stars, 0)">${stars}</g>
     <ellipse cx="${x + w * 0.3}" cy="${top + hh * 0.62}" rx="${w * 0.16}" ry="6" fill="#fff" opacity="0.55"/>
     <ellipse cx="${x + w * 0.38}" cy="${top + hh * 0.56}" rx="${w * 0.1}" ry="7" fill="#fff" opacity="0.55"/>
-    <rect x="${x + w / 2 - 2}" y="${top}" width="4" height="${hh}" fill="${pal.trim}"/>
-    <rect x="${x - 10}" y="${top + hh + 2}" width="${w + 20}" height="6" rx="3" fill="${pal.trim}"/>`;
+    <rect x="${x + w / 2 - 2}" y="${top}" width="4" height="${hh}" style="fill:var(--wd-trim, ${pal.trim})"/>
+    <rect x="${x - 10}" y="${top + hh + 2}" width="${w + 20}" height="6" rx="3" style="fill:var(--wd-trim, ${pal.trim})"/>`;
 }
 
 /** A framed poster with a short line of robot humor. */

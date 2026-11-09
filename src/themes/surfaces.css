@@ -64,6 +64,14 @@ html:root[data-theme] .desk-unit:not([data-computer]) .monitor,
 html:root[data-theme] .desk-unit[data-computer=classic] .monitor { background: linear-gradient(170deg, var(--wd-bezel), var(--wd-bezel-edge)); }
 
 html:root[data-theme] .room-name { color: var(--wd-sign-ink); }
+/* Furniture and fittings drawn with fixed colours (kitchen, dining set, lobby desk, charging
+   pods, printers, the project board) take the theme's night filter; none by default. */
+html:root[data-theme] .world-prop:not(.world-dim) > svg,
+html:root[data-theme] .world-room-shell .world-wall-art,
+html:root[data-theme] .room-art .office-printer,
+html:root[data-theme] .project-office-prop > svg { filter: var(--world-prop-filter); }
+html:root[data-theme] .amb-window .amb-cloud { filter: var(--world-cloud-filter); }
+html:root[data-theme] .world-card { background: var(--wd-plate); color: var(--wd-plate-ink); }
 /* The shop shows each material as it is sold, without the theme's restyling or shade. */
 html:root[data-theme] .lucid-store { --wd-bought-shade: 0; --wd-floor: initial; --wd-seam: initial; --wd-wall: initial; --wd-trim: initial; }
 html:root[data-theme] .desk-plate { background: var(--wd-plate); color: var(--wd-plate-ink); }
