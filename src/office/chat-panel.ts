@@ -1294,7 +1294,7 @@ export class ChatPanel {
     }
   }
 
-  // A small listbox that opens above its button, inside the panel.
+  // A small listbox that opens above its button (below when there is no room above).
   private openMenu(anchor: HTMLButtonElement, items: { value: string; label: string; logo?: string | null; selected: boolean; hint?: string }[], pick: (v: string) => void) {
     const wasOpen = anchor.getAttribute("aria-expanded") === "true";
     this.closeMenu();
@@ -1314,20 +1314,32 @@ export class ChatPanel {
       if (it.hint) b.title = it.hint;
       menu.appendChild(b);
     }
-    this.el.appendChild(menu);
-    // above the button, kept inside the panel
-    const pr = this.el.getBoundingClientRect(), ar = anchor.getBoundingClientRect();
-    menu.style.maxHeight = `${Math.max(120, ar.top - pr.top - 16)}px`;
-    menu.style.bottom = `${pr.bottom - ar.top + 6}px`;
-    menu.style.left = `${Math.max(8, Math.min(ar.left - pr.left, pr.width - menu.offsetWidth - 8))}px`;
+    // On <body> with viewport coordinates: the panel is not a positioning parent (and slides
+    // with transforms), so measuring against it put the menu in the wrong part of the window.
+    document.body.appendChild(menu);
+    const place = () => {
+      const pr = this.el.getBoundingClientRect(), ar = anchor.getBoundingClientRect();
+      const above = ar.top - Math.max(8, pr.top) - 14, below = innerHeight - ar.bottom - 14;
+      const up = above >= Math.min(menu.scrollHeight, 220) || above >= below;
+      menu.style.maxHeight = `${Math.max(120, up ? above : below)}px`;
+      menu.style.top = up ? "" : `${ar.bottom + 6}px`;
+      menu.style.bottom = up ? `${innerHeight - ar.top + 6}px` : "";
+      const lo = Math.max(8, pr.left + 8), hi = Math.min(innerWidth, pr.right) - menu.offsetWidth - 8;
+      menu.style.left = `${Math.max(lo, Math.min(ar.left, hi))}px`;
+      menu.classList.toggle("below", !up);
+    };
+    place();
     anchor.setAttribute("aria-expanded", "true");
     const opts = [...menu.children] as HTMLButtonElement[];
     (opts.find((o) => o.getAttribute("aria-selected") === "true") ?? opts[0])?.focus();
-    gsap.fromTo(menu, { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.14 });
+    // grows out of its button
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) gsap.fromTo(menu, { opacity: 0, y: menu.classList.contains("below") ? -6 : 6, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.18, ease: "power3.out", clearProps: "transform" });
+    const onResize = () => place();
     const done = (refocus: boolean) => {
       menu.remove();
       anchor.setAttribute("aria-expanded", "false");
       window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("resize", onResize);
       document.removeEventListener("pointerdown", onDown, true);
       this.menuClose = null;
       if (refocus) anchor.focus();
@@ -1349,6 +1361,7 @@ export class ChatPanel {
       pick(b.dataset.value!);
     });
     window.addEventListener("keydown", onKey, true);
+    window.addEventListener("resize", onResize);
     document.addEventListener("pointerdown", onDown, true);
     this.menuClose = () => done(false);
   }
