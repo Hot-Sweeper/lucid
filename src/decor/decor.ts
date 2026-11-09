@@ -124,7 +124,13 @@ const rr = (x: number, y: number, w: number, h: number, r: number) =>
 // floors
 
 /** Floor pattern for the room area below the wall face (x 0..w, y top..h). */
+// Purchased floors and walls keep their pattern; a theme can lay its shade over them
+// (--wd-bought-shade, 0 by default). The free starters follow the theme tokens instead.
+const boughtShade = (y: number, w: number, h: number) => `<rect x="0" y="${f(y)}" width="${f(w)}" height="${f(h)}" fill="#000" style="opacity:var(--wd-bought-shade, 0)"/>`;
 export function drawFloor(id: FloorId, w: number, h: number, top: number): string {
+  return floorArt(id, w, h, top) + (id === "wood" ? "" : boughtShade(top, w, h - top));
+}
+function floorArt(id: FloorId, w: number, h: number, top: number): string {
   const p = uid("f");
   const area = (fill: string) => rect(0, top, w, h - top, fill);
   const pat = (pw: number, ph: number, body: string) =>
@@ -261,7 +267,7 @@ export function drawWall(id: WallId, w: number, wallFace: number): string {
     out += rect(0, wallFace - 46, w, 36, "#000000", 0, 0.025);
   }
   out += rect(0, wallFace - 10, w, 10, c.trim);
-  return out;
+  return id === "warm" ? out : out + boughtShade(0, w, wallFace);
 }
 
 // ---------------------------------------------------------------------------------------------

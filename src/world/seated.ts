@@ -1101,24 +1101,24 @@ const BASE_Y = BACK_TOP + BH + 20 * U;
 const chairBase = () => {
   const out: string[] = [];
   for (let i = 0; i < 5; i++) {
-    out.push(`<path data-spoke="${i}" stroke="#3a3f4f" stroke-width="${f(6 * U)}" stroke-linecap="round"/>`);
-    out.push(`<ellipse data-spoke="w${i}" rx="${f(4.6 * U)}" ry="${f(3.8 * U)}" fill="#2a2e3b"/>`);
+    out.push(`<path data-spoke="${i}" stroke="var(--wd-chair-frame, #3a3f4f)" stroke-width="${f(6 * U)}" stroke-linecap="round"/>`);
+    out.push(`<ellipse data-spoke="w${i}" rx="${f(4.6 * U)}" ry="${f(3.8 * U)}" fill="var(--wd-chair-wheel, #2a2e3b)"/>`);
   }
   return `<ellipse cx="${CX}" cy="${f(BASE_Y + 10 * U)}" rx="${f(66 * U)}" ry="${f(12 * U)}" fill="#2b1d10" opacity="0.2"/>
-    <rect x="${f(CX - 4.5 * U)}" y="${f(BACK_TOP + BH - 8)}" width="${f(9 * U)}" height="${f(BASE_Y - BACK_TOP - BH + 8)}" rx="3" fill="#3a3f4f"/>
-    ${out.join("")}<ellipse cx="${CX}" cy="${f(BASE_Y)}" rx="${f(7.5 * U)}" ry="${f(3.4 * U)}" fill="#4a5063"/>`;
+    <rect x="${f(CX - 4.5 * U)}" y="${f(BACK_TOP + BH - 8)}" width="${f(9 * U)}" height="${f(BASE_Y - BACK_TOP - BH + 8)}" rx="3" fill="var(--wd-chair-frame, #3a3f4f)"/>
+    ${out.join("")}<ellipse cx="${CX}" cy="${f(BASE_Y)}" rx="${f(7.5 * U)}" ry="${f(3.4 * U)}" fill="var(--wd-chair, #4a5063)"/>`;
 };
-const SEAT_BACK = `<rect x="${f(CX - BW / 2 - 2)}" y="${f(BACK_TOP - 16 * U)}" width="${f(BW + 4)}" height="${f(24 * U)}" rx="${f(12 * U)}" fill="#3a3f4f"/>`;
-const BACKREST = `<rect x="${f(CX - 7 * U)}" y="${f(BACK_TOP + BH - 6)}" width="${f(14 * U)}" height="${f(10 * U)}" rx="3" fill="#3a3f4f"/>
-      <rect x="${f(CX - BW / 2)}" y="${f(BACK_TOP)}" width="${f(BW)}" height="${f(BH)}" rx="${f(16 * U)}" fill="#4a5063"/>
-      <rect x="${f(CX - BW / 2 + 7 * U)}" y="${f(BACK_TOP + 4 * U)}" width="${f(BW - 14 * U)}" height="${f(BH - 11 * U)}" rx="${f(11 * U)}" fill="#565d73"/>
+const SEAT_BACK = `<rect x="${f(CX - BW / 2 - 2)}" y="${f(BACK_TOP - 16 * U)}" width="${f(BW + 4)}" height="${f(24 * U)}" rx="${f(12 * U)}" fill="var(--wd-chair-frame, #3a3f4f)"/>`;
+const BACKREST = `<rect x="${f(CX - 7 * U)}" y="${f(BACK_TOP + BH - 6)}" width="${f(14 * U)}" height="${f(10 * U)}" rx="3" fill="var(--wd-chair-frame, #3a3f4f)"/>
+      <rect x="${f(CX - BW / 2)}" y="${f(BACK_TOP)}" width="${f(BW)}" height="${f(BH)}" rx="${f(16 * U)}" fill="var(--wd-chair, #4a5063)"/>
+      <rect x="${f(CX - BW / 2 + 7 * U)}" y="${f(BACK_TOP + 4 * U)}" width="${f(BW - 14 * U)}" height="${f(BH - 11 * U)}" rx="${f(11 * U)}" fill="var(--wd-chair-pad, #565d73)"/>
       <rect x="${f(CX - BW / 2 + 16 * U)}" y="${f(BACK_TOP + 7 * U)}" width="${f(BW * 0.55)}" height="${f(3.5 * U)}" rx="${f(1.75 * U)}" fill="#ffffff" opacity="0.13"/>`;
 /** The chair alone, for a desk with nobody at it (desk coordinates; drawn once, nothing moves). */
 export function emptyChairSvg() {
   const spokes: string[] = [];
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * TAU + Math.PI / 2, x = CX + Math.cos(a) * 46 * U, y = BASE_Y + Math.sin(a) * 10 * U;
-    spokes.push(`<path d="M${CX} ${f(BASE_Y)} L${f(x)} ${f(y)}" stroke="#3a3f4f" stroke-width="${f(6 * U)}" stroke-linecap="round"/><ellipse cx="${f(x)}" cy="${f(y + 4 * U)}" rx="${f(4.6 * U)}" ry="${f(3.8 * U)}" fill="#2a2e3b"/>`);
+    spokes.push(`<path d="M${CX} ${f(BASE_Y)} L${f(x)} ${f(y)}" stroke="var(--wd-chair-frame, #3a3f4f)" stroke-width="${f(6 * U)}" stroke-linecap="round"/><ellipse cx="${f(x)}" cy="${f(y + 4 * U)}" rx="${f(4.6 * U)}" ry="${f(3.8 * U)}" fill="var(--wd-chair-wheel, #2a2e3b)"/>`);
   }
   return `<g class="empty-chair">${chairBase().replace(/<(path|ellipse) data-spoke[^>]*\/>/g, "")}${spokes.join("")}${SEAT_BACK}${BACKREST}</g>`;
 }

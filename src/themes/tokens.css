@@ -57,6 +57,11 @@
   --wd-key: #5a6177;
   --wd-bezel: #2a2f45;              /* the classic computer casing */
   --wd-bezel-edge: #151927;
+  --wd-chair: #4a5063;              /* office chairs */
+  --wd-chair-pad: #565d73;
+  --wd-chair-frame: #3a3f4f;
+  --wd-chair-wheel: #2a2e3b;
+  --wd-bought-shade: 0;             /* shade laid over purchased floors and walls */
   --wd-hall-a: #a9a294;             /* corridor planks and runner */
   --wd-hall-b: #a29b8d;
   --wd-hall-runner: #8f6d5a;
