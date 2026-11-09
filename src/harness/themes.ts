@@ -37,7 +37,9 @@ const BRAILLE = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", 
 export const THEMES: Record<HarnessKind, Theme> = {
   claude: {
     kind: "claude", name: "Claude Code", app: "Claude", cmd: "claude", forms: ["cli", "app"], version: "v2.1.316",
-    spin: ["·", "✢", "✳", "✶", "✻", "✽", "✽", "✻", "✶", "✳", "✢", "·"], spinMs: 110,
+    // U+2733 is emoji-capable. Request text presentation on both visits so the
+    // spinner stays clay-colored instead of flashing a green emoji tile.
+    spin: ["·", "✢", "✳\uFE0E", "✶", "✻", "✽", "✽", "✻", "✶", "✳\uFE0E", "✢", "·"], spinMs: 110,
     verbs: ["Working", "Pondering", "Noodling", "Brewing", "Cogitating", "Percolating", "Combobulating", "Moseying", "Schlepping"],
     placeholder: "Try \"fix the failing test\"",
   },
