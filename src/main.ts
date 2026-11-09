@@ -27,6 +27,7 @@ import { mobileStartRoom } from "./office/mobile-start";
 import "./office/office.css";
 import "./office/panels.css";
 import "./office/thread-state.css";
+import "./office/thread-selection.css";
 import "./office/thread-list.css";
 import "./office/limits-section.css";
 import "./office/sidebar-header.css";
@@ -359,7 +360,7 @@ coinCollected = async id => {
 (window as any).__monitorTasks = monitorTasks;
 (window as any).__answer = answer; // isolated answer-form fixture handle
 // a chat opened without a desk (questions room, follow chip) closes itself
-chat.onClose = () => { chat.close(); world.unfocus(); world.revealThread(null); };
+chat.onClose = () => { chat.close(); world.unfocus(); world.revealThread(null); markSelected(null); };
 chat.onChooseThread = () => {
   toggleRail(false, false);
   const search = $("th-q") as HTMLInputElement;
@@ -376,13 +377,22 @@ chat.onToggleView = () => {
   if (world.focusMode === "desk") world.focusScreen(d); else world.focusOn(d);
   chat.setView(world.focusMode);
 };
+function operationalStatus(t: WorldData["threads"][number]) {
+  const reviews = latestThreadReviews(currentEnvironment ? [] : orch.papers);
+  const review = threadReviewLabel(t, reviews.get(t.id), !currentEnvironment && !!settings.orch && t.id !== settings.orch.threadId);
+  return threadState(t, review, delegate.phaseOf(t.id) === "reading");
+}
+function paintSelectedStatus() {
+  markSelected(chat.threadId);
+  const t = world.lastData?.threads.find(t => t.id === chat.threadId);
+  if (t) chat.setThreadStatus(operationalStatus(t));
+}
+chat.onPresent = paintSelectedStatus;
 function pushStatus(d: Desk) {
-  const run = d.info?.run?.status;
-  const state = d.info && (d.info as any).question ? "waiting" : run === "running" || run === "queued" ? "working" : "idle";
-  const activity = state === "idle" && /^Writing to you/.test(d.activity || "") ? "Finished" : d.activity;
-  chat.setStatus(activity || (state === "working" ? "Working" : "Waiting for a task"), state as any);
-  // while the robot types its reply in its Messages app, you see it typing here too
-  chat.setTyping(state === "working" && run === "running" && /^Writing to you/.test(d.activity || ""), d.profile?.name ?? "It");
+  const t = world.lastData?.threads.find(t => t.id === d.threadId);
+  const run = t?.runStatus ?? d.info?.run?.status;
+  chat.setThreadStatus(t ? operationalStatus(t) : threadState({ runStatus: run || null, updatedAt: "", question: (d.info as any)?.question }));
+  chat.setTyping(run === "running" && /^Writing to you/.test(d.activity || ""), d.profile?.name ?? "It");
 }
 // Dev aid: keep the last errors where a debug run can read them.
 (window as any).__errs = [];
@@ -624,6 +634,7 @@ async function refresh() {
     renderCompany(data.shipped ?? { total: 0, today: 0 });
     world.orchThread = data.environmentId ? '' : settings.orch?.threadId || '';
     world.update(data);
+    paintSelectedStatus();
     if (!document.hidden) renderThreads();
     if (companionClient()) for (const button of world.scene.querySelectorAll<HTMLButtonElement>('.add-desk')) {
       button.disabled = true; button.title = 'Add desks on the computer. Use the office menu to start work.';
@@ -1491,9 +1502,7 @@ function openDetachedChat(id: string, info?: ThreadInfo) {
   }
   const profile = world.roster.byThread(id);
   chat.open({ threadId: id, info: info ?? { id, title: t.title, provider: t.provider }, profile: id === world.orchThread ? { ...profile, name: "Orchestrator" } : profile } as any, !info);
-  const question = !!t.question;
-  const running = info ? /^(running|queued)$/.test(info.run?.status ?? "") : /^(running|queued)$/.test(t.runStatus ?? "");
-  chat.setStatus(question ? "Needs your answer" : running ? "Working" : "Idle", question ? "waiting" : running ? "working" : "idle");
+  chat.setThreadStatus(operationalStatus(t));
 }
 world.onFollowChat = (id) => {
   const d = world.deskFor(id);
@@ -1521,7 +1530,7 @@ function openAnswer(id: string) {
     const room = world.rooms.find((r) => r.kind === "queue");
     if (room) world.showRoom(room.id);
     world.onFollowChat(id);
-    chat.setStatus("Waiting for your answer", "waiting");
+    paintSelectedStatus();
   }
   answer.focus(id);
 }
@@ -1565,6 +1574,7 @@ function renderThreads() {
   if (!data || document.body.classList.contains("th-dragging")) return;   // never swap rows out from under a drag
   const started = beginSystem();
   renderRail();
+  paintSelectedStatus();
   const q = (($("th-q") as HTMLInputElement).value || "").trim().toLowerCase();
   const projects = new Map(data.projects.map((p) => [p.id, p]));
   // The bridge supplies T3 Code's sidebar order, independent of live activity.
@@ -1646,6 +1656,7 @@ ${robot.name}${t.model ? `, ${t.model}` : ""}` : ""}`)}">
   }
   if (focusedId) $("th-list").querySelector<HTMLElement>(`[data-id="${CSS.escape(focusedId)}"]`)?.focus({ preventScroll: true });
   scrollBox.scrollTop = scrollTop;
+  markSelected(chat.threadId);
   endSystem("ui", started);
 }
 // A manager that changed its own picture gets a small hop, so the change is noticed rather than silent.
@@ -1695,6 +1706,14 @@ function newProject() {
   openNewProject({ create: o => lucid.createProject(o), addExisting: o => lucid.addProject(o), pickFolder: () => lucid.pickFolder(), baseFolder: () => lucid.projectsBase() },
     { onDone: () => void refresh() });
 }
+function markSelected(id: string | null) {
+  for (const row of document.querySelectorAll<HTMLElement>("#th-list .th-row[data-id], #rail-list .rail-th[data-id]")) {
+    const current = row.dataset.id === id;
+    row.classList.toggle(row.classList.contains("rail-th") ? "cur" : "sel", current);
+    if (current) row.setAttribute("aria-current", "true"); else row.removeAttribute("aria-current");
+  }
+}
+
 function openThread(id: string) {
   world.revealThread(id);
   if (needsAnswer(id)) { openAnswer(id); return; }

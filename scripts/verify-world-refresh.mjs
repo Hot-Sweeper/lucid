@@ -17,7 +17,7 @@ function harness() {
   const orch = { observe: async threads => observations.push(threads) };
   const document = {hidden:false}, window = {setTimeout:callback=>{frames.push(callback);return frames.length;}};
   const deps = { api, world, orch, delegate: { observe:async()=>{} }, coinRewards: null, monitorTasks: { prepare() {}, sync() {} }, projectTitles: new Map(),
-    document,window,companionClient:()=>false,readCompanionState:async()=>null,renderThreads(){},
+    document,window,companionClient:()=>false,readCompanionState:async()=>null,paintSelectedStatus(){},renderThreads(){},
     appEl:{classList:{contains:()=>false}},mobileStartRoom:()=>null,
     renderCompany() {}, settings: {}, chat: { threadId: null, setManager() {} }, paintChatManager() {}, todo: { update: t => tasks.push(t) },
     $() {}, gsap: {}, pushStatus() {}, location: { search: '' }, URLSearchParams,

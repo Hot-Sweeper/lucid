@@ -1,3 +1,4 @@
+import type { ThreadState } from "./thread-state";
 import { ChatPromptContext } from "./chat-prompt";
 import "./chat-prompt.css";
 import { watchLucidMedia } from "./media-player";
@@ -720,11 +721,22 @@ export class ChatPanel {
   setStatus(text: string, state: "working" | "idle" | "waiting") {
     const p = this.el.querySelector(".cp-status") as HTMLElement;
     p.dataset.state = state;
+    delete p.dataset.tone;
+    p.title = "";
     const send = this.el.querySelector(".cp-send span") as HTMLElement;
     send.textContent = state === "working" ? "Queue" : "Send";
     (send.parentElement as HTMLElement).title = state === "working" ? "It is busy: your message waits in the queue and comes next" : "Send";
     const span = p.querySelector("span")!;
     if (span.textContent !== text) { span.textContent = text; gsap.fromTo(span, { opacity: 0.3 }, { opacity: 1, duration: 0.3 }); }
+  }
+
+  /** Real task status takes precedence over the robot's fictional leisure activity. */
+  setThreadStatus(status: ThreadState) {
+    const busy = status.label === "Working" || status.tone === "queued";
+    this.setStatus(status.label || "Idle", busy ? "working" : status.tone === "ask" || status.tone === "review" ? "waiting" : "idle");
+    const p = this.el.querySelector<HTMLElement>(".cp-status")!;
+    p.dataset.tone = status.tone;
+    p.title = status.detail || status.label || "Idle";
   }
 
   // "Bolt is typing" with bouncing dots, at the bottom of the conversation
