@@ -93,44 +93,60 @@ These effects are authored into the recordings and do not run in the app.
 ## Direction and playback
 
 **Office radio**, below the volume controls, defaults to **Evolving journey**.
-Eleven listening-time chapters develop the mood: Still water, Observatory,
-Briar path, Old postcards, Warm tape, Copper casebook, Night drive, Neon rise,
-Petal rush, Afterglow and Soft landing. Chapter budgets range from two to five
-minutes and advance between complete songs, after their defining genre has
-played or its recordings were already heard in this rotation. Each recording
-also contains its own authored development.
+Ten listening-time chapters form one arc: Still water, Morning light, Warm
+tape, Late cafe, Night drive, Neon rise, Petal rush (the breakcore peak),
+Afterglow, Lunar drift and Soft landing. Local time picks a calm opening (night
+Still water, morning Morning light, day Warm tape, evening Late cafe). A chapter
+turns only between complete songs, after its budget of real listening time and
+once its defining genre has played or was already heard in this rotation.
 
-Selections consider energy, related major/minor/modal keys, half/double-time
-tempo relationships and shared textures. A compatible bridge can lead into a
-remote key or larger energy change. This is song-boundary curation, without
-live beat matching or time stretching. The journey completes the whole library
-before automatically repeating a recording. Genre preference applies inside
-the unheard rotation. A bounded route search reserves energy bridges for the
-return from a peak; a legacy/custom bag with no remaining bridge finishes its
-unheard songs using the nearest energy instead of replaying familiar music.
+The journey flows like a DJ set. Consecutive automatic songs must connect in
+the genre graph (`GENRE_NEIGHBORS` in `soundtrack-queue.ts`) and differ by at
+most 0.2 energy (`MAX_ENERGY_STEP`):
 
-Only active media playback advances the journey. Pausing, muting, hiding Lucid,
-buffering, seeking and wall-clock time do not count. Local time chooses the
-initial chapter and lightly weights later selections. Chapter progress,
-history, playback position, pause state and direction persist across restarts.
-Older saved chapter IDs still migrate.
+- acoustic, ambient, lo-fi and jazz form the calm cluster;
+- lo-fi and jazz lead into lunar phonk;
+- phonk leads into synthwave;
+- breakcore is entered and left only through synthwave or phonk.
+
+Within those rules, selection prefers related keys, half or double tempo
+relationships, shared textures, the chapter's energy and the time of day. A
+route planner keeps the rest of the unheard bag playable through fitting steps,
+so a full rotation completes without repeats. If only distant songs remain, the
+director walks toward them through fitting songs (a short reprise) instead of
+jumping. Manual picks are one-off; the next automatic song continues smoothly
+from whatever was picked.
+
+Songs crossfade. About seven seconds before a song ends, the next one starts on
+a second stream and both follow equal-power curves, so overall loudness stays
+even. **Next song** and library picks blend over 1.5 seconds. Songs shorter
+than two blends overlap for at most a third of their length. Each stream fades
+to its own measured trim. Pause, mute, hiding Lucid and a zero music level stop
+the outgoing stream at once; resuming plays only the current song. At most two
+theme streams exist, alternating between playing and idle.
+
+Only active playback of the current song advances the journey. Pausing,
+muting, hiding Lucid, buffering, seeking, the outgoing half of a blend and
+wall-clock time do not count. Chapter progress, history, playback position,
+pause state and direction persist across restarts. Saved state that names a
+removed song, chapter or genre direction falls back gracefully (removed songs
+leave the history, an unknown chapter restarts from the local-time opening and
+a direction without songs returns to the journey).
 
 Choose a genre to stay in it, **Ambient pads** for quiet pad-led pieces, or
-**Bells & wonder** for gentle bell material. A direction schedules the next
-song; **Next song** applies it immediately. Each genre and texture direction
-completes its own eligible rotation, independently of the whole-library bag.
-Songs heard through another matching direction or a manual pick count toward
-that rotation too. Completed bags reset at the next choice, with recent history
-discouraging repeats near the boundary. **Pause music** leaves room ambience
-and game sounds alone.
+**Bells & wonder** for gentle bell material. Only directions with songs in the
+library are offered. A direction schedules the next song; **Next song** applies
+it immediately. Each genre and texture direction completes its own rotation,
+and songs heard through another matching direction or a manual pick count
+toward it. **Pause music** leaves room ambience and game sounds alone.
 
 **Sound volume** controls everything. **Theme music** and **Room ambience**
 adjust the background layers independently; zero pauses that layer. Global
 mute remains authoritative. Trusted user input unlocks audio. Hidden music
-resumes from its position after the next gesture. Two reused local streaming
-sources feed the singleton audio context and master gain. Only room air loops;
-songs rotate on actual media-ended events. Muted or hidden late events cannot
-restart playback.
+resumes from its position after the next gesture. Reused local streaming sources
+(two theme streams and room air) feed the singleton audio context and master gain. Only room air loops;
+songs blend near their end and rotate on actual media events. Muted or hidden
+late events cannot restart playback.
 
 Each piece has a measured constant playback trim targeting -20 LUFS. This
 matches playback loudness while preserving section dynamics. The separate
@@ -142,7 +158,7 @@ footsteps, water, birds and object sounds follow real visible activity.
 
 ## Song library
 
-Open **App library**, then **Song library** under Media. The 47-song catalogue
+Open **App library**, then **Song library** under Media. The catalogue
 supports title, genre and texture search, genre filters, durations and whole-row
 Play, Pause, Resume or Retry. The playback disclosure contains the same music
 direction and Next controls. A chosen song plays immediately through the office

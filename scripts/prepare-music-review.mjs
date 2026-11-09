@@ -37,10 +37,10 @@ document.querySelector('#run')!.addEventListener('click',async()=>{
   const ctx=engine.context as AudioContext;
   const silent=ctx.createGain();silent.gain.value=0;engine.master.disconnect();engine.master.connect(silent);silent.connect(ctx.destination);
   await until(()=>gameSound.musicState.status==='playing','initial playback');
-  const track=engine.background.get('theme');
-  const analyser=ctx.createAnalyser();analyser.fftSize=2048;track.gain.connect(analyser);analyser.connect(silent);
+  let track=engine.background.get('theme');
+  const analyser=ctx.createAnalyser();analyser.fftSize=2048;engine.master.connect(analyser);analyser.connect(silent);
   assert(engine.background.size===2,'two shared streaming sources');
-  for(const mode of ['lofi','synthwave','ambient','breakcore','phonk','mystical','medieval','noir','nostalgic','pads','bells'] as const){
+  for(const mode of (['acoustic','ambient','lofi','jazz','phonk','synthwave','breakcore','pads','bells'] as const).filter(mode=>SOUNDTRACK.some(song=>songMatchesMode(song,mode)))){
    const before=gameSound.currentTheme!.id;
    gameSound.configureMusic(mode);
    assert(gameSound.currentTheme!.id===before,mode+' setting waits for boundary');
@@ -49,7 +49,7 @@ document.querySelector('#run')!.addEventListener('click',async()=>{
    await until(()=>{const data=new Float32Array(2048);analyser.getFloatTimeDomainData(data);return Math.sqrt(data.reduce((n,v)=>n+v*v,0)/data.length)>.000001;},mode+' decoded signal');
    assert(true,mode+' real decoded signal');
   }
-  gameSound.pauseTheme(true);const position=track.media.currentTime;
+  track=engine.background.get('theme');gameSound.pauseTheme(true);const position=track.media.currentTime;
   await wait(250);assert(track.media.paused&&track.media.currentTime===position,'pause retains playhead');
   const pauseButton=document.querySelector('.office-radio-actions button') as HTMLButtonElement;
   assert(pauseButton.textContent==='Resume music','pause control follows actual state');

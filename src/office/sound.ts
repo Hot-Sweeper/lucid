@@ -9,12 +9,20 @@ export type MusicState = {
   status: 'playing' | 'loading' | 'error' | 'paused' | 'muted' | 'hidden' | 'locked';
 };
 type BackgroundKind = 'theme' | 'ambience';
-type BackgroundTrack = { media: HTMLAudioElement; source: MediaElementAudioSourceNode; gain: GainNode; pending: boolean; fading: boolean; release: () => void };
+type BackgroundTrack = { media: HTMLAudioElement; source: MediaElementAudioSourceNode; gain: GainNode; pending: boolean; fading: boolean; release: () => void; fadeIn?: number };
 export type GameCue = 'collect' | 'clink' | 'ready' | 'purchase' | 'poke' | 'coffee' | 'phone' | 'open' | 'level'
   | 'rustle' | 'splash' | 'switch' | 'projector' | 'boop' | 'chirp' | 'quack'
-  | 'keyboard' | 'mouse' | 'paper' | 'servo' | 'step' | 'chatter' | 'controller' | 'ping' | 'snore' | 'water' | 'clip';
+  | 'keyboard' | 'mouse' | 'paper' | 'servo' | 'step' | 'chatter' | 'controller' | 'ping' | 'snore' | 'water' | 'clip'
+  | FoleyCue;
+// Physical break room, robot and media foley. Each one follows a visible event.
+export type FoleyCue = 'robostep' | 'giggle' | 'munch' | 'charge'
+  | 'pp-paddle' | 'pp-table' | 'pp-floor' | 'pp-net'
+  | 'mw-door' | 'mw-beep' | 'mw-hum' | 'mw-ding' | 'grind' | 'pour' | 'fridge-open' | 'fridge-close' | 'pop'
+  | 'chess' | 'chess-take' | 'kart' | 'kart-boost' | 'kart-spin' | 'kart-pass' | 'fight' | 'fight-hit' | 'fight-big'
+  | 'movie-gasp' | 'movie-scare' | 'movie-laugh' | 'movie-aww' | 'movie-credits' | 'tv-show';
 export type SoundMix = { gain: number; pan: number; lowpass?: number };
-type Note = [frequency: number, delay: number, duration: number, gain: number, wave?: OscillatorType, endFrequency?: number];
+/** `band` gives a note its own band-pass filter (noise color, or a hollow tone). */
+export type Note = [frequency: number, delay: number, duration: number, gain: number, wave?: OscillatorType, endFrequency?: number, band?: number];
 type EmitterBus = { gain: GainNode; pan: StereoPannerNode; filter: BiquadFilterNode; trim: number; cutoff: number; mode: 'normal' | 'headphones' | 'phone' };
 // Zero frequency means a shaped noise transient, never a continuous noise loop.
 const SCORES: Record<GameCue, Note[]> = {
@@ -45,8 +53,55 @@ const SCORES: Record<GameCue, Note[]> = {
   snore: [[126, 0, .28, .045, 'triangle', 86], [0, .04, .2, .025]],
   water: [[0, 0, .29, .07], [680, .06, .14, .018, 'sine', 380]],
   clip: [[392, 0, .09, .07, 'triangle'], [587.33, .1, .075, .065, 'triangle'], [783.99, .21, .13, .065], [0, .27, .035, .08]],
+  // Robots: a metal foot tick, a low thunk and a short servo whine.
+  robostep: [[0, 0, .018, .075, 'sine', undefined, 3600], [92, 0, .055, .07, 'sine', 64], [430, .012, .05, .014, 'triangle', 560]],
+  giggle: [[930, 0, .055, .04, 'square', 840], [880, .085, .055, .04, 'square', 790], [835, .17, .055, .036, 'square', 745], [790, .255, .08, .032, 'square', 690]],
+  munch: [[0, 0, .035, .07, 'sine', undefined, 1900], [0, .11, .03, .05, 'sine', undefined, 2300], [0, .2, .04, .04, 'sine', undefined, 1600]],
+  charge: [[196, 0, .7, .03, 'sine', 392], [784, .55, .12, .022, 'sine'], [0, 0, .5, .012, 'sine', undefined, 5200]],
+  // Ping pong: a wooden paddle "tok", a hollow table "tik", a dull floor bounce, the net.
+  'pp-paddle': [[0, 0, .016, .24, 'sine', undefined, 3900], [1180, 0, .045, .17, 'sine', 700], [2360, 0, .018, .05, 'sine']],
+  'pp-table': [[1780, 0, .036, .15, 'sine', 1240], [0, 0, .011, .12, 'sine', undefined, 5400], [3560, 0, .014, .03, 'sine']],
+  'pp-floor': [[640, 0, .05, .09, 'sine', 420], [0, 0, .014, .06, 'sine', undefined, 2400]],
+  'pp-net': [[0, 0, .09, .11, 'sine', undefined, 900], [270, 0, .06, .05, 'triangle', 180], [0, .05, .07, .04, 'sine', undefined, 3200]],
+  // Kitchen machines.
+  'mw-door': [[0, 0, .03, .14, 'sine', undefined, 1500], [150, 0, .07, .1, 'triangle', 88], [0, .05, .02, .05, 'sine', undefined, 4200]],
+  'mw-beep': [[1976, 0, .075, .035, 'square'], [1976, .12, .075, .035, 'square']],
+  'mw-hum': [[118, 0, 1.05, .05, 'sawtooth'], [236, 0, 1.05, .018, 'triangle'], [59, 0, 1.05, .03, 'sine']],
+  'mw-ding': [[1568, 0, .5, .11, 'sine'], [3136, 0, .3, .025, 'sine'], [1568, .62, .5, .11, 'sine'], [3136, .62, .3, .025, 'sine'], [1568, 1.24, .7, .11, 'sine'], [3136, 1.24, .4, .025, 'sine']],
+  grind: [[0, 0, .95, .1, 'sine', undefined, 2700], [96, 0, .95, .032, 'sawtooth', 112], [0, .3, .65, .05, 'sine', undefined, 5200]],
+  pour: [[0, 0, 1.7, .055, 'sine', undefined, 1250], [880, .25, .06, .03, 'sine', 1320], [990, .7, .06, .03, 'sine', 1500], [840, 1.15, .06, .03, 'sine', 1260], [0, .4, 1.3, .03, 'sine', undefined, 4300]],
+  'fridge-open': [[0, 0, .08, .13, 'sine', undefined, 700], [176, 0, .12, .05, 'triangle', 118], [2960, .1, .09, .012, 'sine', 2800], [0, .05, .4, .02, 'sine', undefined, 260]],
+  'fridge-close': [[0, 0, .1, .17, 'sine', undefined, 480], [88, 0, .15, .12, 'sine', 58], [0, .06, .03, .05, 'sine', undefined, 3000], [2093, .2, .05, .015, 'sine']],
+  pop: [[0, 0, .022, .2, 'sine', undefined, 2300], [720, 0, .03, .05, 'sine', 380]],
+  // Chess pieces on a wooden board.
+  chess: [[0, 0, .02, .2, 'sine', undefined, 3200], [1900, 0, .03, .06, 'sine', 1500], [700, .004, .035, .04, 'triangle']],
+  'chess-take': [[0, 0, .02, .22, 'sine', undefined, 3000], [1700, 0, .03, .06, 'sine', 1300], [0, .09, .02, .14, 'sine', undefined, 3600], [0, .12, .22, .04, 'sine', undefined, 1800]],
+  // The TV console games and the movie night soundtrack stings.
+  kart: [[92, 0, .26, .05, 'sawtooth', 122], [184, 0, .26, .022, 'square', 232]],
+  'kart-boost': [[300, 0, .38, .07, 'square', 1500], [0, 0, .3, .06, 'sine', undefined, 2400]],
+  'kart-spin': [[980, 0, .14, .06, 'triangle', 520], [880, .14, .14, .06, 'triangle', 420], [760, .28, .2, .06, 'triangle', 240]],
+  'kart-pass': [[880, 0, .08, .05, 'square'], [1320, .085, .13, .05, 'square']],
+  fight: [[523, 0, .07, .03, 'square', 660], [392, .2, .07, .03, 'square', 330]],
+  'fight-hit': [[1250, 0, .12, .07, 'square', 260], [0, 0, .05, .1, 'sine', undefined, 1800]],
+  'fight-big': [[300, 0, .32, .1, 'sawtooth', 56], [0, 0, .28, .13, 'sine', undefined, 760], [1600, .02, .2, .03, 'square', 400]],
+  'tv-show': [[523.25, 0, .09, .035, 'triangle'], [659.25, .11, .09, .03, 'triangle'], [0, .22, .03, .04, 'sine', undefined, 3000], [392, .3, .14, .03, 'triangle']],
+  'movie-gasp': [[0, 0, .9, .13, 'sine', undefined, 260], [70, 0, .9, .09, 'triangle', 44], [0, .1, .4, .04, 'sine', undefined, 1500]],
+  'movie-scare': [[0, 0, .55, .15, 'sine', undefined, 620], [110, 0, .65, .1, 'sawtooth', 55], [1760, 0, .45, .03, 'sawtooth', 1660], [1865, 0, .45, .025, 'sawtooth', 1750]],
+  'movie-laugh': [[392, 0, .12, .04, 'square', 470], [349, .16, .12, .04, 'square', 420], [330, .32, .16, .04, 'square', 380], [0, .05, .5, .03, 'sine', undefined, 1600]],
+  'movie-aww': [[1046.5, 0, .7, .05, 'sine'], [1318.5, .14, .7, .05, 'sine'], [1568, .28, .9, .05, 'sine'], [523.25, 0, 1.1, .04, 'triangle']],
+  'movie-credits': [[392, 0, .5, .05, 'triangle'], [493.88, .2, .5, .05, 'triangle'], [587.33, .4, .5, .05, 'triangle'], [783.99, .6, 1.2, .06, 'triangle'], [196, 0, 1.8, .05, 'sine']],
 };
+// A quiet body for a sustained machine, a darker one for kitchen and TV sounds.
+const CUE_LOWPASS: Partial<Record<GameCue, number>> = { rustle: 1900, water: 1900, chatter: 1400, snore: 1400, 'mw-hum': 900, kart: 1400, grind: 4200, giggle: 2600, 'movie-gasp': 2200 };
 const KEY = 'lucid:sound', MAX_VOICES = 48;
+// Song-to-song overlap. Natural endings blend for CROSSFADE seconds; a manual
+// Next or library pick uses a short blend so the choice still feels immediate.
+const CROSSFADE = 7, QUICK_FADE = 1.5;
+/** Equal-power gain curve: the summed loudness stays even through the overlap. */
+const powerCurve = (level: number, rising: boolean, steps = 48) => Float32Array.from({ length: steps }, (_, i) => {
+  const x = i / (steps - 1);
+  return level * (rising ? Math.sin(x * Math.PI / 2) : Math.cos(x * Math.PI / 2));
+});
 const UI_CUES = new Set<GameCue>(['collect', 'clink', 'purchase', 'level', 'ready', 'open']);
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
@@ -66,6 +121,11 @@ export class GameSound {
   themeVolume = .3;
   ambienceVolume = .18;
   private background = new Map<BackgroundKind, BackgroundTrack>();
+  // At most two theme streams: the playing one (in background) and either a
+  // fading outgoing stream or an idle spare ready for the next blend.
+  private outgoing: BackgroundTrack | null = null;
+  private outgoingEnd = 0;
+  private spareTheme: BackgroundTrack | null = null;
   private soundtrack = new SoundtrackQueue(SOUNDTRACK);
   private themeSong: SoundtrackSong | null = null;
   private musicPaused = false;
@@ -159,7 +219,7 @@ export class GameSound {
     const track = this.background.get('theme');
     if (track) this.recordMusic(track);
     this.musicPaused = paused;
-    if (paused) { track?.media.pause(); this.resetMusicClock(); }
+    if (paused) { track?.media.pause(); this.finishOutgoing(); this.resetMusicClock(); }
     else this.syncBackground();
     this.save(); this.notifyMusic();
   }
@@ -168,7 +228,7 @@ export class GameSound {
     this.musicError = false; this.musicWaiting = false;
     this.syncBackground(); this.notifyMusic();
   }
-  nextTheme() {
+  nextTheme(blend = true) {
     if (this.disposed) return;
     this.requestedSong = null;
     const track = this.background.get('theme');
@@ -176,6 +236,10 @@ export class GameSound {
     // Collapse repeated Next presses until that one attempt has settled.
     if (track?.pending) { this.skipRequested = true; return; }
     this.skipRequested = false;
+    if (blend && track && this.canBlend(track)) {
+      this.crossfadeTo(this.soundtrack.next(), QUICK_FADE);
+      this.save(); this.notifyMusic(); return;
+    }
     if (track) {
       this.recordMusic(track); track.media.pause();
       track.gain.gain.cancelScheduledValues(this.time);
@@ -188,7 +252,7 @@ export class GameSound {
   }
   /** Play a catalogue selection through the office's existing music stream. */
   playTheme(id: string): boolean { return this.selectTheme(id, true); }
-  private selectTheme(id: string, resume: boolean): boolean {
+  private selectTheme(id: string, resume: boolean, blend = true): boolean {
     if (this.disposed || !SOUNDTRACK.some(song => song.id === id)) return false;
     const track = this.background.get('theme');
     if (resume) this.musicPaused = false;
@@ -202,6 +266,10 @@ export class GameSound {
       this.musicError = false; this.musicWaiting = false;
       this.syncBackground(); this.save(); this.notifyMusic(); return true;
     }
+    if (blend && track && this.canBlend(track)) {
+      this.crossfadeTo(this.soundtrack.select(id)!, QUICK_FADE);
+      this.save(); this.notifyMusic(); return true;
+    }
     if (track) {
       this.recordMusic(track); track.media.pause();
       track.gain.gain.cancelScheduledValues(this.time);
@@ -213,6 +281,85 @@ export class GameSound {
     this.save(); this.syncBackground(); this.notifyMusic(); return true;
   }
   private resetMusicClock() { this.musicPosition = null; this.musicClock = null; }
+  /** A blend needs an audible, settled current song; otherwise switch directly. */
+  private canBlend(track: BackgroundTrack) {
+    return !!this.context && this.active && !this.musicPaused && this.backgroundLevel('theme') > 0
+      && !track.pending && !track.media.paused && !track.media.ended;
+  }
+  /** Start `song` on the spare stream while the current one fades out. */
+  private crossfadeTo(song: SoundtrackSong, seconds: number) {
+    const old = this.background.get('theme')!, now = this.time;
+    this.recordMusic(old); this.resetMusicClock();
+    this.finishOutgoing();
+    old.fading = true;
+    const from = old.gain.gain.value;
+    old.gain.gain.cancelScheduledValues(now);
+    old.gain.gain.setValueCurveAtTime(powerCurve(from, false), now, seconds);
+    this.outgoing = old; this.outgoingEnd = now + seconds;
+    let incoming = this.spareTheme; this.spareTheme = null;
+    if (incoming) { incoming.media.src = song.url; incoming.media.currentTime = 0; }
+    else incoming = this.createTrack('theme', song.url);
+    incoming.fading = false; incoming.fadeIn = seconds;
+    this.background.set('theme', incoming);
+    this.themeSong = song; this.restoredPosition = 0;
+    this.musicError = false; this.musicWaiting = false;
+    this.syncBackground();
+  }
+  /** Silence the fading stream and keep it as the idle spare. */
+  private finishOutgoing() {
+    const track = this.outgoing;
+    if (!track) return;
+    this.outgoing = null;
+    track.media.pause(); track.fading = false;
+    track.gain.gain.cancelScheduledValues(this.time);
+    track.gain.gain.setValueAtTime(0, this.time);
+    if (this.spareTheme) this.releaseTrack(track); else this.spareTheme = track;
+  }
+  private releaseTrack(track: BackgroundTrack) {
+    track.release();
+    track.media.pause(); track.media.removeAttribute('src'); track.media.load();
+    track.source.disconnect(); track.gain.disconnect();
+  }
+  private createTrack(kind: BackgroundKind, url: string): BackgroundTrack {
+    const ctx = this.context!, media = new Audio(url);
+    media.loop = kind === 'ambience'; media.preload = 'none';
+    const source = ctx.createMediaElementSource(media), gain = ctx.createGain();
+    gain.gain.value = 0; source.connect(gain); gain.connect(this.master!);
+    const track: BackgroundTrack = { media, source, gain, pending: false, fading: false, release: () => {} };
+    if (kind !== 'theme') return track;
+    const current = track;
+    const primary = () => this.background.get('theme') === current;
+    const ended = () => {
+      if (this.disposed) return;
+      if (this.outgoing === current) { this.finishOutgoing(); return; }
+      if (!primary()) return;
+      this.recordMusic(current, true); this.resetMusicClock();
+      current.fading = false;
+      // A hidden/muted ending waits for the next authorized resume.
+      if (this.active && this.backgroundLevel('theme') && !this.musicPaused) this.syncBackground();
+      this.notifyMusic();
+    };
+    const tail = () => {
+      if (this.outgoing === current) { if (this.time >= this.outgoingEnd - .05) this.finishOutgoing(); return; }
+      if (!primary()) return;
+      this.recordMusic(current); this.notifyMusic();
+      // Begin the next song while this one still plays out its last seconds.
+      const remaining = media.duration - media.currentTime;
+      const blendWindow = Math.min(CROSSFADE, media.duration / 3);
+      if (!Number.isFinite(remaining) || remaining <= 0 || remaining > blendWindow || !this.canBlend(current)) return;
+      this.crossfadeTo(this.soundtrack.next(), Math.max(.5, remaining));
+      this.save(); this.notifyMusic();
+    };
+    const seeking = () => { if (primary()) this.resetMusicClock(); };
+    const playing = () => { if (!primary()) return; this.musicWaiting = false; this.musicError = false; this.notifyMusic(); };
+    const waiting = () => { if (!primary()) return; this.musicWaiting = true; this.notifyMusic(); };
+    const failed = () => { if (!primary()) return; this.musicError = true; this.musicWaiting = false; this.notifyMusic(); };
+    const events: [string, EventListener][] = [['ended', ended], ['timeupdate', tail],
+      ['seeking', seeking], ['seeked', seeking], ['playing', playing], ['waiting', waiting], ['error', failed]];
+    for (const [event, listener] of events) media.addEventListener(event, listener);
+    current.release = () => { for (const [event, listener] of events) media.removeEventListener(event, listener); };
+    return track;
+  }
   private recordMusic(track: BackgroundTrack, ended = false) {
     const media = track.media, position = media.currentTime, clock = this.time;
     const audible = this.active && !this.musicPaused && this.themeVolume > 0
@@ -275,7 +422,7 @@ export class GameSound {
   }
   private stop() {
     const theme = this.background.get('theme'); if (theme) this.recordMusic(theme);
-    this.resetMusicClock();
+    this.resetMusicClock(); this.finishOutgoing();
     for (const track of this.background.values()) track.media.pause();
     for (const voice of [...this.voices]) { try { voice.stop(); } catch { /* Already ended. */ } this.releases.get(voice)?.(); }
   }
@@ -283,6 +430,7 @@ export class GameSound {
     // A resume may finish after mute, hide, or teardown. Recheck the actual owner.
     const wanted = !this.disposed && this.authorized && this.enabled && this.volume > 0 && !document.hidden;
     if (!wanted) {
+      this.finishOutgoing();
       for (const track of this.background.values()) track.media.pause();
       if (this.context?.state === 'running') void this.context.suspend().catch(() => {});
       this.resetMusicClock(); this.notifyMusic(); return;
@@ -303,44 +451,13 @@ export class GameSound {
     for (const kind of ['theme', 'ambience'] as const) {
       const level = this.backgroundLevel(kind);
       let track = this.background.get(kind);
-      if (!level || kind === 'theme' && this.musicPaused) { track?.media.pause(); continue; }
+      if (!level || kind === 'theme' && this.musicPaused) { track?.media.pause(); if (kind === 'theme') this.finishOutgoing(); continue; }
       if (!track) {
         // Stream local compressed audio instead of decoding a whole song into RAM.
         if (kind === 'theme' && !this.themeSong) { this.themeSong = this.soundtrack.next(); this.save(); }
-        const media = new Audio(kind === 'theme' ? this.themeSong!.url : ambienceUrl);
-        media.loop = kind === 'ambience'; media.preload = 'none';
-        const source = ctx.createMediaElementSource(media), gain = ctx.createGain();
-        gain.gain.value = 0; source.connect(gain); gain.connect(master);
-        track = { media, source, gain, pending: false, fading: false, release: () => {} };
+        track = this.createTrack(kind, kind === 'theme' ? this.themeSong!.url : ambienceUrl);
         this.background.set(kind, track);
-        if (kind === 'theme') {
-          const current = track;
-          const ended = () => {
-            if (this.disposed || this.background.get('theme') !== current) return;
-            this.recordMusic(current, true); this.resetMusicClock();
-            current.fading = false;
-            // A hidden/muted ending waits for the next authorized resume.
-            if (this.active && this.backgroundLevel('theme') && !this.musicPaused) this.syncBackground();
-            this.notifyMusic();
-          };
-          const tail = () => {
-            this.recordMusic(current); this.notifyMusic();
-            const remaining = media.duration - media.currentTime;
-            if (!this.active || this.musicPaused || current.fading || !Number.isFinite(remaining) || remaining <= 0 || remaining > 1.8) return;
-            current.fading = true;
-            gain.gain.cancelScheduledValues(this.time);
-            gain.gain.setTargetAtTime(0, this.time, Math.max(.08, remaining / 4));
-          };
-          const seeking = () => { this.resetMusicClock(); };
-          const playing = () => { this.musicWaiting = false; this.musicError = false; this.notifyMusic(); };
-          const waiting = () => { this.musicWaiting = true; this.notifyMusic(); };
-          const failed = () => { this.musicError = true; this.musicWaiting = false; this.notifyMusic(); };
-          const events: [string, EventListener][] = [['ended', ended], ['timeupdate', tail],
-            ['seeking', seeking], ['seeked', seeking], ['playing', playing], ['waiting', waiting], ['error', failed]];
-          for (const [event, listener] of events) media.addEventListener(event, listener);
-          current.release = () => { for (const [event, listener] of events) media.removeEventListener(event, listener); };
-          if (this.restoredPosition) { media.currentTime = this.restoredPosition; this.restoredPosition = 0; }
-        }
+        if (kind === 'theme' && this.restoredPosition) { track.media.currentTime = this.restoredPosition; this.restoredPosition = 0; }
       }
       const { media, gain } = track;
       if (!media.paused || track.pending) continue;
@@ -351,10 +468,13 @@ export class GameSound {
       }
       // Fade in from the retained playhead, including when a hidden office returns.
       gain.gain.cancelScheduledValues(ctx.currentTime);
-      gain.gain.setValueAtTime(0, ctx.currentTime);
       // Initial selection and an ended-event rotation may change themeSong
       // above. Apply the incoming recording's measured trim to its fade.
-      gain.gain.setTargetAtTime(track.fading ? 0 : this.backgroundLevel(kind), ctx.currentTime, .65);
+      const target = track.fading ? 0 : this.backgroundLevel(kind);
+      // A blend curve starts at silence itself; no other event may share its start.
+      if (track.fadeIn && target) gain.gain.setValueCurveAtTime(powerCurve(target, true), ctx.currentTime, track.fadeIn);
+      else { gain.gain.setValueAtTime(0, ctx.currentTime); gain.gain.setTargetAtTime(target, ctx.currentTime, .65); }
+      track.fadeIn = 0;
       track.pending = true;
       if (kind === 'theme') { this.musicError = false; this.musicWaiting = false; this.notifyMusic(); }
       const current = track;
@@ -365,9 +485,10 @@ export class GameSound {
         // Retry on the next gesture, never block work or loop retries.
       }).finally(() => {
         current.pending = false;
-        if (kind === 'theme') {
-          if (this.requestedSong && !this.disposed) this.selectTheme(this.requestedSong, false);
-          else if (this.skipRequested && !this.disposed) this.nextTheme();
+        if (kind === 'theme' && this.background.get('theme') === current) {
+          // The superseded recording barely started; switch without a blend.
+          if (this.requestedSong && !this.disposed) this.selectTheme(this.requestedSong, false, false);
+          else if (this.skipRequested && !this.disposed) this.nextTheme(false);
           else { this.recordMusic(current); this.notifyMusic(); }
         }
       });
@@ -381,7 +502,7 @@ export class GameSound {
     if (track && this.context) {
       track.gain.gain.cancelScheduledValues(this.time);
       track.gain.gain.setTargetAtTime(track.fading ? 0 : this.backgroundLevel(kind), this.time, .08);
-      if (!this.backgroundLevel(kind)) track.media.pause();
+      if (!this.backgroundLevel(kind)) { track.media.pause(); if (kind === 'theme') this.finishOutgoing(); }
     }
     this.syncBackground(); this.save(); this.notifyMusic();
   }
@@ -411,15 +532,22 @@ export class GameSound {
   play(cue: GameCue) { this.emit(cue, { gain: 1, pan: 0 }, 'ui'); }
   /** Player actions on physical objects use their current position and camera scale. */
   at(cue: GameCue, source: Element, intensity = 1) {
-    if (!this.active || !source.isConnected) return;
+    const placed = this.placement(source, intensity);
+    if (placed) this.emit(cue, placed.mix, placed.key);
+    else if (placed === null && this.active && source.isConnected) this.play(cue);
+  }
+  /** Where a world object sits for the listening camera (one layout read, for discrete events).
+   *  Undefined: nothing can sound now. Null: the element is outside any scene (UI placement). */
+  placement(source: Element, intensity = 1): { mix: SoundMix; key: string } | null | undefined {
+    if (!this.active || !source.isConnected) return undefined;
     const scene = this.view?.scene ?? source.closest<HTMLElement>('.scene');
-    if (!scene) { this.play(cue); return; }
+    if (!scene) return null;
     const bounds = scene.getBoundingClientRect(), rect = source.getBoundingClientRect();
     const mix = spatialMix(rect.left + rect.width / 2 - bounds.left, rect.top + rect.height / 2 - bounds.top, this.view?.scale() ?? 1, bounds.width, bounds.height);
     let id = this.sourceIds.get(source);
     if (!id) { id = ++this.sequence; this.sourceIds.set(source, id); }
     mix.gain *= clamp(Number.isFinite(intensity) ? intensity : 1, 0, 2);
-    this.emit(cue, mix, `object:${id}`);
+    return { mix, key: `object:${id}` };
   }
   /** State-driven emitters supply computed geometry and perform no layout reads. */
   emit(cue: GameCue, mix: SoundMix, key: string, ambient = false) {
@@ -428,8 +556,52 @@ export class GameSound {
     if (now - (this.last.get(rateKey) ?? -10) < (cue === 'ready' ? 1.5 : cue === 'keyboard' ? .025 : .07)) return;
     if (this.last.size > 256) for (const [k, at] of this.last) if (now - at > 5) this.last.delete(k);
     this.last.set(rateKey, now);
-    const cutoff = cue === 'rustle' || cue === 'water' ? 1900 : cue === 'chatter' || cue === 'snore' ? 1400 : mix.lowpass;
+    const cutoff = CUE_LOWPASS[cue] ?? mix.lowpass;
     this.score(SCORES[cue], { ...mix, lowpass: cutoff }, ambient, !ambient && UI_CUES.has(cue), ambient ? key : '');
+  }
+  /** A generated phrase (birdsong, crickets, rain) through the same ambient bus and budgets. */
+  phrase(notes: Note[], mix: SoundMix, key: string) {
+    if (!this.active || !notes.length || !Number.isFinite(mix.gain) || mix.gain < .006) return;
+    this.score(notes, mix, true, false, key);
+  }
+  /** Custom synthesis on the shared graph (robot voices). `build` receives the spatial bus input
+   *  and returns its scheduled sources; voice budgets, camera tracking and cleanup stay here. */
+  synth(mix: SoundMix, owner: string, sources: number, build: (ctx: AudioContext, input: AudioNode, noise: AudioBuffer) => AudioScheduledSourceNode[]): boolean {
+    const ctx = this.context, master = this.master;
+    if (!ctx || !master || !this.active || !Number.isFinite(mix.gain) || mix.gain < .006) return false;
+    if (this.voices.size + sources > MAX_VOICES || this.ambient.size + sources > 30) return false;
+    const bus = ctx.createGain(), filter = ctx.createBiquadFilter(), pan = ctx.createStereoPanner();
+    bus.gain.value = clamp(mix.gain, 0, 2); filter.type = 'lowpass'; filter.frequency.value = clamp(mix.lowpass ?? 14000, 120, 18000); filter.Q.value = .5;
+    pan.pan.value = clamp(mix.pan, -1, 1); bus.connect(filter); filter.connect(pan); pan.connect(master);
+    const chain: EmitterBus = { gain: bus, pan, filter, trim: 1, cutoff: filter.frequency.value, mode: 'normal' };
+    let built: AudioScheduledSourceNode[] = [];
+    try { built = build(ctx, bus, this.noiseBuffer(ctx)); } catch { built = []; }
+    if (!built.length) { bus.disconnect(); filter.disconnect(); pan.disconnect(); return false; }
+    if (!this.emitterVoices.has(owner)) this.emitterVoices.set(owner, new Set());
+    if (!this.emitterBuses.has(owner)) this.emitterBuses.set(owner, new Set());
+    this.emitterBuses.get(owner)!.add(chain);
+    let remaining = built.length;
+    for (const voice of built) {
+      this.voices.add(voice); this.ambient.add(voice); this.emitterVoices.get(owner)!.add(voice);
+      let released = false;
+      const release = () => { if (released) return; released = true; this.voices.delete(voice); this.ambient.delete(voice); this.releases.delete(voice);
+        const voices = this.emitterVoices.get(owner); voices?.delete(voice); if (!voices?.size) this.emitterVoices.delete(owner);
+        voice.disconnect();
+        if (--remaining === 0) {
+          bus.disconnect(); filter.disconnect(); pan.disconnect();
+          const buses = this.emitterBuses.get(owner); buses?.delete(chain); if (!buses?.size) this.emitterBuses.delete(owner);
+        } };
+      this.releases.set(voice, release); voice.onended = release;
+    }
+    return true;
+  }
+  private noiseBuffer(ctx: AudioContext) {
+    if (!this.noise) {
+      this.noise = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * .5), ctx.sampleRate);
+      const samples = this.noise.getChannelData(0); let brown = 0;
+      for (let i = 0; i < samples.length; i++) { const white = Math.random() * 2 - 1; brown = (brown + .03 * white) / 1.03; samples[i] = white * .7 + brown * 3; }
+    }
+    return this.noise;
   }
   /** Original music for fictional Botify playlists, muffled as headphone leakage. */
   music(mix: SoundMix, playlist: string, bpm: number, seed: number, step: number, phone = false, delay = 0, owner = '') {
@@ -470,16 +642,13 @@ export class GameSound {
       bus.disconnect(); filter.disconnect(); pan.disconnect();
       if (owner) { const buses = this.emitterBuses.get(owner); buses?.delete(chain); if (!buses?.size) this.emitterBuses.delete(owner); }
     } };
-    for (const [frequency, delay, duration, gain, wave = 'sine', endFrequency] of notes) {
+    for (const [frequency, delay, duration, gain, wave = 'sine', endFrequency, band] of notes) {
       for (const [ratio, strength] of frequency && priority ? [[1, 1], [2.003, .16]] : [[1, 1]]) {
         let voice: OscillatorNode | AudioBufferSourceNode;
         if (!frequency) {
-          if (!this.noise) {
-            this.noise = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * .5), ctx.sampleRate);
-            const samples = this.noise.getChannelData(0); let brown = 0;
-            for (let i = 0; i < samples.length; i++) { const white = Math.random() * 2 - 1; brown = (brown + .03 * white) / 1.03; samples[i] = white * .7 + brown * 3; }
-          }
-          voice = ctx.createBufferSource(); voice.buffer = this.noise;
+          voice = ctx.createBufferSource(); voice.buffer = this.noiseBuffer(ctx);
+          // Start somewhere new in the shared buffer so repeated transients never sound identical.
+          if (band) voice.playbackRate.value = .85 + Math.random() * .3;
         } else {
           voice = ctx.createOscillator(); voice.type = wave; voice.frequency.value = frequency * ratio;
           if (endFrequency) voice.frequency.exponentialRampToValueAtTime(endFrequency * ratio, ctx.currentTime + delay + duration);
@@ -488,13 +657,16 @@ export class GameSound {
         envelope.gain.setValueAtTime(0, at);
         envelope.gain.linearRampToValueAtTime(Math.max(.0001, gain * strength), at + Math.min(.006, duration / 4));
         envelope.gain.exponentialRampToValueAtTime(.0001, at + duration);
-        voice.connect(envelope); envelope.connect(bus);
+        let color: BiquadFilterNode | null = null;
+        if (band) { color = ctx.createBiquadFilter(); color.type = 'bandpass'; color.frequency.value = clamp(band, 80, 16000); color.Q.value = frequency ? 4 : 1.1; voice.connect(color); color.connect(envelope); }
+        else voice.connect(envelope);
+        envelope.connect(bus);
         this.voices.add(voice); if (ambient) this.ambient.add(voice);
         if (owner) this.emitterVoices.get(owner)!.add(voice);
         let released = false;
         const release = () => { if (released) return; released = true; this.voices.delete(voice); this.ambient.delete(voice); this.releases.delete(voice);
           if (owner) { const voices = this.emitterVoices.get(owner); voices?.delete(voice); if (!voices?.size) this.emitterVoices.delete(owner); }
-          voice.disconnect(); envelope.disconnect(); done(); };
+          voice.disconnect(); envelope.disconnect(); color?.disconnect(); done(); };
         this.releases.set(voice, release); voice.onended = release;
         voice.start(at); voice.stop(at + duration + .01);
       }
@@ -509,12 +681,8 @@ export class GameSound {
     document.removeEventListener('visibilitychange', this.visibility);
     window.removeEventListener('pagehide', this.destroy);
     this.context?.removeEventListener('statechange', this.audioState);
-    for (const track of this.background.values()) {
-      track.release();
-      track.media.pause(); track.media.removeAttribute('src'); track.media.load();
-      track.source.disconnect(); track.gain.disconnect();
-    }
-    this.background.clear();
+    for (const track of [...this.background.values(), this.outgoing, this.spareTheme]) if (track) this.releaseTrack(track);
+    this.background.clear(); this.outgoing = null; this.spareTheme = null;
     this.master?.disconnect();
     if (this.context) void this.context.close().catch(() => {});
     this.context = null; this.master = null;

@@ -6,20 +6,19 @@ import { getLocale, onLocaleChange } from '../localization';
 import './song-library.css';
 
 type GenreFilter = 'all' | SoundtrackGenre;
-const genres: [GenreFilter, string, string][] = [
+const allGenres: [GenreFilter, string, string][] = [
   ['all', 'All genres', 'Alle Genres'],
   ['acoustic', 'Cozy instrumentals', 'Gemütliche Instrumentals'],
-  ['lofi', 'Chill lo-fi', 'Chill Lo-Fi'],
-  ['synthwave', 'Synthwave', 'Synthwave'],
   ['ambient', 'Ambient', 'Ambient'],
-  ['mystical', 'Mystical', 'Mystisch'],
-  ['medieval', 'Medieval', 'Mittelalter'],
-  ['noir', 'Detective chamber', 'Detektivmusik'],
-  ['nostalgic', 'Nostalgic', 'Nostalgisch'],
-  ['breakcore', 'Breakcore / DnB', 'Breakcore / DnB'],
+  ['lofi', 'Chill lo-fi', 'Chill Lo-Fi'],
+  ['jazz', 'Jazz', 'Jazz'],
   ['phonk', 'Lunar phonk', 'Lunar Phonk'],
+  ['synthwave', 'Synthwave', 'Synthwave'],
+  ['breakcore', 'Breakcore / DnB', 'Breakcore / DnB'],
 ];
-const genreName = (genre: SoundtrackGenre, de: boolean) => genres.find(([id]) => id === genre)![de ? 2 : 1];
+// Filters list only genres present in the catalogue, so none leads nowhere.
+const genres = allGenres.filter(([id]) => id === 'all' || SOUNDTRACK.some(song => song.genre === id));
+const genreName = (genre: SoundtrackGenre, de: boolean) => allGenres.find(([id]) => id === genre)?.[de ? 2 : 1] ?? genre;
 const textureWords: Record<string, [string, string]> = { pads: ['pads', 'Flächen'], bells: ['bells', 'Glocken'], strings: ['strings', 'Streicher'], piano: ['piano', 'Klavier'], plucked: ['plucked strings', 'Zupfsaiten'], reeds: ['woodwinds', 'Holzbläser'], drums: ['drums', 'Schlagzeug'], breaks: ['breaks', 'Breaks'], bass: ['bass', 'Bass'], mallets: ['mallets', 'Mallets'], synth: ['synth', 'Synth'], cowbell: ['cowbell', 'Cowbell'] };
 const textureText = (song: SoundtrackSong, de: boolean) => song.textures.map(value => textureWords[value]?.[de ? 1 : 0] ?? '').filter(Boolean).join(', ');
 const duration = (seconds: number) => {
@@ -50,7 +49,7 @@ export function mountSongLibrary(parent: HTMLElement): () => void {
   const genreCaption = document.createElement('span');
   const filter = document.createElement('select');
   for (const [value] of genres) { const option = document.createElement('option'); option.value = value; filter.append(option); }
-  filter.value = retained.genre; genreLabel.append(genreCaption, filter);
+  filter.value = genres.some(([id]) => id === retained.genre) ? retained.genre : 'all'; genreLabel.append(genreCaption, filter);
   filters.append(searchLabel, genreLabel);
   const count = document.createElement('p'); count.className = 'sl-result-count'; count.setAttribute('role', 'status');
   const note = document.createElement('p'); note.className = 'sl-playback-note'; note.setAttribute('role', 'status');

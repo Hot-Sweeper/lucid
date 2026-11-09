@@ -4,31 +4,28 @@ import { SOUNDTRACK } from './soundtrack';
 import { getLocale, onLocaleChange } from '../localization';
 import './music-controls.css';
 
-const directions: [SoundtrackMode, string, string][] = [
+const allDirections: [SoundtrackMode, string, string][] = [
   ['journey', 'Evolving journey', 'Musikalische Reise'],
-  ['lofi', 'Chill lo-fi', 'Chill Lo-Fi'],
-  ['synthwave', 'Synthwave', 'Synthwave'],
+  ['acoustic', 'Cozy instrumentals', 'Gemütliche Instrumentals'],
   ['ambient', 'Ambient', 'Ambient'],
+  ['lofi', 'Chill lo-fi', 'Chill Lo-Fi'],
+  ['jazz', 'Jazz', 'Jazz'],
+  ['phonk', 'Lunar phonk', 'Lunar Phonk'],
+  ['synthwave', 'Synthwave', 'Synthwave'],
+  ['breakcore', 'Breakcore / DnB', 'Breakcore / DnB'],
   ['pads', 'Ambient pads', 'Ambient-Flächen'],
   ['bells', 'Bells & wonder', 'Glocken & Staunen'],
-  ['mystical', 'Mystical', 'Mystisch'],
-  ['medieval', 'Medieval', 'Mittelalter'],
-  ['noir', 'Detective chamber', 'Detektivmusik'],
-  ['nostalgic', 'Nostalgic', 'Nostalgisch'],
-  ['breakcore', 'Breakcore / DnB', 'Breakcore / DnB'],
-  ['phonk', 'Lunar phonk', 'Lunar Phonk'],
-  ['acoustic', 'Cozy instrumentals', 'Gemütliche Instrumentals'],
 ];
+// Offer only directions the library can actually play.
+const directions = allDirections.filter(([mode]) => mode === 'journey' || SOUNDTRACK.some(song => songMatchesMode(song, mode)));
 const chapters: Record<string, string> = {
-  'still-water': 'Stilles Wasser', 'warm-tape': 'Warmes Tonband',
-  'night-drive': 'Nachtfahrt', 'neon-rise': 'Neonaufstieg', 'petal-rush': 'Blütenrausch',
-  observatory: 'Gläsernes Observatorium', 'briar-path': 'Laternen im Hain',
-  'old-postcards': 'Alte Postkarten', 'copper-casebook': 'Kupfernes Fallbuch',
-  afterglow: 'Nachglühen', 'soft-landing': 'Sanfte Landung',
+  'still-water': 'Stilles Wasser', 'morning-light': 'Morgenlicht', 'warm-tape': 'Warmes Tonband',
+  'late-cafe': 'Spätes Café', 'night-drive': 'Nachtfahrt', 'neon-rise': 'Neonaufstieg',
+  'petal-rush': 'Blütenrausch', afterglow: 'Nachglühen', 'lunar-drift': 'Mondtreiben', 'soft-landing': 'Sanfte Landung',
 };
 const genreNames: Record<string, string> = {
-  acoustic: 'Instrumental', lofi: 'Lo-fi', synthwave: 'Synthwave', ambient: 'Ambient',
-  breakcore: 'Breakcore', phonk: 'Phonk', mystical: 'Mystical', medieval: 'Medieval', noir: 'Detective chamber', nostalgic: 'Nostalgic',
+  acoustic: 'Instrumental', lofi: 'Lo-fi', jazz: 'Jazz', synthwave: 'Synthwave', ambient: 'Ambient',
+  breakcore: 'Breakcore', phonk: 'Phonk',
 };
 
 /** Small controls in the existing settings shelf. All state comes from the audio owner. */

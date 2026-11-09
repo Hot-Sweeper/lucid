@@ -1,5 +1,5 @@
 export type DayPeriod = 'morning' | 'day' | 'evening' | 'night';
-export type SoundtrackGenre = 'acoustic' | 'lofi' | 'synthwave' | 'ambient' | 'breakcore' | 'phonk' | 'mystical' | 'medieval' | 'noir' | 'nostalgic';
+export type SoundtrackGenre = 'acoustic' | 'lofi' | 'jazz' | 'ambient' | 'synthwave' | 'phonk' | 'breakcore';
 export type SoundtrackMode = 'journey' | 'pads' | 'bells' | SoundtrackGenre;
 export type SoundtrackSong = {
   id: string; title: string; url: string; period: DayPeriod; bpm: number;
@@ -9,25 +9,47 @@ export type SoundtrackSong = {
 export type SoundtrackChapter = {
   id: string; title: string; genres: readonly SoundtrackGenre[]; energy: number; seconds: number;
 };
+/** A gradual arc: calm instrumentals, warm tape and cafe jazz, a night drive
+ * into synthwave and a breakcore peak, then the same way back down. */
 export const SOUNDTRACK_CHAPTERS: readonly SoundtrackChapter[] = [
-  { id: 'still-water', title: 'Still water', genres: ['ambient', 'acoustic'], energy: .16, seconds: 300 },
-  { id: 'observatory', title: 'Glass observatory', genres: ['mystical', 'ambient'], energy: .22, seconds: 240 },
-  { id: 'briar-path', title: 'Briar lanterns', genres: ['medieval', 'mystical'], energy: .34, seconds: 210 },
-  { id: 'old-postcards', title: 'Old postcards', genres: ['nostalgic', 'acoustic'], energy: .27, seconds: 240 },
-  { id: 'warm-tape', title: 'Warm tape', genres: ['lofi', 'acoustic'], energy: .30, seconds: 300 },
-  { id: 'copper-casebook', title: 'Copper casebook', genres: ['noir', 'nostalgic'], energy: .43, seconds: 240 },
-  { id: 'night-drive', title: 'Night drive', genres: ['phonk', 'lofi'], energy: .50, seconds: 180 },
-  { id: 'neon-rise', title: 'Neon rise', genres: ['synthwave', 'phonk'], energy: .66, seconds: 180 },
-  { id: 'petal-rush', title: 'Petal rush', genres: ['breakcore', 'synthwave'], energy: .82, seconds: 120 },
-  { id: 'afterglow', title: 'Afterglow', genres: ['synthwave', 'phonk'], energy: .53, seconds: 180 },
-  { id: 'soft-landing', title: 'Soft landing', genres: ['acoustic', 'lofi', 'ambient'], energy: .28, seconds: 300 },
+  { id: 'still-water', title: 'Still water', genres: ['ambient', 'acoustic'], energy: .15, seconds: 300 },
+  { id: 'morning-light', title: 'Morning light', genres: ['acoustic', 'lofi', 'ambient'], energy: .26, seconds: 240 },
+  { id: 'warm-tape', title: 'Warm tape', genres: ['lofi', 'jazz', 'acoustic'], energy: .31, seconds: 300 },
+  { id: 'late-cafe', title: 'Late cafe', genres: ['jazz', 'lofi'], energy: .37, seconds: 240 },
+  { id: 'night-drive', title: 'Night drive', genres: ['phonk', 'jazz', 'lofi'], energy: .52, seconds: 240 },
+  { id: 'neon-rise', title: 'Neon rise', genres: ['synthwave', 'phonk'], energy: .64, seconds: 210 },
+  { id: 'petal-rush', title: 'Petal rush', genres: ['breakcore', 'synthwave'], energy: .8, seconds: 150 },
+  { id: 'afterglow', title: 'Afterglow', genres: ['synthwave', 'phonk'], energy: .6, seconds: 180 },
+  { id: 'lunar-drift', title: 'Lunar drift', genres: ['phonk', 'lofi'], energy: .48, seconds: 180 },
+  { id: 'soft-landing', title: 'Soft landing', genres: ['lofi', 'jazz', 'ambient', 'acoustic'], energy: .28, seconds: 300 },
 ];
+/** Genres that can follow each other directly, like a DJ moving between crates.
+ * A song always connects to its own genre. Breakcore is only entered and left
+ * through synthwave or phonk, so calm music never jumps straight to the peak. */
+export const GENRE_NEIGHBORS: Readonly<Record<SoundtrackGenre, readonly SoundtrackGenre[]>> = {
+  acoustic: ['ambient', 'lofi', 'jazz'],
+  ambient: ['acoustic', 'lofi', 'jazz'],
+  lofi: ['acoustic', 'ambient', 'jazz', 'phonk'],
+  jazz: ['acoustic', 'ambient', 'lofi', 'phonk'],
+  phonk: ['lofi', 'jazz', 'synthwave', 'breakcore'],
+  synthwave: ['phonk', 'breakcore'],
+  breakcore: ['synthwave', 'phonk'],
+};
+/** Largest energy change between consecutive automatic songs. */
+export const MAX_ENERGY_STEP = .2;
+export function genresConnect(a: SoundtrackGenre, b: SoundtrackGenre): boolean {
+  return a === b || (GENRE_NEIGHBORS[a]?.includes(b) ?? false);
+}
+/** An automatic transition a listener will not hear as a jarring jump. */
+export function transitionFits(previous: SoundtrackSong, song: SoundtrackSong): boolean {
+  return genresConnect(previous.genre, song.genre) && Math.abs(song.energy - previous.energy) <= MAX_ENERGY_STEP + 1e-5;
+}
 export type SoundtrackHistory = {
   played: string[]; last: string | null; mode: SoundtrackMode;
   chapter: string; listened: number; chapterHeard: boolean; started: boolean;
   modePlayed?: Partial<Record<SoundtrackMode, string[]>>; recent?: string[];
 };
-const GENRES: readonly SoundtrackGenre[] = ['acoustic', 'lofi', 'synthwave', 'ambient', 'breakcore', 'phonk', 'mystical', 'medieval', 'noir', 'nostalgic'];
+const GENRES: readonly SoundtrackGenre[] = ['acoustic', 'lofi', 'jazz', 'ambient', 'synthwave', 'phonk', 'breakcore'];
 const validMode = (mode: unknown): mode is SoundtrackMode => mode === 'journey' || mode === 'pads' || mode === 'bells' || GENRES.includes(mode as SoundtrackGenre);
 
 export function songMatchesMode(song: SoundtrackSong, mode: SoundtrackMode): boolean {
@@ -56,7 +78,7 @@ export function songAffinity(previous: SoundtrackSong, song: SoundtrackSong): nu
 
 const openingChapter = (date: Date) => {
   const period = soundtrackPeriod(date);
-  const id = period === 'night' ? 'still-water' : period === 'evening' ? 'night-drive' : 'warm-tape';
+  const id = period === 'night' ? 'still-water' : period === 'morning' ? 'morning-light' : period === 'evening' ? 'late-cafe' : 'warm-tape';
   return SOUNDTRACK_CHAPTERS.findIndex(chapter => chapter.id === id);
 };
 
@@ -91,7 +113,8 @@ export class SoundtrackQueue {
     }
     if (Array.isArray(saved?.recent)) this.recent = saved.recent.filter(id => ids.has(id)).slice(-24);
     if (typeof saved?.last === 'string' && ids.has(saved.last)) this.last = saved.last;
-    if (validMode(saved?.mode)) this.selectedMode = saved.mode;
+    // A saved genre the library no longer offers falls back to the journey.
+    if (validMode(saved?.mode) && this.playable(saved.mode)) this.selectedMode = saved.mode;
     const current = songs.find(song => song.id === this.last);
     if (current) this.creditLocks(current, false);
     const chapter = SOUNDTRACK_CHAPTERS.findIndex(value => value.id === saved?.chapter);
@@ -111,8 +134,11 @@ export class SoundtrackQueue {
       listened: this.listened, chapterHeard: this.chapterHeard, started: this.started,
       modePlayed: Object.fromEntries([...this.modePlayed].map(([mode, heard]) => [mode, [...heard]])), recent: [...this.recent] };
   }
+  private playable(mode: SoundtrackMode) {
+    return mode === 'journey' || this.songs.some(song => songMatchesMode(song, mode));
+  }
   setMode(mode: unknown): boolean {
-    if (!validMode(mode)) return false;
+    if (!validMode(mode) || !this.playable(mode)) return false;
     this.selectedMode = mode;
     return true;
   }
@@ -155,32 +181,53 @@ export class SoundtrackQueue {
     }
   }
 
-  /** Keep the remaining energy route connected before spending its last bridge. */
-  private canContinue(song: SoundtrackSong, remaining: readonly SoundtrackSong[], memo: Map<string, boolean>, budget: { left: number }): boolean {
-    const rest = remaining.filter(value => value.id !== song.id).sort((a, b) => a.energy - b.energy);
-    if (!rest.length) return true;
-    const key = song.energy + '|' + rest.map(value => value.energy).join(',');
-    const cached = memo.get(key);
-    if (cached !== undefined) return cached;
-    if (--budget.left < 0) return false;
-    if (rest.some((value, index) => index > 0 && value.energy - rest[index - 1].energy > .35001)) return false;
-    const reached = new Set<string>();
-    let frontier = [song];
-    while (frontier.length) {
-      const next = rest.filter(value => !reached.has(value.id) && frontier.some(from => value.energy - from.energy <= .30001 && from.energy - value.energy <= .35001));
-      next.forEach(value => reached.add(value.id)); frontier = next;
+  /** For each unheard song: can the rest of the bag still be played through
+   * fitting transitions if it plays now? A bounded depth-first search over a
+   * precomputed transition matrix tries the hardest songs first (Warnsdorff).
+   * If the budget runs out the answer is "no" and the caller relaxes it. */
+  private routePlanner(unheard: readonly SoundtrackSong[]) {
+    const n = unheard.length;
+    const adj = unheard.map(a => unheard.map(b => a !== b && transitionFits(a, b)));
+    // Songs with equal genre and energy are interchangeable for routing.
+    const sign = unheard.map(song => song.genre + ':' + song.energy);
+    const memo = new Map<string, boolean>(), budget = { left: 4000 };
+    const search = (current: number, rest: number[]): boolean => {
+      if (!rest.length) return true;
+      const key = sign[current] + '|' + rest.map(i => sign[i]).sort().join(',');
+      const cached = memo.get(key);
+      if (cached !== undefined) return cached;
+      if (--budget.left < 0) return false;
+      const seen = new Uint8Array(n), stack = [current];
+      let count = 0;
+      while (stack.length) {
+        const from = stack.pop()!;
+        for (const to of rest) if (!seen[to] && adj[from][to]) { seen[to] = 1; count++; stack.push(to); }
+      }
+      if (count !== rest.length) { memo.set(key, false); return false; }
+      const used = new Set<string>();
+      const choices = rest.filter(i => adj[current][i] && !used.has(sign[i]) && !!used.add(sign[i]));
+      const degree = (from: number) => rest.reduce((sum, to) => sum + (adj[from][to] ? 1 : 0), 0);
+      choices.sort((x, y) => degree(x) - degree(y) || Math.abs(unheard[x].energy - unheard[current].energy) - Math.abs(unheard[y].energy - unheard[current].energy));
+      const possible = choices.some(next => search(next, rest.filter(i => i !== next)));
+      memo.set(key, possible);
+      return possible;
+    };
+    return (song: SoundtrackSong) => {
+      const index = unheard.indexOf(song);
+      return index < 0 || search(index, unheard.map((_, i) => i).filter(i => i !== index));
+    };
+  }
+
+  /** Fewest fitting transitions from each song to any song in `targets`. */
+  private routeDistance(targets: readonly SoundtrackSong[]) {
+    const distance = new Map<string, number>(targets.map(song => [song.id, 0]));
+    let frontier = [...targets];
+    for (let step = 1; frontier.length; step++) {
+      const next = this.songs.filter(song => !distance.has(song.id) && frontier.some(to => transitionFits(song, to)));
+      for (const song of next) distance.set(song.id, step);
+      frontier = next;
     }
-    if (reached.size !== rest.length) { memo.set(key, false); return false; }
-    // Find a complete route, including the way back from an energetic peak.
-    // Equivalent energy values share a branch. A fixed work budget bounds this
-    // preference; the unheard rotation remains authoritative if it runs out.
-    const choices = rest.filter((value, index) => (index === 0 || value.energy !== rest[index - 1].energy)
-      && value.energy - song.energy <= .30001 && song.energy - value.energy <= .35001);
-    const degree = (from: SoundtrackSong) => rest.filter(value => value.id !== from.id && value.energy - from.energy <= .30001 && from.energy - value.energy <= .35001).length;
-    choices.sort((a, b) => degree(a) - degree(b) || Math.abs(a.energy - song.energy) - Math.abs(b.energy - song.energy));
-    const possible = choices.some(value => this.canContinue(value, rest, memo, budget));
-    memo.set(key, possible);
-    return possible;
+    return (song: SoundtrackSong) => distance.get(song.id) ?? Infinity;
   }
 
   /** A deliberate library choice is one song, without changing music direction. */
@@ -221,44 +268,55 @@ export class SoundtrackQueue {
     } else {
       const chapter = this.chapter;
       const unheard = this.songs.filter(song => !this.played.has(song.id));
-      const fits = (song: SoundtrackSong) => !previous || song.energy - previous.energy <= .30001 && previous.energy - song.energy <= .35001;
+      const fits = (song: SoundtrackSong) => !previous || transitionFits(previous, song);
       let safe = unheard.filter(fits);
-      const memo = new Map<string, boolean>(), budget = { left: 4000 };
-      const connected = safe.filter(song => this.canContinue(song, unheard, memo, budget));
+      const plannable = this.routePlanner(unheard);
+      const connected = safe.filter(plannable);
       if (connected.length) safe = connected;
-      // A legacy/custom rotation can have spent all its bridge songs. Complete
-      // the remaining recordings with the nearest energy instead of replaying
-      // familiar music or discarding the saved bag.
-      if (!safe.length) {
-        const nearest = Math.min(...unheard.map(song => Math.abs(song.energy - (previous?.energy ?? song.energy))));
-        safe = unheard.filter(song => Math.abs(song.energy - (previous?.energy ?? song.energy)) <= nearest + .00001);
+      if (!safe.length && previous) {
+        // Only distant songs remain unheard. Walk toward them through fitting
+        // songs (a short reprise) instead of jumping across genres or energy.
+        const toUnheard = this.routeDistance(unheard);
+        const here = toUnheard(previous);
+        const bridges = this.songs.filter(song => song.id !== this.last && transitionFits(previous, song) && toUnheard(song) < here);
+        const fresh = bridges.filter(song => !this.recent.includes(song.id));
+        const usable = fresh.length ? fresh : bridges;
+        if (usable.length) {
+          const best = Math.min(...usable.map(toUnheard));
+          pool = usable.filter(song => toUnheard(song) === best);
+          return this.finish(pool, previous, date);
+        }
+        // A disconnected custom catalogue: finish its songs at the nearest energy.
+        const nearest = Math.min(...unheard.map(song => Math.abs(song.energy - previous.energy)));
+        safe = unheard.filter(song => Math.abs(song.energy - previous.energy) <= nearest + .00001);
       }
+      if (!safe.length) safe = unheard;
       const primary = unheard.filter(song => song.genre === chapter.genres[0]);
       const target = primary.length ? primary : unheard.filter(song => chapter.genres.includes(song.genre));
       // A chapter whose defining recordings were already heard this rotation
       // yields to other unheard music instead of repeatedly replaying them.
       if (!primary.length) this.chapterHeard = true;
-      // Give each chapter its defining genre before moving on. If it is too far
-      // from the outgoing energy, use a real neighboring song as a bridge first.
-      const direct = target.filter(song => safe.includes(song) && (song.id !== this.last || this.songs.length === 1) && (!previous || harmonicDistance(previous, song) < 5));
-      if (!this.chapterHeard && direct.length) pool = direct;
-      else if (!this.chapterHeard && target.length && safe.length) {
-        // A bridge must actually lead to a defining song on the next boundary.
-        // An arbitrary calm-energy cap can trap a return from a quiet lock
-        // below the synthwave step needed to reach the breakcore chapter.
-        const harmonicBridges = safe.filter(song => song.id !== this.last && previous && harmonicDistance(previous, song) < 5 && target.some(next => harmonicDistance(song, next) < 5 && next.energy - song.energy <= .30 && song.energy - next.energy <= .35));
-        const energyReady = target.filter(song => safe.includes(song) && song.id !== this.last);
-        const energyGap = (song: SoundtrackSong) => Math.min(...target.map(next => Math.abs(next.energy - song.energy)));
-        const toward = safe.filter(song => song.id !== this.last && (!previous || energyGap(song) < energyGap(previous)));
-        const neighbors = safe.filter(song => song.id !== this.last);
-        pool = harmonicBridges.length ? harmonicBridges : energyReady.length ? energyReady : toward.length ? toward : neighbors.length ? neighbors : safe;
+      const direct = target.filter(song => safe.includes(song) && (song.id !== this.last || this.songs.length === 1));
+      const harmonic = direct.filter(song => !previous || harmonicDistance(previous, song) < 5);
+      if (!this.chapterHeard && direct.length) pool = harmonic.length ? harmonic : direct;
+      else if (!this.chapterHeard && target.length) {
+        // Move toward the chapter's defining genre one fitting step at a time.
+        const toTarget = this.routeDistance(target);
+        const candidates = safe.filter(song => song.id !== this.last);
+        const closer = candidates.filter(song => !previous || toTarget(song) < toTarget(previous));
+        const options = closer.length ? closer : candidates.length ? candidates : safe;
+        const best = Math.min(...options.map(toTarget));
+        pool = options.filter(song => toTarget(song) === best);
       } else {
         const matches = safe.filter(song => chapter.genres.includes(song.genre));
-        pool = matches.length ? matches : safe.length ? safe : this.songs;
+        pool = matches.length ? matches : safe;
       }
-      // A small/custom catalogue can lack bridge songs; still remain usable.
-      if (!pool.length) pool = unheard;
     }
+    return this.finish(pool, previous, date);
+  }
+
+  private finish(candidates: readonly SoundtrackSong[], previous: SoundtrackSong | undefined, date: Date): SoundtrackSong {
+    let pool = candidates;
     if (pool.length > 1) pool = pool.filter(song => song.id !== this.last);
     // At a completed rotation, leave recent recordings until later in the next
     // pass. Never throw away an unheard song to satisfy this soft preference.

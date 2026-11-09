@@ -88,7 +88,7 @@ export function openAppLibrary(trigger: HTMLElement) {
   };
   const paint = () => {
     const q = search.value.trim().toLocaleLowerCase();
-    const aliases: Record<string,string> = { social: "discord", tube: "youtube", music: "spotify", soundtrack: "songs music library soundtrack radio lofi synthwave ambient breakcore phonk mediathek musik", steam: "steam", botflix: "netflix" };
+    const aliases: Record<string,string> = { social: "discord", tube: "youtube", music: "spotify", soundtrack: "songs music library soundtrack radio lofi jazz synthwave ambient breakcore phonk mediathek musik", steam: "steam", botflix: "netflix" };
     const apps = LIBRARY_APPS.filter(a => (category === "All" || a.category === category) && `${a.name} ${a.description} ${aliases[a.id] ?? ""}`.toLocaleLowerCase().includes(q));
     dialog.querySelector(".al-count")!.textContent = `${apps.length} ${apps.length === 1 ? "app" : "apps"}`;
     grid.replaceChildren();
