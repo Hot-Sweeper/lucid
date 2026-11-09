@@ -10,6 +10,7 @@ const read = (): ThemeDef => {
 
 const apply = (theme: ThemeDef) => {
   document.documentElement.dataset.theme = theme.id;
+  document.documentElement.dataset.appScheme = theme.appScheme;
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme.metaColor);
   // The office relights and redraws its grounds for the new theme (world.ts).
   window.dispatchEvent(new Event("lucid:interface-theme"));

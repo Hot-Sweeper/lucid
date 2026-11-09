@@ -18,6 +18,10 @@ Room art, desks and labels read `--wd-*` tokens: `--wd-frame`, desk wood (`--wd-
 
 Robot bodies come from `bodyColors()` in `src/world/look.ts`: each body colour is a `color-mix()` between the light body and a dark one tinted with the robot's own hue, weighted by `--robot-dark` (0% in Night blue, 100% in OLED). `--robot-tint` sets the hue strength for workers and `--robot-mgr-tint` for managers, whose obsidian finish becomes a stronger tint under a dark theme. `--shell`, `--shade` and `--deep` are registered with `@property` so computed styles and canvas robots get resolved colours. Wallpapers take a veil (`--os-veil`) with holes cut by `--os-veil-mask`, plus `--os-logo-opacity` and `--os-logo-filter` for the brand mark.
 
+## Apps on the robots' computers
+
+Each app has a light look (its own stylesheet) and a dark look in `src/themes/app-dark/` (`web.css` for browser pages, `social.css` for the social and pastime apps, `apps.css` for the office suite and the rest). The theme's `appScheme` puts `data-app-scheme` on `<html>`, and dark rules are prefixed `html:root[data-app-scheme="dark"]`. Branded replicas follow the real product's dark mode (WhatsApp, Telegram, Gmail, Duolingo, GitHub, Google search, Wikipedia, Office Black); Lucid-original apps use neutral near-black surfaces. A new app adds its dark rules there.
+
 ## Adding a theme
 
 1. Add an entry to `THEMES` in `registry.ts`.

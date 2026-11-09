@@ -1,0 +1,327 @@
+/* Dark mode for the social and pastime apps (src/social). Active when the
+   interface theme sets data-app-scheme="dark" on <html>. Colours only. */
+
+/* ================================================================ BotsApp: WhatsApp dark */
+html:root[data-app-scheme="dark"] .so-ba { background: #111b21; color: #e9edef; }
+html:root[data-app-scheme="dark"] .so-ba-side { background: #111b21; }
+html:root[data-app-scheme="dark"] .so-ba-top { background: #202c33; }
+html:root[data-app-scheme="dark"] .so-ba-top b { color: #00a884; }
+html:root[data-app-scheme="dark"] .so-ba-search { background: #202c33; color: #8696a0; }
+html:root[data-app-scheme="dark"] .so-ba-search svg { fill: #8696a0; }
+html:root[data-app-scheme="dark"] .so-ba-row.on { background: #2a3942; }
+html:root[data-app-scheme="dark"] .so-ba-mid { box-shadow: 0 1px 0 #222d34; }
+html:root[data-app-scheme="dark"] .so-ba-mid b { color: #e9edef; }
+html:root[data-app-scheme="dark"] .so-ba-prev,
+html:root[data-app-scheme="dark"] .so-ba-meta time { color: #8696a0; }
+html:root[data-app-scheme="dark"] .so-ba-row.unread time { color: #00a884; }
+html:root[data-app-scheme="dark"] .so-ba-badge { background: #00a884; color: #111b21; }
+html:root[data-app-scheme="dark"] .so-ba-view {
+  background-color: #0b141a;
+  background-image: radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.035) 0 3px, transparent 3.5px), radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.03) 0 4px, transparent 4.5px), radial-gradient(circle at 45% 85%, rgba(255, 255, 255, 0.03) 0 2px, transparent 2.5px);
+}
+html:root[data-app-scheme="dark"] .so-ba-empty { background: #222e35; color: #8696a0; }
+html:root[data-app-scheme="dark"] .so-ba-empty b { color: #e9edef; }
+html:root[data-app-scheme="dark"] .so-ba-head { background: #202c33; }
+html:root[data-app-scheme="dark"] .so-ba-sub { color: #8696a0; }
+html:root[data-app-scheme="dark"] .so-ba-sub.typing { color: #00a884; }
+html:root[data-app-scheme="dark"] .so-ba-day { background: #182229; color: #8696a0; }
+html:root[data-app-scheme="dark"] .so-ba-msg { background: #202c33; box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.3); }
+html:root[data-app-scheme="dark"] .so-ba-msg.me { background: #005c4b; }
+html:root[data-app-scheme="dark"] .so-ba-msg.stk { background: none; box-shadow: none; }
+html:root[data-app-scheme="dark"] .so-ba-msg p { color: #e9edef; }
+html:root[data-app-scheme="dark"] .so-ba-time { color: rgba(233, 237, 239, 0.6); }
+html:root[data-app-scheme="dark"] .so-ba-msg.stk .so-ba-time { background: rgba(11, 20, 26, 0.75); }
+html:root[data-app-scheme="dark"] .so-ba-play svg { fill: #8696a0; }
+html:root[data-app-scheme="dark"] .so-ba-wave i { background: #54656f; }
+html:root[data-app-scheme="dark"] .so-ba-msg.heard .so-ba-wave i,
+html:root[data-app-scheme="dark"] .so-ba-msg.me .so-ba-wave i { background: #7fc6f0; }
+html:root[data-app-scheme="dark"] .so-ba-wave s { background: #00a884; }
+html:root[data-app-scheme="dark"] .so-ba-2x { background: #8696a0; color: #111b21; }
+html:root[data-app-scheme="dark"] .so-ba-vfoot { color: #8696a0; }
+html:root[data-app-scheme="dark"] .so-ba-foot { background: #202c33; }
+html:root[data-app-scheme="dark"] .so-ba-emo svg,
+html:root[data-app-scheme="dark"] .so-ba-send svg { fill: #8696a0; }
+html:root[data-app-scheme="dark"] .so-ba-field { background: #2a3942; color: #e9edef; }
+html:root[data-app-scheme="dark"] .so-ba-text::after { background: #00a884; }
+html:root[data-app-scheme="dark"] .so-ba-tray { background: #233138; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45); }
+html:root[data-app-scheme="dark"] .so-ba-msg.so-ba-dots { color: #8696a0; }
+/* phone: WhatsApp Android dark has a dark header, not the green bar */
+html:root[data-app-scheme="dark"] .so-ba.so-ph .so-ba-top { background: #1f2c34; }
+html:root[data-app-scheme="dark"] .so-ba.so-ph .so-ba-top b { color: #e9edef; }
+html:root[data-app-scheme="dark"] .so-ba.so-ph .so-ba-head { background: #1f2c34; color: #e9edef; }
+html:root[data-app-scheme="dark"] .so-ba.so-ph .so-ba-sub { color: #8696a0; }
+html:root[data-app-scheme="dark"] .so-ba.so-ph .so-ba-sub.typing { color: #00a884; }
+html:root[data-app-scheme="dark"] .so-ba.so-ph .so-ba-back { border-color: #e9edef; }
+html:root[data-app-scheme="dark"] .so-ba.so-ph .so-ba-foot { background: transparent; }
+html:root[data-app-scheme="dark"] .so-ba.so-ph .so-ba-field { background: #1f2c34; }
+html:root[data-app-scheme="dark"] .so-ba.so-ph .so-ba-send { background: #00a884; }
+html:root[data-app-scheme="dark"] .so-ba.so-ph .so-ba-send svg { fill: #111b21; }
+
+/* ================================================================ Phone keyboard: iOS dark keyboard (same values as .so-kb.dark) */
+html:root[data-app-scheme="dark"] .so-kb { background: #26272c; color: #f2f3f6; }
+html:root[data-app-scheme="dark"] .so-kb .so-kb-sug { color: #e4e5ea; }
+html:root[data-app-scheme="dark"] .so-kb .so-kb-sug span + span::before { background: rgba(255, 255, 255, 0.16); }
+html:root[data-app-scheme="dark"] .so-kb .so-kb-sug span::after { background: rgba(255, 255, 255, 0.16); }
+html:root[data-app-scheme="dark"] .so-kb .k { background: #5c5e66; box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45); }
+html:root[data-app-scheme="dark"] .so-kb .k::after { background: rgba(255, 255, 255, 0.18); }
+html:root[data-app-scheme="dark"] .so-kb .k.fn,
+html:root[data-app-scheme="dark"] .so-kb .k.ret { background: #3d3f46; color: #f2f3f6; }
+html:root[data-app-scheme="dark"] .so-kb .k.fn.on { background: #f2f3f6; color: #10131a; }
+html:root[data-app-scheme="dark"] .so-kb .k.sp { color: #c9cbd2; }
+html:root[data-app-scheme="dark"] .so-kb .k.ret.act.on { background: var(--kb-acc); color: #fff; }
+html:root[data-app-scheme="dark"] .so-kb .so-kb-pop b,
+html:root[data-app-scheme="dark"] .so-kb .so-kb-pop::after { background: #5c5e66; color: #fff; }
+html:root[data-app-scheme="dark"] .so-kb .so-kb-pop b { box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.4); }
+
+/* ================================================================ Telegrid: Telegram Night theme */
+html:root[data-app-scheme="dark"] .so-tg { background: #0e1621; color: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-tg-side { background: #17212b; box-shadow: 1px 0 0 #0b1118; }
+html:root[data-app-scheme="dark"] .so-tg-burger i { background: #6d7f8f; }
+html:root[data-app-scheme="dark"] .so-tg-search { background: #242f3d; color: #6d7f8f; }
+html:root[data-app-scheme="dark"] .so-tg-search svg { fill: #6d7f8f; }
+html:root[data-app-scheme="dark"] .so-tg-row.on { background: #2b5278; }
+html:root[data-app-scheme="dark"] .so-tg-prev,
+html:root[data-app-scheme="dark"] .so-tg-meta time { color: #7f91a4; }
+html:root[data-app-scheme="dark"] .so-tg-meta i { background: #3b77b0; color: #fff; }
+html:root[data-app-scheme="dark"] .so-tg-meta i.muted { background: #3d4d5c; }
+html:root[data-app-scheme="dark"] .so-tg-row.on .so-tg-mid b,
+html:root[data-app-scheme="dark"] .so-tg-row.on .so-tg-prev,
+html:root[data-app-scheme="dark"] .so-tg-row.on time { color: #fff; }
+html:root[data-app-scheme="dark"] .so-tg-row.on .so-tg-meta i { background: #fff; color: #2b5278; }
+html:root[data-app-scheme="dark"] .so-tg-view,
+html:root[data-app-scheme="dark"] .so-tg-empty { background: #0e1621; }
+html:root[data-app-scheme="dark"] .so-tg-empty span { background: rgba(255, 255, 255, 0.08); color: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-tg-head { background: #17212b; }
+html:root[data-app-scheme="dark"] .so-tg-head small { color: #7f91a4; }
+html:root[data-app-scheme="dark"] .so-tg-head small.typing { color: #6ab3f3; }
+html:root[data-app-scheme="dark"] .so-tg-pin { background: #17212b; box-shadow: 0 1px 0 #0b1118; }
+html:root[data-app-scheme="dark"] .so-tg-pin.flash { background: #1f3247; }
+html:root[data-app-scheme="dark"] .so-tg-pin svg { fill: #6ab3f3; }
+html:root[data-app-scheme="dark"] .so-tg-pin div { box-shadow: inset 2px 0 0 #6ab3f3; }
+html:root[data-app-scheme="dark"] .so-tg-pin b { color: #6ab3f3; }
+html:root[data-app-scheme="dark"] .so-tg-bub,
+html:root[data-app-scheme="dark"] .so-tg-msg.post { background: #182533; }
+html:root[data-app-scheme="dark"] .so-tg-msg.me .so-tg-bub { background: #2b5278; }
+html:root[data-app-scheme="dark"] .so-tg-bub time { color: #7f91a4; }
+html:root[data-app-scheme="dark"] .so-tg-msg.me .so-tg-bub time { color: #9cc0e4; }
+html:root[data-app-scheme="dark"] .so-tg-foot2 { color: #7f91a4; }
+html:root[data-app-scheme="dark"] .so-tg-foot2 svg { fill: #7f91a4; }
+html:root[data-app-scheme="dark"] .so-tg-kb span { background: rgba(106, 179, 243, 0.14); color: #6ab3f3; }
+html:root[data-app-scheme="dark"] .so-tg-kb span.on { background: #2b5278; color: #fff; }
+html:root[data-app-scheme="dark"] .so-tg-field { background: #17212b; }
+html:root[data-app-scheme="dark"] .so-tg-ph { color: #6d7f8f; }
+html:root[data-app-scheme="dark"] .so-tg-send { background: #17212b; }
+html:root[data-app-scheme="dark"] .so-tg-send svg { fill: #6ab3f3; }
+/* phone: Telegram mobile night header */
+html:root[data-app-scheme="dark"] .so-tg.so-ph .so-tg-top { background: #212d3b; }
+html:root[data-app-scheme="dark"] .so-tg.so-ph .so-tg-search { background: rgba(255, 255, 255, 0.08); color: #8a9aab; }
+html:root[data-app-scheme="dark"] .so-tg.so-ph .so-tg-search svg { fill: #8a9aab; }
+html:root[data-app-scheme="dark"] .so-tg.so-ph .so-tg-head { background: #212d3b; color: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-tg.so-ph .so-tg-head small { color: #8a9aab; }
+html:root[data-app-scheme="dark"] .so-tg.so-ph .so-tg-head small.typing { color: #6ab3f3; }
+html:root[data-app-scheme="dark"] .so-tg.so-ph .so-tg-back { border-color: #f5f5f5; }
+
+/* ================================================================ Chirp: already X "Lights out", nothing to change */
+
+/* ================================================================ Crossbot: NYT Games dark mode */
+html:root[data-app-scheme="dark"] .so-cw { background: #121212; color: #f8f8f8; }
+html:root[data-app-scheme="dark"] .so-cw-top { box-shadow: 0 1px 0 #333; }
+html:root[data-app-scheme="dark"] .so-cw-top span { color: #a8a8a8; }
+html:root[data-app-scheme="dark"] .so-cw-bar { background: #233a52; }
+html:root[data-app-scheme="dark"] .so-cw-grid { background: #6b6b6b; }
+html:root[data-app-scheme="dark"] .so-cw-cell { background: #1c1c1c; }
+html:root[data-app-scheme="dark"] .so-cw-cell.word { background: #2f557a; }
+html:root[data-app-scheme="dark"] .so-cw-cell.cur { background: #ffda00; color: #121212; }
+html:root[data-app-scheme="dark"] .so-cw-cell small { color: #b4b4b4; }
+html:root[data-app-scheme="dark"] .so-cw-cell.cur small { color: #333; }
+/* GSAP leaves an inline white background on every cell after the win flash */
+html:root[data-app-scheme="dark"] .so-cw-cell[style*="rgb(255, 255, 255)"] { background-color: #1c1c1c !important; }
+html:root[data-app-scheme="dark"] .so-cw-clues h5 { color: #b4b4b4; }
+html:root[data-app-scheme="dark"] .so-cw-clues li.on { background: #233a52; }
+html:root[data-app-scheme="dark"] .so-cw-clues li.done { color: #7a7a7a; }
+html:root[data-app-scheme="dark"] .so-cw-win { background: #1f1f1f; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); }
+html:root[data-app-scheme="dark"] .so-cw-win span { color: #a8a8a8; }
+
+/* ================================================================ Sketchpad: Lucid original, neutral near-black chrome; the paper stays white */
+html:root[data-app-scheme="dark"] .so-dw { background: #141415; color: #e6e6e6; }
+html:root[data-app-scheme="dark"] .so-dw-top { background: #1c1c1f; }
+html:root[data-app-scheme="dark"] .so-dw-tools span { color: #b4b4b4; }
+html:root[data-app-scheme="dark"] .so-dw-tools span.on { background: #e6e6e6; color: #141415; }
+html:root[data-app-scheme="dark"] .so-dw-name,
+html:root[data-app-scheme="dark"] .so-dw-status { color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .so-dw-pal span[style*="#20263f"] { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28); }
+html:root[data-app-scheme="dark"] .so-dw-pal span.on { box-shadow: 0 0 0 2px #141415, 0 0 0 3.5px #e6e6e6; }
+html:root[data-app-scheme="dark"] .so-dw-paper { box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+html:root[data-app-scheme="dark"] .so-dw-toast { background: #2a2a2d; color: #e6e6e6; }
+
+/* ================================================================ Instabot (phone): Instagram dark */
+html:root[data-app-scheme="dark"] .so-ig { background: #000; color: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-ig-top svg { fill: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-ig-stories { box-shadow: 0 1px 0 #262626; }
+html:root[data-app-scheme="dark"] .so-ig-st i svg { box-shadow: 0 0 0 1.5px #000; }
+html:root[data-app-scheme="dark"] .so-ig-st.me i { background: #363636; }
+html:root[data-app-scheme="dark"] .so-ig-st small { color: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-ig-post header i { color: #a8a8a8; }
+html:root[data-app-scheme="dark"] .so-ig-acts span svg { fill: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-ig-acts .a-like.on svg { fill: #ff3040; }
+html:root[data-app-scheme="dark"] .so-ig-acts .a-save.on svg { fill: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-ig-more { color: #a8a8a8; }
+html:root[data-app-scheme="dark"] .so-ig-nav { background: #000; box-shadow: 0 -1px 0 #262626; }
+html:root[data-app-scheme="dark"] .so-ig-nav svg { fill: #a8a8a8; }
+html:root[data-app-scheme="dark"] .so-ig-nav .on svg { fill: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-ig-sheet { background: #262626; box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.5); }
+html:root[data-app-scheme="dark"] .so-ig-grab { background: #555; }
+html:root[data-app-scheme="dark"] .so-ig-sheet header { box-shadow: 0 1px 0 #363636; }
+html:root[data-app-scheme="dark"] .so-ig-sheet footer { background: #262626; box-shadow: 0 -1px 0 #363636; }
+html:root[data-app-scheme="dark"] .so-ig-dmv footer { background: #000; box-shadow: 0 -1px 0 #262626; }
+html:root[data-app-scheme="dark"] .so-ig-in { box-shadow: inset 0 0 0 1px #363636; }
+html:root[data-app-scheme="dark"] .so-ig-ph { color: #a8a8a8; }
+html:root[data-app-scheme="dark"] .so-ig-pbtn { color: #0095f6; }
+html:root[data-app-scheme="dark"] .so-ig-dmv { background: #000; }
+html:root[data-app-scheme="dark"] .so-ig-dmv header { background: #000; box-shadow: 0 1px 0 #262626; }
+html:root[data-app-scheme="dark"] .so-ig-dmv header small { color: #a8a8a8; }
+html:root[data-app-scheme="dark"] .so-ig-bk { border-color: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-ig-dmb { background: #262626; color: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-ig-dmb.me { background: #3797f0; color: #fff; }
+html:root[data-app-scheme="dark"] .so-ig-dmb.dots { color: #a8a8a8; }
+
+/* ================================================================ Instabot web: Instagram web dark */
+html:root[data-app-scheme="dark"] .so-iw { background: #000; color: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-iw-rail { box-shadow: 1px 0 0 #262626; }
+html:root[data-app-scheme="dark"] .so-iw-nav { color: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-iw-nav svg { fill: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-iw-stories i svg { box-shadow: 0 0 0 1.5px #000; }
+html:root[data-app-scheme="dark"] .so-iw-stories small { color: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-iw-post { box-shadow: 0 1px 0 #262626; }
+html:root[data-app-scheme="dark"] .so-iw-post header small,
+html:root[data-app-scheme="dark"] .so-iw-post header i { color: #a8a8a8; }
+html:root[data-app-scheme="dark"] .so-iw-acts svg { fill: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-iw-acts .a-like.on svg { fill: #ff3040; }
+html:root[data-app-scheme="dark"] .so-iw-more,
+html:root[data-app-scheme="dark"] .so-iw-ph2 { color: #a8a8a8; }
+html:root[data-app-scheme="dark"] .so-iw-in.has .so-iw-tx::after,
+html:root[data-app-scheme="dark"] .so-iw-dmin.has .so-iw-tx::after { background: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-iw-meline small,
+html:root[data-app-scheme="dark"] .so-iw-sug small,
+html:root[data-app-scheme="dark"] .so-iw-side h5 { color: #a8a8a8; }
+html:root[data-app-scheme="dark"] .so-iw-dm { background: #000; }
+html:root[data-app-scheme="dark"] .so-iw-dml { box-shadow: 1px 0 0 #262626; }
+html:root[data-app-scheme="dark"] .so-iw-dmr.on { background: #262626; }
+html:root[data-app-scheme="dark"] .so-iw-dmr small,
+html:root[data-app-scheme="dark"] .so-iw-dmc header small { color: #a8a8a8; }
+html:root[data-app-scheme="dark"] .so-iw-dmc header { box-shadow: 0 1px 0 #262626; }
+html:root[data-app-scheme="dark"] .so-iw-b { background: #262626; color: #f5f5f5; }
+html:root[data-app-scheme="dark"] .so-iw-b.me { background: #3797f0; color: #fff; }
+html:root[data-app-scheme="dark"] .so-iw-b.dots { color: #a8a8a8; }
+html:root[data-app-scheme="dark"] .so-iw-dmin { box-shadow: inset 0 0 0 1px #363636; }
+
+/* ================================================================ Lingobot: Duolingo dark */
+html:root[data-app-scheme="dark"] .so-lg { background: #131f24; color: #f1f7fb; }
+html:root[data-app-scheme="dark"] .so-lg-x::before,
+html:root[data-app-scheme="dark"] .so-lg-x::after { background: #52656d; }
+html:root[data-app-scheme="dark"] .so-lg-prog { background: #37464f; }
+html:root[data-app-scheme="dark"] .so-lg-prog i { background: #93d333; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.1); }
+html:root[data-app-scheme="dark"] .so-lg-hp { color: #ff4b4b; }
+html:root[data-app-scheme="dark"] .so-lg-main h4 { color: #f1f7fb; }
+html:root[data-app-scheme="dark"] .so-lg-bub { box-shadow: inset 0 0 0 2px #37464f; }
+html:root[data-app-scheme="dark"] .so-lg-line { box-shadow: inset 0 -2px 0 #37464f, 0 -2px 0 #37464f; }
+html:root[data-app-scheme="dark"] .so-lg-tile { background: #131f24; box-shadow: inset 0 0 0 2px #37464f, 0 2px 0 #37464f; }
+html:root[data-app-scheme="dark"] .so-lg-tile.gone { background: #37464f; color: transparent; box-shadow: none; }
+html:root[data-app-scheme="dark"] .so-lg-foot { box-shadow: 0 -2px 0 #37464f; }
+html:root[data-app-scheme="dark"] .so-lg-check { background: #37464f; color: #52656d; }
+html:root[data-app-scheme="dark"] .so-lg-check.ready { background: #93d333; color: #131f24; box-shadow: 0 3px 0 #79b933; }
+html:root[data-app-scheme="dark"] .so-lg-foot.good { background: #202f36; box-shadow: none; color: #93d333; }
+html:root[data-app-scheme="dark"] .so-lg-foot.bad { background: #202f36; box-shadow: none; color: #ee5555; }
+html:root[data-app-scheme="dark"] .so-lg-foot.bad .so-lg-check { background: #ee5555; color: #131f24; box-shadow: 0 3px 0 #c43c3c; }
+html:root[data-app-scheme="dark"] .so-lg-done h3 { color: #f1f7fb; }
+html:root[data-app-scheme="dark"] .so-lg-stats b { background: #131f24; color: #ffc800; }
+html:root[data-app-scheme="dark"] .so-lg-stats .fire b { color: #ff9600; }
+html:root[data-app-scheme="dark"] .so-lg-done p { color: #a6b5bd; }
+
+/* ================================================================ Botmail: Gmail dark theme */
+html:root[data-app-scheme="dark"] .so-ml { background: #111111; color: #e3e3e3; }
+html:root[data-app-scheme="dark"] .so-ml-logo { color: #f2555f; }
+html:root[data-app-scheme="dark"] .so-ml-new { background: #004a77; color: #c2e7ff; }
+html:root[data-app-scheme="dark"] .so-ml-f.on { background: #004a77; color: #c2e7ff; }
+html:root[data-app-scheme="dark"] .so-ml-list { background: #1f1f1f; }
+html:root[data-app-scheme="dark"] .so-ml-row { box-shadow: 0 1px 0 #2d2d2d; }
+html:root[data-app-scheme="dark"] .so-ml-row.on { background: #303134; }
+html:root[data-app-scheme="dark"] .so-ml-l1 time,
+html:root[data-app-scheme="dark"] .so-ml-row small,
+html:root[data-app-scheme="dark"] .so-ml-from small,
+html:root[data-app-scheme="dark"] .so-ml-reply small { color: #a8a8a8; }
+html:root[data-app-scheme="dark"] .so-ml-row.unread .so-ml-l1 b,
+html:root[data-app-scheme="dark"] .so-ml-row.unread .so-ml-subj,
+html:root[data-app-scheme="dark"] .so-ml-row.unread time { color: #f2f2f2; }
+html:root[data-app-scheme="dark"] .so-ml-pane { background: #1f1f1f; }
+html:root[data-app-scheme="dark"] .so-ml-warn { background: #601410; color: #f9dedc; }
+html:root[data-app-scheme="dark"] .so-ml-acts span { background: #303134; color: #e3e3e3; }
+html:root[data-app-scheme="dark"] .so-ml-reply { background: #2a2a2a; }
+html:root[data-app-scheme="dark"] .so-ml-send { background: #a8c7fa; color: #062e6f; }
+html:root[data-app-scheme="dark"] .so-ml-empty,
+html:root[data-app-scheme="dark"] .so-ml-zero { color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .so-ml-zero b { color: #e3e3e3; }
+
+/* ================================================================ Phone home, BotTube Shorts, Spool web, Solitaire:
+   already dark (wallpaper, video player, near-black, green felt) in both schemes */
+
+/* ================================================================ Snapbot: Snapchat dark mode (the camera is already black) */
+html:root[data-app-scheme="dark"] .so-sn-list { background: #121212; color: #fff; }
+html:root[data-app-scheme="dark"] .so-sn-list h5 { color: #9e9e9e; }
+html:root[data-app-scheme="dark"] .so-sn-chk { box-shadow: inset 0 0 0 1px #5a5a5a; }
+html:root[data-app-scheme="dark"] .so-sn-fr.on .so-sn-chk { background: #0fadff; box-shadow: none; }
+html:root[data-app-scheme="dark"] .so-sn-list footer { background: #1e1e1e; }
+html:root[data-app-scheme="dark"] .so-sn-map { background: #1e1e1e; }
+html:root[data-app-scheme="dark"] .so-sn-map header { color: #fff; background: linear-gradient(#121212, rgba(18, 18, 18, 0)); }
+html:root[data-app-scheme="dark"] .so-sn-pin b { background: #1e1e1e; color: #fff; }
+html:root[data-app-scheme="dark"] .so-sn-chat { background: #121212; color: #fff; }
+html:root[data-app-scheme="dark"] .so-sn-chat header { background: #121212; box-shadow: 0 1px 0 #262626; }
+html:root[data-app-scheme="dark"] .so-sn-bk { border-color: #fff; }
+html:root[data-app-scheme="dark"] .so-sn-m p { color: #f2f2f2; }
+html:root[data-app-scheme="dark"] .so-sn-peek small,
+html:root[data-app-scheme="dark"] .so-sn-ph { color: #9e9e9e; }
+html:root[data-app-scheme="dark"] .so-sn-chat footer { background: #121212; }
+html:root[data-app-scheme="dark"] .so-sn-camb { background: #262626; }
+html:root[data-app-scheme="dark"] .so-sn-camb svg { fill: #fff; }
+html:root[data-app-scheme="dark"] .so-sn-field { background: #262626; }
+
+/* ================================================================ Sparkplug: Tinder dark mode, kept neutral */
+html:root[data-app-scheme="dark"] .so-sp { background: #0f0f10; color: #e6e6e6; }
+html:root[data-app-scheme="dark"] .so-sp.so-ph { background: #111112; }
+html:root[data-app-scheme="dark"] .so-sp-ic svg { fill: #5f5f64; }
+html:root[data-app-scheme="dark"] .so-sp-card { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55); }
+html:root[data-app-scheme="dark"] .so-sp-btns span { background: #1f1f22; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
+html:root[data-app-scheme="dark"] .so-sp-say { background: #1c1c1f; color: #e6e6e6; }
+html:root[data-app-scheme="dark"] .so-sp-sayph { color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .so-sp-chat { background: #111112; }
+html:root[data-app-scheme="dark"] .so-sp-chat header { background: #111112; box-shadow: 0 1px 0 #26262a; }
+html:root[data-app-scheme="dark"] .so-sp-chat header small,
+html:root[data-app-scheme="dark"] .so-sp-day,
+html:root[data-app-scheme="dark"] .so-sp-b.dots,
+html:root[data-app-scheme="dark"] .so-sp-fph,
+html:root[data-app-scheme="dark"] .so-sp-hint,
+html:root[data-app-scheme="dark"] .so-sp-tabs { color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .so-sp-bt { background: #26262a; }
+html:root[data-app-scheme="dark"] .so-sp-b.me .so-sp-bt { background: #3d8bff; color: #fff; }
+html:root[data-app-scheme="dark"] .so-sp-b.dots .so-dots { background: #26262a; }
+html:root[data-app-scheme="dark"] .so-sp-chat footer { background: #111112; box-shadow: 0 -1px 0 #26262a; }
+html:root[data-app-scheme="dark"] .so-sp-field { background: #1f1f22; }
+html:root[data-app-scheme="dark"] .so-sp:not(.so-ph) .so-sp-side { background: #161618; box-shadow: 1px 0 0 #26262a; }
+html:root[data-app-scheme="dark"] .so-sp-tabs .on { color: #e6e6e6; }
+html:root[data-app-scheme="dark"] .so-sp-mt.new::after { box-shadow: 0 0 0 1.5px #161618; }
+
+/* ================================================================ Ticker: Robinhood dark, neutral black instead of the navy cast */
+html:root[data-app-scheme="dark"] .so-st { background: #0b0b0c; color: #e6e6e6; }
+html:root[data-app-scheme="dark"] .so-st-list { box-shadow: 1px 0 0 #232326; }
+html:root[data-app-scheme="dark"] .so-st-list header,
+html:root[data-app-scheme="dark"] .so-st-row small,
+html:root[data-app-scheme="dark"] .so-st-head .nm,
+html:root[data-app-scheme="dark"] .so-st-tf span,
+html:root[data-app-scheme="dark"] .so-st-own { color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .so-st-row.on { background: #1c1c1f; }
+html:root[data-app-scheme="dark"] .so-st-tf span.on { background: #26262a; color: #e6e6e6; }
+html:root[data-app-scheme="dark"] .so-st-news { background: #141416; }
+html:root[data-app-scheme="dark"] .so-st-news div,
+html:root[data-app-scheme="dark"] .so-st-dlg p,
+html:root[data-app-scheme="dark"] .so-st-dlg .no { color: #b4b4b4; }
+html:root[data-app-scheme="dark"] .so-st-dlg { background: #1c1c1f; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6); }

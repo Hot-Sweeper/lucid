@@ -1,0 +1,109 @@
+/* Dark looks for the office suite, life, fun, games and leisure apps. Only colours change here.
+
+   Already dark in their own design and left as they are: BeatLab and Botcord (src/life/life.css),
+   the fun pack with BotTube, TensorHub and Botflix (src/fun), the games pack and its frames
+   (src/games), Tradebot (Binance style near black, src/leisure/trading.css) and Steambot (Steam's own
+   slate palette, src/leisure/steam.css). Game artwork and parchment cards stay as drawn. */
+
+/* ============================================================================================
+   Office suite chrome: the window, ribbon and status bars already go neutral through the OLED
+   tokens in themes/surfaces.css. This only swaps the lavender text tints for neutral greys so
+   nothing reads blue on the near black chrome. The coloured tab row keeps each app's accent. */
+html:root[data-app-scheme="dark"] .oa-field { background: rgba(255, 255, 255, 0.07); color: #e6e6e6; }
+html:root[data-app-scheme="dark"] .oa-btn,
+html:root[data-app-scheme="dark"] .oa-tool { color: #d4d4d4; }
+html:root[data-app-scheme="dark"] .oa-group { box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.09); }
+html:root[data-app-scheme="dark"] .oa-group:last-child { box-shadow: none; }
+html:root[data-app-scheme="dark"] .oa-status { color: #b4b4b4; }
+html:root[data-app-scheme="dark"] .oa-save { color: #d4d4d4; }
+html:root[data-app-scheme="dark"] .oa-save.busy { color: #ffffff; }
+
+/* ============================================================================================
+   Botword follows Microsoft Word's Black theme with dark page colour: a charcoal page on a
+   darker canvas, softened white text, and the heading blue lifted so it still reads on dark. */
+html:root[data-app-scheme="dark"] .bw-style { background: rgba(255, 255, 255, 0.06); color: #e6e6e6; }
+html:root[data-app-scheme="dark"] .bw-style.on { background: color-mix(in srgb, var(--acc) 60%, transparent); color: #ffffff; }
+html:root[data-app-scheme="dark"] .bw-grid { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55); }
+html:root[data-app-scheme="dark"] .bw-ruler { background: #1c1c1e; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
+html:root[data-app-scheme="dark"] .bw-ruler-in {
+  background: repeating-linear-gradient(90deg, #6e6e72 0 1px, transparent 1px 10px) 44px 100% / calc(100% - 88px) 4px no-repeat,
+    linear-gradient(90deg, #232325 0 44px, #343437 44px calc(100% - 44px), #232325 calc(100% - 44px));
+}
+html:root[data-app-scheme="dark"] .bw-canvas { background: #121213; scrollbar-color: #4a4a4d transparent; }
+html:root[data-app-scheme="dark"] .bw-page { background: #1f1f21; color: #e6e6e6; box-shadow: 0 0 0 1px #2c2c2f, 0 2px 12px rgba(0, 0, 0, 0.6); }
+html:root[data-app-scheme="dark"] .bw-page .caret { background: #e6e6e6; }
+html:root[data-app-scheme="dark"] .bw-title { color: #f2f2f2; }
+html:root[data-app-scheme="dark"] .bw-sub { color: #a6a6a6; }
+html:root[data-app-scheme="dark"] .bw-h1 { color: #9fb1ff; }
+html:root[data-app-scheme="dark"] .bw-h2 { color: #aebcff; }
+html:root[data-app-scheme="dark"] .bw-h3 { color: #d0d0d0; }
+html:root[data-app-scheme="dark"] .bw-page a { color: #9fb1ff; }
+html:root[data-app-scheme="dark"] .bw-page a:hover { color: #c9d2ff; }
+html:root[data-app-scheme="dark"] .bw-page a:focus-visible { outline-color: #7d95ff; }
+html:root[data-app-scheme="dark"] .bw-page code { background: #2c2c2f; color: #dcdcdc; }
+html:root[data-app-scheme="dark"] .bw-file { background: #2c2c2f; color: #b4c2ff; }
+html:root[data-app-scheme="dark"] .bw-code { background: #19191b; color: #dcdcdc; box-shadow: inset 0 0 0 1px #2e2e31; }
+html:root[data-app-scheme="dark"] .bw-rule { border-top-color: #3a3a3d; }
+html:root[data-app-scheme="dark"] .bw-quote { color: #b4b4b4; box-shadow: inset 2px 0 0 #4a4a4e; }
+html:root[data-app-scheme="dark"] .bw-tx::before { color: #b4b4b4; }
+html:root[data-app-scheme="dark"] .bw-table th,
+html:root[data-app-scheme="dark"] .bw-table td { border-color: #48484c; }
+html:root[data-app-scheme="dark"] .bw-table th { background: #2a2a2d; color: #ececec; }
+html:root[data-app-scheme="dark"] .bw-img { background: #2a2a2d; color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .bw-more,
+html:root[data-app-scheme="dark"] .bw-none { color: #8c8c8c; }
+
+/* ============================================================================================
+   Cellsheet follows Microsoft Excel's Black theme: dark cells with quiet grey gridlines, grey
+   row and column headers, Excel green kept for the selected headers and the active sheet tab. */
+html:root[data-app-scheme="dark"] .cs-fbar { box-shadow: inset 0 -1px 0 #2a2a2d; }
+html:root[data-app-scheme="dark"] .cs-name { color: #e6e6e6; box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.1); }
+html:root[data-app-scheme="dark"] .cs-fx { color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .cs-formula { color: #f0f0f0; }
+html:root[data-app-scheme="dark"] .cs-grid { background: #1c1c1e; scrollbar-color: #4a4a4d transparent; }
+html:root[data-app-scheme="dark"] .cs-grid::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.22); }
+html:root[data-app-scheme="dark"] .cs-table { color: #e6e6e6; }
+html:root[data-app-scheme="dark"] .cs-table th { background: #2a2a2d; color: #b4b4b4; border-right-color: #3a3a3d; border-bottom-color: #3a3a3d; }
+html:root[data-app-scheme="dark"] .cs-table th.hl { background: #1e3a2c; color: #6fdaa6; }
+html:root[data-app-scheme="dark"] .cs-table td { border-right-color: #2f2f32; border-bottom-color: #2f2f32; }
+html:root[data-app-scheme="dark"] .cs-table td.in-range { background: rgba(47, 179, 122, 0.2); }
+html:root[data-app-scheme="dark"] .cs-table td.sel { outline-color: #3fbf86; }
+html:root[data-app-scheme="dark"] .cs-table td.editing { background: #1c1c1e; }
+html:root[data-app-scheme="dark"] .cs-table .caret { background: #e6e6e6; }
+html:root[data-app-scheme="dark"] .cs-chart { background: #242427; box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55), 0 0 0 1px #3a3a3d; }
+html:root[data-app-scheme="dark"] .cs-ct { color: #ececec; }
+html:root[data-app-scheme="dark"] .cs-svg .grid { stroke: #3a3a3d; }
+html:root[data-app-scheme="dark"] .cs-svg .ax { fill: #a6a6a6; }
+html:root[data-app-scheme="dark"] .cs-legend { color: #b4b4b4; }
+html:root[data-app-scheme="dark"] .cs-foot { color: #b4b4b4; }
+html:root[data-app-scheme="dark"] .cs-sheet { color: #a6a6a6; }
+html:root[data-app-scheme="dark"] .cs-sheet.on { background: #1c1c1e; color: #5ed39a; }
+html:root[data-app-scheme="dark"] .cs-sheet.add { color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .cs-mode { color: #d4d4d4; }
+
+/* ============================================================================================
+   Slidedeck follows Microsoft PowerPoint's Black theme with the slide surface taken dark too.
+   Slides that set their own background (inline style from the deck) keep their authored colours,
+   so their text overrides are skipped; shapes and filled text boxes keep their fills. */
+html:root[data-app-scheme="dark"] .sd-thumb b,
+html:root[data-app-scheme="dark"] .sd-more { color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .sd-thumb.on b { color: #ffffff; }
+html:root[data-app-scheme="dark"] .sd-mini { background: #232326; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1); }
+html:root[data-app-scheme="dark"] .sd-thumb.on .sd-mini { box-shadow: 0 0 0 2px var(--sd-accent); }
+html:root[data-app-scheme="dark"] .sd-stage { background: #131314; }
+html:root[data-app-scheme="dark"] .sd-fit { background: #232326; box-shadow: 0 0 0 1px #2e2e31, 0 3px 14px rgba(0, 0, 0, 0.6); }
+html:root[data-app-scheme="dark"] .sd-slide { background: #232326; color: #ececec; }
+html:root[data-app-scheme="dark"] .sd-slide:not([style*="background"]) .caret { background: #ececec; }
+html:root[data-app-scheme="dark"] .sd-slide:not([style*="background"]) .sd-title { color: #f2f2f2; }
+html:root[data-app-scheme="dark"] .sd-slide:not([style*="background"]) .sd-sub { color: #b4b4b4; }
+html:root[data-app-scheme="dark"] .sd-slide:not([style*="background"]) .sd-body p { color: #dcdcdc; }
+html:root[data-app-scheme="dark"] .sd-slide:not([style*="background"]) .sd-body p.lv1,
+html:root[data-app-scheme="dark"] .sd-slide:not([style*="background"]) .sd-body p.lv2,
+html:root[data-app-scheme="dark"] .sd-slide:not([style*="background"]) .sd-body p.lv3 { color: #b4b4b4; }
+html:root[data-app-scheme="dark"] .sd-slide:not([style*="background"]) .sd-text:not([style*="background"]) { color: #dcdcdc; }
+html:root[data-app-scheme="dark"] .sd-pic { background: #2c2c2f; color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .sd-ph { border-color: #5a5a5e; color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .sd-notes { color: #d4d4d4; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07); }
+html:root[data-app-scheme="dark"] .sd-notes.empty { color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .sd-notes .caret { background: #e6e6e6; }
+html:root[data-app-scheme="dark"] .sd-none { color: #8c8c8c; }

@@ -6,6 +6,7 @@
 import "./tokens.css";
 import "./surfaces.css";
 import "./oled.css";
+import "./app-dark/index.css";
 
 export type WorldLook = {
   /** Lock the office lighting to midnight; the wall clock keeps real time. */
@@ -23,6 +24,9 @@ export type ThemeDef = {
   label: { en: string; de: string };
   /** Browser and window chrome colour. */
   metaColor: string;
+  /** Colour scheme of the apps on the robots' computers. Each app has a light look (its own
+   *  stylesheet) and a dark look (themes/app-dark/), chosen by data-app-scheme on <html>. */
+  appScheme: "light" | "dark";
   world: WorldLook;
 };
 
@@ -31,12 +35,14 @@ export const THEMES: readonly ThemeDef[] = [
     id: "night",
     label: { en: "Night blue", de: "Nachtblau" },
     metaColor: "#1b2246",
+    appScheme: "light",
     world: { alwaysMidnight: false, artShade: 0 },
   },
   {
     id: "oled",
     label: { en: "OLED black", de: "OLED-Schwarz" },
     metaColor: "#000000",
+    appScheme: "dark",
     world: { alwaysMidnight: true, nightSky: { sky1: "#000000", sky2: "#08080b" }, artShade: 0.78, mapEdge: "#000000" },
   },
 ];

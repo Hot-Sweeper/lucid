@@ -1,0 +1,267 @@
+/* Dark looks for src/os/web.css: the robot browser's pages (GitHub, Hugging Face, Wikipedia,
+   Google-style search, raw files, plain articles), the GitHub Desktop style git app and git
+   colours in the terminal. Colours only; layout stays in the component stylesheet. */
+
+/* ---------- browser chrome leftovers in web.css (neutral, matches Lucid's OLED tokens) ---------- */
+html:root[data-app-scheme="dark"] .browser .b-tab .b-x::before,
+html:root[data-app-scheme="dark"] .browser .b-tab .b-x::after { background: #8c8c8c; }
+html:root[data-app-scheme="dark"] .browser .fav-serif { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
+html:root[data-app-scheme="dark"] .browser .fav-q i { box-shadow: inset 0 0 0 1.6px #8c8c8c; }
+html:root[data-app-scheme="dark"] .browser .fav-q i::after { background: #8c8c8c; }
+html:root[data-app-scheme="dark"] .b-new::before,
+html:root[data-app-scheme="dark"] .b-new::after { background: #8c8c8c; }
+html:root[data-app-scheme="dark"] .b-nav i { border-left-color: #b4b4b4; border-bottom-color: #b4b4b4; }
+/* GitHub's favicon is drawn inline as a dark tile; in dark browsers GitHub serves the light mark */
+html:root[data-app-scheme="dark"] .fav[style*="background:#1f2328"] { background: #f0f6fc !important; color: #0d1117 !important; }
+
+/* ---------- page canvases (neutral reading surface for plain articles and local pages) ---------- */
+html:root[data-app-scheme="dark"] .b-pages > .b-page { background: #0f0f10; }
+html:root[data-app-scheme="dark"] .b-page[data-site="github"],
+html:root[data-app-scheme="dark"] .b-page[data-site="raw"] { background: #0d1117; }
+html:root[data-app-scheme="dark"] .b-page[data-site="hf"] { background: #0b0f19; }
+html:root[data-app-scheme="dark"] .b-page[data-site="wiki"] { background: #101418; }
+html:root[data-app-scheme="dark"] .b-page[data-site="search"] { background: #1f1f1f; }
+html:root[data-app-scheme="dark"] .b-page[data-site="shot"] { background: #141416; }
+html:root[data-app-scheme="dark"] .pg-skel i { background: #232326; }
+/* find bar and hits, like a dark browser's find-in-page */
+html:root[data-app-scheme="dark"] .b-find { background: #1c1c1f; color: #e6e6e6; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), inset 0 0 0 1px #2c2c30; }
+html:root[data-app-scheme="dark"] .b-find .f-n { color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .b-find .caret { background: #e6e6e6; }
+html:root[data-app-scheme="dark"] mark.b-hit { background: #ffe58a; color: #111; }
+html:root[data-app-scheme="dark"] mark.b-hit.cur { background: #ff9f43; color: #111; }
+/* flash banners, as GitHub dark's success and danger flashes */
+html:root[data-app-scheme="dark"] .b-banner { background: rgba(46, 160, 67, 0.15); color: #3fb950; box-shadow: inset 0 0 0 1px rgba(46, 160, 67, 0.4); }
+html:root[data-app-scheme="dark"] .b-banner.bad { background: rgba(248, 81, 73, 0.1); color: #f85149; box-shadow: inset 0 0 0 1px rgba(248, 81, 73, 0.4); }
+/* raw file view, as raw.githubusercontent.com in a dark browser */
+html:root[data-app-scheme="dark"] pre.raw { background: #0d1117; color: #e6edf3; }
+html:root[data-app-scheme="dark"] .lnk,
+html:root[data-app-scheme="dark"] .wl { color: #4493f8; }
+
+/* ---------- search results: Google dark search ---------- */
+html:root[data-app-scheme="dark"] .se { background: #1f1f1f; color: #e8eaed; }
+html:root[data-app-scheme="dark"] .se-top { border-bottom-color: #3c4043; }
+html:root[data-app-scheme="dark"] .se-box { background: #303134; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35); }
+html:root[data-app-scheme="dark"] .se-box.editing { box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45), inset 0 0 0 1.5px #8ab4f8; }
+html:root[data-app-scheme="dark"] .se-box .gi { color: #9aa0a6; }
+html:root[data-app-scheme="dark"] .se-q .caret { background: #e8eaed; }
+html:root[data-app-scheme="dark"] .se-src b { color: #dadce0; }
+html:root[data-app-scheme="dark"] .se-src small { color: #bdc1c6; }
+html:root[data-app-scheme="dark"] .se-r h3 { color: #8ab4f8; }
+html:root[data-app-scheme="dark"] .se-r.visited h3 { color: #c58af9; }
+html:root[data-app-scheme="dark"] .se-r p { color: #bdc1c6; }
+html:root[data-app-scheme="dark"] .se-none { color: #9aa0a6; }
+
+/* ---------- GitHub: GitHub's own dark default theme ---------- */
+html:root[data-app-scheme="dark"] .gh { background: #0d1117; color: #e6edf3; }
+html:root[data-app-scheme="dark"] .gh .lnk { color: #4493f8; }
+html:root[data-app-scheme="dark"] .gh-top { background: #010409; }
+html:root[data-app-scheme="dark"] .gh-mark { color: #f0f6fc; }
+html:root[data-app-scheme="dark"] .gh-crumb em,
+html:root[data-app-scheme="dark"] .gh-crumb .gi { color: #9198a1; }
+html:root[data-app-scheme="dark"] .gh-vis { color: #9198a1; box-shadow: inset 0 0 0 1px #30363d; }
+html:root[data-app-scheme="dark"] .gh-sbox { background: #0d1117; color: #9198a1; box-shadow: inset 0 0 0 1px #30363d; }
+html:root[data-app-scheme="dark"] .gh-sbox kbd { box-shadow: inset 0 0 0 1px #30363d; }
+html:root[data-app-scheme="dark"] .gh-nav { background: #010409; box-shadow: inset 0 -1px 0 #30363d; }
+html:root[data-app-scheme="dark"] .gh-nav span { color: #e6edf3; }
+html:root[data-app-scheme="dark"] .gh-nav span.on { box-shadow: inset 0 -2px 0 #f78166; }
+html:root[data-app-scheme="dark"] .gh-nav i,
+html:root[data-app-scheme="dark"] .gh-prtabs i { background: rgba(101, 108, 118, 0.3); }
+html:root[data-app-scheme="dark"] .gh-btn { background: #21262d; color: #f0f6fc; box-shadow: inset 0 0 0 1px #30363d; }
+html:root[data-app-scheme="dark"] .gh-btn.gh-green { background: #238636; color: #fff; box-shadow: inset 0 0 0 1px rgba(240, 246, 252, 0.1); }
+html:root[data-app-scheme="dark"] .gh-path,
+html:root[data-app-scheme="dark"] .gh-cmsg,
+html:root[data-app-scheme="dark"] .gh-muted,
+html:root[data-app-scheme="dark"] .gh-stats,
+html:root[data-app-scheme="dark"] .gh-code b,
+html:root[data-app-scheme="dark"] .gh-thead p,
+html:root[data-app-scheme="dark"] .gh-trow p,
+html:root[data-app-scheme="dark"] .gh-tmeta,
+html:root[data-app-scheme="dark"] .gh-num,
+html:root[data-app-scheme="dark"] .gh-side h5,
+html:root[data-app-scheme="dark"] .gh-crow,
+html:root[data-app-scheme="dark"] .gh-arrow,
+html:root[data-app-scheme="dark"] .gh-dl b { color: #9198a1; }
+html:root[data-app-scheme="dark"] .gh-files,
+html:root[data-app-scheme="dark"] .gh-readme,
+html:root[data-app-scheme="dark"] .gh-filebox,
+html:root[data-app-scheme="dark"] .gh-tlist,
+html:root[data-app-scheme="dark"] .gh-cbox,
+html:root[data-app-scheme="dark"] .gh-mbox,
+html:root[data-app-scheme="dark"] .gh-pfile,
+html:root[data-app-scheme="dark"] .gh-cmpfiles { box-shadow: inset 0 0 0 1px #30363d; }
+html:root[data-app-scheme="dark"] .gh-lastc,
+html:root[data-app-scheme="dark"] .gh-fh,
+html:root[data-app-scheme="dark"] .gh-ttabs { background: #161b22; box-shadow: inset 0 -1px 0 #30363d; }
+html:root[data-app-scheme="dark"] .gh-frow,
+html:root[data-app-scheme="dark"] .gh-trow { box-shadow: inset 0 -1px 0 #21262d; }
+html:root[data-app-scheme="dark"] .gh-frow .lnk { color: #e6edf3; }
+html:root[data-app-scheme="dark"] .gh-rh,
+html:root[data-app-scheme="dark"] .gh-checks { box-shadow: inset 0 -1px 0 #30363d; }
+/* file and folder icons drawn with fixed fills in sites.ts (IC.file, IC.folder) */
+html:root[data-app-scheme="dark"] .gh .gi path[fill="#8c959f"] { fill: #9198a1; }
+html:root[data-app-scheme="dark"] .gh .gi path[fill="#fff"] { fill: #0d1117; }
+html:root[data-app-scheme="dark"] .gh .gi path[fill="#54aeff"] { fill: #9198a1; }
+/* rendered markdown */
+html:root[data-app-scheme="dark"] .gh .md h1,
+html:root[data-app-scheme="dark"] .gh .md h2 { box-shadow: inset 0 -1px 0 #30363d; }
+html:root[data-app-scheme="dark"] .gh .md code { background: rgba(101, 108, 118, 0.2); }
+html:root[data-app-scheme="dark"] .gh .md pre { background: #161b22; }
+html:root[data-app-scheme="dark"] .gh .md pre code { background: none; }
+html:root[data-app-scheme="dark"] .gh .md td,
+html:root[data-app-scheme="dark"] .gh .md th { box-shadow: inset 0 0 0 0.5px #30363d; }
+html:root[data-app-scheme="dark"] .gh .md blockquote { color: #9198a1; box-shadow: inset 3px 0 0 #30363d; }
+html:root[data-app-scheme="dark"] .gh-topic { color: #4493f8; }
+html:root[data-app-scheme="dark"] .gh-stats b,
+html:root[data-app-scheme="dark"] .gh-prmeta b,
+html:root[data-app-scheme="dark"] .gh-ch b { color: #e6edf3; }
+html:root[data-app-scheme="dark"] .gh-ttabs span.on { background: #1f6feb; color: #fff; }
+/* pull requests and issues */
+html:root[data-app-scheme="dark"] .gh-prmeta { color: #9198a1; box-shadow: inset 0 -1px 0 #30363d; }
+html:root[data-app-scheme="dark"] .gh-prmeta code,
+html:root[data-app-scheme="dark"] .gh-mbox.merged code { background: rgba(56, 139, 253, 0.15); color: #4493f8; }
+html:root[data-app-scheme="dark"] .gh-state.open { background: #238636; }
+html:root[data-app-scheme="dark"] .gh-state.merged { background: #8957e5; }
+html:root[data-app-scheme="dark"] .gh-state.closed { background: #da3633; }
+html:root[data-app-scheme="dark"] .gh-state.closed-np,
+html:root[data-app-scheme="dark"] .gh-state.draft { background: #656c76; }
+html:root[data-app-scheme="dark"] .gh-prtabs { box-shadow: inset 0 -1px 0 #30363d; }
+html:root[data-app-scheme="dark"] .gh-prtabs span { color: #9198a1; }
+html:root[data-app-scheme="dark"] .gh-prtabs span.on { color: #e6edf3; box-shadow: inset 0 -2px 0 #f78166; }
+html:root[data-app-scheme="dark"] .gh em.a { color: #3fb950; }
+html:root[data-app-scheme="dark"] .gh em.d { color: #f85149; }
+/* labels: tinted the way GitHub dark derives them from the label colour */
+html:root[data-app-scheme="dark"] .gh-label { background: color-mix(in srgb, var(--c) 22%, #0d1117); color: color-mix(in srgb, var(--c) 40%, #f0f6fc); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, #0d1117); }
+html:root[data-app-scheme="dark"] .gh-cmt.first .gh-cbox { box-shadow: inset 0 0 0 1px rgba(31, 111, 235, 0.6); }
+html:root[data-app-scheme="dark"] .gh-ch { background: #161b22; color: #9198a1; box-shadow: inset 0 -1px 0 #30363d; }
+html:root[data-app-scheme="dark"] .gh-cmt.first .gh-ch { background: #121d2f; box-shadow: inset 0 -1px 0 rgba(31, 111, 235, 0.6); }
+html:root[data-app-scheme="dark"] .gh .ok > .gi { color: #3fb950; }
+html:root[data-app-scheme="dark"] .gh .bad > .gi { color: #f85149; }
+html:root[data-app-scheme="dark"] .gh .pend > .gi { color: #d29922; }
+html:root[data-app-scheme="dark"] .gh-mready p,
+html:root[data-app-scheme="dark"] .gh-mbox.merged p,
+html:root[data-app-scheme="dark"] .gh-mbox.closed p { color: #9198a1; }
+html:root[data-app-scheme="dark"] .gh-mi { background: #238636; color: #fff; }
+html:root[data-app-scheme="dark"] .gh-in { background: #0d1117; box-shadow: inset 0 0 0 1px #30363d; }
+html:root[data-app-scheme="dark"] .gh-in:empty::before { color: #9198a1; }
+html:root[data-app-scheme="dark"] .gh-in.editing { background: #0d1117; box-shadow: inset 0 0 0 1.5px #1f6feb; }
+html:root[data-app-scheme="dark"] .gh-in .caret { background: #e6edf3; }
+html:root[data-app-scheme="dark"] .gh-mbox.merged { box-shadow: inset 0 0 0 1px #8957e5; }
+html:root[data-app-scheme="dark"] .gh-mbox.merged .gh-mi { background: #8957e5; }
+html:root[data-app-scheme="dark"] .gh-mbox.closed .gh-mi { background: #da3633; }
+html:root[data-app-scheme="dark"] .gh-pfh { background: #161b22; }
+html:root[data-app-scheme="dark"] .gh-dl.add { background: rgba(46, 160, 67, 0.15); }
+html:root[data-app-scheme="dark"] .gh-dl.add b { background: rgba(63, 185, 80, 0.3); }
+html:root[data-app-scheme="dark"] .gh-dl.del { background: rgba(248, 81, 73, 0.1); }
+html:root[data-app-scheme="dark"] .gh-dl.del b { background: rgba(248, 81, 73, 0.3); }
+html:root[data-app-scheme="dark"] .gh-dl.hunk { background: rgba(56, 139, 253, 0.1); color: #9198a1; }
+html:root[data-app-scheme="dark"] .gh-cmpbar { background: #161b22; box-shadow: inset 0 0 0 1px #30363d; }
+html:root[data-app-scheme="dark"] .gh-cmpfiles .gh-pfh { background: #0d1117; box-shadow: inset 0 1px 0 #21262d; }
+
+/* ---------- Hugging Face: huggingface.co dark mode ---------- */
+html:root[data-app-scheme="dark"] .hf { background: #0b0f19; color: #e5e7eb; }
+html:root[data-app-scheme="dark"] .hf-top { box-shadow: inset 0 -1px 0 #1f2937; }
+html:root[data-app-scheme="dark"] .hf-sbox { color: #9ca3af; box-shadow: inset 0 0 0 1px #1f2937; }
+html:root[data-app-scheme="dark"] .hf-top nav { color: #d1d5db; }
+html:root[data-app-scheme="dark"] .hf-top nav .on { color: #f9fafb; }
+html:root[data-app-scheme="dark"] .hf-head { background: linear-gradient(to top, #111827, #0b0f19); box-shadow: inset 0 -1px 0 #1f2937; }
+html:root[data-app-scheme="dark"] .hf-kind,
+html:root[data-app-scheme="dark"] .hf-author { color: #9ca3af; }
+html:root[data-app-scheme="dark"] .hf-title em { color: #6b7280; }
+html:root[data-app-scheme="dark"] .hf-like { color: #d1d5db; box-shadow: inset 0 0 0 1px #1f2937; }
+html:root[data-app-scheme="dark"] .hf-like i { box-shadow: inset 1px 0 0 #1f2937; }
+html:root[data-app-scheme="dark"] .hf-tag { background: #1f2937; color: #d1d5db; }
+html:root[data-app-scheme="dark"] .hf-tag em { color: #9ca3af; }
+html:root[data-app-scheme="dark"] .hf-pipe { background: color-mix(in srgb, var(--c) 22%, #0b0f19); color: color-mix(in srgb, var(--c) 45%, #f3f4f6); }
+html:root[data-app-scheme="dark"] .hf-tabs span { color: #9ca3af; }
+html:root[data-app-scheme="dark"] .hf-tabs span.on { color: #f9fafb; box-shadow: inset 0 -2px 0 #f9fafb; }
+html:root[data-app-scheme="dark"] .hf-stat { box-shadow: inset 0 -1px 0 #1f2937; }
+html:root[data-app-scheme="dark"] .hf-stat small,
+html:root[data-app-scheme="dark"] .hf-muted,
+html:root[data-app-scheme="dark"] .hf-sort,
+html:root[data-app-scheme="dark"] .hf-mrow p { color: #9ca3af; }
+html:root[data-app-scheme="dark"] .hf .md code { background: #1f2937; }
+html:root[data-app-scheme="dark"] .hf .md pre { background: #111827; box-shadow: inset 0 0 0 1px #1f2937; }
+html:root[data-app-scheme="dark"] .hf .md pre code { background: none; }
+html:root[data-app-scheme="dark"] .hf .md td,
+html:root[data-app-scheme="dark"] .hf .md th { box-shadow: inset 0 0 0 0.5px #374151; }
+html:root[data-app-scheme="dark"] .hf-files { box-shadow: inset 0 0 0 1px #1f2937; }
+html:root[data-app-scheme="dark"] .hf-fhead { background: #111827; box-shadow: inset 0 -1px 0 #1f2937; }
+html:root[data-app-scheme="dark"] .hf-frow { box-shadow: inset 0 -1px 0 #1f2937; }
+html:root[data-app-scheme="dark"] .hf-mrow { background: linear-gradient(to right, #111827, #0b0f19); box-shadow: inset 0 0 0 1px #1f2937; }
+html:root[data-app-scheme="dark"] .hf pre.raw { background: #0b0f19; color: #e5e7eb; }
+
+/* ---------- Wikipedia: Vector 2022 night mode ---------- */
+html:root[data-app-scheme="dark"] .wk { background: #101418; color: #eaecf0; }
+html:root[data-app-scheme="dark"] .wk-top { box-shadow: inset 0 -1px 0 #404244; }
+html:root[data-app-scheme="dark"] .wk-logo { background: radial-gradient(circle at 40% 35%, #3a3d42, #202122); box-shadow: inset 0 0 0 1px #54595d; }
+html:root[data-app-scheme="dark"] .wk-word small { color: #a2a9b1; }
+html:root[data-app-scheme="dark"] .wk-sbox { color: #a2a9b1; box-shadow: inset 0 0 0 1px #72777d; }
+html:root[data-app-scheme="dark"] .wk-toc b { box-shadow: inset 0 -1px 0 #404244; }
+html:root[data-app-scheme="dark"] .wk-toc span { color: #88a3e8; }
+html:root[data-app-scheme="dark"] .wk-toc span.on { color: #eaecf0; }
+html:root[data-app-scheme="dark"] .wk-main h1,
+html:root[data-app-scheme="dark"] .wk-main h2 { box-shadow: inset 0 -1px 0 #72777d; }
+html:root[data-app-scheme="dark"] .wk-tabs { color: #88a3e8; box-shadow: inset 0 -1px 0 #404244; }
+html:root[data-app-scheme="dark"] .wk-tabs .on { color: #eaecf0; box-shadow: inset 0 -2px 0 #eaecf0; }
+html:root[data-app-scheme="dark"] .wk-from,
+html:root[data-app-scheme="dark"] .wk-thumb p { color: #a2a9b1; }
+html:root[data-app-scheme="dark"] .wk .wl { color: #88a3e8; }
+html:root[data-app-scheme="dark"] .wk-ib { background: #1b1f24; box-shadow: inset 0 0 0 1px #54595d; }
+
+/* ---------- GitHub Desktop style app: GitHub Desktop's dark theme ---------- */
+html:root[data-app-scheme="dark"] .gd { background: #24292e; color: #d1d5da; }
+html:root[data-app-scheme="dark"] .gd-bar { background: #1b1f23; box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.5); }
+html:root[data-app-scheme="dark"] .gd-seg { color: #d1d5da; }
+html:root[data-app-scheme="dark"] .gd-seg small,
+html:root[data-app-scheme="dark"] .gd-seg > .gi:last-child,
+html:root[data-app-scheme="dark"] .gd-sync .v,
+html:root[data-app-scheme="dark"] .gd-tabs span,
+html:root[data-app-scheme="dark"] .gd-all,
+html:root[data-app-scheme="dark"] .gd-p em,
+html:root[data-app-scheme="dark"] .gd-last,
+html:root[data-app-scheme="dark"] .gd-nodiff,
+html:root[data-app-scheme="dark"] .gd-empty > p,
+html:root[data-app-scheme="dark"] .gd-sugg p,
+html:root[data-app-scheme="dark"] .gd-dsec,
+html:root[data-app-scheme="dark"] .gd-dl b { color: #959da5; }
+html:root[data-app-scheme="dark"] .gd-seg b,
+html:root[data-app-scheme="dark"] .gd-sync .k,
+html:root[data-app-scheme="dark"] .gd-tabs span.on { color: #f6f8fa; }
+html:root[data-app-scheme="dark"] .gd-prog::before { background: #2188ff; }
+html:root[data-app-scheme="dark"] .gd-side { background: #24292e; box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.45); }
+html:root[data-app-scheme="dark"] .gd-tabs span.on { box-shadow: inset 0 -2px 0 #2188ff; }
+html:root[data-app-scheme="dark"] .gd-row.sel,
+html:root[data-app-scheme="dark"] .gd-ditem.sel { background: #0366d6; color: #fff; }
+html:root[data-app-scheme="dark"] .gd-row.sel .gd-p em { color: rgba(255, 255, 255, 0.78); }
+html:root[data-app-scheme="dark"] .gd-cb.on { background: #2188ff; }
+html:root[data-app-scheme="dark"] .gd-st.new { color: #34d058; }
+html:root[data-app-scheme="dark"] .gd-st.deleted { color: #ea4a5a; }
+html:root[data-app-scheme="dark"] .gd-st.modified { color: #f9c513; }
+html:root[data-app-scheme="dark"] .gd-in { background: #1b1f23; color: #f6f8fa; box-shadow: inset 0 0 0 1px #444d56; }
+html:root[data-app-scheme="dark"] .gd-in:empty::before { color: #959da5; }
+html:root[data-app-scheme="dark"] .gd-in.editing { box-shadow: inset 0 0 0 1.5px #2188ff; }
+html:root[data-app-scheme="dark"] .gd-desc,
+html:root[data-app-scheme="dark"] .gd-last em,
+html:root[data-app-scheme="dark"] .gd-dh,
+html:root[data-app-scheme="dark"] .gd-mnote { color: #d1d5da; }
+html:root[data-app-scheme="dark"] .gd-go,
+html:root[data-app-scheme="dark"] .gd-btn.gd-blue,
+html:root[data-app-scheme="dark"] .gd-dnew.hot,
+html:root[data-app-scheme="dark"] .gd-mbtn { background: #0366d6; color: #fff; }
+html:root[data-app-scheme="dark"] .gd-diff { background: #1f2428; }
+html:root[data-app-scheme="dark"] .gd-dl.add { background: rgba(46, 160, 67, 0.18); }
+html:root[data-app-scheme="dark"] .gd-dl.add span { color: #e1e4e8; }
+html:root[data-app-scheme="dark"] .gd-dl.del { background: rgba(234, 74, 90, 0.16); }
+html:root[data-app-scheme="dark"] .gd-dl.del span { color: #e1e4e8; }
+html:root[data-app-scheme="dark"] .gd-dl.hunk { background: rgba(33, 136, 255, 0.12); color: #959da5; }
+html:root[data-app-scheme="dark"] .gd-sugg { background: #2f363d; }
+html:root[data-app-scheme="dark"] .gd-note { background: rgba(52, 208, 88, 0.12); color: #85e89d; }
+html:root[data-app-scheme="dark"] .gd-drop { background: #2f363d; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55), inset 0 0 0 1px #444d56; }
+html:root[data-app-scheme="dark"] .gd-modal { background: rgba(0, 0, 0, 0.55); }
+html:root[data-app-scheme="dark"] .gd-dlg { background: #2f363d; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6), inset 0 0 0 1px #444d56; }
+html:root[data-app-scheme="dark"] .gd-err p { color: #f97583; }
+html:root[data-app-scheme="dark"] .gd-err .gd-mbtn { background: rgba(255, 255, 255, 0.12); }
+
+/* ---------- git output in the terminal: neutral greys instead of the blue-cast dims ---------- */
+html:root[data-app-scheme="dark"] .out .g-dim { color: #8c8c8c; }
+html:root[data-app-scheme="dark"] .out .g-new { color: #b4b4b4; }
