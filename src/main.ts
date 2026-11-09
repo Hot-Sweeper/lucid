@@ -1,3 +1,4 @@
+import { mountInterfaceThemeSetting } from "./interface-theme";
 import { mountWebsiteStudio } from "./office/website-studio";
 import { buildWorkDetails } from "./office/work-details";
 import { ProjectLife } from "./office/project-life";
@@ -180,6 +181,7 @@ extras.className = "sidebar-extras";
 extras.innerHTML = '<summary>Office & tools</summary><div class="sidebar-extras-body"></div>';
 const extrasBody = extras.querySelector("div")!;
 mountLanguageSetting(extrasBody, () => dailyWriter);
+mountInterfaceThemeSetting(extrasBody);
 {
   const wall = document.createElement("button"); wall.type = "button"; wall.className = "link-btn extras-staff-wall"; wall.textContent = "Staff wall";
   wall.addEventListener("click", () => openWall()); extrasBody.appendChild(wall);
