@@ -1,3 +1,5 @@
+import { ChatPromptContext } from "./chat-prompt";
+import "./chat-prompt.css";
 import { watchLucidMedia } from "./media-player";
 import { wireChatLinks } from "./chat-links";
 import { parseThreadReference, threadCardMarkup, hydrateThreadCards, type ThreadReference, type ThreadCardInfo } from "./chat-thread-card";
@@ -154,6 +156,7 @@ export const renderChatMarkdown = (text: string) => md(text);
 
 export class ChatPanel {
   el: HTMLElement;
+  private promptContext!: ChatPromptContext;
   private desk: Desk | null = null;
   private shown = new Map<string, HTMLElement>();
   private timer = 0;
@@ -570,6 +573,7 @@ export class ChatPanel {
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing && (!phone || e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit(); }
     });
     this.el.querySelector(".cp-list")!.addEventListener("error", chatImageFailed, true);
+    this.promptContext = new ChatPromptContext(this.el.querySelector<HTMLElement>(".cp-list")!);
     this.el.querySelector(".cp-list")!.addEventListener("click", (e) => {
       const t = e.target as HTMLElement;
       const review = t.closest<HTMLElement>(".cp-review [data-review-open],.cp-review [data-review-thread]");
@@ -674,6 +678,7 @@ export class ChatPanel {
 
   private clearTranscript() {
     this.history = new HistoryWindow<Msg>(); this.historyGeneration++; this.loadingOlder = false;
+    this.promptContext.clear();
     this.shown.clear(); this.groups.clear(); this.renderedMessages.clear(); this.timelineIds = null;
     this.reviewPapers.clear(); this.reviewLookups.clear();
     this.sourceReport = null; this.sourceReportLoaded = false; this.sourceReportVersion++; this.sourceReportSignature = "";
@@ -959,6 +964,8 @@ export class ChatPanel {
     if (nearBottom || (initial && !preservePosition)) list.scrollTop = list.scrollHeight;
     else if (anchor?.isConnected && anchorY != null) list.scrollTop += anchor.getBoundingClientRect().top - anchorY;
     else if (preservePosition) list.scrollTop += list.scrollHeight - oldHeight;
+    const latestPrompt = [...timeline].reverse().find(m => m.role === "user");
+    this.promptContext.set(latestPrompt ? this.shown.get(latestPrompt.id) ?? null : null);
     endSystem("chat", started);
   }
 

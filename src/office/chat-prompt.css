@@ -1,0 +1,10 @@
+.chat-panel .cp-transcript { position: relative; flex: 1 1 0; min-height: 0; min-width: 0; }
+.chat-panel .cp-transcript > .cp-list { height: 100%; box-sizing: border-box; }
+.cp-prompt-context { position: absolute; z-index: 6; inset: 0 12px auto; display: flex; align-items: flex-start; gap: 9px; padding: 11px 13px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 8px 8px; background: var(--night-3); color: var(--ink); font: 400 12.5px/1.5 var(--font); text-align: left; cursor: pointer; box-shadow: 0 5px 12px rgba(0,0,0,.16); transition: background 130ms var(--ease-out-strong); }
+.cp-prompt-context[hidden] { display: none; }
+.cp-prompt-context > svg { flex: none; margin-top: 3px; color: var(--accent); }
+.cp-prompt-context > span { min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; white-space: pre-line; }
+.cp-prompt-context:hover { background: color-mix(in srgb, var(--night-3) 94%, var(--ink)); }
+.cp-prompt-context:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.cp-prompt-context:active { background: var(--night-2); }
+@media (prefers-reduced-motion: reduce) { .cp-prompt-context { transition: none; } }

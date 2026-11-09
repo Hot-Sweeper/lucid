@@ -36,3 +36,6 @@
 
 .panel .th-row.th-worker[data-state="work"] .th-text .th-title { color: var(--thread-title-working); }
 .panel .th-row.th-worker[data-state=""] .th-text .th-title { color: var(--thread-title); }
+
+/* A finished status never inherits the former work spinner transform. */
+.panel .th-st:not(.work) > i { animation: none; transform: none; }

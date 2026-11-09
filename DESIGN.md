@@ -195,3 +195,7 @@ Active conversations own the sidebar's scroll region. Settled stays at its botto
 ## Limits disclosure
 
 Limits is its own saved disclosure below Subscriptions, sharing the same 36px header, full-row toggle, lavender text, hairline and peach focus. Move the existing live provider rows and their availability note into this section on desktop and mobile; never duplicate polling or reset the disclosure as readings arrive. Preserve the compact meters, percentages and reset tooltips. Long provider names ellipsize, narrow sidebars stack the meters, and the expanded body has a bounded scroll region.
+
+## Latest prompt context
+
+The conversation keeps a compact two-line view of the latest submitted user prompt at the top of the transcript when its original bubble is outside the viewport. Queued drafts never replace it. Use the existing raised surface, readable ink, peach return arrow and 8px lower corners. Clicking or keyboard-activating it returns focus to the original message. It overlays the transcript without changing its geometry or reading position, clears on thread changes and leaves the composer untouched. Full prompt text stays available on hover and in the original bubble. Done is a stationary mint check: discard canceled work animations from the shared pause controller before stepping or resuming them.
