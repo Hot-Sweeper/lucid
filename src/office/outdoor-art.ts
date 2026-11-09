@@ -3,6 +3,7 @@
 
 import type { Season, SeasonPalette } from "../weather/season";
 import type { GroundWx } from "../weather/ground";
+import { currentTheme } from "../themes/registry";
 
 export const rnd = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 export const SNOW = "#eef4f8";
@@ -25,16 +26,21 @@ export function timing(q: () => number, dur: number, spread = 0.3, extra = "") {
 export const seedAt = (x: number, y: number) => rnd(Math.abs(Math.round(x * 7.31 + y * 13.7)) % 2147483646 + 1);
 
 /** What one drawing pass needs to know about the season. */
-export type Look = { pal: SeasonPalette; snow: number; season: Season; /** what the weather does to the ground (wet, frost, heat) */ wx?: GroundWx; /** OLED interface: moonlit midnight art */ oled?: boolean };
+export type Look = { pal: SeasonPalette; snow: number; season: Season; /** what the weather does to the ground (wet, frost, heat) */ wx?: GroundWx; /** the interface theme's art settings (themes/registry.ts): moonlit palette, map edge colour */ art?: ThemeArt };
+export type ThemeArt = { shade: number; edge?: string };
 
-/** OLED midnight: the same colours sunk toward black, for every hex colour in a palette. */
-export function moonlit<T>(v: T, k = 0.78): T {
+/** Moonlit art: the same colours sunk toward black by `k`, for every hex colour in a palette. */
+export function moonlit<T>(v: T, k: number): T {
   if (typeof v === "string") return (/^#[0-9a-f]{6}$/i.test(v) ? mix(v, "#000000", k) : v) as T;
   if (Array.isArray(v)) return v.map((x) => moonlit(x, k)) as T;
   if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([a, b]) => [a, moonlit(b, k)])) as T;
   return v;
 }
-export const oledArt = () => typeof document !== "undefined" && document.documentElement.dataset.theme === "oled";
+/** The current interface theme's outdoor art settings, or nothing for the plain season art. */
+export function themeArt(): ThemeArt | undefined {
+  const w = currentTheme().world;
+  return w.artShade > 0 || w.mapEdge ? { shade: w.artShade, edge: w.mapEdge } : undefined;
+}
 
 export const fill = (c: string, o?: number) => `fill="${c}"${o == null ? "" : ` opacity="${o}"`}`;
 // stroke widths are rounded to half pixels, so branches of similar trees share a path
