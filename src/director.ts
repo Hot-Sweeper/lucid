@@ -260,6 +260,9 @@ export class Director {
       if (this.pumpEpoch === -1) this.idleLife.begin();
     }
     this.lastRunStatus = status;
+    // Metadata can finish before the last streamed item loses its streaming flag.
+    // Stop the hands immediately; presentation must not claim the model is still writing.
+    if (/^(completed|failed|interrupted|cancelled|canceled|error)$/.test(status)) this.robot.setTyping(false);
     this.noteQueue(info.queued ?? [], first);
     // after the robot has settled on this thread (its T3 Code window may still be reset meanwhile)
     if (first && info.id) { this.historyThread = info.id; this.scheduleHistory(); }
@@ -1518,7 +1521,8 @@ export class Director {
         this.stage.setGlow(GLOW.chat);
         await this.messages.assistant(() => {
           const cur = this.get(id);
-          return { text: cur.data.text || "", done: !(cur.status === "running" || cur.data.streaming) };
+          const ended = cur.runId === this.info?.run?.id && /^(completed|failed|interrupted|cancelled|canceled|error)$/.test(this.info.run.status);
+          return { text: cur.data.text || "", done: ended || !(cur.status === "running" || cur.data.streaming) };
         }, true);
         await this.wm.sleep(500);
         return;

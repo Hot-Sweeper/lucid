@@ -408,11 +408,20 @@ export class T3CodeApp {
     this.feed.append(p);
     let shown = 0;
     let painted = "";
-    wm.robot.setTyping(true);
     try {
       for (;;) {
         await wm.waitForOperator?.(e);
         const { text, done } = getText();
+        wm.robot.setTyping(!done);
+        // A delivered reply is already written. Do not replay it at typing speed
+        // or let a finished run sit here waiting on stale streaming metadata.
+        if (done) {
+          shown = text.length;
+          if (compose) this.compText.textContent = text;
+          else p.innerHTML = md(text);
+          this.stick();
+          break;
+        }
         if (shown < text.length) {
           shown = Math.min(text.length, shown + Math.max(3, Math.ceil((text.length - shown) / 30)));
           if (renderFps(compose ? this.root : p)) {

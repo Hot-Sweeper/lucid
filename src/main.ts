@@ -379,9 +379,10 @@ chat.onToggleView = () => {
 function pushStatus(d: Desk) {
   const run = d.info?.run?.status;
   const state = d.info && (d.info as any).question ? "waiting" : run === "running" || run === "queued" ? "working" : "idle";
-  chat.setStatus(d.activity || (state === "working" ? "Working" : "Waiting for a task"), state as any);
+  const activity = state === "idle" && /^Writing to you/.test(d.activity || "") ? "Finished" : d.activity;
+  chat.setStatus(activity || (state === "working" ? "Working" : "Waiting for a task"), state as any);
   // while the robot types its reply in its Messages app, you see it typing here too
-  chat.setTyping(/^Writing to you/.test(d.activity || ""), d.profile?.name ?? "It");
+  chat.setTyping(state === "working" && run === "running" && /^Writing to you/.test(d.activity || ""), d.profile?.name ?? "It");
 }
 // Dev aid: keep the last errors where a debug run can read them.
 (window as any).__errs = [];
