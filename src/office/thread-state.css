@@ -34,5 +34,5 @@
 .panel .th-row.th-worker[data-state].sel { background: rgba(255,255,255,.085); }
 .panel .th-row.th-worker[data-state].sel:hover { background: rgba(255,255,255,.11); }
 
-.panel .th-row.th-worker[data-state="work"] .th-title { color: var(--thread-title-working); }
-.panel .th-row.th-worker[data-state=""] .th-title { color: var(--thread-title); }
+.panel .th-row.th-worker[data-state="work"] .th-text .th-title { color: var(--thread-title-working); }
+.panel .th-row.th-worker[data-state=""] .th-text .th-title { color: var(--thread-title); }
