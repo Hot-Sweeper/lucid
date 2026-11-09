@@ -324,6 +324,7 @@ function woodsPal(L: Look) {
  */
 export function backdropColor(o: Pick<OutsideOpts, "season" | "snowCover" | "wx">) {
   const L = lookFor(o);
+  if (L.oled) return "#000000";
   return mix("#1e3b33", "#a9b8c6", L.snow * 0.7);
 }
 

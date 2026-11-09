@@ -251,7 +251,8 @@ export function landColors(L: LandLook) {
   // OLED: the palette is already moonlit (lookFor); fixed colours sink the same way.
   const night = <T,>(v: T) => L.oled ? moonlit(v) : v;
   const ever = night(L.season === "winter" ? EVERGREEN_WINTER : EVERGREEN);
-  const edge = mix(mix(ever[0], "#16301f", 0.35), "#8d9fb3", snow * 0.45);
+  // OLED: the woodland fades into true black at the edge of the map, seamless with the panels.
+  const edge = L.oled ? "#000000" : mix(mix(ever[0], "#16301f", 0.35), "#8d9fb3", snow * 0.45);
   return {
     grass, lawn, floor, ever, edge,
     stripe: snow > 0.6 ? "rgba(255,255,255,0)" : "rgba(255,255,255,0.075)",
@@ -507,7 +508,7 @@ export function paintLandscape(c: Ctx, plan: LandPlan, L: LandLook, C: Colors, v
     c.fillStyle = "#56645c"; c.beginPath(); circle(c, x - 1.5, y - 1.5, 4); c.fill();
   }
   // the woodland deepens toward the edge of the map and stays that deep beyond it
-  const F = 420, A = "99";
+  const F = 420, A = L.oled ? "ff" : "99";
   const fade = (x0: number, y0: number, x1: number, y1: number, rx: number, ry: number, rw: number, rh: number) => {
     if (!hits({ x: rx, y: ry, w: rw, h: rh }, view)) return;
     const g = c.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, C.edge + A); g.addColorStop(1, C.edge + "00");
@@ -516,8 +517,10 @@ export function paintLandscape(c: Ctx, plan: LandPlan, L: LandLook, C: Colors, v
   fade(B.x, 0, B.x + F, 0, B.x, B.y, F, B.h); fade(B.x + B.w, 0, B.x + B.w - F, 0, B.x + B.w - F, B.y, F, B.h);
   fade(0, B.y, 0, B.y + F, B.x, B.y, B.w, F); fade(0, B.y + B.h, 0, B.y + B.h - F, B.x, B.y + B.h - F, B.w, F);
   c.fillStyle = C.edge + A;
-  const far = 1e5;
-  for (const [x, y, w, h] of [[B.x - far, B.y - far, B.w + 2 * far, far], [B.x - far, B.y + B.h, B.w + 2 * far, far], [B.x - far, B.y, far, B.h], [B.x + B.w, B.y, far, B.h]])
+  // OLED: the opaque black beyond the map overlaps its fade slightly. Edges that only meet
+  // antialias at fractional pixels, and the grass under them showed as a thin line.
+  const far = 1e5, o = L.oled ? 6 : 0;
+  for (const [x, y, w, h] of [[B.x - far, B.y - far, B.w + 2 * far, far + o], [B.x - far, B.y + B.h - o, B.w + 2 * far, far + o], [B.x - far, B.y, far + o, B.h], [B.x + B.w - o, B.y, far + o, B.h]])
     if (hits({ x, y, w, h }, view)) { const x0 = Math.max(x, view.x), y0 = Math.max(y, view.y); c.fillRect(x0, y0, Math.min(x + w, view.x + view.w) - x0, Math.min(y + h, view.y + view.h) - y0); }
 }
 

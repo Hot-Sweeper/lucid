@@ -44,7 +44,10 @@
 /* ---- The office at midnight -------------------------------------------------------------
    world.ts forces midnight lighting in OLED. Its night tint becomes neutral black instead of
    navy, so the scene reads deep and dark while lamps, windows and screens glow. */
-:root[data-theme="oled"] .scene { background: color-mix(in srgb, #000 calc(var(--scene-night) * 92%), var(--scene-ground, #78b066)); }
+:root[data-theme="oled"] .scene { background: #000; }
+/* Cloud shadows and fog banks are lighter than black and left a visible box round the
+   outdoors. At OLED midnight the sky layer stays hidden; rain, snow and leaves still fall. */
+:root[data-theme="oled"] .weather-sky-view { display: none; }
 :root[data-theme="oled"] .night-shade,
 :root[data-theme="oled"] .shopfront::after { background: #000; }
 /* outside.ts writes this tint inline; only its color changes, its opacity stays live. */
