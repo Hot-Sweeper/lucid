@@ -1,0 +1,33 @@
+/* Shared T3 state colors retain Lucid's existing palette in Night blue and OLED. */
+:root {
+  --thread-work: #6fb6ff;
+  --thread-ask: #ffd27a;
+  --thread-review: var(--accent);
+  --thread-fail: #ff6b6b;
+  --thread-done: #4fd18b;
+}
+[data-state="work"], .th-st.work, .rail-st.work { --thread-color: var(--thread-work); }
+[data-state="queued"], .th-st.queued, .rail-st.queued { --thread-color: var(--thread-work); }
+[data-state="ask"], .th-st.ask, .rail-st.ask { --thread-color: var(--thread-ask); }
+[data-state="review"], .th-st.review, .rail-st.review { --thread-color: var(--thread-review); }
+[data-state="fail"], .th-st.fail, .rail-st.fail { --thread-color: var(--thread-fail); }
+[data-state="done"], .th-st.done, .rail-st.done { --thread-color: var(--thread-done); }
+.panel .th-row.th-worker[data-state]:not([data-state=""]) { background: color-mix(in srgb, var(--thread-color) 5%, transparent); }
+.panel .th-row.th-worker[data-state]:not([data-state=""]):hover { background: color-mix(in srgb, var(--thread-color) 10%, transparent); }
+.panel .th-row.th-worker[data-state]:not([data-state=""]) .th-title { color: var(--thread-color); }
+.panel .th-row.th-worker.sel { background: rgba(255,255,255,.085); }
+.panel .th-row.th-worker.sel:hover { background: rgba(255,255,255,.11); }
+.panel .th-st { color: var(--thread-color, var(--ink-2)); font-variant-numeric: tabular-nums; }
+.panel .th-st > i { display: inline-grid; place-items: center; flex: none; width: 13px; height: 13px; box-sizing: border-box; font: 600 10px var(--font); font-style: normal; }
+.panel .th-st.work > i { border-color: currentColor; }
+.panel .th-st:is(.ask,.fail) > i { border: 1.5px solid currentColor; border-radius: 50%; }
+.panel .th-st:is(.ask,.fail) > i::before { content: '!'; }
+.panel .th-st.done > i::before { content: '✓'; }
+.panel .th-st.review > i::before { content: '◇'; font-size: 15px; }
+.panel .th-st.queued > i { border: 1.5px dotted currentColor; border-radius: 50%; }
+.rail-st:is(.work,.queued,.ask,.review,.fail,.done) { background: var(--thread-color); }
+.rail-st.queued { background: var(--night-2); border: 2px dotted var(--thread-color); }
+.rail-st.fail::after { content: '!'; position: absolute; inset: -2px; color: var(--night-2); text-align: center; font: 700 10px var(--font); }
+.panel .th-row.th-worker:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.panel .th-row.th-worker[data-state].sel { background: rgba(255,255,255,.085); }
+.panel .th-row.th-worker[data-state].sel:hover { background: rgba(255,255,255,.11); }

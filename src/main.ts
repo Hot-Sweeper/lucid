@@ -1,3 +1,4 @@
+import { threadState } from "./office/thread-state";
 import { mountInterfaceThemeSetting } from "./interface-theme";
 import { mountWebsiteStudio } from "./office/website-studio";
 import { buildWorkDetails } from "./office/work-details";
@@ -23,6 +24,7 @@ import { renderFps, onRenderWake } from "./perf/render";
 import { mobileStartRoom } from "./office/mobile-start";
 import "./office/office.css";
 import "./office/panels.css";
+import "./office/thread-state.css";
 import "./office/sidebar-header.css";
 import "./world/world.css";
 import "./decor/decor.css";
@@ -1567,13 +1569,13 @@ function renderThreads() {
   const settled = list.filter((t) => t.settled);
   const reviews = latestThreadReviews(currentEnvironment ? [] : orch.papers);
   const reviewOf = (t: typeof list[number]) => threadReviewLabel(t, reviews.get(t.id), !currentEnvironment && !!settings.orch && t.id !== settings.orch.threadId);
-  const stateOf = (t: typeof list[number]) => t.question ? `<span class="th-st ask">${delegate.phaseOf(t.id) === "reading" ? "With the Orchestrator" : "Needs input"}</span>`
-      : t.runStatus === "running" ? `<span class="th-st work"><i></i>Working ${ago(t.runStartedAt || t.updatedAt)}</span>`
-      : reviewOf(t) ? `<span class="th-st review">${reviewOf(t)}</span>`
-      : t.lastStatus === "failed" ? `<span class="th-st fail">Failed</span>`
-      : t.unseen && t.lastStatus === "completed" ? `<span class="th-st done">Done</span>`
-      : `<span class="th-ago">${ago(t.updatedAt)}</span>`;
-  const dotOf = (t: typeof list[number]) => t.question ? "ask" : t.runStatus === "running" ? "work" : reviewOf(t) ? "ask" : t.lastStatus === "failed" ? "fail" : t.unseen && t.lastStatus === "completed" ? "done" : "";
+  const presentationOf = (t: typeof list[number]) => threadState(t, reviewOf(t), delegate.phaseOf(t.id) === "reading");
+  const stateOf = (t: typeof list[number]) => {
+    const state = presentationOf(t);
+    if (!state.label) return `<span class="th-ago">${ago(t.updatedAt)}</span>`;
+    return `<span class="th-st ${state.tone}" title="${esc(state.detail || state.label)}">${state.tone ? '<i aria-hidden="true"></i>' : ''}${esc(state.label)}${state.since ? ` ${ago(state.since)}` : ''}</span>`;
+  };
+  const dotOf = (t: typeof list[number]) => presentationOf(t).tone;
   const faceOf = (t: typeof list[number], size: number, place: string, cls = "") => {
     const robot = world.roster.byThread(t.id);
     return managerFace({ provider: robot?.provider || t.provider, look: world.lookFor(t, robot?.look), picture: t.manager?.avatar, size, place, cls });
@@ -1584,9 +1586,9 @@ function renderThreads() {
     const proj = !p || p.scratch ? "No project" : p.title;
     const role = t.manager?.role || (t.id === world.orchThread ? "Orchestrator" : "Manager");
     const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
-    const state = dotOf(t) ? stateOf(t) : "";
+    const state = stateOf(t);
     const sel = t.id === chat.threadId ? " sel" : "";
-    return `<li class="mg-li"><button type="button" class="th-row th-worker th-t3 mg-row${t.runStatus === "running" ? " on" : ""}${sel}" data-id="${esc(t.id)}" title="${esc([`${proj} · ${role}`, t.title, t.model, t.branch].filter(Boolean).join("\n"))}">
+    return `<li class="mg-li"><button type="button" class="th-row th-worker th-t3 mg-row${t.runStatus === "running" ? " on" : ""}${sel}" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc([`${proj} · ${role}`, t.title, t.model, t.branch].filter(Boolean).join("\n"))}">
       <span class="th-text">
         <span class="th-top">${icon}<span class="th-proj">${esc(proj)} · ${esc(role)}</span>${state}</span>
         <span class="th-title">${esc(t.title || "Untitled")}</span>
@@ -1603,7 +1605,7 @@ function renderThreads() {
     const p = projects.get(t.manager?.projectId || t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
     const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
-    if (t.settled) return `<li><button type="button" class="th-row th-settled-row" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${world.roster.byThread(t.id) ? `
+    if (t.settled) return `<li><button type="button" class="th-row th-settled-row" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${world.roster.byThread(t.id) ? `
 ${world.roster.byThread(t.id)!.name}` : ""}`)}">${world.roster.byThread(t.id) ? faceOf(t, 22, "s") : icon}<span class="th-settled-title">${esc(t.title || "Untitled")}</span><span class="th-ago">${ago(t.updatedAt)}</span></button></li>`;
     const state = stateOf(t);
     const robot = world.roster.byThread(t.id);
@@ -1611,7 +1613,7 @@ ${world.roster.byThread(t.id)!.name}` : ""}`)}">${world.roster.byThread(t.id) ? 
     const sub = t.pinned ? t.manager?.role || 'Manager' : t.branch || (p?.scratch ? "" : "");
     const host = !p || p.scratch ? world.building : "";
     // Each thread shows the worker on it: its face beside the job, its name and model below.
-    return `<li><button type="button" class="th-row th-worker ${!t.settled && t.runStatus === "running" ? "on" : ""}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${robot ? `
+    return `<li><button type="button" class="th-row th-worker ${!t.settled && t.runStatus === "running" ? "on" : ""}" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${robot ? `
 ${robot.name}${t.model ? `, ${t.model}` : ""}` : ""}`)}">
       ${faceOf(t, 34, "l", dotOf(t) === "work" ? "working" : "")}
       <span class="th-text">
@@ -1725,8 +1727,7 @@ function renderRail() {
     const p = projects.get(t.manager?.projectId || t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
     const review = threadReviewLabel(t, reviews.get(t.id), !currentEnvironment && !!settings.orch && t.id !== settings.orch.threadId);
-    const [st, said] = t.settled ? ["done", "settled"] : t.question ? ["ask", "needs input"] : t.runStatus === "running" ? ["work", "working"] : review ? ["ask", review]
-      : t.lastStatus === "failed" ? ["fail", "failed"] : t.unseen && t.lastStatus === "completed" ? ["done", "done"] : ["", ""];
+    const { tone: st, label: said } = threadState(t, review, delegate.phaseOf(t.id) === "reading");
     const logo = t.pinned ? p?.icon : logoFor(t.provider);
     const robot = t.pinned ? world.roster.byThread(t.id) : null;
     const name = `${robot ? `${robot.name}, ${t.manager?.role || "Manager"}, ` : ""}${t.title}, ${proj}${said ? `, ${said}` : ""}`;
