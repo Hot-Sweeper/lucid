@@ -1,0 +1,15 @@
+/* Limits uses the same disclosure surface and full-row control as Subscriptions. */
+.panel > .sidebar-limits #fold-limits { max-height: min(20dvh, 160px); overflow: auto; overscroll-behavior: contain; }
+.sidebar-limits .st-limits { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 12px 14px; }
+.sidebar-limits .st-limits[hidden] { display: none; }
+.sidebar-limits .st-limit { min-width: 0; }
+.sidebar-limits .st-ltop { gap: 5px; font-size: 11.5px; line-height: 16px; flex-wrap: nowrap; }
+.sidebar-limits .st-logo { flex: none; width: 12px; height: 12px; }
+.sidebar-limits .st-lname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+.sidebar-limits .st-reset { display: none; }
+.sidebar-limits .st-barline { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin-top: 4px; }
+.sidebar-limits .st-bar { height: 3px; }
+.sidebar-limits .st-pct { font-size: 11px; line-height: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.sidebar-limits .st-high .st-pct { color: var(--thread-fail); }
+.sidebar-limits .st-limit-note { margin: 8px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--ink-2); overflow-wrap: anywhere; }
+.sidebar-limits .st-limit-note[hidden] { display: none; }

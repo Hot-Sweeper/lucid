@@ -1,3 +1,4 @@
+import { mountLimitsSection } from "./office/limits-section";
 import { completionFirst, reconcileThreadList } from "./office/thread-list";
 import { threadState } from "./office/thread-state";
 import { mountInterfaceThemeSetting } from "./interface-theme";
@@ -27,6 +28,7 @@ import "./office/office.css";
 import "./office/panels.css";
 import "./office/thread-state.css";
 import "./office/thread-list.css";
+import "./office/limits-section.css";
 import "./office/sidebar-header.css";
 import "./world/world.css";
 import "./decor/decor.css";
@@ -1410,6 +1412,9 @@ mountStats(document.getElementById("usage-body")!, async () => {
   if (u?.windows && !companionClient()) wallet.observe(u);
   return u;
 }, { background: true });
+
+// Limits retains the real usage owner, but has its own saved disclosure on every layout.
+mountLimitsSection($("side-panel"), $("usage-body"), !folded.has("limits"));
 
 // Real weather where you are: it rains, snows or storms over the office, and the season shows outside.
 const WX_NAME: Record<string, string> = { clear: "Clear", clouds: "Cloudy", rain: "Rain", drizzle: "Drizzle", snow: "Snow", storm: "Storm", fog: "Fog" };

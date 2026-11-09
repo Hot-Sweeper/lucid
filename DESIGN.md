@@ -191,3 +191,7 @@ Compact status text uses the existing T3-inspired state tokens: blue #6fb6ff for
 ## Sidebar thread flow
 
 Active conversations own the sidebar's scroll region. Settled stays at its bottom, immediately above Subscriptions, with matching compact 36px disclosure headers, lavender text, hairlines and peach focus. Each expanded lower section has a bounded content scroller, keeping both headers reachable. Completed conversations lead their group newest first; all other rows retain T3 order. During pointer interaction, defer reorder while still updating status text. Preserve row and spinner nodes across refreshes, with state-preserving DOM moves for reordering. Camera movement pauses scene decorations only, never sidebar status animations. Keep the shared calm, hidden and reduced-motion policies.
+
+## Limits disclosure
+
+Limits is its own saved disclosure below Subscriptions, sharing the same 36px header, full-row toggle, lavender text, hairline and peach focus. Move the existing live provider rows and their availability note into this section on desktop and mobile; never duplicate polling or reset the disclosure as readings arrive. Preserve the compact meters, percentages and reset tooltips. Long provider names ellipsize, narrow sidebars stack the meters, and the expanded body has a bounded scroll region.
