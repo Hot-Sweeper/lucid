@@ -215,11 +215,11 @@ export class ToolApp {
     const epoch = this.wm.epoch;
     // a sheet opens in the player, a picture in Photos: find out which before the window opens
     const probe = src && data
-      ? data().then((d) => (d ? detectSheet(d, name, () => this.wm.epoch === epoch).then((f) => f && { f, d }) : null)).catch(() => null)
+      ? data().then(async (d) => d ? { d, f: await detectSheet(d, name, () => this.wm.epoch === epoch) } : null).catch(() => null)
       : Promise.resolve(null);
     const sheet = await probe;
     this.wm.check(epoch);
-    if (sheet) {
+    if (sheet?.f) {
       const w = await this.wm.open("player", name);
       await playSheet(this.wm, w.body, sheet.f, sheet.d, { width: 520 - 24 });
       return;
@@ -228,7 +228,21 @@ export class ToolApp {
     w.body.innerHTML = src
       ? `<div class="pic"><img alt="${esc(name)}"></div>`
       : `<div class="tool"><h3>${esc(name)}</h3><p class="muted">This image could not be shown.</p></div>`;
-    if (src) (w.body.querySelector("img") as HTMLImageElement).src = src;
+    if (src) {
+      const img = w.body.querySelector("img") as HTMLImageElement;
+      let retried = false;
+      img.addEventListener("error", () => {
+        if (!img.isConnected || this.wm.epoch !== epoch) return;
+        if (!retried && sheet?.d && img.src !== sheet.d) {
+          retried = true;
+          img.src = sheet.d;
+          return;
+        }
+        const container = img.parentElement;
+        if (container) container.innerHTML = `<div class="tool"><h3>${esc(name)}</h3><p class="muted">This image could not be shown.</p></div>`;
+      });
+      img.src = src;
+    }
     gsap.fromTo(w.body.firstElementChild, { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.4, ease: "power2.out" });
     this.wm.robot.setPose("read");
     // robots that like full screen windows look at pictures full screen; others now and then
