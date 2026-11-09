@@ -278,7 +278,7 @@ function manageRobot(threadId: string | null, projectId: string | null = null) {
 }
 chat.onManage = id => manageRobot(id);
 // the sidebar and the chat are columns beside the scene, so the camera always fits what is left (see World)
-world.onFocus = (d) => { if (d) { world.revealThread(d.threadId); chat.open(d); paintChatManager(); chat.setView(world.focusMode); pushStatus(d); } else { chat.setCollapsed(true); } };
+world.onFocus = (d) => { if (d) { world.revealThread(d.threadId); chat.open(d); paintChatManager(); chat.setView(world.focusMode); pushStatus(d); } };
 // a robot's question, answered from its chat (see openAnswer)
 const answerDeps = { pending: sharedPendingRequests((id) => (window as any).lucid.pendingRequests(id)), t3: (window as any).lucidT3, advice: (rid: string) => delegate.advice.get(rid) ?? null };
 const answer = new AnswerCard(chat, answerDeps);
@@ -369,11 +369,7 @@ chat.onChooseThread = () => {
   search.focus();
   saveSettings();
 };
-// A click in the office folds the conversation without losing its draft or selection.
-$("scene").addEventListener("click", (e) => {
-  const target = e.target as HTMLElement;
-  if (!target.closest(".desk-unit, .world-walker, button, input, textarea, a")) chat.setCollapsed(true);
-});
+// Office navigation leaves the conversation open until the user hides it.
 chat.onToggleView = () => {
   const d = world.focusDesk;
   if (!d) return;

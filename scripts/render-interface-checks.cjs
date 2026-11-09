@@ -14,7 +14,11 @@ module.exports = async ({ js, wc, wait, out }) => {
     check(result.open.open && !result.open.collapsed && result.open.width>=300 && result.open.thread==='perf-t0', 'Choosing a desk did not open its conversation');
     await js(`window.__world.scene.dispatchEvent(new MouseEvent('click',{bubbles:true}))`);
     result.backgroundFold = await js(`window.__chat.collapsed`);
-    check(result.backgroundFold, 'Office background click did not fold the conversation');
+    check(!result.backgroundFold, 'Office background click folded the conversation');
+    await js(`window.__world.unfocus()`);
+    check(await js(`!window.__chat.collapsed`), 'Leaving desk focus folded the conversation');
+    await js(`window.__chat.el.querySelector('.cp-hide').click()`);
+    check(await js(`window.__chat.collapsed`), 'Manual hide did not fold the conversation');
     await js(`window.__chat.open(window.__interfaceDesk)`);
     result.draft = await js(`window.__chat.el.querySelector('textarea').value`);
     check(result.draft==='Draft kept: exact Unicode 🎵', 'Folding the conversation lost the draft');
