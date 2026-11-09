@@ -1,6 +1,7 @@
 import { RobotPower, robotModeFor } from "./robot-power";
 import { ModelSticker } from "./model-sticker";
 import { accessorySvg, blushSvg, hatInfo, hatSvg, paintLookColors, styledEyes } from "./look";
+import { robotSay } from "../office/robot-voice";
 import gsap from "gsap";
 import { flavorSpeech } from "../localization-speech";
 import { batteryWeakness, subscriptionBatteries } from "../office/battery";
@@ -1012,6 +1013,8 @@ export class Walker {
       return;
     }
     if (!this.speechLocale) p.textContent = text;
+    // Spoken lines get the robot's own synthesized babble; thoughts stay silent.
+    if (!think && this.activity !== "nap") robotSay({ el: this.el, seed: this.name || this.id, brand: this.brand, head: this.headK }, text);
     const was = b.classList.contains("on");
     b.classList.add("on");
     // inside a room the bubble must stay within its walls (rooms clip what sticks out);

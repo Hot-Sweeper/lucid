@@ -1,5 +1,6 @@
 import gsap from "gsap";
 import { Anims, type Pt, type RoomStage } from "./room";
+import { gameSound } from "../office/sound";
 
 // A small chess table seen from above with an upright set of pieces. White sits on the left,
 // so the ranks run left to right (rank 1 at the left) and the a-file is at the top.
@@ -165,6 +166,7 @@ export class ChessTable {
       .to(p.el, { y: dest.y, duration: 0.14, ease: "power2.in" });
     this.layer.appendChild(p.el);
     await this.anims.run(lift);
+    gameSound.at(victim ? 'chess-take' : 'chess', p.el, .9);
     if (victim) void this.capture(victim);
     // castling: the rook jumps over
     if (p.type === "k" && Math.abs(from.charCodeAt(0) - to.charCodeAt(0)) === 2) {
@@ -175,6 +177,7 @@ export class ChessTable {
         this.board.delete(rf); this.board.set(rt, rook);
         const d = this.at(rt);
         await this.anims.run(gsap.timeline().to(rook.el, { y: "-=6", duration: 0.12 }).to(rook.el, { x: d.x, y: d.y - 6, duration: 0.35, ease: "power2.inOut" }).to(rook.el, { y: d.y, duration: 0.12 }));
+        gameSound.at('chess', rook.el, .8);
       }
     }
     if (promo) {

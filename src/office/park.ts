@@ -136,12 +136,17 @@ export class Park {
     return [...this.vis.values()].map(({ w }) => ({ el: w.el as HTMLElement, x: w.x, y: w.y, activity: w.activity }))
       .concat([...this.leaving].map(w => ({ el: w.el as HTMLElement, x: w.x, y: w.y, activity: w.activity })));
   }
-  soundZones(): { kind: 'water' | 'birds'; x: number; y: number }[] {
+  /** Where the park's own sounds live: the water, the trees, the pond edge and the meadow.
+   *  The soundscape picks who sings there from the time of day and the weather. */
+  soundZones(): { kind: 'water' | 'birds' | 'pond' | 'meadow'; x: number; y: number }[] {
     if (!this.geo || this.dead) return [];
     const p = this.geo.park, cx = p.x + p.w / 2, cy = p.y + p.h / 2;
     return [
       { kind: 'water', x: cx + 260 * K, y: cy - 120 * K },
-      ...(!this.wet ? [{ kind: 'birds' as const, x: cx - 320 * K, y: cy - 200 * K }] : []),
+      { kind: 'birds', x: cx - 320 * K, y: cy - 200 * K },
+      { kind: 'birds', x: cx + 340 * K, y: cy + 230 * K },
+      { kind: 'pond', x: cx + 270 * K, y: cy - 40 * K },
+      { kind: 'meadow', x: cx - 260 * K, y: cy + 300 * K },
     ];
   }
 

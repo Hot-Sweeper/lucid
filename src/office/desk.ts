@@ -1,4 +1,5 @@
 import { RobotPower } from "../world/robot-power";
+import { robotSay } from "./robot-voice";
 import { DeskPlanWidget } from "./desk-plan";
 import { managerLook } from "../world/look";
 import gsap from "gsap";
@@ -340,6 +341,7 @@ export class Desk implements DeskStage {
     b.className = `bubble show ${kind}`;
     b.innerHTML = `<p></p><span class="tail a"></span><span class="tail b"></span>`;
     b.querySelector("p")!.textContent = text;
+    if (kind === "speak") robotSay({ el: this.el.querySelector(".robot-host") ?? this.el, seed: this.profile?.name || this.threadId || "desk", provider: this.info?.provider, head: this.profile?.look?.head }, text);
     this.onSay();
     if (!was) gsap.fromTo(b, { opacity: 0, y: 12, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.8)" });
   }

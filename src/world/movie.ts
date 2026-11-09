@@ -171,6 +171,8 @@ export class MovieCorner {
     tl.to(this.warm, { opacity: 0.7, duration: 0.3 });
     this.kernels.forEach((k, i) => tl.fromTo(k, { opacity: 1, attr: { cy: 54 } }, { attr: { cy: 26 + Math.random() * 10 }, duration: 0.22, yoyo: true, repeat: 7, ease: "power2.out", delay: i * 0.07 }, 0.1));
     tl.to(this.kernels, { opacity: 0, duration: 0.2 }, ">-0.1").to(this.warm, { opacity: 0.15, duration: 0.5 }, "<");
+    // kernels burst in an uneven patter while the kettle is hot
+    for (let n = 0; n < 16; n++) tl.call(() => gameSound.at('pop', this.warm, .45 + Math.random() * .55), [], .25 + Math.pow(Math.random(), .8) * 1.65);
     this.popcornTask = this.anims.run(tl).then(() => { this.popping = false; this.popcornTask = null; });
     return this.popcornTask;
   }

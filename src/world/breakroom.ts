@@ -11,6 +11,7 @@ import { Arcade, type GameEvent } from "./arcade";
 import { MovieCorner, type Beat } from "./movie";
 import type { Facing } from "./walker";
 import type { RobotLook } from "../office/rig";
+import { gameSound, type GameCue } from "../office/sound";
 
 // The break room, seen top-down. West: a kitchen counter on the north wall (fridge, sink,
 // microwave, coffee machine), a dining table, three charging docks and a nap pod. Middle: a
@@ -203,7 +204,7 @@ export class BreakRoom implements RoomExtension {
   }
   soundMedia() {
     return [
-      { el: this.arcade.el, x: this.arcade.cx, y: WALL - 24, kind: 'tv' as const, playing: this.arcade.isPlaying, powered: this.arcade.powered },
+      { el: this.arcade.el, x: this.arcade.cx, y: WALL - 24, kind: 'tv' as const, playing: this.arcade.isPlaying, powered: this.arcade.powered, game: this.arcade.game },
       { el: this.movie.el, x: this.movie.cx, y: 110, kind: 'movie' as const, playing: this.movie.isPlaying, powered: this.movie.isPlaying },
     ];
   }
@@ -838,9 +839,10 @@ export class BreakRoom implements RoomExtension {
     r.w.poke();
     const close = () => {
       if (this.dead) return;
-      gsap.to(this.$.fridgeDoor, { scaleX: 1, duration: 0.4, ease: "power2.in" });
+      gsap.to(this.$.fridgeDoor, { scaleX: 1, duration: 0.4, ease: "power2.in", onComplete: () => this.machine("fridge-close", this.$.fridgeLight) });
       gsap.to(this.$.fridgeLight, { opacity: 0, duration: 0.3, delay: 0.3 });
     };
+    this.machine("fridge-open", this.$.fridgeLight, .9);
     gsap.to(this.$.fridgeDoor, { scaleX: 0.12, duration: 0.45, ease: "power2.out", transformOrigin: "0% 50%" });
     gsap.to(this.$.fridgeLight, { opacity: 1, duration: 0.3 });
     try {
@@ -1316,6 +1318,7 @@ export class BreakRoom implements RoomExtension {
     const awake = () => viewers().filter((r) => r !== sleeper);
     const beat = (b: Beat) => {
       if (!g.alive) return;
+      if (mv.isPlaying) this.machine(({ gasp: "movie-gasp", scare: "movie-scare", laugh: "movie-laugh", aww: "movie-aww", credits: "movie-credits" } as const)[b], mv.el, .9);
       const vs = awake();
       if (b === "gasp" || b === "scare") {
         vs.forEach((r, i) => g.later(i * 0.08, () => { if (!g.has(r)) return; r.w.flinch(); g.later(1.4, () => g.has(r) && r.w.setExpression("neutral")); }));
@@ -1381,6 +1384,9 @@ export class BreakRoom implements RoomExtension {
     for (let i = 0; i < 3; i++) this.$[`dockFill${i}`].setAttribute("width", "0");
   }
 
+  /** A machine or prop sounds from where it stands, only while the room is really in use. */
+  private machine(cue: GameCue, at: Element, level = 1) { if (!this.dead) gameSound.at(cue, at, level); }
+
   /** Nobody in the room: decorative loops stop. */
   private pauseIdle(idle: boolean) { for (const a of this.anims) a.paused(idle); }
 
@@ -1389,7 +1395,12 @@ export class BreakRoom implements RoomExtension {
     const $ = this.$;
     return new Promise<void>((resolve) => {
       const tl = gsap.timeline({ onComplete: () => { this.busyThings.delete("microwave"); resolve(); } });
-      tl.to($.mwGlow, { opacity: 1, duration: 0.3 })
+      // door shut, two keypad beeps, the hum while it turns, three dings at the end
+      const sound = (cue: GameCue, at: number, level = 1) => tl.call(() => this.machine(cue, $.mwGlow, level), [], at);
+      sound("mw-door", 0, .9); sound("mw-beep", .2, .7);
+      for (let s = .45; s < secs - .2; s += .95) sound("mw-hum", s, .8);
+      sound("mw-ding", secs, 1);
+      tl.to($.mwGlow, { opacity: 1, duration: 0.3 }, 0)
         .to($.mwRun, { opacity: 1, duration: 0.25, yoyo: true, repeat: secs * 2 - 1, ease: "steps(1)" }, 0)
         .to({ a: 0 }, { a: Math.PI * 2 * (secs / 4), duration: secs, ease: "none", onUpdate() {
           const a = (this.targets()[0] as { a: number }).a;
@@ -1410,7 +1421,10 @@ export class BreakRoom implements RoomExtension {
     const $ = this.$;
     return new Promise<void>((resolve) => {
       this.fx.add(gsap.timeline({ onComplete: resolve })
-        .to($.cmLight, { fill: PAL.mint, duration: 0.2 })
+        .call(() => this.machine("grind", $.cmLight, .8), [], 0)
+        .call(() => this.machine("pour", $.cmStream, .9), [], 1.1)
+        .call(() => this.machine("pour", $.cmStream, .75), [], 2.4)
+        .to($.cmLight, { fill: PAL.mint, duration: 0.2 }, 0)
         .fromTo($.cmStream, { scaleY: 0, transformOrigin: "50% 0%" }, { scaleY: 1, duration: 0.4 })
         .fromTo($.cmCup, { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0.2)
         .fromTo($.cmSteam.children, { y: 6, opacity: 0 }, { y: -18, opacity: 0.8, duration: 1.2, stagger: 0.3, repeat: 1, ease: "sine.out" }, 0.6)
@@ -1426,6 +1440,7 @@ export class BreakRoom implements RoomExtension {
     const fill = this.$[`dockFill${i}`], cable = this.$[`dockCable${i}`], glow = this.$[`dockGlow${i}`];
     gsap.killTweensOf(fill);
     if (on) {
+      this.machine("charge", glow, .8);
       gsap.to(cable, { opacity: 1, duration: 0.3 });
       gsap.to(glow, { opacity: 0.7, duration: 0.5 });
       gsap.fromTo(fill, { attr: { width: 3 } }, { attr: { width: 22 }, duration: 18, ease: "none" });

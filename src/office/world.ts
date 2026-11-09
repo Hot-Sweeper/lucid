@@ -151,6 +151,8 @@ export class World {
   private routeWaiters = new Set<() => void>();
   private roomOf = new Map<string, string>();          // thread -> room id at the last update ("park" too)
   private transit = new Map<string, Walker>();
+  /** Robots walking between rooms and buildings (world coordinates), for their footsteps. */
+  soundWalkers() { return [...this.transit.values()].filter(w => w.el.isConnected).map(w => ({ el: w.el as HTMLElement, x: w.x, y: w.y, activity: w.activity })); }
   private trips = new Map<string, object>();           // the journey a robot in transit is on (a newer one replaces it)
   private known = new Map<string, WThread>();          // every thread at the last update, for robots whose thread went away
   private exits = new Map<string, { t: WThread; from: string; to: string | null }>();   // its source room owns the robot until the door handoff

@@ -2,7 +2,7 @@ import gsap from "gsap";
 import { PALETTES, uid, type BrandKind } from "./parts";
 import { reducedMotion, type Pt, type RoomStage } from "./room";
 import { MediaAnimations, RoomMediaControl } from './room-controls';
-import { gameSound } from '../office/sound';
+import { gameSound, type GameCue } from '../office/sound';
 
 // The game corner: a TV on a low cabinet against the north wall, a console next to it and a
 // small couch facing the TV (seen from behind, so the players' backs are toward us). The TV
@@ -74,6 +74,14 @@ export class Arcade {
 
   get powered() { return this.power; }
   get isPlaying() { return this.playing; }
+  /** Which game the TV is showing, for its soundtrack. */
+  get game() { return this.playing ? this.mode : null; }
+  private mode: 'boot' | 'fight' | 'race' = 'boot';
+  /** Game events sound from the TV itself, whoever is playing. */
+  private sounding(ev: (e: GameEvent) => void) {
+    const cues: Record<GameEvent['type'], GameCue> = { hit: 'fight-hit', big: 'fight-big', boost: 'kart-boost', spin: 'kart-spin', overtake: 'kart-pass' };
+    return (e: GameEvent) => { if (this.power) gameSound.at(cues[e.type], this.el, e.type === 'big' ? 1 : .8); ev(e); };
+  }
   private syncPower() {
     this.el.dataset.powered = String(this.power);
     this.el.dataset.playing = String(this.playing && this.power);
@@ -118,7 +126,7 @@ export class Arcade {
 
   /** Console boots: a start-up logo sweeps in. */
   async boot() {
-    this.playing = true;
+    this.playing = true; this.mode = 'boot';
     this.syncPower();
     this.screen.innerHTML = "";
     const g = this.scene();
@@ -162,6 +170,7 @@ export class Arcade {
 
   /** A fighting game round. Resolves with the winning player (0 left, 1 right). */
   async fight(brands: [BrandKind, BrandKind], ev: (e: GameEvent) => void): Promise<0 | 1> {
+    this.mode = 'fight'; ev = this.sounding(ev);
     this.screen.innerHTML = "";
     gsap.set(this.glow, { opacity: 0.16, fill: "#ff9f5a" });
     const g = this.scene();
@@ -240,6 +249,7 @@ export class Arcade {
   // ---- kart race ---------------------------------------------------------------------------------
   /** A split-screen kart race. Resolves with the winning player (0 top, 1 bottom). */
   async race(brands: [BrandKind, BrandKind], ev: (e: GameEvent) => void): Promise<0 | 1> {
+    this.mode = 'race'; ev = this.sounding(ev);
     this.screen.innerHTML = "";
     gsap.set(this.glow, { opacity: 0.16, fill: "#7cc8ff" });
     const g = this.scene();

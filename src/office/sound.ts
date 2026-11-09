@@ -54,13 +54,13 @@ const SCORES: Record<GameCue, Note[]> = {
   water: [[0, 0, .29, .07], [680, .06, .14, .018, 'sine', 380]],
   clip: [[392, 0, .09, .07, 'triangle'], [587.33, .1, .075, .065, 'triangle'], [783.99, .21, .13, .065], [0, .27, .035, .08]],
   // Robots: a metal foot tick, a low thunk and a short servo whine.
-  robostep: [[0, 0, .018, .075, 'sine', undefined, 3600], [92, 0, .055, .07, 'sine', 64], [430, .012, .05, .014, 'triangle', 560]],
+  robostep: [[0, 0, .018, .1, 'sine', undefined, 3600], [92, 0, .055, .09, 'sine', 64], [430, .012, .05, .018, 'triangle', 560]],
   giggle: [[930, 0, .055, .04, 'square', 840], [880, .085, .055, .04, 'square', 790], [835, .17, .055, .036, 'square', 745], [790, .255, .08, .032, 'square', 690]],
   munch: [[0, 0, .035, .07, 'sine', undefined, 1900], [0, .11, .03, .05, 'sine', undefined, 2300], [0, .2, .04, .04, 'sine', undefined, 1600]],
   charge: [[196, 0, .7, .03, 'sine', 392], [784, .55, .12, .022, 'sine'], [0, 0, .5, .012, 'sine', undefined, 5200]],
   // Ping pong: a wooden paddle "tok", a hollow table "tik", a dull floor bounce, the net.
-  'pp-paddle': [[0, 0, .016, .24, 'sine', undefined, 3900], [1180, 0, .045, .17, 'sine', 700], [2360, 0, .018, .05, 'sine']],
-  'pp-table': [[1780, 0, .036, .15, 'sine', 1240], [0, 0, .011, .12, 'sine', undefined, 5400], [3560, 0, .014, .03, 'sine']],
+  'pp-paddle': [[0, 0, .016, .3, 'sine', undefined, 3900], [1180, 0, .045, .22, 'sine', 700], [2360, 0, .018, .06, 'sine']],
+  'pp-table': [[1780, 0, .036, .2, 'sine', 1240], [0, 0, .011, .15, 'sine', undefined, 5400], [3560, 0, .014, .04, 'sine']],
   'pp-floor': [[640, 0, .05, .09, 'sine', 420], [0, 0, .014, .06, 'sine', undefined, 2400]],
   'pp-net': [[0, 0, .09, .11, 'sine', undefined, 900], [270, 0, .06, .05, 'triangle', 180], [0, .05, .07, .04, 'sine', undefined, 3200]],
   // Kitchen machines.
@@ -68,8 +68,8 @@ const SCORES: Record<GameCue, Note[]> = {
   'mw-beep': [[1976, 0, .075, .035, 'square'], [1976, .12, .075, .035, 'square']],
   'mw-hum': [[118, 0, 1.05, .05, 'sawtooth'], [236, 0, 1.05, .018, 'triangle'], [59, 0, 1.05, .03, 'sine']],
   'mw-ding': [[1568, 0, .5, .11, 'sine'], [3136, 0, .3, .025, 'sine'], [1568, .62, .5, .11, 'sine'], [3136, .62, .3, .025, 'sine'], [1568, 1.24, .7, .11, 'sine'], [3136, 1.24, .4, .025, 'sine']],
-  grind: [[0, 0, .95, .1, 'sine', undefined, 2700], [96, 0, .95, .032, 'sawtooth', 112], [0, .3, .65, .05, 'sine', undefined, 5200]],
-  pour: [[0, 0, 1.7, .055, 'sine', undefined, 1250], [880, .25, .06, .03, 'sine', 1320], [990, .7, .06, .03, 'sine', 1500], [840, 1.15, .06, .03, 'sine', 1260], [0, .4, 1.3, .03, 'sine', undefined, 4300]],
+  grind: [[0, 0, .95, .2, 'sine', undefined, 2700], [96, 0, .95, .06, 'sawtooth', 112], [0, .3, .65, .1, 'sine', undefined, 5200]],
+  pour: [[0, 0, 1.7, .11, 'sine', undefined, 1250], [880, .25, .06, .05, 'sine', 1320], [990, .7, .06, .05, 'sine', 1500], [840, 1.15, .06, .05, 'sine', 1260], [0, .4, 1.3, .06, 'sine', undefined, 4300]],
   'fridge-open': [[0, 0, .08, .13, 'sine', undefined, 700], [176, 0, .12, .05, 'triangle', 118], [2960, .1, .09, .012, 'sine', 2800], [0, .05, .4, .02, 'sine', undefined, 260]],
   'fridge-close': [[0, 0, .1, .17, 'sine', undefined, 480], [88, 0, .15, .12, 'sine', 58], [0, .06, .03, .05, 'sine', undefined, 3000], [2093, .2, .05, .015, 'sine']],
   pop: [[0, 0, .022, .2, 'sine', undefined, 2300], [720, 0, .03, .05, 'sine', 380]],
@@ -647,7 +647,7 @@ export class GameSound {
         let voice: OscillatorNode | AudioBufferSourceNode;
         if (!frequency) {
           voice = ctx.createBufferSource(); voice.buffer = this.noiseBuffer(ctx);
-          // Start somewhere new in the shared buffer so repeated transients never sound identical.
+          // A slightly different speed keeps repeated colored transients from sounding identical.
           if (band) voice.playbackRate.value = .85 + Math.random() * .3;
         } else {
           voice = ctx.createOscillator(); voice.type = wave; voice.frequency.value = frequency * ratio;

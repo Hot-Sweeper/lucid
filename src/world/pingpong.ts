@@ -1,5 +1,6 @@
 import gsap from "gsap";
 import { Anims, type Pt, type RoomStage } from "./room";
+import { gameSound, type GameCue } from "../office/sound";
 
 // A ping pong table seen from above, its net, a little flip scoreboard behind it and the ball.
 // The ball flies in arcs over the table with a shadow underneath: its screen position is the
@@ -10,7 +11,7 @@ const W = 300, D = 124;           // table top
 const FRONT = 14, LEGS = 14;      // front face and leg height below the top
 const LIFT = 16;                  // the table top is this much above the floor
 
-type Seg = { x: number; sy: number; h: number; peak: number; d: number; ease?: string };
+type Seg = { x: number; sy: number; h: number; peak: number; d: number; ease?: string; hit?: GameCue };
 type BallState = { x: number; sy: number; h: number };
 
 export class PingPong {
@@ -87,6 +88,8 @@ export class PingPong {
     this.ball.style.display = this.shadow.style.display = on ? "" : "none";
   }
 
+  private sound(cue: GameCue, intensity = 1) { if (this.ball.style.display !== "none") gameSound.at(cue, this.ball, intensity); }
+
   /** Put the ball at a floor point lifted by height h. */
   private place(x: number, sy: number, h: number) {
     const s = this.b;
@@ -116,6 +119,9 @@ export class PingPong {
           this.place(a.x + (sg.x - a.x) * u, a.sy + (sg.sy - a.sy) * u, a.h + (sg.h - a.h) * u + sg.peak * 4 * u * (1 - u));
         },
       });
+      // The ball sounds where it lands: the table top, the floor, or the net.
+      const landing = sg.hit ?? (sg.h === 0 ? "pp-table" : sg.h <= -LIFT + .5 ? "pp-floor" : null);
+      if (landing) tl.add(() => this.sound(landing, Math.min(1, .45 + sg.peak / 40)));
       from = { x: sg.x, sy: sg.sy, h: sg.h };
     }
     return this.anims.run(tl);
@@ -139,6 +145,7 @@ export class PingPong {
     const far = this.net + dir * (45 + Math.random() * 80);
     const mid = rowA + (rowB - rowA) * 0.7 + (Math.random() - 0.5) * 30;
     this.place(a.x, rowA, ha);
+    this.sound("pp-paddle", serve ? .8 : Math.min(1.2, .7 + .5 / Math.max(.4, dur)));
     if (serve) {
       const own = this.net - dir * (60 + Math.random() * 40);
       return this.fly([
@@ -158,6 +165,7 @@ export class PingPong {
     const dir = b.x > a.x ? 1 : -1;
     const ha = rowA - a.y;
     this.place(a.x, rowA, ha);
+    this.sound("pp-paddle", kind === "long" ? 1.2 : .9);
     const bx = this.bounds;
     const rest = (x: number, y: number) => ({ x: Math.min(bx.x1, Math.max(bx.x0, x)), y: Math.min(bx.y1, Math.max(bx.y0, y)) });
     let end: Pt;
@@ -166,7 +174,7 @@ export class PingPong {
       const edge = dir > 0 ? this.x0 + 4 : this.x1 - 4;
       end = rest(edge - dir * (60 + Math.random() * 70), sy + LIFT + (Math.random() - 0.3) * 90);
       await this.fly([
-        { x: this.net - dir * 4, sy, h: 9, peak: 18, d: dur * 0.5 },
+        { x: this.net - dir * 4, sy, h: 9, peak: 18, d: dur * 0.5, hit: "pp-net" },
         { x: this.net - dir * 16, sy, h: 0, peak: 5, d: 0.22 },
         { x: this.net - dir * 44, sy, h: 0, peak: 4, d: 0.25 },
         { x: edge, sy: sy + 4, h: 0, peak: 0, d: 0.7, ease: "power1.in" },
