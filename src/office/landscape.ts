@@ -250,15 +250,18 @@ export function landColors(L: LandLook) {
   const floor = snow > 0.3 ? mix(SNOW, "#9db0c8", 0.32) : mix(mix(grass, "#2c4a2c", 0.36), "#7a5a30", autumn ? 0.18 : 0);
   // A moonlit theme: the palette is already shaded (lookFor); fixed colours sink the same way.
   const night = <T,>(v: T) => L.art?.shade ? moonlit(v, L.art.shade) : v;
+  const ground = (c: string) => L.art?.shade ? moonlit(c, 0.45) : c;
   const ever = night(L.season === "winter" ? EVERGREEN_WINTER : EVERGREEN);
   // A theme can choose the colour the woodland fades into at the map edge (OLED: true black).
   const edge = L.art?.edge ?? mix(mix(ever[0], "#16301f", 0.35), "#8d9fb3", snow * 0.45);
   return {
-    grass, lawn, floor, ever, edge,
-    stripe: snow > 0.6 ? "rgba(255,255,255,0)" : "rgba(255,255,255,0.075)",
-    blob: [mix(grass, "#2f5f36", 0.32), mix(grass, "#d6e39a", 0.3), mix(grass, "#8fae4e", 0.3)],
-    tuftDark: mix(pal.tuft, "#2d5a32", 0.25), tuftLight: mix(grass, "#d8eaa0", 0.4),
-    meadow: mix(mix(grass, "#c7c46a", autumn ? 0.45 : 0.22), SNOW, snow * 0.8),
+    // A moonlit theme: the ground sinks a step further than the trees, and the light meadow,
+    // tuft and blob tones (mixed with fixed pale greens) sink too, so no grass glows.
+    grass: ground(grass), lawn: ground(lawn), floor: ground(floor), ever, edge,
+    stripe: snow > 0.6 ? "rgba(255,255,255,0)" : L.art?.shade ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.075)",
+    blob: night([mix(grass, "#2f5f36", 0.32), mix(grass, "#d6e39a", 0.3), mix(grass, "#8fae4e", 0.3)]),
+    tuftDark: night(mix(pal.tuft, "#2d5a32", 0.25)), tuftLight: night(mix(grass, "#d8eaa0", 0.4)),
+    meadow: night(mix(mix(grass, "#c7c46a", autumn ? 0.45 : 0.22), SNOW, snow * 0.8)),
     path: mix(pal.path, SNOW, snow * 0.42), pathEdge: mix(mix(pal.path, "#6e5c44", 0.38), "#a9b4c2", snow * 0.5), stone: mix(pal.path, "#fff6e0", 0.28),
     trail: night(mix(mix("#b39368", grass, 0.12), "#d6dce4", snow * 0.6)), trailEdge: night(mix(mix("#7f6646", grass, 0.25), "#aeb8c6", snow * 0.5)),
     water: night(L.frozen ? "#cfe5ef" : snow > 0.3 ? "#6aa7c4" : "#5aa9cc"), waterDeep: night(L.frozen ? "#b4d4e2" : "#3f8db4"), bank: night(mix(mix("#7d8f55", "#6b5a3e", 0.4), SNOW, snow * 0.7)),
