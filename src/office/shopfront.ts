@@ -5,6 +5,8 @@ import { SHOP_LINES } from "../content";
 import { CATALOG, itemPreview, coinIcon, seasonalNow, type Wallet, type ShopItem } from "./shop";
 import { seasonFor } from "../weather/season";
 import { SHOP_K } from "./grounds";
+import { themedArt } from "./outdoor-art";
+import { currentTheme } from "../themes/registry";
 
 // The shop building beside the office, seen from above like the rooms: a striped awning over
 // the door, shelves of furniture with price tags, a table with this season's specials, and a
@@ -59,7 +61,7 @@ export class ShopFront {
 
   // Redraw when what is for sale changes (a purchase, a new level, a new season).
   render() {
-    const sig = `${this.wallet.balance >= 0 ? Math.floor(this.wallet.balance / 50) : 0}:${this.level()}:${seasonFor()}:${CATALOG.filter((c) => this.wallet.owns(c.key)).length}`;
+    const sig = `${currentTheme().id}:${this.wallet.balance >= 0 ? Math.floor(this.wallet.balance / 50) : 0}:${this.level()}:${seasonFor()}:${CATALOG.filter((c) => this.wallet.owns(c.key)).length}`;
     if (sig === this.sig && this.el.firstChild) return;
     this.sig = sig;
     const decor = CATALOG.filter((c) => c.kind === "decor" && !c.season);
@@ -89,7 +91,8 @@ export class ShopFront {
     const display = seasonal.length
       ? seasonal.slice(0, 3).map((it, i) => item(it, sx - 90 + i * 90, WALL + 112, 70)).join("")
       : `<text x="${sx}" y="${WALL + 96}" text-anchor="middle" font-size="11" fill="#5a3b2a" font-family="var(--font)">New things soon</text>`;
-    (this.el.querySelector(".sf-art") as HTMLElement).innerHTML = /* svg */ `
+    // A moonlit interface theme shades the whole shop art (outdoor-art.ts themedArt).
+    (this.el.querySelector(".sf-art") as HTMLElement).innerHTML = themedArt(/* svg */ `
     <svg viewBox="0 0 ${PW} ${PH}" width="${SHOP_W}" height="${SHOP_H}" aria-hidden="true">
       <rect x="${sx - 28}" y="-72" width="56" height="76" fill="#e6d6b4"/>
       <rect x="18" y="26" width="${PW}" height="${PH}" rx="12" fill="#1f2a1a" opacity="0.3"/>
@@ -124,7 +127,7 @@ export class ShopFront {
       <rect x="${sx - 110}" y="${PH - 96}" width="220" height="9" rx="4.5" fill="#86654b"/>
       <rect x="${sx + 50}" y="${PH - 112}" width="36" height="24" rx="5" fill="#3a3f4f"/><rect x="${sx + 55}" y="${PH - 108}" width="18" height="8" rx="2" fill="#8ef0b4"/>
       <g transform="translate(${sx - 72} ${PH - 100})">${coinIcon(18).replace("<svg", '<svg x="0" y="0"')}</g>
-    </svg>`;
+    </svg>`, 0.9);
     if (!this.keeper) {
       this.keeper = new Walker(this.el.querySelector(".sf-keeper")!, { id: "shopkeeper", provider: "generic", name: "Shopkeeper", scale: 0.42 });
       this.keeper.setPos((PW / 2 - 20) * K, (PH - 28) * K);

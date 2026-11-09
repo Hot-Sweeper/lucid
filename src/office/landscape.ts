@@ -262,7 +262,7 @@ export function landColors(L: LandLook) {
     blob: night([mix(grass, "#2f5f36", 0.32), mix(grass, "#d6e39a", 0.3), mix(grass, "#8fae4e", 0.3)]),
     tuftDark: night(mix(pal.tuft, "#2d5a32", 0.25)), tuftLight: night(mix(grass, "#d8eaa0", 0.4)),
     meadow: night(mix(mix(grass, "#c7c46a", autumn ? 0.45 : 0.22), SNOW, snow * 0.8)),
-    path: mix(pal.path, SNOW, snow * 0.42), pathEdge: mix(mix(pal.path, "#6e5c44", 0.38), "#a9b4c2", snow * 0.5), stone: mix(pal.path, "#fff6e0", 0.28),
+    path: mix(pal.path, SNOW, snow * 0.42), pathEdge: night(mix(mix(pal.path, "#6e5c44", 0.38), "#a9b4c2", snow * 0.5)), stone: night(mix(pal.path, "#fff6e0", 0.28)),
     trail: night(mix(mix("#b39368", grass, 0.12), "#d6dce4", snow * 0.6)), trailEdge: night(mix(mix("#7f6646", grass, 0.25), "#aeb8c6", snow * 0.5)),
     water: night(L.frozen ? "#cfe5ef" : snow > 0.3 ? "#6aa7c4" : "#5aa9cc"), waterDeep: night(L.frozen ? "#b4d4e2" : "#3f8db4"), bank: night(mix(mix("#7d8f55", "#6b5a3e", 0.4), SNOW, snow * 0.7)),
     shadow: snow > 0 ? mix(pal.shadow, "#3a4a68", snow) : pal.shadow,

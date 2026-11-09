@@ -6,7 +6,7 @@
 // benches, pond and picnic spots all year.
 
 import { seasonPalette, type Season } from "../weather/season";
-import { Grove, Shapes, SNOW, bushInto, fill, mix, moonlit, n1, n2, themeArt, rnd, seedAt, timing, treeInto, type Look } from "./outdoor-art";
+import { Grove, Shapes, SNOW, bushInto, fill, mix, moonlit, n1, n2, themeArt, themedArt, rnd, seedAt, timing, treeInto, type Look } from "./outdoor-art";
 import { groundsLayout, FADE, MEADOW, PARK_K, PARK_BASE_W, PARK_BASE_H, type Grounds, type Rect } from "./grounds";
 import { puddleSvg, snowman, sprinkler, weatherPal, type GroundWx, type Puddle } from "../weather/ground";
 import type { BuildingFootprint } from "./building-footprint";
@@ -601,7 +601,7 @@ export function plainOutsideSvg(o: OutsideOpts) {
       ${shell}
       <rect x="${b.x + b.w - 4}" y="${o.entranceY - 60}" width="40" height="120" fill="#b9a27e"/>
       <rect x="${b.x + b.w + 36}" y="${o.entranceY - 70}" width="60" height="140" rx="10" fill="${plaza}"/>
-      ${[p, ...(o.otherParks ?? [])].map(q => `<g transform="translate(${q.x + q.w / 2} ${q.y + q.h / 2}) scale(${PARK_K})">${parkArt}</g>`).join("")}
+      ${[p, ...(o.otherParks ?? [])].map(q => `<g transform="translate(${q.x + q.w / 2} ${q.y + q.h / 2}) scale(${PARK_K})">${themedArt(parkArt, 0.8)}</g>`).join("")}
     </g>
     <rect width="${w}" height="${h}" fill="#ff8f5a" style="opacity:calc(var(--outdoor-dusk,0) * .16)"/>
     <rect width="${w}" height="${h}" fill="#0a1236" style="opacity:calc(var(--outdoor-night,0) * .84)"/>

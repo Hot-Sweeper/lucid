@@ -36,6 +36,18 @@ export function moonlit<T>(v: T, k: number): T {
   if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([a, b]) => [a, moonlit(b, k)])) as T;
   return v;
 }
+/**
+ * Moonlit SVG art: every hex colour in the markup sunk toward black by the theme's art shade
+ * (times `k`), hues kept. For furniture and buildings drawn with fixed colours (park, shop).
+ * Lamp light lives in its own layer and stays bright. Without a moonlit theme: unchanged.
+ */
+export function themedArt(markup: string, k = 0.7): string {
+  const shade = (themeArt()?.shade ?? 0) * k;
+  if (!shade) return markup;
+  return markup.replace(/#([0-9a-f]{6}|[0-9a-f]{3})\b/gi, (_, h: string) =>
+    mix(h.length === 3 ? `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}` : `#${h}`, "#000000", shade));
+}
+
 /** The current interface theme's outdoor art settings, or nothing for the plain season art. */
 export function themeArt(): ThemeArt | undefined {
   const w = currentTheme().world;

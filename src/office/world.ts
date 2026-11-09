@@ -863,7 +863,7 @@ export class World {
     if (!hostWorld) window.addEventListener('pagehide', () => document.removeEventListener('visibilitychange', this.visibilityPresentation), { once: true });
     this.daylight();
     if (!hostWorld) setInterval(() => this.daylight(), 60000);
-    if (!hostWorld) window.addEventListener("lucid:interface-theme", () => this.daylight());
+    if (!hostWorld) window.addEventListener("lucid:interface-theme", () => { this.daylight(); this.shopFront?.render(); });
   }
 
   // --- layout -------------------------------------------------------------------
