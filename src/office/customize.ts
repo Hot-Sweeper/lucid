@@ -1,10 +1,10 @@
 import gsap from "gsap";
 import { GEOM, UNIT, brandFor, harnessName, TopDownRobot, PALETTES, ACCENTS, ACCESSORIES, ANTENNA_TIPS, BUILDS, COLOR_NAMES, EYES, GLOWS, HATS, HEAD_SIZES, randomLook, resolveLook, STICKERS, stickerSvg, TINTS, portraitSvg, tintPalette, type DeskRig, type Pt, type RobotLook, type SeatedRobot, type Roster, type RobotProfile, type View } from "../robot";
+import { esc } from "../util/html";
 
 // The customize dialog: a live preview of the robot at a little desk, plus every look option.
 // Opened from a desk's right-click menu (openCustomizeFor) and from the hiring screen (openCustomize).
 
-const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 type Tab = "body" | "hat" | "face" | "extras";
 const TABS: [Tab, string][] = [["body", "Body"], ["hat", "Hat"], ["face", "Face"], ["extras", "Extras"]];
 

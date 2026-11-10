@@ -11,10 +11,10 @@
 // The recognition preferences (language, custom words, filler words, silence filtering) are the
 // ones the user set in T3, read from T3's client-settings.json.
 const fs = require("node:fs");
-const os = require("node:os");
 const path = require("node:path");
+const { t3Home } = require("./t3-home.cjs");
 
-const T3_HOME = process.env.T3CODE_HOME || path.join(os.homedir(), ".t3");
+const T3_HOME = t3Home();
 const CLIENT_SETTINGS = path.join(T3_HOME, "userdata", "client-settings.json");
 const SAMPLE_RATE = 16000;
 const MAX_SECONDS = 300;

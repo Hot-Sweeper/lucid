@@ -2,6 +2,8 @@ import gsap from "gsap";
 import { localizeGameDOM } from "../localization-dom";
 import { renderLoop, deferRender } from "../perf/render";
 import { LiveCanvases } from "../perf/canvas";
+import { esc } from "../util/html";
+export { esc };
 export { fitCanvas } from "../perf/canvas";
 
 /** Everything an activity starts (timers, frames, listeners, tweens) is registered here and torn down at once. */
@@ -73,7 +75,6 @@ export function html(s: string) {
   return t.content.firstElementChild as HTMLElement;
 }
 
-export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** Small seeded RNG so procedural content is repeatable. */
 export function rng(seed: number) {

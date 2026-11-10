@@ -9,8 +9,8 @@ import { cafeTiles, plankJoints } from "../../perf/floor-paths";
 import { icon } from "../../ui/icons";
 import type { Room } from "./types";
 import { WALL_FACE, SLOT_W, SLOT_H, columnsForRoom, usable } from "./geometry";
+import { esc } from "../../util/html";
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 function monogram(title: string) {
   const words = title.replace(/[^A-Za-z0-9 ]/g, " ").trim().split(/\s+/);
   return ((words[0]?.[0] || "?") + (words[1]?.[0] || "")).toUpperCase();

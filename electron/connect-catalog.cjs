@@ -2,9 +2,9 @@
 // main process, are never persisted by this app, and never cross the renderer IPC.
 const fs = require('node:fs');
 const path = require('node:path');
-const os = require('node:os');
 const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
+const { t3Home } = require("./t3-home.cjs");
 
 function decryptDesktop(value, { profile = path.join(process.env.APPDATA || '', 't3code-v2') } = {}) {
   if (process.platform !== 'win32') throw Error('Desktop connection reuse is unavailable on this platform.');
@@ -22,7 +22,7 @@ function decryptDesktop(value, { profile = path.join(process.env.APPDATA || '', 
   } finally { key.fill(0); }
 }
 function readCatalog(options = {}) {
-  const home = options.home || process.env.T3CODE_HOME || path.join(os.homedir(), '.t3');
+  const home = options.home || t3Home();
   const document = JSON.parse(fs.readFileSync(path.join(home, 'userdata', 'connection-catalog.json'), 'utf8'));
   return JSON.parse(decryptDesktop(document.encryptedCatalog, options));
 }

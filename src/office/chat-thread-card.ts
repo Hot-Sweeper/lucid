@@ -1,10 +1,10 @@
+import { esc } from "../util/html";
 export type ThreadReference = { environmentId: string; threadId: string };
 export function parseThreadReference(value: string): ThreadReference | null {
   const m = /^t3-thread:\/\/v2\/([a-z0-9-]+)\/([^\s<>?#]+)$/i.exec(value.trim());
   if (!m) return null;
   try { const threadId = decodeURIComponent(m[2]); return threadId && !/[\u0000-\u001f/\\]/.test(threadId) ? { environmentId: m[1], threadId } : null; } catch { return null; }
 }
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export function threadCardMarkup(href: string) {
   return `<button type="button" class="cp-thread-card" data-thread-ref="${esc(href)}"><span>Loading thread…</span></button>`;
 }

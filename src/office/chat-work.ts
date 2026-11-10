@@ -1,10 +1,10 @@
 import type { TurnWork } from "./chat-message";
 import "./chat-work.css";
 import { icon as uiIcon, type IconName } from "../ui/icons";
+import { esc } from "../util/html";
 
 // T3's work log in the chat: each turn folds its progress updates and actions behind one line,
 // "Worked for 7m 17s", above the final reply.
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const LIVE = new Set(["running", "starting", "preparing"]);
 
 const ICON: Record<TurnWork["lines"][number]["k"], IconName> = { cmd: "terminal", edit: "pencilLine", search: "search", tool: "tool", agent: "agent", error: "warning" };

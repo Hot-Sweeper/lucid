@@ -1,9 +1,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const os = require('node:os');
 const { decryptDesktop } = require('./connect-catalog.cjs');
+const { t3Home } = require("./t3-home.cjs");
 
-function readDesktopSession({ home = process.env.T3CODE_HOME || path.join(os.homedir(), '.t3'), read = file => fs.readFileSync(file, 'utf8'), decrypt = decryptDesktop } = {}) {
+function readDesktopSession({ home = t3Home(), read = file => fs.readFileSync(file, 'utf8'), decrypt = decryptDesktop } = {}) {
   const message = 'T3 Connect is not signed in. Open T3 Code to restore its session.';
   for (const relative of [['clerk', 'clerk-tokens.json'], ['clerk-tokens.json']]) {
     let stored;

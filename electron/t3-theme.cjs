@@ -12,12 +12,12 @@
 // The resolution mirrors T3's web client (useTheme and themePalette). Colours are returned as
 // sRGB hex, with text and accent ink lifted where a palette would fall below WCAG AA contrast.
 const fs = require("node:fs");
-const os = require("node:os");
 const path = require("node:path");
 const { readLocalStorage, signature } = require("./chromium-local-storage.cjs");
 const BUILTINS = require("./t3-theme-builtins.cjs");
+const { t3Home } = require("./t3-home.cjs");
 
-const T3_HOME = process.env.T3CODE_HOME || path.join(os.homedir(), ".t3");
+const T3_HOME = t3Home();
 const ORIGIN = "t3code://app";
 const KEYS = ["t3code:theme", "t3code:theme-appearance-mode", "t3code:theme-follow-system", "t3code:theme-halves:v1", "t3code:themes:v1"];
 const ALIASES = { "t3-chat-dark": "t3-chat", "t3-grove": "grove", "t3-ocean": "ocean", "t3-ember": "ember", "t3-iris": "iris" };

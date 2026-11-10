@@ -27,6 +27,7 @@ const LIVE_RUN = new Set(["running", "starting", "preparing"]);
 import { chatReaderAnchor } from "./chat-scroll";
 import { chatFileUrl, chatMediaKind, inlineChatImage, prepareChatImages, chatImageFailed, setMediaThread, thumbSrc, inlineChatFile, mountChatArtifact } from "./chat-media";
 import { reviewReportId, renderChatReview, renderSourceChatReport, type ChatReviewPaper } from "./chat-review";
+import { esc } from "../util/html";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
@@ -112,7 +113,6 @@ function mediaAttachment(path: string, name: string, mime = "", reveal = false) 
   return `<button type="button" class="${kind === "image" ? "cp-att" : "cp-file"}" data-media-src="${fileUrl(path)}" data-media-kind="${kind}" data-media-name="${esc(name)}" aria-label="Preview ${esc(name)}">${kind === "image" ? `<img src="${thumbSrc(fileUrl(path), 480)}" alt="${esc(name)}" loading="lazy" decoding="async">` : `<span>${esc(name)}</span><i>Open ${kind}</i>`}</button>`;
 }
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // Messages render as real Markdown, like in T3 Code: headings, lists, tables, quotes,
 // highlighted code blocks with a copy button, and links (web links open in the browser,

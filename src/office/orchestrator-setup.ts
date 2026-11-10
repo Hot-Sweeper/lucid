@@ -1,6 +1,7 @@
 import type { Orchestrator } from "./orchestrator";
 import { gameSound } from "./sound";
 import "./orchestrator-controls.css";
+import { esc } from "../util/html";
 
 // Opt-in setup: says plainly what the orchestrator is, where its notes live and what it
 // costs, lets you pick its harness and model from T3's own list, then hires it.
@@ -9,7 +10,6 @@ type Model = { slug: string; name: string; isDefault: boolean };
 type Provider = { instanceId: string; name: string; ready: boolean; models: Model[] };
 type Config = { providers: Provider[]; selection: { providerInstanceId: string; model: string } | null };
 
-const esc = (s: string) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 export function openOrchestratorSetup(orch: Orchestrator, onHired: (threadId: string) => void) {
   if (document.querySelector(".orch-setup")) return;

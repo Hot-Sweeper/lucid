@@ -7,9 +7,9 @@ const { DatabaseSync } = require("node:sqlite");
 const { runCliProcess } = require("./cli-runner.cjs");
 const path = require("node:path");
 const fs = require("node:fs");
-const os = require("node:os");
+const { t3Home } = require("./t3-home.cjs");
 
-const T3_HOME = process.env.T3CODE_HOME || path.join(os.homedir(), ".t3");
+const T3_HOME = t3Home();
 const DB_PATH = path.join(T3_HOME, "userdata", "statev2.sqlite");
 const CLI = path.join(T3_HOME, "bin", process.platform === "win32" ? "t3.cmd" : "t3");
 

@@ -8,6 +8,7 @@ import { formatCoins } from "../office/coin-ledger";
 import { gameSound } from "../office/sound";
 import { brandFor, portraitSvg, PALETTES, type RobotLook } from "../robot";
 import { addDays, breakdown, dayDate, dayKey, heatScale, mergeDays, summarize, weekStart, type CalendarDoc, type Days, type PersonalRecord, type Share, type Summary } from "./coin-calendar";
+import { esc } from "../util/html";
 
 export type LedgerRobot = { id: string; name: string; provider: string; look: RobotLook };
 type Options = {
@@ -23,7 +24,6 @@ type Kind = "projects" | "robots" | "threads";
 const WEEKS = 26;
 const ROWS = 8;
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const short = (key: string) => dayDate(key).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 const long = (key: string) => dayDate(key).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const weekdayName = (key: string) => dayDate(key).toLocaleDateString("en-GB", { weekday: "long" });

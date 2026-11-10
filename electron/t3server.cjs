@@ -22,11 +22,12 @@ const os = require("node:os");
 const crypto = require("node:crypto");
 const { spawn } = require("node:child_process");
 const { DatabaseSync } = require("node:sqlite");
+const { t3Home } = require("./t3-home.cjs");
 
 let electron = null;
 try { electron = require("electron"); } catch {}
 
-const T3_HOME = process.env.T3CODE_HOME || path.join(os.homedir(), ".t3");
+const T3_HOME = t3Home();
 const RUNTIME = path.join(T3_HOME, "userdata", "server-runtime.json");
 const DB_PATH = path.join(T3_HOME, "userdata", "statev2.sqlite");
 const CLI = path.join(T3_HOME, "bin", process.platform === "win32" ? "t3.cmd" : "t3");

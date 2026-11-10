@@ -1,13 +1,13 @@
 import gsap from "gsap";
 import { FLOORS, WALLS, DECOR, DECOR_IDS, drawFloor, drawDecor, type FloorId, type WallId, type DecorId } from "../decor/decor";
 import { COMPUTERS, computerPreview, type ComputerId } from "./appearances";
+import { esc } from "../util/html";
 
 // Furnishing an office: pick a floor, a wall colour, the computers and decorations. Everything is
 // free, and every change shows in the room right away.
 
 export type RoomTheme = { computer?: ComputerId; computers?: Record<string, ComputerId>; floor?: FloorId; wall?: WallId; decor?: DecorId[] };
 
-const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 let open: { close(): void } | null = null;
 

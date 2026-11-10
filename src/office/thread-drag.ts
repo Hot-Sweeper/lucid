@@ -2,13 +2,13 @@ import gsap from "gsap";
 import { logoFor } from "../robot";
 import type { ThreadRef } from "./thread-ref";
 import type { ChatPanel } from "./chat-panel";
+import { esc } from "../util/html";
 
 // Dragging a thread from the sidebar into the side chat references it in your message.
 // Pointer events, not HTML drag and drop: a copy of the row follows the cursor, the chat's
 // message box lights up as the drop target, and a preview chip shows where it will land.
 // Escape puts it back. A short press is still a normal click on the row.
 
-const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const ROW = ".th-row[data-id], .rail-th[data-id]";
 
 export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFor: (id: string) => ThreadRef | null,

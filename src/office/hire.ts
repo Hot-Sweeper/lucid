@@ -7,6 +7,7 @@ import { icon } from "../ui/icons";
 import { openCustomize } from "./customize";
 import { compatibleWorkers } from "./worker-match";
 import { gameSound } from "./sound";
+import { esc } from "../util/html";
 
 const LAST_SETUP = "lucid.hire.lastSetup";
 // The hiring screen: a new thread for a free desk. The harness and model decide the
@@ -35,7 +36,6 @@ export const BUILTIN_ROLES: Role[] = [
 ];
 type Project = { id: string; title: string };
 
-const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 // A small portrait: the robot's face with its hat, eyes, tint and colors.
 export function avatar(provider: string, look: RobotLook = {}, size = 66) {
   return portraitSvg(look, PALETTES[brandFor(provider)], { size });
