@@ -1,17 +1,71 @@
-/* Lucid's own title bar (src/titlebar.ts): the sidebar's navy, a drag region, Lucid's buttons. */
-:root { --titlebar-h: 0px; }
-.has-titlebar { --titlebar-h: 34px; }
-.has-titlebar #app { height: calc(100vh - var(--titlebar-h)); }
-.app-titlebar { position: relative; z-index: 400; height: var(--titlebar-h); display: flex; align-items: center; gap: 12px; padding-left: 14px; background: var(--night); border-bottom: 1px solid var(--line); color: var(--ink-3); font: 500 12px var(--font); user-select: none; -webkit-app-region: drag; app-region: drag; }
-.tb-brand { display: flex; align-items: center; gap: 8px; letter-spacing: 0.02em; color: var(--ink-2); }
-.tb-mark { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffd0a3, var(--accent) 60%, #e0647e); }
-.tb-controls { margin-left: auto; display: flex; height: 100%; -webkit-app-region: no-drag; app-region: no-drag; }
-.tb-btn { width: 46px; height: 100%; display: grid; place-items: center; padding: 0; border: 0; background: none; color: var(--ink-3); cursor: pointer; transition: background-color 0.12s ease, color 0.12s ease; }
-.tb-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
-.tb-btn:active { background: rgba(255, 255, 255, 0.13); }
-.tb-btn:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
-.tb-close:hover { background: #e5484d; color: #fff; }
-.tb-close:active { background: #c43a3f; }
-@media (prefers-reduced-motion: reduce) { .tb-btn { transition: none; } }
-/* the title bar carries the name, so the sidebar header does not repeat it */
-.has-titlebar .brand > .mark, .has-titlebar .brand > h1 { display: none; }
+/* The window's top (src/titlebar.ts). There is no separate title bar: the sidebar header, the
+   chat header and the folded rails share one 52px chrome row, their empty parts drag the
+   window, and the platform's window controls sit in the corner that row leaves free for them. */
+:root {
+  --chrome-h: 52px;   /* the shared top row; window controls centre on it */
+  --wc-left: 0px;     /* space kept free for macOS traffic lights */
+  --wc-right: 0px;    /* space kept free for Linux or Windows window controls */
+}
+html[data-chrome="mac"] { --wc-left: 84px; }
+html[data-chrome="windows"] { --wc-right: 138px; }
+html[data-fullscreen] { --wc-left: 0px; --wc-right: 0px; }
+
+/* ---- one chrome row across the columns ---- */
+#app > .panel { padding-top: 0; }
+#app > .panel > .brand {
+  box-sizing: border-box; min-height: var(--chrome-h); flex: none;
+  margin-inline: -16px; padding: 11px 16px 11px max(16px, var(--wc-left));
+}
+.chat-panel > .cp-head { box-sizing: border-box; min-height: var(--chrome-h); padding-block: 7px; padding-right: max(12px, calc(var(--wc-right) + 4px)); }
+html[data-chrome="mac"]:not([data-fullscreen]) #app > .side-rail { padding-top: calc(var(--chrome-h) + 4px); }
+html:is([data-chrome="linux"], [data-chrome="windows"]):not([data-fullscreen]) #app > .cp-tab { padding-top: calc(var(--chrome-h) + 6px); }
+
+/* ---- the product's name and mark ---- */
+.brand { container-type: inline-size; }
+.brand > .mark { width: 20px; height: 20px; display: grid; place-items: center; background: none; border-radius: 0; }
+.brand > .mark .brand-mark { display: block; }
+.brand h1 { font-size: 15px; font-weight: 600; line-height: 20px; letter-spacing: 0; white-space: nowrap; }
+/* a narrow sidebar keeps the mark and lets the actions stay on the first row */
+@container (max-width: 320px) { .brand > h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } }
+
+/* ---- dragging the window ---- */
+html[data-chrome] :is(#app > .panel > .brand, #app > .side-rail, .chat-panel > .cp-head, .chat-panel:not(.open), .app-wc) {
+  -webkit-app-region: drag; app-region: drag; -webkit-user-select: none; user-select: none;
+}
+html[data-chrome] :is(#app > .panel > .brand, #app > .side-rail, .chat-panel > .cp-head, .chat-panel:not(.open), .app-wc) :is(button, a, input, select, textarea, label, summary, [role="button"], [tabindex], .rail-list),
+html[data-chrome] :is(.grip, .office-settings, .pop-menu, .wx-menu, .cm-menu, .dialog-wrap, dialog, [role="menu"], [role="dialog"], [role="alertdialog"], [role="listbox"], [role="tooltip"]) {
+  -webkit-app-region: no-drag; app-region: no-drag;
+}
+
+/* ---- the controls' corner ---- */
+.app-wc { position: fixed; top: 0; z-index: 400; height: var(--chrome-h); display: flex; align-items: stretch; transition: background-color 200ms var(--ease-out-strong, cubic-bezier(.23,1,.32,1)); }
+html[data-chrome="mac"] .app-wc { left: 0; width: var(--wc-left); border-bottom-right-radius: 12px; }
+html:is([data-chrome="linux"], [data-chrome="windows"]) .app-wc { right: 0; border-bottom-left-radius: 12px; }
+html[data-chrome="windows"] .app-wc { width: var(--wc-right); }
+html[data-fullscreen] .app-wc { display: none; }
+/* folded column under the controls: the plate becomes a little tab in the rail's colour */
+html:is([data-chrome="linux"], [data-chrome="windows"]) #app.chat-folded ~ .app-wc,
+html[data-chrome="mac"] #app.railed ~ .app-wc { background: var(--night-2); }
+
+/* Linux window buttons: full-height hit areas that reach the screen corner, a 30px visual face */
+.app-wc::before { content: ""; align-self: center; width: 1px; height: 18px; margin: 0 4px 0 2px; background: var(--line); opacity: 0; transition: opacity 150ms var(--ease-out-strong, cubic-bezier(.23,1,.32,1)); }
+html[data-chrome="linux"] #app:has(> .chat-panel.open:not(.tabbed)) ~ .app-wc::before { opacity: 1; }
+html:not([data-chrome="linux"]) .app-wc::before { display: none; }
+.wc-btn { position: relative; width: 36px; padding: 0; display: grid; place-items: center; border: 0; background: none; color: var(--ink-3); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color 120ms var(--ease-out-strong, cubic-bezier(.23,1,.32,1)); }
+.wc-btn::before { content: ""; position: absolute; left: 3px; right: 3px; top: calc(50% - 15px); height: 30px; border-radius: 6px; background: transparent; transition: background-color 120ms var(--ease-out-strong, cubic-bezier(.23,1,.32,1)), transform 120ms var(--ease-out-strong, cubic-bezier(.23,1,.32,1)); }
+.wc-btn > .ui-icon { position: relative; transition: transform 120ms var(--ease-out-strong, cubic-bezier(.23,1,.32,1)); }
+.wc-btn:hover { color: var(--ink); }
+.wc-btn:hover::before { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+.wc-btn:active::before { background: color-mix(in srgb, var(--ink) 16%, transparent); transform: scale(.94); }
+.wc-btn:active > .ui-icon { transform: scale(.92); }
+.wc-btn:focus-visible { outline: none; }
+.wc-btn:focus-visible::before { outline: 2px solid var(--accent); outline-offset: 0; }
+.wc-close { width: 46px; padding-right: 10px; }
+.wc-close::before { right: 13px; }
+.wc-close:hover { color: #fff; }
+.wc-close:hover::before { background: var(--ui-close); }
+.wc-close:active::before { background: var(--ui-close-press); }
+@media (prefers-reduced-motion: reduce) {
+  .app-wc, .app-wc::before, .wc-btn, .wc-btn::before, .wc-btn > .ui-icon { transition: none; }
+  .wc-btn:active::before, .wc-btn:active > .ui-icon { transform: none; }
+}

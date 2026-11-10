@@ -86,6 +86,8 @@ import { mountMobileShell } from "./mobile";
 import { mountMobileAccess } from "./office/mobile-access";
 import { openShortcutHelp, isShortcutHelpOpen, typing } from "./office/shortcuts";
 import { mountTitlebar } from "./titlebar";
+import { BRAND } from "./brand";
+import { brandMark } from "./ui/brand-mark";
 
 declare global {
   interface Window {
@@ -126,7 +128,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 document.getElementById("app")!.innerHTML = `
   <aside class="panel" id="side-panel">
-    <header class="brand"><span class="mark" aria-hidden="true"></span><h1>Lucid</h1><button type="button" class="wx" id="wx" hidden aria-haspopup="menu"></button>
+    <header class="brand"><span class="mark" aria-hidden="true">${brandMark()}</span><h1>${esc(BRAND.name)}</h1><button type="button" class="wx" id="wx" hidden aria-haspopup="menu"></button>
       <button class="update" id="update" type="button" title="Check for game updates">Check updates</button>
       <div class="brand-actions">
       <button type="button" class="ghost side-help side-settings" id="side-settings" aria-label="Office and settings" aria-expanded="false" title="Office and settings: rooms, language, staff wall, phone access, linked computers"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 5.6a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.8v1.6M8 12.6v1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M1.8 8h1.6M12.6 8h1.6M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button><button type="button" class="ghost side-help" id="side-help" aria-label="How Lucid works" title="How Lucid works and keyboard shortcuts (?)">?</button><button type="button" class="side-pin pin-btn" id="side-pin" aria-pressed="true">${PIN_ICON}</button><button type="button" class="side-hide" id="side-hide" aria-expanded="true" aria-controls="side-panel" aria-label="Hide sidebar" title="Hide sidebar: it folds into a rail on the left (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M9.5 4L5.5 8l4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Hide<span class="sh-more"> sidebar</span></span></button>
@@ -661,7 +663,7 @@ async function refresh() {
     world.update(data);
     paintSelectedStatus();
     if (!document.hidden) renderThreads();
-    if (companionClient()) for (const button of world.scene.querySelectorAll<HTMLButtonElement>('.add-desk')) {
+    if (companionClient()) for (const button of world.scene.querySelectorAll<HTMLButtonElement>('.desk-ghost')) {
       button.disabled = true; button.title = 'Add desks on the computer. Use the office menu to start work.';
     }
     coinRewards?.render();

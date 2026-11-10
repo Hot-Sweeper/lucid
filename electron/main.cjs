@@ -8,6 +8,7 @@ const { pathToFileURL } = require("node:url");
 const fsp = require("node:fs/promises");
 const path = require("node:path");
 const t3 = require("./t3.cjs");
+const brand = require("./brand.cjs");
 const updater = require("./updater.cjs");
 require("./gpu-fallback.cjs").install(app);
 // Chromium often cannot read video memory on Linux and falls back to a small tile budget.
@@ -105,6 +106,15 @@ app.on("second-instance", () => {
 const watchers = new Map(); // threadId -> stop()
 const languageHelpers = new Set();
 
+// Linux: frameless with our own controls. macOS: inset traffic lights centred on the 52px header
+// row. Windows: native caption buttons in an overlay the renderer recolours from the theme.
+function windowChrome() {
+  if (process.platform === "darwin") return { titleBarStyle: "hiddenInset", trafficLightPosition: { x: 16, y: 19 } };
+  if (process.platform === "win32") return { titleBarStyle: "hidden", titleBarOverlay: { color: "#161b3a", symbolColor: "#b9bfe6", height: 52 } };
+  return { frame: false };
+}
+const windowKind = () => process.platform === "darwin" ? "mac" : process.platform === "win32" ? "windows" : "linux";
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1480,
@@ -112,10 +122,10 @@ function createWindow() {
     minWidth: 980,
     minHeight: 640,
     backgroundColor: "#141a33",
-    title: "Lucid",
+    title: brand.name,
     autoHideMenuBar: true,
-    // Lucid draws its own title bar on Linux (src/titlebar.ts) instead of the desktop's.
-    ...(process.platform === "linux" ? { frame: false } : {}),
+    // The window's top merges with the app's own headers on every platform (src/titlebar.ts).
+    ...windowChrome(),
     // debug screenshot runs render normally but off-screen, so they never pop up on you
     ...(process.env.LUCID_SHOT ? { x: -4000, y: -4000, skipTaskbar: true, focusable: false } : {}),
     webPreferences: {
@@ -136,7 +146,9 @@ function createWindow() {
   else if (process.env.LUCID_SHOT) query.autoScope = "(none: test run)";
   query.app = "1";   // only the real app window answers questions (not pages other tools open)
   const loadOffice = () => {
-    for (const ev of ["maximize", "unmaximize", "enter-full-screen", "leave-full-screen"]) win.on(ev, () => { if (!win.isDestroyed()) win.webContents.send("window:maximized", win.isMaximized() || win.isFullScreen()); });
+    for (const ev of ["maximize", "unmaximize", "enter-full-screen", "leave-full-screen"]) win.on(ev, () => { if (win.isDestroyed()) return; win.webContents.send("window:maximized", win.isMaximized() || win.isFullScreen()); win.webContents.send("window:fullscreen", win.isFullScreen()); });
+    // the brand module names the window; page titles do not replace it
+    win.on("page-title-updated", (e) => e.preventDefault());
     if (DEV_URL) win.loadURL(DEV_URL + "?" + new URLSearchParams(query));
     else win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query });
   };
@@ -623,7 +635,7 @@ require("./market.cjs").register(ipcMain);
 
 // Offline dictation uses the local computer, including for remote-building chats.
 require("./dictation.cjs").register({ ipcMain, app, window: () => win });
-// Lucid's own title bar: window buttons and the maximized state for its restore icon.
+// The window's top (src/titlebar.ts): Linux window buttons and the maximized state for its restore icon.
 ipcMain.handle("window:control", (event, action) => {
   const w = BrowserWindow.fromWebContents(event.sender);
   if (!w) return false;
@@ -632,4 +644,15 @@ ipcMain.handle("window:control", (event, action) => {
   else if (action === "close") w.close();
   return w.isMaximized();
 });
-ipcMain.handle("window:state", (event) => ({ maximized: !!BrowserWindow.fromWebContents(event.sender)?.isMaximized(), framed: process.platform !== "linux" }));
+ipcMain.handle("window:state", (event) => {
+  const w = BrowserWindow.fromWebContents(event.sender);
+  return { maximized: !!w?.isMaximized(), fullscreen: !!w?.isFullScreen(), chrome: windowKind() };
+});
+// Windows caption buttons take the colours of the surface beneath them.
+ipcMain.handle("window:overlay", (event, c) => {
+  const w = BrowserWindow.fromWebContents(event.sender);
+  const ok = (v) => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
+  if (!w || process.platform !== "win32" || !ok(c?.color) || !ok(c?.symbolColor)) return false;
+  w.setTitleBarOverlay({ color: c.color, symbolColor: c.symbolColor });
+  return true;
+});
