@@ -10,7 +10,7 @@ import { watchClock, clockTime } from "../perf/clock";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "t3code" | "instaweb" | "spoolweb" | "sparkplug" | "photos" | "player" | "codex" | "vapor" | "trading";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "t3code" | "instaweb" | "spoolweb" | "sparkplug" | "photos" | "player" | "codex" | "vapor" | "trading" | "studio";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -18,6 +18,7 @@ const FRAMES: Record<AppId, Frame> = {
   editor: { x: 176, y: 12, w: 630, h: 384 },
   terminal: { x: 24, y: 196, w: 500, h: 208 },
   browser: { x: 40, y: 12, w: 740, h: 390 },
+  studio: { x: 40, y: 12, w: 740, h: 390 },
   chat: { x: 110, y: 12, w: 600, h: 396 },
   tool: { x: 470, y: 228, w: 330, h: 170 },
   game: { x: 190, y: 14, w: 440, h: 392 },
@@ -52,8 +53,8 @@ codex: { x: 70, y: 12, w: 680, h: 396 },
   vapor: { x: 50, y: 10, w: 720, h: 398 },
   trading: { x: 40, y: 10, w: 740, h: 398 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Lucid Chat", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "Git", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", instaweb: "Instabot", spoolweb: "Spool", sparkplug: "Sparkplug", t3code: "T3 Code", photos: "Photos", player: "Player", codex: "Codex", vapor: "Vapor", trading: "Botcoin Exchange" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "t3code", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "photos", "player", "codex", "vapor", "trading"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Lucid Chat", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "Git", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", instaweb: "Instabot", spoolweb: "Spool", sparkplug: "Sparkplug", t3code: "T3 Code", photos: "Photos", player: "Player", codex: "Codex", vapor: "Vapor", trading: "Botcoin Exchange", studio: "Studio" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "studio", "gitdesk", "music", "t3code", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "photos", "player", "codex", "vapor", "trading"];
 // Real browser tabs, work, files, terminal output and thread conversations stay untouched.
 const FICTIONAL_APPS = new Set<AppId>(["beats", "social", "game", "music", "botsapp", "telegrid", "chirp", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "vapor", "trading"]);
 
@@ -290,6 +291,14 @@ export class WM {
       return { x: (r.left - s.left + r.width * ax) / k, y: (r.top - s.top + r.height * ay) / k };
     }
     return { x: x + h.offsetWidth * ax, y: y + h.offsetHeight * ay };
+  }
+
+  /** Another app moved its own pointer for the robot (Studio): the cursor and the hand follow it there. */
+  placeCursor(x: number, y: number) {
+    if (this.cursorMotion) { this.cursorMotion.kill(); this.cursorMotion = null; }
+    this.cursor.x = x; this.cursor.y = y;
+    this.cursorX(x); this.cursorY(y);
+    this.robot.mouseTo(x / SCREEN.w, y / SCREEN.h);
   }
 
   async pointAt(el: Element, ax = 0.5, ay = 0.5, ms?: number) {

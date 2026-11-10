@@ -21,6 +21,7 @@ Robot screens only show real tools under their real names, drawn in Lucid's own 
 - Talking with you: the native chat app, showing the conversation you see.
 - Working with other robots (messaging or reading another thread, delegating, starting a helper thread, checking on it): T3 Code. The build (stable or Nightly) is the one you run, read by `electron/t3-channel.cjs` from `desktop-last-started-version` in T3's home and passed through `window.lucid.t3Channel()`.
 - A helper inside the robot's own harness (Claude's Agent tool): that harness's app or terminal (`src/harness/`).
+- A saved web page is rebuilt and played back in the Studio app (`studio.md`).
 - Code is read in the one shared code editor, thoughts go to the one Notes app, and app-minded robots commit, branch and merge in the Git app (`src/os/gitdesk.ts`).
 
 ## Checks

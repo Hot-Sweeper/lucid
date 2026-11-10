@@ -92,6 +92,8 @@ export const CHECKS = [
   "verify-floor-tiles.mjs",
   "verify-frontend-client.mjs",
   "verify-frontend-layout.mjs",
+  "verify-studio.mjs",
+  "verify-studio-server.cjs",
   "verify-game-text-layout.mjs",
   "verify-git-sync.cjs",
   "verify-highlighting.mjs",

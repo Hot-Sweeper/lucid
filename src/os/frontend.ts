@@ -59,7 +59,7 @@ export class FrontendView {
     else if (this.bound) { this.stop(); return; }
     const host = this.root.closest<HTMLElement>('.screen, .phone-screen');
     const mode = host?.dataset.screenDetail || 'full';
-    let delay = this.target.workspace ? 1000 : mode === 'full' ? (this.target.url?.includes('/__lucid/studio') ? 33 : 125) : mode === 'lines' ? 750 : 1500;
+    let delay = this.target.workspace ? 1000 : mode === 'full' ? 125 : mode === 'lines' ? 750 : 1500;
     try {
       if (!this.root.isConnected || !this.active() || !renderFps(this.root) || mode === 'icon') {
         if (this.opened && !this.paused) { this.paused = true; await this.api?.frontendFrame({ id: this.id, mode: 'paused' }); }

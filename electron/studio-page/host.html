@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Studio</title>
+<link rel="stylesheet" href="stage-engine.css">
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+  body { display: flex; background: #1b2044; color: #b9bfe6; font: 11px/1.4 system-ui, sans-serif; --muted: #b9bfe6; }
+  .artboard-label { position: absolute; top: 9px; left: 16px; right: 16px; display: flex; gap: 12px; justify-content: space-between; white-space: nowrap; pointer-events: none; }
+  .artboard-label .file { overflow: hidden; text-overflow: ellipsis; }
+  .artboard-label .zoom { font-family: var(--mono); font-variant-numeric: tabular-nums; opacity: .75; }
+</style>
+</head>
+<body>
+<main class="stage is-empty">
+  <div class="artboard-label" aria-hidden="true"><span class="file"></span><span class="zoom"></span></div>
+  <div class="frame-holder"></div>
+  <div class="overlay"></div>
+  <div class="empty"><div class="empty-inner"><p class="empty-line">Opening the page</p></div></div>
+</main>
+<script type="module" src="host.mjs"></script>
+</body>
+</html>

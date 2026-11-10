@@ -16,6 +16,7 @@ import { fileUrl } from "./office/chat-panel";
 import { UacPrompt } from "./os/uac";
 import { harnessName } from "./office/brand";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, toolActivity } from "./os/apps";
+import { StudioApp } from "./os/studio";
 import { findUpload, ToolViewWatch } from "./os/tool-view";
 import { attachmentsOf, sourcesFor } from "./os/attachment-source";
 import { attachmentSendOutcome, playSend, type DiskFact, type SendOutcome } from "./os/send-files";
@@ -50,8 +51,10 @@ export function samePresentationValue(a: any, b: any): boolean {
 }
 
 const GLOW: Record<string, string> = {
-  editor: "#6f7dff", terminal: "#4ff0a0", browser: "#4fd2ff", chat: "#ff7aa8", files: "#ffbf5a", tool: "#b07cff", think: "#9d8cff", idle: "#4fb6ff", tasks: "#4fd8c0", git: "#a37cff",
+  editor: "#6f7dff", terminal: "#4ff0a0", browser: "#4fd2ff", chat: "#ff7aa8", files: "#ffbf5a", tool: "#b07cff", think: "#9d8cff", idle: "#4fb6ff", tasks: "#4fd8c0", git: "#a37cff", studio: "#ff9f5a",
 };
+// Files a page is made of: their saves are shown in Studio when the project can be rendered.
+const WEB_FILE = /\.(html?|css|scss|sass|less|m?js|jsx|tsx?|vue|svelte|astro|svg)$/i;
 
 const isUrl = (s: string) => /^https?:\/\//i.test(s);
 // What a web item did: searched, opened pages, or looked for a word on a page ("'term' in url").
@@ -122,6 +125,8 @@ export class Director {
   private pumpEpoch = -1;
   private workspaceBrowser = new WorkspaceBrowserTracker();
   private frontendSignals = new Map<string, string>();
+  /** The dev server this thread's own commands announced: framework pages render through it. */
+  private devServer: string | null = null;
   private catchingUp = false;
   private info: ThreadInfo | null = null;
   private lastRunStatus = "";
@@ -131,7 +136,7 @@ export class Director {
   private compaction: CompactionScreen;
   // Screen rule: talking with you happens in the native chat app (messages), working with other
   // robots (messaging, delegating, starting or checking threads) in T3 Code (chat).
-  private browser: BrowserApp; private codex: CodexApp; private chat: T3CodeApp; private messages: T3CodeApp;
+  private browser: BrowserApp; private studio: StudioApp; private codex: CodexApp; private chat: T3CodeApp; private messages: T3CodeApp;
   private attachmentChat: { id: string; app: T3CodeApp } | null = null;
   private readonly messageApp = "chat"; private tool: ToolApp; private toolWatch = new ToolViewWatch(); private tasks: TasksApp;
   private planSig = "";
@@ -166,6 +171,7 @@ export class Director {
       outcome: async (threadId, requestId) => (await lucid()?.requestOutcome?.(threadId, requestId)) ?? null,
     });
     this.browser = new BrowserApp(wm, peek);
+    this.studio = new StudioApp(wm);
     // T3 Code is the build the user runs (stable or Nightly); the chat app is the conversation you see
     this.chat = new T3CodeApp(wm);
     this.messages = new T3CodeApp(wm, "user");
@@ -183,24 +189,11 @@ export class Director {
     this.idleLife.onActivity = (t) => this.onActivity(t);
   }
 
-  private websiteCanvas: string | null = null;
-  /** An explicit Ares studio session may use this robot's screen while its T3 job is idle. */
-  async watchWebsiteCanvas(url: string | null) {
-    this.websiteCanvas = url;
-    if (!url) { this.wm.cursorEl.style.visibility = ''; this.idle(); return; }
-    if (this.info?.run?.status === 'running') return;
-    this.idleLife.halt(); this.robot.setPose('read'); this.stage.setGlow(GLOW.browser);
-    this.wm.cursorEl.style.visibility = 'hidden'; // the canvas owns the one visible cursor
-    this.onActivity('Website studio on Ares');
-    await this.browser.open(url, { instant: true, read: false, real: true, title: 'Website studio on Ares' });
-  }
-
   reset() {
     this.compaction.clear();
     window.clearTimeout(this.historyTimer);
     this.historyTimer = 0; this.historyThread = null; this.historyGeneration++; this.historyCut = 0;
     this.notePresentation.reset();
-    this.websiteCanvas = null; this.wm.cursorEl.style.visibility = '';
     this.idleLife.stop();
     for (const s of this.sessions.values()) window.clearInterval(s.timer);
     this.sessions.clear();
@@ -213,6 +206,7 @@ export class Director {
     this.attachmentChat?.app.reset(); this.attachmentChat = null;
     this.imageRefresh.reset();
     this.browser.reset();
+    this.studio.reset(); this.devServer = null;
     this.codex.reset();
     this.uac.reset();
     this.mobile = false;
@@ -249,7 +243,6 @@ export class Director {
     this.codex.setInfo(info);
     this.term.setCwd(info.root || null);
     const status = info.run?.status || "";
-    if (status === "running" && this.websiteCanvas) { this.websiteCanvas = null; this.wm.cursorEl.style.visibility = ""; }
     if (status === "running" && this.idleLife.isActive) {
       // New work started (maybe from T3 itself): no more fun, but a sleeping robot only wakes
       // once the first event (usually your message) reaches it, see play().
@@ -379,6 +372,7 @@ export class Director {
         const url = frontendUrlFromOutput(output);
         if (url && this.frontendSignals.get(it.id) !== url) {
           this.frontendSignals.set(it.id, url);
+          this.devServer = url;
           void this.browser.open(url, { instant: true, read: false, real: true }).catch(() => {});
         }
         const tool = String(it.data.toolName || '');
@@ -774,7 +768,6 @@ export class Director {
     if (this.compaction.isUp) { this.onActivity(uiText('Compacting context')); return; }
     this.wasIdle = true;
     if (!this.present()) return;
-    if (this.websiteCanvas && this.info?.run?.status !== 'running') { this.robot.setPose('read'); this.onActivity('Website studio on Ares'); return; }
     if (this.waitingForUser) { this.robot.setPose("read"); this.onActivity("Watching you type"); void this.messages.youTyping(true).catch(() => {}); return; }
     if (this.phoneUp) { this.mobile = false; void this.phone(false); }
     // Helpers still at work: wait for them and look in on them now and then.
@@ -918,6 +911,36 @@ export class Director {
     if (!toUser) await destination.inspection(result === "failed" ? "Message could not be sent" : result === "pending" ? "Message awaiting confirmation" : "Message sent", threadId);
   }
 
+  private async showTool(id: string, name: string) {
+    this.onActivity(toolActivity(name));
+    this.stage.setGlow(GLOW.tool);
+    // The view reads the real item each time, so a call that is still running shows as running
+    // and the outcome replaces it when it arrives. Nothing here estimates progress.
+    const view = await this.tool.show(name, this.get(id).data.input, () => this.get(id).data.output === undefined ? { status: this.get(id).status } : { status: this.get(id).status, output: this.get(id).data.output }, (attachmentId) => findUpload(this.items.values(), attachmentId));
+    // Waiting ends at the timeout or when newer work piles up, whichever comes first. The call may
+    // still be running then: the view keeps following the item until a real update settles it.
+    this.toolWatch.add(id, view);
+    await this.settle(id, 15000);
+    this.toolWatch.update(id);
+  }
+
+  /** A saved web file: the robot looks at the page in Studio, rebuilt from the saved files. When
+   * the project cannot be rendered, a saved HTML file keeps its live preview in the browser.
+   * Threads on a linked computer never render from this computer's disk. */
+  private async showPage(file: string, created: boolean) {
+    const root = this.info?.root, thread = this.info?.id;
+    if (!root || !thread) return;
+    const shown = !thread.includes("::") && await this.studio.save({
+      thread, root, file, server: this.devServer, created, working: this.info?.run?.status === "running", still: this.catchingUp,
+      pace: () => Math.max(this.wm.speed, 1 + this.queue.length * 0.6),
+      onShow: () => { this.onActivity(created ? "Building the page in Studio" : "Updating the page in Studio"); this.stage.setGlow(GLOW.studio); },
+    });
+    if (shown || !/\.html?$/i.test(file)) return;
+    this.onActivity("Watching the frontend update");
+    this.stage.setGlow(GLOW.browser);
+    await this.browser.frontendFile(file, root);
+  }
+
   // Wait until the item completes, or move on if newer work piles up.
   private async settle(id: string, maxMs = 120000) {
     const start = Date.now();
@@ -985,12 +1008,11 @@ export class Director {
       await this.playOffice(String(inp.file_path), base === "Write" ? "add" : "update", { text: base === "Write" && typeof inp.content === "string" ? inp.content : null, added: typeof added === "string" ? added : undefined });
       return true;
     }
-    if (/^(Write|Edit|MultiEdit)$/.test(base) && /\.html?$/i.test(String(this.get(id).data.input?.file_path || ''))) {
-      const done = await this.settle(id, 20000);
-      if (!/failed|cancelled|interrupted/.test(done.status) && root) {
-        this.onActivity('Watching the frontend update'); this.stage.setGlow(GLOW.browser);
-        await this.browser.frontendFile(String(done.data.input?.file_path), root);
-      }
+    if (/^(Write|Edit|MultiEdit)$/.test(base) && WEB_FILE.test(String(this.get(id).data.input?.file_path || ''))) {
+      // The edit itself, then the page it changed.
+      await this.showTool(id, name);
+      const done = this.get(id);
+      if (!/running|pending|failed|cancel|interrupt|error/.test(done.status)) await this.showPage(String(done.data.input?.file_path), base === "Write" && /File created successfully/i.test(text(done.data.output)));
       return true;
     }
     if (base === "Read") {
@@ -1602,8 +1624,9 @@ export class Director {
           if (ch.operation === "add") await this.editor.diff(name, parseDiff(text));
           else await this.editor.read(name, text.split(/\r?\n/).slice(0, 1500), 1);
         }
-        const htmlFile = changes.find(ch => /\.html?$/i.test(ch.path) && ch.operation !== 'delete');
-        if (htmlFile && root) { this.onActivity('Watching the frontend update'); this.stage.setGlow(GLOW.browser); await this.browser.frontendFile(htmlFile.path, root); }
+        const web = changes.filter((ch) => WEB_FILE.test(ch.path));
+        const page = web.find((ch) => /\.html?$/i.test(ch.path) && ch.operation !== "delete") ?? web.find((ch) => ch.operation !== "delete") ?? web[0];
+        if (page && !/failed|cancelled|interrupted/.test(done.status)) await this.showPage(page.path, page.operation === "add" && /\.html?$/i.test(page.path));
         return;
       }
       case "web_search": {
@@ -1623,16 +1646,7 @@ export class Director {
           await this.browser.visit(url, { real: /^https?:\/\/(localhost|127\.|0\.0\.0\.0|\[::1\])/i.test(url) });
           return;
         }
-        this.onActivity(toolActivity(name));
-        this.stage.setGlow(GLOW.tool);
-        // The view reads the real item each time, so a call that is still running shows as running
-        // and the outcome replaces it when it arrives. Nothing here estimates progress.
-        const view = await this.tool.show(name, d.input, () => this.get(id).data.output === undefined ? { status: this.get(id).status } : { status: this.get(id).status, output: this.get(id).data.output }, (attachmentId) => findUpload(this.items.values(), attachmentId));
-        // Waiting ends at the timeout or when newer work piles up, whichever comes first. The call may
-        // still be running then: the view keeps following the item until a real update settles it.
-        this.toolWatch.add(id, view);
-        await this.settle(id, 15000);
-        this.toolWatch.update(id);
+        await this.showTool(id, name);
         return;
       }
       case "user_input_request": {

@@ -451,13 +451,14 @@ ipcMain.handle("app:version", () => app.getVersion());
 
 // lucid-file://local/<encoded path> serves images and text files the agents worked with,
 // so the robots' screens and the chat can show them. Only known media and text types.
-protocol.registerSchemesAsPrivileged([{ scheme: "lucid-artifact", privileges: { standard: true, secure: true, supportFetchAPI: true } }, { scheme: "lucid-file", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
+protocol.registerSchemesAsPrivileged([{ scheme: "lucid-artifact", privileges: { standard: true, secure: true, supportFetchAPI: true } }, { scheme: "lucid-file", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }, { scheme: "lucid-studio", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
 const thumbs = require("./thumbs.cjs").createThumbs({ nativeImage, fsp });
 const { fileMediaResponse, bufferMediaResponse } = require("./media-response.cjs");
 const SERVE = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif", ".mp4", ".webm", ".mov", ".m4v", ".ogv", ".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".opus"]);
 
 app.whenReady().then(() => {
   require("./answer-visuals.cjs").installAnswerVisuals({ protocol, ipcMain });
+  require("./studio.cjs").install({ protocol, ipcMain, app });
   protocol.handle("lucid-file", async (req) => {
     // Files of threads on another computer come from that computer (remote-media.cjs).
     if (new URL(req.url).hostname === "remote") {
