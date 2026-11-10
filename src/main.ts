@@ -1794,9 +1794,9 @@ ${world.roster.byThread(t.id)!.name}` : ""}`)}">${icon}<span class="th-settled-t
     const ready = collectible(t.id, true);
     const busy = collectingWork.has(t.id);
     const label = ready?.coins ? `Settle & collect ${ready.coins} coins` : 'Settle session';
-    const collect = ready ? `<div class="th-collect-actions"><button type="button" class="th-collect" data-collect-id="${esc(t.id)}" aria-label="${esc(`${label}: ${t.title || 'Untitled'}`)}"${busy ? ' disabled aria-busy="true"' : ''}>${busy ? 'Settling…' : esc(label)}</button>${sidebarCollectErrors.has(t.id) ? `<p class="th-collect-error" role="status">${esc(sidebarCollectErrors.get(t.id)!)}</p>` : ''}</div>` : '';
+    const collect = ready ? `<button type="button" class="th-collect" data-collect-id="${esc(t.id)}" title="${esc(label)}" aria-label="${esc(`${label}: ${t.title || 'Untitled'}`)}"${busy ? ' disabled aria-busy="true"' : ''}><span aria-hidden="true">✓</span> ${busy ? 'Settling…' : 'Settle'}</button>${sidebarCollectErrors.has(t.id) ? `<p class="th-collect-error" role="status">${esc(sidebarCollectErrors.get(t.id)!)}</p>` : ''}` : '';
     const sel = t.id === chat.threadId ? " sel" : "";
-    return `<li><button type="button" class="th-row th-worker th-t3${t.runStatus === "running" ? " on" : ""}${sel}" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${robot ? `
+    return `<li class="th-entry${ready ? ' th-can-collect' : ''}"><button type="button" class="th-row th-worker th-t3${t.runStatus === "running" ? " on" : ""}${sel}" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${robot ? `
 ${robot.name}${t.model ? `, ${t.model}` : ""}` : ""}${t.branch ? `
 ${t.branch}` : ""}`)}">
       <span class="th-text">

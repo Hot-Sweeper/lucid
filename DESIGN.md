@@ -208,4 +208,4 @@ Keep the current conversation visibly selected with an inset peach outline and a
 
 ## Sidebar settlement
 
-Eligible active threads expose a peach Settle session or Settle & collect button beneath their navigation row. Reuse desk eligibility, review approval and collection behavior. Keep the action separate from navigation, disable it during settlement, and show recoverable errors inline.
+Eligible active threads show a mint circled check and Done in the status position. Hover or keyboard focus replaces the status with a compact check and Settle action, matching T3 Code; touch devices show the action directly. Coin amounts remain in the tooltip and accessible action name. Reuse desk eligibility, review approval and collection behavior. Keep the action separate from navigation, disable it during settlement, and show recoverable errors inline.
