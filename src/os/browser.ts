@@ -1,4 +1,4 @@
-// The robot's web browser: real tabs (up to five) with titles and letter favicons, a search
+// The robot's web browser: real tabs (up to five) with titles and the sites' own favicons, a search
 // page whose results open in new tabs, site layouts for GitHub, Hugging Face and Wikipedia,
 // find in page, and GitHub pull requests being opened and merged.
 import gsap from "gsap";
@@ -6,6 +6,7 @@ import type { WM } from "./wm";
 import { el, typeInto } from "./typing";
 import { loadPage, favHtml, searchHtml, webSearch, urlKey, shortUrl, hostOf, cleanQuery, loadingHtml, prFromApi, prHtml, compareHtml, setPrMerged, type Result, type PageView, type PrData } from "./sites";
 import "./web.css";
+import { hydrateFavicons } from "./favicons";
 import type { BrowserObservation } from './workspace-browser';
 import { FrontendView, localFrontendUrl, type FrontendTarget, type FrontendAction } from './frontend';
 
@@ -77,7 +78,7 @@ export class BrowserApp {
       w.body.innerHTML = `
         <div class="browser">
           <div class="b-tabs" role="tablist"><span class="b-new" title="New tab"></span></div>
-          <div class="b-bar"><span class="b-nav" aria-hidden="true"><i></i><i></i></span><span class="b-addr"></span></div>
+          <div class="b-bar"><span class="b-nav" aria-hidden="true"><i></i><i></i></span><span class="b-site" aria-hidden="true"></span><span class="b-addr"></span></div>
           <div class="b-progress"><i></i></div>
           <div class="b-pages"></div>
         </div>`;
@@ -94,6 +95,15 @@ export class BrowserApp {
     t.el.title = title;
     t.el.innerHTML = `${favHtml(url, t.kind === "search" ? "search" : undefined)}<span class="tt"></span><span class="b-x" aria-hidden="true"></span>`;
     (t.el.querySelector(".tt") as HTMLElement).textContent = title;
+    hydrateFavicons(t.el);
+  }
+
+  /** The address bar: the site's icon and its short address (or the search words). */
+  private address(b: HTMLElement, text: string, url: string, search = false) {
+    this.q(b, ".b-addr").textContent = text;
+    const site = this.q(b, ".b-site");
+    site.innerHTML = favHtml(url, search ? "search" : undefined);
+    hydrateFavicons(site);
   }
 
   private addTab(b: HTMLElement, key: string, url: string, title: string, kind: Tab["kind"], instant: boolean) {
@@ -123,7 +133,7 @@ export class BrowserApp {
     b.classList.toggle("browser-workspace", !!t.workspace);
     t.used = Date.now();
     for (const x of this.tabs) { x.el.classList.toggle("on", x === t); x.page.classList.toggle("on", x === t); }
-    this.q(b, ".b-addr").textContent = t.kind === "search" ? t.title : shortUrl(t.url);
+    this.address(b, t.kind === "search" ? t.title : shortUrl(t.url), t.url, t.kind === "search");
     this.q(b, ".b-progress").classList.toggle("loading", !!t.loading);
     const strip = t.el.parentElement as HTMLElement;
     if (t.el.offsetLeft + t.el.offsetWidth > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = t.el.offsetLeft + t.el.offsetWidth - strip.clientWidth;
@@ -194,7 +204,7 @@ export class BrowserApp {
       t.page.scrollTop = 0;
       this.look(t, v.title || o.title || hostOf(url), t.url);
       t.el.classList.toggle("on", t === this.active);
-      if (t === this.active) { this.q(b, ".b-addr").textContent = shortUrl(t.url); gsap.fromTo(t.page, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }); }
+      if (t === this.active) { this.address(b, shortUrl(t.url), t.url); gsap.fromTo(t.page, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }); }
     })().catch((err) => console.warn("page load failed", err)).finally(() => {
       t.loading = null;
       t.el.classList.remove("loading");
@@ -290,13 +300,14 @@ export class BrowserApp {
     } else await this.typeAddress(b, q, instant);
     this.look(t, q, "");
     t.el.classList.add("on");
-    this.q(b, ".b-addr").textContent = q;
+    this.address(b, q, "", true);
     this.q(b, ".b-progress").classList.add("loading");
     const results = o.results?.length ? o.results : await webSearch(q);
     wm.check(e);
     this.q(b, ".b-progress").classList.remove("loading");
     t.results = results || [];
     t.page.innerHTML = searchHtml(q, results);
+    hydrateFavicons(t.page);
     t.page.scrollTop = 0;
     const cards = Array.from(t.page.querySelectorAll(".se-r")) as HTMLElement[];
     if (!instant) gsap.fromTo(cards, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.3, stagger: 0.04, ease: "power2.out" });
@@ -449,7 +460,7 @@ export class BrowserApp {
       t.page.innerHTML = prHtml(d);
       this.look(t, `${d.title} · Pull Request${n ? ` #${n}` : ""} · ${info.repo}`, prUrl);
       t.el.classList.add("on");
-      this.q(b, ".b-addr").textContent = shortUrl(prUrl);
+      this.address(b, shortUrl(prUrl), prUrl);
       gsap.fromTo(t.page, { opacity: 0 }, { opacity: 1, duration: 0.35 });
       await this.read(t, instant, 2200);
       return;
