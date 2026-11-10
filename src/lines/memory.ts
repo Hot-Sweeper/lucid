@@ -34,6 +34,13 @@ export class LineMemory {
     const byRecent = [...list].sort((a, b) => at(b) - at(a));
     const blocked = new Set(byRecent.slice(0, Math.floor(list.length / 2)).filter(c => at(c) >= 0).map(c => c.id));
     let pool = list.filter(c => !mine.has(c.id) && !blocked.has(c.id));
+    // A robot that has said most of a small pool may repeat its oldest line before it may echo
+    // what the office just heard, so the office's recent half stays blocked as long as possible.
+    if (!pool.length) {
+      const order = who ? this.state.robots[who] ?? [] : [];
+      const open = list.filter(c => !blocked.has(c.id));
+      if (open.length) pool = [open.reduce((a, b) => (order.indexOf(a.id) <= order.indexOf(b.id) ? a : b))];
+    }
     if (!pool.length) pool = list.filter(c => !mine.has(c.id));
     if (!pool.length) pool = [byRecent[byRecent.length - 1]];
     const total = pool.reduce((sum, c) => sum + Math.max(0, c.weight ?? 1), 0);
