@@ -13,6 +13,7 @@ import type { Expression } from "../rig";
 import { brandFor, PALETTES, type BrandKind } from "../brand";
 import { eyesSvg, paintBrand, paintLook } from "../art/head";
 import { ik3, type V3 } from "../ik";
+import { stepAntenna, type AntennaSpring } from "../antenna";
 import { bind } from "../util";
 import { clamp, lerp } from "../../util/math";
 import { pick, rnd } from "../../util/random";
@@ -37,6 +38,9 @@ import { ANKLE, CROUCH_DROP, FEET, HANG, HIP, NECK, SH, SHIN, SIT_DROP, SPEED, S
 // add what it does on top.
 
 // Every tween on the robot's state takes over the properties it animates from older tweens.
+// The antenna spring re-centres after a teleport (setPos far away).
+const ANTENNA = { k1: 150, c1: 8, k2: 160, c2: 8.5, reach: 40, lean: 0.75, maxLag: 40, drop: 60, minStretch: 0.8, maxStretch: 1.25, snap: 200 };
+
 export const TL = (v: gsap.TimelineVars = {}) => gsap.timeline({ ...v, defaults: { overwrite: "auto", ...(v.defaults ?? {}) } });
 
 const f1 = (n: number) => n.toFixed(1);
@@ -110,7 +114,7 @@ export abstract class WalkerBody {
   shortcutView: (() => RouteView | null) | null = null;
   protected settleTl: gsap.core.Timeline | null = null;
   // antenna spring (v0 units, local to the current view)
-  protected spring = { phi: 0, phiV: 0, tx: 0, tvx: 0, ty: 0, tvy: 0, init: false };
+  protected spring: AntennaSpring & { init: boolean } = { phi: 0, phiV: 0, tx: 0, tvx: 0, ty: 0, tvy: 0, init: false };
   protected headLag = 0;
   protected handR = { x: 600, y: 840 };
   protected headPx = 0;
@@ -539,15 +543,8 @@ export abstract class WalkerBody {
     const wx = (this.facing === "left" ? -this.x : this.x) / this.s;
     const headX = hx + (side ? wx : this.x / this.s), headY = hy - jump;
     if (!sp.init) { sp.init = true; sp.tx = headX; sp.ty = headY; sp.phi = tilt; sp.tvx = sp.tvy = sp.phiV = 0; }
-    const k1 = 150, c1 = 8, k2 = 160, c2 = 8.5;
-    sp.phiV += (k1 * (tilt - sp.phi) - c1 * sp.phiV) * dt; sp.phi += sp.phiV * dt;
-    sp.tvx += (k2 * (headX - sp.tx) - c2 * sp.tvx) * dt; sp.tx += sp.tvx * dt;
-    sp.tvy += (k2 * (headY - sp.ty) - c2 * sp.tvy) * dt; sp.ty += sp.tvy * dt;
-    if (Math.abs(sp.tx - headX) > 200) sp.tx = headX;   // teleported (setPos far away)
-    if (Math.abs(sp.ty - headY) > 200) sp.ty = headY;
-    const lag = clamp(sp.phi - tilt + ((sp.tx - headX) / 40) * 57.3 * 0.75, -40, 40);
+    const { lag, stretch } = stepAntenna(sp, ANTENNA, dt, tilt, headX, headY);
     const idle = Math.sin(t * 1.6 + this.x * 0.01) * 2;
-    const stretch = clamp(1 + (headY - sp.ty) / 60, 0.8, 1.25);
     const at = `rotate(${(lag + idle).toFixed(2)} 560 610) translate(560 610) scale(1 ${stretch.toFixed(3)}) translate(-560 -610)`;
     this.attr(this.$.antenna, "transform", at);
     this.attr(this.$.sideAntenna, "transform", `rotate(${(lag + idle).toFixed(2)} 552 610) translate(552 610) scale(1 ${stretch.toFixed(3)}) translate(-552 -610)`);

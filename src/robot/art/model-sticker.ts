@@ -1,5 +1,8 @@
+// The model sticker: a small die-cut paper badge for the model family (Opus, Sonnet, Sol...) on
+// the robot's head, curling on with a paper sound when the model changes.
 import { gameSound } from "../../office/sound";
 import { setSvgAttribute } from "../../perf/svg-write";
+import { reducedMotion as reduced } from "../../util/dom";
 
 /** Model identity is derived from live model data, never persisted as an outfit choice. */
 export function modelStickerKind(model: string | null | undefined) {
@@ -33,7 +36,6 @@ export function modelStickerSvg(model: string | null | undefined): string {
   return `<g fill="#fbf5e9" stroke="${ink}" stroke-opacity=".15" stroke-width="1">${cuts[kind]}</g>${icons[kind]}`;
 }
 
-const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Uses the actor's existing visibility-gated frame, with no timers or independent tweens. */
 export class ModelSticker {

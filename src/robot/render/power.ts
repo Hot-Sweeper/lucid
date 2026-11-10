@@ -1,3 +1,6 @@
+// Ultra and Fast modes, drawn around a robot: a purple pixel fire sampled from the robot's own
+// silhouette (Ultra) and two lightning bolts (Fast). One 64x80 pixel canvas behind the robot and one
+// in front, refreshed on the shared ticker about ten times a second, only while on screen.
 import gsap from "gsap";
 type Mode = { ultra?: boolean; fast?: boolean };
 const modes = new WeakMap<Element, Map<string, Mode>>();

@@ -1,9 +1,9 @@
-import type { Expression, PhoneReaction, Pose, Reaction, SeatedRobot } from "../rig";
-import type { RobotLook } from "../look";
-
 // Computers keep one stable robot reference, but an unoccupied desk needs no SVG
 // character, animation ticker or repeating tween. Assignment materializes the
 // real rig synchronously before its first brand, look, pose or input is applied.
+import type { Expression, PhoneReaction, Pose, Reaction, SeatedRobot } from "../rig";
+import type { RobotLook } from "../look";
+
 export class DeferredRobot implements SeatedRobot {
   private current: SeatedRobot | null = null;
   constructor(private host: Element, private create: () => SeatedRobot) {}

@@ -2,6 +2,7 @@ import type { RobotLook } from "./look";
 import { brandFor, type BrandKind } from "./brand";
 import { migrateLook, randomLook } from "./look";
 import { compatibleWorkers } from "../office/worker-match";
+import { pick } from "../util/random";
 
 // The team. Robots are persistent workers: hired once with a name, a look and habits,
 // then assigned to threads. When a thread settles, its robot becomes free and the next
@@ -76,7 +77,6 @@ const NAMES = [
 ];
 
 const KEY = "lucid:roster:v1";
-const pick = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const tasksFrom = (x: number): TasksStyle => (x < 0.45 ? "board" : x < 0.85 ? "checklist" : "sticky");
 // Robots hired before this habit existed get one from their id, so it stays the same every launch.
 function idHash(id: string) {
@@ -87,7 +87,7 @@ function idHash(id: string) {
 function tasksFor(id: string) { return tasksFrom(idHash(id)); }
 const officeFrom = (x: number): OfficeTaste => (x < 0.6 ? "none" : x < 0.72 ? "writer" : x < 0.83 ? "numbers" : x < 0.92 ? "slides" : "suite");
 // A robot's interests: two or three pastime apps and two to four social apps, nudged by its hobby.
-// \`r\` is Math.random for new hires, or a generator seeded from the id so old robots migrate the same way every launch.
+// `r` is Math.random for new hires, or a generator seeded from the id so old robots migrate the same way every launch.
 export function interestsFrom(r: () => number, hobby: Hobby): { apps: FunApp[]; socials: SocialApp[] } {
   const H = (k: Hobby) => (hobby === k ? 1 : 0);
   const odds: Record<SocialApp, number> = {
@@ -132,7 +132,8 @@ function newSocials(have: SocialApp[], r: () => number, hobby: Hobby): SocialApp
   if (!out.includes("sparkplug") && r() < 0.16 + 0.22 * H("chatter")) out.push("sparkplug");
   return out;
 }
-function seeded(key: string) {
+// Not the same generator as look.ts seeded(): saved robots already got their habits from this one.
+function habitSeeded(key: string) {
   let a = 7;
   for (const ch of key) a = Math.imul(a ^ ch.charCodeAt(0), 0x5bd1e995) >>> 0;
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = Math.imul(a ^ (a >>> 15), a | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -167,8 +168,8 @@ export class Roster {
       if (r.prefs && !r.prefs.hobby) r.prefs.hobby = hobbyFor(r.prefs, r.id || r.name || "");
       if (r.prefs && !r.prefs.git) { r.prefs.git = idHash((r.id || r.name || "") + "git") < 0.45 ? "desktop" : "cli"; migrated = true; }
       if (r.prefs && !r.prefs.office) { r.prefs.office = officeFrom(idHash((r.id || r.name || "") + "office")); migrated = true; }
-      if (r.prefs && !r.prefs.socials) { Object.assign(r.prefs, interestsFrom(seeded((r.id || r.name || "") + "interests"), r.prefs.hobby)); migrated = true; }
-      if (r.prefs?.socials && (r.prefs.socialsV ?? 1) < 2) { r.prefs.socials = newSocials(r.prefs.socials, seeded((r.id || r.name || "") + "socials2"), r.prefs.hobby); r.prefs.socialsV = 2; migrated = true; }
+      if (r.prefs && !r.prefs.socials) { Object.assign(r.prefs, interestsFrom(habitSeeded((r.id || r.name || "") + "interests"), r.prefs.hobby)); migrated = true; }
+      if (r.prefs?.socials && (r.prefs.socialsV ?? 1) < 2) { r.prefs.socials = newSocials(r.prefs.socials, habitSeeded((r.id || r.name || "") + "socials2"), r.prefs.hobby); r.prefs.socialsV = 2; migrated = true; }
       if (r.prefs && !r.prefs.launch) {
         const x = idHash((r.id || r.name || "") + "habits");
         r.prefs.launch = x < 0.35 ? "spotlight" : "dock";
@@ -180,7 +181,7 @@ export class Roster {
       if (r.prefs?.apps?.includes("steam" as FunApp)) { r.prefs.apps = r.prefs.apps.map((a) => (a === ("steam" as FunApp) ? "vapor" : a)); migrated = true; }
       // robots hired before Vapor and the Botcoin Exchange: each gets (or does not get) them from its id, the same every launch
       if (r.prefs?.apps && !r.prefs.leisure2) {
-        const rr = seeded((r.id || r.name || "") + "leisure2"), hb = r.prefs.hobby;
+        const rr = habitSeeded((r.id || r.name || "") + "leisure2"), hb = r.prefs.hobby;
         if (!r.prefs.apps.includes("vapor") && rr() < 0.14 + (hb === "gamer" ? 0.5 : 0)) r.prefs.apps.push("vapor");
         if (!r.prefs.apps.includes("trading") && rr() < 0.1 + (hb === "watcher" ? 0.25 : hb === "chiller" ? 0.2 : 0)) r.prefs.apps.push("trading");
         r.prefs.leisure2 = true; migrated = true;

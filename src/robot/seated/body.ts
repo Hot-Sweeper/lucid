@@ -21,12 +21,15 @@ import { accessorySvg, blushSvg, hatSvg, lookMotion, placeAntenna, stepLookMotio
 import { ModelSticker } from "../art/model-sticker";
 import { accessoryInfo, BUILD_SHAPE, hatInfo, paintLookColors, resolveLook, type FullLook, type RobotLook } from "../look";
 import { solveArm, type ArmMemo } from "../ik";
+import { stepAntenna, type AntennaSpring } from "../antenna";
 import { RobotCanvas, canvasRobotsWanted } from "../render/canvas";
 import { bind } from "../util";
 import { BASE_Y, CALM, CX, FOLD_BONE, FORE, HEAD_DROP, HX, HY, K, MAP, ORIGIN, PHONE_H, PHONE_TILT, PHONE_W, REST_L, REST_R, S, SHOULDER, TAU, U, UPPER } from "./geometry";
 import { f, seatedRobotSvg } from "./art";
 
 export type Side = "l" | "r";
+
+const ANTENNA = { k1: 150, c1: 8.5, k2: 170, c2: 9, reach: 42, lean: 0.7, maxLag: 38, drop: 70, minStretch: 0.82, maxStretch: 1.22 };
 
 export abstract class SeatedBody {
   el: SVGSVGElement;
@@ -57,7 +60,7 @@ export abstract class SeatedBody {
   protected ponder = { v: 0, side: 1, target: 0 };  // typing pause: head tilts toward the screen
   protected groove = { amp: 0, bpm: 0, phase: 0, beat: 0 };
   protected hp = { on: false, y: 0, sx: 1, sy: 1, o: 0, grip: 0 };
-  protected spring = { phi: 0, phiV: 0, tx: 0, tvx: 0, ty: 0, tvy: 0, kick: 0 };
+  protected spring: AntennaSpring = { phi: 0, phiV: 0, tx: 0, tvx: 0, ty: 0, tvy: 0 };
   protected wrist = { vx: 0, lastX: 0 };
   protected front = { l: false, r: false };
   protected mouseP: Pt;
@@ -462,13 +465,8 @@ export abstract class SeatedBody {
     // a little late, overshoots and settles), stretches when the head drops, bounces on kicks.
     const sp = this.spring;
     const headX = bx / S + hdx + swing / S, headY = by / S + hdy;
-    const k1 = 150, c1 = 8.5, k2 = 170, c2 = 9;
-    sp.phiV += (k1 * (rot - sp.phi) - c1 * sp.phiV) * dt; sp.phi += sp.phiV * dt;
-    sp.tvx += (k2 * (headX - sp.tx) - c2 * sp.tvx) * dt; sp.tx += sp.tvx * dt;
-    sp.tvy += (k2 * (headY - sp.ty) - c2 * sp.tvy) * dt; sp.ty += sp.tvy * dt;
-    const lagAngle = clamp(sp.phi - rot + ((sp.tx - headX) / 42) * 57.3 * 0.7, -38, 38);
+    const { lag: lagAngle, stretch } = stepAntenna(sp, ANTENNA, dt, rot, headX, headY);
     const idle = Math.sin(now * 0.0016) * 2.2;
-    const stretch = clamp(1 + (headY - sp.ty) / 70, 0.82, 1.22);
     setSvgAttribute(this.$.antenna, "transform", `rotate(${(lagAngle + idle).toFixed(2)} 560 610) translate(560 610) scale(1 ${stretch.toFixed(3)}) translate(-560 -610)`);
 
     // the hat slides with the turn and lags a touch behind fast head moves; fabric sways with the body
