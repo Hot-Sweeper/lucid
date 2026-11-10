@@ -1,0 +1,19 @@
+/* The status vocabulary (src/ui/status.ts). Colours alias the shared thread state tokens. */
+:root {
+  --status-working: var(--thread-work);
+  --status-needs: var(--thread-ask);
+  --status-done: var(--thread-done);
+  --status-settled: var(--ink-3);
+}
+[data-status="working"] { --status-color: var(--status-working); }
+[data-status="needs"] { --status-color: var(--status-needs); }
+[data-status="done"] { --status-color: var(--status-done); }
+[data-status="settled"] { --status-color: var(--status-settled); }
+
+.ui-status { display: inline-flex; align-items: center; gap: 5px; min-width: 0; color: var(--status-color, var(--ink-2)); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ui-status > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.status-icon { color: var(--status-color, currentColor); }
+/* Working turns slowly; it stops for reduced motion, hidden windows and rows scrolled away. */
+.status-icon[data-icon="statusWorking"] { animation: status-turn 2.4s linear infinite; transform-origin: 50% 50%; }
+@keyframes status-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .status-icon[data-icon="statusWorking"] { animation: none; } }

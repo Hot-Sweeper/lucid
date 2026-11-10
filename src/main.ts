@@ -1,6 +1,8 @@
 import { mountLimitsSection } from "./office/limits-section";
 import { completionFirst, reconcileThreadList } from "./office/thread-list";
 import { threadState } from "./office/thread-state";
+import { statusBadge } from "./ui/status";
+import { icon as uiIcon } from "./ui/icons";
 import { mountInterfaceThemeSetting } from "./interface-theme";
 import { buildWorkDetails } from "./office/work-details";
 import { mountWebsiteStudio } from "./office/website-studio";
@@ -1750,10 +1752,10 @@ function renderThreads(force = false) {
   const presentationOf = (t: typeof list[number]) => threadState(t, reviewOf(t), delegate.phaseOf(t.id) === "reading");
   const stateOf = (t: typeof list[number]) => {
     const state = presentationOf(t);
-    if (!state.label) return `<span class="th-ago">${ago(t.updatedAt)}</span>`;
-    return `<span class="th-st ${state.tone}" title="${esc(state.detail || state.label)}">${state.tone === 'done' ? '<svg class="th-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>' : state.tone ? '<i aria-hidden="true"></i>' : ''}${esc(state.label)}${state.since ? ` ${ago(state.since)}` : ''}</span>`;
+    return state.tone ? statusBadge(state.tone, { detail: state.detail, suffix: state.since ? ago(state.since) : "", cls: "th-st", size: 13 }) : `<span class="th-ago" title="${esc(state.detail || "")}">${ago(t.updatedAt)}</span>`;
   };
   const dotOf = (t: typeof list[number]) => presentationOf(t).tone;
+  const statusAttr = (t: typeof list[number]) => { const s = dotOf(t); return s ? ` data-status="${s}"` : ""; };
   const faceOf = (t: typeof list[number], size: number, place: string, cls = "") => {
     const robot = world.roster.byThread(t.id);
     return managerFace({ provider: robot?.provider || t.provider, look: world.lookFor(t, robot?.look), picture: t.manager?.avatar, size, place, cls });
@@ -1783,7 +1785,7 @@ function renderThreads(force = false) {
     const p = projects.get(t.manager?.projectId || t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
     const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
-    if (t.settled) return `<li><button type="button" class="th-row th-settled-row" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${world.roster.byThread(t.id) ? `
+    if (t.settled) return `<li><button type="button" class="th-row th-settled-row" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${world.roster.byThread(t.id) ? `
 ${world.roster.byThread(t.id)!.name}` : ""}`)}">${icon}<span class="th-settled-title">${esc(t.title || "Untitled")}${snippetOf(t) ? `<span class="th-snippet">${esc(snippetOf(t))}</span>` : ""}</span><span class="th-ago">${ago(t.updatedAt)}</span></button></li>`;
     // T3's row, one line each: project (logo and name) with the state, the title, then the
     // worker, model and branch with the harness logo. Nothing wraps; the tooltip has it all.
@@ -1794,9 +1796,9 @@ ${world.roster.byThread(t.id)!.name}` : ""}`)}">${icon}<span class="th-settled-t
     const ready = collectible(t.id, true);
     const busy = collectingWork.has(t.id);
     const label = ready?.coins ? `Settle & collect ${ready.coins} coins` : 'Settle session';
-    const collect = ready ? `<button type="button" class="th-collect" data-collect-id="${esc(t.id)}" title="${esc(label)}" aria-label="${esc(`${label}: ${t.title || 'Untitled'}`)}"${busy ? ' disabled aria-busy="true"' : ''}><svg class="th-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg> ${busy ? 'Settling…' : 'Settle'}</button>${sidebarCollectErrors.has(t.id) ? `<p class="th-collect-error" role="status">${esc(sidebarCollectErrors.get(t.id)!)}</p>` : ''}` : '';
+    const collect = ready ? `<button type="button" class="th-collect" data-collect-id="${esc(t.id)}" title="${esc(label)}" aria-label="${esc(`${label}: ${t.title || 'Untitled'}`)}"${busy ? ' disabled aria-busy="true"' : ''}>${uiIcon("check", 14)} ${busy ? 'Settling…' : 'Settle'}</button>${sidebarCollectErrors.has(t.id) ? `<p class="th-collect-error" role="status">${esc(sidebarCollectErrors.get(t.id)!)}</p>` : ''}` : '';
     const sel = t.id === chat.threadId ? " sel" : "";
-    return `<li class="th-entry${ready ? ' th-can-collect' : ''}"><button type="button" class="th-row th-worker th-t3${t.runStatus === "running" ? " on" : ""}${sel}" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${robot ? `
+    return `<li class="th-entry${ready ? ' th-can-collect' : ''}"><button type="button" class="th-row th-worker th-t3${t.runStatus === "running" ? " on" : ""}${sel}"${statusAttr(t)} data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${robot ? `
 ${robot.name}${t.model ? `, ${t.model}` : ""}` : ""}${t.branch ? `
 ${t.branch}` : ""}`)}">
       <span class="th-text">
@@ -1991,11 +1993,11 @@ function renderRail() {
     const logo = t.pinned ? p?.icon : logoFor(t.provider);
     const robot = t.pinned ? world.roster.byThread(t.id) : null;
     const name = `${robot ? `${robot.name}, ${t.manager?.role || "Manager"}, ` : ""}${t.title}, ${proj}${said ? `, ${said}` : ""}`;
-    return `<li><button type="button" class="rail-th${t.id === chat.threadId ? " cur" : ""}" data-state="${st}" data-id="${esc(t.id)}" aria-label="${esc(name)}" title="${esc(`${t.title}
+    return `<li><button type="button" class="rail-th${t.id === chat.threadId ? " cur" : ""}"${st ? ` data-status="${st}"` : ""} data-id="${esc(t.id)}" aria-label="${esc(name)}" title="${esc(`${t.title}
 ${proj}${said ? ` · ${said[0].toUpperCase()}${said.slice(1)}` : ""}`)}">`
       + (t.pinned ? managerFace({ provider: robot?.provider || t.provider, look: robot?.look, picture: t.manager?.avatar, size: 28, place: "r" })
         : logo ? `<img src="${logo}" alt="">` : `<span class="rail-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`)
-      + (st ? `<i class="rail-st ${st}" aria-hidden="true"></i>` : "") + `</button></li>`;
+      + (st ? `<i class="rail-st" aria-hidden="true"></i>` : "") + `</button></li>`;
   }).join("");
   if (html === railSig) return;
   railSig = html;

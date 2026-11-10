@@ -1,4 +1,5 @@
 import type { ThreadState } from "./thread-state";
+import { statusIcon } from "../ui/status";
 import { ChatPromptContext } from "./chat-prompt";
 import "./chat-prompt.css";
 import { watchLucidMedia } from "./media-player";
@@ -806,7 +807,9 @@ export class ChatPanel {
   setStatus(text: string, state: "working" | "idle" | "waiting") {
     const p = this.el.querySelector(".cp-status") as HTMLElement;
     p.dataset.state = state;
-    delete p.dataset.tone;
+    delete p.dataset.status;
+    const mark = p.querySelector("i")!;
+    if (mark.dataset.icon) { mark.dataset.icon = ""; mark.innerHTML = ""; }
     p.title = "";
     const send = this.el.querySelector(".cp-send span") as HTMLElement;
     send.textContent = state === "working" ? "Queue" : "Send";
@@ -817,11 +820,14 @@ export class ChatPanel {
 
   /** Real task status takes precedence over the robot's fictional leisure activity. */
   setThreadStatus(status: ThreadState) {
-    const busy = status.label === "Working" || status.tone === "queued";
-    this.setStatus(status.label || "Idle", busy ? "working" : status.tone === "ask" || status.tone === "review" ? "waiting" : "idle");
+    // the shared word, then why in quieter text ("Needs you · Run failed")
+    const said = status.label ? (status.detail ? `${status.label} · ${status.detail}` : status.label) : status.detail || "Idle";
+    this.setStatus(said, status.run ? "working" : status.tone === "needs" ? "waiting" : "idle");
     const p = this.el.querySelector<HTMLElement>(".cp-status")!;
-    p.dataset.tone = status.tone;
-    p.title = status.detail || status.label || "Idle";
+    if (status.tone) p.dataset.status = status.tone; else delete p.dataset.status;
+    const mark = p.querySelector("i")!;
+    if (mark.dataset.icon !== (status.tone || "")) { mark.dataset.icon = status.tone || ""; mark.innerHTML = status.tone ? statusIcon(status.tone) : ""; }
+    p.title = said;
   }
 
   // "Bolt is typing" with bouncing dots, at the bottom of the conversation

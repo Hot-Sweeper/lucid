@@ -414,10 +414,10 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .mug .mug-body { fill: var(--mug); }
 .mug .mug-handle { stroke: color-mix(in srgb, var(--mug) 78%, #3a1d10); }
 .mug .mug-shade { fill: color-mix(in srgb, var(--mug) 80%, #3a1d10); opacity: 0.55; }
-.mug .mug-steam path { stroke: #fff; stroke-width: 1.6; stroke-linecap: round; fill: none; opacity: 0; animation: mug-steam 3.2s ease-out infinite; }
-.mug .mug-steam path + path { animation-delay: 1.6s; }
+.mug-steam path { stroke: #fff; stroke-width: 1.6; stroke-linecap: round; fill: none; opacity: 0; animation: mug-steam 3.2s ease-out infinite; }
+.mug-steam path + path { animation-delay: 1.6s; }
 @keyframes mug-steam { 0% { opacity: 0; transform: translateY(2px); } 30% { opacity: 0.55; } 100% { opacity: 0; transform: translateY(-7px); } }
-@media (prefers-reduced-motion: reduce) { .mug .mug-steam path { animation: none; opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .mug-steam path { animation: none; opacity: 0.3; } }
 
 .park-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
 .park-layer .world-walker { pointer-events: auto; cursor: pointer; }
@@ -579,19 +579,7 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .th-mono { width: 15px; height: 15px; border-radius: 4px; flex: none; display: grid; place-items: center; font: 700 7.5px var(--font); background: #5a2340; color: #ff9fc6; }
 .th-none { width: 13px; height: 13px; flex: none; border: 1.5px dashed var(--ink-3); border-radius: 3px; }
 .th-proj { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.th-st { flex: none; display: inline-flex; align-items: center; gap: 5px; font-weight: 600; font-size: 12px; }
-.th-st.work { color: #6fb6ff; }
-.th-st.work i { width: 11px; height: 11px; border-radius: 50%; border: 1.6px dashed #6fb6ff; animation: th-spin 2.4s linear infinite; }
-.th-st.done { color: #4fd18b; }
-.th-st.fail { color: #ff6b6b; }
-.th-st.ask { color: #ffd27a; }
-.th-st.review { color: var(--accent); min-width: 0; max-width: 100%; white-space: normal; text-align: right; }
-.th-top:has(.th-st.review) { flex-wrap: wrap; }
-.th-top:has(.th-st.review) .th-proj { min-width: 4em; }
-.th-top .th-st.review { margin-left: auto; }
 .th-ago { flex: none; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-@keyframes th-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .th-st.work i { animation: none; } }
 .th-title { font-size: 14px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .th-row:not(.on) .th-title { font-weight: 500; color: var(--ink-2, var(--ink)); }
 .th-pin { color: var(--accent); font-size: 9px; margin-right: 5px; vertical-align: 2px; }

@@ -413,6 +413,8 @@ export class Desk implements DeskStage {
     const me = this;
     const mouseG = this.el.querySelector("[data-d=mouse]") as SVGGElement;
     const mugG = this.el.querySelector("[data-d=mug]") as SVGGElement;
+    // Steam lives outside the mug's transform so it always rises straight up in world space.
+    const steamG = this.el.querySelector("[data-d=steam]") as SVGGElement;
     const phoneG = this.el.querySelector("[data-d=phone]") as SVGGElement;
     const held = this.el.querySelector(".phone-held") as HTMLElement;
     const { mouse, mug, phoneRest } = GEOM;
@@ -431,6 +433,10 @@ export class Desk implements DeskStage {
       mug: { ...mug },
       moveMug(p: Pt | null, tilt = 0) {
         mugG.setAttribute("transform", p ? `translate(${(p.x - mug.x).toFixed(1)} ${(p.y - mug.y).toFixed(1)}) rotate(${tilt} ${mug.x} ${mug.y})` : "");
+        if (!p) { steamG.removeAttribute("transform"); return; }
+        // follow the rim (12 units above the pivot) without inheriting the tilt
+        const a = tilt * Math.PI / 180;
+        steamG.setAttribute("transform", `translate(${(p.x - mug.x + 12 * Math.sin(a)).toFixed(1)} ${(p.y - mug.y + 12 - 12 * Math.cos(a)).toFixed(1)})`);
       },
       phoneRest: { ...phoneRest },
       showPhone(at: Pt | null, tilt = 0) {
@@ -482,8 +488,8 @@ export class Desk implements DeskStage {
         <rect x="${mug.x - 7}" y="${mug.y - 7}" width="2.6" height="11" rx="1.3" fill="#fff" opacity="0.35"/>
         <ellipse cx="${mug.x}" cy="${mug.y - 11}" rx="9" ry="4" fill="#5a2b1e"/>
         <ellipse cx="${mug.x - 2}" cy="${mug.y - 12}" rx="3" ry="1.2" fill="#8a4a32"/>
-        <g class="mug-steam"><path d="M${mug.x - 3} ${mug.y - 16} q-3 -5 0 -9 q3 -4 0 -9" /><path d="M${mug.x + 3} ${mug.y - 15} q-3 -5 0 -9 q3 -4 0 -8" /></g>
       </g>
+      <g data-d="steam" class="mug-steam"><path d="M${mug.x - 3} ${mug.y - 16} q-3 -5 0 -9 q3 -4 0 -9" /><path d="M${mug.x + 3} ${mug.y - 15} q-3 -5 0 -9 q3 -4 0 -8" /></g>
       ${sharedVector(emptyChairSvg(),this.vectorOwner,"empty-chair")}
     </svg>`;
   }

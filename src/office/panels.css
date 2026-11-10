@@ -48,11 +48,6 @@
 .rail-th img { width: 18px; height: 18px; object-fit: contain; pointer-events: none; }
 .rail-th:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 .rail-mono { width: 18px; height: 18px; border-radius: 4px; display: grid; place-items: center; font: 700 8px var(--font); background: #5a2340; color: #ff9fc6; }
-.rail-st { position: absolute; right: 7px; bottom: 7px; width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 2px var(--night-2); }
-.rail-st.work { background: #6fb6ff; }
-.rail-st.ask { background: #ffd27a; }
-.rail-st.done { background: #4fd18b; }
-.rail-st.fail { background: #ff6b6b; }
 
 /* the folded chat: a slim rail on the right edge with the robot's name */
 .cp-hide { flex: none; padding: 7px 10px; font-size: 12.5px; white-space: nowrap; }
@@ -184,8 +179,6 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .panel .th-t3 .th-top > .th-mono { font-size: 8.5px; }
 .panel .th-t3 .th-top > .th-none { border-width: 1.5px; }
 .panel .th-t3 .th-top :is(.th-st, .th-ago) { font-size: 11.5px; line-height: 18px; white-space: nowrap; }
-.panel .th-t3 .th-st.review { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-.panel .th-t3 .th-top:has(.th-st.review) { flex-wrap: nowrap; }
 .panel .th-row .th-title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-line-clamp: unset; }
 .panel .th-row.th-t3 .th-title { font-size: 13.5px; line-height: 19px; font-weight: 600; color: var(--ink); }
 .panel .th-row.th-t3:not(.on):not(.sel) .th-title { font-weight: 500; color: var(--ink-2); }
