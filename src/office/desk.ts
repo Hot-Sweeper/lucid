@@ -7,8 +7,7 @@ import { gameSound } from './sound';
 import { WM } from "../os/wm";
 import { Director, type ThreadInfo } from "../director";
 import { GEOM, PHONE_SCALE, UNIT, type DeskRig, type Pt, type SeatedRobot } from "./rig";
-import { StubRobot } from "./stub-robot";
-import { emptyChairSvg } from "../world/seated";
+import { emptyChairSvg, TopDownRobot } from "../world/seated";
 import { playHandoff } from "../world/handoff";
 import { logoFor, brandFor } from "./brand";
 import { WALLPAPERS, HOBBY_LABEL, type RobotProfile } from "./roster";
@@ -55,9 +54,6 @@ export function shortTitle(title: string, max = 32) {
   return `${(space > max / 2 ? cut.slice(0, space) : t.slice(0, max)).replace(/[\s,.;:\u2013\u2014-]+$/, "")}…`;
 }
 
-export type RobotFactory = (host: HTMLElement, rig: DeskRig) => SeatedRobot;
-let robotFactory: RobotFactory = (host, rig) => new StubRobot(host, rig);
-export function useRobot(f: RobotFactory) { robotFactory = f; }
 
 // Keyboard layout: rows top to bottom, columns left to right, like a real keyboard seen from above.
 const ROWS = ["1234567890-=", "qwertyuiop[]", "asdfghjkl;'\n", "zxcvbnm,./\u0001\u0002"];
@@ -123,7 +119,7 @@ export class Desk implements DeskStage {
     gsap.set(el.querySelector(".phone-held"), { scale: PHONE_SCALE, transformOrigin: "0 0" });
     const robotHost = el.querySelector(".robot-host") as HTMLElement;
     this.power = new RobotPower(robotHost, () => this.threadId, { x: 115, y: 197, w: 170, h: 160 });
-    this.deferredRobot = new DeferredRobot(robotHost, () => robotFactory(robotHost, this.rig()));
+    this.deferredRobot = new DeferredRobot(robotHost, () => new TopDownRobot(robotHost, this.rig()));
     this.robot = this.deferredRobot;
     this.disposeStaticArt = cacheStaticArt(el.querySelector<SVGSVGElement>(".desk-table")!);
     this.wireToys();

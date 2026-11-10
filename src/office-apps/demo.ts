@@ -15,8 +15,7 @@ import { WM, Cancelled } from "../os/wm";
 import { OfficeSuite } from "./suite";
 import { officeIdle } from "./idle";
 import { officeTargets } from "./model";
-import { useRobot, Desk } from "../office/desk";
-import { TopDownRobot } from "../world/seated";
+import { Desk } from "../office/desk";
 import { WALLPAPERS, type RobotProfile } from "../office/roster";
 import type { Item } from "../director";
 
@@ -126,7 +125,6 @@ async function main() {
 
 // A desk with a robot, played by the real Director from fake thread items.
 async function deskScene() {
-  useRobot((host, rig) => new TopDownRobot(host, rig));
   const zoom = Number(qs.get("zoom")) || Math.min(innerWidth / 400, innerHeight / 380);
   const floor = document.createElement("div");
   floor.className = "d-floor";

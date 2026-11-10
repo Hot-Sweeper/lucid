@@ -30,11 +30,9 @@ import "./office/sidebar-header.css";
 import "./world/world.css";
 import "./decor/decor.css";
 import { openDecorate, type RoomTheme } from "./office/decorate";
-import { TopDownRobot } from "./world/seated";
 import { BreakRoom } from "./world/breakroom";
 import { ChargingRoom } from "./world/charging";
 import { QuestionLine } from "./world/queue";
-import { useRobot } from "./office/desk";
 import gsap from "gsap";
 import { World, type Room, type WorldData } from "./office/world";
 import { ChatPanel, renderChatMarkdown } from "./office/chat-panel";
@@ -214,8 +212,6 @@ $("side-panel").appendChild($("usage"));
 }
 
 
-// robots in the original design, plus the break room and the question line
-useRobot((host, rig) => new TopDownRobot(host, rig));
 const world = new World($("scene"), { peek: (u) => api.peek(u), image: (p) => api.image(p), readText: (p) => api.readText(p) });
 // Robot lines keep each robot's hobby, and seated robots remark on real T3 changes to their thread.
 setPersonaSource(name => world.roster.robots.find(r => r.name === name)?.prefs?.hobby);

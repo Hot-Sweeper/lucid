@@ -12,8 +12,8 @@ if (!process.versions.electron) {
     fs.writeFileSync(entry, `import '${root}/node_modules/@fontsource-variable/lexend/index.css';
 import '${root}/node_modules/@fontsource-variable/jetbrains-mono/index.css';
 import '${root}/src/styles.css';import '${root}/src/office/office.css';import '${root}/src/world/world.css';
-import {Desk,useRobot} from '${root}/src/office/desk.ts';import {TopDownRobot} from '${root}/src/world/seated.ts';
-import {setRenderView} from '${root}/src/perf/render.ts';window.review={Desk,useRobot,TopDownRobot,setRenderView};`);
+import {Desk} from '${root}/src/office/desk.ts';
+import {setRenderView} from '${root}/src/perf/render.ts';window.review={Desk,setRenderView};`);
     await (await import('vite')).build({ configFile: false, logLevel: 'error', build: { outDir: folder, emptyOutDir: false, lib: { entry, name: 'Review', formats: ['iife'], fileName: () => 'test.js', cssFileName: 'test' } } });
     if (require('../../electron/build-state.cjs').changed(before, require('../../electron/build-state.cjs').snapshot(process.cwd())).length) throw Error('Source changed during native fixture build');
     fs.writeFileSync(path.join(folder, 'index.html'), '<html><head><meta charset="utf-8"><link rel="stylesheet" href="test.css"><style>body{background:#b59c86}#desk{position:relative;margin:16px 40px}.desk-unit{transform:scale(2.3);transform-origin:top left}</style></head><body><div id="desk"></div><script src="test.js"></script></body></html>');
@@ -34,8 +34,7 @@ import {setRenderView} from '${root}/src/perf/render.ts';window.review={Desk,use
     try {
       await win.loadFile(path.join(folder, 'index.html'));
       await js(`(()=>{
-        const {Desk,useRobot,TopDownRobot,setRenderView}=review;
-        useRobot((host,rig)=>new TopDownRobot(host,rig));
+        const {Desk,setRenderView}=review;
         const desk=window.desk=new Desk(document.querySelector('#desk'),0,0,{peek:async()=>null,image:async()=>null,readText:async()=>null});
         desk.assign({id:'isolated-thought',title:'Streamed Notes review',provider:'claudeAgent',model:'Opus 5.5'});
         desk.wm.prefs={...desk.wm.prefs,launch:'dock',windows:'floating'};desk.wm.speed=2;

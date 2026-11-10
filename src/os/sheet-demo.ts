@@ -18,8 +18,7 @@ import { BrowserApp } from "./browser";
 import { WALLPAPERS } from "../office/roster";
 import { t3Icon, t3Title } from "../harness/t3code";
 import "../world/world.css";
-import { useRobot, Desk } from "../office/desk";
-import { TopDownRobot } from "../world/seated";
+import { Desk } from "../office/desk";
 import type { RobotProfile } from "../office/roster";
 import type { Item } from "../director";
 
@@ -77,7 +76,6 @@ const PAGE_HTML = `<!doctype html><html><head><title>Pixels library content</tit
 
 // A desk with a robot, played by the real Director from fake thread items.
 async function directorScene() {
-  useRobot((host, rig) => new TopDownRobot(host, rig));
   const floor = document.createElement("div");
   floor.style.cssText = `position:relative;width:400px;height:380px;transform-origin:0 0;background:#c49a6c;transform:scale(${Number(qs.get("zoom")) || Math.min(innerWidth / 400, innerHeight / 380)})`;
   document.getElementById("sd-demo")!.appendChild(floor);
