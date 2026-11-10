@@ -77,4 +77,3 @@ export function iconFor(kind: FileKind, open = false) {
   return GLYPH[kind];
 }
 
-export const kindLabel = (kind: FileKind) => LABEL[kind];

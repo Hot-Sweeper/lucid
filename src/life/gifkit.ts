@@ -116,18 +116,6 @@ export function glowOn(c: Ctx, col: string, blur: number) { c.shadowColor = col;
 export function glowOff(c: Ctx) { c.shadowColor = "transparent"; c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 0; }
 
 // --- text -----------------------------------------------------------------------
-function wrap(c: Ctx, s: string, maxW: number) {
-  const out: string[] = [];
-  for (const para of s.split("\n")) {
-    let cur = "";
-    for (const w of para.split(" ")) {
-      const t = cur ? cur + " " + w : w;
-      if (cur && c.measureText(t).width > maxW) { out.push(cur); cur = w; } else cur = t;
-    }
-    out.push(cur);
-  }
-  return out;
-}
 
 type CapOpts = { align?: CanvasTextAlign; maxW?: number; from?: "top" | "bottom" | "middle"; color?: string; shadow?: boolean; weight?: number; lh?: number };
 // Bold rounded meme caption: white, soft dark shadow, no stroke.

@@ -8,4 +8,3 @@ export { watchPhoneFeed } from "./phone";
 export { watchTube } from "./tube";
 export { browseBenchtop, BENCHTOP_VIDEOS } from "./benchtop";
 export { watchBotflix, type BotflixOpts } from "./botflix";
-export { SHOWS as BOTFLIX_SHOWS, type ShowDef } from "./shows";

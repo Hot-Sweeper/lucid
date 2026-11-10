@@ -390,7 +390,6 @@ function thComments(v: VideoDef): Comment[] {
 }
 /** Three parts from the bench, the same for a video every time. */
 const parts = (v: VideoDef) => { const k = seedOf(v.id); return [0, 1, 2].map((i) => PARTS[(k + i * 4) % PARTS.length]).join(", "); };
-const calm = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export async function browseBenchtop(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
   const scope = new Scope(body);

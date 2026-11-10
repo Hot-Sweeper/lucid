@@ -62,7 +62,6 @@ export class Robot {
     lean: 0, breath: 0, hx: 0, hy: 0, rot: 0, face: 0, sx: 1, foot: 0,
   };
   private pose: Pose = "rest";
-  private typing = false;
   private mouseHand = false;
   private mousePos: Pt;
   private brand = "codex";
@@ -174,7 +173,6 @@ export class Robot {
   setPose(p: Pose) {
     const prev = this.pose;
     this.pose = p;
-    if (p !== "type") this.typing = false;
     this.mouseHand = p === "mouse" || p === "read";
     this.loops.forEach((l) => l.kill());
     this.loops = [];
@@ -247,7 +245,6 @@ export class Robot {
 
   setTyping(on: boolean) {
     if (on && this.pose !== "type") this.setPose("type");
-    this.typing = on;
   }
 
   // Press the real key on the keyboard: the matching hand travels to it.

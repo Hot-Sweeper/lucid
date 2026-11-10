@@ -1,4 +1,3 @@
-import gsap from "gsap";
 import { uid } from "./parts";
 import { plankJoints } from "../perf/floor-paths";
 import { releaseVectors } from "../perf/shared-vector";

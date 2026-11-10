@@ -3,11 +3,10 @@
 // "are you still watching" check. Everything it starts lives on one Scope and stops at once.
 import "./botflix.css";
 import { LiveCanvases, canvasPixelRatio } from "../perf/canvas";
-import type gsap from "gsap";
 import type { FunHost } from "./host";
 import { Scope, fitCanvas, html, esc, clamp } from "./util";
 import {
-  SHOWS, showById, FEATURED, RESUME, ROWS, CREDITS, COLD_END, INTRO_END,
+  showById, FEATURED, RESUME, ROWS, CREDITS, COLD_END, INTRO_END,
   drawArt, drawTitle, titleSize, drawEpisode, drawSting, lineAt, phaseAt, blurb, renderStage, type ShowDef,
 } from "./shows";
 

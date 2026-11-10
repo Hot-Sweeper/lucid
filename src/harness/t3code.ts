@@ -170,7 +170,6 @@ interface Row { el: HTMLElement; type: string }
 
 export class T3CodeApp {
   private root: HTMLElement;
-  private side!: HTMLElement;
   private list!: HTMLElement;
   private crumbs!: HTMLElement;
   private feed!: HTMLElement;
@@ -221,7 +220,6 @@ export class T3CodeApp {
         </div>
       </section>`;
     const q = (s: string) => this.root.querySelector(s) as HTMLElement;
-    this.side = q(".t3-side");
     this.list = q(".t3-list");
     this.crumbs = q(".t3-crumbs");
     this.feed = q(".t3-feed");

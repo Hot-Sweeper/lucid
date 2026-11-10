@@ -36,7 +36,7 @@ const COINS: [string, string, number, number][] = [
 ];
 
 export async function tradeOnBotcoinExchange(body: HTMLElement, host: SoHost, opts: SoOpts) {
-  return runApp(body, host, opts, async (k) => { await new BotcoinExchange(k, body, opts).session(); });
+  return runApp(body, host, opts, async (k) => { await new BotcoinExchange(k, body).session(); });
 }
 
 class BotcoinExchange {
@@ -52,7 +52,7 @@ class BotcoinExchange {
   dirty = true;
   sideAt = 0;
 
-  constructor(private k: Kit, body: HTMLElement, private opts: SoOpts) {
+  constructor(private k: Kit, body: HTMLElement) {
     body.innerHTML = "";
     this.root = h("div", "tb");
     body.appendChild(this.root);

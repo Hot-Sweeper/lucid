@@ -24,7 +24,6 @@ const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 // lots of lines, shown without repeats until they run out (remembered across launches)
 const nextConvo = pickFresh(CONVOS, "lucid:park:convos");
 const nextThought = pickFresh(THOUGHTS.filter((t) => !t.place || t.place === "park" || t.place === "bench"), "lucid:park:thoughts");
-const PARK_THOUGHTS = ["Nice out today.", "The ducks are back.", "No merge conflicts out here.", "Fresh air. Well, fresh packets.", "I could get used to this.", "Is that a real tree or a sprite?"];
 
 export class Park {
   layer: HTMLElement;
