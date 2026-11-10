@@ -103,7 +103,6 @@ contextBridge.exposeInMainWorld("lucidT3", {
   providers: t3s("t3s:providers"),
   hireConfig: t3s("t3s:hire-config"),
   searchThreads: t3s("t3s:search-threads"),
-  hireContexts: t3s("t3s:hire-contexts"),
   reorder: t3s("t3s:reorder"),
   moveThread: t3s("t3s:move-thread"),
   cancel: t3s("t3s:cancel"),

@@ -84,7 +84,7 @@ if (!process.versions.electron) {
   const server = require(path.join(root, 'electron/t3server.cjs'));
   Object.assign(server, {
     usageLimits: async () => ({ providers: [] }), status: async () => ({ paired: true }), closeSock: () => {}, listProviders: async () => runtime.providers,
-    hireConfig: async () => structuredClone(runtime), hireContexts: () => [],
+    hireConfig: async () => structuredClone(runtime),
     // Production payload construction; only the T3 launch itself is recorded instead of sent.
     startHire: async opts => {
       const payload = require(path.join(root, 'electron/hire-runtime.cjs')).launchPayload(opts, runtime.runtimeMode);

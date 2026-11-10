@@ -95,7 +95,7 @@ declare global {
       conversation(id: string): Promise<any[]>;
       attachDir(): Promise<string>;
       watchSet(ids: string[]): Promise<boolean>;
-      startThread(o: { project: string; message: string; provider?: string; model?: string; options?: Record<string, string | boolean>; requestId?: string; contextThreadId?: string }): Promise<{ threadId: string }>;
+      startThread(o: { project: string; message: string; provider?: string; model?: string; options?: Record<string, string | boolean>; requestId?: string }): Promise<{ threadId: string }>;
       sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
       peek(url: string): Promise<any>;
       image(path: string): Promise<string | null>;

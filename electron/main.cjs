@@ -519,7 +519,6 @@ for (const action of ["stop", "rename", "archive"]) ipcMain.handle(`t3s:${action
 ipcMain.handle("t3s:providers", t3sWrap((o) => activeBuilding() ? remote.providers(activeBuilding()) : t3s.listProviders(o || {})));
 ipcMain.handle("t3s:search-threads", t3sWrap((q) => activeBuilding() ? { matches: [], threads: [] } : t3s.searchThreads(q)));
 ipcMain.handle("t3s:hire-config", t3sWrap((o) => { if (activeBuilding()) throw Error('Start a new thread in T3 Code for this building.'); return t3s.hireConfig(o || {}); }));
-ipcMain.handle("t3s:hire-contexts", t3sWrap((o) => { if (activeBuilding()) throw Error('Context search is unavailable for this building.'); return t3s.hireContexts(o.projectId); }));
 let threadMovePending = false;
 ipcMain.handle("t3s:move-thread", t3sWrap(async (o) => {
   if (threadMovePending) throw Error('A thread move is still saving. Try again in a moment.');

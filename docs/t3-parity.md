@@ -34,7 +34,7 @@ The scopes the app has never asked for matter for the larger gaps: `terminal:ope
 | Snooze | `thread.snooze` (`snoozedUntil`), `thread.unsnooze` | none | Snooze presets (1h, tomorrow) | S |
 | Read / unread | `thread.visit` (`visitedAt`, `opened`), `thread.mark-unread` | The app computes `unseen` from `lastVisitedAt` (`t3.cjs` world) but never sends `thread.visit`, so reading in the app leaves T3 unread | Send `thread.visit` on open; "Mark unread" item | S |
 | Tags | `thread.tag.set` | none | Tag chips | S (low value) |
-| Fork / side chat / merge back | `thread.fork` (`sourcePoint`: latest, run, checkpoint; `sideChat`), `thread.merge_back` | Hire can continue from a settled thread (`hire-context.cjs`) | Fork from a message, side chat | M |
+| Fork / side chat / merge back | `thread.fork` (`sourcePoint`: latest, run, checkpoint; `sideChat`), `thread.merge_back` | none | Fork from a message, side chat | M |
 | Copy reference / id / branch / path | context menu `copy-thread`, `copy-thread-id`, `copy-branch`, `copy-path` | "Reference in chat (R)" | Copy items | S |
 | Turn into project | `projects.createFromThread`; `thread.project.adopt-folder` | Freelance desk "Turn this work into a project" (`main.ts` desk menu, via CLI `project add`) | Uses CLI, not the thread link; fine for now | done |
 | Guest share | `thread.guest-share.open/close`, `guestShare.create` | none | Out of scope for now | M |
