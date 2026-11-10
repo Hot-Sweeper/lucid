@@ -65,7 +65,7 @@ if (!process.versions.electron) {
   handle('reports:list',()=>{reportCalls++;return reports;});
   handle('reports:tick',()=>[]); handle('reports:submit',()=>null);
   handle('t3:watch-set',()=>{watchCalls++;return watches;});
-  for (const channel of ['t3:tasks','t3:conversation','orch:approval-papers','orch:answers','orch:decisions','t3:user-messages']) handle(channel,()=>[]);
+  for (const channel of ['t3:conversation','orch:approval-papers','orch:answers','orch:decisions','t3:user-messages']) handle(channel,()=>[]);
   handle('environment:list',()=>({localId:'local',buildings:[],error:null,connectionState:'no-linked-environments'}));
   const totals = {tokens:0,input:0,output:0,cacheRead:0,cacheWrite:0,costUsd:0,byHarness:{},byModel:{}};
   const usage = {updatedAt:new Date().toISOString(),windows:{today:totals,last5h:totals,week:totals},limits:{},errors:[]};

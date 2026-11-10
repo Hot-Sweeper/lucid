@@ -20,7 +20,7 @@ if (!process.versions.electron) {
   const totals = { tokens: 0, costUsd: 0, byHarness: {}, byModel: {}, byProject: {} };
   const usage = { updatedAt: now.toISOString(), windows: { today: totals, week: totals, last5h: totals }, limits: {}, errors: [] };
   let cost = 4.25;
-  Object.assign(require('../../electron/t3.cjs'), { world: () => data, officeTasks: () => [], watchThread: () => () => {}, pendingRequests: () => [], resolvedRequestsSince: () => [], userMessagesSince: () => [], itemsSince: () => [], listProjects: () => data.projects, coinBindings: () => [] });
+  Object.assign(require('../../electron/t3.cjs'), { world: () => data, watchThread: () => () => {}, pendingRequests: () => [], resolvedRequestsSince: () => [], userMessagesSince: () => [], itemsSince: () => [], listProjects: () => data.projects, coinBindings: () => [] });
   Object.assign(require('../../electron/usage.cjs'), { getUsage: async () => usage, getCoinSources: async () => ({ usage, sources: [{ key: 'codex:coin-fixture', threadId: thread.id, title: thread.title, status: thread.runStatus, costUsd: cost }] }) });
   Object.assign(require('../../electron/environments.cjs'), { getEnvironments: async () => ({ localId: 'fixture', buildings: [{ id: 'fixture', label: 'Coin fixture office', local: true }] }) });
   Object.assign(require('../../electron/weather.cjs'), { getWeather: async () => null, lastError: () => null });

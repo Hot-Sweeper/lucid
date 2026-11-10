@@ -338,7 +338,6 @@ ipcMain.handle("t3:world", async () => {
   if (!activeBuilding()) { const jobs = backgroundJobs.current(); for (const t of data.threads) { const job = jobs.get(t.id); if (job) t.job = job; } }
   return data;
 });
-ipcMain.handle("t3:tasks", () => { if (activeBuilding()) return []; try { return t3.officeTasks(); } catch { return []; } });
 ipcMain.handle("t3:start", (_e, opts) => { if (remote.split(opts.project)) throw Error('Start a new remote thread in T3 Code, then open it here.'); return opts.options !== undefined ? t3s.startHire(opts) : t3.startThread(opts); });
 ipcMain.handle("t3:send", (_e, opts) => remote.split(opts.threadId) ? remote.send(opts) : t3.sendMessage(opts));
 

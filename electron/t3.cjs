@@ -77,51 +77,6 @@ function queuedText(m) {
 
 
 // --- the offices' to-do lists ----------------------------------------------------------
-// Every message you sent to a robot is a task with the status T3 gives its run: queued,
-// running (or waiting on you), done, or stopped. Running tasks carry the robot's own plan
-// counts (steps finished of steps written), which is the only progress that is real.
-const OPEN_RUN = "('queued','running','starting','preparing','waiting','awaiting_input')";
-const ENDED_RUN = "('completed','failed','interrupted')";
-function officeTasks() {
-  const db = getDb();
-  const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
-  const rows = db
-    .prepare(`select r.run_id as id, r.thread_id as threadId, t.project_id as projectId, r.status, r.ordinal, r.payload_json as p, m.payload_json as mp
-              from orchestration_v2_projection_runs r
-              join orchestration_v2_projection_threads t on t.thread_id = r.thread_id
-              left join orchestration_v2_projection_messages m on m.message_id = json_extract(r.payload_json, '$.userMessageId')
-              where t.archived_at is null and t.deleted_at is null and t.thread_id not like 'thread:%'
-                and (r.status in ${OPEN_RUN} or (r.status in ${ENDED_RUN} and json_extract(r.payload_json, '$.completedAt') >= ?))`)
-    .all(midnight.toISOString());
-  const planStmt = db.prepare("select payload_json as p from orchestration_v2_projection_turn_items where thread_id = ? and run_id = ? and type = 'todo_list' order by ordinal desc limit 1");
-  const todoStmt = db.prepare("select payload_json as p from orchestration_v2_projection_turn_items where thread_id = ? and run_id = ? and type = 'dynamic_tool' and json_extract(payload_json, '$.toolName') like '%TodoWrite' order by ordinal desc limit 1");
-  const tasks = [];
-  for (const r of rows) {
-    const p = safeJson(r.p) || {};
-    const m = safeJson(r.mp);
-    // helper reports and system notes are not things you asked for
-    if (m && (m.delegatedCompletion || m.notification)) continue;
-    const raw = String(m?.text || "");
-    if (/^\s*(Delegated task node:|<task-notification>|New messages the user wrote to robots)/.test(raw) || /delegated-task:command/.test(raw.slice(0, 200))) continue;
-    const files = (raw.match(/^\s*-\s*(image|file):/gim) || []).length + (m?.attachments?.length || 0);
-    let steps = null;
-    if (r.status === "running") {
-      // Codex writes a plan item, Claude calls TodoWrite
-      const list = safeJson(planStmt.get(r.threadId, r.id)?.p)?.steps || safeJson(todoStmt.get(r.threadId, r.id)?.p)?.input?.todos;
-      if (Array.isArray(list) && list.length) steps = { done: list.filter((s) => /complete|done|finish|success/i.test(String(s?.status || ""))).length, total: list.length };
-    }
-    tasks.push({
-      id: r.id, threadId: r.threadId, projectId: r.projectId, ordinal: r.ordinal,
-      status: r.status === "queued" ? "queued" : r.status === "completed" ? "done" : r.status === "failed" || r.status === "interrupted" ? "stopped" : "running",
-      asking: r.status === "waiting" || r.status === "awaiting_input",
-      pos: p.queuePosition ?? r.ordinal,
-      at: p.requestedAt || null, startedAt: p.startedAt || null, endedAt: p.completedAt || null,
-      text: raw.slice(0, 2400), files, steps,
-    });
-  }
-  return tasks;
-}
-
 function threadInfo(threadId) {
   const t = getDb()
     .prepare(`select t.thread_id as id, t.project_id as projectId, t.title, coalesce(t.provider_instance_id, t.default_provider) as provider, t.payload_json as payload,
@@ -619,4 +574,4 @@ function threadFolders() {
   return getDb().prepare("select thread_id as id, json_extract(payload_json, '$.worktreePath') as path from orchestration_v2_projection_threads where archived_at is null and deleted_at is null and json_extract(payload_json, '$.worktreePath') is not null").all();
 }
 
-module.exports = { sentSince, threadHealth, threadFolders, coinBindings, reportState: id => reportFacts(id, false), reportFacts, officeTasks, requestContext, repliesSince, resolvedRequestsSince, requestOutcome, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, conversationPage, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
+module.exports = { sentSince, threadHealth, threadFolders, coinBindings, reportState: id => reportFacts(id, false), reportFacts, requestContext, repliesSince, resolvedRequestsSince, requestOutcome, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, conversationPage, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };

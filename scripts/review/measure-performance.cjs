@@ -139,7 +139,7 @@ if (!process.versions.electron) {
   const replace = (channel, callback) => { ipcMain.removeHandler(channel); ipcMain.handle(channel, callback); };
   replace('t3:world',()=>({projects,threads,shipped:{total:0,today:0}}));
   replace('t3:watch-set',()=>true); replace('t3:conversation',()=>[]); replace('t3:conversation-page',()=>({messages:[],hasMore:false}));
-  replace('t3:tasks',()=>[]); replace('usage:get',()=>null); replace('weather:get',()=>({weather:null,error:null}));
+  replace('usage:get',()=>null); replace('weather:get',()=>({weather:null,error:null}));
   replace('environment:list',()=>({buildings:[{id:'local',label:'Benchmark PC',local:true,canOpen:true}]}));
   replace('app:host',()=> 'Benchmark PC'); replace('t3:attach-dir',()=> 'C:/benchmark/attachments/');
   ipcMain.removeAllListeners('settings:load');ipcMain.on('settings:load',e=>{e.returnValue='{}'});

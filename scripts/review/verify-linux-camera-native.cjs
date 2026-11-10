@@ -136,7 +136,7 @@ if (!process.versions.electron) {
   // finishing or changing their sessions while native assertions are running.
   const t3=require('../../electron/t3.cjs'),stamp=new Date().toISOString();
   const data={projects:[{id:'visual-project',title:'Visual checks',root:out,scratch:false}],threads:Array.from({length:5},(_,i)=>({id:'visual-thread-'+i,projectId:'visual-project',title:['Install an Open-Source Authenticator','Fix Lucid Rendering Glitches','Separate KDE Sessions on CachyOS','Fix Still Browser Scrolling and Video Sync','CachyOS Linux Installation'][i],provider:'codex',model:null,runStatus:'running',updatedAt:stamp,pinned:false,settled:false,question:null})),models:{},prices:{},shipped:{total:0,today:0}};
-  Object.assign(t3,{world:()=>structuredClone(data),watchThread:()=>()=>{},officeTasks:()=>[],coinBindings:()=>[],conversation:()=>[],conversationPage:()=>({messages:[],hasMore:false,cursor:null})});
+  Object.assign(t3,{world:()=>structuredClone(data),watchThread:()=>()=>{},coinBindings:()=>[],conversation:()=>[],conversationPage:()=>({messages:[],hasMore:false,cursor:null})});
   fs.mkdirSync(process.env.LUCID_SHOT_PROFILE,{recursive:true});fs.writeFileSync(path.join(process.env.LUCID_SHOT_PROFILE,'settings.json'),JSON.stringify({orch:null}));
   require('../../electron/main.cjs');
 }

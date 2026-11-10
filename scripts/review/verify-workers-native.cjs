@@ -74,7 +74,7 @@ if (!process.versions.electron) {
   const state = id => { const t = data.threads.find(t => t.id === id); return { run: t ? { id: 'run-' + id, status: t.runStatus } : null, pendingRuns: 0, pendingRequests: 0, pinned: !!t?.pinned, settled: !!t?.settled, settledAt: t?.settled ? stamp : null, title: t?.title }; };
   const t3 = require(path.join(root, 'electron/t3.cjs'));
   Object.assign(t3, { world: () => structuredClone(data), threadInfo: id => { const t = data.threads.find(t => t.id === id); return t ? { id, title: t.title, provider: t.provider, model: t.model, effort: 'high', root: out, queued: [], run: { id: 'run-' + id, status: t.runStatus } } : null; },
-    officeTasks: () => [], listProjects: () => data.projects, listThreads: () => data.threads, listProjectsWithCounts: () => data.projects,
+    listProjects: () => data.projects, listThreads: () => data.threads, listProjectsWithCounts: () => data.projects,
     watchThread: () => () => {}, conversation: () => [], conversationPage: () => ({ messages: [], hasMore: false, cursor: null }),
     pendingRequests: () => [], requestOutcome: () => null, repliesSince: () => ({ messages: [], exists: true, runStatus: 'idle' }), userMessagesSince: () => [], resolvedRequestsSince: () => [],
     itemsSince: () => [], recentItems: () => [], reportState: state, reportFacts: state, coinBindings: () => [] });

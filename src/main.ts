@@ -82,7 +82,6 @@ declare global {
     lucid: {
       projects(): Promise<{ id: string; title: string; root: string }[]>;
       world(): Promise<WorldData>;
-      tasks(): Promise<unknown[]>;
       startThreadIn?: never;
       settingsLoad(): string;
       settingsSave(json: string): Promise<void>;
