@@ -178,7 +178,7 @@ ipcMain.handle("environment:world", async (_e, id) => {
   const building = inventory.buildings.find(b => b.id === id && b.canOpen);
   if (!building) throw Error('This computer is not connected. Refresh Buildings and try again.');
   if (campusReads.has(id)) return campusReads.get(id);
-  const read = Promise.resolve().then(async () => managers.world(building.local ? t3.world() : await remote.world(id)))
+  const read = Promise.resolve().then(async () => building.local ? t3.world() : await remote.world(id))
     .finally(() => campusReads.delete(id));
   campusReads.set(id, read); return read;
 });
@@ -189,7 +189,7 @@ ipcMain.handle("environment:select", async (_e, id) => {
   if (!building.local) await remote.world(id);
   desktopBuilding = building.local ? null : id;
   for (const stop of watchers.values()) stop(); watchers.clear();
-  return { ...building, world: managers.world(activeBuilding() ? structuredClone(remote.cached(activeBuilding())) : undefined) };
+  return { ...building, world: activeBuilding() ? structuredClone(remote.cached(activeBuilding())) : t3.world() };
 });
 ipcMain.handle("t3:threads", () => activeBuilding() ? remote.cached(activeBuilding())?.threads || [] : t3.listThreads());
 // Watch exactly this set of threads (one per desk in the open office).
@@ -341,7 +341,7 @@ ipcMain.handle("t3:attach-dir", () => require("node:path").join(process.env.T3CO
 // Jobs a thread left running after its turn (a render service, say), from systemd on this computer.
 const backgroundJobs = require("./background-jobs.cjs").createBackgroundJobs({ folders: () => { try { return t3.threadFolders(); } catch { return []; } } });
 ipcMain.handle("t3:world", async () => {
-  const data = managers.world(activeBuilding() ? await remote.world(activeBuilding()) : undefined);
+  const data = activeBuilding() ? await remote.world(activeBuilding()) : t3.world();
   data.threads = data.threads.filter(t => !languageHelpers.has(t.id));
   if (!activeBuilding()) { const jobs = backgroundJobs.current(); for (const t of data.threads) { const job = jobs.get(t.id); if (job) t.job = job; } }
   if (!activeBuilding()) threadLabels.decorate(data, !process.env.LUCID_SHOT);
@@ -508,23 +508,16 @@ const localization = createLocalization({ file: path.join(app.getPath('userData'
 ipcMain.handle('lucid:localize', (_e, input) => localization.localize(input));
 t3s.setRemoteDispatch(c => remote.dispatch(c));
 t3s.setRemoteSecret((id, item, answer) => remote.answerSecret(id, item, answer));
-const managerT3 = { ...t3, world: () => activeBuilding() ? structuredClone(remote.cached(activeBuilding())) : t3.world(),
-  threadInfo: id => remote.split(id) ? remote.info(id) : t3.threadInfo(id),
-  conversation: id => remote.split(id) ? remote.conversation(id) : t3.conversation(id),
-  sendMessage: o => remote.split(o.threadId) ? remote.send(o) : t3.sendMessage(o) };
-const managerServer = { dispatch: c => remote.split(c.threadId) || remote.split(c.projectId) ? remote.dispatch(c) : t3s.dispatch(c), selection: id => remote.split(id) ? remote.selection(id) : t3s.selection(id) };
-// Manager pictures sit beside the Orchestrator's folder so each manager's agent can write its own avatar file.
-const MANAGER_AVATARS = process.env.LUCID_SHOT ? path.join(app.getPath("userData"), "manager-avatars") : path.join(require("node:os").homedir(), "T3 Projects", "Lucid Managers");
-const managers = require("./managers.cjs").createManagers({ file: path.join(app.getPath("userData"), "managers.json"), t3: managerT3, server: managerServer, avatarRoot: MANAGER_AVATARS, isLocal: id => !remote.split(id) });
 const t3sWrap = (fn) => async (_e, ...args) => {
   try { return { ok: true, value: await fn(...args) }; } catch (err) { return { ok: false, error: String(err?.message || err), code: err?.code || null }; }
 };
 ipcMain.handle("t3s:status", t3sWrap(async (o) => remote.split(o?.threadId) ? { paired: true, error: null, selection: await remote.selection(o.threadId) } : t3s.status(o || {})));
-ipcMain.handle("t3s:manager", t3sWrap(async (o) => { if (remote.split(o.threadId)) await remote.world(remote.split(o.threadId).environmentId); return managers.update(o); }));
-ipcMain.handle("t3s:manager-suggest", t3sWrap((o) => managers.suggest(o)));
-ipcMain.handle("t3s:manager-avatar", t3sWrap((o) => managers.avatars.set(o || {})));
-ipcMain.handle("t3s:manager-avatar-history", t3sWrap((o) => managers.avatars.history(o || {})));
-ipcMain.handle("t3s:manager-avatar-ask", t3sWrap((o) => managers.avatars.ask(o || {})));
+// Pinning is T3's own pin: a pinned thread is listed first and keeps its desk.
+ipcMain.handle("t3s:pin", t3sWrap((o) => {
+  if (typeof o?.threadId !== 'string' || !o.threadId || typeof o.pinned !== 'boolean') throw Error('Choose a thread to pin or unpin.');
+  const command = { type: o.pinned ? 'thread.pin' : 'thread.unpin', threadId: o.threadId };
+  return remote.split(o.threadId) ? remote.dispatch(command) : t3s.dispatch(command);
+}));
 ipcMain.handle("t3s:providers", t3sWrap((o) => activeBuilding() ? remote.providers(activeBuilding()) : t3s.listProviders(o || {})));
 ipcMain.handle("t3s:search-threads", t3sWrap((q) => activeBuilding() ? { matches: [], threads: [] } : t3s.searchThreads(q)));
 ipcMain.handle("t3s:hire-config", t3sWrap((o) => { if (activeBuilding()) throw Error('Start a new thread in T3 Code for this building.'); return t3s.hireConfig(o || {}); }));
@@ -534,7 +527,7 @@ ipcMain.handle("t3s:move-thread", t3sWrap(async (o) => {
   if (threadMovePending) throw Error('A thread move is still saving. Try again in a moment.');
   threadMovePending = true;
   try {
-    const assignments = require('./thread-order.cjs').moveAssignments(managers.world().threads, o.threadId, o.targetId, o.after === true);
+    const assignments = require('./thread-order.cjs').moveAssignments(t3.world().threads, o.threadId, o.targetId, o.after === true);
     for (const a of assignments) await t3s.dispatch({ type: a.pinned ? 'thread.pin.reorder' : 'thread.active.reorder', threadId: a.threadId, orderKey: a.orderKey });
   } finally { threadMovePending = false; }
 }));

@@ -8,9 +8,8 @@ const { hasOfficeDesk } = await load('room-policy');
 const settledWorker = { id: 'settled', runStatus: 'completed', settled: true };
 assert.equal(hasOfficeDesk(settledWorker, 'settled'), false, 'opening settled history must not recreate a desk');
 assert.equal(hasOfficeDesk({ ...settledWorker, runStatus: 'running' }), false, 'settled metadata wins over stale run state');
-assert.equal(hasOfficeDesk({ ...settledWorker, pinned: true }), false, 'a pin alone does not designate a manager');
-const manager = { ...settledWorker, pinned: true, manager: { projectId: 'project', role: 'Uploads' } };
-assert.equal(hasOfficeDesk(manager), true, 'explicit persistent manager keeps its workstation');
+const pinned = { ...settledWorker, pinned: true };
+assert.equal(hasOfficeDesk(pinned), true, 'a pinned T3 thread keeps its workstation');
 // Collected work keeps its desk until removed; new work takes that desk first, and a desk
 // taken over this way is never recreated.
 assert.equal(hasOfficeDesk({ ...settledWorker, kept: true }), true, 'a kept desk stays after collection');
@@ -23,16 +22,16 @@ assert.equal(hasOfficeDesk({ ...settledWorker, kept: false }), false, 'removing 
   assert.deepEqual(reserveRoomSeats(['busy', 'next'], [busy, keptDesk, newer]), ['busy', 'next'], 'a kept desk that was taken is not recreated');
 }
 assert.equal(projectRoomSeats(['settled'], [settledWorker], false, 'settled').slots, 0);
-assert.equal(projectRoomSeats(['settled'], [manager], false, null).slots, 1);
+assert.equal(projectRoomSeats(['settled'], [pinned], false, null).slots, 1);
 // Exercise the real held-floor slot loop: retiring a worker must remove its entire
-// desk while retaining the floor and an adjacent active manager's exact position.
+// desk while retaining the floor and an adjacent pinned thread's exact position.
 const worldSource = await readFile(new URL('../src/office/world.ts', import.meta.url), 'utf8');
 const slotSource = worldSource.slice(worldSource.indexOf('    const slots: { key:'), worldSource.indexOf('    const wanted = new Set(slots'));
 const slotCode = (await transformWithOxc(slotSource, 'slots.ts')).code;
 const heldSlots = new Function('plans', 'rooms', 'columnsForRoom', 'SLOT_W', 'SLOT_H', 'WALL_FACE', 'hasOfficeDesk', 'snakeSeat', `${slotCode};return slots;`)(
-  [{ id: 'p:project', slots: 2, threads: [settledWorker, { ...manager, id: 'manager' }] }],
+  [{ id: 'p:project', slots: 2, threads: [settledWorker, { ...pinned, id: 'pinned' }] }],
   [{ x: 0, y: 0 }], () => 2, 400, 380, 80, hasOfficeDesk, snakeSeat);
-assert.deepEqual(heldSlots.map(s => [s.key, s.t.id, s.x]), [['p:project#1', 'manager', 470]]);
+assert.deepEqual(heldSlots.map(s => [s.key, s.t.id, s.x]), [['p:project#1', 'pinned', 470]]);
 const thread = (id, runStatus = null, question = null) => ({ id, runStatus, question, pinned: true, settled: false });
 for (const status of ['running', 'queued', 'waiting', 'starting', 'preparing', 'pending', 'waiting_for_approval', 'awaiting-approval', 'Waiting For Input']) assert.equal(hasOfficeWork(thread('x', status)), true, status);
 for (const status of [null, 'completed', 'complete', 'done', 'idle', 'interrupted', 'error', 'paused', 'cancelled']) assert.equal(hasOfficeWork(thread('x', status)), false, 'inactivity ignores pin/unsettled state: ' + status);
@@ -61,7 +60,7 @@ assert.deepEqual(reserveRoomSeats(['busy', 'quiet'], [{ id: 'busy', runStatus: '
 assert.deepEqual(reserveRoomSeats(['busy', null, 'later'], [{ id: 'busy', runStatus: 'running' }, { id: 'later', runStatus: 'running' }, fresh]), ['busy', 'new', 'later'], 'a hole is filled in place');
 // Collecting settles the job, which clears the desk and releases the place.
 assert.deepEqual(reserveRoomSeats(['done', 'busy'], [{ id: 'done', runStatus: 'completed', settled: true }, { id: 'busy', runStatus: 'running' }]), ['busy', null]);
-assert.deepEqual(reserveRoomSeats(['boss'], [{ id: 'boss', runStatus: null, settled: true, pinned: true, manager: { projectId: 'p', role: 'Lead' } }]), ['boss'], 'managers keep their desk');
+assert.deepEqual(reserveRoomSeats(['boss'], [{ id: 'boss', runStatus: null, settled: true, pinned: true }]), ['boss'], 'pinned threads keep their desk');
 assert.deepEqual(reserveRoomSeats([], [{ id: 'history', runStatus: 'completed', settled: true }]), [], 'history never takes a place');
 assert.deepEqual(reserveRoomSeats(['quiet', 'busy'], [{ id: 'quiet', runStatus: 'completed' }, { id: 'busy', runStatus: 'running' }]), ['quiet', 'busy'], 'only settlement releases an idle session workstation');
 const reordered = reorderPhysicalSeats(reservations, [null, null, 'b'], ['b', null, null]);
@@ -119,8 +118,8 @@ for (const active of [0, 1, 7]) {
   assert.deepEqual(reserveRoomSeats(['done', 'busy'], [done, busy]), ['busy', null], 'running work shifts forward with its workstation');
   const asking = { id: 'asking', runStatus: 'completed', question: 'Which one?' };
   assert.deepEqual(reserveRoomSeats(['done', 'asking'], [done, asking]), ['asking', null], 'a question moves with its existing workstation');
-  const boss = { id: 'boss', runStatus: null, pinned: true, manager: { projectId: 'p', role: 'Lead' } };
-  assert.deepEqual(reserveRoomSeats(['done', 'boss'], [done, boss]), ['boss', null], 'manager workstations participate in ordered compaction');
+  const boss = { id: 'boss', runStatus: null, pinned: true };
+  assert.deepEqual(reserveRoomSeats(['done', 'boss'], [done, boss]), ['boss', null], 'pinned workstations participate in ordered compaction');
   assert.deepEqual(reserveRoomSeats(['done', 'hired'], [done, 'hired']), [null, 'hired'], 'a desk just reserved for a hire stays where it was promised');
   const q2 = { id: 'q2', runStatus: 'interrupted' };
   assert.deepEqual(reserveRoomSeats(['done', 'busy', 'quiet', 'q2'], [done, busy, quiet, q2]), ['busy', 'quiet', 'q2', null], 'later desks shift forward without reversing their order');

@@ -98,9 +98,9 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [], hi
     if (verdict.visualChanged && (!p.images.some(i => i.label === 'Before') || !p.images.some(i => i.label === 'After'))) return 'Before and after screenshots are missing. Request evidence before settlement.';
     return null;
   }
-  function excludeManager(p) {
+  function excludePinned(p) {
     if (!reportState(p.threadId).pinned) return false;
-    event(p, 'Excluded from automatic review', 'Lucid', 'Pinned project managers remain active.');
+    event(p, 'Excluded from automatic review', 'Lucid', 'Pinned threads stay active.');
     update(p, { status: 'manager-excluded', error: null });
     return true;
   }
@@ -109,7 +109,7 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [], hi
     return facts.run?.id === p.runId && facts.run.status === 'completed' && !facts.pendingRuns && !facts.pendingRequests;
   }
   async function apply(p, verdict, by, automatic) {
-    if (excludeManager(p)) return;
+    if (excludePinned(p)) return;
     if (automatic && !enabled()) { update(p, { status: 'manual-review', error: 'Automatic review is paused. Review this paper manually or resume.' }); return; }
     if (!current(p)) { event(p, 'Superseded by newer work', by); update(p, { status: 'superseded' }); return; }
     for (const [key, label] of [['before', 'Before'], ['after', 'After']]) {
@@ -155,7 +155,7 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [], hi
   }
   async function settle(p, by) {
     if (!current(p)) { update(p, { status: 'superseded' }); return; }
-    if (excludeManager(p)) return;
+    if (excludePinned(p)) return;
     await server.settleThread(p.threadId, { excludePinned: true, expectedRunId: p.runId });
     if (!reportState(p.threadId).settled) {
       update(p, { status: 'approved', retryAt: Date.now() + 5000, error: 'Waiting for T3 to confirm settlement.' });
@@ -174,7 +174,7 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [], hi
         let facts;
         try { facts = reportState(p.threadId); }
         catch (error) { update(p, { error: String(error.message || error) }); continue; }
-        if (facts.pinned) { excludeManager(p); continue; }
+        if (facts.pinned) { excludePinned(p); continue; }
         if (facts.settled) { event(p, 'Settlement observed in T3', 'T3'); update(p, { status: 'settled', settledAt: facts.settledAt, error: null }); }
         else if (p.status === 'pending-dependency') continue;
         else if (facts.run?.id !== p.runId || facts.pendingRuns || facts.pendingRequests) update(p, { status: 'superseded' });
@@ -215,11 +215,11 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [], hi
     } catch (e) {
       const p = actionPaper;
       if (p) {
-        const protectedManager = e.code === 'manager-protected';
+        const protectedPin = e.code === 'manager-protected';
         const stale = e.code === 'stale-review';
         const approved = p.status === 'approved';
-        update(p, { status: protectedManager ? 'manager-excluded' : stale ? 'superseded' : approved ? 'approved' : 'manual-review',
-          retryAt: approved ? Date.now() + 5000 : null, error: protectedManager ? null : String(e.message || e) });
+        update(p, { status: protectedPin ? 'manager-excluded' : stale ? 'superseded' : approved ? 'approved' : 'manual-review',
+          retryAt: approved ? Date.now() + 5000 : null, error: protectedPin ? null : String(e.message || e) });
       }
       return papers;
     } finally { busy = false; }

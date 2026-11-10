@@ -5,7 +5,6 @@ import "@fontsource-variable/jetbrains-mono";
 import "../../src/styles.css";
 import "../../src/office/office.css";
 import "../../src/office/panels.css";
-import "../../src/office/managers.css";
 
 let chat: any, input: any, messages: any[] = [], papers: any[] = [];
 const writes: any[] = [], opened: string[] = [];
@@ -32,7 +31,6 @@ async function setup(data: any) {
   chat.el.querySelector(".cp-who span").textContent = "Lucid";
   chat.el.querySelector(".cp-logo").hidden = true;
   chat.el.querySelector(".cp-view").hidden = true;
-  chat.setManager(null);
   chat.setStatus("Idle", "idle");
   await set([message("example", JSON.stringify(input.example))]); list().scrollTop = 0;
   await document.fonts.ready;

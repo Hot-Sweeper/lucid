@@ -51,7 +51,6 @@ if (!process.versions.electron) {
   ];
   const prof = app.getPath('userData');
   fs.writeFileSync(path.join(prof, 'roster.json'), JSON.stringify(roster));
-  fs.writeFileSync(path.join(prof, 'managers.json'), JSON.stringify({ m1: { projectId: 'lucid', role: 'Lead' } }));
   fs.writeFileSync(path.join(prof, 'settings.json'), JSON.stringify({
     orch: { threadId: 'orch-thread', projectId: 'orch-project', dir: out, review: true, reviewWorkflow: 1, paused: true, presence: 'sleep', seenUntil: stamp, lastSentAt: Date.now(), learned: 0, reviewed: {}, auto: false },
     homes: Object.fromEntries(['w1', 'w2', 'w3', 'w4', 'm1', 's-byte', 's-old'].map(id => [id, 'p:lucid'])),

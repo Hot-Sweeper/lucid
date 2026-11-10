@@ -12,6 +12,6 @@ assert.equal(projectRoomSeats(['earned'], [thread], false, null).slots, 1);
 assert(!hasOfficeDesk({ ...thread, coinPending: false }), 'collection releases an ordinary settled desk');
 assert.deepEqual([...projectRoomSeats(['earned'], [{ ...thread, coinPending: false }], false, null).threads], [], 'after collection an empty office does not recreate a desk');
 assert(!hasOfficeDesk({ ...thread, runStatus: 'failed' }), 'pending marker never converts failure to completion');
-assert(hasOfficeDesk({ ...thread, coinPending: false, pinned: true, manager: { projectId: 'p', role: 'Manager' } }), 'persistent manager desk remains independent of coins');
+assert(hasOfficeDesk({ ...thread, coinPending: false, pinned: true }), 'a pinned desk remains independent of coins');
 assert(hasOfficeDesk({ id: 'working', runStatus: 'running' }));
-console.log('PASS: uncollected desk retention, post-collection retirement, manager continuity and failed-work exclusion.');
+console.log('PASS: uncollected desk retention, post-collection retirement, pinned continuity and failed-work exclusion.');

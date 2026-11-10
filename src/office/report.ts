@@ -6,7 +6,7 @@ import "./report.css";
 import { harnessName, logoFor } from "./brand";
 
 const esc = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const state = (s: string) => ({ "manager-excluded": "Manager, excluded from automatic review", "pending-dependency": "Waiting for dependency evidence", submitted: "Awaiting delivery", reviewing: "Under review", approved: "Approved, ready to collect", settled: "Settled", "manual-review": "Needs review", "changes-requested": "Changes requested", superseded: "Replaced by newer work" }[s] || s);
+const state = (s: string) => ({ "manager-excluded": "Pinned, excluded from automatic review", "pending-dependency": "Waiting for dependency evidence", submitted: "Awaiting delivery", reviewing: "Under review", approved: "Approved, ready to collect", settled: "Settled", "manual-review": "Needs review", "changes-requested": "Changes requested", superseded: "Replaced by newer work" }[s] || s);
 const date = (s: string) => s ? new Date(s).toLocaleString() : "Not recorded";
 const md = new Marked({ breaks: true });
 const markdown = (s: string) => DOMPurify.sanitize(md.parse(s || "") as string, { FORBID_TAGS: ["img"] });

@@ -1,5 +1,5 @@
 import { mountLimitsSection } from "./office/limits-section";
-import { completionFirst, reconcileThreadList } from "./office/thread-list";
+import { completionFirst, pinnedFirst, reconcileThreadList } from "./office/thread-list";
 import { threadState } from "./office/thread-state";
 import { mountInterfaceThemeSetting } from "./interface-theme";
 import { buildWorkDetails } from "./office/work-details";
@@ -16,8 +16,6 @@ import { OfficeSoundscape } from "./office/soundscape";
 import { mountLanguageSetting } from "./office/language";
 import { DailyWriter, type DailyLinesState } from "./office/daily-writer";
 let dailyWriter: DailyWriter | null = null;
-import { openManagers } from "./office/managers";
-import { managerFace, wireFaceFallback } from "./office/manager-face";
 import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import "./styles.css";
@@ -52,7 +50,6 @@ import { openCustomizeFor, openCustomize } from "./office/customize";
 import { openWorkerFocus, openStaffWall } from "./office/worker-focus";
 import { openChair } from "./office/chair";
 import { openNewProject } from "./office/new-project";
-import { whenProjectColors } from "./office/project-brand";
 import { robotFocus } from "./office/interact";
 import { hasOfficeWork, remainingDeskExtras } from "./office/room-policy";
 import type { RobotProfile } from "./office/roster";
@@ -261,35 +258,8 @@ const chat = new ChatPanel($("scene").parentElement!, {
   },
   openReviewThread: paper => { if (!currentEnvironment) openThread(paper.threadId); },
 });
-// The chat header names the manager's role and shows its profile picture.
-function paintChatManager() {
-  const data = world.lastData;
-  const selected = data?.threads.find(t => t.id === chat.threadId);
-  if (!data || !selected) return;
-  const robot = selected.pinned ? world.roster.byThread(selected.id) : null;
-  chat.setManager(selected.pinned ? `${data.projects.find(p => p.id === (selected.manager?.projectId || selected.projectId))?.title || 'Project'} manager${selected.manager?.role ? `: ${selected.manager.role}` : ''}` : null,
-    selected.pinned ? managerFace({ provider: robot?.provider || selected.provider, look: robot?.look, picture: selected.manager?.avatar, size: 26, place: "c" }) : "");
-}
-function manageRobot(threadId: string | null, projectId: string | null = null) {
-  if (!world.lastData) return;
-  openManagers(world.lastData, threadId, projectId, {
-    update: o => (window as any).lucidT3.manager(o),
-    suggest: o => (window as any).lucidT3.managerSuggest(o),
-    robotName: id => world.roster.byThread(id)?.name,
-    avatar: o => (window as any).lucidT3.managerAvatar(o),
-    avatarHistory: o => (window as any).lucidT3.managerAvatarHistory(o),
-    avatarAsk: o => (window as any).lucidT3.managerAvatarAsk(o),
-    face: (id, picture, size, place) => {
-      const robot = world.roster.byThread(id), t = world.lastData?.threads.find(x => x.id === id);
-      return managerFace({ provider: robot?.provider || t?.provider || "", look: robot?.look, picture, size, place });
-    },
-    played: cue => gameSound.play(cue),
-    refresh: async () => { await refresh(); renderThreads(); paintChatManager(); },
-  });
-}
-chat.onManage = id => manageRobot(id);
 // the sidebar and the chat are columns beside the scene, so the camera always fits what is left (see World)
-world.onFocus = (d) => { if (d) { world.revealThread(d.threadId); chat.open(d); paintChatManager(); chat.setView(world.focusMode); pushStatus(d); } };
+world.onFocus = (d) => { if (d) { world.revealThread(d.threadId); chat.open(d); chat.setView(world.focusMode); pushStatus(d); } };
 // a robot's question, answered from its chat (see openAnswer)
 const answerDeps = { pending: sharedPendingRequests((id) => (window as any).lucid.pendingRequests(id)), t3: (window as any).lucidT3, advice: (rid: string) => delegate.advice.get(rid) ?? null };
 const answer = new AnswerCard(chat, answerDeps);
@@ -621,7 +591,6 @@ async function refresh() {
       }
     }
     monitorTasks.sync();
-    paintChatManager();
     for (const d of world.desks.values()) {
       d.onActivity = (t) => { if (d.threadId === chat.threadId) pushStatus(d); };
     }
@@ -762,7 +731,6 @@ function setupMenus() {
     showMenu(x, y, room.title, [
       { label: "Project office board", run: () => projectLife.open(pid) },
       ...work, ...cleanup,
-      { label: "Manage project managers", run: () => manageRobot(null, pid) },
       deco, policy, ...moves,
       { label: "Hide this office", run: () => { world.hidden.add(pid); saveSettings(); void refresh(); } },
       { label: "Remove project from T3", danger: true, run: async () => {
@@ -780,9 +748,8 @@ function setupMenus() {
       { label: "Look at its screen", run: () => world.focusScreen(d) },
       { label: "Go to its desk", run: () => world.showDesk(d) },
       { label: "Customize robot", run: () => openCustomizeFor(d, world.roster, world.level) },
-      { label: world.lastData?.threads.find(t => t.id === d.threadId)?.pinned ? "Edit or demote manager" : "Promote to manager", run: () => manageRobot(d.threadId) },
     ];
-    if (d.threadId) items.push(...officeMoveItems(d.threadId));
+    if (d.threadId) items.push(...pinItems(d.threadId), ...officeMoveItems(d.threadId));
     if (d.room === "freelance" && d.folder) {
       items.push({ input: "Turn this work into a project", placeholder: "Project name", value: (d.info?.title || "").slice(0, 40), submit: "Create project",
         run: async (name: string) => { await api.addProject({ path: d.folder!, title: name }); await refresh(); } });
@@ -1518,11 +1485,6 @@ const ago = (iso?: string | null) => {
 let thSig = "";
 const sidebarCollectErrors = new Map<string, string>();
 let settledOpen = false;
-// The Managers group: pinned threads shown as their robots, with profile pictures.
-const managerPictures = new Map<string, string>();
-let managersTween: gsap.core.Tween | null = null;
-let managersJustOpened = false;
-const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 let settledLimit = 10;
 let threadMovePending = false;
 async function moveThread(id: string, targetId: string, after: boolean) {
@@ -1584,11 +1546,12 @@ function renderThreads(force = false) {
   const remote = !!q && searchState.q === q;
   const known = new Set(data.threads.map((t) => t.id));
   const older = remote ? searchState.older.filter((t) => !known.has(t.id)).map((t) => ({ ...t, projectId: t.projectId ?? "", runStatus: null, pinned: false, question: null, model: null }) as unknown as typeof data.threads[number]) : [];
-  const titleHit = (t: typeof data.threads[number]) => { const hay = fold([t.title, t.manager?.role, projects.get(t.manager?.projectId || t.projectId)?.title, t.branch].filter(Boolean).join(" ")); return words.every((w) => hay.includes(w)); };
+  const titleHit = (t: typeof data.threads[number]) => { const hay = fold([t.title, projects.get(t.projectId)?.title, t.branch].filter(Boolean).join(" ")); return words.every((w) => hay.includes(w)); };
   const list = [...data.threads, ...older].filter((t) => !q || titleHit(t) || (remote && searchState.matches.has(t.id)));
   if (q) list.sort((a, b) => Number(!titleHit(a)) - Number(!titleHit(b)) || (titleHit(a) ? 0 : (searchState.matches.get(b.id)?.quality ?? 0) - (searchState.matches.get(a.id)?.quality ?? 0)));
   const snippetOf = (t: typeof data.threads[number]) => q && remote && !titleHit(t) ? searchState.matches.get(t.id)?.snippet ?? "" : "";
-  let active = q ? list.filter((t) => !t.settled) : completionFirst(list.filter((t) => !t.settled));
+  // Pinned threads (T3's own pin) come first, like in T3.
+  let active = q ? list.filter((t) => !t.settled) : pinnedFirst(completionFirst(list.filter((t) => !t.settled)));
   const settled = list.filter((t) => t.settled);
   const reviews = latestThreadReviews(currentEnvironment ? [] : orch.papers);
   const reviewOf = (t: typeof list[number]) => threadReviewLabel(t, reviews.get(t.id), !currentEnvironment && !!settings.orch && t.id !== settings.orch.threadId);
@@ -1599,33 +1562,8 @@ function renderThreads(force = false) {
     return `<span class="th-st ${state.tone}" title="${esc(state.detail || state.label)}">${state.tone === 'done' ? '<svg class="th-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>' : state.tone ? '<i aria-hidden="true"></i>' : ''}${esc(state.label)}${state.since ? ` ${ago(state.since)}` : ''}</span>`;
   };
   const dotOf = (t: typeof list[number]) => presentationOf(t).tone;
-  const faceOf = (t: typeof list[number], size: number, place: string, cls = "") => {
-    const robot = world.roster.byThread(t.id);
-    return managerFace({ provider: robot?.provider || t.provider, look: world.lookFor(t, robot?.look), picture: t.manager?.avatar, size, place, cls });
-  };
-  // Managers are persistent project conversations, presented like the other chats.
-  const managerRow = (t: typeof list[number]) => {
-    const p = projects.get(t.manager?.projectId || t.projectId);
-    const proj = !p || p.scratch ? "No project" : p.title;
-    const role = t.manager?.role || (t.id === world.orchThread ? "Orchestrator" : "Manager");
-    const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
-    const state = stateOf(t);
-    const sel = t.id === chat.threadId ? " sel" : "";
-    return `<li class="mg-li"><button type="button" class="th-row th-worker th-t3 mg-row${t.runStatus === "running" ? " on" : ""}${sel}" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc([`${proj} · ${role}`, t.title, t.model, t.branch].filter(Boolean).join("\n"))}">
-      <span class="th-text">
-        <span class="th-top">${icon}<span class="th-proj">${esc(proj)} · ${esc(role)}</span>${state}</span>
-        <span class="th-title">${esc(t.title || "Untitled")}</span>
-      </span>
-    </button></li>`;
-  };
-  const managers = active.filter((t) => t.pinned);
-  const managersOpen = !folded.has("managers") || !!q;
-  const strip = managers.slice(0, 6).map((t) => `<span class="mg-chip">${faceOf(t, 24, "s")}${dotOf(t) ? `<i class="rail-st ${dotOf(t)}"></i>` : ""}</span>`).join("")
-    + (managers.length > 6 ? `<span class="mg-more">+${managers.length - 6}</span>` : "");
-  const waiting = managers.filter((t) => t.question).length;
-  const managersHtml = managers.length ? `<li class="mg-sec"><button type="button" class="th-settled-toggle mg-toggle" aria-expanded="${managersOpen}" aria-controls="mg-list"><span>Managers</span>${managersOpen ? "" : `<span class="mg-strip" aria-hidden="true">${strip}</span>${waiting ? `<span class="sr-only">, ${waiting} waiting for you</span>` : ""}`}<span class="th-settled-count">${managers.length}</span><span aria-hidden="true">${managersOpen ? "⌄" : "›"}</span></button>${managersOpen ? `<ol id="mg-list" class="mg-list">${managers.map(managerRow).join("")}</ol>` : ""}</li>` : "";
   const row = (t: typeof list[number]) => {
-    const p = projects.get(t.manager?.projectId || t.projectId);
+    const p = projects.get(t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
     const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
     if (t.settled) return `<li><button type="button" class="th-row th-settled-row" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${world.roster.byThread(t.id) ? `
@@ -1646,7 +1584,7 @@ ${robot.name}${t.model ? `, ${t.model}` : ""}` : ""}${t.branch ? `
 ${t.branch}` : ""}`)}">
       <span class="th-text">
         <span class="th-top">${icon}<span class="th-proj">${esc(proj)}</span>${state}</span>
-        <span class="th-line"><span class="th-title">${t.pinned ? '<span class="th-pin" aria-label="Pinned">●</span>' : ""}${esc(t.title || "Untitled")}</span>${logo ? `<img class="th-logo" src="${logo}" alt="${esc(harnessName(t.provider))}">` : ""}</span>
+        <span class="th-line"><span class="th-title">${t.pinned ? `<span class="th-pin" role="img" aria-label="Pinned">${PIN_ICON}</span>` : ""}${esc(t.title || "Untitled")}</span>${logo ? `<img class="th-logo" src="${logo}" alt="${esc(harnessName(t.provider))}">` : ""}</span>
         ${where ? `<span class="th-meta"><span class="th-where">${esc(where)}</span></span>` : ""}
         ${snippetOf(t) ? `<span class="th-snippet">${esc(snippetOf(t))}</span>` : ""}
       </span>
@@ -1659,7 +1597,7 @@ ${t.branch}` : ""}`)}">
     active = active.filter(t => positions.has(t.id)).sort((a,b) => positions.get(a.id)! - positions.get(b.id)!);
   } else heldOrder = order;
   const expanded = settledOpen || !!q;
-  const rows = `<li class="th-active-shell" id="th-active-shell"><ol class="th-active-list" id="th-active-list">${managersHtml}${active.filter((t) => !t.pinned).map(row).join("") || (managersHtml ? "" : '<li class="th-empty">No threads match.</li>')}</ol></li>` + (settled.length ? `<li class="th-settled-section" id="th-settled-section"><button type="button" class="th-settled-toggle" aria-expanded="${expanded}" aria-controls="th-settled-body"><span>Settled</span><span class="th-settled-count">${settled.length}</span><span aria-hidden="true">${expanded ? "⌄" : "›"}</span></button><div id="th-settled-body" class="th-settled-body"${expanded ? "" : " hidden"}><ol id="th-settled-list" class="th-settled-list">${expanded ? settled.slice(0, q ? settled.length : settledLimit).map(row).join("") : ""}</ol>${expanded && !q && settled.length > settledLimit ? `<button type="button" class="th-settled-more">⌄ &nbsp; Show ${Math.min(25, settled.length - settledLimit)} more</button>` : ""}</div></li>` : "");
+  const rows = `<li class="th-active-shell" id="th-active-shell"><ol class="th-active-list" id="th-active-list">${active.map(row).join("") || '<li class="th-empty">No threads match.</li>'}</ol></li>` + (settled.length ? `<li class="th-settled-section" id="th-settled-section"><button type="button" class="th-settled-toggle" aria-expanded="${expanded}" aria-controls="th-settled-body"><span>Settled</span><span class="th-settled-count">${settled.length}</span><span aria-hidden="true">${expanded ? "⌄" : "›"}</span></button><div id="th-settled-body" class="th-settled-body"${expanded ? "" : " hidden"}><ol id="th-settled-list" class="th-settled-list">${expanded ? settled.slice(0, q ? settled.length : settledLimit).map(row).join("") : ""}</ol>${expanded && !q && settled.length > settledLimit ? `<button type="button" class="th-settled-more">⌄ &nbsp; Show ${Math.min(25, settled.length - settledLimit)} more</button>` : ""}</div></li>` : "");
   const sig = rows + q;
   if (sig === thSig) { endSystem("ui", started); return; }
   thSig = sig;
@@ -1667,52 +1605,14 @@ ${t.branch}` : ""}`)}">
   const focusedId = focused?.closest<HTMLElement>(".th-row")?.dataset.id;
   const scrollBox = document.getElementById("th-active-shell") || $("th-list");
   const scrollTop = scrollBox.scrollTop;
-  managersTween?.kill(); managersTween = null;
   reconcileThreadList($("th-list"), rows);
-  celebratePictures(managers);
-  if (managersJustOpened) {
-    managersJustOpened = false;
-    const list = $("th-list").querySelector<HTMLElement>("#mg-list");
-    if (list && !calm()) managersTween = gsap.from(list, { height: 0, opacity: 0, duration: 0.2, ease: "power2.out", clearProps: "height,opacity", onComplete: () => { managersTween = null; } });
-  }
   if (focusedId) $("th-list").querySelector<HTMLElement>(`[data-id="${CSS.escape(focusedId)}"]`)?.focus({ preventScroll: true });
   scrollBox.scrollTop = scrollTop;
   markSelected(chat.threadId);
   endSystem("ui", started);
 }
-// A manager that changed its own picture gets a small hop, so the change is noticed rather than silent.
-function celebratePictures(managers: { id: string; manager?: { avatar?: string | null } }[]) {
-  const first = managerPictures.size === 0;
-  for (const t of managers) {
-    const now = t.manager?.avatar || "";
-    const before = managerPictures.get(t.id);
-    managerPictures.set(t.id, now);
-    if (first || before === undefined || before === now || document.hidden) continue;
-    const face = $("th-list").querySelector<HTMLElement>(`[data-id="${CSS.escape(t.id)}"] .mg-face`);
-    if (face && !calm()) gsap.fromTo(face, { scale: 0.7, rotation: -8 }, { scale: 1, rotation: 0, duration: 0.5, ease: "back.out(2.4)", clearProps: "transform" });
-    gameSound.play("chirp");
-  }
-}
-function toggleManagers() {
-  if (managersTween) return;
-  const opening = folded.has("managers");
-  if (opening) folded.delete("managers"); else folded.add("managers");
-  ui.folded = [...folded]; saveSettings();
-  gameSound.play("switch");
-  const list = $("th-list").querySelector<HTMLElement>("#mg-list");
-  if (!opening && list && !calm()) {
-    managersTween = gsap.to(list, { height: 0, opacity: 0, duration: 0.16, ease: "power2.in", onComplete: () => { managersTween = null; renderThreads(true); } });
-    return;
-  }
-  managersJustOpened = opening;
-  renderThreads(true);
-}
-wireFaceFallback($("th-list"));
-wireFaceFallback($("rail-list"));
 $("th-q").addEventListener("input", () => { renderThreads(true); runThreadSearch((($("th-q") as HTMLInputElement).value || "").trim().toLowerCase()); });
 $("th-new-project").addEventListener("click", () => newProject());
-// Sampled project colors arrive later: redraw managers in them.
-whenProjectColors(() => { if (world.lastData) world.update(world.lastData); thSig = ""; renderThreads(); });
 $("th-list").addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
   const collectButton = target.closest<HTMLButtonElement>(".th-collect");
@@ -1730,7 +1630,6 @@ $("th-list").addEventListener("click", (e) => {
     });
     return;
   }
-  if (target.closest(".mg-toggle")) { toggleManagers(); return; }
   if (target.closest(".th-settled-toggle")) { settledOpen = !settledOpen; renderThreads(true); return; }
   if (target.closest(".th-settled-more")) { settledLimit += 25; renderThreads(true); return; }
   const b = (e.target as HTMLElement).closest(".th-row") as HTMLElement | null;
@@ -1799,7 +1698,7 @@ function openThread(id: string) {
   if (d && !d.el.classList.contains("arriving")) {
     world.focusOn(d);
     // Focusing the desk already in focus changes nothing, so the conversation is shown here too.
-    if (chat.threadId !== id || chat.collapsed) { chat.open(d); paintChatManager(); chat.setView(world.focusMode); pushStatus(d); }
+    if (chat.threadId !== id || chat.collapsed) { chat.open(d); chat.setView(world.focusMode); pushStatus(d); }
     return;
   }
   // not at a desk: follow it wherever it is (break room, questions, park, walking)
@@ -1822,20 +1721,18 @@ function renderRail() {
   const data = world.lastData;
   if (!data || !ui.rail || document.body.classList.contains("th-dragging")) return;
   const projects = new Map(data.projects.map((p) => [p.id, p]));
-  const list = completionFirst(data.threads).slice(0, 40);
+  const list = pinnedFirst(completionFirst(data.threads)).slice(0, 40);
   const reviews = latestThreadReviews(currentEnvironment ? [] : orch.papers);
   const html = list.map((t) => {
-    const p = projects.get(t.manager?.projectId || t.projectId);
+    const p = projects.get(t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
     const review = threadReviewLabel(t, reviews.get(t.id), !currentEnvironment && !!settings.orch && t.id !== settings.orch.threadId);
     const { tone: st, label: said } = threadState(t, review, delegate.phaseOf(t.id) === "reading");
-    const logo = t.pinned ? p?.icon : logoFor(t.provider);
-    const robot = t.pinned ? world.roster.byThread(t.id) : null;
-    const name = `${robot ? `${robot.name}, ${t.manager?.role || "Manager"}, ` : ""}${t.title}, ${proj}${said ? `, ${said}` : ""}`;
+    const logo = logoFor(t.provider);
+    const name = `${t.pinned ? "Pinned, " : ""}${t.title}, ${proj}${said ? `, ${said}` : ""}`;
     return `<li><button type="button" class="rail-th${t.id === chat.threadId ? " cur" : ""}" data-state="${st}" data-id="${esc(t.id)}" aria-label="${esc(name)}" title="${esc(`${t.title}
 ${proj}${said ? ` · ${said[0].toUpperCase()}${said.slice(1)}` : ""}`)}">`
-      + (t.pinned ? managerFace({ provider: robot?.provider || t.provider, look: robot?.look, picture: t.manager?.avatar, size: 28, place: "r" })
-        : logo ? `<img src="${logo}" alt="">` : `<span class="rail-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`)
+      + (logo ? `<img src="${logo}" alt="">` : `<span class="rail-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`)
       + (st ? `<i class="rail-st ${st}" aria-hidden="true"></i>` : "") + `</button></li>`;
   }).join("");
   if (html === railSig) return;
@@ -1882,6 +1779,15 @@ function referenceInChat(id: string, x: number, y: number) {
   if (chat.isOpen && chat.threadId) { chat.addReference(ref); return; }
   showMenu(x, y, "Open a robot's chat to reference this thread", [{ label: "Chat with this thread's robot", run: () => openThread(id) }]);
 }
+/** T3's own pin. The orchestrator stays pinned, so it has no item. */
+function pinItems(id: string) {
+  const t = world.lastData?.threads.find(x => x.id === id);
+  if (!t || t.settled || id === world.orchThread) return [];
+  return [{ label: t.pinned ? "Unpin in T3" : "Pin in T3", run: async () => {
+    try { await (window as any).lucidT3.pin({ threadId: id, pinned: !t.pinned }); gameSound.play("clip"); await refresh(); renderThreads(true); }
+    catch (err: any) { void confirmDialog(t.pinned ? "T3 kept the thread pinned" : "T3 did not pin the thread", String(err?.message || err), "OK"); }
+  } }];
+}
 function officeMoveItems(id: string) {
   if (id === world.orchThread) return [];
   const current = world.homes.get(id) ?? world.deskFor(id)?.room;
@@ -1898,7 +1804,7 @@ function threadMenu(row: HTMLElement, x: number, y: number) {
   if (previous) items.push({ label: "Move up (Alt+Up)", run: () => { void moveThread(id, previous.id, false); } });
   if (next) items.push({ label: "Move down (Alt+Down)", run: () => { void moveThread(id, next.id, true); } });
   if (chat.isOpen && chat.threadId && chat.threadId !== id) items.unshift({ label: "Reference in chat (R)", run: () => { chat.addReference(ref); } });
-  items.push(...officeMoveItems(id));
+  items.push(...pinItems(id), ...officeMoveItems(id));
   showMenu(x, y, ref.title, items);
 }
 for (const box of [$("th-list"), $("rail-list")]) {

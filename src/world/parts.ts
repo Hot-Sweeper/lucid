@@ -233,18 +233,6 @@ export function paintBrand(el: Element, $: Record<string, SVGElement>, kind: Bra
   show("logoChip", p.mode === "chip"); show("faceChip", p.mode === "chip");
 }
 
-/** A manager's project logo takes the place of the harness logo on its head. */
-export function paintCrest($: Record<string, SVGElement>, crest: string | null | undefined, kind: BrandKind) {
-  const p = PALETTES[kind];
-  const show = (k: string, on: boolean) => { if ($[k]) $[k].style.display = on ? "" : "none"; };
-  for (const k of ["logoPlain", "facePlain"]) if ($[k]) $[k].setAttribute("href", crest || p.src || "");
-  for (const k of ["logoMaskImg", "faceMaskImg"]) if ($[k] && p.src) $[k].setAttribute("href", p.src);
-  const mode = crest ? "image" : p.mode;
-  show("logoMasked", mode === "mask"); show("faceMasked", mode === "mask");
-  show("logoPlain", mode === "image"); show("facePlain", mode === "image");
-  show("logoChip", mode === "chip"); show("faceChip", mode === "chip");
-}
-
 export function paintLook(el: Element, $: Record<string, SVGElement>, look: RobotLook) {
   const st = (el as HTMLElement).style;
   if (look.accent) { st.setProperty("--ear", look.accent); st.setProperty("--cap", look.accent); }

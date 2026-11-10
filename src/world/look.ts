@@ -95,16 +95,8 @@ export function resolveLook(look: RobotLook = {}) {
     tint: look.tint ?? LOOK_DEFAULTS.tint,
     glow: look.glow ?? null,
     blush: !!look.blush,
-    crest: look.crest ?? null,
   };
 }
-/** Managers stand out from workers: a near-black finish, their project's logo on the head
- * and the crown, and trim in the project's color. Applied when drawn, never saved. */
-export function managerLook(look: RobotLook, crest: string | null, accent?: string | null): RobotLook {
-  return { ...look, tint: "obsidian", hat: "crown", crest, accent: accent || look.accent };
-}
-const crestId = () => `crest${++crestSeq}`;
-let crestSeq = 0;
 export type FullLook = ReturnType<typeof resolveLook>;
 export const hatInfo = (k: HatKind | undefined) => HATS.find((h) => h.id === k) ?? HATS[0];
 export const accessoryInfo = (k: AccessoryKind | undefined) => ACCESSORIES.find((a) => a.id === k) ?? ACCESSORIES[0];
@@ -172,8 +164,6 @@ export function tintPalette<P extends { shell: string; shade: string; deep: stri
     rose: [p.deep, 0.16], sand: [p.shade, 0.24], lilac: [p.deep, 0.22],
     graphite: ["#17191e", 0.18],
   };
-  // Managers: a near-black finish, clearly not a worker's shell.
-  if (tint === "obsidian") return { ...p, shell: mix(p.shell, "#2a2d3c", 0.86), shade: mix(p.shade, "#1d1f2b", 0.86), deep: mix(p.deep, "#12131b", 0.8) };
   const shift = shifts[tint || "none"];
   if (!shift) return p;
   const [target, amount] = shift;
@@ -183,10 +173,10 @@ export function tintPalette<P extends { shell: string; shade: string; deep: stri
 /**
  * Body colour variables. The theme can turn bodies dark while keeping each robot's own hue:
  * --robot-dark (0% keeps the light body, 100% the dark one) and the hue strength
- * --robot-tint (workers) or --robot-mgr-tint (managers) come from the theme tokens.
+ * --robot-tint come from the theme tokens.
  */
-export function bodyColors(p: { shell: string; shade: string; deep: string }, hue: string, manager = false) {
-  const k = manager ? "var(--robot-mgr-tint, 55%)" : "var(--robot-tint, 30%)";
+export function bodyColors(p: { shell: string; shade: string; deep: string }, hue: string) {
+  const k = "var(--robot-tint, 30%)";
   const dark = (amount: string, base: string) => `color-mix(in srgb, ${hue} ${amount}, ${base})`;
   const pick = (night: string, oled: string) => `color-mix(in srgb, ${oled} var(--robot-dark, 0%), ${night})`;
   return {
@@ -199,10 +189,9 @@ export function bodyColors(p: { shell: string; shade: string; deep: string }, hu
 /** Sets the colour variables a look needs on a robot root (call after the brand is painted). */
 export function paintLookColors(el: Element, base: { shell: string; shade: string; deep: string; glow: string }, look: RobotLook) {
   const st = (el as HTMLElement | SVGElement).style;
-  const p = tintPalette(base, look.tint), manager = look.tint === "obsidian";
-  // The dark body's hue: the robot's own tinted colour (managers: before the obsidian finish).
-  const hue = (manager ? tintPalette(base, undefined) : p).deep;
-  for (const [k, v] of Object.entries(bodyColors(p, hue, manager))) st.setProperty(k, v);
+  const p = tintPalette(base, look.tint);
+  // The dark body's hue: the robot's own tinted colour.
+  for (const [k, v] of Object.entries(bodyColors(p, p.deep))) st.setProperty(k, v);
   st.setProperty("--glow", look.glow || base.glow);
   st.setProperty("--acc", look.accent || "#ff9f5a");
   st.setProperty("--acc-cloth", accCloth(look.accent || "#ff9f5a"));
@@ -234,7 +223,7 @@ function cap(brimNear: boolean, opening: boolean) {
 }
 
 /** A hat, drawn over the head. `view` is which side of the robot we see. */
-export function hatSvg(kind: HatKind | undefined, view: View = "back", crest: string | null = null): string {
+export function hatSvg(kind: HatKind | undefined, view: View = "back"): string {
   const front = view === "front";
   switch (kind) {
     case "beanie": {
@@ -274,8 +263,7 @@ export function hatSvg(kind: HatKind | undefined, view: View = "back", crest: st
         <path d="M560 584 L574 560 L590 592 L610 572 L610 612 L560 612 Z" fill="#e0a21f" opacity="0.5"/>
         <rect x="508" y="598" width="104" height="16" rx="5" fill="#f2b52b"/>
         <circle cx="510" cy="570" r="4.5" fill="#ffe08a"/><circle cx="546" cy="558" r="4.5" fill="#ffe08a"/><circle cx="574" cy="558" r="4.5" fill="#ffe08a"/><circle cx="610" cy="570" r="4.5" fill="#ffe08a"/>
-        ${crest ? (() => { const id = crestId(); return `<circle cx="560" cy="592" r="17" fill="#1b1f33" stroke="#f2b52b" stroke-width="4"/><clipPath id="${id}"><circle cx="560" cy="592" r="13"/></clipPath><image href="${String(crest).replace(/"/g, "&quot;")}" x="547" y="579" width="26" height="26" clip-path="url(#${id})" preserveAspectRatio="xMidYMid meet"/>`; })()
-          : `<circle cx="560" cy="606" r="5.5" fill="#ff6f91"/><circle cx="534" cy="606" r="4" fill="#4fb6ff"/><circle cx="586" cy="606" r="4" fill="#4ff0a0"/>`}
+        <circle cx="560" cy="606" r="5.5" fill="#ff6f91"/><circle cx="534" cy="606" r="4" fill="#4fb6ff"/><circle cx="586" cy="606" r="4" fill="#4ff0a0"/>
         ${hi("M518 606 L526 606", 3, 0.6)}</g>`;
     }
     case "beret":
@@ -514,7 +502,6 @@ export function portraitSvg(look: RobotLook, base: PortraitPalette, o: { size?: 
   const hs = L.head;
   const tipY = 566 - (hat.antenna === "lift" ? hat.lift ?? 0 : 0);
   const antenna = hat.antenna === "hide" ? "" : `<rect x="557" y="${tipY + 4}" width="6" height="${610 - tipY - 4}" rx="3" fill="var(--deep)"/><circle cx="560" cy="${tipY}" r="9" fill="var(--glow)"/><circle cx="557" cy="${tipY - 3}" r="3.2" fill="#fff" opacity="0.8"/>`;
-  if (L.crest) base = { ...base, src: L.crest, mode: "image" };
   const logo = view === "front"
     ? (base.src ? (base.mode === "mask"
         ? `<mask id="${id}m" maskContentUnits="userSpaceOnUse"><image href="${base.src}" x="551" y="606" width="18" height="18"/></mask><rect x="551" y="606" width="18" height="18" fill="var(--logo)" mask="url(#${id}m)" opacity="0.8"/>`
@@ -535,7 +522,7 @@ export function portraitSvg(look: RobotLook, base: PortraitPalette, o: { size?: 
     <circle cx="634" cy="656" r="17" fill="${acc}"/><circle cx="636" cy="654" r="10" fill="var(--shade)"/>
     <rect x="490" y="600" width="140" height="118" rx="44" fill="var(--shade)"/><rect x="490" y="600" width="140" height="106" rx="44" fill="var(--shell)"/>
     <path d="M512 618 C530 606 560 604 586 608" stroke="#fff" stroke-opacity="0.5" stroke-width="7" stroke-linecap="round" fill="none"/>
-    ${face}${hatSvg(L.hat, view, L.crest)}${hat.antenna === "through" ? antenna : ""}</g>`;
+    ${face}${hatSvg(L.hat, view)}${hat.antenna === "through" ? antenna : ""}</g>`;
   let body = "";
   if (o.bust) {
     const acc2 = accessorySvg(L.accessory, view);
@@ -552,7 +539,7 @@ export function portraitSvg(look: RobotLook, base: PortraitPalette, o: { size?: 
   const vb = o.bust ? "448 478 224 372" : "452 486 216 240";
   const size = o.size ?? 56;
   const [w, h] = o.bust ? [size * 224 / 372, size] : [size * 216 / 240, size];
-  const manager = L.tint === "obsidian", bodyVars = bodyColors(p, (manager ? tintPalette(base, undefined) : p).deep, manager);
+  const bodyVars = bodyColors(p, p.deep);
   const style = `${Object.entries(bodyVars).map(([k, v]) => `${k}:${v}`).join(";")};--glow:${glow};--visor:${base.visor};--logo:${base.logo};--acc:${acc};--acc-cloth:${accCloth(acc)}`;
   return `<svg class="${o.cls ?? "av"}" viewBox="${vb}" width="${w.toFixed(0)}" height="${h.toFixed(0)}" style="${style}" ${o.label ? `role="img" aria-label="${o.label}"` : `aria-hidden="true"`}>${body}${head}</svg>`;
 }

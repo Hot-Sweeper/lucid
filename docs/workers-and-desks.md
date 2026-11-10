@@ -36,7 +36,7 @@ A robot is a permanent **worker**. A desk is one **job**, which is one T3 thread
 
 ## Desk places
 
-Desk k in a room is reservation k (`src/office/room-policy.ts`). The places follow a snake: the first row goes left to right, the second right to left, and subsequent rows alternate. Removing a desk closes its gap by shifting every later workstation forward in the same order, including running work, questions and managers. Existing desk objects, sessions, reports and drafts stay mounted. A launch that has only a temporary reservation holds compaction until its thread is known. Room capacity trims at the empty tail; deliberate extra capacity remains available. Placement, drag targets, add-desk controls and decoration footprints share the same snake coordinates.
+Desk k in a room is reservation k (`src/office/room-policy.ts`). The places follow a snake: the first row goes left to right, the second right to left, and subsequent rows alternate. Removing a desk closes its gap by shifting every later workstation forward in the same order, including running work, questions and pinned threads. Existing desk objects, sessions, reports and drafts stay mounted. A launch that has only a temporary reservation holds compaction until its thread is known. Room capacity trims at the empty tail; deliberate extra capacity remains available. Placement, drag targets, add-desk controls and decoration footprints share the same snake coordinates.
 
 
 ## Job lifecycle
@@ -51,9 +51,9 @@ Desk k in a room is reservation k (`src/office/room-policy.ts`). The places foll
 6. Without an orchestrator, work finished while Lucid is open shows Collect directly and settles through `t3s:settle`.
 7. The coin tray's Collect all only offers collectible work and also clears those desks.
 
-## Managers
+## Pinned threads
 
-Managers are pinned threads with a project role. They keep their desk and are never collected. They are drawn with a graphite finish and a crown carrying the project logo (`managerLook`, applied when drawn, never saved) at desks, walking, in portraits and in the thread list. Their desks have two side screens with the project logo.
+A thread pinned in T3 is an ordinary robot that keeps its desk and is never collected. Its desk carries a small pin sticker, and the thread list shows it first. The desk menu and the thread row menu pin or unpin it through T3's own pin.
 
 ## Focus view and staff wall
 
@@ -71,9 +71,9 @@ Orchestrator settings, Take the chair (`src/office/chair.ts`). The AI orchestrat
 
 ## Threads
 
-- After each newly finished run, Lucid asks T3 to regenerate the title (`thread.metadata.update` with `regenerateTitle`, the same command as T3's menu action, using T3's text generation model). Once per run, never for managers, settled work or linked computers; existing history is recorded without renaming on first use (`electron/title-refresh.cjs`).
+- After each newly finished run, Lucid asks T3 to regenerate the title (`thread.metadata.update` with `regenerateTitle`, the same command as T3's menu action, using T3's text generation model). Once per run, never for pinned threads, settled work or linked computers; existing history is recorded without renaming on first use (`electron/title-refresh.cjs`).
 - Desk name plates lead with the job title, the worker's name below.
-- The thread list shows each worker's face (managers crowned), the title, and the worker's name and model.
+- The thread list shows pinned threads first, then the title, and the worker's name and model.
 
 ## Evidence
 

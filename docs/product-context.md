@@ -16,7 +16,7 @@ The user wants discoverable office-level creation/delegation, direct manipulatio
 - Only real roster robots belong in the park. Never populate it with placeholder bots or generic clones. Preserve each robot's saved face, colors, accessories and personality while seated, walking, idling and turning.
 - Robot routes must avoid collisions and overlap. Use proper running animation for assigned work. Queue robots face the counter correctly; conversation partners turn toward one another.
 - Computers do not type, click or move windows while no robot is seated. Pause presentation until physical arrival without stopping underlying agent work.
-- Managers are pinned T3 threads. Preserve managers when settling ordinary finished work. Support promotion/demotion and multiple managers with explicit responsibilities. Use project identity/logos and harness-derived colors consistently.
+- There are no managers. A pinned T3 thread is an ordinary robot with a pin sticker on its desk, listed first. Settling never touches pinned threads.
 - Settlement must match T3, not merely a finished run. Keep ordering stable and aligned with T3, with intentional user reordering. Do not strand endless done jobs in the active list.
 - Hiring uses a large prompt composer with attachments and actual T3 defaults for provider, model and effort. Search settled same-project conversations for relevant context, favor the free robot familiar with it, and otherwise reuse a free existing robot with fresh context. Do not force creation of a new robot.
 - Preserve chat and hire drafts through close, restart and failed sends; clear only after successful send. Attachment restart persistence was explicitly not established by the earlier draft work.

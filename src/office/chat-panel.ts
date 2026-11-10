@@ -197,15 +197,6 @@ export class ChatPanel {
   onChooseThread: () => void = () => {};
   /** A conversation was selected, including one already open in the panel. */
   onPresent: () => void = () => {};
-  onManage: (id: string) => void = () => {};
-  /** face: the manager's profile picture markup, or empty for ordinary robots. */
-  setManager(label: string | null, face = '') {
-    this.el.querySelector('.cp-manager-label')!.textContent = label || '';
-    const holder = this.el.querySelector<HTMLElement>('.cp-manager-face')!;
-    if (holder.dataset.face !== face) { holder.dataset.face = face; holder.innerHTML = face; }
-    holder.hidden = !face;
-    this.el.querySelector('.cp-manage')!.textContent = label ? 'Edit manager' : 'Promote to manager';
-  }
   onToggleView: () => void = () => {};
   /** The thread's title and project from the thread list, for desks whose details are still loading. */
   threadFacts: (id: string) => { title?: string; project?: string; model?: string | null } | null = () => null;
@@ -442,7 +433,7 @@ export class ChatPanel {
         <button type="button" class="cp-hide cp-icon" aria-expanded="true" aria-label="Hide chat" title="Hide the chat for more room. It stays as a tab on the right edge."><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M6.5 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
         <button type="button" class="cp-close" aria-label="Back to the office" title="Back to the office (Esc)"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
       </header>
-      <div class="cp-sub"><p class="cp-status" aria-live="polite"><i></i><span></span></p><div class="cp-management"><span class="cp-manager-face" hidden></span><span class="cp-manager-label"></span><button type="button" class="cp-manage link-btn">Promote to manager</button></div></div>
+      <div class="cp-sub"><p class="cp-status" aria-live="polite"><i></i><span></span></p></div>
       <details class="cp-plan" hidden><summary>Plan</summary><ol></ol></details>
       <div class="cp-list" role="log" aria-live="polite"></div>
       <section class="cp-queue" aria-label="Queued messages" hidden><button type="button" class="cq-head" aria-expanded="true"><b>Queued</b><span class="cq-count"></span><i aria-hidden="true"></i></button><p class="cq-note" role="status" hidden></p><ol></ol></section>
@@ -484,7 +475,6 @@ export class ChatPanel {
       if (ref && this.api.threadCard?.(ref)) { event.preventDefault(); this.api.openThreadCard?.(ref); }
     });
     if ((window as any).lucid?.openExternal) wireChatLinks(this.el, url => (window as any).lucid.openExternal(url));
-    this.el.querySelector('.cp-manage')!.addEventListener('click', () => { if (this.threadId) this.onManage(this.threadId); });
     // folded, the chat is a tab on the right edge with the robot's name
     this.tab = document.createElement("button");
     this.tab.type = "button";
@@ -703,7 +693,6 @@ export class ChatPanel {
     const same = !!desk.threadId && this.threadId === desk.threadId;
     if (!same) { this.dictation.cancel(); this.stopComposerTyping(); this.saveDraft(); for (const clean of [...this.queueCleanups]) clean(); }
     this.desk = desk;
-    this.setManager(desk.el?.classList.contains('manager') ? 'Project manager' : null);
     this.setPlan(desk.planSteps || []);
     if (!same) {
       const draft = desk.threadId ? this.drafts.get(desk.threadId) : null;

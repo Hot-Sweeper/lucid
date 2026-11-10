@@ -342,7 +342,7 @@ async function settleThread(threadId, { excludePinned = true, expectedRunId = nu
     const state = require("./t3.cjs").reportState(threadId);
     const finished = ended ? ENDED_RUNS.has(state.run?.status) : state.run?.status === "completed";
     if (expectedRunId && (state.run?.id !== expectedRunId || !finished || state.pendingRuns || state.pendingRequests)) throw new T3ServerError("New work superseded this review.", "stale-review");
-    if (state.pinned) throw new T3ServerError("Pinned project managers cannot be settled automatically.", "manager-protected");
+    if (state.pinned) throw new T3ServerError("Pinned threads cannot be settled automatically.", "manager-protected");
   }
   return dispatch({ type: "thread.settle", threadId });
 }

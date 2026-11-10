@@ -1,7 +1,6 @@
 import { RobotPower } from "../world/robot-power";
 import { robotSay } from "./robot-voice";
 import { DeskPlanWidget } from "./desk-plan";
-import { managerLook } from "../world/look";
 import gsap from "gsap";
 import { gameSound } from './sound';
 import { WM } from "../os/wm";
@@ -80,16 +79,16 @@ export class Desk implements DeskStage {
     el.className = "desk-unit empty";
     el.style.left = `${x}px`;
     el.style.top = `${y}px`;
-    const mgrClip = `mgr-clip-${Math.random().toString(36).slice(2, 9)}`;
     el.innerHTML = `
       ${this.tableSvg()}
       <div class="desk-glow"></div>
-      <svg class="mgr-dress" hidden aria-hidden="true" viewBox="0 0 400 380">
-        <rect x="34" y="250" width="332" height="22" rx="6" fill="#4a2f22"/><rect x="34" y="250" width="332" height="3" rx="1.5" fill="#e0b25a"/>
-        <rect x="34" y="180" width="332" height="2.5" rx="1.25" fill="#e0b25a" opacity=".85"/>
-        <circle cx="200" cy="262" r="15" fill="#1d1f2b" stroke="#e0b25a" stroke-width="2.5"/><clipPath id="${mgrClip}"><circle cx="200" cy="262" r="11.5"/></clipPath><image x="188.5" y="250.5" width="23" height="23" clip-path="url(#${mgrClip})" preserveAspectRatio="xMidYMid meet"/>
-        <rect x="372" y="98" width="3" height="92" rx="1.5" fill="#c9a24e"/><ellipse cx="373.5" cy="190" rx="9" ry="3.5" fill="#3a3f4f"/>
-        <path d="M375 100 L398 112 L375 124 Z" fill="var(--mgr-accent)"/>
+      <svg class="desk-pin" hidden viewBox="0 0 400 380" role="img" aria-label="Pinned in T3">
+        <g transform="rotate(-9 343 236)">
+          <ellipse cx="344" cy="248" rx="11" ry="3" fill="#2b1d10" opacity=".14"/>
+          <circle cx="343" cy="236" r="11" fill="#fbf9f4"/><circle cx="343" cy="236" r="8.6" fill="#ff9f5a"/>
+          <path d="M340.4 230.4h5.2l-.6 3.4 2.6 2.4h-9.8l2.6-2.4z" fill="#fbf9f4"/><path d="M343 236.6v5.2" stroke="#fbf9f4" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M335.6 231.4a8.6 8.6 0 0 1 4-3.6" stroke="#fff" stroke-width="1.4" stroke-linecap="round" fill="none" opacity=".5"/>
+        </g>
       </svg>
       <div class="monitor"><div class="screen"></div><div class="screen-glare"></div></div>
       <ol class="desk-notes" aria-label="Plan"></ol>
@@ -163,10 +162,7 @@ export class Desk implements DeskStage {
     this.clearKeys();
     this.threadId = thread?.id ?? null;
     this.setCompactTitle("");
-    this.managerProject = null;
-    this.managerSig = '';
-    this.el.classList.remove("manager");
-    this.managerSig = ""; this.managerProject = null;
+    this.setPinned(false);
     this.profile = profile;
     this.model = thread?.model ?? null;
     this.el.classList.toggle("empty", !thread);
@@ -196,42 +192,29 @@ export class Desk implements DeskStage {
     (plate.querySelector("span") as HTMLElement).dataset.compactTitle = title;
   }
   private labelSig = "";
-  private managerProject: { title: string; icon: string | null; role?: string } | null = null;
-  private managerSig = '';
-  setManagerProject(p: { title: string; icon: string | null; role?: string; crest?: string; accent?: string } | null) {
-    const sig = JSON.stringify(p);
-    if (sig === this.managerSig) return;
-    this.managerSig = sig;
-    this.managerProject = p;
-    this.el.classList.toggle("manager", !!p);
-    // A manager wears its project's crown on the dark finish; side screens frame its desk.
-    if (this.profile && this.threadId) this.robot.setLook?.(p ? managerLook(this.profile.look, p.crest ?? p.icon, p.accent) : this.profile.look);
-    // The manager's desk: walnut front with a gold edge, the project medallion and pennant.
-    const dress = this.el.querySelector<SVGSVGElement>(".mgr-dress")!;
-    dress.toggleAttribute("hidden", !p);   // an SVG element has no .hidden property
-    if (p) {
-      dress.style.setProperty("--mgr-accent", p.accent || "#ffd27a");
-      for (const img of dress.querySelectorAll<SVGImageElement>("image")) img.setAttribute("href", p.crest || p.icon || "");
-    }
-    this.label(this.el.querySelector(".desk-plate i")?.textContent || "", this.info?.provider ?? null);
+  private pinned = false;
+  /** T3's pin: a small sticker on the desk top. The robot stays an ordinary worker. */
+  setPinned(on: boolean) {
+    if (on === this.pinned) return;
+    this.pinned = on;
+    this.el.querySelector(".desk-pin")!.toggleAttribute("hidden", !on);   // an SVG element has no .hidden property
   }
   private label(title: string, provider: string | null) {
     const who = this.profile ? (this.profile.role ? `${this.profile.name}, ${this.profile.role}` : this.profile.name) : "";
-    const sig = JSON.stringify([title, provider, who, this.model, this.profile?.prefs.hobby, this.managerProject]);
+    const sig = JSON.stringify([title, provider, who, this.model, this.profile?.prefs.hobby]);
     if (sig === this.labelSig) return;
     this.labelSig = sig;
     const plate = this.el.querySelector(".desk-plate") as HTMLElement;
     const img = plate.querySelector("img") as HTMLImageElement;
-    const logo = this.managerProject ? this.managerProject.icon : logoFor(provider, "light");
+    const logo = logoFor(provider, "light");
     img.hidden = !logo;
     img.onerror = () => { img.hidden = true; };
     if (logo) img.src = logo;
     plate.querySelector("span")!.innerHTML = who ? `<b></b> <i></i>` : `<i></i>`;
     if (who) plate.querySelector("b")!.textContent = who;
-    if (this.managerProject && who) plate.querySelector('b')!.textContent = `${who}, ${this.managerProject.role || 'Manager'}`;
     plate.querySelector("i")!.textContent = title;
     plate.setAttribute("aria-label", [title, who].filter(Boolean).join(", "));
-    plate.title = [this.managerProject ? `${this.managerProject.title} manager` : "", who, title, this.model, this.profile?.prefs.hobby ? `Free time: ${HOBBY_LABEL[this.profile.prefs.hobby]}` : ""].filter(Boolean).join("\n");
+    plate.title = [who, title, this.model, this.profile?.prefs.hobby ? `Free time: ${HOBBY_LABEL[this.profile.prefs.hobby]}` : ""].filter(Boolean).join("\n");
   }
 
   setInfo(info: ThreadInfo) {

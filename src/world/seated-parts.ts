@@ -203,16 +203,6 @@ export function paintBrand(el: Element, $: Record<string, SVGElement>, kind: Bra
   show("logoPlain", p.mode === "image"); show("facePlain", p.mode === "image");
   show("logoChip", p.mode === "chip"); show("faceChip", p.mode === "chip");
 }
-/** A manager's project logo takes the place of the harness logo on its head. */
-export function paintCrest($: Record<string, SVGElement>, crest: string | null | undefined, kind: BrandKind) {
-  const p = PALETTES[kind];
-  const show = (k: string, on: boolean) => { if ($[k]) $[k].style.display = on ? "" : "none"; };
-  for (const k of ["logoPlain", "facePlain"]) if ($[k]) $[k].setAttribute("href", crest || p.src || "");
-  const mode = crest ? "image" : p.mode;
-  show("logoMasked", mode === "mask"); show("faceMasked", mode === "mask");
-  show("logoPlain", mode === "image"); show("facePlain", mode === "image");
-  show("logoChip", mode === "chip"); show("faceChip", mode === "chip");
-}
 
 /** Accent, antenna tip and sticker. Headphones are animated by the robot itself. */
 export function paintLook(el: Element, $: Record<string, SVGElement>, look: RobotLook) {

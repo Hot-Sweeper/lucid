@@ -37,7 +37,7 @@ Preserve the existing artwork, robot proportions, provider palettes, warm rooms,
 
 Real T3 data is authoritative for work, questions, progress, thread ordering, settlement and usage. Fictional leisure and computer content can be playful, but must never invent operational facts. Only actual roster robots belong in the world. Keep each robot's saved look, identity, work history and home across refresh, walking, charging, leisure and reassignment.
 
-Project offices use `p:<projectId>`. Main-office assignments and freelancer scratch work have different scope. Starting work from a project office must target that project. Main-office launches require a project choice. Preserve saved seat reservations and avoid occupying a busy desk. Quiet offices can fold without deleting reservations or history. Persistent managers are explicit pinned threads with project roles, and a project may have multiple managers.
+Project offices use `p:<projectId>`. Main-office assignments and freelancer scratch work have different scope. Starting work from a project office must target that project. Main-office launches require a project choice. Preserve saved seat reservations and avoid occupying a busy desk. Quiet offices can fold without deleting reservations or history. A thread pinned in T3 is an ordinary robot that keeps its desk, shows a pin sticker and is listed first.
 
 Preserve drafts, attachments, selected runtime settings and entered answers across errors and reopening. Failed submission must leave a useful retry path. Prevent duplicate starts through the existing request ID mechanism. Recheck a reusable robot's availability before assigning work. Keep launch, room assignment and displayed thread state consistent.
 

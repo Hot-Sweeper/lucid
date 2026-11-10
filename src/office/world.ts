@@ -3,8 +3,6 @@ import { currentTheme } from "../themes/registry";
 import { setRobotModes } from "../world/robot-power";
 import "./storefront.css";
 import { LOD_PX, monitorPx } from "../perf/lod";
-import { managerLook } from "../world/look";
-import { projectBrand } from "./project-brand";
 import type { RobotLook } from "./rig";
 import { gameSound } from "./sound";
 import { printerArt, printerStation } from "./printer";
@@ -63,7 +61,6 @@ export type WThread = {
   compactTitle?: string;
   ultra?: boolean; fast?: boolean; effort?: string;
   runStatus: string | null; pinned: boolean; settled: boolean; question: string | null; model: string | null;
-  manager?: { projectId: string; role: string; avatar?: string | null };
   schedule?: { nextRunAt: string | null; everyMs: number | null } | null;
   folder?: string | null;
   /** A job the thread left running after its turn (electron/background-jobs.cjs), from systemd. */
@@ -254,7 +251,7 @@ export class World {
   private spawn(t: { id: string; provider: string; model?: string | null }, at: Pt, face: Facing, outdoors = this.outside(at)) {
     const profile = this.roster.byThread(t.id);
     const out = outdoors;
-    const w = new Walker(out ? this.park.layer : this.deskLayer, { id: t.id, provider: t.provider, name: profile?.name, model: t.model ?? undefined, scale: WALK_SCALE, look: this.lookFor(this.lastData?.threads.find((x) => x.id === t.id) ?? {}, profile?.look) });
+    const w = new Walker(out ? this.park.layer : this.deskLayer, { id: t.id, provider: t.provider, name: profile?.name, model: t.model ?? undefined, scale: WALK_SCALE, look: profile?.look });
     w.el.classList.add("hall-walker");
     makeInteractive(w, { bounds: () => (out ? this.outdoor : null) ?? { x: 0, y: 0, w: this.size.w, h: this.size.h }, onOpen: () => this.onSelectThread(t.id) });
     w.setPos(at.x, at.y);
@@ -847,14 +844,6 @@ export class World {
   selected: Desk | null = null;
   onSelect: (d: Desk | null) => void = () => {};
   onSelectThread: (id: string) => void = () => {};
-  /** How a thread's robot is drawn: managers wear their project's crown everywhere they go. */
-  lookFor(t: { pinned?: boolean; manager?: { projectId: string } | null; projectId?: string }, look: RobotLook | undefined) {
-    if (!look || !t.pinned || !t.manager) return look;
-    const project = this.lastData?.projects.find((p) => p.id === (t.manager!.projectId || t.projectId));
-    if (!project || project.scratch) return look;
-    const brand = projectBrand(project);
-    return managerLook(look, brand.crest, brand.accent);
-  }
   /** A robot was clicked twice: open its worker focus view. `id` is its thread. */
   onRobotFocus: (threadId: string, anchor: Element) => void = () => {};
   onRooms: (rooms: Room[]) => void = () => {};
@@ -975,7 +964,6 @@ export class World {
   private homeForThread(t: WThread, projects: WProject[]) {
     const saved = this.homes.get(t.id), p = projects.find((p) => p.id === t.projectId);
     if (saved === "main" || saved === "freelance" || (saved?.startsWith("p:") && projects.some((p) => p.id === saved.slice(2)))) return saved;
-    if (t.pinned && t.manager && projects.some(p => p.id === t.manager!.projectId)) return `p:${t.manager.projectId}`;
     return !p || p.scratch ? "freelance" : `p:${p.id}`;
   }
   private reconcilePhysicalLayout(force = false) {
@@ -1409,8 +1397,8 @@ export class World {
         d.setCompactTitle(s.t.compactTitle || "");
         // which room it sits in now, and in shared rooms which project it works on
         d.room = s.key.split("#")[0];
-        const proj = byProject.get(s.t.pinned ? s.t.manager?.projectId || s.t.projectId : s.t.projectId);
-        d.setManagerProject(s.t.pinned && proj && !proj.scratch ? { ...proj, role: s.t.manager?.role, ...projectBrand(proj) } : null);
+        const proj = byProject.get(s.t.projectId);
+        d.setPinned(s.t.pinned);
         d.setProject(d.room === "main" || d.room === "queue" ? (proj && !proj.scratch ? { title: proj.title, icon: proj.icon } : { title: "No project", icon: null }) : null);
       } else {
         d = here && !here.threadId ? here : this.makeDesk(s.x, s.y);
@@ -1442,7 +1430,7 @@ export class World {
       walker.setRunning(!!thread && hasOfficeWork(thread) && !thread.question && !!this.desks.get(id)?.el.classList.contains("arriving"));
     }
     // robots that finished longer ago than the break room's latest eight go out to the park
-    const info = (t: WThread) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name, look: this.lookFor(t, this.roster.byThread(t.id)?.look) });
+    const info = (t: WThread) => ({ id: t.id, provider: t.provider, title: t.title, model: t.model, name: this.roster.byThread(t.id)?.name, look: this.roster.byThread(t.id)?.look });
     // in rain, storms or snow nobody stays in the park
     const wet = this.outdoorsWet;
     this.park.wet = wet;

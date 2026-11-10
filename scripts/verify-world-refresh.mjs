@@ -18,7 +18,7 @@ function harness() {
   const document = {hidden:false}, window = {setTimeout:callback=>{frames.push(callback);return frames.length;}};
   const deps = { api, world, orch, delegate: { observe:async()=>{} }, coinRewards: null, monitorTasks: { prepare() {}, sync() {} }, projectTitles: new Map(),
     document,window,paintSelectedStatus(){},renderThreads(){},
-    renderCompany() {}, settings: {}, chat: { threadId: null, setManager() {} }, paintChatManager() {}, 
+    renderCompany() {}, settings: {}, chat: { threadId: null }, 
     $() {}, gsap: {}, pushStatus() {}, location: { search: '' }, URLSearchParams,
     requestAnimationFrame: callback => frames.push(callback), console: { error: (...args) => errors.push(args) } };
   const run = new Function(...Object.keys(deps), `${code}; return {refresh,

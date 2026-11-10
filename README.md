@@ -15,17 +15,11 @@ Lucid runs on top of [T3 Code](https://t3.codes). T3 Code drives the harnesses (
 - "Look at the screen" (or double-click the monitor) zooms into the robot's computer. Escape zooms back out.
 - One-click update: when this git checkout is behind its remote, an Update button appears. It pulls, reinstalls, rebuilds and restarts.
 
-## Managers
+## Pinned threads
 
-Pinned T3 threads are your managers. They appear at the top of the Threads list as their robots,
-with a name, role and project, and the group folds into a row of faces. T3 itself is unchanged,
-so the official T3 apps (including mobile) still show them as normal pinned threads.
-
-Each manager can have a profile picture. Open **Edit manager** to choose an image, restore an
-earlier one, or ask the manager to design its own. Pictures live in
-`~/T3 Projects/Lucid Managers/<thread>/avatar.png` (or `.webp`, `.jpg`, `.svg`). A manager can
-replace that file at any time and Lucid shows the new picture on its next refresh, keeping the
-previous ones. Without a picture, the robot's own face is shown.
+A thread pinned in T3 is listed first and its robot keeps its desk, with a small pin sticker on
+it. Pin or unpin a thread from its desk menu or its row's context menu; this uses T3's own pin,
+so T3 shows the same state.
 
 ## Requirements
 

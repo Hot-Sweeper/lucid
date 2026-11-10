@@ -1,5 +1,5 @@
 /** reviewPending: the worker took its report to the orchestrator; its desk waits for it. */
-export type ActivityThread = { id: string; runStatus: string | null; question?: string | null; settled?: boolean; pinned?: boolean; coinPending?: boolean; completionPending?: boolean; reviewPending?: boolean; kept?: boolean; manager?: { projectId: string; role: string } };
+export type ActivityThread = { id: string; runStatus: string | null; question?: string | null; settled?: boolean; pinned?: boolean; coinPending?: boolean; completionPending?: boolean; reviewPending?: boolean; kept?: boolean };
 const ACTIVE = new Set(["running", "queued", "queue", "waiting", "starting", "preparing", "pending", "waitingforapproval", "awaitingapproval", "approvalpending", "awaitinginput", "waitingforinput", "waitingforuser"]);
 
 export function hasOfficeWork(thread: ActivityThread) {
@@ -10,7 +10,8 @@ export function hasOfficeWork(thread: ActivityThread) {
 // settles the session; settled history remains readable without occupying a desk.
 export function hasOfficeDesk(thread: ActivityThread, revealed: string | null = null) {
   if ((thread.coinPending || thread.completionPending || thread.reviewPending) && thread.runStatus === 'completed') return true;
-  if (thread.pinned && thread.manager) return true;
+  // T3's pinned threads are persistent conversations: they keep their desk.
+  if (thread.pinned) return true;
   // collected work keeps its desk until you remove it (new work may take that desk first)
   if (thread.settled && thread.kept) return true;
   return !thread.settled;

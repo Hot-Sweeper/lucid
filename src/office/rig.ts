@@ -85,7 +85,7 @@ export type HatKind =
   | "propeller" | "chef" | "wizard" | "flowers" | "santa" | "cowboy" | "catEars" | "bow";
 export type AccessoryKind = "none" | "scarf" | "bowtie" | "tie" | "lanyard" | "flower" | "bandana" | "backpack" | "jetpack" | "cape";
 export type EyeStyle = "classic" | "dots" | "round" | "happy" | "visor" | "pixel" | "hearts" | "sleepy";
-export type Tint = "none" | "warm" | "cool" | "mint" | "rose" | "sand" | "lilac" | "graphite" | "obsidian";
+export type Tint = "none" | "warm" | "cool" | "mint" | "rose" | "sand" | "lilac" | "graphite";
 export type StickerKind = "none" | "bolt" | "star" | "heart" | "smile" | "flower" | "moon" | "rainbow" | "planet" | "ghost" | "cat" | "pizza";
 
 /** Every field is optional: old profiles keep rendering with the defaults (src/world/look.ts LOOK_DEFAULTS). */
@@ -102,5 +102,4 @@ export interface RobotLook {
   tint?: Tint;                                       // a slight shift of the brand shell color
   glow?: string | null;                              // eye, antenna and chest light color (null: the brand's own)
   blush?: boolean;                                   // pink cheeks under the visor
-  crest?: string | null;                             // a project logo on a manager's crown (never saved, see managerLook)
 }

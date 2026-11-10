@@ -68,7 +68,7 @@ for (const [room, x, destination] of [['freelance', 200, 'main'], ['main', 1200,
   assert.equal(h.w.saves, 1);
   assert.equal(h.w.preview, destination, 'feedback remains until the safe physical handoff');
   assert.equal(h.w.deskDragActive, false);
-  assert.equal(h.w.homeForThread({ id: 'a', pinned: true, manager: { projectId: 'project' } }, h.w.lastData.projects), destination, 'explicit placement survives manager routing and refresh');
+  assert.equal(h.w.homeForThread({ id: 'a', pinned: true, projectId: 'project' }, h.w.lastData.projects), destination, 'explicit placement survives pinning and refresh');
   assert.deepEqual(h.cues, ['switch']);
 }
 for (const end of ['escape', 'blur', 'pointercancel', 'lostpointercapture', 'hall']) {
@@ -99,7 +99,7 @@ for (const end of ['escape', 'blur', 'pointercancel', 'lostpointercapture', 'hal
   assert.equal(h.w.placeThread('b', 'main'), true);
   assert.deepEqual(h.w.placed.get('b'), { room: 'queue' }, 'questions retain their queue while their home moves');
 }
-console.log('PASS: desk transfers to/from Main office, manager homes, same-room reorder, threshold, cancel, invalid drops and question queue');
+console.log('PASS: desk transfers to/from Main office, pinned homes, same-room reorder, threshold, cancel, invalid drops and question queue');
 
 // The same preview node survives repeated motion and reconciles on world updates.
 {

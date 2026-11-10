@@ -8,7 +8,7 @@ import { beginSystem, endSystem } from "../perf/metrics";
 import { setSvgAttribute } from "../perf/svg-write";
 import { sharedVector, releaseVectors } from "../perf/shared-vector";
 import { GEOM, PHONE_SCALE, UNIT, type DeskRig, type Expression, type Pose, type Pt, type Reaction, type RobotLook, type SeatedRobot } from "../office/rig";
-import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintCrest, paintLook, PALETTES, solveArm, uid, type BrandKind, type ArmMemo } from "./seated-parts";
+import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, solveArm, uid, type BrandKind, type ArmMemo } from "./seated-parts";
 import { accessoryInfo, accessorySvg, blushSvg, BUILD_SHAPE, hatInfo, hatSvg, lookMotion, paintLookColors, resolveLook, stepLookMotion, styledEyes, type FullLook, type LookMotion } from "./look";
 import { tierFor } from "../office/tier";
 
@@ -181,7 +181,6 @@ export class TopDownRobot implements SeatedRobot {
     this.brand = brandFor(provider);
     paintBrand(this.el, this.$, this.brand);
     paintBrand(this.thumb, {}, this.brand);
-    if (this.hasLook) paintCrest(this.$, this.look.crest, this.brand);
     this.glow = getComputedStyle(this.el).getPropertyValue("--glow").trim() || this.el.style.getPropertyValue("--glow");
     if (this.hasLook) this.applyColors();
   }
@@ -231,7 +230,7 @@ export class TopDownRobot implements SeatedRobot {
     this.look = resolveLook(look);
     this.hasLook = true;
     paintLook(this.el, this.$, look);
-    paintCrest(this.$, look.crest, this.brand);
+    paintBrand(this.el, this.$, this.brand);
     this.applyColors();
     this.renderLook();
     if (this.modelName) this.setModel(this.modelName);
@@ -247,7 +246,7 @@ export class TopDownRobot implements SeatedRobot {
   private renderLook() {
     const L = this.look, view = this.facing ? "front" : "back";
     const hat = hatInfo(L.hat), head = this.$.head, lift = this.$.antennaLift;
-    this.$.hat.innerHTML = hatSvg(L.hat, view, L.crest);
+    this.$.hat.innerHTML = hatSvg(L.hat, view);
     // the antenna pokes out of low hats (drawn over them), sits on top of tall ones or hides under them
     if (hat.antenna === "through") { if (lift.nextSibling !== this.$.phones) head.insertBefore(lift, this.$.phones); }
     else if (head.firstChild !== lift) head.insertBefore(lift, head.firstChild);

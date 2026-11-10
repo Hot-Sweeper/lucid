@@ -8,13 +8,13 @@ if(!process.versions.electron){(async()=>{
   for(const mode of ['before','after']){
     const dir=path.join(out,mode);fs.mkdirSync(dir,{recursive:true});
     const main=mode==='before'?execFileSync('git',['show',baseline+':src/main.ts'],{cwd:root,encoding:'utf8'}):fs.readFileSync(path.join(root,'src/main.ts'),'utf8');
-    const render=main.slice(main.indexOf('function renderThreads()'),main.indexOf('// A manager that changed',main.indexOf('function renderThreads()')));
+    const render=main.slice(main.indexOf('function renderThreads()'),main.indexOf('$("th-q").addEventListener("input"',main.indexOf('function renderThreads()')));
     const entry=path.join(dir,'entry.ts');fs.writeFileSync(entry,`import {latestThreadReviews,threadReviewLabel} from '${src}/src/office/thread-review';
 import '${src}/node_modules/@fontsource-variable/lexend/index.css';import '${src}/src/styles.css';import '${src}/src/office/office.css';
 const appEl=document.querySelector('#app'),$=(id)=>document.getElementById(id),esc=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
-const world={lastData:{projects:[{id:'lucid',title:'Lucid',scratch:false}],threads:[]},roster:{byThread:()=>null},lookFor:(t,l)=>l,building:'Tim-PC'},orch={papers:[]},settings={orch:{threadId:'orchestrator'}},delegate={phaseOf:()=>null};
-let currentEnvironment,thSig='',settledOpen=false,settledLimit=10,managersTween=null,managersJustOpened=false;
-const folded=new Set(),beginSystem=()=>0,endSystem=()=>{},renderRail=()=>{},logoFor=()=>null,managerFace=()=>'',celebratePictures=()=>{},calm=()=>true,ago=()=> 'now';
+const world={lastData:{projects:[{id:'lucid',title:'Lucid',scratch:false}],threads:[]},roster:{byThread:()=>null},building:'This PC'},orch={papers:[]},settings={orch:{threadId:'orchestrator'}},delegate={phaseOf:()=>null};
+let currentEnvironment,thSig='',settledOpen=false,settledLimit=10;
+const folded=new Set(),beginSystem=()=>0,endSystem=()=>{},renderRail=()=>{},logoFor=()=>null,ago=()=> 'now';
 ${render}
 window.review={world,orch,render:renderThreads,label:threadReviewLabel,index:latestThreadReviews,setEnvironment:v=>currentEnvironment=v};`);
     const oldCss=mode==='before'?execFileSync('git',['show',baseline+':src/office/office.css'],{cwd:root,encoding:'utf8'}):null;
@@ -39,7 +39,7 @@ else{const{app,BrowserWindow}=require('electron');app.setPath('userData',path.jo
     }
     check('Opening the chat does not hide the waiting status',await ev(`review.label({...base,unseen:false},paper)==='Waiting for Orchestrator review'`));
     check('Old verdict is not reused for a later completed run',await ev(`review.label({...base,runStartedAt:'2026-11-02T22:00:00Z'},{...paper,status:'changes-requested'},true)==='Awaiting report'`));
-    check('Pinned managers, live questions, working and settled threads bypass completion review',await ev(`[{pinned:true},{question:'Need input'},{runStatus:'running'},{settled:true}].every(p=>review.label({...base,...p},paper)===null)`));
+    check('Pinned threads, live questions, working and settled threads bypass completion review',await ev(`[{pinned:true},{question:'Need input'},{runStatus:'running'},{settled:true}].every(p=>review.label({...base,...p},paper)===null)`));
     check('Latest report selection uses submission time without reordering papers',await ev(`(()=>{const old={...paper,status:'changes-requested',submittedAt:'2026-11-01T12:00:00Z'},a=[old,paper],m=review.index(a);return m.get(base.id)===paper&&a[0]===old})()`));
     await ev(`review.setEnvironment('linked-machine');review.render();`);
     check('Linked computer does not inherit this computers local report',await ev(`document.querySelector('[data-id="chat-report"] .th-st').textContent==='Done'`));
