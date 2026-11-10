@@ -71,7 +71,11 @@ function segmented<T extends string>(label: string, options: [T, string][], onPi
       }
       const on = buttons.find(b => b.dataset.value === value);
       // Only measured when the group is laid out; the indicator then slides to its place.
-      if (on && on.offsetWidth) { thumb.style.width = `${on.offsetWidth}px`; thumb.style.transform = `translateX(${on.offsetLeft}px)`; }
+      if (!on?.offsetWidth) return;
+      const first = !thumb.style.width; // lands in place on first show instead of sliding in
+      if (first) thumb.style.transition = "none";
+      thumb.style.width = `${on.offsetWidth}px`; thumb.style.transform = `translateX(${on.offsetLeft}px)`;
+      if (first) { void thumb.offsetWidth; thumb.style.transition = ""; }
     },
   };
 }
@@ -274,7 +278,7 @@ export class CoinLedgerPanel {
     this.paintGrid();
     this.paintRecords();
     this.paintSplit();
-    setText(this.foot, s.first
+    setText(this.foot, !this.doc ? "Reading the ledger" : s.first
       ? `${formatCoins(s.total)} coins over ${days(s.activeDays)} with work since ${short(s.first)}. One coin is one dollar of robot work at API prices.`
       : "No coins yet. Every dollar of robot work at API prices adds a coin to today.");
   }
@@ -326,8 +330,10 @@ export class CoinLedgerPanel {
     const s = this.compute().summary;
     const to = addDays(from, move[e.key]);
     if (to > s.today) return;
+    // Past either edge, the calendar scrolls by one week.
     const current = weekStart(s.today), end = this.endWeek ?? current, start = addDays(end, -7 * (WEEKS - 1));
-    if (to < start || to > addDays(end, 6)) { this.endWeek = weekStart(to) >= current ? null : addDays(weekStart(to), 7 * Math.floor((WEEKS - 1) / 2)); if (this.endWeek && this.endWeek >= current) this.endWeek = null; }
+    if (to < start) this.endWeek = addDays(end, -7);
+    else if (to > addDays(end, 6)) this.endWeek = addDays(end, 7) >= current ? null : addDays(end, 7);
     this.selected = to; this.hovered = null;
     if (this.scope === "day") this.paintSplit();
     this.paintGrid();
@@ -336,7 +342,7 @@ export class CoinLedgerPanel {
 
   private pick(day: string, reveal = false) {
     this.selected = day; this.hovered = null; this.scope = "day"; this.showAll = false;
-    if (reveal) { const current = weekStart(this.compute().summary.today), w = weekStart(day); this.endWeek = w >= addDays(current, -7 * (WEEKS - 1)) ? null : addDays(w, 7 * 4); }
+    if (reveal) { const current = weekStart(this.compute().summary.today), w = weekStart(day); this.endWeek = w >= addDays(current, -7 * (WEEKS - 1)) || addDays(w, 28) >= current ? null : addDays(w, 28); }
     this.paintGrid(); this.paintSplit();
     if (reveal) this.grid.querySelector<HTMLElement>(`[data-day="${day}"]`)?.focus({ preventScroll: true });
   }

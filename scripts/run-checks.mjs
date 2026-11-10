@@ -64,6 +64,7 @@ export const CHECKS = [
   "verify-screen-detail.mjs",
   "verify-screen-detail-controller.mjs",
   "verify-weather-retention.mjs",
+  "verify-weather-default.mjs",
   "verify-outside-cull.mjs",
   "verify-outside-viewport.mjs",
   "verify-tile-clip-retention.mjs",
