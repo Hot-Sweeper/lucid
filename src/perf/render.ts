@@ -1,3 +1,5 @@
+import { ambientBeat, nextBeat } from "./beat";
+import { isAsleep, onCalmChange } from "../world/budget";
 import { diagnosticOff, onDiagnosticsChange } from "./diagnostics";
 import { setScreenDetail, releaseScreenDetail } from "./screen-detail";
 import { beginSystem, endSystem } from "./metrics";
@@ -5,7 +7,7 @@ import { screenFrameRate } from "./screen-budget";
 
 // One clock for screen apps. Geometry arrives from the camera/IntersectionObserver, never
 // from layout reads in a draw callback. Logical events and real thread data keep running.
-type Surface = { visible: boolean; fps: number; scale: number; phase: number; explicit: boolean; refs: number; el: HTMLElement; width?: number; logicalWidth?: number; dpr?: number };
+type Surface = { visible: boolean; detailVisible?: boolean; fps: number; scale: number; phase: number; explicit: boolean; refs: number; el: HTMLElement; width?: number; logicalWidth?: number; dpr?: number };
 type Loop = { owner?: HTMLElement; surface?: Surface; win: HTMLElement | null; parent: HTMLElement | null; cb: (now: number, dt: number) => void; last: number; due: number; fps: number; density: number; once: boolean; bound: boolean; stop: () => void };
 const surfaces = new WeakMap<HTMLElement, Surface>();
 const loops = new Set<Loop>();
@@ -20,8 +22,8 @@ window.addEventListener('lucid:mobile-view', (event) => {
   wakeRender();
 });
 let raf = 0;
-let timer = 0;
 let surfaceSequence = 0;
+let timer = 0;
 const io = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver((entries) => {
   let visibilityChanged = false;
   for (const e of entries) {
@@ -44,16 +46,20 @@ function surface(el: HTMLElement) {
   if (!s) { s = { visible: !io, fps: 60, scale: 1, phase: (++surfaceSequence * .61803398875) % 1, explicit: false, refs: 0, el }; surfaces.set(el, s); io?.observe(el); }
   return s;
 }
-export function setRenderView(el: HTMLElement, visible: boolean, screenWidth: number, logicalWidth = 820) {
+/** visible: the screen's apps should run. detailVisible: the screen is in view, so its
+ * zoomed-out preview must exist even while the apps are paused (a robot away from its desk);
+ * otherwise that monitor shows its text-less raw window, a dark screen beside lit ones. */
+export function setRenderView(el: HTMLElement, visible: boolean, screenWidth: number, logicalWidth = 820, detailVisible = visible) {
   const s = surface(el), dpr = window.devicePixelRatio || 1;
   // Pure translation leaves the monitor's rendering inputs unchanged. The detail
   // controller keeps observing new windows/content, so it needs no camera replay.
   // A zero logical width requests DOM-derived sizing and must still be resolved.
-  if (s.explicit && logicalWidth > 0 && s.visible === visible && s.width === screenWidth && s.logicalWidth === logicalWidth && s.dpr === dpr) return;
+  if (s.explicit && logicalWidth > 0 && s.visible === visible && s.detailVisible === detailVisible && s.width === screenWidth && s.logicalWidth === logicalWidth && s.dpr === dpr) return;
   const fps = screenFrameRate(screenWidth);
   const appeared = visible && (!s.explicit || !s.visible);
   const visibilityChanged = appeared || s.visible !== visible;
-  setScreenDetail(el, visible, screenWidth, logicalWidth);
+  setScreenDetail(el, detailVisible, screenWidth, logicalWidth);
+  s.detailVisible = detailVisible;
   const changed = !s.explicit || s.visible !== visible || s.fps !== fps;
   const scale = screenWidth / logicalWidth, densityChanged = s.scale !== scale || s.dpr !== dpr;
   const logicalChanged = s.logicalWidth !== logicalWidth;
@@ -142,10 +148,10 @@ function cancelFrame() {
 function wake() {
   // Camera, observer and window changes must interrupt a sleeping screen clock.
   if (timer) { clearTimeout(timer); timer = 0; }
-  if (!raf && !document.hidden && loops.size) raf = requestAnimationFrame(frame);
+  if (!raf && !document.hidden && !isAsleep() && loops.size) raf = requestAnimationFrame(frame);
 }
 function scheduleFrame(now: number, due: number) {
-  if (raf || !Number.isFinite(due) || document.hidden || !loops.size) return;
+  if (raf || !Number.isFinite(due) || document.hidden || isAsleep() || !loops.size) return;
   // Leave one 60 Hz display frame of lead time, then align to the display clock.
   // Distant 20 Hz screens should not scan all app owners on every 144 Hz tick.
   // Close-up screens and staggered desktops keep their existing RAF cadence.
@@ -155,7 +161,10 @@ function scheduleFrame(now: number, due: number) {
 }
 function frame(now: number) {
   raf = 0;
-  if (document.hidden) return;
+  if (document.hidden || isAsleep()) return; // asleep: monitors keep their last frame (world/budget.ts)
+  // Screens draw only on ambient beat frames (perf/beat.ts), still staggered among them.
+  // A screen that must get sharper after a zoom does not wait for the beat.
+  const beat = ambientBeat(now);
   const started = performance.now();
   let nextDue = Infinity;
   let paintedStatic = false;
@@ -167,6 +176,7 @@ function frame(now: number) {
     // Zooming beyond the current sharp density bypasses that delay, so the very
     // next display frame resizes and redraws rather than stretching stale pixels.
     if (!sharper && l.last && l.surface?.fps === l.fps && now < l.due - .5) { nextDue = Math.min(nextDue, l.due); continue; }
+    if (!beat && !sharper) { nextDue = Math.min(nextDue, nextBeat(now)); continue; }
     const fps = loopFrameRate(l);
     if (!fps) { l.last = 0; continue; }
     if (l.once && paintedStatic) { nextDue = now; continue; } // amortize expensive poster/thumbnail construction
@@ -191,6 +201,7 @@ function frame(now: number) {
   scheduleFrame(now + performance.now() - started, nextDue);
 }
 document.addEventListener("visibilitychange", () => { if (document.hidden) cancelFrame(); else wake(); });
+onCalmChange(() => { if (isAsleep()) cancelFrame(); else wake(); });
 window.addEventListener("resize", wake);
 if ((window as any).__lucidPerf) (window as any).__lucidPerf.render = () => {
   let activeLoops = 0, pendingImages = 0;

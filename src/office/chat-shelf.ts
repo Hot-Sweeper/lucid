@@ -17,7 +17,7 @@ export class ChatShelf {
     this.tab.hidden = !this.collapsed;
   }
 
-  set(collapsed: boolean, width: number, animate: boolean, layout: () => void) {
+  set(collapsed: boolean, width: number, animate: boolean, layout: () => void, startAt?: number) {
     const wasMoving = !!this.motion;
     // A single read at interruption keeps rapid reversals at the shown position.
     const shown = wasMoving ? new DOMMatrixReadOnly(getComputedStyle(this.panel).transform).m41 : null;
@@ -35,7 +35,7 @@ export class ChatShelf {
     this.panel.classList.remove("tabbed");
     Object.assign(this.panel.style, { position: "absolute", top: "0", right: "0", bottom: "0", height: "100%", width: `${width}px`, zIndex: "79", willChange: "transform" });
     layout();
-    const from = shown ?? (collapsed ? 0 : Math.max(0, width - 64));
+    const from = shown ?? startAt ?? (collapsed ? 0 : Math.max(0, width - 64));
     const to = collapsed ? width : 0;
     const motion = this.panel.animate([{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }],
       { duration: GLIDE_MS, easing: GLIDE_EASING, fill: "both" });

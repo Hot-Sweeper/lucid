@@ -49,3 +49,6 @@
 /* walking robots are toys: grab, carry, throw (no filters: the held robot just rises above everything) */
 .world-walker.grabbable { cursor: grab; touch-action: none; }
 .world-walker.held { cursor: grabbing; z-index: 100000 !important; }
+/* Zoomed out, a seated robot is drawn on its canvas (robot-canvas.ts); its SVG keeps animating
+   but is not drawn. */
+.robot-host.canvas-robot > svg.world-seated { display: none; }

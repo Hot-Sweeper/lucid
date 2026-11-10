@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { transformWithOxc } from 'vite';
+const source = await readFile('src/main.ts', 'utf8');
+const functionSource = source.slice(source.indexOf('function collectible('), source.indexOf('// --- workers up close'));
+const code = (await transformWithOxc(functionSource, 'collectible.ts')).code;
+const thread = { id: 'session', runStatus: 'completed', settled: false, pinned: false };
+const world = { lastData: { threads: [thread] }, keptDesks: new Set(), deskFor: () => null }, wallet = { rewards: [{ id: thread.id, amount: 5 }] };
+const orch = { reviewing: false, approvedPaper: () => null };
+const ready = new Function('world', 'coinRewards', 'wallet', 'orch', 'formatCoins', 'companionClient', 'currentEnvironment', code + ';return collectible')(world, {}, wallet, orch, String, () => false, undefined);
+assert.equal(ready(thread.id, false).coins, '5', 'a completed session remains settleable after restarting Lucid');
+thread.runStatus = 'running'; assert.equal(ready(thread.id, true), null, 'continuing the session cannot collect its earlier reward during a new run');
+thread.runStatus = 'completed'; thread.question = 'Approval?'; assert.equal(ready(thread.id, true), null);
+thread.question = null; thread.settled = true;
+assert.equal(ready(thread.id, true).state, 'settled', 'a settled session whose coins still wait on its desk can be collected there');
+wallet.rewards.length = 0; assert.equal(ready(thread.id, true), null, 'settled and paid: nothing left on the desk');
+wallet.rewards.push({ id: thread.id, amount: 5 });
+thread.settled = false; thread.runStatus = 'cancelled'; assert.equal(ready(thread.id, true).state, 'stopped', 'a stopped session can be settled from its desk');
+thread.runStatus = 'completed';
+thread.settled = false; orch.reviewing = true; assert.equal(ready(thread.id, true), null, 'review cannot be bypassed');
+orch.approvedPaper = () => ({ verdict: { summary: 'Approved' } }); assert.equal(ready(thread.id, false).summary, 'Approved');
+
+const collectSource = source.slice(source.indexOf('async function collectWork('), source.indexOf('coinReady = id =>'));
+const collectCode = (await transformWithOxc(collectSource, 'collectWork.ts')).code;
+const calls = [], collecting = new Set();
+const api = { settle: async () => { calls.push('settle'); } };
+const collect = new Function('collectingWork', 'orch', 'api', 'window', 'coinRewards', 'gameSound', 'world', 'refresh', 'settleInT3', 'wallet', 'settings', 'saveSettings', collectCode + ';return collectWork')(
+  collecting, { reviewing: false }, {}, { lucidT3: api }, { collect() { calls.push('reward'); return true; } }, { play() {} }, world, async () => calls.push('refresh'), id => api.settle({ threadId: id }), wallet, {}, () => {});
+assert.deepEqual(calls, [], 'reading a completed session never automatically settles or pays it');
+await collect(thread.id, {}); assert.deepEqual(calls, ['settle', 'reward', 'refresh']);
+calls.length = 0; api.settle = async () => { throw Error('offline'); };
+await assert.rejects(collect(thread.id, {}), /offline/);
+assert.deepEqual(calls, [], 'failed settlement never pays the reward');
+assert.equal(collecting.size, 0, 'failed settlement can retry');
+// collected work keeps its desk; once paid, its desk offers Remove desk, which only releases it
+thread.settled = true; wallet.rewards.length = 0; world.keptDesks.add(thread.id);
+assert.equal(ready(thread.id, true).state, 'kept', 'a kept desk offers to be removed');
+calls.length = 0; await collect(thread.id, {});
+assert.equal(world.keptDesks.has(thread.id), false, 'Remove desk releases it');
+assert.deepEqual(calls, ['refresh'], 'removing a desk neither settles nor pays again');
+console.log('PASS: restart continuity, follow-up reward gating, review, explicit settlement before payout and retry.');

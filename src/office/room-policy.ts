@@ -1,17 +1,19 @@
 /** reviewPending: the worker took its report to the orchestrator; its desk waits for it. */
-export type ActivityThread = { id: string; runStatus: string | null; question?: string | null; settled?: boolean; pinned?: boolean; coinPending?: boolean; completionPending?: boolean; reviewPending?: boolean; manager?: { projectId: string; role: string } };
+export type ActivityThread = { id: string; runStatus: string | null; question?: string | null; settled?: boolean; pinned?: boolean; coinPending?: boolean; completionPending?: boolean; reviewPending?: boolean; kept?: boolean; manager?: { projectId: string; role: string } };
 const ACTIVE = new Set(["running", "queued", "queue", "waiting", "starting", "preparing", "pending", "waitingforapproval", "awaitingapproval", "approvalpending", "awaitinginput", "waitingforinput", "waitingforuser"]);
 
 export function hasOfficeWork(thread: ActivityThread) {
   return !!thread.question || ACTIVE.has((thread.runStatus ?? "").toLowerCase().replace(/[\s_-]/g, ""));
 }
 
-// History is readable without occupying a workstation. Only an explicitly assigned
-// persistent manager retains a desk when idle or settled.
+// A turn ending does not end its session. Keep the workstation until the user
+// settles the session; settled history remains readable without occupying a desk.
 export function hasOfficeDesk(thread: ActivityThread, revealed: string | null = null) {
   if ((thread.coinPending || thread.completionPending || thread.reviewPending) && thread.runStatus === 'completed') return true;
   if (thread.pinned && thread.manager) return true;
-  return !thread.settled && (hasOfficeWork(thread) || thread.id === revealed);
+  // collected work keeps its desk until you remove it (new work may take that desk first)
+  if (thread.settled && thread.kept) return true;
+  return !thread.settled;
 }
 
 // Reservation order follows the room's snake path. Removing a workstation shifts
@@ -29,18 +31,21 @@ export function reserveRoomSeats(previous: (string | null)[], claims: SeatClaim[
     if (!id || !claim || seen.has(id) || !needsDesk(claim, revealed)) return null;
     seen.add(id); return id;
   });
-  const idle = (id: string | null) => !id || !needsDesk(byId.get(id)!, revealed);
+  // a kept desk (settled, collected work) is the first place new work takes
+  const soft = (id: string | null) => { const c = id ? byId.get(id) : undefined; return !!c && typeof c !== "string" && !!c.settled && !!c.kept; };
+  const idle = (id: string | null) => !id || !needsDesk(byId.get(id)!, revealed) || soft(id);
   for (const id of [...byId.keys()].sort()) {
     if (seen.has(id)) continue;
     const claim = byId.get(id)!;
-    // History without current work does not take a place.
-    if (!needsDesk(claim, revealed)) continue;
+    // History without current work does not take a place, and a kept desk is never re-created
+    // once new work has taken it.
+    if (!needsDesk(claim, revealed) || soft(id)) continue;
     const free = seats.findIndex(idle);
     if (free >= 0) { if (seats[free]) seen.delete(seats[free]!); seats[free] = id; }
     else seats.push(id);
     seen.add(id);
   }
-  return compactSeats(seats, byId);
+  return compactSeats(seats.map((id) => (id && needsDesk(byId.get(id)!, revealed) ? id : null)), byId);
 }
 
 /** Close gaps without swapping the last desk ahead of its neighbours. */
@@ -73,7 +78,10 @@ export function projectRoomSeats<T extends ActivityThread>(reservations: (string
   });
   let last = -1;
   placed.forEach((t, i) => { if (t) last = i; });
-  // Vacant furniture is explicit; an empty office keeps its Add a desk control.
+  // Reservations have already closed gaps in snake order. Trim only their empty
+  // tail here; deliberate extra capacity is added after the occupied places.
+  // Vacant furniture is explicit. An unused office keeps its Add a desk control,
+  // without manufacturing a starter workstation after every removal or restart.
   const slots = last + 1 + (expanded ? Math.max(0, extra) : 0);
   const physical: (T | null)[] = Array.from({ length: slots }, (_, i) => placed[i] ?? null);
   return { threads: physical, slots, collapsed: false };

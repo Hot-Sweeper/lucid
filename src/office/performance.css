@@ -13,3 +13,7 @@
 .perf-off-scene #scene .world { visibility: hidden !important; }
 .perf-off-animations #scene *, .perf-off-animations #scene *::before, .perf-off-animations #scene *::after { animation-play-state: paused !important; transition: none !important; }
 .perf-off-effects #scene * { box-shadow: none !important; text-shadow: none !important; filter: none !important; backdrop-filter: none !important; }
+
+/* The weather layer is a world-space box (weather/effects.ts) that the camera transform carries.
+   Its two canvases still move when their crop is renewed; on their own GPU layers that is cheap. */
+.weather-sky-view, .weather-fall, .weather-particles { will-change: transform; }

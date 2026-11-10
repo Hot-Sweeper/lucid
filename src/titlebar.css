@@ -1,0 +1,17 @@
+/* Lucid's own title bar (src/titlebar.ts): the sidebar's navy, a drag region, Lucid's buttons. */
+:root { --titlebar-h: 0px; }
+.has-titlebar { --titlebar-h: 34px; }
+.has-titlebar #app { height: calc(100vh - var(--titlebar-h)); }
+.app-titlebar { position: relative; z-index: 400; height: var(--titlebar-h); display: flex; align-items: center; gap: 12px; padding-left: 14px; background: var(--night); border-bottom: 1px solid var(--line); color: var(--ink-3); font: 500 12px var(--font); user-select: none; -webkit-app-region: drag; app-region: drag; }
+.tb-brand { display: flex; align-items: center; gap: 8px; letter-spacing: 0.02em; color: var(--ink-2); }
+.tb-mark { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffd0a3, var(--accent) 60%, #e0647e); }
+.tb-controls { margin-left: auto; display: flex; height: 100%; -webkit-app-region: no-drag; app-region: no-drag; }
+.tb-btn { width: 46px; height: 100%; display: grid; place-items: center; padding: 0; border: 0; background: none; color: var(--ink-3); cursor: pointer; transition: background-color 0.12s ease, color 0.12s ease; }
+.tb-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
+.tb-btn:active { background: rgba(255, 255, 255, 0.13); }
+.tb-btn:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+.tb-close:hover { background: #e5484d; color: #fff; }
+.tb-close:active { background: #c43a3f; }
+@media (prefers-reduced-motion: reduce) { .tb-btn { transition: none; } }
+/* the title bar carries the name, so the sidebar header does not repeat it */
+.has-titlebar .brand > .mark, .has-titlebar .brand > h1 { display: none; }

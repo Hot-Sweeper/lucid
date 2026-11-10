@@ -173,7 +173,9 @@ export function setScreenDetail(host: HTMLElement, visible: boolean, width: numb
         const resized = cache.width > 0 && (width > 0 && width !== cache.width || height > 0 && height !== cache.height);
         cache.revision++;
         if (shell) cache.iconRevision++;
-        if (resized) { cache.views.clear(); pending.delete(win); overlayFor(win).replaceChildren(); }
+        // Keep the last complete frame on screen during the urgent replacement.
+        // Clearing here leaves both the preview and its hidden source blank.
+        if (resized) { cache.views.clear(); pending.delete(win); }
         enqueue(win, state!, resized);
       }
     });
@@ -243,7 +245,8 @@ function* paint(win: HTMLElement, tier: ScreenDetail, state: State, capture: Cap
   const canvas = document.createElement('canvas');
   // Both raster tiers cover the largest reduced view. A transition can keep
   // showing the previous shapes while its queued line view is built, still sharp.
-  const required = SCREEN_DETAIL_WIDTHS.lines / state.logicalWidth * state.dpr;
+  // the widths are device pixels already
+  const required = SCREEN_DETAIL_WIDTHS.lines / state.logicalWidth;
   const scale = 2 ** (Math.ceil(Math.log2(Math.max(required, 1 / 1024)) * 4) / 4);
   canvas.width = Math.ceil(width * scale); canvas.height = Math.ceil(height * scale);
   canvas.dataset.sourceDensity = String(scale);

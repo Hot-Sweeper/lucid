@@ -2,6 +2,17 @@
 
 Settled with the user on 2026-11-03. This is the model every robot, desk and thread feature follows. All parts below are built; the evidence section says what was checked.
 
+## Session continuity, Linux update 2026-11-06
+
+A finished turn leaves its unsettled session at the same reserved desk, including after
+restarting Lucid. Idle, interrupted and failed sessions remain available for continuation.
+Only explicit settlement releases that place. The completion monitor offers Continue
+session and Settle & collect; the coin tray names its settlement effect too. Continuing
+starts another turn on the same T3 thread and keeps earned coins pending. Running work
+and pending questions cannot collect a reward; successful settlement precedes payout.
+Review approval remains required when review is enabled. Settled history remains readable.
+This replaces the earlier rule that quiet uncollected jobs relinquish their desks.
+
 ## The model in one sentence
 
 A robot is a permanent **worker**. A desk is one **job**, which is one T3 thread. You find work by its desk, not by its robot.
@@ -23,7 +34,7 @@ A robot is a permanent **worker**. A desk is one **job**, which is one T3 thread
 3. **Hire** starts a new thread. The worker sprints to exactly that desk.
 4. No context matching. A new thread is always a new thread.
 
-## Desks are fixed places
+## Desk places
 
 Desk k in a room is reservation k (`src/office/room-policy.ts`). The places follow a snake: the first row goes left to right, the second right to left, and subsequent rows alternate. Removing a desk closes its gap by shifting every later workstation forward in the same order, including running work, questions and managers. Existing desk objects, sessions, reports and drafts stay mounted. A launch that has only a temporary reservation holds compaction until its thread is known. Room capacity trims at the empty tail; deliberate extra capacity remains available. Placement, drag targets, add-desk controls and decoration footprints share the same snake coordinates.
 
@@ -67,3 +78,11 @@ Orchestrator settings, Take the chair (`src/office/chair.ts`). The AI orchestrat
 ## Evidence
 
 `scripts/verify-workers-native.cjs` runs the real Electron main process and renderer build against synthetic office data with T3 transport recorded instead of sent, and captures before (previous commit's own build and backend) and after screenshots. Node checks: room policy, coin retention, worker match (real Roster), reports and settlement recovery (approve, collect, chair), monitor tasks, title refresh; all part of `npm run verify:update`.
+
+## Kept desks
+
+Collecting finished work settles it in T3 (Lucid asks again once if T3's record did not change,
+and shows an error on the desk if it still did not). The desk then stays: its monitor shows the
+report with a "Settled" chip and a "Remove desk" button, and its robot heads off. New work takes
+a kept desk before a new desk is added, and a kept desk that was taken over is never recreated.
+The kept list is saved in settings (`keptDesks`) and pruned when a session is reopened or gone.

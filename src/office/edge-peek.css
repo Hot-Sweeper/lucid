@@ -1,0 +1,46 @@
+/* Auto-hide panels (edge-peek.ts): the pin that chooses the mode, the edge that answers a
+   hover, and the panel floating over the office while it peeks. */
+
+.pin-btn .pin-icon { display: block; overflow: visible; }
+.pin-btn .pin-icon path { fill: none; transition: fill-opacity 160ms cubic-bezier(.23,1,.32,1); }
+.pin-btn .pin-body {
+  transform-origin: 8px 9px;
+  /* a no-frills spring: the pin rocks once as it sticks or lets go */
+  transition: transform 380ms linear(0, .32, .78, 1.04, 1.09, 1.06, 1.02, 1, .99, .99, 1);
+}
+.pin-btn[aria-pressed="true"] .pin-icon path:first-child { fill: currentColor; fill-opacity: .9; }
+.pin-btn[aria-pressed="false"] .pin-body { transform: rotate(38deg) translate(1px, -1px); }
+.pin-btn { transition: background-color 130ms cubic-bezier(.23,1,.32,1), color 130ms cubic-bezier(.23,1,.32,1), transform 120ms cubic-bezier(.23,1,.32,1); }
+.pin-btn:active { transform: scale(.92); }
+.pin-btn[aria-pressed="false"] { color: var(--ink-3); }
+.pin-btn[aria-pressed="false"]:hover { color: var(--accent-2, var(--accent)); }
+
+/* in the sidebar header, sized like its neighbours */
+.brand .brand-actions > button.side-pin {
+  order: 0; flex: 0 0 var(--header-control-size); width: var(--header-control-size); height: var(--header-control-size);
+  margin: 0; padding: 0; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: var(--ink-2); cursor: pointer;
+}
+.brand .brand-actions > button.side-pin[aria-pressed="false"] { color: var(--ink-3); }
+
+/* the folded edge: a peach line grows along its inner side while you rest on it */
+#app.side-auto > .side-rail, #app.chat-auto > .cp-tab { position: relative; }
+#app.side-auto > .side-rail::after, #app.chat-auto > .cp-tab::before {
+  content: ""; position: absolute; top: 12px; bottom: 12px; width: 2px; border-radius: 2px;
+  background: var(--accent); opacity: 0; transform: scaleY(.2);
+  transition: transform 110ms cubic-bezier(.2,.75,.3,1), opacity 110ms cubic-bezier(.2,.75,.3,1);
+  pointer-events: none;
+}
+#app.side-auto > .side-rail::after { right: 0; }
+#app.chat-auto > .cp-tab::before { left: 0; }
+#app.side-auto > .side-rail:hover::after, #app.chat-auto > .cp-tab:hover::before,
+#app.side-auto > .side-rail.peek-open::after, #app.chat-auto > .cp-tab.peek-open::before { opacity: .85; transform: scaleY(1); }
+
+/* floating over the office: a soft shadow falls on the scene side only */
+html:root .panel.peeking, html:root[data-theme] .panel.peeking { box-shadow: 22px 0 48px -12px rgba(4, 6, 24, .55), 1px 0 0 var(--line); }
+html:root .chat-panel.peeking, html:root[data-theme] .chat-panel.peeking { box-shadow: -22px 0 48px -12px rgba(4, 6, 24, .55), inset 1px 0 0 var(--line); }
+#app > .side-limits[style*="absolute"] { box-shadow: 22px 0 48px -12px rgba(4, 6, 24, .55); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-btn .pin-body { transition: none; }
+}

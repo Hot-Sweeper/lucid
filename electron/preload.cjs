@@ -102,6 +102,7 @@ contextBridge.exposeInMainWorld("lucidT3", {
   status: t3s("t3s:status"),
   providers: t3s("t3s:providers"),
   hireConfig: t3s("t3s:hire-config"),
+  searchThreads: t3s("t3s:search-threads"),
   hireContexts: t3s("t3s:hire-contexts"),
   reorder: t3s("t3s:reorder"),
   moveThread: t3s("t3s:move-thread"),
@@ -126,8 +127,16 @@ const dictationCall = (channel) => async (value) => {
   if (!result?.ok) throw new Error(result?.error || 'Dictation did not answer. Try again.');
   return result.value;
 };
+// Lucid's own title bar (Linux): window buttons and maximized state.
+contextBridge.exposeInMainWorld("lucidWindow", {
+  control: (action) => ipcRenderer.invoke("window:control", action),
+  state: () => ipcRenderer.invoke("window:state"),
+  onMaximized: (fn) => { const h = (_e, on) => fn(!!on); ipcRenderer.on("window:maximized", h); return () => ipcRenderer.removeListener("window:maximized", h); },
+});
 contextBridge.exposeInMainWorld('lucidDictation', {
   load: dictationCall('load'),
   run: dictationCall('run'),
   cancel: dictationCall('cancel'),
+  status: dictationCall('status'),
+  setup: dictationCall('setup'),
 });

@@ -78,8 +78,10 @@ function shellSvg(id: string, w: number, h: number, pal: Palette, wallArt: strin
       <linearGradient id="${id}-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--sky1, #6fb2ee)"/><stop offset="1" style="stop-color:var(--sky2, #d4ecfb)"/></linearGradient>
       <radialGradient id="${id}-pool"><stop offset="0" stop-color="#ffe6b0" stop-opacity="0.3"/><stop offset="1" stop-color="#ffe6b0" stop-opacity="0"/></radialGradient>
     </defs>
-    <rect y="${WALL}" width="${w}" height="${h - WALL}" style="fill:var(--wd-floor, ${pal.floor})"/>
-    ${floorArt ?? plankJoints(w,h,WALL,`var(--wd-seam, ${pal.seam})`,id)}
+    <g data-cache-live="floor">
+      <rect y="${WALL}" width="${w}" height="${h - WALL}" style="fill:var(--wd-floor, ${pal.floor})"/>
+      ${floorArt ?? plankJoints(w,h,WALL,`var(--wd-seam, ${pal.seam})`,id)}
+    </g>
     ${lamps.join("")}
     <rect y="${WALL}" width="${w}" height="20" fill="#000" opacity="0.07"/>
     <rect width="${w}" height="${WALL}" style="fill:var(--wd-wall, ${pal.wall})"/>

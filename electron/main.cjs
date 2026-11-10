@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, net, protocol } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, net, protocol, nativeImage } = require("electron");
 // Screenshot runs use isolated profiles. Normal launches share one office process.
 if (!process.env.LUCID_SHOT && !app.requestSingleInstanceLock()) {
   app.quit();
@@ -9,6 +9,14 @@ const fsp = require("node:fs/promises");
 const path = require("node:path");
 const t3 = require("./t3.cjs");
 const updater = require("./updater.cjs");
+require("./gpu-fallback.cjs").install(app);
+// Chromium often cannot read video memory on Linux and falls back to a small tile budget.
+// At 4K with Lucid's layers that ran out ("tile memory limits exceeded"): tiles were skipped,
+// so the night tint, monitors and rooms blinked or went missing in blocks while zooming.
+// Chromium's middle-click autoscroll showed its scroll marker over panels and monitors; the middle
+// button pans the office camera instead (office/world.ts). Middle-click paste is unaffected.
+app.commandLine.appendSwitch("disable-blink-features", "MiddleClickAutoscroll");
+if (process.platform === "linux" && !app.commandLine.hasSwitch("force-gpu-mem-available-mb")) app.commandLine.appendSwitch("force-gpu-mem-available-mb", "2048");
 
 // Keep the existing desktop handlers authoritative while giving each phone its own building.
 const { AsyncLocalStorage } = require('node:async_hooks');
@@ -69,7 +77,7 @@ async function invokeBrowser(client, channel, args) {
     const handler = browserHandlers.get(channel);
     if (!handler) throw Error('This action is unavailable. Update Lucid on the desktop.');
     const result = await handler({sender:client.sender}, ...args);
-    if (['t3:start', 't3:send', 'project:add', 'project:remove', 'environment:select', 'reports:manual'].includes(channel) || channel.startsWith('t3s:') && !['t3s:status','t3s:providers','t3s:hire-config','t3s:hire-contexts','t3s:manager-suggest','t3s:manager-avatar-history'].includes(channel)) companionFrames.invalidate();
+    if (['t3:start', 't3:send', 'project:add', 'project:remove', 'environment:select', 'reports:manual'].includes(channel) || channel.startsWith('t3s:') && !['t3s:status','t3s:providers','t3s:search-threads','t3s:hire-config','t3s:hire-contexts','t3s:manager-suggest','t3s:manager-avatar-history'].includes(channel)) companionFrames.invalidate();
     return result;
   });
 }
@@ -106,6 +114,8 @@ function createWindow() {
     backgroundColor: "#141a33",
     title: "Lucid",
     autoHideMenuBar: true,
+    // Lucid draws its own title bar on Linux (src/titlebar.ts) instead of the desktop's.
+    ...(process.platform === "linux" ? { frame: false } : {}),
     // debug screenshot runs render normally but off-screen, so they never pop up on you
     ...(process.env.LUCID_SHOT ? { x: -4000, y: -4000, skipTaskbar: true, focusable: false } : {}),
     webPreferences: {
@@ -126,6 +136,7 @@ function createWindow() {
   else if (process.env.LUCID_SHOT) query.autoScope = "(none: test run)";
   query.app = "1";   // only the real app window answers questions (not pages other tools open)
   const loadOffice = () => {
+    for (const ev of ["maximize", "unmaximize", "enter-full-screen", "leave-full-screen"]) win.on(ev, () => { if (!win.isDestroyed()) win.webContents.send("window:maximized", win.isMaximized() || win.isFullScreen()); });
     if (DEV_URL) win.loadURL(DEV_URL + "?" + new URLSearchParams(query));
     else win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query });
   };
@@ -195,6 +206,7 @@ ${typeof out === "string" ? out : JSON.stringify(out, null, 1)}
 }
 
 require("./external-links.cjs").register(ipcMain, shell);
+
 const send = (channel, payload) => { if (win && !win.isDestroyed()) win.webContents.send(channel, payload); };
 
 ipcMain.handle("fs:download-answer", async (_e, input) => {
@@ -391,9 +403,12 @@ ipcMain.handle("t3:request-outcome", (_e, threadId, requestId) => { try { return
 ipcMain.handle("t3:thread-info", (_e, id) => { try { return remote.split(id) ? remote.info(id) : t3.threadInfo(id); } catch { return null; } });
 ipcMain.handle("t3:items-since", (_e, id, since) => remote.split(id) ? remote.items(id) : (since ? t3.itemsSince(id, since) : t3.recentItems(id, 60)));
 ipcMain.handle("t3:attach-dir", () => require("node:path").join(process.env.T3CODE_HOME || require("node:path").join(require("node:os").homedir(), ".t3"), "userdata", "attachments") + require("node:path").sep);
+// Jobs a thread left running after its turn (a render service, say), from systemd on this computer.
+const backgroundJobs = require("./background-jobs.cjs").createBackgroundJobs({ folders: () => { try { return t3.threadFolders(); } catch { return []; } } });
 ipcMain.handle("t3:world", async () => {
   const data = managers.world(activeBuilding() ? await remote.world(activeBuilding()) : undefined);
   data.threads = data.threads.filter(t => !languageHelpers.has(t.id));
+  if (!activeBuilding()) { const jobs = backgroundJobs.current(); for (const t of data.threads) { const job = jobs.get(t.id); if (job) t.job = job; } }
   if (!activeBuilding()) threadLabels.decorate(data, !process.env.LUCID_SHOT);
   return data;
 });
@@ -510,6 +525,7 @@ ipcMain.handle("app:version", () => app.getVersion());
 // lucid-file://local/<encoded path> serves images and text files the agents worked with,
 // so the robots' screens and the chat can show them. Only known media and text types.
 protocol.registerSchemesAsPrivileged([{ scheme: "lucid-artifact", privileges: { standard: true, secure: true, supportFetchAPI: true } }, { scheme: "lucid-file", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
+const thumbs = require("./thumbs.cjs").createThumbs({ nativeImage, fsp });
 const { fileMediaResponse, bufferMediaResponse } = require("./media-response.cjs");
 const SERVE = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif", ".mp4", ".webm", ".mov", ".m4v", ".ogv", ".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".opus"]);
 
@@ -525,6 +541,10 @@ app.whenReady().then(() => {
       const file = decodeURIComponent(new URL(req.url).pathname.slice(1));
       if (!SERVE.has(path.extname(file).toLowerCase())) return new Response("not allowed", { status: 403 });
       await fsp.access(file);
+      // ?w=480: a resized copy for places that show the picture small (electron/thumbs.cjs)
+      const want = new URL(req.url).searchParams.get("w");
+      const small = want && !req.headers.has("range") ? await thumbs.get(file, want).catch(() => null) : null;
+      if (small) return new Response(small.body, { headers: { "content-type": small.type, "cache-control": "private, max-age=3600" } });
       const playable = await fileMediaResponse(req, file);
       if (playable) return playable;
       return net.fetch(pathToFileURL(file).toString(), { headers: req.headers.has("range") ? { Range: req.headers.get("range") } : {} });
@@ -573,6 +593,7 @@ ipcMain.handle("t3s:manager-avatar", t3sWrap((o) => managers.avatars.set(o || {}
 ipcMain.handle("t3s:manager-avatar-history", t3sWrap((o) => managers.avatars.history(o || {})));
 ipcMain.handle("t3s:manager-avatar-ask", t3sWrap((o) => managers.avatars.ask(o || {})));
 ipcMain.handle("t3s:providers", t3sWrap((o) => activeBuilding() ? remote.providers(activeBuilding()) : t3s.listProviders(o || {})));
+ipcMain.handle("t3s:search-threads", t3sWrap((q) => activeBuilding() ? { matches: [], threads: [] } : t3s.searchThreads(q)));
 ipcMain.handle("t3s:hire-config", t3sWrap((o) => { if (activeBuilding()) throw Error('Start a new thread in T3 Code for this building.'); return t3s.hireConfig(o || {}); }));
 ipcMain.handle("t3s:hire-contexts", t3sWrap((o) => { if (activeBuilding()) throw Error('Context search is unavailable for this building.'); return t3s.hireContexts(o.projectId); }));
 let threadMovePending = false;
@@ -587,7 +608,7 @@ ipcMain.handle("t3s:move-thread", t3sWrap(async (o) => {
 ipcMain.handle("t3s:reorder", t3sWrap((o) => t3s.reorderQueued(o.threadId, o.runId, o.beforeRunId ?? null)));
 ipcMain.handle("t3s:cancel", t3sWrap((o) => t3s.cancelQueued(o.threadId, o.runId)));
 // Collecting finished work without a review clears its desk by settling the thread.
-ipcMain.handle("t3s:settle", t3sWrap((o) => { if (activeBuilding()) throw Error('Collect work on the computer that owns it.'); if (typeof o?.threadId !== 'string' || !o.threadId) throw Error('Choose finished work to collect.'); const state = require('./t3.cjs').reportState(o.threadId); if (state.run?.status !== 'completed' || state.pendingRuns || state.pendingRequests) throw Error('This work is not finished yet.'); return t3s.settleThread(o.threadId, { excludePinned: true, expectedRunId: state.run.id }); }));
+ipcMain.handle("t3s:settle", t3sWrap((o) => { if (activeBuilding()) throw Error('Collect work on the computer that owns it.'); if (typeof o?.threadId !== 'string' || !o.threadId) throw Error('Choose finished work to collect.'); const state = require('./t3.cjs').reportState(o.threadId); if (!state.run || !['completed', 'cancelled', 'canceled', 'interrupted', 'failed', 'error', 'stopped', 'aborted'].includes(state.run.status) || state.pendingRuns || state.pendingRequests) throw Error(state.pendingRequests ? 'This session is waiting for your answer. Answer it before settling.' : 'This session is still running. Stop it before settling.'); return t3s.settleThread(o.threadId, { excludePinned: true, expectedRunId: state.run.id, ended: true }); }));
 ipcMain.handle("t3s:edit", t3sWrap((o) => t3s.editQueued(o.threadId, o.runId, o.text)));
 ipcMain.handle("t3s:steer", t3sWrap((o) => t3s.steerNow(o.threadId, o.queuedRunId, o.targetRunId)));
 ipcMain.handle("t3s:setModel", t3sWrap((o) => t3s.setThreadModel(o.threadId, o.selection)));
@@ -602,3 +623,13 @@ require("./market.cjs").register(ipcMain);
 
 // Offline dictation uses the local computer, including for remote-building chats.
 require("./dictation.cjs").register({ ipcMain, app, window: () => win });
+// Lucid's own title bar: window buttons and the maximized state for its restore icon.
+ipcMain.handle("window:control", (event, action) => {
+  const w = BrowserWindow.fromWebContents(event.sender);
+  if (!w) return false;
+  if (action === "minimize") w.minimize();
+  else if (action === "maximize") { if (w.isMaximized()) w.unmaximize(); else w.maximize(); }
+  else if (action === "close") w.close();
+  return w.isMaximized();
+});
+ipcMain.handle("window:state", (event) => ({ maximized: !!BrowserWindow.fromWebContents(event.sender)?.isMaximized(), framed: process.platform !== "linux" }));

@@ -56,6 +56,12 @@ export class SubscriptionBatteries {
 }
 
 export const subscriptionBatteries = new SubscriptionBatteries();
+// A used-up subscription only sends a robot to charge while it is idle. T3 keeps running work past
+// the limit on API credits, so a thread that is running or about to run stays at its desk.
+const ACTIVE_RUN = new Set(["running", "starting", "preparing", "queued"]);
+export function needsCharge(t: { provider: string; runStatus: string | null }, bank: SubscriptionBatteries = subscriptionBatteries) {
+  return !ACTIVE_RUN.has(t.runStatus ?? "") && bank.get(t.provider).charging;
+}
 export const batteryWeakness = (remaining: number | null) => remaining === null ? 0 : Math.max(0, Math.min(1, (30 - remaining) / 30));
 export function recovery(battery: Battery, now = Date.now()) {
   if (!battery.windows.length) return { progress: null, text: "No exhausted subscriptions" };

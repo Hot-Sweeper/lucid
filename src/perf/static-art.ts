@@ -18,7 +18,10 @@ const rasterSources = new Map<string, RasterSource>();
 let sourceSerial = 0;
 const pending = new Map<string, { promise:Promise<RasterResult>;consumers:Set<()=>boolean> }>();
 const measurements=new Set<StaticRun>();let measureQueued=false;
-let queue = Promise.resolve(), camera: Camera = { x: 0, y: 0, s: 1 }, viewport = { w: 0, h: 0 }, enabled = true;
+// Off by default: the cached images blur while zooming in and visibly snap sharp once the
+// camera rests, and live measurements were no faster with them than with the native SVG
+// (the world is a frozen GPU picture during camera motion; see .world.zooming).
+let queue = Promise.resolve(), camera: Camera = { x: 0, y: 0, s: 1 }, viewport = { w: 0, h: 0 }, enabled = false;
 const sceneOrigin = { x: 0, y: 0 };
 const MAX_BYTES = 64 * 1024 * 1024, OVERSCAN = 256, SETTLE = 120;
 const rasterQuiet = new RasterQuietGate(SETTLE);

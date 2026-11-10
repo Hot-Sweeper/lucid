@@ -6,7 +6,7 @@ const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { createService } = require('../electron/dictation.cjs');
+const { createService, createInstaller } = require('../electron/dictation.cjs');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const german = 'Grüße, das wäre unglaublich schön. ÄÖÜ äöü ß.';
 
@@ -250,4 +250,23 @@ function batchedCapture() {
   values.forEach((value, index) => assert.equal(value, index));
 }
 
-(async () => { await protocol(); await workerOwnership(); if (!process.argv.includes('--without-python')) windowsEncoding(); batchedCapture(); await composer(); console.log('PASS: dictation protocol, shared fallback, cancellation races, exclusive model ownership through delayed exit, bounded shutdown, pipe errors, capture cleanup and thread-safe draft insertion.'); if (process.argv.includes('--without-python')) console.log('Python encoding fixture skipped; update validation does not require the optional dictation runtime.'); })().catch(error => { console.error(error); process.exitCode = 1; });
+// First-use setup started from the Dictate button: real progress, one install at a time, honest failure.
+async function installer() {
+  let installed = false, spawns = 0, child;
+  const fake = () => { spawns++; child = new EventEmitter(); child.stdout = new PassThrough(); child.stderr = new PassThrough(); child.kill = () => child.emit('close', 1); return child; };
+  const setup = createInstaller({ root: '/tmp/lucid-dictation-test', ready: () => installed, spawnSetup: fake });
+  assert.deepEqual(setup.status(), { ready: false, installing: false, progress: 0, stage: '', error: '' });
+  assert.equal(setup.start().installing, true);
+  setup.start(); assert.equal(spawns, 1, 'a second click joins the running install');
+  child.stdout.write('Collecting transcribe-cpp==0.4.1\n'); await tick();
+  assert.equal(setup.status().stage, 'Installing the speech engine');
+  child.stdout.write('\rDownloading Ultra: 12%\rDownloading Ultra: 47%'); await tick();
+  assert.deepEqual([setup.status().stage, setup.status().progress], ['Downloading the speech model', 0.47]);
+  child.stderr.write('Model checksum mismatch. Run setup again to retry.\n'); await tick();
+  child.emit('close', 1);
+  assert.deepEqual([setup.status().installing, setup.status().error], [false, 'Model checksum mismatch. Run setup again to retry.'], 'a failed install says why and can be retried');
+  setup.start(); installed = true; child.emit('close', 0);
+  assert.equal(setup.status().ready, true); assert.equal(setup.start().installing, false, 'an installed model never reinstalls');
+}
+
+(async () => { await installer(); await protocol(); await workerOwnership(); if (!process.argv.includes('--without-python')) windowsEncoding(); batchedCapture(); await composer(); console.log('PASS: dictation setup progress and retry, protocol, shared fallback, cancellation races, exclusive model ownership through delayed exit, bounded shutdown, pipe errors, capture cleanup and thread-safe draft insertion.'); if (process.argv.includes('--without-python')) console.log('Python encoding fixture skipped; update validation does not require the optional dictation runtime.'); })().catch(error => { console.error(error); process.exitCode = 1; });

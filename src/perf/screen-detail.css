@@ -1,7 +1,14 @@
 .screen-detail { position: absolute; inset: 0; pointer-events: none; overflow: hidden; visibility: visible; display: none; }
 .screen-detail > canvas { width: 100%; height: 100%; display: block; }
-[data-screen-detail] .win > :not(.screen-detail) { visibility: hidden !important; }
-[data-screen-detail] .win > :not(.screen-detail) * { visibility: hidden !important; }
+[data-screen-detail] .win[data-detail-ready="1"] > :not(.screen-detail) { visibility: hidden !important; }
+[data-screen-detail] .win[data-detail-ready="1"] > :not(.screen-detail) * { visibility: hidden !important; }
+/* Behind a finished snapshot the real app keeps its state but is skipped entirely: no style,
+   layout or paint work while a robot types into it. With many busy desks that work was
+   most of every frame (Chromium regrouped every hidden element into layers each frame). */
+[data-screen-detail] .win[data-detail-ready="1"] > :not(.screen-detail) { content-visibility: hidden; }
+/* Cold captures yield across frames. Keep their original app visible until a
+   finished replacement exists, including text inherited from the OS shell. */
+[data-screen-detail] .win:not([data-detail-ready="1"]) { -webkit-text-fill-color: currentColor; }
 .screen-detail-icon { position: absolute; inset: 26px 0 0; display: grid; place-items: center; }
 .screen-detail-icon > * { width: var(--screen-detail-icon-size); height: var(--screen-detail-icon-size); object-fit: contain; }
 .screen-detail-icon-overview { inset: 0; }
@@ -45,3 +52,6 @@
 [data-screen-detail="lines"] :is(.l-q, .l-result > span, .at-item > span)::after {
   content: ''; position: absolute; inset: 45% 0 auto; height: 3px; background: #c9cdf5;
 }
+/* A monitor only a few pixels wide (desk.lod-tiny, set by World): the dock row under a pixel
+   tall is skipped. Its icons were thousands of drawn elements across a large office. */
+.desk-unit.lod-tiny .screen .dock { content-visibility: hidden; }

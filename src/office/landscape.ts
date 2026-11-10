@@ -300,7 +300,9 @@ function star(c: Ctx, x: number, y: number, r: number, n: number, inner: number,
  * transform must already map world coordinates onto the canvas.
  */
 export function paintLandscape(c: Ctx, plan: LandPlan, L: LandLook, C: Colors, view: LRect, density: number) {
-  const fine = density > 0.28, pad = 220;
+  // Fine texture (grass blades, tall grass, flowers) fades in over a zoom range instead of
+  // switching on at one density, so a tile changing resolution does not make it pop.
+  const fineAmount = Math.min(1, Math.max(0, (density - 0.26) / 0.24)), fine = fineAmount > 0, pad = 220;
   const near = { x: view.x - pad, y: view.y - pad, w: view.w + 2 * pad, h: view.h + 2 * pad };
   const snow = L.snow;
   c.fillStyle = C.grass; c.fillRect(view.x, view.y, view.w, view.h);
@@ -343,7 +345,9 @@ export function paintLandscape(c: Ctx, plan: LandPlan, L: LandLook, C: Colors, v
     c.fillStyle = l.park ? mix(C.lawn, L.pal.bush[1], 0.45) : mix(C.lawn, C.grass, 0.55); c.fill();
     c.beginPath(); roundRect(c, l.x, l.y, l.w, l.h, l.r);
     c.fillStyle = l.park ? mix(mix(L.pal.park[1], "#9ed27a", 0.1), SNOW, snow * 0.85) : C.lawn; c.fill();
-    if (fine && snow < 0.6) {
+    // Mowing stripes are large and cheap: drawn at every density, the background map included,
+    // so they never appear or vanish as tiles and zoom levels swap during a pan or zoom.
+    if (snow < 0.6) {
       c.save(); c.clip(); c.fillStyle = C.stripe;
       const x0 = Math.max(l.x, view.x - 80), x1 = Math.min(l.x + l.w, view.x + view.w + 80);
       for (let x = l.x + 30 + Math.ceil((x0 - l.x - 30) / 140) * 140; x < x1; x += 140) c.fillRect(x, Math.max(l.y, view.y - 10), 70, Math.min(l.h, view.h + 20));
@@ -364,8 +368,8 @@ export function paintLandscape(c: Ctx, plan: LandPlan, L: LandLook, C: Colors, v
       }
     }
     c.lineCap = "round"; c.lineWidth = blade;
-    c.globalAlpha = 0.55 * (1 - snow); c.strokeStyle = C.tuftDark; c.stroke(dark);
-    c.globalAlpha = 0.45 * (1 - snow); c.strokeStyle = C.tuftLight; c.stroke(light);
+    c.globalAlpha = 0.55 * (1 - snow) * fineAmount; c.strokeStyle = C.tuftDark; c.stroke(dark);
+    c.globalAlpha = 0.45 * (1 - snow) * fineAmount; c.strokeStyle = C.tuftLight; c.stroke(light);
     c.globalAlpha = 1;
     // tall grass in the meadows
     if (meadows.length && snow < 0.6) {
@@ -377,7 +381,7 @@ export function paintLandscape(c: Ctx, plan: LandPlan, L: LandLook, C: Colors, v
           tall.moveTo(x - 4, y); tall.quadraticCurveTo(x - 5, y - h * 0.6, x - 8, y - h); tall.moveTo(x, y); tall.lineTo(x + 1, y - h - 3); tall.moveTo(x + 4, y); tall.quadraticCurveTo(x + 5, y - h * 0.6, x + 9, y - h * 0.9);
         }
       }
-      c.strokeStyle = mix(C.meadow, "#5e7a34", 0.45); c.lineWidth = Math.max(1.6, 1 / density); c.globalAlpha = 0.7 * (1 - snow); c.stroke(tall); c.globalAlpha = 1;
+      c.strokeStyle = mix(C.meadow, "#5e7a34", 0.45); c.lineWidth = Math.max(1.6, 1 / density); c.globalAlpha = 0.7 * (1 - snow) * fineAmount; c.stroke(tall); c.globalAlpha = 1;
     }
     // wild flowers in the meadows
     const flowers = L.pal.flowers;

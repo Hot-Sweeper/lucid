@@ -5,3 +5,4 @@
 .cp-dictate:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .cp-dictation-note { margin:6px 0 0; color:var(--ink-3); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
 .cp-dictation-note[hidden] { display:none; }
+.cp-dictation-note .cp-dictation-setup { font-size: 12px; padding: 0; margin-left: 2px; }

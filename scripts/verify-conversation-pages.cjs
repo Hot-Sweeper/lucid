@@ -79,3 +79,29 @@ test('older pages retain persisted run chronology, attachments and context event
   assert.equal(all.filter(m => m.id === 'selection:r40').length, 0, 'persisted handoff suppresses duplicate inferred harness event');
   db.close();
 });
+test('the work log: one summary per turn, only when asked, placed like T3 and never leaking tool output', () => {
+  const { db, at, msg, run } = fixture();
+  msg(0, 'user', { text: 'Fix it' });
+  msg(3, 'assistant', { text: 'Looking' });
+  msg(9, 'assistant', { text: 'Done' });
+  msg(12, 'user', { text: 'Again' });
+  msg(15, 'assistant', { text: 'On it' });
+  run('r1', 1, 'completed', { userMessageId: 'm0', startedAt: at(0), completedAt: at(10) });
+  run('r2', 2, 'running', { userMessageId: 'm12', startedAt: at(12) });
+  const item = (id, runId, type, status, p) => db.prepare('insert into orchestration_v2_projection_turn_items values (?,?,?,?,?,?,?,?,?)')
+    .run(id, 't', runId, type, status, at(5), Number(id.slice(1)), null, JSON.stringify(p));
+  item('i1', 'r1', 'command_execution', 'completed', { input: '/bin/bash -lc "npm test"', output: 'x'.repeat(100000) });
+  item('i2', 'r1', 'file_change', 'completed', { fileName: '/repo/src/a.ts' });
+  item('i3', 'r1', 'file_change', 'completed', { fileName: '/repo/src/a.ts' });
+  item('i4', 'r1', 'command_execution', 'failed', { input: 'make' });
+  item('i5', 'r1', 'reasoning', 'completed', { text: 'thinking' });
+  item('i6', 'r2', 'web_search', 'running', { patterns: ['lucid'] });
+  assert.equal(readConversation(db, 't').messages.filter(m => m.role === 'work').length, 0, 'other readers never see work rows');
+  const order = readConversation(db, 't', { work: true }).messages.map(m => m.id);
+  assert.deepEqual(order, ['m0', 'm3', 'work:r1', 'm9', 'm12', 'm15', 'work:r2'], 'finished: above the final reply; live: at the bottom');
+  const w = readConversation(db, 't', { work: true }).messages.find(m => m.id === 'work:r1').work;
+  assert.deepEqual([w.commands, w.edits, w.failed, w.total], [2, 1, 1, 4]);
+  assert.equal(w.lines[0].t, 'npm test', 'shell wrappers are removed');
+  assert(JSON.stringify(w).length < 2000, 'tool output stays in SQLite');
+  db.close();
+});

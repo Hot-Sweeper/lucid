@@ -11,7 +11,6 @@ export class CoinRewards {
   private summary = document.createElement('summary');
   private list = document.createElement('div');
   private status = document.createElement('span');
-  private collectAllButton = document.createElement('button');
   private deskButtons = new Map<HTMLElement, HTMLButtonElement>();
   private rows = new Map<string, HTMLButtonElement>();
   private effects = new Map<HTMLElement, gsap.core.Timeline>();
@@ -29,11 +28,8 @@ export class CoinRewards {
     this.list.className = 'coin-reward-list';
     this.status.className = 'coin-announcement';
     this.status.setAttribute('role', 'status');
-    this.collectAllButton.type = 'button'; this.collectAllButton.className = 'coin-collect-all';
-    this.collectAllButton.textContent = 'Collect all';
-    this.collectAllButton.addEventListener('click', () => this.collectAll());
     this.disclosure.append(this.summary, this.list);
-    this.tray.append(this.disclosure, this.collectAllButton);
+    this.tray.append(this.disclosure);
     this.tray.addEventListener('pointerdown', e => e.stopPropagation());
     this.tray.addEventListener('click', e => e.stopPropagation());
     this.tray.addEventListener('wheel', e => e.stopPropagation(), { passive: true });
@@ -107,13 +103,12 @@ export class CoinRewards {
         this.rows.set(id, row); this.list.append(row);
       }
       row.querySelector('span')!.textContent = this.world.roster.byThread(reward.id)?.name || reward.title;
-      row.querySelector('i')!.textContent = `Collect ${formatCoins(reward.amount)}`;
-      row.setAttribute('aria-label', `Collect ${formatCoins(reward.amount)} coins from ${reward.title}`);
+      row.querySelector('i')!.textContent = `Settle & collect ${formatCoins(reward.amount)}`;
+      row.setAttribute('aria-label', `Settle ${reward.title} and collect ${formatCoins(reward.amount)} coins`);
       row.title = reward.title;
     }
     this.tray.hidden = !rewards.length;
     this.summary.textContent = `${formatCoins(rewards.reduce((sum, r) => sum + r.amount, 0))} coins to collect`;
-    this.collectAllButton.setAttribute('aria-label', `Collect all ${formatCoins(rewards.reduce((sum, r) => sum + r.amount, 0))} coins`);
     if (rewards.length === 0) this.disclosure.open = false;
     // The desk's own Collect screen (monitor-tasks.ts) is the only desk action.
     for (const button of this.deskButtons.values()) button.remove();
@@ -136,21 +131,6 @@ export class CoinRewards {
     this.render();
     if (settle) void this.work.collected(id).catch(error => { this.status.textContent = `Coins collected. The desk could not be cleared yet: ${error?.message || error}`; });
     return coins;
-  }
-  collectAll() {
-    const rewards = this.rewards;
-    if (!rewards.length) return;
-    const origin = this.collectAllButton.getBoundingClientRect();
-    let coins = 0;
-    for (const reward of rewards) coins += this.wallet.collect(reward.id) || 0;
-    if (!coins) return;
-    gameSound.play('collect');
-    this.status.textContent = `Collected ${formatCoins(coins)} coins from ${rewards.length} robots. Balance ${formatCoins(this.wallet.balance)}.`;
-    for (const reward of rewards) this.world.deskFor(reward.id)?.robot.react('cheer');
-    this.fly(origin);
-    this.syncHolds(); this.render();
-    for (const reward of rewards) void this.work.collected(reward.id).catch(() => {});
-    document.getElementById('coin-bank')?.focus({ preventScroll: true });
   }
   private fly(from: DOMRect) {
     if (document.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches) return;

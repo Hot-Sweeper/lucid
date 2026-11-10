@@ -17,9 +17,12 @@ let failures = 0; const failing = sharedPendingRequests(async () => { failures++
 await assert.rejects(failing('a')); await assert.rejects(failing('a')); assert.equal(failures, 2);
 const f = Object.create(MonitorTasks.prototype);
 let reviewing = false, approved = new Set();
-// Same rule as main.ts collectible(): reviews hold only approved work; otherwise only work finished while open.
+// This fixture isolates fresh-transition tracking; main.ts eligibility is covered by verify-session-continuity.
 Object.assign(f, { previous: new Map(), holds: new Set(), fresh: new Set(), collecting: new Set(), world: { setCompletionHolds(ids) { this.holds = [...ids]; } },
-  actions: { ready: (id, fresh) => reviewing ? (approved.has(id) ? { summary: 'ok', coins: null } : null) : fresh ? { summary: '', coins: null } : null } });
+  // Like main.ts collectible(): settled work is only collectible while its coins are still waiting.
+  actions: { ready: (id, fresh) => current?.settled ? (current.coins ? { summary: '', coins: current.coins, state: 'settled' } : null) : reviewing ? (approved.has(id) ? { summary: 'ok', coins: null, state: 'done' } : null) : fresh ? { summary: '', coins: null, state: 'done' } : null } });
+let current = null;
+const prepare = f.prepare.bind(f); f.prepare = d => { current = d.threads[0] ?? null; return prepare(d); };
 const data = (status, extra = {}) => ({ threads: [{ id: 'a', runStatus: status, updatedAt: 'now', settled: false, ...extra }], projects: [] });
 f.prepare(data('completed')); assert.deepEqual(f.world.holds, [], 'Do not resurrect all old completed threads on startup');
 f.prepare(data('running')); f.prepare(data('completed')); assert.deepEqual(f.world.holds, ['a'], 'New completion retains its physical monitor until dismissed');
@@ -35,6 +38,7 @@ f.prepare(data('running')); f.prepare(data('completed')); assert.deepEqual(f.wor
 approved.add('a'); f.prepare(data('completed')); assert.deepEqual(f.world.holds, ['a'], 'Approval puts Collect on the desk');
 f.prepare({ threads: [], projects: [] }); f.prepare(data('completed')); assert.deepEqual(f.world.holds, ['a'], 'Approved work is collectible after a restart too');
 f.prepare(data('completed', { settled: true })); assert.deepEqual(f.world.holds, [], 'Collected (settled) work releases the desk');
+f.prepare(data('completed', { settled: true, coins: '3.5' })); assert.deepEqual(f.world.holds, ['a'], 'Settled work whose coins wait keeps Collect on its desk');
 assert(hasOfficeDesk({ id: 'a', runStatus: 'completed', reviewPending: true }), 'The desk waits while the worker is at review');
-assert(!hasOfficeDesk({ id: 'a', runStatus: 'completed', reviewPending: false }));
+assert(hasOfficeDesk({ id: 'a', runStatus: 'completed', reviewPending: false }), 'finished unsettled sessions persist without a review hold');
 console.log('Monitor tasks passed: coalesced pending reads, failed-read recovery, real completion transitions, desk retention, new work, settlement, removal, building isolation, approval-gated Collect and review desk retention.');

@@ -7,8 +7,13 @@
 .desk-layer > .desk-unit, .desk-layer > .add-desk, .desk-layer > .world-walker { pointer-events: auto; }
 .room { position: absolute; overflow: clip; border-radius: 6px; box-shadow: 0 18px 40px rgba(10, 12, 30, 0.35); }
 .room-art { display: block; }
+/* Static floors and walls on their own GPU layer. Robots, monitors and walkers above them are
+   separate layers; with the art mixed into the world's layer Chromium re-sorted it against all of
+   them on every frame (Layerize ~5.5 ms of a 6.9 ms 144 Hz frame while panning, ~2.4 ms like this). */
+.room-art { will-change: transform; }
 .room-name { font: 600 12px/1.25 var(--font); color: #3a3f4f; text-align: center; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .night-shade { position: absolute; inset: 0; background: #0b1030; opacity: calc(var(--night) * 0.9); pointer-events: none; }
+.world.no-night-shade > .night-shade { display: none; }
 
 .zoom-ui { grid-column: 2; grid-row: 1; align-self: end; justify-self: end; margin: 0 18px 16px 0; position: relative; z-index: 50; pointer-events: none; }
 .zoom-ui button { pointer-events: auto; }
@@ -125,13 +130,6 @@
 .link-btn { border: 0; background: none; color: var(--accent-2); padding: 4px 0; cursor: pointer; font-size: 13px; }
 .link-btn:hover { text-decoration: underline; }
 
-.focus .hint { color: var(--ink-3); font-size: 14px; margin: 0; }
-.focus-head { display: flex; gap: 9px; align-items: flex-start; }
-.focus-head img { width: 18px; height: 18px; margin-top: 3px; flex: none; }
-.focus h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
-.focus .sub { margin: 4px 0 0 27px; color: var(--ink-3); font-size: 13px; }
-.focus .activity { margin: 10px 0 0 27px; color: var(--accent-2); font-size: 14px; min-height: 1.4em; }
-.focus-actions { display: flex; gap: 6px; margin: 12px 0 10px; flex-wrap: wrap; }
 .ghost { border: 0; background: rgba(255, 255, 255, 0.07); color: var(--ink); padding: 7px 11px; border-radius: 9px; cursor: pointer; font-size: 13px; }
 .ghost:hover { background: rgba(255, 255, 255, 0.12); }
 
@@ -174,13 +172,8 @@
 .cp-who span { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cp-close { flex: none; width: 32px; height: 32px; border: 0; border-radius: 9px; background: rgba(255,255,255,0.07); color: var(--ink-2); cursor: pointer; display: grid; place-items: center; }
 .cp-close:hover { background: rgba(255,255,255,0.13); color: var(--ink); }
-@container (max-width: 430px) {
-  .cp-head { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; }
-  .cp-head > .cp-who { grid-column: 2; grid-row: 1; }
-  .cp-head > .cp-close { grid-column: 3; grid-row: 1; justify-self: end; }
-  .cp-head > .cp-view { grid-column: 2; grid-row: 2; justify-self: start; }
-  .cp-head > .cp-hide { grid-column: 3; grid-row: 2; }
-}
+/* the header's actions are small icons, so a narrow panel keeps them on the title row */
+@container (max-width: 430px) { .cp-head { gap: 4px; } }
 .cp-list { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
 .cp-msg { max-width: 86%; display: flex; flex-direction: column; gap: 5px; }
 .cp-msg.you { align-self: flex-end; align-items: flex-end; }
@@ -870,11 +863,12 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .wl-boost.hot { background: #ffd27a; box-shadow: 0 0 12px rgba(255, 210, 122, 0.6); }
 .cm-error.calm { color: var(--ink-3); }
 
-/* Let Chromium composite the visible camera contents. Promoting the entire
-   world during a pan rasterizes a large shared surface after the camera settles. */
-/* Keep SVG artwork at the current display density while zooming. A permanently
-   promoted local surface otherwise magnifies its previous raster beside sharp HTML. */
-.world.scaling :is(.room, .world-seated, .world-walker-svg, .desk-unit > svg) { will-change: auto; }
+/* While the camera moves, the world is one frozen picture the GPU slides and scales.
+   Redrawing every SVG at each zoom step kept the GPU process 100% busy and halved the
+   frame rate. World.apply re-sharpens it (drops "zooming" for a frame) in small zoom
+   steps and once the camera settles. */
+.world.zooming { will-change: transform; }
+.world.resharp :is(.room, .room-art, .world-seated, .world-walker-svg) { will-change: auto !important; }
 .world.overview :is(.world-seated, .world-walker-svg) { will-change: auto; }
 /* Keep crowded overview rooms and actors on separate local surfaces. Otherwise
    every moving robot makes Chromium regroup the whole campus's paint chunks.
@@ -935,6 +929,7 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
   content: attr(data-compact-title); font-size: 14px; font-weight: 600; line-height: 1.2; order: -1; overflow-wrap: anywhere;
 }
 .world[data-label-detail="compact"] .desk-plate[data-compact-title]:not([data-compact-title=""]) { max-width: 185px; }
+
 /* Vacant furniture can be removed without opening a hiring dialog. */
 .empty-desk-remove { position:absolute; left:289px; top:0; z-index:8; display:grid; place-items:center; width:30px; height:30px; padding:0; border:0; border-radius:6px; background:var(--night-2); color:var(--ink-2); cursor:pointer; transition:background 130ms,transform 130ms cubic-bezier(.23,1,.32,1); }
 .desk-unit:not(.empty) .empty-desk-remove { display:none; }

@@ -45,7 +45,7 @@ if (!process.versions.electron) {
     const project=r=>({x:root.x+r.x*m.a,y:root.y+r.y*m.d,w:r.w*m.a,h:r.h*m.d});
     const targets=[...w.rooms.map(r=>({id:r.id,kind:'room',...rect(r.el)})),{id:'shop',kind:'shop',...rect(w.shopFront.el)},
       {id:'park',kind:'park',...project(w.outdoor.park)},
-      ...[...w.park.layer.querySelectorAll('.park-toy')].filter(e=>['pond','fountain'].includes(e.dataset.kind)).map(e=>({id:e.dataset.toy,kind:'park-target',...rect(e)})),
+      ...w.park.toys.spots.filter(s=>['pond','fountain'].includes(s.kind)).map(s=>({id:s.key,kind:'park-target',...project({x:s.x-s.rx,y:s.y-s.ry,w:s.rx*2,h:s.ry*2})})),
       ...[...w.neighbors.values()].flatMap(e=>e.office?e.office.rooms.map(r=>({id:e.open.textContent+':'+r.id,kind:'neighbor-room',...rect(r.el)})):[])];
     const inside=r=>r.w>0&&r.h>0&&r.x>=scene.x+12&&r.y>=scene.y+12&&r.x+r.w<=scene.right-12&&r.y+r.h<=scene.bottom-12;
     return {hidden:document.hidden,inert:w.scene.inert,cam:{x:w.cam.x,y:w.cam.y,s:w.cam.s},matrix:{a:m.a,d:m.d,e:m.e,f:m.f},root:rect(w.root),scene:rect(w.scene),targets:targets.map(r=>({...r,inside:inside(r)})),dpr:devicePixelRatio,viewport:{w:innerWidth,h:innerHeight}};

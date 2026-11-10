@@ -1,4 +1,4 @@
-"""One-time Windows setup for the isolated Ultra microphone trial."""
+"""One-time setup for Lucid's offline dictation (Windows and Linux)."""
 import hashlib
 import os
 from pathlib import Path
@@ -7,11 +7,13 @@ import sys
 import urllib.request
 import venv
 
-if sys.platform != "win32":
-    raise SystemExit("This trial launcher currently targets Windows.")
-root = Path(os.environ.get("LUCID_DICTATION_HOME", Path(os.environ["LOCALAPPDATA"]) / "Lucid" / "dictation"))
+if sys.platform not in ("win32", "linux"):
+    raise SystemExit("Dictation setup supports Windows and Linux.")
+# Same place electron/dictation.cjs looks: %LOCALAPPDATA% on Windows, ~/.local/share on Linux.
+data = os.environ.get("LOCALAPPDATA") or os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+root = Path(os.environ.get("LUCID_DICTATION_HOME", Path(data) / "Lucid" / "dictation"))
 root.mkdir(parents=True, exist_ok=True)
-python = root / "venv" / "Scripts" / "python.exe"
+python = root / "venv" / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
 if not python.exists():
     venv.EnvBuilder(with_pip=True).create(root / "venv")
 if subprocess.run([str(python), "-m", "pip", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
@@ -36,4 +38,4 @@ if not model.exists() or digest(model) != expected:
         raise SystemExit("Model checksum mismatch. Run setup again to retry.")
     partial.replace(model)
 print(f"\nReady. Model verified at {model}")
-print('Open "Test Dictation.cmd" to try the microphone.')
+print('Open "Test Dictation.cmd" to try the microphone.' if sys.platform == "win32" else "Click Dictate in a robot's chat to use it.")

@@ -2,9 +2,12 @@ import type { ThreadState } from "./thread-state";
 import { ChatPromptContext } from "./chat-prompt";
 import "./chat-prompt.css";
 import { watchLucidMedia } from "./media-player";
-import { wireChatLinks } from "./chat-links";
 import { parseThreadReference, threadCardMarkup, hydrateThreadCards, type ThreadReference, type ThreadCardInfo } from "./chat-thread-card";
 import { readPromptDraft, writePromptDraft } from "./prompt-draft";
+import { ChatShelf } from "./chat-shelf";
+import { EdgePeek, PIN_ICON, paintPin } from "./edge-peek";
+import { gameSound } from "./sound";
+import { wireChatLinks } from "./chat-links";
 import gsap from "gsap";
 import type { Desk } from "./desk";
 import { logoFor, harnessName } from "./brand";
@@ -16,8 +19,10 @@ import { beginSystem, endSystem } from "../perf/metrics";
 import { HistoryWindow, type HistoryCursor, type HistoryPage } from "./history-window";
 import { attachDictation } from "./dictation";
 import { sameChatMessage, type ChatMessage as Msg } from "./chat-message";
+import { turnLabel, workGroup, duration } from "./chat-work";
+const LIVE_RUN = new Set(["running", "starting", "preparing"]);
 import { chatReaderAnchor } from "./chat-scroll";
-import { chatFileUrl, chatMediaKind, inlineChatImage, prepareChatImages, chatImageFailed, setMediaThread , inlineChatFile, mountChatArtifact } from "./chat-media";
+import { chatFileUrl, chatMediaKind, inlineChatImage, prepareChatImages, chatImageFailed, setMediaThread, thumbSrc, inlineChatFile, mountChatArtifact } from "./chat-media";
 import { reviewReportId, renderChatReview, renderSourceChatReport, type ChatReviewPaper } from "./chat-review";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
@@ -42,7 +47,7 @@ type Api = {
   threadCard?(ref: ThreadReference): ThreadCardInfo | null;
   openThreadCard?(ref: ThreadReference): void;
   conversation(id: string): Promise<Msg[]>;
-  conversationPage?(id: string, options?: { before?: HistoryCursor | null }): Promise<HistoryPage<Msg>>;
+  conversationPage?(id: string, options?: { before?: HistoryCursor | null; work?: boolean }): Promise<HistoryPage<Msg>>;
   sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
   saveAttachment(name: string, data: Uint8Array): Promise<string>;
   /** Show a delivered file in its folder (the desktop app only). */
@@ -100,7 +105,7 @@ function mediaAttachment(path: string, name: string, mime = "", reveal = false) 
   if (kind === "video" || kind === "audio") return inlineChatFile(path, name);
   if (!kind && reveal) return inlineChatFile(path, name) + `<button type="button" class="cp-file" data-file-path="${esc(path)}" aria-label="Show ${esc(name)} in its folder" title="${esc(path)}"><span>${esc(name)}</span><i>Show in folder</i></button>`;
   if (!kind) return inlineChatFile(path, name);
-  return `<button type="button" class="${kind === "image" ? "cp-att" : "cp-file"}" data-media-src="${fileUrl(path)}" data-media-kind="${kind}" data-media-name="${esc(name)}" aria-label="Preview ${esc(name)}">${kind === "image" ? `<img src="${fileUrl(path)}" alt="${esc(name)}" loading="lazy">` : `<span>${esc(name)}</span><i>Open ${kind}</i>`}</button>`;
+  return `<button type="button" class="${kind === "image" ? "cp-att" : "cp-file"}" data-media-src="${fileUrl(path)}" data-media-kind="${kind}" data-media-name="${esc(name)}" aria-label="Preview ${esc(name)}">${kind === "image" ? `<img src="${thumbSrc(fileUrl(path), 480)}" alt="${esc(name)}" loading="lazy" decoding="async">` : `<span>${esc(name)}</span><i>Open ${kind}</i>`}</button>`;
 }
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -138,6 +143,8 @@ mdParser.use({
     },
   },
 });
+/** The chat's Markdown, for other views that show a robot's words (the desk's report panel). */
+export const renderChatMarkdown = (text: string) => md(text);
 function md(text: string) {
   const html = mdParser.parse(text, { async: false }) as string;
   return DOMPurify.sanitize(prepareChatImages(html), {
@@ -153,8 +160,6 @@ const when = (iso: string) => {
   return d.toDateString() === now.toDateString() ? t : `${d.toLocaleDateString([], { month: "short", day: "numeric" })}, ${t}`;
 };
 
-export const renderChatMarkdown = (text: string) => md(text);
-
 export class ChatPanel {
   el: HTMLElement;
   private promptContext!: ChatPromptContext;
@@ -162,6 +167,20 @@ export class ChatPanel {
   private shown = new Map<string, HTMLElement>();
   private timer = 0;
   private groups = new Map<string, HTMLElement>();
+  /** Tool groups you opened or closed yourself, by turn and position. */
+  private toolGroups = new Map<string, boolean>();
+  private workingTimer = 0;
+  /** "Working for 2m 13s" under a live turn, counted every second while one is shown. */
+  private tickWorking() {
+    const lines = [...this.el.querySelectorAll<HTMLElement>(".cp-working:not([hidden])")];
+    for (const p of lines) {
+      const start = Date.parse(p.dataset.start || "");
+      const text = Number.isFinite(start) ? `Working for ${duration(Date.now() - start)}` : "Working...";
+      if (p.textContent !== text) p.textContent = text;
+    }
+    window.clearTimeout(this.workingTimer);
+    if (lines.length && !document.hidden) this.workingTimer = window.setTimeout(() => this.tickWorking(), 1000);
+  }
   private renderedMessages = new Map<string, Msg>();
   private reviewPapers = new Map<string, ChatReviewPaper>();
   private reviewLookups = new Set<string>();
@@ -188,6 +207,8 @@ export class ChatPanel {
     this.el.querySelector('.cp-manage')!.textContent = label ? 'Edit manager' : 'Promote to manager';
   }
   onToggleView: () => void = () => {};
+  /** The thread's title and project from the thread list, for desks whose details are still loading. */
+  threadFacts: (id: string) => { title?: string; project?: string; model?: string | null } | null = () => null;
   /** You started or stopped typing a message to this robot. */
   onTyping: (on: boolean) => void = () => {};
   private pending: { threadId: string; text: string; at: number }[] = [];
@@ -266,7 +287,7 @@ export class ChatPanel {
   dropZone(x: number, y: number): "box" | "tab" | null {
     if (!this.isOpen) return null;
     const hit = (el: Element) => { const r = el.getBoundingClientRect(); return r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; };
-    if (this.collapsed) return hit(this.tab) ? "tab" : null;
+    if (this.collapsed && !this.peek.shown) return hit(this.tab) ? "tab" : null;
     return hit(this.el) ? "box" : null;
   }
 
@@ -332,10 +353,61 @@ export class ChatPanel {
   wide: () => number = () => 440;
   private tab!: HTMLButtonElement;
   private tabLabel = "Chat";
+  private shelf: ChatShelf | null = null;
+  finishShelf() { if (!this.peek?.shown) this.shelf?.finish(); }
+
+  // --- auto-hide: folded in the layout, sliding over the office while you need it -------
+  /** The chat stays folded and slides out over the office on hover instead of taking a column. */
+  autoHide = false;
+  /** Auto-hide was switched on or off with the pin. The page remembers it. */
+  onAutoHide: (on: boolean) => void = () => {};
+  /** The width the chat slides out to while auto-hiding. */
+  peekWidth: () => number = () => 440;
+  private peek!: EdgePeek;
+  private makePeek() { return new EdgePeek({
+    side: "right",
+    panel: this.el,
+    edge: () => this.tab,
+    width: () => this.peekWidth(),
+    reveal: () => { this.el.classList.remove("tabbed"); this.el.inert = false; },
+    conceal: () => { this.el.classList.add("tabbed"); this.el.inert = true; },
+    busy: () => !!this.menuClose || this.el.classList.contains("ref-dragging") || !!this.el.querySelector<HTMLDialogElement>(".cp-zoom")?.open,
+    onChange: (shown) => { this.el.classList.toggle("peek-shown", shown); if (!shown) this.closeMenu(); },
+  }); }
+  private mobile() { return !!this.el.closest(".mobile-layout"); }
+  /** Whether the conversation is on screen: open in its column, or sliding over the office. */
+  get visible() { return this.isOpen && (!this.collapsed || this.peek.shown) && !this.el.inert; }
+
+  setAutoHide(on: boolean, animate = true) {
+    if (on === this.autoHide) return;
+    if (on) {
+      // the open column tucks away first, then hovering the edge brings it back
+      if (!this.collapsed) this.setCollapsed(true, animate);
+      this.autoHide = true;
+      this.peek.setEnabled(true);
+    } else {
+      const wasShown = this.peek.shown;
+      this.peek.release();
+      this.peek.setEnabled(false);
+      this.autoHide = false;
+      this.pinOpen = wasShown;
+      // the panel is already where it belongs: the column grows under it while it holds still
+      if (wasShown) this.setCollapsed(false, animate);
+      this.pinOpen = false;
+    }
+    this.paintPin();
+    this.onAutoHide(on);
+  }
+  private pinOpen = false;
+  private paintPin() { this.el.querySelectorAll<HTMLElement>(".cp-pin").forEach((b) => paintPin(b, !this.autoHide, "chat", "right")); }
 
   setCollapsed(on: boolean, animate = true) {
     if (on) this.dictation.cancel();
     if (!on && !this.isOpen) { this.onChooseThread(); return; }
+    if (this.autoHide && !this.mobile()) {
+      if (on) this.peek.hide(animate); else this.peek.show(animate);
+      return;
+    }
     if (on === this.collapsed) return;
     this.collapsed = on;
     const el = this.el, tab = this.tab;
@@ -345,25 +417,14 @@ export class ChatPanel {
     gsap.killTweensOf([el, tab]);
     this.closeMenu();
     const hadFocus = !!document.activeElement && (el.contains(document.activeElement) || document.activeElement === tab);
-    // while the column narrows or widens, the panel keeps its width and is clipped by the window edge
-    const pin = (w: number) => { el.style.width = `${w}px`; el.style.justifySelf = "start"; };
-    const unpin = () => { el.style.width = ""; el.style.justifySelf = ""; };
-    if (on) {
-      const w = el.offsetWidth || this.wide();
-      const done = () => { unpin(); el.classList.add("tabbed"); gsap.set(el, { clearProps: "opacity" }); tab.hidden = false; if (hadFocus) tab.focus({ preventScroll: true }); if (!still) gsap.fromTo(tab, { x: 24, opacity: 0 }, { x: 0, opacity: 1, duration: 0.24, ease: "power3.out", clearProps: "x,opacity" }); };
-      if (still) done();
-      else { pin(w); gsap.to(el, { opacity: 0, duration: 0.26, ease: "power2.in", onComplete: done }); }
-    } else {
-      // the tab steps aside and the panel comes back out of the right edge
-      tab.hidden = true;
-      el.classList.remove("tabbed");
-      if (!still) { pin(this.wide()); gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out", delay: 0.08, onComplete: unpin }); }
-      if (hadFocus) (el.querySelector(this.isOpen ? "textarea" : ".cp-hide") as HTMLElement).focus({ preventScroll: true });
-    }
-    this.onCollapse(on, !still);
+    const width = on ? el.offsetWidth || this.wide() : this.wide();
+    this.shelf ??= new ChatShelf(el, tab);
+    this.shelf.set(on, width, !still, () => this.onCollapse(on, !still), this.pinOpen ? 0 : undefined);
+    if (hadFocus) (on ? tab : el.querySelector<HTMLElement>(this.isOpen ? "textarea" : ".cp-hide"))?.focus({ preventScroll: true });
   }
 
   constructor(host: HTMLElement, private api: Api) {
+    window.addEventListener("pagehide", () => this.finishShelf(), { once: true });
     this.el = document.createElement("aside");
     this.el.className = "chat-panel";
     this.el.setAttribute("aria-label", "Chat with this robot");
@@ -377,12 +438,12 @@ export class ChatPanel {
         <img class="cp-logo" alt="">
         <div class="cp-who"><b></b><span></span></div>
         <button type="button" class="cp-studio cp-icon" aria-label="Design a website on Ares" title="Website studio on Ares"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="1.3"/><path d="M1.5 6h13M10.5 6v7.5"/></svg></button>
-        <button type="button" class="cp-view ghost"></button>
-        <button type="button" class="cp-hide ghost" aria-expanded="true" title="Hide the chat for more room. It stays as a tab on the right edge.">Hide chat</button>
+        <button type="button" class="cp-view cp-icon" aria-label="Look at the screen" title="Look at the screen"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="2" y="2.5" width="12" height="8.5" rx="1.6" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M6 13.5h4M8 11v2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+        <button type="button" class="cp-pin cp-icon pin-btn" aria-pressed="true">${PIN_ICON}</button>
+        <button type="button" class="cp-hide cp-icon" aria-expanded="true" aria-label="Hide chat" title="Hide the chat for more room. It stays as a tab on the right edge."><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M6.5 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
         <button type="button" class="cp-close" aria-label="Back to the office" title="Back to the office (Esc)"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
       </header>
-      <div class="cp-management"><span class="cp-manager-face" hidden></span><span class="cp-manager-label"></span><button type="button" class="cp-manage ghost">Promote to manager</button></div>
-      <p class="cp-status" aria-live="polite"><i></i><span></span></p>
+      <div class="cp-sub"><p class="cp-status" aria-live="polite"><i></i><span></span></p><div class="cp-management"><span class="cp-manager-face" hidden></span><span class="cp-manager-label"></span><button type="button" class="cp-manage link-btn">Promote to manager</button></div></div>
       <details class="cp-plan" hidden><summary>Plan</summary><ol></ol></details>
       <div class="cp-list" role="log" aria-live="polite"></div>
       <section class="cp-queue" aria-label="Queued messages" hidden><button type="button" class="cq-head" aria-expanded="true"><b>Queued</b><span class="cq-count"></span><i aria-hidden="true"></i></button><p class="cq-note" role="status" hidden></p><ol></ol></section>
@@ -411,7 +472,6 @@ export class ChatPanel {
       </form>`;
     host.appendChild(this.el);
     watchLucidMedia(this.el);
-    if ((window as any).lucid?.openExternal) wireChatLinks(this.el, url => (window as any).lucid.openExternal(url));
     this.el.addEventListener("click", event => {
       const file = (event.target as Element)?.closest<HTMLAnchorElement>("a.cp-download");
       const download = (window as any).lucid?.downloadAnswer;
@@ -424,7 +484,7 @@ export class ChatPanel {
       const ref = card && parseThreadReference(card.dataset.threadRef || "");
       if (ref && this.api.threadCard?.(ref)) { event.preventDefault(); this.api.openThreadCard?.(ref); }
     });
-
+    if ((window as any).lucid?.openExternal) wireChatLinks(this.el, url => (window as any).lucid.openExternal(url));
     this.el.querySelector('.cp-manage')!.addEventListener('click', () => { if (this.threadId) this.onManage(this.threadId); });
     // folded, the chat is a tab on the right edge with the robot's name
     this.tab = document.createElement("button");
@@ -439,9 +499,25 @@ export class ChatPanel {
     this.tab.addEventListener("click", () => this.setCollapsed(false));
     this.tab.title = "Choose a thread to chat";
     this.el.querySelectorAll(".cp-hide").forEach((b) => b.addEventListener("click", () => this.setCollapsed(true)));
+    this.peek = this.makePeek();
+    this.paintPin();
+    this.el.querySelectorAll<HTMLElement>(".cp-pin").forEach((b) => b.addEventListener("click", () => { this.setAutoHide(!this.autoHide); gameSound.play("clip"); }));
     this.el.querySelector(".cp-close")!.addEventListener("click", () => this.onClose());
     this.el.querySelector(".cp-studio")!.addEventListener("click", () => { document.dispatchEvent(new CustomEvent("lucid:website-studio", { detail: { threadId: this.threadId, name: this.threadFacts(this.threadId || "")?.title } })); });
     this.el.querySelector(".cp-view")!.addEventListener("click", () => this.onToggleView());
+    // T3's tool groups: the summary line opens and closes its calls; your choice is remembered.
+    this.promptContext = new ChatPromptContext(this.el.querySelector<HTMLElement>(".cp-list")!);
+    this.el.querySelector(".cp-list")!.addEventListener("click", (e) => {
+      const toggle = (e.target as HTMLElement).closest<HTMLElement>(".cw-toggle");
+      const group = toggle?.closest<HTMLElement>(".cw-group");
+      if (!toggle || !group) return;
+      const open = !group.classList.contains("open");
+      group.classList.toggle("open", open); toggle.setAttribute("aria-expanded", String(open));
+      const box = group.querySelector<HTMLElement>(".cw-scroll")!;
+      box.hidden = !open;
+      if (open) box.scrollTop = box.scrollHeight;
+      this.toolGroups.set(group.dataset.key!, open);
+    });
     const form = this.el.querySelector(".cp-form") as HTMLFormElement;
     const ta = form.querySelector("textarea")!;
     this.dictation = attachDictation(form, () => this.threadId);
@@ -574,7 +650,6 @@ export class ChatPanel {
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing && (!phone || e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit(); }
     });
     this.el.querySelector(".cp-list")!.addEventListener("error", chatImageFailed, true);
-    this.promptContext = new ChatPromptContext(this.el.querySelector<HTMLElement>(".cp-list")!);
     this.el.querySelector(".cp-list")!.addEventListener("click", (e) => {
       const t = e.target as HTMLElement;
       const review = t.closest<HTMLElement>(".cp-review [data-review-open],.cp-review [data-review-thread]");
@@ -653,9 +728,17 @@ export class ChatPanel {
     const img = this.el.querySelector(".cp-logo") as HTMLImageElement;
     img.hidden = !logo;
     if (logo) img.src = logo;
-    this.el.querySelector(".cp-who b")!.textContent = desk.profile?.name ? `${desk.profile.name}` : `${harnessName(info?.provider)} robot`;
-    this.el.querySelector(".cp-who span")!.textContent = info?.title || "";
-    this.tabLabel = `Chat with ${this.el.querySelector(".cp-who b")!.textContent}`;
+    // Like T3: the thread's title leads; who works on it, where and with which model below.
+    const robotName = desk.profile?.name ? `${desk.profile.name}` : `${harnessName(info?.provider)} robot`;
+    const facts = desk.threadId ? this.threadFacts(desk.threadId) : null;
+    const threadTitle = info?.title || facts?.title || "";
+    const title = this.el.querySelector(".cp-who b") as HTMLElement;
+    title.textContent = threadTitle || robotName; title.title = threadTitle;
+    const model = (info?.model || facts?.model || "").replace(/^claude-/, "").replace(/^gpt-/, "GPT ").replace(/-(\d)-(\d)/, " $1.$2").replace(/-/g, " ").replace(/\b[a-z]/g, (c) => c.toUpperCase());
+    const projectTitle = info?.projectTitle || facts?.project || "";
+    const project = projectTitle && !/^no project$/i.test(projectTitle) ? projectTitle : "";
+    this.el.querySelector(".cp-who span")!.textContent = [robotName, project, model].filter(Boolean).join(" · ");
+    this.tabLabel = `Chat with ${robotName}`;
     (this.tab.querySelector("span") as HTMLElement).textContent = this.tabLabel;
     this.tab.setAttribute("aria-label", `Show ${this.tabLabel.replace(/^Chat/, "chat")}`);
     this.tab.title = `Show the chat. ${info?.title || ""}`.trim();
@@ -665,7 +748,7 @@ export class ChatPanel {
     if (!this.isOpen) {
       this.el.classList.add("open");
       // the empty panel becomes this robot's chat: its parts settle in one after another
-      if (!this.collapsed) gsap.from([...this.el.children].filter((c) => !c.classList.contains("cp-empty")), { opacity: 0, y: 8, duration: 0.32, ease: "power2.out", stagger: 0.04, clearProps: "opacity,y" });
+      if (!this.collapsed && !matchMedia("(prefers-reduced-motion: reduce)").matches) gsap.from([...this.el.children].filter((c) => !c.classList.contains("cp-empty")), { opacity: 0, duration: 0.14, ease: "power3.out", clearProps: "opacity" });
     }
     this.setCollapsed(false);
     this.refresh();
@@ -678,6 +761,7 @@ export class ChatPanel {
   }
 
   private clearTranscript() {
+    this.toolGroups.clear(); window.clearTimeout(this.workingTimer);
     this.history = new HistoryWindow<Msg>(); this.historyGeneration++; this.loadingOlder = false;
     this.promptContext.clear();
     this.shown.clear(); this.groups.clear(); this.renderedMessages.clear(); this.timelineIds = null;
@@ -714,7 +798,8 @@ export class ChatPanel {
   }
 
   setView(mode: "desk" | "screen") {
-    (this.el.querySelector(".cp-view") as HTMLElement).textContent = mode === "desk" ? "Look at the screen" : "Back to the desk";
+    const view = this.el.querySelector(".cp-view") as HTMLElement, label = mode === "desk" ? "Look at the screen" : "Back to the desk";
+    view.title = label; view.setAttribute("aria-label", label); view.classList.toggle("on", mode === "screen");
   }
 
   // What the robot is doing right now, in plain words.
@@ -792,7 +877,7 @@ export class ChatPanel {
     const generation = this.historyGeneration;
     let page: HistoryPage<Msg>;
     try {
-      page = this.api.conversationPage ? await this.api.conversationPage(id) : { messages: await this.api.conversation(id), cursor: null, hasMore: false };
+      page = this.api.conversationPage ? await this.api.conversationPage(id, { work: true }) : { messages: await this.api.conversation(id), cursor: null, hasMore: false };
       await this.loadReviewPapers(page.messages, id, generation);
       if (id === this.threadId && generation === this.historyGeneration && !this.sourceReportLoaded && this.api.sourceReport) {
         const version = this.sourceReportVersion;
@@ -815,7 +900,7 @@ export class ChatPanel {
     this.loadingOlder = true;
     this.historyButton();
     try {
-      const page = await this.api.conversationPage(id, { before: cursor });
+      const page = await this.api.conversationPage(id, { before: cursor, work: true });
       await this.loadReviewPapers(page.messages, id, generation);
       if (id !== this.threadId || generation !== this.historyGeneration) return;
       this.renderHistory(this.history.update(page, true), true);
@@ -899,7 +984,12 @@ export class ChatPanel {
       if (!ids.has(id)) { this.shown.get(id)!.remove(); this.shown.delete(id); this.renderedMessages.delete(id); }
     }
     list.querySelector(".cp-empty:not(.cp-notice)")?.remove();
-    const batches: { key: string; role: string; messages: Msg[] }[] = [];
+    // Turns, like T3 Code: your message, then one "Worked for 7m" fold holding the progress
+    // updates and the actions in time order, then the final reply. A live turn keeps its fold open.
+    type Turn = { key: string; users: Msg[]; middle: Msg[]; final: Msg | null; work: Msg | null; event?: Msg; live: boolean };
+    const turns: Turn[] = [];
+    let cur: Turn | null = null;
+    const fresh = (key: string): Turn => { const t: Turn = { key, users: [], middle: [], final: null, work: null, live: false }; turns.push(t); return t; };
     for (const m of timeline) {
       let el = this.shown.get(m.id);
       if (!el) {
@@ -908,7 +998,7 @@ export class ChatPanel {
         el.dataset.id = m.id;
         this.shown.set(m.id, el);
       }
-      if (changed.has(m.id)) {
+      if (changed.has(m.id) && m.role !== "work") {
         const expanded = el.classList.contains("open");
         el.innerHTML = m.event ? this.renderEvent(m) : this.render(m);
         if (m.artifact) mountChatArtifact(el, m.artifact);
@@ -921,39 +1011,92 @@ export class ChatPanel {
           el.appendChild(more);
         }
       }
-      const prev = batches.at(-1);
-      const minute = Math.floor(Date.parse(m.at) / 60000);
-      if (m.role !== "event" && prev?.role === m.role && Math.floor(Date.parse(prev.messages[0].at) / 60000) === minute) prev.messages.push(m);
-      else batches.push({ key: m.id, role: m.role, messages: [m] });
+      if (m.role === "event") { turns.push({ key: m.id, users: [], middle: [], final: null, work: null, event: m, live: false }); cur = null; continue; }
+      if (m.role === "user") {
+        if (!cur || cur.middle.length || cur.work || cur.event) cur = fresh(m.id);
+        cur.users.push(m);
+        if (m.run && LIVE_RUN.has(m.run)) cur.live = true;
+        continue;
+      }
+      cur ??= fresh(m.id);
+      if (m.role === "work") { cur.work = m; if (LIVE_RUN.has(m.work!.status)) cur.live = true; }
+      else { cur.middle.push(m); if (m.streaming) cur.live = true; }
     }
+    for (const t of turns) if (!t.live && t.middle.length) t.final = t.middle.pop()!;
     for (const node of this.shown.values()) hydrateThreadCards(node, this.api.threadCard);
     const activeGroups = new Set<string>();
     let previous: HTMLElement | null = historyButton;
-    for (const batch of batches) {
+    for (const turn of turns) {
       let row: HTMLElement;
-      if (batch.role === "event") row = this.shown.get(batch.key)!;
+      if (turn.event) row = this.shown.get(turn.key)!;
       else {
-        activeGroups.add(batch.key);
-        row = this.groups.get(batch.key)!;
+        activeGroups.add(turn.key);
+        row = this.groups.get(turn.key)!;
         if (!row) {
           row = document.createElement("section");
-          row.className = `cp-group ${batch.role === "user" ? "you" : "bot"}`;
-          row.innerHTML = `<details class="cp-earlier"><summary></summary><div class="cp-earlier-body"></div></details><div class="cp-latest"></div>`;
-          this.groups.set(batch.key, row);
+          row.className = "cp-turn";
+          row.innerHTML = `<div class="cp-turn-you"></div><details class="cp-worked"><summary></summary><div class="cp-worked-body"></div></details><p class="cp-working" role="status" hidden></p><div class="cp-turn-final"></div>`;
+          // Once you open or close a fold yourself, it stays that way.
+          row.querySelector("summary")!.addEventListener("click", () => { row.dataset.chosen = "1"; });
+          // a fold opened later shows the end of each tool box, like T3
+          row.querySelector("details")!.addEventListener("toggle", (e) => { if ((e.target as HTMLDetailsElement).open) row.querySelectorAll<HTMLElement>(".cw-scroll").forEach(b => { b.scrollTop = b.scrollHeight; }); });
+          this.groups.set(turn.key, row);
         }
-        const details = row.querySelector("details")!;
-        const hideEarlier = batch.messages.length < 2;
-        if (details.hidden !== hideEarlier) details.hidden = hideEarlier;
-        const count = batch.messages.length - 1;
-        const summary = details.querySelector("summary")!;
-        const label = `${count} earlier ${batch.role === "user" ? (count === 1 ? "message" : "messages") : (count === 1 ? "update" : "updates")}`;
-        if (summary.textContent !== label) summary.textContent = label;
-        const earlier = row.querySelector(".cp-earlier-body")!, latest = row.querySelector(".cp-latest")!;
-        batch.messages.forEach((m, i) => {
-          const target = i === batch.messages.length - 1 ? latest : earlier;
-          const el = this.shown.get(m.id)!;
-          if (el.parentElement !== target) target.appendChild(el);
-        });
+        const you = row.querySelector<HTMLElement>(".cp-turn-you")!, details = row.querySelector("details")!;
+        const body = row.querySelector<HTMLElement>(".cp-worked-body")!, fin = row.querySelector<HTMLElement>(".cp-turn-final")!;
+        turn.users.forEach((m, i) => { const el = this.shown.get(m.id)!; if (you.children[i] !== el) you.insertBefore(el, you.children[i] ?? null); });
+        while (you.children.length > turn.users.length) you.lastElementChild!.remove();
+        const fold = turn.middle.length > 0 || !!turn.work;
+        if (details.hidden === fold) details.hidden = !fold;
+        // Like T3: a live turn shows its work as it happens with "Working for 2m 13s" below; a
+        // finished one folds it all behind "Worked for 7m".
+        row.classList.toggle("live", turn.live);
+        const working = row.querySelector<HTMLElement>(".cp-working")!;
+        if (working.hidden === turn.live) working.hidden = !turn.live;
+        if (turn.live) { working.dataset.start = turn.work?.work?.startedAt || turn.users[0]?.at || turn.middle[0]?.at || ""; this.tickWorking(); }
+        if (fold) {
+          const summary = details.querySelector("summary")!;
+          const label = turnLabel(turn.work?.work ?? null, turn.users[0]?.at ?? turn.middle[0]?.at ?? null, turn.final?.at ?? null, turn.live, turn.middle.length);
+          if (summary.dataset.label !== label) { summary.dataset.label = label; summary.innerHTML = label; }
+          if (turn.live) { if (!details.open) details.open = true; }
+          else if (!row.dataset.chosen && details.open) details.open = false;
+          const sig = [turn.middle.filter(m => !m.artifact).map(m => m.id).join(","), turn.work?.work?.sig ?? ""].join("|");
+          if (body.dataset.sig !== sig) {
+            body.dataset.sig = sig;
+            // the newest tool box follows new entries unless you scrolled up inside it
+            const oldBox = [...body.querySelectorAll<HTMLElement>(".cw-scroll")].at(-1);
+            const stick = !oldBox || oldBox.scrollHeight - oldBox.scrollTop - oldBox.clientHeight < 24, keepTop = oldBox?.scrollTop ?? 0;
+            body.replaceChildren();
+            // progress updates and actions interleaved by time; runs of actions share one list
+            const lines = turn.work?.work?.lines ?? [];
+            const parts: { at: string; el?: HTMLElement; line?: typeof lines[number] }[] = [
+              ...turn.middle.filter(m => !m.artifact).map(m => ({ at: m.orderAt || m.at, el: this.shown.get(m.id)! })),
+              ...lines.map(l => ({ at: l.a || "", line: l })),
+            ].sort((a, b) => a.at.localeCompare(b.at));
+            // runs of tool calls between messages become T3's summary groups; while the robot works,
+            // its newest group stays open so you watch the calls arrive
+            const segments: (HTMLElement | typeof lines)[] = [];
+            for (const part of parts) {
+              if (part.line) { const last = segments.at(-1); if (Array.isArray(last)) last.push(part.line); else segments.push([part.line]); }
+              else segments.push(part.el!);
+            }
+            const lastRun = segments.findLastIndex(Array.isArray);
+            segments.forEach((seg, i) => {
+              if (!Array.isArray(seg)) { body.appendChild(seg); return; }
+              const key = `${turn.key}:${i}`;
+              const open = this.toolGroups.get(key) ?? (turn.live && i === lastRun);
+              body.insertAdjacentHTML("beforeend", workGroup(seg, key, open));
+            });
+            const boxes = [...body.querySelectorAll<HTMLElement>(".cw-scroll")];
+            boxes.forEach((box, i) => { box.scrollTop = i === boxes.length - 1 && !stick ? keepTop : box.scrollHeight; });
+            const hidden = (turn.work?.work?.total ?? 0) - lines.length;
+            if (hidden > 0) body.insertAdjacentHTML("afterbegin", `<p class="cw-more">${hidden} earlier ${hidden === 1 ? "action" : "actions"} not shown</p>`);
+          }
+        } else if (body.childElementCount) { body.replaceChildren(); body.dataset.sig = ""; }
+        const artifacts = turn.middle.filter(m => m.artifact).map(m => this.shown.get(m.id)!);
+        const finalEl = turn.final ? this.shown.get(turn.final.id)! : null;
+        const answers = [...artifacts, ...(finalEl ? [finalEl] : [])];
+        if (answers.length !== fin.childElementCount || answers.some((e, i) => fin.children[i] !== e)) fin.replaceChildren(...answers);
       }
       const next: Element | null = previous ? previous.nextElementSibling : list.firstElementChild;
       if (next !== row) list.insertBefore(row, next);

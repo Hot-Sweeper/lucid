@@ -2,7 +2,8 @@ import './dictation.css';
 import { loadCaptureWorklet } from './dictation-worklet';
 
 type DictationResult = { text: string; computeMs: number; audioSeconds: number };
-type DictationAPI = { load(mode?: string): Promise<unknown>; run(bytes: Uint8Array): Promise<DictationResult>; cancel(): Promise<void> };
+type SetupStatus = { ready: boolean; installing: boolean; progress: number; stage: string; error: string };
+type DictationAPI = { load(mode?: string): Promise<unknown>; run(bytes: Uint8Array): Promise<DictationResult>; cancel(): Promise<void>; status?(): Promise<SetupStatus>; setup?(): Promise<SetupStatus> };
 declare global { interface Window { lucidDictation?: DictationAPI } }
 
 /** One recording belongs to one composer/thread. Closing it invalidates late results. */
@@ -25,6 +26,23 @@ export function attachDictation(form: HTMLFormElement, owner: () => string | nul
   let chunks: Float32Array[] = [], limit = 0, previousSendDisabled = false;
   let flushDone: (() => void) | null = null;
   const message = (text: string) => { note.textContent = text; note.hidden = !text; };
+  // First use: the offline speech model is installed from here, with its real progress.
+  let setupTimer = 0;
+  function showSetup(st: SetupStatus) {
+    window.clearTimeout(setupTimer);
+    if (st.ready) { message('Dictation is ready. Click Dictate and speak.'); return; }
+    if (st.installing) {
+      const pct = st.progress > 0 ? ` ${Math.round(st.progress * 100)}%` : '';
+      message(`${st.stage || 'Setting up dictation'}...${pct}`);
+      setupTimer = window.setTimeout(() => { void api!.status!().then(showSetup).catch(() => message('Dictation setup stopped answering. Try again.')); }, 1000);
+      return;
+    }
+    note.replaceChildren(document.createTextNode(st.error ? `Setup failed: ${st.error} ` : 'Dictation runs offline and needs a one-time download of its speech model (about 760 MB). '));
+    const go = document.createElement('button');
+    go.type = 'button'; go.className = 'link-btn cp-dictation-setup'; go.textContent = st.error ? 'Try again' : 'Download';
+    go.onclick = () => { go.disabled = true; void api!.setup!().then(showSetup).catch(e => message(e instanceof Error ? e.message : 'Setup failed.')); };
+    note.append(go); note.hidden = false;
+  }
   function state(next: typeof phase) {
     phase = next;
     button.disabled = next === 'transcribing';
@@ -92,6 +110,10 @@ export function attachDictation(form: HTMLFormElement, owner: () => string | nul
   }
   async function begin() {
     if (!owner() || input.disabled) return;
+    if (api!.status) {
+      try { const st = await api!.status(); if (!st.ready) { showSetup(st); return; } }
+      catch { /* an older backend without setup status still records as before */ }
+    }
     const mine = ++generation;
     previousSendDisabled = send.disabled;
     state('starting'); message('Opening microphone...');

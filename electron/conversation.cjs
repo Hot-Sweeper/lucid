@@ -2,6 +2,64 @@
 const { answerArtifacts } = require("./answer-artifacts.cjs");
 const { historyEvents } = require("./chat-history.cjs");
 const parse = (s) => { try { return JSON.parse(s); } catch { return null; } };
+
+// T3's work log: what each turn did (commands, edits, searches, tools), read with
+// json_extract so large tool outputs never leave SQLite. Finished turns never change, so
+// their summaries are cached; only the live turn is read again.
+const WORK_TYPES = ["command_execution", "file_change", "web_search", "dynamic_tool", "subagent", "error"];
+const workCache = new Map();
+// Codex runs everything as /bin/bash -lc "..."; show the command itself, first line only.
+function shellCommand(text) {
+  let t = String(text).trim();
+  const m = /^(?:\/usr)?(?:\/bin\/)?(?:bash|zsh|sh)\s+-l?c\s+(['"])/.exec(t);
+  if (m) { t = t.slice(m[0].length); if (t.endsWith(m[1])) t = t.slice(0, -1); }
+  return t.split("\n")[0].trim();
+}
+const LINES = 200;
+function turnWork(db, threadId, runs) {
+  const out = new Map(), need = [];
+  for (const r of runs) {
+    const hit = workCache.get(r.runId);
+    if (hit && hit.status === r.status) out.set(r.runId, hit.work); else need.push(r);
+  }
+  if (!need.length) return out;
+  const rows = db.prepare(`select run_id as runId, type, status,
+      substr(case when type = 'command_execution' then json_extract(payload_json, '$.input') end, 1, 240) as input,
+      json_extract(payload_json, '$.fileName') as file, json_extract(payload_json, '$.title') as title,
+      json_extract(payload_json, '$.toolName') as tool, json_extract(payload_json, '$.patterns[0]') as pattern,
+      json_extract(payload_json, '$.toolSource.name') as source,
+      substr(json_extract(payload_json, '$.message'), 1, 200) as message,
+      coalesce(json_extract(payload_json, '$.startedAt'), updated_at) as at
+    from orchestration_v2_projection_turn_items where thread_id = ? and run_id in (${need.map(() => "?").join(",")})
+      and type in (${WORK_TYPES.map(() => "?").join(",")}) order by ordinal asc`)
+    .all(threadId, ...need.map((r) => r.runId), ...WORK_TYPES);
+  const byRun = new Map();
+  for (const row of rows) { if (!byRun.has(row.runId)) byRun.set(row.runId, []); byRun.get(row.runId).push(row); }
+  for (const r of need) {
+    const items = byRun.get(r.runId) || [];
+    if (!items.length) { out.set(r.runId, null); continue; }
+    const files = new Set(), count = { commands: 0, edits: 0, searches: 0, tools: 0, agents: 0, failed: 0 };
+    const lines = items.map((it) => ({ ...line(it), a: it.at || undefined }));
+    function line(it) {
+      if (it.status === "failed" || it.type === "error") count.failed++;
+      if (it.type === "command_execution") { count.commands++; return { k: "cmd", t: shellCommand(it.input || it.title || "command"), s: it.status }; }
+      if (it.type === "file_change") { files.add(it.file || ""); return { k: "edit", t: it.file || it.title || "file", s: it.status }; }
+      if (it.type === "web_search") { count.searches++; return { k: "search", t: it.pattern || it.title || "web search", s: it.status }; }
+      if (it.type === "subagent") { count.agents++; return { k: "agent", t: it.title || "subagent", s: it.status }; }
+      if (it.type === "error") return { k: "error", t: it.message || it.title || "error", s: "failed" };
+      count.tools++; return { k: "tool", t: it.title || String(it.tool || "tool").split(".").pop(), s: it.status, ...(it.source ? { src: it.source } : {}) };
+    }
+    count.edits = files.size;
+    const work = { status: r.status, startedAt: r.startedAt || null, completedAt: r.completedAt || null, ...count, total: lines.length, lines: lines.slice(-LINES) };
+    work.sig = [r.status, work.total, count.failed, work.completedAt, lines.at(-1)?.s].join("|");
+    out.set(r.runId, work);
+    if (!["running", "starting", "preparing", "queued"].includes(r.status)) {
+      workCache.set(r.runId, { status: r.status, work });
+      if (workCache.size > 600) workCache.delete(workCache.keys().next().value);
+    }
+  }
+  return out;
+}
 function readConversation(db, threadId, options = {}, attachmentPath = () => null) {
   const safeJson = parse;
   const limit = Math.max(1, Math.min(200, Math.floor(Number(options.limit) || 80)));
@@ -28,6 +86,7 @@ function readConversation(db, threadId, options = {}, attachmentPath = () => nul
     rows.unshift(...extra.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0)));
   }
   const runs = new Map();
+  const runMeta = new Map();
   const started = new Map();
   const queuePos = new Map();
   const queueRun = new Map();
@@ -46,6 +105,7 @@ function readConversation(db, threadId, options = {}, attachmentPath = () => nul
   for (const run of [...queuedRuns.sort((a, b) => b.ordinal - a.ordinal), ...recent].sort((a, b) => b.ordinal - a.ordinal)) {
     const rp = safeJson(run.p);
     if (rp?.userMessageId) runs.set(rp.userMessageId, run.status);
+    if (rp?.userMessageId && run.status !== "queued" && !runMeta.has(rp.userMessageId)) runMeta.set(rp.userMessageId, { runId: run.runId, status: run.status, startedAt: rp.startedAt, completedAt: rp.completedAt });
     if (rp?.userMessageId && rp.startedAt) started.set(rp.userMessageId, rp.startedAt);
     if (run.status === "queued" && rp?.userMessageId) queued.push({ id: rp.userMessageId, runId: run.runId, ordinal: run.ordinal, pos: rp.queuePosition ?? run.ordinal });
     // the turn a queued message can be steered into
@@ -70,10 +130,27 @@ function readConversation(db, threadId, options = {}, attachmentPath = () => nul
       attachments: (p.attachments || []).map((a) => ({ type: a.type, name: a.name, mime: a.mimeType, size: a.sizeBytes, path: attachmentPath(a) })),
     };
   });
+  // One work row per turn, right after the message that started it.
+  const turns = !options.work ? [] : messages.filter((m) => m.role === "user" && runMeta.has(m.id)).map((m) => ({ m, ...runMeta.get(m.id) }));
+  const work = turnWork(db, threadId, turns);
+  // Placed like T3's: a live turn's log stays at the bottom of that turn; a finished turn's
+  // log sits just above its final reply, with the earlier progress updates above it.
+  const userAt = messages.filter((m) => m.role === "user").map((m) => m.orderAt).sort();
+  const LIVE_RUN = ["running", "starting", "preparing"];
+  for (const t of turns) {
+    const w = work.get(t.runId);
+    if (!w) continue;
+    const next = userAt.find((at) => at > t.m.orderAt);
+    const replies = messages.filter((m) => m.role === "assistant" && m.orderAt > t.m.orderAt && (!next || m.orderAt < next));
+    const last = replies.at(-1);
+    // "~" sorts after the same timestamp and before any later one
+    const orderAt = !last ? t.m.orderAt : LIVE_RUN.includes(t.status) ? `${last.orderAt}~` : last.orderAt;
+    messages.push({ id: `work:${t.runId}`, role: "work", at: t.startedAt || t.m.at, orderAt, sourceOrder: t.m.sourceOrder, streaming: false, text: "", attachments: [], work: w });
+  }
   const since = hasMore ? boundary?.at : undefined;
   const events = historyEvents(db, threadId, since).filter((m) => !before || m.at <= before.at);
   messages.push(...answerArtifacts(db, threadId, { since, before: before?.at }));
-  const rank = (m) => m.role === "user" ? 0 : m.role === "event" ? 1 : 2;
+  const rank = (m) => m.role === "user" ? 0 : m.role === "work" ? 1 : m.role === "event" ? 2 : 3;
   return { messages: [...messages, ...events].sort((a, b) => a.orderAt.localeCompare(b.orderAt) || rank(a) - rank(b)),
     cursor: boundary ? { at: boundary.at, rowid: boundary.rowid } : null, hasMore };
 }

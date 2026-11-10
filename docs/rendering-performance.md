@@ -406,3 +406,49 @@ Zoom stays heavy in both builds because rooms re-raster at new scales; separate 
 varied by several milliseconds. The landscape's largest single frame slice was 9.5 ms. Peak
 tile count during the zoom sweep was 35 (about 35 MB of tile pixels) plus the overview (about
 12 MB). No CPU, RAM ceiling, GPU memory or battery measurement was made.
+
+## Large offices (2026-11-07)
+
+Measured with `scripts/make-load-office.py`: 68 running sessions on 72 desks, on a heavily
+loaded machine (another process using about four cores), so absolute times are inflated.
+
+The cost that grows with the office is Chromium regrouping the whole page into GPU layers
+(Layerize) on every frame where anything repaints. It scales with the number of drawn elements,
+not with any single animation. Changes:
+
+- Behind a finished monitor snapshot, the real app is `content-visibility: hidden` (state kept,
+  no style, layout or paint). This alone took the overview from about 15 to about 45 fps.
+- Monitors a few pixels wide (`desk.lod-tiny`) skip their dock row.
+- Zoomed far out (camera scale below 0.15), ambient work runs at 30 Hz, or 15 Hz when calm.
+- While the camera moves, robot bodies and looping decorations hold until it settles.
+- Thread rows scrolled out of view are skipped (`content-visibility: auto`), which also pauses
+  their spinners.
+- Calm mode no longer lets GSAP restart its own frame loop, and wakes just after its beat.
+
+Result in that run: whole-office overview about 59 fps with no long tasks (was about 15 fps with
+41 long tasks); panning and zooming about 50 fps on average (was about 29 fps). Zoom steps
+still have a few long frames while rooms re-raster at the new scale. Robots remain the largest
+remaining cost at the overview: each is about 240 SVG elements.
+
+### Canvas robots (zoomed out)
+
+Below camera scale 0.5 a seated robot is drawn on its own `<canvas>` (`src/world/robot-canvas.ts`)
+instead of as ~240 live SVG elements; close up the real SVG is shown. The rig is unchanged: it
+keeps writing to its SVG, which is `display: none`, and the canvas mirrors that state after each
+body draw. Parts that never change shape become pictures made from the robot's own SVG (colors
+resolved, shared vectors inlined, shared across robots that look alike); parts whose shape
+changes every frame (arm strokes, contact shadows, chair spokes) are drawn as canvas shapes.
+Parts seen moving on their own (an accessory's sway) are promoted to live parts after one
+rebuild. A canvas update does not make Chromium regroup the page into layers, so this removes
+robots from the per-frame Layerize cost. `localStorage['lucid.canvasRobots'] = '0'` turns it off.
+Visibility for the body budget is tracked on whichever of the two is shown.
+
+### Levels of detail
+
+All levels use one set of distances in `src/perf/lod.ts`, measured in device pixels of a desk's
+monitor (276 world units wide): full app text from 440 px, line shapes from 300 px, layout shapes
+from 190 px, the app icon below that (where robots also switch to their canvas), and below 70 px
+the dock row is skipped and background motion slows. Earlier these were page pixels or zoom
+values chosen separately, so on a 150 % display they switched at uneven, too-early distances.
+Robot canvases switch the moment the zoom crosses their level and resharpen when the camera
+settles, instead of waiting for each robot's next draw.

@@ -42,5 +42,3 @@
 .game-volume input { min-width: 0; flex: 1; accent-color: var(--accent); }
 @media (max-width: 1000px) { .coin-tray { bottom: 72px; } }
 
-.coin-collect-all { flex: none; margin: 7px 8px 7px 0; padding: 6px 10px; border: 0; border-radius: 5px; background: #ffd57b; color: #493015; font: 600 12px/1.4 var(--font); cursor: pointer; }
-.coin-collect-all:hover { background: #ffe7aa; }

@@ -13,6 +13,7 @@ import { compatibleWorkers } from "./worker-match";
 import { randomLook } from "../world/look";
 import { gameSound } from "./sound";
 
+const LAST_SETUP = "lucid.hire.lastSetup";
 // The hiring screen: a new thread for a free desk. The harness and model decide the
 // worker: a free robot with exactly that setup takes the job, otherwise a new robot is
 // hired. The chosen worker stands in the preview at full size before it runs over.
@@ -236,6 +237,18 @@ export function openHire(opts: {
       renderWorker();
     } });
   };
+  const fallbackSelection = (c: NonNullable<typeof config>) => {
+    let last: { providerInstanceId?: string; model?: string; options?: Record<string, OptionValue> } | null = null;
+    try { last = JSON.parse(localStorage.getItem(LAST_SETUP) || "null"); } catch {}
+    const lastProvider = c.providers.find(p => p.ready && p.instanceId === last?.providerInstanceId);
+    if (lastProvider && last?.model && lastProvider.models.some(m => m.slug === last!.model)) {
+      return { providerInstanceId: lastProvider.instanceId, model: last.model, options: validOptions(lastProvider, last.model, last.options ?? {}) };
+    }
+    const p = c.providers.find(p => p.ready && p.models.length);
+    if (!p) return null;
+    const m = p.models.find(m => m.isDefault)?.slug || p.models[0].slug;
+    return { providerInstanceId: p.instanceId, model: m, options: validOptions(p, m, {}) };
+  };
   const loadRuntime = async () => {
     const version = ++loadVersion;
     loading = true; submit.disabled = true;
@@ -246,6 +259,9 @@ export function openHire(opts: {
       if (closed || version !== loadVersion) return;
       config = next; selection = next.selection ? structuredClone(next.selection) : null;
       loading = false; pick = 0;
+      // Without a usable T3 default, start from the setup used last time, else the first ready harness,
+      // so a new task never opens on empty harness and model pickers.
+      if (!ready()) selection = fallbackSelection(next) ?? selection;
       renderRuntime(); renderWorker();
     } catch (error: any) {
       if (closed || version !== loadVersion) return;
@@ -377,6 +393,7 @@ export function openHire(opts: {
       msg.textContent = robot ? `${robot.name} is taking the job...` : "Hiring a new robot...";
       await opts.onHire({ ...choice, requestId: attempt!.id });
       gameSound.play("ready");
+      try { localStorage.setItem(LAST_SETUP, JSON.stringify({ providerInstanceId: choice.provider, model: choice.model, options })); } catch {}
       writePromptDraft(promptKey(), "");
       busy = false; close();
     } catch (error: any) {

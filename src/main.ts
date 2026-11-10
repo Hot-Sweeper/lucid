@@ -2,9 +2,10 @@ import { mountLimitsSection } from "./office/limits-section";
 import { completionFirst, reconcileThreadList } from "./office/thread-list";
 import { threadState } from "./office/thread-state";
 import { mountInterfaceThemeSetting } from "./interface-theme";
-import { mountWebsiteStudio } from "./office/website-studio";
 import { buildWorkDetails } from "./office/work-details";
+import { mountWebsiteStudio } from "./office/website-studio";
 import { ProjectLife } from "./office/project-life";
+import { chatFileUrl } from "./office/chat-media";
 import { mountPerformancePanel } from "./office/performance";
 import { showReport, showReportArchive } from "./office/report";
 import { companionClient, readCompanionState, installCompanionOwner } from "./remote-client";
@@ -71,23 +72,25 @@ import { CATALOG } from "./office/shop";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
-import { OfficeTodo, type RawTask } from "./office/todo";
 import { wireThreadDrag } from "./office/thread-drag";
 import { wireRoomDrag } from "./office/room-drag";
 import { movableRoom } from "./office/room-order";
 import type { ThreadRef } from "./office/thread-ref";
 import { foldButton, foldSection, setRail } from "./office/sidebar";
+import { EdgePeek, PIN_ICON, paintPin } from "./office/edge-peek";
 import openaiLogo from "./assets/openai.svg";
 import claudeLogo from "./assets/claude.svg";
 import { mountMobileShell } from "./mobile";
 import { mountMobileAccess } from "./office/mobile-access";
+import { openShortcutHelp, isShortcutHelpOpen, typing } from "./office/shortcuts";
+import { mountTitlebar } from "./titlebar";
 
 declare global {
   interface Window {
     lucid: {
       projects(): Promise<{ id: string; title: string; root: string }[]>;
       world(): Promise<WorldData>;
-      tasks(): Promise<RawTask[]>;
+      tasks(): Promise<unknown[]>;
       startThreadIn?: never;
       settingsLoad(): string;
       settingsSave(json: string): Promise<void>;
@@ -124,7 +127,7 @@ document.getElementById("app")!.innerHTML = `
     <header class="brand"><span class="mark" aria-hidden="true"></span><h1>Lucid</h1><button type="button" class="wx" id="wx" hidden aria-haspopup="menu"></button>
       <button class="update" id="update" type="button" title="Check for game updates">Check updates</button>
       <div class="brand-actions">
-      <button type="button" class="side-hide" id="side-hide" aria-expanded="true" aria-controls="side-panel" aria-label="Hide sidebar" title="Hide sidebar: it folds into a rail on the left (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M9.5 4L5.5 8l4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Hide<span class="sh-more"> sidebar</span></span></button>
+      <button type="button" class="ghost side-help side-settings" id="side-settings" aria-label="Office and settings" aria-expanded="false" title="Office and settings: rooms, language, staff wall, phone access, linked computers"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 5.6a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.8v1.6M8 12.6v1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M1.8 8h1.6M12.6 8h1.6M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button><button type="button" class="ghost side-help" id="side-help" aria-label="How Lucid works" title="How Lucid works and keyboard shortcuts (?)">?</button><button type="button" class="side-pin pin-btn" id="side-pin" aria-pressed="true">${PIN_ICON}</button><button type="button" class="side-hide" id="side-hide" aria-expanded="true" aria-controls="side-panel" aria-label="Hide sidebar" title="Hide sidebar: it folds into a rail on the left (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M9.5 4L5.5 8l4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Hide<span class="sh-more"> sidebar</span></span></button>
       </div>
     </header>
 
@@ -132,14 +135,10 @@ document.getElementById("app")!.innerHTML = `
     <section class="wallet" id="wallet"><span class="wl-coins" title="1 coin for every dollar of AI work at API prices">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></span><span class="wl-boost" id="wl-boost" hidden></span><button type="button" class="wl-shop" id="open-shop">Shop</button></section>
 
     <section class="threads">
-      <div class="th-head"><h3>Threads</h3><label class="th-search"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label><button type="button" class="ghost th-new-project" id="th-new-project" aria-label="New project" title="New project: create a folder or add one you have"><span aria-hidden="true">+</span> Project</button>${foldButton("threads", "threads")}</div>
+      <div class="th-head"><h3>Threads</h3><label class="th-search"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label><button type="button" class="primary th-new-task" id="th-new-task" title="Start a new task (Ctrl+N)"><span aria-hidden="true">+</span> Task</button><button type="button" class="ghost th-new-project" id="th-new-project" aria-label="New project" title="New project: create a folder or add one you have"><span aria-hidden="true">+</span> Project</button>${foldButton("threads", "threads")}</div>
       <div class="fold-body" id="fold-threads"><ol class="th-list" id="th-list" aria-label="Threads. Drag one into the chat, or press R, to reference it"></ol></div>
     </section>
 
-    <section class="todo" id="todo">
-      <div class="sec-head"><h3>To do</h3>${foldButton("todo", "to do")}</div>
-      <div class="fold-body" id="fold-todo"><div id="td-body"></div></div>
-    </section>
 
     <div id="environment-body"></div>
     <section class="rooms">
@@ -161,14 +160,6 @@ document.getElementById("app")!.innerHTML = `
       <div class="fold-body" id="fold-orch"><div id="orch-body"></div></div>
     </section>
 
-    <section class="focus" id="focus">
-      <p class="hint" id="focus-hint">Click a robot's desk to follow it and chat. Click a free desk to hire someone.</p>
-      <div id="focus-body" hidden>
-        <div class="focus-head"><img id="focus-logo" alt=""><h2 id="focus-title"></h2></div>
-        <p class="sub" id="focus-sub"></p>
-        <p class="activity" id="focus-activity" aria-live="polite"></p>
-      </div>
-    </section>
   </aside>
   <nav class="side-rail" id="side-rail" aria-label="Folded sidebar" hidden>
     <button type="button" class="rail-show" id="rail-show" aria-expanded="false" aria-controls="side-panel" title="Show sidebar (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M6.5 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Show<br>sidebar</span></button>
@@ -180,13 +171,18 @@ document.getElementById("app")!.innerHTML = `
     <label class="switch orch-power-switch"><span>Orchestrator</span><input type="checkbox" id="orch-power-toggle" role="switch" aria-label="Orchestrator enabled" disabled><span class="track" aria-hidden="true"><i></i></span><b id="orch-power-status">Off</b></label>
     <button type="button" class="link-btn" id="orch-controls-open" aria-label="Orchestrator settings">Settings</button>
   </section>
-  <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button><button type="button" id="coin-bank" aria-label="Coin balance. Open shop">${coinIcon(18)}<b id="coin-bank-bal">0</b></button><button type="button" id="game-sound" aria-pressed="true">Sound on</button></div>`;
+  <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button><button type="button" id="coin-bank" aria-label="Coin balance. Open shop">${coinIcon(18)}<b id="coin-bank-bal">0</b></button><button type="button" id="terrible-song" disabled>Mark song terrible</button><button type="button" id="game-sound" aria-pressed="true">Sound on</button></div>`;
 
+void mountTitlebar();
 // Keep threads in front and put occasional office controls behind one disclosure.
-const extras = document.createElement("details");
-extras.className = "sidebar-extras";
-extras.innerHTML = '<summary>Office & tools</summary><div class="sidebar-extras-body"></div>';
-const extrasBody = extras.querySelector("div")!;
+// Occasional office controls live in a settings panel behind the gear in the sidebar header.
+const extras = document.createElement("div");
+extras.className = "office-settings";
+extras.hidden = true;
+extras.setAttribute("role", "dialog");
+extras.setAttribute("aria-label", "Office and settings");
+extras.innerHTML = '<header class="os-head"><h2>Office &amp; settings</h2><button type="button" class="ghost os-close" aria-label="Close">Close</button></header><div class="sidebar-extras-body"></div>';
+const extrasBody = extras.querySelector<HTMLElement>(".sidebar-extras-body")!;
 mountLanguageSetting(extrasBody, () => dailyWriter);
 mountInterfaceThemeSetting(extrasBody);
 {
@@ -199,8 +195,30 @@ for (const selector of ["#environment-body", ".rooms", "#orch", "#company", "#wa
   const section = document.querySelector(selector);
   if (section) extrasBody.appendChild(section);
 }
-$("side-panel").appendChild(extras);
+document.body.appendChild(extras);
 $("side-panel").appendChild($("usage"));
+{
+  const gear = $("side-settings");
+  let previous: HTMLElement | null = null;
+  const close = () => {
+    if (extras.hidden) return;
+    extras.hidden = true; gear.setAttribute("aria-expanded", "false");
+    window.removeEventListener("keydown", onKey, true); document.removeEventListener("pointerdown", onDown, true);
+    previous?.focus({ preventScroll: true });
+  };
+  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); close(); } };
+  const onDown = (e: PointerEvent) => { const t = e.target as Node; if (!extras.contains(t) && !gear.contains(t) && !(t as Element).closest?.(".pop-menu, .dialog-wrap")) close(); };
+  gear.addEventListener("click", () => {
+    if (!extras.hidden) { close(); return; }
+    previous = document.activeElement as HTMLElement | null;
+    const r = gear.getBoundingClientRect();
+    extras.style.left = `${Math.round(r.left)}px`; extras.style.top = `${Math.round(r.bottom + 8)}px`;
+    extras.hidden = false; gear.setAttribute("aria-expanded", "true");
+    window.addEventListener("keydown", onKey, true); document.addEventListener("pointerdown", onDown, true);
+    extras.querySelector<HTMLElement>(".os-close")!.focus();
+  });
+  extras.querySelector(".os-close")!.addEventListener("click", close);
+}
 
 mountAppLibraryButton(document.getElementById("side-settings") ?? $("side-help"));
 mountWebsiteStudio(document.getElementById("side-settings") ?? $("side-help"));
@@ -213,7 +231,6 @@ window.addEventListener('lucid:mobile-view', () => world.refreshPresentation());
 world.extFactory.break = (h, w, hh) => new BreakRoom(h, w, hh);
 world.extFactory.charging = (h, w, hh) => new ChargingRoom(h, w, hh);
 world.extFactory.queue = (h, w, hh) => new QuestionLine(h, w, hh);
-let selectedDesk: Desk | null = null;
 let coinRewards: CoinRewards | null = null;
 // Rewards in the tray are only collectible once their work may be collected (see collectible).
 let coinReady: (id: string) => boolean = () => true;
@@ -291,18 +308,36 @@ const monitorTasks = new MonitorTasks(world, {
   details: id => workDetails(id),
 });
 // Finished work is collected once: approved by review (the worker brought the report back
-// to its desk), or finished while Lucid was open when reviews are off. Collecting pays the
+// to its desk), or completed and still unsettled when reviews are off. Settling pays the
 // coins and settles the thread, which clears the desk.
-function collectible(id: string, fresh: boolean): Collectible | null {
+// A session that ended any way (finished, stopped, failed) can be settled from its desk, and a
+// settled one whose coins are still waiting can be collected there.
+function collectible(id: string, _fresh: boolean): Collectible | null {
   if (currentEnvironment || companionClient()) return null;
+  const thread = world.lastData?.threads.find(t => t.id === id);
+  if (!thread || thread.pinned || thread.question) return null;
   const coins = coinRewards ? wallet.rewards.find(r => r.id === id)?.amount ?? 0 : 0;
   const amount = coins > 0 ? formatCoins(coins) : null;
+  if (thread.settled) return amount ? { summary: 'Settled. Its coins are still waiting on this desk.', coins: amount, state: 'settled' }
+    : world.keptDesks.has(id) ? { summary: 'Settled and collected. The desk stays until you remove it.', coins: null, state: 'kept' } : null;
+  const status = (thread.runStatus ?? '').toLowerCase();
+  if (!ENDED.has(status)) return null;
+  // The turn ended but a job it started keeps going (or died): say so instead of "Finished".
+  const job = thread.job;
+  if (job?.state === 'running') return { summary: `Its background job is still running: ${job.name}.`, coins: amount, state: 'background', job: `${job.name}${job.progress ? ` · ${job.progress}` : ''}` };
+  if (job?.state === 'failed') {
+    const when = job.since ? ` at ${new Date(job.since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '';
+    return { summary: `Its background job ${job.reason}${when}. Continue the session so the robot can restart it, or settle it as it is.`, coins: amount, state: 'job-failed', job: `${job.name} ${job.reason}${when}. Continue the session to have it restarted.` };
+  }
+  if (status !== 'completed') return { summary: 'This session stopped before it finished. Continue it, or settle it as it is.', coins: amount, state: 'stopped' };
   if (orch.reviewing) {
     const paper = orch.approvedPaper(id);
     return paper ? { summary: String(paper.verdict?.summary || ''), coins: amount, state: 'done' } : null;
   }
-  return fresh ? { summary: '', coins: amount, state: 'done' } : null;
+  return { summary: 'Continue this session, or settle it when you are finished.', coins: amount, state: 'done' };
 }
+/** Run states that mean the session ended (collectible above reads this at call time). */
+const ENDED = new Set(['completed', 'cancelled', 'canceled', 'interrupted', 'failed', 'error', 'stopped', 'aborted']);
 /** What a finished session was about and what it reported, for its desk monitor. */
 async function workDetails(id: string): Promise<WorkDetails> {
   const messages: any[] = await (window as any).lucid.conversation(id).catch(() => []);
@@ -334,17 +369,41 @@ robotFocus.open = (id, el) => { const r = world.roster.byThread(id); if (!r || c
 const collectingWork = new Set<string>();
 async function collectWork(id: string, from: HTMLElement) {
   if (collectingWork.has(id)) return;
-  const paper = orch.reviewing ? orch.approvedPaper(id) : null;
-  if (orch.reviewing && !paper) throw Error('This work is not approved yet');
+  // Already settled: only its coins are left to pick up.
+  if (world.lastData?.threads.find(t => t.id === id)?.settled) {
+    // a kept desk with nothing left to collect: "Remove desk" sends the robot off and frees it
+    if (world.keptDesks.has(id) && !wallet.rewards.some(r => r.id === id)) {
+      removeKeptDesk(id); gameSound.play('servo'); world.deskFor(id)?.robot.react('relax');
+      await refresh(); return;
+    }
+    collectingWork.add(id);
+    try { if (!coinRewards?.collect(id, from, false)) { gameSound.play('collect'); world.deskFor(id)?.robot.react('cheer'); } keepDesk(id); }
+    finally { collectingWork.delete(id); }
+    await refresh(); return;
+  }
+  // Reviews approve finished work; a stopped session is settled as it is, without a review.
+  const finished = world.lastData?.threads.find(t => t.id === id)?.runStatus === 'completed';
+  const paper = orch.reviewing && finished ? orch.approvedPaper(id) : null;
+  if (orch.reviewing && finished && !paper) throw Error('This work is not approved yet');
   collectingWork.add(id);
   try {
     // Settle first: if T3 refuses, the coins stay on the desk for the retry.
     if (paper) await (api as any).reportsManual(paper.id, 'collect');
-    else await (window as any).lucidT3.settle({ threadId: id });
+    else await settleInT3(id);
+    keepDesk(id);
     if (!coinRewards?.collect(id, from, false)) { gameSound.play('collect'); world.deskFor(id)?.robot.react('cheer'); }
     if (paper) orch.papers = await (api as any).reportsList();
   } finally { collectingWork.delete(id); }
   await refresh();
+}
+/** Collected work keeps its desk (with its robot) until you remove it from the monitor. */
+function keepDesk(id: string) {
+  if (world.keptDesks.has(id) || !world.deskFor(id)) return;
+  world.keptDesks.add(id); settings.keptDesks = [...world.keptDesks]; saveSettings();
+}
+function removeKeptDesk(id: string) {
+  if (!world.keptDesks.delete(id)) return;
+  settings.keptDesks = [...world.keptDesks]; saveSettings();
 }
 coinReady = id => {
   const t = world.lastData?.threads.find(t => t.id === id);
@@ -352,14 +411,32 @@ coinReady = id => {
 };
 coinCollected = async id => {
   const t = world.lastData?.threads.find(t => t.id === id);
-  if (!t || t.settled || t.runStatus !== 'completed') return;
-  const paper = orch.reviewing ? orch.approvedPaper(id) : null;
+  if (!t || t.settled || !ENDED.has((t.runStatus ?? '').toLowerCase())) return;
+  const paper = orch.reviewing && t.runStatus === 'completed' ? orch.approvedPaper(id) : null;
   if (paper) await (api as any).reportsManual(paper.id, 'collect');
-  else if (!orch.reviewing) await (window as any).lucidT3.settle({ threadId: id });
+  else if (!orch.reviewing || t.runStatus !== 'completed') await settleInT3(id);
+  keepDesk(id);
 };
+/** Settle in T3 and make sure it took: T3 is asked again once if its record did not change. */
+async function settleInT3(id: string) {
+  const t3 = (window as any).lucidT3;
+  const done = async () => { const fresh = await api.world().catch(() => null); return !!fresh?.threads.find(t => t.id === id)?.settled; };
+  const ask = async () => { const r = await t3.settle({ threadId: id }); if (r && r.ok === false) throw Error(r.error || 'T3 could not settle this session.'); };
+  await ask();
+  for (let i = 0; i < 6; i++) { if (await done()) return; await new Promise(r => setTimeout(r, 250)); }
+  await ask();
+  for (let i = 0; i < 8; i++) { if (await done()) return; await new Promise(r => setTimeout(r, 250)); }
+  throw Error('T3 did not record the settlement. Check that T3 Code is running, then try again.');
+}
 (window as any).__monitorTasks = monitorTasks;
 (window as any).__answer = answer; // isolated answer-form fixture handle
 // a chat opened without a desk (questions room, follow chip) closes itself
+chat.threadFacts = (id) => {
+  const t = world.lastData?.threads.find(t => t.id === id);
+  if (!t) return null;
+  const p = world.lastData!.projects.find(p => p.id === t.projectId);
+  return { title: t.title, project: p && !p.scratch ? p.title : "", model: t.model };
+};
 chat.onClose = () => { chat.close(); world.unfocus(); world.revealThread(null); markSelected(null); };
 chat.onChooseThread = () => {
   toggleRail(false, false);
@@ -455,47 +532,10 @@ if (!companionClient()) wireRoomDrag({ scene: $("scene"), list: $("room-list"), 
 $("overview").addEventListener("click", () => world.overview());
 $("park").addEventListener("click", () => world.showPark());
 
-// --- each office's to-do list ---------------------------------------------------------------
-const todo = new OfficeTodo($("td-body"), {
-  // the office is the project a thread belongs to; scratch threads are the freelancers
-  officeOf: (t) => {
-    const data = world.lastData;
-    if (!data || t.threadId === settings.orch?.threadId) return null;
-    const p = data.projects.find((x) => x.id === t.projectId);
-    if (p && p.id === settings.orch?.projectId) return null;
-    if (!p || p.scratch) return world.hidden.has("freelance") ? null : { id: "freelance", title: "Freelancers", icon: null };
-    return world.hidden.has(p.id) ? null : { id: `p:${p.id}`, title: p.title, icon: p.icon ?? null };
-  },
-  robotName: (id) => world.roster.byThread(id)?.name ?? null,
-  order: () => world.rooms.map((r) => r.id),
-  onOffice: (id) => world.showRoom(id),
-  onTask: (id) => openThread(id),
-});
-
-(window as any).__todo = todo; // debug handle for test runs
 
 // --- following one robot ----------------------------------------------------------------
-function renderFocus() {
-  const d = selectedDesk;
-  $("focus-hint").hidden = !!d;
-  $("focus-body").hidden = !d;
-  if (!d) return;
-  const info = d.info;
-  const logo = $("focus-logo") as HTMLImageElement;
-  const src = logoFor(info?.provider);
-  logo.hidden = !src;
-  if (src) logo.src = src;
-  // The desk is the job: its thread title, even before the detailed thread info arrives.
-  $("focus-title").textContent = info?.title || world.lastData?.threads.find(t => t.id === d.threadId)?.title || "Free desk";
-  const who = d.profile ? `${d.profile.name}, ${harnessName(info?.provider)} robot` : `${harnessName(info?.provider)} robot`;
-  $("focus-sub").textContent = [who, (info as any)?.model, info?.projectTitle].filter(Boolean).join(" · ");
-  $("focus-sub").title = d.profile ? `Likes: ${d.profile.prefs.editor === "pad" ? "Notepad" : d.profile.prefs.editor === "vim" ? "vim" : "Studio"} editor, ${d.profile.prefs.phone === "clips" ? "short clips" : "long videos"}, subagents in the ${d.profile.prefs.subagents === "cli" ? "terminal" : "desktop app"}. Jobs done: ${d.profile.jobs}` : "";
-  $("focus-activity").textContent = d.activity || "";
-}
-world.onSelect = (d) => {
-  selectedDesk = d && d.threadId ? d : null;
-  renderFocus();
-};
+// The selected robot is shown in its chat (header and status line); the sidebar has no card for it.
+
 world.onSelectThread = (id) => {
   openThread(id);
 };
@@ -517,7 +557,6 @@ api.onInfo(({ threadId, info }) => {
   if (info.error) return;
   if (d) {
     d.setInfo(info);
-    if (d === selectedDesk) renderFocus();
   }
   if (chat.threadId === threadId) {
     if (d && !d.el.classList.contains("arriving")) pushStatus(d);
@@ -536,7 +575,7 @@ function desiredWatches() {
     ? office ? [...world.desks].filter(([, desk]) => renderFps(desk.screen) > 0).map(([id]) => id) : []
     : world.campusDesks.map(row => row.id);
   if (world.orchThread && (!companion || office)) ids.push(world.orchThread);
-  if (chat.threadId && (!companion || !document.hidden && chat.isOpen && !chat.collapsed && !chat.el.inert)) ids.push(chat.threadId);
+  if (chat.threadId && (!companion || !document.hidden && chat.visible)) ids.push(chat.threadId);
   return [...new Set(ids)].sort();
 }
 function scheduleWatchSync() {
@@ -569,24 +608,9 @@ if (companionClient()) {
 let firstLoad = true;
 let refreshBusy = false;
 let refreshQueued = false;
-let tasksBusy = false, tasksQueued = false;
 let buildingEpoch = 0, switchingBuilding = false;
 let currentEnvironment: string | undefined;
 const buildingCameras = new Map<string, { x: number; y: number; s: number }>();
-async function refreshTasks() {
-  if (switchingBuilding) return;
-  if (tasksBusy) { tasksQueued = true; return; }
-  const epoch = buildingEpoch, environment = currentEnvironment;
-  tasksBusy = true;
-  try {
-    const tasks = await api.tasks();
-    if (!switchingBuilding && epoch === buildingEpoch && environment === currentEnvironment) todo.update(tasks);
-  } catch (err) { console.error("to-do list failed", err); }
-  finally {
-    tasksBusy = false;
-    if (tasksQueued) { tasksQueued = false; void refreshTasks(); }
-  }
-}
 async function refresh() {
   if (companionClient() && document.hidden) return;
   if (switchingBuilding) return;
@@ -596,7 +620,7 @@ async function refresh() {
   refreshBusy = true;
   try {
     const frame = companionClient() && (api as any).remoteFrame
-      ? await (api as any).remoteFrame({ known: companionRevisions }) as { state?: { settings: string; roster: string }; world?: WorldData; tasks?: RawTask[]; revisions: Record<string, string> }
+      ? await (api as any).remoteFrame({ known: companionRevisions }) as { state?: { settings: string; roster: string }; world?: WorldData; tasks?: unknown[]; revisions: Record<string, string> }
       : null;
     const companion = frame ? frame.state : await readCompanionState();
     if (!current()) return;
@@ -619,7 +643,6 @@ async function refresh() {
     if (!current() || !data || data.environmentId !== environment) return;
     if (frame) {
       companionRevisions = frame.revisions;
-      if (frame.tasks) todo.update(frame.tasks);
       if (!frame.world && !frame.state && !world.needsRefresh) { scheduleWatchSync(); return; }
     }
     if (!data.environmentId) {
@@ -640,11 +663,25 @@ async function refresh() {
       button.disabled = true; button.title = 'Add desks on the computer. Use the office menu to start work.';
     }
     coinRewards?.render();
+    // Settled work keeps no desk just to hold its coins: they are collected (and fly to the
+    // counter) as soon as the thread is settled, here or in T3, and the desk is released.
+    if (coinRewards && !data.environmentId && !companionClient()) {
+      for (const reward of [...wallet.rewards]) {
+        const t = data.threads.find(t => t.id === reward.id);
+        if (t?.settled && !t.pinned) { keepDesk(t.id); coinRewards.collect(t.id, world.deskFor(t.id)?.el ?? $("coin-bank"), false); }
+      }
+    }
+    // a kept desk goes when its session is reopened or gone, or new work took that desk
+    if (!data.environmentId && !companionClient() && world.keptDesks.size) {
+      for (const id of [...world.keptDesks]) {
+        const t = data.threads.find(t => t.id === id);
+        if (!t || !t.settled || !world.deskFor(id)) removeKeptDesk(id);
+      }
+    }
     monitorTasks.sync();
     paintChatManager();
-    if (!frame) void refreshTasks();
     for (const d of world.desks.values()) {
-      d.onActivity = (t) => { if (d.threadId === chat.threadId) pushStatus(d); if (d === selectedDesk) { const a = $("focus-activity"); if (a.textContent !== t) { a.textContent = t; gsap.fromTo(a, { opacity: 0, y: 3 }, { opacity: 1, y: 0, duration: 0.3 }); } } };
+      d.onActivity = (t) => { if (d.threadId === chat.threadId) pushStatus(d); };
     }
     void syncWatches();
     if (firstLoad) {
@@ -668,6 +705,7 @@ async function refresh() {
 }
 
 // --- office and desk options -------------------------------------------------------------
+let startNewTask: () => void = () => {};
 function setupMenus() {
   world.onAddDesk = (room) => {
     if (companionClient()) return;
@@ -759,6 +797,11 @@ function setupMenus() {
   const startOfficeWork = (room: string, intent: "thread" | "delegate") => {
     gameSound.play('open');
     hireForOffice(room, world.firstFreeDesk(room), intent);
+  };
+  // New task from anywhere: the project office in view gets it, otherwise the main office asks for a project.
+  startNewTask = () => {
+    const room = world.focusDesk?.room;
+    startOfficeWork(room && room.startsWith("p:") && world.rooms.some(r => r.id === room) ? room : "main", "thread");
   };
   const decorate = (room: { id: string; title: string }) => {
     const SHEET = 372; // the decorate panel covers the right side of the view
@@ -924,7 +967,6 @@ async function selectBuilding(id: string) {
     chat.close(); world.unfocus(); world.revealThread(null);
     currentEnvironment = building.local ? undefined : id;
     companionRevisions = {};
-    todo.update([]);
     watched = '';
     world.orchThread = building.local ? settings.orch?.threadId || '' : '';
     monitorTasks.prepare(building.world);
@@ -941,8 +983,9 @@ async function selectBuilding(id: string) {
 }
 mountEnvironments($("environment-body"), (fresh) => (api as any).environments(fresh), selectBuilding,
   data => world.setBuildings(data.buildings, selectBuilding, id => (api as any).buildingWorld(id)));
-const settings: { buildingLayouts?: Record<string, import("./office/world").OfficeLayout>; roomOrder?: string[]; expandedRooms?: string[]; collapsedRooms?: string[]; seats?: Record<string, (string | null)[]>; hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; dailyLines?: DailyLinesState; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { buildingLayouts?: Record<string, import("./office/world").OfficeLayout>; roomOrder?: string[]; expandedRooms?: string[]; collapsedRooms?: string[]; seats?: Record<string, (string | null)[]>; hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; dailyLines?: DailyLinesState; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; keptDesks?: string[]; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number; sideAuto?: boolean; chatAuto?: boolean } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
 world.hidden = new Set(settings.hidden ?? []);
+world.keptDesks = new Set(settings.keptDesks ?? []);
 world.roomOrder = Array.isArray(settings.roomOrder) ? settings.roomOrder.filter((id) => typeof id === "string" && movableRoom(id)) : [];
 world.collapsedRooms = new Set(settings.collapsedRooms ?? []);
 world.expandedRooms = new Set(Array.isArray(settings.expandedRooms) ? settings.expandedRooms.filter((id) => typeof id === "string") : []);
@@ -960,7 +1003,7 @@ const folded = new Set(ui.folded ?? ["todo", "company", "usage", "orch"]);
 const appEl = $("app") as HTMLElement;
 // Panel widths: you drag the inner edge of the sidebar or the chat. Small windows shrink the chat first, then
 // the sidebar, so the office always keeps room.
-const SIDE = { min: 240, max: 520, def: 300, rail: 64 }, CHAT = { min: 340, max: 760, tab: 64 }, SCENE_MIN = 380;
+const SIDE = { min: 240, max: 560, def: 340, rail: 64 }, CHAT = { min: 340, max: 760, tab: 64 }, SCENE_MIN = 380;
 const chatDefault = () => Math.round(Math.min(560, Math.max(400, innerWidth * 0.32)));
 const clampTo = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const widths = () => {
@@ -972,10 +1015,9 @@ const widths = () => {
   return { side, chat: chatW };
 };
 chat.wide = () => widths().chat;
-let chatTween: gsap.core.Tween | null = null;
 const applyLayout = () => {
   const w = widths();
-  chatTween?.kill(); chatTween = null;
+  chat.finishShelf();
   if (!appEl.classList.contains("rail-moving")) appEl.style.setProperty("--side", `${w.side}px`);
   appEl.style.setProperty("--chat", `${w.chat}px`);
   appEl.classList.toggle("chat-folded", chat.collapsed);
@@ -983,13 +1025,15 @@ const applyLayout = () => {
     g.setAttribute("aria-valuenow", String(Math.round(v))); g.setAttribute("aria-valuemin", String(lo)); g.setAttribute("aria-valuemax", String(hi));
   }
 };
-// folding the chat: the column glides to its tab or back, and the camera fits the area as it changes
+// Commit the column once. The real shelf and camera glide together on the compositor.
 const slideChat = (animate: boolean) => {
   const to = widths().chat;
-  appEl.classList.toggle("chat-folded", chat.collapsed);
-  chatTween?.kill();
-  if (!animate) { chatTween = null; appEl.style.setProperty("--chat", `${to}px`); return; }
-  chatTween = gsap.to(appEl, { "--chat": `${to}px`, duration: chat.collapsed ? 0.34 : 0.4, ease: "power3.inOut", onComplete: () => { chatTween = null; } });
+  world.resizeForShelf(() => {
+    appEl.classList.toggle("chat-folded", chat.collapsed);
+    appEl.style.setProperty("--chat", `${to}px`);
+    chatGrip.setAttribute("aria-valuenow", String(Math.round(to)));
+  }, animate);
+  if (animate) gameSound.play("switch");
 };
 // the draggable edges (highlighted only while grabbed; arrow keys and a double-click work too)
 const makeGrip = (cls: "left" | "right", label: string, key: "sideW" | "chatW", range: { min: number; max: number }, def: () => number) => {
@@ -1012,6 +1056,7 @@ const makeGrip = (cls: "left" | "right", label: string, key: "sideW" | "chatW", 
   const now = () => (cls === "left" ? widths().side : widths().chat);
   g.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
+    chat.finishShelf(); world.stopCameraMotion();
     e.preventDefault();
     try { g.setPointerCapture(e.pointerId); } catch { /* window listeners keep the resize usable */ }
     const x0 = e.clientX, w0 = now();
@@ -1058,7 +1103,44 @@ $("side-panel").addEventListener("click", (e) => {
   saveSettings();
 });
 for (const key of folded) foldSection(key, false, false);
+// Auto-hide: the sidebar stays folded into its rail and slides over the office while you hover
+// the left edge. The pin in its header switches between that and keeping it open.
+const sidePanel = $("side-panel");
+const sideOpenWidth = () => Math.min(clampTo(ui.sideW ?? SIDE.def, SIDE.min, SIDE.max), Math.max(SIDE.min, innerWidth - widths().chat - 120));
+const sidePeek = new EdgePeek({
+  side: "left",
+  panel: sidePanel,
+  riders: () => [...document.querySelectorAll<HTMLElement>("#app > .side-limits")],
+  edge: () => $("side-rail"),
+  width: sideOpenWidth,
+  reveal: () => { sidePanel.hidden = false; sidePanel.scrollTop = Number(sidePanel.dataset.scroll || 0); },
+  conceal: () => { sidePanel.dataset.scroll = String(sidePanel.scrollTop); sidePanel.hidden = true; },
+  busy: () => !!document.querySelector(".pop-menu, .dialog-wrap:not(.closing)") || document.body.classList.contains("th-dragging") || document.body.classList.contains("col-resizing"),
+  onChange: (shown) => { $("rail-show").setAttribute("aria-expanded", String(shown)); $("side-hide").setAttribute("aria-expanded", String(shown)); },
+});
+const paintSidePin = () => paintPin($("side-pin"), !ui.sideAuto, "sidebar", "left");
+const setSideAuto = (on: boolean) => {
+  if (on === !!ui.sideAuto) return;
+  ui.sideAuto = on;
+  appEl.classList.toggle("side-auto", on);
+  paintSidePin();
+  if (on) { if (!ui.rail) foldRail(true); sidePeek.setEnabled(true); return; }
+  if (!sidePeek.shown) { sidePeek.setEnabled(false); foldRail(false); return; }
+  // Pinned while it peeks: it holds still and the office makes room beside it.
+  const to = sideOpenWidth();
+  sidePeek.release(); sidePeek.setEnabled(false);
+  ui.rail = false;
+  $("side-rail").hidden = true; sidePanel.hidden = false; appEl.classList.remove("railed");
+  $("side-hide").setAttribute("aria-expanded", "true"); $("rail-show").setAttribute("aria-expanded", "true");
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { applyLayout(); return; }
+  appEl.classList.add("rail-moving");
+  gsap.fromTo(appEl, { "--side": `${SIDE.rail}px` }, { "--side": `${to}px`, duration: 0.3, ease: "power3.out", onComplete: () => { appEl.classList.remove("rail-moving"); applyLayout(); } });
+};
 const toggleRail = (on: boolean, animate = true) => {
+  if (ui.sideAuto) { if (on) sidePeek.hide(animate); else sidePeek.show(animate); return; }
+  foldRail(on, animate);
+};
+const foldRail = (on: boolean, animate = true) => {
   ui.rail = on;
   $("side-hide").setAttribute("aria-expanded", String(!on));
   $("rail-show").setAttribute("aria-expanded", String(!on));
@@ -1068,14 +1150,51 @@ const toggleRail = (on: boolean, animate = true) => {
   setRail(on, { app: appEl, panel: $("side-panel"), rail: $("side-rail"), animate, wide: () => widths().side, done: () => { appEl.classList.remove("rail-moving"); applyLayout(); if (hadFocus) $(on ? "rail-show" : "side-hide").focus(); } });
 };
 $("side-hide").addEventListener("click", () => { toggleRail(true); saveSettings(); });
-$("rail-show").addEventListener("click", () => { toggleRail(false); saveSettings(); });
+$("rail-show").addEventListener("click", () => { if (ui.sideAuto) sidePeek.toggle(); else toggleRail(false); saveSettings(); });
+$("side-pin").addEventListener("click", () => { setSideAuto(!ui.sideAuto); gameSound.play("clip"); saveSettings(); });
+paintSidePin();
+// Linux pastes the selection clipboard on a middle click. You pan the office with the middle
+// button, so that paste would land in the focused chat box. Only a middle click inside a text
+// field itself still pastes there.
+{
+  let middleAt = -1e9, middleTarget: Node | null = null, keyPasteAt = -1e9;
+  window.addEventListener("keydown", (e) => {
+    if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") || (e.shiftKey && e.key === "Insert")) keyPasteAt = performance.now();
+  }, true);
+  const editable = (n: EventTarget | null) => n instanceof HTMLElement && (n.isContentEditable || /^(INPUT|TEXTAREA)$/.test(n.tagName));
+  for (const type of ["mousedown", "mouseup", "auxclick"] as const) window.addEventListener(type, (e) => {
+    if (e.button !== 1) return;
+    middleAt = performance.now(); middleTarget = e.target as Node;
+    if (!editable(e.target)) e.preventDefault();
+  }, true);
+  window.addEventListener("paste", (e) => {
+    if (performance.now() - middleAt > 800 || performance.now() - keyPasteAt < 300) return;
+    const into = e.target as Node | null;
+    if (into && middleTarget && (into === middleTarget || into.contains(middleTarget))) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+  }, true);
+}
 window.addEventListener("keydown", (e) => {
-  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "b") { e.preventDefault(); toggleRail(!ui.rail); saveSettings(); }
+  if (e.defaultPrevented) return;
+  const mod = (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey, key = e.key.toLowerCase();
+  if (mod && key === "b") { e.preventDefault(); if (ui.sideAuto) sidePeek.toggle(); else toggleRail(!ui.rail); saveSettings(); return; }
+  // Shortcuts that open something stay quiet while another dialog has the keyboard.
+  if (document.querySelector(".dialog-wrap:not(.closing), .pop-menu")) return;
+  if (mod && key === "n") { e.preventDefault(); startNewTask(); return; }
+  if (mod && key === "k") { e.preventDefault(); findThread(); return; }
+  if (mod && key === "j") { e.preventDefault(); nextNeedingYou(); return; }
+  if (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey && !typing(e) && !isShortcutHelpOpen()) { e.preventDefault(); openShortcutHelp(); }
 });
-if (ui.rail) toggleRail(true, false);
+if (ui.sideAuto) { ui.sideAuto = false; foldRail(true, false); setSideAuto(true); }
+else if (ui.rail) toggleRail(true, false);
 chat.setCollapsed(true, false);
 applyLayout();
 chat.onCollapse = (on, animate) => { ui.chatTab = on; saveSettings(); slideChat(animate); };
+// While auto-hiding, the chat slides out at the width you gave it, leaving some office visible.
+chat.peekWidth = () => Math.min(clampTo(ui.chatW ?? chatDefault(), CHAT.min, CHAT.max), Math.max(CHAT.min, innerWidth - widths().side - 120));
+if (ui.chatAuto) chat.setAutoHide(true, false);
+chat.onAutoHide = (on) => { ui.chatAuto = on; appEl.classList.toggle("chat-auto", on); saveSettings(); };
+appEl.classList.toggle("chat-auto", !!ui.chatAuto);
 mountMobileShell(appEl, chat);
 let settingsWriteFlight = Promise.resolve();
 const saveSettings = () => {
@@ -1319,6 +1438,16 @@ setInterval(() => { if (!document.hidden) void checkUpdate(); }, 60 * 1000);
 const wallet = new Wallet(() => settings.wallet, (s) => { if (!companionClient()) { settings.wallet = s; saveSettings(); } });
 walletReady = wallet;
 const soundButton = $('game-sound');
+const terribleSongButton = document.querySelector<HTMLButtonElement>('#terrible-song')!;
+const paintTerribleSong = () => {
+  const state = gameSound.musicState;
+  terribleSongButton.disabled = !state.song;
+  terribleSongButton.textContent = state.terrible ? 'Unmark terrible song' : 'Mark song terrible';
+  terribleSongButton.setAttribute('aria-pressed', String(state.terrible));
+  terribleSongButton.title = state.song ? `${state.terrible ? 'Unmark' : 'Mark'} ${state.song.title} as terrible` : 'No song selected';
+};
+gameSound.subscribeMusic(paintTerribleSong);
+terribleSongButton.addEventListener('click', () => { gameSound.toggleTerribleSong(); gameSound.play('switch'); });
 const paintSound = () => { soundButton.textContent = gameSound.enabled ? 'Sound on' : 'Sound off'; soundButton.setAttribute('aria-pressed', String(gameSound.enabled)); soundButton.title = gameSound.enabled ? 'Mute game sounds' : 'Enable game sounds'; };
 paintSound();
 soundButton.addEventListener('click', () => { gameSound.configure(!gameSound.enabled); paintSound(); if (gameSound.enabled) gameSound.play('open'); });
@@ -1419,7 +1548,6 @@ mountStats(document.getElementById("usage-body")!, async () => {
   if (u?.windows && !companionClient()) wallet.observe(u);
   return u;
 }, { background: true });
-
 // Limits retains the real usage owner, but has its own saved disclosure on every layout.
 mountLimitsSection($("side-panel"), $("usage-body"), !folded.has("limits"));
 
@@ -1556,7 +1684,7 @@ async function moveThread(id: string, targetId: string, after: boolean) {
   try {
     await (window as any).lucidT3.moveThread({ threadId: id, targetId, after });
     await refresh();
-    renderThreads();
+    renderThreads(true);
     $("th-list").querySelector<HTMLElement>(`[data-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
   } catch (err: any) {
     showMenu(24, 100, "Could not move thread", [{ label: String(err?.message || err), run: () => {} }]);
@@ -1568,7 +1696,33 @@ function threadNeighbors(id: string) {
   const index = group.findIndex(x => x.id === id);
   return { previous: group[index - 1], next: group[index + 1] };
 }
-function renderThreads() {
+// While the pointer is over the list, new or reordered rows wait, so a row never moves away
+// just as it is clicked. Status text still updates in place. Leaving the list applies them.
+let listHeld = false, heldOrder = "", listDeferred = false;
+for (const box of [$("th-list"), $("rail-list")]) {
+  box.addEventListener("pointerenter", () => { listHeld = true; });
+  box.addEventListener("pointerleave", () => { listHeld = false; if (listDeferred) { listDeferred = false; renderThreads(); } });
+}
+// T3 Code's server search (titles, message text, older settled threads), debounced while typing.
+const fold = (s: string) => s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const searchState = { q: "", matches: new Map<string, { snippet: string; quality: number | null }>(), older: [] as { id: string; title: string; projectId: string | null; updatedAt: string; provider: string; settled: boolean }[] };
+let searchTimer = 0, searchSeq = 0;
+function runThreadSearch(q: string) {
+  window.clearTimeout(searchTimer);
+  const seq = ++searchSeq;
+  if (q.length < 2 || companionClient() || currentEnvironment) { searchState.q = ""; searchState.matches.clear(); searchState.older = []; return; }
+  searchTimer = window.setTimeout(async () => {
+    try {
+      const r = await (window as any).lucidT3.searchThreads(q);
+      if (seq !== searchSeq) return;   // a newer query is on its way
+      const best = new Map<string, { snippet: string; quality: number | null }>();
+      for (const m of r?.matches ?? []) { const prev = best.get(m.threadId); if (!prev || (m.quality ?? 0) > (prev.quality ?? 0)) best.set(m.threadId, { snippet: m.snippet, quality: m.quality }); }
+      searchState.q = q; searchState.matches = best; searchState.older = r?.threads ?? [];
+      renderThreads(true);
+    } catch { /* titles still filter locally */ }
+  }, 180);
+}
+function renderThreads(force = false) {
   if (appEl.classList.contains('mobile-layout') && appEl.dataset.mobileView !== 'threads') return;
   const data = world.lastData;
   if (!data || document.body.classList.contains("th-dragging")) return;   // never swap rows out from under a drag
@@ -1578,8 +1732,17 @@ function renderThreads() {
   const q = (($("th-q") as HTMLInputElement).value || "").trim().toLowerCase();
   const projects = new Map(data.projects.map((p) => [p.id, p]));
   // The bridge supplies T3 Code's sidebar order, independent of live activity.
-  const list = data.threads.filter((t) => !q || t.title.toLowerCase().includes(q) || (t.manager?.role || '').toLowerCase().includes(q) || (projects.get(t.manager?.projectId || t.projectId)?.title ?? "").toLowerCase().includes(q));
-  const active = q ? list.filter((t) => !t.settled) : completionFirst(list.filter((t) => !t.settled));
+  // Search like T3 Code: every typed word must appear (case and accents folded) in the title,
+  // project, role or branch; T3's own search adds message matches and older settled threads.
+  const words = fold(q).split(/\s+/).filter(Boolean);
+  const remote = !!q && searchState.q === q;
+  const known = new Set(data.threads.map((t) => t.id));
+  const older = remote ? searchState.older.filter((t) => !known.has(t.id)).map((t) => ({ ...t, projectId: t.projectId ?? "", runStatus: null, pinned: false, question: null, model: null }) as unknown as typeof data.threads[number]) : [];
+  const titleHit = (t: typeof data.threads[number]) => { const hay = fold([t.title, t.manager?.role, projects.get(t.manager?.projectId || t.projectId)?.title, t.branch].filter(Boolean).join(" ")); return words.every((w) => hay.includes(w)); };
+  const list = [...data.threads, ...older].filter((t) => !q || titleHit(t) || (remote && searchState.matches.has(t.id)));
+  if (q) list.sort((a, b) => Number(!titleHit(a)) - Number(!titleHit(b)) || (titleHit(a) ? 0 : (searchState.matches.get(b.id)?.quality ?? 0) - (searchState.matches.get(a.id)?.quality ?? 0)));
+  const snippetOf = (t: typeof data.threads[number]) => q && remote && !titleHit(t) ? searchState.matches.get(t.id)?.snippet ?? "" : "";
+  let active = q ? list.filter((t) => !t.settled) : completionFirst(list.filter((t) => !t.settled));
   const settled = list.filter((t) => t.settled);
   const reviews = latestThreadReviews(currentEnvironment ? [] : orch.papers);
   const reviewOf = (t: typeof list[number]) => threadReviewLabel(t, reviews.get(t.id), !currentEnvironment && !!settings.orch && t.id !== settings.orch.threadId);
@@ -1620,23 +1783,31 @@ function renderThreads() {
     const proj = !p || p.scratch ? "No project" : p.title;
     const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
     if (t.settled) return `<li><button type="button" class="th-row th-settled-row" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${world.roster.byThread(t.id) ? `
-${world.roster.byThread(t.id)!.name}` : ""}`)}">${world.roster.byThread(t.id) ? faceOf(t, 22, "s") : icon}<span class="th-settled-title">${esc(t.title || "Untitled")}</span><span class="th-ago">${ago(t.updatedAt)}</span></button></li>`;
+${world.roster.byThread(t.id)!.name}` : ""}`)}">${icon}<span class="th-settled-title">${esc(t.title || "Untitled")}${snippetOf(t) ? `<span class="th-snippet">${esc(snippetOf(t))}</span>` : ""}</span><span class="th-ago">${ago(t.updatedAt)}</span></button></li>`;
+    // T3's row, one line each: project (logo and name) with the state, the title, then the
+    // worker, model and branch with the harness logo. Nothing wraps; the tooltip has it all.
     const state = stateOf(t);
     const robot = world.roster.byThread(t.id);
-    const logo = t.pinned ? p?.icon : logoFor(t.provider);
-    const sub = t.pinned ? t.manager?.role || 'Manager' : t.branch || (p?.scratch ? "" : "");
-    const host = !p || p.scratch ? world.building : "";
-    // Each thread shows the worker on it: its face beside the job, its name and model below.
-    return `<li><button type="button" class="th-row th-worker ${!t.settled && t.runStatus === "running" ? "on" : ""}" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${robot ? `
-${robot.name}${t.model ? `, ${t.model}` : ""}` : ""}`)}">
-      ${faceOf(t, 34, "l", dotOf(t) === "work" ? "working" : "")}
+    const logo = logoFor(t.provider);
+    const where = t.branch || "";
+    const sel = t.id === chat.threadId ? " sel" : "";
+    return `<li><button type="button" class="th-row th-worker th-t3${t.runStatus === "running" ? " on" : ""}${sel}" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${robot ? `
+${robot.name}${t.model ? `, ${t.model}` : ""}` : ""}${t.branch ? `
+${t.branch}` : ""}`)}">
       <span class="th-text">
-      <span class="th-top">${icon}<span class="th-proj">${esc(proj)}</span>${state}</span>
-      <span class="th-title">${t.pinned ? '<span class="th-pin" aria-label="Pinned">●</span>' : ""}${esc(t.title)}</span>
-      <span class="th-bot"><span class="th-sub">${esc(sub || host)}</span>${robot ? `<span class="th-bot-name">${esc(robot.name)}${t.model ? `<span class="th-bot-model">, ${esc(t.model)}</span>` : ""}</span>` : ""}${logo ? `<img class="th-logo" src="${logo}" alt="">` : ""}</span>
+        <span class="th-top">${icon}<span class="th-proj">${esc(proj)}</span>${state}</span>
+        <span class="th-line"><span class="th-title">${t.pinned ? '<span class="th-pin" aria-label="Pinned">●</span>' : ""}${esc(t.title || "Untitled")}</span>${logo ? `<img class="th-logo" src="${logo}" alt="${esc(harnessName(t.provider))}">` : ""}</span>
+        ${where ? `<span class="th-meta"><span class="th-where">${esc(where)}</span></span>` : ""}
+        ${snippetOf(t) ? `<span class="th-snippet">${esc(snippetOf(t))}</span>` : ""}
       </span>
     </button></li>`;
   };
+  const order = active.map(t => t.id).join(" ");
+  if (listHeld && !force && heldOrder && order !== heldOrder) {
+    listDeferred = true;
+    const positions = new Map(heldOrder.split(" ").map((id,i) => [id,i]));
+    active = active.filter(t => positions.has(t.id)).sort((a,b) => positions.get(a.id)! - positions.get(b.id)!);
+  } else heldOrder = order;
   const expanded = settledOpen || !!q;
   const rows = `<li class="th-active-shell" id="th-active-shell"><ol class="th-active-list" id="th-active-list">${managersHtml}${active.filter((t) => !t.pinned).map(row).join("") || (managersHtml ? "" : '<li class="th-empty">No threads match.</li>')}</ol></li>` + (settled.length ? `<li class="th-settled-section" id="th-settled-section"><button type="button" class="th-settled-toggle" aria-expanded="${expanded}" aria-controls="th-settled-body"><span>Settled</span><span class="th-settled-count">${settled.length}</span><span aria-hidden="true">${expanded ? "⌄" : "›"}</span></button><div id="th-settled-body" class="th-settled-body"${expanded ? "" : " hidden"}><ol id="th-settled-list" class="th-settled-list">${expanded ? settled.slice(0, q ? settled.length : settledLimit).map(row).join("") : ""}</ol>${expanded && !q && settled.length > settledLimit ? `<button type="button" class="th-settled-more">⌄ &nbsp; Show ${Math.min(25, settled.length - settledLimit)} more</button>` : ""}</div></li>` : "");
   const sig = rows + q;
@@ -1680,26 +1851,67 @@ function toggleManagers() {
   gameSound.play("switch");
   const list = $("th-list").querySelector<HTMLElement>("#mg-list");
   if (!opening && list && !calm()) {
-    managersTween = gsap.to(list, { height: 0, opacity: 0, duration: 0.16, ease: "power2.in", onComplete: () => { managersTween = null; renderThreads(); } });
+    managersTween = gsap.to(list, { height: 0, opacity: 0, duration: 0.16, ease: "power2.in", onComplete: () => { managersTween = null; renderThreads(true); } });
     return;
   }
   managersJustOpened = opening;
-  renderThreads();
+  renderThreads(true);
 }
 wireFaceFallback($("th-list"));
 wireFaceFallback($("rail-list"));
-$("th-q").addEventListener("input", renderThreads);
+$("th-q").addEventListener("input", () => { renderThreads(true); runThreadSearch((($("th-q") as HTMLInputElement).value || "").trim().toLowerCase()); });
 $("th-new-project").addEventListener("click", () => newProject());
 // Sampled project colors arrive later: redraw managers in them.
 whenProjectColors(() => { if (world.lastData) world.update(world.lastData); thSig = ""; renderThreads(); });
 $("th-list").addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
   if (target.closest(".mg-toggle")) { toggleManagers(); return; }
-  if (target.closest(".th-settled-toggle")) { settledOpen = !settledOpen; renderThreads(); return; }
-  if (target.closest(".th-settled-more")) { settledLimit += 25; renderThreads(); return; }
+  if (target.closest(".th-settled-toggle")) { settledOpen = !settledOpen; renderThreads(true); return; }
+  if (target.closest(".th-settled-more")) { settledLimit += 25; renderThreads(true); return; }
   const b = (e.target as HTMLElement).closest(".th-row") as HTMLElement | null;
   if (b) openThread(b.dataset.id!);
 });
+$("th-new-task").addEventListener("click", () => startNewTask());
+$("side-help").addEventListener("click", () => openShortcutHelp());
+const listRows = () => [...$("th-list").querySelectorAll<HTMLElement>(".th-row[data-id]")].filter(r => r.offsetParent);
+$("th-q").addEventListener("keydown", (e) => {
+  if (e.key === "ArrowDown") { e.preventDefault(); listRows()[0]?.focus(); }
+  else if (e.key === "Enter") {
+    const first = listRows()[0];
+    if (!first) return;
+    e.preventDefault();
+    // The filter has done its job: the full list comes back once the thread is open.
+    (e.target as HTMLInputElement).value = ""; (e.target as HTMLInputElement).blur();
+    openThread(first.dataset.id!); renderThreads(true);
+  }
+  else if (e.key === "Escape" && (e.target as HTMLInputElement).value) { e.preventDefault(); e.stopPropagation(); (e.target as HTMLInputElement).value = ""; renderThreads(true); }
+});
+$("th-list").addEventListener("keydown", (e) => {
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || !["ArrowDown", "ArrowUp"].includes(e.key)) return;
+  const rows = listRows(), at = rows.indexOf((e.target as HTMLElement).closest(".th-row") as HTMLElement);
+  if (at < 0) return;
+  e.preventDefault();
+  if (e.key === "ArrowUp" && at === 0) { ($("th-q") as HTMLInputElement).focus(); return; }
+  rows[Math.min(rows.length - 1, Math.max(0, at + (e.key === "ArrowDown" ? 1 : -1)))]?.focus();
+});
+function findThread() {
+  if (ui.rail) toggleRail(false, false);
+  folded.delete("threads"); ui.folded = [...folded];
+  foldSection("threads", true, false);
+  const search = $("th-q") as HTMLInputElement;
+  search.focus(); search.select();
+  saveSettings();
+}
+// Questions first, then failures, reviews and finished work, in list order after the open chat.
+function nextNeedingYou() {
+  const threads = (world.lastData?.threads ?? []).filter(t => !t.settled);
+  const rank = (t: typeof threads[number]) => t.question ? 0 : (t.lastStatus === "failed" || t.job?.state === "failed") && t.runStatus !== "running" ? 1 : t.unseen && t.lastStatus === "completed" ? 2 : collectible(t.id, true) ? 3 : -1;
+  const waiting = threads.filter(t => rank(t) >= 0);
+  if (!waiting.length) { gameSound.play("switch"); showMenu(innerWidth / 2 - 120, 80, "Nothing needs you right now", []); return; }
+  const best = Math.min(...waiting.map(rank)), group = waiting.filter(t => rank(t) === best);
+  const at = group.findIndex(t => t.id === chat.threadId);
+  openThread(group[(at + 1) % group.length].id);
+}
 function newProject() {
   if (companionClient() || currentEnvironment) return;
   const lucid = (window as any).lucid;
@@ -1715,10 +1927,16 @@ function markSelected(id: string | null) {
 }
 
 function openThread(id: string) {
+  markSelected(id);
   world.revealThread(id);
   if (needsAnswer(id)) { openAnswer(id); return; }
   const d = world.deskFor(id);
-  if (d && !d.el.classList.contains("arriving")) { world.focusOn(d); return; }
+  if (d && !d.el.classList.contains("arriving")) {
+    world.focusOn(d);
+    // Focusing the desk already in focus changes nothing, so the conversation is shown here too.
+    if (chat.threadId !== id || chat.collapsed) { chat.open(d); paintChatManager(); chat.setView(world.focusMode); pushStatus(d); }
+    return;
+  }
   // not at a desk: follow it wherever it is (break room, questions, park, walking)
   const el = document.querySelector(`.world-walker[data-id="${CSS.escape(id)}"]`) as HTMLElement | null;
   if (el) {
@@ -1784,7 +2002,7 @@ wireThreadDrag([$("th-list"), $("rail-list")], chat, threadRef, {
     const room = button?.dataset.room;
     return room && world.rooms.some((r) => r.id === room && ["main", "project", "freelance"].includes(r.kind)) ? room : world.threadDropZone(x, y);
   },
-  preview: (room) => world.previewThreadDrop(room),
+  preview: (room, id) => world.previewThreadDrop(room, id),
   place: (id, room) => world.placeThread(id, room),
 }, {
   target: (id, x, y) => {

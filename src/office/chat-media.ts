@@ -1,11 +1,11 @@
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
 /** A smaller copy of a local picture for places that show it small (electron/thumbs.cjs serves
  * it). Other addresses come back unchanged, and previews still open the original. */
 export function thumbSrc(src: string, width: number) {
   if (!src.startsWith("lucid-file://local/")) return src;
   try { const u = new URL(src); u.searchParams.set("w", String(Math.round(width))); return u.toString(); } catch { return src; }
 }
-
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** Markdown can contain native paths, file URLs or the slash-prefixed paths used
  * by conversation links. Keep literal filenames intact, including # and %. */
@@ -68,7 +68,7 @@ export function inlineChatImage(href: string, label: string, title?: string | nu
   if (!src) return `<span class="cp-media-unavailable">Image unavailable: ${esc(name)}</span>`;
   const kind = chatMediaKind(href) ?? "image";
   if (kind === "video" || kind === "audio") return inlineChatFile(href, name);
-  return `<button type="button" class="cp-inline-media${kind === "image" ? "" : " cp-file"}" data-media-src="${esc(src)}" data-media-kind="${kind}" data-media-name="${esc(name)}" aria-label="Preview ${esc(name)}"${title ? ` title="${esc(title)}"` : ""}>${kind === "image" ? `<img src="${esc(src)}" alt="${esc(name)}" loading="lazy" decoding="async">` : `<span>${esc(name)}</span><i>Open ${kind}</i>`}</button>`;
+  return `<button type="button" class="cp-inline-media${kind === "image" ? "" : " cp-file"}" data-media-src="${esc(src)}" data-media-kind="${kind}" data-media-name="${esc(name)}" aria-label="Preview ${esc(name)}"${title ? ` title="${esc(title)}"` : ""}>${kind === "image" ? `<img src="${esc(thumbSrc(src, 960))}" alt="${esc(name)}" loading="lazy" decoding="async">` : `<span>${esc(name)}</span><i>Open ${kind}</i>`}</button>`;
 }
 
 /** Raw HTML images follow the same path and cannot bypass the media resolver.

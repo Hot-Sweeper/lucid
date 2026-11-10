@@ -37,7 +37,7 @@ function fixture() {
   const motion={...events(),matches:false};
   const window={...events(),setTimeout:(fn,delay)=>{timers.set(++serial,{fn,delay});return serial}};
   const requestAnimationFrame=fn=>{rafs.set(++serial,fn);return serial};
-  const args={document,window,requestAnimationFrame,cancelAnimationFrame:id=>rafs.delete(id),clearTimeout:id=>timers.delete(id),matchMedia:()=>motion,devicePixelRatio:1.5,innerWidth:viewport.width,innerHeight:viewport.height,beginSystem:()=>0,endSystem:()=>{},outdoorLook:()=>({season:'summer',frozen:false}),diagnosticOff:()=>off,onDiagnosticsChange:fn=>{diagnostics.add(fn);return()=>diagnostics.delete(fn)}};
+  const args={document,window,requestAnimationFrame,cancelAnimationFrame:id=>rafs.delete(id),clearTimeout:id=>timers.delete(id),matchMedia:()=>motion,devicePixelRatio:1.5,innerWidth:viewport.width,innerHeight:viewport.height,beginSystem:()=>0,endSystem:()=>{},outdoorLook:()=>({season:'summer',frozen:false}),diagnosticOff:()=>off,isCalm:()=>false,isAsleep:()=>false,onCalmChange:()=>()=>{},onDiagnosticsChange:fn=>{diagnostics.add(fn);return()=>diagnostics.delete(fn)}};
   const {mountWeather}=new Function(...Object.keys(args),`${compiled};return {mountWeather}`)(...Object.values(args));
   const host=new Element('div'),weather=mountWeather(host,rect),root=host.children[0],[sky,fall]=root.children;
   const frame=now=>{assert.equal(rafs.size,1,'one owned weather animation callback');const [id,fn]=rafs.entries().next().value;rafs.delete(id);fn(now)};
@@ -57,8 +57,11 @@ function fixture() {
     assert.equal(Number(root.dataset.skyPresents),before,'covered pan does not present sky again');
     assert.equal(sky.calls.filter(c=>c.kind==='draw').length,draws);
     const [tx,ty]=numbers(sky.style.transform),cx=Number(sky.dataset.sourceX),cy=Number(sky.dataset.sourceY),cw=Number(sky.dataset.sourceW),ch=Number(sky.dataset.sourceH);
-    assert.ok(Math.abs(tx-(cam.x+80+cx*scale))<1e-8&&Math.abs(ty-(cam.y+cy*scale))<1e-8,'retained sky follows world coordinates');
-    assert.ok(tx<=0&&ty<=0&&tx+cw*scale>=viewport.width&&ty+ch*scale>=viewport.height,'sky covers viewport');
+    // The weather box sits on the outdoor rect in world units; the camera transform carries it.
+    const ss=numbers(sky.style.transform)[2];
+    assert.ok(Math.abs(tx-(cx-rect.x))<1e-2&&Math.abs(ty-(cy-rect.y))<1e-2&&Math.abs(ss-1/scale)<1e-5,'retained sky follows world coordinates');
+    const sx=cam.x+80+(rect.x+tx)*scale,sy=cam.y+(rect.y+ty)*scale;
+    assert.ok(sx<=0&&sy<=0&&sx+cw*scale>=viewport.width&&sy+ch*scale>=viewport.height,'sky covers viewport');
     weather.setCamera({...cam,x:cam.x+110},viewport,20000);
     assert.equal(Number(root.dataset.skyPresents),before+1,'sky renews before overscan runs out');
     assert.equal(sky.resizes.length,resizes,'renewing an unchanged sky buffer must not reset its dimensions');
@@ -82,7 +85,8 @@ function fixture() {
 function numbers(value){return value.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi).map(Number)}
 function strokes(f){return f.fall.calls.filter(c=>c.kind==='stroke'&&c.path.some(p=>p[0]==='line'))}
 function assertRainCoverage(f,cam){
-  const [x,y,scale]=numbers(f.fall.style.transform),w=f.fall.width*scale,h=f.fall.height*scale;
+  // The canvas is placed in world units inside the outdoor box; map it to the screen.
+  const [lx,ly,k]=numbers(f.fall.style.transform),x=cam.x+(rect.x+lx)*cam.s,y=cam.y+(rect.y+ly)*cam.s,scale=k*cam.s,w=f.fall.width*scale,h=f.fall.height*scale;
   assert.ok(x<=.01&&y<=.01&&x+w>=viewport.width-.01&&y+h>=viewport.height-.01,'precipitation covers all exposed pixels immediately after camera changes');
   assert.ok(f.fall.width*f.fall.height<=1.61e6,'existing particle backing cap is unchanged');
   const expectedQ=Math.min(1.5*.7,Math.sqrt(1.6e6/(viewport.width*viewport.height*1.24**2)));

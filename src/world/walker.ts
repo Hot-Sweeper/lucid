@@ -359,7 +359,7 @@ export class Walker {
     show("fbBody", fb); show("sideBody", !fb);
     show("fbHead", fb); show("sideHead", !fb);
     show("backPlate", dir === "up"); show("chest", dir === "down");
-    this.$.face.setAttribute("opacity", dir === "down" ? "1" : "0");
+    setSvgAttribute(this.$.face, "opacity", dir === "down" ? "1" : "0");
     show("face", dir === "down"); show("back", dir !== "down");
     this.$.flip.setAttribute("transform", dir === "left" ? "translate(1120 0) scale(-1 1)" : "");
     // far limbs in the side view are a shade darker
@@ -1329,7 +1329,7 @@ export class Walker {
     const c = ((el as any).__c ??= {}) as Record<string, string>;
     if (c[name] === v) return;
     c[name] = v;
-    el.setAttribute(name, v);
+    if (name === "opacity") setSvgAttribute(el, name, v); else el.setAttribute(name, v);
   }
 
   private bubbleFit: { bw: number; bh: number; pw: number; ph: number } | null = null;

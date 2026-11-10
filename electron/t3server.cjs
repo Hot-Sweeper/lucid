@@ -332,12 +332,16 @@ function respondToRequest(threadId, requestId, { answers, decision, feedback, se
 }
 
 // Explicit settlement is reversible through T3's native thread commands.
-async function settleThread(threadId, { excludePinned = true, expectedRunId = null } = {}) {
+// A session you settle from its desk may have ended any way (finished, stopped, failed), like
+// T3's own Settle; reviews still require a completed run.
+const ENDED_RUNS = new Set(["completed", "cancelled", "canceled", "interrupted", "failed", "error", "stopped", "aborted"]);
+async function settleThread(threadId, { excludePinned = true, expectedRunId = null, ended = false } = {}) {
   // Pair/connect first, then re-read promotion state immediately before dispatch.
   {
     await connect();
     const state = require("./t3.cjs").reportState(threadId);
-    if (expectedRunId && (state.run?.id !== expectedRunId || state.run?.status !== "completed" || state.pendingRuns || state.pendingRequests)) throw new T3ServerError("New work superseded this review.", "stale-review");
+    const finished = ended ? ENDED_RUNS.has(state.run?.status) : state.run?.status === "completed";
+    if (expectedRunId && (state.run?.id !== expectedRunId || !finished || state.pendingRuns || state.pendingRequests)) throw new T3ServerError("New work superseded this review.", "stale-review");
     if (state.pinned) throw new T3ServerError("Pinned project managers cannot be settled automatically.", "manager-protected");
   }
   return dispatch({ type: "thread.settle", threadId });
@@ -490,7 +494,25 @@ async function status({ connect = false, threadId = null } = {}) {
   return out;
 }
 
+// T3 Code's own thread search (orchestration.searchThreads), as its sidebar uses it: message text
+// (words of three or more letters), ranked by match quality, plus the rows of older settled
+// threads that the active list leaves out. Only small fields leave the main process.
+async function searchThreads(query) {
+  const q = String(query || "").trim().slice(0, 200);
+  if (q.length < 2) return { matches: [], threads: [] };
+  const r = await call("orchestration.searchThreads", { query: q, limit: 30, olderSettledBefore: new Date().toISOString() }, { timeout: 8000 });
+  const matches = (r?.matches || []).map((m) => ({ threadId: m.threadId, projectId: m.projectId, source: m.source, snippet: String(m.snippet || "").slice(0, 240), quality: m.quality ?? null, at: m.messageCreatedAt || null }));
+  const threads = (r?.threads || []).map((t) => ({
+    id: t.id || t.threadId, title: t.title || "Untitled thread", projectId: t.projectId || null,
+    updatedAt: t.updatedAt || t.latestUserMessageAt || t.createdAt || null,
+    provider: t.modelSelection?.instanceId || t.providerInstanceId || t.defaultProvider || "",
+    settled: true,
+  })).filter((t) => t.id);
+  return { matches, threads };
+}
+
 module.exports = {
+  searchThreads,
   setRemoteSecret: fn => { remoteSecret = fn; },
   setRemoteDispatch: fn => { remoteDispatch = fn; },
   ensurePaired, status, dispatch, call, listProviders, hireConfig, startHire, hireContexts: projectId => require('./hire-context.cjs').settledContexts(getDb(), projectId), selection, usageLimits,

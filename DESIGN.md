@@ -8,6 +8,12 @@ When a tool identifies a browser launched in an agent workspace, the robot brows
 
 Opening and closing the conversation uses one 200ms compositor slide with the camera's shared glide curve. The grid changes width once, the real transcript stays at its final width, and the office camera glides to its new framing. There is no delayed fade or per-frame grid resize. Reversals continue from the shown position. Closing moves focus to the rail immediately and makes the departing panel inert. Opening preserves drafts, transcript nodes and reading position. Reduced motion applies the final layout immediately. Drag resizing remains live and cancels toggle motion. A quiet shared switch cue follows animated toggles.
 
+## Auto-hide panels
+
+The sidebar and the chat each have a pin in their header (`edge-peek.ts`). Pinned (the default) keeps the panel in its column. Unpinned, the panel stays folded into its rail or tab and slides over the office while the pointer rests on that edge or the last few pixels of the window (110ms hover intent), so the office never reflows or jumps. It enters in 240ms on the glide curve and leaves in 170ms ease-in after a 380ms grace period. It stays out while you type in it, while one of its menus or dialogs is open, and during thread drags or resizing. A click in the office, Escape or moving away tucks it back; selecting a robot or using Ctrl+B slides it out on purpose. While peeking it carries a soft shadow on the office side only, and a 2px peach line grows on the edge being hovered. Pinning a peeking panel leaves it in place and grows the column under it. The pin is filled and upright when pinned, outlined and tilted when auto-hiding, and rocks on a no-bounce spring with the shared clip cue. Reduced motion uses fades. Both modes are saved in settings.
+
+Chat menus (harness, model, effort) live on `<body>` at fixed viewport positions measured from their button. They open above it, or below when there is no room, and stay inside the chat's horizontal bounds.
+
 ## Robot journeys
 
 The visible office ends at the inner edges of the sidebars, including collapsed rails. Use the scene's real rectangle, subtract only panel overlap, and refresh these limits when panels resize. Remote buildings share those same clipped limits. Horizontal entry keeps a whole-body guard without an extra screen-space approach behind the sidebars.
@@ -34,6 +40,7 @@ Project offices open a personal planning board from their sidebar icon, a compac
 
 Goals and dates are personal plans, separate from real T3 task completion. T3's configured text generation model writes optional human goals, a motto and occasional project-specific banter. Accepting suggestions is explicit. Only current named project robots can speak; existing task/question bubbles take priority. A generated board may refresh after real thread-state changes at most once an hour while visible. Generated replies never replace saved plans. English/German labels and generated flavor follow the office language. Failed saves preserve a local project draft; revision checks prevent overwriting another window. Project boards currently belong to local offices, with linked environments and companion clients excluded.
 
+
 ## Desk plan widget
 
 An individual robot's plan is a compact golden checklist icon with its real completion count beside the monitor. Clicking the widget fills that monitor with the live plan; it does not open the conversation's plan section. The existing desktop and its drafts remain mounted underneath. Back to desktop, the widget again, or Escape from the plan restores the desktop. Step updates preserve reading position and keep the view open, including when the plan becomes empty. Reassigning or removing the desk closes its old plan.
@@ -43,7 +50,6 @@ Use an opaque night-2 surface across the complete monitor, including the dock an
 ## Office radio
 
 Keep the music controls inside the existing Office & settings shelf, below the volume sliders. Use an unboxed compact section, native themed genre selector, wrapping song title, plain genre/tempo text, and two 38px actions for Pause music and Next song. Preserve the navy surfaces, lavender text and peach keyboard focus. Controls respond in 130ms with the shared strong ease-out; reduced motion removes press transforms. The evolving journey is the default, with a quiet chapter description rather than a decorative visualization. Mode changes finish the current song unless Next is requested. English and German controls update instantly; song names remain authored. State comes from the audio owner, with no UI polling timer.
-
 
 ## Office store and appearance collections
 
@@ -72,6 +78,15 @@ Reasoning summaries render safe inline emphasis as real bold/italic/code element
 Drag an occupied desk by its existing desk or nameplate surface into Main office, a project office or Freelancers. Reuse the office drop outline and saved thread-home assignment used by sidebar thread drops. The grabbed desk follows the pointer, while a drop in its original room retains snake reordering. Escape, lost capture, a cancelled pointer or window blur restores the original order; releasing in a corridor cancels. Main office expands when work is placed there. Explicit homes also apply to managers without changing their real T3 project, role or pin. The orchestrator retains its dedicated chair.
 
 Desk and thread menus offer the same Move to office actions for click and keyboard use through the existing menu. Successful desk transfers use the shared switch cue. Preserve the existing artwork, drag lift, reduced-motion settling and mute behavior.
+## Website studio on Ares
+
+The office toolbar and robot chat open a native Lucid workspace: a large website canvas on the left and the familiar bubble conversation on the right. Keep Lexend, JetBrains Mono, the existing navy/lavender surfaces and peach controls. The studio has a separately designed light surface palette. Its chat width is retained, keyboard adjustable, and independent from the canvas scroll. Narrow windows switch between canvas and chat.
+
+There is one visible canvas cursor. It reconstructs real saved render changes, with selection outlines, handles, a caret, placement, typing, resizing and removal. It is explicitly described as playback, never recorded mouse input. Completed projects open immediately. Replay alone deliberately reconstructs a completed page from blank. Live changes coalesce into one pending version and continue from the currently shown partial build. Reduced motion applies the final render immediately. Desktop, tablet and phone use fixed 1440×900, 820×1180 and 390×844 viewports; scaling only fits that viewport into the available canvas.
+
+Playback uses inert serialized DOM from an actual Chromium render on Ares, with saved CSS inlined. Project scripts run only in the isolated inspection browser or the separate interactive preview origin, never in playback frames. Use website promptly switches to the real running project. The chat distinguishes actual execution from playback catching up. Actual visual inspection and image-search results appear in the conversation; ordinary tool details remain expandable.
+
+Ares owns Codex execution, project files and its existing sign-in. Spacestation signs project-scoped requests from the Electron backend; generated pages never receive the connector key. The runner accepts only signed requests, rejects replayed nonces and browser Origin headers, and binds to Ares loopback behind its HTTPS tailnet route. Project approvals use Lucid's existing AnswerCard and only explicit once/decline decisions. Framework scripts start through Codex's normal scoped command tools, not an unrestricted runner child. An associated idle robot can mirror the canvas through the existing frontend/LOD pipeline, with the ordinary OS pointer hidden while the canvas owns its cursor.
 
 ## Player-sized office widths
 
@@ -85,6 +100,12 @@ Reuse a single destination outline while dragging, with a numbered footprint at 
 A transfer commits its saved home immediately. Keep an explicit Moving to label while the safe physical floor-plan handoff is pending, following current room geometry on world updates and clearing on physical placement. Do not slide a transferred desk back to its source before the handoff. Recheck the release coordinates so a quick final movement lands in the intended room. Existing robot routing, conversations and work continue throughout.
 
 
+## Completion reports on monitors
+
+Completion reports use unboxed evidence and narrative columns, with the captured result leading and a single scrolling body. Keep original aspect ratios, descriptive captions, a wrapping thumbnail rail and full-original viewing in a native modal. At 620px, the result and narrative stack. The original task lives in a disclosure. No nested report scrollbar, uppercase kicker or colored status capsule. Preserve the existing collect/settle action and failure retry.
+
+Use navy/lavender/peach tokens, Lexend, 18px body gutters, 24px column gaps, 6px media frames, quiet 140ms background feedback and visible peach focus. Reduced motion removes gallery transitions. Empty evidence and load failures remain explicit; uploaded user references are separate from assistant results. Only assistant screenshots linked or attached in real messages populate the result gallery.
+
 ## Answer embeds and robot power
 
 Assistant answers retain real T3 `html_render` visuals in the transcript, outside the progress fold. Local image, audio, video and file links resolve through the owning environment. Inline players never autoplay; downloads use a native save dialog. HTML visuals run in a separate sandbox without a preload, same-origin access, network requests or form submission. The companion keeps a static document fallback.
@@ -92,13 +113,6 @@ Assistant answers retain real T3 `html_render` visuals in the transcript, outsid
 Native T3 references use compact robot portrait buttons with the current title, harness and model. Preserve the complete thread ID and environment identity. The whole card responds to keyboard activation; unavailable references say so.
 
 Ultra fire follows the approved compact purple pixel-fire reference documented in `docs/robot-power.md`. A 32 by 40 upward-advected heat field uses touching violet, magenta and lavender cells, with no gutters or cell outlines. Shoulder-side sources feed uneven tongues behind the head, while a separate layer adds lower-body foreground wisps. Preserve the actual robot, face, logo, chair and nameplate. Active run options still determine Ultra and fast state; reduced motion freezes the field and actor teardown releases both surfaces.
-
-
-## Completion reports on monitors
-
-Completion reports use unboxed evidence and narrative columns, with the captured result leading and a single scrolling body. Keep original aspect ratios, descriptive captions, a wrapping thumbnail rail and full-original viewing in a native modal. At 620px, the result and narrative stack. The original task lives in a disclosure. No nested report scrollbar, uppercase kicker or colored status capsule. Preserve the existing collect/settle action and failure retry.
-
-Use navy/lavender/peach tokens, Lexend, 18px body gutters, 24px column gaps, 6px media frames, quiet 140ms background feedback and visible peach focus. Reduced motion removes gallery transitions. Empty evidence and load failures remain explicit; uploaded user references are separate from assistant results. Only assistant screenshots linked or attached in real messages populate the result gallery.
 
 ## Thread labels at room scale
 
@@ -109,24 +123,15 @@ Below camera scale 1.15, desk plates show a cached 2 to 4 word topic in 14px Lex
 
 The monitor question screen uses a compact 23px header, 18px question and 16px choices at the existing 820 by 461 logical screen size. Suppress descriptions that only repeat the option label. Keep Other and its text field on one row. Question content owns one scroll region for unusually long requests; a separate fixed footer keeps Send answer, approval controls and retry feedback visible. Preserve distinct descriptions, actual question text, selections, custom answers, keyboard focus, and the existing submission path. The sidebar answer card keeps its established typography and layout.
 
-## Website studio on Ares
+## Authored music moods and curation
 
-The office toolbar and robot chat open a native Lucid workspace: a large website canvas on the left and the familiar bubble conversation on the right. Keep Lexend, JetBrains Mono, the existing navy/lavender surfaces and peach controls. The studio has a separately designed light surface palette. Its chat width is retained, keyboard adjustable, and independent from the canvas scroll. Narrow windows switch between canvas and chat.
+Extend the existing song rows with plain genre, tempo and localized instrument text. Search covers instruments as well as titles and genres; avoid extra badges or a separate player. Mystical, medieval, detective and nostalgic directions join the electronic genres. Ambient pads and Bells & wonder filter by authored textures and gentle energy, rather than assuming every ambient piece sounds alike. Keep English/German controls, native selects, existing focus behavior and the same two shared streams.
 
-There is one visible canvas cursor. It reconstructs real saved render changes, with selection outlines, handles, a caret, placement, typing, resizing and removal. It is explicitly described as playback, never recorded mouse input. Completed projects open immediately. Replay alone deliberately reconstructs a completed page from blank. Live changes coalesce into one pending version and continue from the currently shown partial build. Reduced motion applies the final render immediately. Desktop, tablet and phone use fixed 1440×900, 820×1180 and 390×844 viewports; scaling only fits that viewport into the available canvas.
-
-Playback uses inert serialized DOM from an actual Chromium render on Ares, with saved CSS inlined. Project scripts run only in the isolated inspection browser or the separate interactive preview origin, never in playback frames. Use website promptly switches to the real running project. The chat distinguishes actual execution from playback catching up. Actual visual inspection and image-search results appear in the conversation; ordinary tool details remain expandable.
-
-Ares owns Codex execution, project files and its existing sign-in. Spacestation signs project-scoped requests from the Electron backend; generated pages never receive the connector key. The runner accepts only signed requests, rejects replayed nonces and browser Origin headers, and binds to Ares loopback behind its HTTPS tailnet route. Project approvals use Lucid's existing AnswerCard and only explicit once/decline decisions. Framework scripts start through Codex's normal scoped command tools, not an unrestricted runner child. An associated idle robot can mirror the canvas through the existing frontend/LOD pipeline, with the ordinary OS pointer hidden while the canvas owns its cursor.
+The eleven-chapter journey uses active listening time, energy, related modal keys, half/double-time tempo and shared textures. Songs finish their written endings before a transition. Compatible bridge pieces can prepare a distant key or energy change. Constant measured playback trims match loudness while preserving arrangement dynamics. The library plays original encoded recordings; all sampling, native synth rendering and stem effects happen offline.
 
 ## Robot portrait alignment
 
 Shared robot portraits use a square frame around the actual head and hat bounds with equal padding. Remove downward SVG offsets and oversizing. Center the portrait vertically beside the complete thread text block, including manager rows, at every sidebar width. Custom profile pictures retain their existing cover framing.
-
-
-## Question choice controls
-
-Use native radio and checkbox inputs with custom Lucid visuals: a crisp lavender ring over the existing dark input surface, a peach center dot for a selected radio and a dark check on a peach selected checkbox. Unselected rows stay unboxed. The whole row activates its associated input through the label, while the custom text field keeps its own hit target. Retain compact row dimensions, visible keyboard focus, disabled semantics and native arrow-key behavior. Hover fills ease in over 130ms; selection draws over 160ms and pressing gently compresses the control. Reduced motion removes these transitions and compression; forced colors restores the platform control. Choices in the chat shelf and on desk monitors share this styling.
 
 
 ## Question choice controls
@@ -141,23 +146,20 @@ A manager is an ongoing conversation for its owning project. Present it with the
 
 On a monitor showing one question, keep the question at the top and align its answer choices, including Other, to the bottom of the available content area just above the fixed Send footer. Keep at least 12px between the prompt and choices. Let long content overflow naturally into the existing content scroll region, and keep multiple questions in normal reading order. Chat-shelf question layout is unchanged.
 
-## Authored music moods and curation
-
-Extend the existing song rows with plain genre, tempo and localized instrument text. Search covers instruments as well as titles and genres; avoid extra badges or a separate player. Mystical, medieval, detective and nostalgic directions join the electronic genres. Ambient pads and Bells & wonder filter by authored textures and gentle energy, rather than assuming every ambient piece sounds alike. Keep English/German controls, native selects, existing focus behavior and the same two shared streams.
-
-The eleven-chapter journey uses active listening time, energy, related modal keys, half/double-time tempo and shared textures. Songs finish their written endings before a transition. Compatible bridge pieces can prepare a distant key or energy change. Constant measured playback trims match loudness while preserving arrangement dynamics. The library plays original encoded recordings; all sampling, native synth rendering and stem effects happen offline.
-
 ## Sidebar header actions
 
 Keep App library, Website studio, Office & settings, Help and Hide in one compact action group. Only the group absorbs spare header width. Its 30px buttons use 4px gaps, 6px corners, lavender icons and peach focus; visual order follows keyboard order. At narrow sidebar widths the whole group moves below the weather instead of spreading or wrapping individual icons. Long weather labels ellipsize within the header, retaining their full accessible text and existing tooltip. Update keeps its separate row. Hover feedback takes 130 ms and respects reduced motion.
+
 
 ## Tradebot chart jokes
 
 The robot can use the existing Tradebot cursor to draw a dinosaur outline, circle a real candle as god-candle analysis, scribble spaghetti divergence or project a trust-me-bro rally. Keep the near-black exchange, actual candles and price axes intact. These are bounded canvas annotations stored separately from market data, with a compact Robot doodle caption and an absurd verdict typed after the drawing. The god-candle halo follows an actual candle; no fake candle or price spike is added to Bitcoin. Fictional coin trades keep their existing simulation. Stroke growth follows the one existing cursor and stops through the shared Kit when real work returns. Reduced motion shows the complete drawing and verdict immediately. Use existing click/typing feedback, robot focus and celebration, localization and render scheduling.
 
+
 ## Empty desk cleanup
 
 Empty offices show Add a desk without automatically creating furniture. A job that takes a deliberately added spare consumes that spare instead of cloning another empty workstation. Reservations for active work, unanswered questions, review, charging and in-flight hires remain authoritative. Truly vacant desks have a quiet 30px close control at the monitor corner, peach keyboard focus and a 130ms press response. Occupied desks never show that control. The desk and office menus offer guarded removal, including all eligible empty desks in that office; no threads or workers are deleted. Removing the last desk leaves Add a desk available. Reuse the existing safe floor-layout transition, shared switch cue and saved environment layout. Reduced motion removes the control transform and transition.
+
 
 ## Compaction update screen
 

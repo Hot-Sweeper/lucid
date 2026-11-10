@@ -560,6 +560,20 @@ function patterns(L: Look) {
 // lamp and window glows). Terrain and woodland are bitmap tiles underneath (landscape-tiles.ts).
 export const PLAIN_GROUND = "#78b066";
 export function campusGround(o: Pick<OutsideOpts, "season" | "snowCover" | "wx">) { const L = lookFor(o); return mix(L.pal.ground, SNOW, L.snow * .8); }
+/** Where things stand in the park, in park plan units (centre 0,0; drawn PARK_K times bigger).
+ * Shared by the drawing below and the click reactions (park-toys.ts). */
+export const PARK_LAYOUT = {
+  trees: [[-540, -410, 66], [530, 400, 70], [-320, -200, 58], [540, -220, 54], [-575, 410, 52], [400, -400, 62]] as [number, number, number][],
+  bushes: [[-470, 230, 40], [-200, 420, 34], [420, 220, 38], [470, 260, 30], [-480, -340, 38]] as [number, number, number][],
+  /** low bush rows either side of the main path */
+  hedge: ([-50, 50] as number[]).flatMap(y => Array.from({ length: 12 }, (_, i) => -500 + i * 30).filter(x => x < -335 || x > -305).map(x => [x, y + (x % 60 ? 2 : -2), 16] as [number, number, number])),
+  beds: [[-175, -262, 95, 40, 31], [250, 190, 85, 32, 47], [-190, 214, 72, 30, 63]] as [number, number, number, number, number][],
+  lamps: [[-65, -35], [60, 160], [-470, 290]] as [number, number][],
+  pond: { x: 260, y: -120, rx: 190, ry: 120 },
+  fountain: { x: 0, y: 0, r: 70 },
+  gazebo: { x: 250, y: 320, r: 62 },
+};
+const PARK_LAMPS = PARK_LAYOUT.lamps;
 export function plainOutsideSvg(o: OutsideOpts) {
   const { ox, oy, w, h, building: b, park: p } = o, L = lookFor(o);
   const { snow, season, pal } = L;
@@ -574,41 +588,98 @@ export function plainOutsideSvg(o: OutsideOpts) {
   const plaza = mix(pal.plaza, SNOW, snow * 0.45);
   const garden = new Grove();
   // A small finite garden uses the existing artwork, frozen into static paths.
-  for (const [i,[x,y,r]] of [[-540,-410,66],[530,400,70],[-320,-200,58],[540,-220,54],[-510,330,56],[400,-400,62]].entries()) treeInto(garden,x,y,r,i%3,L,71+i*13);
-  for (const [x,y,r] of [[-470,230,40],[-200,420,34],[420,220,38],[470,260,30],[-480,-340,38]]) bushInto(garden,x,y,r,L);
+  // Every tree and bush is its own group so a click can sway just that one (park-toys.ts).
+  const sway = (key: string, x: number, y: number, draw: (G: Grove) => void) => {
+    const G = new Grove(); draw(G);
+    return `<g class="park-sway" data-sway="${key}" style="transform-origin:${x}px ${y}px">${G.all()}</g>`;
+  };
+  const plants = [
+    ...PARK_LAYOUT.hedge.map(([x, y, r], i) => sway(`h${i}`, x, y + r, G => bushInto(G, x, y, r, L))),
+    ...PARK_LAYOUT.bushes.map(([x, y, r], i) => sway(`b${i}`, x, y + r * 0.6, G => bushInto(G, x, y, r, L))),
+    ...PARK_LAYOUT.trees.map(([x, y, r], i) => sway(`t${i}`, x, y + r * 0.7, G => treeInto(G, x, y, r, i % 3, L, 71 + i * 13))),
+  ].join("");
   const flowerColors = pal.flowers.colors;
-  const flowers = Array.from({length:28},(_,i)=>{
-    const x = -235 + (i % 7) * 16, y = 193 + Math.floor(i / 7) * 14;
-    return `<path d="M${x} ${y+8}v-9" stroke="${pal.bush[0]}" stroke-width="3"/><circle cx="${x}" cy="${y-4}" r="5" fill="${snow>.5?SNOW:flowerColors[i%flowerColors.length]}"/>`;
-  }).join('');
-  const lamp = (x:number,y:number) => `<g transform="translate(${x} ${y})"><ellipse cy="12" rx="22" ry="10" fill="#334332" opacity=".18"/><path d="M0 0v-62" stroke="#46534c" stroke-width="9"/><path d="M-15-70h30l-4 23h-22z" fill="#ffe6ac"/><path d="M-19-72h38l-10-10h-18z" fill="#48564c"/><circle cy="-59" r="19" fill="#ffe6ac" style="opacity:calc(var(--lamp,0) * .25)"/></g>`;
+
+  // Park life: flower beds with stone borders, bush rows along the main path, reeds and stones
+  // round the pond and a gazebo. Static: painted once with the park, no per-frame cost.
+  const bloom = snow < 0.5 && flowerColors.length > 0;
+  const stone = mix("#a39b8c", SNOW, snow * 0.7), soil = mix("#5a3f2b", SNOW, snow * 0.85);
+  const leafA = mix(L.pal.bush[0], SNOW, snow * 0.7), leafB = mix(L.pal.bush[1], SNOW, snow * 0.7);
+  const bed = (cx: number, cy: number, rx: number, ry: number, seed: number) => {
+    const q = rnd(seed); let leaves = "", blooms = "";
+    for (let i = 0; i < Math.round(rx * ry / 210); i++) {
+      const a = q() * 6.283, d = Math.sqrt(q()) * 0.86;
+      leaves += `<circle cx="${n1(cx + Math.cos(a) * rx * d)}" cy="${n1(cy + Math.sin(a) * ry * d)}" r="${n1(7 + q() * 5)}" fill="${q() < 0.5 ? leafA : leafB}"/>`;
+    }
+    // flowers grow in drifts of one colour, not as confetti
+    if (bloom) for (let c = 0; c < Math.max(4, Math.round(rx / 15)); c++) {
+      const a = q() * 6.283, d = Math.sqrt(q()) * 0.62, ccx = cx + Math.cos(a) * rx * d, ccy = cy + Math.sin(a) * ry * d;
+      const col = flowerColors[(c + seed) % flowerColors.length];
+      for (let k = 0; k < 11; k++) {
+        const b = q() * 6.283, e = Math.sqrt(q()) * 16, x = ccx + Math.cos(b) * e, y = ccy + Math.sin(b) * e * 0.7;
+        blooms += `<circle cx="${n1(x)}" cy="${n1(y)}" r="${n1(4.2 + q() * 2)}" fill="${col}"/>`;
+      }
+      blooms += `<circle cx="${n1(ccx)}" cy="${n1(ccy)}" r="2.4" fill="#fff3c4" opacity=".8"/>`;
+    }
+    return `<ellipse cx="${cx}" cy="${cy + 4}" rx="${rx + 13}" ry="${ry + 13}" fill="#2a3424" opacity=".16"/>
+      <ellipse cx="${cx}" cy="${cy}" rx="${rx + 11}" ry="${ry + 11}" fill="${stone}"/>
+      <ellipse cx="${cx}" cy="${cy}" rx="${rx + 4}" ry="${ry + 4}" fill="${mix(stone, "#5d574d", 0.35)}"/>
+      <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${soil}"/>${leaves}${blooms}`;
+  };
+  const reeds = (() => {
+    const q = rnd(424); let out = "";
+    for (const [a0, a1] of [[2.3, 3.4], [0.2, 0.9], [4.4, 4.9]]) for (let i = 0; i < 9; i++) {
+      const a = a0 + (a1 - a0) * q(), x = 260 + Math.cos(a) * 196, y = -120 + Math.sin(a) * 126, h = 16 + q() * 14;
+      out += `<path d="M${n1(x)} ${n1(y)} q${n1(-3 + q() * 6)} ${n1(-h * 0.6)} ${n1(-4 + q() * 8)} ${n1(-h)}" stroke="${mix("#5c7a3a", SNOW, snow * 0.5)}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+      if (q() < 0.35) out += `<ellipse cx="${n1(x)}" cy="${n1(y - h)}" rx="2.6" ry="6" fill="#7a5233"/>`;
+    }
+    for (const [x, y, r] of [[78, -60, 14], [96, -20, 10], [440, -150, 12], [300, 8, 11]]) out += `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.7}" fill="${mix("#8b8f96", SNOW, snow * 0.6)}"/>`;
+    return out;
+  })();
+  const roofA = mix("#a8573c", SNOW, snow * 0.85), roofB = mix("#c4704c", SNOW, snow * 0.85);
+  const gazebo = `<g transform="translate(250 320)">
+    <ellipse cy="14" rx="74" ry="30" fill="#2a3424" opacity=".22"/>
+    <circle r="62" fill="${mix(plaza, "#8a785c", 0.15)}"/><circle r="54" fill="${plaza}"/>
+    ${[0, 1, 2, 3, 4, 5].map(i => { const a = i * Math.PI / 3; return `<circle cx="${n1(Math.cos(a) * 46)}" cy="${n1(Math.sin(a) * 46)}" r="6" fill="#6e4a30"/>`; }).join("")}
+    ${[0, 1, 2, 3, 4, 5].map(i => { const a = i * Math.PI / 3 + Math.PI / 6, b = a + Math.PI / 3; return `<polygon points="0,-10 ${n1(Math.cos(a) * 58)},${n1(Math.sin(a) * 58 - 10)} ${n1(Math.cos(b) * 58)},${n1(Math.sin(b) * 58 - 10)}" fill="${i % 2 ? roofA : roofB}"/>`; }).join("")}
+    <circle cy="-10" r="7" fill="#6e4a30"/>
+  </g>`;
+  const parkLife = `${PARK_LAYOUT.beds.map(([x, y, rx, ry, seed], i) => `<g class="park-sway" data-sway="f${i}" style="transform-origin:${x}px ${y}px">${bed(x, y, rx, ry, seed)}</g>`).join("")}${reeds}
+    <path d="M24 330 Q130 334 194 324" fill="none" stroke="${mix(plaza,'#8a785c',.2)}" stroke-width="36" stroke-linecap="round"/>
+    <path d="M24 330 Q130 334 194 324" fill="none" stroke="${plaza}" stroke-width="28" stroke-linecap="round"/>${gazebo}`;
+  const lamp = (x:number,y:number) => `<g transform="translate(${x} ${y})"><ellipse cy="12" rx="22" ry="10" fill="#334332" opacity=".18"/><path d="M0 0v-62" stroke="#46534c" stroke-width="9"/><path class="lamp-head" d="M-15-70h30l-4 23h-22z" fill="#ffe6ac"/><path d="M-19-72h38l-10-10h-18z" fill="#48564c"/><circle class="lamp-halo" cy="-59" r="44" fill="url(#lc-halo)"/></g>`;
   const parkArt = `
         <path d="M-520 0H0V390H-320M0 0H300M0 0V-340M-70-110H-114M0 110H120" fill="none" stroke="${mix(plaza,'#8a785c',.2)}" stroke-width="59" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M-520 0H0V390H-320M0 0H300M0 0V-340M-70-110H-114M0 110H120" fill="none" stroke="${plaza}" stroke-width="47" stroke-linecap="round" stroke-linejoin="round"/>
         <circle r="110" fill="${plaza}"/><circle r="97" fill="none" stroke="${mix(plaza,'#8a785c',.25)}" stroke-width="3"/>
         ${pond(260, -120, L, frozen)}
-        ${garden.all()}${flowers}
+        ${parkLife}
+        ${garden.all()}${plants}
 
-        <circle r="70" fill="${plaza}"/><circle r="52" fill="${frozen ? "#d3ebf5" : season === "winter" ? "#86bcd4" : "#8fc9e2"}"/><circle r="16" fill="${plaza}"/>
+        <circle r="76" fill="${mix(plaza,'#6f6a60',.3)}"/><circle r="70" fill="${plaza}"/><circle r="56" fill="${mix(plaza,'#6f6a60',.35)}"/><circle r="52" fill="${frozen ? "#d3ebf5" : season === "winter" ? "#86bcd4" : "#8fc9e2"}"/><circle r="16" fill="${plaza}"/>
         ${bench(-150, -110, L)}${bench(80, 110, L)}${bench(-150, 120, L)}${picnic(-380, 300, L)}
       `;
   // Ground, paths and woodland are painted by the landscape tiles underneath (landscape-tiles.ts).
   // Night glows: warm light from the lamp posts and from every lit window wall.
   const glows = (o.glows ?? []).map(([x,y]) => `<ellipse cx="${n1(x-ox)}" cy="${n1(y-oy)}" rx="120" ry="92" fill="url(#lc-glow)"/>`).join("");
+  // The dusk and night tints are plain coloured boxes, not rects inside this SVG. The SVG spans
+  // the whole padded map (tens of thousands of pixels); Chromium rasterizes it in tiles and,
+  // when a zoom outruns its tile budget, skips some. A tint inside it then went missing in
+  // blocks, showing daylight forest around a dark rectangle. A plain box is drawn as one flat
+  // colour, with nothing to rasterize. Lamp glows and posts stay above the tint.
+  const box = `position:absolute;left:0;top:0;width:${w}px;height:${h}px;pointer-events:none;z-index:1`;
   return `<svg class="outside outside-plain" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true" style="position:relative;z-index:1">
-    <defs><radialGradient id="lc-glow"><stop offset="0" stop-color="#ffd58e" stop-opacity=".55"/><stop offset=".55" stop-color="#ffc677" stop-opacity=".2"/><stop offset="1" stop-color="#ffc677" stop-opacity="0"/></radialGradient></defs>
     <g transform="translate(${-ox} ${-oy})">
       ${shell}
       <rect x="${b.x + b.w - 4}" y="${o.entranceY - 60}" width="40" height="120" fill="#b9a27e"/>
       <rect x="${b.x + b.w + 36}" y="${o.entranceY - 70}" width="60" height="140" rx="10" fill="${plaza}"/>
       ${[p, ...(o.otherParks ?? [])].map(q => `<g transform="translate(${q.x + q.w / 2} ${q.y + q.h / 2}) scale(${PARK_K})">${themedArt(parkArt, 0.8)}</g>`).join("")}
     </g>
-    <rect width="${w}" height="${h}" fill="#ff8f5a" style="opacity:calc(var(--outdoor-dusk,0) * .16)"/>
-    <rect width="${w}" height="${h}" fill="#0a1236" style="opacity:calc(var(--outdoor-night,0) * .84)"/>
+  </svg><div class="outside-tint" aria-hidden="true" style="${box};background:#ff8f5a;opacity:calc(var(--outdoor-dusk,0) * .16)"></div><div class="outside-tint" aria-hidden="true" style="${box};background:#0a1236;opacity:calc(var(--outdoor-night,0) * .84)"></div><svg class="outside outside-lights" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true" style="${box}">
+    <defs><radialGradient id="lc-pool"><stop offset="0" stop-color="#ffd9a0" stop-opacity=".42"/><stop offset=".45" stop-color="#ffc98a" stop-opacity=".2"/><stop offset="1" stop-color="#ffc98a" stop-opacity="0"/></radialGradient><radialGradient id="lc-halo"><stop offset="0" stop-color="#fff1cc" stop-opacity=".7"/><stop offset=".35" stop-color="#ffe0a3" stop-opacity=".25"/><stop offset="1" stop-color="#ffe0a3" stop-opacity="0"/></radialGradient><radialGradient id="lc-glow"><stop offset="0" stop-color="#ffd58e" stop-opacity=".55"/><stop offset=".55" stop-color="#ffc677" stop-opacity=".2"/><stop offset="1" stop-color="#ffc677" stop-opacity="0"/></radialGradient></defs>
     <g style="opacity:calc((var(--lamp,0) - .25) * 1.3)">${glows}</g>
     ${[p, ...(o.otherParks ?? [])].map(q => `<g transform="translate(${q.x+q.w/2-ox} ${q.y+q.h/2-oy}) scale(${PARK_K})">
-      <g fill="#ffd390" style="opacity:calc(var(--lamp,0) * .13)"><ellipse cx="-65" cy="0" rx="110" ry="65"/><ellipse cx="60" cy="195" rx="110" ry="65"/><ellipse cx="-390" cy="335" rx="110" ry="65"/></g>
-      ${lamp(-65,-35)}${lamp(60,160)}${lamp(-390,300)}
+      ${PARK_LAMPS.map(([x, y], i) => `<g class="park-lamp" data-lamp="${i}"><ellipse class="lamp-pool" cx="${x}" cy="${y + 8}" rx="108" ry="74" fill="url(#lc-pool)"/>${lamp(x, y)}</g>`).join("")}
     </g>`).join("")}
   </svg>`;
 }

@@ -36,11 +36,13 @@ function listProjects() {
     .all();
 }
 
+// A thread's run status: a run still in progress outranks newer ones that ended, such as queued
+// messages cancelled while the robot kept working; otherwise the newest run decides.
 function listThreads(limit = 60) {
   const rows = getDb()
     .prepare(`select t.thread_id as id, t.project_id as projectId, t.title, t.updated_at as updatedAt,
                      coalesce(t.provider_instance_id, t.default_provider) as provider, p.title as projectTitle,
-                     (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as runStatus
+                     (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by case when r.status in ('running','starting','preparing','waiting','awaiting_input','queued') then 0 else 1 end, r.ordinal desc limit 1) as runStatus
               from orchestration_v2_projection_threads t
               left join projection_projects p on p.project_id = t.project_id
               where t.archived_at is null and t.deleted_at is null
@@ -310,7 +312,7 @@ function office(projectId, limit = 6) {
   if (!p) return null;
   const threads = getDb()
     .prepare(`select t.thread_id as id, t.title, t.updated_at as updatedAt, coalesce(t.provider_instance_id, t.default_provider) as provider,
-                     (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as runStatus
+                     (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by case when r.status in ('running','starting','preparing','waiting','awaiting_input','queued') then 0 else 1 end, r.ordinal desc limit 1) as runStatus
               from orchestration_v2_projection_threads t
               where t.project_id = ? and t.archived_at is null and t.deleted_at is null
               order by t.updated_at desc limit ?`)
@@ -332,7 +334,7 @@ function coinBindings() {
   // Archived sessions also belong in the baseline, so reopening old work
   // cannot mint coins for usage credited before manual collection existed.
   const rows = getDb().prepare(`select p.provider, p.thread_id as threadId, p.payload_json as binding,
-    t.title, (select r.status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as status,
+    t.title, (select r.status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by case when r.status in ('running','starting','preparing','waiting','awaiting_input','queued') then 0 else 1 end, r.ordinal desc limit 1) as status,
     (select count(*) from orchestration_v2_projection_runtime_requests q where q.thread_id = t.thread_id and q.status not in ('resolved','cancelled','expired','failed')) as pending
     from orchestration_v2_projection_provider_threads p join orchestration_v2_projection_threads t on t.thread_id = p.thread_id`).all();
   return rows.flatMap(r => {
@@ -346,8 +348,8 @@ function world(limit = 40) {
   const rows = db
     .prepare(`select t.thread_id as id, t.project_id as projectId, t.title, t.updated_at as updatedAt, t.payload_json as payload,
                      coalesce(t.provider_instance_id, t.default_provider) as provider,
-                     (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as runStatus,
-                     (select json_extract(r.payload_json, '$.startedAt') from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by r.ordinal desc limit 1) as runStartedAt,
+                     (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by case when r.status in ('running','starting','preparing','waiting','awaiting_input','queued') then 0 else 1 end, r.ordinal desc limit 1) as runStatus,
+                     (select json_extract(r.payload_json, '$.startedAt') from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by case when r.status in ('running','starting','preparing','waiting','awaiting_input','queued') then 0 else 1 end, r.ordinal desc limit 1) as runStartedAt,
                      (select count(*) from orchestration_v2_projection_runtime_requests q where q.thread_id = t.thread_id and q.status not in ('resolved','cancelled','expired','failed')) as pending
               from orchestration_v2_projection_threads t
               where t.archived_at is null and t.deleted_at is null and t.thread_id not like 'thread:%'
@@ -598,4 +600,9 @@ function requestOutcome(threadId, requestId) {
   return { status: row.status, decision: safeJson(row.p)?.decision || null };
 }
 
-module.exports = { coinBindings, reportState: id => reportFacts(id, false), reportFacts, officeTasks, requestContext, repliesSince, resolvedRequestsSince, requestOutcome, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, conversationPage, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
+// Each live thread's own folder (T3's worktreePath), for matching jobs it left running.
+function threadFolders() {
+  return getDb().prepare("select thread_id as id, json_extract(payload_json, '$.worktreePath') as path from orchestration_v2_projection_threads where archived_at is null and deleted_at is null and json_extract(payload_json, '$.worktreePath') is not null").all();
+}
+
+module.exports = { threadFolders, coinBindings, reportState: id => reportFacts(id, false), reportFacts, officeTasks, requestContext, repliesSince, resolvedRequestsSince, requestOutcome, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, conversationPage, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };

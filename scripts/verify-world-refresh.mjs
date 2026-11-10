@@ -5,7 +5,7 @@ import { transformWithOxc } from 'vite';
 
 const source = await readFile(new URL('../src/main.ts', import.meta.url), 'utf8');
 const block = source.slice(source.indexOf('let watched = "";'), source.indexOf('// --- office and desk options'));
-assert.ok(block.includes('async function refreshTasks()'));
+assert.ok(!block.includes('refreshTasks'), 'the removed to-do list no longer polls T3 for tasks');
 const code = (await transformWithOxc(block, 'refresh.ts')).code;
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
 const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
@@ -13,18 +13,18 @@ function harness() {
   const updates = [], tasks = [], watches = [], observations = [], errors = [], frames = [], cameras = [];
   const data = { projects: [], threads: [], shipped: { total: 0, today: 0 } };
   const api = { world: async () => data, tasks: async () => [], watchSet: async ids => { watches.push(ids); return true; } };
-  const world = { desks: new Map([['robot', {}]]), get campusDesks() { return [...this.desks].map(([id,desk])=>({id,desk,x:0})); }, scene: {inert:false}, update(d) {this.lastData=d;updates.push(d);}, deskFor() { return null; }, overview() { cameras.push('overview'); } };
+  const world = { desks: new Map([['robot', {}]]), keptDesks: new Set(), get campusDesks() { return [...this.desks].map(([id,desk])=>({id,desk,x:0})); }, scene: {inert:false}, update(d) {this.lastData=d;updates.push(d);}, deskFor() { return null; }, overview() { cameras.push('overview'); } };
   const orch = { observe: async threads => observations.push(threads) };
   const document = {hidden:false}, window = {setTimeout:callback=>{frames.push(callback);return frames.length;}};
   const deps = { api, world, orch, delegate: { observe:async()=>{} }, coinRewards: null, monitorTasks: { prepare() {}, sync() {} }, projectTitles: new Map(),
     document,window,companionClient:()=>false,readCompanionState:async()=>null,paintSelectedStatus(){},renderThreads(){},
     appEl:{classList:{contains:()=>false}},mobileStartRoom:()=>null,
-    renderCompany() {}, settings: {}, chat: { threadId: null, setManager() {} }, paintChatManager() {}, todo: { update: t => tasks.push(t) },
+    renderCompany() {}, settings: {}, chat: { threadId: null, setManager() {} }, paintChatManager() {}, 
     $() {}, gsap: {}, pushStatus() {}, location: { search: '' }, URLSearchParams,
     requestAnimationFrame: callback => frames.push(callback), console: { error: (...args) => errors.push(args) } };
-  const run = new Function(...Object.keys(deps), `${code}; return {refresh, refreshTasks,
+  const run = new Function(...Object.keys(deps), `${code}; return {refresh,
     switchTo(environment) { buildingEpoch++; currentEnvironment=environment; watched=''; },
-    state() { return {refreshBusy,tasksBusy,watched}; }};`)(...Object.values(deps));
+    state() { return {refreshBusy,watched}; }};`)(...Object.values(deps));
   return { ...run, api, world, orch, document, updates, tasks, watches, observations, errors, frames, cameras, data };
 }
 
@@ -63,18 +63,7 @@ function harness() {
   const h=harness();h.document.hidden=true;
   await h.refresh();await settle();
   assert.equal(h.updates.length,1);assert.equal(h.observations.length,1);
-  assert.deepEqual(h.watches,[['robot']]);assert.equal(h.tasks.length,1);
-}
-// Slow task reads are single-flight and cannot overwrite the next building's tasks.
-{
-  const h = harness(), old = deferred(), next = deferred(); let calls = 0;
-  h.api.tasks = () => (++calls === 1 ? old : next).promise;
-  const pending = h.refreshTasks(); await h.refreshTasks(); await h.refreshTasks();
-  assert.equal(calls, 1);
-  h.switchTo('remote'); old.resolve(['local-only']); await pending; await settle();
-  assert.equal(h.tasks.length, 0); assert.equal(calls, 2);
-  next.resolve([]); await settle(); assert.deepEqual(h.tasks, [[]]);
-  assert.equal(h.state().tasksBusy, false);
+  assert.deepEqual(h.watches,[['robot']]);
 }
 // Only acknowledged subscriptions are remembered; false and rejection both retry.
 {
@@ -99,4 +88,4 @@ function harness() {
   const h = harness(); await h.refresh(); assert.equal(h.frames.length, 1);
   h.switchTo('remote'); h.frames[0](); assert.equal(h.cameras.length, 0);
 }
-console.log('PASS: nonblocking reports/watches, hidden desktop supervision, stale world/tasks/watch results, single-flight task reads, immediate coalesced refresh and subscription retries');
+console.log('PASS: nonblocking reports/watches, hidden desktop supervision, stale world and watch results, immediate coalesced refresh and subscription retries');

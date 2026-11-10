@@ -1,0 +1,80 @@
+/* Turns, like T3 Code: your message, a quiet "Worked for 7m" fold, then the final reply. */
+.cp-turn { flex: none; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.cp-turn-you { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 0; }
+.cp-turn-you:empty, .cp-turn-final:empty { display: none; }
+.cp-turn-final { display: flex; flex-direction: column; min-width: 0; }
+.cp-worked[hidden] { display: none; }
+.cp-worked > summary { list-style: none; display: flex; align-items: center; gap: 6px; min-width: 0; padding: 2px 4px 8px; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 1.5; color: var(--ink-3); cursor: pointer; user-select: none; font-variant-numeric: tabular-nums; }
+.cp-worked > summary::-webkit-details-marker { display: none; }
+.cp-worked > summary:hover { color: var(--ink-2); }
+.cp-worked > summary:focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: 6px; }
+.cw-head { flex: none; }
+.cw-chev { flex: none; transition: transform 0.15s ease; }
+.cp-worked[open] > summary .cw-chev { transform: rotate(90deg); }
+.cw-counts { flex: 1 1 auto; min-width: 0; margin-left: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.8; }
+.cw-bad { flex: none; margin-left: auto; color: #ff8a8a; }
+.cp-worked-body { display: flex; flex-direction: column; gap: 10px; padding: 10px 0 12px; border-bottom: 1px solid var(--line); }
+.cp-worked-body .cp-msg.bot .cp-text { color: var(--ink-2); font-size: 13.5px; line-height: 1.55; }
+.cw-scroll { max-height: min(18rem, 50vh); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border-radius: 6px; }
+.cw-scroll:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.cw-list { list-style: none; margin: 0; padding: 0 2px; display: flex; flex-direction: column; min-width: 0; }
+.cw-list li { display: flex; align-items: center; gap: 8px; min-width: 0; height: 26px; padding: 0 6px; border-radius: 6px; font-size: 12.5px; color: var(--ink-3); }
+.cw-list li:hover { background: rgba(255, 255, 255, 0.04); }
+.cw-list li > svg { flex: none; opacity: 0.8; }
+.cw-list li > b { flex: none; max-width: 60%; font-weight: 500; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-list li > span { flex: 1 1 0; min-width: 0; font: 11px/1.4 var(--mono); opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-list li > em { flex: none; margin-left: auto; font: 500 11px var(--mono); font-style: normal; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.cw-list li.cw-edit > svg { color: #ffbf5a; }
+.cw-list li.cw-search > svg { color: #4fd2ff; }
+.cw-list li.cw-agent > svg { color: #b07cff; }
+.cw-list li.bad > svg, .cw-list li.bad > b { color: #ff8a8a; }
+.cw-list li.live > svg, .cw-list li.live > b { color: #8cc4ff; }
+.cw-more { margin: 0; padding: 0 4px; font-size: 11.5px; color: var(--ink-3); }
+/* Times stay out of the way until you point at a message, except under the final reply. */
+.cp-turn .cp-msg > time { opacity: 0; transition: opacity 0.15s ease; }
+.cp-turn .cp-msg:hover > time, .cp-turn .cp-msg:focus-within > time, .cp-turn-final .cp-msg > time { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .cw-chev, .cp-turn .cp-msg > time { transition: none; } }
+.cp-worked-body .cp-msg > time { display: none; }
+.cp-worked-body .cp-msg.bot .cp-text { padding-top: 0; padding-bottom: 0; }
+
+/* ---- T3's timeline, in Lucid's palette ---- */
+/* Your message: a quiet raised bubble (T3's bg-message) with a faint warm tint, not a loud block. */
+.chat-panel .cp-msg.you { --bubble: color-mix(in srgb, var(--night-3) 82%, var(--accent) 18%); }
+.chat-panel .cp-msg.you .cp-text { background: var(--bubble); color: var(--ink); border-radius: 16px; padding: 10px 13px; }
+/* a folded long message fades into its own bubble color, not the old peach */
+.chat-panel .cp-msg.you.long .cp-text { overflow: hidden; }
+.chat-panel .cp-msg.you.long .cp-text::after { background: linear-gradient(to bottom, transparent, var(--bubble)); border-radius: 0 0 16px 16px; }
+.chat-panel .cp-msg.you .cp-text a { color: var(--accent-2); }
+.chat-panel .cp-msg.you .cp-text a:hover { color: #fff; }
+.chat-panel .cp-msg.you .cp-text code { background: rgba(255, 255, 255, 0.08); }
+.chat-panel .cp-msg.you { max-width: 80%; }
+/* the Working line replaces the old "It is working on this" note */
+.cp-turn .cp-live { display: none; }
+
+/* A live turn shows its work inline; the fold header only appears once it is finished. */
+.cp-turn.live .cp-worked > summary { display: none; }
+.cp-turn.live .cp-worked-body { padding-top: 0; border-bottom: 0; }
+.cp-working { margin: 0; padding: 2px 4px 8px; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 24px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.cp-working[hidden] { display: none; }
+
+/* Tool groups: one summary line with an icon, opening into the calls (T3 WorkGroupHeader). */
+.cw-group { min-width: 0; }
+.cw-toggle { width: 100%; min-width: 0; display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px; border: 0; border-radius: 6px; background: none; color: var(--ink-3); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.cw-toggle:hover { background: rgba(255, 255, 255, 0.04); color: var(--ink-2); }
+.cw-toggle:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.cw-toggle > svg:first-child { flex: none; opacity: 0.8; }
+.cw-toggle > b { flex: 0 1 auto; min-width: 0; font-weight: 500; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-toggle > .cw-chev { flex: none; margin-left: 2px; opacity: 0.7; transition: transform 0.15s ease; }
+.cw-group.open > .cw-toggle > .cw-chev { transform: rotate(90deg); }
+.cw-toggle.bad > b { color: var(--ink-2); }
+.cw-x { flex: none; color: #ff8a8a; }
+.cw-group > .cw-scroll { margin: 2px 0 2px 20px; }
+.cw-group > .cw-scroll[hidden] { display: none; }
+.cw-single { padding: 0; }
+/* each call's time appears on hover, like T3's row timestamps */
+.cw-list li > time { flex: none; margin-left: auto; font-size: 11px; color: var(--ink-3); opacity: 0; transition: opacity 0.15s ease; font-variant-numeric: tabular-nums; }
+.cw-list li:hover > time { opacity: 1; }
+.cw-list li > em + time, .cw-list li > .cw-x + time { margin-left: 6px; }
+.cw-list li > em { margin-left: auto; }
+.cw-list li.bad > b { color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) { .cw-toggle > .cw-chev, .cw-list li > time { transition: none; } }

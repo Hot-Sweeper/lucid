@@ -30,6 +30,12 @@ if (!process.versions.electron) {
   const ev = code => win.webContents.executeJavaScript(code);
   const checks = [], check = (ok, label) => { assert(ok, label); checks.push(label); };
   const capture = async name => { await wait(120); fs.writeFileSync(path.join(out, name + '.png'), (await win.webContents.capturePage()).toPNG()); };
+  // Click a drawn park thing (there are no park buttons): its spot centre, projected to the screen.
+  const clickPark = async kind => {
+    const p = await ev(`(()=>{const w=window.__world,s=w.park.toys.spots.find(s=>s.kind===${JSON.stringify(kind)}),r=w.root.getBoundingClientRect(),z=r.width/w.root.offsetWidth;return {x:Math.round(r.left+s.x*z),y:Math.round(r.top+s.y*z)}})()`);
+    win.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...p });
+    win.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...p }); await wait(80);
+  };
   const click = async selector => {
     const p = await ev(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect();return {x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)}})()`);
     win.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...p });
@@ -80,13 +86,9 @@ if (!process.versions.electron) {
       win.webContents.sendInputEvent({ type: 'char', keyCode: '\r' });
       win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' }); await wait(100);
       check(await ev('window.__wallet.rewards.length===0 && document.activeElement.id==="coin-bank"'), 'keyboard collection restores focus to the wallet');
-      check(await ev('!window.__world.desks.has("coin-worker")'), 'collecting releases a settled ordinary desk');
+      check(await ev('window.__world.desks.has("coin-worker")'), 'collecting keeps the desk until it is removed');
       check(await ev('window.__gameSound.voices.size===0'), 'muted collection produces no voices');
       check(await ev('document.querySelectorAll(".coin-transfer").length===0'), 'reduced motion collects immediately without flying coins');
-      await ev(`window.__wallet.observeSources([{key:'codex:fixture-all-a',threadId:'all-a',title:'First job',status:'completed',costUsd:2},{key:'codex:fixture-all-b',threadId:'all-b',title:'Second job',status:'completed',costUsd:3}]);window.__coinRewards.render()`);
-      const allBefore = await ev('window.__wallet.balance');
-      await click('.coin-collect-all');
-      check(await ev('window.__wallet.balance') > allBefore && await ev('window.__wallet.rewards.length===0'), 'Collect all consumes every completed reward in one action');
       win.setSize(980, 640); await wait(300);
       check(await ev('(()=>{const r=document.querySelector("#game-sound").getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.bottom<=innerHeight})()'), 'controls fit the smallest app window');
       await capture('04-compact');
@@ -105,10 +107,10 @@ if (!process.versions.electron) {
       check(await ev('window.__world.ext.break.movie.screenRaised===false'), 'roller control lowers the screen and resumes the film');
       await wait(1100); await capture('07-movie');
       await ev('window.__world.showPark()'); await wait(1100);
-      await click('.park-toy[data-kind="tree"]');
+      await clickPark('tree');
       check(await ev('document.querySelectorAll(".park-effect").length>0'), 'clicking a real park tree produces finite foliage effects');
       await capture('08-tree'); await wait(1700);
-      await click('.park-toy[data-kind="pond"]');
+      await clickPark('pond');
       check(await ev('document.querySelectorAll(".park-ripple").length>0'), 'pond clicks produce visible ripples');
       await capture('09-pond'); await wait(1700);
       check(await ev('document.querySelectorAll(".park-effect").length===0'), 'park transients release their elements after finishing');

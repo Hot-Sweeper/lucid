@@ -11,7 +11,8 @@ assert.equal(screenFrameRate(200), 30); assert.equal(screenFrameRate(449), 30); 
 
 const source = await readFile(new URL('../src/perf/render.ts', import.meta.url), 'utf8');
 const diagnostics = await readFile(new URL('../src/perf/diagnostics.ts', import.meta.url), 'utf8');
-const code = (await transformWithOxc((diagnostics + '\n' + source).replace(/^import .*;\r?\n/gm, ''), 'render.ts')).code.replace(/export\s*\{[^}]*\};?/g, '').replace(/^export /gm, '');
+const beat = await readFile(new URL('../src/perf/beat.ts', import.meta.url), 'utf8');
+const code = (await transformWithOxc((diagnostics + '\n' + beat + '\nconst isAsleep = () => false, onCalmChange = () => () => {};\n' + source).replace(/^import .*;\r?\n/gm, ''), 'render.ts')).code.replace(/export\s*\{[^}]*\};?/g, '').replace(/^export /gm, '');
 let nextFrame = null, io, hierarchyChecks = 0, now = 0, timerId = 0, frameCallbacks = 0, detailUpdates = 0;
 const timers = new Map(), listeners = new Map();
 const setTimer = (callback, delay) => { const id = ++timerId; timers.set(id, { callback, due: now + delay }); return id; };
@@ -151,6 +152,15 @@ for(let i=0;i<20;i++) { const s=new Element('screen');scheduler.setRenderView(s,
 for(let i=0;i<65;i++) { const before=count;frame();counts.push(count-before); }
 assert.ok(Math.max(...counts.slice(2)) < 12, `Screen clocks should be staggered, peak ${Math.max(...counts.slice(2))}`);
 for(const stop of stops)stop();
+// At 144 Hz, screens draw only on ambient beat frames (every other frame), still spread out.
+{ const beatStops=[]; const drawFrames=[]; let drawsNow=0;
+  for(let i=0;i<6;i++){ const s=new Element('screen');scheduler.setRenderView(s,true,600);beatStops.push(scheduler.renderLoop(new Element('canvas',s),()=>drawsNow++)); }
+  for(let i=0;i<4;i++)frame(1000/144);
+  for(let i=0;i<144;i++){ const before=drawsNow;frame(1000/144);drawFrames.push(drawsNow-before); }
+  const busy=drawFrames.filter(n=>n>0).length;
+  assert.ok(busy<=74, `Ambient screen work must leave every other 144 Hz frame free, busy ${busy}/144`);
+  assert.ok(drawsNow>=6*50, `Close screens keep about 60 Hz, drew ${drawsNow} in one second`);
+  for(const stop of beatStops)stop(); }
 console.log(JSON.stringify({tinyVisibleHz:20,closeHz:60,offscreenPaused:true,coveredPaused:true,reparentingResumed:true,tinyThumbnailBuilt:true,highRefreshDraws,highRefreshChecks,highRefreshCallbacks,staggeredPeak:Math.max(...counts.slice(2))}));
 // LOD pauses expensive window drawing without changing logical frame budgets.
 const lodScreen = new Element('screen'), lodWin = new Element('win', lodScreen), lodCanvas = new Element('canvas', lodWin);

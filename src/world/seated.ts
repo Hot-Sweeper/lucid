@@ -2,7 +2,8 @@ import { ModelSticker } from "./model-sticker";
 import gsap from "gsap";
 import { batteryWeakness, subscriptionBatteries } from "../office/battery";
 import { prettyModel } from "../harness/themes";
-import { watch, unwatch, drawNow, sinceDraw, finishDraw } from "./budget";
+import { watch, unwatch, drawNow, sinceDraw, finishDraw, cameraScale } from "./budget";
+import { RobotCanvas, canvasRobotsWanted } from "./robot-canvas";
 import { beginSystem, endSystem } from "../perf/metrics";
 import { setSvgAttribute } from "../perf/svg-write";
 import { sharedVector, releaseVectors } from "../perf/shared-vector";
@@ -139,6 +140,7 @@ export class TopDownRobot implements SeatedRobot {
   private sway = { v: 0, vel: 0, lastBx: 0 };
   private modelName: string | null = null;
   private armMemo: Record<"L" | "R", ArmMemo> = { L: {}, R: {} };
+  private canvasArt!: RobotCanvas;
 
   constructor(host: HTMLElement, private desk: DeskRig) {
     this.deskHost = host.closest('.desk-unit');
@@ -146,6 +148,8 @@ export class TopDownRobot implements SeatedRobot {
     host.insertAdjacentHTML("beforeend", ROBOT(id));
     this.el = host.lastElementChild as SVGSVGElement;
     this.$ = bind(this.el);
+    this.canvasArt = new RobotCanvas(this.el, host);
+    this.canvasArt.allowed = () => !this.deskHost?.classList.contains("arriving");
     this.spokes = [...this.el.querySelectorAll<SVGElement>("[data-spoke]")];
     // The fingers that hold the phone sit above the phone (which the desk draws above the robot).
     const thumbHost = host.parentElement ?? host;
@@ -164,7 +168,7 @@ export class TopDownRobot implements SeatedRobot {
     this.scheduleShift();
     this.setPose("rest");
     gsap.ticker.add(this.frame);
-    watch(this.el);
+    watch(this.el); watch(this.canvasArt.canvas);
   }
 
   get brandName() { return this.brand; }
@@ -771,7 +775,7 @@ export class TopDownRobot implements SeatedRobot {
   private setFacing(on: boolean) {
     this.facing = on;
     const show = (k: string, v: boolean) => (this.$[k].style.display = v ? "" : "none");
-    this.$.face.setAttribute("opacity", on ? "1" : "0");
+    setSvgAttribute(this.$.face, "opacity", on ? "1" : "0");
     show("face", on); show("back", !on);
     show("backPlate", !on); show("chest", on);
     show("backrest", !on); show("seatBack", !on); show("seatFront", on); show("legs", on);
@@ -795,7 +799,7 @@ export class TopDownRobot implements SeatedRobot {
     const r = this.rig, now = performance.now();
     // off screen or tiny (zoomed out): redraw less often, or not at all
     const dt = sinceDraw(this, now);
-    if (!drawNow(this, this.el, now, !this.deskHost?.classList.contains('arriving'))) return;
+    if (!drawNow(this, this.canvasArt.shown ? this.canvasArt.canvas : this.el, now, !this.deskHost?.classList.contains('arriving'))) return;
     const started = beginSystem();
     const blink = `translate(0 657) scale(1 ${this.blink.scale.toFixed(4)}) translate(0 -657)`;
     setSvgAttribute(this.$.eyes, 'transform', blink);
@@ -981,6 +985,9 @@ export class TopDownRobot implements SeatedRobot {
       setSvgAttribute(tg, "transform", `translate(${tx.toFixed(1)} ${ty.toFixed(1)}) rotate(${(PHONE_TILT + 24).toFixed(0)}) scale(${(0.8 * K).toFixed(3)})`);
       setSvgAttribute(tg, "opacity", String(this.swipeP.on));
     } else setSvgAttribute(tg, "opacity", "0");
+    // zoomed out, the robot is drawn on its canvas from the SVG just updated (robot-canvas.ts)
+    const zoom = cameraScale();
+    this.canvasArt.frame(canvasRobotsWanted(zoom) && !this.deskHost?.classList.contains("arriving"), zoom);
     finishDraw();
     endSystem("robots", started);
   };
@@ -1062,7 +1069,7 @@ export class TopDownRobot implements SeatedRobot {
     this.dead = true;
     this.busy = false;
     gsap.ticker.remove(this.frame);
-    unwatch(this.el);
+    unwatch(this.el); unwatch(this.canvasArt.canvas);
     for (const a of this.loops) a.kill();
     for (const a of [this.poseAnim, this.reactTl, this.antTl, this.swTl, this.hpTl, this.propTl, this.blinkCall, this.shiftCall]) a?.kill();
     for (const s of ["l", "r"] as const) this.liftTl[s]?.kill();
@@ -1071,6 +1078,7 @@ export class TopDownRobot implements SeatedRobot {
     if (this.mugP) this.desk.moveMug(null);
     if (this.phoneP) this.desk.showPhone(null);
     this.thumb.remove();
+    this.canvasArt.destroy();
     this.el.remove();
     releaseVectors(this.id);
   }

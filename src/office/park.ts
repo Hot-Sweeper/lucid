@@ -202,6 +202,9 @@ export class Park {
   hit(x: number, y: number) {
     return this.toys.hit(x, y);
   }
+  /** Water or a tree elsewhere in the world was clicked (forest stream, woodland). */
+  splashAt(x: number, y: number) { this.toys.splashAt(x, y); }
+  rustleAt(x: number, y: number) { this.toys.rustleAt(x, y); }
   private reactToToy(kind: ParkToyKind, at: { x: number; y: number }) {
     const now = performance.now();
     if (this.dead || document.hidden || now - this.reactionAt < 1800) return;

@@ -241,6 +241,8 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
         r.root.classList.remove("st-stale");
       }
       r.root.classList.toggle("st-high", known && !l.stale && pct >= 90);
+      // the reset time also lives in the tooltip, for the compact strips that hide it
+      if (r.reset.textContent) r.root.title = `${r.name.textContent}: ${r.reset.textContent}\n${r.root.title}`;
       if (limitsBox.children[i] !== r.root) limitsBox.insertBefore(r.root, limitsBox.children[i] || null);
     });
     limitsBox.hidden = wanted.length === 0;

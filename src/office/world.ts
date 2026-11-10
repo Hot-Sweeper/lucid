@@ -1,17 +1,21 @@
-import { setRobotModes } from "../world/robot-power";
-import { currentTheme } from "../themes/registry";
 import { officeColumns, officeDimensions, mountOfficeWidth, releaseOfficeWidth } from "./office-width";
+import { currentTheme } from "../themes/registry";
+import { setRobotModes } from "../world/robot-power";
 import "./storefront.css";
+import { LOD_PX, monitorPx } from "../perf/lod";
 import { managerLook } from "../world/look";
 import { projectBrand } from "./project-brand";
 import type { RobotLook } from "./rig";
 import { gameSound } from "./sound";
 import { printerArt, printerStation } from "./printer";
-import { subscriptionBatteries } from "./battery";
+import { subscriptionBatteries, needsCharge } from "./battery";
 import type { Usage } from "../stats/stats";
 import { chargingSize } from "../world/charging";
 import gsap from "gsap";
-import { setZoom } from "../world/budget";
+import { setZoom, setCameraMoving } from "../world/budget";
+import { canvasRobotsWanted, syncRobotCanvases } from "../world/robot-canvas";
+import { watchSvgOpacity } from "../perf/svg-write";
+import { GLIDE_MS, GLIDE_EASING, GLIDE_EASE } from "../perf/ease";
 import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
 import { drawFloor, drawWall, drawDecor, placeDecor, decorFootprint, DECOR } from "../decor/decor";
 import { furniturePath, type Footprint } from "./navigation";
@@ -49,6 +53,8 @@ import { phoneGestureDiagnostics, type PhoneGestureDiagnostics } from "../perf/p
 import { exposedScene } from "./exposed-scene";
 import { wireDeskChatTargets } from "./desk-chat-targets";
 
+
+
 // The whole building, seen fake top-down: rooms laid out on a floor plan, one shared camera.
 // Offices hold desks (one per thread). Desks live in one layer above the rooms, so a robot
 // keeps its computer and state when it moves to another room.
@@ -61,6 +67,8 @@ export type WThread = {
   manager?: { projectId: string; role: string; avatar?: string | null };
   schedule?: { nextRunAt: string | null; everyMs: number | null } | null;
   folder?: string | null;
+  /** A job the thread left running after its turn (electron/background-jobs.cjs), from systemd. */
+  job?: { unit: string; name: string; state: "running" | "failed"; since?: string | null; reason?: string; result?: string; progress?: string } | null;
   branch?: string | null; lastStatus?: string | null; runStartedAt?: string | null; unseen?: boolean;
   coinPending?: boolean;
   completionPending?: boolean;
@@ -114,6 +122,8 @@ export class World {
   desks = new Map<string, Desk>();
   private coinHolds = new Set<string>();
   private completionHolds = new Set<string>();
+  /** Settled, collected sessions whose desk stays until you remove it (main.ts keptDesks). */
+  keptDesks = new Set<string>();
   setCompletionHolds(ids: Iterable<string>) { this.completionHolds = new Set(ids); }
   setCoinHolds(ids: Iterable<string>) {
     const next = new Set(ids);
@@ -634,6 +644,24 @@ export class World {
     this.scene.style.setProperty("--scene-ground", landColors(landLook).edge);
     this.viewLandscape();
   }
+  /** Click the woodland: the stream ripples where it was clicked, a tree drops leaves. */
+  private landClick(x: number, y: number) {
+    const plan = this.landPlan;
+    if (!plan || this.viewIndoors) return false;
+    const st = plan.stream;
+    if (st) for (let i = 1; i < st.pts.length; i++) {
+      const [ax, ay] = st.pts[i - 1], [bx, by] = st.pts[i], dx = bx - ax, dy = by - ay;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1)));
+      if (Math.hypot(x - (ax + dx * t), y - (ay + dy * t)) <= st.w / 2) { this.park.splashAt(x, y); return true; }
+    }
+    let best: { x: number; y: number; r: number } | null = null, bestD = Infinity;
+    for (const t of plan.treeGrid.query({ x: x - 120, y: y - 120, w: 240, h: 240 })) {
+      const d = Math.hypot(x - t.x, y - t.y);
+      if (d <= t.r && d < bestD) { best = t; bestD = d; }
+    }
+    if (best) { this.park.rustleAt(x, y); return true; }
+    return false;
+  }
   private landscape: LandscapeTiles | null = null;
   private landPlan: LandPlan | null = null;
   private landSig = "";
@@ -685,7 +713,136 @@ export class World {
     this.stopCameraMotion(); Object.assign(this.cam, state); this.sceneBox = null;
     this.apply(); this.keepFocus();
   }
-  private cancelCameraTween() { this.cameraTween?.kill(); this.cameraTween = null; }
+  private cancelCameraTween() {
+    this.cameraTween?.kill(); this.cameraTween = null;
+    cancelAnimationFrame(this.zoomGlideRaf); this.zoomGlideRaf = 0; this.zoomGlide = null;
+    this.stopGlide();
+  }
+  /** Wheel glides run as a compositor animation of the world transform: Chromium rasterizes
+   * the world once at the glide's sharpest scale and moves it on its compositor thread, so
+   * the motion keeps the display rate however busy the page is. this.cam is the glide's goal. */
+  private glideAnim: Animation | null = null;
+  private glideSpan: { cam: { x: number; y: number; s: number }; box: DOMRect } | null = null;
+  /** Where the running glide goes and when it started, on the clock its animation uses. */
+  private glidePath: { from: { x: number; y: number; s: number }; to: { x: number; y: number; s: number }; start: number } | null = null;
+  /** The camera as currently shown, including a running glide. The glide's position is worked
+   * out from its own timing, never read back from the page: Chromium starts a compositor animation
+   * a frame or two before the page hears about it, so the computed style still reports the old
+   * start and a new notch would restart from there, flashing one frame of the older view. */
+  private shownCam(now = performance.now()) {
+    const g = this.glidePath;
+    if (!this.glideAnim || !g) return { x: this.cam.x, y: this.cam.y, s: this.cam.s };
+    const p = GLIDE_EASE(Math.min(1, Math.max(0, (now - g.start) / GLIDE_MS)));
+    return { x: g.from.x + (g.to.x - g.from.x) * p, y: g.from.y + (g.to.y - g.from.y) * p, s: g.from.s + (g.to.s - g.from.s) * p };
+  }
+  /** Stop a glide where it is now (a drag or another camera move takes over). */
+  private stopGlide() {
+    cancelAnimationFrame(this.shelfPaintRaf); this.shelfPaintRaf = 0;
+    const anim = this.glideAnim;
+    if (!anim) return;
+    const shown = this.shownCam();
+    this.glideAnim = null; this.glideSpan = null; this.glidePath = null;
+    anim.onfinish = null; anim.cancel();
+    this.fx?.setGlide(null);
+    this.restoreShelfClip();
+    Object.assign(this.cam, shown);
+    // The page still holds the glide's goal; without this a click mid-glide jumps there.
+    this.root.style.transform = `translate(${shown.x}px, ${shown.y}px) scale(${shown.s})`;
+    this.applySoon();
+  }
+  private glideTo(s: number, px: number, py: number) {
+    // One timestamp for both the old glide's position and the new glide's start, set
+    // explicitly so the compositor and this code agree on where the motion is.
+    const start = performance.now();
+    const from = this.shownCam(start);
+    const wx = (px - this.cam.x) / this.cam.s, wy = (py - this.cam.y) / this.cam.s;
+    this.cam.s = s; this.cam.x = px - wx * s; this.cam.y = py - wy * s;
+    this.clampCam();
+    this.glideFrom(from, start);
+  }
+  /** Shelf toggles lay out once, then share the existing sharp camera glide. */
+  resizeForShelf(layout: () => void, animate: boolean) {
+    const from = this.shownCam();
+    const oldWidth = this.scene.clientWidth;
+    this.cancelCameraTween();
+    this.shelfLayoutCommit = true;
+    try { layout(); this.resizePresentation?.(); }
+    finally { this.shelfLayoutCommit = false; }
+    if (animate && !this.followEl && !document.hidden && !this.scene.inert) {
+      // Keep the real office drawn underneath the opening shelf until it covers
+      // the newly reserved column. No screenshot, stretching, or repeated reflow.
+      const extra = Math.max(0, oldWidth - this.scene.clientWidth);
+      if (extra) {
+        this.shelfClip = { overflow: this.scene.style.overflow, clipPath: this.scene.style.clipPath };
+        this.scene.style.overflow = "visible";
+        this.scene.style.clipPath = `inset(0 -${extra}px 0 0)`;
+      }
+      this.glideFrom(from, performance.now(), oldWidth, true);
+    } else this.apply();
+  }
+  private shelfLayoutCommit = false;
+  private shelfPaintRaf = 0;
+  private shelfClip: { overflow: string; clipPath: string } | null = null;
+  private restoreShelfClip() {
+    if (!this.shelfClip) return;
+    Object.assign(this.scene.style, this.shelfClip); this.shelfClip = null;
+  }
+  private glideFrom(from: { x: number; y: number; s: number }, start = performance.now(), previousWidth = 0, shelf = false) {
+    // GSAP attaches a cache with functions to cam. Only numeric camera data may
+    // cross into the weather worker (or postMessage aborts this camera update).
+    const to = { x: this.cam.x, y: this.cam.y, s: this.cam.s };
+    const box = this.sceneBox ??= this.scene.getBoundingClientRect();
+    const view = (c: typeof to) => ({ x0: -c.x / c.s, y0: -c.y / c.s, x1: (Math.max(box.width, previousWidth) - c.x) / c.s, y1: (box.height - c.y) / c.s });
+    const a = view(from), b = view(to), k = Math.max(from.s, to.s);
+    const x0 = Math.min(a.x0, b.x0), y0 = Math.min(a.y0, b.y0), x1 = Math.max(a.x1, b.x1), y1 = Math.max(a.y1, b.y1);
+    this.glideSpan = { cam: { s: k, x: -x0 * k, y: -y0 * k }, box: new DOMRect(box.left, box.top, (x1 - x0) * k, (y1 - y0) * k) };
+    const old = this.glideAnim;
+    this.glideAnim = null;
+    if (old) { old.onfinish = null; old.cancel(); }
+    const t = (c: typeof to) => `translate(${c.x}px, ${c.y}px) scale(${c.s})`;
+    // fill "backwards": a compositor frame stamped just before `start` shows `from`, not the goal
+    const anim = this.root.animate([{ transform: t(from) }, { transform: t(to) }], { duration: GLIDE_MS, easing: GLIDE_EASING, fill: "backwards" });
+    // DocumentTimeline can have a different origin from performance.now() after
+    // startup. Using the performance timestamp here delays the animation while
+    // shownCam already advances, so later notches jump back to an older frame.
+    anim.startTime = document.timeline.currentTime ?? start;
+    this.glideAnim = anim;
+    this.glidePath = { from, to, start };
+    this.fx?.setGlide({ from, to, start: performance.timeOrigin + start, ms: GLIDE_MS });
+    if (shelf) {
+      // Commit the responsive shelf and camera layers before renewing cosmetic
+      // scenery caches. Layout and the live transcript are already at full size.
+      this.shelfPaintRaf = requestAnimationFrame(() => {
+        this.shelfPaintRaf = requestAnimationFrame(() => { this.shelfPaintRaf = 0; this.apply(); });
+      });
+    } else this.apply();
+    anim.onfinish = () => this.endGlide(anim);
+  }
+  private endGlide(anim: Animation) {
+    if (this.glideAnim !== anim) return;
+    cancelAnimationFrame(this.shelfPaintRaf); this.shelfPaintRaf = 0;
+    this.glideAnim = null; this.glideSpan = null; this.glidePath = null;
+    this.fx?.setGlide(null);
+    this.restoreShelfClip();
+    this.apply();
+  }
+  /** Wheel zoom eases toward its goal (time constant ~55 ms) around the pointer. */
+  private zoomGlide: { s: number; px: number; py: number; last: number } | null = null;
+  private zoomGlideRaf = 0;
+  private glideZoom = (now: number) => {
+    this.zoomGlideRaf = 0;
+    const g = this.zoomGlide;
+    if (!g) return;
+    const dt = Math.min(50, Math.max(0, now - g.last)); g.last = now;
+    const gap = Math.log(g.s / this.cam.s);
+    const ns = Math.abs(gap) < 0.003 ? g.s : this.cam.s * Math.exp(gap * (1 - Math.exp(-dt / 55)));
+    const wx = (g.px - this.cam.x) / this.cam.s, wy = (g.py - this.cam.y) / this.cam.s;
+    this.cam.s = ns; this.cam.x = g.px - wx * ns; this.cam.y = g.py - wy * ns;
+    this.clampCam();
+    this.apply();
+    if (ns === g.s || this.cam.s !== ns) this.zoomGlide = null; // arrived, or held at a zoom limit
+    else this.zoomGlideRaf = requestAnimationFrame(this.glideZoom);
+  };
   private size = { w: 2000, h: 1600 };
   focusDesk: Desk | null = null;
   selected: Desk | null = null;
@@ -850,6 +1007,9 @@ export class World {
     scene.innerHTML = `<div class="world"><div class="outside-layer"></div><div class="building-plate"><span class="bp-dot"></span><b></b></div><div class="hall"></div><div class="room-layer"></div><div class="night-shade"></div><div class="desk-layer"></div></div>`;
     // robots in the park walk on the grass above the outdoors, under the night tint
     const worldEl = scene.querySelector(".world") as HTMLElement;
+    // Semi-transparent shading becomes fill/stroke opacity (perf/svg-write.ts): far fewer
+    // effect groups for Chromium to sort into GPU layers on every frame.
+    watchSvgOpacity(worldEl);
     this.park = new Park(worldEl);
     worldEl.insertBefore(this.park.layer, worldEl.querySelector(".building-plate"));
     this.park.onSelect = (id) => this.onSelectThread(id);
@@ -875,7 +1035,7 @@ export class World {
       for (const entry of this.neighbors.values()) entry.office?.rememberLayout();
       this.applyOfficeLayout(this.layoutForEnvironment(data.environmentId));
     }
-    data = { ...data, threads: data.threads.map(t => ({ ...t, coinPending: !data.environmentId && this.coinHolds.has(t.id), completionPending: this.completionHolds.has(t.id) && !t.settled, reviewPending: !data.environmentId && this.reports.has(t.id) && !t.settled })) };
+    data = { ...data, threads: data.threads.map(t => ({ ...t, coinPending: !data.environmentId && this.coinHolds.has(t.id), completionPending: this.completionHolds.has(t.id) && !t.settled, kept: !data.environmentId && !!t.settled && this.keptDesks.has(t.id), reviewPending: !data.environmentId && this.reports.has(t.id) && !t.settled })) };
     this.lastData = data;
     setRobotModes(data.threads, this.root);
     if (!this.hostWorld) subscriptionBatteries.setEnabled(!data.environmentId);
@@ -893,7 +1053,7 @@ export class World {
     const retiringIds = new Set([...this.desks].filter(([id, desk]) => {
       if (this.roomOf.get(id) !== desk.room) return false;
       const t = byThread.get(id);
-      return !t || subscriptionBatteries.get(t.provider).charging || (!!t.question && desk.room !== "queue") || this.collapsedRooms.has(desk.room) || !hasOfficeDesk(t, this.revealedThread) || this.homeForThread(t, data.projects) !== desk.room;
+      return !t || needsCharge(t) || (!!t.question && desk.room !== "queue") || this.collapsedRooms.has(desk.room) || !hasOfficeDesk(t, this.revealedThread) || this.homeForThread(t, data.projects) !== desk.room;
     }).map(([id]) => id));
     const indoorJourney = [...this.transit.values()].some((w) => !this.outside(w));
     // Park visitors walk to the park gate outside the building. Their exit never
@@ -909,7 +1069,7 @@ export class World {
     const residents = new Map<string, WThread[]>();
     let orchT: WThread | null = null;
     for (const t of data.threads) {
-      const depleted = subscriptionBatteries.get(t.provider).charging;
+      const depleted = needsCharge(t);
       if (t.id === this.orchThread && !depleted) { orchT = t; continue; }
       const home = this.homeForThread(t, data.projects);
       // Keep historical reservations without keeping their computers and room floor alive.
@@ -940,7 +1100,7 @@ export class World {
         perProject.get(pid)!.push(t);
       }
     }
-    // Keep each robot in the seat it already has; newcomers take the first free seat.
+    // Preserve session order; newcomers take free places and removals close the snake.
     const seatOrder = (roomId: string, list: WThread[]) => {
       const prev = [...(this.seats.get(roomId) ?? [])];
       const previousSeats = [...prev];
@@ -964,9 +1124,9 @@ export class World {
       const extra = this.extra.get(roomId) ?? 0;
       if (extra > 0) this.extra.set(roomId, remainingDeskExtras(previousSeats, seats, extra));
       // Nothing of this room is on screen yet: pack its places once, so empty places
-      // saved from old history never stretch the room. After this, desks never move.
+      // saved from old history never stretch the room.
       if (!this.physicalPlans.some((p) => p.id === roomId)) seats = seats.filter((id): id is string => !!id);
-      // Keep holes. Compacting them would move everyone else's desk.
+      // reserveRoomSeats closes gaps in order without replacing desk/session objects.
       this.seats.set(roomId, seats);
       const byId = new Map(list.map((t) => [t.id, t]));
       return seats.map((id) => (id ? byId.get(id) ?? null : null));
@@ -1428,8 +1588,16 @@ export class World {
     for (const d of this.allDesks) {
       const left = this.cam.x + (parseFloat(d.el.style.left) + 54) * s;
       const top = this.cam.y + (parseFloat(d.el.style.top) + 4) * s;
-      const shown = !this.scene.inert && !!d.threadId && !d.el.classList.contains("arriving") && left < box.width && left + 292 * s > 0 && top < box.height && top + 172 * s > 0;
-      setRenderView(d.screen, shown, 276 * s);
+      const inView = !this.scene.inert && !!d.threadId && left < box.width && left + 292 * s > 0 && top < box.height && top + 172 * s > 0;
+      const shown = inView && !d.el.classList.contains("arriving");
+      setRenderView(d.screen, shown, 276 * s, 820, inView);
+      // far away the desk's monitor shows a simple sign instead of its unreadable panel
+      const px = monitorPx(s);   // the monitor's width on screen, in device pixels (perf/lod.ts)
+      const far = px < LOD_PX.full;   // where screens stop drawing apps in full
+      if (d.el.classList.contains("lod-far") !== far) d.el.classList.toggle("lod-far", far);
+      // farther still the monitor is a few pixels wide: its dock row is skipped (office.css)
+      const tiny = px < LOD_PX.tiny;
+      if (d.el.classList.contains("lod-tiny") !== tiny) d.el.classList.toggle("lod-tiny", tiny);
       d.director.setPresentationVisible(shown);
     }
     const vx = -this.cam.x / s, vy = -this.cam.y / s;
@@ -1760,19 +1928,32 @@ export class World {
       e.preventDefault();
       if (!e.deltaY) return;
       if (this.followEl) this.stopFollow();
-      this.cancelCameraTween();
+      const smooth = !(e.deltaMode === 0 && Math.abs(e.deltaY) < 40);
+      const pending = this.glideAnim ? this.cam.s : this.zoomGlide?.s ?? this.cam.s;
+      this.cancelCameraTween(); // this.cam is now the visible position, not the old goal
+      // Accumulate mouse notches only while continuing toward the pending goal.
+      // Reversals and direct touchpad input take over from the visible position;
+      // otherwise a smaller opposite delta can still move in the old direction.
+      const continuing = Math.sign(pending - this.cam.s) === -Math.sign(e.deltaY);
+      const base = smooth && continuing ? pending : this.cam.s;
       this.frame = null;
       const bounds = this.cameraZoomBounds();
-      const ns = Math.min(bounds.max, Math.max(bounds.min, this.cam.s * Math.exp(-e.deltaY * 0.0015)));
-      if (ns === this.cam.s) return;
+      const ns = Math.min(bounds.max, Math.max(bounds.min, base * Math.exp(-e.deltaY * 0.0015)));
       // Camera transforms do not move the scene's viewport. Reuse its geometry
       // across high-rate wheel bursts; resizing and panel moves invalidate it.
       const r = this.sceneBox ??= s.getBoundingClientRect();
       const px = e.clientX - r.left, py = e.clientY - r.top;
-      const wx = (px - this.cam.x) / this.cam.s, wy = (py - this.cam.y) / this.cam.s;
-      this.cam.s = ns; this.cam.x = px - wx * ns; this.cam.y = py - wy * ns;
-      this.clampCam();
-      this.applySoon();
+      // Touchpads send many small deltas and are already smooth; follow them directly.
+      if (!smooth) {
+        if (ns === this.cam.s) return;
+        const wx = (px - this.cam.x) / this.cam.s, wy = (py - this.cam.y) / this.cam.s;
+        this.cam.s = ns; this.cam.x = px - wx * ns; this.cam.y = py - wy * ns;
+        this.clampCam();
+        this.applySoon();
+        return;
+      }
+      // A mouse notch is a 20% jump; shown in one frame it reads as stutter. Glide there.
+      this.glideTo(ns, px, py);
     }, { passive: false });
     let start: { id: number; button: number; x: number; y: number; cx: number; cy: number } | null = null;
     const endPan = (e?: PointerEvent) => {
@@ -1792,6 +1973,7 @@ export class World {
         // controls during a camera drag must not start hover, focus or app drags.
         try { s.setPointerCapture(e.pointerId); } catch { /* synthetic/offscreen pointer */ }
       }
+      this.stopGlide(); // a drag takes over from where a wheel glide is now
       start = { id: e.pointerId, button: e.button, x: e.clientX, y: e.clientY, cx: this.cam.x, cy: this.cam.y };
       this.dragged = false;
     };
@@ -1821,7 +2003,8 @@ export class World {
       if (this.dragged || (e.target as HTMLElement).closest(".desk-unit")) return;
       // little things to click on in the world (fountain, pond)
       const r = this.root.getBoundingClientRect(), z = r.width / (this.root.offsetWidth || 1);
-      if (this.park.hit((e.clientX - r.left) / z, (e.clientY - r.top) / z)) return;
+      const wx = (e.clientX - r.left) / z, wy = (e.clientY - r.top) / z;
+      if (this.park.hit(wx, wy) || this.landClick(wx, wy)) return;
       this.select(null);
     });
     window.addEventListener("keydown", (e) => {
@@ -1857,8 +2040,9 @@ export class World {
         }
       }
       last = { w, h };
-      this.apply();
-      this.keepFocus();
+      // A layout change (the chat opening, the sidebar folding, the window resizing) is not you
+      // looking away, so it never drops the focused desk and folds its chat.
+      if (!this.shelfLayoutCommit) this.apply();
     };
     this.layoutObserver?.disconnect();
     const layoutObserver = this.layoutObserver = new ResizeObserver(this.resizePresentation);
@@ -1887,7 +2071,11 @@ export class World {
   private lastX = 0;
   private lastY = 0;
   private zooming = false;
+  /** Whether robots are on their canvases (zoomed out); flipping it switches them all at once. */
+  private canvasRobots: boolean | null = null;
   private zoomEnd = 0;
+  private rasterScale = 1;
+  private resharpen = 0;
   private outsideWarmIdle = 0;
   private outsideWarmTimer = 0;
   private cancelOutsideWarm() {
@@ -1937,20 +2125,54 @@ export class World {
     this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
     const labelDetail = this.cam.s < 1.15 ? "compact" : "full";
     if (this.root.dataset.labelDetail !== labelDetail) this.root.dataset.labelDetail = labelDetail;
-    this.recull();
-    this.syncBuildings();
-    // Translation can reuse composited pixels. Scaling must let Chromium choose a
-    // new raster density immediately, rather than magnifying a finished world image.
+    // While the camera moves, the GPU slides and scales one frozen picture of the world
+    // (see .world.zooming). Zooming in magnifies it, so it is redrawn every 1.12x, too
+    // small a step to see as a resolution change; shrinking stays crisp longer (1.6x).
+    // It is redrawn once more when the camera settles.
     if (this.cam.s !== this.lastScale || this.cam.x !== this.lastX || this.cam.y !== this.lastY) {
-      if (this.cam.s !== this.lastScale) this.root.classList.add("scaling");
       this.lastScale = this.cam.s; this.lastX = this.cam.x; this.lastY = this.cam.y;
-      if (!this.zooming) { this.zooming = true; this.root.classList.add("zooming"); }
+      if (!this.zooming) { this.zooming = true; setCameraMoving(true); this.rasterScale = this.cam.s; this.root.classList.add("zooming"); }
+      // A compositor glide is rasterized by Chromium at its sharpest scale up front.
+      else if (this.glideAnim) this.rasterScale = this.cam.s;
+      else if (!this.resharpen && (this.cam.s / this.rasterScale > 1.12 || this.rasterScale / this.cam.s > 1.6)) this.redrawSharp();
       window.clearTimeout(this.zoomEnd);
       this.cancelOutsideWarm();
-      this.zoomEnd = window.setTimeout(() => { this.zooming = false; this.root.classList.remove("zooming", "scaling"); this.scheduleOutsideWarm(); }, 180);
+      // Settle only once a compositor glide is over: redrawing the world mid-glide makes
+      // Chromium re-raster everything while it animates, and unready tiles flash blank.
+      const settle = () => {
+        // a glide whose finish event was missed must not keep the camera "moving" forever
+        if (this.glideAnim?.playState === "finished") this.endGlide(this.glideAnim);
+        if (this.glideAnim) { this.zoomEnd = window.setTimeout(settle, 40); return; }
+        this.zooming = false; setCameraMoving(false); this.redrawSharp(); this.scheduleOutsideWarm();
+        syncRobotCanvases(this.cam.s);   // resharpen robot canvases for the zoom it settled at
+      };
+      this.zoomEnd = window.setTimeout(settle, 180);
     }
+    // During a compositor glide everything between its start and end view is shown, so
+    // culling, terrain, scenery and weather prepare that whole span at its sharpest scale.
+    const realCam = this.cam, realBox = this.sceneBox;
+    if (this.glideSpan) { this.cam = this.glideSpan.cam; this.sceneBox = this.glideSpan.box; }
+    try { this.applyView(); } finally { this.cam = realCam; this.sceneBox = realBox; }
+    const robotsOnCanvas = canvasRobotsWanted(this.cam.s);
+    if (robotsOnCanvas !== this.canvasRobots) { this.canvasRobots = robotsOnCanvas; syncRobotCanvases(this.cam.s); }
+    // small looping details (steam, swaying plants, birds) only move when you are close enough to see them
+    const near = this.cam.s >= 1;
+    if (near !== this.near) { this.near = near; this.scene.classList.toggle("near", near); }
+    // Far overview traces showed compositor layer-building dominating paint.
+    // These SVG actors keep their full artwork and motion; only the unnecessary
+    // permanent promotion hint changes within the existing distant-view band.
+    const overview = this.cam.s < .3;
+    if (overview !== this.overviewLayers) { this.overviewLayers = overview; this.root.classList.toggle('overview', overview); }
+    endSystem("camera", started);
+    this.phoneGesture?.commit(gestureStarted);
+  }
+  /** Everything that follows the visible area (this.cam and this.sceneBox). */
+  private applyView() {
+    this.recull();
+    this.syncBuildings();
     if(this.sceneryCull && this.outArgs && !this.viewIndoors) {
-      const view={x:-this.cam.x/this.cam.s-this.outArgs.ox,y:-this.cam.y/this.cam.s-this.outArgs.oy,w:this.scene.clientWidth/this.cam.s,h:this.scene.clientHeight/this.cam.s};
+      const box0 = this.sceneBox ??= this.scene.getBoundingClientRect();
+      const view={x:-this.cam.x/this.cam.s-this.outArgs.ox,y:-this.cam.y/this.cam.s-this.outArgs.oy,w:box0.width/this.cam.s,h:box0.height/this.cam.s};
       const density=this.cam.s*(window.devicePixelRatio||1), previous=this.sceneryView;
       // A conservative guard band reuses exact paths during short pans. Only
       // newly exposed geometry or a density change needs another culling pass.
@@ -1971,16 +2193,25 @@ export class World {
     updateStaticArt(this.cam,box.width,box.height,box.left,box.top);
     // the weather follows the camera without measuring the page (which is slow every frame)
     if (this.fx) { this.sceneBox ??= this.scene.getBoundingClientRect(); this.fx.setCamera(this.cam, this.sceneBox, this.size.w, this.viewIndoors ? this.size.h : undefined); }
-    // small looping details (steam, swaying plants, birds) only move when you are close enough to see them
-    const near = this.cam.s >= 1;
-    if (near !== this.near) { this.near = near; this.scene.classList.toggle("near", near); }
-    // Far overview traces showed compositor layer-building dominating paint.
-    // These SVG actors keep their full artwork and motion; only the unnecessary
-    // permanent promotion hint changes within the existing distant-view band.
-    const overview = this.cam.s < .3;
-    if (overview !== this.overviewLayers) { this.overviewLayers = overview; this.root.classList.toggle('overview', overview); }
-    endSystem("camera", started);
-    this.phoneGesture?.commit(gestureStarted);
+  }
+
+  /** Redraws the world at the current zoom. Chromium never re-rasterizes a promoted layer
+   * (will-change: transform) when its scale changes, so robots promoted while zoomed out stay
+   * pixelated when zoomed in. Dropping every promotion for one committed frame (.resharp)
+   * makes Chromium paint them again at the current scale. */
+  private redrawSharp() {
+    cancelAnimationFrame(this.resharpen);
+    this.rasterScale = this.cam.s;
+    this.root.classList.remove("zooming");
+    this.root.classList.add("resharp");
+    // Two frames: the class change must be committed once before promotion returns.
+    this.resharpen = requestAnimationFrame(() => {
+      this.resharpen = requestAnimationFrame(() => {
+        this.resharpen = 0;
+        this.root.classList.remove("resharp");
+        if (this.zooming) this.root.classList.add("zooming");
+      });
+    });
   }
 
   /** Moves the view at once (a side panel changing width keeps the office still on screen). */
@@ -2146,7 +2377,7 @@ export class World {
     for (const room of this.rooms) releaseOfficeWidth(room.el);
     this.layoutObserver?.disconnect(); this.layoutObserver = null;
     document.removeEventListener('visibilitychange', this.visibilityPresentation);
-    this.cancelCameraTween(); this.cancelOutsideWarm(); window.clearTimeout(this.zoomEnd);
+    this.cancelCameraTween(); this.cancelOutsideWarm(); window.clearTimeout(this.zoomEnd); cancelAnimationFrame(this.resharpen); this.resharpen = 0;
     this.cancelTouchLayoutFlush();
     for (const walker of this.transit.values()) walker.destroy(); this.transit.clear(); this.trips.clear(); this.wakeRoutes();
     for (const d of this.allDesks) d.destroy(); this.allDesks.clear(); this.desks.clear();
@@ -2299,7 +2530,8 @@ export class World {
   // The chat stays open while you zoom and pan around a robot. It only closes once you zoom
   // well out (to about a third of the close-up) or move the robot's desk out of view.
   private keepFocus() {
-    if (this.scene.inert || document.hidden) return;
+    // Mid-glide the desk is still on its way into view.
+    if (this.scene.inert || document.hidden || this.glidePath) return;
     const d = this.focusDesk;
     if (!d) return;
     // worked out from the camera, without measuring the page (that forced a full layout per mouse move)
@@ -2379,6 +2611,8 @@ export class World {
     st.setProperty("--sky1", t.sky1); st.setProperty("--sky2", t.sky2);
     st.setProperty("--stars", String(sky.stars * t.stars)); st.setProperty("--lamp", String(Math.min(1, sky.lamp + t.dim * 0.8)));
     st.setProperty("--night", String(night * .45)); st.setProperty("--outdoor-night", String(night));
+    // A near-invisible shade still costs a full-screen blend every frame; skip it by day.
+    this.root.classList.toggle("no-night-shade", night * .45 * .9 < .02);
     // a warm low sun at dawn and dusk, fading under cloud
     const dusk = h >= 5 && h < 8 ? Math.max(0, 1 - Math.abs(h - 6.6) / 1.5) : h >= 16.5 && h < 21 ? Math.max(0, 1 - Math.abs(h - 18.6) / 2.2) : 0;
     st.setProperty("--outdoor-dusk", (dusk * Math.max(0, 1 - t.dim * 2.5)).toFixed(2)); st.setProperty("--city", String(v.city));
@@ -2508,7 +2742,7 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0, owner?:st
       <radialGradient id="frost${uid}" r="0.75"><stop offset="0.45" stop-color="#eef6fb" stop-opacity="0"/><stop offset="0.85" stop-color="#eef6fb" stop-opacity="0.75"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.95"/></radialGradient>
       <radialGradient id="pool${uid}"><stop offset="0" stop-color="#ffe6b0" stop-opacity="0.28"/><stop offset="1" stop-color="#ffe6b0" stop-opacity="0"/></radialGradient>
     </defs>
-    ${theme?.floor && ownsItem(`floor:${theme.floor}`) ? drawFloor(theme.floor, w, h, WALL_FACE) : `<rect y="${WALL_FACE}" width="${w}" height="${h - WALL_FACE}" style="fill:${pal.floor}"/>${floor}`}
+    <g data-cache-live="floor">${theme?.floor && ownsItem(`floor:${theme.floor}`) ? drawFloor(theme.floor, w, h, WALL_FACE) : `<rect y="${WALL_FACE}" width="${w}" height="${h - WALL_FACE}" style="fill:${pal.floor}"/>${floor}`}</g>
     ${lamps.join("")}
     <rect y="${WALL_FACE}" width="${w}" height="18" fill="#000" opacity="0.07"/>
     ${theme?.wall && ownsItem(`wall:${theme.wall}`) ? drawWall(theme.wall, w, WALL_FACE) : `<rect width="${w}" height="${WALL_FACE}" style="fill:${pal.wall}"/><rect y="${WALL_FACE - 10}" width="${w}" height="10" style="fill:${pal.trim}"/>`}

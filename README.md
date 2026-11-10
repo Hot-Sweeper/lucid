@@ -69,11 +69,14 @@ Builds and `npm run verify:update` write to `dist-build`, keeping the installed
 `dist` intact while Lucid is running. Use Lucid's update button to validate and
 install changes. Do not build directly into the shared checkout's `dist`.
 
-## Offline dictation (Windows setup)
+## Offline dictation (Windows and Linux)
 
-Run `Setup Dictation.cmd` once with Python installed. It installs an isolated
-transcribe.cpp runtime and downloads the checksum-verified Parakeet Ultra Q8 model
-to `%LOCALAPPDATA%\Lucid\dictation` (about 740 MB for the model).
+The first time you click **Dictate**, Lucid offers to download what it needs and shows
+the progress: an isolated transcribe.cpp runtime and the checksum-verified Parakeet
+Ultra Q8 model (about 740 MB). Python 3 must be installed. Files go to
+`%LOCALAPPDATA%\Lucid\dictation` on Windows and `~/.local/share/Lucid/dictation` on
+Linux. You can also run `python3 scripts/setup-dictation.py` (or `Setup Dictation.cmd`
+on Windows) yourself.
 
 In a robot's chat, click **Dictate**, speak English or German, then click **Stop**.
 The transcript is inserted at the cursor in your draft. Review and send it yourself.

@@ -70,7 +70,7 @@ const GLYPH: Record<FileKind, string> = {
 };
 
 const FOLDER_CLOSED = svg(`<path d="M2 6.5A2.5 2.5 0 0 1 4.5 4h4.6l2.1 2.2h8.3A2.5 2.5 0 0 1 22 8.7v9.8A2.5 2.5 0 0 1 19.5 21h-15A2.5 2.5 0 0 1 2 18.5Z" fill="#ffb84d"/><path d="M2 10a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8.5a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 2 18.5Z" fill="#ffd27a"/>`);
-const FOLDER_OPEN = svg(`<path d="M2 6.5A2.5 2.5 0 0 1 4.5 4h4.6l2.1 2.2h6.3A2.5 2.5 0 0 1 20 8.7V10H6.8a2.5 2.5 0 0 0-2.4 1.8L2 18.5Z" fill="#e59b2c"/><path d="M6.8 10H22l-2.6 8.6a2.5 2.5 0 0 1-2.4 1.8H4.6a2.5 2.5 0 0 0 2.4-1.8Z" fill="#ffd27a"/>`);
+const FOLDER_OPEN = svg(`<path d="M2 6.5A2.5 2.5 0 0 1 4.5 4h4.6l2.1 2.2h6.3A2.5 2.5 0 0 1 20 8.7V15.5L17 20.4H4.4A2.4 2.4 0 0 1 2 17.8Z" fill="#e59b2c"/><path d="M7.4 10h13.7a.9.9 0 0 1 .86 1.15l-2.36 7.55a2.4 2.4 0 0 1-2.3 1.7H3.3a.9.9 0 0 1-.86-1.15l2.66-7.55A2.4 2.4 0 0 1 7.4 10Z" fill="#ffd27a"/>`);
 
 export function iconFor(kind: FileKind, open = false) {
   if (kind === "folder") return open ? FOLDER_OPEN : FOLDER_CLOSED;

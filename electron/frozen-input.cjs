@@ -16,7 +16,9 @@ async function freezeInput(root) {
     }
     // Private package bytes prevent concurrent installs changing compiler inputs.
     const dependencies = path.join(root, 'node_modules');
-    if (fs.existsSync(dependencies)) await fsp.cp(dependencies, path.join(directory, 'node_modules'), { recursive: true, dereference: true, mode: fs.constants.COPYFILE_FICLONE });
+    // POSIX npm executables are relative symlinks whose target must stay intact.
+    // Dereferencing .bin/tsc breaks its imports relative to the package directory.
+    if (fs.existsSync(dependencies)) await fsp.cp(dependencies, path.join(directory, 'node_modules'), { recursive: true, dereference: process.platform === 'win32', verbatimSymlinks: process.platform !== 'win32', mode: fs.constants.COPYFILE_FICLONE });
     if (changed(files, await snapshotAsync(directory)).length) throw Error('Files changed while preparing the update. Retry when editing has finished.');
     return { directory, files, dispose };
   } catch (error) {

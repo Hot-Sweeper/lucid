@@ -12,6 +12,11 @@
 import { paintLandscape, landColors, type LandPlan, type LandLook, type LRect } from "./landscape";
 
 const TILE = 512;
+// Opaque terrain tiles overlap by a few source pixels so fractional CSS layout
+// rounding cannot expose a crack between independently positioned canvases. One pixel
+// was not enough: shown below 1:1 (mid-zoom, or while the GPU scales a frozen frame)
+// the overlap fell under one screen pixel and a thin line blinked along the seam.
+const GUARD = 3;
 const OVERVIEW_PX = 2048;
 const MAX_DENSITY = 3;
 const level = (d: number) => Math.min(MAX_DENSITY, 2 ** (Math.ceil(Math.log2(d) * 4) / 4));
@@ -44,6 +49,7 @@ export class LandscapeTiles {
   private raf = 0;
   private movedAt = 0;
   private shownLevel = 0;
+  private presentedLevel = 0;
   private lastDensity = 0;
   private settle = 0;
   private dead = false;
@@ -96,10 +102,12 @@ export class LandscapeTiles {
     if (!quiet) this.movedAt = performance.now();
     this.view = view;
     let lv = density <= this.overviewDensity * 1.08 ? 0 : level(density);
-    // During a zoom gesture keep the current tiles (at most one octave off) and sharpen once it rests.
+    // Zooming out keeps the current tiles while they stay sharp (down to half size). Zooming
+    // in never holds them: magnified tiles are what reads as blurry trees, so the sharper
+    // level is painted at once and swapped in whole (present) as soon as it covers the view.
     const zooming = !quiet && this.lastDensity > 0 && density !== this.lastDensity;
     this.lastDensity = density;
-    if (zooming && this.shownLevel && lv && lv !== this.shownLevel && lv / this.shownLevel <= 2 && lv / this.shownLevel >= 0.5) {
+    if (zooming && this.shownLevel && lv && lv < this.shownLevel && lv / this.shownLevel >= 0.5) {
       lv = this.shownLevel;
       clearTimeout(this.settle);
       this.settle = window.setTimeout(() => { this.settle = 0; if (this.view) this.update(this.view, this.current, true); }, 220);
@@ -108,13 +116,17 @@ export class LandscapeTiles {
     this.current = density;
     this.tick++;
     const want: Tile[] = [];
+    const requested = new Set<string>();
     if (lv) {
       const size = TILE / lv, m = Math.min(view.w, view.h) * 0.15, B = { ...this.origin, ...this.size };
       const x0 = Math.max(view.x - m, B.x), y0 = Math.max(view.y - m, B.y), x1 = Math.min(view.x + view.w + m, B.x + B.w), y1 = Math.min(view.y + view.h + m, B.y + B.h);
+      // Reserve the entire next view before recycling. A pan can encounter a
+      // new cell before a retained cell later in this traversal has been marked.
+      for (let j = Math.floor(y0 / size); j * size < y1; j++) for (let i = Math.floor(x0 / size); i * size < x1; i++) requested.add(`${lv}:${i}:${j}`);
       for (let j = Math.floor(y0 / size); j * size < y1; j++) for (let i = Math.floor(x0 / size); i * size < x1; i++) {
         const key = `${lv}:${i}:${j}`;
         let t = this.tiles.get(key);
-        if (!t) { const canvas = this.canvas(want.length); if (!canvas) continue; t = { key, level: lv, i, j, canvas, version: -1, used: 0, shown: false, lost: false }; this.tiles.set(key, t); this.place(t); this.el.append(canvas); }
+        if (!t) { const canvas = this.canvas(want.length, requested); if (!canvas) continue; t = { key, level: lv, i, j, canvas, version: -1, used: 0, shown: false, lost: false }; this.tiles.set(key, t); this.place(t); this.el.append(canvas); }
         t.used = this.tick; want.push(t);
       }
     }
@@ -139,18 +151,45 @@ export class LandscapeTiles {
 
   private dist(t: Tile, cx: number, cy: number) { const s = TILE / t.level; return Math.hypot((t.i + 0.5) * s - cx, (t.j + 0.5) * s - cy); }
 
-  /**
-   * Shows the current level's finished tiles over the overview. While the current level is
-   * still incomplete, finished tiles of other levels stay underneath it, so zooming never
-   * drops back to the soft overview.
-   */
+  /** A complete visible grid, rather than a partly painted LOD with sharp seams. */
+  private coversView(density: number) {
+    if (!density || !this.view) return false;
+    const v = this.view, b = { ...this.origin, ...this.size }, s = TILE / density;
+    const x0 = Math.max(v.x, b.x), y0 = Math.max(v.y, b.y), x1 = Math.min(v.x + v.w, b.x + b.w), y1 = Math.min(v.y + v.h, b.y + b.h);
+    if (x1 <= x0 || y1 <= y0) return false;
+    const left = Math.floor(x0 / s), top = Math.floor(y0 / s), right = Math.ceil(x1 / s - 1e-10), bottom = Math.ceil(y1 / s - 1e-10);
+    if ((right - left) * (bottom - top) > this.tiles.size) return false;
+    for (let j = top; j < bottom; j++) for (let i = left; i < right; i++) {
+      const t = this.tiles.get(`${density}:${i}:${j}`);
+      if (!t || t.version !== this.version || t.lost) return false;
+    }
+    return true;
+  }
+
+  private hasVisibleLevel(density: number) {
+    return !!density && [...this.tiles.values()].some(t => t.level === density && t.version === this.version && !t.lost && this.overlaps(t));
+  }
+
+  /** Swap zoom levels together when ready. During panning, keep the existing
+   * level's finished pixels even if a newly exposed edge is still loading.
+   * Hiding the whole grid for one missing edge cell causes a full-scene flash. */
   private present(lv: number) {
-    const done = this.queue.length === 0;
+    let display = 0;
+    if (lv) {
+      if (this.coversView(lv)) display = lv;
+      else if (this.coversView(this.presentedLevel)) display = this.presentedLevel;
+      else {
+        const levels = [...new Set([...this.tiles.values()].map(t => t.level))]
+          .sort((a, b) => Math.abs(Math.log2(a / lv)) - Math.abs(Math.log2(b / lv)));
+        display = levels.find(density => this.coversView(density))
+          ?? (this.hasVisibleLevel(this.presentedLevel) ? this.presentedLevel : levels.find(density => this.hasVisibleLevel(density))) ?? 0;
+      }
+    }
+    if (display) this.presentedLevel = display;
     for (const t of this.tiles.values()) {
-      const inView = t.used === this.tick, ready = t.version >= 0 && !t.lost;
-      const show = ready && (inView ? t.level === lv || !done : false) || (ready && !done && t.level !== lv && this.overlaps(t));
+      const show = t.level === display && t.version === this.version && !t.lost && this.overlaps(t);
       if (show !== t.shown) { t.shown = show; t.canvas.style.display = show ? "" : "none"; }
-      const z = t.level === lv ? "2" : "1";
+      const z = "2";
       if (t.canvas.style.zIndex !== z) t.canvas.style.zIndex = z;
     }
   }
@@ -161,21 +200,21 @@ export class LandscapeTiles {
   }
 
   /** A canvas for a new tile: from the pool, or the least recently used tile out of view. */
-  private canvas(wantedSoFar: number) {
+  private canvas(wantedSoFar: number, requested: Set<string>) {
     const pooled = this.pool.pop();
     if (pooled) return pooled;
     // Enough for the view plus a small pan reserve; everything else is reused.
     const cap = Math.max(16, Math.min(56, Math.max(this.wanted, wantedSoFar + 1) + 12));
     if (this.tiles.size < cap) {
       const canvas = document.createElement("canvas");
-      canvas.width = canvas.height = TILE;
+      canvas.width = canvas.height = TILE + 2 * GUARD;
       canvas.className = "landscape-tile";
-      canvas.addEventListener("contextlost", () => { for (const t of this.tiles.values()) if (t.canvas === canvas) { t.lost = true; t.version = -1; } });
+      canvas.addEventListener("contextlost", () => { for (const t of this.tiles.values()) if (t.canvas === canvas) { t.lost = true; t.version = -1; } this.present(this.shownLevel); });
       canvas.addEventListener("contextrestored", () => { for (const t of this.tiles.values()) if (t.canvas === canvas) t.lost = false; if (this.view) this.update(this.view, this.current, true); });
       return canvas;
     }
     let old: Tile | null = null;
-    for (const t of this.tiles.values()) if (t.used !== this.tick && (!old || t.used < old.used)) old = t;
+    for (const t of this.tiles.values()) if (t.used !== this.tick && !requested.has(t.key) && (!old || t.used < old.used)) old = t;
     if (!old) return null;
     this.tiles.delete(old.key);
     old.canvas.style.display = "none";
@@ -183,8 +222,8 @@ export class LandscapeTiles {
   }
 
   private place(t: Tile) {
-    const s = TILE / t.level, st = t.canvas.style;
-    st.cssText = `position:absolute;left:${t.i * s - this.origin.x}px;top:${t.j * s - this.origin.y}px;width:${s}px;height:${s}px;display:${t.shown ? "" : "none"}`;
+    const s = TILE / t.level, guard = GUARD / t.level, st = t.canvas.style;
+    st.cssText = `position:absolute;left:${t.i * s - guard - this.origin.x}px;top:${t.j * s - guard - this.origin.y}px;width:${s + 2 * guard}px;height:${s + 2 * guard}px;display:${t.shown ? "" : "none"}`;
   }
 
   private schedule() { if (!this.raf && !this.dead) this.raf = requestAnimationFrame(this.work); }
@@ -192,8 +231,10 @@ export class LandscapeTiles {
   private work = () => {
     this.raf = 0;
     if (this.dead || !this.plan || !this.look || !this.colors) return;
-    // A moving camera keeps most of the frame; a resting one sharpens quickly.
-    const moving = performance.now() - this.movedAt < 160, budget = moving ? 3 : 9, start = performance.now();
+    // Leave room for presentation even at 144 Hz. The former 9 ms resting
+    // allowance exceeded an entire 6.94 ms display frame before paint/compositing.
+    // A 4K view is ~54 tiles of ~1 ms: 2-3 ms slices left zoomed trees soft for ~0.3 s.
+    const moving = performance.now() - this.movedAt < 160, budget = moving ? 3 : 5, start = performance.now();
     // A resting camera always makes progress, even when one piece costs more than the budget.
     let first = !moving;
     let painted = false;
@@ -202,13 +243,14 @@ export class LandscapeTiles {
     while (this.queue.length && (first || (performance.now() - start) + tileCost < budget)) {
       first = false;
       const t = this.queue.shift()!;
-      if (!this.tiles.has(t.key) || t.version === this.version) continue;
+      if (this.tiles.get(t.key) !== t || t.version === this.version) continue;
       const c = t.canvas.getContext("2d", { alpha: false });
-      if (!c) continue;
+      if (!c || c.isContextLost?.()) continue;
       const s = TILE / t.level;
-      c.setTransform(t.level, 0, 0, t.level, -t.i * TILE, -t.j * TILE);
+      c.setTransform(t.level, 0, 0, t.level, GUARD - t.i * TILE, GUARD - t.j * TILE);
       const began = performance.now();
-      paintLandscape(c, this.plan, this.look, this.colors, { x: t.i * s, y: t.j * s, w: s, h: s }, t.level);
+      const guard = GUARD / t.level;
+      paintLandscape(c, this.plan, this.look, this.colors, { x: t.i * s - guard, y: t.j * s - guard, w: s + 2 * guard, h: s + 2 * guard }, t.level);
       const cost = performance.now() - began;
       this.stats.tilesPainted++; this.stats.tileMs += cost; this.stats.maxTileMs = Math.max(this.stats.maxTileMs, cost);
       t.version = this.version; t.lost = false; painted = true;

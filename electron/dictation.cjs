@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const readline = require('node:readline');
 const os = require('node:os');
 
-function createService({ root = process.env.LUCID_DICTATION_HOME || path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), '.local', 'share'), 'Lucid', 'dictation'), spawnWorker = spawn, exists = fs.existsSync, stopTimeoutMs = 5000 } = {}) {
+function createService({ root = process.env.LUCID_DICTATION_HOME || path.join(process.env.LOCALAPPDATA || process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'Lucid', 'dictation'), spawnWorker = spawn, exists = fs.existsSync, stopTimeoutMs = 5000 } = {}) {
   const python = path.join(root, 'venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
   let worker = null, loading = null, pending = null, device = null, backend = null, idle = null;
   const cancelled = () => Object.assign(new Error('Dictation stopped.'), { code: 'CANCELLED' });
@@ -34,7 +34,7 @@ function createService({ root = process.env.LUCID_DICTATION_HOME || path.join(pr
     if (loading) return loading.promise;
     if (pending) return Promise.reject(new Error('Dictation is still transcribing.'));
     if (!exists(python) || !exists(path.join(root, 'parakeet-ultra-Q8_0.gguf'))) {
-      return Promise.reject(new Error('Dictation needs its local model. Run Setup Dictation.cmd once, then try again.'));
+      return Promise.reject(new Error('Dictation needs its local model. Click Dictate to download it, then try again.'));
     }
     clearTimeout(idle); device = null; backend = null;
     let resolve, reject;
@@ -95,7 +95,7 @@ function createService({ root = process.env.LUCID_DICTATION_HOME || path.join(pr
       }
     });
     proc.stdin.on('error', () => fail(new Error('The dictation worker stopped receiving audio. Try again.')));
-    proc.on('error', () => fail(new Error('Could not start dictation. Run Setup Dictation.cmd to repair the runtime.')));
+    proc.on('error', () => fail(new Error('Could not start dictation. Download the dictation model again to repair it.')));
     function exited() {
       if (record.exited) return;
       record.exited = true; clearTimeout(record.loadTimer); clearTimeout(record.stopTimer); lines.close();
@@ -126,18 +126,54 @@ function createService({ root = process.env.LUCID_DICTATION_HOME || path.join(pr
       } catch { stop(); }
     });
   }
-  return { load, run, stop };
+  const ready = () => exists(python) && exists(path.join(root, 'parakeet-ultra-Q8_0.gguf'));
+  return { load, run, stop, ready, root };
+}
+
+// One-time install of the speech runtime and model (scripts/setup-dictation.py), started from the
+// Dictate button. Progress is read from the script's own output; one install runs at a time.
+function createInstaller({ root, ready, spawnSetup = spawn }) {
+  let proc = null, progress = 0, stage = '', error = '';
+  function status() { return { ready: ready(), installing: !!proc, progress, stage, error }; }
+  function start() {
+    if (ready() || proc) return status();
+    progress = 0; stage = 'Preparing'; error = '';
+    const python = process.platform === 'win32' ? 'python' : 'python3';
+    const tails = { out: '', err: '' };
+    try {
+      proc = spawnSetup(python, ['-u', path.join(__dirname, '..', 'scripts', 'setup-dictation.py')], {
+        windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, LUCID_DICTATION_HOME: root, PYTHONUNBUFFERED: '1' },
+      });
+    } catch (e) { proc = null; error = `Could not start setup: ${e.message}`; return status(); }
+    const read = which => chunk => {
+      const text = String(chunk); tails[which] = (tails[which] + text).slice(-2000);
+      const pct = [...text.matchAll(/Downloading Ultra: (\d+)%/g)].at(-1);
+      if (pct) { stage = 'Downloading the speech model'; progress = Number(pct[1]) / 100; }
+      else if (/Collecting|Installing|Downloading transcribe/i.test(text)) stage = 'Installing the speech engine';
+    };
+    proc.stdout.on('data', read('out')); proc.stderr.on('data', read('err'));
+    proc.on('error', e => { error = `Could not start setup: ${e.message}. Install Python 3, then try again.`; proc = null; });
+    proc.on('close', code => {
+      const last = text => text.trim().split(/\r?\n|\r/).filter(Boolean).at(-1);
+      if (code !== 0 && !error) error = (last(tails.err) || last(tails.out) || 'Setup failed.').slice(0, 300);
+      if (code === 0) { progress = 1; stage = 'Ready'; }
+      proc = null;
+    });
+    return status();
+  }
+  return { status, start, stop: () => { try { proc?.kill(); } catch {} } };
 }
 
 function register({ ipcMain, app, window, root }) {
   const service = createService({ root });
-  for (const [channel, fn] of [['load', mode => service.load(mode)], ['run', bytes => service.run(bytes)], ['cancel', () => service.stop()]]) {
+  const installer = createInstaller({ root: service.root, ready: service.ready });
+  for (const [channel, fn] of [['load', mode => service.load(mode)], ['run', bytes => service.run(bytes)], ['cancel', () => service.stop()], ['status', () => installer.status()], ['setup', () => installer.start()]]) {
     ipcMain.handle(`dictation:${channel}`, async (event, value) => {
       if (event.sender !== window()?.webContents || event.senderFrame !== event.sender.mainFrame) return { ok: false, error: 'Dictation is only available in Lucid.' };
       try { return { ok: true, value: await fn(value) }; } catch (error) { return { ok: false, error: error.message }; }
     });
   }
-  app.on('before-quit', () => service.stop());
+  app.on('before-quit', () => { service.stop(); installer.stop(); });
   return service;
 }
-module.exports = { createService, register };
+module.exports = { createService, createInstaller, register };

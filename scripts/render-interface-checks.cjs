@@ -5,7 +5,7 @@ module.exports = async ({ js, wc, wait, out }) => {
   const result = {}, check = (ok, message) => { if (!ok) throw Error(message); };
   const shot = async name => fs.writeFileSync(path.join(out, `${name}.png`), (await wc.capturePage()).toPNG());
   try {
-    result.initial = await js(`{const c=window.__chat;({collapsed:c.collapsed,railWidth:c.tab.getBoundingClientRect().width,extras:!!document.querySelector('.sidebar-extras > summary'),search:!!document.getElementById('th-q')})}`);
+    result.initial = await js(`{const c=window.__chat;({collapsed:c.collapsed,railWidth:c.tab.getBoundingClientRect().width,extras:!!document.getElementById('side-settings'),search:!!document.getElementById('th-q')})}`);
     check(result.initial.collapsed && Math.abs(result.initial.railWidth-64)<1 && result.initial.extras && result.initial.search, 'Collapsed conversation rail or sidebar disclosure is missing');
     await shot('interface-collapsed');
     await js(`{const c=window.__chat,d=window.__world.desks.get('perf-t0');window.__interfaceDesk=d;c.open(d);c.el.querySelector('textarea').value='Draft kept: exact Unicode 🎵'}`);
