@@ -15,12 +15,7 @@
 .pin-btn[aria-pressed="false"] { color: var(--ink-3); }
 .pin-btn[aria-pressed="false"]:hover { color: var(--accent-2, var(--accent)); }
 
-/* in the sidebar header, sized like its neighbours */
-.brand .brand-actions > button.side-pin {
-  order: 0; flex: 0 0 var(--header-control-size); width: var(--header-control-size); height: var(--header-control-size);
-  margin: 0; padding: 0; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 6px;
-  background: transparent; color: var(--ink-2); cursor: pointer;
-}
+/* in the sidebar header the shared icon button sets the face; auto-hide stays quieter */
 .brand .brand-actions > button.side-pin[aria-pressed="false"] { color: var(--ink-3); }
 
 /* the folded edge: a peach line grows along its inner side while you rest on it */

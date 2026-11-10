@@ -117,6 +117,8 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 // file paths show as file chips). Everything goes through DOMPurify.
 const FENCE: Record<string, string> = { ts: "c", tsx: "c", js: "c", jsx: "c", typescript: "c", javascript: "c", rust: "c", go: "c", java: "c", c: "c", cpp: "c", cs: "c", py: "hash", python: "hash", sh: "hash", bash: "hash", shell: "hash", powershell: "hash", ps1: "hash", yaml: "hash", yml: "hash", toml: "hash", json: "json", html: "markup", xml: "markup", svg: "markup", css: "css", scss: "css", md: "text", markdown: "text", text: "text", txt: "text" };
 const mdParser = new Marked({ gfm: true, breaks: true });
+/** Soft wrap points after path separators, in text only (never inside tags or attributes). */
+const wrapPaths = (html: string) => html.replace(/(^|>)([^<]+)/g, (_m, edge: string, text: string) => edge + text.replace(/([/\\])(?=[^\s/\\])/g, "$1<wbr>"));
 mdParser.use({
   extensions: [{ name: "t3thread", level: "inline", start: (text: string) => text.indexOf("t3-thread://"),
     tokenizer(text: string) { const match = /^t3-thread:\/\/v2\/[a-z0-9-]+\/[^\s<>`]+/i.exec(text); if (!match) return; const raw = match[0].replace(/[.,;!]+$/, ""); return parseThreadReference(raw) ? { type: "t3thread", raw, href: raw } : undefined; },
@@ -138,9 +140,11 @@ mdParser.use({
       if (/^(https?:|mailto:)/i.test(href)) return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${inner}</a>`;
       return inlineChatFile(href, tokens.map((t: any) => t.text ?? "").join("") || href);
     },
+    // Cells never break words; long paths may wrap after their slashes. GFM column alignment is kept.
     table(this: any, token: any) {
-      const head = token.header.map((c: any) => `<th>${this.parser.parseInline(c.tokens)}</th>`).join("");
-      const rows = token.rows.map((r: any[]) => `<tr>${r.map((c) => `<td>${this.parser.parseInline(c.tokens)}</td>`).join("")}</tr>`).join("");
+      const cell = (tag: string, c: any, i: number) => `<${tag}${token.align?.[i] ? ` style="text-align:${token.align[i]}"` : ""}>${wrapPaths(this.parser.parseInline(c.tokens))}</${tag}>`;
+      const head = token.header.map((c: any, i: number) => cell("th", c, i)).join("");
+      const rows = token.rows.map((r: any[]) => `<tr>${r.map((c, i) => cell("td", c, i)).join("")}</tr>`).join("");
       return `<div class="md-table"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
     },
   },

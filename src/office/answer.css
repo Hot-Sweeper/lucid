@@ -75,7 +75,7 @@ textarea.ca-text { resize: vertical; min-height: 54px; max-height: 200px; }
 .ca-state.err { color: #ffb4a8; }
 .ca-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .ca-alt { padding: 7px 12px; font-size: 13.5px; }
-.ca-alt:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.ca-alt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ca-alt:disabled { opacity: 0.5; cursor: default; }
 .ca-req.sending .ca-opt, .ca-req.sending .ca-text { opacity: 0.6; }
 .ca-req.sent .ca-state { color: var(--ink); }
@@ -84,7 +84,7 @@ textarea.ca-text { resize: vertical; min-height: 54px; max-height: 200px; }
 .ca-connect[hidden] { display: none; }
 .ca-connect span { flex: 1; min-width: 0; }
 .ca-connect .ghost { flex: none; padding: 5px 10px; font-size: 12.5px; }
-.ca-connect .ghost:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.ca-connect .ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .ca-done { margin: 0; overflow: hidden; font-size: 13px; color: var(--ink-2); }
 

@@ -9,6 +9,24 @@
   --accent: #ff9f5a;
   --accent-2: #ffbf86;
   --mint: #4ff0a0;
+  --danger: #ff8a7a;        /* destructive actions */
+  --danger-ink: #ffb4a8;    /* destructive menu items on raised surfaces */
+  /* spacing, radii, control sizes and motion shared by every control (src/ui/controls.css) */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
+  --radius-sm: 6px;         /* buttons, icon buttons, menu items, chips */
+  --radius-md: 8px;         /* fields, composer tools, code and tables */
+  --radius-lg: 10px;        /* menus and popovers (items stay concentric at 4px padding) */
+  --radius-xl: 14px;        /* dialogs and the composer */
+  --control-h: 32px;        /* composer tools, send */
+  --icon-btn: 30px;         /* header icon buttons */
+  --shadow-pop: 0 16px 40px rgba(4, 6, 24, 0.5);
+  --ease-out: cubic-bezier(0, 0, .58, 1);
+  --ease-out-strong: cubic-bezier(.23, 1, .32, 1);
+  --ease-in: cubic-bezier(.42, 0, 1, 1);
+  --ease-in-out: cubic-bezier(.77, 0, .175, 1);
+  --dur-press: 120ms;       /* press feedback */
+  --dur-hover: 130ms;       /* hover and focus */
+  --dur-sm: 180ms;          /* small entrances: menus, tooltips */
   --font: "Lexend Variable", system-ui, sans-serif;
   --mono: "JetBrains Mono Variable", ui-monospace, monospace;
   color-scheme: dark;
@@ -40,14 +58,9 @@ button, textarea, input { font: inherit; color: inherit; }
 
 h3 { margin: 0 0 8px; font-size: 13px; font-weight: 500; color: var(--ink-3); }
 
-textarea { width: 100%; resize: none; max-height: 160px; background: var(--night); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; font-size: 14px; line-height: 1.45; outline: none; }
-textarea:focus { border-color: rgba(255, 159, 90, 0.55); }
+textarea { width: 100%; resize: none; max-height: 160px; padding: 9px 11px; font-size: 14px; line-height: 1.45; }
 textarea::placeholder { color: var(--ink-3); }
 
-.reply { display: flex; gap: 8px; align-items: flex-end; }
-.reply button, .primary { border: 0; background: var(--accent); color: #2a1407; font-weight: 600; border-radius: 10px; padding: 9px 14px; cursor: pointer; font-size: 14px; white-space: nowrap; }
-.reply button:hover, .primary:hover { background: var(--accent-2); }
-.primary:disabled { opacity: 0.6; cursor: progress; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .new .row { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
@@ -55,12 +68,11 @@ textarea::placeholder { color: var(--ink-3); }
 .form-msg { margin: 8px 0 0; font-size: 13px; color: var(--ink-2); min-height: 1.2em; }
 
 .select { position: relative; flex: 1; min-width: 0; }
-.select-btn { width: 100%; height: 100%; text-align: left; background: var(--night); border: 1px solid var(--line); border-radius: 10px; padding: 8px 28px 8px 11px; cursor: pointer; font-size: 14px; position: relative; }
+.select-btn { width: 100%; height: 100%; text-align: left; padding: 8px 28px 8px 11px; cursor: pointer; font-size: 14px; position: relative; }
 .select-btn span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .select-btn::after { content: ""; position: absolute; right: 12px; top: 50%; width: 7px; height: 7px; border-right: 2px solid var(--ink-3); border-bottom: 2px solid var(--ink-3); transform: translateY(-70%) rotate(45deg); }
-.select-list { position: absolute; z-index: 50; left: 0; right: 0; top: calc(100% + 6px); margin: 0; padding: 6px; list-style: none; background: var(--night-3); border-radius: 12px; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45); max-height: 280px; overflow: auto; }
-.select-list li { padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
-.select-list li:hover { background: rgba(255, 255, 255, 0.07); }
+.select-list { position: absolute; z-index: 50; left: 0; right: 0; top: calc(100% + 6px); margin: 0; list-style: none; max-height: 280px; overflow: auto; }
+.select-list li { cursor: pointer; }
 
 .threads { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .thread-list { list-style: none; margin: 0 -8px; padding: 0 0 16px; overflow-y: auto; flex: 1; }

@@ -88,6 +88,8 @@ import { openShortcutHelp, isShortcutHelpOpen, typing } from "./office/shortcuts
 import { mountTitlebar } from "./titlebar";
 import { BRAND } from "./brand";
 import { brandMark } from "./ui/brand-mark";
+// Shared control styles load after every feature stylesheet imported above.
+import "./ui/controls.css";
 
 declare global {
   interface Window {
