@@ -542,8 +542,6 @@ app.on("before-quit", () => t3s.closeSock());
 
 // Office documents the agents wrote (docx, xlsx, pptx, csv...), read for the robots' office apps.
 require("./office.cjs").register(ipcMain);
-// Real market candles and prices behind the robots' Botcoin Exchange (cached, rate limited).
-require("./market.cjs").register(ipcMain);
 
 // Dictation goes through the local T3 Code's speech service, including for remote-building chats.
 require("./t3-voice.cjs").register({ ipcMain, app, window: () => win, server: t3s });
