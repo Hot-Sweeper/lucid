@@ -10,9 +10,5 @@ The source session also shows its latest saved completion report after the conve
 
 Verification:
 
-- `node scripts/verify-chat-review.mjs` checks the supplied real verdict, strict schema, malformed/bounded input, ordinary snippets, streaming and decision wording. Included in `npm run verify:update`.
-- `node scripts/verify-chat-review-native.cjs <output-directory>` builds the actual old and changed production components into isolated fixture bundles and uses a hidden native Electron window, its own profile, production CSP and media protocol. It never connects to T3 or writes production data.
-- `LUCID_REVIEW_ARCHIVE` can select a read-only report archive. The fixture requires the supplied report and a genuine visual verdict with accessible captures. `LUCID_REVIEW_BASELINE` can select the baseline revision; by default it uses the pre-change revision recorded in the script.
-- The native fixture captures the supplied example and long/narrow cases before and after, archived visual evidence, in-product preview and the actual answer form. It checks sanitization, unavailable captures, failed history lookup and retry, streaming, repeated refresh, reader position, older-history insertion and stale lookup rejection. Long text and the questionnaire request are explicitly synthetic fixture cases.
+- `node scripts/checks/verify-chat-review.mjs` checks the supplied real verdict, strict schema, malformed/bounded input, ordinary snippets, streaming and decision wording. Included in `npm run verify:update`.
 
-The fixture proves component presentation and integration with the existing report/answer components. It does not establish production installation, a live human answer, native audio listening, performance or battery results. Delivery and running-build proof belong to the coordinated release.

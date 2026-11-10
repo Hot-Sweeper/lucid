@@ -1,7 +1,7 @@
 // Original local sound design. All sources share one gesture-unlocked audio graph.
 import { SOUNDTRACK } from './soundtrack';
 import { SoundtrackQueue, type SoundtrackSong, type SoundtrackMode } from './soundtrack-queue';
-import ambienceUrl from '../assets/audio/room-air.mp3';
+import ambienceUrl from '../assets/audio/room-air.opus';
 
 export type MusicState = {
   song: SoundtrackSong | null; terrible: boolean; mode: SoundtrackMode;

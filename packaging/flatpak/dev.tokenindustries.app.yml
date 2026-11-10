@@ -1,0 +1,53 @@
+# Flatpak template. Builds from the official .deb of a release; replace VERSION and SHA256.
+# The file name and app-id follow appId in electron/brand.cjs: rename both if the brand changes.
+#
+#   flatpak-builder --user --install --force-clean build-dir packaging/flatpak/dev.tokenindustries.app.yml
+#
+# Status: not yet usable as a store submission. The office runs host tools (the t3 CLI, git and
+# the harness CLIs) and reads ~/.t3 and project folders. Inside the sandbox those programs are not
+# on PATH, so the app would need to start them through `flatpak-spawn --host`, which requires
+# --talk-name=org.freedesktop.Flatpak below (a full sandbox escape that Flathub reviews closely).
+app-id: dev.tokenindustries.app
+runtime: org.freedesktop.Platform
+runtime-version: "24.08"
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: "24.08"
+command: token-industries
+separate-locales: false
+finish-args:
+  - --share=ipc
+  - --share=network          # talks to the local T3 Code server
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --socket=pulseaudio      # music, sound effects and dictation
+  - --filesystem=home        # ~/.t3 and the project folders the robots work in
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.secrets      # encrypted T3 pairing token (safeStorage)
+  - --talk-name=org.freedesktop.Flatpak      # run host CLIs, see the status note above
+  - --env=LUCID_DISABLE_UPDATES=1            # Flatpak updates the app, not the app itself
+modules:
+  - name: token-industries
+    buildsystem: simple
+    build-commands:
+      - ar x app.deb && tar -xf data.tar.*
+      - cp -a "opt/Token Industries" /app/main
+      - install -Dm755 run.sh /app/bin/token-industries
+      - |
+        for size in 16 24 32 48 64 128 256 512; do
+          install -Dm644 "usr/share/icons/hicolor/${size}x${size}/apps/token-industries.png" \
+            "/app/share/icons/hicolor/${size}x${size}/apps/${FLATPAK_ID}.png"
+        done
+      - install -Dm644 usr/share/applications/token-industries.desktop /app/share/applications/${FLATPAK_ID}.desktop
+      - desktop-file-edit --set-key=Exec --set-value="token-industries %U" --set-icon=${FLATPAK_ID} /app/share/applications/${FLATPAK_ID}.desktop
+    sources:
+      - type: file
+        dest-filename: app.deb
+        url: https://github.com/OWNER/REPO/releases/download/vVERSION/token-industries-VERSION-linux-x64.deb
+        sha256: SHA256
+      - type: script
+        dest-filename: run.sh
+        commands:
+          - export TMPDIR="$XDG_RUNTIME_DIR/app/$FLATPAK_ID"
+          - exec zypak-wrapper /app/main/token-industries --ozone-platform-hint=auto "$@"

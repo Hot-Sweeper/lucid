@@ -44,17 +44,17 @@ translations remain cached for later appearances.
 Verification:
 
 ```
-node scripts/verify-localization.cjs
-node scripts/verify-localization-client.mjs
-node scripts/verify-localization-dom.cjs
-node scripts/verify-flavor-localization.cjs
-node scripts/verify-localization-speech.mjs
-node scripts/verify-localization-canvas.mjs
+node scripts/checks/verify-localization.cjs
+node scripts/checks/verify-localization-client.mjs
+node scripts/checks/verify-localization-dom.cjs
+node scripts/checks/verify-flavor-localization.cjs
+node scripts/checks/verify-localization-speech.mjs
+node scripts/checks/verify-localization-canvas.mjs
 npm run verify:update
 ```
 
 The deterministic suites use model fixtures. Native acceptance uses
-`scripts/render-language-review.cjs`, a private production build and a separate
+`scripts/review/render-language-review.cjs`, a private production build and a separate
 fixture bundle of the real game modules, with the production main process,
 preload, IPC handler and live headless writer. Its automated host holds the apps
 steady for paired captures. Provider discovery can be made unavailable to test
@@ -67,7 +67,7 @@ Build and run this only in a private snapshot and an available native slot:
 ```
 npm run verify:update
 npx vite build --config dev/vite.config.mjs
-node scripts/render-language-review.cjs <absolute-evidence-directory>
+node scripts/review/render-language-review.cjs <absolute-evidence-directory>
 ```
 
 `LUCID_LANGUAGE_CACHE_ONLY=1` with `LUCID_SHOT_PROFILE` pointing at the previous
@@ -75,32 +75,3 @@ isolated profile checks native process restart persistence without requesting a
 new translation. Evidence records the actual production assets, source manifest,
 model selections, test outcomes and paired native screenshots. Translation quality
 across every possible generated scene still requires editorial judgment.
-
-## Review evidence, 2026-10-31
-
-Status: delivered for user review, remains unsettled.
-
-The real IPC review fixed a rejected helper launch request, canonical English restoration, retry of fallback DOM text, and explicit runtime window titles. The canvas pass adds German video exchanges, dance/parody thumbnail hooks, meme/GIF captions, show subtitles, ribbons, credits and selected signs. Text translates before measuring and wrapping. Brand artwork, code, handles and names remain authored.
-
-The private snapshot is `E:/Lucid-validation/language-final-MaAWQr`. It includes the current sidebar startup delay fix (1500 to 0), preserving later chat, roster, artwork and performance work. `verify:update` and all six localization suites pass. Native acceptance passed 23 assertions through the production main/preload/IPC path, two process-restart assertions, and three supplemental generated-capture assertions. Successful native runs and the delivery proof have no captured runtime errors.
-
-The representative apps are actual game modules hosted in a native fixture, with activity paused for stable paired captures. BotsApp shows an opened family conversation. Generated-pack acceptance used the recorded deterministic input because no daily orchestrator pack was available. Only that input handler is replaced; translation IPC, provider discovery, launch and model output remain real. Warm app cache entries came from preceding real native model calls. The outage/recovery string was deliberately uncached. The final acceptance launched four Luna low helpers; the native restart launched none.
-
-The [source manifest](E:/Lucid-validation/language-final-MaAWQr/dist/lucid-build.json) and [loaded proof](E:/Lucid-validation/language-final-MaAWQr/evidence/loaded-build-proof.json) identify production `index-CMonRVNT.js`, SHA256 `7ef6e0ecb1b9c69ebc3b6e7ccc6e090c3b05c6e07db3f26e49c3884bfc618522`. Debugger source equals installed bytes. Main PID 447708 rendered 15 rooms with `document.hidden=false`; `sourceMatches` was empty. All 95 dist files match the verified snapshot. The previous dist remains at `E:/T3 Projects/Lucid/.lucid-language-previous-1793470619578`. A single-instance activation restored the same production window. The user's language preference was restored after checking the selector.
-
-| Capture | English | German |
-| --- | --- | --- |
-| BotTube and canvas thumbnails | [Before](E:/Lucid-validation/language-final-MaAWQr/evidence/BotTube-en.png) | [After](E:/Lucid-validation/language-final-MaAWQr/evidence/BotTube-de.png) |
-| Botcord messages | [Before](E:/Lucid-validation/language-final-MaAWQr/evidence/Botcord-en.png) | [After](E:/Lucid-validation/language-final-MaAWQr/evidence/Botcord-de.png) |
-| Open BotsApp chat | [Before](E:/Lucid-validation/language-final-MaAWQr/evidence/BotsApp-en.png) | [After](E:/Lucid-validation/language-final-MaAWQr/evidence/BotsApp-de.png) |
-| Incidental speech and joke | [Before](E:/Lucid-validation/language-final-MaAWQr/evidence/Speech-en.png) | [After](E:/Lucid-validation/language-final-MaAWQr/evidence/Speech-de.png) |
-| Runtime window titles | [Before](E:/Lucid-validation/language-final-MaAWQr/evidence/Titles-en.png) | [After](E:/Lucid-validation/language-final-MaAWQr/evidence/Titles-de.png) |
-| Canvas meme | [Before](E:/Lucid-validation/language-final-MaAWQr/evidence/Canvas-en.png) | [After](E:/Lucid-validation/language-final-MaAWQr/evidence/Canvas-de.png) |
-| Generated-pack exchange | [Before](E:/Lucid-validation/language-final-MaAWQr/generated-evidence/Generated-en.png) | [After](E:/Lucid-validation/language-final-MaAWQr/generated-evidence/Generated-de.png) |
-| Installed game setting | [Before](E:/Lucid-validation/language-final-MaAWQr/evidence/production-setting-en.png) | [After](E:/Lucid-validation/language-final-MaAWQr/evidence/production-setting-de.png) |
-
-The generated links supersede initial captures taken before the updated frame was painted. Screenshot pixels were not redrawn or edited. German controls and paragraphs passed measured horizontal-overflow checks. Existing feed-title ellipsis remains in place.
-
-Raw records: [native checks](E:/Lucid-validation/language-final-MaAWQr/evidence/native-result.json), [native restart](E:/Lucid-validation/language-final-MaAWQr/restart-evidence/native-restart.json), [generated captures](E:/Lucid-validation/language-final-MaAWQr/generated-evidence/generated-captures.json), [setting state/geometry](E:/Lucid-validation/language-final-MaAWQr/evidence/production-setting.json), and [required verification log](E:/Lucid-validation/language-final-MaAWQr/verify-update.log).
-
-The same delivered build includes corrected real-chat behavior. The [chat inclusion record](evidence/robot-chat-review/corrected-chat-loaded-provenance.json) reuses existing native chat results and the loaded proof. It does not claim a new live chat test. Later file changes were preserved and the retained chat behavior was checked directly.

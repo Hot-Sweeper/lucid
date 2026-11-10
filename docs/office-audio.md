@@ -12,7 +12,7 @@ was rejected for random-sounding melodies, weak beats and poor instruments.
 ## How the genre pieces are made
 
 Every genre piece is a score written by hand in
-`scripts/lucid_music/songs/<id>.py`: chord progressions chosen bar by bar,
+`tools/music/lucid_music/songs/<id>.py`: chord progressions chosen bar by bar,
 melodies written note by note from a short motif that is repeated, sequenced
 and answered, and idiomatic parts (voice-led comping, walking bass, boom-bap,
 swing ride, Memphis hats, chopped breaks). Each has an intro and outro soft
@@ -35,8 +35,8 @@ Mixing happens per part (level targets, EQ, sidechain from the kick, shared
 reverb and tempo-synced delay sends, tape and vinyl character where the genre
 wants it), then a master stage sets -18 LUFS with true peaks at or below
 -3.4 dBTP. The genre writing rules are in
-[scripts/lucid_music/COMPOSING.md](../scripts/lucid_music/COMPOSING.md).
-Background on the user's reference playlists is in
+[tools/music/lucid_music/COMPOSING.md](../tools/music/lucid_music/COMPOSING.md).
+Background on the reference playlists is in
 [music-production-research.md](music-production-research.md); its comments on
 individual songs describe the retired set.
 
@@ -108,39 +108,39 @@ footsteps, water, birds and object sounds follow real visible activity.
 
 ## Authoring and provenance
 
-These are offline tools. The app ships MP3 recordings and needs no plug-in,
+These are offline tools. The app ships Opus recordings (128 kbps) and needs no plug-in,
 sample library, Python process or music service at runtime.
 
 ```bash
-python scripts/render-music.py <song_module> [--png] [--preview 30]
-python scripts/sync-music-catalog.py      # installs renders, rewrites soundtrack.ts
-python scripts/verify-music-masters.py --write
+python tools/music/render-music.py <song_module> [--png] [--preview 30]
+python tools/music/sync-music-catalog.py      # installs renders, rewrites soundtrack.ts
+python tools/music/verify-music-masters.py --write
 ```
 
-Use a Python environment with `scripts/requirements-music.txt` and FFmpeg.
+Use a Python environment with `tools/music/requirements-music.txt` and FFmpeg.
 Sample libraries live in `~/.cache/lucid-audio-authoring/libs` (fetched from
 the sfzinstruments and VCSL GitHub repositories); `LUCID_MUSIC_LIBS` and
 `SURGE_VST3` override the default locations. Renders, JSON track reports and
 spectrograms go to `~/.cache/lucid-audio-authoring/renders`.
 `src/assets/audio/library-songs.json` records each piece's source module,
 sections, parts and the libraries and licenses used. `library-mastering.json`
-measures the packaged MP3 hashes, duration, loudness, true peak, silence, DC and
+measures the packaged Opus hashes, duration, loudness, true peak, silence, DC and
 stereo correlation.
 
 The original cozy recordings came from `compose-office-theme.py`,
 `compose-office-playlist.py` and `compose-office-encore.py` (with
 `cozy_percussion.py`, `music_production.py` and the pinned VCSL drums from
 `fetch-vcsl-drums.py`). Regenerate room air alone with
-`python scripts/compose-office-theme.py --only ambience`.
+`python tools/music/compose-office-theme.py --only ambience`.
 
 ## Verification
 
 ```bash
-python scripts/verify-music-masters.py
-node scripts/verify-game-sound.cjs
-node scripts/verify-background-audio.cjs
-node scripts/verify-soundtrack.cjs
-node scripts/verify-soundscape.cjs
+python tools/music/verify-music-masters.py
+node scripts/checks/verify-game-sound.cjs
+node scripts/checks/verify-background-audio.cjs
+node scripts/checks/verify-soundtrack.cjs
+node scripts/checks/verify-soundscape.cjs
 npm run verify:update
 ```
 

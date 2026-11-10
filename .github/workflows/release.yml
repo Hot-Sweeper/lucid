@@ -1,0 +1,65 @@
+name: Release
+
+# Push a version tag (v1.2.3, matching package.json) to build installers for every platform and
+# upload them to a draft GitHub Release. Nothing is published until someone publishes the draft.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      GIT_AUTHOR_NAME: CI
+      GIT_AUTHOR_EMAIL: ci@example.invalid
+      GIT_COMMITTER_NAME: CI
+      GIT_COMMITTER_EMAIL: ci@example.invalid
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Tag matches package.json
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME does not match package.json version $version"; exit 1; }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  build:
+    needs: checks
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: --linux
+          - os: windows-latest
+            platform: --win
+          - os: macos-latest
+            platform: --mac
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Linux packaging tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm
+      - run: npm ci
+      - run: npm run build
+      # electron-builder creates the draft release for this version if needed and uploads the
+      # installers and update metadata (latest*.yml) to it.
+      - name: Build and upload to the draft release
+        run: npx electron-builder --config electron-builder.config.cjs ${{ matrix.platform }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No paid signing: macOS gets an ad-hoc signature, Windows is unsigned (docs/releasing.md).
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
