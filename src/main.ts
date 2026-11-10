@@ -554,7 +554,8 @@ api.onInfo(({ threadId, info }) => {
 });
 
 let watched = "";
-let watchBusy = false, watchAgain = false;
+// Later refreshes pick up any change made while a watch update was in flight.
+let watchBusy = false;
 world.onCampusChange = () => { void syncWatches(); };
 function desiredWatches() {
   const ids = world.campusDesks.map(row => row.id);
@@ -563,7 +564,7 @@ function desiredWatches() {
   return [...new Set(ids)].sort();
 }
 async function syncWatches() {
-  if (watchBusy) { watchAgain = true; return; }
+  if (watchBusy) return;
   if (switchingBuilding) return;
   const ids = desiredWatches(), key = ids.join(',');
   if (key === watched) return;
@@ -572,7 +573,7 @@ async function syncWatches() {
   try {
     if (await api.watchSet(ids) && epoch === buildingEpoch) watched = key;
   } catch (error) { console.error('Thread watch refresh failed', error); }
-  finally { watchBusy = false; if (watchAgain || epoch !== buildingEpoch) { watchAgain = false; void syncWatches(); } }
+  finally { watchBusy = false; }
 }
 let firstLoad = true;
 let refreshBusy = false;

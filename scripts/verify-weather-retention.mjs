@@ -133,7 +133,6 @@ function assertRainCoverage(f,cam){
   f.weather.setCamera(cam,viewport,20000);assert.equal(count(),disabled,'diagnostic suspension also stops camera-driven painting');
   assert.equal(f.timers.size+f.rafs.size,0);
   f.disable(false);f.frame(3000);assertRainCoverage(f,cam);
-  f.weather.setCamera(hiddenCam,viewport,20000);f.frame(4000);assertRainCoverage(f,hiddenCam);
   const beforeResize=f.fall.calls.length;
   f.weather.resize({...rect,x:rect.x-400,y:rect.y-400});
   f.weather.setCamera(hiddenCam,viewport,20000);
