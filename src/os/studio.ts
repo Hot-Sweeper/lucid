@@ -136,6 +136,7 @@ export class StudioApp {
     if (this.view) clearDetailScene(this.view);
     this.view = document.createElement("div");
     this.view.className = "studio";
+    this.view.inert = true; // a robot's screen: never in the keyboard focus order
     body.replaceChildren(this.view);
   }
 
