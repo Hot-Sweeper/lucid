@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
-const source = await readFile(process.argv[2] || new URL('../../src/office/world.ts', import.meta.url), 'utf8');
+import { worldSource } from './world-source.mjs';
+const source = process.argv[2] ? await readFile(process.argv[2], 'utf8') : await worldSource();
 const ease = await readFile(new URL('../../src/perf/ease.ts', import.meta.url), 'utf8');
 const timing = (await transformWithOxc(ease.replaceAll('export ', ''), 'ease.ts')).code;
-const methods = source.slice(source.indexOf('  private cancelCameraTween()'), source.indexOf('  /** Wheel zoom eases'));
-const start = source.indexOf('  private camera()');
+const methods = source.slice(source.indexOf('  cancelCameraTween()'), source.indexOf('  // ---- rooms, layout preferences and callbacks'));
+const start = source.indexOf('  camera(this: World)');
 const wheel = source.slice(start, source.indexOf('    let start:', start)) + '\n}';
 const code = (await transformWithOxc(`class Camera {${methods}\n${wheel}}`, 'camera.ts')).code;
 let now = 0;

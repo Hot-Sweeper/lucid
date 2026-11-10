@@ -14,7 +14,7 @@ assert.equal(remainingDeskExtras([],['first'],0),0,'incoming work can create a d
 assert.equal(remainingDeskExtras([null],['first'],1),0,'first hire uses the explicitly added empty desk');
 assert.equal(remainingDeskExtras(['old'],[],2),2,'removing work does not add another spare');
 const source = await readFile('src/office/world.ts', 'utf8');
-const methods = source.slice(source.indexOf('  canRemoveEmptyDesk('), source.indexOf('  isLastDesk('));
+const methods = source.slice(source.indexOf('  canRemoveEmptyDesk('), source.indexOf('  onFreeDesk:'));
 const code = (await transformWithOxc(`class Removal { ${methods} }`, 'remove.ts')).code;
 const Removal = new Function(code + ';return Removal')();
 const w = new Removal();

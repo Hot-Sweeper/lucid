@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { worldSource } from './world-source.mjs';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 
@@ -44,14 +45,14 @@ let notifications = 0; const off = bank.subscribe(() => notifications++); off();
 
 // Exercise production room routing, including the layout barrier and pinned robots.
 const policy = new Function(`${await compile('office/room-policy')};return {hasOfficeWork,hasOfficeDesk}`)();
-const worldSource = await source('office/world');
-const World = new Function('UNIT_W', 'UNIT_H', 'hasOfficeWork', `${await compile('office/world')};return World`)(400, 380, policy.hasOfficeWork);
+const worldText = await worldSource();
+const World = new Function('UNIT_W', 'UNIT_H', 'hasOfficeWork', `${await compile('office/world', (await source('office/world')).replace(/^mixin\(World[^;]*;$/m, ''))};return World`)(400, 380, policy.hasOfficeWork);
 const context = { placed: new Map(), collapsedRooms: new Set(), revealedThread: null };
 context.settleRoom = World.prototype.settleRoom;
 context.placed.set('one', { room: 'p:project' });
 assert.equal(context.settleRoom({ id: 'one', runStatus: 'running' }, 'charging'), 'charging');
 assert.equal(context.settleRoom({ id: 'one', runStatus: 'running' }, 'p:project'), 'p:project');
-const classification = worldSource.slice(worldSource.indexOf('    const classifiedRoom ='), worldSource.indexOf('    const seatOrder ='));
+const classification = worldText.slice(worldText.indexOf('    const classifiedRoom ='), worldText.indexOf('    const seatOrder ='));
 const classify = new Function('subscriptionBatteries', 'needsCharge', 'data', 'wasHeld', 'holdPhysical', 'retiringIds', 'previousPhysical', 'hasOfficeWork', 'hasOfficeDesk', `${(await transformWithOxc(classification, 'classification.ts')).code};return {charging,queue,main,brk,orchT,classifiedRoom}`);
 const routingBank = new SubscriptionBatteries();
 routingBank.setUsage({ limits: { 't3:claudeAgent': group('claude', [window('primary', 100, 60, Date.now() + 3600000)]), 't3:codex': group('codex', [window('primary', 25, 60, Date.now() + 3600000)]) } });

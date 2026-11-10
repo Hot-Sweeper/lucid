@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { worldSource } from './world-source.mjs';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 const source = await readFile('src/office/campus-light.ts','utf8');
@@ -15,8 +16,8 @@ assert.equal(campusNight(date(10,12),weather),0);
 assert(campusNight(new Date(2026,10,1,16,20),weather)>.3&&campusNight(new Date(2026,10,1,16,20),weather)<.6,'twilight is gradual');
 assert.equal(campusNight(now,{...weather,sunrise:null,sunset:null,isDay:false}),.82);
 assert.equal(campusNight(date(10,23),{...weather,stale:true,sunrise:null,sunset:null,isDay:true}),.82,'outdated daytime flag cannot keep late night bright');
-const world=await readFile('src/office/world.ts','utf8');
-const start=world.indexOf('  private cameraExtent()'),end=world.indexOf('  private apply()',start);
+const world=await worldSource();
+const start=world.indexOf('  cameraExtent(this: World)'),end=world.indexOf('  apply(this: World)',start);
 const code=(await transformWithOxc(`class Camera {${world.slice(start,end)}}`,'camera.ts')).code;
 const Camera=new Function(`${code};return Camera`)();
 for(const [width,height] of [[390,844],[1100,800],[2100,1000]]) {

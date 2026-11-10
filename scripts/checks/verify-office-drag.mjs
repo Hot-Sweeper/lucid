@@ -1,17 +1,18 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
+import { worldSource } from './world-source.mjs';
 
 // Exercise the actual pointer handlers and placement policy without live T3 writes.
-const source = await readFile(new URL('../../src/office/world.ts', import.meta.url), 'utf8');
+const source = await worldSource();
 const policyCode = (await transformWithOxc(await readFile(new URL('../../src/office/room-policy.ts', import.meta.url), 'utf8'), 'room-policy.ts')).code;
 const policy = await import('data:text/javascript;base64,' + Buffer.from(policyCode).toString('base64'));
 const method = (from, to) => source.slice(source.indexOf(from), source.indexOf(to, source.indexOf(from)));
 const code = (await transformWithOxc(`class DragWorld {
-${method('  private wireDeskDrag(', '  private threadDropPreview')}
+${method('  wireDeskDrag(', '  threadDropZone(')}
 ${method('  previewThreadDrop(', '  placeThread(')}
 ${method('  placeThread(', '\n  select(')}
-${method('  private homeForThread(', '  private reconcilePhysicalLayout(')}
+${method('  homeForThread(', '  reconcilePhysicalLayout(')}
 }`, 'office-drag.ts')).code;
 class Element {
   handlers = new Map(); children = []; dataset = {}; style = { setProperty(name, value) { this[name] = value; } }; hidden = false;

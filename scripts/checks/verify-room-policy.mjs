@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { worldSource } from './world-source.mjs';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 const load = async (name) => { const source = await transformWithOxc(await readFile(new URL(`../../src/office/${name}.ts`, import.meta.url), 'utf8'), `${name}.ts`); return import('data:text/javascript;base64,' + Buffer.from(source.code).toString('base64')); };
@@ -25,8 +26,8 @@ assert.equal(projectRoomSeats(['settled'], [settledWorker], false, 'settled').sl
 assert.equal(projectRoomSeats(['settled'], [pinned], false, null).slots, 1);
 // Exercise the real held-floor slot loop: retiring a worker must remove its entire
 // desk while retaining the floor and an adjacent pinned thread's exact position.
-const worldSource = await readFile(new URL('../../src/office/world.ts', import.meta.url), 'utf8');
-const slotSource = worldSource.slice(worldSource.indexOf('    const slots: { key:'), worldSource.indexOf('    const wanted = new Set(slots'));
+const worldText = await worldSource();
+const slotSource = worldText.slice(worldText.indexOf('    const slots: { key:'), worldText.indexOf('    const wanted = new Set(slots'));
 const slotCode = (await transformWithOxc(slotSource, 'slots.ts')).code;
 const heldSlots = new Function('plans', 'rooms', 'columnsForRoom', 'SLOT_W', 'SLOT_H', 'WALL_FACE', 'hasOfficeDesk', 'snakeSeat', `${slotCode};return slots;`)(
   [{ id: 'p:project', slots: 2, threads: [settledWorker, { ...pinned, id: 'pinned' }] }],

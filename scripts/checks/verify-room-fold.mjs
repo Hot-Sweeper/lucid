@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
+import { worldSource } from './world-source.mjs';
 const policy = (await transformWithOxc(await readFile(new URL('../../src/office/room-policy.ts', import.meta.url), 'utf8'), 'room-policy.ts')).code;
 const { hasOfficeWork } = await import('data:text/javascript;base64,' + Buffer.from(policy).toString('base64'));
-const worldSource = await readFile(new URL('../../src/office/world.ts', import.meta.url), 'utf8');
-const settleSource = worldSource.slice(worldSource.indexOf('  private settleRoom('), worldSource.indexOf('  constructor(scene:'));
+const worldText = await worldSource();
+const settleSource = worldText.slice(worldText.indexOf('  settleRoom('), worldText.indexOf('  constructor(scene:'));
 const settleCode = (await transformWithOxc(`class Placement { placed = new Map(); collapsedRooms = new Set(); revealedThread = null; ${settleSource} }`, 'placement.ts')).code;
 const Placement = new Function('hasOfficeWork', `${settleCode}; return Placement;`)(hasOfficeWork);
 const placement = new Placement();

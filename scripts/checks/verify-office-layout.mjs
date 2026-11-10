@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 const source = await readFile(new URL('../../src/office/world.ts', import.meta.url), 'utf8');
-const methods = source.slice(source.indexOf('  private layoutArchive:'), source.indexOf('  private buildings:'));
+const methods = source.slice(source.indexOf('  layoutArchive:'), source.indexOf('  buildings:'));
 const code = (await transformWithOxc(`class LayoutFixture { lastData = null; neighbors = new Map(); roomOrder=[]; expandedRooms=new Set(); collapsedRooms=new Set(); roomColumns=new Map(); hidden=new Set(); extra=new Map(); homes=new Map(); seats=new Map(); themes=new Map(); ${methods} }`, 'layout-fixture.ts')).code;
 const Fixture = new Function("officeColumns", `${code};return LayoutFixture`)(value => Number.isFinite(value) ? Math.max(1, Math.min(6, Math.round(value))) : 1);
 const world = new Fixture();
