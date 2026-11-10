@@ -148,7 +148,7 @@ document.getElementById("app")!.innerHTML = `
   </aside>
   <nav class="side-rail" id="side-rail" aria-label="Folded sidebar" hidden>
     <button type="button" class="rail-show" id="rail-show" aria-expanded="false" aria-controls="side-panel" title="Show sidebar (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M6.5 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Show<br>sidebar</span></button>
-    <p class="rail-coins" id="rail-coins">${coinIcon(16)}<b id="rail-bal">0</b></p>
+    <p class="rail-coins" id="rail-coins">${coinIcon(16)}<b id="rail-bal">0</b><span class="coin-label"> coins</span></p>
     <ol class="rail-list" id="rail-list" aria-label="Threads"></ol>
   </nav>
   <main class="scene" id="scene"></main>
@@ -156,7 +156,7 @@ document.getElementById("app")!.innerHTML = `
     <label class="switch orch-power-switch"><span>Orchestrator</span><input type="checkbox" id="orch-power-toggle" role="switch" aria-label="Orchestrator enabled" disabled><span class="track" aria-hidden="true"><i></i></span><b id="orch-power-status">Off</b></label>
     <button type="button" class="link-btn" id="orch-controls-open" aria-label="Orchestrator settings">Settings</button>
   </section>
-  <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button><p id="coin-bank" class="coin-bank" tabindex="-1">${coinIcon(18)}<b id="coin-bank-bal">0</b></p><button type="button" id="terrible-song" disabled>Mark song terrible</button><button type="button" id="game-sound" aria-pressed="true">Sound on</button></div>`;
+  <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button><p id="coin-bank" class="coin-bank" tabindex="-1">${coinIcon(18)}<b id="coin-bank-bal">0</b><span class="coin-label"> coins</span></p><button type="button" id="terrible-song" disabled>Mark song terrible</button><button type="button" id="game-sound" aria-pressed="true">Sound on</button></div>`;
 
 void mountTitlebar();
 // Keep threads in front and put occasional office controls behind one disclosure.

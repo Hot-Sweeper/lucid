@@ -38,6 +38,7 @@
 .zoom-ui { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; max-width: calc(100% - 32px); }
 .zoom-ui #coin-bank { display: inline-flex; align-items: center; gap: 7px; min-width: 84px; justify-content: center; margin: 0; padding: 9px 14px; border-radius: 10px; font-size: 14px; background: var(--ui-float, rgba(20, 26, 51, 0.85)); outline: 1px solid var(--ui-edge, transparent); outline-offset: -1px; backdrop-filter: blur(8px); color: #ffd27a; font-variant-numeric: tabular-nums; }
 .zoom-ui #coin-bank:focus { outline-color: transparent; }
+.coin-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .zoom-ui #coin-bank b { font-weight: 500; }
 .game-volume { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 13px; }
 .game-volume input { min-width: 0; flex: 1; accent-color: var(--accent); }

@@ -238,7 +238,7 @@ async function main() {
   restored.destroy();
   assert.equal(restored.musicListeners.size, 0);
   assert.equal(listeners.size, 0, 'all owners release listeners');
-  // Real song-library requests share the owned stream and retain the latest
+  // Manual song picks share the owned stream and retain the latest
   // user's choice while an older play promise is unresolved.
   storage.set('lucid:sound', JSON.stringify({enabled:true,volume:.45,themeVolume:.3,ambienceVolume:.1}));
   const library = new context.Engine(), libraryMediaStart = media.length;
@@ -309,14 +309,14 @@ async function main() {
   gesture(); libraryTheme.resolve(); libraryAir.resolve(); await settle();
   assert.equal(library.currentTheme.id, 'moonlit-desks');
   assert.equal(library.musicState.status, 'playing');
-  assert.equal(media.length, libraryMediaStart + 3, 'song-library playback retains the bounded pool of two theme streams and ambience');
+  assert.equal(media.length, libraryMediaStart + 3, 'manual song playback retains the bounded pool of two theme streams and ambience');
   library.destroy();
-  assert.equal(listeners.size, 0, 'song-library playback releases its audio-owner listeners');
+  assert.equal(listeners.size, 0, 'manual song playback releases its audio-owner listeners');
   context.AudioContext = class { constructor() { throw Error('no audio device'); } };
   const unavailable = new context.Engine();
   unavailable.pauseTheme(false); gesture();
   assert.equal(unavailable.musicState.status, 'error', 'device failures must not masquerade as a missing gesture');
   unavailable.destroy();
-  console.log('PASS: equal-power song crossfades on two bounded theme streams (natural endings, Next, library picks, short songs), per-song trims, no double listening time, pause/mute during blends; song-library choice, latest-wins pending selection, invalid IDs, current-song resume, mute/volume/hidden safety and persisted history; evolving director controls, active-only listening time, seek filtering, deferred mode changes, pause/playhead persistence, pending Next races, truthful status and subscriptions; lazy streaming, single graph, bounded sources, quiet independent persistent levels, no overlapping starts, late-play races, retry, mute, visibility, playhead continuity and teardown.');
+  console.log('PASS: equal-power song crossfades on two bounded theme streams (natural endings, Next, library picks, short songs), per-song trims, no double listening time, pause/mute during blends; manual song choice, latest-wins pending selection, invalid IDs, current-song resume, mute/volume/hidden safety and persisted history; evolving director controls, active-only listening time, seek filtering, deferred mode changes, pause/playhead persistence, pending Next races, truthful status and subscriptions; lazy streaming, single graph, bounded sources, quiet independent persistent levels, no overlapping starts, late-play races, retry, mute, visibility, playhead continuity and teardown.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

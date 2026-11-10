@@ -723,34 +723,6 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .outside-live.culled { visibility: hidden; }
 .outside-live.culled *, .amb-offscreen, .amb-offscreen * { animation-play-state: paused !important; }
 
-/* milestones */
-.ms-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 300; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 16px; background: #241f3a; box-shadow: 0 16px 40px rgba(5, 8, 30, 0.5), inset 0 0 0 1.5px rgba(255, 210, 122, 0.5); color: var(--ink); }
-.ms-toast b { display: block; font-size: 14.5px; }
-.ms-toast span { font-size: 12.5px; color: var(--ink-3); }
-.ms-toast em { font-style: normal; font-weight: 600; color: #ffd27a; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-.ms-badge { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 50%; background: #ffd27a; color: #3a2508; font-size: 18px; }
-.dialog.ms { width: min(860px, calc(100vw - 48px)); max-height: calc(100vh - 48px); display: flex; flex-direction: column; }
-.ms-head p { margin: 4px 0 0; color: var(--ink-3); font-size: 13px; }
-.ms-body { display: grid; grid-template-columns: 260px 1fr; gap: 22px; overflow-y: auto; padding-top: 6px; min-height: 0; }
-.ms-body h3 { margin: 10px 0 8px; font-size: 13px; color: var(--ink-2, var(--ink)); }
-.ms-road { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.ms-lv { display: flex; gap: 10px; align-items: flex-start; padding: 6px 4px; position: relative; }
-.ms-lv div { display: flex; flex-direction: column; gap: 1px; }
-.ms-lv b { font-size: 13px; } .ms-lv span { font-size: 12px; color: var(--ink-3); } .ms-lv i { font-style: normal; font-size: 11px; color: var(--ink-3); opacity: 0.8; }
-.ms-dot { width: 24px; height: 24px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; background: var(--night-3, #262b5c); color: var(--ink-3); }
-.ms-lv.done .ms-dot { background: #ffd27a; color: #3a2508; }
-.ms-lv.next .ms-dot { box-shadow: 0 0 0 2px #ffd27a; color: #ffd27a; }
-.ms-cards ul { list-style: none; margin: 0 0 6px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
-.ms-card { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border-radius: 12px; background: var(--night, #161a3a); }
-.ms-card .ms-badge { width: 28px; height: 28px; font-size: 15px; background: var(--night-3, #262b5c); color: var(--ink-3); }
-.ms-card.got .ms-badge { background: #ffd27a; color: #3a2508; }
-.ms-card div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.ms-card b { font-size: 13px; } .ms-card span { font-size: 12px; color: var(--ink-3); }
-.ms-card small { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.ms-card em { font-style: normal; font-size: 12px; color: #ffd27a; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
-.ms-card:not(.got) em { opacity: 0.6; }
-.ms-bar { height: 5px; border-radius: 3px; background: var(--night-3, #262b5c); overflow: hidden; margin-top: 3px; }
-.ms-bar i { display: block; height: 100%; background: #ffd27a; }
 
 /* model bar above the message box: harness, model, effort and speed of this thread */
 .cp-model { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; padding: 0 2px 6px; }
