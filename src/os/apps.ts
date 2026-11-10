@@ -7,7 +7,7 @@ import { baseName, relPath, type Entry, type Hit, type Hunk } from "./classify";
 import { esc, el, typeInto } from "./typing";
 import { colorGitLine } from "./git";
 import { detectSheet, playSheet } from "./sheet";
-import { t3Icon, t3Title } from "../harness/t3code";
+import { installedT3Channel, t3Icon, t3Title } from "../harness/t3code";
 import { describeTool, factTitles, isT3Tool, prettyTool, toolActivity, toolViewHtml, toolViewKey, type ToolState, type UploadLookup, type WatchedView } from "./tool-view";
 import "./tool-view.css";
 export { BrowserApp } from "./browser";
@@ -23,17 +23,11 @@ export class EditorApp {
   constructor(private wm: WM) {}
 
   private async ensure(path: string) {
-    const ed = this.wm.prefs?.editor ?? "studio";
-    const appName = ed === "pad" ? "Notepad" : ed === "vim" ? "vim" : "Studio";
-    // Notepad and vim have their own icons (dock, window bar and app switcher)
-    this.wm.brandApp("editor", { icon: ed === "pad" ? ICONS.editorPad : ed === "vim" ? ICONS.editorVim : ICONS.editor });
-    const w = await this.wm.open("editor", `${baseName(path)}  ${appName}`);
+    const w = await this.wm.open("editor", `${baseName(path)}  Code`);
     if (!w.body.querySelector(".editor")) {
-      w.body.innerHTML = `<div class="editor ed-${ed}"><div class="tabs" role="tablist"></div><div class="code-wrap"><div class="code"></div></div>${ed === "vim" ? `<div class="vim-bar"><b>-- INSERT --</b><span></span></div>` : ""}</div>`;
+      w.body.innerHTML = `<div class="editor"><div class="tabs" role="tablist"></div><div class="code-wrap"><div class="code"></div></div></div>`;
       this.tabs.clear();
     }
-    const bar = w.body.querySelector(".vim-bar span");
-    if (bar) bar.textContent = path.replace(/\\/g, "/").split("/").slice(-2).join("/");
     const tabsEl = w.body.querySelector(".tabs") as HTMLElement;
     let tab = this.tabs.get(path);
     if (!tab) {
@@ -260,7 +254,7 @@ export class ToolApp {
   async show(toolName: string, input: unknown, state: () => ToolState, uploads?: UploadLookup): Promise<WatchedView> {
     const wm = this.wm;
     const t3 = isT3Tool(toolName);
-    const channel = wm.prefs?.t3 === "nightly" ? "nightly" : "stable";
+    const channel = installedT3Channel();
     const first = describeTool(toolName, input, state(), uploads);
     const icon = t3 ? t3Icon(channel) : ICONS.tool;
     wm.brandApp("tool", { icon });

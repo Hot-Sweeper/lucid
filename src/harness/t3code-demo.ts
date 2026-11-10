@@ -18,7 +18,7 @@ function host(screen: HTMLElement, channel: T3Channel): T3Host {
   let win: { el: HTMLElement; body: HTMLElement; title: HTMLElement } | null = null;
   return {
     epoch: 0,
-    prefs: { t3: channel },
+    channel,
     robotName: "demo",
     robot: { setTyping() {}, setPose() {} },
     async open(_id: AppId, title?: string) {

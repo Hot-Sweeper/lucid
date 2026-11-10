@@ -137,7 +137,7 @@ async function deskScene() {
   const desk = new Desk(floor, 0, 0, services);
   const profile: RobotProfile = {
     id: "bot-demo", name: "Pip", brand: "claude" as any, provider: "claudeAgent", look: {} as any, hiredAt: Date.now(), threadId: "t-demo", jobs: 1,
-    prefs: { editor: "studio", wallpaper: 2, games: { snake: 1, flappy: 1, dash: 1, chess: 1 }, phone: "clips", subagents: "app", music: 0, social: 0, mug: "#4fb6ff", tasks: "sticky", hobby: "chiller", windows: "floating", listens: "never", launch: "dock", switching: "click", tidiness: "normal", git: "cli", office: "suite" },
+    prefs: { wallpaper: 2, games: { snake: 1, flappy: 1, dash: 1, chess: 1 }, phone: "clips", subagents: "app", music: 0, social: 0, mug: "#4fb6ff", tasks: "sticky", hobby: "chiller", windows: "floating", listens: "never", launch: "dock", switching: "click", tidiness: "normal", git: "cli", office: "suite" },
   };
   desk.assign({ id: "t-demo", title: "Quarterly paperwork", provider: "claudeAgent" }, profile);
   desk.director.setInfo({ id: "t-demo", title: "Quarterly paperwork", provider: "claudeAgent", root: dir, run: { id: "r1", status: "running" } });

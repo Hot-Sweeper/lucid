@@ -317,13 +317,13 @@ export class IdleLife {
         return this.closeWin("browser", tok);
       }
       case "tensorhub": {
-        this.onActivity("Browsing something it should not");
-        const w = await this.wm.open("browser", "TensorHub");
+        this.onActivity("Watching hardware videos on Benchtop");
+        const w = await this.wm.open("browser", "Benchtop");
         this.alive(tok);
         w.body.innerHTML = "";
         await browseTensorHub(w.body, host, { maxMs: 18000 + Math.random() * 12000 });
         this.alive(tok);
-        this.wm.close("browser"); // closed fast, nobody saw anything
+        this.wm.close("browser");
         this.robot.react("shy");
         return this.wait(1500, tok);
       }
@@ -417,7 +417,7 @@ export class IdleLife {
       case "sparkplug": return this.socialApp("sparkplug", "Swiping on Sparkplug", swipeSparkplug, tok, 40000);
       case "steam": {
         // the store, the library, a download and a launch: then the game itself runs on its desktop
-        this.onActivity("Browsing Steambot");
+        this.onActivity("Browsing Vapor");
         const w = await this.wm.open("steam");
         this.alive(tok);
         this.robot.setPose("mouse");
@@ -431,7 +431,7 @@ export class IdleLife {
         }
         return this.closeWin("steam", tok);
       }
-      case "trading": return this.socialApp("trading", "Trading bitcoin on Tradebot", tradeOnTradebot, tok, 60000);
+      case "trading": return this.socialApp("trading", "Trading Botcoin on the Botcoin Exchange", tradeOnTradebot, tok, 60000);
     }
   }
 

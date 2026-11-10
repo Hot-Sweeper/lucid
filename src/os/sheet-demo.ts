@@ -86,7 +86,7 @@ async function directorScene() {
   const desk = new Desk(floor, 0, 0, services);
   const profile: RobotProfile = {
     id: "bot-demo", name: "Pip", brand: "claude" as any, provider: "claudeAgent", look: {} as any, hiredAt: Date.now(), threadId: "t-demo", jobs: 1,
-    prefs: { editor: "studio", wallpaper: 2, games: { snake: 1, flappy: 1, dash: 1, chess: 1 }, phone: "clips", subagents: "app", music: 0, social: 0, mug: "#4fb6ff", tasks: "sticky", hobby: "chiller", windows: "floating", listens: "never", launch: "dock", switching: "click", tidiness: "normal", git: "cli" },
+    prefs: { wallpaper: 2, games: { snake: 1, flappy: 1, dash: 1, chess: 1 }, phone: "clips", subagents: "app", music: 0, social: 0, mug: "#4fb6ff", tasks: "sticky", hobby: "chiller", windows: "floating", listens: "never", launch: "dock", switching: "click", tidiness: "normal", git: "cli" },
   } as any;
   desk.assign({ id: "t-demo", title: "Pixel art pipeline", provider: "claudeAgent" } as any, profile);
   desk.director.setInfo({ id: "t-demo", title: "Pixel art pipeline", provider: "claudeAgent", root: "", run: { id: "r1", status: "running" } } as any);
@@ -133,13 +133,13 @@ async function uacScene() {
 }
 
 function iconsScene() {
-  const ids = ["files", "editor", "editorPad", "editorVim", "terminal", "browser", "photos", "player", "tool", "t3code", "harness", "gitdesk", "notes", "tasks", "calc", "weather", "music", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "doodle", "crossword", "solitaire", "stocks", "mail", "lingo", "folder", "file"];
+  const ids = ["files", "editor", "terminal", "browser", "photos", "player", "tool", "t3code", "harness", "gitdesk", "notes", "tasks", "calc", "weather", "music", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "doodle", "crossword", "solitaire", "stocks", "mail", "lingo", "folder", "file"];
   const titles = wm as any;
   const box = document.createElement("div");
   box.style.cssText = "display:grid;grid-template-columns:repeat(6,150px);gap:14px 10px;padding:18px;width:1000px;color:#eef;font:12px var(--font)";
   for (const id of ids) {
     const svg = (wm.iconOf(id as any) ?? "") || "<b style='color:#f66'>MISSING</b>";
-    const title = (id === "editorPad" ? "Notepad" : id === "editorVim" ? "vim" : titles.titleOf(id)) ?? id;
+    const title = titles.titleOf(id) ?? id;
     box.insertAdjacentHTML("beforeend", `<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start"><div style="display:flex;gap:10px;align-items:center"><span style="width:44px;height:44px;display:block">${svg}</span><span class="win-bar" style="width:auto;display:flex;gap:6px;align-items:center;padding:3px 8px;border-radius:6px;background:#2e3577;font-size:11px"><span style="width:16px;height:16px;display:block">${svg}</span></span></div><span>${title} <span style="opacity:.5">${id}</span></span></div>`);
   }
   document.getElementById("sd-demo")!.appendChild(box);

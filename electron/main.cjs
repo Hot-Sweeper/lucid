@@ -332,6 +332,7 @@ ipcMain.handle("t3:resolved-since", (_e, since) => t3.resolvedRequestsSince(sinc
 ipcMain.handle("t3:user-messages", (_e, since, exclude) => t3.userMessagesSince(since, exclude));
 ipcMain.handle("project:remove", (_e, o) => { if (remote.split(o.id)) throw Error('Remove remote projects in T3 Code.'); return t3.removeProject(o); });
 ipcMain.handle("app:host", () => require("node:os").hostname());
+ipcMain.handle("t3:channel", () => require("./t3-channel.cjs").t3Channel());
 const usage = require("./usage.cjs");
 usage.setProviderLimitsReader(() => require("./t3server.cjs").usageLimits());
 ipcMain.handle("usage:get", () => usage.getUsage());
