@@ -66,7 +66,7 @@ Build and run this only in a private snapshot and an available native slot:
 
 ```
 npm run verify:update
-npx vite build --config vite.language-review.config.mjs
+npx vite build --config dev/vite.config.mjs
 node scripts/render-language-review.cjs <absolute-evidence-directory>
 ```
 

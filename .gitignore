@@ -3,6 +3,7 @@ dist/
 dist-update/
 dist-build/
 dist-previous/
+dist-dev/
 *.log
 
 .lucid-update-*/

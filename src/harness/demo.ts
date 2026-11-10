@@ -277,8 +277,8 @@ document.getElementById("restart")!.addEventListener("click", restart);
 
 
 // --- gallery: every harness in each form it has, with a sample stream, model and effort ------
-//   harness-demo.html?gallery=1      mid-run (working line visible)
-//   harness-demo.html?gallery=done   finished
+//   dev/harness.html?gallery=1      mid-run (working line visible)
+//   dev/harness.html?gallery=done   finished
 const SAMPLE: Record<HarnessKind, { model: string; effort: string; label?: string }> = {
   claude: { model: "claude-opus-5-5", effort: "high" },
   codex: { model: "gpt-5.6-sol", effort: "xhigh" },

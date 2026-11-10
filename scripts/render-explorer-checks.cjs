@@ -127,7 +127,7 @@ app.whenReady().then(async () => {
       fs.writeFileSync(legacy, `import gsap from "gsap";\nimport { WM } from "./wm";\nimport { ICONS } from "./icons";\nimport { baseName, relPath, type Entry, type Hit } from "./classify";\nimport { esc, typeInto } from "./typing";\n${text.slice(a, b).replace("export class FilesApp", "export class LegacyFilesApp")}\n`);
     }
     const page = path.join(out, "page");
-    const built = spawnSync(process.execPath.includes("electron") ? "node" : process.execPath, [path.join(repo, "node_modules", "vite", "bin", "vite.js"), "build", "--config", "vite.explorer.config.mjs", "--outDir", page, "--emptyOutDir"], { cwd: repo, encoding: "utf8", env: { ...process.env, ELECTRON_RUN_AS_NODE: "" } });
+    const built = spawnSync(process.execPath.includes("electron") ? "node" : process.execPath, [path.join(repo, "node_modules", "vite", "bin", "vite.js"), "build", "--config", "dev/vite.config.mjs", "--outDir", page, "--emptyOutDir"], { cwd: repo, encoding: "utf8", env: { ...process.env, ELECTRON_RUN_AS_NODE: "" } });
     if (built.status !== 0) throw new Error(`page build failed: ${built.stdout}\n${built.stderr}`);
   } finally { fs.rmSync(legacy, { force: true }); }
 
@@ -150,7 +150,7 @@ app.whenReady().then(async () => {
     problems: { missing: { path: path.join(root, "not-here"), output: "Get-ChildItem : Cannot find path 'x' because it does not exist." }, denied: { path: path.join(root, "locked"), output: "Get-ChildItem : Access to the path 'x' is denied." }, empty: { path: path.join(root, "empty") }, long: { path: deepDir } } };
 
   try {
-    await win.loadFile(path.join(out, "page", "explorer-demo.html"));
+    await win.loadFile(path.join(out, "page", "dev", "explorer.html"));
     await until("window.__phase === 'loaded'", "page loaded");
     const init = (prefs = {}) => js(`window.__demo.init(${JSON.stringify(fixture)}, ${JSON.stringify(prefs)})`);
 

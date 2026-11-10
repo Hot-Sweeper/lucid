@@ -34,7 +34,7 @@ if(!process.versions.electron){
         const {ipcMain}=require('electron');ipcMain.removeHandler('orch:dialogs');
         const generated={date:new Date().toLocaleDateString('en-CA'),convos:daily?.convos?.slice(0,1)??[['The printer approved my pull request.','Finally, a reviewer who understands paper trails.']],botcord:daily?.botcord?.slice(0,1)??[]};
         ipcMain.handle('orch:dialogs',()=>generated);
-        await win.loadFile(path.join(root,'language-review/scripts/language-review.html'));
+        await win.loadFile(path.join(root,'dist-dev/scripts/language-review.html'));
         if(process.env.LUCID_LANGUAGE_CACHE_ONLY==='1'){
           check(await js(`review.getLocale()==='de'`),'German preference persists across native process restart');
           const saved=await js(`window.lucid.localize({locale:'de',entries:[{id:'restart',text:'The printer learned to make coffee.',context:'native provider recovery'}]})`);

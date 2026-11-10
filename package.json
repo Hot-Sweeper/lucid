@@ -6,6 +6,7 @@
   "scripts": {
     "postinstall": "node scripts/setup-git-sync.cjs",
     "dev": "node scripts/dev.mjs",
+    "dev:playgrounds": "vite --config dev/vite.config.mjs",
     "build": "vite build",
     "start": "node scripts/launch.cjs",
     "typecheck": "node electron/runtime-check.cjs && tsc -p .",

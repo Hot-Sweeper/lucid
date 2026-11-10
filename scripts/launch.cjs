@@ -1,4 +1,4 @@
-// Start Menu and Lucid.cmd open the installed build. Editing source must not
+// The Start Menu entry and launchers open the installed build. Editing source must not
 // turn opening the office into a dependency copy, typecheck and rebuild.
 const fs = require('node:fs');
 const path = require('node:path');

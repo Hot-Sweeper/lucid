@@ -52,7 +52,7 @@ try {
   if (new URLSearchParams(location.search).has('narrow')) {
     const frame = document.createElement('iframe'); frame.width = '320'; frame.height = '620';
     frame.style.cssText = 'position:fixed;inset:0;border:0;background:#141a33';
-    frame.src = '/customize-demo.html?dialog=hire'; document.body.append(frame);
+    frame.src = '/dev/customize.html?dialog=hire'; document.body.append(frame);
     await new Promise(r => frame.onload = r); await tick();
     const f = frame.contentDocument.querySelector('.hire');
     check(f.scrollWidth <= 320 && frame.contentDocument.querySelector('.hire-body').scrollWidth <= 320, '320px layout has no horizontal overflow');

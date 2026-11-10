@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dev playgrounds</title>
+  <style>
+    :root { color-scheme: dark; --night: #141a33; --night-2: #1d2349; --ink: #eef0ff; --ink-2: #b9bfe6; --accent: #ff9f5a; }
+    body { margin: 0; padding: 32px 16px; background: var(--night); color: var(--ink); font: 15px/1.5 "Lexend Variable", system-ui, sans-serif; }
+    main { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+    p { margin: 0 0 20px; color: var(--ink-2); }
+    ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+    a { display: grid; grid-template-columns: 120px 1fr; gap: 12px; padding: 10px 12px; border-radius: 8px; color: var(--ink); text-decoration: none; transition: background-color 130ms cubic-bezier(.23,1,.32,1); }
+    a:hover { background: var(--night-2); }
+    a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    a b { color: var(--accent); font-weight: 500; }
+    a span { color: var(--ink-2); }
+    @media (max-width: 480px) { a { grid-template-columns: 1fr; gap: 0; } }
+    @media (prefers-reduced-motion: reduce) { a { transition: none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Dev playgrounds</h1>
+    <p>Isolated pages for single parts of the office. Most accept URL options; see each page's script.</p>
+    <ul>
+      <li><a href="./ambient.html"><b>ambient</b><span>Ambient animations and seasonal decor</span></a></li>
+      <li><a href="./content.html"><b>content</b><span>The robot's hand, the Codex image view and leisure apps</span></a></li>
+      <li><a href="./customize.html"><b>customize</b><span>Customize dialog and hiring portraits (dialog=customize or hire)</span></a></li>
+      <li><a href="./decor.html"><b>decor</b><span>Office decor pack: floors, walls and things</span></a></li>
+      <li><a href="./explorer.html"><b>explorer</b><span>The robot's Explorer and file hand-over</span></a></li>
+      <li><a href="./fun.html"><b>fun</b><span>Fun pack</span></a></li>
+      <li><a href="./games.html"><b>games</b><span>Games pack</span></a></li>
+      <li><a href="./harness.html"><b>harness</b><span>Harness apps on the robot's screen (gallery=1 shows every form)</span></a></li>
+      <li><a href="./life.html"><b>life</b><span>Life apps: BeatLab and Botcord</span></a></li>
+      <li><a href="./memes.html"><b>memes</b><span>Botcord meme GIFs</span></a></li>
+      <li><a href="./officeapps.html"><b>officeapps</b><span>Office suite: Botword, Cellsheet, Slidedeck</span></a></li>
+      <li><a href="./seated.html"><b>seated</b><span>The seated desk robot in every pose</span></a></li>
+      <li><a href="./sheet.html"><b>sheet</b><span>Screen apps: sprite sheets and real browser pages</span></a></li>
+      <li><a href="./social.html"><b>social</b><span>Social and pastime apps</span></a></li>
+      <li><a href="./tasks.html"><b>tasks</b><span>The robot's Tasks app</span></a></li>
+      <li><a href="./weather.html"><b>weather</b><span>Seasons and the weather layer</span></a></li>
+      <li><a href="./world.html"><b>world</b><span>World characters and rooms</span></a></li>
+    </ul>
+  </main>
+</body>
+</html>

@@ -35,8 +35,6 @@ npm install
 npm start
 ```
 
-On Windows you can double-click `Lucid.cmd` after installing.
-
 ## Keep computers in sync
 
 `npm install` enables this repository's Git hook, which pushes each new commit
@@ -57,6 +55,7 @@ pushing does not merge changes or overwrite another computer's work.
 npm run dev        # Vite dev server + Electron with live reload of the renderer
 npm run typecheck
 npm run build
+npm run dev:playgrounds   # isolated pages for single parts of the office (dev/)
 ```
 
 Builds and `npm run verify:update` write to `dist-build`, keeping the installed
@@ -105,3 +104,5 @@ This uses T3 Code's internal storage, which can change between T3 versions. The 
 - `src/robot.ts` the robot: vector shapes, two-bone arms, GSAP poses.
 - `src/os/` the robot's desktop: window manager, cursor, dock and apps.
 - `src/director.ts` turns T3 events into scenes, one at a time, speeding up when work piles up.
+- `src/studio/` the website build playback engine, kept for robots that build sites on their screens.
+- `dev/` dev playgrounds with one Vite config and an index page.

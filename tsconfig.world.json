@@ -1,4 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "include": ["src/world", "src/office/rig.ts", "src/office/brand.ts"]
-}
