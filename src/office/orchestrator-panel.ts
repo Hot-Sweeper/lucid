@@ -29,6 +29,7 @@ function ago(iso: string) {
 const VERDICT: Record<string, string> = { approved: "Approved", settled: "Approved and collected", "changes-requested": "Asked for changes", "manual-review": "Passed to you", "pending-dependency": "On hold" };
 
 type Row = { at: string; title: string; text: string; open: () => void };
+const sig = new WeakMap<HTMLElement, string>(), live = new WeakMap<HTMLElement, { rows: Row[]; a: PanelActions; s: OrchState | null }>();
 /** Its latest decisions, settlement reviews and questions together, newest first. */
 export function activity(papers: any[], log: Decision[], actions: Pick<PanelActions, "paper" | "decisions">, limit = 5): Row[] {
   const rows: Row[] = [];
@@ -48,8 +49,9 @@ export function activity(papers: any[], log: Decision[], actions: Pick<PanelActi
 }
 
 export function renderOrchestratorPanel(body: HTMLElement, s: OrchState | null, orch: Orchestrator, log: { auto: number; asked: number; log: Decision[] }, remote: boolean, a: PanelActions) {
+  let html: string, rows: Row[] = [];
   if (!s) {
-    body.innerHTML = `<p class="hint">Optional. A stand-in that learns how you like things done, reviews finished work and answers routine questions for you.</p>
+    html = `<p class="hint">Optional. A stand-in that learns how you like things done, reviews finished work and answers routine questions for you.</p>
       <div class="orch-actions"><button type="button" class="primary" data-a="setup" ${remote ? "disabled" : ""}>Set up the orchestrator</button><button type="button" class="ghost" data-a="archive">Settlement papers</button></div>
       ${remote ? `<p class="hint">Set it up from this computer's own building.</p>` : ""}`;
   } else {
@@ -60,8 +62,8 @@ export function renderOrchestratorPanel(body: HTMLElement, s: OrchState | null, 
     ].filter(Boolean);
     const today = costText(st?.usage?.today), week = costText(st?.usage?.week);
     const waiting = orch.waiting.length;
-    const rows = activity(orch.papers, log.log, a);
-    body.innerHTML = `
+    rows = activity(orch.papers, log.log, a);
+    html = `
       <p class="orch-health">${s.paused ? "<b>Off.</b> New automatic decisions are held for you." : `<b>On.</b> ${[s.review ? "Reviews finished work" : "", s.auto !== false ? "answers routine questions" : ""].filter(Boolean).join(" and ") || "Only learning from your messages"}.`}</p>
       ${problems.map(p => `<p class="orch-health warn" role="status">${esc(p)}</p>`).join("")}
       ${thread?.exists ? `<p class="orch-health">Its own cost: ${today ? `<b>${esc(today)}</b> today` : "nothing recorded today"}${week ? `, <b>${esc(week)}</b> in 7 days` : ""}.</p>` : ""}
@@ -72,14 +74,20 @@ export function renderOrchestratorPanel(body: HTMLElement, s: OrchState | null, 
       <p class="orch-line">Learned from <b>${s.learned}</b> of your messages</p>
       <p class="orch-line">Answered <b>${log.auto}</b> ${log.auto === 1 ? "question" : "questions"} for you, asked you <b>${log.asked}</b></p>
       <div class="orch-actions">${thread && !thread.exists ? `<button type="button" class="primary" data-a="setup">Set up again</button>` : ""}<button type="button" class="ghost" data-a="archive">Settlement papers</button><button type="button" class="ghost" data-a="chat">Chat with it</button><button type="button" class="ghost" data-a="decisions">Questions it handled</button><button type="button" class="ghost" data-a="notebook">Its notebook</button><button type="button" class="ghost" data-a="settings">Settings</button></div>`;
-    body.querySelectorAll<HTMLButtonElement>("[data-row]").forEach(b => b.addEventListener("click", () => rows[Number(b.dataset.row)].open()));
   }
+  // Frequent refreshes must not rebuild an unchanged panel (that would steal focus mid-click).
+  if (sig.get(body) === html) { live.set(body, { rows, a, s }); return; }
+  sig.set(body, html); live.set(body, { rows, a, s });
+  body.innerHTML = html;
+  body.querySelectorAll<HTMLButtonElement>("[data-row]").forEach(b => b.addEventListener("click", () => live.get(body)!.rows[Number(b.dataset.row)]?.open()));
   body.querySelectorAll<HTMLElement>("[data-a]").forEach(el => {
     const kind = el.dataset.a!;
-    if (el instanceof HTMLInputElement) el.addEventListener("change", () => kind === "review" ? a.setReview(el.checked) : a.setAuto(el.checked));
+    const act = () => live.get(body)!.a;
+    if (el instanceof HTMLInputElement) el.addEventListener("change", () => kind === "review" ? act().setReview(el.checked) : act().setAuto(el.checked));
     else el.addEventListener("click", () => {
-      if (kind === "chat" && s) a.chat(s.threadId);
-      else if (kind !== "chat") (a as any)[kind]();
+      const current = live.get(body)!.s;
+      if (kind === "chat" && current) act().chat(current.threadId);
+      else if (kind !== "chat") (act() as any)[kind]();
     });
   });
 }
