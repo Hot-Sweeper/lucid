@@ -76,7 +76,7 @@ root.innerHTML = `
   <div class="grid" id="grid"></div>`;
 
 // ---------------------------------------------------------------------------------------------
-// room scene, mirroring roomSvg in src/office/world.ts
+// room scene, mirroring roomSvg in src/office/world/room-art.ts
 
 function windows(uidSky: string) {
   return windowSlots(W).map(({ x, w }) => {

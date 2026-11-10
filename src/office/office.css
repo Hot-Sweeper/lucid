@@ -264,7 +264,7 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .hidden-offices h3 { margin: 0 0 2px; }
 
 /* A small solid room control, below the window sill and clear of the monitor. */
-/* Add a desk placeholder (world.ts placeDeskGhosts): a faint dashed ghost of the next workstation. */
+/* Add a desk placeholder (office/world/desks.ts placeDeskGhosts): a faint dashed ghost of the next workstation. */
 .desk-ghost { --dg-ease:cubic-bezier(.23,1,.32,1); position:absolute; box-sizing:border-box; padding:0; border:0; border-radius:14px; background:none; color:var(--wd-ghost-ink, #4f3219); font:600 18px/1 var(--font); cursor:pointer; touch-action:manipulation; transition:transform 140ms var(--dg-ease); }
 .desk-ghost > svg { position:absolute; inset:0; overflow:visible; pointer-events:none; }
 .desk-ghost .dg-frame { fill:var(--wd-ghost-fill, rgba(255, 246, 226, .28)); stroke:var(--wd-ghost-line, #6b4a2c); stroke-width:3; stroke-dasharray:12 9; stroke-linecap:round; opacity:.5; transition:opacity 140ms var(--dg-ease); }

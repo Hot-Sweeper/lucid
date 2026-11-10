@@ -23,9 +23,37 @@ pins, themes, dictation and usage.
 
 ## Renderer (`src/`)
 
-- `main.ts` coordinates settings, menus, refresh, hiring and thread actions.
+- `main.ts` is a short bootstrap: it imports the modules in cascade order (modules bring their own
+  CSS), creates one app context (`app/context.ts`) and starts the modules in order.
+- `app/`: the shell around the office, one module per concern: `shell` (markup, settings panel),
+  `office` (creating the world), `chat`, `work` (collecting finished work), `workers`, `rooms`
+  (sidebar room list), `navigation` (opening threads), `refresh` (live data and buildings), `menus`
+  (office and desk menus, hiring), `update-button`, `settings`, `layout` (columns and the rail),
+  `input`, `orchestrator`, `coins`, `sound-controls`, `usage`, `weather-badge`, `thread-sidebar`
+  and `thread-actions`. Shared state and the functions modules call on each other live on the app
+  context; state one module uses alone is a module variable. Each module registers its functions
+  first (`define...`), then starts at its place in `main.ts`.
 - `office/`: rooms, camera, desks, the hire composer, chat panel, sound (`sound.ts` is the single
-  audio engine) and soundtrack. `world/`: robots' persistent identity, movement and shared rooms.
+  audio engine) and soundtrack. `office/world.ts` is the World class: its shared state, constructor,
+  room settling, empty desks and saved layouts. Its behaviour lives in `office/world/` (routing,
+  journeys, outdoors, rooms, the layout pass, desks, desk dragging, camera view, input and focus,
+  campus, plus types, floor geometry and room art); each file holds methods typed `this: World`
+  that `util/mixin.ts` copies onto the class.
+- `robot/`: the robot system, imported through `robot/index.ts`:
+  - identity: `brand.ts` (harness to species, palette, logo), `look.ts` (outfit options, defaults,
+    random and migrated looks, colours), `roster.ts` (persistent workers), `persona.ts`, `voice.ts`;
+  - art: `art/head.ts` (both robots' heads, eyes, painting a species or look), `art/outfit.ts`
+    (hats, accessories, eye styles, stickers, fabric sway), `art/portrait.ts`, `art/model-sticker.ts`;
+  - motion: `rig.ts` (the desk contract and the SeatedRobot interface), `ik.ts` (limb solvers),
+    `antenna.ts` (the antenna spring);
+  - the desk robot in `seated/` (`geometry`, `art`, `body`: state and the per-frame pass, `props`:
+    mug, phone, headphones, `robot`: poses, typing, reactions) and the walking robot in `walker/`
+    (`skeleton`, `art`, `body`, `speech`, `activities`, `walker`: walking and gestures, `handoff`);
+  - rendering: `render/canvas.ts` (far robots on a canvas), `render/deferred.ts` (desk robots made
+    on assignment), `render/power.ts` (Ultra and Fast effects).
+  Accessories are part of the look and are drawn by both robots in every pose and place.
+- `world/`: shared rooms (break room, question line, charging room, boss desk) and their games.
+- `util/`: small shared helpers (`html.ts` escape, `math.ts`, `random.ts`, `dom.ts`, `mixin.ts`).
 - `director.ts` and `harness/` turn real T3 events into what each robot does on its computer;
   `os/` and `office-apps/` are the robot's desktop and apps.
 - `fun/`, `social/`, `games/`, `leisure/`, `life/`, `content/`: fictional leisure content (parody

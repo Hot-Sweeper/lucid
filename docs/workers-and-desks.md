@@ -50,7 +50,7 @@ An open office shows exactly one faint ghost desk, the Add a desk placeholder, w
 
 A vacant desk already offers a place to start work, so no placeholder appears while one exists, and folded offices show none. The floor reserves the placeholder's place like a desk: decorations keep clear of it, walkers route around it, and adding through it does not resize the room. Width changes move it with the snake.
 
-Pressing it (click, Enter or Space) runs the same add path as before (`world.onAddDesk` in `src/main.ts`): it keeps the saved layout and reservations and uses the safe floor-plan transition. The new vacant desk assembles where the ghost stood (the desk top drops in, the monitor rises, about 370 ms) with the shared `build` cue. Repeat presses are ignored until that desk stands. Reduced motion shows the desk at once; the cue still plays.
+Pressing it (click, Enter or Space) runs the same add path as before (`world.onAddDesk` in `src/app/menus.ts`): it keeps the saved layout and reservations and uses the safe floor-plan transition. The new vacant desk assembles where the ghost stood (the desk top drops in, the monitor rises, about 370 ms) with the shared `build` cue. Repeat presses are ignored until that desk stands. Reduced motion shows the desk at once; the cue still plays.
 
 
 ## Job lifecycle

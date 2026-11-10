@@ -49,11 +49,17 @@ and each robot's computer shows the agent's real work. Start with `docs/architec
 ## Where things are
 
 - `electron/main.cjs` and `electron/preload.cjs`: window, IPC and the renderer bridge.
-- `src/main.ts`: settings, menus, refresh, hiring and thread actions.
+- `src/main.ts`: the bootstrap. It keeps the import (CSS cascade) order and starts the `src/app/`
+  modules (settings, menus and hiring, refresh, thread sidebar, chat wiring...) in order, all
+  sharing one context (`src/app/context.ts`). New shell features go in an app module.
 - `src/office/`: rooms, camera, desks (`room-policy.ts` owns desk eligibility), hire composer
-  (`hire.ts`, reuse it for office actions), chat panel and sound.
-- `src/world/`: persistent robot identity, outfits, movement and shared rooms. Accessories appear
-  in every pose and place.
+  (`hire.ts`, reuse it for office actions), chat panel and sound. `world.ts` is the World class;
+  its behaviour is split by concern in `src/office/world/`.
+- `src/robot/`: the robot system, imported through `src/robot/index.ts`: identity (brand, look,
+  roster, persona, voice), art (head, outfit, portrait), the desk robot (`seated/`), the walking
+  robot (`walker/`) and rendering backends (`render/`). Accessories appear in every pose and place.
+- `src/world/`: shared rooms (break room, question line, charging room, boss desk).
+- `src/util/`: shared helpers (escape, math, random, DOM). Reuse them instead of local copies.
 - `src/director.ts`, `src/harness/`: real conversation activity and the robots' computers.
 - Robots are permanent workers and desks are jobs: `docs/workers-and-desks.md`.
 - Jobs launched through the hire flow receive `electron/skills/lucid/SKILL.md`.

@@ -1,12 +1,12 @@
 # Renderer structure
 
-How the office keeps its SVG element count and animation ownership bounded while preserving visible screen contents, robot artwork, animation cadence and vector sharpness.
+Where the renderer's code lives is described in `architecture.md`. This page is about how the office keeps its SVG element count and animation ownership bounded while preserving visible screen contents, robot artwork, animation cadence and vector sharpness.
 
 ## Empty desk characters
 
 An empty reserve desk previously constructed a complete animated seated robot, including its SVG, overlaid thumb, GSAP ticker, breathing/glow loops and recurring idle timers. CSS then hid that character. Every free slot in every project kept this animation machinery.
 
-`DeferredRobot` is now the computer's stable robot reference. A free desk contains its existing empty-chair artwork but no seated character rig. Assignment constructs the real rig synchronously before applying its brand, model and customization. Unassignment destroys it; reassignment creates exactly one new rig while WM and Director keep their original reference. Mouse, typing, phone-thumb, headphones and music operations all forward to the current rig.
+`DeferredRobot` (`src/robot/render/deferred.ts`) is now the computer's stable robot reference. A free desk contains its existing empty-chair artwork but no seated character rig. Assignment constructs the real rig synchronously before applying its brand, model and customization. Unassignment destroys it; reassignment creates exactly one new rig while WM and Director keep their original reference. Mouse, typing, phone-thumb, headphones and music operations all forward to the current rig.
 
 Destroying a reusable rig also cancels its complete phone/coffee timeline. Interrupted animation promises settle, and disposed rigs check their lifecycle before continuing after an asynchronous wait. This prevents an old character's prop callbacks from changing a desk after reassignment.
 
@@ -24,13 +24,13 @@ Keyboard geometry and key centers remain the original coordinates. Only actually
 
 ## Rig writes
 
-The seated animation loop now checks each rounded SVG attribute before writing it. Constant ears, logos, invisible thumbs, hand shadows and unchanged geometry no longer generate redundant attribute mutations. It reads actual SVG attributes rather than keeping a potentially stale memo, so GSAP and customization writes are respected.
+The seated animation loop (`src/robot/seated/body.ts`) now checks each rounded SVG attribute before writing it. Constant ears, logos, invisible thumbs, hand shadows and unchanged geometry no longer generate redundant attribute mutations. It reads actual SVG attributes rather than keeping a potentially stale memo, so GSAP and customization writes are respected.
 
 Seated and walking antenna pulses animate their original sine curve on scalar state. Their actual SVG opacity is presented with the same actor frame as their body. Previously these infinite direct SVG tweens kept invalidating both visible and offscreen robot artwork every GSAP tick, bypassing the existing actor presentation budget. Near actors retain the existing 60 Hz presentation and distant actors retain their existing body cadence; movement and pulse clocks keep running.
 
 ## Viewport and DPR static presentation
 
-`static-art.ts` separates contiguous immutable SVG paint runs from live bindings without changing their order. It expands shared vector references and referenced gradient/pattern definitions into a self-contained original SVG source, then caches only the current viewport crop plus 256 CSS pixels of overscan. Source pixel density is camera scale times device pixel ratio. PNG storage is lossless; matching desk artwork and crops share decoded assets.
+`src/perf/static-art.ts` separates contiguous immutable SVG paint runs from live bindings without changing their order. It expands shared vector references and referenced gradient/pattern definitions into a self-contained original SVG source, then caches only the current viewport crop plus 256 CSS pixels of overscan. Source pixel density is camera scale times device pixel ratio. PNG storage is lossless; matching desk artwork and crops share decoded assets.
 
 Original vector nodes remain owned in a detached fragment. A zoom or an uncovered viewport restores those exact native nodes before the next paint, instead of stretching an old bitmap into a blurry fallback. A new sharp crop replaces them atomically after SVG decode, rasterization, PNG encoding and PNG decode complete. Existing covered crops can move with the camera without repeated SVG writes. Prefetch begins before a pan reaches a crop's edge.
 
