@@ -542,8 +542,6 @@ function patterns(L: Look) {
 
 // The outdoor overlay: building shell, the park objects robots use, and the light (dusk, night,
 // lamp and window glows). Terrain and woodland are bitmap tiles underneath (landscape-tiles.ts).
-export const PLAIN_GROUND = "#78b066";
-export function campusGround(o: Pick<OutsideOpts, "season" | "snowCover" | "wx">) { const L = lookFor(o); return mix(L.pal.ground, SNOW, L.snow * .8); }
 /** Where things stand in the park, in park plan units (centre 0,0; drawn PARK_K times bigger).
  * Shared by the drawing below and the click reactions (park-toys.ts). */
 export const PARK_LAYOUT = {

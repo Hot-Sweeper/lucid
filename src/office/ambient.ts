@@ -1,18 +1,5 @@
 import "./ambient.css";
 
-// Live outdoor groups are independent of the cached ground. Stop their CSS clocks when
-// they are clipped outside the scene, including close-ups inside the building.
-const outdoorWatches = new WeakMap<Element, Element[]>();
-const outdoorIO = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver((entries) => {
-  for (const e of entries) e.target.classList.toggle("amb-offscreen", !e.isIntersecting);
-}, { rootMargin: "120px" });
-export function watchOutdoorAmbient(layer: Element) {
-  for (const el of outdoorWatches.get(layer) ?? []) outdoorIO?.unobserve(el);
-  const elements = [...layer.querySelectorAll(".outside-live [class*='amb-']")];
-  outdoorWatches.set(layer, elements);
-  for (const el of elements) outdoorIO?.observe(el);
-}
-
 // Ambient life inside the offices: potted plants that sway, a cloud drifting past every window
 // and a ticking second hand on wall clocks. All motion is CSS (ambient.css), nothing runs per
 // frame, and prefers-reduced-motion turns it off.

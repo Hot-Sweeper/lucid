@@ -16,10 +16,6 @@ export function fitCanvas(canvas: HTMLCanvasElement, w: number, h: number, pixel
 }
 
 export function canvasPixelRatio(canvas: HTMLCanvasElement) { return sized.get(canvas)?.ratio ?? 2; }
-export function canvasLogicalSize(canvas: HTMLCanvasElement) {
-  const entry = sized.get(canvas);
-  return entry ? { w: entry.w, h: entry.h } : { w: canvas.width / 2, h: canvas.height / 2 };
-}
 
 // Resizing resets the entire context. Preserve logical drawing state for the next
 // complete redraw, including gradients, text and line dashes. Persistent clip/save

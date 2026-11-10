@@ -128,9 +128,6 @@
 .room-list .rt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .room-list .rc { color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
 
-
-.new .select { margin-top: 8px; }
-.new .row { flex-direction: row !important; align-items: center; justify-content: space-between; }
 .seg { display: inline-flex; background: var(--night); border-radius: 10px; padding: 3px; gap: 2px; }
 .seg button { display: flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--ink-2); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; }
 .seg button img { width: 13px; height: 13px; }
@@ -192,7 +189,6 @@
 .cp-event time { font-size: 10px; opacity: 0.8; }
 .cp-text code { font-family: var(--mono); font-size: 12px; background: rgba(0,0,0,0.22); padding: 1px 4px; border-radius: 4px; }
 .cp-text pre { font-family: var(--mono); font-size: 11.5px; background: rgba(0,0,0,0.28); padding: 8px; border-radius: 8px; white-space: pre-wrap; margin: 6px 0; }
-.cp-link { text-decoration: underline; text-underline-offset: 2px; }
 .cp-msg time { font-size: 10.5px; color: var(--ink-3); padding: 0 4px; font-variant-numeric: tabular-nums; }
 .cp-atts { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .cp-att { margin: 0; width: 150px; height: 100px; border-radius: 10px; overflow: hidden; background: #11143a; cursor: zoom-in; }
@@ -293,19 +289,16 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .dialog.hire { width: min(620px, calc(100vw - 40px)); display: flex; flex-direction: column; gap: 14px; }
 .hire h2 { margin: 0; }
 .hire-sub { margin: -10px 0 0; color: var(--ink-3); font-size: 13px; }
-.hire-cands { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; max-height: 260px; overflow-y: auto; padding: 2px; }
 .cand { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px 10px; border: 0; border-radius: 14px; background: rgba(255, 255, 255, 0.05); cursor: pointer; text-align: center; }
 .cand:hover { background: rgba(255, 255, 255, 0.09); }
 .cand[aria-checked="true"] { background: rgba(255, 159, 90, 0.18); box-shadow: inset 0 0 0 2px rgba(255, 159, 90, 0.7); }
 .cand b { font-size: 13px; line-height: 1.25; }
 .cand span { font-size: 11.5px; color: var(--ink-3); }
-.hire-row { display: flex; flex-direction: column; gap: 6px; }
 .hire-label { font-size: 12px; color: var(--ink-3); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button { border: 0; padding: 7px 11px; border-radius: 9px; background: rgba(255, 255, 255, 0.06); color: var(--ink-2); cursor: pointer; font-size: 13px; }
 .chips button:hover { background: rgba(255, 255, 255, 0.1); }
 .chips button[aria-checked="true"] { background: var(--night-3); color: var(--ink); box-shadow: inset 0 0 0 1.5px rgba(255, 159, 90, 0.7); }
-.hire-none { font-size: 13px; color: var(--ink-3); }
 .hire-task { display: flex; flex-direction: column; gap: 6px; }
 .hire-msg { margin: 0; min-height: 1.2em; font-size: 13px; color: var(--accent-2); }
 
@@ -315,8 +308,7 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .cp-status i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; }
 .cp-status[data-state="working"] i { background: var(--mint); }
 .cp-status[data-state="waiting"] i { background: #ffd27a; }
-.cp-queued, .cp-live { font-style: normal; font-size: 11.5px; padding: 0 4px; }
-.cp-queued { color: #ffd27a; }
+.cp-live { font-style: normal; font-size: 11.5px; padding: 0 4px; }
 .cp-live { color: var(--mint); }
 .cp-msg.pending .cp-text { opacity: 0.7; }
 
@@ -340,7 +332,6 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .nb-body p { margin: 0 0 6px; font-size: 13px; line-height: 1.5; color: var(--ink); padding-left: 12px; position: relative; }
 .nb-body p::before { content: ""; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); }
 
-.hire-hint { font-style: normal; color: var(--ink-3); opacity: 0.8; margin-left: 6px; }
 .chips button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
 .chips button small { font-size: 10.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .chips button[aria-checked="true"] small { color: var(--accent-2); }
@@ -428,7 +419,6 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .cp-msg.you .cp-text a:hover { color: #15213d; }
 .cp-msg.you .cp-text a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .cp-msg.you .cp-text li::marker { color: inherit; }
-.cp-text .md-file { font-family: var(--mono); font-size: 12px; padding: 1px 6px; border-radius: 6px; background: rgba(143, 200, 255, 0.12); color: #a9d4ff; }
 .cp-text code { font-size: 12.5px; background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 5px; }
 .cp-msg.you .cp-text code { background: rgba(0, 0, 0, 0.14); }
 .md-code { margin: 4px 0 12px; border-radius: 10px; overflow: hidden; background: #0f1230; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
@@ -465,28 +455,6 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .wl-coins span { font-size: 13px; color: var(--ink-3); }
 .wl-gain { position: absolute; left: 26px; top: -6px; font-size: 13px; font-weight: 600; color: #ffd27a; pointer-events: none; }
 .coin-ico { flex: none; display: inline-block; vertical-align: -3px; }
-.shop { width: min(760px, calc(100vw - 48px)); max-height: calc(100vh - 48px); display: flex; flex-direction: column; }
-.shop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.shop-head h2 { margin: 0; }
-.shop-head p { margin: 4px 0 0; color: var(--ink-3); font-size: 13px; max-width: 46ch; }
-.shop-bal { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 12px; background: rgba(255, 210, 122, 0.1); }
-.shop-bal b { font-size: 18px; color: #ffd27a; font-variant-numeric: tabular-nums; }
-.shop-tabs { display: flex; gap: 4px; margin: 14px 0 10px; }
-.shop-tabs button { border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 14px; padding: 7px 12px; border-radius: 9px; cursor: pointer; }
-.shop-tabs button[aria-selected="true"] { background: var(--night-3, #262b5c); color: var(--ink); }
-.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; overflow-y: auto; padding: 2px; }
-.shop-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px 12px; border-radius: 14px; background: var(--night, #161a3a); text-align: center; }
-.shop-item b { font-size: 13px; font-weight: 500; }
-.shop-pic { height: 74px; display: grid; place-items: center; }
-.shop-item.is-locked .shop-pic svg { filter: grayscale(1); opacity: 0.35; }
-.shop-act { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 34px; }
-.shop-act small { font-size: 11px; color: var(--ink-3); }
-.shop-buy { display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 9px; padding: 6px 12px; font: inherit; font-weight: 600; font-size: 13px; cursor: pointer; background: #ffd27a; color: #3a2508; font-variant-numeric: tabular-nums; }
-.shop-buy:hover:not(:disabled) { background: #ffdc94; }
-.shop-buy:disabled { background: rgba(255, 255, 255, 0.07); color: var(--ink-3); cursor: default; }
-.shop-buy:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.shop-owned { font-size: 12.5px; color: #8ef0b4; padding-top: 6px; }
-.shop-lock { font-size: 12.5px; color: var(--ink-3); padding-top: 6px; }
 
 .wx { margin-left: 10px; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; border: 0; background: none; font-family: inherit; padding: 3px 6px; border-radius: 8px; cursor: pointer; }
 .wx:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
@@ -495,9 +463,6 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .wx-menu { position: fixed; z-index: 320; min-width: 190px; display: flex; flex-direction: column; }
 .wx-menu button { border: 0; background: none; text-align: left; font: inherit; color: var(--ink); cursor: pointer; }
 .wx-menu button[aria-checked="true"] { color: #ffd27a; }
-
-/* the shop building */
-.shop-note { grid-column: 1 / -1; margin: 0 0 4px; font-size: 13px; color: var(--ink-3); }
 
 /* a robot on its way to this desk: the chair waits empty until it arrives */
 .robot-host .world-seated :is([data-r=torso], [data-r=headRoot], [data-r=armsBack], [data-r=armsFront], [data-r=legs], [data-r=shadowL], [data-r=shadowR]) { transition: opacity 0.25s ease; }
@@ -516,12 +481,7 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .poke-mug, .poke-phone { width: 32px; height: 40px; border-radius: 8px; }
 .desk-unit.empty .poke { display: none; }
 .poke:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.pop-word { position: absolute; z-index: 100001; transform: translate(-50%, -100%); font: 700 18px var(--font); white-space: nowrap; pointer-events: none; text-shadow: 0 2px 0 rgba(20, 24, 60, 0.45); }
 .drop { position: absolute; z-index: 100000; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; background: #bfe8ff; pointer-events: none; }
-.pond-ring { position: absolute; z-index: 1; width: 10px; height: 6px; margin: -3px -5px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(232, 248, 255, 0.8); pointer-events: none; animation: pond-ring 1.1s ease-out forwards; }
-@keyframes pond-ring { to { transform: scale(9); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .pond-ring { animation-duration: 0.01s; } }
-
 
 /* thread list, like T3 Code's sidebar */
 .threads { display: flex; flex-direction: column; flex: none; }
@@ -556,9 +516,6 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .th-pin { display: inline-block; color: var(--accent); margin-right: 4px; vertical-align: -1px; }
 .th-pin svg { display: block; width: 11px; height: 11px; }
 .th-pin path:first-child { fill: currentColor; fill-opacity: .9; }
-.th-bot { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3); min-height: 15px; }
-.th-sub { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.th-bot-name { flex: none; font-size: 11.5px; }
 .th-logo { width: 14px; height: 14px; flex: none; opacity: 0.8; }
 .th-empty { padding: 8px 10px; color: var(--ink-3); font-size: 13px; }
 
@@ -624,14 +581,9 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 }
 
 /* hiring screen: a customize link under each candidate */
-.cand-cell { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
-.cand-cell .cand { flex: 1; }
-.cand-cell .cand-edit { visibility: hidden; }
-.cand-cell:has(.cand[aria-checked="true"]) .cand-edit { visibility: visible; }
 .cand-edit { align-self: center; border: 0; background: none; color: var(--accent-2); font-size: 12px; padding: 2px 8px; border-radius: 7px; cursor: pointer; }
 .cand-edit:hover { background: rgba(255, 255, 255, 0.06); }
 .cz-val { font-style: normal; color: var(--ink-2); margin-left: 4px; }
-.hire-cands { max-height: 300px; }
 
 /* project sign over the monitor in shared rooms */
 /* the tag sits on the monitor's top edge and grows upward; a long project name wraps to a second line before it is cut (the tooltip has all of it) */
@@ -695,8 +647,8 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .desk-unit.culled > *, .room.culled > * { visibility: hidden; content-visibility: hidden; }
 /* Looping decorations each need their own graphics layer, and so does everything drawn over them:
    zoomed out they are too small to see, so they rest (sways) or step out of view (movers). */
-.scene:not(.near) :is(.mug-steam path, .amb-tree, .amb-bare, .amb-bush, .amb-fl, .amb-glow, .amb-plant, .amb-rock, .amb-sit, .amb-blink, .amb-flap, .amb-buzz, .amb-cloud) { animation: none; }
-.scene:not(.near) :is(.amb-drop, .amb-ripple, .amb-ring, .amb-path, .amb-occ, .amb-dart, .amb-hop, .amb-ffly) { animation: none; visibility: hidden; }
+.scene:not(.near) :is(.mug-steam path, .amb-tree, .amb-bare, .amb-bush, .amb-fl, .amb-plant, .amb-rock, .amb-sit, .amb-blink, .amb-flap, .amb-cloud) { animation: none; }
+.scene:not(.near) :is(.amb-drop, .amb-ripple, .amb-ring, .amb-path, .amb-occ, .amb-hop, .amb-ffly) { animation: none; visibility: hidden; }
 .desk-unit.culled *, .room.culled *, .screen.render-paused * { animation-play-state: paused !important; }
 .os.unattended * { animation-play-state: paused !important; }
 .os.unattended .cursor { visibility: hidden; }
@@ -711,8 +663,7 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .monitor .win { contain: layout paint style; will-change: auto; }
 .hall.hall-network { contain: strict; }
 .outside-live.culled { visibility: hidden; }
-.outside-live.culled *, .amb-offscreen, .amb-offscreen * { animation-play-state: paused !important; }
-
+.outside-live.culled * { animation-play-state: paused !important; }
 
 /* model bar above the message box: harness, model, effort and speed of this thread */
 .cp-model { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; padding: 0 2px 6px; }
@@ -831,7 +782,6 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .room-folded .room-size-hit { width: auto; min-width: 42px; }
 .room-list .room-fold { width: auto; min-width: 58px; }
 
-
 /* T3's pin: a small sticker on the desk top, under the monitor and robot. */
 .desk-pin { position: absolute; left: 0; top: 0; width: 400px; height: 380px; pointer-events: none; }
 .desk-pin[hidden] { display: none; }
@@ -839,8 +789,6 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 /* Thread rows carry their worker's face. */
 .th-row.th-worker { flex-direction: row; align-items: center; gap: 10px; }
 .th-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.th-bot-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.th-bot-model { color: var(--ink-3); }
 
 /* Semantic zoom: stable topics at room scale, full names on pointer inspection. */
 .world[data-label-detail="compact"] .desk-plate[data-compact-title]:not([data-compact-title=""]):not(:hover) span i { display: none; }

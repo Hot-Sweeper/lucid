@@ -39,11 +39,6 @@
   to { transform: translate(calc(0.8px + var(--wind, 0.2) * 2.5px), -0.6px); }
 }
 
-/* --- park lamps ----------------------------------------------------------------------------- */
-
-.amb-glow { animation: amb-breathe 4.6s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
-@keyframes amb-breathe { from { transform: scale(0.93); } to { transform: scale(1.06); } }
-
 /* --- fountain -------------------------------------------------------------------------------- */
 
 /* a droplet leaves the jet, rises toward us (grows), falls back into the basin (shrinks) */
@@ -92,18 +87,6 @@
 .amb-flap { animation: amb-flap 0.24s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
 @keyframes amb-flap { from { transform: scale(1, 1); } to { transform: scale(1, 0.22); } }
 
-/* dragonflies dart, hover, dart */
-.amb-dart { animation: amb-dart 24s ease-in-out infinite; offset-rotate: auto; }
-@keyframes amb-dart {
-  0%, 10% { offset-distance: 0%; }
-  16%, 30% { offset-distance: 17%; }
-  36%, 46% { offset-distance: 36%; }
-  52%, 62% { offset-distance: 55%; }
-  68%, 80% { offset-distance: 77%; }
-  88%, 100% { offset-distance: 100%; }
-}
-.amb-buzz { animation: amb-buzz 0.09s linear infinite alternate; }
-@keyframes amb-buzz { from { opacity: 0.35; } to { opacity: 0.85; } }
 
 /* a bird hops along, pecks twice, turns around, hops back and pecks again */
 .amb-hop { animation: amb-hop 14s linear infinite; transform-box: fill-box; transform-origin: center; }
@@ -148,8 +131,8 @@
 /* --- reduced motion: every decorative loop stops ------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .amb-tree, .amb-bare, .amb-bush, .amb-fl, .amb-glow, .amb-path, .amb-rock, .amb-sit, .amb-flap,
-  .amb-dart, .amb-buzz, .amb-hop, .amb-ffly, .amb-blink, .amb-plant, .amb-cloud, .amb-occ,
+  .amb-tree, .amb-bare, .amb-bush, .amb-fl, .amb-path, .amb-rock, .amb-sit, .amb-flap,
+  .amb-hop, .amb-ffly, .amb-blink, .amb-plant, .amb-cloud, .amb-occ,
   .amb-drop, .amb-ripple, .amb-ring, .clock-s {
     animation: none !important;
   }

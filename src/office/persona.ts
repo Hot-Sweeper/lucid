@@ -18,12 +18,6 @@ const GAME: Record<string, string> = { snake: "Snake", flappy: "Drone Hop", dash
 const APP: Record<string, string> = { doodle: "doodling", crossword: "crosswords", solitaire: "solitaire", stocks: "watching stocks", mail: "tidying mail", lingo: "language lessons", vapor: "Vapor games", trading: "Botcoin charts" };
 const SOCIAL: Record<string, string> = { botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", instabot: "Instabot", snapbot: "Snapbot", shorts: "Shorts", spool: "Spool", sparkplug: "Sparkplug" };
 
-export type PersonaFacts = { approved: number; jobs: number; model: string | null; current: string | null };
-
-export function personaFacts(robot: RobotProfile): PersonaFacts {
-  return { approved: robot.approved ?? robot.log?.length ?? 0, jobs: robot.jobs, model: robot.lastModel ?? null, current: null };
-}
-
 /** The persona as readable lines (focus view) */
 export function personaLines(robot: RobotProfile) {
   const p = robot.prefs;

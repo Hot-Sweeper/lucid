@@ -67,7 +67,6 @@
 .hire-footer button[type="submit"] { min-width: 92px; }
 .hire .hire-task textarea::placeholder { color: var(--ink-2); opacity: 1; }
 
-.hire .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-height: 640px) { .hire-stage { position: static; } .hire-stage-floor { height: 180px; } .hire-header { padding-block: 16px; } }
 @media (max-width: 560px) {
   .hire-wrap { padding: 8px; }

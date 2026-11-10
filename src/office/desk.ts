@@ -24,8 +24,6 @@ import { cacheStaticArt } from "../perf/static-art";
 
 export const UNIT_W = UNIT.w;
 export const UNIT_H = UNIT.h;
-export const SCREEN_W = 820;
-export const SCREEN_H = 461;
 
 export interface DeskStage {
   say(text: string | null, kind?: "think" | "speak"): void;

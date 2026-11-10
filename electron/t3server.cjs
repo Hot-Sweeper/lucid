@@ -58,8 +58,6 @@ function storePath() {
   if (!storeFile) storeFile = path.join(electron.app.getPath("userData"), "t3-pairing.bin");
   return storeFile;
 }
-/** Tests can keep the credential somewhere else. */
-function setStorePath(p) { storeFile = p; cred = undefined; }
 
 // Electron 45 prefers the async safeStorage calls; older builds only have the sync ones.
 const ss = () => electron.safeStorage;
@@ -599,5 +597,5 @@ module.exports = {
   setRemoteDispatch: fn => { remoteDispatch = fn; },
   ensurePaired, hasScope, grantScope, authedRaw, status, dispatch, call, listProviders, hireConfig, startHire, hireContexts: projectId => require('./hire-context.cjs').settledContexts(getDb(), projectId), selection, usageLimits, consumeResetCredit,
   settleThread, unsettleThread, reorderQueued, cancelQueued, editQueued, steerNow, setThreadModel, respondToRequest,
-  setStorePath, closeSock, T3ServerError,
+  closeSock, T3ServerError,
 };

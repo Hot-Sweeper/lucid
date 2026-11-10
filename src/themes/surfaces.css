@@ -31,9 +31,7 @@ html:root[data-theme] .wx-menu { background: var(--ui-menu); outline: 1px solid 
 html:root[data-theme] .office-settings { outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 html:root[data-theme] .dialog-wrap { background: var(--ui-scrim); }
 html:root[data-theme] .zoom-ui button,
-html:root[data-theme] .zoom-btn { background: var(--ui-float); outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 html:root[data-theme] .zoom-ui button:hover,
-html:root[data-theme] .zoom-btn:hover { background: var(--ui-float-hover); }
 html:root[data-theme] .cp-tab:hover { background: var(--ui-hover); }
 html:root[data-theme] .cp-tab.ref-over { background: var(--ui-drop); }
 html:root[data-theme] .th-ghost.over { background: var(--ui-ghost-over); }
@@ -80,7 +78,6 @@ html:root[data-theme] .project-office-prop > svg { filter: var(--world-prop-filt
 html:root[data-theme] .amb-window .amb-cloud { filter: var(--world-cloud-filter); }
 html:root[data-theme] .world-card { background: var(--wd-plate); color: var(--wd-plate-ink); }
 /* The shop shows each material as it is sold, without the theme's restyling or shade. */
-html:root[data-theme] .lucid-store { --wd-bought-shade: 0; --wd-floor: initial; --wd-seam: initial; --wd-wall: initial; --wd-trim: initial; }
 html:root[data-theme] .desk-plate { background: var(--wd-plate); color: var(--wd-plate-ink); }
 html:root[data-theme] .desk-plate span b { color: var(--wd-plate-sub); }
 
@@ -111,13 +108,10 @@ html:root[data-theme] .launcher .caret { background: var(--os-popup-ink); }
 html:root[data-theme] .l-result { background: var(--os-popup-row); }
 html:root[data-theme] .l-result > small { color: var(--os-popup-muted); }
 
-html:root[data-theme] .files-top { background: var(--os-files-bar); }
 html:root[data-theme] .crumbs, html:root[data-theme] .out { color: var(--os-text-2); }
-html:root[data-theme] .search-box { background: var(--os-field); }
-html:root[data-theme] .search-box.active { background: var(--os-field-active); }
-html:root[data-theme] .row .s, html:root[data-theme] .empty, html:root[data-theme] .hit-line b,
+html:root[data-theme] .empty,
 html:root[data-theme] .lock-hint, html:root[data-theme] .uac-rows dt, html:root[data-theme] .uac-foot { color: var(--os-muted); }
-html:root[data-theme] .hit-line, html:root[data-theme] .lock-date, html:root[data-theme] .game-head { color: var(--os-bar-ink); }
+html:root[data-theme] .lock-date, html:root[data-theme] .game-head { color: var(--os-bar-ink); }
 
 /* the code editor */
 html:root[data-theme] .editor,
@@ -126,11 +120,7 @@ html:root[data-theme] .tabs { background: var(--os-tabs); }
 html:root[data-theme] .tab:not(.on) { color: var(--os-tab); }
 html:root[data-theme] .editor .ln b, html:root[data-theme] .ln.gap { color: var(--os-dim); }
 html:root[data-theme] .term { background: var(--os-term); }
-html:root[data-theme] .chat,
-html:root[data-theme] .chat-app { background: var(--os-chat); }
-html:root[data-theme] .chat-compose { background: var(--os-compose); }
-html:root[data-theme] .cc-field { background: var(--os-compose-field); }
-html:root[data-theme] .chat-compose:not(.has-text) .cc-send { background: var(--os-send); }
+html:root[data-theme] .chat { background: var(--os-chat); }
 html:root[data-theme] .msg.bot p { background: var(--os-bubble); }
 html:root[data-theme] .tool { background: var(--os-tool); }
 html:root[data-theme] .b-action { background: var(--os-action); }

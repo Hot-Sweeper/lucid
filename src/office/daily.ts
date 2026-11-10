@@ -70,7 +70,6 @@ export async function loadDaily() {
 /** Called whenever a new pack is loaded (the building sign shows today's event). */
 export let onDaily: (p: DailyPack | null) => void = () => {};
 export function watchDaily(f: (p: DailyPack | null) => void) { onDaily = f; f(pack); }
-export const dailyEvent = () => pack?.event ?? null;
 void loadDaily();
 onLocaleChange(() => { pack = null; setTrending(undefined); onDaily(null); void loadDaily(); });
 setInterval(() => void loadDaily(), 10 * 60 * 1000);

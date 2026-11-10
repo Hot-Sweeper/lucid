@@ -244,10 +244,3 @@ function makeRasterSource(canonical:string,entries:SourceEntry[],matched:boolean
     destroy(){dead=true;canonical='';entries.length=0;}
   };
 }
-
-/** Prepare against an original, attached isolated SVG, then release all DOM
- * ownership. This convenience API is for standalone paired raster checks. */
-export function prepareOutsideRasterSource(svg:SVGSVGElement,canonical:string) {
-  const culler=mountNativeContourCull(svg),source=culler.prepareSource(canonical);
-  culler.destroy();return source;
-}

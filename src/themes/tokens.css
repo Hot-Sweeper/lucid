@@ -19,7 +19,6 @@
   --ui-edge: transparent;           /* hairline round raised surfaces and panels */
   --ui-scrim: rgba(8, 10, 30, 0.55);
   --ui-float: rgba(20, 26, 51, 0.85);   /* buttons floating over the office */
-  --ui-float-hover: rgba(37, 45, 92, 0.95);
   --ui-hover: #1d2350;
   --ui-drop: #262553;
   --ui-drop-field: #1a1d48;
@@ -121,9 +120,6 @@
   --os-popup-ink: #1b1f45;
   --os-popup-row: #dce3fa;
   --os-popup-muted: #565d80;
-  --os-files-bar: #20265b;
-  --os-field: #161a45;
-  --os-field-active: #11143a;
   --os-muted: #8a91c4;
   --os-text-2: #b9bfe6;
   --os-dim: #5d6499;
@@ -132,9 +128,6 @@
   --os-tabs: #1d2252;
   --os-term: #0d1030;
   --os-chat: #191e4b;
-  --os-compose: #161a42;
-  --os-compose-field: #262c66;
-  --os-send: #3a4290;
   --os-bubble: #2c3375;
   --os-tool: #1d2252;
   --os-action: rgba(27, 31, 69, 0.9);
