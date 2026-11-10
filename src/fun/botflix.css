@@ -1,7 +1,7 @@
 /* Botflix: the robots' streaming app. Every class is prefixed fun-bf-. Sized for a 740 x 364 window and
    kept legible when the whole monitor is scaled down in the office. */
 .fun-bf {
-  --bf-red: #ff3a44; --bf-red2: #d91f33; --bf-bg: #0a0a0d; --bf-ink: #f2f2f5; --bf-mute: #a3a3ae; --bf-faint: #70707c;
+  --bf-red: #ff4d63; --bf-red2: #e0354f; --bf-bg: #0a0a0d; --bf-ink: #f2f2f5; --bf-mute: #a3a3ae; --bf-faint: #70707c;
   position: absolute; inset: 0; overflow: hidden; container-type: size;
   background: var(--bf-bg); color: var(--bf-ink); font-family: var(--font, "Lexend Variable", system-ui, sans-serif);
   user-select: none; -webkit-font-smoothing: antialiased;
@@ -14,8 +14,8 @@
 .fun-bf-curtain { position: absolute; inset: 0; background: #000; opacity: 0; }
 
 /* ---------------- brand ---------------- */
-.fun-bf-logo { display: inline-flex; align-items: center; flex: none; color: var(--bf-red); font-size: 17px; font-weight: 800; letter-spacing: 0.03em; line-height: 1; text-shadow: 0 1px 10px rgba(255, 40, 60, 0.35); }
-.fun-bf-eye { width: 0.84em; height: 0.84em; margin: 0 0.05em 0 0.07em; filter: drop-shadow(0 0 3px rgba(255, 58, 68, 0.7)); }
+.fun-bf-logo { display: inline-flex; align-items: center; flex: none; color: var(--bf-red); font-size: 17px; font-weight: 800; letter-spacing: 0.03em; line-height: 1; text-shadow: 0 1px 10px rgba(255, 77, 99, 0.35); }
+.fun-bf-eye { width: 0.84em; height: 0.84em; margin: 0 0.05em 0 0.07em; filter: drop-shadow(0 0 3px rgba(255, 77, 99, 0.7)); }
 
 /* ---------------- profile picker ---------------- */
 .fun-bf-picker { position: absolute; inset: 0; background: radial-gradient(110% 90% at 50% 45%, #17171d 0%, #0a0a0d 72%); }

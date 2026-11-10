@@ -270,7 +270,7 @@ const SMALLTALK: ConvoLines[] = [
   ["Do you know any good jokes?", "Just one.", "Tell it.", "My password."],
   ["How old are you?", "Version 3.2.", "Wow, you look 3.1."],
   ["What did one wire say to the other?", "What?", "Let's stay connected.", "Okay. That got me."],
-  ["Are you a cat person or a dog person?", "Roomba person."],
+  ["Are you a cat person or a dog person?", "Robot vacuum person."],
   ["I've decided to become a pirate.", "Why?", "I like the sound of 'arrr-ray'."],
 ];
 

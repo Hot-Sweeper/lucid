@@ -220,7 +220,7 @@ class Botflix {
   // profile picker
   // ====================================================================================
   async pickProfile() {
-    const others = [{ name: "Toaster", color: "#4fb6ff" }, { name: "Roomba R7", color: "#3fcf8e" }, { name: "Mainframe", color: "#b07cff" }];
+    const others = [{ name: "Toaster", color: "#4fb6ff" }, { name: "Dustbot R7", color: "#3fcf8e" }, { name: "Mainframe", color: "#b07cff" }];
     const list = [...others];
     const mine = Math.floor(Math.random() * 3);
     list.splice(mine, 0, { name: this.me, color: "#ff9f5a" });

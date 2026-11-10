@@ -14,7 +14,7 @@ const ICON = {
 
 const POSTS: Record<string, { user: string; caption: string; funny?: boolean }> = {
   "dance-battle": { user: "servo.moves", caption: "He did NOT see that arm wave coming", funny: true },
-  "roomba-drift": { user: "dustkings", caption: "Corner speed 0.3 m/s. Personal best", funny: true },
+  "vacuum-drift": { user: "dustkings", caption: "Corner speed 0.3 m/s. Personal best", funny: true },
   "gpu-unboxing": { user: "unbox.unit", caption: "It barely fit in the box. Or the case" },
   "attention": { user: "neural.notes", caption: "Every word looks at every other word" },
   "pancakes": { user: "chef.byte", caption: "Third flip went somewhere new", funny: true },

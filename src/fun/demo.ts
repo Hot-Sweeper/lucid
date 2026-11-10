@@ -7,6 +7,7 @@ import type { FunHost, FunOpts, Outcome } from "./host";
 import { playSnake, playFlappy, playDash, watchPhoneFeed, watchTube, browseTensorHub, watchBotflix, VIDEOS, TENSOR_VIDEOS, drawThumbnail } from "./index";
 import { fitCanvas } from "./util";
 import { SHOWS, drawArt, renderStage } from "./shows";
+import { GAME_TITLES } from "../games/catalog";
 
 class Cancel extends Error {}
 
@@ -149,9 +150,9 @@ function panel(id: string, title: string, w: number, h: number, run: Run, phone 
 }
 
 const loops = [
-  panel("snake", "Snake", 440, 366, playSnake),
-  panel("flappy", "Flappy Drone", 440, 366, playFlappy),
-  panel("dash", "Dash", 440, 366, playDash),
+  panel("snake", GAME_TITLES.snake, 440, 366, playSnake),
+  panel("flappy", GAME_TITLES.flappy, 440, 366, playFlappy),
+  panel("dash", GAME_TITLES.dash, 440, 366, playDash),
   panel("phone", "Phone", 150, 300, watchPhoneFeed, true),
   panel("tube", "Browser", 740, 330, watchTube),
   panel("th", "Browser", 740, 330, browseTensorHub),
