@@ -43,7 +43,6 @@
 .fun-ph-burst { position: absolute; width: 54px; height: 54px; margin: -27px 0 0 -27px; filter: drop-shadow(0 4px 10px rgba(255, 111, 145, 0.45)); }
 .fun-ph-burst svg { width: 100%; height: 100%; display: block; }
 .fun-ph-bit { position: absolute; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: #ff9fb4; }
-.fun-ph-swipe { position: absolute; left: 0; top: 0; width: 14px; height: 70px; margin-left: -7px; border-radius: 7px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0)); transform-origin: 50% 0; }
 
 /* ---------------- shared site shell ---------------- */
 .fun-site { position: relative; height: 100%; display: flex; flex-direction: column; overflow: hidden; font-family: var(--font); user-select: none; }

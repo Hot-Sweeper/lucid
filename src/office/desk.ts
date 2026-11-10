@@ -36,7 +36,12 @@ export interface DeskStage {
   setGlow(color: string): void;
   sleepy(on: boolean): void;
   readonly phoneScreen?: HTMLElement;
+  /** The robot at the next desk in this row when it is free to look up, for showing it a clip. */
+  neighbor?(): { side: -1 | 1; robot: SeatedRobot } | null;
 }
+
+// Desk elements find their Desk, so a robot can show its phone to the robot next to it.
+const DESKS = new WeakMap<HTMLElement, Desk>();
 
 export interface DeskServices {
   peek(url: string): Promise<any>;
@@ -113,6 +118,7 @@ export class Desk implements DeskStage {
       <div class="bubble" role="status"></div>`;
     parent.appendChild(el);
     this.el = el;
+    DESKS.set(el, this);
     this.monitor = el.querySelector(".monitor")!;
     this.screen = el.querySelector(".screen")!;
     this.bubble = el.querySelector(".bubble")!;
@@ -145,6 +151,21 @@ export class Desk implements DeskStage {
   }
 
   get phoneScreen() { return this.el.querySelector(".phone-screen") as HTMLElement; }
+
+  neighbor() {
+    const at = (el: HTMLElement) => ({ x: parseFloat(el.style.left) || 0, y: parseFloat(el.style.top) || 0 });
+    const me = at(this.el);
+    let best: { side: -1 | 1; robot: SeatedRobot; d: number } | null = null;
+    for (const el of this.el.parentElement?.children ?? []) {
+      const other = DESKS.get(el as HTMLElement);
+      if (!other || other === this || !other.threadId || other.el.classList.contains("arriving")) continue;
+      const p = at(other.el), d = Math.abs(p.x - me.x);
+      if (Math.abs(p.y - me.y) > 24 || d > UNIT_W * 1.6) continue;
+      if (!["rest", "idle", "phone"].includes(other.robot.currentPose)) continue;
+      if (!best || d < best.d) best = { side: p.x < me.x ? -1 : 1, robot: other.robot, d };
+    }
+    return best && { side: best.side, robot: best.robot };
+  }
 
   profile: RobotProfile | null = null;
   folder: string | null = null;

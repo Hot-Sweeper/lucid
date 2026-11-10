@@ -13,6 +13,7 @@ const gameLine = (kind: string, game?: string) => {
 import type { SeatedRobot as Robot } from "../office/rig";
 import type { DeskStage as Stage } from "../office/desk";
 import type { FunHost } from "../fun/host";
+import { gameSound } from "../office/sound";
 import "../fun/fun.css";
 import "../life/life.css";
 import { officeIdle, officePick, OFFICE_IDLE_LINE } from "../office-apps/idle";
@@ -75,7 +76,7 @@ export class IdleLife {
     this.wm.epoch++;
     this.stopGame?.();
     this.stopGame = null;
-    if (this.phoneUp) { this.phoneUp = false; void this.robot.holdPhone(false); }
+    this.putPhoneAway();
     if (this.wm.isOpen("game")) this.wm.close("game");
     this.unlock();
     this.stage.sleepy(false);
@@ -91,6 +92,14 @@ export class IdleLife {
     this.halted = true;
     this.token++;
     this.wm.epoch++;
+    // The phone is the exception: it goes back on the desk right away, work never waits for it.
+    this.putPhoneAway();
+  }
+
+  private putPhoneAway() {
+    if (!this.phoneUp) return;
+    this.phoneUp = false;
+    void this.robot.holdPhone(false);
   }
 
   /** A game must stop driving input as soon as its player leaves the chair. */
@@ -126,7 +135,7 @@ export class IdleLife {
     this.halted = false;
     this.stopGame?.();
     this.stopGame = null;
-    if (this.phoneUp) { this.phoneUp = false; await this.robot.holdPhone(false); }
+    this.putPhoneAway();
     if (this.wm.isOpen("game")) { this.wm.close("game"); await this.wm.sleep(350, e); }
     this.unlock();
     this.stage.sleepy(false);
@@ -231,10 +240,23 @@ export class IdleLife {
       pointAt: (el, ax, ay, ms) => me.wm.pointAt(el, ax, ay, ms),
       click: () => me.wm.click(),
       tap: (key) => me.robot.tap(key),
-      react: (kind) => me.robot.react(kind),
+      react: (kind) => {
+        if (tok !== me.token) return;
+        me.robot.react(kind);
+        if (me.phoneUp && (kind === "laugh" || kind === "surprised")) me.phoneSound(kind === "laugh" ? "laugh" : "flinch");
+      },
       get stopped() { return tok !== me.token; },
-      thumb: () => me.robot.swipe(),
-      thumbAt: (nx, ny) => (me.robot as any).thumbAt?.(nx, ny),
+      thumb: (kind) => kind === "swipe" ? me.robot.swipe() : me.robot.tapPhone?.(kind === "doubleTap" ? 2 : 1),
+      thumbAt: (nx, ny) => me.robot.thumbAt?.(nx, ny),
+      phoneReact: (kind) => {
+        if (tok !== me.token || !me.phoneUp) return;
+        // Showing needs someone at the next desk who is free to look; otherwise it is just a laugh.
+        const friend = kind === "show" ? me.stage.neighbor?.() : null;
+        const shown = friend ? "show" : kind === "show" ? "laugh" : kind;
+        me.robot.phoneReact?.(shown, friend?.side);
+        me.phoneSound(shown);
+        if (friend) gsap.delayedCall(0.75, () => { if (tok === me.token && ["rest", "idle", "phone"].includes(friend.robot.currentPose)) friend.robot.react("laugh"); });
+      },
       scroll: () => {},
     };
   }
@@ -293,11 +315,13 @@ export class IdleLife {
         // the phone opens the robot's own apps: its feeds and messengers, or its usual clips
         const apps = this.phoneApps();
         this.onActivity(PHONE_APP_DOING[apps[0]] ?? "Scrolling clips on its phone");
-        await this.robot.holdPhone(true);
+        // Marked before the pick-up, so new work arriving mid-reach sends the phone straight back.
         this.phoneUp = true;
+        await this.robot.holdPhone(true);
+        this.alive(tok);
         screen.innerHTML = "";
         try { await usePhone(screen, host, { maxMs: 40000 + Math.random() * 50000, me: this.wm.robotName, skill, apps, onApp: (a) => this.onActivity(PHONE_APP_DOING[a]) }); }
-        finally { if (tok === this.token) { await this.robot.holdPhone(false); this.phoneUp = false; } }
+        finally { if (tok === this.token) { this.phoneUp = false; await this.robot.holdPhone(false); } }
         return;
       }
       case "botflix": {
@@ -501,6 +525,12 @@ export class IdleLife {
       vapor: likes("vapor") ? 1.7 + 1.0 * H("gamer") : 0,
       trading: likes("trading") ? 1.5 : 0,
     };
+  }
+
+  // Phone foley comes from the robot's desk, so it is placed, rate limited and muted with the rest.
+  private phoneSound(kind: "laugh" | "flinch" | "show") {
+    const cue = kind === "laugh" ? "giggle" : kind === "flinch" ? "servo" : "chatter";
+    gameSound.at(cue, this.robot.el, kind === "flinch" ? 1.2 : 0.8);
   }
 
   /** Keep the phone home screen consistent with this robot's saved interests. */

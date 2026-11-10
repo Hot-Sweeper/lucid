@@ -1,4 +1,4 @@
-import type { Expression, Pose, Reaction, RobotLook, SeatedRobot } from "../office/rig";
+import type { Expression, PhoneReaction, Pose, Reaction, RobotLook, SeatedRobot } from "../office/rig";
 
 // Computers keep one stable robot reference, but an unoccupied desk needs no SVG
 // character, animation ticker or repeating tween. Assignment materializes the
@@ -27,7 +27,9 @@ export class DeferredRobot implements SeatedRobot {
   drink() { return this.current?.drink() ?? Promise.resolve(); }
   holdPhone(on: boolean) { return this.current?.holdPhone(on) ?? Promise.resolve(); }
   swipe() { this.current?.swipe(); }
-  thumbAt(x: number, y: number) { (this.current as SeatedRobot & { thumbAt?(x: number, y: number): void } | null)?.thumbAt?.(x, y); }
+  thumbAt(x: number, y: number) { this.current?.thumbAt?.(x, y); }
+  tapPhone(times?: number) { this.current?.tapPhone?.(times); }
+  phoneReact(kind: PhoneReaction, side?: -1 | 1) { this.current?.phoneReact?.(kind, side); }
   setModel(model: string | null) { this.current?.setModel?.(model); }
   setLook(look: RobotLook) { this.current?.setLook?.(look); }
   setHeadphones(on: boolean) { this.current?.setHeadphones?.(on); }

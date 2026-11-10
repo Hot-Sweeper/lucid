@@ -120,9 +120,22 @@ async function mouseLoop(robot: Bot) {
   robot.setPose("mouse");
   for (let k = 0; ; k++) { robot.mouseTo(Math.random(), Math.random()); robot.lookAt(0.3 + Math.random() * 0.4, 0.4); await sleep(0.55); if (k % 2) robot.click(); }
 }
+// Picks the phone up, scrolls, taps, reacts (laugh, flinch, show to the left and right), puts it
+// away as work would, and starts again.
 async function phoneLoop(robot: Bot) {
-  await robot.holdPhone(true);
-  for (;;) { await sleep(1.1); robot.swipe(); }
+  for (;;) {
+    await robot.holdPhone(true);
+    for (const step of ["swipe", "laugh", "swipe", "tap", "flinch", "swipe", "show-left", "show-right"] as const) {
+      await sleep(1.4);
+      if (step === "swipe") robot.swipe();
+      else if (step === "tap") robot.tapPhone(2);
+      else if (step === "show-left" || step === "show-right") { robot.phoneReact("show", step === "show-left" ? -1 : 1); await sleep(1.4); }
+      else robot.phoneReact(step);
+    }
+    await sleep(1.6);
+    await robot.holdPhone(false);
+    await sleep(1.2);
+  }
 }
 
 function measureFps() {

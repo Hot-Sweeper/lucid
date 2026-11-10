@@ -47,6 +47,8 @@ export type Expression = "neutral" | "happy" | "angry" | "shy" | "surprised" | "
 export type Pose =
   | "idle" | "type" | "mouse" | "think" | "read" | "ask" | "rest" | "celebrate" | "sleep" | "phone" | "stretch" | "notice";
 export type Reaction = "focus" | "relax" | "cheer" | "angry" | "laugh" | "shy" | "surprised";
+/** Body language while holding the phone: laugh at a clip, flinch at a scare, show it to a neighbour (side -1 left, 1 right). */
+export type PhoneReaction = "laugh" | "flinch" | "show";
 
 /** What a seated robot must provide. `constructor(host: HTMLElement, desk: DeskRig)` appends its SVG to host (desk-unit sized, 400x440 viewBox). */
 export interface SeatedRobot {
@@ -68,6 +70,12 @@ export interface SeatedRobot {
   drink(): Promise<void>;
   holdPhone(on: boolean): Promise<void>;
   swipe(): void;
+  /** The thumb taps the held phone's screen once or twice (a like is a double tap). */
+  tapPhone?(times?: number): void;
+  /** The thumb rests on the held phone's screen at (0..1 across, 0..1 down), e.g. while dragging a clip. Negative: back to rest. */
+  thumbAt?(nx: number, ny: number): void;
+  /** A reaction made with the phone in hand; without a phone it falls back to react(). */
+  phoneReact?(kind: PhoneReaction, side?: -1 | 1): void;
   /** Model name printed small on the robot's back plate, like a jersey (null hides it). */
   setModel?(name: string | null): void;
   /** Personality touches picked when the robot is first hired. */

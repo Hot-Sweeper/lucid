@@ -14,6 +14,8 @@ export interface FunHost {
   thumb?(kind: "tap" | "doubleTap" | "swipe"): void;
   /** Optional: the thumb presses a spot of the phone screen (0..1 across and down, e.g. a key). Negative: back to rest. */
   thumbAt?(nx: number, ny: number): void;
+  /** Optional: body language with the phone in hand, timed to what is on screen. "show" holds it out to a neighbour. */
+  phoneReact?(kind: "laugh" | "flinch" | "show"): void;
   /** Optional: scroll wheel nudge on the mouse (visual only). */
   scroll?(): void;
 }

@@ -1,7 +1,9 @@
 import gsap from "gsap";
 import type { FunHost, FunOpts, Outcome } from "./host";
 import { VIDEOS, type VideoDef } from "./videos";
-import { DANCE_VIDEOS } from "./dance";
+import { DANCE_VIDEOS, calm } from "./dance";
+import { SHORT_CLIPS, type ShortClip } from "./shorts-clips";
+import { swipeMotion } from "./feed-gesture";
 import { Scope, fitCanvas, measure, html, hash } from "./util";
 
 const ICON = {
@@ -29,11 +31,12 @@ const POSTS: Record<string, { user: string; caption: string; funny?: boolean }> 
 
 const fmt = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(n >= 1e5 ? 0 : 1)}K` : String(n));
 
+const shuffled = <T,>(a: readonly T[]) => a.map((v) => [Math.random(), v] as const).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
+
 /** Shuffled feed where dance trends come up often: about every third slide until they run out. */
 function feedOrder() {
-  const shuffle = <T,>(a: T[]) => a.map((v) => [Math.random(), v] as const).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
-  const dances = shuffle(VIDEOS.filter((v) => DANCE_VIDEOS.includes(v)));
-  const rest = shuffle(VIDEOS.filter((v) => !DANCE_VIDEOS.includes(v)));
+  const dances = shuffled(VIDEOS.filter((v) => DANCE_VIDEOS.includes(v)));
+  const rest = shuffled(VIDEOS.filter((v) => !DANCE_VIDEOS.includes(v)));
   const out: VideoDef[] = [];
   let slot = Math.floor(Math.random() * 3);
   while (dances.length || rest.length) {
@@ -43,13 +46,20 @@ function feedOrder() {
   return out;
 }
 
-type Slide = { el: HTMLElement; canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; v: VideoDef; t0: number; likes: number; liked: boolean; bar: HTMLElement };
+type Slide = { el: HTMLElement; canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; v: VideoDef; t0: number; likes: number; liked: boolean; bar: HTMLElement; fired: Set<number> };
+type Reaction = "laugh" | "flinch" | "show";
 
-/** variant "shorts": the same feed under a BotTube Shorts style player (thumbs, Subscribe, red bar). */
+
+/**
+ * A vertical clip feed. variant "shorts": BotTube Shorts with its own original robot clips, each
+ * with moments the watching robot reacts to on cue. Otherwise the Spool feed of regular videos.
+ * The thumb drags each clip away one to one and a spring finishes the change (feed-gesture.ts).
+ */
 export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: FunOpts & { variant?: "shorts" }): Promise<Outcome> {
   const scope = new Scope(screen);
   const shorts = opts.variant === "shorts";
   const start = performance.now();
+  const still = calm();
   try {
     screen.innerHTML = "";
     const root = html(`
@@ -62,8 +72,13 @@ export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: F
     const { w, h } = measure(root, 150, 300);
     const track = root.querySelector(".fun-ph-track") as HTMLElement;
     const fx = root.querySelector(".fun-ph-fx") as HTMLElement;
-    const order = feedOrder();
+    let order: VideoDef[] = shorts ? shuffled(SHORT_CLIPS) : feedOrder();
     let idx = 0;
+    const nextVideo = () => {
+      idx++;
+      if (idx >= order.length) { order = shorts ? shuffled(SHORT_CLIPS) : feedOrder(); idx = 0; }
+      return order[idx];
+    };
 
     const makeSlide = (v: VideoDef): Slide => {
       const p = POSTS[v.id] ?? v.post ?? { user: v.channel.toLowerCase().replace(/\s+/g, "."), caption: v.title };
@@ -87,14 +102,24 @@ export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: F
       el.querySelector(".fun-ph-likes")!.textContent = fmt(likes);
       const avHue = ["#ff9f5a", "#4fb6ff", "#4ff0a0", "#b07cff", "#ff6f91"][seed % 5];
       (el.querySelector(".fun-ph-av") as HTMLElement).style.background = avHue;
+      el.style.transform = `translate3d(0, ${h}px, 0)`;
       track.appendChild(el);
       const canvas = el.querySelector("canvas") as HTMLCanvasElement;
       const ctx = fitCanvas(canvas, w, h);
-      return { el, canvas, ctx, v, t0: performance.now(), likes, liked: false, bar: el.querySelector(".fun-ph-prog i") as HTMLElement };
+      return { el, canvas, ctx, v, t0: performance.now(), likes, liked: false, bar: el.querySelector(".fun-ph-prog i") as HTMLElement, fired: new Set() };
     };
 
     let cur = makeSlide(order[idx]);
+    cur.el.style.transform = "translate3d(0, 0, 0)";
     let next: Slide | null = null;
+    // 0: the current clip fills the screen, 1: the next one does. While a gesture runs, `motion`
+    // turns time into that offset and the frame loop places both clips from it.
+    let offset = 0;
+    let motion: ((now: number) => number) | null = null;
+    const place = () => {
+      cur.el.style.transform = `translate3d(0, ${(-offset * h).toFixed(2)}px, 0)`;
+      if (next) next.el.style.transform = `translate3d(0, ${((1 - offset) * h).toFixed(2)}px, 0)`;
+    };
     const paint = (sl: Slide, nowMs: number) => {
       const t = (nowMs - sl.t0) / 1000;
       sl.ctx.save();
@@ -102,10 +127,12 @@ export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: F
       sl.ctx.restore();
       sl.bar.style.transform = `scaleX(${((t % sl.v.loop) / sl.v.loop).toFixed(4)})`;
     };
-    scope.raf((now) => {
-      const ms = now * 1000;
+    scope.raf(() => {
+      const ms = performance.now();
+      if (motion) { offset = motion(ms); place(); }
       paint(cur, ms);
-      if (next) paint(next, ms);
+      // the next clip only needs frames while it is on screen
+      if (next && (motion || offset > 0)) paint(next, ms);
     });
 
     const touch = (x: number, y: number, double: boolean) => {
@@ -120,9 +147,13 @@ export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: F
 
     const like = async () => {
       const x = w * (0.35 + Math.random() * 0.3), y = h * (0.35 + Math.random() * 0.25);
+      // the thumb goes to the spot it double taps, then back to rest
+      host.thumbAt?.(x / w, y / h);
+      await host.sleep(120);
       host.thumb?.("doubleTap");
       touch(x, y, true);
       await host.sleep(240);
+      host.thumbAt?.(-1, -1);
       const heart = html(`<span class="fun-ph-burst">${shorts ? ICON.thumb : ICON.burst}</span>`);
       heart.style.left = `${x}px`;
       heart.style.top = `${y}px`;
@@ -130,9 +161,9 @@ export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: F
       const rot = (Math.random() - 0.5) * 40;
       scope.tw(
         gsap.timeline({ onComplete: () => heart.remove() })
-          .fromTo(heart, { scale: 0, rotation: rot, opacity: 1 }, { scale: 1.15, duration: 0.32, ease: "back.out(2.5)" })
-          .to(heart, { scale: 1, duration: 0.12, ease: "sine.out" })
-          .to(heart, { y: -h * 0.18, opacity: 0, scale: 1.3, duration: 0.5, ease: "power2.in" }, "+=0.25"),
+          .fromTo(heart, { scale: 0, rotation: rot, opacity: 1 }, { scale: 1.1, duration: 0.3, ease: "back.out(2.2)" })
+          .to(heart, { scale: 1, duration: 0.12, ease: "power2.out" })
+          .to(heart, { y: -h * 0.18, opacity: 0, scale: 1.3, duration: 0.45, ease: "power2.in" }, "+=0.25"),
       );
       for (let i = 0; i < 6; i++) {
         const bit = html(`<span class="fun-ph-bit"></span>`);
@@ -148,45 +179,83 @@ export async function watchPhoneFeed(screen: HTMLElement, host: FunHost, opts: F
         const btn = cur.el.querySelector(".fun-ph-like") as HTMLElement;
         btn.classList.add("fun-on");
         cur.el.querySelector(".fun-ph-likes")!.textContent = fmt(cur.likes);
-        scope.fromTo(btn.querySelector("svg"), { scale: 0.6 }, { scale: 1, duration: 0.5, ease: "back.out(3)" });
+        scope.fromTo(btn.querySelector("svg"), { scale: 0.6 }, { scale: 1, duration: 0.4, ease: "back.out(2.6)" });
       }
     };
 
-    const swipe = async () => {
-      idx = (idx + 1) % order.length;
-      next = makeSlide(order[idx]);
-      gsap.set(next.el, { yPercent: 100 });
-      host.thumb?.("swipe");
-      const trail = html(`<span class="fun-ph-swipe"></span>`);
-      fx.appendChild(trail);
-      scope.fromTo(trail, { x: w * 0.55, y: h * 0.75, opacity: 0.6, scaleY: 0.4 }, { y: h * 0.25, opacity: 0, scaleY: 1, duration: 0.45, ease: "power2.out", onComplete: () => trail.remove() });
+    // One swipe. `commit` false is a peek: the thumb drags a little, thinks better of it and the
+    // clip springs back (the peeked clip waits below for the next real swipe).
+    const swipe = async (commit: boolean) => {
+      next ??= makeSlide(nextVideo());
       const n = next;
-      await Promise.all([
-        scope.play(cur.el, { yPercent: -100, duration: 0.62, ease: "expo.inOut" }),
-        scope.play(n.el, { yPercent: 0, duration: 0.62, ease: "expo.inOut" }),
-      ]);
+      if (still) {
+        // Reduced motion: no travel, the next clip fades in over the current one.
+        if (!commit) return;
+        n.el.style.transform = "translate3d(0, 0, 0)";
+        n.t0 = performance.now();
+        await scope.play(n.el, { opacity: 1, startAt: { opacity: 0 }, duration: 0.16, ease: "power1.out" });
+      } else {
+        // the clip starts playing as it enters, not while it waited below
+        if (commit && offset === 0) n.t0 = performance.now();
+        const travel = commit ? 0.42 + Math.random() * 0.1 : 0.12 + Math.random() * 0.08;
+        const dragMs = commit ? 200 + Math.random() * 80 : 380 + Math.random() * 120;
+        const run = swipeMotion(travel, dragMs, commit);
+        const t0 = performance.now(), from = 0.8, across = 0.52 + Math.random() * 0.12;
+        let thumbY = -1;
+        host.thumbAt?.(across, from);
+        motion = (now) => {
+          const ms = now - t0;
+          // the thumb stays on the glass during the drag, the content under it one to one
+          if (ms < dragMs) {
+            const y = from - run.at(ms);
+            if (Math.abs(y - thumbY) > 0.005) { thumbY = y; host.thumbAt?.(across, y); }
+          }
+          return run.at(ms);
+        };
+        try {
+          await host.sleep(dragMs);
+          host.thumbAt?.(-1, -1);
+          await host.sleep(run.total - dragMs);
+        } finally {
+          motion = null;
+        }
+        offset = commit ? 1 : 0;
+        place();
+        if (!commit) return;
+      }
       cur.el.remove();
       cur = n;
       next = null;
+      offset = 0;
+      place();
     };
 
-    const funny = () => !!(POSTS[cur.v.id] ?? cur.v.post)?.funny;
+    const post = () => POSTS[cur.v.id] ?? cur.v.post;
+    const react = (kind: Reaction) => (host.phoneReact ? host.phoneReact(kind) : host.react(kind === "flinch" ? "surprised" : "laugh"));
     for (;;) {
       if (host.stopped || performance.now() - start > opts.maxMs) return { result: "done" };
-      const watch = 2600 + Math.random() * 3800;
-      const likeAt = Math.random() < 0.38 ? watch * (0.3 + Math.random() * 0.5) : -1;
-      const laughAt = funny() && Math.random() < 0.55 ? watch * (0.25 + Math.random() * 0.5) : -1;
+      const clip = shorts ? (cur.v as ShortClip) : null;
+      // Shorts are watched past their big moment; regular clips get a few seconds each.
+      const watch = clip ? clip.loop * (1.05 + Math.random() * 0.5) * 1000 : 2600 + Math.random() * 3800;
+      const likeAt = Math.random() < (clip?.beats.some((b) => b.react === "show") ? 0.6 : 0.35) ? watch * (0.55 + Math.random() * 0.35) : -1;
+      const laughAt = !clip && post()?.funny && Math.random() < 0.55 ? watch * (0.25 + Math.random() * 0.5) : -1;
       const t0 = performance.now();
       let liked = false, laughed = false;
       while (performance.now() - t0 < watch) {
         const el = performance.now() - t0;
         if (!liked && likeAt >= 0 && el >= likeAt) { liked = true; await like(); }
-        if (!laughed && laughAt >= 0 && el >= laughAt) { laughed = true; host.react("laugh"); }
+        if (!laughed && laughAt >= 0 && el >= laughAt) { laughed = true; react("laugh"); }
+        // reactions land on the clip's own moments, the first time it plays through
+        if (clip) {
+          const t = (performance.now() - cur.t0) / 1000;
+          clip.beats.forEach((b, i) => { if (t >= b.at && t < clip.loop && !cur.fired.has(i)) { cur.fired.add(i); react(b.react); } });
+        }
         if (host.stopped || performance.now() - start > opts.maxMs) return { result: "done" };
-        await host.sleep(120);
+        await host.sleep(100);
       }
-      await swipe();
-      if (Math.random() < 0.2) host.react("relax");
+      if (!still && Math.random() < 0.16) { await swipe(false); await host.sleep(500 + Math.random() * 700); }
+      await swipe(true);
+      if (Math.random() < 0.15) host.react("relax");
     }
   } finally {
     scope.dispose();

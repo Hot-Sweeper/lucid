@@ -86,6 +86,7 @@ export const CHECKS = [
   "verify-conversation-name.mjs",
   "verify-conversation-pages.cjs",
   "verify-deferred-robot.mjs",
+  "verify-phone-leisure.mjs",
   "verify-delivery-attestation.cjs",
   "verify-desk-chat-targets.mjs",
   "verify-empty-desks.mjs",
