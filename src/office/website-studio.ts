@@ -5,6 +5,7 @@ import { wireChatLinks } from './chat-links';
 import { gameSound } from './sound';
 import { getLocale } from '../localization';
 import './website-studio.css';
+import { icon } from '../ui/icons';
 
 type Model = { id: string; name: string; efforts: string[]; defaultEffort: string; isDefault: boolean };
 type Project = { sequence?: number; id: string; name: string; dir: string; localProjectId?: string; threadId?: string; model?: string; effort?: string; turn: { id: string; status: string } | null; lastTurn?: { status: string; error?: string }; activity?: string; entries: any[]; approvals: any[]; version: number; host: string };
@@ -20,7 +21,7 @@ export function mountWebsiteStudio(neighbor: HTMLElement) {
   if (!bridge()?.studio) return;
   const button = document.createElement('button'); button.type = 'button'; button.className = 'ghost side-help website-studio-open'; button.id = 'website-studio-open';
   button.title = copy('Website studio on Ares', 'Website-Studio auf Ares'); button.setAttribute('aria-label', button.title);
-  button.innerHTML = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.3"/><path d="M1.5 6h13M10.5 6v7.5M4 4.2h.1M6 4.2h.1"/></svg>';
+  button.innerHTML = icon('studio');
   neighbor.before(button); button.addEventListener('click', () => openWebsiteStudio());
   document.addEventListener('lucid:website-studio', e => openWebsiteStudio((e as CustomEvent).detail));
 }

@@ -131,7 +131,7 @@ document.getElementById("app")!.innerHTML = `
     <header class="brand"><span class="mark" aria-hidden="true">${brandMark()}</span><h1>${esc(BRAND.name)}</h1><button type="button" class="wx" id="wx" hidden aria-haspopup="menu"></button>
       <button class="update" id="update" type="button" title="Check for game updates">Check updates</button>
       <div class="brand-actions">
-      <button type="button" class="ghost side-help side-settings" id="side-settings" aria-label="Office and settings" aria-expanded="false" title="Office and settings: rooms, language, staff wall, phone access, linked computers"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 5.6a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.8v1.6M8 12.6v1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M1.8 8h1.6M12.6 8h1.6M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button><button type="button" class="ghost side-help" id="side-help" aria-label="How Lucid works" title="How Lucid works and keyboard shortcuts (?)">?</button><button type="button" class="side-pin pin-btn" id="side-pin" aria-pressed="true">${PIN_ICON}</button><button type="button" class="side-hide" id="side-hide" aria-expanded="true" aria-controls="side-panel" aria-label="Hide sidebar" title="Hide sidebar: it folds into a rail on the left (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M9.5 4L5.5 8l4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Hide<span class="sh-more"> sidebar</span></span></button>
+      <button type="button" class="ghost side-help side-settings" id="side-settings" aria-label="Office and settings" aria-expanded="false" title="Office and settings: rooms, language, staff wall, phone access, linked computers">${uiIcon("settings")}</button><button type="button" class="ghost side-help" id="side-help" aria-label="How ${esc(BRAND.name)} works" title="How ${esc(BRAND.name)} works and keyboard shortcuts (?)">${uiIcon("help")}</button><button type="button" class="side-pin pin-btn" id="side-pin" aria-pressed="true">${PIN_ICON}</button><button type="button" class="side-hide" id="side-hide" aria-expanded="true" aria-controls="side-panel" aria-label="Hide sidebar" title="Hide sidebar: it folds into a rail on the left (Ctrl+B)">${uiIcon("sidebarHide")}<span>Hide<span class="sh-more"> sidebar</span></span></button>
       </div>
     </header>
 
@@ -139,7 +139,7 @@ document.getElementById("app")!.innerHTML = `
     <section class="wallet" id="wallet"><span class="wl-coins" title="1 coin for every dollar of AI work at API prices">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></span><span class="wl-boost" id="wl-boost" hidden></span><button type="button" class="wl-shop" id="open-shop">Shop</button></section>
 
     <section class="threads">
-      <div class="th-head"><h3>Threads</h3><label class="th-search"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label><button type="button" class="primary th-new-task" id="th-new-task" title="Start a new task (Ctrl+N)"><span aria-hidden="true">+</span> Task</button><button type="button" class="ghost th-new-project" id="th-new-project" aria-label="New project" title="New project: create a folder or add one you have"><span aria-hidden="true">+</span> Project</button>${foldButton("threads", "threads")}</div>
+      <div class="th-head"><h3>Threads</h3><label class="th-search">${uiIcon("search", 14)}<input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label><button type="button" class="primary th-new-task" id="th-new-task" title="Start a new task (Ctrl+N)">${uiIcon("plus", 14)}Task</button><button type="button" class="ghost th-new-project" id="th-new-project" aria-label="New project" title="New project: create a folder or add one you have">${uiIcon("plus", 14)}Project</button>${foldButton("threads", "threads")}</div>
       <div class="fold-body" id="fold-threads"><ol class="th-list" id="th-list" aria-label="Threads. Drag one into the chat, or press R, to reference it"></ol></div>
     </section>
 
@@ -166,7 +166,7 @@ document.getElementById("app")!.innerHTML = `
 
   </aside>
   <nav class="side-rail" id="side-rail" aria-label="Folded sidebar" hidden>
-    <button type="button" class="rail-show" id="rail-show" aria-expanded="false" aria-controls="side-panel" title="Show sidebar (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M6.5 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Show<br>sidebar</span></button>
+    <button type="button" class="rail-show" id="rail-show" aria-expanded="false" aria-controls="side-panel" title="Show sidebar (Ctrl+B)">${uiIcon("sidebarShow")}<span>Show<br>sidebar</span></button>
     <button type="button" class="rail-coins" id="rail-coins" title="Coins. Click to open the shop">${coinIcon(16)}<b id="rail-bal">0</b></button>
     <ol class="rail-list" id="rail-list" aria-label="Threads"></ol>
   </nav>
@@ -490,7 +490,7 @@ world.onRooms = (rooms: Room[]) => {
     const office = ["main", "project", "freelance"].includes(r.kind);
     const pin = office && world.isRoomExpanded(r.id);
     return `<li class="room-list-row">
-      ${movableRoom(r.id) ? `<button type="button" class="room-grab" data-room-id="${esc(r.id)}" aria-label="Move ${esc(r.title)}" title="Drag to reorder ${esc(r.title)}. Click for move options."><svg viewBox="0 0 10 16" width="8" height="13" aria-hidden="true"><path d="M3 3h.01M7 3h.01M3 8h.01M7 8h.01M3 13h.01M7 13h.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>` : ""}
+      ${movableRoom(r.id) ? `<button type="button" class="room-grab" data-room-id="${esc(r.id)}" aria-label="Move ${esc(r.title)}" title="Drag to reorder ${esc(r.title)}. Click for move options.">${uiIcon("grip", 14)}</button>` : ""}
       <button type="button" class="room-open" data-room="${esc(r.id)}" title="${esc(r.title)}${r.collapsed ? ": open quiet office" : ""}">
         ${r.icon ? `<img src="${esc(r.icon)}" alt="">` : `<span class="dot ${r.kind}"></span>`}
         <span class="rt">${esc(r.title)}</span><span class="rc">${r.threadIds.length || ""}</span>

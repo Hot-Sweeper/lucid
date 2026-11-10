@@ -52,6 +52,7 @@ import { mountTouchCamera } from "./touch-camera";
 import { phoneGestureDiagnostics, type PhoneGestureDiagnostics } from "../perf/phone-gesture";
 import { exposedScene } from "./exposed-scene";
 import { wireDeskChatTargets } from "./desk-chat-targets";
+import { icon } from "../ui/icons";
 
 
 
@@ -1326,7 +1327,7 @@ export class World {
         r.el.appendChild(hit);
         const size = document.createElement('button'); size.type = 'button'; size.className = 'room-size-hit';
         size.dataset.roomId = r.id;
-        size.innerHTML = '<span class="room-size-label"></span><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        size.innerHTML = `<span class="room-size-label"></span>${icon("chevronDown", 24)}`;
         size.addEventListener('click', event => { event.stopPropagation(); this.setRoomExpanded(r.id, !this.isRoomExpanded(r.id)); });
         size.addEventListener('pointerdown', event => event.stopPropagation());
         r.el.append(size);
@@ -1701,7 +1702,7 @@ export class World {
     const remove = document.createElement('button');
     remove.type = 'button'; remove.className = 'empty-desk-remove';
     remove.title = 'Remove empty desk'; remove.setAttribute('aria-label', 'Remove empty desk');
-    remove.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+    remove.innerHTML = icon("close");
     remove.addEventListener('pointerdown', e => e.stopPropagation());
     remove.addEventListener('dblclick', e => e.stopPropagation());
     remove.addEventListener('click', e => { e.stopPropagation(); this.onRemoveEmptyDesk(d.el.dataset.slot || ''); });

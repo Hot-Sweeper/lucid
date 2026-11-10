@@ -17,6 +17,6 @@
 .np-picked { font: 400 11px "JetBrains Mono", ui-monospace, monospace; color: var(--ink-3); overflow-wrap: anywhere; }
 .new-project p.np-msg { margin: 0; min-height: 1.4em; font-size: 12px; color: var(--accent-2); }
 .th-new-project { flex: none; padding: 4px 6px; font-size: 11px; border-radius: 6px; white-space: nowrap; }
-.th-new-project span { font-weight: 700; color: var(--accent-2); }
+.th-new-project .ui-icon { color: var(--accent-2); }
 .th-head .th-search { flex-basis: 64px; }
 .th-head { column-gap: 8px; }

@@ -7,6 +7,7 @@ import type { RobotLook } from "./rig";
 import { portraitSvg } from "../world/look";
 import { PALETTES } from "../world/seated-parts";
 import "./hire.css";
+import { icon } from "../ui/icons";
 import { openCustomize, savedLevel } from "./customize";
 import { Walker } from "../world/walker";
 import { compatibleWorkers } from "./worker-match";
@@ -73,7 +74,7 @@ export function openHire(opts: {
             <h3 id="hire-worker-name" aria-live="polite"></h3>
             <p class="hire-worker-note"></p>
             <div class="hire-worker-actions">
-              <div class="hire-worker-pick" hidden><button type="button" class="ghost hire-prev" aria-label="Previous free worker"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="hire-worker-count"></span><button type="button" class="ghost hire-next" aria-label="Next free worker"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="m6 3 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+              <div class="hire-worker-pick" hidden><button type="button" class="ghost hire-prev" aria-label="Previous free worker">${icon("chevronLeft")}</button><span class="hire-worker-count"></span><button type="button" class="ghost hire-next" aria-label="Next free worker">${icon("chevronRight")}</button></div>
               <button type="button" class="link-btn hire-customize">Customize</button>
             </div>
           </div>
@@ -83,7 +84,7 @@ export function openHire(opts: {
           <div class="hire-composer">
             <label class="hire-task"><span>Task</span><textarea rows="6" placeholder="What should we work on? Add files, screenshots, or anything the job needs." aria-describedby="hire-file-hint"></textarea></label>
             <div class="hire-attachments" aria-label="Attached files"></div>
-            <div class="hire-composer-tools"><button type="button" class="ghost hire-attach"><svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="m7 10 5-5a2.5 2.5 0 0 1 3.5 3.5L8 16a4 4 0 0 1-5.7-5.7l8-8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Attach files</button><span id="hire-file-hint">or drop files and paste images</span><input class="hire-files" type="file" multiple hidden></div>
+            <div class="hire-composer-tools"><button type="button" class="ghost hire-attach">${icon("attach", 18)}Attach files</button><span id="hire-file-hint">or drop files and paste images</span><input class="hire-files" type="file" multiple hidden></div>
           </div>
           <div class="hire-runtime-controls" aria-label="Runtime settings"></div>
           <div class="hire-runtime-note"><span class="hire-runtime" role="status">Loading T3 defaults...</span><button type="button" class="link-btn hire-reset" hidden>Use T3 defaults</button><button type="button" class="link-btn hire-reload" hidden>Retry</button></div>
@@ -137,7 +138,7 @@ export function openHire(opts: {
     runtimeEl.innerHTML = config ? [
       `<fieldset class="hire-harnesses"><legend>Harness</legend><div class="hire-harness-list">${providers.map(p => {
         const logo = logoFor(p.instanceId);
-        return `<label class="hire-harness"><input type="radio" name="hire-harness" data-setting="provider" value="${esc(p.instanceId)}"${p.instanceId === selection?.providerInstanceId ? " checked" : ""}${!p.ready || loading || busy ? " disabled" : ""}><span>${logo ? `<img src="${esc(logo)}" alt="" width="22" height="22">` : ""}<span>${esc(p.name)}${p.ready ? "" : '<small>Unavailable</small>'}</span><svg class="hire-harness-check" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="m3 8 3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></label>`;
+        return `<label class="hire-harness"><input type="radio" name="hire-harness" data-setting="provider" value="${esc(p.instanceId)}"${p.instanceId === selection?.providerInstanceId ? " checked" : ""}${!p.ready || loading || busy ? " disabled" : ""}><span>${logo ? `<img src="${esc(logo)}" alt="" width="22" height="22">` : ""}<span>${esc(p.name)}${p.ready ? "" : '<small>Unavailable</small>'}</span>${icon("check", 16, { cls: "hire-harness-check" })}</span></label>`;
       }).join("")}</div></fieldset>`,
       optionHtml("model", "Model", [...(provider?.models ?? []).map(m => ({ id: m.slug, label: m.name || m.slug })), ...(!model ? [{ id: selection?.model || "", label: selection?.model ? `${selection.model} (unavailable)` : "Choose model", disabled: true }] : [])], selection?.model || ""),
       ...(model?.options ?? []).filter(o => o.type === "boolean" || o.choices?.length).map(o => {
