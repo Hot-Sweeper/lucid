@@ -56,7 +56,8 @@ function mergeProviderLimits(usage, snapshot, now = Date.now()) {
     }
     if (windows.length) {
       covered.add(harness);
-      limits[`t3:${provider.instanceId}`] = { harness, name: provider.name || provider.instanceId, source: "T3 Code", observedAt: checkedAt || snapshot.fetchedAt || "",
+      const credits = data?.resetCredits && Number.isInteger(data.resetCredits.availableCount) ? { availableCount: data.resetCredits.availableCount, nextExpiresAt: asIso(data.resetCredits.nextExpiresAt) } : undefined;
+      limits[`t3:${provider.instanceId}`] = { harness, instanceId: provider.instanceId, name: provider.name || provider.instanceId, source: "T3 Code", observedAt: checkedAt || snapshot.fetchedAt || "", resetCredits: credits,
         primary: windows.find(w => w.windowMinutes === 300) || windows[0], secondary: windows.find(w => w.windowMinutes === 10080) || null, windows };
     } else notes.push(`${provider.name || provider.instanceId}: ${data?.unavailable?.message || "limits unavailable in T3 Code"}`);
   }

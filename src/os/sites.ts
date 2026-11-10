@@ -60,15 +60,17 @@ const FAV_COLORS = ["#4f7dff", "#ff7a59", "#2fb380", "#b15cff", "#ff5c8a", "#d99
 export function favHtml(url: string, kind?: "search") {
   if (kind === "search") return `<span class="fav fav-q" aria-hidden="true"><i></i></span>`;
   const h = hostOf(url);
-  if (/github(usercontent)?\.com$/.test(h)) return `<span class="fav" style="background:#1f2328;color:#fff">G</span>`;
-  if (/huggingface\.co$/.test(h)) return `<span class="fav" style="background:#ffd21e;color:#3a2a00">H</span>`;
-  if (/wikipedia\.org$/.test(h)) return `<span class="fav fav-serif" style="background:#fff;color:#202122">W</span>`;
+  // data-fav-host lets favicons.ts swap the letter for the site's own icon once it is cached.
   if (!h || /^(127\.|localhost|0\.0\.0\.0)/.test(h)) return `<span class="fav" style="background:#2fb380;color:#fff">L</span>`;
+  const real = `data-fav-host="${esc(h)}"`;
+  if (/github(usercontent)?\.com$/.test(h)) return `<span class="fav" ${real} style="background:#1f2328;color:#fff">G</span>`;
+  if (/huggingface\.co$/.test(h)) return `<span class="fav" ${real} style="background:#ffd21e;color:#3a2a00">H</span>`;
+  if (/wikipedia\.org$/.test(h)) return `<span class="fav fav-serif" ${real} style="background:#fff;color:#202122">W</span>`;
   const parts = h.split(".").filter((p) => !/^(www|docs|en|m|developer|developers|api|blog|help|support|code|registry|raw)$/.test(p));
   const name = parts.length > 1 ? parts[parts.length - 2] : parts[0] || h;
   let x = 0;
   for (const c of name) x = (x * 31 + c.charCodeAt(0)) >>> 0;
-  return `<span class="fav" style="background:${FAV_COLORS[x % FAV_COLORS.length]};color:#fff">${esc((name[0] || "?").toUpperCase())}</span>`;
+  return `<span class="fav" ${real} style="background:${FAV_COLORS[x % FAV_COLORS.length]};color:#fff">${esc((name[0] || "?").toUpperCase())}</span>`;
 }
 
 // Markdown (READMEs, model cards, PR bodies) to safe HTML: no images, no live links.

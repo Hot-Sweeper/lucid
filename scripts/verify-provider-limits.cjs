@@ -79,3 +79,14 @@ test("ambiguous local logs never become another account's quota", () => {
     assert.equal(result.limits[key].windows[0].usedPercent, 20);
   }
 });
+
+test("banked reset credits travel with their provider instance", () => {
+  const expires = new Date(now + 21 * 86400000).toISOString();
+  const result = mergeProviderLimits(usage, { providers: [
+    { instanceId: "codex", driver: "codex", name: "Codex", usageLimits: { checkedAt: at, windows: [window("weekly", { kind: "weekly", windowDurationMins: 10080 })], resetCredits: { availableCount: 2, nextExpiresAt: expires } } },
+    { instanceId: "claudeAgent", driver: "claudeAgent", usageLimits: { checkedAt: at, windows: [window("session")] } },
+  ] }, now);
+  assert.deepEqual(result.limits["t3:codex"].resetCredits, { availableCount: 2, nextExpiresAt: expires });
+  assert.equal(result.limits["t3:codex"].instanceId, "codex", "the reset RPC needs the instance id");
+  assert.equal(result.limits["t3:claudeAgent"].resetCredits, undefined, "no credits reported means none shown");
+});

@@ -1,4 +1,4 @@
-import captureSource from '../../scripts/dictation-test/capture-worklet.js?raw';
+import captureSource from './dictation-capture.worklet.js?raw';
 
 /** Worklet module fetches from file:// are rejected in the packaged renderer. */
 export async function loadCaptureWorklet(context: AudioContext) {

@@ -1,6 +1,6 @@
 // Public data for the robots' browser and git apps: GitHub, Hugging Face and Wikipedia pages,
-// web search results, and read-only facts about a local git repo. No tokens, short timeouts,
-// cached so a busy office does not burn through GitHub's 60 requests an hour.
+// web search results, site icons (favicons.cjs), and read-only facts about a local git repo.
+// No tokens, short timeouts, cached so a busy office does not burn through GitHub's 60 requests an hour.
 const { execFile } = require("node:child_process");
 
 const ALLOW = [
@@ -112,6 +112,7 @@ function register(ipcMain, fetchImpl) {
   ipcMain.handle("site:fetch", (_e, url, as) => siteFetch(fetchImpl, url, as));
   ipcMain.handle("web:search", (_e, q) => webSearch(fetchImpl, q));
   ipcMain.handle("git:info", (_e, root) => gitInfo(root));
+  require("./favicons.cjs").register(ipcMain);
 }
 
 module.exports = { register, siteFetch, webSearch, gitInfo };

@@ -62,34 +62,23 @@ Builds and `npm run verify:update` write to `dist-build`, keeping the installed
 `dist` intact while Lucid is running. Use Lucid's update button to validate and
 install changes. Do not build directly into the shared checkout's `dist`.
 
-## Offline dictation (Windows and Linux)
+## Dictation
 
-The first time you click **Dictate**, Lucid offers to download what it needs and shows
-the progress: an isolated transcribe.cpp runtime and the checksum-verified Parakeet
-Ultra Q8 model (about 740 MB). Python 3 must be installed. Files go to
-`%LOCALAPPDATA%\Lucid\dictation` on Windows and `~/.local/share/Lucid/dictation` on
-Linux. You can also run `python3 scripts/setup-dictation.py` (or `Setup Dictation.cmd`
-on Windows) yourself.
+Dictation uses T3 Code's own speech service, so it needs a T3 Code version with
+dictation. The first time you click **Dictate** without a speech model in T3, the
+chat offers to download the model T3 has selected and shows T3's real download
+progress. The model is shared: T3 uses it too, and models you install in T3's
+settings work here. Your recognition preferences (language, custom words, filler
+word removal) are the ones you set in T3.
 
-In a robot's chat, click **Dictate**, speak English or German, then click **Stop**.
-The transcript is inserted at the cursor in your draft. Review and send it yourself.
-Escape, switching threads, or closing the chat cancels dictation. Recognition runs
-locally, with automatic GPU selection and a CPU fallback. The worker unloads after
-five minutes of inactivity. Audio is not saved or sent to a service.
+In a robot's chat, click **Dictate**, speak, then click **Stop**. The transcript is
+inserted at the cursor in your draft. Review and send it yourself. Escape, switching
+threads, or closing the chat cancels dictation. Audio goes only to the T3 Code server
+on this computer, which transcribes it with the local model. It is not saved, and
+T3's optional cloud speech providers are not used.
 
-For a separate microphone trial, open `Test Dictation.cmd`, click **Record**, then
-click
-**Stop and transcribe**. The test starts in CPU mode. The device selector can also
-try automatic GPU acceleration. After setup, recognition runs offline. The model
-stays loaded while the test window is open; closing it releases the worker.
-
-This is a separate microphone trial. Text is editable and can be copied, but is
-not automatically sent to a robot. Recordings and transcripts are not saved by
-the trial. See `scripts/dictation-test/NOTICE.txt` for model attribution.
-
-`node scripts/verify-dictation.cjs` runs protocol and composer regressions without
-starting Electron, a microphone, or a native speech runtime. It requires Python
-to check German text under a Windows legacy output encoding.
+`node scripts/verify-dictation.cjs` checks T3's request format, error handling,
+first-use download progress and the composer without a microphone or T3.
 
 ## How it reads T3 Code
 

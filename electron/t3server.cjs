@@ -2,7 +2,7 @@
 // reorder, edit, cancel or steer queued messages, and change a thread's harness,
 // model, effort or speed.
 //
-// Auth uses T3's official pairing flow, with only two scopes:
+// Auth uses T3's official pairing flow, with two scopes by default:
 //   1. `t3 pair --scope orchestration:read --scope orchestration:operate --label Lucid`
 //      mints a one-time pairing token (read from the CLI's output, never logged).
 //   2. POST /oauth/token exchanges it for a bearer access token (30 days).
@@ -11,7 +11,9 @@
 //   4. Each WebSocket connection gets a short-lived ticket from
 //      POST /api/auth/websocket-ticket/rpc, then speaks Effect RPC on /ws.
 // If T3 rejects the token (expired or removed in T3's connections list), Lucid pairs
-// again once, then reports the error.
+// again once, then reports the error. A feature that needs more (settings:write to download
+// T3's speech model, providers:manage to use a reset credit) asks for it with grantScope(),
+// which pairs again with the extra scope after the user confirmed the action in the UI.
 
 const fs = require("node:fs");
 const path = require("node:path");
@@ -28,6 +30,9 @@ const RUNTIME = path.join(T3_HOME, "userdata", "server-runtime.json");
 const DB_PATH = path.join(T3_HOME, "userdata", "statev2.sqlite");
 const CLI = path.join(T3_HOME, "bin", process.platform === "win32" ? "t3.cmd" : "t3");
 const SCOPES = ["orchestration:read", "orchestration:operate"];
+// Extra scopes granted in this session; kept across a re-pair so it does not drop them.
+const EXTRA_SCOPES = new Set(["settings:write", "providers:manage"]);
+let extraScopes = new Set();
 const PROTOCOL = 2;
 
 class T3ServerError extends Error {
@@ -72,12 +77,17 @@ async function loadCred() {
   try {
     if (!(await canEncrypt())) return cred;
     const c = JSON.parse(await decrypt(fs.readFileSync(storePath())));
-    if (c && c.token && c.expiresAt > Date.now() + 60_000) cred = c;
+    if (c && c.token && c.expiresAt > Date.now() + 60_000) { cred = c; rememberExtras(c); }
   } catch {}
   return cred;
 }
+function rememberExtras(c) {
+  for (const s of String(c?.scope || "").split(/\s+/)) if (EXTRA_SCOPES.has(s)) extraScopes.add(s);
+}
+const wantedScopes = () => [...SCOPES, ...extraScopes];
 async function saveCred(c) {
   cred = c;
+  rememberExtras(c);
   // without OS encryption the token lives in memory only, never on disk in plain text
   if (!(await canEncrypt())) return;
   fs.mkdirSync(path.dirname(storePath()), { recursive: true });
@@ -104,12 +114,12 @@ function cliLauncher() {
 }
 
 // Runs `t3 pair` and returns only the token. Output stays in memory and is never logged.
-function mintPairingToken() {
+function mintPairingToken(scopes) {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(CLI)) return reject(new T3ServerError("The t3 command was not found. Open T3 Code once so it installs it.", "no-cli"));
     const l = cliLauncher();
     // `pair` finds the server from --base-dir (or the working folder), not from T3CODE_HOME
-    const args = [...l.pre, "pair", "--base-dir", T3_HOME, ...SCOPES.flatMap((s) => ["--scope", s]), "--label", "Lucid", "--ttl", "5m"];
+    const args = [...l.pre, "pair", "--base-dir", T3_HOME, ...scopes.flatMap((s) => ["--scope", s]), "--label", "Lucid", "--ttl", "5m"];
     const child = spawn(l.cmd, args, { windowsHide: true, cwd: os.homedir(), env: { ...process.env, ...l.env } });
     let out = "";
     child.stdout.on("data", (d) => (out += d));
@@ -125,14 +135,14 @@ function mintPairingToken() {
   });
 }
 
-async function exchange(pairingToken) {
+async function exchange(pairingToken, scopes) {
   const { origin } = server();
   const body = new URLSearchParams({
     grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
     subject_token: pairingToken,
     subject_token_type: "urn:t3:params:oauth:token-type:environment-bootstrap",
     requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
-    scope: SCOPES.join(" "),
+    scope: scopes.join(" "),
     client_label: "Lucid",
     client_device_type: "desktop",
     client_os: process.platform === "win32" ? "Windows" : process.platform === "darwin" ? "macOS" : "Linux",
@@ -152,7 +162,9 @@ async function ensurePaired({ force = false } = {}) {
   if (!pairing) {
     pairing = (async () => {
       try {
-        const c = await exchange(await mintPairingToken());
+        const scopes = wantedScopes();
+        const c = await exchange(await mintPairingToken(scopes), scopes);
+        if (!c.scope) c.scope = scopes.join(" ");
         await saveCred(c);
         lastError = null;
         return c;
@@ -165,21 +177,61 @@ async function ensurePaired({ force = false } = {}) {
   return pairing;
 }
 
+/** Whether the current session already holds a scope. */
+async function hasScope(scope) {
+  const c = await loadCred();
+  return !!c && String(c.scope || SCOPES.join(" ")).split(/\s+/).includes(scope);
+}
+/**
+ * Pairs again with one more scope, once, after the user confirmed an action that needs it.
+ * The WebSocket reconnects with the new session on its next call.
+ */
+async function grantScope(scope) {
+  if (!EXTRA_SCOPES.has(scope)) throw new T3ServerError("This app does not ask T3 for that permission.", "invalid");
+  if (await hasScope(scope)) return cred;
+  extraScopes.add(scope);
+  const c = await ensurePaired({ force: true });
+  closeSock();
+  if (!String(c.scope || "").split(/\s+/).includes(scope)) throw new T3ServerError("T3 did not give this app that permission.", "unauthorized");
+  return c;
+}
+
 // HTTP with the session. A 401 means expired or revoked: pair again once, then give up.
-async function authed(pathname, init = {}, retried = false, pairedOnly = false) {
+// Returns the raw response for 2xx and 4xx answers other than auth failures, so callers can read
+// T3's own error body (the voice API reports its reasons there).
+async function authedRaw(pathname, init = {}, { retried = false, pairedOnly = false } = {}) {
   const c = pairedOnly ? await loadCred() : await ensurePaired();
   if (!c) throw new T3ServerError("Connect Lucid to T3 Code to read subscription limits.", "not-paired");
   const { origin } = server();
-  const res = await fetch(origin + pathname, { ...(pairedOnly ? { signal: AbortSignal.timeout(2000) } : {}), ...init, headers: { ...(init.headers || {}), authorization: `Bearer ${c.token}` } });
-  if (res.status === 401 || res.status === 403) {
-    if (res.status === 401 && !retried && !pairedOnly) {
-      forgetCred();
-      await ensurePaired({ force: true });
-      return authed(pathname, init, true);
-    }
-    lastError = res.status === 401 ? "T3 no longer accepts Lucid's connection." : "T3 did not give Lucid permission for this.";
+  let res;
+  try {
+    res = await fetch(origin + pathname, { ...(pairedOnly ? { signal: AbortSignal.timeout(2000) } : {}), ...init, headers: { ...(init.headers || {}), authorization: `Bearer ${c.token}` } });
+  } catch (err) {
+    if (err?.name === "AbortError" || err?.name === "TimeoutError") throw err;
+    throw new T3ServerError("Could not reach T3 Code. Make sure it is open.", "offline");
+  }
+  if (res.status === 401 && !retried && !pairedOnly) {
+    forgetCred();
+    await ensurePaired({ force: true });
+    return authedRaw(pathname, init, { retried: true });
+  }
+  if (res.status === 401) {
+    lastError = "T3 no longer accepts Lucid's connection.";
     throw new T3ServerError(lastError, "unauthorized");
   }
+  if (res.status === 403) {
+    // T3 names the missing scope; settings:write is reported as requiredPermission.
+    let body = null;
+    try { body = await res.json(); } catch {}
+    const scope = body?.requiredPermission || body?.requiredScope || null;
+    const err = new T3ServerError("T3 did not give Lucid permission for this.", body?.code === "insufficient_scope" ? "scope" : "unauthorized");
+    err.scope = scope;
+    throw err;
+  }
+  return res;
+}
+async function authed(pathname, init = {}, retried = false, pairedOnly = false) {
+  const res = await authedRaw(pathname, init, { retried, pairedOnly });
   if (!res.ok) throw new T3ServerError(`T3 answered ${res.status}.`, "http");
   return res.json();
 }
@@ -371,10 +423,38 @@ function rememberUsageLimits(config) {
   // leave the main process through the usage bridge.
   const providers = (config?.providers || []).filter(p => p && p.enabled !== false && p.installed !== false).map(p => ({
     instanceId: p.instanceId, driver: p.driver, name: p.displayName || p.instanceId,
-    usageLimits: p.usageLimits ? { checkedAt: p.usageLimits.checkedAt, windows: (p.usageLimits.windows || []).map(w => ({ id: w.id, kind: w.kind, label: w.label, usedPercent: w.usedPercent, resetsAt: w.resetsAt, windowDurationMins: w.windowDurationMins })), unavailable: p.usageLimits.unavailable ? { reason: p.usageLimits.unavailable.reason, message: p.usageLimits.unavailable.message } : undefined } : null,
+    usageLimits: p.usageLimits ? { checkedAt: p.usageLimits.checkedAt, windows: (p.usageLimits.windows || []).map(w => ({ id: w.id, kind: w.kind, label: w.label, usedPercent: w.usedPercent, resetsAt: w.resetsAt, windowDurationMins: w.windowDurationMins })), resetCredits: resetCredits(p.usageLimits.resetCredits), unavailable: p.usageLimits.unavailable ? { reason: p.usageLimits.unavailable.reason, message: p.usageLimits.unavailable.message } : undefined } : null,
   }));
   usageLimitsCache = { at: Date.now(), providers };
   return { providers, fetchedAt: new Date(usageLimitsCache.at).toISOString(), source: "T3 Code" };
+}
+
+// Banked reset credits: how many and when the next one expires (the credit id stays here).
+function resetCredits(r) {
+  const count = Number(r?.availableCount);
+  if (!Number.isInteger(count) || count < 0) return undefined;
+  return { availableCount: count, nextExpiresAt: typeof r.nextExpiresAt === "string" ? r.nextExpiresAt : null };
+}
+
+const RESET_OUTCOMES = {
+  reset: "Limits reset.",
+  nothingToReset: "Nothing to reset right now.",
+  noCredit: "No reset credit left.",
+  alreadyRedeemed: "That credit was already redeemed.",
+};
+/**
+ * Redeems one banked reset credit for a provider instance (provider.consumeResetCredit, the
+ * same RPC as T3's usage panel). Irreversible: the UI confirms first. Needs providers:manage,
+ * which is granted once through pairing.
+ */
+async function consumeResetCredit(instanceId) {
+  if (typeof instanceId !== "string" || !instanceId || instanceId.length > 200) throw new T3ServerError("Choose a subscription first.", "invalid");
+  await grantScope("providers:manage");
+  let result;
+  try { result = await call("provider.consumeResetCredit", { instanceId }, { timeout: 30_000 }); }
+  finally { usageLimitsCache = null; usageLimitsRetryAt = 0; providerCache = null; }
+  const outcome = typeof result?.outcome === "string" ? result.outcome : "reset";
+  return { outcome, message: RESET_OUTCOMES[outcome] || "T3 answered.", warning: typeof result?.warning === "string" ? result.warning.slice(0, 240) : null };
 }
 
 /** Read T3's supported provider snapshots through an existing paired connection. */
@@ -486,7 +566,8 @@ function selection(threadId) {
  * With a threadId it also returns that thread's current model selection.
  */
 async function status({ connect = false, threadId = null } = {}) {
-  const out = { paired: !!(await loadCred()), error: lastError, selection: null };
+  const c = await loadCred();
+  const out = { paired: !!c, error: lastError, selection: null, scopes: c ? String(c.scope || SCOPES.join(" ")).split(/\s+/).filter(Boolean) : [] };
   try { if (threadId) out.selection = selection(threadId); } catch {}
   if (!out.paired && connect) {
     try { await ensurePaired(); out.paired = true; out.error = null; } catch (err) { out.error = err.message; }
@@ -515,7 +596,7 @@ module.exports = {
   searchThreads,
   setRemoteSecret: fn => { remoteSecret = fn; },
   setRemoteDispatch: fn => { remoteDispatch = fn; },
-  ensurePaired, status, dispatch, call, listProviders, hireConfig, startHire, hireContexts: projectId => require('./hire-context.cjs').settledContexts(getDb(), projectId), selection, usageLimits,
+  ensurePaired, hasScope, grantScope, authedRaw, status, dispatch, call, listProviders, hireConfig, startHire, hireContexts: projectId => require('./hire-context.cjs').settledContexts(getDb(), projectId), selection, usageLimits, consumeResetCredit,
   settleThread, unsettleThread, reorderQueued, cancelQueued, editQueued, steerNow, setThreadModel, respondToRequest,
   setStorePath, closeSock, T3ServerError,
 };

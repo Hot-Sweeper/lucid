@@ -5,12 +5,14 @@ export type Battery = {
   charging: boolean;
   name: string;
   windows: { label: string; resetsAt: number | null; startedAt: number }[];
+  /** Reset credits T3 reports as banked for this subscription (same reading as the Limits panel). */
+  resetCredits: number;
 };
 const canonical = (p: string) => /^(claudeAgent|claude-code|claude)$/i.test(p) ? "claude" : p;
 const timestamp = (s?: string | null) => s && Number.isFinite(Date.parse(s)) ? Date.parse(s) : null;
 const label = (l: Limit) => l.label || (l.windowMinutes === 10080 ? "Weekly" : l.windowMinutes ? `${l.windowMinutes / 60} hour` : "Subscription");
 const windows = (h: HarnessLimits) => h.windows?.length ? h.windows : [h.primary, h.secondary].filter((l): l is Limit => !!l);
-export const UNKNOWN_BATTERY: Battery = { remaining: null, charging: false, name: "Subscription", windows: [] };
+export const UNKNOWN_BATTERY: Battery = { remaining: null, charging: false, name: "Subscription", windows: [], resetCredits: 0 };
 
 /** Quota is shared by provider instance, never by a robot's species or appearance. */
 export class SubscriptionBatteries {
@@ -50,7 +52,7 @@ export class SubscriptionBatteries {
       }
     }
     this.blocked.set(key, held);
-    return { remaining: held.size ? 0 : remaining, charging: held.size > 0, name: found?.[1].name || provider,
+    return { remaining: held.size ? 0 : remaining, charging: held.size > 0, name: found?.[1].name || provider, resetCredits: found?.[1].resetCredits?.availableCount ?? 0,
       windows: [...held.values()].map(({ limit, startedAt }) => ({ label: label(limit), resetsAt: timestamp(limit.resetsAt), startedAt })) };
   }
 }

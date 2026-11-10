@@ -17,7 +17,7 @@ if (!process.versions.electron) {
   const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
   const csp = html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)?.[1];
   assert(csp, 'Run a private production build before this regression.');
-  const raw = fs.readFileSync(path.join(root, 'scripts/dictation-test/capture-worklet.js'), 'utf8');
+  const raw = fs.readFileSync(path.join(root, 'src/office/dictation-capture.worklet.js'), 'utf8');
   let helper = fs.readFileSync(path.join(root, 'src/office/dictation-worklet.ts'), 'utf8');
   helper = helper.replace(/^import captureSource.*;$/m, `const captureSource = ${JSON.stringify(raw)};`);
   helper = require('node:module').stripTypeScriptTypes(helper, { mode: 'transform' }).replace('export async function', 'async function');
