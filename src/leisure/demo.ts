@@ -4,8 +4,8 @@
 //   #parse    image generation items from T3 in several shapes, parsed (results in the log)
 //   #director a Codex image generation command played by the real Director, running then finished
 //   #skip     Botify playing and skipping songs
-//   #steam    Steambot: store, library, install, play
-//   #trading  Tradebot: charts, orders, mistakes
+//   #steam    Vapor: store, library, install, play
+//   #trading  Botcoin Exchange: charts, orders, mistakes
 // The scene name goes in the hash because the Electron screenshot run appends its own query.
 import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
@@ -68,7 +68,7 @@ const rigMove = desk.rig.moveMouse.bind(desk.rig);
 desk.rig.moveMouse = (p, turn) => { mousePts.push([p.x, p.y]); rigMove(p, turn); };
 const wm = new WM(screen, robot);
 wm.onCursor = (x, y) => cursorPts.push([x, y]);
-const base: Prefs = { editor: "studio", wallpaper: 0, games: { snake: 1, flappy: 1, dash: 1, chess: 1 }, phone: "clips", subagents: "cli", music: 0.2, social: 0.4, mug: "#ff8a65", tasks: "board", hobby: "gamer", windows: "floating", listens: "always", launch: "dock", switching: "click", tidiness: "normal", git: "cli", apps: ["doodle", "steam", "trading"], socials: ["chirp"] };
+const base: Prefs = { wallpaper: 0, games: { snake: 1, flappy: 1, dash: 1, chess: 1 }, phone: "clips", subagents: "cli", music: 0.2, social: 0.4, mug: "#ff8a65", tasks: "board", hobby: "gamer", windows: "floating", listens: "always", launch: "dock", switching: "click", tidiness: "normal", git: "cli", apps: ["doodle", "steam", "trading"], socials: ["chirp"] };
 wm.prefs = base;
 wm.robotName = "Pip";
 const stage = { phoneScreen: null, say() {}, sleepy() {}, setGlow() {} } as never;
@@ -153,7 +153,7 @@ async function scene() {
       d.push([mk("running", "")], false);
       window.setTimeout(() => d.push([mk("completed", `Saved ${file}\n`)], false), 14000);
     } else if (SCENE === "pick") {
-      // how often robots with different tastes pick Steambot and Tradebot (4000 draws each)
+      // how often robots with different tastes pick Vapor and Botcoin Exchange (4000 draws each)
       const rows: Record<string, unknown> = {};
       const cases: [string, Partial<Prefs>][] = [
         ["gamer, favourites steam + solitaire", { hobby: "gamer", apps: ["steam", "solitaire"] }],

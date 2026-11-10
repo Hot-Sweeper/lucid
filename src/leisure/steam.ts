@@ -1,5 +1,5 @@
 import { GAME_TITLES } from "../games/catalog";
-// Steambot: the robots' game store and launcher. A parody in Lucid's own style: a dark blue store
+// Vapor: the robots' game store and launcher, in Lucid's own style: a dusky indigo store
 // with sales and a cart, a library with an INSTALL or PLAY button, a download that really runs
 // its course. The robot browses, maybe buys something (or is declined), then installs and launches
 // one of the games that really exist on its desktop. The caller starts that game.
@@ -43,11 +43,11 @@ export const STEAM_GAMES: SteamGame[] = [
   { id: "connect4", key: "connect4", title: GAME_TITLES.connect4, blurb: "Gravity does half the work.", c: ["#e8483a", "#7a1a2a"], price: 1.99, size: 0.1, glyph: G.four },
   { id: "chess", key: "chess", title: GAME_TITLES.chess, blurb: "Sixty four squares, no refunds.", c: ["#8a6a4a", "#2a2018"], price: 4.99, size: 0.1, glyph: G.knight },
   // store only
-  { id: "cyberbug", key: null, title: "Cyberbug 2077", blurb: "The patch notes are longer than the game.", c: ["#f2e03a", "#c43a8a"], price: 59.99, sale: 0.65, size: 70, glyph: G.sword },
-  { id: "halfbyte", key: null, title: "Half-Byte 3", blurb: "Release date: when it is ready.", c: ["#e87a1e", "#3a1e0c"], price: 59.99, size: 40, glyph: G.portal },
-  { id: "elden", key: null, title: "Elden Ping", blurb: "Everything is fine until the connection drops.", c: ["#b9a26a", "#2a2418"], price: 49.99, sale: 0.4, size: 48, glyph: G.knight },
-  { id: "stardew", key: null, title: "Stardew Server", blurb: "Grow cabbages on a rack in the cloud.", c: ["#5fcf7a", "#2a7a5a"], price: 14.99, size: 0.7, glyph: G.farm },
-  { id: "kerbal", key: null, title: "Kernel Space Program", blurb: "Launch things into orbit, mostly by accident.", c: ["#4a9ae8", "#1a2a5a"], price: 39.99, sale: 0.5, size: 8.4, glyph: G.rocket },
+  { id: "patchpunk", key: null, title: "Patchpunk 3077", blurb: "The patch notes are longer than the game.", c: ["#f2e03a", "#c43a8a"], price: 59.99, sale: 0.65, size: 70, glyph: G.sword },
+  { id: "halfcharged", key: null, title: "Half-Charged 3", blurb: "Release date: when it is ready.", c: ["#e87a1e", "#3a1e0c"], price: 59.99, size: 40, glyph: G.portal },
+  { id: "lagspire", key: null, title: "Lagspire", blurb: "Everything is fine until the connection drops.", c: ["#b9a26a", "#2a2418"], price: 49.99, sale: 0.4, size: 48, glyph: G.knight },
+  { id: "cloudrow", key: null, title: "Cloudrow Farm", blurb: "Grow cabbages on a rack in the cloud.", c: ["#5fcf7a", "#2a7a5a"], price: 14.99, size: 0.7, glyph: G.farm },
+  { id: "thrust", key: null, title: "Thrust Issues", blurb: "Launch things into orbit, mostly by accident.", c: ["#4a9ae8", "#1a2a5a"], price: 39.99, sale: 0.5, size: 8.4, glyph: G.rocket },
 ];
 
 const byId = (id: string) => STEAM_GAMES.find((g) => g.id === id)!;
@@ -56,18 +56,19 @@ const usd = (n: number) => `$${n.toFixed(2)}`;
 const gb = (n: number) => (n < 1 ? `${Math.round(n * 1024)} MB` : `${n.toFixed(1)} GB`);
 
 const art = (g: SteamGame, cls = "") => `<div class="sb-art ${cls}" style="background:linear-gradient(135deg, ${g.c[0]}, ${g.c[1]})"><svg viewBox="0 0 48 48" aria-hidden="true">${g.glyph}</svg></div>`;
-const LOGO = `<svg class="sb-logo" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#c7d5e0"/><circle cx="7.6" cy="15.6" r="3" fill="#171a21"/><circle cx="16" cy="9" r="3.6" fill="none" stroke="#171a21" stroke-width="1.8"/><path d="m9.6 14.2 4-3.6" stroke="#171a21" stroke-width="2" stroke-linecap="round"/></svg>`;
+// A soft vapor puff with a spark: three rising curls over a rounded cloud.
+const LOGO = `<svg class="sb-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 20.5a4 4 0 0 1-.6-8 5.2 5.2 0 0 1 9.9-1.4 3.9 3.9 0 0 1 1.7 7.5c-.4 1.2-1.5 1.9-2.8 1.9Z" fill="#cfd6ff"/><path d="M8.2 9.6c-1-1.4-.2-2.6.6-3.4.7-.7.9-1.6.4-2.5M12 8.6c-.8-1.2-.2-2.2.5-2.9" stroke="#cfd6ff" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".7"/><path d="m18.6 2.6.7 1.7 1.7.7-1.7.7-.7 1.7-.7-1.7-1.7-.7 1.7-.7Z" fill="#ffb38a"/><circle cx="9.4" cy="16.4" r="1" fill="#252b52"/><circle cx="13.4" cy="16.4" r="1" fill="#252b52"/></svg>`;
 
 export type SteamOpts = SoOpts & { want?: (key: string) => number };
 
 /** Browses the store, maybe buys something, installs and launches a game. Resolves with the activity key of the game it launched, or null. */
 export async function useSteam(body: HTMLElement, host: SoHost, opts: SteamOpts): Promise<{ launch: string | null }> {
   const out: { launch: string | null } = { launch: null };
-  await runApp(body, host, opts, async (k) => { out.launch = await new Steambot(k, body, opts).session(); });
+  await runApp(body, host, opts, async (k) => { out.launch = await new Vapor(k, body, opts).session(); });
   return out;
 }
 
-class Steambot {
+class Vapor {
   root: HTMLElement;
   page!: HTMLElement;
   owned = new Set<string>();
@@ -86,7 +87,7 @@ class Steambot {
     // at least one game is ready to play
     if (!this.installed.size) this.installed.add(mine[0].id);
     this.root.innerHTML = `
-      <header class="sb-top"><span class="sb-brand">${LOGO}<b>Steambot</b></span>
+      <header class="sb-top"><span class="sb-brand">${LOGO}<b>Vapor</b></span>
         <nav><span data-tab="store" class="on">Store</span><span data-tab="library">Library</span><span>Community</span></nav>
         <span class="sb-cart" hidden>Cart (<i>1</i>)</span></header>
       <div class="sb-page"></div>`;

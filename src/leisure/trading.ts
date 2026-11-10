@@ -1,6 +1,6 @@
-// Tradebot: a crypto exchange for robots. Bitcoin shows the real market: real candles for real
-// timeframes and the real last price (cached and rate limited in the main process; when the network
-// is down it says so and plays simulated prices). Next to it sit fictional meme coins with
+// Botcoin Exchange: a crypto exchange for robots. Botcoin follows a real market feed: real candles
+// for real timeframes and the real last price (cached and rate limited in the main process; when
+// the network is down it says so and plays simulated prices). Next to it sit fictional meme coins with
 // made-up, very volatile prices that pump and get rugged. The robot draws trend lines on the
 // chart, then trades with the usual human mistakes: buys after the green candle, panics at the
 // first dip, types an extra zero, sells just before the moon. Orders, profit, liquidation and the
@@ -19,7 +19,7 @@ type Market = {
 };
 type Pos = { m: Market; side: 1 | -1; margin: number; lev: number; entry: number };
 
-const GREEN = "#2ebd85", RED = "#f6465d", MUTE = "#848e9c", BG = "#0b0e11", GOLD = "#f0b90b";
+const GREEN = "#3fd49a", RED = "#ff5f7a", MUTE = "#8a90b0", BG = "#0d1022", GOLD = "#ffb45c";
 const gauss = () => { let s = 0; for (let i = 0; i < 4; i++) s += Math.random(); return (s - 2) * 1.73; };
 const dec = (p: number) => (p >= 100 ? 2 : p >= 1 ? 3 : p >= 0.01 ? 4 : 6);
 const px = (p: number) => p.toLocaleString("en-US", { minimumFractionDigits: dec(p), maximumFractionDigits: dec(p) });
@@ -27,9 +27,12 @@ const usd = (n: number, d = 2) => `${n < 0 ? "-" : ""}$${Math.abs(n).toLocaleStr
 const hhmm = (t: number) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const NOTES = ["to the moon", "support?", "trust me", "cup and handle", "this time is different", "it is a triangle", "buy here", "beep boop up only"];
 
+// Botcoin's own coin: a copper coin with a little robot face.
+const COIN = `<svg class="tb-coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#f2a65a"/><circle cx="12" cy="12" r="8.4" fill="none" stroke="#ffd9ad" stroke-width="1.2"/><path d="M12 9.4V6.8" stroke="#3a2414" stroke-width="1.4" stroke-linecap="round"/><circle cx="12" cy="6.3" r="1.1" fill="#3a2414"/><rect x="7.4" y="9.2" width="9.2" height="7.2" rx="2.4" fill="#3a2414"/><circle cx="10.2" cy="12.8" r="1.1" fill="#ffd9ad"/><circle cx="13.8" cy="12.8" r="1.1" fill="#ffd9ad"/></svg>`;
+
 // Fictional robot coins: made-up prices from a local random walk. Never presented as real.
 const COINS: [string, string, number, number][] = [
-  ["BOLT", "Boltcoin", 0.042, 0.012], ["BEEP", "Beepcoin", 0.0031, 0.016], ["SPRKT", "Sprocket Inu", 0.00021, 0.02],
+  ["VOLT", "Voltcoin", 0.042, 0.012], ["BEEP", "Beepcoin", 0.0031, 0.016], ["SPRKT", "Sprocket Inu", 0.00021, 0.02],
   ["WHIRR", "Whirrcoin", 1.37, 0.01], ["ANTN", "Antennacoin", 0.088, 0.014],
 ];
 
@@ -55,7 +58,7 @@ class Tradebot {
     this.root = h("div", "tb");
     body.appendChild(this.root);
     this.root.innerHTML = `
-      <aside class="tb-mk"><header>Markets</header><div class="tb-grp" data-grp="real"></div><header class="tb-fic">Fictional coins</header><div class="tb-grp" data-grp="fic"></div></aside>
+      <aside class="tb-mk"><div class="tb-brand">${COIN}<b>Botcoin Exchange</b></div><header>Markets</header><div class="tb-grp" data-grp="real"></div><header class="tb-fic">Fictional coins</header><div class="tb-grp" data-grp="fic"></div></aside>
       <main class="tb-main">
         <header class="tb-head"><div class="tb-pair"><b></b><small></small></div><span class="tb-px"></span><span class="tb-chg"></span></header>
         <div class="tb-bar"><nav class="tb-tf">${INTERVALS.map((t, i) => `<span data-tf="${t}" class="${i === 0 ? "on" : ""}">${t}</span>`).join("")}</nav>
@@ -77,21 +80,21 @@ class Tradebot {
     this.cw = chart.clientWidth || 440; this.chh = chart.clientHeight || 290;
     this.ctx = canvas(chart.querySelector("canvas")!, this.cw, this.chh);
     this.mark = marker(chart);
-    // the markets: Bitcoin first (its data arrives in a moment), then the made-up coins
-    const btc: Market = { sym: "BTC", name: "Bitcoin", real: true, fictional: false, price: 0, shown: 0, candles: [], step: INTERVAL_MS["1m"], open: 0, drift: 0, vol: 0.0006, ticks: 0, lines: [], note: "Loading the real chart", interval: "1m" };
-    this.markets.push(btc);
+    // the markets: Botcoin first (its live data arrives in a moment), then the made-up coins
+    const botc: Market = { sym: "BOTC", name: "Botcoin", real: true, fictional: false, price: 0, shown: 0, candles: [], step: INTERVAL_MS["1m"], open: 0, drift: 0, vol: 0.0006, ticks: 0, lines: [], note: "Loading the live chart", interval: "1m" };
+    this.markets.push(botc);
     for (const [sym, name, p0, vol] of COINS) {
       const m: Market = { sym, name, real: false, fictional: true, price: 0, shown: 0, candles: [], step: 1, open: 0, drift: 0, vol, ticks: 0, lines: [], note: "Fictional coin, made-up prices", interval: "1m" };
       this.seed(m, p0 * rnd(0.6, 1.6));
       this.markets.push(m);
     }
     this.markets.forEach((m) => {
-      const el = h("div", "tb-m", `<div><b>${m.sym}/USD</b><small>${m.name}</small></div><span></span>`);
+      const el = h("div", "tb-m", `<div><b>${m.real ? COIN : ""}${m.sym}/USD</b><small>${m.name}</small></div><span></span>`);
       m.el = el;
       this.root.querySelector(`[data-grp="${m.fictional ? "fic" : "real"}"]`)!.appendChild(el);
     });
-    this.cur = btc;
-    this.select(btc);
+    this.cur = botc;
+    this.select(botc);
     this.syncSide();
     // the simulated markets run while the app is open; the chart is redrawn when something changed, not every frame
     let acc = 0;
@@ -103,7 +106,7 @@ class Tradebot {
   }
 
   // --- data -----------------------------------------------------------------------
-  /** A made-up history for a fictional coin (or for Bitcoin while offline), ending at `price`. */
+  /** A made-up history for a fictional coin (or for Botcoin while offline), ending at `price`. */
   private seed(m: Market, price: number) {
     const base = Date.now();
     let p = price / rnd(0.8, 1.25);
@@ -120,7 +123,7 @@ class Tradebot {
   }
 
   /** The real chart for the timeframe, or a clearly labelled simulation when there is no data. */
-  private async loadBtc(interval: Interval) {
+  private async loadLive(interval: Interval) {
     const m = this.markets[0];
     const real = await realKlines(interval);
     if (this.k.dead) return;
@@ -142,7 +145,7 @@ class Tradebot {
   }
 
   /** Real last price, now and then; the shown price glides to it. */
-  private async pollBtc() {
+  private async pollLive() {
     const m = this.markets[0];
     if (this.k.dead || m.note.startsWith("Offline") || !m.candles.length) return;
     const r = await realPrice();
@@ -223,7 +226,7 @@ class Tradebot {
     c.beginPath();
     m.candles.forEach((cd, i) => { const x = this.xOf(cd.t), y = this.yOf(cd.c, r); if (i) c.lineTo(x, y); else c.moveTo(x, y); });
     c.lineTo(this.xOf(m.candles[n - 1].t), PH); c.lineTo(this.xOf(m.candles[0].t), PH); c.closePath();
-    const g = c.createLinearGradient(0, 0, 0, PH); g.addColorStop(0, up ? "rgba(46,189,133,0.14)" : "rgba(246,70,93,0.14)"); g.addColorStop(1, "rgba(0,0,0,0)");
+    const g = c.createLinearGradient(0, 0, 0, PH); g.addColorStop(0, up ? "rgba(63,212,154,0.14)" : "rgba(255,95,122,0.14)"); g.addColorStop(1, "rgba(0,0,0,0)");
     c.fillStyle = g; c.fill();
     // candles: thin rounded wicks, rounded bodies, no outlines
     for (const cd of m.candles) {
@@ -363,7 +366,7 @@ class Tradebot {
     const el = this.root.querySelector(`[data-tf="${tf}"]`) as HTMLElement;
     await this.k.click(el);
     el.classList.add("on");
-    await this.loadBtc(tf);
+    await this.loadLive(tf);
     await this.k.sleep(rnd(500, 900));
   }
 
@@ -542,28 +545,28 @@ class Tradebot {
 
   // --- the sessions -------------------------------------------------------------------
   async session() {
-    const k = this.k, btc = this.markets[0];
+    const k = this.k, botc = this.markets[0];
     await k.sleep(rnd(500, 900));
-    await this.loadBtc("1m");
-    const pollLoop = () => { void this.pollBtc().finally(() => { if (!k.dead) k.later(pollLoop, 4000); }); };
+    await this.loadLive("1m");
+    const pollLoop = () => { void this.pollLive().finally(() => { if (!k.dead) k.later(pollLoop, 4000); }); };
     pollLoop();
     this.paintSide();
-    // Bitcoin on the real chart half of the time, otherwise one of the made-up coins
-    const m = chance(0.5) ? pick(this.markets.slice(1)) : btc;
+    // Botcoin on the live chart half of the time, otherwise one of the made-up coins
+    const m = chance(0.5) ? pick(this.markets.slice(1)) : botc;
     await k.sleep(rnd(900, 1500));
     await this.openMarket(m);
     if (m.real && chance(0.55)) await this.pickTimeframe(pick(["5m", "15m", "1h"] as Interval[]));
     await k.sleep(rnd(600, 1100));
     if (chance(0.85)) await this.memeAnalysis();
     else await this.trendLine(chance(0.7));
-    if (m.real) await this.tradeBitcoin(m);
+    if (m.real) await this.tradeBotcoin(m);
     else await this.tradeMeme(m);
     m.drift = 0;
     await k.sleep(rnd(2000, 3500));
   }
 
   /** Real chart, real price: the robot jumps in after a green candle with too much leverage and then reacts to what the price really does. */
-  private async tradeBitcoin(m: Market) {
+  private async tradeBotcoin(m: Market) {
     const k = this.k;
     k.host.react("focus");
     await k.sleep(rnd(900, 1600));

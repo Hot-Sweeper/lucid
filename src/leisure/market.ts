@@ -1,4 +1,4 @@
-// Real Bitcoin data from the main process (cached and rate limited there, see electron/market.cjs).
+// Live BTC/USD market data for Botcoin from the main process (cached and rate limited there, see electron/market.cjs).
 // Resolves null when there is no data (offline, blocked, or running outside the app).
 export type RealCandle = { t: number; o: number; h: number; l: number; c: number };
 type Answer<T> = { ok: boolean; value?: T; error?: string };
