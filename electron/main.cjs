@@ -501,6 +501,12 @@ ipcMain.handle("t3s:pin", t3sWrap((o) => {
   const command = { type: o.pinned ? 'thread.pin' : 'thread.unpin', threadId: o.threadId };
   return remote.split(o.threadId) ? remote.dispatch(command) : t3s.dispatch(command);
 }));
+// Stop, rename and archive through T3's own commands (thread-actions.cjs validates them).
+const orchThreadId = () => { try { return JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "settings.json"), "utf8")).orch?.threadId || null; } catch { return null; } };
+for (const action of ["stop", "rename", "archive"]) ipcMain.handle(`t3s:${action}`, t3sWrap((o) => {
+  const command = require("./thread-actions.cjs").threadCommand(action, o, { local: t3.reportState, reserved: id => id === orchThreadId() ? "The orchestrator's thread stays. Stop using it in its settings first." : null });
+  return remote.split(command.threadId) ? remote.dispatch(command) : t3s.dispatch(command);
+}));
 ipcMain.handle("t3s:providers", t3sWrap((o) => activeBuilding() ? remote.providers(activeBuilding()) : t3s.listProviders(o || {})));
 ipcMain.handle("t3s:search-threads", t3sWrap((q) => activeBuilding() ? { matches: [], threads: [] } : t3s.searchThreads(q)));
 ipcMain.handle("t3s:hire-config", t3sWrap((o) => { if (activeBuilding()) throw Error('Start a new thread in T3 Code for this building.'); return t3s.hireConfig(o || {}); }));

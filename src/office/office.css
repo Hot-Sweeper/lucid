@@ -857,3 +857,4 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .empty-desk-remove:active { transform:scale(.94); }
 .empty-desk-remove:disabled { opacity:.35; cursor:default; }
 @media(prefers-reduced-motion:reduce) { .empty-desk-remove { transition:none; transform:none; } }
+.cp-stop { flex: none; min-height: var(--control-h); font-size: 13px; }

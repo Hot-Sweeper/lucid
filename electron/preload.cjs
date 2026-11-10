@@ -95,6 +95,9 @@ const t3s = (channel) => async (arg) => {
 };
 contextBridge.exposeInMainWorld("lucidT3", {
   pin: t3s("t3s:pin"),
+  stop: t3s("t3s:stop"),
+  rename: t3s("t3s:rename"),
+  archive: t3s("t3s:archive"),
   status: t3s("t3s:status"),
   providers: t3s("t3s:providers"),
   hireConfig: t3s("t3s:hire-config"),

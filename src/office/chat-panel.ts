@@ -44,6 +44,7 @@ export type T3Api = {
   edit(o: { threadId: string; runId: string; text: string }): Promise<unknown>;
   steer(o: { threadId: string; queuedRunId: string; targetRunId: string }): Promise<unknown>;
   setModel(o: { threadId: string; selection: { providerInstanceId: string; model: string; options: Record<string, OptionValue> } }): Promise<unknown>;
+  stop?(o: { threadId: string }): Promise<unknown>;
 };
 type Api = {
   threadCard?(ref: ThreadReference): ThreadCardInfo | null;
@@ -459,6 +460,7 @@ export class ChatPanel {
           <div class="cp-tools">
             <button type="button" class="cp-attach" aria-label="Attach files or images" title="Attach files or images (you can also paste or drop them)">${icon("attach", 18)}</button>
             <span class="cp-hint">${HINT}</span>
+            <button type="button" class="ghost cp-stop" title="Stop the current run. Queued messages wait until you send again." hidden>Stop</button>
             <button type="submit" class="cp-send" aria-label="Send"><span>Send</span>${icon("send", 14)}</button>
           </div>
           <input type="file" class="cp-fileinput" multiple hidden>
@@ -467,6 +469,15 @@ export class ChatPanel {
       </form>`;
     host.appendChild(this.el);
     watchLucidMedia(this.el);
+    const stop = this.el.querySelector<HTMLButtonElement>(".cp-stop")!;
+    stop.addEventListener("click", async () => {
+      const threadId = this.threadId;
+      if (!threadId || !this.api.t3?.stop || stop.disabled) return;
+      stop.disabled = true; stop.textContent = "Stopping";
+      try { await this.api.t3.stop({ threadId }); if (threadId === this.threadId) this.refreshSoon(200); }
+      catch (err: any) { if (threadId === this.threadId) this.failed(err); }
+      finally { stop.disabled = false; stop.textContent = "Stop"; }
+    });
     this.el.addEventListener("click", event => {
       const file = (event.target as Element)?.closest<HTMLAnchorElement>("a.cp-download");
       const download = (window as any).lucid?.downloadAnswer;
@@ -803,6 +814,7 @@ export class ChatPanel {
     p.title = "";
     const send = this.el.querySelector(".cp-send span") as HTMLElement;
     send.textContent = state === "working" ? "Queue" : "Send";
+    (this.el.querySelector(".cp-stop") as HTMLElement).hidden = state !== "working" || !this.api.t3?.stop;
     (send.parentElement as HTMLElement).title = state === "working" ? "It is busy: your message waits in the queue and comes next" : "Send";
     const span = p.querySelector("span")!;
     if (span.textContent !== text) { span.textContent = text; gsap.fromTo(span, { opacity: 0.3 }, { opacity: 1, duration: 0.3 }); }

@@ -748,7 +748,7 @@ function setupMenus() {
       { label: "Go to its desk", run: () => world.showDesk(d) },
       { label: "Customize robot", run: () => openCustomizeFor(d, world.roster) },
     ];
-    if (d.threadId) items.push(...pinItems(d.threadId), ...officeMoveItems(d.threadId));
+    if (d.threadId) items.push(...pinItems(d.threadId), ...threadActionItems(d.threadId), ...officeMoveItems(d.threadId));
     if (d.room === "freelance" && d.folder) {
       items.push({ input: "Turn this work into a project", placeholder: "Project name", value: (d.info?.title || "").slice(0, 40), submit: "Create project",
         run: async (name: string) => { await api.addProject({ path: d.folder!, title: name }); await refresh(); } });
@@ -1684,6 +1684,25 @@ function pinItems(id: string) {
     catch (err: any) { void confirmDialog(t.pinned ? "T3 kept the thread pinned" : "T3 did not pin the thread", String(err?.message || err), "OK"); }
   } }];
 }
+/** Stop, rename and archive through T3's own thread commands. */
+const RUNNING = new Set(["running", "starting", "preparing", "queued"]);
+function threadActionItems(id: string) {
+  const t = world.lastData?.threads.find(x => x.id === id);
+  if (!t) return [];
+  const t3 = (window as any).lucidT3;
+  const items: any[] = [];
+  if (RUNNING.has((t.runStatus ?? "").toLowerCase())) items.push({ label: "Stop", run: async () => {
+    try { await t3.stop({ threadId: id }); gameSound.play("switch"); await refresh(); }
+    catch (err: any) { void confirmDialog("T3 did not stop the thread", String(err?.message || err), "OK"); }
+  } });
+  items.push({ input: "Rename", placeholder: "Thread name", value: t.title || "", submit: "Rename", run: async (title: string) => { await t3.rename({ threadId: id, title }); await refresh(); renderThreads(true); } });
+  if (id !== world.orchThread && !RUNNING.has((t.runStatus ?? "").toLowerCase())) items.push({ label: "Archive in T3", danger: true, run: async () => {
+    if (!await confirmDialog("Archive this thread?", "It leaves the office and T3's thread list. Archived threads stay in T3, where you can restore them.", "Archive")) return;
+    try { await t3.archive({ threadId: id }); gameSound.play("paper"); await refresh(); renderThreads(true); }
+    catch (err: any) { void confirmDialog("T3 did not archive the thread", String(err?.message || err), "OK"); }
+  } });
+  return items;
+}
 function officeMoveItems(id: string) {
   if (id === world.orchThread) return [];
   const current = world.homes.get(id) ?? world.deskFor(id)?.room;
@@ -1700,7 +1719,7 @@ function threadMenu(row: HTMLElement, x: number, y: number) {
   if (previous) items.push({ label: "Move up (Alt+Up)", run: () => { void moveThread(id, previous.id, false); } });
   if (next) items.push({ label: "Move down (Alt+Down)", run: () => { void moveThread(id, next.id, true); } });
   if (chat.isOpen && chat.threadId && chat.threadId !== id) items.unshift({ label: "Reference in chat (R)", run: () => { chat.addReference(ref); } });
-  items.push(...pinItems(id), ...officeMoveItems(id));
+  items.push(...pinItems(id), ...threadActionItems(id), ...officeMoveItems(id));
   showMenu(x, y, ref.title, items);
 }
 for (const box of [$("th-list"), $("rail-list")]) {
