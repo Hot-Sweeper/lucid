@@ -1,10 +1,10 @@
 // Standalone demo: every game in its own window with a fake robot host.
-// Query: ?only=blockcraft,nightshift  ?skill=0.8  ?max=90000  ?speed=4 (faster robot waits, for outcome-rate runs)
+// Query: ?only=voxelvalley,uptime  ?skill=0.8  ?max=90000  ?speed=4 (faster robot waits, for outcome-rate runs)
 import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import gsap from "gsap";
 import type { FunHost, FunOpts, Outcome } from "../fun/host";
-import { playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge, playRobotIsland, playBotCom, playDerBugger, playBoot } from "./index";
+import { playVoxelValley, playUptimeTillDawn, playTicTacToe, playConnectFour, playBitMerge, playRustwaterBay, playTidewatchTactics, playDerBugger, playBoot } from "./index";
 import { GAME_TITLES } from "./catalog";
 
 class Cancel extends Error {}
@@ -141,13 +141,13 @@ function panel(id: string, title: string, run: Run) {
 }
 
 const loops = [
-  panel("blockcraft", GAME_TITLES.blockcraft, playBlockcraft),
-  panel("nightshift", GAME_TITLES.nightshift, playNightShift),
+  panel("voxelvalley", GAME_TITLES.voxelvalley, playVoxelValley),
+  panel("uptime", GAME_TITLES.uptime, playUptimeTillDawn),
   panel("ttt", GAME_TITLES.tictactoe, playTicTacToe),
   panel("c4", GAME_TITLES.connect4, playConnectFour),
   panel("merge", GAME_TITLES.bitmerge, playBitMerge),
-  panel("island", GAME_TITLES.island, playRobotIsland),
-  panel("botcom", GAME_TITLES.botcom, playBotCom),
+  panel("rustwater", GAME_TITLES.rustwater, playRustwaterBay),
+  panel("tidewatch", GAME_TITLES.tidewatch, playTidewatchTactics),
   panel("bugger", GAME_TITLES.bugger, playDerBugger),
   panel("boot", GAME_TITLES.boot, playBoot),
 ].filter(Boolean) as (() => Promise<void>)[];

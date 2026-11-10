@@ -79,7 +79,7 @@ function drawMop(ctx: Ctx, x: number, foot: number, t: number, dir: number, o: {
   }
 }
 
-export async function playNightShift(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
+export async function playUptimeTillDawn(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
   const scope = new Scope(body);
   const calm = reducedMotion();
   try {

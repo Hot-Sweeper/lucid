@@ -63,7 +63,7 @@ if (!process.versions.electron) {
         if (process.env.LUCID_CAMERA_NO_GATE) await js("{const w=window.__world;w.flushCamera=()=>{w.applyQueued=0;w.apply();w.keepFocus()};void 0}");
         if (process.env.LUCID_PERF_CSS) await js(`{const s=document.createElement('style');s.textContent=${JSON.stringify(process.env.LUCID_PERF_CSS)};document.head.append(s)}`);
         if (process.env.LUCID_CAMERA_APPS) {
-          await js(`{let i=0;for(const d of window.__world.desks.values()){d.wm.speed=20;void d.director.idleLife.doActivity(['blockcraft','nightshift','botcom','boot','botflix','tensorhub'][i++%6],d.director.idleLife.token).catch(e=>{if(e.constructor.name!=='Cancelled')console.error(e)})}}`);
+          await js(`{let i=0;for(const d of window.__world.desks.values()){d.wm.speed=20;void d.director.idleLife.doActivity(['voxelvalley','uptime','tidewatch','boot','botflix','tensorhub'][i++%6],d.director.idleLife.token).catch(e=>{if(e.constructor.name!=='Cancelled')console.error(e)})}}`);
           await wait(6000);
         }
         await dbg.sendCommand("Performance.enable");
@@ -80,7 +80,7 @@ if (!process.versions.electron) {
         for (const [name, scale, cx, cy] of (process.env.LUCID_PERF_CHECKS_ONLY ? [] : scenes)) {
           if ((name === "apps-many" || name === "apps-far") && !appsStarted) {
             appsStarted = true;
-            await js(`{let i=0;for(const d of window.__world.desks.values()){d.wm.speed=20;void d.director.idleLife.doActivity(['blockcraft','nightshift','botcom','boot','botflix','tensorhub'][i++%6],d.director.idleLife.token).catch(e=>{if(e.constructor.name!=='Cancelled')console.error(e)})}}`);
+            await js(`{let i=0;for(const d of window.__world.desks.values()){d.wm.speed=20;void d.director.idleLife.doActivity(['voxelvalley','uptime','tidewatch','boot','botflix','tensorhub'][i++%6],d.director.idleLife.token).catch(e=>{if(e.constructor.name!=='Cancelled')console.error(e)})}}`);
             await wait(6000);
           }
           if (name === "chat") { await js(`window.__chat.open(window.__world.desks.values().next().value)`); chatTimer = setInterval(() => { void js("window.__chat.refresh()"); }, 750); }

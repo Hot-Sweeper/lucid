@@ -136,7 +136,7 @@ function drawBlock(ctx: Ctx, t: number, x: number, y: number, B: number, seed: n
   }
 }
 
-export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
+export async function playVoxelValley(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
   const scope = new Scope(body);
   const calm = reducedMotion();
   try {

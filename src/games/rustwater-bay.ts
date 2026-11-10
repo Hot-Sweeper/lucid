@@ -4,7 +4,7 @@
 // items, frees a rusted pulley, fixes the cable pole, rides across and wins a debug duel
 // against Captain Hex, who guards the lighthouse console.
 import "./games.css";
-import "./island.css";
+import "./rustwater-bay.css";
 import { canvasPixelRatio } from "../perf/canvas";
 import { canvasText } from "../localization-canvas";
 import { onLocaleChange } from "../localization";
@@ -411,7 +411,7 @@ const ITEMS: Record<ItemId, { name: string; draw: (ctx: Ctx, oiled: boolean) => 
 
 interface Hot { name: string; x: number; y: number; w: number; h: number; walk?: number; face?: 1 | -1; ax?: number; ay?: number; el?: HTMLElement }
 
-export async function playRobotIsland(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
+export async function playRustwaterBay(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
   const scope = new Scope(body);
   const calm = reducedMotion();
   try {
