@@ -24,7 +24,7 @@ if (!process.versions.electron) {
           const sample=setInterval(()=>{const q=wm.root.querySelector('.l-q'),r=wm.root.querySelector('.l-result:not([hidden]) > span');if(q)window.__launchQueries.push(q.textContent);if(r)window.__launchResults.push(r.textContent)},1);
           try{return await promise}finally{clearInterval(sample)}
         };
-        for(const [key,title] of [['snake','Snake'],['blockcraft','Blockcraft'],['nightshift','Five Nights at the Server Room'],['chess','Chess']]){
+        for(const [key,title] of [['snake','Snake'],['blockcraft','Voxel Valley'],['nightshift','Uptime Till Dawn'],['chess','Chess']]){
           wm.reset();idle.token++;idle.active=true;window.__launchQueries=[];window.__launchResults=[];
           const run=idle.doActivity(key,idle.token).catch(e=>{if(!(e instanceof Cancelled))throw e});
           for(let i=0;i<200;i++){if(wm.wins.get('game')?.body.children.length)break;await wait(15)}
@@ -39,16 +39,16 @@ if (!process.versions.electron) {
         wm.reset();wm.speed=15;idle.token++;idle.active=true;window.__launchQueries=[];
         const run=idle.doActivity('blockcraft',idle.token,true).catch(e=>{if(!(e instanceof Cancelled))throw e});
         for(let i=0;i<100;i++){if(wm.wins.get('game')?.body.children.length)break;await wait(15)}
-        assert(wm.wins.get('game')?.title.textContent==='Blockcraft' && window.__launchQueries.length===0,'Steambot Play opens the chosen game directly without another search');
+        assert(wm.wins.get('game')?.title.textContent==='Voxel Valley' && window.__launchQueries.length===0,'Steambot Play opens the chosen game directly without another search');
         idle.stop();await run;await wait(100);
         wm.reset();wm.speed=1;wm.prefs={...wm.prefs,hobby:'gamer',launch:'dock'};
         window.__launchQueries=[];
-        const long=wm.open('game','The Secret of Robot Island').catch(e=>{if(!(e instanceof Cancelled))throw e});
+        const long=wm.open('game','Rustwater Bay').catch(e=>{if(!(e instanceof Cancelled))throw e});
         await wait(180);wm.reset();await long;await wait(250);
         assert(!wm.isOpen('game') && !wm.root.querySelector('.launcher'),'interrupted search leaves no game or stale launcher');
         window.__world.focusScreen(d);await wait(1100);
         wm.speed=2;window.__launchQueries=[];
-        const shot=wm.open('game','Five Nights at the Server Room');
+        const shot=wm.open('game','Uptime Till Dawn');
         window.__shotOpen=shot;
         for(let i=0;i<200;i++){if(wm.root.querySelector('.l-result:not([hidden])'))break;await wait(10)}
         return checks;

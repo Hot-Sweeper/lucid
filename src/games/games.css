@@ -1,4 +1,4 @@
-/* Lucid games pack: Blockcraft, Night Shift, tic-tac-toe, Four in a Row, Bit Merge. Every class is prefixed gm-. */
+/* Lucid games pack: Voxel Valley, Uptime Till Dawn, tic-tac-toe, Four in a Row, Bit Merge. Every class is prefixed gm-. */
 
 /* ---------------- shared frame ---------------- */
 .gm-game { position: relative; height: 100%; display: flex; flex-direction: column; background: #161a45; color: #eef0ff; font-family: var(--font, "Lexend Variable", system-ui, sans-serif); user-select: none; }
@@ -41,52 +41,38 @@
 .gm-ttt-pip.gm-l { background: #4fb6ff; }
 .gm-ttt-pip.gm-d { background: #8a91c4; }
 
-/* ---------------- Five Nights at the Server Room ---------------- */
+/* ---------------- Uptime Till Dawn ---------------- */
 .gm-ns .gm-stage { background: #0b0d1f; }
-.gm-ns-ctl { position: absolute; top: 96px; z-index: 3; display: flex; flex-direction: column; gap: 5px; padding: 5px; border-radius: 8px; background: #1b2150; }
-.gm-ns-l { left: 108px; }
-.gm-ns-r { right: 108px; }
-.gm-ns-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 22px; border-radius: 6px; background: #2a3168; color: #8a91c4; font-size: 9px; font-weight: 600; transition: background-color 0.15s, color 0.15s; }
-.gm-ns-btn.gm-hot { background: #39418a; color: #eef0ff; }
-.gm-ns-btn[data-k="door"].gm-on { background: #ff9f5a; color: #2a1407; }
-.gm-ns-btn[data-k="light"].gm-on { background: #f6ecdc; color: #141a33; }
-.gm-ns-clock { position: absolute; top: 9px; right: 14px; z-index: 3; display: flex; align-items: baseline; gap: 8px; }
-.gm-ns-clock b { font: 600 17px var(--mono, ui-monospace, monospace); color: #f6ecdc; transform-origin: 100% 60%; }
-.gm-ns-clock span { font-size: 10px; color: #8a91c4; }
-.gm-ns-hud { position: absolute; left: 12px; bottom: 9px; z-index: 3; display: flex; align-items: center; gap: 8px; font-size: 10px; color: #8a91c4; }
-.gm-ns-pow b { font: 600 12px var(--mono, ui-monospace, monospace); color: #eef0ff; }
-.gm-ns-pow b.gm-low { color: #ff6f91; }
+.gm-ns-hud, .gm-ns-pow { position: absolute; left: 12px; z-index: 3; display: flex; align-items: center; gap: 6px; font-size: 10px; color: #8a91c4; }
+.gm-ns-hud { top: 9px; }
+.gm-ns-pow { top: 27px; }
+.gm-ns-hud b { font: 600 12px var(--mono, ui-monospace, monospace); color: #eef0ff; }
+.gm-ns-hud b.gm-low { color: #ff6f91; }
+.gm-ns-bar { position: relative; width: 44px; height: 6px; border-radius: 3px; background: #262d5e; overflow: hidden; }
+.gm-ns-bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; border-radius: 3px; background: #4ff0a0; transition: width 0.3s, background-color 0.3s; }
+.gm-ns-bar i.gm-low { background: #ff6f91; }
 .gm-ns-use { display: flex; gap: 2px; }
 .gm-ns-use i { width: 6px; height: 11px; border-radius: 2px; background: #262d5e; }
 .gm-ns-use i.gm-on { background: #4ff0a0; }
-.gm-ns-use i.gm-on:nth-child(3) { background: #ff9f5a; }
-.gm-ns-use i.gm-on:nth-child(4) { background: #ff6f91; }
-.gm-ns-flip { position: absolute; bottom: 6px; left: calc(50% - 80px); z-index: 6; display: flex; align-items: center; justify-content: center; width: 160px; height: 20px; border-radius: 6px;
-  background: #2a3168; color: #c9cdf5; font-size: 10px; font-weight: 600; transition: background-color 0.15s, color 0.15s; }
-.gm-ns-flip.gm-hot { background: #39418a; color: #fff; }
-.gm-ns-flip.gm-on { background: #4ff0a0; color: #0b1a14; }
-.gm-ns-cam { position: absolute; left: 0; right: 0; top: 0; height: calc(100% - 30px); z-index: 5; overflow: hidden; background: #0a0e1c; }
-.gm-ns-feed { position: absolute; left: 0; top: 0; display: block; }
-.gm-ns-scan { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(4, 6, 14, 0.24) 0 1px, rgba(0, 0, 0, 0) 1px 3px); }
-.gm-ns-scan::after { content: ""; position: absolute; left: 0; right: 0; top: -30%; height: 30%; background: linear-gradient(180deg, rgba(180, 230, 255, 0), rgba(180, 230, 255, 0.05), rgba(180, 230, 255, 0)); animation: gm-ns-roll 4.5s linear infinite; }
-@keyframes gm-ns-roll { to { transform: translateY(440%); } }
-.gm-ns-label { position: absolute; left: 12px; top: 10px; display: flex; align-items: baseline; gap: 8px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
-.gm-ns-label b { font: 600 13px var(--mono, ui-monospace, monospace); color: #f6ecdc; }
-.gm-ns-label span { font-size: 11px; color: #c9cdf5; }
-.gm-ns-map { position: absolute; right: 12px; bottom: 10px; width: 146px; height: 86px; }
-.gm-ns-room, .gm-ns-you { position: absolute; display: flex; align-items: center; justify-content: center; width: 46px; height: 26px; border-radius: 5px; font: 600 10px var(--mono, ui-monospace, monospace); }
-.gm-ns-room { background: rgba(201, 205, 245, 0.16); color: #c9cdf5; transition: background-color 0.15s, color 0.15s; }
-.gm-ns-room.gm-hot { background: rgba(201, 205, 245, 0.3); }
-.gm-ns-room.gm-on { background: #4ff0a0; color: #0b1a14; }
-.gm-ns-you { background: rgba(255, 159, 90, 0.22); color: #ff9f5a; font-family: var(--font, system-ui, sans-serif); }
+.gm-ns-use i.gm-on.gm-ns-red { background: #ff6f91; }
+.gm-ns-trip .gm-ns-pow span:first-child { color: #ff6f91; }
+.gm-ns-clock { position: absolute; top: 9px; right: 14px; z-index: 3; display: flex; align-items: baseline; gap: 8px; }
+.gm-ns-clock b { font: 600 17px var(--mono, ui-monospace, monospace); color: #f6ecdc; transform-origin: 100% 60%; }
+.gm-ns-clock span { font-size: 10px; color: #8a91c4; }
+.gm-ns-tag { position: absolute; z-index: 3; width: 60px; text-align: center; font-size: 10px; font-weight: 600; color: #c9cdf5; }
+.gm-ns-ctl { position: absolute; bottom: 7px; z-index: 3; display: flex; justify-content: center; gap: 4px; }
+.gm-ns-btn { display: flex; align-items: center; justify-content: center; width: 34px; height: 22px; border-radius: 6px; background: #2a3168; color: #8a91c4; font-size: 9px; font-weight: 600; white-space: nowrap; transition: background-color 0.15s, color 0.15s; }
+.gm-ns-fix { width: 50px; }
+.gm-ns-btn.gm-hot { background: #39418a; color: #eef0ff; }
+.gm-ns-btn[data-k="fan"].gm-on { background: #4fb6ff; color: #0b1a2a; }
+.gm-ns-fix.gm-on { background: #f6ecdc; color: #141a33; }
+.gm-ns-fix.gm-bad { background: #ff9f5a; color: #2a1407; }
+.gm-ns-trip .gm-ns-btn[data-k="fan"] { opacity: 0.45; }
 .gm-ns-intro { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: #0b0d1f; }
 .gm-ns-intro b { font-size: 17px; font-weight: 600; color: #f6ecdc; }
 .gm-ns-intro span { font: 500 12px var(--mono, ui-monospace, monospace); color: #8a91c4; white-space: pre; }
-.gm-ns-out .gm-ns-ctl, .gm-ns-out .gm-ns-flip { opacity: 0.35; }
-.gm-ns-ctl, .gm-ns-flip, .gm-ns-hud, .gm-ns-clock { transition: opacity 0.3s; }
-.gm-ns-end .gm-ns-ctl, .gm-ns-end .gm-ns-flip, .gm-ns-end .gm-ns-hud, .gm-ns-end .gm-ns-clock { opacity: 0; }
-.gm-ns-out .gm-ns-hud { opacity: 0.6; }
-@media (prefers-reduced-motion: reduce) { .gm-ns-scan::after { animation: none; display: none; } }
+.gm-ns-ctl, .gm-ns-tag, .gm-ns-hud, .gm-ns-pow, .gm-ns-clock { transition: opacity 0.3s; }
+.gm-ns-end .gm-ns-ctl, .gm-ns-end .gm-ns-tag, .gm-ns-end .gm-ns-hud, .gm-ns-end .gm-ns-pow, .gm-ns-end .gm-ns-clock { opacity: 0; }
 
 /* ---------------- Four in a Row ---------------- */
 .gm-c4 .gm-stage { background: radial-gradient(80% 70% at 50% 45%, #1e2458, #161a45); }
@@ -131,5 +117,5 @@
 .gm-mg-foot { display: flex; gap: 18px; font-size: 11px; color: #8a91c4; }
 .gm-mg-foot b { color: #eef0ff; font-weight: 600; font-variant-numeric: tabular-nums; }
 
-/* ---------------- Blockcraft ---------------- */
+/* ---------------- Voxel Valley ---------------- */
 .gm-bc .gm-stage { background: #141a33; }

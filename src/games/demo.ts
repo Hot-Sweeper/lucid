@@ -5,6 +5,7 @@ import "@fontsource-variable/jetbrains-mono";
 import gsap from "gsap";
 import type { FunHost, FunOpts, Outcome } from "../fun/host";
 import { playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge, playRobotIsland, playBotCom, playDerBugger, playBoot } from "./index";
+import { GAME_TITLES } from "./catalog";
 
 class Cancel extends Error {}
 
@@ -140,15 +141,15 @@ function panel(id: string, title: string, run: Run) {
 }
 
 const loops = [
-  panel("blockcraft", "Blockcraft", playBlockcraft),
-  panel("nightshift", "Five Nights at the Server Room", playNightShift),
-  panel("ttt", "Tic-tac-toe", playTicTacToe),
-  panel("c4", "Four in a Row", playConnectFour),
-  panel("merge", "Bit Merge", playBitMerge),
-  panel("island", "The Secret of Robot Island", playRobotIsland),
-  panel("botcom", "BOT-COM: Terror from the Deep Sea", playBotCom),
-  panel("bugger", "Der Bugger 2", playDerBugger),
-  panel("boot", "BOOT", playBoot),
+  panel("blockcraft", GAME_TITLES.blockcraft, playBlockcraft),
+  panel("nightshift", GAME_TITLES.nightshift, playNightShift),
+  panel("ttt", GAME_TITLES.tictactoe, playTicTacToe),
+  panel("c4", GAME_TITLES.connect4, playConnectFour),
+  panel("merge", GAME_TITLES.bitmerge, playBitMerge),
+  panel("island", GAME_TITLES.island, playRobotIsland),
+  panel("botcom", GAME_TITLES.botcom, playBotCom),
+  panel("bugger", GAME_TITLES.bugger, playDerBugger),
+  panel("boot", GAME_TITLES.boot, playBoot),
 ].filter(Boolean) as (() => Promise<void>)[];
 
 const startAll = () => { running = true; for (const l of loops) void l(); };
