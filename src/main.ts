@@ -1751,7 +1751,7 @@ function renderThreads(force = false) {
   const stateOf = (t: typeof list[number]) => {
     const state = presentationOf(t);
     if (!state.label) return `<span class="th-ago">${ago(t.updatedAt)}</span>`;
-    return `<span class="th-st ${state.tone}" title="${esc(state.detail || state.label)}">${state.tone ? '<i aria-hidden="true"></i>' : ''}${esc(state.label)}${state.since ? ` ${ago(state.since)}` : ''}</span>`;
+    return `<span class="th-st ${state.tone}" title="${esc(state.detail || state.label)}">${state.tone === 'done' ? '<svg class="th-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>' : state.tone ? '<i aria-hidden="true"></i>' : ''}${esc(state.label)}${state.since ? ` ${ago(state.since)}` : ''}</span>`;
   };
   const dotOf = (t: typeof list[number]) => presentationOf(t).tone;
   const faceOf = (t: typeof list[number], size: number, place: string, cls = "") => {
@@ -1794,7 +1794,7 @@ ${world.roster.byThread(t.id)!.name}` : ""}`)}">${icon}<span class="th-settled-t
     const ready = collectible(t.id, true);
     const busy = collectingWork.has(t.id);
     const label = ready?.coins ? `Settle & collect ${ready.coins} coins` : 'Settle session';
-    const collect = ready ? `<button type="button" class="th-collect" data-collect-id="${esc(t.id)}" title="${esc(label)}" aria-label="${esc(`${label}: ${t.title || 'Untitled'}`)}"${busy ? ' disabled aria-busy="true"' : ''}><span aria-hidden="true">✓</span> ${busy ? 'Settling…' : 'Settle'}</button>${sidebarCollectErrors.has(t.id) ? `<p class="th-collect-error" role="status">${esc(sidebarCollectErrors.get(t.id)!)}</p>` : ''}` : '';
+    const collect = ready ? `<button type="button" class="th-collect" data-collect-id="${esc(t.id)}" title="${esc(label)}" aria-label="${esc(`${label}: ${t.title || 'Untitled'}`)}"${busy ? ' disabled aria-busy="true"' : ''}><svg class="th-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg> ${busy ? 'Settling…' : 'Settle'}</button>${sidebarCollectErrors.has(t.id) ? `<p class="th-collect-error" role="status">${esc(sidebarCollectErrors.get(t.id)!)}</p>` : ''}` : '';
     const sel = t.id === chat.threadId ? " sel" : "";
     return `<li class="th-entry${ready ? ' th-can-collect' : ''}"><button type="button" class="th-row th-worker th-t3${t.runStatus === "running" ? " on" : ""}${sel}" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${robot ? `
 ${robot.name}${t.model ? `, ${t.model}` : ""}` : ""}${t.branch ? `
@@ -1991,7 +1991,7 @@ function renderRail() {
     const logo = t.pinned ? p?.icon : logoFor(t.provider);
     const robot = t.pinned ? world.roster.byThread(t.id) : null;
     const name = `${robot ? `${robot.name}, ${t.manager?.role || "Manager"}, ` : ""}${t.title}, ${proj}${said ? `, ${said}` : ""}`;
-    return `<li><button type="button" class="rail-th${t.id === chat.threadId ? " cur" : ""}" data-id="${esc(t.id)}" aria-label="${esc(name)}" title="${esc(`${t.title}
+    return `<li><button type="button" class="rail-th${t.id === chat.threadId ? " cur" : ""}" data-state="${st}" data-id="${esc(t.id)}" aria-label="${esc(name)}" title="${esc(`${t.title}
 ${proj}${said ? ` · ${said[0].toUpperCase()}${said.slice(1)}` : ""}`)}">`
       + (t.pinned ? managerFace({ provider: robot?.provider || t.provider, look: robot?.look, picture: t.manager?.avatar, size: 28, place: "r" })
         : logo ? `<img src="${logo}" alt="">` : `<span class="rail-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`)

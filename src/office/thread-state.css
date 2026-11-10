@@ -24,8 +24,6 @@
 .panel .th-st.work > i { border-color: currentColor; }
 .panel .th-st:is(.ask,.fail) > i { border: 1.5px solid currentColor; border-radius: 50%; }
 .panel .th-st:is(.ask,.fail) > i::before { content: '!'; }
-.panel .th-st.done > i { border: 1.5px solid currentColor; border-radius: 50%; width: 15px; height: 15px; font-size: 9px; }
-.panel .th-st.done > i::before { content: '✓'; }
 .panel .th-st.review > i::before { content: '◇'; font-size: 15px; }
 .panel .th-st.queued > i { border: 1.5px dotted currentColor; border-radius: 50%; }
 .rail-st:is(.work,.queued,.ask,.review,.fail,.done) { background: var(--thread-color); }
@@ -40,3 +38,5 @@
 
 /* A finished status never inherits the former work spinner transform. */
 .panel .th-st:not(.work) > i { animation: none; transform: none; }
+
+.th-check { display: block; width: 16px; height: 16px; flex: none; }

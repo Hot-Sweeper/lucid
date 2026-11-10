@@ -1,10 +1,10 @@
-/* Selection is independent of work status and remains visible in both interface themes. */
+/* Selection follows the operational status, with a neutral fallback for idle threads. */
 #th-list .th-row[aria-current="true"], #rail-list .rail-th[aria-current="true"] {
-  outline: 2px solid var(--accent); outline-offset: -2px;
-  background: color-mix(in srgb, var(--night-2) 85%, var(--accent));
+  outline: 2px solid var(--thread-color, var(--ink-2)); outline-offset: -2px;
+  background: color-mix(in srgb, var(--night-2) 85%, var(--thread-color, var(--ink-2)));
 }
-#th-list .th-row[aria-current="true"]:hover, #rail-list .rail-th[aria-current="true"]:hover { background: color-mix(in srgb, var(--night-2) 80%, var(--accent)); }
-#th-list .th-row[aria-current="true"]:focus-visible, #rail-list .rail-th[aria-current="true"]:focus-visible { outline-color: var(--ink); }
+#th-list .th-row[aria-current="true"]:hover, #rail-list .rail-th[aria-current="true"]:hover { background: color-mix(in srgb, var(--night-2) 80%, var(--thread-color, var(--ink-2))); }
+#th-list .th-row[aria-current="true"]:focus-visible, #rail-list .rail-th[aria-current="true"]:focus-visible { outline-color: var(--thread-color, var(--ink-2)); }
 .chat-panel .cp-status[data-tone] { color: var(--ink-2); }
 .chat-panel .cp-status[data-tone="work"], .chat-panel .cp-status[data-tone="queued"] { color: var(--thread-work); }
 .chat-panel .cp-status[data-tone="ask"] { color: var(--thread-ask); }
