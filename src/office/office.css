@@ -884,7 +884,7 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .room-folded .room-size-hit { right: 90px; top: 112px; width: 42px; height: 42px; }
 .room-size-hit:hover { background: #514b68; }
 .room-size-hit:focus-visible, .room-reopen-hit:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
-.room-size-hit svg { transform: rotate(-90deg); transition: transform .2s ease; }
+.room-size-hit svg { transform: rotate(-90deg); transition: transform 200ms var(--ease-out-strong); }
 .room-size-hit.is-pinned svg { transform: rotate(0deg); }
 .room-retiring { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .room-size-hit svg { transition: none; } }

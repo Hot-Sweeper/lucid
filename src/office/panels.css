@@ -17,7 +17,7 @@
 .fold-body[hidden] { display: none !important; }
 .sec-fold { flex: none; display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 12px; line-height: 1.2; padding: 3px 6px; margin: -3px -6px -3px 0; border-radius: 7px; cursor: pointer; }
 .sec-fold:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
-.sec-fold svg { transition: transform 0.22s ease; }
+.sec-fold svg { transition: transform 200ms var(--ease-out-strong); }
 .sec-fold[aria-expanded="false"] svg { transform: rotate(-90deg); }
 .th-head { justify-content: flex-start; }
 .th-head h3 { margin-right: auto; }
