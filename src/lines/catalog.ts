@@ -1,4 +1,4 @@
-import type { Hobby } from "../robot/roster";
+import type { Hobby } from "../robot";
 
 // The built-in base set: every short remark robots make, authored in English and German.
 // A pair may name hobbies; then only robots with that hobby say it. `{name}` slots are filled

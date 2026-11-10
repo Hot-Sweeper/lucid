@@ -4,7 +4,7 @@
 //   3. today's pack from the headless writer (office/daily.ts), written from each persona.
 // Every pick goes through one memory (memory.ts), office-wide and per robot, so robots do not
 // repeat themselves, and hobby-tagged lines keep each robot's personality.
-import type { Hobby } from "../robot/roster";
+import type { Hobby } from "../robot";
 import { getLocale } from "../localization";
 import { localizedFlavor } from "../content/localized";
 import { CONVOS, THOUGHTS, type Place } from "../content";

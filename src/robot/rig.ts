@@ -4,6 +4,8 @@
 // of its desk, so we see its back and the top of its head, its hands on the keyboard, and the
 // monitor screen facing us.
 
+import type { RobotLook } from "./look";
+
 export type Pt = { x: number; y: number };
 export type Hand = "left" | "right";
 
@@ -85,29 +87,4 @@ export interface SeatedRobot {
   /** Bobs to music at this tempo on top of any pose (head on the beat, shoulder sway, antenna bounce). 0 stops smoothly. */
   setGroove?(bpm: number): void;
   destroy(): void;
-}
-
-export type Build = "slim" | "regular" | "sturdy";
-export type HatKind =
-  | "none" | "beanie" | "cap" | "capBack" | "tophat" | "party" | "headset" | "crown" | "beret"
-  | "propeller" | "chef" | "wizard" | "flowers" | "santa" | "cowboy" | "catEars" | "bow";
-export type AccessoryKind = "none" | "scarf" | "bowtie" | "tie" | "lanyard" | "flower" | "bandana" | "backpack" | "jetpack" | "cape";
-export type EyeStyle = "classic" | "dots" | "round" | "happy" | "visor" | "pixel" | "hearts" | "sleepy";
-export type Tint = "none" | "warm" | "cool" | "mint" | "rose" | "sand" | "lilac" | "graphite";
-export type StickerKind = "none" | "bolt" | "star" | "heart" | "smile" | "flower" | "moon" | "rainbow" | "planet" | "ghost" | "cat" | "pizza";
-
-/** Every field is optional: old profiles keep rendering with the defaults (src/world/look.ts LOOK_DEFAULTS). */
-export interface RobotLook {
-  accent?: string;                                   // trim color: ear rings, shoulder caps, and the color of fabric hats and scarves
-  antennaTip?: "ball" | "star" | "heart" | "ring";
-  headphones?: boolean;
-  sticker?: StickerKind;                             // a small decal on the back of the head, beside the logo
-  build?: Build;                                     // torso and shoulder width
-  head?: number;                                     // head size, 0.9 to 1.15 (1 is the original)
-  hat?: HatKind;
-  accessory?: AccessoryKind;
-  eyes?: EyeStyle;                                   // resting eye shape on the visor (strong expressions keep their own shapes)
-  tint?: Tint;                                       // a slight shift of the brand shell color
-  glow?: string | null;                              // eye, antenna and chest light color (null: the brand's own)
-  blush?: boolean;                                   // pink cheeks under the visor
 }

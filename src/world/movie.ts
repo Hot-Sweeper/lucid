@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { uid } from "../robot/art/walker-head";
+import { uid } from "../util/dom";
 import { Anims, reducedMotion, type Pt, type RoomStage } from "./room";
 import { RoomMediaControl } from './room-controls';
 import { gameSound } from '../office/sound';

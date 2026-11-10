@@ -33,7 +33,7 @@ try{
   globalThis.__ControlWalker=Walker;
   const {Boss}=await load('../../src/world/boss.ts',[
     ['import gsap from "gsap";','const gsap={set(){},to(){return{kill(){}}},delayedCall(){return{kill(){}}}};'],
-    ['import { Walker } from "../robot/walker/walker";','const Walker=globalThis.__ControlWalker;'],
+    ['import { Walker, type RobotLook } from "../robot";','const Walker=globalThis.__ControlWalker;'],
     ['import { line } from "../lines";','const line=kind=>kind;'],
   ]);
   const boss=new Boss({}, {seat:{x:0,y:0},edge:0,z:0});

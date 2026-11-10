@@ -7,9 +7,16 @@ import { RobotCanvas, canvasRobotsWanted } from "../render/canvas";
 import { beginSystem, endSystem } from "../../perf/metrics";
 import { setSvgAttribute } from "../../perf/svg-write";
 import { sharedVector, releaseVectors } from "../../perf/shared-vector";
-import { GEOM, PHONE_SCALE, UNIT, type DeskRig, type Expression, type PhoneReaction, type Pose, type Pt, type Reaction, type RobotLook, type SeatedRobot } from "../rig";
-import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, solveArm, uid, type BrandKind, type ArmMemo } from "../art/head";
-import { accessoryInfo, accessorySvg, blushSvg, BUILD_SHAPE, hatInfo, hatSvg, lookMotion, paintLookColors, resolveLook, stepLookMotion, styledEyes, type FullLook, type LookMotion } from "../look";
+import { GEOM, PHONE_SCALE, UNIT, type DeskRig, type Expression, type PhoneReaction, type Pose, type Pt, type Reaction, type SeatedRobot } from "../rig";
+import { brandFor, PALETTES, type BrandKind } from "../brand";
+import { defsSvg, eyesSvg, seatedHeadSvg, paintBrand, paintLook } from "../art/head";
+import { accessorySvg, blushSvg, hatSvg, lookMotion, placeAntenna, stepLookMotion, styledEyes, type LookMotion } from "../art/outfit";
+import { accessoryInfo, BUILD_SHAPE, hatInfo, paintLookColors, resolveLook, type FullLook, type RobotLook } from "../look";
+import { solveArm, type ArmMemo } from "../ik";
+import { bind, wait } from "../util";
+import { clamp, lerp } from "../../util/math";
+import { rnd } from "../../util/random";
+import { reducedMotion, uid } from "../../util/dom";
 import { tierFor } from "../../office/tier";
 
 // The v0 robot, seated on the south side of its desk, seen from behind and above.
@@ -50,16 +57,13 @@ const PHONE_W = 150 * PHONE_SCALE, PHONE_H = 300 * PHONE_SCALE;   // the held ph
 // Over the left shoulder: the phone's right edge tucks just behind the head, top at eye level.
 const PHONE_HOLD = { x: HX - 80 * K, y: HY - 52 * K };   // beside the head, only its edge tucked behind it, above the desk plate
 const PHONE_TILT = 7;
-const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const LEFT_KEYS = "qwertasdfgzxcvb12345";
 const RIGHT_KEYS = "yuiophjklnm,.67890 ";
 const LETTERS = "etaoinshrdlucmfwypgbvk";   // auto typing picks letters by rough English frequency
 const CALM: Partial<Record<Pose, number>> = { rest: 1, idle: 1, read: 0.8, think: 0.7, ask: 0.6, notice: 0.5, type: 0.35, mouse: 0.5, phone: 0.5 };
 
 type Side = "l" | "r";
-const wait = (s: number) => new Promise<void>((r) => gsap.delayedCall(s, r));
 const done = (a: gsap.core.Animation) => new Promise<void>((r) => { a.eventCallback("onComplete", () => r()); a.eventCallback("onInterrupt", () => r()); });
-const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const TAU = Math.PI * 2;
 
 export class TopDownRobot implements SeatedRobot {
@@ -253,8 +257,7 @@ export class TopDownRobot implements SeatedRobot {
     // the antenna pokes out of low hats (drawn over them), sits on top of tall ones or hides under them
     if (hat.antenna === "through") { if (lift.nextSibling !== this.$.phones) head.insertBefore(lift, this.$.phones); }
     else if (head.firstChild !== lift) head.insertBefore(lift, head.firstChild);
-    lift.style.display = hat.antenna === "hide" ? "none" : "";
-    lift.setAttribute("transform", hat.antenna === "lift" ? `translate(0 ${-(hat.lift ?? 0)})` : "");
+    placeAntenna(lift, hat);
     const acc = accessorySvg(L.accessory, view);
     this.$.accUnder.innerHTML = acc.under;
     this.$.accPack.innerHTML = acc.pack;
@@ -1241,7 +1244,7 @@ const shoulder = (x: number) => /* svg */ `
 
 const ROBOT = (id: string) => /* svg */ `
 <svg id="${id}" class="world-seated robot" viewBox="0 0 ${UNIT.w} ${UNIT.h}" style="width:${UNIT.w}px;height:${UNIT.h}px;--hp:var(--ear, var(--glow))" aria-hidden="true">
-  <defs>${defsSvg(id)}</defs>
+  <defs>${defsSvg(id, true)}</defs>
   <g class="world-chair-base">${chairBase()}</g>
   <ellipse data-r="shadowL" rx="${f(8.5 * U)}" ry="${f(4.2 * U)}" fill="#2b1d10" opacity="0"/>
   <ellipse data-r="shadowR" rx="${f(8.5 * U)}" ry="${f(4.2 * U)}" fill="#2b1d10" opacity="0"/>
@@ -1279,7 +1282,7 @@ const ROBOT = (id: string) => /* svg */ `
       <rect x="${f(CX - BW / 2 + 6)}" y="${f(HIP_Y - 7 * U)}" width="${f(BW - 12)}" height="${f(14 * U)}" rx="${f(7 * U)}" fill="#565d73"/>
     </g>
     <g data-r="legs" style="display:none">${leg(-1)}${leg(1)}</g>
-    <g data-r="headRoot"><g data-r="head">${headSvg(id)}</g></g>
+    <g data-r="headRoot"><g data-r="head">${seatedHeadSvg(id)}</g></g>
     <g data-r="backrest">
       ${sharedVector(BACKREST,id)}
     </g>

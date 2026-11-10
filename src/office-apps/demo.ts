@@ -16,7 +16,7 @@ import { OfficeSuite } from "./suite";
 import { officeIdle } from "./idle";
 import { officeTargets } from "./model";
 import { Desk } from "../office/desk";
-import { WALLPAPERS, type RobotProfile } from "../robot/roster";
+import { WALLPAPERS, type RobotProfile } from "../robot";
 import type { Item } from "../director";
 
 const qs = new URLSearchParams(location.search);

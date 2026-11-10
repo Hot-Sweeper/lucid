@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { gameSound } from './sound';
-import type { Walker } from "../robot/walker/walker";
+import type { Walker } from "../robot";
 import { line } from "../lines";
 
 // Little toys in the world: pick up a walking robot, carry it somewhere, or fling it and

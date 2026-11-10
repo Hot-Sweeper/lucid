@@ -1,5 +1,6 @@
 import gsap from "gsap";
-import { PALETTES, uid, type BrandKind } from "../robot/art/walker-head";
+import { PALETTES, type BrandKind } from "../robot";
+import { uid } from "../util/dom";
 import { reducedMotion, type Pt, type RoomStage } from "./room";
 import { MediaAnimations, RoomMediaControl } from './room-controls';
 import { gameSound, type GameCue } from '../office/sound';

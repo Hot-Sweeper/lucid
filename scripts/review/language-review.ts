@@ -13,7 +13,7 @@ import { localizeGameDOM } from "../../src/localization-dom";
 import { watchTube } from "../../src/fun/tube";
 import { hangOutInChat } from "../../src/life/chat";
 import { chatOnBotsApp } from "../../src/social/botsapp";
-import { Walker } from "../../src/robot/walker/walker";
+import { Walker } from "../../src/robot";
 import { WM } from "../../src/os/wm";
 import { t3Icon, t3Title } from "../../src/harness/t3code";
 import { joke } from "../../src/lines";

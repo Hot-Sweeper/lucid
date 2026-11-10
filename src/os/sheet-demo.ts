@@ -15,11 +15,10 @@ import { WM } from "./wm";
 import { UacPrompt } from "./uac";
 import { ToolApp } from "./apps";
 import { BrowserApp } from "./browser";
-import { WALLPAPERS } from "../robot/roster";
+import { WALLPAPERS, type RobotProfile } from "../robot";
 import { t3Icon, t3Title } from "../harness/t3code";
 import "../world/world.css";
 import { Desk } from "../office/desk";
-import type { RobotProfile } from "../robot/roster";
 import type { Item } from "../director";
 
 const qs = new URLSearchParams(location.search);

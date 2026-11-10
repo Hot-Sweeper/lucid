@@ -10,7 +10,7 @@ import gsap from "gsap";
 import { renderLoop, renderFps, presentationFrame } from "../perf/render";
 import { scheduleLayout } from "./layout";
 import type { AppId } from "../os/wm";
-import type { SeatedRobot as Robot } from "../robot/rig";
+import type { SeatedRobot as Robot } from "../robot";
 import { ICONS } from "../os/icons";
 import { THEMES, markEl, prettyModel, effortWord, normEffort, modelVendor, type HarnessKind, type Flavor, type Theme } from "./themes";
 import "./harness.css";

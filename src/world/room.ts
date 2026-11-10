@@ -1,4 +1,4 @@
-import { uid } from "../robot/art/walker-head";
+import { uid } from "../util/dom";
 import { plankJoints } from "../perf/floor-paths";
 import { releaseVectors } from "../perf/shared-vector";
 import { cacheStaticArt, destroyStaticArt } from "../perf/static-art";

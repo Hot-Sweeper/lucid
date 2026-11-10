@@ -1,6 +1,7 @@
 import { RobotPower, robotModeFor } from "../render/power";
 import { ModelSticker } from "../art/model-sticker";
-import { accessorySvg, blushSvg, hatInfo, hatSvg, paintLookColors, styledEyes } from "../look";
+import { accessorySvg, blushSvg, hatSvg, placeAntenna, stickerSvg, styledEyes } from "../art/outfit";
+import { hatInfo, paintLookColors, type RobotLook } from "../look";
 import { robotSay } from "../voice";
 import gsap from "gsap";
 import { flavorSpeech } from "../../localization-speech";
@@ -10,8 +11,14 @@ import { routeSuffixLengths } from "../../world/route-distance";
 import { hiddenRoutePrefix, type RouteView } from "../../world/hidden-route";
 import { beginSystem, endSystem } from "../../perf/metrics";
 import { setSvgAttribute } from "../../perf/svg-write";
-import type { Expression, RobotLook } from "../rig";
-import { bind, brandFor, clamp, defsSvg, eyesSvg, headSideSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, uid, type BrandKind } from "../art/walker-head";
+import type { Expression } from "../rig";
+import { brandFor, PALETTES, type BrandKind } from "../brand";
+import { defsSvg, eyesSvg, paintBrand, paintLook, walkerHeadSvg, walkerSideHeadSvg } from "../art/head";
+import { ik3, type V3 } from "../ik";
+import { bind, wait as sleep } from "../util";
+import { clamp, lerp } from "../../util/math";
+import { pick, rnd } from "../../util/random";
+import { reducedMotion as reduced, uid } from "../../util/dom";
 
 // The v0 robot standing on the top-down floor, the same character as the desk robot: the
 // original head on a slim tapered shell, thin two-bone arms and legs with real elbows and knees.
@@ -58,7 +65,6 @@ const TAU = Math.PI * 2;
 // which activities can be done sitting down (they keep the current seat)
 const SEATABLE = new Set<Activity>(["sit", "nap", "eat", "drink", "talk", "listen", "laugh", "think", "play", "watch", "explain", "type"]);
 
-type V3 = { x: number; y: number; z: number };
 type P2 = { x: number; y: number };
 /** A hand target in body space, relative to its shoulder: x outward, y down, z forward. `r` turns what it holds. */
 type Hand = { x: number; y: number; z: number; r?: number };
@@ -112,35 +118,11 @@ const OVER = new Set<Prop>(["bowl", "popcorn", "ball"]);
 
 // Every tween on the robot's state takes over the properties it animates from older tweens.
 const TL = (v: gsap.TimelineVars = {}) => gsap.timeline({ ...v, defaults: { overwrite: "auto", ...(v.defaults ?? {}) } });
-const sleep = (sec: number) => new Promise<void>((r) => gsap.delayedCall(sec, r));
-const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
-const rnd = (a: number, b: number) => a + Math.random() * (b - a);
-const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-/** Two bones from s to t in 3D; the joint bends toward `pole`. Bones may stretch a little. */
-function ik3(s: V3, t: V3, A: number, B: number, pole: V3, stretch = 1.15) {
-  let dx = t.x - s.x, dy = t.y - s.y, dz = t.z - s.z;
-  let L = Math.hypot(dx, dy, dz) || 0.001;
-  const k = clamp(L / (A + B - 0.6), 1, stretch);
-  A *= k; B *= k;
-  const M = A + B - 0.6;
-  if (L > M) { const f = M / L; dx *= f; dy *= f; dz *= f; L = M; }
-  // never fold the elbow or knee tighter than about 40 degrees: shorten the bones instead
-  const dMin = Math.sqrt(A * A + B * B - 2 * A * B * 0.766);
-  if (L < dMin) { const f = Math.max(0.35, L / dMin); A *= f; B *= f; }
-  const nx = dx / L, ny = dy / L, nz = dz / L;
-  const ca = clamp((A * A + L * L - B * B) / (2 * A * L), -1, 1), sa = Math.sqrt(1 - ca * ca);
-  const pd = pole.x * nx + pole.y * ny + pole.z * nz;
-  let px = pole.x - nx * pd, py = pole.y - ny * pd, pz = pole.z - nz * pd;
-  const pl = Math.hypot(px, py, pz);
-  if (pl < 1e-4) { px = 0; py = 1; pz = 0; } else { px /= pl; py /= pl; pz /= pl; }
-  return {
-    e: { x: s.x + A * (nx * ca + px * sa), y: s.y + A * (ny * ca + py * sa), z: s.z + A * (nz * ca + pz * sa) },
-    h: { x: s.x + dx, y: s.y + dy, z: s.z + dz },
-  };
-}
 
 const f1 = (n: number) => n.toFixed(1);
+// The walker has only ever shown the first four sticker designs; the later ones stay desk-only.
+const WALKER_STICKERS = new Set(["bolt", "star", "heart", "smile"]);
+const walkerSticker = (kind: RobotLook["sticker"]) => (kind && WALKER_STICKERS.has(kind) ? stickerSvg(kind) : "");
 const headSize = (look: RobotLook) => Math.min(1.15, Math.max(0.9, look.head ?? 1));
 
 export class Walker {
@@ -254,10 +236,6 @@ export class Walker {
     this.power = new RobotPower(el, () => this.id, { x: -88, y: -225, w: 176, h: 230 });
     this.svg = el.querySelector("svg")!;
     this.$ = bind(this.svg);
-    for (const key of ["antenna", "sideAntenna"]) {
-      const lift = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      this.$[key].before(lift); lift.append(this.$[key]); this.$[`${key}Lift`] = lift;
-    }
     this.card = el.querySelector(".world-card")!;
     this.battery = el.querySelector(".world-battery")!;
     el.style.setProperty("--head-top", `${((FEET.y - 560) * this.s).toFixed(1)}px`);
@@ -301,10 +279,7 @@ export class Walker {
     this.$.fbHat.style.display = side ? "none" : "";
     this.$.sideHat.style.display = side ? "" : "none";
     const hat = hatInfo(this.walkerLook.hat ?? "none");
-    for (const antenna of [this.$.antennaLift, this.$.sideAntennaLift]) {
-      antenna.style.display = hat.antenna === "hide" ? "none" : "";
-      antenna.setAttribute("transform", hat.antenna === "lift" ? `translate(0 ${-(hat.lift ?? 0)})` : "");
-    }
+    for (const antenna of [this.$.antennaLift, this.$.sideAntennaLift]) placeAntenna(antenna, hat);
     this.$.fbBlush.innerHTML = this.walkerLook.blush ? blushSvg() : "";
     this.$.fbBlush.style.display = this.facing === "down" ? "" : "none";
   }
@@ -312,7 +287,8 @@ export class Walker {
     const key = JSON.stringify(look);
     if (key === this.lookKey) return;
     this.lookKey = key;
-    this.walkerLook = {...look}; this.updateAccessories(); paintLook(this.svg, this.$, look);
+    this.walkerLook = {...look}; this.updateAccessories(); paintLook(this.svg, this.$, look, walkerSticker);
+    for (const k of ["phones", "sidePhones"]) this.$[k].style.display = look.headphones ? "" : "none";
     paintLookColors(this.svg, PALETTES[this.brand], look);
     this.headK = headSize(look); this.updateHeadwear(); this.setExpression(this.expr);
   }
@@ -1437,9 +1413,9 @@ const WALKER_SVG = (id: string, s: number) => /* svg */ `
       <g data-r="accessoryOver"></g>
     </g></g>
     <g data-r="head">
-      <g data-r="fbHead">${headSvg(id)}<g data-r="fbBlush"></g></g>
+      <g data-r="fbHead">${walkerHeadSvg(id)}<g data-r="fbBlush"></g></g>
       <g data-r="fbHat"></g>
-      ${headSideSvg(id)}
+      ${walkerSideHeadSvg(id)}
       <g data-r="sideHat"></g>
     </g>
     <g data-r="legsFront"></g>

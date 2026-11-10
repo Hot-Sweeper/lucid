@@ -6,10 +6,7 @@ import "./ledger-panel.css";
 import { coinIcon, type Wallet } from "../office/wallet";
 import { formatCoins } from "../office/coin-ledger";
 import { gameSound } from "../office/sound";
-import { brandFor } from "../robot/brand";
-import type { RobotLook } from "../robot/rig";
-import { portraitSvg } from "../robot/look";
-import { PALETTES } from "../robot/art/head";
+import { brandFor, portraitSvg, PALETTES, type RobotLook } from "../robot";
 import { addDays, breakdown, dayDate, dayKey, heatScale, mergeDays, summarize, weekStart, type CalendarDoc, type Days, type PersonalRecord, type Share, type Summary } from "./coin-calendar";
 
 export type LedgerRobot = { id: string; name: string; provider: string; look: RobotLook };

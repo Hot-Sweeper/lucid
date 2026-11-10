@@ -10,7 +10,7 @@ const gameLine = (kind: string, game?: string) => {
   const pool = GAME_LINES.filter((l) => l.kind === kind && (!l.game || l.game === game));
   return pool.length ? pool[Math.floor(Math.random() * pool.length)].text : null;
 };
-import type { SeatedRobot as Robot } from "../robot/rig";
+import type { SeatedRobot as Robot, Prefs } from "../robot";
 import type { DeskStage as Stage } from "../office/desk";
 import type { FunHost } from "../fun/host";
 import { gameSound } from "../office/sound";
@@ -20,7 +20,6 @@ import { officeIdle, officePick, OFFICE_IDLE_LINE } from "../office-apps/idle";
 import { PHONE_APP_DOING, type PhoneApp } from "../social/phone-apps";
 import type { SoOpts } from "../social/kit";
 import { playSnake, playFlappy, playDash, playVoxelValley, playUptimeTillDawn, playTicTacToe, playConnectFour, playBitMerge, playRustwaterBay, playTidewatchTactics, playDerBugger, playBoot, watchBotflix, watchTube, browseBenchtop, makeBeat, hangOutInChat, usePhone, chatOnBotsApp, browseTelegrid, scrollChirp, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, browseInstaweb, scrollSpoolWeb, swipeSparkplug, useVapor, tradeOnBotcoinExchange, preloadActivity, } from "./idle-activities";
-import type { Prefs } from "../robot/roster";
 
 // What the robot does when there is no work: tidy the desktop, play a game,
 // and finally lock the screen and doze off. Any new work stops it at once.

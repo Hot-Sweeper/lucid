@@ -1,8 +1,7 @@
 import type { RoomExtension } from "../office/world";
-import type { RobotLook } from "../robot/rig";
+import { Walker, type RobotLook, type Facing } from "../robot";
 import { recovery, subscriptionBatteries, type Battery } from "../office/battery";
 import { PAL, RoomStage, type Pt } from "./room";
-import { Walker, type Facing } from "../robot/walker/walker";
 import "./charging.css";
 
 type Thread = { id: string; provider: string; title: string; name?: string | null; model?: string | null; look?: RobotLook; battery?: Battery; threadId?: string | null };

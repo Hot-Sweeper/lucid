@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { Walker } from "../robot/walker/walker";
+import { Walker, type Facing, type RobotLook } from "../robot";
 import { conversation, line, musing, thought, type LineKind } from "../lines";
 import { makeInteractive, whenFree } from "../office/interact";
 import { Anims, PAL, Paths, RoomStage, WALL, plantSvg, posterArt, reducedMotion, windowArt, type Pt } from "./room";
@@ -7,8 +7,6 @@ import { PingPong } from "./pingpong";
 import { ChessTable, GAMES, type ChessGame } from "./chess";
 import { Arcade, type GameEvent } from "./arcade";
 import { MovieCorner, type Beat } from "./movie";
-import type { Facing } from "../robot/walker/walker";
-import type { RobotLook } from "../robot/rig";
 import { gameSound, type GameCue } from "../office/sound";
 
 // The break room, seen top-down. West: a kitchen counter on the north wall (fridge, sink,

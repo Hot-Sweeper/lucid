@@ -1,4 +1,4 @@
-import type { RobotLook } from "./rig";
+import type { RobotLook } from "./look";
 import { brandFor, type BrandKind } from "./brand";
 import { migrateLook, randomLook } from "./look";
 import { compatibleWorkers } from "../office/worker-match";

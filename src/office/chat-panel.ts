@@ -12,7 +12,7 @@ import { gameSound } from "./sound";
 import { wireChatLinks } from "./chat-links";
 import gsap from "gsap";
 import type { Desk } from "./desk";
-import { logoFor, harnessName } from "../robot/brand";
+import { logoFor, harnessName } from "../robot";
 import { BRAND } from "../brand";
 import { Marked } from "marked";
 import DOMPurify from "dompurify";

@@ -1,10 +1,9 @@
-import { Walker, type Facing } from "../robot/walker/walker";
+import { Walker, type Facing, type RobotLook } from "../robot";
 import { conversation, line, musing } from "../lines";
 import { makeInteractive, whenFree } from "./interact";
 import { ParkToys, type ParkToyKind } from './park-toys';
 import { dress, type Gear } from "../weather/gear";
 import { PARK_K as K } from "./grounds";
-import type { RobotLook } from "../robot/rig";
 
 // The park next to the building. Robots whose work finished a while ago (the break room only
 // holds the most recent ones) spend their time out here: they stroll the paths, sit on the

@@ -6,7 +6,7 @@ import "../styles.css";
 import "../office/office.css";
 import { WM, Cancelled } from "../os/wm";
 import { IdleLife } from "../os/idle";
-import { interestsFrom, type Prefs } from "../robot/roster";
+import { interestsFrom, type Prefs } from "../robot";
 
 const qs = new URLSearchParams(location.search);
 const W = window as unknown as { __so: { log: string[]; errors: string[] }; __pick?: unknown };

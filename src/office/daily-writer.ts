@@ -1,5 +1,5 @@
 import type { World } from "./world";
-import { personaMarkdown } from "../robot/persona";
+import { personaMarkdown } from "../robot";
 import { getLocale } from "../localization";
 import { loadDaily } from "./daily";
 

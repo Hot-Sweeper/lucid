@@ -2,13 +2,10 @@ import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import gsap from "gsap";
 import "./world.css";
-import { UNIT, type Expression, type Pose, type Reaction, type RobotLook } from "../robot/rig";
-import { TopDownRobot } from "../robot/seated/robot";
+import { UNIT, TopDownRobot, Walker, playHandoff, type Expression, type Pose, type Reaction, type RobotLook, type Activity, type Facing } from "../robot";
 import { DemoDesk } from "./demo-desk";
-import { Walker, type Activity, type Facing } from "../robot/walker/walker";
 import { BreakRoom } from "./breakroom";
 import { QuestionLine } from "./queue";
-import { playHandoff } from "../robot/walker/handoff";
 
 // Demo of the world characters. URL params:
 //   only=desk|break|queue|handoff   show one section

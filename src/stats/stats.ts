@@ -2,7 +2,7 @@
 // harness (only where the logs report them), and a per-model breakdown on demand.
 // Data comes from electron/usage.cjs through the `load` callback.
 import "./stats.css";
-import { logoFor, harnessName } from "../robot/brand";
+import { logoFor, harnessName } from "../robot";
 import { elapsedShare, pace, resetCountdown, duration, PACE_TEXT } from "./limit-pace";
 
 export type Limit = {
