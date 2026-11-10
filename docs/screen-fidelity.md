@@ -14,6 +14,15 @@ Offscreen screens, covered window bodies and a hidden document still pause prese
 
 The old far-camera CSS placeholder, global animation freeze, camera scale visibility cutoff and tiny-screen zero-Hz budgets have been removed. Screen CSS animations remain active; the existing distance budgets for outdoor ambient decorations are unchanged.
 
+## Which app is on the screen
+
+Robot screens only show real tools under their real names, drawn in Lucid's own simplified style, and fictional apps under robot parody names.
+
+- Talking with you: the native chat app, showing the conversation you see.
+- Working with other robots (messaging or reading another thread, delegating, starting a helper thread, checking on it): T3 Code. The build (stable or Nightly) is the one you run, read by `electron/t3-channel.cjs` from `desktop-last-started-version` in T3's home and passed through `window.lucid.t3Channel()`.
+- A helper inside the robot's own harness (Claude's Agent tool): that harness's app or terminal (`src/harness/`).
+- Code is read in the one shared code editor, thoughts go to the one Notes app, and app-minded robots commit, branch and merge in the Git app (`src/os/gitdesk.ts`).
+
 ## Checks
 
 Run `node scripts/verify-screen-scheduler.mjs` for a CPU-only virtual-clock check of the actual scheduler. It verifies the rate boundaries, 20 Hz tiny-screen updates, 60 Hz close-ups, offscreen pause and resume, covered-window pause, reparenting from a covered window, deferred tiny-thumbnail construction and staggered updates. The implementation run passed with a peak of seven of twenty workstation callbacks on one frame after initial construction.
