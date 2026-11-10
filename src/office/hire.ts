@@ -6,7 +6,7 @@ import type { RobotLook } from "./rig";
 import { portraitSvg } from "../world/look";
 import { PALETTES } from "../world/seated-parts";
 import "./hire.css";
-import { openCustomize, savedLevel } from "./customize";
+import { openCustomize } from "./customize";
 import { Walker } from "../world/walker";
 import { compatibleWorkers } from "./worker-match";
 import { randomLook } from "../world/look";
@@ -57,7 +57,6 @@ export function openHire(opts: {
   onNewRole: (r: Role) => void;
   projects: Project[] | null;
   onHire: (c: HireChoice) => Promise<void>;
-  level?: number;
 }) {
   const previousFocus = document.activeElement as HTMLElement | null;
   const wrap = document.createElement("div");
@@ -154,7 +153,7 @@ export function openHire(opts: {
   const wantedScale = () => window.matchMedia("(max-width: 560px)").matches ? 0.27 : window.matchMedia("(max-height: 640px)").matches ? 0.35 : 0.54;
   const freshLook = (providerId: string) => {
     let draft = drafts.get(providerId);
-    if (!draft) { draft = { look: randomLook(Math.random, opts.level ?? savedLevel()), name: "", custom: false }; drafts.set(providerId, draft); }
+    if (!draft) { draft = { look: randomLook(Math.random), name: "", custom: false }; drafts.set(providerId, draft); }
     return draft;
   };
   const placeActor = () => {
@@ -225,7 +224,7 @@ export function openHire(opts: {
     if (busy || !selection) return;
     const robot = chosen(), providerId = selection.providerInstanceId;
     const draft = freshLook(providerId);
-    openCustomize({ name: robot?.name || draft.name || "", provider: providerId, look: robot?.look || draft.look, level: opts.level ?? savedLevel(), namePlaceholder: robot ? undefined : "A random name", onSave: (look, name) => {
+    openCustomize({ name: robot?.name || draft.name || "", provider: providerId, look: robot?.look || draft.look, namePlaceholder: robot ? undefined : "A random name", onSave: (look, name) => {
       if (robot) { Roster.current?.setLook(robot.id, look); Roster.current?.rename(robot.id, name); robot.look = look; if (name) robot.name = name; }
       else drafts.set(providerId, { look, name, custom: true });
       renderWorker();

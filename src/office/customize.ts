@@ -20,24 +20,18 @@ export type CustomizeOptions = {
   name: string;
   provider: string;
   look: RobotLook;
-  level?: number;                       // company level: rare items unlock with it
   model?: string | null;                // printed on the preview's back plate
   onSave: (look: RobotLook, name: string) => void | Promise<void>;
   /** Shown in an empty name field; with it the name may stay empty (a fresh hire gets a random name). */
   namePlaceholder?: string;
 };
 
-/** The company level saved in the app settings (the hiring screen is opened without it). */
-export function savedLevel() {
-  try { return Number(JSON.parse((window as any).lucid?.settingsLoad?.() || "{}").level) || 0; } catch { return 0; }
-}
-
 /** Customize the robot sitting at a desk: saves to the roster and updates the desk robot right away. */
-export function openCustomizeFor(desk: { profile: RobotProfile | null; robot: SeatedRobot; threadId?: string | null; info?: object | null }, roster: Roster, level = 0) {
+export function openCustomizeFor(desk: { profile: RobotProfile | null; robot: SeatedRobot; threadId?: string | null; info?: object | null }, roster: Roster) {
   const profile = desk.profile ?? (desk.threadId ? roster.byThread(desk.threadId) : null);
   if (!profile) return;
   openCustomize({
-    name: profile.name, provider: profile.provider, look: profile.look, level, model: (desk.info as { model?: string | null } | null | undefined)?.model ?? null,
+    name: profile.name, provider: profile.provider, look: profile.look, model: (desk.info as { model?: string | null } | null | undefined)?.model ?? null,
     onSave: async (look, name) => {
       roster.rename(profile.id, name);
       roster.setLook(profile.id, look);
@@ -48,7 +42,6 @@ export function openCustomizeFor(desk: { profile: RobotProfile | null; robot: Se
 }
 
 export function openCustomize(o: CustomizeOptions) {
-  const level = o.level ?? 0;
   const brand = brandFor(o.provider), base = PALETTES[brand];
   let look: RobotLook = { ...resolveLook(o.look) };
   delete look.headphones;
@@ -119,14 +112,12 @@ export function openCustomize(o: CustomizeOptions) {
     robot.setLook({ ...look, headphones: phones });
     render();
   };
-  const locked = (unlock?: number) => (unlock ?? 0) > level;
-  const lockTag = (unlock?: number) => (locked(unlock) ? `<small class="cz-lock">Level ${unlock}</small>` : "");
-  const tile = (key: string, value: string, label: string, art: string, selected: boolean, unlock?: number) =>
-    `<button type="button" role="radio" class="cz-tile" aria-checked="${selected}" data-k="${key}" data-val="${esc(value)}" ${locked(unlock) ? `disabled aria-label="${esc(label)}, unlocks at company level ${unlock}"` : ""}>${art}<b>${esc(label)}</b>${lockTag(unlock)}</button>`;
+  const tile = (key: string, value: string, label: string, art: string, selected: boolean) =>
+    `<button type="button" role="radio" class="cz-tile" aria-checked="${selected}" data-k="${key}" data-val="${esc(value)}">${art}<b>${esc(label)}</b></button>`;
   const row = (label: string, body: string, value = "") => `<div class="cz-row"><span class="hire-label">${label}${value ? ` <i class="cz-val">${esc(value)}</i>` : ""}</span>${body}</div>`;
   const named = (c: string) => COLOR_NAMES[c.toLowerCase()] ?? "Custom";
-  const chips = (key: string, items: { id: string; label: string; unlock?: number }[], cur: string) =>
-    `<div class="chips" role="radiogroup" aria-label="${key}">${items.map((i) => `<button type="button" role="radio" aria-checked="${i.id === cur}" data-k="${key}" data-val="${i.id}" ${locked(i.unlock) ? "disabled" : ""}>${esc(i.label)}${lockTag(i.unlock)}</button>`).join("")}</div>`;
+  const chips = (key: string, items: { id: string; label: string }[], cur: string) =>
+    `<div class="chips" role="radiogroup" aria-label="${key}">${items.map((i) => `<button type="button" role="radio" aria-checked="${i.id === cur}" data-k="${key}" data-val="${i.id}">${esc(i.label)}</button>`).join("")}</div>`;
   const swatches = (key: string, items: { val: string; color: string; label: string }[], cur: string) =>
     `<div class="cz-sw" role="radiogroup" aria-label="${key}">${items.map((i) => `<button type="button" role="radio" aria-checked="${i.val === cur}" data-k="${key}" data-val="${esc(i.val)}" aria-label="${esc(i.label)}"><span style="background:${i.color}"></span></button>`).join("")}</div>`;
   const pal = base;
@@ -142,15 +133,15 @@ export function openCustomize(o: CustomizeOptions) {
         row("Shell tint", swatches("tint", TINTS.map((t) => ({ val: t.id, color: tintPalette(base, t.id).shell, label: t.label })), L.tint) + `<small class="cz-note">A slight shift of the ${esc(harnessName(o.provider))} shell</small>`, TINTS.find((t) => t.id === L.tint)?.label) +
         row("Trim and fabric", swatches("accent", ACCENTS.map((c) => ({ val: c, color: c, label: named(c) })), L.accent ?? ACCENTS[0]), named(L.accent ?? ACCENTS[0]));
     } else if (tab === "hat") {
-      html = `<div class="cz-tiles" role="radiogroup" aria-label="Hat">${HATS.map((h) => tile("hat", h.id, h.label, portrait({ hat: h.id }), h.id === L.hat, h.unlock)).join("")}</div>`;
+      html = `<div class="cz-tiles" role="radiogroup" aria-label="Hat">${HATS.map((h) => tile("hat", h.id, h.label, portrait({ hat: h.id }), h.id === L.hat)).join("")}</div>`;
     } else if (tab === "face") {
-      html = row("Eyes", `<div class="cz-tiles" role="radiogroup" aria-label="Eyes">${EYES.map((e) => tile("eyes", e.id, e.label, portrait({ eyes: e.id, hat: "none" }), e.id === L.eyes, e.unlock)).join("")}</div>`) +
+      html = row("Eyes", `<div class="cz-tiles" role="radiogroup" aria-label="Eyes">${EYES.map((e) => tile("eyes", e.id, e.label, portrait({ eyes: e.id, hat: "none" }), e.id === L.eyes)).join("")}</div>`) +
         row("Glow", swatches("glow", [{ val: "", color: base.glow, label: `${harnessName(o.provider)} glow` }, ...GLOWS.filter((g) => g.toLowerCase() !== base.glow.toLowerCase()).map((g) => ({ val: g, color: g, label: named(g) }))], L.glow ?? ""), L.glow ? named(L.glow) : `${harnessName(o.provider)} glow`) +
         row("Antenna tip", chips("antennaTip", ANTENNA_TIPS, L.antennaTip)) +
         row("Cheeks", `<div class="chips" role="radiogroup" aria-label="Cheeks"><button type="button" role="radio" aria-checked="${!L.blush}" data-k="blush" data-val="">Plain</button><button type="button" role="radio" aria-checked="${L.blush}" data-k="blush" data-val="1">Blush</button></div>`);
     } else {
-      html = row("Accessory", `<div class="cz-tiles wide" role="radiogroup" aria-label="Accessory">${ACCESSORIES.map((a) => tile("accessory", a.id, a.label, portrait({ accessory: a.id, hat: "none" }, true, a.covers ? "back" : "front"), a.id === L.accessory, a.unlock)).join("")}</div>`) +
-        row("Sticker", `<div class="cz-tiles small" role="radiogroup" aria-label="Sticker">${STICKERS.map((s) => tile("sticker", s.id, s.label, `<svg class="cz-art" viewBox="-20 -20 40 40" width="34" height="34" aria-hidden="true">${s.id === "none" ? `<circle r="11" fill="none" stroke="currentColor" stroke-opacity="0.35" stroke-width="2" stroke-dasharray="3 3"/>` : stickerSvg(s.id)}</svg>`, s.id === L.sticker, s.unlock)).join("")}</div>`);
+      html = row("Accessory", `<div class="cz-tiles wide" role="radiogroup" aria-label="Accessory">${ACCESSORIES.map((a) => tile("accessory", a.id, a.label, portrait({ accessory: a.id, hat: "none" }, true, a.covers ? "back" : "front"), a.id === L.accessory)).join("")}</div>`) +
+        row("Sticker", `<div class="cz-tiles small" role="radiogroup" aria-label="Sticker">${STICKERS.map((s) => tile("sticker", s.id, s.label, `<svg class="cz-art" viewBox="-20 -20 40 40" width="34" height="34" aria-hidden="true">${s.id === "none" ? `<circle r="11" fill="none" stroke="currentColor" stroke-opacity="0.35" stroke-width="2" stroke-dasharray="3 3"/>` : stickerSvg(s.id)}</svg>`, s.id === L.sticker)).join("")}</div>`);
     }
     // re-rendering replaces the buttons: keep the scroll position and the keyboard focus
     const scroll = panel.scrollTop, fe = document.activeElement as HTMLElement | null;
@@ -193,7 +184,7 @@ export function openCustomize(o: CustomizeOptions) {
   });
 
   form.querySelector('[data-a="random"]')!.addEventListener("click", () => {
-    const r = randomLook(Math.random, level);
+    const r = randomLook(Math.random);
     delete r.headphones;
     look = { ...look, ...r };
     robot.setLook({ ...look, headphones: phones });

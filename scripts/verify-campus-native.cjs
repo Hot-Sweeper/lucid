@@ -43,7 +43,7 @@ if (!process.versions.electron) {
     const scene=w.scene.getBoundingClientRect(),root=w.root.getBoundingClientRect(),m=new DOMMatrixReadOnly(getComputedStyle(w.root).transform);
     const rect=el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}};
     const project=r=>({x:root.x+r.x*m.a,y:root.y+r.y*m.d,w:r.w*m.a,h:r.h*m.d});
-    const targets=[...w.rooms.map(r=>({id:r.id,kind:'room',...rect(r.el)})),{id:'shop',kind:'shop',...rect(w.shopFront.el)},
+    const targets=[...w.rooms.map(r=>({id:r.id,kind:'room',...rect(r.el)})),
       {id:'park',kind:'park',...project(w.outdoor.park)},
       ...w.park.toys.spots.filter(s=>['pond','fountain'].includes(s.kind)).map(s=>({id:s.key,kind:'park-target',...project({x:s.x-s.rx,y:s.y-s.ry,w:s.rx*2,h:s.ry*2})})),
       ...[...w.neighbors.values()].flatMap(e=>e.office?e.office.rooms.map(r=>({id:e.open.textContent+':'+r.id,kind:'neighbor-room',...rect(r.el)})):[])];
@@ -55,7 +55,7 @@ if (!process.versions.electron) {
     await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(null))))');
     const rendered=await measure();
     check(name+': rendered transform matches camera',Math.abs(rendered.matrix.a-rendered.cam.s)<.00001&&Math.abs(rendered.matrix.e-rendered.cam.x)<.01&&Math.abs(rendered.matrix.f-rendered.cam.y)<.01&&Math.abs(rendered.root.x-rendered.scene.x-rendered.cam.x)<.1&&Math.abs(rendered.root.y-rendered.scene.y-rendered.cam.y)<.1,rendered);
-    if(overview)check(name+': rendered rooms, park, pond, fountain and shop are inside scene',rendered.targets.every(r=>r.inside),rendered.targets.filter(r=>!r.inside));
+    if(overview)check(name+': rendered rooms, park, pond and fountain are inside scene',rendered.targets.every(r=>r.inside),rendered.targets.filter(r=>!r.inside));
     const file=path.join(out,name+'.png'),png=await win.webContents.capturePage(),after=await measure();
     check(name+': camera unchanged during capture',JSON.stringify(rendered.matrix)===JSON.stringify(after.matrix)&&JSON.stringify(rendered.cam)===JSON.stringify(after.cam));
     fs.writeFileSync(file,png.toPNG());report.captures.push({file,sha256:hash(fs.readFileSync(file)),pngSize:png.getSize(),rendered});
@@ -70,10 +70,10 @@ if (!process.versions.electron) {
       // Only this isolated fixture relaxes the minimum; production is untouched.
       window.normalZoomBounds=w.cameraZoomBounds.bind(w);
       w.cameraZoomBounds=()=>({...normalZoomBounds(),min:.001});
-      w.stopCameraMotion();w.unfocus(false);window.frame=()=>{w.stopCameraMotion();Object.assign(w.cam,w.fitTarget({x:w.grounds.bounds.x-80,y:w.grounds.bounds.y-100,w:Math.max(w.campusRight,w.grounds.bounds.x+w.grounds.bounds.w,w.outdoor.park.x+w.outdoor.park.w,w.shopRect.x+w.shopRect.w)-w.grounds.bounds.x+160,h:Math.max(w.campusHeight,w.grounds.bounds.y+w.grounds.bounds.h,w.outdoor.park.y+w.outdoor.park.h,w.shopRect.y+w.shopRect.h)-w.grounds.bounds.y+200},20,w.scene.clientWidth,w.scene.clientHeight));w.sceneBox=null;w.apply();w.recull()};w.drawBuildings();frame();void 0}`);
+      w.stopCameraMotion();w.unfocus(false);window.frame=()=>{w.stopCameraMotion();Object.assign(w.cam,w.fitTarget({x:w.grounds.bounds.x-80,y:w.grounds.bounds.y-100,w:Math.max(w.campusRight,w.grounds.bounds.x+w.grounds.bounds.w,w.outdoor.park.x+w.outdoor.park.w)-w.grounds.bounds.x+160,h:Math.max(w.campusHeight,w.grounds.bounds.y+w.grounds.bounds.h,w.outdoor.park.y+w.outdoor.park.h)-w.grounds.bounds.y+200},20,w.scene.clientWidth,w.scene.clientHeight));w.sceneBox=null;w.apply();w.recull()};w.drawBuildings();frame();void 0}`);
     await wait(300);
     await capture('single-computer');
-    report.single=await ev('({size:w.size,park:w.outdoor.park,shop:w.shopRect,entranceY:w.topH+75,campus:{w:w.campusRight,h:w.campusHeight}})');
+    report.single=await ev('({size:w.size,park:w.outdoor.park,entranceY:w.topH+75,campus:{w:w.campusRight,h:w.campusHeight}})');
     if(process.argv[4]!=='baseline')check('Park stays beside entrance',report.single.park.x-report.single.size.w===180&&report.single.park.y<=report.single.entranceY&&report.single.park.y+report.single.park.h>=report.single.entranceY,report.single);
     const sample={...data,environmentId:'fixture-remote'};
     await ev(`w.setBuildings(${JSON.stringify(Array.from({length:4},(_,i)=>({id:'remote-'+i,label:'Computer '+(i+1),local:false,canOpen:true,reason:null})))},async()=>{},async(id)=>({...${JSON.stringify(sample)},environmentId:id,threads:[],projects:[]}));void 0`);

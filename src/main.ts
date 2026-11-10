@@ -55,14 +55,10 @@ import { hasOfficeWork, remainingDeskExtras } from "./office/room-policy";
 import type { RobotProfile } from "./office/roster";
 import { Orchestrator, type OrchState } from "./office/orchestrator";
 import { openOrchestratorControls } from "./office/orchestrator-controls";
-import { progress } from "./office/progress";
 import { mountStats } from "./stats/stats";
 import { mountEnvironments } from "./office/environments";
-import { Wallet, openShop, coinIcon, boostNow, luckyHour, type WalletState } from "./office/shop";
-import { ShopFront } from "./office/shopfront";
+import { Wallet, coinIcon, type WalletState } from "./office/wallet";
 import { watchDaily } from "./office/daily";
-import { MILESTONES, check as checkMs, celebrateMilestone, celebrateDailyReward, openMilestones, type Stats as MsStats } from "./office/milestones";
-import { CATALOG } from "./office/shop";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
@@ -123,8 +119,7 @@ document.getElementById("app")!.innerHTML = `
       </div>
     </header>
 
-    <section class="company" id="company" aria-live="polite"></section>
-    <section class="wallet" id="wallet"><span class="wl-coins" title="1 coin for every dollar of AI work at API prices">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></span><span class="wl-boost" id="wl-boost" hidden></span><button type="button" class="wl-shop" id="open-shop">Shop</button></section>
+    <section class="wallet" id="wallet"><span class="wl-coins" title="1 coin for every dollar of AI work at API prices">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></span></section>
 
     <section class="threads">
       <div class="th-head"><h3>Threads</h3><label class="th-search"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label><button type="button" class="primary th-new-task" id="th-new-task" title="Start a new task (Ctrl+N)"><span aria-hidden="true">+</span> Task</button><button type="button" class="ghost th-new-project" id="th-new-project" aria-label="New project" title="New project: create a folder or add one you have"><span aria-hidden="true">+</span> Project</button>${foldButton("threads", "threads")}</div>
@@ -137,7 +132,7 @@ document.getElementById("app")!.innerHTML = `
       <div class="sec-head"><h3>Rooms</h3>${foldButton("rooms", "rooms")}</div>
       <div class="fold-body" id="fold-rooms">
       <ul id="room-list" class="room-list"></ul>
-      <div class="room-links"><button type="button" class="link-btn" id="overview">Whole building</button><button type="button" class="link-btn" id="park">The park</button><button type="button" class="link-btn" id="shop-link">The shop</button></div>
+      <div class="room-links"><button type="button" class="link-btn" id="overview">Whole building</button><button type="button" class="link-btn" id="park">The park</button></div>
       <div class="hidden-offices" id="hidden-offices" hidden></div>
       </div>
     </section>
@@ -155,7 +150,7 @@ document.getElementById("app")!.innerHTML = `
   </aside>
   <nav class="side-rail" id="side-rail" aria-label="Folded sidebar" hidden>
     <button type="button" class="rail-show" id="rail-show" aria-expanded="false" aria-controls="side-panel" title="Show sidebar (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M6.5 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Show<br>sidebar</span></button>
-    <button type="button" class="rail-coins" id="rail-coins" title="Coins. Click to open the shop">${coinIcon(16)}<b id="rail-bal">0</b></button>
+    <p class="rail-coins" id="rail-coins">${coinIcon(16)}<b id="rail-bal">0</b></p>
     <ol class="rail-list" id="rail-list" aria-label="Threads"></ol>
   </nav>
   <main class="scene" id="scene"></main>
@@ -163,7 +158,7 @@ document.getElementById("app")!.innerHTML = `
     <label class="switch orch-power-switch"><span>Orchestrator</span><input type="checkbox" id="orch-power-toggle" role="switch" aria-label="Orchestrator enabled" disabled><span class="track" aria-hidden="true"><i></i></span><b id="orch-power-status">Off</b></label>
     <button type="button" class="link-btn" id="orch-controls-open" aria-label="Orchestrator settings">Settings</button>
   </section>
-  <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button><button type="button" id="coin-bank" aria-label="Coin balance. Open shop">${coinIcon(18)}<b id="coin-bank-bal">0</b></button><button type="button" id="terrible-song" disabled>Mark song terrible</button><button type="button" id="game-sound" aria-pressed="true">Sound on</button></div>`;
+  <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button><p id="coin-bank" class="coin-bank" tabindex="-1">${coinIcon(18)}<b id="coin-bank-bal">0</b></p><button type="button" id="terrible-song" disabled>Mark song terrible</button><button type="button" id="game-sound" aria-pressed="true">Sound on</button></div>`;
 
 void mountTitlebar();
 // Keep threads in front and put occasional office controls behind one disclosure.
@@ -182,7 +177,7 @@ mountInterfaceThemeSetting(extrasBody);
   wall.addEventListener("click", () => openWall()); extrasBody.appendChild(wall);
 }
 mountPerformancePanel(extrasBody);
-for (const selector of ["#environment-body", ".rooms", "#orch", "#company", "#wallet"]) {
+for (const selector of ["#environment-body", ".rooms", "#orch", "#wallet"]) {
   const section = document.querySelector(selector);
   if (section) extrasBody.appendChild(section);
 }
@@ -317,7 +312,7 @@ function openWorkerProfile(r: RobotProfile, anchor: Element | null) {
     robot: r, anchor, job, free,
     loadRuntime: () => (window as any).lucidT3.hireConfig({ projectId }),
     onOpenChat: t ? () => world.onSelectThread(t.id) : undefined,
-    onCustomize: () => openCustomize({ name: r.name, provider: r.provider, look: r.look, level: world.level, onSave: (look, name) => { world.roster.setLook(r.id, look); world.roster.rename(r.id, name); view.refresh(); if (world.lastData) world.update(world.lastData); } }),
+    onCustomize: () => openCustomize({ name: r.name, provider: r.provider, look: r.look, onSave: (look, name) => { world.roster.setLook(r.id, look); world.roster.rename(r.id, name); view.refresh(); if (world.lastData) world.update(world.lastData); } }),
     onRetrain: (provider, model) => { world.roster.retrain(r.id, provider, model, settledNow()); if (world.lastData) world.update(world.lastData); },
     onRetire: () => { world.roster.retire(r.id, settledNow()); void refresh(); },
     onStaffWall: () => openWall(),
@@ -569,7 +564,6 @@ async function refresh() {
     monitorTasks.prepare(data);
     coinRewards?.prepare(data);
     for (const p of data.projects) projectTitles.set(p.id, p.title);
-    renderCompany(data.shipped ?? { total: 0, today: 0 });
     world.orchThread = data.environmentId ? '' : settings.orch?.threadId || '';
     world.update(data);
     paintSelectedStatus();
@@ -696,7 +690,7 @@ function setupMenus() {
   const decorate = (room: { id: string; title: string }) => {
     const SHEET = 372; // the decorate panel covers the right side of the view
     world.showRoom(room.id, SHEET);
-    openDecorate({ title: room.title, theme: world.themes.get(room.id) ?? {}, level: world.level, wallet, onChange: async (t: RoomTheme) => {
+    openDecorate({ title: room.title, theme: world.themes.get(room.id) ?? {}, onChange: async (t: RoomTheme) => {
       world.themes.set(room.id, t); saveSettings();
       await refresh();
       world.showRoom(room.id, SHEET);   // the room may have grown a lounge
@@ -747,7 +741,7 @@ function setupMenus() {
       { label: "Worker profile", run: () => { const r = d.threadId ? world.roster.byThread(d.threadId) : null; if (r) openWorkerProfile(r, d.el.querySelector(".robot-host")); } },
       { label: "Look at its screen", run: () => world.focusScreen(d) },
       { label: "Go to its desk", run: () => world.showDesk(d) },
-      { label: "Customize robot", run: () => openCustomizeFor(d, world.roster, world.level) },
+      { label: "Customize robot", run: () => openCustomizeFor(d, world.roster) },
     ];
     if (d.threadId) items.push(...pinItems(d.threadId), ...officeMoveItems(d.threadId));
     if (d.room === "freelance" && d.folder) {
@@ -862,7 +856,9 @@ async function selectBuilding(id: string) {
 }
 mountEnvironments($("environment-body"), (fresh) => (api as any).environments(fresh), selectBuilding,
   data => world.setBuildings(data.buildings, selectBuilding, id => (api as any).buildingWorld(id)));
-const settings: { buildingLayouts?: Record<string, import("./office/world").OfficeLayout>; roomOrder?: string[]; expandedRooms?: string[]; collapsedRooms?: string[]; seats?: Record<string, (string | null)[]>; hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; dailyLines?: DailyLinesState; roles?: Role[]; level?: number; themes?: Record<string, RoomTheme>; wallet?: WalletState; milestones?: string[]; nightRuns?: boolean; keptDesks?: string[]; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number; sideAuto?: boolean; chatAuto?: boolean } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+const settings: { buildingLayouts?: Record<string, import("./office/world").OfficeLayout>; roomOrder?: string[]; expandedRooms?: string[]; collapsedRooms?: string[]; seats?: Record<string, (string | null)[]>; hidden?: string[]; extra?: Record<string, number>; homes?: Record<string, string>; orch?: OrchState | null; dailyLines?: DailyLinesState; roles?: Role[]; themes?: Record<string, RoomTheme>; wallet?: WalletState; keptDesks?: string[]; weatherFix?: { kind: string; at: number }; ui?: { rail?: boolean; chatTab?: boolean; folded?: string[]; sideW?: number; chatW?: number; sideAuto?: boolean; chatAuto?: boolean } } = (() => { try { return JSON.parse(api.settingsLoad() || "{}"); } catch { return {}; } })();
+// Keys of removed features (company levels, milestones, the managers group).
+for (const key of ["level", "milestones", "nightRuns"]) delete (settings as Record<string, unknown>)[key];
 world.hidden = new Set(settings.hidden ?? []);
 world.keptDesks = new Set(settings.keptDesks ?? []);
 world.roomOrder = Array.isArray(settings.roomOrder) ? settings.roomOrder.filter((id) => typeof id === "string" && movableRoom(id)) : [];
@@ -870,7 +866,6 @@ world.collapsedRooms = new Set(settings.collapsedRooms ?? []);
 world.expandedRooms = new Set(Array.isArray(settings.expandedRooms) ? settings.expandedRooms.filter((id) => typeof id === "string") : []);
 world.extra = new Map(Object.entries(settings.extra ?? {}));
 world.themes = new Map(Object.entries(settings.themes ?? {}));
-world.level = settings.level ?? 0;
 world.homes = new Map(Object.entries(settings.homes ?? {}));
 world.seats = new Map(Object.entries(settings.seats ?? {}).filter(([, seats]) => Array.isArray(seats)));
 world.restoreLayouts(settings.buildingLayouts ?? {});
@@ -878,7 +873,7 @@ world.restoreLayouts(settings.buildingLayouts ?? {});
 // --- folding the sidebar, its sections and the chat (remembered in settings.ui) ------------
 settings.ui ??= {};
 const ui = settings.ui;
-const folded = new Set(ui.folded ?? ["todo", "company", "usage", "orch"]);
+const folded = new Set((ui.folded ?? ["usage", "orch"]).filter(key => !["todo", "company", "managers"].includes(key)));
 const appEl = $("app") as HTMLElement;
 // Panel widths: you drag the inner edge of the sidebar or the chat. Small windows shrink the chat first, then
 // the sidebar, so the office always keeps room.
@@ -1204,53 +1199,14 @@ function takeChair() {
   });
 }
 
-// --- company progress ------------------------------------------------------------------------
-let lastCompany = "";
-let lastShipped: { total: number; today: number } | null = null;
-let walletReady: Wallet | null = null;   // set once the coin wallet exists (startup order)
-function renderCompany(shipped: { total: number; today: number }) {
-  const p = progress(shipped.total);
-  const key = `${shipped.total}:${shipped.today}`;
-  if (key === lastCompany) return;
-  lastCompany = key;
-  const coOpen = !folded.has("company");
-  $("company").innerHTML = `
-    <div class="co-top"><b>Level ${p.level}</b><span>${p.level >= 10 ? "Top level" : `${p.to - shipped.total} runs to level ${p.level + 1}`}</span>${foldButton("company", "company progress", coOpen)}</div>
-    <div class="fold-body" id="fold-company"${coOpen ? "" : " hidden"}>
-    <div class="co-bar" role="progressbar" aria-label="Progress to the next level" aria-valuemin="${p.from}" aria-valuemax="${p.to}" aria-valuenow="${shipped.total}"><i style="width:${Math.round(p.frac * 100)}%"></i></div>
-    <p class="co-sub">${shipped.total} runs shipped, ${shipped.today} today</p>
-    <button type="button" class="link-btn co-ms" id="open-ms">Milestones <span id="ms-count"></span></button>
-    </div>`;
-  $("company").classList.toggle("folded", !coOpen);
-  $("open-ms").addEventListener("click", () => openMilestones(milestoneStats(shipped), new Set(settings.milestones ?? [])));
-  lastShipped = shipped;
-  checkMilestones(shipped);
-  const prev = settings.level;
-  if (prev != null && p.level > prev) celebrate(p.level);
-  if (prev !== p.level) { settings.level = p.level; saveSettings(); }
-  if (world.level !== p.level) { world.level = p.level; void refresh(); }
-}
-function celebrate(level: number) {
-  gameSound.play('level');
-  for (const d of world.desks.values()) d.robot.react("cheer");
-  const el = document.createElement("div");
-  el.className = "level-up";
-  el.innerHTML = `<b>Level ${level}</b><span>Your company grew. New things to decorate offices with are unlocked.</span>`;
-  document.body.appendChild(el);
-  gsap.timeline({ onComplete: () => el.remove() })
-    .fromTo(el, { opacity: 0, y: -20, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(2)" })
-    .to(el, { opacity: 0, y: -10, duration: 0.4, delay: 4 });
-}
 world.attachDir = attachDir;
 // Start the first refresh after all controls and state below are initialized.
 setInterval(() => { void refresh(); }, 3000);
 checkUpdate();
 setInterval(() => { if (!document.hidden) void checkUpdate(); }, 60 * 1000);
 
-// tokens, plan limits and cost from the harness logs
-// Coins: the robots' API-priced spend pays for things in the shop.
+// Coins show what the robots' API-priced work cost; they wait on each desk until collected.
 const wallet = new Wallet(() => settings.wallet, (s) => { settings.wallet = s; saveSettings(); });
-walletReady = wallet;
 const soundButton = $('game-sound');
 const terribleSongButton = document.querySelector<HTMLButtonElement>('#terrible-song')!;
 const paintTerribleSong = () => {
@@ -1285,21 +1241,6 @@ for (const [kind, label, value] of [
 }
 mountMusicControls(extrasBody);
 let bankAmount = wallet.balance;
-// boosts and the daily reward
-const paintBoost = () => {
-  wallet.level = world.level;
-  const b = boostNow(world.level), el = $("wl-boost");
-  el.hidden = b.mult <= 1;
-  el.textContent = `${b.label === "Lucky hour" ? "★" : b.label === "Night shift" ? "☾" : "▲"} x${b.mult}`;
-  el.title = `${b.label}: ${b.label === "Lucky hour" ? "double coins for this hour" : b.label === "Night shift" ? "robots working at night earn 1.5x coins" : "your company level adds 3% per level"}. Lucky hour today: ${luckyHour()}:00.`;
-  el.classList.toggle("hot", b.label === "Lucky hour");
-};
-paintBoost();
-setInterval(paintBoost, 60000);
-wallet.onDaily = celebrateDailyReward;
-(window as any).__dailyReward = wallet.onDaily; // visual-only fixture; does not award coins
-window.setTimeout(() => { if (lastShipped) checkMilestones(lastShipped); }, 0);
-world.owns = (key) => wallet.owns(key);
 const paintWallet = (gained = 0) => {
   const b = $("wl-bal");
   b.textContent = formatCoins(wallet.balance);
@@ -1310,10 +1251,10 @@ const paintWallet = (gained = 0) => {
     // Count up while the collected coins land on the counter (coin-rewards.ts fly).
     (bank as any).__count = gsap.to(target, { value: wallet.balance, delay: .5, duration: .7, ease: 'power1.inOut', onUpdate: () => { bank.textContent = formatCoins(target.value); bankAmount = target.value; } });
   } else { bankAmount = wallet.balance; bank.textContent = formatCoins(bankAmount); }
-  $('coin-bank').title = `${formatCoins(wallet.balance)} coins. Open shop`;
+  $('coin-bank').title = `${formatCoins(wallet.balance)} coins from collected work`;
   const rb = $("rail-bal"), n = wallet.balance;
   rb.textContent = n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : formatCoins(n);
-  $("rail-coins").title = `${n.toLocaleString()} coins. Click to open the shop`;
+  $("rail-coins").title = `${n.toLocaleString()} coins from collected work`;
   if (gained > 0 && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     const f = document.createElement("span");
     f.className = "wl-gain";
@@ -1325,30 +1266,6 @@ const paintWallet = (gained = 0) => {
 };
 wallet.onChange = (_bal, gained) => paintWallet(gained);
 paintWallet();
-const goShopping = () => {
-  void openShop({ wallet, level: world.level,
-    rooms: () => world.rooms.filter(r => r.id === "main" || r.id.startsWith("p:")).map(r => ({
-      id: r.id, title: r.title, theme: world.themes.get(r.id) ?? {},
-      desks: [...document.querySelectorAll<HTMLElement>(".desk-unit[data-slot]")].filter(d => d.dataset.slot?.split("#")[0] === r.id).map(d => ({ id: d.dataset.slot!, title: `Desk ${Number(d.dataset.slot!.split("#")[1]) + 1}` })),
-    })),
-    onEquip: async (id, theme) => {
-      const before = world.themes.get(id);
-      world.themes.set(id, theme);
-      try { await saveSettings(); await refresh(); }
-      catch (e) { if (before) world.themes.set(id, before); else world.themes.delete(id); throw e; }
-    },
-    onBought: async () => { await saveSettings(); shopFront.render(); },
-  }).catch(() => { void confirmDialog("Store unavailable", "Could not open the store. Please try again.", "OK"); });
-};
-$("open-shop").addEventListener("click", goShopping);
-$("rail-coins").addEventListener("click", goShopping);
-$("coin-bank").addEventListener("click", goShopping);
-// the shop is also a real building next to the office
-const shopFront = new ShopFront(document.createElement("div"), wallet, () => world.level);
-shopFront.onOpen = goShopping;
-world.attachShop(shopFront);
-wallet.onChange = (_bal, gained) => { paintWallet(gained); shopFront.render(); window.dispatchEvent(new Event("lucid:wallet-change")); };
-$("shop-link").addEventListener("click", goShopping);
 coinRewards = new CoinRewards(wallet, world, () => (api as any).coinUsage(), { ready: id => coinReady(id), collected: id => coinCollected(id).then(() => refresh()) });
 (window as any).__coinRewards = coinRewards;
 (window as any).__wallet = wallet;
@@ -1834,38 +1751,6 @@ for (const box of [$("th-list"), $("rail-list")]) {
 
 // you typing in the side chat: the robot sees it in its Messages app and waits for you
 chat.onTyping = (on) => { const id = chat.threadId; if (id) world.deskFor(id)?.director.userTyping(on); };
-
-// --- milestones: rewards for real work, paid in coins ----------------------------------------
-function milestoneStats(shipped: { total: number; today: number }): MsStats {
-  const wallet = walletReady!;
-  const data = world.lastData;
-  const week = Date.now() - 7 * 864e5;
-  const projects = new Set((data?.threads ?? []).filter((t) => Date.parse(t.updatedAt) > week && data?.projects.find((p) => p.id === t.projectId && !p.scratch)).map((t) => t.projectId));
-  const h = new Date().getHours();
-  const night = (h < 6 || h >= 22) && (data?.threads ?? []).some((t) => t.runStatus === "running");
-  if (night) settings.nightRuns = true;
-  return {
-    shipped: shipped.total, today: shipped.today, level: world.level, robots: world.roster.robots.length, projects: projects.size,
-    spentUsd: wallet.spentUsd, coinsEarned: wallet.earned, itemsOwned: CATALOG.filter((c) => c.price > 0 && wallet.owns(c.key)).length,
-    hats: world.roster.robots.filter((r) => (r.look as any).hat && (r.look as any).hat !== "none").length, nightRuns: !!settings.nightRuns,
-  };
-}
-function checkMilestones(shipped: { total: number; today: number }) {
-  if (!walletReady) return;
-  const wallet = walletReady;
-  const seen = new Set(settings.milestones ?? []);
-  const fresh = checkMs(milestoneStats(shipped), seen);
-  // the first time this runs, past achievements are counted quietly (no flood of toasts)
-  const quiet = settings.milestones === undefined;
-  fresh.forEach((m, i) => {
-    seen.add(m.id);
-    wallet.grant(m.id, m.coins);
-    if (!quiet) window.setTimeout(() => celebrateMilestone(m), i * 1800);
-  });
-  if (fresh.length || quiet) { settings.milestones = [...seen]; saveSettings(); }
-  const el = document.getElementById("ms-count");
-  if (el) el.textContent = `${seen.size}/${MILESTONES.length}`;
-}
 
 void refresh();
 

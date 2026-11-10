@@ -6,11 +6,11 @@ const load = async (file, swap = s => s) => 'data:text/javascript;base64,' + Buf
 const themes = await load('src/themes/registry.ts', s => s.replace(/^import ["'].*\.css["'];?$/gm, ''));
 const art = await load('src/office/outdoor-art.ts', s => s.replace(/from\s*["']\.\.\/themes\/registry["']/, `from "${themes}"`));
 const { planLandscape } = await import(await load('src/office/landscape.ts', s => s.replace(/from\s*["']\.\/outdoor-art["']/, `from "${art}"`)));
-const building = { x: 0, y: 0, w: 2600, h: 1300 }, park = { x: 2850, y: 0, w: 1300, h: 1000 }, shop = { x: 2850, y: 1150, w: 600, h: 400 }, neighbor = { x: 0, y: 1700, w: 2600, h: 1300 };
-const areas = [building, park, shop, neighbor];
-const paved = [[[2600, 650], [2664, 650], [2664, 500], [3500, 500]], [[3500, 500], [3500, 920], [3150, 920], [3150, 1190]]];
-const routes = [{ x: 2560, y: 560, w: 1500, h: 220 }];
-const input = { bounds: { x: -1000, y: -1000, w: 6200, h: 5000 }, areas, parks: [park], shops: [shop], paved, routes };
+const building = { x: 0, y: 0, w: 2600, h: 1300 }, park = { x: 2850, y: 0, w: 1300, h: 1000 }, neighbor = { x: 0, y: 1700, w: 2600, h: 1300 };
+const areas = [building, park, neighbor];
+const paved = [[[2600, 300], [2664, 300], [2664, 500], [3500, 500]]];
+const routes = [{ x: 2560, y: 210, w: 1500, h: 220 }];
+const input = { bounds: { x: -1000, y: -1000, w: 6200, h: 5000 }, areas, parks: [park], paved, routes };
 const a = planLandscape(input), b = planLandscape(structuredClone(input));
 assert.deepEqual(a.trees.map(t => [t.x, t.y, t.r, t.kind]), b.trees.map(t => [t.x, t.y, t.r, t.kind]), 'same geometry gives the same woodland');
 assert(a.trees.length > 300, `woodland is dense enough (${a.trees.length})`);

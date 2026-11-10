@@ -1,7 +1,6 @@
 import { officeColumns, officeDimensions, mountOfficeWidth, releaseOfficeWidth } from "./office-width";
 import { currentTheme } from "../themes/registry";
 import { setRobotModes } from "../world/robot-power";
-import "./storefront.css";
 import { LOD_PX, monitorPx } from "../perf/lod";
 import type { RobotLook } from "./rig";
 import { gameSound } from "./sound";
@@ -29,7 +28,6 @@ import { Park } from "./park";
 import { Walker, SIT_HEAD, pause, type Facing } from "../world/walker";
 import { makeInteractive, whenFree, isHeld } from "./interact";
 import { GEOM, type Pt } from "./rig";
-import { SHOP_W, SHOP_H, type ShopFront } from "./shopfront";
 import { mountWeather, applySkyTint, type WeatherLayer, type Weather } from "../weather/effects";
 import { outdoorLook, seasonPalette } from "../weather/season";
 import { plainOutsideSvg, lookFor, groundsLayout, PARK_W, PARK_H, type Grounds } from "./outside";
@@ -70,7 +68,7 @@ export type WThread = {
   completionPending?: boolean;
 };
 export type WProject = { id: string; title: string; root: string; icon: string | null; scratch: boolean };
-export type WorldData = { nativeEnvironmentId?: string; environmentId?: string; projects: WProject[]; threads: WThread[]; models?: Record<string, string[]>; prices?: Record<string, { input: number; output: number }>; shipped?: { total: number; today: number } };
+export type WorldData = { nativeEnvironmentId?: string; environmentId?: string; projects: WProject[]; threads: WThread[]; models?: Record<string, string[]>; prices?: Record<string, { input: number; output: number }> };
 
 export type OfficeLayout = {
   roomOrder: string[]; expandedRooms: string[]; collapsedRooms?: string[]; roomColumns?: Record<string, number>; hidden: string[];
@@ -105,11 +103,9 @@ function officeSize(slots: number, lounge = 0, columns = 1) {
   return officeDimensions(slots, columns, SLOT_W, SLOT_H, lounge);
 }
 const columnsForRoom = (room: { w: number }) => officeColumns((room.w - 120) / SLOT_W);
-// Decorations the company has unlocked, out of what the room asks for.
-// Things in a room only show once they are unlocked and bought.
-let ownsItem: (key: string) => boolean = () => true;
-const usable = (t: RoomTheme | undefined, level: number) => (t?.decor ?? []).filter((d) => DECOR[d] && DECOR[d].unlockAt <= level && ownsItem(`decor:${d}`));
-const needsLounge = (t: RoomTheme | undefined, level: number) => usable(t, level).some((d) => DECOR[d].spot === "floor");
+// The decorations a room asks for (all of them are free).
+const usable = (t: RoomTheme | undefined) => (t?.decor ?? []).filter((d) => DECOR[d]);
+const needsLounge = (t: RoomTheme | undefined) => usable(t).some((d) => DECOR[d].spot === "floor");
 
 export class World {
   scene: HTMLElement;
@@ -128,7 +124,6 @@ export class World {
     return true;
   }
   themes = new Map<string, RoomTheme>();
-  set owns(f: (key: string) => boolean) { ownsItem = f; }
   park: Park;
 
   // --- robots walking between rooms --------------------------------------------------------
@@ -341,10 +336,10 @@ export class World {
       blocks.push({ ...f, x: r.x + f.x, y: r.y + f.y });
     }
     const slots = this.physicalPlans.find((p) => p.id === r.id)?.slots ?? 0;
-    for (const p of officeDecor(r, slots, this.themes.get(r.id), this.level)) {
+    for (const p of officeDecor(r, slots, this.themes.get(r.id))) {
       const b = decorFootprint(p); if (b) blocks.push({ ...b, x: b.x + r.x, y: b.y + r.y });
     }
-    if (!usable(this.themes.get(r.id), this.level).length) blocks.push(
+    if (!usable(this.themes.get(r.id)).length) blocks.push(
       { x: r.x + r.w - 82, y: r.y + r.h - 86, w: 44, h: 26 }, { x: r.x + 34, y: r.y + r.h - 84, w: 38, h: 24 });
     return blocks;
   }
@@ -558,15 +553,6 @@ export class World {
       this.handOver(id, r ? this.door(r)[1] : this.parkDoor, "down");
     }
   }
-  // the shop building between the office and the park
-  private shopFront: ShopFront | null = null;
-  shopRect: { x: number; y: number; w: number; h: number } | null = null;
-  attachShop(sf: ShopFront) {
-    this.shopFront = sf;
-    const worldEl = this.root;
-    worldEl.insertBefore(sf.el, worldEl.querySelector(".building-plate"));
-    if (this.shopRect) sf.place(this.shopRect.x, this.shopRect.y);
-  }
   // today's office event from the orchestrator, on the building's name sign
   eventName = "";
   paintEvent() {
@@ -574,7 +560,6 @@ export class World {
     if (!b) return;
     b.textContent = this.eventName ? `${this.building}  ·  Today: ${this.eventName}` : this.building;
   }
-  showShop() { const r = this.shopRect; if (r) { this.unfocus(false); this.flyTo({ x: r.x - 60, y: r.y - 80, w: r.w + 120, h: r.h + 140 }, 20); } }
   // real weather and the season shape the outdoors and the light
   weather: Weather | null = null;
   private fx: WeatherLayer | null = null;
@@ -664,32 +649,31 @@ export class World {
   /** This office and each connected one, with its own park beside it, in world coordinates. */
   private campusDistricts() {
     type R = { x: number; y: number; w: number; h: number };
-    const list: { building: R; park: R | null; shop: R | null; door: number }[] = [];
-    const add = (o: World, dx: number, dy: number, shop: boolean) => {
+    const list: { building: R; park: R | null; door: number }[] = [];
+    const add = (o: World, dx: number, dy: number) => {
       const m = (r: R | null | undefined) => r ? { x: r.x + dx, y: r.y + dy, w: r.w, h: r.h } : null;
-      list.push({ building: { x: dx, y: dy, w: o.size.w, h: o.size.h }, park: m(o.outdoor?.park), shop: shop ? m(o.shopRect) : null, door: dy + o.topH + HALL / 2 });
+      list.push({ building: { x: dx, y: dy, w: o.size.w, h: o.size.h }, park: m(o.outdoor?.park), door: dy + o.topH + HALL / 2 });
     };
-    add(this, 0, 0, true);
-    for (const e of this.neighbors.values()) if (e.office) add(e.office, e.x, e.y, false);
+    add(this, 0, 0);
+    for (const e of this.neighbors.values()) if (e.office) add(e.office, e.x, e.y);
     return list;
   }
   /** Woodland, paths and lawns for the current campus geometry; rebuilt only when that changes. */
   private landscapePlan(width: number, height: number) {
     const base = this.outArgs!;
     const districts = this.campusDistricts();
-    // each building's walk: from its door along the building, into its park, and on to the shop
+    // each building's walk: from its door along the building into its park
     const paved: [number, number][][] = [];
     for (const d of districts) {
       const b = d.building, p = d.park; if (!p) continue;
       const walkX = b.x + b.w + 64, pcx = p.x + p.w / 2, pcy = p.y + p.h / 2;
       paved.push([[b.x + b.w, d.door], [walkX, d.door], [walkX, pcy], [pcx, pcy]]);
-      if (d.shop) paved.push([[pcx, pcy], [pcx, p.y + p.h - 80], [d.shop.x + d.shop.w / 2, p.y + p.h - 80], [d.shop.x + d.shop.w / 2, d.shop.y + 40]]);
     }
-    const areas = this.forestAreas.length ? this.forestAreas : districts.flatMap(d => [d.building, ...(d.park ? [d.park] : []), ...(d.shop ? [d.shop] : [])]);
-    const parks = districts.flatMap(d => d.park ? [d.park] : []), shops = districts.flatMap(d => d.shop ? [d.shop] : []);
+    const areas = this.forestAreas.length ? this.forestAreas : districts.flatMap(d => [d.building, ...(d.park ? [d.park] : [])]);
+    const parks = districts.flatMap(d => d.park ? [d.park] : []);
     const bounds = { x: base.ox, y: base.oy, w: width, h: height };
-    const sig = JSON.stringify([bounds, areas, paved, this.forestRoutes, parks, shops]);
-    if (sig !== this.landSig || !this.landPlan) { this.landSig = sig; this.landPlan = planLandscape({ bounds, areas, parks, shops, paved, routes: this.forestRoutes }); }
+    const sig = JSON.stringify([bounds, areas, paved, this.forestRoutes, parks]);
+    if (sig !== this.landSig || !this.landPlan) { this.landSig = sig; this.landPlan = planLandscape({ bounds, areas, parks, paved, routes: this.forestRoutes }); }
     return { plan: this.landPlan, parks };
   }
   private viewLandscape() {
@@ -698,7 +682,6 @@ export class World {
     if (!box.width || !box.height || !s) return;
     this.landscape.update({ x: -this.cam.x / s, y: -this.cam.y / s, w: box.width / s, h: box.height / s }, s * (window.devicePixelRatio || 1));
   }
-  level = 0;
   freeDesks: Desk[] = [];
   private roomLayer: HTMLElement;
   private deskLayer: HTMLElement;
@@ -1010,7 +993,7 @@ export class World {
     if (!hostWorld) window.addEventListener('pagehide', () => document.removeEventListener('visibilitychange', this.visibilityPresentation), { once: true });
     this.daylight();
     if (!hostWorld) setInterval(() => this.daylight(), 60000);
-    if (!hostWorld) window.addEventListener("lucid:interface-theme", () => { this.daylight(); this.shopFront?.render(); });
+    if (!hostWorld) window.addEventListener("lucid:interface-theme", () => this.daylight());
   }
 
   // --- layout -------------------------------------------------------------------
@@ -1125,7 +1108,7 @@ export class World {
       const extra = this.extra.get(id) ?? 0;
       const projection = projectRoomSeats(this.seats.get(id)!, reserved, this.isRoomExpanded(id), this.revealedThread, extra, this.collapsedRooms.has(id));
       const { slots, collapsed } = projection;
-      const { w, h } = collapsed ? FOLDED_OFFICE : officeSize(slots, needsLounge(this.themes.get(id), this.level) ? LOUNGE : 0, officeColumns(this.roomColumns.get(id)));
+      const { w, h } = collapsed ? FOLDED_OFFICE : officeSize(slots, needsLounge(this.themes.get(id)) ? LOUNGE : 0, officeColumns(this.roomColumns.get(id)));
       return { id, kind, title, icon, threads: projection.threads, slots, w, h, collapsed };
     };
     let top: Plan[] = [
@@ -1229,7 +1212,7 @@ export class World {
       this.wakeRoutes();
     }
 
-    const key = rooms.map((r, i) => `${r.id}:${plans[i].slots}:${r.w}:${r.h}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|") + `:L${this.level}:${[...this.themes.values()].map((t) => [...(t.decor ?? []), t.floor, t.wall].filter((k) => k).map((k) => (ownsItem(`decor:${k}`) || ownsItem(`floor:${k}`) || ownsItem(`wall:${k}`) ? 1 : 0)).join("")).join("")}`;
+    const key = rooms.map((r, i) => `${r.id}:${plans[i].slots}:${r.w}:${r.h}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|");
     if (key !== this.lastKey) {
       this.lastKey = key;
       // Keep unchanged artwork and residents alive while neighboring rooms move.
@@ -1242,7 +1225,7 @@ export class World {
       const oldRooms = new Map(this.rooms.map((r) => [r.id, r]));
       rooms.forEach((r, i) => {
         const old = oldRooms.get(r.id);
-        const signature = JSON.stringify([r.kind, r.title, r.icon, r.w, r.h, plans[i].slots, this.themes.get(r.id), this.level, key.slice(key.lastIndexOf(":L"))]);
+        const signature = JSON.stringify([r.kind, r.title, r.icon, r.w, r.h, plans[i].slots, this.themes.get(r.id)]);
         const utility = r.kind === 'break' || r.kind === 'queue' || r.kind === 'charging';
         if (old && old.w === r.w && old.h === r.h && (utility || old.el.dataset.artSignature === signature)) {
           r.el = old.el;
@@ -1266,7 +1249,7 @@ export class World {
           ext.onDeparture = (id, w) => this.prepareDeparture(id, w, () => ({ x: parseFloat(el.style.left), y: parseFloat(el.style.top) }));
           ext.onExit = (id, at, face) => this.handOver(id, { x: at.x + r.x, y: at.y + r.y }, face);
           this.ext[r.kind as "break" | "queue" | "charging"] = ext;
-        } else {el.dataset.vectorOwner=vectorOwner("room");el.innerHTML=roomSvg(r,plans[i].slots,this.themes.get(r.id),this.level,el.dataset.vectorOwner)}
+        } else {el.dataset.vectorOwner=vectorOwner("room");el.innerHTML=roomSvg(r,plans[i].slots,this.themes.get(r.id),el.dataset.vectorOwner)}
         this.roomLayer.appendChild(el);
         const art=el.querySelector<SVGSVGElement>(":scope > .room-art");if(art)cacheStaticArt(art);
         this.cull.observe(el);
@@ -1283,7 +1266,6 @@ export class World {
       hall.style.cssText = `top:0;height:${this.size.h}px;width:${this.size.w}px`;
       hall.innerHTML = floorPlan.halls.map((h) => `<div class="hall-strip${h.axis === "y" ? " hall-strip-vertical" : ""}" style="left:${h.x}px;top:${h.y}px;width:${h.w}px;height:${h.h}px"></div>`).join("");
       // the outdoors: grass and trees around the building, a park beside the entrance
-      // the shop sits just past the entrance, south of the path; the park lies beyond it
       this.layoutGrounds();
       // the room sign is the handle for office options
       for (const r of rooms) {
@@ -1411,7 +1393,7 @@ export class World {
       d.el.querySelector<HTMLButtonElement>('.empty-desk-remove')!.disabled = !this.canRemoveEmptyDesk(s.key);
       const appearance = this.themes.get(d.room);
       const computer = appearance?.computers?.[s.key] ?? appearance?.computer ?? "classic";
-      d.el.dataset.computer = ownsItem(`computer:${computer}`) ? computer : "classic";
+      d.el.dataset.computer = computer;
       if (d.threadId && (nowRoom.get(d.threadId) !== d.room || moving.some((m) => m.t.id === d!.threadId) || this.transit.has(d.threadId))) d.setSeated(false);
       if (d.threadId) d.el.classList.toggle("orch-desk", d.threadId === this.orchThread);
       const cur = { x: parseFloat(d.el.style.left), y: parseFloat(d.el.style.top) };
@@ -1462,14 +1444,12 @@ export class World {
   private parkPosition: Pt | null = null;
   private layoutGrounds() {
       const topH = this.topH, entY = topH + HALL / 2;
-      const district = districtPlan({ id: "", ...this.size, entranceY: entY }, { w: PARK_W, h: PARK_H }, { w: SHOP_W, h: SHOP_H });
-      this.shopRect = district.shop;
-      this.shopFront?.place(this.shopRect.x, this.shopRect.y);
+      const district = districtPlan({ id: "", ...this.size, entranceY: entY }, { w: PARK_W, h: PARK_H });
       // The same plan owns visible artwork, walking geometry and campus bounds.
       const park = district.park;
       // the grounds round it (grounds.ts): lawn, hedge and a tree belt that fades into the backdrop
       const building = { x: 0, y: 0, w: this.size.w, h: this.size.h };
-      this.grounds = groundsLayout({ building, entranceY: entY, park, shop: this.shopRect });
+      this.grounds = groundsLayout({ building, entranceY: entY, park });
       const cb = this.grounds.bounds;
       const out = { ox: cb.x, oy: cb.y, w: cb.w, h: cb.h };
       this.outdoor = { x: out.ox, y: out.oy, w: out.w, h: out.h, park };
@@ -1477,7 +1457,7 @@ export class World {
       this.park.setGeometry(park, this.parkDoor, undefined);
       const layer = this.root.querySelector(".outside-layer") as HTMLElement;
       layer.style.cssText = `left:${out.ox}px;top:${out.oy}px;width:${out.w}px;height:${out.h}px`;
-      this.outArgs = { ...out, building, footprint: this.footprint, entranceY: entY, park, shop: this.shopRect, grounds: this.grounds };
+      this.outArgs = { ...out, building, footprint: this.footprint, entranceY: entY, park, grounds: this.grounds };
       this.puddles = puddleSpots(this.grounds, building, park, entY);
       if (!this.hostWorld) this.redrawOutside(true);
       // the weather reaches well past the drawn grounds, so rain and cloud never stop at an edge
@@ -1487,8 +1467,6 @@ export class World {
       // puddles ripple in the rain, the paving shimmers in the heat, walkers leave prints in the snow
       this.fx?.setGround(this.puddles, [this.grounds.walk]);
       this.fx?.setSteppers(() => this.park.steppers());
-      // the shop has a roof: keep it above the rain
-      if (this.shopFront) this.root.insertBefore(this.shopFront.el, this.root.querySelector(".building-plate"));
       const shade = this.root.querySelector(".night-shade") as HTMLElement;
       shade.style.cssText = `left:0;top:0;width:${this.size.w}px;height:${this.size.h}px;right:auto;bottom:auto;background:none`;
       shade.innerHTML = `<svg width="${this.size.w}" height="${this.size.h}" aria-hidden="true"><path d="${this.footprint.path}" fill="#0b1030"/></svg>`;
@@ -1833,7 +1811,7 @@ export class World {
   deskFor(threadId: string) { return this.desks.get(threadId) ?? null; }
 
   // --- following a walking robot with the camera -----------------------------------
-  // Click a robot that is walking around (break room, park, hallway, shop) and the camera
+  // Click a robot that is walking around (break room, park, hallway) and the camera
   // stays on it as it goes about its business. Panning, zooming or Esc lets go.
   private followEl: HTMLElement | null = null;
   private followTick = (_time: number, delta: number) => {
@@ -2437,7 +2415,7 @@ export class World {
     const campus = campusPlan([
       { id: 'active', ...this.size, entranceY: this.topH + HALL / 2 },
       ...buildings.map(b => { const office = this.neighbors.get(b.id)?.office; return { id: b.id, outdoors: false, w: office?.size.w ?? 1400, h: office?.size.h ?? 800, entranceY: office ? office.topH + HALL / 2 : 400 }; }),
-    ], { w: PARK_W, h: PARK_H }, { w: SHOP_W, h: SHOP_H });
+    ], { w: PARK_W, h: PARK_H });
     this.campusRight = campus.bounds.w; this.campusHeight = campus.bounds.h;
     let createdOffice = false;
     for (const building of buildings) {
@@ -2467,15 +2445,15 @@ export class World {
     }
     // Outdoor positions stay local to each computer, even when campus rows wrap.
     for (const { office } of [{ office: this }, ...[...this.neighbors.values()].filter(e => e.office).map(e => ({ office: e.office! }))]) {
-      const position = districtPlan({ id: '', ...office.size, entranceY: office.topH + HALL / 2 }, { w: PARK_W, h: PARK_H }, { w: SHOP_W, h: SHOP_H }).park;
+      const position = districtPlan({ id: '', ...office.size, entranceY: office.topH + HALL / 2 }, { w: PARK_W, h: PARK_H }).park;
       if (office.parkPosition?.x !== position.x || office.parkPosition?.y !== position.y) { office.parkPosition = position; office.layoutGrounds(); }
     }
-    // Every computer's district (building, park and, for this one, the shop) stays clear of woodland.
+    // Every computer's district (building and park) stays clear of woodland.
     const districts = this.campusDistricts();
-    const areas = districts.flatMap(d => [d.building, ...(d.park ? [d.park] : []), ...(d.shop ? [d.shop] : [])]);
+    const areas = districts.flatMap(d => [d.building, ...(d.park ? [d.park] : [])]);
     const routes = districts.flatMap(d => {
       const b = d.building, top = d.door - HALL / 2, out = [{ x: b.x + b.w - 40, y: top - 30, w: PARK_W + 350, h: 220 }];
-      if (d.park) out.push({ x: d.park.x - 100, y: Math.min(top, d.park.y), w: d.park.w + 200, h: Math.max(d.park.y + d.park.h, d.shop ? d.shop.y + d.shop.h : 0) - Math.min(top, d.park.y) });
+      if (d.park) out.push({ x: d.park.x - 100, y: Math.min(top, d.park.y), w: d.park.w + 200, h: d.park.y + d.park.h - Math.min(top, d.park.y) });
       return out;
     });
     const signature = JSON.stringify([areas,routes]);
@@ -2629,14 +2607,14 @@ function monogram(title: string) {
   return ((words[0]?.[0] || "?") + (words[1]?.[0] || "")).toUpperCase();
 }
 
-function officeDecor(r: Room, slots: number, theme?: RoomTheme, level = 0) {
+function officeDecor(r: Room, slots: number, theme?: RoomTheme) {
   const { w, h, kind } = r, T = 16, cols = columnsForRoom(r);
   const desks = Array.from({ length: slots }, (_, k) => { const { c, row } = snakeSeat(k, cols); return { x: 70 + c * SLOT_W, y: WALL_FACE + 40 + row * SLOT_H, w: UNIT_W, h: UNIT_H }; });
   const avoid = [{ x: 30, y: T, w: 148, h: WALL_FACE - T }, ...(kind === "main" ? [{ x: w - 112, y: T, w: 64, h: 66 }] : []), ...(kind === "freelance" ? [{ x: w - 430, y: WALL_FACE - 10, w: 310, h: 70 }] : [])];
-  return placeDecor(usable(theme, level), w, h, WALL_FACE, desks, { avoid, wallTop: T });
+  return placeDecor(usable(theme), w, h, WALL_FACE, desks, { avoid, wallTop: T });
 }
 
-function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0, owner?:string) {
+function roomSvg(r: Room, slots: number, theme?: RoomTheme, owner?:string) {
   const { w, h, kind, title, icon } = r;
   const raw = {
     main: { wall: "#ece6da", trim: "#d8cfbf", floor: "#c9a274", seam: "#b88f61", accent: "#ff9f5a" },
@@ -2712,9 +2690,9 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0, owner?:st
   const plant = (x: number, y: number, s = 1) => ambientPlant(x, y, s);
   // the room's furnishing: placed around the desks, never on them
   let decorSvg: string | null = null;
-  const items = usable(theme, level);
+  const items = usable(theme);
   if (items.length) {
-    decorSvg = officeDecor(r, slots, theme, level).map((p) => drawDecor(p.id, p.x, p.y, p.scale)).join("");
+    decorSvg = officeDecor(r, slots, theme).map((p) => drawDecor(p.id, p.x, p.y, p.scale)).join("");
   }
   return /* svg */ `
   <svg class="room-art" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">
@@ -2723,10 +2701,10 @@ function roomSvg(r: Room, slots: number, theme?: RoomTheme, level = 0, owner?:st
       <radialGradient id="frost${uid}" r="0.75"><stop offset="0.45" stop-color="#eef6fb" stop-opacity="0"/><stop offset="0.85" stop-color="#eef6fb" stop-opacity="0.75"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.95"/></radialGradient>
       <radialGradient id="pool${uid}"><stop offset="0" stop-color="#ffe6b0" stop-opacity="0.28"/><stop offset="1" stop-color="#ffe6b0" stop-opacity="0"/></radialGradient>
     </defs>
-    <g data-cache-live="floor">${theme?.floor && ownsItem(`floor:${theme.floor}`) ? drawFloor(theme.floor, w, h, WALL_FACE) : `<rect y="${WALL_FACE}" width="${w}" height="${h - WALL_FACE}" style="fill:${pal.floor}"/>${floor}`}</g>
+    <g data-cache-live="floor">${theme?.floor ? drawFloor(theme.floor, w, h, WALL_FACE) : `<rect y="${WALL_FACE}" width="${w}" height="${h - WALL_FACE}" style="fill:${pal.floor}"/>${floor}`}</g>
     ${lamps.join("")}
     <rect y="${WALL_FACE}" width="${w}" height="18" fill="#000" opacity="0.07"/>
-    ${theme?.wall && ownsItem(`wall:${theme.wall}`) ? drawWall(theme.wall, w, WALL_FACE) : `<rect width="${w}" height="${WALL_FACE}" style="fill:${pal.wall}"/><rect y="${WALL_FACE - 10}" width="${w}" height="10" style="fill:${pal.trim}"/>`}
+    ${theme?.wall ? drawWall(theme.wall, w, WALL_FACE) : `<rect width="${w}" height="${WALL_FACE}" style="fill:${pal.wall}"/><rect y="${WALL_FACE - 10}" width="${w}" height="10" style="fill:${pal.trim}"/>`}
     ${windows.join("")}
     ${signBox}${clock}
     ${["main", "project", "freelance"].includes(kind) ? printerArt(h, pal.accent) : ""}

@@ -1,6 +1,6 @@
 import gsap from 'gsap';
 import type { World, WorldData } from './world';
-import { Wallet, coinIcon } from './shop';
+import { Wallet, coinIcon } from './wallet';
 import { formatCoins, type CoinSource } from './coin-ledger';
 import { gameSound } from './sound';
 import './coin-rewards.css';

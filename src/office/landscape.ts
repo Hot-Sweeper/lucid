@@ -11,11 +11,10 @@ type P = [number, number];
 export type LandInput = {
   /** The whole drawn area, in world coordinates. */
   bounds: LRect;
-  /** Buildings, the park and the shop: kept free of trees, each with a lawn round it. */
+  /** Buildings and parks: kept free of trees, each with a lawn round it. */
   areas: LRect[];
-  /** Parks (one per computer) and the shop, each with its own lawn. */
+  /** Parks (one per computer), each with its own lawn. */
   parks: LRect[];
-  shops: LRect[];
   /** The paved walks robots use (polylines). */
   paved: P[][];
   /** Walking corridors that must stay clear. */
@@ -105,7 +104,7 @@ export function planLandscape(o: LandInput) {
     for (let y = B.y - 60; y <= B.y + B.h + 60; y += 36) pts.push([cx + Math.sin(y * 0.0034) * amp + Math.sin(y * 0.0013 + 2) * amp * 0.7, y]);
     stream = line(pts, 46);
   }
-  // A woodland trail runs round the campus, with spurs from the park and the shop.
+  // A woodland trail runs round the campus, with spurs from the parks.
   const trails: Line[] = [];
   {
     const off = CLEAR + 150, x0 = U.x - off, y0 = U.y - off, x1 = U.r + off, y1 = U.b + off, rad = 260;
@@ -136,7 +135,6 @@ export function planLandscape(o: LandInput) {
         trails.push(line(pts, 30));
       };
       for (const p of o.parks) spur([p.x + p.w - 40, p.y + p.h / 2], [x1, p.y + p.h / 2], areas.find((a) => same(a, p)) ?? null);
-      for (const shop of o.shops) spur([shop.x + shop.w / 2, shop.y + shop.h - 10], [shop.x + shop.w / 2, y1], areas.find((a) => same(a, shop)) ?? null);
       // a path leaves the map across the creek, so the woods seem to go on
       if (stream) {
         const right = stream.pts[0][0] > x1, y = Math.round((y0 + y1) / 2 + 140);

@@ -286,9 +286,7 @@ export type OutsideOpts = {
   campusRoutes?: Rect[];
   /** Which part to draw, see OutsideLayer. Default "all". */
   layer?: OutsideLayer;
-  /** The shop building's rect. Without it, the first `avoid` rect is taken for the shop. */
-  shop?: Rect | null;
-  /** A layout from groundsLayout() with the same building, park and shop (saves computing it again). */
+  /** A layout from groundsLayout() with the same building and park (saves computing it again). */
   grounds?: Grounds;
   /** What the weather does to the ground (puddles, frost, heat, snowmen); see weather/ground.ts. */
   wx?: GroundWx;
@@ -331,10 +329,10 @@ export function backdropColor(o: Pick<OutsideOpts, "season" | "snowCover" | "wx"
 // set the drawing order for the next shapes (see Shapes.z)
 const Z = (s: Shapes, z: number) => { s.z = z; return s; };
 
-/** The grounds without the park: woodland, meadow, hedge, lawn, walk, plaza, kitchen garden, shop lot and lawn trees. */
+/** The grounds without the park: woodland, meadow, hedge, lawn, walk, plaza, kitchen garden and lawn trees. */
 function drawGrounds(G: Grounds, L: Look, o: OutsideOpts) {
   const { pal, snow } = L;
-  const b = o.building, p = o.park, shop = o.shop ?? o.avoid?.[0] ?? null;
+  const b = o.building, p = o.park;
   const lawnC = mix(pal.ground, SNOW, snow >= 0.95 ? 0.8 : snow * 0.45);
   const back = backdropColor(o);
   const meadow = mix(lawnC, back, 0.28);
@@ -422,12 +420,10 @@ function drawGrounds(G: Grounds, L: Look, o: OutsideOpts) {
   fade += `<path fill-rule="evenodd" d="M${B.x - 2} ${B.y - 2}h${B.w + 4}v${B.h + 4}h${-B.w - 4}Z${rr(B, FADE * 0.08, 480)}" fill="${back}"/>`;
   ground += `${canopy}${fade}`;
 
-  // --- the walk: paving, planters with trees, benches; the shop's forecourt opens off it -------
+  // --- the walk: paving, planters with trees, benches -------------------------------------------
   const gw = G.walk;
   Z(base, 1).rect(gw.x, gw.y, gw.w, gw.h, `fill="url(#lc-pave)"`, 30);
-  if (G.forecourt) Z(base, 1).rect(G.forecourt.x, G.forecourt.y, G.forecourt.w, G.forecourt.h, `fill="url(#lc-pave)"`, 14);
-  // planted trees along both edges; between them on the north edge a bench or a lamp, and two
-  // benches on the shop's forecourt either side of its door
+  // planted trees along both edges; between them on the north edge a bench or a lamp
   const walkTrees: [number, number][] = [];
   const lampsAt: [number, number][] = [];
   const PSTEP = 300, pathX = G.plazaPath ? G.plazaPath.x + G.plazaPath.w / 2 : -1e9;
@@ -440,12 +436,7 @@ function drawGrounds(G: Grounds, L: Look, o: OutsideOpts) {
     if (i === north.length - 1 || Math.abs(m - pathX) < 150 || m > gw.x + gw.w - 150) return;
     if (slot++ % 2 === 0) bench(m - BW / 2, gw.y - BH - 26); else lampsAt.push([m, gw.y - 50]);
   });
-  for (let x = gw.x + 160 + PSTEP / 2; x < gw.x + gw.w - 120; x += PSTEP)
-    if (!shop || x < shop.x - 90 || x > shop.x + shop.w + 90) walkTrees.push([x, gw.y + gw.h + 8]);
-  if (shop) {
-    for (const f of [0.22, 0.78]) bench(shop.x + shop.w * f - BW / 2, gw.y + gw.h + 16);
-    lampsAt.push([shop.x + shop.w + 40, gw.y + gw.h + 44]);
-  }
+  for (let x = gw.x + 160 + PSTEP / 2; x < gw.x + gw.w - 120; x += PSTEP) walkTrees.push([x, gw.y + gw.h + 8]);
   for (const [x, y] of walkTrees) planter(x, y);
 
   // --- the round plaza: a big tree inside a ring bench, a path down to the walk ------------------
@@ -493,21 +484,14 @@ function drawGrounds(G: Grounds, L: Look, o: OutsideOpts) {
   }
   lawnTrees.push([b.x - 200, b.y + b.h * 0.3, 80], [b.x - 205, b.y + b.h * 0.78, 76], [gw.x + 120, LW.y + 170, 80], [p.x - 170, LW.y + 190, 72],
     [p.x + p.w + 190, p.y + 160, 76], [p.x + p.w + 180, p.y + p.h - 140, 82], [p.x + 220, LW.y + LW.h - 150, 76], [p.x + p.w - 280, LW.y + LW.h - 160, 70]);
-  if (shop) lawnTrees.push([shop.x - 170, shop.y + shop.h + 150, 72], [shop.x + shop.w + 150, shop.y + shop.h + 140, 80]);
   const hit = (x: number, y: number, r: Rect, pad: number) => x > r.x - pad && x < r.x + r.w + pad && y > r.y - pad && y < r.y + r.h + pad;
   for (const [x, y, r] of lawnTrees) {
     if (!hit(x, y, LW, -90)) continue;
-    if (hit(x, y, b, 100) || hit(x, y, p, 80) || hit(x, y, gw, 90) || (shop && hit(x, y, shop, 110)) || (G.forecourt && hit(x, y, G.forecourt, 80))) continue;
+    if (hit(x, y, b, 100) || hit(x, y, p, 80) || hit(x, y, gw, 90)) continue;
     if (pz && Math.hypot(x - pz.x, y - pz.y) < pz.r + 100) continue;
     if (hit(x, y, { x: kg.x, y: kg.y, w: 740 * KG, h: 84 * KG }, 90)) continue;
     if (o.avoid?.some((a) => hit(x, y, a, 40))) continue;
     tree(x, y, r);
-  }
-  // a hedge round the shop's lot (not along its front)
-  if (shop) {
-    hedgeRect(shop.x - 70, shop.y + 60, 30, shop.h - 20);
-    hedgeRect(shop.x + shop.w + 40, shop.y + 60, 30, shop.h - 20);
-    hedgeRect(shop.x - 70, shop.y + shop.h + 60, shop.w + 140, 30);
   }
 
   // --- what sways: the walk's trees and the plaza tree (live) ----------------------------------
@@ -690,9 +674,8 @@ export function outsideSvg(o: OutsideOpts) {
   const { season, snow, pal } = L;
   const frozen = o.frozen ?? (season === "winter" && snow >= 0.4);
   const X = (x: number) => x - ox, Y = (y: number) => y - oy;
-  const shop = o.shop ?? o.avoid?.[0] ?? null;
-  const G = o.grounds ?? groundsLayout({ building: b, entranceY: o.entranceY, park: p, shop });
-  const grounds = drawGrounds(G, L, { ...o, shop });
+  const G = o.grounds ?? groundsLayout({ building: b, entranceY: o.entranceY, park: p });
+  const grounds = drawGrounds(G, L, o);
   // the park: pond, paths, benches, lamps, flower beds, a few big trees. It is laid out on its
   // plan (PARK_BASE_W x PARK_BASE_H round the same middle) and drawn PARK_K times bigger, so its
   // furniture is at the robots' scale; inPark() wraps plan drawing in that one transform.

@@ -75,7 +75,7 @@ export function weatherPal<P extends { ground: string; tuft: string; park: [stri
 /** A puddle spot. `on`: 0 deep (a hollow by the paving), 1 paving or path, 2 grass. `keep` decides which ones dry up first. */
 export type Puddle = { x: number; y: number; r: number; rot: number; on: 0 | 1 | 2; keep: number; seed: number };
 
-/** Where puddles form: on the walk and the shop's forecourt, the plaza, the lawns and in the park. Stable for a layout. */
+/** Where puddles form: on the walk, the plaza, the lawns and in the park. Stable for a layout. */
 export function puddleSpots(G: Grounds, building: Rect, park: Rect, entranceY: number): Puddle[] {
   const q = rnd(4242);
   const out: Puddle[] = [];
@@ -84,7 +84,6 @@ export function puddleSpots(G: Grounds, building: Rect, park: Rect, entranceY: n
   const w = G.walk;
   for (let t = 90 + q() * 80; t < w.w - 60; t += 190 + q() * 170) put(w.x + t, w.y + w.h / 2 + (q() - 0.5) * w.h * 0.5, 13 + q() * 10, 1, q() * 16 - 8);
   for (let t = 160 + q() * 120; t < w.w - 100; t += 420 + q() * 260) put(w.x + t, q() < 0.5 ? w.y + 14 : w.y + w.h - 14, 18 + q() * 10, 0, q() * 10 - 5);
-  if (G.forecourt) { const f = G.forecourt; put(f.x + f.w * (0.2 + q() * 0.2), f.y + f.h * 0.55, 16 + q() * 8, 1); put(f.x + f.w * (0.65 + q() * 0.2), f.y + f.h * 0.4, 12 + q() * 6, 1); }
   if (G.plazaPath) put(G.plazaPath.x + 30, G.plazaPath.y + G.plazaPath.h * 0.6, 12 + q() * 6, 1, 90);
   if (G.plaza) put(G.plaza.x + 92, G.plaza.y + 40, 16 + q() * 8, 1, 30);
   // hollows in the lawn round the building, clear of the walls and the walk
@@ -92,7 +91,7 @@ export function puddleSpots(G: Grounds, building: Rect, park: Rect, entranceY: n
   for (let i = 0, n = 0; i < 80 && n < 9; i++) {
     const x = L.x + 80 + q() * (L.w - 160), y = L.y + 80 + q() * (L.h - 160);
     const inside = (r: Rect, pad: number) => x > r.x - pad && x < r.x + r.w + pad && y > r.y - pad && y < r.y + r.h + pad;
-    if (inside(building, 90) || inside(park, 40) || inside(w, 60) || (G.forecourt && inside(G.forecourt, 80)) || (G.plaza && Math.hypot(x - G.plaza.x, y - G.plaza.y) < G.plaza.r + 60)) continue;
+    if (inside(building, 90) || inside(park, 40) || inside(w, 60) || (G.plaza && Math.hypot(x - G.plaza.x, y - G.plaza.y) < G.plaza.r + 60)) continue;
     put(x, y, 22 + q() * 18, 2); n++;
   }
   // the park: on its paths and in hollows of the lawn, away from the pond, fountain, benches and beds.

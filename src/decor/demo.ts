@@ -1,13 +1,13 @@
 import "@fontsource-variable/lexend";
 import "./decor.css";
 import {
-  DECOR, DECOR_IDS, FLOORS, WALLS, drawDecor, drawFloor, drawWall, placeDecor, unlockedDecor, windowSlots,
+  DECOR, DECOR_IDS, FLOORS, WALLS, drawDecor, drawFloor, drawWall, placeDecor, regularDecor, windowSlots,
   type DecorId, type FloorId, type WallId,
 } from "./decor";
 
 // Demo of the office decor pack. URL params (all optional):
 //   floor=wood|oak|carpet|tiles|concrete|terrazzo   wall=warm|cool|mint|lilac|dusk|brick
-//   desks=0|2|3   level=0..10   night=1   only=room|grid
+//   desks=0|2|3   night=1   only=room|grid
 
 const qs = new URLSearchParams(location.search);
 // size=WxH tries another room size (default 1300x700)
@@ -17,7 +17,6 @@ const state = {
   floor: (qs.get("floor") as FloorId) || "wood",
   wall: (qs.get("wall") as WallId) || "warm",
   desks: Number(qs.get("desks") ?? 2),
-  level: Number(qs.get("level") ?? 10),
   night: qs.get("night") === "1",
 };
 const ONLY = qs.get("only");
@@ -46,8 +45,6 @@ style.textContent = `
   .seg button { border: 0; background: none; color: var(--dim); font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
   .seg button:hover { color: var(--ink); }
   .seg button[aria-checked="true"] { background: #2d3352; color: var(--ink); }
-  .level { display: flex; align-items: center; gap: 10px; font-size: 13px; }
-  .level output { min-width: 2ch; font-variant-numeric: tabular-nums; }
   input[type=range] { -webkit-appearance: none; appearance: none; width: 170px; height: 4px; border-radius: 2px; background: #2d3352; }
   input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; }
   .toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; border: 0; background: none; color: var(--ink); padding: 4px 0; font: inherit; }
@@ -71,7 +68,6 @@ root.innerHTML = `
     <div class="group"><span id="floor-label">Floor</span><div class="swatches" role="radiogroup" aria-labelledby="floor-label" data-k="floor"></div></div>
     <div class="group"><span id="wall-label">Wall</span><div class="swatches" role="radiogroup" aria-labelledby="wall-label" data-k="wall"></div></div>
     <div class="group"><span id="desk-label">Desks</span><div class="seg" role="radiogroup" aria-labelledby="desk-label" data-k="desks"></div></div>
-    <div class="group"><span id="level-label">Company level</span><label class="level"><input type="range" min="0" max="10" step="1" aria-labelledby="level-label"/><output></output></label></div>
     <button type="button" class="toggle" role="switch" aria-checked="false"><i></i>Night</button>
   </div>
   <div id="room"></div>
@@ -142,7 +138,7 @@ function deskRects() {
 }
 
 function renderRoom() {
-  const items = unlockedDecor(state.level);
+  const items = regularDecor();
   const desks = deskRects();
   const placed = placeDecor(items, W, H, WF, desks);
   const sky = "sky" + Math.random().toString(36).slice(2, 7);
@@ -184,7 +180,7 @@ function renderGrid() {
       ${drawDecor(id, x, y, id === "rug" || id === "pingpong" ? 0.82 : 1)}
       ${state.night ? `<rect width="${CW}" height="${CH}" fill="#0b1030" opacity="0.27"/>` : ""}
     </svg>`;
-    return `<div class="cell">${svg}<p>${DECOR[id].name}<span>Level ${DECOR[id].unlockAt}</span></p></div>`;
+    return `<div class="cell">${svg}<p>${DECOR[id].name}${DECOR[id].season ? `<span>${DECOR[id].season}</span>` : ""}</p></div>`;
   });
   document.getElementById("grid")!.innerHTML = cells.join("");
 }
@@ -200,9 +196,6 @@ function renderControls() {
   fl.innerHTML = (Object.keys(FLOORS) as FloorId[]).map((id) => `<button type="button" role="radio" data-v="${id}" aria-checked="${id === state.floor}" aria-label="${FLOORS[id].name}" title="${FLOORS[id].name}">${swatchFloor(id)}</button>`).join("");
   wl.innerHTML = (Object.keys(WALLS) as WallId[]).map((id) => `<button type="button" role="radio" data-v="${id}" aria-checked="${id === state.wall}" aria-label="${WALLS[id].name}" title="${WALLS[id].name}">${swatchWall(id)}</button>`).join("");
   dk.innerHTML = [[0, "None"], [2, "Two"], [3, "Three"]].map(([v, l]) => `<button type="button" role="radio" data-v="${v}" aria-checked="${v === state.desks}">${l}</button>`).join("");
-  const range = root.querySelector("input[type=range]") as HTMLInputElement;
-  range.value = String(state.level);
-  (root.querySelector(".level output") as HTMLOutputElement).textContent = String(state.level);
   const tg = root.querySelector(".toggle") as HTMLButtonElement;
   tg.setAttribute("aria-checked", String(state.night));
   document.documentElement.classList.toggle("night", state.night);
@@ -220,11 +213,6 @@ root.addEventListener("click", (e) => {
   render();
 // zoom=2 enlarges the page, for checking small details in captures
 if (qs.get("zoom")) (document.body.style as any).zoom = qs.get("zoom");
-});
-root.querySelector("input[type=range]")!.addEventListener("input", (e) => {
-  state.level = Number((e.target as HTMLInputElement).value);
-  (root.querySelector(".level output") as HTMLOutputElement).textContent = String(state.level);
-  renderRoom();
 });
 
 function render() {

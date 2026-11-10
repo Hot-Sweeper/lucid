@@ -38,36 +38,36 @@ export const WALLS: Record<WallId, { name: string; face: string; trim: string }>
   brick: { name: "Brick", face: "#c47a5a", trim: "#e6dccb" },
 };
 
-// Seasonal items (with `season`) are sold only in their season; they need no company level.
-export const DECOR: Record<DecorId, { name: string; unlockAt: number; spot: Spot; season?: DecorSeason }> = {
-  plants: { name: "Potted plants", unlockAt: 0, spot: "corner" },
-  rug: { name: "Rug", unlockAt: 0, spot: "floor" },
-  posters: { name: "Robot posters", unlockAt: 1, spot: "wall" },
-  coffee: { name: "Coffee machine", unlockAt: 2, spot: "corner" },
-  water: { name: "Water cooler", unlockAt: 3, spot: "corner" },
-  bookshelf: { name: "Bookshelf", unlockAt: 4, spot: "corner" },
-  beanbags: { name: "Beanbags", unlockAt: 5, spot: "floor" },
-  trophies: { name: "Trophy shelf", unlockAt: 6, spot: "wall" },
-  arcade: { name: "Arcade cabinet", unlockAt: 8, spot: "corner" },
-  neon: { name: "Neon sign", unlockAt: 9, spot: "wall" },
-  aquarium: { name: "Aquarium", unlockAt: 10, spot: "corner" },
-  pingpong: { name: "Ping pong table", unlockAt: 10, spot: "floor" },
-  pumpkins: { name: "Pumpkins", unlockAt: 0, spot: "corner", season: "autumn" },
-  leafwreath: { name: "Leaf wreath", unlockAt: 0, spot: "wall", season: "autumn" },
-  xmastree: { name: "Christmas tree", unlockAt: 0, spot: "corner", season: "winter" },
-  stringlights: { name: "String lights", unlockAt: 0, spot: "wall", season: "winter" },
-  snowglobe: { name: "Snow globe", unlockAt: 0, spot: "corner", season: "winter" },
-  tulips: { name: "Tulip planter", unlockAt: 0, spot: "corner", season: "spring" },
-  kite: { name: "Kite", unlockAt: 0, spot: "wall", season: "spring" },
-  deskfan: { name: "Standing fan", unlockAt: 0, spot: "corner", season: "summer" },
-  palm: { name: "Potted palm", unlockAt: 0, spot: "corner", season: "summer" },
-  beachposter: { name: "Beach poster", unlockAt: 0, spot: "wall", season: "summer" },
+// Seasonal items carry their `season`; every decoration is free to use all year.
+export const DECOR: Record<DecorId, { name: string; spot: Spot; season?: DecorSeason }> = {
+  plants: { name: "Potted plants", spot: "corner" },
+  rug: { name: "Rug", spot: "floor" },
+  posters: { name: "Robot posters", spot: "wall" },
+  coffee: { name: "Coffee machine", spot: "corner" },
+  water: { name: "Water cooler", spot: "corner" },
+  bookshelf: { name: "Bookshelf", spot: "corner" },
+  beanbags: { name: "Beanbags", spot: "floor" },
+  trophies: { name: "Trophy shelf", spot: "wall" },
+  arcade: { name: "Arcade cabinet", spot: "corner" },
+  neon: { name: "Neon sign", spot: "wall" },
+  aquarium: { name: "Aquarium", spot: "corner" },
+  pingpong: { name: "Ping pong table", spot: "floor" },
+  pumpkins: { name: "Pumpkins", spot: "corner", season: "autumn" },
+  leafwreath: { name: "Leaf wreath", spot: "wall", season: "autumn" },
+  xmastree: { name: "Christmas tree", spot: "corner", season: "winter" },
+  stringlights: { name: "String lights", spot: "wall", season: "winter" },
+  snowglobe: { name: "Snow globe", spot: "corner", season: "winter" },
+  tulips: { name: "Tulip planter", spot: "corner", season: "spring" },
+  kite: { name: "Kite", spot: "wall", season: "spring" },
+  deskfan: { name: "Standing fan", spot: "corner", season: "summer" },
+  palm: { name: "Potted palm", spot: "corner", season: "summer" },
+  beachposter: { name: "Beach poster", spot: "wall", season: "summer" },
 };
 
-/** Every decoration, seasonal ones included, in unlock order. */
-export const DECOR_IDS = (Object.keys(DECOR) as DecorId[]).sort((a, b) => DECOR[a].unlockAt - DECOR[b].unlockAt);
-/** The regular (non-seasonal) decorations unlocked at a company level (0..10). */
-export function unlockedDecor(level: number): DecorId[] { return DECOR_IDS.filter((id) => !DECOR[id].season && DECOR[id].unlockAt <= level); }
+/** Every decoration, seasonal ones last. */
+export const DECOR_IDS = Object.keys(DECOR) as DecorId[];
+/** The regular (non-seasonal) decorations. */
+export function regularDecor(): DecorId[] { return DECOR_IDS.filter((id) => !DECOR[id].season); }
 /** Seasonal decorations, all of them or those of one season. */
 export function seasonalDecor(season?: DecorSeason): DecorId[] { return DECOR_IDS.filter((id) => DECOR[id].season && (!season || DECOR[id].season === season)); }
 

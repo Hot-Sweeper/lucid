@@ -413,10 +413,7 @@ function world(limit = 40) {
     (models[pv] ??= []);
     for (const m of extra) if (!models[pv].includes(m)) models[pv].push(m);
   }
-  const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
-  const shippedRow = db.prepare(`select count(*) as total, sum(case when completed_at >= ? then 1 else 0 end) as today
-                                 from orchestration_v2_projection_runs where status = 'completed'`).get(midnight.toISOString());
-  return { nativeEnvironmentId: fs.readFileSync(path.join(T3_HOME, "userdata", "environment-id"), "utf8").trim(), projects, threads: require('./thread-order.cjs').sortThreads(threads), models, prices: modelPrices(Object.values(models).flat()), shipped: { total: shippedRow.total || 0, today: shippedRow.today || 0 } };
+  return { nativeEnvironmentId: fs.readFileSync(path.join(T3_HOME, "userdata", "environment-id"), "utf8").trim(), projects, threads: require('./thread-order.cjs').sortThreads(threads), models, prices: modelPrices(Object.values(models).flat()) };
 }
 
 let rateDoc = null;

@@ -12,12 +12,10 @@ import { randomLook, seeded } from "../world/look";
 //   dialog=customize|hire     which dialog opens
 //   tab=body|hat|face|extras  starting tab (customize)
 //   view=back|front           preview side (customize)
-//   level=0..10               company level (locks)
 //   brand=claudeAgent|codex|grok|other
 // Capture scripts read window.capShots.
 
 const qs = new URLSearchParams(location.search);
-const level = Number(qs.get("level") ?? 3);
 document.body.style.background = "#141a33";
 (window as any).capShots = [Number(qs.get("at") ?? 1800)];
 
@@ -25,19 +23,19 @@ if (qs.get("dialog") === "hire") {
   localStorage.clear();
   const roster = new Roster();
   roster.assign([{ id: "t1", provider: "claudeAgent" }, { id: "t2", provider: "codex" }, { id: "t3", provider: "grok" }, { id: "t4", provider: "claudeAgent" }], new Set(["t1", "t2", "t3", "t4"]), new Set());
-  roster.robots.forEach((r, i) => (r.look = randomLook(seeded("hire" + i), 6)));
+  roster.robots.forEach((r, i) => (r.look = randomLook(seeded("hire" + i))));
   openHire({
     room: "p:demo", roomTitle: "Lucid", seat: 2, team: roster.freeTeam(new Set(["t1", "t2", "t3", "t4"])),
     loadRuntime: async () => ({
       source: "T3 defaults", selection: { providerInstanceId: "codex", model: "gpt-6.1-sol", options: { reasoningEffort: "medium" } },
       providers: [{ instanceId: "codex", name: "Codex", ready: true, models: [{ slug: "gpt-6.1-sol", name: "gpt-6.1-sol", isDefault: true, options: [{ id: "reasoningEffort", label: "Thinking", type: "select", choices: [{ id: "medium", label: "Medium", isDefault: true }, { id: "high", label: "High", isDefault: false }] }] }] }, { instanceId: "claudeAgent", name: "Claude Code", ready: true, models: [{ slug: "claude-opus-5-5", name: "Opus 5.5", isDefault: true, options: [] }] }],
     }), roles: BUILTIN_ROLES,
-    onNewRole: () => {}, projects: null, onHire: async () => {}, level,
+    onNewRole: () => {}, projects: null, onHire: async () => {},
   });
 } else {
   const brand = qs.get("brand") || "claudeAgent";
   openCustomize({
-    name: "Mochi", provider: brand, model: "claude-opus-5-5", level,
+    name: "Mochi", provider: brand, model: "claude-opus-5-5",
     look: { accent: "#4fb6ff", antennaTip: "star", hat: "beanie", accessory: "scarf", eyes: "round", tint: "warm", build: "regular", head: 1.05, sticker: "star" },
     onSave: (look, name) => console.log("saved", name, JSON.stringify(look)),
   });
@@ -57,7 +55,6 @@ if (qs.get("test") === "1") {
     out.opened = !!document.querySelector(".cz-wrap");
     (document.querySelector('[data-tab="hat"]') as HTMLElement).click();
     (document.querySelector('[data-k="hat"][data-val="tophat"]') as HTMLElement).click();
-    out.lockedCrown = (document.querySelector('[data-k="hat"][data-val="crown"]') as HTMLButtonElement).disabled;
     const name = document.querySelector(".cz-name input") as HTMLInputElement;
     name.value = "Tess"; name.dispatchEvent(new Event("input"));
     out.dirtyMsg = document.querySelector(".cz-msg")?.textContent;

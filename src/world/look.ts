@@ -11,7 +11,7 @@ import type { AccessoryKind, Build, EyeStyle, Expression, HatKind, RobotLook, St
 export type View = "back" | "front";
 
 // ---- options ------------------------------------------------------------------------------
-type Opt<K extends string> = { id: K; label: string; unlock?: number };
+type Opt<K extends string> = { id: K; label: string };
 
 export const BUILDS: Opt<Build>[] = [{ id: "slim", label: "Slim" }, { id: "regular", label: "Regular" }, { id: "sturdy", label: "Sturdy" }];
 /** Torso width factor and v0 shoulder half width per build. Even sturdy stays a tapered shell. */
@@ -37,10 +37,10 @@ export const HATS: (Opt<HatKind> & { antenna: "through" | "lift" | "hide"; lift?
   { id: "santa", label: "Santa hat", antenna: "hide" },
   { id: "chef", label: "Chef hat", antenna: "hide" },
   { id: "cowboy", label: "Cowboy hat", antenna: "lift", lift: 46 },
-  { id: "tophat", label: "Top hat", antenna: "lift", lift: 74, unlock: 2 },
-  { id: "propeller", label: "Propeller cap", antenna: "hide", unlock: 3 },
-  { id: "wizard", label: "Wizard hat", antenna: "hide", unlock: 5 },
-  { id: "crown", label: "Crown", antenna: "through", unlock: 8 },
+  { id: "tophat", label: "Top hat", antenna: "lift", lift: 74 },
+  { id: "propeller", label: "Propeller cap", antenna: "hide" },
+  { id: "wizard", label: "Wizard hat", antenna: "hide" },
+  { id: "crown", label: "Crown", antenna: "through" },
 ];
 export const ACCESSORIES: (Opt<AccessoryKind> & { covers?: boolean })[] = [
   { id: "none", label: "Nothing" },
@@ -51,12 +51,12 @@ export const ACCESSORIES: (Opt<AccessoryKind> & { covers?: boolean })[] = [
   { id: "flower", label: "Flower pin" },
   { id: "bandana", label: "Bandana" },
   { id: "backpack", label: "Backpack", covers: true },
-  { id: "jetpack", label: "Jetpack", covers: true, unlock: 4 },
-  { id: "cape", label: "Cape", covers: true, unlock: 6 },
+  { id: "jetpack", label: "Jetpack", covers: true },
+  { id: "cape", label: "Cape", covers: true },
 ];
 export const EYES: Opt<EyeStyle>[] = [
   { id: "classic", label: "Classic" }, { id: "dots", label: "Dots" }, { id: "round", label: "Sparkly" }, { id: "happy", label: "Happy" },
-  { id: "visor", label: "Visor bar" }, { id: "pixel", label: "Pixel" }, { id: "sleepy", label: "Sleepy" }, { id: "hearts", label: "Hearts", unlock: 3 },
+  { id: "visor", label: "Visor bar" }, { id: "pixel", label: "Pixel" }, { id: "sleepy", label: "Sleepy" }, { id: "hearts", label: "Hearts" },
 ];
 export const TINTS: (Opt<Tint> & { color: string | null })[] = [
   { id: "none", label: "Factory", color: null }, { id: "warm", label: "Soft depth", color: "#ffa36b" }, { id: "cool", label: "Soft shade", color: "#7fa6ff" },
@@ -66,7 +66,7 @@ export const TINTS: (Opt<Tint> & { color: string | null })[] = [
 export const STICKERS: Opt<StickerKind>[] = [
   { id: "none", label: "None" }, { id: "bolt", label: "Bolt" }, { id: "star", label: "Star" }, { id: "heart", label: "Heart" }, { id: "smile", label: "Smiley" },
   { id: "flower", label: "Flower" }, { id: "moon", label: "Moon" }, { id: "ghost", label: "Ghost" }, { id: "cat", label: "Cat" }, { id: "pizza", label: "Pizza" },
-  { id: "rainbow", label: "Rainbow", unlock: 2 }, { id: "planet", label: "Planet", unlock: 4 },
+  { id: "rainbow", label: "Rainbow" }, { id: "planet", label: "Planet" },
 ];
 export const ANTENNA_TIPS: Opt<NonNullable<RobotLook["antennaTip"]>>[] = [
   { id: "ball", label: "Ball" }, { id: "star", label: "Star" }, { id: "heart", label: "Heart" }, { id: "ring", label: "Ring" },
@@ -121,21 +121,21 @@ const weighted = <T>(r: () => number, a: [T, number][]) => {
   for (const [v, w] of a) if ((x -= w) <= 0) return v;
   return a[a.length - 1][0];
 };
-const open = <K extends string>(list: Opt<K>[], level: number) => list.filter((o) => o.id !== "none" && (o.unlock ?? 0) <= level).map((o) => o.id);
+const open = <K extends string>(list: Opt<K>[]) => list.filter((o) => o.id !== "none").map((o) => o.id);
 
 /** A varied random look. Most robots get a hat or an accessory, some get both, a few neither. */
-export function randomLook(r: () => number = Math.random, level = 0): RobotLook {
-  const hat = r() < 0.6 ? pickFrom(r, open(HATS, level)) : "none";
-  const accessory = r() < (hat === "none" ? 0.62 : 0.4) ? pickFrom(r, open(ACCESSORIES, level)) : "none";
+export function randomLook(r: () => number = Math.random): RobotLook {
+  const hat = r() < 0.6 ? pickFrom(r, open(HATS)) : "none";
+  const accessory = r() < (hat === "none" ? 0.62 : 0.4) ? pickFrom(r, open(ACCESSORIES)) : "none";
   return {
     accent: pickFrom(r, ACCENTS),
     antennaTip: weighted(r, [["ball", 3], ["star", 1], ["heart", 1], ["ring", 1]]),
     build: weighted(r, [["slim", 3], ["regular", 4.5], ["sturdy", 2.5]]),
     head: weighted(r, [[0.9, 1], [0.95, 2], [1, 3], [1.05, 2.5], [1.1, 1.5], [1.15, 1]]),
     hat, accessory,
-    eyes: r() < 0.38 ? "classic" : pickFrom(r, open(EYES, level)),
-    tint: r() < 0.3 ? "none" : pickFrom(r, open(TINTS, level)),
-    sticker: r() < 0.4 ? "none" : pickFrom(r, open(STICKERS, level)),
+    eyes: r() < 0.38 ? "classic" : pickFrom(r, open(EYES)),
+    tint: r() < 0.3 ? "none" : pickFrom(r, open(TINTS)),
+    sticker: r() < 0.4 ? "none" : pickFrom(r, open(STICKERS)),
     glow: r() < 0.8 ? null : pickFrom(r, GLOWS),
     blush: r() < 0.2,
   };

@@ -1,14 +1,13 @@
 // Written content pack for robot downtime: chats, thoughts, apps and games.
 import { localizedFlavor } from "./localized";
 
-export type { Topic, Place, Season } from "./types";
+export type { Topic, Place } from "./types";
 export * from "./convos";
 export * from "./thoughts";
 export * from "./botcord";
 export * from "./tube";
 export * from "./phone";
 export * from "./searches";
-export * from "./shop";
 export * from "./games";
 
 /**

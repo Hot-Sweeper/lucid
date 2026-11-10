@@ -64,8 +64,8 @@ if (!process.versions.electron) {
       }
       // Use the unmodified production camera bounds, unlike the old evidence helper.
       await ev('w.overview();w.cameraTween.progress(1);void 0');
-      const framed=await ev(`{const scene=w.scene.getBoundingClientRect(),r=w.shopFront.el.getBoundingClientRect(),p=w.root.getBoundingClientRect();({shop:r.toJSON(),scene:scene.toJSON(),park:{x:p.x+w.outdoor.park.x*w.cam.s,y:p.y+w.outdoor.park.y*w.cam.s,w:w.outdoor.park.w*w.cam.s,h:w.outdoor.park.h*w.cam.s}})}`);
-      check('Production overview includes shop and park with margin',framed.shop.right<framed.scene.right&&framed.shop.bottom<framed.scene.bottom&&framed.park.x+framed.park.w<framed.scene.right&&framed.park.y+framed.park.h<framed.scene.bottom,framed);
+      const framed=await ev(`{const scene=w.scene.getBoundingClientRect(),p=w.root.getBoundingClientRect();({scene:scene.toJSON(),park:{x:p.x+w.outdoor.park.x*w.cam.s,y:p.y+w.outdoor.park.y*w.cam.s,w:w.outdoor.park.w*w.cam.s,h:w.outdoor.park.h*w.cam.s}})}`);
+      check('Production overview includes the park with margin',framed.park.x+framed.park.w<framed.scene.right&&framed.park.y+framed.park.h<framed.scene.bottom,framed);
     }
     // Same isolated daytime workload in both builds. Timing is rAF interval, not OS FPS.
     await ev(`{w.setWeather(null);w.daylight(new Date(new Date().getFullYear(),new Date().getMonth(),new Date().getDate(),12));w.root.style.setProperty('--night','0');w.root.style.setProperty('--outdoor-night','0');w.scene.style.setProperty('--scene-night','0');frame();void 0}`);

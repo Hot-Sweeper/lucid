@@ -10,7 +10,7 @@ export type MusicState = {
 };
 type BackgroundKind = 'theme' | 'ambience';
 type BackgroundTrack = { media: HTMLAudioElement; source: MediaElementAudioSourceNode; gain: GainNode; pending: boolean; fading: boolean; release: () => void; fadeIn?: number };
-export type GameCue = 'collect' | 'clink' | 'ready' | 'purchase' | 'poke' | 'coffee' | 'phone' | 'open' | 'level'
+export type GameCue = 'collect' | 'clink' | 'ready' | 'poke' | 'coffee' | 'phone' | 'open' | 'level'
   | 'rustle' | 'splash' | 'switch' | 'projector' | 'boop' | 'chirp' | 'quack'
   | 'keyboard' | 'mouse' | 'paper' | 'servo' | 'step' | 'chatter' | 'controller' | 'ping' | 'snore' | 'water' | 'clip'
   | FoleyCue;
@@ -29,7 +29,6 @@ const SCORES: Record<GameCue, Note[]> = {
   clink: [[2093, 0, .045, .1], [3135.96, .016, .06, .05]],
   collect: [[1046.5, 0, .16, .32], [1318.5, .055, .18, .28], [1568, .11, .22, .24], [2093, .18, .28, .17], [523.25, 0, .2, .15]],
   ready: [[659.25, 0, .18, .15], [987.77, .12, .28, .12]],
-  purchase: [[783.99, 0, .09, .2], [659.25, .07, .1, .18], [1046.5, .15, .22, .22]],
   poke: [[392, 0, .075, .22, 'sine', 510], [587.33, .035, .1, .15]],
   coffee: [[0, 0, .13, .07], [880, .045, .14, .12], [1320, .08, .12, .035]],
   phone: [[739.99, 0, .065, .1], [987.77, .08, .065, .1]],
@@ -102,7 +101,7 @@ const powerCurve = (level: number, rising: boolean, steps = 48) => Float32Array.
   const x = i / (steps - 1);
   return level * (rising ? Math.sin(x * Math.PI / 2) : Math.cos(x * Math.PI / 2));
 });
-const UI_CUES = new Set<GameCue>(['collect', 'clink', 'purchase', 'level', 'ready', 'open']);
+const UI_CUES = new Set<GameCue>(['collect', 'clink', 'level', 'ready', 'open']);
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 /** Screen-space emitter relative to the camera's listening position. No DOM reads. */

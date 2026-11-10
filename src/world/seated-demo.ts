@@ -93,7 +93,7 @@ function station(scale: number, lookIdx = 0) {
   robot.setBrand(brand); robot.setModel(model); robot.setLook(look);
   // look overrides for single scenes: seed=N (a random look), hat=, acc=, eyes=, build=, head=
   if (!GALLERY && SCENE !== "grid" && [...qs.keys()].some((k) => ["seed", "hat", "acc", "eyes", "build", "head"].includes(k))) {
-    const l: RobotLook = { ...look, ...(qs.has("seed") ? randomLook(seeded("demo-look-" + qs.get("seed")), 10) : {}) };
+    const l: RobotLook = { ...look, ...(qs.has("seed") ? randomLook(seeded("demo-look-" + qs.get("seed"))) : {}) };
     if (qs.has("hat")) l.hat = qs.get("hat") as RobotLook["hat"];
     if (qs.has("acc")) l.accessory = qs.get("acc") as RobotLook["accessory"];
     if (qs.has("eyes")) l.eyes = qs.get("eyes") as RobotLook["eyes"];
@@ -151,7 +151,7 @@ async function gallery() {
   const brands = ["claudeAgent", "codex", "grok", "opencode"];
   const front = VIEW === "front";
   const items: [string, RobotLook][] =
-    SCENE === "looks" ? Array.from({ length: 12 }, (_, i) => [brands[i % 4], randomLook(seeded("demo-look-" + i), 10)] as [string, RobotLook])
+    SCENE === "looks" ? Array.from({ length: 12 }, (_, i) => [brands[i % 4], randomLook(seeded("demo-look-" + i))] as [string, RobotLook])
     : SCENE === "hats" ? HATS.map((h, i) => [brands[i % 4], { accent: ["#ff9f5a", "#4fb6ff", "#ff6f91", "#4ff0a0", "#b07cff", "#ffd27a"][i % 6], hat: h.id }] as [string, RobotLook])
     : SCENE === "accs" ? ACCESSORIES.map((a, i) => [brands[i % 4], { accent: ["#e2434b", "#4fb6ff", "#ff9f5a", "#4ff0a0", "#b07cff"][i % 5], accessory: a.id, build: (["slim", "regular", "sturdy"] as const)[i % 3] }] as [string, RobotLook])
     : EYES.map((e, i) => [brands[i % 4], { eyes: e.id, blush: i % 3 === 0 }] as [string, RobotLook]);
@@ -257,7 +257,7 @@ async function run() {
       sync();
       const b2 = document.createElement("button");
       b2.textContent = "randomize look";
-      b2.onclick = () => { look = randomLook(Math.random, 10); robot.setLook(look); sync(); };
+      b2.onclick = () => { look = randomLook(Math.random); robot.setLook(look); sync(); };
       bar2.appendChild(b2);
       (window as any).robot = robot;
     }
