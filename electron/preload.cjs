@@ -11,8 +11,6 @@ contextBridge.exposeInMainWorld("lucid", {
   projects: () => ipcRenderer.invoke("t3:projects"),
   threads: () => ipcRenderer.invoke("t3:threads"),
   watchSet: (ids) => ipcRenderer.invoke("t3:watch-set", ids),
-  office: (projectId) => ipcRenderer.invoke("t3:office", projectId),
-  offices: () => ipcRenderer.invoke("t3:offices"),
   world: () => ipcRenderer.invoke("t3:world"),
   environments: (fresh = false) => ipcRenderer.invoke("environment:list", fresh),
   buildingWorld: (id) => ipcRenderer.invoke("environment:world", id),
@@ -83,7 +81,6 @@ contextBridge.exposeInMainWorld("lucid", {
   checkUpdate: () => ipcRenderer.invoke("app:check-update"),
   applyUpdate: () => ipcRenderer.invoke("app:apply-update"),
   onUpdateStep: on("app:update-step"),
-  version: () => ipcRenderer.invoke("app:version"),
   t3Theme: () => ipcRenderer.invoke("t3:theme"),
 });
 

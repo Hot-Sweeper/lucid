@@ -76,7 +76,6 @@ function queuedText(m) {
 }
 
 
-// --- the offices' to-do lists ----------------------------------------------------------
 function threadInfo(threadId) {
   const t = getDb()
     .prepare(`select t.thread_id as id, t.project_id as projectId, t.title, coalesce(t.provider_instance_id, t.default_provider) as provider, t.payload_json as payload,
@@ -260,29 +259,7 @@ function projectIcon(root, faviconPath) {
   return found(null);
 }
 
-function office(projectId, limit = 6) {
-  const p = getDb()
-    .prepare("select project_id as id, title, workspace_root as root, favicon_path as favicon from projection_projects where project_id = ?")
-    .get(projectId);
-  if (!p) return null;
-  const threads = getDb()
-    .prepare(`select t.thread_id as id, t.title, t.updated_at as updatedAt, coalesce(t.provider_instance_id, t.default_provider) as provider,
-                     (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by case when r.status in ('running','starting','preparing','waiting','awaiting_input','queued') then 0 else 1 end, r.ordinal desc limit 1) as runStatus
-              from orchestration_v2_projection_threads t
-              where t.project_id = ? and t.archived_at is null and t.deleted_at is null
-              order by t.updated_at desc limit ?`)
-    .all(projectId, limit);
-  return { project: { id: p.id, title: p.title, root: p.root, icon: projectIcon(p.root, p.favicon) }, threads };
-}
 
-function listProjectsWithCounts() {
-  return getDb()
-    .prepare(`select p.project_id as id, p.title, p.workspace_root as root,
-                     (select count(*) from orchestration_v2_projection_threads t where t.project_id = p.project_id and t.archived_at is null and t.deleted_at is null) as threads,
-                     (select max(updated_at) from orchestration_v2_projection_threads t where t.project_id = p.project_id) as lastActive
-              from projection_projects p where p.deleted_at is null order by lastActive desc`)
-    .all();
-}
 
 // Every recent thread with what decides its room: pinned, running, settled, waiting on a question.
 function coinBindings() {
@@ -574,4 +551,4 @@ function threadFolders() {
   return getDb().prepare("select thread_id as id, json_extract(payload_json, '$.worktreePath') as path from orchestration_v2_projection_threads where archived_at is null and deleted_at is null and json_extract(payload_json, '$.worktreePath') is not null").all();
 }
 
-module.exports = { sentSince, threadHealth, threadFolders, coinBindings, reportState: id => reportFacts(id, false), reportFacts, requestContext, repliesSince, resolvedRequestsSince, requestOutcome, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, conversationPage, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
+module.exports = { sentSince, threadHealth, threadFolders, coinBindings, reportState: id => reportFacts(id, false), reportFacts, requestContext, repliesSince, resolvedRequestsSince, requestOutcome, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, conversationPage, attachmentPath, world, listProjects, listThreads, threadInfo, watchThread, startThread, sendMessage, DB_PATH };

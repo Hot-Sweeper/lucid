@@ -223,8 +223,6 @@ ipcMain.handle("t3:watch-set", (_e, ids) => {
   }
   return true;
 });
-ipcMain.handle("t3:office", (_e, projectId) => { const target = remote.split(projectId); if (!target) return t3.office(projectId); const data = remote.cached(target.environmentId); return { project: data?.projects.find(p => p.id === projectId), threads: data?.threads.filter(t => t.projectId === projectId) || [] }; });
-ipcMain.handle("t3:offices", () => activeBuilding() ? (remote.cached(activeBuilding())?.projects || []).map(p => ({ ...p, threads: remote.cached(activeBuilding()).threads.filter(t => t.projectId === p.id).length })) : t3.listProjectsWithCounts());
 ipcMain.handle("project:add", (_e, o) => { if (activeBuilding()) throw Error('Add projects to this building in T3 Code.'); return t3.addProject(o); });
 // New projects live beside the others in T3 Projects. An existing non-empty folder is
 // never taken over: use "a folder I already have" for that.
@@ -446,7 +444,6 @@ ipcMain.handle("app:apply-update", async () => {
     return require('./update-errors.cjs').updateFailure(err, require('./installation.cjs').hasInstalledBuild(path.join(__dirname, '..')));
   }
 });
-ipcMain.handle("app:version", () => app.getVersion());
 
 // lucid-file://local/<encoded path> serves images and text files the agents worked with,
 // so the robots' screens and the chat can show them. Only known media and text types.

@@ -33,7 +33,7 @@ async function native(out, mode) {
   };
   const source = fs.readFileSync(path.join(root, 'electron/main.cjs'), 'utf8');
   const start = source.indexOf('const SETTINGS ='), end = source.indexOf('let savingBeforeQuit', start);
-  const updateStart = source.indexOf('ipcMain.handle("app:check-update"'), updateEnd = source.indexOf('ipcMain.handle("app:version"', updateStart);
+  const updateStart = source.indexOf('ipcMain.handle("app:check-update"'), updateEnd = source.indexOf('// lucid-file://local/', updateStart);
   assert(start > 0 && end > start && updateStart > end && updateEnd > updateStart);
   const handlerSource = source.slice(start, end) + source.slice(updateStart, updateEnd);
   report.handlerSha256 = require('node:crypto').createHash('sha256').update(handlerSource).digest('hex');
