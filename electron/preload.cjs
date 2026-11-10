@@ -116,11 +116,6 @@ contextBridge.exposeInMainWorld("lucidT3", {
 });
 
 // Office documents for the robots' Botword, Cellsheet and Slidedeck: { ok, doc } or { ok: false, error }.
-// Real market data for the Botcoin Exchange: { ok, value } or { ok: false, error }.
-contextBridge.exposeInMainWorld("lucidMarket", {
-  klines: (symbol, interval) => ipcRenderer.invoke("market:klines", symbol, interval),
-  price: (symbol) => ipcRenderer.invoke("market:price", symbol),
-});
 contextBridge.exposeInMainWorld("lucidDocs", { read: (p) => ipcRenderer.invoke("doc:read", p) });
 
 // Dictation through T3 Code's speech service. Errors keep T3's reason as `code`.

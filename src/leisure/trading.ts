@@ -1,20 +1,19 @@
-// Botcoin Exchange: a crypto exchange for robots. Botcoin follows a real market feed: real candles
-// for real timeframes and the real last price (cached and rate limited in the main process; when
-// the network is down it says so and plays simulated prices). Next to it sit fictional meme coins with
-// made-up, very volatile prices that pump and get rugged. The robot draws trend lines on the
+// Botcoin Exchange: a crypto exchange for robots. Botcoin is the office's own fictional coin: its
+// candles and price come from the office's real work (botcoin.ts), computed locally for real
+// timeframes. Next to it sit fictional meme coins with made-up, very volatile prices that pump and
+// get rugged. The robot draws trend lines on the
 // chart, then trades with the usual human mistakes: buys after the green candle, panics at the
 // first dip, types an extra zero, sells just before the moon. Orders, profit, liquidation and the
 // wallet all follow the price on screen.
 import { Kit, runApp, rnd, chance, pick, h, canvas, calm, typeInto, marker, type SoHost, type SoOpts } from "../social/kit";
-import { realKlines, realPrice, INTERVAL_MS, INTERVALS, type Interval } from "./market";
+import { botcoinCandles, botcoinCandle, botcoinPrice, INTERVAL_MS, INTERVALS, type Candle, type Interval } from "./botcoin";
 import { chartPattern, PATTERNS, type ChartPoint } from "./trading-patterns";
 import "./trading.css";
 
-type Candle = { t: number; o: number; h: number; l: number; c: number };
 type Line = { a: [number, number]; b: [number, number]; col: string; label?: string };   // [candle time, price]
 type Doodle = { strokes: ChartPoint[][]; revealed: number; color: string };
 type Market = {
-  sym: string; name: string; real: boolean; fictional: boolean; price: number; shown: number; candles: Candle[]; step: number;
+  sym: string; name: string; live: boolean; price: number; shown: number; candles: Candle[]; step: number;
   open: number; drift: number; vol: number; ticks: number; lines: Line[]; note: string; interval: Interval; el?: HTMLElement; doodle?: Doodle;
 };
 type Pos = { m: Market; side: 1 | -1; margin: number; lev: number; entry: number };
@@ -58,7 +57,7 @@ class BotcoinExchange {
     this.root = h("div", "tb");
     body.appendChild(this.root);
     this.root.innerHTML = `
-      <aside class="tb-mk"><div class="tb-brand">${COIN}<b>Botcoin Exchange</b></div><header>Markets</header><div class="tb-grp" data-grp="real"></div><header class="tb-fic">Fictional coins</header><div class="tb-grp" data-grp="fic"></div></aside>
+      <aside class="tb-mk"><div class="tb-brand">${COIN}<b>Botcoin Exchange</b></div><header>Office coin</header><div class="tb-grp" data-grp="office"></div><header class="tb-fic">Fictional coins</header><div class="tb-grp" data-grp="fic"></div></aside>
       <main class="tb-main">
         <header class="tb-head"><div class="tb-pair"><b></b><small></small></div><span class="tb-px"></span><span class="tb-chg"></span></header>
         <div class="tb-bar"><nav class="tb-tf">${INTERVALS.map((t, i) => `<span data-tf="${t}" class="${i === 0 ? "on" : ""}">${t}</span>`).join("")}</nav>
@@ -80,18 +79,19 @@ class BotcoinExchange {
     this.cw = chart.clientWidth || 440; this.chh = chart.clientHeight || 290;
     this.ctx = canvas(chart.querySelector("canvas")!, this.cw, this.chh);
     this.mark = marker(chart);
-    // the markets: Botcoin first (its live data arrives in a moment), then the made-up coins
-    const botc: Market = { sym: "BOTC", name: "Botcoin", real: true, fictional: false, price: 0, shown: 0, candles: [], step: INTERVAL_MS["1m"], open: 0, drift: 0, vol: 0.0006, ticks: 0, lines: [], note: "Loading the live chart", interval: "1m" };
+    // the markets: Botcoin first, then the made-up coins
+    const botc: Market = { sym: "BOTC", name: "Botcoin", live: true, price: 0, shown: 0, candles: [], step: INTERVAL_MS["1m"], open: 0, drift: 0, vol: 0, ticks: 0, lines: [], note: "Rises when the office ships work", interval: "1m" };
     this.markets.push(botc);
+    this.chart(botc, "1m");
     for (const [sym, name, p0, vol] of COINS) {
-      const m: Market = { sym, name, real: false, fictional: true, price: 0, shown: 0, candles: [], step: 1, open: 0, drift: 0, vol, ticks: 0, lines: [], note: "Fictional coin, made-up prices", interval: "1m" };
+      const m: Market = { sym, name, live: false, price: 0, shown: 0, candles: [], step: 1, open: 0, drift: 0, vol, ticks: 0, lines: [], note: "Fictional coin, made-up prices", interval: "1m" };
       this.seed(m, p0 * rnd(0.6, 1.6));
       this.markets.push(m);
     }
     this.markets.forEach((m) => {
-      const el = h("div", "tb-m", `<div><b>${m.real ? COIN : ""}${m.sym}/USD</b><small>${m.name}</small></div><span></span>`);
+      const el = h("div", "tb-m", `<div><b>${m.live ? COIN : ""}${m.sym}/USD</b><small>${m.name}</small></div><span></span>`);
       m.el = el;
-      this.root.querySelector(`[data-grp="${m.fictional ? "fic" : "real"}"]`)!.appendChild(el);
+      this.root.querySelector(`[data-grp="${m.live ? "office" : "fic"}"]`)!.appendChild(el);
     });
     this.cur = botc;
     this.select(botc);
@@ -100,21 +100,20 @@ class BotcoinExchange {
     let acc = 0;
     k.every((_now, dt) => {
       acc += dt;
-      while (acc >= 0.25) { acc -= 0.25; for (const m of this.markets) if (!m.real || m.note.startsWith("Offline")) this.tick(m, 0.25); }
+      while (acc >= 0.25) { acc -= 0.25; for (const m of this.markets) if (m.live) this.follow(m); else this.tick(m, 0.25); }
       if (this.dirty) { this.dirty = false; this.paint(); }
     });
   }
 
   // --- data -----------------------------------------------------------------------
-  /** A made-up history for a fictional coin (or for Botcoin while offline), ending at `price`. */
+  /** A made-up history for a fictional coin, ending at `price`. */
   private seed(m: Market, price: number) {
-    const base = Date.now();
     let p = price / rnd(0.8, 1.25);
     const step = (v: number) => { p *= 1 + gauss() * v; return p; };
     m.candles = [];
     for (let i = 0; i < 80; i++) {
       const o = step(m.vol * 0.5), a = step(m.vol * 0.5), b = step(m.vol * 0.5), c = step(m.vol * 0.5);
-      m.candles.push({ t: m.real ? base - (80 - i) * m.step : i, o, h: Math.max(o, a, b, c), l: Math.min(o, a, b, c), c });
+      m.candles.push({ t: i, o, h: Math.max(o, a, b, c), l: Math.min(o, a, b, c), c });
     }
     const f = price / m.candles[m.candles.length - 1].c;
     for (const c of m.candles) { c.o *= f; c.h *= f; c.l *= f; c.c *= f; }
@@ -122,49 +121,32 @@ class BotcoinExchange {
     m.open = m.candles[0].o;
   }
 
-  /** The real chart for the timeframe, or a clearly labelled simulation when there is no data. */
-  private async loadLive(interval: Interval) {
-    const m = this.markets[0];
-    const real = await realKlines(interval);
-    if (this.k.dead) return;
+  /** Botcoin's chart for a timeframe. */
+  private chart(m: Market, interval: Interval) {
     m.interval = interval;
     m.step = INTERVAL_MS[interval];
     m.lines = [];
     m.doodle = undefined;
-    if (real) {
-      m.candles = real.candles;
-      const last = real.candles[real.candles.length - 1];
-      m.price = m.shown = last.c;
-      m.open = real.candles[0].o;
-      // a fictional coin never sits next to a real exchange name
-      m.note = "Live market feed";
-    } else {
-      this.seed(m, m.price || 64000 * rnd(0.85, 1.2));
-      m.note = "Offline, simulated prices";
-    }
+    m.candles = botcoinCandles(interval);
+    m.price = m.shown = m.candles[m.candles.length - 1].c;
+    m.open = m.candles[0].o;
     if (this.cur === m) this.select(m);
   }
 
-  /** Real last price, now and then; the shown price glides to it. */
-  private async pollLive() {
-    const m = this.markets[0];
-    if (this.k.dead || m.note.startsWith("Offline") || !m.candles.length) return;
-    const r = await realPrice();
-    if (this.k.dead || !r) return;
-    const from = m.shown, last = m.candles[m.candles.length - 1], now = Date.now();
-    // a new candle opens when its time comes
-    if (now >= last.t + m.step) {
-      const t = last.t + Math.floor((now - last.t) / m.step) * m.step;
-      m.candles.push({ t, o: last.c, h: last.c, l: last.c, c: last.c });
+  /** Botcoin follows the clock: the open candle takes the current price, a new one opens on time. */
+  private follow(m: Market) {
+    const now = Date.now();
+    let c = m.candles[m.candles.length - 1];
+    if (now >= c.t + m.step) {
+      m.candles.push(botcoinCandle(Math.floor(now / m.step) * m.step, m.step, now));
       m.candles.shift();
+      m.open = m.candles[0].o;
+      c = m.candles[m.candles.length - 1];
     }
-    const seg = { v: 0 };
-    this.k.to(seg, { v: 1, duration: calm() ? 0.01 : 0.9, ease: "power1.out", onUpdate: () => {
-      const p = from + (r.price - from) * seg.v, c = m.candles[m.candles.length - 1];
-      m.price = m.shown = p; c.c = p; c.h = Math.max(c.h, p); c.l = Math.min(c.l, p);
-      this.checkLiquidation();
-      this.dirty = true;
-    } });
+    const p = botcoinPrice(now);
+    m.price = m.shown = p; c.c = p; c.h = Math.max(c.h, p); c.l = Math.min(c.l, p);
+    if (m === this.cur) this.dirty = true;
+    this.checkLiquidation();
   }
 
   // simulated markets: a random walk the story can push around
@@ -174,7 +156,7 @@ class BotcoinExchange {
     m.price = Math.max(m.price, 1e-7);
     let c = m.candles[m.candles.length - 1];
     if (m.ticks % 7 === 0) {
-      m.candles.push({ t: c.t + (m.real ? m.step : 1), o: m.price, h: m.price, l: m.price, c: m.price });
+      m.candles.push({ t: c.t + 1, o: m.price, h: m.price, l: m.price, c: m.price });
       m.candles.shift();
       c = m.candles[m.candles.length - 1];
     }
@@ -238,8 +220,8 @@ class BotcoinExchange {
       c.fillStyle = col;
       c.beginPath(); c.roundRect(x - bw / 2, top, bw, hh, Math.min(1.6, bw / 2)); c.fill();
     }
-    // real times under the real chart
-    if (m.real && !m.note.startsWith("Offline")) {
+    // clock times under Botcoin's chart
+    if (m.live) {
       c.fillStyle = MUTE; c.textAlign = "center";
       for (let i = 1; i < 5; i++) { const cd = m.candles[Math.floor((n * i) / 5)]; c.fillText(hhmm(cd.t), this.xOf(cd.t), H - 6); }
       c.textAlign = "left";
@@ -307,7 +289,7 @@ class BotcoinExchange {
     this.markets.forEach((x) => x.el?.classList.toggle("on", x === m));
     (this.root.querySelector(".tb-pair b") as HTMLElement).textContent = `${m.sym}/USD`;
     (this.root.querySelector(".tb-pair small") as HTMLElement).textContent = m.note;
-    (this.root.querySelector(".tb-tf") as HTMLElement).style.visibility = m.real ? "visible" : "hidden";
+    (this.root.querySelector(".tb-tf") as HTMLElement).style.visibility = m.live ? "visible" : "hidden";
     this.root.querySelectorAll<HTMLElement>("[data-tf]").forEach((e) => e.classList.toggle("on", e.dataset.tf === m.interval));
     this.paintSide();
     this.dirty = true;
@@ -367,7 +349,7 @@ class BotcoinExchange {
     const el = this.root.querySelector(`[data-tf="${tf}"]`) as HTMLElement;
     await this.k.click(el);
     el.classList.add("on");
-    await this.loadLive(tf);
+    this.chart(this.cur, tf);
     await this.k.sleep(rnd(500, 900));
   }
 
@@ -548,25 +530,22 @@ class BotcoinExchange {
   async session() {
     const k = this.k, botc = this.markets[0];
     await k.sleep(rnd(500, 900));
-    await this.loadLive("1m");
-    const pollLoop = () => { void this.pollLive().finally(() => { if (!k.dead) k.later(pollLoop, 4000); }); };
-    pollLoop();
     this.paintSide();
-    // Botcoin on the live chart half of the time, otherwise one of the made-up coins
+    // Botcoin half of the time, otherwise one of the made-up coins
     const m = chance(0.5) ? pick(this.markets.slice(1)) : botc;
     await k.sleep(rnd(900, 1500));
     await this.openMarket(m);
-    if (m.real && chance(0.55)) await this.pickTimeframe(pick(["5m", "15m", "1h"] as Interval[]));
+    if (m.live && chance(0.55)) await this.pickTimeframe(pick(["5m", "15m", "1h"] as Interval[]));
     await k.sleep(rnd(600, 1100));
     if (chance(0.85)) await this.memeAnalysis();
     else await this.trendLine(chance(0.7));
-    if (m.real) await this.tradeBotcoin(m);
+    if (m.live) await this.tradeBotcoin(m);
     else await this.tradeMeme(m);
     m.drift = 0;
     await k.sleep(rnd(2000, 3500));
   }
 
-  /** Real chart, real price: the robot jumps in after a green candle with too much leverage and then reacts to what the price really does. */
+  /** Botcoin: the robot jumps in after a green candle with too much leverage and then reacts to what the price does. */
   private async tradeBotcoin(m: Market) {
     const k = this.k;
     k.host.react("focus");

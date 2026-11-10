@@ -17,6 +17,7 @@ export const CHECKS = [
   "verify-backend-stability.cjs",
   "verify-provider-limits.cjs",
   "verify-limit-pace.mjs",
+  "verify-botcoin.mjs",
   "verify-t3-theme.cjs",
   "verify-favicons.cjs",
   "verify-game-sound.cjs",

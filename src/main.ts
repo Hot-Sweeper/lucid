@@ -75,6 +75,7 @@ import claudeLogo from "./assets/claude.svg";
 import { openShortcutHelp, isShortcutHelpOpen, typing } from "./office/shortcuts";
 import { mountTitlebar } from "./titlebar";
 import { BRAND } from "./brand";
+import { observeOfficeActivity } from "./leisure/botcoin";
 import { brandMark } from "./ui/brand-mark";
 // Shared control styles load after every feature stylesheet imported above.
 import "./ui/controls.css";
@@ -568,6 +569,7 @@ async function refresh() {
     }
     monitorTasks.prepare(data);
     coinRewards?.prepare(data);
+    if (!data.environmentId) observeOfficeActivity(data.threads, settings.wallet?.ledger);
     for (const p of data.projects) projectTitles.set(p.id, p.title);
     world.orchThread = data.environmentId ? '' : settings.orch?.threadId || '';
     world.update(data);

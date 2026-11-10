@@ -63,7 +63,6 @@ web request they reveal your IP address to the service:
 
 - Weather in the windows: your approximate location from an IP lookup (ipwho.is, ipapi.co), then
   the forecast from Open-Meteo.
-- The robots' trading game: Bitcoin prices from Binance and CoinGecko.
 - The robots' browser: pages and icons from the sites your agents visited, public GitHub, Hugging
   Face and Wikipedia pages, and DuckDuckGo results for an agent's web search when T3 did not record
   them (the agent's search words are sent to DuckDuckGo).
