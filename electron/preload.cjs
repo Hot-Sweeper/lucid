@@ -7,9 +7,6 @@ const on = (channel) => (fn) => {
 };
 
 contextBridge.exposeInMainWorld("lucid", {
-  mobileAccessStatus: () => ipcRenderer.invoke('mobile:status'),
-  mobileAccessSetup: () => ipcRenderer.invoke('mobile:setup'),
-  mobileAccessDisable: () => ipcRenderer.invoke('mobile:disable'),
   localize: (input) => ipcRenderer.invoke('lucid:localize', input),
   projects: () => ipcRenderer.invoke("t3:projects"),
   threads: () => ipcRenderer.invoke("t3:threads"),

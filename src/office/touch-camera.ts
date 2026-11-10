@@ -6,7 +6,6 @@ type Options = {
   zoomBounds?(): { min: number; max: number };
   constrain?(): void;
   start(kind: 'pan' | 'pinch'): void;
-  input?(kind: 'pan' | 'pinch'): void;
   change(): void;
   end(): void;
 };
@@ -54,7 +53,7 @@ export function mountTouchCamera(scene: HTMLElement, options: Options) {
     if (!next || !previous) return;
     const dx = next.centre.x - previous.centre.x, dy = next.centre.y - previous.centre.y;
     if (!active && Math.hypot(dx, dy) < 6) return;
-    claim(); options.input?.(points.size > 1 ? 'pinch' : 'pan'); event.preventDefault(); event.stopImmediatePropagation();
+    claim(); event.preventDefault(); event.stopImmediatePropagation();
     const camera = options.camera(), box = options.viewport();
     const bounds = options.zoomBounds?.() ?? { min: .08, max: 5 };
     const scale = previous.distance && next.distance ? Math.min(bounds.max, Math.max(bounds.min, camera.s * next.distance / previous.distance)) : camera.s;

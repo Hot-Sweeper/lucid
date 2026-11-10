@@ -18,69 +18,6 @@ require("./gpu-fallback.cjs").install(app);
 app.commandLine.appendSwitch("disable-blink-features", "MiddleClickAutoscroll");
 if (process.platform === "linux" && !app.commandLine.hasSwitch("force-gpu-mem-available-mb")) app.commandLine.appendSwitch("force-gpu-mem-available-mb", "2048");
 
-// Keep the existing desktop handlers authoritative while giving each phone its own building.
-const { AsyncLocalStorage } = require('node:async_hooks');
-const mobileContext = new AsyncLocalStorage();
-const browserHandlers = new Map();
-const registerHandle = ipcMain.handle.bind(ipcMain);
-ipcMain.handle = (channel, handler) => { browserHandlers.set(channel, handler); return registerHandle(channel, handler); };
-let mobileServer = null;
-let mobileRestoring = Promise.resolve();
-const mobileAccess = require('./mobile-access.cjs').createMobileAccess({
-  file: path.join(process.env.LUCID_SHOT ? process.env.LUCID_SHOT_PROFILE || path.join(app.getPath('temp'), 'lucid-test-profile') : app.getPath('userData'), 'mobile-access.json'),
-  start: async config => {
-    if (mobileServer) await mobileServer.close();
-    mobileServer = require('./mobile-server.cjs').createMobileServer({ root: path.resolve(__dirname, '..'), config,
-      bootstrap: () => companion('snapshot'), invoke: invokeBrowser,
-      onCloseClient: client => { for (const stop of client.stops.values()) stop(); client.stops.clear(); },
-    });
-    await mobileServer.listen(5180);
-  },
-  stop: async () => { await mobileServer?.close(); mobileServer = null; },
-});
-ipcMain.handle('mobile:status', async () => { await mobileRestoring; return mobileAccess.status(); });
-ipcMain.handle('mobile:setup', () => mobileAccess.setup());
-ipcMain.handle('mobile:disable', () => mobileAccess.disable());
-async function companion(method, input) {
-  if (!win || win.isDestroyed()) throw Error('Keep Lucid open on the desktop, then retry.');
-  return win.webContents.executeJavaScript(`(() => { if (!window.__lucidCompanion) throw Error('Lucid is still starting. Try again in a moment.'); return window.__lucidCompanion.${method}(${input === undefined ? '' : JSON.stringify(input)}); })()`);
-}
-const companionFrames = require('./companion-frames.cjs').createCompanionFrames({
-  read: async () => {
-    const [state, world, tasks] = await Promise.all([
-      companion('snapshot'), browserHandlers.get('t3:world')(), browserHandlers.get('t3:tasks')(),
-    ]);
-    return { state, world, tasks };
-  },
-});
-async function invokeBrowser(client, channel, args) {
-  return mobileContext.run(client, async () => {
-    if (channel === 'remoteState') return companion('snapshot');
-    if (channel === 'remoteFrame') return companionFrames.frame(activeBuilding() || 'local', args[0]?.known);
-    if (channel === 'remoteCommit') {
-      const input = args[0];
-      if (!input || typeof input !== 'object') throw Error('Invalid office change.');
-      const result = await companion('commit', input.kind === 'hire'
-        ? {...input, sourceWorld: managers.world(activeBuilding() ? await remote.world(activeBuilding()) : undefined)} : input);
-      companionFrames.invalidate();
-      return result;
-    }
-    if (channel === 't3:watch-set') {
-      if (!Array.isArray(args[0]) || args[0].length > 300 || args[0].some(id => typeof id !== 'string' || id.length > 500)) throw Error('Invalid thread watch list.');
-      const wanted = new Set(args[0]);
-      for (const [id, stop] of client.stops) if (!wanted.has(id)) { stop(); client.stops.delete(id); }
-      for (const id of wanted) if (!client.stops.has(id)) client.stops.set(id, (remote.split(id) ? remote.watch : t3.watchThread)(id,
-        (items, initial) => client.publish('t3:items', {threadId:id,items,initial}),
-        info => client.publish('t3:info', {threadId:id,info})));
-      return true;
-    }
-    const handler = browserHandlers.get(channel);
-    if (!handler) throw Error('This action is unavailable. Update Lucid on the desktop.');
-    const result = await handler({sender:client.sender}, ...args);
-    if (['t3:start', 't3:send', 'project:add', 'project:remove', 'environment:select', 'reports:manual'].includes(channel) || channel.startsWith('t3s:') && !['t3s:status','t3s:providers','t3s:search-threads','t3s:hire-config','t3s:hire-contexts','t3s:manager-suggest','t3s:manager-avatar-history'].includes(channel)) companionFrames.invalidate();
-    return result;
-  });
-}
 const DEV_URL = process.env.LUCID_DEV_URL;
 if (process.env.LUCID_SHOT) {
   // Test runs get their own copy of the settings, so they never overwrite the real app's
@@ -232,8 +169,7 @@ const environments = require("./environments.cjs");
 const remoteMedia = require("./remote-media.cjs").createRemoteMedia({ client: environments.client, split: require("./remote-building.cjs").split });
 const remote = environments.remote;
 let desktopBuilding = null;
-const activeBuilding = () => mobileContext.getStore()?.environment ?? (mobileContext.getStore() ? null : desktopBuilding);
-const setActiveBuilding = value => { const client = mobileContext.getStore(); if (client) client.environment = value; else desktopBuilding = value; };
+const activeBuilding = () => desktopBuilding;
 ipcMain.handle("environment:list", (_e, fresh) => environments.getEnvironments({ fresh: fresh === true }));
 // Read another authenticated computer without changing the active action target.
 const campusReads = new Map();
@@ -251,9 +187,8 @@ ipcMain.handle("environment:select", async (_e, id) => {
   const building = inventory.buildings.find(b => b.id === id && b.canOpen);
   if (!building) throw Error('This building is not available in T3 Connect.');
   if (!building.local) await remote.world(id);
-  setActiveBuilding(building.local ? null : id);
-  const owned = mobileContext.getStore()?.stops || watchers;
-  for (const stop of owned.values()) stop(); owned.clear();
+  desktopBuilding = building.local ? null : id;
+  for (const stop of watchers.values()) stop(); watchers.clear();
   return { ...building, world: managers.world(activeBuilding() ? structuredClone(remote.cached(activeBuilding())) : undefined) };
 });
 ipcMain.handle("t3:threads", () => activeBuilding() ? remote.cached(activeBuilding())?.threads || [] : t3.listThreads());
@@ -553,9 +488,7 @@ app.whenReady().then(() => {
     }
   });
   createWindow();
-  if (!process.env.LUCID_SHOT) mobileRestoring = process.argv.includes('--mobile-access') ? mobileAccess.setup().catch(() => mobileAccess.status()) : mobileAccess.restore();
 });
-app.on('before-quit', () => { void mobileServer?.close(); });
 app.on("window-all-closed", () => app.quit());
 
 // --- T3 server (paired session): queue edits and model changes ------------------

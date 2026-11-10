@@ -292,7 +292,7 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
       windX, windKmh, night: opts.night, still: reduce.matches, calm: isCalm() };
   }
   function syncActive() {
-    const on = !!worker && !dead && !document.hidden && !officeCovered && !indoors && !isAsleep() && !diagnosticOff("weather");
+    const on = !!worker && !dead && !document.hidden && !indoors && !isAsleep() && !diagnosticOff("weather");
     if (on !== pactive) { pactive = on; post({ type: "active", on }); }
   }
   function measure() {
@@ -664,18 +664,9 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   }
 
   // --- the loop ------------------------------------------------------------------------------
-  let officeCovered = false;
-  const onMobileView = (event: Event) => {
-    const detail = (event as CustomEvent<{mobile: boolean; view: string}>).detail;
-    officeCovered = !!detail?.mobile && detail.view !== 'office';
-    if (officeCovered) { cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; }
-    else { last = 0; schedule(); }
-    syncActive();
-  };
-  window.addEventListener('lucid:mobile-view', onMobileView);
   function frame(now: number) {
     raf = 0;
-    if (diagnosticOff("weather") || dead || document.hidden || officeCovered || indoors || isAsleep()) return;
+    if (diagnosticOff("weather") || dead || document.hidden || indoors || isAsleep()) return;
     const started = beginSystem();
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0.016;
     last = now;
@@ -726,7 +717,7 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
   let fallDirty = false;
   let timer = 0;
   function schedule(delay = 0) {
-    if (diagnosticOff("weather") || raf || timer || dead || document.hidden || officeCovered || indoors) return;
+    if (diagnosticOff("weather") || raf || timer || dead || document.hidden || indoors) return;
     if (delay) timer = window.setTimeout(() => { timer = 0; raf = requestAnimationFrame(frame); }, delay);
     else raf = requestAnimationFrame(frame);
   }
@@ -757,7 +748,7 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
         else { last = 0; skyAt = -1; schedule(); }
       }
       syncActive();
-      if (!dead && !document.hidden && !officeCovered && !indoors && !diagnosticOff("weather")) {
+      if (!dead && !document.hidden && !indoors && !diagnosticOff("weather")) {
         updatePresentation();
         // A normal pan reuses the original world-mapped particle pixels. When
         // a fast pan or zoom-out exhausts that crop, fill the newly visible area
@@ -810,7 +801,6 @@ export function mountWeather(host: HTMLElement, rect0: OutdoorRect): WeatherLaye
       stopDiagnostics();
       cancelAnimationFrame(raf); clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVis);
-      window.removeEventListener("lucid:mobile-view", onMobileView);
       reduce.removeEventListener("change", onMotion);
       for (const animation of flashEl.getAnimations()) animation.cancel();
       // A canvas handed to the worker is released with the worker; resizing it here would throw.

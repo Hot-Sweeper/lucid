@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import {transformWithOxc} from 'vite';
 const source = fs.readFileSync(new URL('../src/office/orchestrator.ts',import.meta.url),'utf8')
   .replace('import gsap from "gsap";', 'const gsap = {};')
-  .replace('import { companionClient } from "../remote-client";', 'const companionClient = () => false;');
 const code = (await transformWithOxc(source,'orchestrator.ts')).code;
 const originalInterval = globalThis.setInterval;
 globalThis.setInterval = () => 0;

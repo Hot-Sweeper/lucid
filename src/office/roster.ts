@@ -2,7 +2,6 @@ import type { RobotLook } from "./rig";
 import { brandFor, type BrandKind } from "./brand";
 import { migrateLook, randomLook } from "../world/look";
 import { compatibleWorkers } from "./worker-match";
-import { companionClient } from "../remote-client";
 
 // The team. Robots are persistent workers: hired once with a name, a look and habits,
 // then assigned to threads. When a thread settles, its robot becomes free and the next
@@ -231,7 +230,6 @@ export class Roster {
   }
 
   private save() {
-    if (companionClient()) return;
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
       const json = JSON.stringify(this.robots);
@@ -242,24 +240,10 @@ export class Roster {
 
   byThread(threadId: string) { return this.robots.find((r) => r.threadId === threadId) ?? null; }
 
-  /** Refresh identities without replacing profiles already held by desks. */
-  replaceSnapshot(json: string) {
-    const incoming = JSON.parse(json) as RobotProfile[];
-    if (!Array.isArray(incoming)) throw Error('The computer returned an invalid robot list.');
-    const existing = new Map(this.robots.map(r => [r.id, r]));
-    this.robots = incoming.map(row => {
-      const profile = existing.get(row.id);
-      if (!profile) return row;
-      Object.assign(profile, row);
-      return profile;
-    });
-  }
-
   // Give every working thread a robot. Robots whose thread is settled or gone are free.
   // A free worker with the same harness and model takes the job; otherwise a new one is hired.
   assign(working: { id: string; provider: string; model?: string | null }[], settledIds: Set<string>, knownIds: Set<string>, managers = new Set<string>()) {
     this.reservedManagers = managers;
-    if (companionClient()) return;
     const working_ = new Set(working.map((t) => t.id));
     for (const r of this.robots) {
       if (r.threadId && !working_.has(r.threadId) && !settledIds.has(r.threadId) && !knownIds.has(r.threadId)) r.threadId = null;
@@ -283,14 +267,13 @@ export class Roster {
       const r = this.byThread(t.id);
       if (r?.retired) continue;   // retired workers are on the staff wall, not in the break room
       if (r) out.push({ thread: t.id, robot: r });
-      else if (!companionClient() && !this.robots.some((x) => x.done?.includes(t.id))) out.push({ thread: t.id, robot: this.hireFor(t.id, t.provider) });
+      else if (!this.robots.some((x) => x.done?.includes(t.id))) out.push({ thread: t.id, robot: this.hireFor(t.id, t.provider) });
     }
     return out;
   }
 
   // The hiring screen picked someone for a new thread: a free teammate, or a fresh hire.
   assignRobot(threadId: string, robotId: string | null, provider: string, role: string | null = null, model?: string, resuming = false) {
-    if (companionClient()) throw Error('The computer assigns robots when work starts.');
     const assigned = this.byThread(threadId);
     if (assigned && (!robotId || assigned.id === robotId)) { assigned.provider = provider; assigned.brand = brandFor(provider); if (role !== null) assigned.role = role || null; if (model) assigned.lastModel = model; this.save(); return; }
     // A world refresh can discover the launch before its hiring callback returns.

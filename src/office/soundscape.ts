@@ -48,7 +48,6 @@ export class OfficeSoundscape {
     this.resize = new ResizeObserver(this.measure); this.resize.observe(world.scene);
     this.releaseView = gameSound.attachView(world.scene, () => world.cameraState().s);
     document.addEventListener('visibilitychange', this.visibility);
-    window.addEventListener('lucid:mobile-view', this.visibility);
     window.addEventListener('pagehide', this.destroy);
     this.timer = window.setInterval(() => this.update(), 240);
   }
@@ -183,6 +182,6 @@ export class OfficeSoundscape {
     this.destroyed = true; window.clearInterval(this.timer); this.timer = 0;
     this.world.scene.removeEventListener("lucid:desk-key", this.keypress);
     this.resize.disconnect(); this.releaseView(); this.clearStreams();
-    document.removeEventListener('visibilitychange', this.visibility); window.removeEventListener('lucid:mobile-view', this.visibility); window.removeEventListener('pagehide', this.destroy);
+    document.removeEventListener('visibilitychange', this.visibility); window.removeEventListener('pagehide', this.destroy);
   };
 }

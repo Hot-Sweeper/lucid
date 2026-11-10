@@ -37,10 +37,8 @@ const REMOTE = /^lucid-file:\/\/remote\//i;
 export function chatFileUrl(path: string, threadId: string | null = mediaThread): string {
   if (REMOTE.test(path)) return path;
   const file = localMediaPath(path) ?? path;
-  if (threadId?.includes("::") && !(typeof window !== "undefined" && (window as any).lucidRemote)) return `lucid-file://remote/${encodeURIComponent(threadId)}/${encodeURIComponent(file)}`;
-  return typeof window !== "undefined" && (window as any).lucidRemote
-    ? `/__lucid/media/${encodeURIComponent(file)}`
-    : `lucid-file://local/${encodeURIComponent(file)}`;
+  if (threadId?.includes("::")) return `lucid-file://remote/${encodeURIComponent(threadId)}/${encodeURIComponent(file)}`;
+  return `lucid-file://local/${encodeURIComponent(file)}`;
 }
 
 export function chatMediaSource(value: string): string | null {

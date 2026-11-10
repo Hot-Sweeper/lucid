@@ -133,10 +133,7 @@ function assertRainCoverage(f,cam){
   f.weather.setCamera(cam,viewport,20000);assert.equal(count(),disabled,'diagnostic suspension also stops camera-driven painting');
   assert.equal(f.timers.size+f.rafs.size,0);
   f.disable(false);f.frame(3000);assertRainCoverage(f,cam);
-  f.window.emit('lucid:mobile-view',{mobile:true,view:'chat'});const covered=count();
-  f.weather.setCamera(hiddenCam,viewport,20000);assert.equal(count(),covered,'covered office does not raster weather');
-  assert.equal(f.timers.size+f.rafs.size,0);
-  f.window.emit('lucid:mobile-view',{mobile:true,view:'office'});f.frame(4000);assertRainCoverage(f,hiddenCam);
+  f.weather.setCamera(hiddenCam,viewport,20000);f.frame(4000);assertRainCoverage(f,hiddenCam);
   const beforeResize=f.fall.calls.length;
   f.weather.resize({...rect,x:rect.x-400,y:rect.y-400});
   f.weather.setCamera(hiddenCam,viewport,20000);
@@ -184,4 +181,4 @@ function destroy(f){
   assert.ok(f.canvases.every(c=>c.width===0&&c.height===0),'stale public calls cannot resurrect released backings');
   assert.equal(f.rafs.size+f.timers.size,0,'stale public calls cannot restart weather');
 }
-console.log('PASS: sky backing reuse/density; retained pan and immediate rain coverage/world mapping; rain proportions and unique storm drops; camera-stable clock/cadence; hidden/diagnostic/mobile resume; graphics/timer/listener cleanup');
+console.log('PASS: sky backing reuse/density; retained pan and immediate rain coverage/world mapping; rain proportions and unique storm drops; camera-stable clock/cadence; hidden/diagnostic resume; graphics/timer/listener cleanup');

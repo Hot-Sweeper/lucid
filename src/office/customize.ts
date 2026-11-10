@@ -2,7 +2,6 @@ import gsap from "gsap";
 import { GEOM, UNIT, type DeskRig, type Pt, type RobotLook, type SeatedRobot } from "./rig";
 import { brandFor, harnessName } from "./brand";
 import type { Roster, RobotProfile } from "./roster";
-import { companionClient } from "../remote-client";
 import { TopDownRobot } from "../world/seated";
 import { PALETTES } from "../world/seated-parts";
 import {
@@ -37,21 +36,9 @@ export function savedLevel() {
 export function openCustomizeFor(desk: { profile: RobotProfile | null; robot: SeatedRobot; threadId?: string | null; info?: object | null }, roster: Roster, level = 0) {
   const profile = desk.profile ?? (desk.threadId ? roster.byThread(desk.threadId) : null);
   if (!profile) return;
-  const before = JSON.stringify(roster.robots);
   openCustomize({
     name: profile.name, provider: profile.provider, look: profile.look, level, model: (desk.info as { model?: string | null } | null | undefined)?.model ?? null,
     onSave: async (look, name) => {
-      if (companionClient()) {
-        const after = JSON.parse(before) as RobotProfile[];
-        const changed = after.find(r => r.id === profile.id)!;
-        changed.name = name.trim().slice(0, 32) || changed.name;
-        changed.look = { ...look, headphones: changed.look.headphones ?? false };
-        const snapshot = await (window as any).lucid.remoteCommit({ kind: 'roster', before, after: JSON.stringify(after) });
-        roster.replaceSnapshot(snapshot.roster);
-        const saved = roster.robots.find(r => r.id === profile.id);
-        if (saved) desk.robot.setLook?.(saved.look);
-        return;
-      }
       roster.rename(profile.id, name);
       roster.setLook(profile.id, look);
       const { headphones: _keep, ...rest } = profile.look;   // music decides the headphones, not the dialog

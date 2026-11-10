@@ -8,11 +8,6 @@ import { LOD_PX, zoomForMonitorPx } from "../perf/lod";
 
 import gsap from "gsap";
 
-let officeCovered = false;
-document.addEventListener('lucid:mobile-view', (event) => {
-  const detail = (event as CustomEvent<{mobile: boolean; view: string}>).detail;
-  officeCovered = !!detail?.mobile && detail.view !== 'office';
-});
 const visible = new WeakMap<Element, boolean>();
 const owners = new WeakMap<Element, object>();
 const overdue = new Set<object>(), queued = new Set<object>();
@@ -187,7 +182,7 @@ let tick = -1, drawn = 0, spent = 0, drawStarted = 0;
 /** Should this robot redraw its body now? Spread distant SVG work across frame slots. */
 export function drawNow(owner: object, el: Element, now: number, paintable = true) {
   // Visibility observers resume drawing when the actor re-enters the scene.
-  if (diagnosticOff("bodies") || !paintable || document.hidden || officeCovered && !!el.closest('#scene') || visible.get(el) === false) { overdue.delete(owner); queued.delete(owner); return false; }
+  if (diagnosticOff("bodies") || !paintable || document.hidden || visible.get(el) === false) { overdue.delete(owner); queued.delete(owner); return false; }
   if (!owners.has(el)) owners.set(el, owner);
   const budgetTick = Math.floor((now + .001) * 60 / 1000);
   if (tick !== budgetTick) {

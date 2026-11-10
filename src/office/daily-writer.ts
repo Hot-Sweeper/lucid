@@ -2,7 +2,6 @@ import type { World } from "./world";
 import { personaMarkdown } from "./persona";
 import { getLocale } from "../localization";
 import { loadDaily } from "./daily";
-import { companionClient } from "../remote-client";
 
 // Once a day (and on Regenerate, for example after a language change) every worker's
 // persona goes to T3 Code's text generation model, which writes the office's flavor text
@@ -15,7 +14,6 @@ export class DailyWriter {
   private timer = 0;
   onChange: () => void = () => {};
   constructor(private world: World, private get: () => DailyLinesState, private set: (s: DailyLinesState) => void) {
-    if (companionClient()) return;
     window.setTimeout(() => void this.run(false), 120_000);
     this.timer = window.setInterval(() => { if (!document.hidden) void this.run(false); }, 60 * 60 * 1000);
     window.addEventListener("pagehide", () => window.clearInterval(this.timer), { once: true });

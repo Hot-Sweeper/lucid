@@ -94,15 +94,13 @@ export class Delegate {
       for (const d of l.log) { this.seen.add(d.requestId); if (d.advice && (d.outcome === "asked" || d.outcome === "failed")) this.advice.set(d.requestId, d.advice); }
       this.onChange();
     }).catch(() => {});
-    if (!(window as any).lucidRemote) {
-      window.setInterval(() => void this.learn(), 20_000);
-      window.setTimeout(() => void this.learn(), 8_000);
-    }
+    window.setInterval(() => void this.learn(), 20_000);
+    window.setTimeout(() => void this.learn(), 8_000);
   }
 
   // only Lucid's own window answers (a page another tool opens with the same build does not)
   private appWindow = new URLSearchParams(location.search).has("app");
-  get on() { const s = this.get(); return !(window as any).lucidRemote && this.appWindow && !!s && s.auto !== false && !s.paused; }
+  get on() { const s = this.get(); return this.appWindow && !!s && s.auto !== false && !s.paused; }
   get threshold() { return this.get()?.threshold ?? 0.8; }
   phaseOf(threadId: string) { return this.phases.get(threadId) ?? null; }
 
@@ -113,7 +111,6 @@ export class Delegate {
 
   /** Called with every world refresh: new questions go to the orchestrator first. */
   observe(threads: WThread[], projects: { id: string; title: string }[]): Promise<void> {
-    if ((window as any).lucidRemote) return Promise.resolve();
     // Refreshes can arrive while T3 is still reading pending requests. Retain
     // one latest snapshot, without starting overlapping polls or queuing every
     // stale world behind a slow request.
@@ -136,7 +133,6 @@ export class Delegate {
   }
 
   private async runObservation(threads: WThread[], projects: { id: string; title: string }[]) {
-    if ((window as any).lucidRemote) return;
     for (const p of projects) this.projects.set(p.id, p.title);
     const s = this.get();
     if (!s) return;
@@ -394,7 +390,6 @@ ${past}`;
   // --- learning from your answers -----------------------------------------------------------
 
   private async learn() {
-    if ((window as any).lucidRemote) return;
     const s = this.get();
     if (!s || s.paused || this.learning) return;
     this.learning = true;

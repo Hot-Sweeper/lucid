@@ -72,7 +72,7 @@ async function main() {
   const settings = launchSettings(env), display = displayArgs(process.platform, env, settings);
   const scaling = scaleArgs(process.platform, env, settings, display), scale = Number(/=([\d.]+)/.exec(scaling[0] ?? '')?.[1]) || 0;
   Object.assign(env, cursorEnv(scale, env));
-  const child = spawn(require('electron'), [...display, ...gpuArgs(process.platform, settings, display), ...scaling, root, ...(process.argv.includes('--mobile-access') ? ['--mobile-access'] : [])], { cwd: root, env, detached: true, stdio: 'ignore', windowsHide: true });
+  const child = spawn(require('electron'), [...display, ...gpuArgs(process.platform, settings, display), ...scaling, root], { cwd: root, env, detached: true, stdio: 'ignore', windowsHide: true });
   await new Promise((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject); });
   child.unref();
 }

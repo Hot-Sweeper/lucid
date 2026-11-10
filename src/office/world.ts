@@ -49,7 +49,6 @@ import { vectorOwner, releaseVectors } from "../perf/shared-vector";
 import { cacheStaticArt, updateStaticArt, invalidateStaticArt, destroyStaticArt } from "../perf/static-art";
 import { orderedRooms, moveRoomOrder, movableRoom } from "./room-order";
 import { mountTouchCamera } from "./touch-camera";
-import { phoneGestureDiagnostics, type PhoneGestureDiagnostics } from "../perf/phone-gesture";
 import { exposedScene } from "./exposed-scene";
 import { wireDeskChatTargets } from "./desk-chat-targets";
 
@@ -1897,24 +1896,20 @@ export class World {
   }
   // --- camera -------------------------------------------------------------------
   private disposeTouchInput: (() => void) | null = null;
-  private phoneGesture: PhoneGestureDiagnostics | null = null;
   private mountTouchInput() {
     this.disposeTouchInput?.();
-    this.phoneGesture?.destroy();
-    this.phoneGesture = phoneGestureDiagnostics(this.scene, () => this.cam.s);
     this.disposeTouchInput = mountTouchCamera(this.scene, {
       camera: () => this.cam,
       viewport: () => this.sceneBox ??= this.scene.getBoundingClientRect(),
       zoomBounds: () => this.cameraZoomBounds(),
       constrain: () => this.clampCam(),
-      start: (kind) => { this.stopCameraMotion(); this.cancelOutsideWarm(); this.dragged = true; this.holdTouchLayout(true); this.phoneGesture?.start(kind); },
-      input: (kind) => this.phoneGesture?.input(kind),
+      start: (kind) => { this.stopCameraMotion(); this.cancelOutsideWarm(); this.dragged = true; this.holdTouchLayout(true); },
       change: () => this.applySoon(),
-      end: () => { this.dragged = false; this.holdTouchLayout(false); this.phoneGesture?.end(); },
+      end: () => { this.dragged = false; this.holdTouchLayout(false); },
     });
   }
-  /** Release owned phone input when an embedding removes its office scene. */
-  destroyTouchInput() { this.disposeTouchInput?.(); this.disposeTouchInput = null; this.phoneGesture?.destroy(); this.phoneGesture = null; this.cancelTouchLayoutFlush(); this.cancelOutsideWarm(); this.touchLayoutHeld = this.touchLayoutPending = false; }
+  /** Release owned touch input when an embedding removes its office scene. */
+  destroyTouchInput() { this.disposeTouchInput?.(); this.disposeTouchInput = null; this.cancelTouchLayoutFlush(); this.cancelOutsideWarm(); this.touchLayoutHeld = this.touchLayoutPending = false; }
   /** Direct manipulation takes ownership from an earlier fly-to or followed actor. */
   stopCameraMotion() {
     this.stopFollow();
@@ -2119,7 +2114,6 @@ export class World {
   private apply() {
     if (this.hostWorld) { this.recull(); return; }
     if (this.scene.inert || document.hidden) { this.presentationDirty = true; return; }
-    const gestureStarted = this.phoneGesture?.active ? performance.now() : -1;
     const started = beginSystem();
     this.clampCam();
     this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
@@ -2164,7 +2158,6 @@ export class World {
     const overview = this.cam.s < .3;
     if (overview !== this.overviewLayers) { this.overviewLayers = overview; this.root.classList.toggle('overview', overview); }
     endSystem("camera", started);
-    this.phoneGesture?.commit(gestureStarted);
   }
   /** Everything that follows the visible area (this.cam and this.sceneBox). */
   private applyView() {

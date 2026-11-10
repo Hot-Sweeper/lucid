@@ -374,7 +374,6 @@ export class ChatPanel {
     busy: () => !!this.menuClose || this.el.classList.contains("ref-dragging") || !!this.el.querySelector<HTMLDialogElement>(".cp-zoom")?.open,
     onChange: (shown) => { this.el.classList.toggle("peek-shown", shown); if (!shown) this.closeMenu(); },
   }); }
-  private mobile() { return !!this.el.closest(".mobile-layout"); }
   /** Whether the conversation is on screen: open in its column, or sliding over the office. */
   get visible() { return this.isOpen && (!this.collapsed || this.peek.shown) && !this.el.inert; }
 
@@ -404,7 +403,7 @@ export class ChatPanel {
   setCollapsed(on: boolean, animate = true) {
     if (on) this.dictation.cancel();
     if (!on && !this.isOpen) { this.onChooseThread(); return; }
-    if (this.autoHide && !this.mobile()) {
+    if (this.autoHide) {
       if (on) this.peek.hide(animate); else this.peek.show(animate);
       return;
     }
@@ -646,8 +645,7 @@ export class ChatPanel {
       }
     });
     ta.addEventListener("keydown", (e) => {
-      const phone = document.getElementById('app')?.classList.contains('mobile-layout');
-      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && (!phone || e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit(); }
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
     });
     this.el.querySelector(".cp-list")!.addEventListener("error", chatImageFailed, true);
     this.el.querySelector(".cp-list")!.addEventListener("click", (e) => {
@@ -757,7 +755,7 @@ export class ChatPanel {
     this.onPresent();
     // Selecting a robot opens its conversation. A phone keyboard appears when
     // the user touches the composer, leaving the conversation readable first.
-    if (focus && !document.getElementById('app')?.classList.contains('mobile-layout')) (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
+    if (focus) (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
   }
 
   private clearTranscript() {

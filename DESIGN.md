@@ -196,7 +196,7 @@ Active conversations own the sidebar's scroll region. Settled stays at its botto
 
 ## Limits disclosure
 
-Limits is its own saved disclosure below Subscriptions, sharing the same 36px header, full-row toggle, lavender text, hairline and peach focus. Move the existing live provider rows and their availability note into this section on desktop and mobile; never duplicate polling or reset the disclosure as readings arrive. Preserve the compact meters, percentages and reset tooltips. Long provider names ellipsize, narrow sidebars stack the meters, and the expanded body has a bounded scroll region.
+Limits is its own saved disclosure below Subscriptions, sharing the same 36px header, full-row toggle, lavender text, hairline and peach focus. Move the existing live provider rows and their availability note into this section; never duplicate polling or reset the disclosure as readings arrive. Preserve the compact meters, percentages and reset tooltips. Long provider names ellipsize, narrow sidebars stack the meters, and the expanded body has a bounded scroll region.
 
 ## Latest prompt context
 

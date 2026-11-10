@@ -1,5 +1,4 @@
 import type { World } from './world';
-import { companionClient } from '../remote-client';
 import { getLocale, onLocaleChange } from '../localization';
 import { gameSound } from './sound';
 import './project-life.css';
@@ -38,7 +37,7 @@ export class ProjectLife {
     window.addEventListener('pagehide', this.destroy, { once: true });
   }
   private api() { return (window as unknown as { lucid: Bridge }).lucid; }
-  private local() { return !companionClient() && !this.world.lastData?.environmentId; }
+  private local() { return !this.world.lastData?.environmentId; }
   private async load(id: string) {
     if (this.loading.has(id) || this.boards.has(id) || !this.local()) return;
     this.loading.add(id);

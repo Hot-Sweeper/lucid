@@ -161,7 +161,7 @@ for(const stop of stops)stop();
   assert.ok(busy<=74, `Ambient screen work must leave every other 144 Hz frame free, busy ${busy}/144`);
   assert.ok(drawsNow>=6*50, `Close screens keep about 60 Hz, drew ${drawsNow} in one second`);
   for(const stop of beatStops)stop(); }
-console.log(JSON.stringify({tinyVisibleHz:20,closeHz:60,offscreenPaused:true,coveredPaused:true,reparentingResumed:true,tinyThumbnailBuilt:true,highRefreshDraws,highRefreshChecks,highRefreshCallbacks,staggeredPeak:Math.max(...counts.slice(2))}));
+console.log(JSON.stringify({tinyVisibleHz:20,closeHz:60,offscreenPaused:true,reparentingResumed:true,tinyThumbnailBuilt:true,highRefreshDraws,highRefreshChecks,highRefreshCallbacks,staggeredPeak:Math.max(...counts.slice(2))}));
 // LOD pauses expensive window drawing without changing logical frame budgets.
 const lodScreen = new Element('screen'), lodWin = new Element('win', lodScreen), lodCanvas = new Element('canvas', lodWin);
 scheduler.setRenderView(lodScreen, true, 600);
@@ -173,21 +173,6 @@ const lodPaused = lodDraws; frames(20); assert.equal(lodDraws, lodPaused);
 delete lodScreen.dataset.screenDetail;
 scheduler.setRenderView(lodScreen, true, 610); frames(5);
 assert.ok(lodDraws > lodPaused, 'Zooming in resumes the same canvas loop'); stopLod();
-
-// Covering the phone office suspends its paints while unrelated UI previews continue.
-const phoneScene = new Element('scene'), phoneScreen = new Element('screen',phoneScene), phoneCanvas = new Element('canvas',phoneScreen);
-const dialogScreen = new Element('screen'), dialogCanvas = new Element('canvas',dialogScreen);
-scheduler.setRenderView(phoneScreen,true,600);scheduler.setRenderView(dialogScreen,true,600);
-let officePaints=0,dialogPaints=0;
-const stopPhone=scheduler.renderLoop(phoneCanvas,()=>officePaints++),stopDialog=scheduler.renderLoop(dialogCanvas,()=>dialogPaints++);
-frames(8);
-listeners.get('lucid:mobile-view')({detail:{mobile:true,view:'chat'}});
-frames(8);const coveredPaints=officePaints,visibleDialogPaints=dialogPaints;frames(20);
-assert.equal(officePaints,coveredPaints,'Covered office screens stop drawing');
-assert.ok(dialogPaints>visibleDialogPaints,'Uncovered dialog previews still draw');
-assert.equal(scheduler.renderFps(phoneCanvas),0,'Screen clocks and media checks pause with the covered office');
-listeners.get('lucid:mobile-view')({detail:{mobile:true,view:'office'}});frames(8);
-assert.ok(officePaints>coveredPaints,'Returning to Office resumes the same surfaces');stopPhone();stopDialog();
 
 // Diagnostic pausing leaves registered owners intact and wakes them on restore.
 scheduler.setDiagnosticOff('screens', true);

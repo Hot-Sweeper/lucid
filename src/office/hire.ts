@@ -1,7 +1,6 @@
 import { readPromptDraft, writePromptDraft } from "./prompt-draft";
 import gsap from "gsap";
 import { Roster, type RobotProfile } from "./roster";
-import { companionClient } from "../remote-client";
 import { brandFor, harnessName, logoFor } from "./brand";
 import type { RobotLook } from "./rig";
 import { portraitSvg } from "../world/look";
@@ -99,10 +98,6 @@ export function openHire(opts: {
   const runtimeEl = el(".hire-runtime-controls"), runtimeNote = el(".hire-runtime");
   const submit = el<HTMLButtonElement>('button[type="submit"]');
   const msg = el(".hire-msg");
-  if (companionClient()) {
-    const addRole = el<HTMLButtonElement>('.hire-new-role');
-    addRole.disabled = true; addRole.title = 'Save reusable roles on the computer.';
-  }
   let project = opts.projectId || opts.projects?.[0]?.id || "";
   const promptKey = () => `hire:${project}`;
   taskInput.value = readPromptDraft(promptKey());
@@ -216,7 +211,6 @@ export function openHire(opts: {
       pickRow.hidden = true;
       customize.hidden = false; customize.textContent = "Customize new robot";
     }
-    if (companionClient()) { customize.disabled = true; customize.title = "Customize robots on the computer."; }
     if (announce && actor) gameSound.play("chirp");
     updateSubmit();
   };

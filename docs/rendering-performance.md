@@ -1,9 +1,5 @@
 # Camera rendering verification
 
-For Safari reload recovery and retained graphics ownership, see [the Safari follow-up](evidence/mobile-safari-20261101.md). It includes a live WebKit compatibility check and explains why Windows software-composited timings do not establish iPhone GPU performance.
-
-For the 2026-11-01 phone pan/pinch follow-up, see [mobile camera evidence](evidence/mobile-camera-20261101.md). It records the installed build, native fidelity checks, simulated gesture timings and remaining dense-view hitches. Those measurements do not establish smooth physical phone navigation.
-
 Measured on 2026-10-31 in the `lucid/perf` worktree. Baseline: `e2833319e0e62750b653c24e9c93823b52941502`.
 
 ## Cause and change

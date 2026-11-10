@@ -14,13 +14,6 @@ const loops = new Set<Loop>();
 const wakeListeners = new Set<() => void>();
 export function onRenderWake(callback: () => void) { wakeListeners.add(callback); return () => { wakeListeners.delete(callback); }; }
 const contexts = new WeakMap<HTMLElement, { host: HTMLElement; win: HTMLElement | null; parent: HTMLElement | null; connected: boolean }>();
-let officeCovered = false;
-const coveredOwner = (owner?: HTMLElement) => officeCovered && !!owner?.closest('#scene');
-window.addEventListener('lucid:mobile-view', (event) => {
-  const detail = (event as CustomEvent<{mobile: boolean; view: string}>).detail;
-  officeCovered = !!detail?.mobile && detail.view !== 'office';
-  wakeRender();
-});
 let raf = 0;
 let surfaceSequence = 0;
 let timer = 0;
@@ -86,7 +79,7 @@ function contextFor(owner: HTMLElement) {
   return context;
 }
 export function renderFps(owner: HTMLElement) {
-  if (diagnosticOff("screens") || document.hidden || !owner.isConnected || coveredOwner(owner)) return 0;
+  if (diagnosticOff("screens") || document.hidden || !owner.isConnected) return 0;
   const context = contextFor(owner);
   const s = surfaces.get(context.host);
   return context.win?.dataset.renderHidden === "1" || s?.visible === false ? 0 : s?.fps ?? 60;
@@ -123,7 +116,7 @@ export function deferRender(owner: HTMLElement, cb: () => void) { return renderL
 function loopFrameRate(l: Loop) {
   if (diagnosticOff("screens")) return 0;
   if (document.hidden) return 0;
-  if (l.owner && (!l.owner.isConnected || coveredOwner(l.owner))) return 0;
+  if (l.owner && !l.owner.isConnected) return 0;
   if (l.owner && (!l.bound || l.parent !== l.owner.parentElement || l.surface && !l.surface.el.contains(l.owner) || l.win && !l.win.contains(l.owner))) {
     const host = l.once ? l.owner : l.owner.closest<HTMLElement>(".screen, .phone-screen") ?? l.owner;
     const next = surface(host), old = l.surface;

@@ -8,7 +8,6 @@ import { ProjectLife } from "./office/project-life";
 import { chatFileUrl } from "./office/chat-media";
 import { mountPerformancePanel } from "./office/performance";
 import { showReport, showReportArchive } from "./office/report";
-import { companionClient, readCompanionState, installCompanionOwner } from "./remote-client";
 import { CoinRewards } from "./office/coin-rewards";
 import { formatCoins } from "./office/coin-ledger";
 import { gameSound } from "./office/sound";
@@ -23,8 +22,6 @@ import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import "./styles.css";
 import { beginSystem, endSystem } from "./perf/metrics";
-import { renderFps, onRenderWake } from "./perf/render";
-import { mobileStartRoom } from "./office/mobile-start";
 import "./office/office.css";
 import "./office/panels.css";
 import "./office/thread-state.css";
@@ -80,8 +77,6 @@ import { foldButton, foldSection, setRail } from "./office/sidebar";
 import { EdgePeek, PIN_ICON, paintPin } from "./office/edge-peek";
 import openaiLogo from "./assets/openai.svg";
 import claudeLogo from "./assets/claude.svg";
-import { mountMobileShell } from "./mobile";
-import { mountMobileAccess } from "./office/mobile-access";
 import { openShortcutHelp, isShortcutHelpOpen, typing } from "./office/shortcuts";
 import { mountTitlebar } from "./titlebar";
 
@@ -190,7 +185,6 @@ mountInterfaceThemeSetting(extrasBody);
   wall.addEventListener("click", () => openWall()); extrasBody.appendChild(wall);
 }
 mountPerformancePanel(extrasBody);
-mountMobileAccess(extrasBody, api as any);
 for (const selector of ["#environment-body", ".rooms", "#orch", "#company", "#wallet"]) {
   const section = document.querySelector(selector);
   if (section) extrasBody.appendChild(section);
@@ -227,7 +221,6 @@ mountWebsiteStudio(document.getElementById("side-settings") ?? $("side-help"));
 useRobot((host, rig) => new TopDownRobot(host, rig));
 const world = new World($("scene"), { peek: (u) => api.peek(u), image: (p) => api.image(p), readText: (p) => api.readText(p) });
 const projectLife = new ProjectLife(world);
-window.addEventListener('lucid:mobile-view', () => world.refreshPresentation());
 world.extFactory.break = (h, w, hh) => new BreakRoom(h, w, hh);
 world.extFactory.charging = (h, w, hh) => new ChargingRoom(h, w, hh);
 world.extFactory.queue = (h, w, hh) => new QuestionLine(h, w, hh);
@@ -313,7 +306,7 @@ const monitorTasks = new MonitorTasks(world, {
 // A session that ended any way (finished, stopped, failed) can be settled from its desk, and a
 // settled one whose coins are still waiting can be collected there.
 function collectible(id: string, _fresh: boolean): Collectible | null {
-  if (currentEnvironment || companionClient()) return null;
+  if (currentEnvironment) return null;
   const thread = world.lastData?.threads.find(t => t.id === id);
   if (!thread || thread.pinned || thread.question) return null;
   const coins = coinRewards ? wallet.rewards.find(r => r.id === id)?.amount ?? 0 : 0;
@@ -346,7 +339,6 @@ async function workDetails(id: string): Promise<WorkDetails> {
 // --- workers up close --------------------------------------------------------------------
 const settledNow = () => new Set((world.lastData?.threads ?? []).filter(t => t.settled && !t.pinned).map(t => t.id));
 function openWorkerProfile(r: RobotProfile, anchor: Element | null) {
-  if (companionClient()) return;
   const t = r.threadId ? world.lastData?.threads.find(t => t.id === r.threadId) : null;
   const free = world.roster.freeTeam(settledNow()).includes(r);
   const job = t && !t.settled ? { title: t.title, status: t.question ? "Needs your answer" : hasOfficeWork(t) ? "Working on" : orch.approvedPaper(t.id) ? "Ready to collect" : world.reports.has(t.id) ? "Waiting for review" : "Finished" } : null;
@@ -365,7 +357,7 @@ function openWall() {
   openStaffWall({ robots: world.roster.robots, onFocus: r => openWorkerProfile(r, null), onRehire: r => { world.roster.rehire(r.id); void refresh(); } });
 }
 world.onRobotFocus = (threadId, anchor) => { const r = world.roster.byThread(threadId); if (r) openWorkerProfile(r, anchor); };
-robotFocus.open = (id, el) => { const r = world.roster.byThread(id); if (!r || companionClient()) return false; openWorkerProfile(r, el); return true; };
+robotFocus.open = (id, el) => { const r = world.roster.byThread(id); if (!r) return false; openWorkerProfile(r, el); return true; };
 const collectingWork = new Set<string>();
 async function collectWork(id: string, from: HTMLElement) {
   if (collectingWork.has(id)) return;
@@ -498,9 +490,6 @@ world.onRooms = (rooms: Room[]) => {
     const focused = document.activeElement as HTMLElement | null;
     const key = focused && list.contains(focused) ? { room: focused.dataset.room, grip: focused.dataset.roomId, fold: focused.dataset.foldRoom } : null;
     list.innerHTML = html; list.dataset.html = html;
-    if (companionClient()) for (const button of list.querySelectorAll<HTMLButtonElement>('.room-grab, .room-fold')) {
-      button.disabled = true; button.title = 'Arrange offices on the computer.';
-    }
     if (key) {
       const selector = key.room ? `[data-room="${CSS.escape(key.room)}"]` : key.grip ? `.room-grab[data-room-id="${CSS.escape(key.grip)}"]` : key.fold ? `[data-fold-room="${CSS.escape(key.fold)}"]` : "";
       if (selector) list.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
@@ -516,7 +505,7 @@ $("room-list").addEventListener("click", (e) => {
   if (!b) return;
   if (world.rooms.some((r) => r.id === b.dataset.room && ["main", "project", "freelance"].includes(r.kind))) world.setRoomExpanded(b.dataset.room!, true);
   world.showRoom(b.dataset.room!);
-  if (b.dataset.room?.startsWith("p:") && !companionClient()) void projectLife.open(b.dataset.room.slice(2));
+  if (b.dataset.room?.startsWith("p:")) void projectLife.open(b.dataset.room.slice(2));
   // the questions room: answer the robot at the front of the line
   if (world.rooms.find((r) => r.id === b.dataset.room)?.kind === "queue") { const t = world.lastData?.threads.find((x) => x.question); if (t) openAnswer(t.id); }
 });
@@ -527,7 +516,7 @@ $("room-list").addEventListener("contextmenu", (e) => {
   if (!room || !["main", "project", "freelance"].includes(room.kind)) return;
   e.preventDefault(); world.onRoomMenu(room, e.clientX, e.clientY);
 });
-if (!companionClient()) wireRoomDrag({ scene: $("scene"), list: $("room-list"), rooms: () => world.orderRooms(world.rooms.filter((r) => movableRoom(r.id))),
+wireRoomDrag({ scene: $("scene"), list: $("room-list"), rooms: () => world.orderRooms(world.rooms.filter((r) => movableRoom(r.id))),
   hold: (active) => { if (active) world.stopCameraMotion(); world.setLayoutHeld(active); }, reorder: (id, before) => world.reorderRoom(id, before) });
 $("overview").addEventListener("click", () => world.overview());
 $("park").addEventListener("click", () => world.showPark());
@@ -565,22 +554,13 @@ api.onInfo(({ threadId, info }) => {
 });
 
 let watched = "";
-let companionRevisions: Record<string, string> = {};
-let watchTimer = 0, watchBusy = false, watchAgain = false;
+let watchBusy = false, watchAgain = false;
 world.onCampusChange = () => { void syncWatches(); };
 function desiredWatches() {
-  const companion = companionClient();
-  const office = !document.hidden && !world.scene.inert;
-  const ids = companion
-    ? office ? [...world.desks].filter(([, desk]) => renderFps(desk.screen) > 0).map(([id]) => id) : []
-    : world.campusDesks.map(row => row.id);
-  if (world.orchThread && (!companion || office)) ids.push(world.orchThread);
-  if (chat.threadId && (!companion || !document.hidden && chat.visible)) ids.push(chat.threadId);
+  const ids = world.campusDesks.map(row => row.id);
+  if (world.orchThread) ids.push(world.orchThread);
+  if (chat.threadId) ids.push(chat.threadId);
   return [...new Set(ids)].sort();
-}
-function scheduleWatchSync() {
-  if (!companionClient() || watchTimer) return;
-  watchTimer = window.setTimeout(() => { watchTimer = 0; void syncWatches(); }, 120);
 }
 async function syncWatches() {
   if (watchBusy) { watchAgain = true; return; }
@@ -592,18 +572,7 @@ async function syncWatches() {
   try {
     if (await api.watchSet(ids) && epoch === buildingEpoch) watched = key;
   } catch (error) { console.error('Thread watch refresh failed', error); }
-  finally { watchBusy = false; if (watchAgain || epoch !== buildingEpoch) { watchAgain = false; scheduleWatchSync(); } }
-}
-if (companionClient()) {
-  const stopWatchWake = onRenderWake(scheduleWatchSync);
-  window.addEventListener('lucid:mobile-view', scheduleWatchSync);
-  document.addEventListener('visibilitychange', scheduleWatchSync);
-  window.addEventListener('pagehide', (event) => {
-    if (event.persisted) return;
-    clearTimeout(watchTimer); stopWatchWake();
-    window.removeEventListener('lucid:mobile-view', scheduleWatchSync);
-    document.removeEventListener('visibilitychange', scheduleWatchSync);
-  });
+  finally { watchBusy = false; if (watchAgain || epoch !== buildingEpoch) { watchAgain = false; void syncWatches(); } }
 }
 let firstLoad = true;
 let refreshBusy = false;
@@ -612,39 +581,14 @@ let buildingEpoch = 0, switchingBuilding = false;
 let currentEnvironment: string | undefined;
 const buildingCameras = new Map<string, { x: number; y: number; s: number }>();
 async function refresh() {
-  if (companionClient() && document.hidden) return;
   if (switchingBuilding) return;
   if (refreshBusy) { refreshQueued = true; return; }
   const epoch = buildingEpoch, environment = currentEnvironment;
   const current = () => !switchingBuilding && epoch === buildingEpoch && environment === currentEnvironment;
   refreshBusy = true;
   try {
-    const frame = companionClient() && (api as any).remoteFrame
-      ? await (api as any).remoteFrame({ known: companionRevisions }) as { state?: { settings: string; roster: string }; world?: WorldData; tasks?: unknown[]; revisions: Record<string, string> }
-      : null;
-    const companion = frame ? frame.state : await readCompanionState();
-    if (!current()) return;
-    if (companion) {
-      world.roster.replaceSnapshot(companion.roster);
-      const shared = JSON.parse(companion.settings);
-      for (const key of ['orch', 'wallet', 'roles', 'level', 'milestones', 'themes', 'hidden', 'extra', 'homes', 'seats', 'expandedRooms', 'collapsedRooms', 'roomOrder', 'buildingLayouts'] as const) (settings as any)[key] = shared[key];
-      world.hidden = new Set(settings.hidden ?? []);
-      world.roomOrder = settings.roomOrder ?? [];
-      world.expandedRooms = new Set(settings.expandedRooms ?? []);
-      world.collapsedRooms = new Set(settings.collapsedRooms ?? []);
-      world.extra = new Map(Object.entries(settings.extra ?? {}));
-      world.themes = new Map(Object.entries(settings.themes ?? {}));
-      world.homes = new Map(Object.entries(settings.homes ?? {}));
-      world.seats = new Map(Object.entries(settings.seats ?? {}));
-      world.restoreLayouts(settings.buildingLayouts ?? {});
-      renderOrch();
-    }
-    const data = frame ? frame.world ?? world.lastData : await api.world();
+    const data = await api.world();
     if (!current() || !data || data.environmentId !== environment) return;
-    if (frame) {
-      companionRevisions = frame.revisions;
-      if (!frame.world && !frame.state && !world.needsRefresh) { scheduleWatchSync(); return; }
-    }
     if (!data.environmentId) {
       // Supervision can wait on external tools. It must never hold the office
       // snapshot, camera or refresh loop hostage to a slow review request.
@@ -659,20 +603,17 @@ async function refresh() {
     world.update(data);
     paintSelectedStatus();
     if (!document.hidden) renderThreads();
-    if (companionClient()) for (const button of world.scene.querySelectorAll<HTMLButtonElement>('.add-desk')) {
-      button.disabled = true; button.title = 'Add desks on the computer. Use the office menu to start work.';
-    }
     coinRewards?.render();
     // Settled work keeps no desk just to hold its coins: they are collected (and fly to the
     // counter) as soon as the thread is settled, here or in T3, and the desk is released.
-    if (coinRewards && !data.environmentId && !companionClient()) {
+    if (coinRewards && !data.environmentId) {
       for (const reward of [...wallet.rewards]) {
         const t = data.threads.find(t => t.id === reward.id);
         if (t?.settled && !t.pinned) { keepDesk(t.id); coinRewards.collect(t.id, world.deskFor(t.id)?.el ?? $("coin-bank"), false); }
       }
     }
     // a kept desk goes when its session is reopened or gone, or new work took that desk
-    if (!data.environmentId && !companionClient() && world.keptDesks.size) {
+    if (!data.environmentId && world.keptDesks.size) {
       for (const id of [...world.keptDesks]) {
         const t = data.threads.find(t => t.id === id);
         if (!t || !t.settled || !world.deskFor(id)) removeKeptDesk(id);
@@ -689,11 +630,7 @@ async function refresh() {
       const want = new URLSearchParams(location.search).get("thread");
       const d = want ? world.deskFor(want) : null;
       if (d) { world.select(d); requestAnimationFrame(() => { if (current()) world.showDesk(d); }); }
-      else requestAnimationFrame(() => {
-        if (!current()) return;
-        const room = appEl.classList.contains('mobile-layout') ? mobileStartRoom(world.rooms, data.threads, new URLSearchParams(location.search).get('project')) : null;
-        if (room) world.showRoom(room); else world.overview();
-      });
+      else requestAnimationFrame(() => { if (current()) world.overview(); });
     }
   } catch (err) {
     console.error("world refresh failed", err, String((err as any)?.stack || "").split("\n").slice(1, 3).join(" < "));
@@ -708,7 +645,6 @@ async function refresh() {
 let startNewTask: () => void = () => {};
 function setupMenus() {
   world.onAddDesk = (room) => {
-    if (companionClient()) return;
     world.setRoomExpanded(room, true);
     world.extra.set(room, Math.max(0, world.extra.get(room) ?? 0) + 1);
     world.seats.get(room)?.push(null);
@@ -717,13 +653,12 @@ function setupMenus() {
     void refresh();
   };
   const applyDeskRemoval = (remove: () => number | boolean) => {
-    if (companionClient() || !remove()) return;
+    if (!remove()) return;
     if (world.lastData) world.update(world.lastData);
     gameSound.play('switch'); saveSettings(); void refresh();
   };
   world.onRemoveEmptyDesk = slot => applyDeskRemoval(() => world.removeEmptyDesk(slot));
   world.onFreeDeskMenu = (d, slot, x, y) => {
-    if (companionClient()) { world.onFreeDesk(d, slot, x, y); return; }
     const room = slot.split("#")[0];
     showMenu(x, y, room === "main" ? "Drag a thread here from the sidebar" : "Free desk", [
       ...(room === "main" ? [] : [{ label: "Hire someone for this desk", run: () => world.onFreeDesk(d, slot, x, y) }]),
@@ -732,7 +667,6 @@ function setupMenus() {
     ]);
   };
   const hireForOffice = (room: string, idx: number, intent?: "thread" | "delegate") => {
-    let companionLaunch: { requestId: string; signature: string; resuming: boolean; threadId?: string } | null = null;
     const data = world.lastData;
     if (!data) return;
     const r = world.rooms.find((q) => q.id === room);
@@ -758,27 +692,13 @@ function setupMenus() {
       onHire: async (c) => {
         const project = projectId || c.projectId;
         if (!project) throw new Error("Choose a project for this desk");
-        if (!companionClient() && c.robotId && world.roster.byThread(c.requestId)?.id !== c.robotId) {
+        if (c.robotId && world.roster.byThread(c.requestId)?.id !== c.robotId) {
           const latest = await api.world();
           const robot = world.roster.robots.find(r => r.id === c.robotId);
           if (!robot || robot.threadId && !latest.threads.some(t => t.id === robot.threadId && t.settled && !t.pinned)) throw new Error("That robot is no longer free. Choose another candidate.");
         }
         const message = c.role ? `Your role: ${c.role.name}. ${c.role.brief}\n\nTask: ${c.task}` : c.task;
-        if (companionClient()) {
-          const signature = JSON.stringify({ project, message, provider: c.provider, model: c.model, options: c.options });
-          if (companionLaunch && companionLaunch.signature !== signature) throw Error('The previous task has already been submitted. Restore its prompt and runtime to retry its desk assignment, or open the thread from the list.');
-          companionLaunch ??= { requestId: c.requestId, signature, resuming: false };
-        }
-        const { threadId } = companionLaunch?.threadId ? { threadId: companionLaunch.threadId } : await api.startThread({ project, message, provider: c.provider, model: c.model, options: c.options, requestId: companionLaunch?.requestId ?? c.requestId });
-        if (companionClient()) {
-          companionLaunch!.threadId = threadId;
-          const snapshot = await (api as any).remoteCommit({ kind: 'hire', threadId, robotId: c.robotId, provider: c.provider, role: c.role?.name ?? '', model: c.model, room, index: Number(idx) || 0, resuming: companionLaunch!.resuming });
-          world.roster.replaceSnapshot(snapshot.roster);
-          await refresh();
-          const desk = world.deskFor(threadId);
-          if (desk) { world.select(desk); world.focusOn(desk); }
-          return;
-        }
+        const { threadId } = await api.startThread({ project, message, provider: c.provider, model: c.model, options: c.options, requestId: c.requestId });
         world.roster.assignRobot(threadId, c.robotId, c.provider, c.role?.name ?? "", c.model);
         world.homes.set(threadId, room);
         world.pendingSeat = { room, index: Number(idx) || 0, threadId };
@@ -818,7 +738,6 @@ function setupMenus() {
       { label: "New thread", run: () => startOfficeWork(room.id, "thread") },
       { label: "Delegate task", run: () => startOfficeWork(room.id, "delegate") },
     ];
-    if (companionClient()) { showMenu(x, y, room.title, work); return; }
     const deco = { label: "Decorate", run: () => decorate(room) };
     const free = world.emptyDeskSlots(room.id).length;
     const cleanup = free ? [{ label: `Remove ${free} empty desk${free === 1 ? "" : "s"}`, run: () => applyDeskRemoval(() => world.removeEmptyDesks(room.id)) }] : [];
@@ -884,7 +803,6 @@ function updateTimeout<T>(operation: Promise<T>, milliseconds: number): Promise<
   })]).finally(() => clearTimeout(timer));
 }
 async function checkUpdate() {
-  if (companionClient()) return;
   if (updateBusy || updateChecking) return;
   updateChecking = true;
   const btn = $<HTMLButtonElement>("update");
@@ -909,7 +827,6 @@ async function checkUpdate() {
   } finally { updateChecking = false; }
 }
 $("update").addEventListener("click", async () => {
-  if (companionClient()) return;
   if (updateBusy || updateChecking) return;
   const btn = $<HTMLButtonElement>("update");
   if (!updateState?.available) {
@@ -951,11 +868,6 @@ $("update").addEventListener("click", async () => {
   }
 });
 
-if (companionClient()) {
-  $<HTMLButtonElement>('update').disabled = true;
-  $('update').title = 'Update Lucid on the computer.';
-}
-
 const attachDir = await api.attachDir().catch(() => "");
 world.building = await api.host().catch(() => "This PC");
 async function selectBuilding(id: string) {
@@ -966,7 +878,6 @@ async function selectBuilding(id: string) {
     const building = await (api as any).selectEnvironment(id) as { label: string; local: boolean; world: WorldData };
     chat.close(); world.unfocus(); world.revealThread(null);
     currentEnvironment = building.local ? undefined : id;
-    companionRevisions = {};
     watched = '';
     world.orchThread = building.local ? settings.orch?.threadId || '' : '';
     monitorTasks.prepare(building.world);
@@ -1195,7 +1106,6 @@ chat.peekWidth = () => Math.min(clampTo(ui.chatW ?? chatDefault(), CHAT.min, CHA
 if (ui.chatAuto) chat.setAutoHide(true, false);
 chat.onAutoHide = (on) => { ui.chatAuto = on; appEl.classList.toggle("chat-auto", on); saveSettings(); };
 appEl.classList.toggle("chat-auto", !!ui.chatAuto);
-mountMobileShell(appEl, chat);
 let settingsWriteFlight = Promise.resolve();
 const saveSettings = () => {
   settings.buildingLayouts = world.exportLayouts();
@@ -1207,60 +1117,6 @@ const saveSettings = () => {
   renderHidden();
   return write;
 };
-installCompanionOwner({
-  snapshot: () => ({ settings: JSON.stringify(settings), roster: JSON.stringify(world.roster.robots) }),
-  apply: async (kind, json) => {
-    if (kind === 'roster') {
-      world.roster.replaceSnapshot(json);
-      await (api as any).rosterSave(JSON.stringify(world.roster.robots));
-    } else {
-      const next = JSON.parse(json);
-      next.ui = settings.ui;
-      for (const key of Object.keys(settings)) delete (settings as any)[key];
-      Object.assign(settings, next);
-      world.hidden = new Set(settings.hidden ?? []);
-      world.roomOrder = settings.roomOrder ?? [];
-      world.expandedRooms = new Set(settings.expandedRooms ?? []);
-      world.collapsedRooms = new Set(settings.collapsedRooms ?? []);
-      world.extra = new Map(Object.entries(settings.extra ?? {}));
-      world.themes = new Map(Object.entries(settings.themes ?? {}));
-      world.homes = new Map(Object.entries(settings.homes ?? {}));
-      world.seats = new Map(Object.entries(settings.seats ?? {}));
-      world.restoreLayouts(settings.buildingLayouts ?? {});
-      await saveSettings();
-    }
-    await refresh();
-  },
-  hire: async input => {
-    if (typeof input.threadId !== 'string' || typeof input.provider !== 'string' || typeof input.room !== 'string' || !Number.isInteger(input.index) || input.index < 0 || input.index > 1000) throw Error('The desk assignment is invalid.');
-    const latest = input.sourceWorld ?? await api.world();
-    const thread = latest.threads.find(t => t.id === input.threadId);
-    if (!thread || thread.settled) throw Error('This thread is no longer available. Refresh and try again.');
-    const project = latest.projects.find(p => p.id === thread.projectId);
-    if (!project) throw Error('This project is no longer available.');
-    if (!(input.room === `p:${thread.projectId}` || input.room === 'main' || input.room === 'freelance' && project.scratch)) throw Error('This task belongs to another project office.');
-    if (input.robotId) {
-      const robot = world.roster.robots.find(r => r.id === input.robotId);
-      if (!robot || robot.threadId && robot.threadId !== input.threadId && !latest.threads.some(t => t.id === robot.threadId && t.settled && !t.pinned)) throw Error('That robot is no longer free. Choose another candidate.');
-    }
-    world.roster.assignRobot(input.threadId, input.robotId, thread.provider, input.role, thread.model ?? input.model, input.resuming);
-    world.homes.set(input.threadId, input.room);
-    const seats = world.seats.get(input.room) ?? [];
-    const occupied = seats[input.index];
-    const index = occupied && occupied !== input.threadId ? seats.indexOf(null) >= 0 ? seats.indexOf(null) : seats.length : input.index;
-    const reserved = [...seats];
-    while (reserved.length <= index) reserved.push(null);
-    const previous = reserved.indexOf(input.threadId);
-    if (previous >= 0 && previous !== index) reserved[previous] = null;
-    reserved[index] = input.threadId;
-    world.extra.set(input.room, remainingDeskExtras(seats, reserved, world.extra.get(input.room) ?? 0));
-    world.seats.set(input.room, reserved);
-    if (world.lastData?.environmentId === latest.environmentId) world.pendingSeat = { room: input.room, index, threadId: input.threadId };
-    await (api as any).rosterSave(JSON.stringify(world.roster.robots));
-    await saveSettings();
-    await refresh();
-  },
-});
 world.onLayoutChange = saveSettings;
 world.onRoomOrder = () => { saveSettings(); world.onRooms(world.rooms); };
 function renderHidden() {
@@ -1298,21 +1154,11 @@ function renderOrch() {
   world.orchPresence = s?.paused ? (s.presence === "away" ? "away" : "sleep") : "awake";
   (world.ext.queue as QuestionLine | undefined)?.setPresence(world.orchPresence);
   const power = $<HTMLInputElement>("orch-power-toggle");
-  power.disabled = !s || companionClient();
+  power.disabled = !s;
   power.checked = !!s && !s.paused;
   $("orch-power-status").textContent = !s ? "Not hired" : s.paused ? "Off" : "On";
   $("orch-controls-open").textContent = s ? "Settings" : "Set up";
   const body = $("orch-body");
-  if (companionClient()) {
-    power.title = 'Change automatic supervision on the computer.';
-    $("orch-controls-open").setAttribute('disabled', '');
-    $("orch-controls-open").title = 'Change automatic supervision on the computer.';
-    if (!body.querySelector('#orch-archive')) {
-      body.innerHTML = '<p class="hint">Automatic supervision runs on the computer.</p><button type="button" class="ghost" id="orch-archive">Settlement papers</button>';
-      $("orch-archive").addEventListener('click', () => void showReportArchive(openThread));
-    }
-    return;
-  }
   if (!s) {
     body.innerHTML = `<p class="hint">Your stand-in: it learns how you like things done from what you tell robots, and can review their finished work for you.</p><button type="button" class="primary" id="orch-hire">Hire the orchestrator</button><button type="button" class="ghost" id="orch-archive">Settlement papers</button><p class="form-msg" id="orch-msg" role="status"></p>`;
     $("orch-archive").addEventListener("click", () => void showReportArchive(openThread));
@@ -1376,7 +1222,7 @@ $("orch-controls-open").addEventListener("click",()=>openOrchestratorControls(or
 // You in the orchestrator's chair: the AI orchestrator rests until you leave.
 let inChair = false;
 function takeChair() {
-  if (inChair || !settings.orch || currentEnvironment || companionClient()) return;
+  if (inChair || !settings.orch || currentEnvironment) return;
   inChair = true;
   const before = settings.orch.paused ? settings.orch.presence ?? "sleep" : "awake";
   orch.setPresence("away");
@@ -1429,13 +1275,13 @@ function celebrate(level: number) {
 }
 world.attachDir = attachDir;
 // Start the first refresh after all controls and state below are initialized.
-setInterval(() => { if (!companionClient() || !document.hidden) void refresh(); }, 3000);
+setInterval(() => { void refresh(); }, 3000);
 checkUpdate();
 setInterval(() => { if (!document.hidden) void checkUpdate(); }, 60 * 1000);
 
 // tokens, plan limits and cost from the harness logs
 // Coins: the robots' API-priced spend pays for things in the shop.
-const wallet = new Wallet(() => settings.wallet, (s) => { if (!companionClient()) { settings.wallet = s; saveSettings(); } });
+const wallet = new Wallet(() => settings.wallet, (s) => { settings.wallet = s; saveSettings(); });
 walletReady = wallet;
 const soundButton = $('game-sound');
 const terribleSongButton = document.querySelector<HTMLButtonElement>('#terrible-song')!;
@@ -1512,7 +1358,6 @@ const paintWallet = (gained = 0) => {
 wallet.onChange = (_bal, gained) => paintWallet(gained);
 paintWallet();
 const goShopping = () => {
-  if (companionClient()) { void confirmDialog('Office shop', 'Collect coins and decorate your office on the computer.', 'OK'); return; }
   void openShop({ wallet, level: world.level,
     rooms: () => world.rooms.filter(r => r.id === "main" || r.id.startsWith("p:")).map(r => ({
       id: r.id, title: r.title, theme: world.themes.get(r.id) ?? {},
@@ -1536,7 +1381,7 @@ shopFront.onOpen = goShopping;
 world.attachShop(shopFront);
 wallet.onChange = (_bal, gained) => { paintWallet(gained); shopFront.render(); window.dispatchEvent(new Event("lucid:wallet-change")); };
 $("shop-link").addEventListener("click", goShopping);
-if (!companionClient()) coinRewards = new CoinRewards(wallet, world, () => (api as any).coinUsage(), { ready: id => coinReady(id), collected: id => coinCollected(id).then(() => refresh()) });
+coinRewards = new CoinRewards(wallet, world, () => (api as any).coinUsage(), { ready: id => coinReady(id), collected: id => coinCollected(id).then(() => refresh()) });
 (window as any).__coinRewards = coinRewards;
 (window as any).__wallet = wallet;
 (window as any).__gameSound = gameSound;
@@ -1545,7 +1390,7 @@ const soundscape = new OfficeSoundscape(world);
 mountStats(document.getElementById("usage-body")!, async () => {
   const u = await (window as any).lucid.usage();
   world.setUsage(u);
-  if (u?.windows && !companionClient()) wallet.observe(u);
+  if (u?.windows) wallet.observe(u);
   return u;
 }, { background: true });
 // Limits retains the real usage owner, but has its own saved disclosure on every layout.
@@ -1711,7 +1556,7 @@ let searchTimer = 0, searchSeq = 0;
 function runThreadSearch(q: string) {
   window.clearTimeout(searchTimer);
   const seq = ++searchSeq;
-  if (q.length < 2 || companionClient() || currentEnvironment) { searchState.q = ""; searchState.matches.clear(); searchState.older = []; return; }
+  if (q.length < 2 || currentEnvironment) { searchState.q = ""; searchState.matches.clear(); searchState.older = []; return; }
   searchTimer = window.setTimeout(async () => {
     try {
       const r = await (window as any).lucidT3.searchThreads(q);
@@ -1724,7 +1569,6 @@ function runThreadSearch(q: string) {
   }, 180);
 }
 function renderThreads(force = false) {
-  if (appEl.classList.contains('mobile-layout') && appEl.dataset.mobileView !== 'threads') return;
   const data = world.lastData;
   if (!data || document.body.classList.contains("th-dragging")) return;   // never swap rows out from under a drag
   const started = beginSystem();
@@ -1933,7 +1777,7 @@ function nextNeedingYou() {
   openThread(group[(at + 1) % group.length].id);
 }
 function newProject() {
-  if (companionClient() || currentEnvironment) return;
+  if (currentEnvironment) return;
   const lucid = (window as any).lucid;
   openNewProject({ create: o => lucid.createProject(o), addExisting: o => lucid.addProject(o), pickFolder: () => lucid.pickFolder(), baseFolder: () => lucid.projectsBase() },
     { onDone: () => void refresh() });
@@ -1967,11 +1811,7 @@ function openThread(id: string) {
   world.onWatchChat(id);
 }
 setInterval(() => { if (!document.hidden) renderThreads(); }, 3000);
-window.addEventListener('lucid:mobile-view', (event) => {
-  const detail = (event as CustomEvent<{ mobile: boolean; view: string }>).detail;
-  if (!detail?.mobile || detail.view === 'threads') renderThreads();
-});
-document.addEventListener("visibilitychange", () => { if (!document.hidden) { renderThreads(); if (companionClient()) void refresh(); } });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) renderThreads(); });
 // Defer until module initialization finishes, then make the loaded threads usable.
 window.setTimeout(renderThreads, 0);
 
@@ -2017,7 +1857,6 @@ function threadRef(id: string): ThreadRef | null {
 wireThreadDrag([$("th-list"), $("rail-list")], chat, threadRef, {
   hold: (active) => { if (active) world.stopCameraMotion(); world.setLayoutHeld(active); },
   zone: (x, y) => {
-    if (companionClient()) return null;
     const button = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-room]");
     const room = button?.dataset.room;
     return room && world.rooms.some((r) => r.id === room && ["main", "project", "freelance"].includes(r.kind)) ? room : world.threadDropZone(x, y);
@@ -2043,7 +1882,7 @@ function referenceInChat(id: string, x: number, y: number) {
   showMenu(x, y, "Open a robot's chat to reference this thread", [{ label: "Chat with this thread's robot", run: () => openThread(id) }]);
 }
 function officeMoveItems(id: string) {
-  if (companionClient() || id === world.orchThread) return [];
+  if (id === world.orchThread) return [];
   const current = world.homes.get(id) ?? world.deskFor(id)?.room;
   return world.rooms.filter(r => ["main", "project", "freelance"].includes(r.kind) && r.id !== current).map(r => ({
     label: `Move to ${r.title}`,
@@ -2105,7 +1944,6 @@ function milestoneStats(shipped: { total: number; today: number }): MsStats {
   };
 }
 function checkMilestones(shipped: { total: number; today: number }) {
-  if (companionClient()) return;
   if (!walletReady) return;
   const wallet = walletReady;
   const seen = new Set(settings.milestones ?? []);

@@ -1,6 +1,5 @@
 import gsap from "gsap";
 import type { World, WThread } from "./world";
-import { companionClient } from "../remote-client";
 
 // Your stand-in. It learns your preferences from what you tell robots, keeps them in its
 // notebook (memory.md), and when reviews are on, checks finished work for you.
@@ -25,7 +24,6 @@ export class Orchestrator {
   onChange: () => void = () => {};
 
   constructor(private api: Api, private world: World, private get: () => OrchState | null, private set: (s: OrchState | null) => void) {
-    if (companionClient()) return;
     // Record the workflow version without overriding an existing manual review choice.
     const saved = this.get();
     if (saved && saved.reviewWorkflow !== 1) this.set({ ...saved, review: saved.review === true, reviewWorkflow: 1 });
@@ -39,7 +37,6 @@ export class Orchestrator {
   // Ask the orchestrator for today's dialog pack: about 40 short lines on a cheap model,
   // drawn from what it knows about you (memory.md) and what the robots worked on today.
   async daily() {
-    if (companionClient()) return;
     const s = this.get();
     if (!s || s.paused) return;
     const today = new Date().toLocaleDateString("en-CA");
@@ -94,7 +91,6 @@ Rules: lines under 70 characters, kind and funny, PG, no em dashes or en dashes,
 
   // Batch the user's new messages to robots and hand them to the orchestrator to learn from.
   async learn(force = false) {
-    if (companionClient()) return;
     const s = this.get();
     if (!s || s.paused || this.busy) return;
     this.busy = true;
@@ -160,7 +156,6 @@ Rules: lines under 70 characters, kind and funny, PG, no em dashes or en dashes,
   }
 
   private async runReportSync(threads: WThread[]) {
-    if (companionClient()) return;
     if (this.world.lastData?.environmentId) return;
     const api = (window as any).lucid;
     if (new URLSearchParams(location.search).get("autoScope")?.startsWith("(none")) return;

@@ -51,7 +51,7 @@ export class EdgePeek {
 
   /** Open now (a click on the edge, a selected robot, a shortcut). */
   show(animate = true) {
-    if (!this.enabled || this.o.panel.closest(".mobile-layout")) return;
+    if (!this.enabled) return;
     this.clearTimers();
     if (this.shown) return;
     this.shown = true;
