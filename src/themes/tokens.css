@@ -35,6 +35,8 @@
   --ui-drop-scrim: rgba(18, 21, 58, 0.94);   /* drop files onto the chat */
   --ui-scroll: rgba(185, 191, 230, 0.18);
   --ui-scroll-hover: rgba(185, 191, 230, 0.32);
+  --ui-close: #e5484d;              /* the window close button on hover (src/titlebar.ts) */
+  --ui-close-press: #c43a3f;
   --mt-panel: #171d3b;              /* Lucid's own monitor screens */
   --mt-shot: #0f1430;
   --mt-shot-line: #3a4170;
@@ -77,10 +79,9 @@
   --wd-plate: rgba(255, 255, 255, 0.93);   /* desk nameplates */
   --wd-plate-ink: #2d3142;
   --wd-plate-sub: #5d6278;
-  --wd-add: #fff7e8;                /* the Add a desk button */
-  --wd-add-hover: #f4e3cb;
-  --wd-add-line: #d7c2a7;
-  --wd-add-ink: #4a3a28;
+  --wd-ghost-line: #6b4a2c;         /* the Add a desk placeholder: dashed outline */
+  --wd-ghost-fill: rgba(255, 246, 226, 0.28);   /* its faint screen and desk top */
+  --wd-ghost-ink: #4f3219;          /* its plus and label */
 
   /* ---- Robots (world/look.ts bodyColors) ---- */
   --robot-dark: 0%;                 /* 0% the light bodies, 100% dark bodies in each robot's hue */

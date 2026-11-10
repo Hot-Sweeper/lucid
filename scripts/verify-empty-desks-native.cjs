@@ -150,7 +150,7 @@ if (!process.versions.electron) {
         for(let i=0;i<100;i++){if(await ev(`![...window.__world.slotDesks.values()].some(d=>d.room==='main')`))break;await wait(200)}result.lastEmptyDeskRemoved=await ev(`![...window.__world.slotDesks.values()].some(d=>d.room==='main')`);
         if(!result.lastEmptyDeskRemoved){console.log(await ev(`JSON.stringify({extra:window.__world.extra.get('main'),plans:window.__world.physicalPlans.filter(p=>p.id==='main'),pending:window.__world.pendingSeat,held:window.__world.physicalLayoutHeld})`));await capture('last-desk-debug');throw Error('Last empty desk remains');}
         await capture('after-last-desk');
-        result.addStillAvailable=await ev(`(()=>{const b=document.querySelector('.add-desk[aria-label="Add a desk to Main office"]');if(!b)throw Error('No Add a desk control after removing the last one');b.click();return true})()`);
+        result.addStillAvailable=await ev(`(()=>{const b=document.querySelector('.desk-ghost[aria-label="Add a desk to Main office"]');if(!b)throw Error('No Add a desk control after removing the last one');b.click();return true})()`);
         for(let i=0;i<100;i++){if(await ev(`window.__world.freeDesks.some(d=>d.room==='main')`))break;await wait(100)}
         result.addRestoresDesk=await ev(`window.__world.freeDesks.some(d=>d.room==='main')`);
         if(!result.addRestoresDesk)throw Error('Add a desk did not restore an empty office');

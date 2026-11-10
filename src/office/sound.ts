@@ -11,7 +11,7 @@ export type MusicState = {
 type BackgroundKind = 'theme' | 'ambience';
 type BackgroundTrack = { media: HTMLAudioElement; source: MediaElementAudioSourceNode; gain: GainNode; pending: boolean; fading: boolean; release: () => void; fadeIn?: number };
 export type GameCue = 'collect' | 'clink' | 'ready' | 'purchase' | 'poke' | 'coffee' | 'phone' | 'open' | 'level'
-  | 'rustle' | 'splash' | 'switch' | 'projector' | 'boop' | 'chirp' | 'quack'
+  | 'rustle' | 'splash' | 'switch' | 'projector' | 'boop' | 'chirp' | 'quack' | 'build'
   | 'keyboard' | 'mouse' | 'paper' | 'servo' | 'step' | 'chatter' | 'controller' | 'ping' | 'snore' | 'water' | 'clip'
   | FoleyCue;
 // Physical break room, robot and media foley. Each one follows a visible event.
@@ -53,6 +53,8 @@ const SCORES: Record<GameCue, Note[]> = {
   snore: [[126, 0, .28, .045, 'triangle', 86], [0, .04, .2, .025]],
   water: [[0, 0, .29, .07], [680, .06, .14, .018, 'sine', 380]],
   clip: [[392, 0, .09, .07, 'triangle'], [587.33, .1, .075, .065, 'triangle'], [783.99, .21, .13, .065], [0, .27, .035, .08]],
+  // A desk assembles: the top lands with a soft wooden thump, a leg clicks in, the monitor latches and rises.
+  build: [[0, 0, .05, .13, 'sine', undefined, 900], [150, 0, .1, .09, 'triangle', 92], [0, .13, .014, .06, 'sine', undefined, 3800], [0, .21, .016, .05, 'sine', undefined, 4400], [620, .21, .1, .04, 'sine', 930]],
   // Robots: a metal foot tick, a low thunk and a short servo whine.
   robostep: [[0, 0, .018, .1, 'sine', undefined, 3600], [92, 0, .055, .09, 'sine', 64], [430, .012, .05, .018, 'triangle', 560]],
   giggle: [[930, 0, .055, .04, 'square', 840], [880, .085, .055, .04, 'square', 790], [835, .17, .055, .036, 'square', 745], [790, .255, .08, .032, 'square', 690]],
