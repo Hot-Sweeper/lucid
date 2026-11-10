@@ -46,8 +46,6 @@ button, textarea, input { font: inherit; color: inherit; }
 /* ---------------- panel ---------------- */
 .panel { display: flex; flex-direction: column; gap: 22px; padding: 20px 16px 0; background: var(--night-2); min-height: 0; }
 .brand { display: flex; align-items: center; gap: 10px; }
-.brand h1 { font-size: 19px; font-weight: 600; margin: 0; letter-spacing: 0.01em; }
-.mark { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffd0a3, var(--accent) 60%, #e0647e); }
 .update { margin-left: auto; border: 0; background: var(--accent); color: #2a1407; font-weight: 600; font-size: 13px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
 .update:hover { background: var(--accent-2); }
 .update:disabled { opacity: 0.7; cursor: progress; }
