@@ -7,6 +7,7 @@
 // Notes and sources: RESEARCH.md, "T3 Code".
 import gsap from "gsap";
 import type { AppId } from "../os/wm";
+import { CHAT_TITLE } from "../brand";
 import { harnessKind, prettyModel, effortWord } from "./themes";
 import { logoSvg } from "./logos";
 import { ICONS } from "../os/icons";
@@ -232,7 +233,7 @@ export class T3CodeApp {
     this.chip = q(".t3-chip");
     this.send = q(".t3-send");
     this.atts = q(".t3-atts");
-    if (this.audience === "user") { q(".t3-ph").textContent = "Message you"; q(".t3-panes").textContent = "Lucid Chat"; }
+    if (this.audience === "user") { q(".t3-ph").textContent = "Message you"; q(".t3-panes").textContent = CHAT_TITLE; }
   }
 
   /** Builds differ in branding only: the window name and icon, and Nightly's sky behind the sidebar header. */
@@ -248,7 +249,7 @@ export class T3CodeApp {
 
   private async ensure(clicked = false) {
     this.brand();
-    const w = await this.wm.open(this.audience === "user" ? "chat" : "t3code", this.audience === "user" ? "Lucid Chat" : t3Title(this.chan()), clicked);
+    const w = await this.wm.open(this.audience === "user" ? "chat" : "t3code", this.audience === "user" ? CHAT_TITLE : t3Title(this.chan()), clicked);
     if (this.root.parentElement !== w.body) w.body.replaceChildren(this.root);
     this.renderSide();
     return w;

@@ -1,5 +1,5 @@
 // The permission prompt on a robot's screen. When T3 really has an approval open for this
-// robot (a command, a file change, a tool), the screen dims and a small dialog asks, in Lucid's
+// robot (a command, a file change, a tool), the screen dims and a small dialog asks, in the app's
 // own style: who asks, what it wants to do, Yes and No. It only shows what T3 reports as pending
 // and goes away when T3 says the request is settled: the pressed button is the real decision,
 // made in the chat by you or by the Orchestrator. The buttons are not clickable here on purpose,

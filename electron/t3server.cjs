@@ -3,19 +3,20 @@
 // model, effort or speed.
 //
 // Auth uses T3's official pairing flow, with two scopes by default:
-//   1. `t3 pair --scope orchestration:read --scope orchestration:operate --label Lucid`
+//   1. `t3 pair --scope orchestration:read --scope orchestration:operate --label <brand name>`
 //      mints a one-time pairing token (read from the CLI's output, never logged).
 //   2. POST /oauth/token exchanges it for a bearer access token (30 days).
 //   3. The access token is stored encrypted with Electron safeStorage in
 //      userData/t3-pairing.bin.
 //   4. Each WebSocket connection gets a short-lived ticket from
 //      POST /api/auth/websocket-ticket/rpc, then speaks Effect RPC on /ws.
-// If T3 rejects the token (expired or removed in T3's connections list), Lucid pairs
+// If T3 rejects the token (expired or removed in T3's connections list), the app pairs
 // again once, then reports the error. A feature that needs more (settings:write to download
 // T3's speech model, providers:manage to use a reset credit) asks for it with grantScope(),
 // which pairs again with the extra scope after the user confirmed the action in the UI.
 
 const fs = require("node:fs");
+const brand = require("./brand.cjs");
 const path = require("node:path");
 const os = require("node:os");
 const crypto = require("node:crypto");
@@ -119,7 +120,7 @@ function mintPairingToken(scopes) {
     if (!fs.existsSync(CLI)) return reject(new T3ServerError("The t3 command was not found. Open T3 Code once so it installs it.", "no-cli"));
     const l = cliLauncher();
     // `pair` finds the server from --base-dir (or the working folder), not from T3CODE_HOME
-    const args = [...l.pre, "pair", "--base-dir", T3_HOME, ...scopes.flatMap((s) => ["--scope", s]), "--label", "Lucid", "--ttl", "5m"];
+    const args = [...l.pre, "pair", "--base-dir", T3_HOME, ...scopes.flatMap((s) => ["--scope", s]), "--label", brand.name, "--ttl", "5m"];
     const child = spawn(l.cmd, args, { windowsHide: true, cwd: os.homedir(), env: { ...process.env, ...l.env } });
     let out = "";
     child.stdout.on("data", (d) => (out += d));
@@ -143,7 +144,7 @@ async function exchange(pairingToken, scopes) {
     subject_token_type: "urn:t3:params:oauth:token-type:environment-bootstrap",
     requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
     scope: scopes.join(" "),
-    client_label: "Lucid",
+    client_label: brand.name,
     client_device_type: "desktop",
     client_os: process.platform === "win32" ? "Windows" : process.platform === "darwin" ? "macOS" : "Linux",
   });
@@ -156,7 +157,7 @@ async function exchange(pairingToken, scopes) {
 
 let pairing = null;
 let lastError = null;
-/** Makes sure Lucid holds a session. Pairs with T3 when it has none. */
+/** Makes sure the app holds a session. Pairs with T3 when it has none. */
 async function ensurePaired({ force = false } = {}) {
   if (!force) { const c = await loadCred(); if (c) return c; }
   if (!pairing) {
@@ -201,7 +202,7 @@ async function grantScope(scope) {
 // T3's own error body (the voice API reports its reasons there).
 async function authedRaw(pathname, init = {}, { retried = false, pairedOnly = false } = {}) {
   const c = pairedOnly ? await loadCred() : await ensurePaired();
-  if (!c) throw new T3ServerError("Connect Lucid to T3 Code to read subscription limits.", "not-paired");
+  if (!c) throw new T3ServerError(`Connect ${brand.name} to T3 Code to read subscription limits.`, "not-paired");
   const { origin } = server();
   let res;
   try {
@@ -216,7 +217,7 @@ async function authedRaw(pathname, init = {}, { retried = false, pairedOnly = fa
     return authedRaw(pathname, init, { retried: true });
   }
   if (res.status === 401) {
-    lastError = "T3 no longer accepts Lucid's connection.";
+    lastError = `T3 no longer accepts ${brand.name}'s connection.`;
     throw new T3ServerError(lastError, "unauthorized");
   }
   if (res.status === 403) {
@@ -224,7 +225,7 @@ async function authedRaw(pathname, init = {}, { retried = false, pairedOnly = fa
     let body = null;
     try { body = await res.json(); } catch {}
     const scope = body?.requiredPermission || body?.requiredScope || null;
-    const err = new T3ServerError("T3 did not give Lucid permission for this.", body?.code === "insufficient_scope" ? "scope" : "unauthorized");
+    const err = new T3ServerError(`T3 did not give ${brand.name} permission for this.`, body?.code === "insufficient_scope" ? "scope" : "unauthorized");
     err.scope = scope;
     throw err;
   }
@@ -313,7 +314,7 @@ function friendly(s) {
   if (/Feedback requires/i.test(s)) return "This approval does not take a note.";
   if (/not resumable|server restarted/i.test(s)) return "The agent stopped waiting for this answer. Stop the run in T3 and ask again.";
   if (/not active/i.test(s)) return "This thread is archived or deleted.";
-  if (/requiredScope|permission/i.test(s)) return "T3 did not give Lucid permission for this.";
+  if (/requiredScope|permission/i.test(s)) return `T3 did not give ${brand.name} permission for this.`;
   // keep the text, but drop T3's internal ids
   return s.replace(/\b(run|thread|message|node|command):[^\s.,)]+/g, "this item").slice(0, 240);
 }
@@ -466,7 +467,7 @@ async function usageLimits() {
     let timer;
     try {
       // Reading limits must never initiate pairing, prompt, or restart a provider.
-      if (!await loadCred()) return { providers: [], error: "Connect Lucid to T3 Code to read subscription limits.", source: "T3 Code" };
+      if (!await loadCred()) return { providers: [], error: `Connect ${brand.name} to T3 Code to read subscription limits.`, source: "T3 Code" };
       const config = await Promise.race([
         call("server.getConfig", {}, { timeout: 2000, pairedOnly: true }),
         new Promise((_, reject) => { timer = setTimeout(() => reject(new T3ServerError("T3 limits did not answer in time.", "timeout")), 2500); }),
@@ -536,7 +537,7 @@ async function startHire(opts) {
     const option = model.options.find(o => o.id === id);
     if (!option || (option.type === 'boolean' ? typeof value !== 'boolean' : !option.choices?.some(c => c.id === value))) throw new T3ServerError('A model setting changed in T3. Reload the runtime settings and retry.', 'invalid');
   }
-  opts = { ...opts, message: require('./lucid-skill.cjs').withLucidSkill(opts.message) };
+  opts = { ...opts, message: require('./work-skill.cjs').withWorkSkill(opts.message) };
   if (opts.contextThreadId) return require('./hire-context.cjs').continueHire(getDb(), opts, dispatch);
   const payload = require('./hire-runtime.cjs').launchPayload(opts, config.runtimeMode);
   const result = await call('orchestration.launchThread', payload, { timeout: 60_000 });
@@ -562,7 +563,7 @@ function selection(threadId) {
 }
 
 /**
- * Whether Lucid is paired. `connect: true` pairs when there is no session yet.
+ * Whether the app is paired. `connect: true` pairs when there is no session yet.
  * With a threadId it also returns that thread's current model selection.
  */
 async function status({ connect = false, threadId = null } = {}) {

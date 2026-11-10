@@ -2263,7 +2263,7 @@ export class World {
   }
   onFocus: (d: Desk | null) => void = () => {};
   panelWidth = 0;
-  hidden = new Set<string>();          // project ids whose office is hidden in Lucid
+  hidden = new Set<string>();          // project ids whose office is hidden in the app
   extra = new Map<string, number>();   // room id -> desks added by hand
   homes = new Map<string, string>();   // user-assigned home, independent of the robot's current activity
   pendingSeat: { room: string; index: number; threadId?: string } | null = null;

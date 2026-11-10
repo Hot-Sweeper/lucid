@@ -4,10 +4,10 @@ import { transformWithOxc } from 'vite';
 let language = 'de', listener, resolve, calls = 0, shown = '';
 const document = { hidden: false };
 const code = (await transformWithOxc((await readFile('src/localization-speech.ts', 'utf8')).replace(/^import .*;\r?\n/gm, ''), 'localization-speech.ts')).code.replace(/export\s*\{[^}]*\};?/g, '').replace(/^export /gm, '');
-const create = new Function('getLocale', 'onLocaleChange', 'translateEntries', 'uiText', 'document', 'canonicalText', code + ';return flavorSpeech;')(
+const create = new Function('getLocale', 'onLocaleChange', 'translateEntries', 'uiText', 'document', 'canonicalText', 'BRAND', code + ';return flavorSpeech;')(
   () => language, fn => { listener = fn; return () => { listener = undefined; }; },
   entries => { calls++; return new Promise(done => { resolve = () => done(entries.map(e => ({ ...e, text: 'Deutsch: ' + e.text }))); }); },
-  text => text, document, text => text,
+  text => text, document, text => text, { name: 'Test Works' },
 );
 const speech = create(text => { shown = text; });
 speech.show('First line'); const first = resolve;

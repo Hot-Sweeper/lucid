@@ -1,4 +1,4 @@
-// Reuse Lucid's material and provider palettes. Screen geometry stays identical so
+// Reuse the app's material and provider palettes. Screen geometry stays identical so
 // real apps, hand targets and distance detail tiers keep working on every model.
 export const COMPUTERS = {
   classic: { name: 'Classic workstation', shell: '#2a2f45', edge: '#151927', radius: 12 },

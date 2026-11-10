@@ -1,4 +1,4 @@
-/* Operations without an app of their own. Lucid's navy for ordinary tools; T3 Code's own surface
+/* Operations without an app of their own. The app's navy for ordinary tools; T3 Code's own surface
    (black canvas, hairlines at 8%, info blue while working, emerald when done) for its operations. */
 .tool.tv {
   --tv-ink: #eef0ff; --tv-muted: #8a91c4; --tv-line: rgba(190, 200, 255, 0.1); --tv-chip: rgba(255, 255, 255, 0.07);

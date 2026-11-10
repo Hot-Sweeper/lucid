@@ -39,7 +39,7 @@ export type WorkDetails = { task: string; report: string; reportHtml?: string; i
 type Actions = {
   answer: AnswerDeps;
   read(id: string): void;
-  /** `fresh`: the run finished while Lucid was open (reviews off only collect fresh work). */
+  /** `fresh`: the run finished while the app was open (reviews off only collect fresh work). */
   ready(id: string, fresh: boolean): Collectible | null;
   /** Coins, then settlement, which clears the desk. Rejects with a readable reason. */
   collect(id: string, from: HTMLElement): Promise<void>;

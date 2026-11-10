@@ -1,7 +1,7 @@
 /* Follow T3: the palette of the theme active in T3 Code. themes/t3-theme.ts sets T3's colours
    as --t3-* on <html> (sRGB hex, text and accent ink already lifted to WCAG AA by
    electron/t3-theme.cjs) and data-t3-appearance="light" | "dark". Everything below derives
-   Lucid's tokens from those few colours. A dark T3 theme also takes the dark office from
+   the app's tokens from those few colours. A dark T3 theme also takes the dark office from
    oled.css (materials, robots, the computers' apps); a light one keeps the warm daylight office.
    The [data-t3-appearance] attribute in each selector keeps these rules above that shared block. */
 :root[data-theme="t3"][data-t3-appearance] {
@@ -49,7 +49,7 @@
   --mt-remove: var(--t3-secondary);
   --mt-viewer-scrim: color-mix(in srgb, var(--t3-canvas) 88%, transparent);
 
-  /* the robots' computers: desktop chrome and Lucid's own apps in T3's colours */
+  /* the robots' computers: desktop chrome and the app's own apps in T3's colours */
   --os-ink: var(--t3-text);
   --os-desk: var(--t3-canvas);
   --os-lock: radial-gradient(90% 70% at 50% 120%, color-mix(in oklab, var(--t3-accent) 26%, var(--t3-canvas)) 0%, var(--t3-canvas) 65%);

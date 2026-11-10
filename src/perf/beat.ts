@@ -6,7 +6,7 @@ export const AMBIENT_HZ = 72;
 /** While nothing is touched and the camera rests (world/budget.ts calm mode), ambient work
  * runs on fewer frames: one in five at 144 Hz instead of every other. */
 export const CALM_HZ = 30;
-/** Calm and the window not focused (Lucid open beside other work). */
+/** Calm and the window not focused (the app open beside other work). */
 export const CALM_AWAY_HZ = 15;
 let rate = AMBIENT_HZ;
 export function setAmbientRate(hz: number) { rate = hz; }

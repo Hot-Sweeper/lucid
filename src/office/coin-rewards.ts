@@ -75,7 +75,7 @@ export class CoinRewards {
       this.render();
     } catch {
       // Keep saved rewards usable through a temporary usage-reader outage.
-      this.tray.title = 'Usage could not be refreshed. Saved coins are still available; Lucid will retry.';
+      this.tray.title = 'Usage could not be refreshed. Saved coins are still available. Trying again shortly.';
       this.render();
     }
   }

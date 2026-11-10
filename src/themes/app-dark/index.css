@@ -1,7 +1,7 @@
 /* Dark looks of the apps on the robots' computers, used when the interface theme sets
    data-app-scheme="dark" on <html> (themes/registry.ts). Each file mirrors one group of app
    stylesheets and only overrides colours, under html:root[data-app-scheme="dark"]. Branded
-   replicas follow the real product's own dark mode; Lucid's own apps use neutral surfaces. */
+   replicas follow the real product's own dark mode; the app's own apps use neutral surfaces. */
 @import "./web.css";
 @import "./social.css";
 @import "./apps.css";

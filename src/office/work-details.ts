@@ -2,10 +2,12 @@ import { Lexer, type Token } from 'marked';
 import { chatFileUrl, chatMediaKind, localMediaPath } from './chat-media';
 import type { WorkDetails } from './monitor-tasks';
 
+// The packaged work skill follows the task in launch messages (electron/work-skill.cjs). Older jobs used the lucid- tag.
+const SKILL_TAG = /<(?:lucid-)?work-skill>/;
 type Message = { role?: string; text?: string; at?: string; attachments?: { type?: string; path?: string; name?: string }[] };
 /** Build a monitor report from real assistant evidence, including Markdown file links. */
 export function buildWorkDetails(messages: Message[], threadId: string, markdown: (text: string) => string): WorkDetails {
-  const plain = (m?: Message) => String(m?.text || '').split('<lucid-work-skill>')[0].replace(/```[\s\S]*?```/g, ' [code] ').replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/[*_`#>]+/g, '').trim();
+  const plain = (m?: Message) => String(m?.text || '').split(SKILL_TAG)[0].replace(/```[\s\S]*?```/g, ' [code] ').replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/[*_`#>]+/g, '').trim();
   const replies = messages.filter(m => m.role === 'assistant' && (m.text?.trim() || m.attachments?.length));
   const report = [...replies].reverse().find(m => plain(m).length >= 220) ?? replies.at(-1);
   const images: WorkDetails['images'] = [], seen = new Set<string>();
@@ -37,7 +39,7 @@ export function buildWorkDetails(messages: Message[], threadId: string, markdown
     if (images.length >= 12) break;
   }
   const raw = report?.text?.trim() || '';
-  return { task: plain(messages.find(m => m.role === 'user' && m.text && !m.text.startsWith('[User attached'))).split('<lucid-work-skill>')[0].trim(),
+  return { task: plain(messages.find(m => m.role === 'user' && m.text && !m.text.startsWith('[User attached'))).split(SKILL_TAG)[0].trim(),
     report: plain(report), reportHtml: raw ? markdown(raw.slice(0, 24000)) : undefined,
     images: images.slice(0, 12), endedAt: messages.at(-1)?.at || null, messages: messages.length };
 }

@@ -2,7 +2,7 @@
    Google-style search, raw files, plain articles), the GitHub Desktop style git app and git
    colours in the terminal. Colours only; layout stays in the component stylesheet. */
 
-/* ---------- browser chrome leftovers in web.css (neutral, matches Lucid's OLED tokens) ---------- */
+/* ---------- browser chrome leftovers in web.css (neutral, matches the app's OLED tokens) ---------- */
 html:root[data-app-scheme="dark"] .browser .b-tab .b-x::before,
 html:root[data-app-scheme="dark"] .browser .b-tab .b-x::after { background: #8c8c8c; }
 html:root[data-app-scheme="dark"] .browser .fav-serif { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }

@@ -88,7 +88,7 @@ contextBridge.exposeInMainWorld("lucid", {
   t3Theme: () => ipcRenderer.invoke("t3:theme"),
 });
 
-// T3 server actions that need Lucid's paired session. Each call resolves with the value or rejects with a readable message.
+// T3 server actions that need the app's paired session. Each call resolves with the value or rejects with a readable message.
 const t3s = (channel) => async (arg) => {
   const r = await ipcRenderer.invoke(channel, arg);
   if (!r?.ok) { const err = new Error(r?.error || "T3 did not answer."); err.code = r?.code; throw err; }

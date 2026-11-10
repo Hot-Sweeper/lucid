@@ -5,12 +5,12 @@
 @property --deep { syntax: "<color>"; inherits: true; initial-value: #6d7b9b; }
 @property --acc-cloth { syntax: "<color>"; inherits: true; initial-value: #ff9f5a; }
 
-/* Theme tokens: the default values are Lucid's night look, exactly as the components drew it.
+/* Theme tokens: the default values are the app's night look, exactly as the components drew it.
    A theme file overrides any of these on :root[data-theme="<id>"]; surfaces.css applies them.
    Core interface tokens (--night, --night-2, --night-3, --ink*, --line, --accent, --mint) live
    in styles.css and are themed the same way. */
 :root {
-  /* ---- Lucid interface ---- */
+  /* ---- App interface ---- */
   --ui-chat: #161b3a;               /* the conversation shelf */
   --ui-field: #12153a;              /* composer, answer text, queue editor, choice face */
   --ui-code: #0f1230;               /* code blocks in chat */
@@ -37,7 +37,7 @@
   --ui-scroll-hover: rgba(185, 191, 230, 0.32);
   --ui-close: #e5484d;              /* the window close button on hover (src/titlebar.ts) */
   --ui-close-press: #c43a3f;
-  --mt-panel: #171d3b;              /* Lucid's own monitor screens */
+  --mt-panel: #171d3b;              /* the app's own monitor screens */
   --mt-shot: #0f1430;
   --mt-shot-line: #3a4170;
   --mt-chip-settled: #3d3a6a;
@@ -163,11 +163,11 @@
   --os-tv-muted: #8a91c4;
   --os-tv-line: rgba(190, 200, 255, 0.1);
   --os-tv-run: #b9bfe6;
-  --os-lc-bg: #151936;              /* Lucid's own chat app on the monitor */
+  --os-lc-bg: #151936;              /* the app's own chat app on the monitor */
   --os-lc-ink: #f3efff;
   --os-lc-muted: #aeb8e8;
   --os-lc-faint: #7c8dc8;
-  --os-oa: #1d2252;                 /* Lucid's office suite (documents, sheets, slides) */
+  --os-oa: #1d2252;                 /* the app's office suite (documents, sheets, slides) */
   --os-oa-rib: #232a63;
   --os-oa-foot: #171c48;
   --os-oa-grid: #2e3577;

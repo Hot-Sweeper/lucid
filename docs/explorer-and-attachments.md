@@ -27,7 +27,7 @@ When an agent calls `t3_thread_send_attachments`, `Director.playAttachmentSend` 
 
 Nothing in this path uploads or sends. The upload and the send were already tool calls; the choreography only draws them. The Director plays each item once (`played`), the page used for checks counts any call to `sendMessage`, `startThread` or `saveAttachment` and fails if there is one.
 
-Delivered files appear in the chat panel from T3's stored copy. Images preview in the viewer. Other files show "Show in folder", which `fs:reveal` allows only for files inside T3's attachment folder and Lucid's own.
+Delivered files appear in the chat panel from T3's stored copy. Images preview in the viewer. Other files show "Show in folder", which `fs:reveal` allows only for files inside T3's attachment folder and the app's own.
 
 ## Checks
 

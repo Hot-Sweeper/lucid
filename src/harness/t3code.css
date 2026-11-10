@@ -138,7 +138,7 @@
 .t3-inspection summary { cursor:pointer; color:var(--ink); }
 .t3-inspection pre { white-space:pre-wrap; overflow-wrap:anywhere; font:10px/1.6 var(--mono, monospace); margin:8px 0; }
 
-/* Lucid's user conversation has its own desktop app and keeps the office chat palette. */
+/* The app's user conversation has its own desktop app and keeps the office chat palette. */
 .t3.lucid-chat {
   --bg: #151936; --card: #151936; --ink: #f3efff; --muted: #aeb8e8;
   --faint: #7c8dc8; --bubble: #ffa052; --primary: #ffa052;

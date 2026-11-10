@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const brand = require('./brand.cjs');
 const { runUpdateCommand } = require('./update-command.cjs');
 const path = require('node:path');
 const { snapshotAsync, changed } = require('./build-state.cjs');
@@ -110,7 +111,7 @@ function createUpdater(root = ROOT, execute) {
         if (movedPrevious) try { fs.renameSync(savedPrevious, previous); } catch (error) { rollbackErrors.push(error); }
         if (rollbackErrors.length) {
           retainFrozen = true;
-          throw new AggregateError([err, ...rollbackErrors], 'Update promotion failed. Previous build files are preserved for recovery; restart Lucid before retrying.');
+          throw new AggregateError([err, ...rollbackErrors], `Update promotion failed. Previous build files are preserved for recovery; restart ${brand.name} before retrying.`);
         }
         throw err;
       }

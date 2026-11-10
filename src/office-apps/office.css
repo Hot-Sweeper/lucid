@@ -1,4 +1,4 @@
-/* Botword, Cellsheet and Slidedeck: the robots' office suite. Lucid's window colours, with each
+/* Botword, Cellsheet and Slidedeck: the robots' office suite. The app's window colours, with each
    app's own colour on the ribbon tab row the way office suites mark their apps. */
 .oa { --acc: #4f7cff; --rib: #232a63; --foot: #171c48; height: 100%; display: flex; flex-direction: column; background: #1d2252; color: #e9ecff; font-size: 10.5px; }
 .oa.bw { --acc: #4f6fe8; }

@@ -1,4 +1,4 @@
-// Lucid fun pack: what the robots do when they have no work.
+// Fun pack: what the robots do when they have no work.
 export type { FunHost, Outcome, FunOpts } from "./host";
 export { playSnake } from "./games/snake";
 export { playFlappy } from "./games/flappy";

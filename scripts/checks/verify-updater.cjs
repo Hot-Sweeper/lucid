@@ -54,7 +54,7 @@ async function main() {
     };
     const updater = createUpdater(root, run);
     const releaseLock = acquireUpdateLock(root);
-    await assert.rejects(createUpdater(root, run).apply(), /Another Lucid update/);
+    await assert.rejects(createUpdater(root, run).apply(), /Another update is still running/);
     releaseLock();
     assert.equal((await updater.apply(undefined, { localOnly: true })).updated, false);
     assert.equal(calls.length, 0, 'Unchanged launch requires no Git, npm, dependency copy or build');

@@ -108,7 +108,7 @@ export const CHECKS = [
   "verify-localization-client.mjs",
   "verify-localization-dom.cjs",
   "verify-localization-speech.mjs",
-  "verify-lucid-skill.cjs",
+  "verify-work-skill.cjs",
   "verify-media-canvas.mjs",
   "verify-media-response.cjs",
   "verify-monitor-action-reuse.mjs",

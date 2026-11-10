@@ -3,6 +3,7 @@ import { songMatchesMode, type SoundtrackMode } from './soundtrack-queue';
 import { SOUNDTRACK } from './soundtrack';
 import { getLocale, onLocaleChange } from '../localization';
 import './music-controls.css';
+import { BRAND } from "../brand";
 
 const allDirections: [SoundtrackMode, string, string][] = [
   ['journey', 'Evolving journey', 'Musikalische Reise'],
@@ -74,7 +75,7 @@ export function mountMusicControls(parent: HTMLElement): () => void {
       loading: ['Loading song…', 'Song wird geladen…'],
       error: ['Could not play this song. Choose Next song to try again.', 'Song konnte nicht abgespielt werden. Versuche den nächsten Song.'],
       locked: ['Click or press a key to start listening.', 'Klicke oder drücke eine Taste, um Musik zu starten.'],
-      hidden: ['Listening pauses while Lucid is hidden.', 'Die Musik pausiert, wenn Lucid ausgeblendet ist.'],
+      hidden: [`Listening pauses while ${BRAND.name} is hidden.`, `Die Musik pausiert, wenn ${BRAND.name} ausgeblendet ist.`],
       muted: ['Turn on sound and raise Theme music to listen.', 'Aktiviere den Ton und erhöhe die Musiklautstärke.'],
       paused: ['Music paused. Your place is saved.', 'Musik pausiert. Deine Position bleibt gespeichert.'],
     };

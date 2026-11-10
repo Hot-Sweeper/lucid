@@ -1,4 +1,5 @@
 import { canonicalText, getLocale, onLocaleChange, translateEntries, uiText } from "./localization";
+import { BRAND } from "./brand";
 
 /** Opt in only for fictional speech. Late model replies never resurrect expired bubbles. */
 export function flavorSpeech(paint: (text: string) => void) {
@@ -8,7 +9,7 @@ export function flavorSpeech(paint: (text: string) => void) {
     if (dead || !text) return;
     paint(uiText(text));
     if (language === "en" || document.hidden) return;
-    void translateEntries([{ id: "speech", text, context: "Incidental robot speech in Lucid's park or break room. Preserve the character's voice, adapt wordplay naturally. Already German lines should remain unchanged." }], language).then(entries => {
+    void translateEntries([{ id: "speech", text, context: `Incidental robot speech in ${BRAND.name}'s park or break room. Preserve the character's voice, adapt wordplay naturally. Already German lines should remain unchanged.` }], language).then(entries => {
       if (!dead && revision === version && language === getLocale() && source === text) paint(entries[0]?.text ?? text);
     }).catch(() => {});
   };

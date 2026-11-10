@@ -9,7 +9,7 @@ api.threads ??= async () => [
   { id: "a", title: "Site favorites and CLI page download", projectTitle: "postplan", provider: "claudeAgent", runStatus: "completed", updatedAt: new Date(Date.now() - 7 * 60e3).toISOString() },
   { id: "b", title: "Require login for uploads", projectTitle: "postplan", provider: "codex", runStatus: "completed", updatedAt: new Date(Date.now() - 29 * 60e3).toISOString() },
   { id: "c", title: "Built-in screenshot cropping", projectTitle: "t3code", provider: "claudeAgent", runStatus: "running", updatedAt: new Date(Date.now() - 60 * 60e3).toISOString() },
-  { id: "d", title: "Dark mode dashboard polish", projectTitle: "Lucid", provider: "opencode", runStatus: "completed", updatedAt: new Date(Date.now() - 4 * 3600e3).toISOString() },
+  { id: "d", title: "Dark mode dashboard polish", projectTitle: "Webshop", provider: "opencode", runStatus: "completed", updatedAt: new Date(Date.now() - 4 * 3600e3).toISOString() },
 ];
 
 function host(screen: HTMLElement, channel: T3Channel): T3Host {

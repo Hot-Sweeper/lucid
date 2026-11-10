@@ -1,11 +1,11 @@
-/* Themed surfaces: the colours of Lucid's chrome, the office lighting and the robots' computers,
+/* Themed surfaces: the colours of the app's chrome, the office lighting and the robots' computers,
    read from theme tokens (tokens.css). With the default tokens this reproduces the original look.
    The html:root[data-theme] prefix outranks each component's own rule, including stylesheets
    that load later with their app. Only colours live here; layout stays in the components.
    App brands and site replicas (Botflix, Botify, harness apps, GitHub-style pages, office suite
    ribbons, games) keep their own palettes and are deliberately not themed. */
 
-/* ---- Lucid interface -------------------------------------------------------------------- */
+/* ---- App interface --------------------------------------------------------------------- */
 html:root[data-theme] ::-webkit-scrollbar-thumb { background-color: var(--ui-scroll); }
 html:root[data-theme] ::-webkit-scrollbar-thumb:hover { background-color: var(--ui-scroll-hover); }
 html:root[data-theme] .panel { box-shadow: inset -1px 0 0 var(--ui-edge); }
@@ -44,7 +44,7 @@ html:root[data-theme] .cp-queue li.dragging { background: var(--ui-queue-drag); 
 html:root[data-theme] .coin-tray { background: var(--ui-tray); }
 html:root[data-theme] .ms-toast { background: var(--ui-toast); outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 
-/* Lucid's own monitor screens: task reports, questions, image viewer. */
+/* The app's own monitor screens: task reports, questions, image viewer. */
 html:root[data-theme] .monitor-task-panel,
 html:root[data-theme] .mt-far,
 html:root[data-theme] .monitor-task-question .ca-actions { background: var(--mt-panel); }

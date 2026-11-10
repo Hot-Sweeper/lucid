@@ -6,7 +6,7 @@ import {
 } from "./gifkit";
 
 // Looping meme "GIFs" for Botcord. Each one riffs on a well-known meme format,
-// redrawn with Lucid-style robots. Drawn fresh every frame from time alone, so
+// redrawn with the office's own robots. Drawn fresh every frame from time alone, so
 // a loop always looks the same and never drifts.
 
 export type GifKind =

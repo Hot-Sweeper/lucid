@@ -10,6 +10,7 @@ try {
   ];
   const result = buildWorkDetails(messages, 'local', s => `<verified>${s}</verified>`);
   assert.equal(result.task, 'Fix hiring');
+  assert.equal(buildWorkDetails([{ role: 'user', text: 'Fix hiring\n\n<work-skill>\nprivate instructions' }], 'local', s => s).task, 'Fix hiring', 'the current skill tag is hidden too');
   assert.equal(result.images.length, 3);
   assert.equal(result.images[0].name, 'After: working screen');
   assert(result.images[0].url.includes(encodeURIComponent('/tmp/result with space.png')));

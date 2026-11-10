@@ -3,7 +3,7 @@ import { statusIcon } from "../ui/status";
 import { icon } from "../ui/icons";
 import { ChatPromptContext } from "./chat-prompt";
 import "./chat-prompt.css";
-import { watchLucidMedia } from "./media-player";
+import { watchMedia } from "./media-player";
 import { parseThreadReference, threadCardMarkup, hydrateThreadCards, type ThreadReference, type ThreadCardInfo } from "./chat-thread-card";
 import { readPromptDraft, writePromptDraft } from "./prompt-draft";
 import { ChatShelf } from "./chat-shelf";
@@ -13,6 +13,7 @@ import { wireChatLinks } from "./chat-links";
 import gsap from "gsap";
 import type { Desk } from "./desk";
 import { logoFor, harnessName } from "./brand";
+import { BRAND } from "../brand";
 import { Marked } from "marked";
 import DOMPurify from "dompurify";
 import { highlight } from "../os/highlight";
@@ -30,7 +31,7 @@ import { reviewReportId, renderChatReview, renderSourceChatReport, type ChatRevi
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
 
-// T3 server actions through Lucid's paired session (see electron/t3server.cjs).
+// T3 server actions through the app's paired session (see electron/t3server.cjs).
 type OptionValue = string | boolean;
 type T3Option = { id: string; label: string; type: "select" | "boolean"; choices?: { id: string; label: string; isDefault: boolean }[]; current?: OptionValue };
 type T3Model = { slug: string; name: string; shortName: string | null; isDefault: boolean; options: T3Option[] };
@@ -219,7 +220,7 @@ export class ChatPanel {
   private stopComposerTyping: () => void = () => {};
   private dictation = { cancel() {} };
   private previews = new Map<File, string>();
-  // T3 session: the model bar and the queue actions need Lucid to be paired with T3
+  // T3 session: the model bar and the queue actions need the app to be paired with T3
   private paired = false;
   private triedConnect = false;
   private providers: T3Provider[] | null = null;
@@ -453,7 +454,7 @@ export class ChatPanel {
           <span class="cm-note" aria-live="polite"></span>
         </div>
         <p class="cm-error" role="alert" hidden></p>
-        <p class="cp-connect" hidden><span>Connect Lucid to T3 to change models and reorder</span><button type="button" class="ghost">Connect</button></p>
+        <p class="cp-connect" hidden><span>Connect ${BRAND.name} to T3 to change models and reorder</span><button type="button" class="ghost">Connect</button></p>
         <div class="cp-box">
           <div class="cp-chips" hidden></div>
           <textarea rows="1" placeholder="Message this robot" aria-label="Message"></textarea>
@@ -468,7 +469,7 @@ export class ChatPanel {
         <div class="cp-drop" hidden>Drop to attach</div>
       </form>`;
     host.appendChild(this.el);
-    watchLucidMedia(this.el);
+    watchMedia(this.el);
     const stop = this.el.querySelector<HTMLButtonElement>(".cp-stop")!;
     stop.addEventListener("click", async () => {
       const threadId = this.threadId;
@@ -699,7 +700,7 @@ export class ChatPanel {
   private saveDraft() {
     if (!this.threadId) return;
     const text = (this.el.querySelector("textarea") as HTMLTextAreaElement).value;
-    if (!writePromptDraft(`chat:${this.threadId}`, text)) this.note("Draft could not be saved. Keep Lucid open and copy your prompt before closing.");
+    if (!writePromptDraft(`chat:${this.threadId}`, text)) this.note(`Draft could not be saved. Keep ${BRAND.name} open and copy your prompt before closing.`);
     this.drafts.set(this.threadId, { text: (this.el.querySelector("textarea") as HTMLTextAreaElement).value, files: this.files, refs: this.refs });
   }
   open(desk: Desk, focus = true) {
@@ -1570,7 +1571,7 @@ export class ChatPanel {
       await this.loadT3(true);
       connectBtn.disabled = false;
       connectBtn.textContent = "Connect";
-      if (!this.paired) this.failed(new Error("T3 did not pair with Lucid. Make sure T3 Code is open, then try again."), "bar");
+      if (!this.paired) this.failed(new Error(`T3 did not pair with ${BRAND.name}. Make sure T3 Code is open, then try again.`), "bar");
     });
     this.wireQueue();
   }

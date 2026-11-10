@@ -24,7 +24,7 @@ async function fixture() {
   const source = fs.readFileSync('src/localization-dom.ts', 'utf8').replace(/^import .*;\r?\n/gm, '');
   const code = (await transformWithOxc(source, 'localization-dom.ts')).code.replace(/export\s*\{[^}]*\};?/g, '').replace(/^export /gm, '') + '\nexports.localizeGameDOM = localizeGameDOM;';
   vm.runInNewContext(code, {
-    exports, document, NodeFilter: { SHOW_TEXT: 4 }, Date: {now:()=>now},
+    exports, document, NodeFilter: { SHOW_TEXT: 4 }, Date: {now:()=>now}, BRAND: require('../../electron/brand.cjs'),
     setTimeout(fn) { timer = fn; return 1; }, clearTimeout() { timer = undefined; },
     MutationObserver: class { constructor(fn) { observer = fn; } observe() {} disconnect() {} },
     IntersectionObserver: class { constructor(fn) { intersection = fn; } observe() { intersection([{ isIntersecting: true }]); } disconnect() {} },

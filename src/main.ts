@@ -768,7 +768,7 @@ let lastUpdateFailure: { message: string; details: string; kind?: string } | nul
 function updateTimeout<T>(operation: Promise<T>, milliseconds: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
   return Promise.race([operation, new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error("Lucid did not answer. Close and reopen Lucid, then retry the update.")), milliseconds);
+    timer = setTimeout(() => reject(new Error(`${BRAND.name} did not answer. Close and reopen it, then retry the update.`)), milliseconds);
   })]).finally(() => clearTimeout(timer));
 }
 async function checkUpdate() {
@@ -1264,7 +1264,7 @@ mountLimitsSection($("side-panel"), $("usage-body"), !folded.has("limits"));
 
 // Real weather where you are: it rains, snows or storms over the office, and the season shows outside.
 const WX_NAME: Record<string, string> = { clear: "Clear", clouds: "Cloudy", rain: "Rain", drizzle: "Drizzle", snow: "Snow", storm: "Storm", fog: "Fog" };
-// The weather service is sometimes behind the sky. You can tell Lucid what it is really doing;
+// The weather service is sometimes behind the sky. You can tell the app what it is really doing;
 // the correction holds for two hours, then live weather takes over again.
 let liveWeather: any = null;
 const WX_FIX_MS = 2 * 60 * 60 * 1000;

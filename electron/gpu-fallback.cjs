@@ -1,4 +1,4 @@
-// Lucid may start on Vulkan (scripts/launch.cjs). If this machine's GPU process cannot run it,
+// The app may start on Vulkan (scripts/launch.cjs). If this machine's GPU process cannot run it,
 // switch the saved choice back to OpenGL and restart once, so the office never stays blank
 // or on slow software drawing.
 const fs = require('node:fs');
@@ -36,13 +36,13 @@ function install(app, { argv = process.argv, file = settingsFile(), checkAfter =
   const fallback = reason => {
     if (done) return;
     done = true;
-    console.error('Vulkan drawing failed, switching Lucid back to OpenGL:', reason);
+    console.error('Vulkan drawing failed, switching back to OpenGL:', reason);
     try { saveFallback(file, reason); } catch (error) { console.error('Could not save the OpenGL fallback:', error); }
     app.relaunch({ args: argv.slice(1).filter(arg => !isVulkanArg(arg)) });
     app.exit(0);
   };
-  // A GPU process also goes away when Lucid itself is quitting or being stopped (SIGTERM).
-  // That is not a Vulkan failure: only act if Lucid is still running a moment later.
+  // A GPU process also goes away when the app itself is quitting or being stopped (SIGTERM).
+  // That is not a Vulkan failure: only act if the app is still running a moment later.
   let quitting = false;
   const leaving = () => { quitting = true; };
   app.on('before-quit', leaving); app.on('will-quit', leaving);

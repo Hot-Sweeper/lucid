@@ -1,5 +1,5 @@
 import { GAME_TITLES } from "../games/catalog";
-// Vapor: the robots' game store and launcher, in Lucid's own style: a dusky indigo store
+// Vapor: the robots' game store and launcher, in the app's own style: a dusky indigo store
 // with sales and a cart, a library with an INSTALL or PLAY button, a download that really runs
 // its course. The robot browses, maybe buys something (or is declined), then installs and launches
 // one of the games that really exist on its desktop. The caller starts that game.

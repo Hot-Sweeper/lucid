@@ -93,7 +93,7 @@ class FakeHost implements FunHost {
 }
 
 const root = document.getElementById("games-demo")!;
-root.innerHTML = `<div class="d-top"><h1>Lucid games pack</h1><button type="button" class="d-toggle">Stop all</button><span class="d-note">Stop flips host.stopped for every window</span></div><div class="d-grid"></div>`;
+root.innerHTML = `<div class="d-top"><h1>Games pack</h1><button type="button" class="d-toggle">Stop all</button><span class="d-note">Stop flips host.stopped for every window</span></div><div class="d-grid"></div>`;
 const grid = root.querySelector(".d-grid") as HTMLElement;
 const hosts = new Set<FakeHost>();
 let running = true;

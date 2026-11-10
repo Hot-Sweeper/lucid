@@ -1,4 +1,4 @@
-/* Lucid fun pack: games, phone feed, BotTube, Benchtop. Every class is prefixed fun-. */
+/* Fun pack: games, phone feed, BotTube, Benchtop. Every class is prefixed fun-. */
 
 /* ---------------- games ---------------- */
 .fun-game { height: 100%; display: flex; flex-direction: column; background: #161a45; font-family: var(--font); user-select: none; }

@@ -14,7 +14,7 @@ const ALLOW = [
 ];
 const cache = new Map(); // key -> { at, value }
 const TTL = 10 * 60 * 1000, FAIL_TTL = 60 * 1000;
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36 Lucid";
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36 " + require("./brand.cjs").name.replace(/\W+/g, "");
 
 function cached(key, fn) {
   const hit = cache.get(key);
