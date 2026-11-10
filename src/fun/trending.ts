@@ -7,17 +7,6 @@ import { canvasText, canvasLines } from "../localization-canvas";
 
 const TRENDING_ID = "trend-";
 
-function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number) {
-  const words = text.split(/\s+/), lines: string[] = [];
-  let cur = "";
-  for (const w of words) {
-    const next = cur ? `${cur} ${w}` : w;
-    if (ctx.measureText(next).width > maxW && cur) { lines.push(cur); cur = w; } else cur = next;
-  }
-  if (cur) lines.push(cur);
-  return lines.slice(0, 3);
-}
-
 function make(t: { title: string; channel?: string; views?: string }, i: number): VideoDef {
   const base = VIDEOS.filter((v) => !v.id.startsWith(TRENDING_ID))[(i * 7 + t.title.length) % VIDEOS.length] ?? VIDEOS[0];
   const views = t.views || `${(1 + ((t.title.length * 37) % 90) / 10).toFixed(1)}M views`;
