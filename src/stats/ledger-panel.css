@@ -3,6 +3,8 @@
 .coin-ledger {
   --cl-gold: #f2b84b;
   --cl-cell: 13px;
+  /* Muted text lifted to AA contrast on the raised panel. */
+  --cl-quiet: color-mix(in srgb, var(--ink-3) 70%, var(--ink-2));
   position: fixed; z-index: 250; width: min(540px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; overscroll-behavior: contain;
   padding: 14px 18px 18px; border-radius: var(--radius-xl); background: var(--night-3); color: var(--ink); box-shadow: var(--shadow-pop);
   font-variant-numeric: tabular-nums;
@@ -18,7 +20,8 @@ html:root[data-theme] .coin-ledger { outline: 1px solid var(--ui-edge); outline-
 .cl-head { display: flex; align-items: center; gap: 10px; }
 .cl-head h2 { margin: 0 auto 0 0; font-size: 15px; font-weight: 600; }
 .cl-close { padding: 5px 10px; font-size: 12px; }
-.coin-ledger h3 { margin: 0; }
+.coin-ledger h3 { margin: 0; color: var(--cl-quiet); }
+.coin-ledger .st-cap { color: var(--cl-quiet); }
 .cl-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* This week, streak and best day: plain figures, no boxes. */
@@ -26,7 +29,7 @@ html:root[data-theme] .coin-ledger { outline: 1px solid var(--ui-edge); outline-
 .cl-fig { display: flex; flex-direction: column; min-width: 0; }
 .cl-note { margin-top: 4px; font-size: 12px; line-height: 1.35; color: var(--ink-2); }
 button.cl-note { align-self: flex-start; padding: 0; font-size: 12px; text-align: left; }
-button.cl-note:disabled { color: var(--ink-3); cursor: default; text-decoration: none; }
+button.cl-note:disabled { color: var(--cl-quiet); cursor: default; text-decoration: none; }
 
 /* Calendar heatmap: weeks are columns, Monday on top. */
 .cl-cal { margin-top: 18px; }
@@ -37,9 +40,9 @@ button.cl-page:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 
 button.cl-page:active:not(:disabled) { transform: scale(.94); }
 button.cl-page:disabled { opacity: .35; cursor: default; }
 .cl-calbody { display: flex; gap: 6px; }
-.cl-wd { display: grid; grid-template-rows: repeat(7, var(--cl-cell)); gap: 3px; margin-top: 18px; font-size: 10px; line-height: var(--cl-cell); color: var(--ink-3); }
+.cl-wd { display: grid; grid-template-rows: repeat(7, var(--cl-cell)); gap: 3px; margin-top: 18px; font-size: 10px; line-height: var(--cl-cell); color: var(--cl-quiet); }
 .cl-weeks { min-width: 0; }
-.cl-months { display: grid; grid-template-columns: repeat(26, var(--cl-cell)); column-gap: 3px; height: 18px; font-size: 10.5px; color: var(--ink-3); }
+.cl-months { display: grid; grid-template-columns: repeat(26, var(--cl-cell)); column-gap: 3px; height: 18px; font-size: 10.5px; color: var(--cl-quiet); }
 .cl-months span { white-space: nowrap; }
 .cl-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, var(--cl-cell)); grid-auto-columns: var(--cl-cell); gap: 3px; }
 .cl-cell { display: block; width: var(--cl-cell); height: var(--cl-cell); padding: 0; border: 0; border-radius: 3px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
@@ -55,7 +58,7 @@ button.cl-cell:hover { transform: scale(1.2); }
 .cl-cell.cl-future { visibility: hidden; }
 .cl-calfoot { display: flex; align-items: flex-start; gap: 12px; margin-top: 8px; }
 .cl-daynote { flex: 1; min-width: 0; min-height: 2.8em; margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
-.cl-legend { display: flex; align-items: center; gap: 3px; flex: none; font-size: 10.5px; line-height: var(--cl-cell); color: var(--ink-3); }
+.cl-legend { display: flex; align-items: center; gap: 3px; flex: none; font-size: 10.5px; line-height: var(--cl-cell); color: var(--cl-quiet); }
 .cl-legend span { margin: 0 3px; }
 
 /* Personal records reuse the usage meter (stats.css): the tick is the user's usual pace. */
@@ -69,7 +72,7 @@ button.cl-cell:hover { transform: scale(1.2); }
 .cl-beaten .cl-rval { color: var(--status-done, var(--mint)); }
 .cl-beaten .st-bar i { background: var(--cl-gold); }
 .cl-record .st-pacemark { box-shadow: 0 0 0 1.5px var(--night-3); }
-.cl-rnote { margin: 4px 0 0; font-size: 11.5px; line-height: 1.35; color: var(--ink-3); }
+.cl-rnote { margin: 4px 0 0; font-size: 11.5px; line-height: 1.35; color: var(--cl-quiet); }
 .cl-flash { animation: cl-flash 1.4s var(--ease-out) both; }
 @keyframes cl-flash { from { background: color-mix(in srgb, var(--cl-gold) 24%, transparent); } to { background: transparent; } }
 
@@ -86,15 +89,15 @@ button.cl-cell:hover { transform: scale(1.2); }
 .cl-face { grid-row: span 2; width: 28px; height: 28px; }
 .cl-face svg { display: block; width: 28px; height: 28px; }
 .cl-name { min-width: 0; font-size: 13px; line-height: 1.3; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cl-name small { display: block; font-size: 11.5px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; }
+.cl-name small { display: block; font-size: 11.5px; color: var(--cl-quiet); overflow: hidden; text-overflow: ellipsis; }
 .cl-num { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 500; color: var(--ink); white-space: nowrap; }
 .cl-share { position: relative; grid-column: 1 / -1; height: 3px; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--ink) 7%, transparent); }
 .cl-faces .cl-share { grid-column: 2 / -1; }
 .cl-share::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--cl-gold); transform-origin: left; transform: scaleX(var(--w, 0)); transition: transform 300ms var(--ease-in-out); }
 .cl-more { margin-top: 4px; font-size: 12.5px; }
 .cl-more[hidden], .cl-listnote[hidden] { display: none; }
-.cl-listnote { margin: 6px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink-3); }
-.cl-foot { margin: 18px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink-3); }
+.cl-listnote { margin: 6px 0 0; font-size: 12px; line-height: 1.45; color: var(--cl-quiet); }
+.cl-foot { margin: 18px 0 0; font-size: 12px; line-height: 1.45; color: var(--cl-quiet); }
 .cl-status { margin: 8px 0 0; font-size: 12px; color: var(--ink-2); }
 .cl-status:empty { display: none; }
 
