@@ -1,4 +1,5 @@
-// Harness app: the robot's own copy of Claude Code, Codex, Gemini CLI, OpenCode and friends.
+// Harness app: the robot's own copy of Claude Code, Codex, Cursor, OpenCode or Antigravity,
+// the harnesses T3 Code can drive (anything else gets the generic console).
 // When the robot's agent hands work to a helper agent, the robot opens this app, types the
 // brief into a session tab, and the tab streams the helper's real activity.
 // Each harness comes in a terminal (CLI/TUI) flavour and, where one exists, a desktop app
@@ -91,8 +92,6 @@ interface CliStyle {
   /** Glyph in front of a step, per event kind, with a default. Empty string: no glyph. */
   glyph: Partial<Record<EvKind, string>>;
   def: string;
-  /** Glyph while the call is still running (Gemini's executing mark). */
-  pend?: string;
   label: Partial<Record<EvKind, string>>;
   /** Claude prints Read(path). */
   paren?: boolean;
@@ -102,36 +101,21 @@ interface CliStyle {
   say: string;
   /** Prompt glyph in the input and in the echoed brief. */
   prompt: string;
-  /** Box around each step (Gemini), tinted block (Pi, OpenClaw), or accent rail (Grok). */
-  block?: "box" | "tint" | "rail";
-  /** Words after the title while running and when done (OpenClaw tool cards). */
-  state?: [string, string];
-  /** Text after the target, e.g. Aider's "to the chat". */
-  after?: Partial<Record<EvKind, string>>;
 }
 
 const CLI: Record<HarnessKind, CliStyle> = {
   claude: { def: "⏺", glyph: { think: "∴" }, label: { read: "Read", edit: "Update", run: "Bash", search: "Search", web: "Fetch", think: "Thinking…", error: "Error" }, paren: true, sub: "⎿", say: "⏺", prompt: ">" },
   codex: { def: "•", glyph: { error: "✘" }, label: { read: "Read", edit: "Edited", run: "Ran", search: "Searched", web: "Searched the web", error: "Failed" }, sub: "└", say: "•", prompt: "›" },
-  gemini: { def: "✓", pend: "⊷", glyph: { error: "x", think: "" }, label: { read: "ReadFile", edit: "Edit", run: "Shell", search: "SearchText", web: "WebFetch", think: "Thinking...", error: "Error" }, sub: "", say: "✦", prompt: ">", block: "box" },
   antigravity: { def: "●", glyph: { think: "∴", error: "✕" }, label: { read: "Read", edit: "Edit", run: "Run", search: "Search", web: "Browse", think: "Thinking", error: "Error" }, sub: "└", say: "", prompt: ">" },
   opencode: { def: "→", glyph: { edit: "←", run: "$", search: "✱", web: "%", tool: "⚙", think: "", error: "✗" }, label: { read: "Read", edit: "Edit", search: "Grep", web: "WebFetch", think: "Thinking:", error: "Error" }, sub: "", say: "", prompt: "" },
-  pi: { def: "", glyph: {}, label: { read: "read", edit: "edit", run: "$", search: "grep", web: "fetch", think: "Thinking...", error: "error" }, sub: "", say: "", prompt: "", block: "tint" },
-  hermes: { def: "┊", glyph: { think: "∴" }, label: { read: "read_file", edit: "patch", run: "terminal", search: "search", web: "web_extract", think: "thinking", error: "error" }, sub: "", say: "", prompt: "❯" },
-  openclaw: { def: "", glyph: {}, label: { read: "read", edit: "edit", run: "exec", search: "grep", web: "web_fetch", think: "thinking", error: "error" }, sub: "", say: "", prompt: "", block: "tint", state: [" (running)", " (completed)"] },
   cursor: { def: "", glyph: {}, label: { read: "Read", edit: "Edited", run: "$", search: "Grepped", web: "Fetched", think: "Thought", error: "Error" }, sub: "", say: "", prompt: "→" },
-  grok: { def: "", glyph: {}, label: { read: "Read", edit: "Edit", run: "Run", search: "Search", web: "Fetch", think: "Thinking…", error: "Error" }, sub: "", say: "", prompt: "❯", block: "rail" },
-  aider: { def: "", glyph: {}, label: { read: "Added", edit: "Applied edit to", run: "Running", search: "Searching", web: "Scraping", think: "", error: "" }, sub: "", say: "", prompt: ">", after: { read: " to the chat" } },
-  copilot: { def: "●", glyph: { think: "∴" }, label: { read: "Read", edit: "Edit", run: "Run", search: "Search", web: "Fetch", think: "Thought", error: "Error" }, sub: "└", say: "●", prompt: "❯" },
-  amp: { def: "✓", pend: "⋯", glyph: { think: "∴", error: "✗" }, label: { read: "Read", edit: "Edit", run: "Bash", search: "Grep", web: "Web", think: "Thinking", error: "Error" }, sub: "", say: "", prompt: ">" },
   generic: { def: "", glyph: {}, label: { read: "read", edit: "edit", run: "run", search: "search", web: "web", think: "think", tool: "tool", error: "error" }, sub: "", say: "", prompt: ">" },
 };
 
 /** Desktop apps show finished steps as short past-tense rows. */
 const APP_VERB: Record<EvKind, string> = { read: "Read", edit: "Edited", run: "Ran", search: "Searched", web: "Fetched", think: "Thought", say: "", tool: "", error: "Error" };
 const APP_NEW: Partial<Record<HarnessKind, string>> = {
-  claude: "New session", codex: "New chat", antigravity: "New conversation", opencode: "New session", hermes: "New task",
-  openclaw: "New session", cursor: "New agent", amp: "New thread",
+  claude: "New session", codex: "New chat", antigravity: "New conversation", opencode: "New session", cursor: "New agent",
 };
 
 const MAX_LINES = 140;
@@ -193,14 +177,8 @@ function statusTail(kind: HarnessKind, flavor: Flavor, e: string) {
   switch (kind) {
     case "claude": return `(${e} · esc to interrupt)`;
     case "codex": return `(${e} • esc to interrupt)`;
-    case "gemini": return `(esc to cancel, ${e})`;
     case "opencode": return `${e}  esc interrupt`;
-    case "hermes": return `(${e})`;
-    case "openclaw": return `• ${e} | running`;
     case "cursor": return `${e}  ctrl+c to stop`;
-    case "grok": return `${e} [stop]`;
-    case "copilot": return `(Esc to cancel · ${e})`;
-    case "aider": case "pi": return "";
     default: return e;
   }
 }
@@ -243,7 +221,6 @@ class Session implements HarnessSession {
   steps = 0;
   private lastElapsed = "";
   private spinFrame = -1;
-  private sayLabelShown = false;
   private pending: { line: HTMLElement; timer: number } | null = null;
   streamLine: { line: HTMLElement; msg: HTMLElement; inner: HTMLElement; target: string; shown: number } | null = null;
 
@@ -351,7 +328,6 @@ class Session implements HarnessSession {
   }
 
   private firstVerb() {
-    if (this.kind === "aider") return `Waiting for ${this.model || "the model"}`;
     if (this.flavor === "app") return this.kind === "cursor" ? "Planning next moves" : "Working";
     return pick(this.theme.verbs);
   }
@@ -386,9 +362,6 @@ class Session implements HarnessSession {
       this.chip.hidden = !parts.length;
       this.chip.title = [model, eff && `${eff} effort`].filter(Boolean).join(", ");
     }
-    // Pi colours the editor rules by thinking level.
-    this.view.dataset.effort = this.effort || "none";
-    if (this.kind === "aider" && this.state === "running") this.verbEl.textContent = `Waiting for ${this.model || "the model"}`;
   }
 
   private bannerParts(): Node[] {
@@ -413,12 +386,6 @@ class Session implements HarnessSession {
         box.append(line("", dim("directory: "), cwd));
         return [box];
       }
-      case "gemini": {
-        const txt = el("div", "hx-ban-t");
-        txt.append(line("", el("b", "hx-grad", "Gemini CLI"), " ", dim(t.version || "")));
-        txt.append(line("hx-dim", "Tips: ask questions, edit files, or run commands. /help for more."));
-        return [markEl(k), txt];
-      }
       case "antigravity": {
         const txt = el("div", "hx-ban-t");
         txt.append(line("", el("b", "", "Antigravity CLI"), " ", dim(t.version || "")));
@@ -431,57 +398,11 @@ class Session implements HarnessSession {
         for (const [a, b] of rows) art.append(line("", el("span", "hx-dim", a), el("span", "", b)));
         return [art];
       }
-      case "pi": {
-        const txt = el("div", "hx-ban-t");
-        txt.append(line("", el("b", "", "pi"), " ", dim(t.version || "")));
-        txt.append(line("hx-dim", "esc to interrupt · / for commands · ! to run bash"));
-        return [markEl(k), txt];
-      }
-      case "hermes": {
-        const word = line("hx-word", "HERMES-AGENT");
-        const panel = el("div", "hx-ban-panel");
-        panel.append(line("hx-ban-cap", `Hermes Agent ${t.version}`));
-        const body = el("div", "hx-ban-body");
-        body.append(markEl(k));
-        const info = el("div", "hx-ban-t");
-        info.append(line("", pm || m || "default model", eff ? dim(` · reasoning ${eff}`) : ""));
-        info.append(line("hx-dim", cwd));
-        body.append(info);
-        panel.append(body);
-        return [word, panel];
-      }
-      case "openclaw":
-        return [line("hx-acc hx-b6", "openclaw tui - ws://127.0.0.1:18789 - agent main - session main")];
       case "cursor": {
         const txt = el("div", "hx-ban-bar");
         txt.append(line("", el("b", "", "Cursor Agent"), " ", dim(t.version || "")));
         txt.append(line("hx-dim", cwd));
         return [txt];
-      }
-      case "grok": {
-        const txt = el("div", "hx-ban-t");
-        txt.append(line("", el("b", "", "Grok Build"), " ", dim(t.version || "")));
-        txt.append(line("hx-dim", cwd));
-        return [markEl(k), txt];
-      }
-      case "aider": {
-        const txt = el("div", "hx-ban-t");
-        txt.append(line("", `Aider ${t.version}`));
-        txt.append(line("", `Main model: ${m || "default"} with diff edit format${eff ? `, reasoning ${eff}` : ""}`));
-        txt.append(line("", "Use /help <question> for help, run \"aider --help\" to see cmd line args"));
-        return [txt];
-      }
-      case "copilot": {
-        const txt = el("div", "hx-ban-t");
-        txt.append(line("", el("b", "", "GitHub Copilot"), " ", dim(t.version || "")));
-        txt.append(line("hx-dim", cwd));
-        return [markEl(k), txt];
-      }
-      case "amp": {
-        const txt = el("div", "hx-ban-t");
-        txt.append(line("", el("b", "", "amp")));
-        txt.append(line("hx-dim", cwd));
-        return [markEl(k), txt];
       }
       default: {
         const txt = el("div", "hx-ban-t");
@@ -509,24 +430,13 @@ class Session implements HarnessSession {
     switch (k) {
       case "claude": return [L(dim("? for shortcuts")), R(pm, eff ? el("span", "hx-eff", ` ◐ ${eff}`) : "")];
       case "codex": return [L(dim("? for shortcuts")), R(both(" ", m, eff))];
-      case "gemini": {
-        const col = (a: string, b: string | Node) => { const c = el("span", "hx-col"); c.append(el("span", "hx-dim", a), typeof b === "string" ? el("span", "", b) : b); return c; };
-        return [col("workspace (/directory)", cwd), col("/model", el("span", "hx-acc", both(" · ", m || "auto", eff)))];
-      }
       case "opencode": {
         const parts: (Node | string)[] = [el("span", "hx-agent", "Build")];
         if (m) parts.push(" · ", m, " ", dim(cap(modelVendor(m))));
         if (eff) parts.push(" · ", el("b", "hx-eff", eff));
         return [L(...parts), R(dim("tab agents  ctrl+p commands"))];
       }
-      case "pi": return [L(dim(cwd)), R(dim(m ? `(${modelVendor(m) || "model"}) ${m}` : ""), el("span", "hx-eff", eff ? ` • ${eff}` : " • thinking off"))];
-      case "hermes": return [L(el("span", "hx-acc", "☤ "), pm || m || "model", dim(" │ "), eff ? `reasoning ${eff}` : "reasoning default", dim(" │ "), dim(cwd))];
-      case "openclaw": return [L(dim("agent main | session main | "), both(" ", m, eff) || "default")];
       case "cursor": return [L(dim(both(" ", pm, eff ? effortWord(eff, true) : "") || "Auto")), R(dim(cwd))];
-      case "grok": return [L(el("span", "hx-model", m || "grok"), eff ? dim(` · ${eff}`) : "")];
-      case "aider": return [L(dim(both(" · ", m, eff ? `reasoning ${eff}` : "")))];
-      case "copilot": return [L(dim(cwd)), R(dim(m ? `${m}${eff ? ` (${eff})` : ""}` : ""))];
-      case "amp": return [L(el("span", "hx-eff", eff || "smart")), R(dim(m))];
       case "antigravity": return [L(dim(cwd)), R(both(" · ", pm, eff ? effortWord(eff, true) : ""))];
       default: return [L(dim(both(" · ", m, eff)))];
     }
@@ -614,12 +524,7 @@ class Session implements HarnessSession {
     const d = line.querySelector(".hx-d") as HTMLElement | null;
     const b = line.querySelector(".hx-b") as HTMLElement | null;
     line.classList.remove("hx-pend");
-    if (b) {
-      b.classList.remove("pending");
-      if (b.dataset.done !== undefined) b.textContent = b.dataset.done;
-    }
-    const st = line.querySelector(".hx-st") as HTMLElement | null;
-    if (st && st.dataset.done) st.textContent = st.dataset.done;
+    b?.classList.remove("pending");
     if (!d) return;
     d.hidden = false;
     if (this.live) {
@@ -650,13 +555,6 @@ class Session implements HarnessSession {
     const row = el("div", "hx-row hx-wrap");
     if (this.flavor === "cli") {
       const g = CLI[this.kind].say;
-      if (this.kind === "hermes" && !this.sayLabelShown) {
-        this.sayLabelShown = true;
-        const wrap = el("div", "hx-say-wrap");
-        wrap.append(el("div", "hx-say-l", "☤ Hermes"), msgEl);
-        row.append(wrap);
-        return row;
-      }
       if (g) row.append(el("i", "hx-b hx-g", g));
     }
     row.append(msgEl);
@@ -684,25 +582,14 @@ class Session implements HarnessSession {
       return line;
     }
     const c = CLI[k];
-    if (c.block) line.classList.add(`hx-blk-${c.block}`);
     const glyph = c.glyph[ev.kind] ?? c.def;
-    if (glyph) {
-      const g = el("i", "hx-b hx-g", glyph);
-      if (c.pend && ev.kind !== "think" && ev.kind !== "error") g.dataset.done = glyph;
-      row.append(g);
-    } else if (k === "generic") row.append(el("i", "hx-b"));
+    if (glyph) row.append(el("i", "hx-b hx-g", glyph));
+    else if (k === "generic") row.append(el("i", "hx-b"));
     const label = ev.kind === "tool" ? ev.text : (c.label[ev.kind] ?? "");
     if (label) row.append(el("b", "hx-l", label));
     if (ev.kind !== "tool") {
       if (c.paren && ev.kind !== "think" && ev.kind !== "error") row.append(el("span", "hx-t hx-paren", text));
       else row.append(el("span", "hx-t", ev.kind === "search" && k === "opencode" ? `"${text}"` : text));
-      const after = c.after?.[ev.kind];
-      if (after) row.append(el("span", "hx-dim", after));
-    }
-    if (c.state && ev.kind !== "think" && ev.kind !== "error") {
-      const st = el("span", "hx-st hx-dim", c.state[1]);
-      st.dataset.done = c.state[1];
-      row.append(st);
     }
     if (ev.kind === "think") setActivityText(row.querySelector<HTMLElement>(".hx-t")!, text);
     line.append(row);
@@ -733,10 +620,6 @@ class Session implements HarnessSession {
       const b = line.querySelector(".hx-b") as HTMLElement | null;
       b?.classList.add("pending");
       line.classList.add("hx-pend");
-      const c = CLI[this.kind];
-      if (b && this.flavor === "cli" && c.pend) b.textContent = c.pend;
-      const st = line.querySelector(".hx-st") as HTMLElement | null;
-      if (st && c.state) st.textContent = c.state[0];
       if (d) d.hidden = true;
       this.addLine(line);
       this.pending = { line, timer: window.setTimeout(() => this.settlePending(), 380 + Math.random() * 420) };
@@ -745,9 +628,9 @@ class Session implements HarnessSession {
     }
   }
 
-  /** Harnesses whose working line turns into the current thought. */
+  /** Harnesses whose working line turns into the current thought (Claude keeps its whimsical verbs). */
   private followsThoughts() {
-    return this.kind !== "claude" && this.kind !== "hermes" && this.kind !== "openclaw" && this.kind !== "aider";
+    return this.kind !== "claude";
   }
 
   stream(text: string): void {
@@ -816,25 +699,12 @@ class Session implements HarnessSession {
         line.append(d);
         break;
       }
-      case "hermes":
-        line.append(this.sayRow(msg()), tail(ok ? `✧٩(ˊᗜˋ*)و✧ got it! (${took})` : `(╥﹏╥) stopped (${took})`));
-        break;
       case "cursor": {
         const box = el("div", "hx-sum");
         box.append(el("b", "hx-sum-t", "Summary"), msg());
         line.append(box);
         break;
       }
-      case "openclaw":
-        line.append(this.sayRow(msg()), tail(`${ok ? "done" : "error"} • ${took}`));
-        break;
-      case "grok":
-        line.append(this.sayRow(msg()), tail(`${ok ? "Worked" : "Stopped"} for ${took}`));
-        break;
-      case "aider": case "pi": case "gemini": case "copilot":
-        line.append(this.sayRow(msg()));
-        if (!ok) line.append(tail("Stopped"));
-        break;
       default:
         line.append(this.sayRow(msg()), tail(`${ok ? "Finished" : "Failed"} in ${took} · ${steps}`));
     }
@@ -902,7 +772,6 @@ class Session implements HarnessSession {
     this.startedAt = performance.now();
     this.endedAt = 0;
     this.steps = 0;
-    this.sayLabelShown = false;
     this.lastElapsed = "";
     this.verbEl.textContent = this.firstVerb();
     this.elEl.textContent = statusTail(this.kind, this.flavor, "0s");

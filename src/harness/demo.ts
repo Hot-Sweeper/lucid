@@ -276,23 +276,15 @@ document.getElementById("restart")!.addEventListener("click", restart);
 (window as any).__demo = { app, wm, check: (id: string) => app.checkOn(id) };
 
 
-// --- gallery: every harness in each form it has, with a sample stream, model and effort ------
+// --- gallery: every harness T3 can drive (plus the generic console) in each form it has ------
 //   harness-demo.html?gallery=1      mid-run (working line visible)
 //   harness-demo.html?gallery=done   finished
 const SAMPLE: Record<HarnessKind, { model: string; effort: string; label?: string }> = {
   claude: { model: "claude-opus-5-5", effort: "high" },
   codex: { model: "gpt-5.6-sol", effort: "xhigh" },
-  gemini: { model: "gemini-3.5-pro", effort: "high" },
   antigravity: { model: "gemini-3.5-pro", effort: "medium" },
   opencode: { model: "claude-sonnet-5-5", effort: "high" },
-  pi: { model: "claude-opus-5-5", effort: "medium" },
-  hermes: { model: "hermes-4-405b", effort: "low" },
-  openclaw: { model: "claude-opus-5-5", effort: "high" },
   cursor: { model: "gpt-5.6-sol", effort: "high" },
-  grok: { model: "grok-4.5", effort: "high" },
-  aider: { model: "claude-sonnet-5-5", effort: "high" },
-  copilot: { model: "gpt-5.6", effort: "medium" },
-  amp: { model: "claude-opus-5-5", effort: "high" },
   generic: { model: "kimi-k2.5", effort: "medium", label: "Kimi" },
 };
 const BRIEF = "Read src/os/wm.ts and find why focus is lost when two windows open at the same time. Report the cause and a minimal fix.";
