@@ -55,7 +55,7 @@ export function attachDictation(form: HTMLFormElement, owner: () => string | nul
     message('');
     note.append(document.createTextNode(error
       ? `The download stopped: ${error} `
-      : `Dictation uses T3 Code's speech model. Download ${st.model} (${megabytes(st.size)}) once and T3 uses it too. T3 lets this app manage its speech models for that. `));
+      : `Dictation uses T3 Code's speech model. Download ${st.model} (${megabytes(st.size)}) once and T3 uses it too. The first download asks T3 for permission to manage its speech models. `));
     note.append(action(error ? 'Try again' : 'Download', () => {
       void api!.download(st.modelId).then(() => watchDownload(st), (e: unknown) => offerDownload(st, reason(e, 'T3 did not start the download.')));
     }));
@@ -73,7 +73,9 @@ export function attachDictation(form: HTMLFormElement, owner: () => string | nul
     stopSetup();
     const mine = setupGen;
     const bar = document.createElement('progress'); bar.className = 'cp-dictation-progress'; bar.max = 1;
-    const text = document.createElement('span');
+    // The bar carries the progress for assistive tech; the ticking text is not announced each second.
+    bar.setAttribute('aria-label', `Downloading ${st.model}`);
+    const text = document.createElement('span'); text.setAttribute('aria-hidden', 'true');
     note.replaceChildren(text, bar, action('Cancel', () => { void api!.cancelDownload(st.modelId).catch(() => {}).then(() => offerDownload(st)); }));
     note.hidden = false;
     text.textContent = `Starting the download of ${st.model}... `;
