@@ -26,7 +26,7 @@ The user wants discoverable office-level creation/delegation, direct manipulatio
 - Reports should show the responsible robot/team, harness, model/effort, real usage/cost, relevant changes, limitations and genuine before/after evidence. Retain thread links and approved reports for accountability.
 - Printing and review are physical office interactions: done work prints, a robot picks it up, and it reaches the orchestrator. The orchestrator can be paused globally for manual review.
 - Separate human-only verification/approvals into a concise questionnaire. Do not ask the user to decide routine implementation details or pretend an agent verified their real microphone.
-- Reuse existing T3 Connect environments. Users should not reconnect Ares or other devices separately in Lucid.
+- Reuse existing T3 Connect environments. Users should not reconnect their linked computers separately in this app.
 - Subscription limits drive a dedicated industrial charging room with actual stations, reset countdowns and progress based on real usage. Low-battery behavior should communicate approaching limits.
 - Earned API-cost coins should be collectible on the monitor, animated and rewarding, with Collect all. Retain uncollected desks/rewards until claimed.
 - Dictation runs through T3 Code's voice API (`electron/t3-voice.cjs`): T3's selected local speech model, shared with T3, downloaded on first use with T3's own progress. Keep recording responsive; transcription must not freeze Lucid.

@@ -516,8 +516,12 @@ ipcMain.handle("t3s:move-thread", t3sWrap(async (o) => {
   if (threadMovePending) throw Error('A thread move is still saving. Try again in a moment.');
   threadMovePending = true;
   try {
-    const assignments = require('./thread-order.cjs').moveAssignments(t3.world().threads, o.threadId, o.targetId, o.after === true);
-    for (const a of assignments) await t3s.dispatch({ type: a.pinned ? 'thread.pin.reorder' : 'thread.active.reorder', threadId: a.threadId, orderKey: a.orderKey });
+    // A linked computer's order comes from and goes to that computer, never the local T3.
+    const building = remote.split(o?.threadId)?.environmentId || null;
+    if ((remote.split(o?.targetId)?.environmentId || null) !== building) throw Error('Move threads within one building.');
+    const threads = building ? remote.cached(building)?.threads || [] : t3.world().threads;
+    const assignments = require('./thread-order.cjs').moveAssignments(threads, o.threadId, o.targetId, o.after === true);
+    for (const a of assignments) { const command = { type: a.pinned ? 'thread.pin.reorder' : 'thread.active.reorder', threadId: a.threadId, orderKey: a.orderKey }; await (building ? remote.dispatch(command) : t3s.dispatch(command)); }
   } finally { threadMovePending = false; }
 }));
 ipcMain.handle("t3s:reorder", t3sWrap((o) => t3s.reorderQueued(o.threadId, o.runId, o.beforeRunId ?? null)));

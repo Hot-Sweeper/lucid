@@ -23,3 +23,4 @@
 
 /* Embedded worlds share the viewer's sky. Saved room decoration remains per computer. */
 .neighbor-office .world { --night: inherit; --outdoor-night: inherit; --lamp: inherit; --sky1: inherit; --sky2: inherit; --stars: inherit; --city: inherit; --wind: inherit; --fog: inherit; --frost: inherit; }
+.neighbor-building[data-state="offline"] .neighbor-open { background: #4a4458; color: #d9cfd6; }
