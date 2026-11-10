@@ -28,7 +28,6 @@
   --ui-queue: #241f3a;
   --ui-queue-drag: #2e2a4c;
   --ui-tray: #1b2246f5;
-  --ui-toast: #241f3a;             /* milestone toast */
   --ui-plate: #36364e;              /* office width controls, neighbour office labels */
   --ui-plate-hover: #514b68;
   --ui-building-plate: #3a3f4f;     /* the building name over each campus */
@@ -86,7 +85,6 @@
   /* ---- Robots (world/look.ts bodyColors) ---- */
   --robot-dark: 0%;                 /* 0% the light bodies, 100% dark bodies in each robot's hue */
   --robot-tint: 30%;                /* hue strength of a dark worker body */
-  --robot-mgr-tint: 55%;            /* managers: a stronger hue instead of the obsidian finish */
 
   /* ---- Robot accessories (world/look.ts hats and accessories) ----
      Fixed materials fall back to their original colours, so only --acc-dark has a default:
@@ -176,22 +174,10 @@
   --os-gd: #171b45;                 /* the docs page in the robot browser */
   --os-gd-bar: #11143a;
   --os-status: #171b45;             /* the frontend preview status bar */
-  /* the paper-style notepad editor flavour */
-  --os-paper: #f7f5ef;
-  --os-paper-tabs: #e6e2d6;
-  --os-paper-tab: #6b6450;
-  --os-paper-ink: #2b2a24;
-  --os-paper-gutter: #ece9df;
-  --os-paper-ln: #a39d8a;
-  --os-paper-k: #1f4fbf; --os-paper-s: #8a5a00; --os-paper-c: #3f8f50; --os-paper-n: #c0392b; --os-paper-f: #7a2fb0; --os-paper-t: #1d7a8a;
-  /* sticky notes and the notepad apps */
+  /* sticky notes */
   --os-note: #fff7d6;
   --os-note-line: #f0e3b0;
   --os-note-ink: #3d3214;
-  --os-note-chrome: #f2e8bc;
-  --os-note-chrome-ink: #62502b;
-  --os-np-bar: #dce9f5; --os-np-bar-ink: #263b50; --os-np-chrome: #edf3f9; --os-np-chrome-ink: #34475c; --os-np-page: #fff; --os-np-ink: #26313e;
-  --os-npp-bar: #dce7d1; --os-npp-bar-ink: #314128; --os-npp-chrome: #e7ecdf; --os-npp-chrome-ink: #35452e; --os-npp-gutter: #e5e8df; --os-npp-page: #f9fbf5; --os-npp-ink: #2d3c26;
   /* the robot browser's own chrome and article pages (site replicas keep their look) */
   --os-browser: #f4f5fb;
   --os-browser-ink: #1b1f45;

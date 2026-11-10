@@ -231,20 +231,6 @@ export class SoundtrackQueue {
     return (song: SoundtrackSong) => distance.get(song.id) ?? Infinity;
   }
 
-  /** A deliberate library choice is one song, without changing music direction. */
-  select(id: string, date = new Date()): SoundtrackSong | null {
-    const song = this.songs.find(value => value.id === id);
-    if (!song) return null;
-    if (!this.started) {
-      this.chapterIndex = openingChapter(date);
-      this.started = true;
-    }
-    if (this.played.size === this.songs.length) this.played.clear();
-    this.remember(song);
-    if (this.mode === 'journey' && song.genre === this.chapter.genres[0]) this.chapterHeard = true;
-    return song;
-  }
-
   next(date = new Date()): SoundtrackSong {
     if (!this.songs.length) throw Error('The office soundtrack is empty.');
     if (!this.started) {

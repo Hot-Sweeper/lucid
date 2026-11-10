@@ -34,7 +34,6 @@
   --ui-queue: var(--t3-surface);
   --ui-queue-drag: var(--t3-row-selected);
   --ui-tray: color-mix(in srgb, var(--t3-sidebar) 96%, transparent);
-  --ui-toast: var(--t3-overlay);
   --ui-plate: var(--t3-control);
   --ui-plate-hover: var(--t3-control-hover);
   --ui-building-plate: var(--t3-control);

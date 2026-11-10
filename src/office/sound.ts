@@ -96,7 +96,7 @@ const SCORES: Record<GameCue, Note[]> = {
 const CUE_LOWPASS: Partial<Record<GameCue, number>> = { rustle: 1900, water: 1900, chatter: 1400, snore: 1400, 'mw-hum': 900, kart: 1400, grind: 4200, giggle: 2600, 'movie-gasp': 2200 };
 const KEY = 'lucid:sound', MAX_VOICES = 48;
 // Song-to-song overlap. Natural endings blend for CROSSFADE seconds; a manual
-// Next or library pick uses a short blend so the choice still feels immediate.
+// Next uses a short blend so the choice still feels immediate.
 const CROSSFADE = 7, QUICK_FADE = 1.5;
 /** Equal-power gain curve: the summed loudness stays even through the overlap. */
 const powerCurve = (level: number, rising: boolean, steps = 48) => Float32Array.from({ length: steps }, (_, i) => {
@@ -140,7 +140,6 @@ export class GameSound {
   private musicUnsaved = 0;
   private restoredPosition = 0;
   private skipRequested = false;
-  private requestedSong: string | null = null;
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
   private voices = new Set<AudioScheduledSourceNode>();
@@ -233,14 +232,8 @@ export class GameSound {
     else this.syncBackground();
     this.save(); this.notifyMusic();
   }
-  retryTheme() {
-    if (this.disposed) return;
-    this.musicError = false; this.musicWaiting = false;
-    this.syncBackground(); this.notifyMusic();
-  }
   nextTheme(blend = true) {
     if (this.disposed) return;
-    this.requestedSong = null;
     const track = this.background.get('theme');
     // Changing src during a pending play can let an old promise own the new song.
     // Collapse repeated Next presses until that one attempt has settled.
@@ -259,36 +252,6 @@ export class GameSound {
     this.musicError = false; this.musicWaiting = false; this.resetMusicClock();
     if (track) { track.media.src = this.themeSong.url; track.media.currentTime = 0; track.fading = false; }
     this.save(); this.syncBackground(); this.notifyMusic();
-  }
-  /** Play a catalogue selection through the office's existing music stream. */
-  playTheme(id: string): boolean { return this.selectTheme(id, true); }
-  private selectTheme(id: string, resume: boolean, blend = true): boolean {
-    if (this.disposed || !SOUNDTRACK.some(song => song.id === id)) return false;
-    const track = this.background.get('theme');
-    if (resume) this.musicPaused = false;
-    this.skipRequested = false;
-    if (track?.pending) {
-      this.requestedSong = id;
-      this.save(); this.notifyMusic(); return true;
-    }
-    this.requestedSong = null;
-    if (this.themeSong?.id === id && track && !track.media.ended) {
-      this.musicError = false; this.musicWaiting = false;
-      this.syncBackground(); this.save(); this.notifyMusic(); return true;
-    }
-    if (blend && track && this.canBlend(track)) {
-      this.crossfadeTo(this.soundtrack.select(id)!, QUICK_FADE);
-      this.save(); this.notifyMusic(); return true;
-    }
-    if (track) {
-      this.recordMusic(track); track.media.pause();
-      track.gain.gain.cancelScheduledValues(this.time);
-      track.gain.gain.setValueAtTime(0, this.time);
-    }
-    this.themeSong = this.soundtrack.select(id)!; this.restoredPosition = 0;
-    this.musicError = false; this.musicWaiting = false; this.resetMusicClock();
-    if (track) { track.media.src = this.themeSong.url; track.media.currentTime = 0; track.fading = false; }
-    this.save(); this.syncBackground(); this.notifyMusic(); return true;
   }
   private resetMusicClock() { this.musicPosition = null; this.musicClock = null; }
   /** A blend needs an audible, settled current song; otherwise switch directly. */
@@ -497,8 +460,7 @@ export class GameSound {
         current.pending = false;
         if (kind === 'theme' && this.background.get('theme') === current) {
           // The superseded recording barely started; switch without a blend.
-          if (this.requestedSong && !this.disposed) this.selectTheme(this.requestedSong, false, false);
-          else if (this.skipRequested && !this.disposed) this.nextTheme(false);
+          if (this.skipRequested && !this.disposed) this.nextTheme(false);
           else { this.recordMusic(current); this.notifyMusic(); }
         }
       });

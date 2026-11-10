@@ -27,7 +27,6 @@
   --ui-queue: #0d0d0d;
   --ui-queue-drag: #1f1f1f;
   --ui-tray: rgba(10, 10, 10, 0.96);
-  --ui-toast: #161616;
   --ui-plate: #1c1c1f;
   --ui-plate-hover: #2a2a2e;
   --ui-building-plate: #1c1c1f;
@@ -92,7 +91,6 @@
   /* robots: dark bodies in their own hue, managers more strongly tinted */
   --robot-dark: 100%;
   --robot-tint: 26%;
-  --robot-mgr-tint: 52%;
 
   /* accessories: deeper accent fabric; materials with a night look; iconic pieces unchanged */
   --acc-dark: 34%;
@@ -191,21 +189,9 @@
   --os-gd: #0a0a0b;
   --os-gd-bar: #000000;
   --os-status: #0d0d0e;
-  /* paper apps turn into dark pages with the default editor's syntax colours */
-  --os-paper: #0a0a0a;
-  --os-paper-tabs: #141414;
-  --os-paper-tab: #8c8c8c;
-  --os-paper-ink: #e2e2e2;
-  --os-paper-gutter: #0a0a0a;
-  --os-paper-ln: #5c5c5c;
-  --os-paper-k: #c49bff; --os-paper-s: #8ef0b4; --os-paper-c: #7a7a7a; --os-paper-n: #ffb37a; --os-paper-f: #7fc4ff; --os-paper-t: #ffd77a;
   --os-note: #0a0a0a;
   --os-note-line: #161616;
   --os-note-ink: #e2e2e2;
-  --os-note-chrome: #141414;
-  --os-note-chrome-ink: #b4b4b4;
-  --os-np-bar: #161618; --os-np-bar-ink: #bdbdbd; --os-np-chrome: #121214; --os-np-chrome-ink: #b4b4b4; --os-np-page: #0a0a0a; --os-np-ink: #e2e2e2;
-  --os-npp-bar: #161618; --os-npp-bar-ink: #bdbdbd; --os-npp-chrome: #121214; --os-npp-chrome-ink: #b4b4b4; --os-npp-gutter: #121214; --os-npp-page: #0a0a0a; --os-npp-ink: #e2e2e2;
   --os-browser: #0a0a0a;
   --os-browser-ink: #e6e6e6;
   --os-browser-tabs: #161618;
