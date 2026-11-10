@@ -1,4 +1,4 @@
-// Images and other media of threads on another computer (ARES and other linked buildings)
+// Images and other media of threads on another computer (linked buildings)
 // live on that computer. lucid-file://remote/<thread ref>/<path> asks that computer's T3
 // for a signed asset URL and streams the bytes back, through the same authenticated link
 // as its other data. Nothing is read from this computer's disk for a remote thread.

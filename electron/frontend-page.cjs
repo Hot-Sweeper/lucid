@@ -10,9 +10,7 @@ function install() {
 function sample(mode, action) {
   const width = innerWidth, height = innerHeight;
   const scene = [];
-  let sourceDocument = document, sourceWindow = window, offsetX = 0, offsetY = 0, scale = 1;
-  const canvasFrame = window.__lucidCanvas?.stage?.front;
-  if (canvasFrame?.contentDocument) { sourceDocument = canvasFrame.contentDocument; sourceWindow = canvasFrame.contentWindow; const fr = canvasFrame.getBoundingClientRect(); offsetX = fr.left; offsetY = fr.top; scale = fr.width / canvasFrame.clientWidth; }
+  const sourceDocument = document, sourceWindow = window, offsetX = 0, offsetY = 0, scale = 1;
   const mapped = r => ({ left: offsetX + r.left * scale, right: offsetX + r.right * scale, top: offsetY + r.top * scale, bottom: offsetY + r.bottom * scale });
   const clip = r => ({ x: Math.max(0, r.left), y: Math.max(0, r.top), w: Math.max(0, Math.min(width, r.right) - Math.max(0, r.left)), h: Math.max(0, Math.min(height, r.bottom) - Math.max(0, r.top)) });
   const rect = r => clip(mapped(r));

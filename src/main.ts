@@ -3,7 +3,6 @@ import { completionFirst, pinnedFirst, reconcileThreadList } from "./office/thre
 import { threadState } from "./office/thread-state";
 import { mountInterfaceThemeSetting } from "./interface-theme";
 import { buildWorkDetails } from "./office/work-details";
-import { mountWebsiteStudio } from "./office/website-studio";
 import { ProjectLife } from "./office/project-life";
 import { chatFileUrl } from "./office/chat-media";
 import { mountPerformancePanel } from "./office/performance";
@@ -205,7 +204,6 @@ $("side-panel").appendChild($("usage"));
   extras.querySelector(".os-close")!.addEventListener("click", close);
 }
 
-mountWebsiteStudio(document.getElementById("side-settings") ?? $("side-help"));
 
 // robots in the original design, plus the break room and the question line
 useRobot((host, rig) => new TopDownRobot(host, rig));
@@ -1751,13 +1749,3 @@ for (const box of [$("th-list"), $("rail-list")]) {
 chat.onTyping = (on) => { const id = chat.threadId; if (id) world.deskFor(id)?.director.userTyping(on); };
 
 void refresh();
-
-// Ares studio is explicit about the execution host; existing T3 work keeps screen priority.
-document.addEventListener('lucid:studio-preview', event => {
-  const d = (event as CustomEvent<{ threadId: string; url: string | null }>).detail;
-  if (!d?.threadId) return;
-  const desk = world.deskFor(d.threadId);
-  if (!desk) return;
-  if (d.url) { try { const u = new URL(d.url); if (u.hostname !== '127.0.0.1' || u.pathname !== '/__lucid/studio') return; } catch { return; } }
-  void desk.director.watchWebsiteCanvas(d.url).catch(() => {});
-});

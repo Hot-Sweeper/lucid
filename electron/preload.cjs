@@ -66,7 +66,6 @@ contextBridge.exposeInMainWorld("lucid", {
   openExternal: (url) => ipcRenderer.invoke("app:open-external", url),
   peek: (url) => ipcRenderer.invoke("web:peek", url),
   shot: (req) => ipcRenderer.invoke("web:shot", req),
-  studio: (input) => ipcRenderer.invoke("studio:action", input),
   frontendFrame: (req) => ipcRenderer.invoke("frontend:frame", req),
   siteFetch: (url, as) => ipcRenderer.invoke("site:fetch", url, as),
   webSearch: (q) => ipcRenderer.invoke("web:search", q),

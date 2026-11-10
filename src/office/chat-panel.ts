@@ -427,7 +427,6 @@ export class ChatPanel {
       <header class="cp-head">
         <img class="cp-logo" alt="">
         <div class="cp-who"><b></b><span></span></div>
-        <button type="button" class="cp-studio cp-icon" aria-label="Design a website on Ares" title="Website studio on Ares"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="1.3"/><path d="M1.5 6h13M10.5 6v7.5"/></svg></button>
         <button type="button" class="cp-view cp-icon" aria-label="Look at the screen" title="Look at the screen"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="2" y="2.5" width="12" height="8.5" rx="1.6" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M6 13.5h4M8 11v2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
         <button type="button" class="cp-pin cp-icon pin-btn" aria-pressed="true">${PIN_ICON}</button>
         <button type="button" class="cp-hide cp-icon" aria-expanded="true" aria-label="Hide chat" title="Hide the chat for more room. It stays as a tab on the right edge."><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M6.5 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
@@ -492,7 +491,6 @@ export class ChatPanel {
     this.paintPin();
     this.el.querySelectorAll<HTMLElement>(".cp-pin").forEach((b) => b.addEventListener("click", () => { this.setAutoHide(!this.autoHide); gameSound.play("clip"); }));
     this.el.querySelector(".cp-close")!.addEventListener("click", () => this.onClose());
-    this.el.querySelector(".cp-studio")!.addEventListener("click", () => { document.dispatchEvent(new CustomEvent("lucid:website-studio", { detail: { threadId: this.threadId, name: this.threadFacts(this.threadId || "")?.title } })); });
     this.el.querySelector(".cp-view")!.addEventListener("click", () => this.onToggleView());
     // T3's tool groups: the summary line opens and closes its calls; your choice is remembered.
     this.promptContext = new ChatPromptContext(this.el.querySelector<HTMLElement>(".cp-list")!);
