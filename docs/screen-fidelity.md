@@ -16,7 +16,7 @@ The old far-camera CSS placeholder, global animation freeze, camera scale visibi
 
 ## Which app is on the screen
 
-Robot screens only show real tools under their real names, drawn in Lucid's own simplified style, and fictional apps under robot parody names.
+Robot screens only show real tools under their real names, drawn in the app's own simplified style, and fictional apps under robot parody names.
 
 - Talking with you: the native chat app, showing the conversation you see.
 - Working with other robots (messaging or reading another thread, delegating, starting a helper thread, checking on it): T3 Code. The build (stable or Nightly) is the one you run, read by `electron/t3-channel.cjs` from `desktop-last-started-version` in T3's home and passed through `window.lucid.t3Channel()`.

@@ -3,7 +3,7 @@
 // Each turn a diver spends air to walk, puff bubbles at a critter until it swims off, or patch a leak.
 // The robot plays it with the mouse: select a diver, click a tile, pick Puff, Blast or Patch, End turn.
 import "./games.css";
-import "./botcom.css";
+import "./tidewatch-tactics.css";
 import { canvasText } from "../localization-canvas";
 import {
   Scope, Session, Halt, mountFrame, addCanvas, nap, think, chance, pick, clamp, lerp, reducedMotion, rng, hash,
@@ -368,7 +368,7 @@ const bodyOff = (u: Unit) => (u.kind === "diver" ? 15 : u.kind === "crab" ? 12 :
 
 // ---- the game ---------------------------------------------------------------------------
 
-export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
+export async function playTidewatchTactics(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
   const scope = new Scope(body);
   try {
     const f = mountFrame(body, scope, "Tidewatch Tactics", "bx");

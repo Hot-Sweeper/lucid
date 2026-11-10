@@ -10,7 +10,7 @@ function assertRecovery(root, uptime = os.uptime()) {
   try { state = JSON.parse(fs.readFileSync(marker(root), 'utf8')); }
   catch (error) { if (error.code === 'ENOENT') return; throw recoveryError(); }
   // A substantially lower monotonic OS uptime positively establishes a reboot.
-  // Wall-clock changes, a dead Lucid PID, or simply waiting are not evidence
+  // Wall-clock changes, a dead app PID, or simply waiting are not evidence
   // that an unconfirmed npm process and its children have stopped.
   if (Number.isFinite(state.uptime) && state.uptime > 0 && uptime + 60 < state.uptime) {
     try { fs.unlinkSync(marker(root)); return; } catch {}

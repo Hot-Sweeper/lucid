@@ -1,6 +1,6 @@
 // Real pages for the robots' browser: a page a robot opened to test (its own dev server, or
 // HTML it rendered) is loaded in a hidden browser window and photographed, so the robot's screen
-// shows the page as a browser draws it. The window is locked down: no scripts from Lucid, no
+// shows the page as a browser draws it. The window is locked down: no scripts from the app, no
 // popups, no downloads, no permissions, and it lives in its own throwaway session.
 const { BrowserWindow, session, nativeImage } = require("electron");
 

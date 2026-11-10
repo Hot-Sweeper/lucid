@@ -1,7 +1,7 @@
 /* Botflix: the robots' streaming app. Every class is prefixed fun-bf-. Sized for a 740 x 364 window and
    kept legible when the whole monitor is scaled down in the office. */
 .fun-bf {
-  --bf-red: #ff4d63; --bf-red2: #e0354f; --bf-bg: #0a0a0d; --bf-ink: #f2f2f5; --bf-mute: #a3a3ae; --bf-faint: #70707c;
+  --bf-red: #ff4d63; --bf-bg: #0a0a0d; --bf-ink: #f2f2f5; --bf-mute: #a3a3ae;
   position: absolute; inset: 0; overflow: hidden; container-type: size;
   background: var(--bf-bg); color: var(--bf-ink); font-family: var(--font, "Lexend Variable", system-ui, sans-serif);
   user-select: none; -webkit-font-smoothing: antialiased;

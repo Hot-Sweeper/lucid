@@ -17,11 +17,11 @@ export function mediaTime(seconds: number) {
   return `${h ? `${h}:` : ''}${h ? String(m).padStart(2, '0') : m}:${String(n % 60).padStart(2, '0')}`;
 }
 
-const mounted = new WeakMap<HTMLMediaElement, LucidMediaPlayer>();
-const playing = new Set<LucidMediaPlayer>();
+const mounted = new WeakMap<HTMLMediaElement, OfficeMediaPlayer>();
+const playing = new Set<OfficeMediaPlayer>();
 
-/** Native decoding and media events, with Lucid's own accessible controls. */
-export class LucidMediaPlayer {
+/** Native decoding and media events, with the app's own accessible controls. */
+export class OfficeMediaPlayer {
   readonly el = document.createElement('div');
   private abort = new AbortController();
   private stopLocale: () => void;
@@ -156,15 +156,15 @@ export class LucidMediaPlayer {
 }
 
 /** Watch only this media surface. Reparenting chat turns preserves playback and listeners. */
-export function watchLucidMedia(root: HTMLElement) {
-  const players = new Set<LucidMediaPlayer>();
+export function watchMedia(root: HTMLElement) {
+  const players = new Set<OfficeMediaPlayer>();
   const add = (node: Node) => {
     if (!(node instanceof Element)) return;
     const media = [...node.querySelectorAll<HTMLMediaElement>('audio,video')];
     if (node instanceof HTMLMediaElement) media.unshift(node);
     for (const item of media) {
       if (mounted.has(item) || !root.contains(item) || item.closest('.lucid-player')) continue;
-      const player = new LucidMediaPlayer(item); players.add(player);
+      const player = new OfficeMediaPlayer(item); players.add(player);
     }
   };
   const observer = new MutationObserver(records => {

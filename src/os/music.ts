@@ -96,7 +96,7 @@ const I = {
   volume: svg("M1.5 5.6h2.9L8.6 2v12L4.4 10.4H1.5Zm9.1-.9a4.4 4.4 0 0 1 0 6.6l-1-1.1a2.9 2.9 0 0 0 0-4.4Zm1.9-2.1a7.3 7.3 0 0 1 0 10.8l-1-1.1a5.8 5.8 0 0 0 0-8.6Z"),
   clock: svg("M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13ZM8 3a5 5 0 1 0 0 10A5 5 0 0 0 8 3Zm-.75 1.6h1.5v3.1l2.1 1.2-.75 1.3-2.85-1.6Z"),
   // added to Liked Songs: a green disc with a dark check
-  added: `<svg class="bf-i bf-added" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="#1ed760"/><path d="m4.7 8.2 2.2 2.2 4.4-4.6" stroke="#000" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  added: `<svg class="bf-i bf-added" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="#e04fd8"/><path d="m4.7 8.2 2.2 2.2 4.4-4.6" stroke="#000" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 };
 const EQ = `<span class="bf-eqb" aria-hidden="true"><i></i><i></i><i></i><i></i></span>`;
 

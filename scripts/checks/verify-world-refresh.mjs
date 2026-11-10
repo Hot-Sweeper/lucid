@@ -16,7 +16,7 @@ function harness() {
   const world = { desks: new Map([['robot', {}]]), keptDesks: new Set(), get campusDesks() { return [...this.desks].map(([id,desk])=>({id,desk,x:0})); }, scene: {inert:false}, update(d) {this.lastData=d;updates.push(d);}, deskFor() { return null; }, overview() { cameras.push('overview'); } };
   const orch = { observe: async threads => observations.push(threads) };
   const document = {hidden:false}, window = {setTimeout:callback=>{frames.push(callback);return frames.length;}};
-  const deps = { api, world, orch, delegate: { observe:async()=>{} }, coinRewards: null, threadLines: { observe() {} }, monitorTasks: { prepare() {}, sync() {} }, projectTitles: new Map(),
+  const deps = { api, world, orch, delegate: { observe:async()=>{} }, coinRewards: null, threadLines: { observe() {} }, observeOfficeActivity() {}, monitorTasks: { prepare() {}, sync() {} }, projectTitles: new Map(),
     document,window,paintSelectedStatus(){},renderThreads(){},
     renderCompany() {}, settings: {}, chat: { threadId: null }, 
     $() {}, gsap: {}, pushStatus() {}, location: { search: '' }, URLSearchParams,

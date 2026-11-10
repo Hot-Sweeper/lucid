@@ -5,13 +5,13 @@ import { lazyActivity } from "./lazy-activity";
 export const playSnake = lazyActivity(() => import("../fun/games/snake").then(m => m.playSnake));
 export const playFlappy = lazyActivity(() => import("../fun/games/flappy").then(m => m.playFlappy));
 export const playDash = lazyActivity(() => import("../fun/games/dash").then(m => m.playDash));
-export const playBlockcraft = lazyActivity(() => import("../games/blockcraft").then(m => m.playBlockcraft));
-export const playNightShift = lazyActivity(() => import("../games/nightshift").then(m => m.playNightShift));
+export const playVoxelValley = lazyActivity(() => import("../games/voxel-valley").then(m => m.playVoxelValley));
+export const playUptimeTillDawn = lazyActivity(() => import("../games/uptime-till-dawn").then(m => m.playUptimeTillDawn));
 export const playTicTacToe = lazyActivity(() => import("../games/tictactoe").then(m => m.playTicTacToe));
 export const playConnectFour = lazyActivity(() => import("../games/connect4").then(m => m.playConnectFour));
 export const playBitMerge = lazyActivity(() => import("../games/merge").then(m => m.playBitMerge));
-export const playRobotIsland = lazyActivity(() => import("../games/island").then(m => m.playRobotIsland));
-export const playBotCom = lazyActivity(() => import("../games/botcom").then(m => m.playBotCom));
+export const playRustwaterBay = lazyActivity(() => import("../games/rustwater-bay").then(m => m.playRustwaterBay));
+export const playTidewatchTactics = lazyActivity(() => import("../games/tidewatch-tactics").then(m => m.playTidewatchTactics));
 export const playDerBugger = lazyActivity(() => import("../games/bugger").then(m => m.playDerBugger));
 export const playBoot = lazyActivity(() => import("../games/boot").then(m => m.playBoot));
 export const watchBotflix = lazyActivity(() => import("../fun/botflix").then(m => m.watchBotflix));
@@ -36,9 +36,9 @@ export const useVapor = lazyActivity(() => import("../leisure/vapor").then(m => 
 export const tradeOnBotcoinExchange = lazyActivity(() => import("../leisure/trading").then(m => m.tradeOnBotcoinExchange));
 
 const activities = {
-  snake: playSnake, flappy: playFlappy, dash: playDash, blockcraft: playBlockcraft,
-  nightshift: playNightShift, tictactoe: playTicTacToe, connect4: playConnectFour,
-  bitmerge: playBitMerge, island: playRobotIsland, botcom: playBotCom, bugger: playDerBugger,
+  snake: playSnake, flappy: playFlappy, dash: playDash, voxelvalley: playVoxelValley,
+  uptime: playUptimeTillDawn, tictactoe: playTicTacToe, connect4: playConnectFour,
+  bitmerge: playBitMerge, rustwater: playRustwaterBay, tidewatch: playTidewatchTactics, bugger: playDerBugger,
   boot: playBoot, botflix: watchBotflix, tube: watchTube, benchtop: browseBenchtop,
   beats: makeBeat, social: hangOutInChat, phone: usePhone, botsapp: chatOnBotsApp,
   telegrid: browseTelegrid, chirp: scrollChirp, doodle: doodleInSketchpad,

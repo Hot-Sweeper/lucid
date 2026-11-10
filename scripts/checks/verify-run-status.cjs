@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
 const source = fs.readFileSync(require.resolve('../../electron/t3.cjs'), 'utf8');
 const queries = [...source.matchAll(/\(select status from orchestration_v2_projection_runs r where r\.thread_id = t\.thread_id ([^)]*\)[^)]*)\) as runStatus/g)].map(m => m[0]);
-assert.ok(queries.length >= 3, 'every thread list reads run status the same way');
+assert.ok(queries.length >= 2, 'every thread list reads run status the same way');
 const db = new DatabaseSync(':memory:');
 db.exec("create table orchestration_v2_projection_threads(thread_id text); create table orchestration_v2_projection_runs(thread_id text, ordinal integer, status text);");
 const status = (runs) => {

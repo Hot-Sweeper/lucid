@@ -1,8 +1,9 @@
 import gsap from "gsap";
 import { gameSound } from "./sound";
 import "./shortcuts.css";
+import { BRAND } from "../brand";
 
-// "How Lucid works": what to click and which keys do what. Opens from the ? button or the ? key.
+// "How it works": what to click and which keys do what. Opens from the ? button or the ? key.
 const CLICKS: [string, string][] = [
   ["New task", "Starts work. Pick a project, write the task, choose who does it."],
   ["A robot or its desk", "Opens that job's chat. Click again to see the robot's profile."],
@@ -34,7 +35,7 @@ export function openShortcutHelp() {
   const el = document.createElement("div");
   el.className = "dialog-wrap help-wrap";
   el.innerHTML = `<div class="dialog help-sheet" role="dialog" aria-modal="true" aria-labelledby="help-title">
-    <div class="help-head"><h2 id="help-title">How Lucid works</h2><button type="button" class="ghost help-close" aria-label="Close">Close</button></div>
+    <div class="help-head"><h2 id="help-title">How ${BRAND.name} works</h2><button type="button" class="ghost help-close" aria-label="Close">Close</button></div>
     <p class="help-lead">Each desk is one job, one T3 thread. Robots are your workers. Click things to use them.</p>
     <div class="help-cols"><section><h3>Click</h3><dl class="help-clicks"></dl></section><section><h3>Keys</h3><dl class="help-keys"></dl></section></div>
   </div>`;

@@ -16,4 +16,3 @@ export function tierFor(model: string | null | undefined): Tier {
   return "standard";
 }
 
-export const TIER_LABEL: Record<Tier, string> = { light: "Light model", standard: "Standard model", flagship: "Flagship model" };

@@ -1,4 +1,3 @@
-import type gsap from 'gsap';
 import './room-controls.css';
 
 /** Keep a game's own animation clock intact while its physical display is off. */

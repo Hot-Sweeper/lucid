@@ -38,8 +38,8 @@ const gsap = { globalTimeline, to: makeTween, ticker: { add: callback => tickerC
   fromTo(target, _from, to) { return makeTween(target, to); }, killTweensOf() {} };
 const document = { createElement() { actions.push('element'); return { style: {}, remove() {} }; } };
 const wmCode = await compile('os/wm');
-const { WM, Cancelled } = new Function('gsap', 'Node', 'ICONS', 'setTimeout', 'document', 'performance', 'renderFps',
-  `${wmCode};return {WM,Cancelled};`)(gsap, Node, {}, setTimeout, document, { now: () => now }, () => 60);
+const { WM, Cancelled } = new Function('gsap', 'Node', 'ICONS', 'setTimeout', 'document', 'performance', 'renderFps', 'CHAT_TITLE',
+  `${wmCode};return {WM,Cancelled};`)(gsap, Node, {}, setTimeout, document, { now: () => now }, () => 60, 'Chat');
 const classes = new Set();
 const root = Object.assign(new Node(), { classList: { toggle(k, on) { if (on) classes.add(k); else classes.delete(k); } },
   querySelectorAll(selector) { assert.notEqual(selector, '*', 'visibility edges must not enumerate the computer DOM'); return []; },
@@ -227,7 +227,7 @@ assert.equal(pumps, 1); assert.equal(ready, true);
 // Check attachment and nested-timeline behavior against the actual GSAP runtime,
 // including the killed-parent case where a child still retains its parent pointer.
 const { gsap: liveGsap } = await import('gsap');
-const LiveWM = new Function('gsap', 'Node', 'performance', `${wmCode};return WM;`)(liveGsap, Node, { now: () => now });
+const LiveWM = new Function('gsap', 'Node', 'performance', 'CHAT_TITLE', `${wmCode};return WM;`)(liveGsap, Node, { now: () => now }, 'Chat');
 const liveRoot = new Node(), liveOwned = new Node(liveRoot), liveOther = new Node();
 liveOwned.value = liveOther.value = 0;
 const liveWM = Object.assign(Object.create(LiveWM.prototype), { root: liveRoot, robot: { setTyping() {} },

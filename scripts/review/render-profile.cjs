@@ -10,7 +10,6 @@
 // LUCID_PERF_METRICS=1 records system JS costs; LUCID_PERF_SCENES selects comma-separated names.
 // LUCID_SYSTEM_CHECKS=1 verifies pause/resume, covered windows, chat cache and HUD controls.
 // LUCID_CAMERA_STRESS_CHECKS=1 exercises native rapid zoom/pan and long-chat scrolling.
-// LUCID_OUTSIDE_CANVAS_CHECKS=1 compares retained scenery against native SVG pixels.
 // LUCID_OUTSIDE_PRODUCTION_CHECKS=1 checks mounted grounds mapping, density and lifecycle.
 const fs = require("node:fs");
 const path = require("node:path");
@@ -63,7 +62,7 @@ if (!process.versions.electron) {
         if (process.env.LUCID_CAMERA_NO_GATE) await js("{const w=window.__world;w.flushCamera=()=>{w.applyQueued=0;w.apply();w.keepFocus()};void 0}");
         if (process.env.LUCID_PERF_CSS) await js(`{const s=document.createElement('style');s.textContent=${JSON.stringify(process.env.LUCID_PERF_CSS)};document.head.append(s)}`);
         if (process.env.LUCID_CAMERA_APPS) {
-          await js(`{let i=0;for(const d of window.__world.desks.values()){d.wm.speed=20;void d.director.idleLife.doActivity(['blockcraft','nightshift','botcom','boot','botflix','tensorhub'][i++%6],d.director.idleLife.token).catch(e=>{if(e.constructor.name!=='Cancelled')console.error(e)})}}`);
+          await js(`{let i=0;for(const d of window.__world.desks.values()){d.wm.speed=20;void d.director.idleLife.doActivity(['voxelvalley','uptime','tidewatch','boot','botflix','tensorhub'][i++%6],d.director.idleLife.token).catch(e=>{if(e.constructor.name!=='Cancelled')console.error(e)})}}`);
           await wait(6000);
         }
         await dbg.sendCommand("Performance.enable");
@@ -80,7 +79,7 @@ if (!process.versions.electron) {
         for (const [name, scale, cx, cy] of (process.env.LUCID_PERF_CHECKS_ONLY ? [] : scenes)) {
           if ((name === "apps-many" || name === "apps-far") && !appsStarted) {
             appsStarted = true;
-            await js(`{let i=0;for(const d of window.__world.desks.values()){d.wm.speed=20;void d.director.idleLife.doActivity(['blockcraft','nightshift','botcom','boot','botflix','tensorhub'][i++%6],d.director.idleLife.token).catch(e=>{if(e.constructor.name!=='Cancelled')console.error(e)})}}`);
+            await js(`{let i=0;for(const d of window.__world.desks.values()){d.wm.speed=20;void d.director.idleLife.doActivity(['voxelvalley','uptime','tidewatch','boot','botflix','tensorhub'][i++%6],d.director.idleLife.token).catch(e=>{if(e.constructor.name!=='Cancelled')console.error(e)})}}`);
             await wait(6000);
           }
           if (name === "chat") { await js(`window.__chat.open(window.__world.desks.values().next().value)`); chatTimer = setInterval(() => { void js("window.__chat.refresh()"); }, 750); }
@@ -165,7 +164,6 @@ if (!process.versions.electron) {
         if (process.env.LUCID_INTERACTION_CHECKS) await require("./render-interaction-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_VIEWPORT_CHECKS) await require("./render-viewport-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_STATIC_ART_CHECKS) await require("./render-static-art-checks.cjs")({ js, wc, wait, out });
-        if (process.env.LUCID_OUTSIDE_CANVAS_CHECKS) await require("./render-outside-canvas-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_OUTSIDE_PRODUCTION_CHECKS) await require("./render-outside-production-checks.cjs")({ js, wc, wait, out, dbg });
         if (process.env.LUCID_CANVAS_CHECKS) await require("./render-canvas-checks.cjs")({ js, wc, wait, out });
         if (process.env.LUCID_MEDIA_CANVAS_CHECKS) await require("./render-media-canvas-checks.cjs")({ js, wc, wait, out });

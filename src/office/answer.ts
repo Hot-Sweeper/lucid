@@ -3,10 +3,11 @@ import "./answer.css";
 import type { ChatPanel } from "./chat-panel";
 import type { Advice } from "./delegate";
 import { gameSound } from './sound';
+import { BRAND } from "../brand";
 
 // Answering a robot's question (or approving what it wants to do) from its chat.
 // The card sits above the message box while the thread has an open request. It shows the real
-// questions with their options, sends the answer through Lucid's paired T3 session in the shape
+// questions with their options, sends the answer through the app's paired T3 session in the shape
 // T3 Code's own app uses, and goes away once T3 marks the request resolved (also when you
 // answered it in T3 Code instead).
 
@@ -302,7 +303,7 @@ export class AnswerCard {
 
   private foot(r: PendingRequest, actions: string) {
     const note = r.answerable ? "" : esc(r.reason ? "The agent stopped waiting for this answer. Stop the run in T3 and ask again." : "This request can no longer be answered.");
-    return `<p class="ca-connect" hidden><span>Connect Lucid to T3 to answer here</span><button type="button" class="ghost">Connect</button></p>
+    return `<p class="ca-connect" hidden><span>Connect ${BRAND.name} to T3 to answer here</span><button type="button" class="ghost">Connect</button></p>
       <div class="ca-foot"><p class="ca-state" role="status" aria-live="polite">${note}</p>${actions}</div>`;
   }
 
@@ -345,7 +346,7 @@ export class AnswerCard {
     this.paintConnect();
     if (!this.paired) {
       const state = btn.closest(".ca-req")?.querySelector(".ca-state") as HTMLElement | null;
-      if (state) { state.textContent = error || "T3 did not pair with Lucid. Make sure T3 Code is open, then try again."; state.classList.add("err"); }
+      if (state) { state.textContent = error || `T3 did not pair with ${BRAND.name}. Make sure T3 Code is open, then try again.`; state.classList.add("err"); }
     } else this.el.querySelector<HTMLElement>(".ca-req input:not([type=text]), .ca-req .ca-send")?.focus();
   }
 

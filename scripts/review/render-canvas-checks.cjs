@@ -39,9 +39,9 @@ module.exports = async ({ js, wc, wait, out }) => {
       f.center(2);
     }`);
     for (const [game, selector] of [
-      ['blockcraft', '.gm-bc .gm-stage > canvas'],
-      ['nightshift', '.gm-ns-office'],
-      ['botcom', '.gm-bx .gm-stage > canvas'],
+      ['voxelvalley', '.gm-bc .gm-stage > canvas'],
+      ['uptime', '.gm-ns-office'],
+      ['tidewatch', '.gm-bx .gm-stage > canvas'],
     ]) {
       const entry = { game, scales: [], rapid: [] }; result.games.push(entry);
       await js(`{const f=window.__canvasCheck;f.selector=${JSON.stringify(selector)};f.center(2);f.start(${JSON.stringify(game)})}`);
@@ -62,7 +62,7 @@ module.exports = async ({ js, wc, wait, out }) => {
       entry.rapid = await js(`(async()=>{const f=window.__canvasCheck,samples=[];for(const scale of [.23,5,.65,5,.23,5]){f.center(scale);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));samples.push(f.sample())}return samples})()`);
       check(entry.rapid.every(s => s && s.opaque > 32 && s.densityX >= s.dpr - .01 && s.densityY >= s.dpr - .01),
         `${game} stays drawn and sharp through repeated rapid zoom reversals`);
-      if (game === 'botcom') {
+      if (game === 'tidewatch') {
         const viewport = await js(`({width:innerWidth,height:innerHeight})`);
         await wc.debugger.sendCommand('Emulation.setDeviceMetricsOverride', { ...viewport, deviceScaleFactor: 2, mobile: false });
         emulatedDpr = true;
@@ -70,7 +70,7 @@ module.exports = async ({ js, wc, wait, out }) => {
         await until(`{const s=window.__canvasCheck.sample();!!s&&Math.abs(s.dpr-2)<.001&&s.opaque>32&&s.densityX>=s.dpr-.01&&s.densityY>=s.dpr-.01}`, 'Tidewatch Tactics did not restore full content and sharp density after DPR change');
         entry.dprChange = await js(`window.__canvasCheck.sample()`);
         check(entry.dprChange.opaque > 32, 'Tidewatch Tactics redraw gate does not leave a cleared canvas after DPR change');
-        await shot('canvas-botcom-dpr2');
+        await shot('canvas-tidewatch-dpr2');
         await wc.debugger.sendCommand('Emulation.clearDeviceMetricsOverride'); emulatedDpr = false;
       }
       await js(`window.__canvasCheck.stop()`);

@@ -336,7 +336,7 @@ function drawGrounds(G: Grounds, L: Look, o: OutsideOpts) {
   const lawnC = mix(pal.ground, SNOW, snow >= 0.95 ? 0.8 : snow * 0.45);
   const back = backdropColor(o);
   const meadow = mix(lawnC, back, 0.28);
-  const paveC = mix(pal.plaza, SNOW, snow * 0.5), pathC = mix(pal.path, SNOW, snow * 0.55);
+  const pathC = mix(pal.path, SNOW, snow * 0.55);
   const hedge = pal.bush, shadowC = pal.shadow;
   const B = G.bounds, LW = G.lawn;
 
@@ -344,11 +344,6 @@ function drawGrounds(G: Grounds, L: Look, o: OutsideOpts) {
   let treeN = 0;
   const tree = (x: number, y: number, r: number, light = false) => { treeInto(trees, x, y, r, treeN % 3, L, 500 + treeN, light); treeN++; };
   const planter = (x: number, y: number, r = 38) => Z(low, 1).circle(x, y, r - 4, `fill="${mix("#6b5646", SNOW, snow * 0.8)}" stroke="${mix("#b3a893", SNOW, snow * 0.6)}" stroke-width="8"`);
-  const hedgeRect = (x: number, y: number, w: number, h: number) => {
-    if (w <= 0 || h <= 0) return;
-    Z(low, 1).rect(x, y, w, h, fill(hedge[1]), 14);
-    Z(low, 2).rect(x + 5, y + 3, w - 10, h * 0.55, fill(mix(hedge[2], SNOW, snow * 0.85)), 11);
-  };
   // a bench for two robots, (x, y) its top left corner
   const BW = 130, BH = 42;
   const bench = (x: number, y: number) => {
@@ -542,8 +537,6 @@ function patterns(L: Look) {
 
 // The outdoor overlay: building shell, the park objects robots use, and the light (dusk, night,
 // lamp and window glows). Terrain and woodland are bitmap tiles underneath (landscape-tiles.ts).
-export const PLAIN_GROUND = "#78b066";
-export function campusGround(o: Pick<OutsideOpts, "season" | "snowCover" | "wx">) { const L = lookFor(o); return mix(L.pal.ground, SNOW, L.snow * .8); }
 /** Where things stand in the park, in park plan units (centre 0,0; drawn PARK_K times bigger).
  * Shared by the drawing below and the click reactions (park-toys.ts). */
 export const PARK_LAYOUT = {

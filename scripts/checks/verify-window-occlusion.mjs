@@ -8,7 +8,7 @@ const source = await readFile(new URL('../../src/os/wm.ts', import.meta.url), 'u
 const code = (await transformWithOxc(source.replace(/^import .*;\r?\n/gm, ''), 'wm.ts')).code.replace(/export\s*\{[^}]*\};?/g, '').replace(/^export /gm, '');
 const tweens = [];
 const gsap = { to: (target, vars) => { const tween={ target, vars };tweens.push(tween);return tween; } };
-const { WM } = new Function('gsap', 'ICONS', 'wakeRender', 'renderFps', `${code};return {WM}`)(gsap, {}, () => {}, () => 60);
+const { WM } = new Function('gsap', 'ICONS', 'wakeRender', 'renderFps', 'CHAT_TITLE', `${code};return {WM}`)(gsap, {}, () => {}, () => 60, 'Chat');
 const el = (frame, z) => {
   const classes=new Set();
   return { style:{left:`${frame.x}px`,top:`${frame.y}px`,width:`${frame.w}px`,height:`${frame.h}px`,zIndex:String(z)},dataset:{},querySelector:()=>null,classList:{contains:c=>classes.has(c),toggle:(c,on)=>on?classes.add(c):classes.delete(c),add:c=>classes.add(c),remove:c=>classes.delete(c)} };

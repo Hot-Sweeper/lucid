@@ -6,7 +6,6 @@ import { icon as uiIcon } from "./ui/icons";
 import { mountInterfaceThemeSetting } from "./interface-theme";
 import { buildWorkDetails } from "./office/work-details";
 import { ProjectLife } from "./office/project-life";
-import { chatFileUrl } from "./office/chat-media";
 import { mountPerformancePanel } from "./office/performance";
 import { showReport, showReportArchive } from "./office/report";
 import { CoinRewards } from "./office/coin-rewards";
@@ -51,7 +50,7 @@ import { openWorkerFocus, openStaffWall } from "./office/worker-focus";
 import { openChair } from "./office/chair";
 import { openNewProject } from "./office/new-project";
 import { robotFocus } from "./office/interact";
-import { hasOfficeWork, remainingDeskExtras } from "./office/room-policy";
+import { hasOfficeWork } from "./office/room-policy";
 import type { RobotProfile } from "./office/roster";
 import { Orchestrator, type OrchState } from "./office/orchestrator";
 import { openOrchestratorControls } from "./office/orchestrator-controls";
@@ -73,11 +72,10 @@ import { movableRoom } from "./office/room-order";
 import type { ThreadRef } from "./office/thread-ref";
 import { foldButton, foldSection, setRail } from "./office/sidebar";
 import { EdgePeek, PIN_ICON, paintPin } from "./office/edge-peek";
-import openaiLogo from "./assets/openai.svg";
-import claudeLogo from "./assets/claude.svg";
 import { openShortcutHelp, isShortcutHelpOpen, typing } from "./office/shortcuts";
 import { mountTitlebar } from "./titlebar";
 import { BRAND } from "./brand";
+import { observeOfficeActivity } from "./leisure/botcoin";
 import { brandMark } from "./ui/brand-mark";
 // Shared control styles load after every feature stylesheet imported above.
 import "./ui/controls.css";
@@ -87,7 +85,6 @@ declare global {
     lucid: {
       projects(): Promise<{ id: string; title: string; root: string }[]>;
       world(): Promise<WorldData>;
-      tasks(): Promise<unknown[]>;
       startThreadIn?: never;
       settingsLoad(): string;
       settingsSave(json: string): Promise<void>;
@@ -100,7 +97,7 @@ declare global {
       conversation(id: string): Promise<any[]>;
       attachDir(): Promise<string>;
       watchSet(ids: string[]): Promise<boolean>;
-      startThread(o: { project: string; message: string; provider?: string; model?: string; options?: Record<string, string | boolean>; requestId?: string; contextThreadId?: string }): Promise<{ threadId: string }>;
+      startThread(o: { project: string; message: string; provider?: string; model?: string; options?: Record<string, string | boolean>; requestId?: string }): Promise<{ threadId: string }>;
       sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
       peek(url: string): Promise<any>;
       image(path: string): Promise<string | null>;
@@ -575,6 +572,7 @@ async function refresh() {
     monitorTasks.prepare(data);
     coinRewards?.prepare(data);
     threadLines.observe(data);
+    if (!data.environmentId) observeOfficeActivity(data.threads, settings.wallet?.ledger);
     for (const p of data.projects) projectTitles.set(p.id, p.title);
     world.orchThread = data.environmentId ? '' : settings.orch?.threadId || '';
     world.update(data);
@@ -773,7 +771,7 @@ let lastUpdateFailure: { message: string; details: string; kind?: string } | nul
 function updateTimeout<T>(operation: Promise<T>, milliseconds: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
   return Promise.race([operation, new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error("Lucid did not answer. Close and reopen Lucid, then retry the update.")), milliseconds);
+    timer = setTimeout(() => reject(new Error(`${BRAND.name} did not answer. Close and reopen it, then retry the update.`)), milliseconds);
   })]).finally(() => clearTimeout(timer));
 }
 async function checkUpdate() {
@@ -1277,7 +1275,7 @@ mountLimitsSection($("side-panel"), $("usage-body"), !folded.has("limits"));
 
 // Real weather where you are: it rains, snows or storms over the office, and the season shows outside.
 const WX_NAME: Record<string, string> = { clear: "Clear", clouds: "Cloudy", rain: "Rain", drizzle: "Drizzle", snow: "Snow", storm: "Storm", fog: "Fog" };
-// The weather service is sometimes behind the sky. You can tell Lucid what it is really doing;
+// The weather service is sometimes behind the sky. You can tell the app what it is really doing;
 // the correction holds for two hours, then live weather takes over again.
 let liveWeather: any = null;
 const WX_FIX_MS = 2 * 60 * 60 * 1000;

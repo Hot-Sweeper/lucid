@@ -1,7 +1,7 @@
 import { BOTCORD_CHANNELS, BOTCORD_THREADS, BOTCORD_MESSAGES, pickFresh } from "../content";
 import { dailyBotcord } from "../office/daily";
 import type { FunHost, FunOpts, Outcome } from "./types";
-import { Kit, runApp, rnd, chance, pick, shuffle, h, esc, canvas } from "./util";
+import { Kit, runApp, rnd, chance, pick, shuffle, h, esc } from "./util";
 import { drawMeme, type MemeKind } from "./memes";
 import { GIFS, GIF, type GifKind } from "./gifs";
 import { GifReel } from "./gifreel";

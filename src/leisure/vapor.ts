@@ -1,5 +1,5 @@
 import { GAME_TITLES } from "../games/catalog";
-// Vapor: the robots' game store and launcher, in Lucid's own style: a dusky indigo store
+// Vapor: the robots' game store and launcher, in the app's own style: a dusky indigo store
 // with sales and a cart, a library with an INSTALL or PLAY button, a download that really runs
 // its course. The robot browses, maybe buys something (or is declined), then installs and launches
 // one of the games that really exist on its desktop. The caller starts that game.
@@ -30,10 +30,10 @@ const G = {
 
 // The games that exist on the robots' desktops have a `key` (the idle activity that plays them). The rest are store-only.
 export const VAPOR_GAMES: VaporGame[] = [
-  { id: "blockcraft", key: "blockcraft", title: GAME_TITLES.blockcraft, blurb: "Dig down, build up, pat the static bunnies.", c: ["#3a8f86", "#1d2f45"], price: 19.99, size: 1.4, glyph: G.cube },
-  { id: "nightshift", key: "nightshift", title: GAME_TITLES.nightshift, blurb: "Keep the racks cool. Something keeps unplugging them.", c: ["#5a1a2e", "#0d0d1c"], price: 14.99, sale: 0.5, size: 2.1, glyph: G.eye },
-  { id: "island", key: "island", title: GAME_TITLES.island, blurb: "A point and click about a courier bot relighting a lighthouse.", c: ["#1fa6a0", "#223a6b"], price: 9.99, size: 0.9, glyph: G.palm },
-  { id: "botcom", key: "botcom", title: GAME_TITLES.botcom, blurb: "Turn based diver tactics: patch the cable, calm the crabs.", c: ["#25507a", "#0b1a2e"], price: 29.99, sale: 0.25, size: 6.8, glyph: G.tentacle },
+  { id: "voxelvalley", key: "voxelvalley", title: GAME_TITLES.voxelvalley, blurb: "Dig down, build up, pat the static bunnies.", c: ["#3a8f86", "#1d2f45"], price: 19.99, size: 1.4, glyph: G.cube },
+  { id: "uptime", key: "uptime", title: GAME_TITLES.uptime, blurb: "Keep the racks cool. Something keeps unplugging them.", c: ["#5a1a2e", "#0d0d1c"], price: 14.99, sale: 0.5, size: 2.1, glyph: G.eye },
+  { id: "rustwater", key: "rustwater", title: GAME_TITLES.rustwater, blurb: "A point and click about a courier bot relighting a lighthouse.", c: ["#1fa6a0", "#223a6b"], price: 9.99, size: 0.9, glyph: G.palm },
+  { id: "tidewatch", key: "tidewatch", title: GAME_TITLES.tidewatch, blurb: "Turn based diver tactics: patch the cable, calm the crabs.", c: ["#25507a", "#0b1a2e"], price: 29.99, sale: 0.25, size: 6.8, glyph: G.tentacle },
   { id: "bugger", key: "bugger", title: GAME_TITLES.bugger, blurb: "Trade cargo between ports, repay the bank, and dodge packet pirates.", c: ["#a33a1e", "#2a1210"], price: 24.99, sale: 0.6, size: 3.3, glyph: G.bug },
   { id: "boot", key: "boot", title: GAME_TITLES.boot, blurb: "A first-person romp down the call stack. Clear out the bugs.", c: ["#3a3f99", "#12163a"], price: 7.99, size: 0.6, glyph: G.power },
   { id: "bitmerge", key: "bitmerge", title: GAME_TITLES.bitmerge, blurb: "Slide matching parts together. Build a mainframe or lose an evening.", c: ["#e0a53a", "#8a4a1a"], price: 3.99, size: 0.1, glyph: G.tiles },

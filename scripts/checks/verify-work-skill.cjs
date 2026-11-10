@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const { withLucidSkill, skillPath } = require('../../electron/lucid-skill.cjs');
+const { withWorkSkill, skillPath } = require('../../electron/work-skill.cjs');
+const brand = require('../../electron/brand.cjs');
 const { launchPayload } = require('../../electron/hire-runtime.cjs');
 const skill = fs.readFileSync(skillPath, 'utf8');
 const path = require('node:path');
@@ -8,10 +9,11 @@ assert(require('../../electron/build-state.cjs').snapshot(path.join(__dirname, '
 assert.match(skill, /^---\nname: lucid\ndescription: .+\n---/);
 assert.match(skill, /Markdown image syntax/);
 const task = 'Implement a useful UI\n\nAttached:\n- image: /tmp/reference.png';
-const request = { project: 'p', provider: 'codex', model: 'sol', options: {}, requestId: 'stable', message: withLucidSkill(task) };
-const first = launchPayload(request, 'auto'), retry = launchPayload({ ...request, message: withLucidSkill(task) }, 'auto');
+const request = { project: 'p', provider: 'codex', model: 'sol', options: {}, requestId: 'stable', message: withWorkSkill(task) };
+const first = launchPayload(request, 'auto'), retry = launchPayload({ ...request, message: withWorkSkill(task) }, 'auto');
 assert.deepEqual(first, retry);
 assert.equal(first.title, 'Implement a useful UI');
-assert(first.initialMessage.text.startsWith(task + '\n\n<lucid-work-skill>'));
+assert(first.initialMessage.text.startsWith(task + '\n\n<work-skill>'));
+assert(first.initialMessage.text.includes(`${brand.name} presents your final reply`) && !/\{\{brand\}\}|Lucid/.test(first.initialMessage.text), 'The skill names the app through the brand module');
 assert(!first.initialMessage.text.includes('name: lucid'), 'Frontmatter is not instruction content');
-console.log('Lucid skill passed: valid metadata, packaged guidance, preserved task/title/attachments and deterministic launch retries.');
+console.log('Work skill passed: valid metadata, packaged guidance, preserved task/title/attachments and deterministic launch retries.');

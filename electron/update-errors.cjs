@@ -13,7 +13,7 @@ function updateFailure(error, installed) {
   } else if (/inputs changed|source.*changed|changed.*source|Files changed while preparing|do not match the validated/i.test(details)) {
     kind = 'source-changed';
     message = 'The code changed while the update was being prepared. Retry after editing has finished.';
-  } else if (/Another Lucid update/i.test(details)) {
+  } else if (/Another update is still running/i.test(details)) {
     kind = 'busy'; message = 'An update is already running. Wait for it to finish.';
   } else if (/ENOSPC|not enough space|disk.*full/i.test(details)) {
     message = 'There is not enough free disk space to prepare the update. Free some space, then retry.';

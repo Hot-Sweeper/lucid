@@ -1,8 +1,9 @@
-// Writing for Lucid's own housekeeping (daily lines, game translations, project board ideas)
+// Writing for the app's own housekeeping (daily lines, game translations, project board ideas)
 // runs a harness CLI headlessly: no tools, no MCP servers, no saved session, an empty working
 // folder and a strict timeout, with the answer read from stdout. It never creates a T3 thread,
 // so it never appears in T3 or as a robot.
 const fs = require('node:fs');
+const brand = require('./brand.cjs');
 const os = require('node:os');
 const path = require('node:path');
 const { runCliProcess } = require('./cli-runner.cjs');
@@ -64,7 +65,7 @@ function createHeadlessWriter({ settingsFile, run = runCliProcess, find = findCo
     /** The CLI's final answer as text. Rejects with a readable message. */
     async write(prompt, { timeoutMs = 120000 } = {}) {
       const writer = pickWriter({ settingsFile, find });
-      if (!writer) throw Error('Install Codex or Claude Code to let Lucid write this text.');
+      if (!writer) throw Error(`Install Codex or Claude Code to let ${brand.name} write this text.`);
       fs.mkdirSync(folder, { recursive: true });
       const args = HARNESSES[writer.id].args(writer.model, folder);
       try {

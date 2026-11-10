@@ -1,7 +1,7 @@
 /* Follow T3: the palette of the theme active in T3 Code. themes/t3-theme.ts sets T3's colours
    as --t3-* on <html> (sRGB hex, text and accent ink already lifted to WCAG AA by
    electron/t3-theme.cjs) and data-t3-appearance="light" | "dark". Everything below derives
-   Lucid's tokens from those few colours. A dark T3 theme also takes the dark office from
+   the app's tokens from those few colours. A dark T3 theme also takes the dark office from
    oled.css (materials, robots, the computers' apps); a light one keeps the warm daylight office.
    The [data-t3-appearance] attribute in each selector keeps these rules above that shared block. */
 :root[data-theme="t3"][data-t3-appearance] {
@@ -25,7 +25,6 @@
   --ui-edge: var(--t3-border);
   --ui-scrim: color-mix(in srgb, var(--t3-canvas) 62%, transparent);
   --ui-float: color-mix(in srgb, var(--t3-raised) 90%, transparent);
-  --ui-float-hover: var(--t3-control-hover);
   --ui-hover: var(--t3-row-hover);
   --ui-drop: var(--t3-row-selected);
   --ui-drop-field: color-mix(in oklab, var(--t3-surface) 86%, var(--t3-accent));
@@ -34,7 +33,6 @@
   --ui-queue: var(--t3-surface);
   --ui-queue-drag: var(--t3-row-selected);
   --ui-tray: color-mix(in srgb, var(--t3-sidebar) 96%, transparent);
-  --ui-toast: var(--t3-overlay);
   --ui-plate: var(--t3-control);
   --ui-plate-hover: var(--t3-control-hover);
   --ui-building-plate: var(--t3-control);
@@ -49,7 +47,7 @@
   --mt-remove: var(--t3-secondary);
   --mt-viewer-scrim: color-mix(in srgb, var(--t3-canvas) 88%, transparent);
 
-  /* the robots' computers: desktop chrome and Lucid's own apps in T3's colours */
+  /* the robots' computers: desktop chrome and the app's own apps in T3's colours */
   --os-ink: var(--t3-text);
   --os-desk: var(--t3-canvas);
   --os-lock: radial-gradient(90% 70% at 50% 120%, color-mix(in oklab, var(--t3-accent) 26%, var(--t3-canvas)) 0%, var(--t3-canvas) 65%);
@@ -73,9 +71,6 @@
   --os-popup-ink: var(--t3-text);
   --os-popup-row: var(--t3-row-hover);
   --os-popup-muted: var(--t3-text-muted);
-  --os-files-bar: var(--t3-sidebar);
-  --os-field: var(--t3-input-surface);
-  --os-field-active: var(--t3-canvas);
   --os-muted: var(--t3-text-muted);
   --os-text-2: color-mix(in oklab, var(--t3-text) 58%, var(--t3-text-muted));
   --os-dim: color-mix(in oklab, var(--t3-text-muted) 70%, var(--t3-surface));
@@ -84,9 +79,6 @@
   --os-tabs: var(--t3-surface);
   --os-term: var(--t3-terminal);
   --os-chat: var(--t3-canvas);
-  --os-compose: var(--t3-surface);
-  --os-compose-field: var(--t3-input-surface);
-  --os-send: var(--t3-accent);
   --os-bubble: var(--t3-message);
   --os-tool: var(--t3-surface);
   --os-action: color-mix(in srgb, var(--t3-overlay) 94%, transparent);

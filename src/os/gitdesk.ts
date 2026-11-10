@@ -1,4 +1,4 @@
-// Git, drawn in Lucid's own simple style, for robots that prefer an app to the terminal: the
+// Git, drawn in the app's own simple style, for robots that prefer an app to the terminal: the
 // changed files with a diff, the commit box, push, pull and fetch with real progress (each waits
 // for the real command), a branch menu and a merge dialog. Remotes are named as git names them.
 import gsap from "gsap";

@@ -223,8 +223,6 @@ ipcMain.handle("t3:watch-set", (_e, ids) => {
   }
   return true;
 });
-ipcMain.handle("t3:office", (_e, projectId) => { const target = remote.split(projectId); if (!target) return t3.office(projectId); const data = remote.cached(target.environmentId); return { project: data?.projects.find(p => p.id === projectId), threads: data?.threads.filter(t => t.projectId === projectId) || [] }; });
-ipcMain.handle("t3:offices", () => activeBuilding() ? (remote.cached(activeBuilding())?.projects || []).map(p => ({ ...p, threads: remote.cached(activeBuilding()).threads.filter(t => t.projectId === p.id).length })) : t3.listProjectsWithCounts());
 ipcMain.handle("project:add", (_e, o) => { if (activeBuilding()) throw Error('Add projects to this building in T3 Code.'); return t3.addProject(o); });
 // New projects live beside the others in T3 Projects. An existing non-empty folder is
 // never taken over: use "a folder I already have" for that.
@@ -338,7 +336,6 @@ ipcMain.handle("t3:world", async () => {
   if (!activeBuilding()) { const jobs = backgroundJobs.current(); for (const t of data.threads) { const job = jobs.get(t.id); if (job) t.job = job; } }
   return data;
 });
-ipcMain.handle("t3:tasks", () => { if (activeBuilding()) return []; try { return t3.officeTasks(); } catch { return []; } });
 ipcMain.handle("t3:start", (_e, opts) => { if (remote.split(opts.project)) throw Error('Start a new remote thread in T3 Code, then open it here.'); return opts.options !== undefined ? t3s.startHire(opts) : t3.startThread(opts); });
 ipcMain.handle("t3:send", (_e, opts) => remote.split(opts.threadId) ? remote.send(opts) : t3.sendMessage(opts));
 
@@ -447,7 +444,6 @@ ipcMain.handle("app:apply-update", async () => {
     return require('./update-errors.cjs').updateFailure(err, require('./installation.cjs').hasInstalledBuild(path.join(__dirname, '..')));
   }
 });
-ipcMain.handle("app:version", () => app.getVersion());
 
 // lucid-file://local/<encoded path> serves images and text files the agents worked with,
 // so the robots' screens and the chat can show them. Only known media and text types.
@@ -520,7 +516,6 @@ for (const action of ["stop", "rename", "archive"]) ipcMain.handle(`t3s:${action
 ipcMain.handle("t3s:providers", t3sWrap((o) => activeBuilding() ? remote.providers(activeBuilding()) : t3s.listProviders(o || {})));
 ipcMain.handle("t3s:search-threads", t3sWrap((q) => activeBuilding() ? { matches: [], threads: [] } : t3s.searchThreads(q)));
 ipcMain.handle("t3s:hire-config", t3sWrap((o) => { if (activeBuilding()) throw Error('Start a new thread in T3 Code for this building.'); return t3s.hireConfig(o || {}); }));
-ipcMain.handle("t3s:hire-contexts", t3sWrap((o) => { if (activeBuilding()) throw Error('Context search is unavailable for this building.'); return t3s.hireContexts(o.projectId); }));
 let threadMovePending = false;
 ipcMain.handle("t3s:move-thread", t3sWrap(async (o) => {
   if (threadMovePending) throw Error('A thread move is still saving. Try again in a moment.');

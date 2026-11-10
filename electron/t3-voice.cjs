@@ -166,7 +166,7 @@ function createVoice({ server, settings = readClientSettings }) {
   return { status, progress, download, cancelDownload, prepare, transcribe, cancel };
 }
 
-/** IPC for the chat composer. Only Lucid's own window may record and transcribe. */
+/** IPC for the chat composer. Only the app's own window may record and transcribe. */
 function register({ ipcMain, app, window, server }) {
   const voice = createVoice({ server });
   const calls = { status: () => voice.status(), progress: (id) => voice.progress(id), download: (id) => voice.download(id), cancelDownload: (id) => voice.cancelDownload(id), prepare: () => voice.prepare(), transcribe: (b) => voice.transcribe(b), cancel: () => voice.cancel() };

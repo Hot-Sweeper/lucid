@@ -109,7 +109,7 @@ if (!process.versions.electron) {
         const idle=d.director.idleLife,original=idle.host.bind(idle);
         let Cancelled;try{d.wm.check(d.wm.epoch-1)}catch(e){Cancelled=e.constructor}
         idle.host=token=>{const h=original(token);return Object.assign(Object.create(h),{sleep:()=>new Promise((resolve,reject)=>{const check=()=>h.stopped?reject(new Cancelled()):setTimeout(check,100);check()})})};
-        const kind=['blockcraft','nightshift','botcom','boot','botflix','benchtop'][index++%6];
+        const kind=['voxelvalley','uptime','tidewatch','boot','botflix','benchtop'][index++%6];
         window.__benchApps.push({id:d.threadId,kind});idle.active=true;
         void idle.doActivity(kind,idle.token,true).catch(e=>{if(!(e instanceof Cancelled))console.error(e)});
       }
@@ -139,7 +139,7 @@ if (!process.versions.electron) {
   const replace = (channel, callback) => { ipcMain.removeHandler(channel); ipcMain.handle(channel, callback); };
   replace('t3:world',()=>({projects,threads,shipped:{total:0,today:0}}));
   replace('t3:watch-set',()=>true); replace('t3:conversation',()=>[]); replace('t3:conversation-page',()=>({messages:[],hasMore:false}));
-  replace('t3:tasks',()=>[]); replace('usage:get',()=>null); replace('weather:get',()=>({weather:null,error:null}));
+  replace('usage:get',()=>null); replace('weather:get',()=>({weather:null,error:null}));
   replace('environment:list',()=>({buildings:[{id:'local',label:'Benchmark PC',local:true,canOpen:true}]}));
   replace('app:host',()=> 'Benchmark PC'); replace('t3:attach-dir',()=> 'C:/benchmark/attachments/');
   ipcMain.removeAllListeners('settings:load');ipcMain.on('settings:load',e=>{e.returnValue='{}'});

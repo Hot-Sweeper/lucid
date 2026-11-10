@@ -3,7 +3,7 @@
 // to the thread by the service's working directory being inside the thread's own folder.
 const { execFile } = require('node:child_process');
 
-// Always the user's own systemd session, even when Lucid was started inside another session
+// Always the user's own systemd session, even when the app was started inside another session
 // (a sandbox or test desktop can point these at a private bus).
 const userBus = () => {
   const dir = typeof process.getuid === 'function' ? `/run/user/${process.getuid()}` : process.env.XDG_RUNTIME_DIR;

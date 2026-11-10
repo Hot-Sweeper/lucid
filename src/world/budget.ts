@@ -26,7 +26,7 @@ let scale = 1;
 export const cameraScale = () => scale;
 // Calm mode: after a moment with no mouse, keys, wheel or camera movement, every background
 // animation (GSAP tweens and per-frame robot/walker callbacks, robot bodies, monitors, weather)
-// moves together on one beat frame in three. Idle on screen, Lucid redrew something on nearly
+// moves together on one beat frame in three. Idle on screen, the app redrew something on nearly
 // every 144 Hz frame and kept a CPU core busy; any input or camera move restores full rate.
 const CALM_AFTER_MS = 1500;
 let calm = false, lastActive = performance.now(), calmRaf = 0, calmTimer = 0, lastHold = 0;
@@ -43,9 +43,9 @@ const ambientRate = () => {
 };
 const calmListeners = new Set<(calm: boolean) => void>();
 export const isCalm = () => calm;
-// Asleep: calm and the window not focused (you are working elsewhere with Lucid beside it).
+// Asleep: calm and the window not focused (you are working elsewhere with the app beside it).
 // Nothing animates and no frames are made; real changes (finished work, questions) still show,
-// and hovering or focusing Lucid wakes everything at once.
+// and hovering or focusing the app wakes everything at once.
 let asleep = false;
 export const isAsleep = () => asleep;
 export function onCalmChange(fn: (calm: boolean) => void) { calmListeners.add(fn); return () => { calmListeners.delete(fn); }; }
@@ -102,7 +102,7 @@ function calmFrame(t: number) {
   scheduleCalm();
 }
 // GSAP wakes its own frame loop whenever a tween starts (robots start them often). While asleep
-// that would bring back a frame on every refresh, so its wake is held until Lucid wakes up.
+// that would bring back a frame on every refresh, so its wake is held until the app wakes up.
 const tickerWake = gsap.ticker.wake.bind(gsap.ticker);
 function holdTicker(hold: boolean) { (gsap.ticker as any).wake = hold ? () => {} : tickerWake; }
 function syncSleep() {
@@ -146,7 +146,7 @@ if (typeof window !== "undefined") {
   window.setInterval(() => { if (!calm && !document.hidden && performance.now() - lastActive > CALM_AFTER_MS) setCalm(true); }, 400);
   // asleep: hold any animation that started since, so nothing keeps the compositor ticking
   window.setInterval(() => { if (asleep && !document.hidden) holdDecor(); }, 2000);
-  // working in another window with Lucid beside it: calmer still
+  // working in another window with the app beside it: calmer still
   const refocus = () => { if (calm) setAmbientRate(ambientRate()); syncSleep(); };
   window.addEventListener("focus", refocus); window.addEventListener("blur", refocus);
 }

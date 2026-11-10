@@ -121,7 +121,7 @@ export function inlineChatFile(href: string, name: string): string {
   return link;
 }
 
-/** Isolate supplied visuals from Lucid and its privileged bridge. Scripts and forms are
+/** Isolate supplied visuals from the app and its privileged bridge. Scripts and forms are
  * intentionally unavailable; media, SVG, CSS and document layout remain usable. */
 export function mountChatArtifact(host: HTMLElement, artifact: { html: string; title: string; height: number }) {
   const section = document.createElement("section"); section.className = "cp-artifact";

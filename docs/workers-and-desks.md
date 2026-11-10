@@ -5,7 +5,7 @@ Settled with the user on 2026-11-03. This is the model every robot, desk and thr
 ## Session continuity, Linux update 2026-11-06
 
 A finished turn leaves its unsettled session at the same reserved desk, including after
-restarting Lucid. Idle, interrupted and failed sessions remain available for continuation.
+restarting the app. Idle, interrupted and failed sessions remain available for continuation.
 Only explicit settlement releases that place. The completion monitor offers Continue
 session and Settle & collect; the coin tray names its settlement effect too. Continuing
 starts another turn on the same T3 thread and keeps earned coins pending. Running work
@@ -96,7 +96,7 @@ Orchestrator settings, Take the chair (`src/office/chair.ts`). The AI orchestrat
 
 ## Threads
 
-- After each newly finished run, Lucid asks T3 to regenerate the title (`thread.metadata.update` with `regenerateTitle`, the same command as T3's menu action, using T3's text generation model). Once per run, never for pinned threads, settled work or linked computers; existing history is recorded without renaming on first use (`electron/title-refresh.cjs`).
+- After each newly finished run, the app asks T3 to regenerate the title (`thread.metadata.update` with `regenerateTitle`, the same command as T3's menu action, using T3's text generation model). Once per run, never for pinned threads, settled work or linked computers; existing history is recorded without renaming on first use (`electron/title-refresh.cjs`).
 - Desk name plates lead with the job title, the worker's name below.
 - The thread list shows pinned threads first, then the title, and the worker's name and model.
 
@@ -106,7 +106,7 @@ Orchestrator settings, Take the chair (`src/office/chair.ts`). The AI orchestrat
 
 ## Kept desks
 
-Collecting finished work settles it in T3 (Lucid asks again once if T3's record did not change,
+Collecting finished work settles it in T3 (the app asks again once if T3's record did not change,
 and shows an error on the desk if it still did not). The desk then stays: its monitor shows the
 report with a "Settled" chip and a "Remove desk" button, and its robot heads off. New work takes
 a kept desk before a new desk is added, and a kept desk that was taken over is never recreated.

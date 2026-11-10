@@ -2,6 +2,7 @@ import { readPromptDraft, writePromptDraft } from "./prompt-draft";
 import gsap from "gsap";
 import { Roster, type RobotProfile } from "./roster";
 import { brandFor, harnessName, logoFor } from "./brand";
+import { BRAND } from "../brand";
 import type { RobotLook } from "./rig";
 import { portraitSvg } from "../world/look";
 import { PALETTES } from "../world/seated-parts";
@@ -102,7 +103,7 @@ export function openHire(opts: {
   const promptKey = () => `hire:${project}`;
   taskInput.value = readPromptDraft(promptKey());
   taskInput.addEventListener("input", () => {
-    if (!writePromptDraft(promptKey(), taskInput.value)) msg.textContent = "Draft could not be saved. Copy your prompt before closing Lucid.";
+    if (!writePromptDraft(promptKey(), taskInput.value)) msg.textContent = `Draft could not be saved. Copy your prompt before closing ${BRAND.name}.`;
   });
   let config: HireRuntime | null = null, selection: HireSelection | null = null;
   let role: Role | null = null, pick = 0;
@@ -367,7 +368,7 @@ export function openHire(opts: {
     try {
       let task = text;
       if (files.length) {
-        if (!opts.saveAttachment) throw new Error("File attachments are unavailable. Reconnect Lucid and retry.");
+        if (!opts.saveAttachment) throw new Error(`File attachments are unavailable. Reconnect ${BRAND.name} and retry.`);
         const paths: string[] = [];
         for (const file of files) {
           let path = savedPaths.get(file);

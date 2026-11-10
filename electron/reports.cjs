@@ -30,7 +30,7 @@ const parseVerdict = (text, reportId = null) => {
   return null;
 };
 
-function createReports({ dir, t3, server, usage, settings, robots = () => [], name = 'Lucid', spent = null }) {
+function createReports({ dir, t3, server, usage, settings, robots = () => [], name = require('./brand.cjs').name, spent = null }) {
   // The folder appears with the first paper, so an orchestrator nobody set up leaves no trace.
   const file = path.join(dir, 'index.json');
   let papers = [];
@@ -286,7 +286,7 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [], na
       }
       else if (action === 'collect') {
         if (p.status !== 'approved') throw new Error('Only approved work can be collected.');
-        // Record the intent first. If T3 is slow or Lucid closes, collection finishes on recovery.
+        // Record the intent first. If T3 is slow or the app closes, collection finishes on recovery.
         update(p, { collectRequested: true, collectedAt: new Date().toISOString(), error: null }); save();
         try { await settle(p, 'You'); }
         catch (error) {

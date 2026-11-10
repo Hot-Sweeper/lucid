@@ -19,7 +19,7 @@ pins, themes, dictation and usage.
   translation of fictional text, the Follow T3 theme, dictation and usage.
 - Updates: `updater.cjs` (source checkouts, see `AGENTS.md`) and `packaged-updater.cjs`
   (installed builds, see `releasing.md`), picked by `app.isPackaged`.
-- `brand.cjs` holds the public product name and app id, mirrored by `src/brand.ts`.
+- `brand.json` holds the public product name and app id; `brand.cjs` and `src/brand.ts` read it.
 
 ## Renderer (`src/`)
 

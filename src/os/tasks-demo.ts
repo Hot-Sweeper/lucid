@@ -54,7 +54,7 @@ async function run(d: { wm: WM; tasks: TasksApp }) {
       (window as any).__phase = s.name;
       log.textContent = `Step: ${s.name}`;
       if (s.other) { await d.wm.open("notes"); await d.wm.sleep(900); continue; }
-      await d.tasks.show(s.plan, { instant: s.instant, title: "Lucid tasks app" });
+      await d.tasks.show(s.plan, { instant: s.instant, title: "Tasks app" });
       await d.wm.sleep(900);
     }
   } catch (err) {

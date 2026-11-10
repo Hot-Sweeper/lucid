@@ -6,10 +6,10 @@ const document = { hidden: false };
 const code = (await transformWithOxc((await readFile('src/localization-speech.ts', 'utf8')).replace(/^import .*;\r?\n/gm, ''), 'localization-speech.ts')).code.replace(/export\s*\{[^}]*\};?/g, '').replace(/^export /gm, '');
 const authored = new Map([['Hello!', 'Hallo!']]);
 const authoredLine = (text, lang) => lang === 'de' ? (authored.get(text) ?? ([...authored.values()].includes(text) ? text : null)) : ([...authored].find(([, de]) => de === text)?.[0] ?? (authored.has(text) ? text : null));
-const create = new Function('getLocale', 'onLocaleChange', 'translateEntries', 'uiText', 'document', 'canonicalText', 'authoredLine', code + ';return flavorSpeech;')(
+const create = new Function('getLocale', 'onLocaleChange', 'translateEntries', 'uiText', 'document', 'canonicalText', 'authoredLine', 'BRAND', code + ';return flavorSpeech;')(
   () => language, fn => { listener = fn; return () => { listener = undefined; }; },
   entries => { calls++; return new Promise(done => { resolve = () => done(entries.map(e => ({ ...e, text: 'Deutsch: ' + e.text }))); }); },
-  text => text, document, text => text, authoredLine,
+  text => text, document, text => text, authoredLine, { name: 'Test Works' },
 );
 const speech = create(text => { shown = text; });
 speech.show('First line'); const first = resolve;

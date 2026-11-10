@@ -20,7 +20,6 @@ const isNum = (c: Cell) => !!c && typeof c.n === "number" && Number.isFinite(c.n
 export class Cellsheet {
   private cells: Cell[][] = [];
   private shown = new Map<string, string>();
-  private sel = { r: 0, c: 0 };
   constructor(private wm: WM) {}
 
   private async ensure(name: string): Promise<UI> {
@@ -114,7 +113,6 @@ export class Cellsheet {
   }
 
   private select(ui: UI, r: number, c: number, r2 = r, c2 = c) {
-    this.sel = { r, c };
     ui.table.querySelectorAll(".sel, .in-range").forEach((x) => x.classList.remove("sel", "in-range"));
     ui.table.querySelectorAll("th.hl").forEach((x) => x.classList.remove("hl"));
     const [r0, r1, c0, c1] = [Math.min(r, r2), Math.max(r, r2), Math.min(c, c2), Math.max(c, c2)];

@@ -4,7 +4,7 @@ import type { WM } from "./wm";
 import { esc, typeInto } from "./typing";
 import type { Entry, Hit } from "./classify";
 import { fmtSize } from "./classify";
-import { iconFor, kindOf, typeLabel, kindLabel, type FileKind } from "./file-kinds";
+import { iconFor, kindOf, typeLabel, type FileKind } from "./file-kinds";
 import {
   FolderModel, ancestry, collapseCrumbs, crumbsFor, fmtBytes, fmtDate, isAbsolutePath, isInside, joinPath, nameOf, normPath, parentOf, pathKey, route,
   type ExplorerItem, type Problem,
@@ -40,7 +40,6 @@ export class FilesApp {
   private model = new FolderModel();
   private cur: string | null = null;
   private root: string | null = null;
-  private selected: string | null = null;
   private hist: History = { stack: [], at: -1 };
   private mode: "folder" | "search" = "folder";
   private tweens = new Set<gsap.core.Tween>();
@@ -50,7 +49,7 @@ export class FilesApp {
   /** Forget everything the agent has shown so far (a new session at this desk). */
   reset() {
     this.model.clear();
-    this.cur = null; this.selected = null; this.hist = { stack: [], at: -1 }; this.mode = "folder"; this.previews.clear();
+    this.cur = null; this.hist = { stack: [], at: -1 }; this.mode = "folder"; this.previews.clear();
     for (const t of this.tweens) t.kill();
     this.tweens.clear();
   }
@@ -91,7 +90,7 @@ export class FilesApp {
           <footer class="fx-status"><span class="fx-count"></span><span class="fx-sel"></span></footer>
         </div>`;
       // a window that was closed and opened again starts from scratch, but the model keeps what was seen
-      this.cur = null; this.selected = null; this.hist = { stack: [], at: -1 }; this.mode = "folder";
+      this.cur = null; this.hist = { stack: [], at: -1 }; this.mode = "folder";
     }
     return w;
   }
@@ -173,7 +172,7 @@ export class FilesApp {
       this.hist.stack.push(target); this.hist.at = this.hist.stack.length - 1;
     }
     this.cur = target;
-    this.selected = null;
+   
     this.renderCrumbs(w, target);
     this.renderTree(w, target);
     const list = this.q(w, ".fx-list");
@@ -197,7 +196,6 @@ export class FilesApp {
     const list = this.q(w, ".fx-list");
     list.querySelector(".sel")?.classList.remove("sel");
     list.querySelector('[aria-selected="true"]')?.setAttribute("aria-selected", "false");
-    this.selected = path;
     const row = path ? this.rowOf(w, path) : null;
     if (row) {
       row.classList.add("sel"); row.setAttribute("aria-selected", "true");

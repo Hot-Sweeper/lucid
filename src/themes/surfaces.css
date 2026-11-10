@@ -1,11 +1,11 @@
-/* Themed surfaces: the colours of Lucid's chrome, the office lighting and the robots' computers,
+/* Themed surfaces: the colours of the app's chrome, the office lighting and the robots' computers,
    read from theme tokens (tokens.css). With the default tokens this reproduces the original look.
    The html:root[data-theme] prefix outranks each component's own rule, including stylesheets
    that load later with their app. Only colours live here; layout stays in the components.
    App brands and site replicas (Botflix, Botify, harness apps, GitHub-style pages, office suite
    ribbons, games) keep their own palettes and are deliberately not themed. */
 
-/* ---- Lucid interface -------------------------------------------------------------------- */
+/* ---- App interface --------------------------------------------------------------------- */
 html:root[data-theme] ::-webkit-scrollbar-thumb { background-color: var(--ui-scroll); }
 html:root[data-theme] ::-webkit-scrollbar-thumb:hover { background-color: var(--ui-scroll-hover); }
 html:root[data-theme] .panel { box-shadow: inset -1px 0 0 var(--ui-edge); }
@@ -31,9 +31,7 @@ html:root[data-theme] .wx-menu { background: var(--ui-menu); outline: 1px solid 
 html:root[data-theme] .office-settings { outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 html:root[data-theme] .dialog-wrap { background: var(--ui-scrim); }
 html:root[data-theme] .zoom-ui button,
-html:root[data-theme] .zoom-btn { background: var(--ui-float); outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 html:root[data-theme] .zoom-ui button:hover,
-html:root[data-theme] .zoom-btn:hover { background: var(--ui-float-hover); }
 html:root[data-theme] .cp-tab:hover { background: var(--ui-hover); }
 html:root[data-theme] .cp-tab.ref-over { background: var(--ui-drop); }
 html:root[data-theme] .th-ghost.over { background: var(--ui-ghost-over); }
@@ -42,9 +40,8 @@ html:root[data-theme] .cpc-ext { background: var(--ui-chip); }
 html:root[data-theme] .cp-queue { background: var(--ui-queue); }
 html:root[data-theme] .cp-queue li.dragging { background: var(--ui-queue-drag); }
 html:root[data-theme] .coin-tray { background: var(--ui-tray); }
-html:root[data-theme] .ms-toast { background: var(--ui-toast); outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 
-/* Lucid's own monitor screens: task reports, questions, image viewer. */
+/* The app's own monitor screens: task reports, questions, image viewer. */
 html:root[data-theme] .monitor-task-panel,
 html:root[data-theme] .mt-far,
 html:root[data-theme] .monitor-task-question .ca-actions { background: var(--mt-panel); }
@@ -58,7 +55,6 @@ html:root[data-theme] .mt-image-viewer::backdrop { background: var(--mt-viewer-s
 html:root[data-theme] .scene { background: color-mix(in srgb, var(--world-outdoor-tint) calc(var(--scene-night) * 84%), var(--scene-ground, #78b066)); }
 html:root[data-theme] .night-shade { opacity: calc(var(--night) * var(--world-indoor-shade-k)); }
 html:root[data-theme] .night-shade path { fill: var(--world-night-tint); }
-html:root[data-theme] .shopfront::after { background: var(--world-night-tint); }
 /* outside.ts writes this tint inline; the theme picks its colour and strength. */
 html:root[data-theme] .outside-tint[style*="#0a1236"] { background: var(--world-outdoor-tint) !important; opacity: calc(var(--outdoor-night, 0) * var(--world-outdoor-tint-k)) !important; }
 html:root[data-theme] .weather-sky-view { display: var(--world-sky-layer); }
@@ -82,7 +78,6 @@ html:root[data-theme] .project-office-prop > svg { filter: var(--world-prop-filt
 html:root[data-theme] .amb-window .amb-cloud { filter: var(--world-cloud-filter); }
 html:root[data-theme] .world-card { background: var(--wd-plate); color: var(--wd-plate-ink); }
 /* The shop shows each material as it is sold, without the theme's restyling or shade. */
-html:root[data-theme] .lucid-store { --wd-bought-shade: 0; --wd-floor: initial; --wd-seam: initial; --wd-wall: initial; --wd-trim: initial; }
 html:root[data-theme] .desk-plate { background: var(--wd-plate); color: var(--wd-plate-ink); }
 html:root[data-theme] .desk-plate span b { color: var(--wd-plate-sub); }
 
@@ -113,26 +108,19 @@ html:root[data-theme] .launcher .caret { background: var(--os-popup-ink); }
 html:root[data-theme] .l-result { background: var(--os-popup-row); }
 html:root[data-theme] .l-result > small { color: var(--os-popup-muted); }
 
-html:root[data-theme] .files-top { background: var(--os-files-bar); }
 html:root[data-theme] .crumbs, html:root[data-theme] .out { color: var(--os-text-2); }
-html:root[data-theme] .search-box { background: var(--os-field); }
-html:root[data-theme] .search-box.active { background: var(--os-field-active); }
-html:root[data-theme] .row .s, html:root[data-theme] .empty, html:root[data-theme] .hit-line b,
+html:root[data-theme] .empty,
 html:root[data-theme] .lock-hint, html:root[data-theme] .uac-rows dt, html:root[data-theme] .uac-foot { color: var(--os-muted); }
-html:root[data-theme] .hit-line, html:root[data-theme] .lock-date, html:root[data-theme] .game-head { color: var(--os-bar-ink); }
+html:root[data-theme] .lock-date, html:root[data-theme] .game-head { color: var(--os-bar-ink); }
 
-/* the default editor; the paper and vim flavours have their own rules below */
-html:root[data-theme] .editor:not(.ed-pad):not(.ed-vim),
-html:root[data-theme] .editor:not(.ed-pad) .tab.on { background: var(--os-editor); }
+/* the code editor */
+html:root[data-theme] .editor,
+html:root[data-theme] .editor .tab.on { background: var(--os-editor); }
 html:root[data-theme] .tabs { background: var(--os-tabs); }
 html:root[data-theme] .tab:not(.on) { color: var(--os-tab); }
-html:root[data-theme] .editor:not(.ed-pad):not(.ed-vim) .ln b, html:root[data-theme] .ln.gap { color: var(--os-dim); }
+html:root[data-theme] .editor .ln b, html:root[data-theme] .ln.gap { color: var(--os-dim); }
 html:root[data-theme] .term { background: var(--os-term); }
-html:root[data-theme] .chat,
-html:root[data-theme] .chat-app { background: var(--os-chat); }
-html:root[data-theme] .chat-compose { background: var(--os-compose); }
-html:root[data-theme] .cc-field { background: var(--os-compose-field); }
-html:root[data-theme] .chat-compose:not(.has-text) .cc-send { background: var(--os-send); }
+html:root[data-theme] .chat { background: var(--os-chat); }
 html:root[data-theme] .msg.bot p { background: var(--os-bubble); }
 html:root[data-theme] .tool { background: var(--os-tool); }
 html:root[data-theme] .b-action { background: var(--os-action); }
@@ -166,31 +154,9 @@ html:root[data-theme] .gd { background: var(--os-gd); }
 html:root[data-theme] .gd-bar { background: var(--os-gd-bar); }
 html:root[data-theme] .frontend-status { background: var(--os-status); }
 
-/* the paper-style notepad editor flavour */
-html:root[data-theme] .editor.ed-pad { background: var(--os-paper); }
-html:root[data-theme] .editor.ed-pad .tabs { background: var(--os-paper-tabs); }
-html:root[data-theme] .editor.ed-pad .tab { color: var(--os-paper-tab); }
-html:root[data-theme] .editor.ed-pad .tab.on { background: var(--os-paper); color: var(--os-paper-ink); }
-html:root[data-theme] .editor.ed-pad .ln b { color: var(--os-paper-ln); background: var(--os-paper-gutter); }
-html:root[data-theme] .editor.ed-pad .code { color: var(--os-paper-ink); }
-html:root[data-theme] .editor.ed-pad .caret { background: var(--os-paper-ink); }
-html:root[data-theme] .editor.ed-pad .t-k { color: var(--os-paper-k); }
-html:root[data-theme] .editor.ed-pad .t-s { color: var(--os-paper-s); }
-html:root[data-theme] .editor.ed-pad .t-c { color: var(--os-paper-c); }
-html:root[data-theme] .editor.ed-pad .t-n { color: var(--os-paper-n); }
-html:root[data-theme] .editor.ed-pad .t-f { color: var(--os-paper-f); }
-html:root[data-theme] .editor.ed-pad .t-t { color: var(--os-paper-t); }
-
-/* sticky notes and the notepad apps */
+/* sticky notes */
 html:root[data-theme] .notes { background-color: var(--os-note); background-image: repeating-linear-gradient(var(--os-note) 0 17px, var(--os-note-line) 17px 18px); color: var(--os-note-ink); }
 html:root[data-theme] .notes-workspace { background: var(--os-note); }
-html:root[data-theme] .notes-chrome { background: var(--os-note-chrome); color: var(--os-note-chrome-ink); }
-html:root[data-theme] .os[data-notes-app="notepad"] .app-notes .win-bar { background: var(--os-np-bar); color: var(--os-np-bar-ink); }
-html:root[data-theme] .os[data-notes-app="notepad"] .notes-chrome { background: var(--os-np-chrome); color: var(--os-np-chrome-ink); }
-html:root[data-theme] .os[data-notes-app="notepad"] .notes { background: var(--os-np-page); color: var(--os-np-ink); }
-html:root[data-theme] .os[data-notes-app="notepad-plus-plus"] .app-notes .win-bar { background: var(--os-npp-bar); color: var(--os-npp-bar-ink); }
-html:root[data-theme] .os[data-notes-app="notepad-plus-plus"] .notes-chrome { background: var(--os-npp-chrome); color: var(--os-npp-chrome-ink); }
-html:root[data-theme] .os[data-notes-app="notepad-plus-plus"] .notes { background: linear-gradient(to right, var(--os-npp-gutter) 28px, var(--os-npp-page) 28px); color: var(--os-npp-ink); }
 
 /* the robot browser's own chrome and article pages */
 html:root[data-theme] .browser,

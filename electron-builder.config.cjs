@@ -1,5 +1,5 @@
 // Packaging for Linux, Windows and macOS (electron-builder). Names and ids come from the brand
-// module, so renaming the product happens in electron/brand.cjs and src/brand.ts only.
+// module, so renaming the product happens in electron/brand.json only.
 // Build the renderer first (npm run build writes dist-build); it is packaged as dist/.
 const brand = require("./electron/brand.cjs");
 

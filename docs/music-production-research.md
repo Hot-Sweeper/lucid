@@ -1,4 +1,4 @@
-# Lucid music: references, production decisions and limits
+# Office music: references, production decisions and limits
 
 ## What was inspected
 
@@ -13,7 +13,7 @@ repository, renders, samples or application.
 
 This is source research and signal analysis, not a claim of subjective listening.
 The middle 24 seconds of each preview were compared with a 24-second section of
-Lucid's earlier render. Detected onsets, stereo energy, spectrum and tempo
+the app's earlier render. Detected onsets, stereo energy, spectrum and tempo
 candidates help identify production differences; they do not score musical taste.
 Preview mastering, excerpt position and half/double-time ambiguity limit such
 comparisons. They are not numeric targets to copy.
@@ -46,7 +46,7 @@ rules defining the genres.
   released CC0. The selected drum subset retains velocity layers and alternate
   takes, with pinned source paths and hashes. This replaces an oscillator/noise
   approximation of an acoustic break. Raw sample caches remain authoring inputs;
-  Lucid streams the composed recordings.
+  the app streams the composed recordings.
 - **[Surge XT](https://surge-synthesizer.github.io/manual-xt/):** a developed
   subtractive/hybrid instrument, with filters, envelopes, modulation and effects.
   The authoring setup loads its native Linux VST3 through Pedalboard and creates

@@ -5,7 +5,6 @@
   --thread-title-working: #bfc1c8;
   --thread-work: #6fb6ff;
   --thread-ask: #ffd27a;
-  --thread-review: var(--accent);
   --thread-fail: #ff6b6b;
   --thread-done: #4fd18b;
 }

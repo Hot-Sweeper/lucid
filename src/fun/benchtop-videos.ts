@@ -934,7 +934,7 @@ const hotReload: VideoDef = {
   id: "th-reload", title: "Hot reload, saved twelve times a minute", channel: "Fast Refresh", views: "3.3M views", durationLabel: "8:08", loop: 6, thumbT: 1.7,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 6);
-    const { s, X, Y } = core(w, h, 0.5);
+    const { s, Y } = core(w, h, 0.5);
     bg(ctx, w, h);
     const i = Math.floor(t / 1.5) % 4, f = (t % 1.5) / 1.5;
     const col = HUES[i];

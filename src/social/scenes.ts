@@ -9,11 +9,6 @@ type Paint = (c: Ctx, w: number, h: number, t: number) => void;
 const R = (i: number, k: number) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
 
 const sky = (c: Ctx, w: number, h: number, a: string, b: string) => { c.fillStyle = lin(c, 0, 0, 0, h, [[0, a], [1, b]]); c.fillRect(0, 0, w, h); };
-const hills = (c: Ctx, w: number, y: number, col: string, amp: number, ph = 0) => {
-  c.beginPath(); c.moveTo(0, y);
-  for (let x = 0; x <= w; x += 6) c.lineTo(x, y + Math.sin(x / (w / 3) + ph) * amp);
-  c.lineTo(w, 9999); c.lineTo(0, 9999); c.closePath(); c.fillStyle = col; c.fill();
-};
 
 export const SCENES: Record<string, Paint> = {
   beach(c, w, h, t) {

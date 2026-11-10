@@ -1,6 +1,7 @@
 import { renderFps, renderPixelRatio } from '../perf/render';
 import { setDetailScene, clearDetailScene, type DetailScene } from '../perf/detail-scene';
 import './frontend.css';
+import { BRAND } from '../brand';
 import type { WorkspaceBrowserTarget } from './workspace-browser';
 
 export type FrontendTarget = { workspace?: WorkspaceBrowserTarget; url?: string; html?: string; file?: string; root?: string };
@@ -66,7 +67,7 @@ export class FrontendView {
         delay = 500; return;
       }
       this.paused = false;
-      if (!this.api?.frontendFrame) { this.status.textContent = 'Update Lucid to view live frontends.'; return; }
+      if (!this.api?.frontendFrame) { this.status.textContent = `Update ${BRAND.name} to view live frontends.`; return; }
       const revision = this.revision;
       const frame = await this.api.frontendFrame({ id: this.id, target: this.opened ? undefined : this.target, mode,
         density: Math.min(2, Math.max(1, renderPixelRatio(this.root))), height: this.viewportHeight,

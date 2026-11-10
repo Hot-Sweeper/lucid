@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 module.exports = async ({ js, wc, wait, out }) => {
-  const result = { checks: [], marketRequests: [], provenance: 'Injected local market responses, no external network verification.' };
+  const result = { checks: [] };
   const save = () => fs.writeFileSync(path.join(out, 'screen-details-checks.json'), JSON.stringify(result, null, 2));
   const shot = async name => fs.writeFileSync(path.join(out, `${name}.png`), (await wc.capturePage()).toPNG());
   const check = (ok, message) => { result.checks.push({ message, passed: !!ok }); save(); if (!ok) throw Error(message); };
@@ -13,21 +13,6 @@ module.exports = async ({ js, wc, wait, out }) => {
     while (Date.now() < end) { if (await js(code)) return; await wait(60); }
     throw Error(message);
   };
-  // Restore the exact production market registrations after this isolated runtime check.
-  const { ipcMain } = require('electron');
-  const market = require('../../electron/market.cjs');
-  let offline = false;
-  const last = 12345.67;
-  const candles = Array.from({ length: 30 }, (_, i) => ({ t: Date.now() - (30 - i) * 60000, o: last - 30 + i, h: last - 27 + i, l: last - 32 + i, c: i === 29 ? last : last - 29 + i }));
-  ipcMain.removeHandler('market:klines'); ipcMain.removeHandler('market:price');
-  ipcMain.handle('market:klines', (_e, symbol, interval) => {
-    result.marketRequests.push({ method: 'klines', symbol, interval, offline });
-    return offline ? { ok: false, error: 'Fixture network offline' } : { ok: true, value: { source: 'Fixture public feed', candles } };
-  });
-  ipcMain.handle('market:price', (_e, symbol) => {
-    result.marketRequests.push({ method: 'price', symbol, offline });
-    return offline ? { ok: false, error: 'Fixture network offline' } : { ok: true, value: { source: 'Fixture public feed', price: last } };
-  });
   try {
     await js(`{
       const w=window.__world,d=w.desks.get('perf-t0')||[...w.desks.values()].find(x=>x.threadId);
@@ -77,16 +62,10 @@ module.exports = async ({ js, wc, wait, out }) => {
       f.startTrade=()=>{idle.active=true;const tok=++idle.token;f.trade=idle.doActivity('trading',tok).catch(e=>{if(e.constructor.name!=='Cancelled')f.tradeError=String(e)})};
       f.stopTrade=()=>{idle.stop();f.d.wm.reset()};f.startTrade();
     }`);
-    await until(`window.__screenDetails.d.wm.root.querySelector('.tb-pair small')?.textContent==='Live market feed' && window.__screenDetails.d.wm.root.querySelector('.tb-px')?.textContent.includes('12,345.67')`, 'Botcoin Exchange did not present the supplied candle response and price');
+    await until(`window.__screenDetails.d.wm.root.querySelector('.tb-pair small')?.textContent==='Rises when the office ships work' && /\\$[\\d,]+\\.\\d\\d/.test(window.__screenDetails.d.wm.root.querySelector('.tb-px')?.textContent || '')`, 'Botcoin Exchange did not present the local Botcoin chart');
     result.market = await js(`{const r=window.__screenDetails.d.wm.root;({note:r.querySelector('.tb-pair small').textContent,price:r.querySelector('.tb-px').textContent,canvas:r.querySelector('.tb-chart canvas').width,fictional:r.querySelector('.tb-fic').textContent})}`);
-    check(result.market.price.includes('12,345.67') && result.market.canvas > 0 && result.market.fictional === 'Fictional coins', 'Botcoin Exchange uses supplied feed prices and identifies its fictional market section');
-    check(result.marketRequests.some(r => r.method === 'klines' && r.symbol === 'BTCUSDT' && r.interval === '1m'), 'Botcoin Exchange requests live market candles for the actual timeframe');
-    await shot('screen-details-trading-feed');
-    await js(`window.__screenDetails.stopTrade()`);offline = true;
-    await js(`window.__screenDetails.startTrade()`);
-    await until(`window.__screenDetails.d.wm.root.querySelector('.tb-pair small')?.textContent==='Offline, simulated prices'`, 'Botcoin Exchange offline simulation was not clearly labelled');
-    check(true, 'Unavailable market data is explicitly labelled Offline, simulated prices');
-    await shot('screen-details-trading-offline');
+    check(result.market.canvas > 0 && result.market.fictional === 'Fictional coins', 'Botcoin Exchange shows the local office coin and identifies its fictional market section');
+    await shot('screen-details-trading-botcoin');
     await js(`{const f=window.__screenDetails;f.stopTrade();Math.random=()=>0.01;f.startTrade()}`);
     await until(`window.__screenDetails.d.wm.root.querySelector('.tb-pair small')?.textContent==='Fictional coin, made-up prices'`, 'Parody coin was not explicitly labelled');
     check(await js(`window.__screenDetails.d.wm.root.querySelector('.tb-pair b').textContent==='BOLT/USD'`), 'Robot parody coin retains its made-up price label');
@@ -95,7 +74,7 @@ module.exports = async ({ js, wc, wait, out }) => {
     result.error = String(error); await shot('screen-details-failure').catch(() => {}); throw error;
   } finally {
     await js(`{const f=window.__screenDetails;if(f){f.d.director.idleLife.stop();f.d.director.uac.reset();f.d.director.uac.deps=f.uacDeps;f.d.director.idleLife.host=f.host;f.d.wm.reset();f.d.wm.speed=f.speed;f.d.wm.prefs=f.prefs;Math.random=f.random;delete window.__screenDetails}}`).catch(() => {});
-    ipcMain.removeHandler('market:klines'); ipcMain.removeHandler('market:price');market.register(ipcMain);save();
+    save();
   }
   console.log(JSON.stringify({ screenDetails: result }));
 };

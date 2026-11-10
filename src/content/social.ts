@@ -1,4 +1,5 @@
 import { spice, spiceAll } from "./emoji";
+import { BRAND } from "../brand";
 
 // Social and desktop app content: family chats, channels, posts, captions, mail and lessons.
 // Wholesome and silly. No real people, no real brands.
@@ -293,7 +294,7 @@ export const MAIL: Mail[] = [
   { from: "Hardware Shop", subj: "Your thermal paste has shipped", body: "Good news! Your tube of premium thermal paste is on the way. Estimated arrival: soon-ish." },
   { from: "Gizmo", subj: "Re: Re: Re: lunch?", body: "ok so 12:30 at the place with the good outlets?", reply: "yes, see you there" },
   { from: "Totally Real Bank", subj: "Your account has been suspended (not really)", spam: true, body: "Click here to verify. Please. We really need this." },
-  { from: "Lucid HR", subj: "Reminder: fun friday quiz", body: "This week's theme: famous error messages. Prizes include a sticker." },
+  { from: `${BRAND.shortName} HR`, subj: "Reminder: fun friday quiz", body: "This week's theme: famous error messages. Prizes include a sticker." },
 ];
 
 // ---------------------------------------------------------------- Lingobot

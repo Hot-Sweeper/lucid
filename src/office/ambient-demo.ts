@@ -84,7 +84,7 @@ function roomSvg(r: FakeRoom) {
   </svg>`;
 }
 
-// a building like a busy Lucid: queue, main office, break room on top, four project offices below
+// a busy office building: queue, main office, break room on top, four project offices below
 const topH = 980, HALL = 150;
 const ROOMS: FakeRoom[] = [
   { x: 0, y: topH - 800, w: 720, h: 800, desks: 0, decor: [], accent: "#b07cff" },

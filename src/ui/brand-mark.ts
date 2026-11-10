@@ -1,4 +1,4 @@
-// The product mark: a warm token in Lucid's peach, with a pressed inner ring and one highlight.
+// The product mark: a warm token in the app's peach, with a pressed inner ring and one highlight.
 // The name it stands for comes from src/brand.ts.
 export function brandMark(size = 20): string {
   return `<svg class="brand-mark" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true" focusable="false">

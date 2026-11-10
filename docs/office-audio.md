@@ -64,19 +64,18 @@ relationships, shared textures, the chapter's energy and the time of day. A
 route planner keeps the rest of the unheard bag playable through fitting steps,
 so a full rotation completes without repeats. If only distant songs remain, the
 director walks toward them through fitting songs (a short reprise) instead of
-jumping. Manual picks are one-off; the next automatic song continues smoothly
-from whatever was picked.
+jumping.
 
 Songs crossfade. About seven seconds before a song ends, the next one starts on
 a second stream and both follow equal-power curves, so overall loudness stays
-even. **Next song** and library picks blend over 1.5 seconds. Songs shorter
+even. **Next song** blends over 1.5 seconds. Songs shorter
 than two blends overlap for at most a third of their length. Each stream fades
-to its own measured trim. Pause, mute, hiding Lucid and a zero music level stop
+to its own measured trim. Pause, mute, hiding the app and a zero music level stop
 the outgoing stream at once; resuming plays only the current song. At most two
 theme streams exist, alternating between playing and idle.
 
 Only active playback of the current song advances the journey. Pausing,
-muting, hiding Lucid, buffering, seeking, the outgoing half of a blend and
+muting, hiding the app, buffering, seeking, the outgoing half of a blend and
 wall-clock time do not count. Chapter progress, history, playback position,
 pause state and direction persist across restarts. Saved state that names a
 removed song, chapter or genre direction falls back gracefully (removed songs
@@ -87,8 +86,7 @@ Choose a genre to stay in it, **Ambient pads** for quiet pad-led pieces, or
 **Bells & wonder** for gentle bell material. Only directions with songs in the
 library are offered. A direction schedules the next song; **Next song** applies
 it immediately. Each genre and texture direction completes its own rotation,
-and songs heard through another matching direction or a manual pick count
-toward it. **Pause music** leaves room ambience and game sounds alone.
+and songs heard through another matching direction count toward it. **Pause music** leaves room ambience and game sounds alone.
 
 **Sound volume** controls everything. **Theme music** and **Room ambience**
 adjust the background layers independently; zero pauses that layer. Global

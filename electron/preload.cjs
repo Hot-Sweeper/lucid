@@ -11,13 +11,10 @@ contextBridge.exposeInMainWorld("lucid", {
   projects: () => ipcRenderer.invoke("t3:projects"),
   threads: () => ipcRenderer.invoke("t3:threads"),
   watchSet: (ids) => ipcRenderer.invoke("t3:watch-set", ids),
-  office: (projectId) => ipcRenderer.invoke("t3:office", projectId),
-  offices: () => ipcRenderer.invoke("t3:offices"),
   world: () => ipcRenderer.invoke("t3:world"),
   environments: (fresh = false) => ipcRenderer.invoke("environment:list", fresh),
   buildingWorld: (id) => ipcRenderer.invoke("environment:world", id),
   selectEnvironment: (id) => ipcRenderer.invoke("environment:select", id),
-  tasks: () => ipcRenderer.invoke("t3:tasks"),
   rosterLoad: () => ipcRenderer.sendSync("roster:load"),
   settingsLoad: () => ipcRenderer.sendSync("settings:load"),
   settingsSave: (json) => ipcRenderer.invoke("settings:save", json),
@@ -87,11 +84,10 @@ contextBridge.exposeInMainWorld("lucid", {
   checkUpdate: () => ipcRenderer.invoke("app:check-update"),
   applyUpdate: () => ipcRenderer.invoke("app:apply-update"),
   onUpdateStep: on("app:update-step"),
-  version: () => ipcRenderer.invoke("app:version"),
   t3Theme: () => ipcRenderer.invoke("t3:theme"),
 });
 
-// T3 server actions that need Lucid's paired session. Each call resolves with the value or rejects with a readable message.
+// T3 server actions that need the app's paired session. Each call resolves with the value or rejects with a readable message.
 const t3s = (channel) => async (arg) => {
   const r = await ipcRenderer.invoke(channel, arg);
   if (!r?.ok) { const err = new Error(r?.error || "T3 did not answer."); err.code = r?.code; throw err; }
@@ -106,7 +102,6 @@ contextBridge.exposeInMainWorld("lucidT3", {
   providers: t3s("t3s:providers"),
   hireConfig: t3s("t3s:hire-config"),
   searchThreads: t3s("t3s:search-threads"),
-  hireContexts: t3s("t3s:hire-contexts"),
   reorder: t3s("t3s:reorder"),
   moveThread: t3s("t3s:move-thread"),
   cancel: t3s("t3s:cancel"),
@@ -119,11 +114,6 @@ contextBridge.exposeInMainWorld("lucidT3", {
 });
 
 // Office documents for the robots' Botword, Cellsheet and Slidedeck: { ok, doc } or { ok: false, error }.
-// Real market data for the Botcoin Exchange: { ok, value } or { ok: false, error }.
-contextBridge.exposeInMainWorld("lucidMarket", {
-  klines: (symbol, interval) => ipcRenderer.invoke("market:klines", symbol, interval),
-  price: (symbol) => ipcRenderer.invoke("market:price", symbol),
-});
 contextBridge.exposeInMainWorld("lucidDocs", { read: (p) => ipcRenderer.invoke("doc:read", p) });
 
 // Dictation through T3 Code's speech service. Errors keep T3's reason as `code`.

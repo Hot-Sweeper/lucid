@@ -1,12 +1,12 @@
 # Interface themes
 
-Lucid's interface, office lighting and robot computers are themed together. Follow T3 is the default when T3 Code's theme can be read; Night blue is the default otherwise; OLED black is the third theme.
+The app's interface, office lighting and robot computers are themed together. Follow T3 is the default when T3 Code's theme can be read; Night blue is the default otherwise; OLED black is the third theme.
 
 ## How it fits together
 
 - `src/themes/registry.ts` lists the themes: id, English and German label, window colour and how the office world is lit and drawn (`alwaysMidnight`, `nightSky`, `artShade` for a moonlit palette, `mapEdge` for the colour the woodland fades into).
 - `src/themes/tokens.css` defines every themed colour as a token. The defaults are the night look, exactly as the components drew it.
-- `src/themes/surfaces.css` applies the tokens to Lucid's chrome, the office lighting and the robot desktop apps. Its `html:root[data-theme]` prefix outranks each component's own colour rule, including stylesheets that load later with their app.
+- `src/themes/surfaces.css` applies the tokens to the app's chrome, the office lighting and the robot desktop apps. Its `html:root[data-theme]` prefix outranks each component's own colour rule, including stylesheets that load later with their app.
 - `src/themes/<id>.css` sets token values on `:root[data-theme="<id>"]` and nothing else.
 - `src/interface-theme.ts` applies the saved theme before the interface is built, builds the Interface selector in Office & settings from the registry, and crossfades switches with View Transitions (instant under reduced motion). The world relights on the `lucid:interface-theme` event.
 
@@ -28,7 +28,7 @@ Robot bodies come from `bodyColors()` in `src/world/look.ts`: each body colour i
 
 ## Apps on the robots' computers
 
-Each app has a light look (its own stylesheet) and a dark look in `src/themes/app-dark/` (`web.css` for browser pages, `social.css` for the social and pastime apps, `apps.css` for the office suite and the rest). The theme's `appScheme` puts `data-app-scheme` on `<html>`, and dark rules are prefixed `html:root[data-app-scheme="dark"]`. Branded replicas follow the real product's dark mode (WhatsApp, Telegram, Gmail, Duolingo, GitHub, Google search, Wikipedia, Office Black); Lucid-original apps use neutral near-black surfaces. A new app adds its dark rules there.
+Each app has a light look (its own stylesheet) and a dark look in `src/themes/app-dark/` (`web.css` for browser pages, `social.css` for the social and pastime apps, `apps.css` for the office suite and the rest). The theme's `appScheme` puts `data-app-scheme` on `<html>`, and dark rules are prefixed `html:root[data-app-scheme="dark"]`. Branded replicas follow the real product's dark mode (WhatsApp, Telegram, Gmail, Duolingo, GitHub, Google search, Wikipedia, Office Black); the app-original apps use neutral near-black surfaces. A new app adds its dark rules there.
 
 ## Adding a theme
 

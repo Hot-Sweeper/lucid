@@ -145,17 +145,6 @@ export function makeInteractive(w: Walker, o: Opts = {}) {
   });
 }
 
-/** A short floating word ("Quack!", "Splash!") at a spot in a layer. */
-export function popWord(layer: HTMLElement, x: number, y: number, text: string, color = "#ffffff") {
-  const t = document.createElement("div");
-  t.className = "pop-word";
-  t.textContent = text;
-  t.style.cssText = `left:${x}px;top:${y}px;color:${color}`;
-  layer.appendChild(t);
-  gsap.fromTo(t, { y: 0, opacity: 0, scale: 0.6 }, { y: -40, opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" });
-  gsap.to(t, { opacity: 0, y: -60, duration: 0.5, delay: 0.9, onComplete: () => t.remove() });
-}
-
 /** Water droplets bursting from a point. */
 export function splash(layer: HTMLElement, x: number, y: number, n = 12) {
   for (let i = 0; i < n; i++) {

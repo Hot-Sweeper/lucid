@@ -14,7 +14,7 @@ async function run() {
   assert.match(failure.error, /installed version is still available/);
   assert(!updateFailure(Error(compiler), false).error.includes('still available'));
   assert.equal(updateFailure(Error('Source files changed while the update was being checked.'), true).kind, 'source-changed');
-  assert.equal(updateFailure(Error('Another Lucid update is still running.'), true).kind, 'busy');
+  assert.equal(updateFailure(Error('Another update is still running.'), true).kind, 'busy');
   assert.match(updateFailure(Error('ENOSPC write'), true).error, /disk space/);
   assert.match(updateFailure(Error('EBUSY rename'), true).error, /locked/);
   assert.match(updateFailure(Error('Command timed out'), true).error, /too long/);

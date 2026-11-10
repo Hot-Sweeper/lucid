@@ -42,7 +42,7 @@ function acquireUpdateLock(root) {
         try { process.kill(pid, 0); } catch (error) { stale = error.code === 'ESRCH'; }
       } catch { try { stale = Date.now() - fs.statSync(file).mtimeMs > 30000; } catch {} }
       if (stale && attempt === 0) { fs.unlinkSync(file); continue; }
-      throw Error('Another Lucid update is still running. Wait for it to finish, then retry.');
+      throw Error('Another update is still running. Wait for it to finish, then retry.');
     }
     try { fs.writeFileSync(fd, JSON.stringify({ pid: process.pid })); }
     catch (error) { fs.closeSync(fd); fs.unlinkSync(file); throw error; }

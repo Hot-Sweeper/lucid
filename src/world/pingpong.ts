@@ -28,7 +28,7 @@ export class PingPong {
   private b: BallState = { x: 0, sy: 0, h: 0 };
   private anims = new Anims();
 
-  constructor(private stage: RoomStage, readonly cx: number, readonly cy: number, private bounds: { x0: number; x1: number; y0: number; y1: number }) {
+  constructor(stage: RoomStage, readonly cx: number, readonly cy: number, private bounds: { x0: number; x1: number; y0: number; y1: number }) {
     this.x0 = cx - W / 2; this.x1 = cx + W / 2; this.net = cx;
     this.top = cy - D / 2;
     this.ends = [{ x: this.x0 - 36, y: cy + 4 }, { x: this.x1 + 36, y: cy + 4 }];

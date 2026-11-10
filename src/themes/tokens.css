@@ -5,12 +5,12 @@
 @property --deep { syntax: "<color>"; inherits: true; initial-value: #6d7b9b; }
 @property --acc-cloth { syntax: "<color>"; inherits: true; initial-value: #ff9f5a; }
 
-/* Theme tokens: the default values are Lucid's night look, exactly as the components drew it.
+/* Theme tokens: the default values are the app's night look, exactly as the components drew it.
    A theme file overrides any of these on :root[data-theme="<id>"]; surfaces.css applies them.
    Core interface tokens (--night, --night-2, --night-3, --ink*, --line, --accent, --mint) live
    in styles.css and are themed the same way. */
 :root {
-  /* ---- Lucid interface ---- */
+  /* ---- App interface ---- */
   --ui-chat: #161b3a;               /* the conversation shelf */
   --ui-field: #12153a;              /* composer, answer text, queue editor, choice face */
   --ui-code: #0f1230;               /* code blocks in chat */
@@ -19,7 +19,6 @@
   --ui-edge: transparent;           /* hairline round raised surfaces and panels */
   --ui-scrim: rgba(8, 10, 30, 0.55);
   --ui-float: rgba(20, 26, 51, 0.85);   /* buttons floating over the office */
-  --ui-float-hover: rgba(37, 45, 92, 0.95);
   --ui-hover: #1d2350;
   --ui-drop: #262553;
   --ui-drop-field: #1a1d48;
@@ -28,7 +27,6 @@
   --ui-queue: #241f3a;
   --ui-queue-drag: #2e2a4c;
   --ui-tray: #1b2246f5;
-  --ui-toast: #241f3a;             /* milestone toast */
   --ui-plate: #36364e;              /* office width controls, neighbour office labels */
   --ui-plate-hover: #514b68;
   --ui-building-plate: #3a3f4f;     /* the building name over each campus */
@@ -37,7 +35,7 @@
   --ui-scroll-hover: rgba(185, 191, 230, 0.32);
   --ui-close: #e5484d;              /* the window close button on hover (src/titlebar.ts) */
   --ui-close-press: #c43a3f;
-  --mt-panel: #171d3b;              /* Lucid's own monitor screens */
+  --mt-panel: #171d3b;              /* the app's own monitor screens */
   --mt-shot: #0f1430;
   --mt-shot-line: #3a4170;
   --mt-chip-settled: #3d3a6a;
@@ -86,7 +84,6 @@
   /* ---- Robots (world/look.ts bodyColors) ---- */
   --robot-dark: 0%;                 /* 0% the light bodies, 100% dark bodies in each robot's hue */
   --robot-tint: 30%;                /* hue strength of a dark worker body */
-  --robot-mgr-tint: 55%;            /* managers: a stronger hue instead of the obsidian finish */
 
   /* ---- Robot accessories (world/look.ts hats and accessories) ----
      Fixed materials fall back to their original colours, so only --acc-dark has a default:
@@ -123,9 +120,6 @@
   --os-popup-ink: #1b1f45;
   --os-popup-row: #dce3fa;
   --os-popup-muted: #565d80;
-  --os-files-bar: #20265b;
-  --os-field: #161a45;
-  --os-field-active: #11143a;
   --os-muted: #8a91c4;
   --os-text-2: #b9bfe6;
   --os-dim: #5d6499;
@@ -134,9 +128,6 @@
   --os-tabs: #1d2252;
   --os-term: #0d1030;
   --os-chat: #191e4b;
-  --os-compose: #161a42;
-  --os-compose-field: #262c66;
-  --os-send: #3a4290;
   --os-bubble: #2c3375;
   --os-tool: #1d2252;
   --os-action: rgba(27, 31, 69, 0.9);
@@ -163,11 +154,11 @@
   --os-tv-muted: #8a91c4;
   --os-tv-line: rgba(190, 200, 255, 0.1);
   --os-tv-run: #b9bfe6;
-  --os-lc-bg: #151936;              /* Lucid's own chat app on the monitor */
+  --os-lc-bg: #151936;              /* the app's own chat app on the monitor */
   --os-lc-ink: #f3efff;
   --os-lc-muted: #aeb8e8;
   --os-lc-faint: #7c8dc8;
-  --os-oa: #1d2252;                 /* Lucid's office suite (documents, sheets, slides) */
+  --os-oa: #1d2252;                 /* the app's office suite (documents, sheets, slides) */
   --os-oa-rib: #232a63;
   --os-oa-foot: #171c48;
   --os-oa-grid: #2e3577;
@@ -176,22 +167,10 @@
   --os-gd: #171b45;                 /* the docs page in the robot browser */
   --os-gd-bar: #11143a;
   --os-status: #171b45;             /* the frontend preview status bar */
-  /* the paper-style notepad editor flavour */
-  --os-paper: #f7f5ef;
-  --os-paper-tabs: #e6e2d6;
-  --os-paper-tab: #6b6450;
-  --os-paper-ink: #2b2a24;
-  --os-paper-gutter: #ece9df;
-  --os-paper-ln: #a39d8a;
-  --os-paper-k: #1f4fbf; --os-paper-s: #8a5a00; --os-paper-c: #3f8f50; --os-paper-n: #c0392b; --os-paper-f: #7a2fb0; --os-paper-t: #1d7a8a;
-  /* sticky notes and the notepad apps */
+  /* sticky notes */
   --os-note: #fff7d6;
   --os-note-line: #f0e3b0;
   --os-note-ink: #3d3214;
-  --os-note-chrome: #f2e8bc;
-  --os-note-chrome-ink: #62502b;
-  --os-np-bar: #dce9f5; --os-np-bar-ink: #263b50; --os-np-chrome: #edf3f9; --os-np-chrome-ink: #34475c; --os-np-page: #fff; --os-np-ink: #26313e;
-  --os-npp-bar: #dce7d1; --os-npp-bar-ink: #314128; --os-npp-chrome: #e7ecdf; --os-npp-chrome-ink: #35452e; --os-npp-gutter: #e5e8df; --os-npp-page: #f9fbf5; --os-npp-ink: #2d3c26;
   /* the robot browser's own chrome and article pages (site replicas keep their look) */
   --os-browser: #f4f5fb;
   --os-browser-ink: #1b1f45;

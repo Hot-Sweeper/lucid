@@ -1,6 +1,2 @@
-// The product's public identity for the main process. Keep in step with src/brand.ts.
-module.exports = Object.freeze({
-  name: "Token Industries",
-  shortName: "Token",
-  appId: "dev.tokenindustries.app",
-});
+// The product's public identity for the main process. To rename the app, edit brand.json only.
+module.exports = Object.freeze({ ...require("./brand.json") });

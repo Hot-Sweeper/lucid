@@ -98,7 +98,7 @@ class Studio {
   scope!: CanvasRenderingContext2D;
   scopeW = 70; scopeH = 22;
 
-  constructor(private k: Kit, private body: HTMLElement) {
+  constructor(private k: Kit, body: HTMLElement) {
     body.innerHTML = "";
     this.root = h("div", "life-bt");
     body.appendChild(this.root);

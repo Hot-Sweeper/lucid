@@ -13,7 +13,7 @@ import "../fun/fun.css";
 import "./shorts.css";
 import "./phonetime.css";
 
-import { PHONE_APP_LABEL, PHONE_APP_DOING, type PhoneApp } from "./phone-apps";
+import { PHONE_APP_LABEL, type PhoneApp } from "./phone-apps";
 export { PHONE_APP_LABEL, PHONE_APP_DOING, type PhoneApp } from "./phone-apps";
 
 type RunFn = (body: HTMLElement, host: SoHost, opts: SoOpts) => Promise<unknown>;

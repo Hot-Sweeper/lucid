@@ -121,7 +121,7 @@ async function scene() {
       for (;;) { await life.doActivity("doodle", life.token); await new Promise((r) => setTimeout(r, 800)); }
     } else if (SCENE === "codex") {
       const codex = new CodexApp(wm);
-      codex.setInfo({ id: "t", title: "Make a hero image for the landing page", provider: "codex", model: "gpt-5.5-codex", projectTitle: "Lucid" });
+      codex.setInfo({ id: "t", title: "Make a hero image for the landing page", provider: "codex", model: "gpt-5.5-codex", projectTitle: "Webshop" });
       const src = IMG ? fileUrl(IMG) : drawn();
       const t0 = Date.now();
       await codex.generate({
@@ -131,7 +131,7 @@ async function scene() {
       });
     } else if (SCENE === "parse") {
       const mk = (id: string, type: string, data: Record<string, unknown>, status = "completed"): Item => ({ id, runId: "r", ordinal: 1, type, status, updatedAt: "", data });
-      const png = "C:\\Users\\tim\\.codex\\generated_images\\abc\\ig_1.png";
+      const png = "C:\\Users\\ada\\.codex\\generated_images\\abc\\ig_1.png";
       const items: Item[] = [
         mk("a", "dynamic_tool", { toolName: "image_gen", input: { prompt: "a fox on a skateboard", size: "1024x1536" }, output: { content: [{ text: `Saved to ${png}` }] } }),
         mk("b", "command_execution", { input: "\"C:\\Windows\\powershell.exe\" -Command \"python $IMAGE_GEN generate --prompt 'a red robot' --size 1536x1024 --out out.png\"", output: "wrote C:\\Users\\tim\\out.png\n", exitCode: 0 }),
@@ -147,7 +147,7 @@ async function scene() {
     } else if (SCENE === "director") {
       const stub = { phoneScreen: null, say() {}, sleepy() {}, setGlow() {}, setPlan() {} } as never;
       const d = new Director(wm, robot, stub, async () => null, async () => null, async () => null);
-      d.setInfo({ id: "t", title: "Hero image for the landing page", provider: "codex", model: "gpt-5.5-codex", projectTitle: "Lucid", run: { id: "r", status: "running" } });
+      d.setInfo({ id: "t", title: "Hero image for the landing page", provider: "codex", model: "gpt-5.5-codex", projectTitle: "Webshop", run: { id: "r", status: "running" } });
       const file = IMG ?? "";
       const mk = (status: string, output: string): Item => ({ id: "img1", runId: "r", ordinal: 5, type: "command_execution", status, updatedAt: new Date().toISOString(), data: { input: 'python "C:\\skills\\imagegen\\scripts\\image_gen.py" generate --prompt "A cozy top-down office at golden hour, tiny robots at their desks, flat vector style" --size 1536x1024', output, exitCode: status === "completed" ? 0 : null } });
       d.push([mk("running", "")], false);

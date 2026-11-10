@@ -37,7 +37,7 @@
 .cp-worked-body .cp-msg > time { display: none; }
 .cp-worked-body .cp-msg.bot .cp-text { padding-top: 0; padding-bottom: 0; }
 
-/* ---- T3's timeline, in Lucid's palette ---- */
+/* ---- T3's timeline, in the app's palette ---- */
 /* Your message: a quiet raised bubble (T3's bg-message) with a faint warm tint, not a loud block. */
 .chat-panel .cp-msg.you { --bubble: color-mix(in srgb, var(--night-3) 82%, var(--accent) 18%); }
 .chat-panel .cp-msg.you .cp-text { background: var(--bubble); color: var(--ink); border-radius: 16px; padding: 10px 13px; }

@@ -1,5 +1,5 @@
 // Follow T3: reads the palette of the theme active in T3 Code (electron/t3-theme.cjs) and puts
-// it on <html> as --t3-* variables, which themes/t3.css maps onto Lucid's tokens. The last
+// it on <html> as --t3-* variables, which themes/t3.css maps onto the app's tokens. The last
 // palette is kept in localStorage so a launch paints it before T3 has answered.
 // A cheap check runs every few seconds while the window is visible and Follow T3 is in use,
 // never two at once, and right away when the window becomes visible or focused again.

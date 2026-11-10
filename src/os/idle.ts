@@ -19,7 +19,7 @@ import "../life/life.css";
 import { officeIdle, officePick, OFFICE_IDLE_LINE } from "../office-apps/idle";
 import { PHONE_APP_DOING, type PhoneApp } from "../social/phone-apps";
 import type { SoOpts } from "../social/kit";
-import { playSnake, playFlappy, playDash, playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge, playRobotIsland, playBotCom, playDerBugger, playBoot, watchBotflix, watchTube, browseBenchtop, makeBeat, hangOutInChat, usePhone, chatOnBotsApp, browseTelegrid, scrollChirp, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, browseInstaweb, scrollSpoolWeb, swipeSparkplug, useVapor, tradeOnBotcoinExchange, preloadActivity, } from "./idle-activities";
+import { playSnake, playFlappy, playDash, playVoxelValley, playUptimeTillDawn, playTicTacToe, playConnectFour, playBitMerge, playRustwaterBay, playTidewatchTactics, playDerBugger, playBoot, watchBotflix, watchTube, browseBenchtop, makeBeat, hangOutInChat, usePhone, chatOnBotsApp, browseTelegrid, scrollChirp, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, browseInstaweb, scrollSpoolWeb, swipeSparkplug, useVapor, tradeOnBotcoinExchange, preloadActivity, } from "./idle-activities";
 import type { Prefs } from "../office/roster";
 
 // What the robot does when there is no work: tidy the desktop, play a game,
@@ -207,12 +207,12 @@ export class IdleLife {
     const games = 0.35 + 2.2 * H("gamer");
     const weights: Record<string, number> = {
       snake: games * g.snake, flappy: games * g.flappy, dash: games * g.dash, chess: games * 0.8 * g.chess,
-      blockcraft: games * 1.1, nightshift: games * 0.8, tictactoe: games * 0.5, connect4: games * 0.5, bitmerge: games * 0.6,
+      voxelvalley: games * 1.1, uptime: games * 0.8, tictactoe: games * 0.5, connect4: games * 0.5, bitmerge: games * 0.6,
       phone: (p?.phone === "tube" ? 0.4 : 1) * (0.6 + 1.6 * H("chiller") + 1.2 * H("watcher")) * (1 + 0.2 * (p?.socials?.length ?? 0)),
       tube: (p?.phone === "tube" ? 1 : 0.4) * (0.4 + 2.4 * H("watcher")),
       benchtop: 0.05 + 0.1 * H("watcher"),
       botflix: 0.3 + 1.6 * H("watcher") + 0.4 * H("chiller"),
-      island: games * 0.6, botcom: games * 0.5, bugger: games * 0.45, boot: games * 0.7,
+      rustwater: games * 0.6, tidewatch: games * 0.5, bugger: games * 0.45, boot: games * 0.7,
       coffee: 0.6 + 0.8 * H("chiller"), stretch: 0.3 + 0.3 * H("chiller"),
       beats: H("musician") ? 2.6 : (p?.music ?? 0) >= 0.8 ? 0.25 : 0,
       social: 0.25 * (p?.social ?? 0.4) + 2.4 * H("chatter"),
@@ -295,13 +295,13 @@ export class IdleLife {
       case "snake": return game(playSnake);
       case "flappy": return game(playFlappy);
       case "dash": return game(playDash);
-      case "blockcraft": return game(playBlockcraft);
-      case "nightshift": return game(playNightShift);
+      case "voxelvalley": return game(playVoxelValley);
+      case "uptime": return game(playUptimeTillDawn);
       case "tictactoe": return game(playTicTacToe);
       case "connect4": return game(playConnectFour);
       case "bitmerge": return game(playBitMerge);
-      case "island": return game(playRobotIsland);
-      case "botcom": return game(playBotCom);
+      case "rustwater": return game(playRustwaterBay);
+      case "tidewatch": return game(playTidewatchTactics);
       case "bugger": return game(playDerBugger);
       case "boot": return game(playBoot);
       case "chess": {

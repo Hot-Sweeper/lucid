@@ -2,7 +2,7 @@ import gsap from "gsap";
 import { WM } from "./wm";
 import { ICONS } from "./icons";
 import { highlight, langOf } from "./highlight";
-import { baseName, relPath, type Entry, type Hit, type Hunk } from "./classify";
+import { baseName, type Hunk } from "./classify";
 
 import { esc, el, typeInto } from "./typing";
 import { colorGitLine } from "./git";

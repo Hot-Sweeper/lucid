@@ -8,7 +8,7 @@ and each robot's computer shows the agent's real work. Start with `docs/architec
 - T3 Code is authoritative for work, questions, progress, thread order, pins, settlement, themes,
   dictation and usage. Never invent operational facts. Fictional leisure content is fine and goes
   through the localization system (`docs/localization.md`).
-- The public product name lives only in `src/brand.ts` and `electron/brand.cjs`. Never hardcode it
+- The public product name lives only in `electron/brand.json` (read by `src/brand.ts` and `electron/brand.cjs`). Never hardcode it
   in interface text, packaging or docs that the app shows.
 - Preserve the visual language recorded in `DESIGN.md`: real robot artwork, Lexend and JetBrains
   Mono, warm rooms, navy and lavender panels, peach actions. No emojis, decorative status pills,

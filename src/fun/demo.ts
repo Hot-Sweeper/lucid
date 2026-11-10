@@ -98,7 +98,7 @@ class FakeHost implements FunHost {
 }
 
 const root = document.getElementById("fun-demo")!;
-root.innerHTML = `<div class="d-top"><h1>Lucid fun pack</h1><button type="button" class="d-toggle">Stop all</button><span class="d-note">Stop flips host.stopped for every panel</span></div><div class="d-grid"></div><div class="d-videos"></div>`;
+root.innerHTML = `<div class="d-top"><h1>Fun pack</h1><button type="button" class="d-toggle">Stop all</button><span class="d-note">Stop flips host.stopped for every panel</span></div><div class="d-grid"></div><div class="d-videos"></div>`;
 const grid = root.querySelector(".d-grid") as HTMLElement;
 const hosts = new Set<FakeHost>();
 let running = true;

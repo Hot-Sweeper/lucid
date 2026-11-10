@@ -34,7 +34,7 @@ async function fetchJson(url, ms = 8000) {
   const timer = setTimeout(() => ctl.abort(), ms);
   try {
     const useNet = electron?.net?.fetch && electron.app?.isReady();
-    const res = await (useNet ? electron.net.fetch(url, { signal: ctl.signal }) : fetch(url, { signal: ctl.signal, headers: { "user-agent": "Lucid/0.1" } }));
+    const res = await (useNet ? electron.net.fetch(url, { signal: ctl.signal }) : fetch(url, { signal: ctl.signal, headers: { "user-agent": `${require("./brand.cjs").shortName}/1.0` } }));
     if (!res.ok) throw new Error(`${new URL(url).host} answered ${res.status}`);
     return await res.json();
   } catch (e) {

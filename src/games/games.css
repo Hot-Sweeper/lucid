@@ -1,4 +1,4 @@
-/* Lucid games pack: Voxel Valley, Uptime Till Dawn, tic-tac-toe, Four in a Row, Bit Merge. Every class is prefixed gm-. */
+/* Games pack: Voxel Valley, Uptime Till Dawn, tic-tac-toe, Four in a Row, Bit Merge. Every class is prefixed gm-. */
 
 /* ---------------- shared frame ---------------- */
 .gm-game { position: relative; height: 100%; display: flex; flex-direction: column; background: #161a45; color: #eef0ff; font-family: var(--font, "Lexend Variable", system-ui, sans-serif); user-select: none; }

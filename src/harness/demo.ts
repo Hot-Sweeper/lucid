@@ -155,7 +155,7 @@ const CLAUDE: Step[] = [
   { wait: 900, ev: { kind: "think", text: "Focus is set in WM.focus; check who calls it during open" } },
   { wait: 900, ev: { kind: "read", text: "src/os/wm.ts", detail: "Read 285 lines" } },
   { wait: 1100, ev: { kind: "search", text: "pattern: \"focus\\(\", path: src/os", detail: "Found 6 matches in 2 files" } },
-  { wait: 1000, ev: { kind: "read", text: "C:/Users/tim/T3 Projects/Lucid-dev/src/os/apps.ts", detail: "Read 510 lines" } },
+  { wait: 1000, ev: { kind: "read", text: "C:/Users/ada/Projects/robot-office/src/os/apps.ts", detail: "Read 510 lines" } },
   { wait: 1200, ev: { kind: "run", text: "npx tsc -p tsconfig.json --noEmit --pretty false", detail: "No errors" } },
   { wait: 900, stream: "Two opens racing" },
   { wait: 250, stream: "Two opens racing for the same z index: open() awaits the dock click" },
@@ -229,21 +229,21 @@ async function scene() {
   await typeTerminal("git status --short");
   await wm.sleep(500, e);
   const c = await app.start({
-    id: "c1", kind: harnessKind("claudeAgent"), model: "claude-opus-5-5", effort: "high", label: "Explore agent", flavor: flavorParam("cli"), cwd: "C:/Users/tim/T3 Projects/Lucid-dev",
+    id: "c1", kind: harnessKind("claudeAgent"), model: "claude-opus-5-5", effort: "high", label: "Explore agent", flavor: flavorParam("cli"), cwd: "C:/Users/ada/Projects/robot-office",
     title: "Find why window focus is lost",
     prompt: "Read src/os/wm.ts and find why focus is lost when two windows open at the same time. Report the cause and a minimal fix.",
   });
   void feed(c, CLAUDE);
   await wm.sleep(1600, e);
   const x = await app.start({
-    id: "x1", kind: harnessKind("codex"), model: "gpt-5.6-sol", effort: "xhigh", flavor: flavorParam("app"), cwd: "C:/Users/tim/T3 Projects/Lucid-dev",
+    id: "x1", kind: harnessKind("codex"), model: "gpt-5.6-sol", effort: "xhigh", flavor: flavorParam("app"), cwd: "C:/Users/ada/Projects/robot-office",
     title: "Add unit tests for classify.ts",
     prompt: "Write unit tests for src/os/classify.ts covering ripgrep, git and PowerShell commands. Fix any expectation that turns out wrong.",
   });
   void feed(x, CODEX);
   await wm.sleep(1200, e);
   const g = await app.start({
-    id: "g1", kind: harnessKind("opencode"), model: "grok-code-fast-1", effort: "medium", flavor: flavorParam("cli"), cwd: "C:/Users/tim/T3 Projects/Lucid-dev",
+    id: "g1", kind: harnessKind("opencode"), model: "grok-code-fast-1", effort: "medium", flavor: flavorParam("cli"), cwd: "C:/Users/ada/Projects/robot-office",
     title: "Profile dock animation jank",
     prompt: "Profile the dock hover animation and tell me what causes the dropped frames.",
   });
@@ -320,7 +320,7 @@ function tile(grid: HTMLElement, caption: string) {
 
 async function fill(app: HarnessApp, id: string, kind: HarnessKind, flavor: Flavor, done: boolean, title = "Find why window focus is lost") {
   const sm = SAMPLE[kind];
-  const s = await app.start({ id, kind, flavor, title, prompt: BRIEF, model: sm.model, effort: sm.effort, label: sm.label, cwd: "C:/Users/tim/T3 Projects/Lucid-dev" });
+  const s = await app.start({ id, kind, flavor, title, prompt: BRIEF, model: sm.model, effort: sm.effort, label: sm.label, cwd: "C:/Users/ada/Projects/robot-office" });
   for (const ev of STREAM) s.push(ev);
   s.stream("Two opens raced for the same z index: open() awaits the dock click before focus(), so a second window can be created mid-animation and both end up focused.");
   if (done) s.finish("Focus race fixed in WM.open: focus is claimed before the dock animation starts.", true);

@@ -142,7 +142,7 @@ html:root[data-app-scheme="dark"] .so-cw-clues li.done { color: #7a7a7a; }
 html:root[data-app-scheme="dark"] .so-cw-win { background: #1f1f1f; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); }
 html:root[data-app-scheme="dark"] .so-cw-win span { color: #a8a8a8; }
 
-/* ================================================================ Sketchpad: Lucid original, neutral near-black chrome; the paper stays white */
+/* ================================================================ Sketchpad: an original, neutral near-black chrome; the paper stays white */
 html:root[data-app-scheme="dark"] .so-dw { background: #141415; color: #e6e6e6; }
 html:root[data-app-scheme="dark"] .so-dw-top { background: #1c1c1f; }
 html:root[data-app-scheme="dark"] .so-dw-tools span { color: #b4b4b4; }

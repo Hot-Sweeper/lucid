@@ -173,42 +173,6 @@ overlap.setMode('bells'); assert.equal(overlap.next(date(8)).id,'bell-only');
 overlap.setMode('ambient'); assert.equal(overlap.next(date(8)).id,'shared-bell');
 overlap = new SoundtrackQueue(overlapSongs,JSON.parse(JSON.stringify(overlap.state)),()=>0);
 overlap.setMode('bells'); assert.equal(overlap.next(date(8)).id,'bell-only','overlap heard in another mode completes the earlier rotation');
-overlap.select('shared-bell',date(8));
-overlap.setMode('ambient'); assert.equal(overlap.next(date(8)).id,'ambient-only','a manual choice also credits matching directions');
-const manualCycleSongs = ['a','b','c'].map(id => ({...SOUNDTRACK[0],id,genre:'lofi'}));
-manualCycleSongs.push({...SOUNDTRACK[0],id:'outside',genre:'ambient'});
-let manualCycle = new SoundtrackQueue(manualCycleSongs,undefined,()=>0);
-manualCycle.setMode('lofi');
-assert.deepEqual([manualCycle.next().id,manualCycle.next().id,manualCycle.next().id],['a','b','c']);
-manualCycle.select('a');
-manualCycle = new SoundtrackQueue(manualCycleSongs,JSON.parse(JSON.stringify(manualCycle.state)),()=>0);
-assert.deepEqual([manualCycle.next().id,manualCycle.next().id],['b','c'],'manual choice after a completed lock starts its next rotation');
-
-// ---- Manual library picks are one-off; the director settles back smoothly.
-{
-  const manual = new SoundtrackQueue(LIBRARY, undefined, seeded(91));
-  const lofi = LIBRARY.find(song => song.genre === 'lofi');
-  assert.equal(manual.select(lofi.id, date(13)).id, lofi.id);
-  assert.equal(manual.chapter.id, 'warm-tape', 'a first manual pick initializes the local-time opening');
-  manual.listen(42);
-  const frozen = JSON.stringify(manual.state);
-  assert.equal(manual.select('missing-recording', date(1)), null);
-  assert.equal(JSON.stringify(manual.state), frozen, 'unknown IDs cannot mutate director state');
-  const progress = manual.chapterProgress;
-  const rush = manual.select(LIBRARY.find(song => song.genre === 'breakcore').id, date(1));
-  assert.equal(manual.mode, 'journey'); assert.equal(manual.chapter.id, 'warm-tape'); assert.equal(manual.chapterProgress, progress);
-  let queue = reload(manual, LIBRARY, 92), previous = rush;
-  for (let step = 0; step < 8; step++) {
-    const song = queue.next(date(13));
-    assert.notEqual(song.id, previous.id);
-    assert(fits(previous, song), `after a manual breakcore pick, ${previous.genre} ${previous.energy} -> ${song.genre} ${song.energy} still fits`);
-    previous = song; queue.listen(song.seconds);
-  }
-  const lock = new SoundtrackQueue(LIBRARY, undefined, seeded(93));
-  lock.setMode('lofi'); lock.select(rush.id, date(14));
-  assert.equal(lock.mode, 'lofi', 'a one-off pick does not change the lock');
-  assert.equal(reload(lock, LIBRARY, 94).next(date(19)).genre, 'lofi');
-}
 
 // ---- Listening time, not wall time, moves the arc.
 {
@@ -290,4 +254,4 @@ for (const song of SOUNDTRACK) {
   assert(m.leadingQuietSeconds<=.5 && m.trailingQuietSeconds<=.65, `${song.title} has no start or end gap`);
 }
 assert.equal(hashes.size, SOUNDTRACK.length, 'every recording is distinct');
-console.log(`PASS: ${SOUNDTRACK.length} catalogued songs, connected genre graph and ${MAX_ENERGY_STEP} energy cap, ${SOUNDTRACK_CHAPTERS.length}-chapter arc to a breakcore peak, smooth transitions on the real and a full synthetic library, complete rotations without repeats, bridging toward distant songs, genre/texture locks, manual picks, listening-time arc, migration of removed songs, genres and chapters, packaged measurements.`);
+console.log(`PASS: ${SOUNDTRACK.length} catalogued songs, connected genre graph and ${MAX_ENERGY_STEP} energy cap, ${SOUNDTRACK_CHAPTERS.length}-chapter arc to a breakcore peak, smooth transitions on the real and a full synthetic library, complete rotations without repeats, bridging toward distant songs, genre/texture locks, listening-time arc, migration of removed songs, genres and chapters, packaged measurements.`);
