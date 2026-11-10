@@ -106,6 +106,10 @@ Shared robot portraits use a square frame around the actual head and hat bounds 
 
 Use native radio and checkbox inputs with custom Lucid visuals: a crisp lavender ring over the existing dark input surface, a peach center dot for a selected radio and a dark check on a peach selected checkbox. Unselected rows stay unboxed. The whole row activates its associated input through the label, while the custom text field keeps its own hit target. Retain compact row dimensions, visible keyboard focus, disabled semantics and native arrow-key behavior. Hover fills ease in over 130ms; selection draws over 160ms and pressing gently compresses the control. Reduced motion removes these transitions and compression; forced colors restores the platform control. Choices in the chat shelf and on desk monitors share this styling.
 
+## Decorating and coins
+
+Decorate is a right-side sheet with Floor, Walls, Computers and Things. Everything is free and unlocked; there is no shop, level or season gate. A computer choice dresses every desk in the room and replaces single-desk picks. Coins only show what work cost (one per dollar of API-priced work): each finished desk holds its coins until collected, and the counter in the zoom controls shows the total.
+
 ## Pinned threads
 
 A thread pinned in T3 is an ordinary robot. Its desk carries a small round peach sticker with a pin, drawn like the other desk props, and its row leads the thread list with a small pin before the title. Pin and unpin from the desk menu or the row's context menu.
