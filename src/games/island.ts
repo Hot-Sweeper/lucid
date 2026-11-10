@@ -583,6 +583,7 @@ export async function playRobotIsland(body: HTMLElement, host: FunHost, opts: Fu
       const rows: [string, string][] = [[board.code, "#ffa592"]];
       if (board.state === "ok") rows.push([`> ${board.pick}`, "#86f7cf"]);
       if (board.state === "bad") rows.push([`> ${board.pick}`, "#ff6f6f"], [`> ${board.ok}`, "#86f7cf"]);
+      ctx.textRendering = "optimizeSpeed"; // no ligatures: the code must read literally
       ctx.font = '600 11px "JetBrains Mono Variable", ui-monospace, monospace';
       const wCode = Math.max(...rows.map(([s]) => ctx.measureText(s).width));
       const head = canvasText(board.ask);
@@ -677,7 +678,7 @@ export async function playRobotIsland(body: HTMLElement, host: FunHost, opts: Fu
         ctx.restore();
         // the loose top rung droops until the spare bolt holds it
         ctx.save();
-        ctx.translate(352.5, 85);
+        ctx.translate(352.5, 93);
         ctx.rotate((1 - look.rung) * (0.5 + (calm ? 0 : Math.sin(t * 2.4) * 0.08)));
         fillRR(ctx, -6.5, -1, 13, 2, 1, look.rung > 0.5 ? "#8a7a84" : "#4a3a44");
         ctx.restore();
@@ -943,7 +944,7 @@ export async function playRobotIsland(body: HTMLElement, host: FunHost, opts: Fu
     await act("use", H1.pole, "bolt");
     look.reach = 1;
     scope.to(look, { rung: 1, duration: 0.5, ease: "back.out(2.4)" });
-    burst(LAMP[0], 85, "#e4e8f6", 6);
+    burst(352.5, 93, "#e4e8f6", 6);
     await nap(host, 420);
     look.reach = 0;
     dropItem("bolt");

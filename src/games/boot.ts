@@ -532,20 +532,21 @@ function paintRack(g: G, L: Lit, phase: number) {
     }
   }
 }
+// cinderblock with light leaking through the cracks
 function paintBrick(g: G, L: Lit, R: () => number) {
-  box(g, 0, 0, 32, 32, "#3a1611");
-  const pal = ["#7d2b1d", "#8a3322", "#73261a", "#913a25"];
+  box(g, 0, 0, 32, 32, "#1c2238");
+  const pal = ["#2e3654", "#343d5e", "#2a3150", "#39436a"];
   for (let row = 0; row < 4; row++) {
     const off = row % 2 ? 8 : 0;
     for (let bx = -16; bx < 32; bx += 16) {
       const x = bx + off, y = row * 8;
       box(g, x + 1, y + 1, 14, 6, pal[(R() * 4) | 0]);
-      box(g, x + 1, y + 1, 14, 1, "#a5492f"); box(g, x + 1, y + 6, 14, 1, "#5b1e15");
+      box(g, x + 1, y + 1, 14, 1, "#4a5580"); box(g, x + 1, y + 6, 14, 1, "#1a1f33");
     }
   }
-  noise(g, R, 32, 32, 60, ["#6a2216", "#9a4228"]);
-  for (const [x, y] of [[5, 10], [6, 11], [6, 12], [7, 13], [8, 13], [9, 14], [22, 18], [23, 19], [23, 20], [24, 21], [25, 21], [25, 22], [26, 23], [14, 26], [15, 27], [16, 27], [17, 28]]) L.r(x, y, 1, 1, "#ff7a1f");
-  for (const [x, y] of [[6, 11], [24, 21], [15, 27]]) L.r(x, y, 1, 1, "#ffe07a");
+  noise(g, R, 32, 32, 60, ["#262d48", "#3e4870"]);
+  for (const [x, y] of [[5, 10], [6, 11], [6, 12], [7, 13], [8, 13], [9, 14], [22, 18], [23, 19], [23, 20], [24, 21], [25, 21], [25, 22], [26, 23], [14, 26], [15, 27], [16, 27], [17, 28]]) L.r(x, y, 1, 1, "#3fd6ff");
+  for (const [x, y] of [[6, 11], [24, 21], [15, 27]]) L.r(x, y, 1, 1, "#c8f6ff");
 }
 function paintCircuit(g: G, L: Lit, R: () => number) {
   box(g, 0, 0, 32, 32, "#123327");
