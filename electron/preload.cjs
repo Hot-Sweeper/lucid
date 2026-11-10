@@ -37,7 +37,6 @@ contextBridge.exposeInMainWorld("lucid", {
   projectBoardGet: (input) => ipcRenderer.invoke("project-life:get", input),
   projectBoardSave: (input) => ipcRenderer.invoke("project-life:save", input),
   projectBoardGenerate: (input) => ipcRenderer.invoke("project-life:generate", input),
-  writerModel: () => ipcRenderer.invoke("writer:model"),
   orchAnswers: () => ipcRenderer.invoke("orch:answers"),
   orchRecord: (list) => ipcRenderer.invoke("orch:record", list),
   orchDecisions: () => ipcRenderer.invoke("orch:decisions"),

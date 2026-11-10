@@ -1,9 +1,9 @@
 const { spawn } = require('node:child_process');
 
-function runCliProcess(command, args, { input, env = process.env, timeoutMs = 30000, maxOutputBytes = 8 * 1024 * 1024,
+function runCliProcess(command, args, { input, env = process.env, cwd, timeoutMs = 30000, maxOutputBytes = 8 * 1024 * 1024,
   spawnProcess = spawn, timeout = setTimeout, cancelTimeout = clearTimeout } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawnProcess(command, args, { windowsHide: true, env });
+    const child = spawnProcess(command, args, { windowsHide: true, env, ...(cwd ? { cwd } : {}) });
     let out = '', err = '', bytes = 0, settled = false;
     const finish = (error, result) => {
       if (settled) return;

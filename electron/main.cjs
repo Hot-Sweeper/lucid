@@ -40,7 +40,6 @@ app.on("second-instance", () => {
   win.focus();
 });
 const watchers = new Map(); // threadId -> stop()
-const languageHelpers = new Set();
 
 function createWindow() {
   win = new BrowserWindow({
@@ -272,7 +271,6 @@ usage.setProviderLimitsReader(() => require("./t3server.cjs").usageLimits());
 ipcMain.handle("usage:get", () => usage.getUsage());
 ipcMain.handle("coins:usage", () => usage.getCoinSources(t3.coinBindings()));
 const reports = require("./reports.cjs").createReports({
-  hidden: id => languageHelpers.has(id),
   robots: () => { try { return JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "roster.json"), "utf8")); } catch { return []; } },
   dir: process.env.LUCID_SHOT ? path.join(app.getPath("userData"), "reports") : path.join(ORCH_DIR, "reports"), t3, server: require("./t3server.cjs"), usage,
   settings: () => { if (process.env.LUCID_SHOT) return null; try { return JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "settings.json"), "utf8")).orch || null; } catch { return null; } },
@@ -280,7 +278,7 @@ const reports = require("./reports.cjs").createReports({
 // Owned single-flight backend supervision continues when the office renderer is hidden.
 let reportSupervisorTimer = null, reportSupervisorStopped = false;
 // Titles follow each finished run, using T3 Code's own text generation model.
-const titleRefresh = require('./title-refresh.cjs').createTitleRefresh({ file: path.join(app.getPath('userData'), 'title-refresh.json'), world: async () => { const data = t3.world(); return { ...data, threads: data.threads.filter(t => !languageHelpers.has(t.id)) }; }, reportState: t3.reportState, dispatch: command => require('./t3server.cjs').dispatch(command) });
+const titleRefresh = require('./title-refresh.cjs').createTitleRefresh({ file: path.join(app.getPath('userData'), 'title-refresh.json'), world: async () => t3.world(), reportState: t3.reportState, dispatch: command => require('./t3server.cjs').dispatch(command) });
 async function superviseReports() {
   if (reportSupervisorStopped) return;
   try { await reports.supervise(); } catch (error) { console.error('Report supervision failed', error.message); }
@@ -342,9 +340,7 @@ ipcMain.handle("t3:attach-dir", () => require("node:path").join(process.env.T3CO
 const backgroundJobs = require("./background-jobs.cjs").createBackgroundJobs({ folders: () => { try { return t3.threadFolders(); } catch { return []; } } });
 ipcMain.handle("t3:world", async () => {
   const data = activeBuilding() ? await remote.world(activeBuilding()) : t3.world();
-  data.threads = data.threads.filter(t => !languageHelpers.has(t.id));
   if (!activeBuilding()) { const jobs = backgroundJobs.current(); for (const t of data.threads) { const job = jobs.get(t.id); if (job) t.job = job; } }
-  if (!activeBuilding()) threadLabels.decorate(data, !process.env.LUCID_SHOT);
   return data;
 });
 ipcMain.handle("t3:tasks", () => { if (activeBuilding()) return []; try { return t3.officeTasks(); } catch { return []; } });
@@ -494,17 +490,16 @@ app.on("window-all-closed", () => app.quit());
 // --- T3 server (paired session): queue edits and model changes ------------------
 // Handlers answer { ok, value } or { ok: false, error } so the renderer gets a clean message.
 const t3s = require("./t3server.cjs");
-const { createLocalization, createT3Translator } = require('./localization.cjs');
-// Daily flavor text from the robots' personas, on T3 Code's text generation model.
-const threadLabels = require('./thread-labels.cjs').createThreadLabels({ file: path.join(app.getPath('userData'), 'thread-labels.json'), t3, server: t3s, helpers: languageHelpers, settingsFile: path.join(path.dirname(t3.DB_PATH), 'settings.json') });
-const dailyWriter = require('./daily-writer.cjs').createDailyWriter({ t3, server: t3s, helpers: languageHelpers, dir: ORCH_DIR, settingsFile: path.join(path.dirname(t3.DB_PATH), 'settings.json') });
+const { createLocalization, createWriterTranslator } = require('./localization.cjs');
+// Flavor text, translations and board ideas come from a headless harness CLI, never a T3 thread.
+const writer = require('./headless-writer.cjs').createHeadlessWriter({ settingsFile: path.join(path.dirname(t3.DB_PATH), 'settings.json') });
+const dailyWriter = require('./daily-writer.cjs').createDailyWriter({ writer, dir: ORCH_DIR });
 ipcMain.handle("writer:daily", (_e, input) => { if (activeBuilding()) throw Error('Write daily lines on the computer that owns the robots.'); return dailyWriter.write(input); });
-ipcMain.handle("writer:model", () => dailyWriter.selection());
-const projectLife = require('./project-life.cjs').createProjectLife({ file: path.join(app.getPath('userData'), 'project-offices.json'), t3, server: t3s, helpers: languageHelpers, settingsFile: path.join(path.dirname(t3.DB_PATH), 'settings.json'), isLocal: () => !activeBuilding() });
+const projectLife = require('./project-life.cjs').createProjectLife({ file: path.join(app.getPath('userData'), 'project-offices.json'), t3, writer, isLocal: () => !activeBuilding() });
 ipcMain.handle('project-life:get', (_e, input) => projectLife.get(input));
 ipcMain.handle('project-life:save', (_e, input) => projectLife.save(input));
 ipcMain.handle('project-life:generate', (_e, input) => projectLife.generate(input));
-const localization = createLocalization({ file: path.join(app.getPath('userData'), 'translations.json'), translate: createT3Translator({ t3, server: t3s, helpers: languageHelpers }) });
+const localization = createLocalization({ file: path.join(app.getPath('userData'), 'translations.json'), translate: createWriterTranslator({ writer }) });
 ipcMain.handle('lucid:localize', (_e, input) => localization.localize(input));
 t3s.setRemoteDispatch(c => remote.dispatch(c));
 t3s.setRemoteSecret((id, item, answer) => remote.answerSecret(id, item, answer));

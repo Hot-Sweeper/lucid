@@ -13,7 +13,7 @@ import { setZoom, setCameraMoving } from "../world/budget";
 import { canvasRobotsWanted, syncRobotCanvases } from "../world/robot-canvas";
 import { watchSvgOpacity } from "../perf/svg-write";
 import { GLIDE_MS, GLIDE_EASING, GLIDE_EASE } from "../perf/ease";
-import { Desk, UNIT_W, UNIT_H, type DeskServices } from "./desk";
+import { Desk, UNIT_W, UNIT_H, shortTitle, type DeskServices } from "./desk";
 import { drawFloor, drawWall, drawDecor, placeDecor, decorFootprint, DECOR } from "../decor/decor";
 import { furniturePath, type Footprint } from "./navigation";
 import { forestPlan } from "./forest-plan";
@@ -56,7 +56,6 @@ import { wireDeskChatTargets } from "./desk-chat-targets";
 
 export type WThread = {
   id: string; projectId: string; title: string; updatedAt: string; provider: string;
-  compactTitle?: string;
   ultra?: boolean; fast?: boolean; effort?: string;
   runStatus: string | null; pinned: boolean; settled: boolean; question: string | null; model: string | null;
   schedule?: { nextRunAt: string | null; everyMs: number | null } | null;
@@ -1376,7 +1375,7 @@ export class World {
           d.folder = s.t.folder ?? null;
           this.desks.set(s.t.id, d);
         }
-        d.setCompactTitle(s.t.compactTitle || "");
+        d.setCompactTitle(shortTitle(s.t.title));
         // which room it sits in now, and in shared rooms which project it works on
         d.room = s.key.split("#")[0];
         const proj = byProject.get(s.t.projectId);

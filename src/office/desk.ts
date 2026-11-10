@@ -41,6 +41,14 @@ export interface DeskServices {
   readText(path: string): Promise<string | null>;
 }
 
+/** The zoomed-out nameplate topic: T3's title, cut at a word boundary when it is long. */
+export function shortTitle(title: string, max = 32) {
+  const t = title.replace(/\s+/g, " ").trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max + 1), space = cut.lastIndexOf(" ");
+  return `${(space > max / 2 ? cut.slice(0, space) : t.slice(0, max)).replace(/[\s,.;:\u2013\u2014-]+$/, "")}…`;
+}
+
 export type RobotFactory = (host: HTMLElement, rig: DeskRig) => SeatedRobot;
 let robotFactory: RobotFactory = (host, rig) => new StubRobot(host, rig);
 export function useRobot(f: RobotFactory) { robotFactory = f; }

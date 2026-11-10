@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createLocalization, createT3Translator, parseReply } = require('../electron/localization.cjs');
+const { createLocalization, createWriterTranslator, parseReply } = require('../electron/localization.cjs');
 
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lucid-language-'));
@@ -29,15 +29,11 @@ const { createLocalization, createT3Translator, parseReply } = require('../elect
     const failed = createLocalization({ file: path.join(dir, 'failure.json'), translate: async () => 'invalid' });
     const fallback = await failed.localize(input);
     assert.equal(fallback.translated, false); assert.equal(fallback.entries[0].text, '{name}');
-    let lowSelection, archived = false;
-    const helpers = new Set();
-    const translator = createT3Translator({ helpers, wait: async () => {},
-      t3: { world: () => ({ projects: [{ id: 'p' }] }), sendMessage: async () => {}, threadInfo: () => ({ run: { status: 'completed' } }), conversation: () => [{ role: 'assistant', text: '{"entries":[]}' }] },
-      server: { listProviders: async () => [{ ready: true, instanceId: 'codex', models: [{ slug: 'gpt-6-luna', options: [{ id: 'reasoningEffort', choices: [{ id: 'low' }] }] }] }], call: async (tag,payload) => { assert.equal(tag,'orchestration.launchThread'); lowSelection=payload.modelSelection; assert.equal(payload.workspaceStrategy.type,'root'); assert.ok(payload.initialMessage.text.includes('Translate')); }, dispatch: async command => { if (command.type === 'thread.archive') archived = true; } },
-    });
-    await translator('de', input.entries);
-    assert.equal(lowSelection.model, 'gpt-6-luna'); assert.deepEqual(lowSelection.options, [{ id: 'reasoningEffort', value: 'low' }]);
-    assert.equal(archived, true); assert.equal(helpers.size, 0);
+    const prompts = [];
+    const translator = createWriterTranslator({ writer: { write: async (prompt, options) => { prompts.push({ prompt, options }); return '{"entries":[]}'; } } });
+    assert.equal(await translator('de', input.entries), '{"entries":[]}');
+    assert.ok(prompts[0].prompt.includes('Translate') && prompts[0].prompt.includes('"greeting"'), 'the batch goes to the headless writer');
+    assert.ok(prompts[0].options.timeoutMs <= 90000, 'translation has a strict timeout');
     // A burst of screens must not accumulate unbounded model work.
     let unblock;
     const gate = new Promise(resolve => { unblock = resolve; });

@@ -9,8 +9,9 @@ chats, and simulated computer app labels. Real thread conversations, code,
 terminal output, user inputs, robot names, channel IDs and brand names stay as
 authored. This is not a translation of the entire work-management interface.
 
-German dialogue uses the connected, ready `gpt-6-luna` model with its supported
-low effort option. Translation instructions request natural informal German,
+German dialogue comes from the headless writer (`electron/headless-writer.cjs`):
+an installed harness CLI run without tools on its cheapest suitable model, never
+a T3 thread. Translation instructions request natural informal German,
 matching alternatives for wordplay, coherent exchanges, concise controls, and
 unchanged names and protected tokens. All 28 classic jokes also have authored
 German pairs, available without a model.
@@ -55,7 +56,7 @@ npm run verify:update
 The deterministic suites use model fixtures. Native acceptance uses
 `scripts/render-language-review.cjs`, a private production build and a separate
 fixture bundle of the real game modules, with the production main process,
-preload, IPC handler and live Luna transport. Its automated host holds the apps
+preload, IPC handler and live headless writer. Its automated host holds the apps
 steady for paired captures. Provider discovery can be made unavailable to test
 the actual service's cooldown and recovery; model responses are never replaced.
 Generated-pack inputs are explicitly recorded, using a real daily pack when

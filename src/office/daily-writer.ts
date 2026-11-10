@@ -4,7 +4,7 @@ import { getLocale } from "../localization";
 import { loadDaily } from "./daily";
 
 // Once a day (and on Regenerate, for example after a language change) every worker's
-// persona goes to T3 Code's text generation model, which writes the office's flavor text
+// persona goes to a headless writer (electron/headless-writer.cjs), which writes the flavor text
 // in the current language. Work runs in the main process; this only decides when.
 
 export type DailyLinesState = { date?: string; language?: string; error?: string; at?: number };

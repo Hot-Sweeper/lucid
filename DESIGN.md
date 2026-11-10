@@ -30,7 +30,7 @@ Use a 900px dialog with a 232px worker column and a flexible task column. The sh
 
 Project offices open a personal planning board from their sidebar icon, a compact clipboard control or the office menu. Keep the existing office scene and robot artwork. The clipboard and collapse controls are a 40px pair with an 8px gap in the clear header space to the right of the window. Never cover the project name, window or door with a wide generated text panel. There is no default slogan in the room. Saved banners and calendar-day countdowns live inside the opened board, with a concise tooltip on its clipboard. The expanded board uses existing navy surfaces, readable lavender text, Lexend, peach actions, a goal whiteboard and project calendar. It enters in 180ms with the shared open sound; reduced motion removes the entrance transform. Narrow layouts stack the board sections, with a scrolling body and visible save footer.
 
-Goals and dates are personal plans, separate from real T3 task completion. T3's configured text generation model writes optional human goals, a motto and occasional project-specific banter. Accepting suggestions is explicit. Only current named project robots can speak; existing task/question bubbles take priority. A generated board may refresh after real thread-state changes at most once an hour while visible. Generated replies never replace saved plans. English/German labels and generated flavor follow the office language. Failed saves preserve a local project draft; revision checks prevent overwriting another window. Project boards currently belong to local offices, with linked environments and companion clients excluded.
+Goals and dates are personal plans, separate from real T3 task completion. The headless writer (an installed harness CLI, never a T3 thread) writes optional human goals, a motto and occasional project-specific banter. Accepting suggestions is explicit. Only current named project robots can speak; existing task/question bubbles take priority. A generated board may refresh after real thread-state changes at most once an hour while visible. Generated replies never replace saved plans. English/German labels and generated flavor follow the office language. Failed saves preserve a local project draft; revision checks prevent overwriting another window. Project boards currently belong to local offices, with linked environments and companion clients excluded.
 
 
 ## Desk plan widget
@@ -95,8 +95,7 @@ Ultra fire follows the approved compact purple pixel-fire reference documented i
 
 ## Thread labels at room scale
 
-Below camera scale 1.15, desk plates show a cached 2 to 4 word topic in 14px Lexend, with the existing robot name underneath. Close views and hovered plates show the original full title. The full title remains in the tooltip and accessible label. Labels are presentation metadata, separate from T3 titles. A bounded background writer uses T3's configured text generation selection (Luna fallback), caches by thread id and exact title, and never runs in response to a zoom gesture. Missing or failed labels retain the original title. Remote environments retain their own titles without local generation.
-
+Below camera scale 1.15, desk plates show T3's title shortened at a word boundary (about 32 characters) in 14px Lexend, with the existing robot name underneath. Close views and hovered plates show the original full title. The full title remains in the tooltip and accessible label. No model writes labels.
 
 ## Questions that fit the monitor
 

@@ -25,7 +25,7 @@ const parseVerdict = (text, reportId = null) => {
   return null;
 };
 
-function createReports({ dir, t3, server, usage, settings, robots = () => [], hidden = () => false }) {
+function createReports({ dir, t3, server, usage, settings, robots = () => [] }) {
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, 'index.json');
   let papers = [];
@@ -264,8 +264,7 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [], hi
         const boss = settings()?.threadId;
         // Submit at most one new snapshot per pass, oldest completion first.
         for (const thread of [...world.threads].reverse()) {
-          // Lucid's own helper threads (translation, daily lines) are never reviewed.
-          if (thread.id === boss || hidden(thread.id) || thread.pinned || thread.settled || thread.question || thread.runStatus !== 'completed') continue;
+          if (thread.id === boss || thread.pinned || thread.settled || thread.question || thread.runStatus !== 'completed') continue;
           const state = reportState(thread.id);
           if (papers.some(p => p.threadId === thread.id && p.runId === state.run?.id)) continue;
           if (await submit(thread.id, robots().find(r => r.threadId === thread.id))) break;
