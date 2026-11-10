@@ -22,14 +22,6 @@ Transit robots skip only the fully offscreen prefix of their collision-checked p
 
 Extend the established living robot office. Keep its warm artwork, navy and lavender panels, peach actions, Lexend interface type and JetBrains Mono code type.
 
-## App library
-
-The small four-square button sits immediately before the existing settings control in the sidebar header. The library uses the existing `--night`, `--night-2`, `--night-3`, `--ink`, `--ink-2` and `--accent` tokens, desktop app icons, compact category controls and unboxed app tiles. The library replaces the central 2D scene as an ordinary content view, filling its grid area with no floating frame or backdrop. The sidebar and conversation remain available. A Back to office action, the library button or Escape returns to the existing office view without rebuilding it. On narrow screens, the app grid sits above the detail view.
-
-Search includes familiar service names for the fictional counterparts. Work-only surfaces are described honestly. Available demos run original app code in a disposable document, separately from real robots and backend actions. Switching apps or closing the library removes that document.
-
-View entry uses a 180 ms opacity fade on `cubic-bezier(.23,1,.32,1)`; controls use 130 ms color and press feedback. Reduced motion removes entrance motion. Shared open/switch sound cues respect Lucid's existing sound settings.
-
 ## Hiring
 
 Use a 900px dialog with a 232px worker column and a flexible task column. The shared legacy dialog rule must not narrow this screen back to 620px. Give the actual full-body robot the stage, retain its identity and accessories, and keep the task label visible above the composer. Runtime controls use a two-column grid, readable secondary labels, and 38px controls. The footer stays visible while the body scrolls. Narrow layouts stack a compact worker preview above the task. Press and focus feedback use the peach accent and 140ms strong ease-out; reduced motion removes transforms. Preserve the established navy/lavender surfaces and existing launch behavior.
@@ -50,19 +42,6 @@ Use an opaque night-2 surface across the complete monitor, including the dock an
 ## Office radio
 
 Keep the music controls inside the existing Office & settings shelf, below the volume sliders. Use an unboxed compact section, native themed genre selector, wrapping song title, plain genre/tempo text, and two 38px actions for Pause music and Next song. Preserve the navy surfaces, lavender text and peach keyboard focus. Controls respond in 130ms with the shared strong ease-out; reduced motion removes press transforms. The evolving journey is the default, with a quiet chapter description rather than a decorative visualization. Mode changes finish the current song unless Next is requested. English and German controls update instantly; song names remain authored. State comes from the audio owner, with no UI polling timer.
-
-## Office store and appearance collections
-
-Lucid Supply fills the center grid area, using the app library's ordinary content-view pattern. Keep the office scene mounted, make it inert while covered, preserve both side shelves, and coordinate mutually exclusive center views. Return with Back to office or Escape, restoring focus and retaining store filters and reading position.
-
-Use existing navy/lavender tokens, peach actions, Lexend, 24px gutters, compact wrapping category buttons, unboxed product entries and material previews drawn with the original floor/decor SVG functions. Theme collections combine existing floors, walls and computer casings. Classic, cream, mint, peach, retro and graphite cases preserve the actual monitor screen dimensions, applications and detail tiers. Computer choices apply to a whole office or an individual physical seat and live in its saved RoomTheme. Collections preserve decorations and explicitly replace individual computer overrides. Shared controls use 130ms feedback and entry fades in 180ms with the strong ease-out; reduced motion removes transforms and entry animation. Reuse open, switch and purchase SFX and the existing game-content localization adapter.
-
-Purchases use earned office coins. Owned pieces are reusable across offices; collections charge only for missing pieces in a single wallet transaction. Enforce affordability, season and level eligibility in the wallet, as well as the displayed action. Buying individual pieces and equipping them are distinct actions. Keep failed-save ownership visible with a retry path. Never claim these casing choices change a robot's real computing resources.
-
-## Song library
-
-The app library includes a live Song library entry in Media, separate from the robots' Botify demo. Show the real office soundtrack as compact title/genre/duration rows with whole-row Play, Pause and Resume actions. The existing radio controls sit in a compact disclosure above search and genre filtering. Preserve row nodes, focus, search and scrolling during playback updates. Use one constrained list scroll region, established navy/lavender/peach tokens, 130ms press feedback and reduced-motion support. Narrow app-library views give the songs the content area and offer All apps to return to the app grid. Leaving or closing the library releases UI subscriptions while office music continues through its existing audio owner. Song choices play once, then the selected music direction resumes.
-
 
 ## Hiring a robot
 
@@ -148,7 +127,7 @@ On a monitor showing one question, keep the question at the top and align its an
 
 ## Sidebar header actions
 
-Keep App library, Website studio, Office & settings, Help and Hide in one compact action group. Only the group absorbs spare header width. Its 30px buttons use 4px gaps, 6px corners, lavender icons and peach focus; visual order follows keyboard order. At narrow sidebar widths the whole group moves below the weather instead of spreading or wrapping individual icons. Long weather labels ellipsize within the header, retaining their full accessible text and existing tooltip. Update keeps its separate row. Hover feedback takes 130 ms and respects reduced motion.
+Keep Office & settings, Help, Pin and Hide in one compact action group. Only the group absorbs spare header width. Its 30px buttons use 4px gaps, 6px corners, lavender icons and peach focus; visual order follows keyboard order. At narrow sidebar widths the whole group moves below the weather instead of spreading or wrapping individual icons. Long weather labels ellipsize within the header, retaining their full accessible text and existing tooltip. Update keeps its separate row. Hover feedback takes 130 ms and respects reduced motion.
 
 
 ## Tradebot chart jokes

@@ -1,6 +1,6 @@
 # Office music and ambience
 
-The Song library holds 51 pieces, about two hours of music, in seven genres:
+The office soundtrack holds 51 pieces, about two hours of music, in seven genres:
 lo-fi (7), jazz (6), ambient (9), lunar phonk (6), synthwave (6), atmospheric
 breakcore (6) and the 11 acoustic pieces of the original cozy collection. The
 14 original recordings (Little Lights, Window Garden, First Coffee, Paper Kites,
@@ -105,20 +105,6 @@ modulation rather than rain-like hiss and swells. Its playback calibration is
 6 dB lower than the earlier bed, including for previously saved slider levels;
 zero still pauses it. This layer is independent of weather. Spatial typing,
 footsteps, water, birds and object sounds follow real visible activity.
-
-## Song library
-
-Open **App library**, then **Song library** under Media. The catalogue
-supports title, genre and texture search, genre filters, durations and whole-row
-Play, Pause, Resume or Retry. The playback disclosure contains the same music
-direction and Next controls. A chosen song plays immediately through the office
-stream, then the selected direction resumes with the following song.
-
-Switching apps or returning to the office keeps playback running. Exiting the
-library releases subscriptions; search, filters and scroll position survive
-reopening. Narrow views offer **All apps** to return to the grid. English/German
-labels update without changing authored song titles. Botify remains a separate
-fictional robot-app demo.
 
 ## Authoring and provenance
 
