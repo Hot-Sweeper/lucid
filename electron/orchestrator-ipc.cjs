@@ -9,7 +9,7 @@ const orch = require("./orchestrator.cjs");
 const LEGACY = ["Lucid Orchestrator"];
 const INTRO = name => `You are now the Orchestrator for ${name}. Read AGENTS.md and memory.md in this folder, then reply with two short lines: what you know about the user, and how you will help.`;
 
-function registerOrchestrator({ ipcMain, t3, t3s, brand, base, userData, usage, shot = false, roster = () => [] }) {
+function registerOrchestrator({ dailyDir, ipcMain, t3, t3s, brand, base, userData, usage, shot = false, roster = () => [] }) {
   const name = orch.folderName(brand);
   const recordFile = path.join(userData, "orchestrator-folder.json");
   let record = {};
@@ -96,7 +96,8 @@ function registerOrchestrator({ ipcMain, t3, t3s, brand, base, userData, usage, 
     return true;
   });
   ipcMain.handle("orch:memory", () => orch.readMemory(dir));
-  ipcMain.handle("orch:dialogs", () => orch.readDialogs(dir));
+  // Today's robot dialog pack (daily-writer.cjs); an older pack in its folder still counts today.
+  ipcMain.handle("orch:dialogs", () => orch.readDialogs(dailyDir || dir) || orch.readDialogs(dir));
   // answering robots' questions for the user (see src/office/delegate.ts)
   ipcMain.handle("orch:answers", () => orch.readAnswers(dir));
   ipcMain.handle("orch:record", (_e, list) => orch.recordAnswers(dir, list));

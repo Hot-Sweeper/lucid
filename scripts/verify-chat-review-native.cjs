@@ -16,7 +16,7 @@ if (!process.versions.electron) {
       const csp = fs.readFileSync(path.join(root, 'index.html'), 'utf8').match(/<meta http-equiv="Content-Security-Policy"[^>]+>/)[0];
       fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><html><head>' + csp + '<link rel="stylesheet" href="fixture.css"><style>body{margin:0;background:#151831}#app{display:block;height:100vh}.chat-panel{position:relative;inset:auto!important;width:100%!important;max-width:100%;height:100vh!important;transform:none!important;opacity:1!important;visibility:visible!important}.cp-list{overflow:auto}</style></head><body><div id="app"></div><script src="fixture.js"></script></body></html>');
     }
-    const archive = JSON.parse(fs.readFileSync(process.env.LUCID_REVIEW_ARCHIVE || 'E:/T3 Projects/Lucid Orchestrator/reports/index.json', 'utf8'));
+    const archive = JSON.parse(fs.readFileSync(process.env.LUCID_REVIEW_ARCHIVE || (() => { throw Error('Set LUCID_REVIEW_ARCHIVE to a reports/index.json from the orchestrator folder.'); })(), 'utf8'));
     const example = JSON.parse(fs.readFileSync(path.join(root, 'scripts/fixtures/chat-review-example.json'), 'utf8'));
     const real = archive.find(p => p.id === example.report);
     const visual = archive.find(p => p.verdict?.before?.length && p.verdict?.after?.length && [...p.verdict.before, ...p.verdict.after].every(s => fs.existsSync(p.images.find(i => i.source === s)?.path || s)));

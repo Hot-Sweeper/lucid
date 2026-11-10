@@ -62,7 +62,7 @@ Pressing it (click, Enter or Space) runs the same add path as before (`world.onA
    - **Approve** records "approved, ready to collect" (`electron/reports.cjs`). It does not settle. The worker returns to its desk.
 4. The desk screen shows the job title, the review summary and one **Collect** button.
 5. Collect settles the thread through the review (`reports.manual(id, 'collect')`), pays the coins, which fly to the counter and clink as each lands while the balance counts up, and clears the desk. If T3 is slow, the collect intent is saved and finishes on recovery.
-6. Without an orchestrator, work finished while Lucid is open shows Collect directly and settles through `t3s:settle`.
+6. Without an orchestrator, work finished while the app is open shows Collect directly and settles through `t3s:settle`.
 7. The coin tray's Collect all only offers collectible work and also clears those desks.
 
 ## Pinned threads
@@ -73,6 +73,17 @@ A thread pinned in T3 is an ordinary robot that keeps its desk and is never coll
 
 A second click on a robot (walking, or seated at a focused desk) opens `src/office/worker-focus.ts`: the robot floats over a backdrop tinted by its harness, with setup, current job, record, written persona and recent approved work, and Open chat, Customize, Retrain and Retire. The desk menu has Worker profile; Office & tools has Staff wall.
 
+## Orchestrator
+
+Optional and off until you set it up (top bar Set up, or the sidebar section). Setup (`src/office/orchestrator-setup.ts`) says what it is, where its notes live and that every review, answer and learning batch is a turn on the chosen model; the harness and model come from T3's own list and are validated again in the main process (`electron/orchestrator-ipc.cjs`). It is one pinned T3 thread launched with a request id, so a retry cannot start a second one.
+
+- Folder: `~/T3 Projects/<brand name> Orchestrator` (`orchestrator.cjs folderName`). An older folder (for example `Lucid Orchestrator`) moves there in one atomic rename, so `memory.md`, `answers.json` and `reports/` move together or not at all; when the rename fails or the target already exists nothing moves. T3's project is repointed with `project.meta.update` and retried until T3 accepts. No personal notes are read to seed its memory.
+- On/off: the top bar switch. Off holds every new automatic review, answer and learning batch; your own reviews, collects and settlement recovery keep working.
+- Strict: approval needs the original request, a final result, actual checks and, for visual work, captured before and after images. Human-only checks go to a questionnaire of at most three yes/no questions; all yes finishes the orchestrator's own approval, a no or "cannot check yet" stays with you.
+- Transparent: the sidebar lists its latest decisions with the reason and what each cost on its model (from native session logs, never estimated), its cost today and over 7 days, and its thread's health. Each paper records its review cost.
+- Robust: a review that provably never reached T3 is resent with backoff (at most three sends); a stopped orchestrator run or a lost thread moves the paper to you at once; papers wait while its thread is gone; collect recovery and settlement retries back off and never stop. Status polls are single-flight.
+- Stop using it (Settings) clears only the office setting; its folder and T3 thread stay. Nothing is created in `~/T3 Projects` until you set it up.
+
 ## Orchestrator chair
 
 Orchestrator settings, Take the chair (`src/office/chair.ts`). The AI orchestrator rests (presence away) and the view is the counter: waiting workers in line, the first one's report on the counter (request, report, evidence, notes, model, effort, cost, link to the chat). Approve (A) stamps it; Follow up (F) needs a note; arrows move through the line. Notes survive leaving. Leaving restores the previous orchestrator state. A chair approval is the user's review, recorded with `chair: true`; outside the chair the orchestrator must review first.
@@ -80,7 +91,7 @@ Orchestrator settings, Take the chair (`src/office/chair.ts`). The AI orchestrat
 ## Personas and generated text
 
 - `src/office/persona.ts` writes each worker's persona from its hire preferences (hobby, apps, editor, windows, launch and switching habits, git, music, notes, games, socials) plus approved work only. Approvals are recorded once per paper (`Roster.recordApproval`).
-- `electron/daily-writer.cjs` saves the persona files to the orchestrator folder (`personas/`) and once a day asks the headless writer (`electron/headless-writer.cjs`) to read them one after another and write conversations, per-robot lines, CEO lines, gossip, Botcord messages, Tube titles and the day's event in the current language. The writer runs an installed harness CLI headlessly (Codex `codex exec` or Claude Code `claude -p`, T3's text generation model when its CLI is installed, otherwise the cheapest default), with no tools, no MCP servers, no saved session and a strict timeout. It never creates a T3 thread.
+- `electron/daily-writer.cjs` saves the persona files to the app data folder (`daily/personas/`, next to `daily/dialogs.json`) and once a day asks the headless writer (`electron/headless-writer.cjs`) to read them one after another and write conversations, per-robot lines, CEO lines, gossip, Botcord messages, Tube titles and the day's event in the current language. The writer runs an installed harness CLI headlessly (Codex `codex exec` or Claude Code `claude -p`, T3's text generation model when its CLI is installed, otherwise the cheapest default), with no tools, no MCP servers, no saved session and a strict timeout. It never creates a T3 thread.
 - A pack written in the current language is shown as written; others go through the existing localization. Office & tools, Rewrite robot lines regenerates on demand, for example after a language change.
 
 ## Threads

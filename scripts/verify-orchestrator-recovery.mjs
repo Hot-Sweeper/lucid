@@ -26,7 +26,7 @@ assert.equal(recent.exists,true);db.close();
 
 const source=fs.readFileSync(new URL('../src/office/delegate.ts',import.meta.url),'utf8');
 const code=(await transformWithOxc(source.replace(/^import .*;\r?$/gm,'').replace(/^export /gm,''),'delegate.ts')).code.replace(/export\s*\{[\s\S]*?\};?\s*$/,'');
-const {Delegate,tagOf}=new Function('answerFor','location','window',code+';return {Delegate,tagOf}')(()=>null,{search:'?app=1'},{});
+const {Delegate,tagOf}=new Function('answerFor','location','window','BRAND','costText',code+';return {Delegate,tagOf}')(()=>null,{search:'?app=1'},{},{name:'Test Works'},()=>null);
 const state={threadId:'boss',auto:true,paused:false},r={id:'req',type:'input',answerable:true,questions:[{id:'0',question:'Run the private checks?',header:'Checks',options:[{label:'Yes'}]}]},t={id:'worker',projectId:'p',title:'Worker',question:true};
 function make(outcome='failed',attempts=1,at=new Date(Date.now()-31000).toISOString()){
   const d=Object.create(Delegate.prototype);

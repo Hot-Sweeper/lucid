@@ -243,7 +243,9 @@ ipcMain.handle("project:pick-folder", async (e) => {
 });
 // --- orchestrator -----------------------------------------------------------------
 const roster = () => { try { return JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "roster.json"), "utf8")); } catch { return []; } };
-const orchestrator = require("./orchestrator-ipc.cjs").registerOrchestrator({ ipcMain, t3, t3s: require("./t3server.cjs"), brand, base: PROJECTS_BASE, userData: app.getPath("userData"), usage: require("./usage.cjs"), shot: !!process.env.LUCID_SHOT, roster });
+// Daily flavor text is app data, not the opt-in orchestrator's, so it lives with the settings.
+const DAILY_DIR = path.join(app.getPath("userData"), "daily");
+const orchestrator = require("./orchestrator-ipc.cjs").registerOrchestrator({ dailyDir: DAILY_DIR, ipcMain, t3, t3s: require("./t3server.cjs"), brand, base: PROJECTS_BASE, userData: app.getPath("userData"), usage: require("./usage.cjs"), shot: !!process.env.LUCID_SHOT, roster });
 const ORCH_DIR = orchestrator.dir;
 app.whenReady().then(() => void orchestrator.repairRoots());
 ipcMain.handle("t3:request-context", (_e, id) => t3.requestContext(id));
@@ -479,7 +481,7 @@ const t3s = require("./t3server.cjs");
 const { createLocalization, createWriterTranslator } = require('./localization.cjs');
 // Flavor text, translations and board ideas come from a headless harness CLI, never a T3 thread.
 const writer = require('./headless-writer.cjs').createHeadlessWriter({ settingsFile: path.join(path.dirname(t3.DB_PATH), 'settings.json') });
-const dailyWriter = require('./daily-writer.cjs').createDailyWriter({ writer, dir: ORCH_DIR });
+const dailyWriter = require('./daily-writer.cjs').createDailyWriter({ writer, dir: DAILY_DIR });
 ipcMain.handle("writer:daily", (_e, input) => { if (activeBuilding()) throw Error('Write daily lines on the computer that owns the robots.'); return dailyWriter.write(input); });
 const projectLife = require('./project-life.cjs').createProjectLife({ file: path.join(app.getPath('userData'), 'project-offices.json'), t3, writer, isLocal: () => !activeBuilding() });
 ipcMain.handle('project-life:get', (_e, input) => projectLife.get(input));

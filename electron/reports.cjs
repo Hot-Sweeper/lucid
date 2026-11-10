@@ -31,13 +31,13 @@ const parseVerdict = (text, reportId = null) => {
 };
 
 function createReports({ dir, t3, server, usage, settings, robots = () => [], name = 'Lucid', spent = null }) {
-  fs.mkdirSync(dir, { recursive: true });
+  // The folder appears with the first paper, so an orchestrator nobody set up leaves no trace.
   const file = path.join(dir, 'index.json');
   let papers = [];
   try { papers = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { if (e.code !== 'ENOENT') throw e; }
   const reportState = t3.reportState || t3.reportFacts;
   let busy = false;
-  const save = () => { fs.writeFileSync(file + '.tmp', JSON.stringify(papers, null, 2)); fs.renameSync(file + '.tmp', file); };
+  const save = () => { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(file + '.tmp', JSON.stringify(papers, null, 2)); fs.renameSync(file + '.tmp', file); };
   const enabled = () => { const s = settings(); return s && s.threadId && s.review && !s.paused; };
   const update = (p, values) => { Object.assign(p, values, { updatedAt: new Date().toISOString() }); save(); };
   const event = (p, action, by, reason = '') => { p.history.push({ at: new Date().toISOString(), action, by, reason }); };

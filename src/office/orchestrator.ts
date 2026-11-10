@@ -1,14 +1,22 @@
 import gsap from "gsap";
 import type { World, WThread } from "./world";
 
-// Your stand-in. It learns your preferences from what you tell robots, keeps them in its
-// notebook (memory.md), and when reviews are on, checks finished work for you.
+// Your stand-in, opt-in. It is one pinned T3 thread that learns your preferences from what you
+// tell robots, keeps them in its notebook (memory.md), and when reviews are on, checks finished
+// work for you. Off (paused) holds every new automatic decision.
 
-export type OrchState = { threadId: string; projectId: string; dir: string; review: boolean; reviewWorkflow?: number; paused?: boolean; presence?: "awake" | "sleep" | "away"; seenUntil: string; lastSentAt: number; learned: number; reviewed: Record<string, number>; dialogsAsked?: string;
+export type OrchState = { threadId: string; projectId: string; dir: string; review: boolean; reviewWorkflow?: number; paused?: boolean; presence?: "awake" | "sleep" | "away"; seenUntil: string; lastSentAt: number; learned: number; reviewed: Record<string, number>;
   /** answering robots' questions for you (delegate.ts): on unless turned off, how sure it must be, learning cursors */
-  auto?: boolean; threshold?: number; answersSince?: string; folded?: string };
+  auto?: boolean; threshold?: number; answersSince?: string; folded?: string;
+  /** the T3 pin was restored once for an orchestrator hired before setup pinned it */
+  pinChecked?: boolean };
+export type SetupChoice = { provider: string; model: string; options?: Record<string, string | boolean>; requestId: string; review: boolean; auto: boolean };
+export type Usage = { available: boolean; tokens: number | null; costUsd: number | null } | null;
+export type OrchStatus = { dir: string; folderError: string | null; repairError: string | null; thread: { exists: boolean; pinned?: boolean; archived?: boolean; runStatus?: string | null; error?: string } | null; usage: { today: Usage; week: Usage } | null };
 type Api = {
-  orchInit(o?: { provider?: string; model?: string }): Promise<{ threadId: string; projectId: string; dir: string }>;
+  orchInit(o: SetupChoice): Promise<{ threadId: string; projectId: string; dir: string; pinned: boolean }>;
+  orchStatus(threadId?: string): Promise<OrchStatus>;
+  orchPin(threadId: string): Promise<boolean>;
   orchMemory(): Promise<string>;
   userMessagesSince(since: string, exclude: string): Promise<{ threadId: string; title: string; at: string; text: string }[]>;
   sendMessage(o: { threadId: string; message: string }): Promise<{ ok: boolean }>;
@@ -21,6 +29,9 @@ export class Orchestrator {
   private reportsFlight: Promise<void> | null = null;
   private pendingReportThreads: WThread[] | null = null;
   private busy = false;
+  private statusFlight: Promise<OrchStatus | null> | null = null;
+  /** Latest health, folder and cost from the main process (refreshStatus). */
+  status: OrchStatus | null = null;
   onChange: () => void = () => {};
 
   constructor(private api: Api, private world: World, private get: () => OrchState | null, private set: (s: OrchState | null) => void) {
@@ -30,55 +41,57 @@ export class Orchestrator {
     this.world.onReportArrived = () => void this.syncReports();
     void this.syncReports();
     setInterval(() => void this.learn(), 60000);
-    // once a day: fresh lines for the robots, about you and each other
-    // Daily flavor text now comes from the robots' personas (daily-writer.ts).
-  }
-
-  // Ask the orchestrator for today's dialog pack: about 40 short lines on a cheap model,
-  // drawn from what it knows about you (memory.md) and what the robots worked on today.
-  async daily() {
-    const s = this.get();
-    if (!s || s.paused) return;
-    const today = new Date().toLocaleDateString("en-CA");
-    if (s.dialogsAsked === today) return;
-    const have = await (window as any).lucid.orchDialogs?.().catch(() => null);
-    if(this.get()?.paused || this.get()?.threadId!==s.threadId)return;
-    if (have?.date === today) { this.set({ ...this.get()!, dialogsAsked: today }); return; }
-    const names = [...new Set(this.world.roster.robots.map((r) => r.name))].slice(0, 16).join(", ");
-    const topics = (this.world.lastData?.threads ?? [])
-      .filter((t) => t.title && Date.now() - Date.parse(t.updatedAt) < 36 * 3600 * 1000)
-      .slice(0, 10).map((t) => `- ${t.title}`).join("\n");
-    const message = `Daily dialog pack for the robots (${today}). Write it to dialogs.json in your folder and reply "Done". Keep it cheap: write the file directly, no tools besides that.
-
-Shape (JSON): {"date":"${today}","convos":[["line","reply","..."]],"ceo":["..."],"gossip":["..."],"botcord":[{"channel":"general","user":"name","text":"..."}],"trending":[{"title":"...","channel":"...","views":"1.2M views"}],"event":{"name":"...","blurb":"..."}}
-- convos: 12 short back-and-forths (2 to 4 lines each) robots have in the break room or park, some about today's work, some about the CEO (the user), some about each other
-- ceo: 8 single lines robots say about the CEO, affectionate teasing using what memory.md says about how the user works
-- gossip: 8 single lines about other robots by name
-- botcord: 10 chat messages for the robots' Discord-like app
-- trending: 6 made-up trending robot video titles with silly channel names (riff on today's work or tech news robots would care about)
-- event: one small office event for today, like "Robot karaoke night" or "Pizza Friday", with a one-line blurb
-
-Robot names: ${names || "Bolt, Mochi, Pixel"}
-Today's work:
-${topics || "- (quiet day)"}
-
-Rules: lines under 70 characters, kind and funny, PG, no em dashes or en dashes, no secrets or personal data.`;
-    try {
-      await this.api.sendMessage({ threadId: s.threadId, message });
-      if(this.get()?.threadId===s.threadId)this.set({ ...this.get()!, dialogsAsked: today });
-    } catch (err) { console.error("daily dialogs failed", err); }
+    setInterval(() => { if (!document.hidden) void this.refreshStatus(); }, 60000);
+    void this.refreshStatus();
   }
 
   get state() { return this.get(); }
 
-  async hire() {
-    const r = await this.api.orchInit({ provider: "claudeAgent", model: "claude-sonnet-5-5" });
-    this.set({ ...r, review: true, reviewWorkflow: 1, seenUntil: new Date().toISOString(), lastSentAt: Date.now(), learned: 0, reviewed: {} });
-    this.world.roster.assignRobot(r.threadId, null, "claudeAgent");
+  /** Set it up with the harness and model you chose (validated again in the main process). */
+  async hire(choice: SetupChoice) {
+    const r = await this.api.orchInit(choice);
+    this.set({ threadId: r.threadId, projectId: r.projectId, dir: r.dir, review: choice.review, auto: choice.auto, paused: false, presence: "awake", pinChecked: true, reviewWorkflow: 1, seenUntil: new Date().toISOString(), lastSentAt: Date.now(), learned: 0, reviewed: {} });
+    this.world.roster.assignRobot(r.threadId, null, choice.provider);
     const bot = this.world.roster.byThread(r.threadId);
     if (bot) { bot.name = "Boss"; bot.look = { ...bot.look, antennaTip: "star", accent: "#ffd27a" }; (this.world.roster as any).save(); }
     this.onChange();
+    void this.refreshStatus();
     return r.threadId;
+  }
+
+  /** Stop using it. Its folder (memory, answers, reports) and its T3 thread stay as they are. */
+  dismiss() {
+    this.set(null);
+    this.status = null;
+    this.onChange();
+  }
+
+  /** Ask the main process how it is doing. One request at a time; the newest result wins. */
+  refreshStatus(): Promise<OrchStatus | null> {
+    if (this.statusFlight) return this.statusFlight;
+    const s = this.get();
+    if (!this.api.orchStatus) return Promise.resolve(null);
+    const flight = this.api.orchStatus(s?.threadId).then(async status => {
+      if (this.get()?.threadId !== s?.threadId) return this.status;
+      this.status = status;
+      // Older setups did not pin the thread. Restore T3's pin once; a later unpin is respected.
+      const current = this.get();
+      if (current && !current.pinChecked && status.thread?.exists) {
+        this.set({ ...current, pinChecked: true });
+        if (!status.thread.pinned) await this.api.orchPin(current.threadId).catch(() => false);
+      }
+      this.onChange();
+      return status;
+    }).catch(() => this.status).finally(() => { this.statusFlight = null; });
+    this.statusFlight = flight;
+    return flight;
+  }
+
+  /** Papers that wait for you: needs your review, or your answers to its questionnaire. */
+  get waiting() {
+    const latest = new Map<string, any>();
+    for (const p of this.papers) if (!latest.has(p.threadId)) latest.set(p.threadId, p);
+    return [...latest.values()].filter(p => p.status === "manual-review");
   }
 
   setReview(on: boolean) {
@@ -92,7 +105,7 @@ Rules: lines under 70 characters, kind and funny, PG, no em dashes or en dashes,
   // Batch the user's new messages to robots and hand them to the orchestrator to learn from.
   async learn(force = false) {
     const s = this.get();
-    if (!s || s.paused || this.busy) return;
+    if (!s || s.paused || this.busy || this.status?.thread?.exists === false) return;
     this.busy = true;
     try {
       const msgs = await this.api.userMessagesSince(s.seenUntil, s.threadId);
@@ -109,10 +122,6 @@ Rules: lines under 70 characters, kind and funny, PG, no em dashes or en dashes,
     } finally {
       this.busy = false;
     }
-  }
-
-  setPaused(paused: boolean) {
-    this.setPresence(paused ? "sleep" : "awake");
   }
 
   setAuto(auto: boolean) {
