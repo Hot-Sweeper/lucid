@@ -1,7 +1,7 @@
 // Floor geometry of an office building: wall and desk place sizes, the hall, how many desk
 // columns a room has and where desk place `index` stands on the snake.
 import { officeColumns, officeDimensions, releaseOfficeWidth } from "../office-width";
-import { Desk, UNIT_W, UNIT_H } from "../desk";
+import { UNIT_W, UNIT_H } from "../desk";
 import { DECOR } from "../../decor/decor";
 import { snakeSeat } from "../room-policy";
 import type { RoomTheme } from "../decorate";

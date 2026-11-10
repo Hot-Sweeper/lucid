@@ -143,11 +143,11 @@ console.log('PASS: stable live landing preview, honest pending handoff, collapse
 }
 
 {
-  const main = await readFile(new URL('../../src/main.ts', import.meta.url), 'utf8');
-  const handler = main.slice(main.indexOf('  world.onAddDesk ='), main.indexOf('  world.onFreeDeskMenu ='));
+  const menus = await readFile(new URL('../../src/app/menus.ts', import.meta.url), 'utf8');
+  const handler = menus.slice(menus.indexOf('    app.world.onAddDesk ='), menus.indexOf('    app.world.onFreeDeskMenu ='));
   const compiled = (await transformWithOxc(handler, 'add-desk.ts')).code;
   const events = [], world = {lastData:{threads:[]},extra:new Map(),seats:new Map([['main',[]]]),setRoomExpanded(){},update(){events.push(['paint',this.extra.get('main'),this.seats.get('main').length]);}};
-  new Function('world','companionClient','saveSettings','refresh',compiled)(world,()=>false,()=>events.push(['save']),()=>{events.push(['network']);return new Promise(()=>{});});
+  new Function('app',compiled)({world,saveSettings:()=>events.push(['save']),refresh:()=>{events.push(['network']);return new Promise(()=>{});}});
   world.onAddDesk('main');
   assert.deepEqual(events[0],['paint',1,1],'a new desk appears locally before any network refresh can finish');
 }

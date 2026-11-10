@@ -1,6 +1,5 @@
 // The data the world is drawn from (T3 threads and projects), saved office layouts, rooms and the
 // contract a utility room (break room, question line, charging room) implements.
-import { line } from "../../lines";
 import { Walker, type Facing, type Pt } from "../../robot";
 import type { RoomTheme } from "../decorate";
 import { icon } from "../../ui/icons";

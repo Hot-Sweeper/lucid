@@ -1,5 +1,4 @@
 import { officeColumns } from "./office-width";
-import { line } from "../lines";
 import { Walker, Roster, type Pt } from "../robot";
 import { subscriptionBatteries } from "./battery";
 import type { Usage } from "../stats/stats";
@@ -10,7 +9,7 @@ import { Desk, type DeskServices } from "./desk";
 import type { EnvironmentBuilding } from "./environments";
 import { officePlan, type OfficePlan } from "./floor-plan";
 import { buildingFootprint } from "./building-footprint";
-import { hasOfficeWork, layoutMeeting, addDeskPlace } from "./room-policy";
+import { hasOfficeWork, layoutMeeting } from "./room-policy";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
 import type { WeatherLayer, Weather } from "../weather/effects";

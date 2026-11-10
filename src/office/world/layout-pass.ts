@@ -2,7 +2,6 @@
 // classification, seat reservations, the floor plan, room DOM, desk places and walkers in transit.
 // Part of the World class (world.ts); see the note there on how its parts are combined.
 import { officeColumns, mountOfficeWidth } from "../office-width";
-import { line } from "../../lines";
 import { setRobotModes, type Pt } from "../../robot";
 import { subscriptionBatteries, needsCharge } from "../battery";
 import { chargingSize } from "../../world/charging";
@@ -11,7 +10,6 @@ import { Desk, shortTitle } from "../desk";
 import { officePlan } from "../floor-plan";
 import { buildingFootprint } from "../building-footprint";
 import { hasOfficeWork, hasOfficeDesk, reserveRoomSeats, remainingDeskExtras, snakeSeat, projectRoomSeats, layoutMeeting, layoutWaitingSpots, layoutSafeAt, addDeskPlace, FOLDED_OFFICE } from "../room-policy";
-import { Park } from "../park";
 import { vectorOwner } from "../../perf/shared-vector";
 import { cacheStaticArt } from "../../perf/static-art";
 import { icon } from "../../ui/icons";

@@ -23,10 +23,8 @@ async function run() {
   assert.match(aggregate.details, /primary rename error\nrollback error/);
 
   // Run the actual renderer handlers, including delayed IPC, without a live app.
-  const source = fs.readFileSync(path.join(__dirname, '../../src/main.ts'), 'utf8');
-  const start = source.indexOf('let updateState:');
-  const end = source.indexOf('const attachDir =', start);
-  assert(start >= 0 && end > start);
+  // The update button module (src/app/update-button.ts), with its imports supplied by the context.
+  const source = fs.readFileSync(path.join(__dirname, '../../src/app/update-button.ts'), 'utf8').replace(/^import\s[^;]+;\r?\n/gm, '').replace(/^export /gm, '');
   const button = { textContent:'', title:'', disabled:false, addEventListener:(_name, fn) => { button.click = fn; }, getBoundingClientRect:() => ({left:1,bottom:2}), focus:() => {} };
   let status = {available:true,local:2}, result = failure, calls = 0, removed = 0, menu, copied;
   let subscriptionFails = false, cleanupFails = false, copyFails = false, release;
@@ -41,7 +39,7 @@ async function run() {
     },
   };
   vm.createContext(context);
-  vm.runInContext(stripTypeScriptTypes(source.slice(start,end), {mode:'transform'}) + '\nthis.check = checkUpdate;', context);
+  vm.runInContext(stripTypeScriptTypes(source, {mode:'transform'}) + '\nconst app = {}; defineUpdateButton(app); mountUpdateButton(app); this.check = () => app.checkUpdate();', context);
   await context.check();
   await button.click();
   assert.equal(button.textContent, 'Changes not ready');

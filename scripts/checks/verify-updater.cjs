@@ -187,8 +187,8 @@ async function main() {
     assert.equal((await checkingRemote.apply(undefined, { localOnly: true })).updated, false, 'Launch does not queue behind an in-flight remote check');
     releaseRemote(); await pendingRemote;
     const vm = require('node:vm'), { stripTypeScriptTypes } = require('node:module');
-    const source = fs.readFileSync(path.join(__dirname, '../../src/main.ts'), 'utf8');
-    const uiSource = source.slice(source.indexOf('let updateState:'), source.indexOf('const attachDir ='));
+    // The update button module (src/app/update-button.ts), with its imports supplied by the context.
+    const uiSource = fs.readFileSync(path.join(__dirname, '../../src/app/update-button.ts'), 'utf8').replace(/^import\s[^;]+;\r?\n/gm, '').replace(/^export /gm, '');
     const button = { textContent: '', title: '', disabled: false, addEventListener: (_name, fn) => { button.click = fn; }, getBoundingClientRect: () => ({ left: 0, bottom: 0 }) };
     let state = { available: false }, fail = false, applyCalls = 0, offCalls = 0;
     const context = {
@@ -196,7 +196,7 @@ async function main() {
       api: { checkUpdate: async () => state, onUpdateStep: () => () => offCalls++, applyUpdate: async () => { applyCalls++; if (fail) throw Error('disconnected'); return { ok: true }; } },
     };
     vm.createContext(context);
-    vm.runInContext(stripTypeScriptTypes(uiSource, { mode: 'transform' }) + '\nthis.check = checkUpdate;', context);
+    vm.runInContext(stripTypeScriptTypes(uiSource, { mode: 'transform' }) + '\nconst app = {}; defineUpdateButton(app); mountUpdateButton(app); this.check = () => app.checkUpdate();', context);
     await context.check();
     assert.equal(button.textContent, 'Check updates');
     state = { available: true, local: 3, behind: 2 };

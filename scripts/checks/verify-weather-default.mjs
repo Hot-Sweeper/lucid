@@ -6,10 +6,11 @@ import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 
 const read = path => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
-const main = await read('src/main.ts');
-assert.match(main, /^void pollWeather\(\);$/m, 'live weather is requested unconditionally at startup');
-assert.match(main, /^setInterval\(pollWeather, /m, 'and kept current');
-const settingsType = main.match(/^const settings: \{([^\n]*)\} = /m)?.[1] ?? '';
+const weather = await read('src/app/weather-badge.ts');
+assert.match(weather, /^\s*void app\.pollWeather\(\);$/m, 'live weather is requested unconditionally at startup');
+assert.match(weather, /^\s*setInterval\(app\.pollWeather, /m, 'and kept current');
+const context = await read('src/app/context.ts');
+const settingsType = context.match(/^  settings: \{\n([\s\S]*?)\n\};$/m)?.[1] ?? '';
 assert.ok(settingsType, 'saved settings type found');
 assert.doesNotMatch(settingsType, /weather(?!Fix)|season/i, 'no saved setting can disable weather or seasons; weatherFix only corrects the sky for two hours');
 
