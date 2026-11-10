@@ -15,7 +15,7 @@ module.exports = async ({ js, wc, wait, out }) => {
       void 0;
     }`);
     const apps = ['snake','flappy','dash','blockcraft','nightshift','tictactoe','connect4','bitmerge','island','botcom','bugger','boot',
-      'botflix','tube','tensorhub','beats','social','phone','botsapp','telegrid','chirp','doodle','crossword','solitaire','stocks','mail','lingo','instaweb','spoolweb','sparkplug','steam','trading'];
+      'botflix','tube','benchtop','beats','social','phone','botsapp','telegrid','chirp','doodle','crossword','solitaire','stocks','mail','lingo','instaweb','spoolweb','sparkplug','steam','trading'];
     for (const name of apps) {
       await js(`window.__loadingCheck.start(${JSON.stringify(name)})`);
       let sample;

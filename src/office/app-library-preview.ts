@@ -36,19 +36,19 @@ const runs: Record<string, (body: HTMLElement, host: FunHost, opts: any) => Prom
   blockcraft: activities.playBlockcraft, nightshift: activities.playNightShift, tictactoe: activities.playTicTacToe,
   connect4: activities.playConnectFour, bitmerge: activities.playBitMerge, island: activities.playRobotIsland,
   botcom: activities.playBotCom, bugger: activities.playDerBugger, boot: activities.playBoot,
-  botflix: activities.watchBotflix, tube: activities.watchTube, tensorhub: activities.browseTensorHub,
+  botflix: activities.watchBotflix, tube: activities.watchTube, tensorhub: activities.browseBenchtop,
   beats: activities.makeBeat, social: activities.hangOutInChat, botsapp: activities.chatOnBotsApp,
   telegrid: activities.browseTelegrid, chirp: activities.scrollChirp, doodle: activities.doodleInSketchpad,
   crossword: activities.solveCrossword, solitaire: activities.playSolitaire, stocks: activities.watchStocks,
   mail: activities.checkMail, lingo: activities.learnWithLingobot, instaweb: activities.browseInstaweb,
-  spoolweb: activities.scrollSpoolWeb, sparkplug: activities.swipeSparkplug, steam: activities.useSteam,
-  trading: activities.tradeOnTradebot,
+  spoolweb: activities.scrollSpoolWeb, sparkplug: activities.swipeSparkplug, steam: activities.useVapor,
+  trading: activities.tradeOnBotcoinExchange,
 };
 async function run() {
   if (!entry?.demo) throw new Error("No demo for this app.");
   const id = entry.demo;
   if (runs[id]) {
-    const known: AppId[] = ["beats","social","botsapp","telegrid","chirp","doodle","crossword","solitaire","stocks","mail","lingo","instaweb","spoolweb","sparkplug","steam","trading"];
+    const known: AppId[] = ["beats","social","botsapp","telegrid","chirp","doodle","crossword","solitaire","stocks","mail","lingo","instaweb","spoolweb","sparkplug","vapor","trading"];
     const appId: AppId = known.includes(id as AppId) ? id as AppId : ["tube","botflix","tensorhub"].includes(id) ? "browser" : "game";
     const w = await wm.open(appId, entry.name);
     await runs[id](w.body, host, { maxMs: 120000, skill: .7, me: "Demo robot" });

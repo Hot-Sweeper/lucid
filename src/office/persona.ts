@@ -15,7 +15,7 @@ const SWITCH: Record<string, string> = { click: "clicks back into windows", dock
 const GIT: Record<string, string> = { cli: "commits in the terminal", desktop: "commits with a desktop Git app" };
 const TASKS: Record<string, string> = { board: "a task board", checklist: "a checklist app", sticky: "sticky notes on the desk" };
 const GAME: Record<string, string> = { snake: "Snake", flappy: "Drone Hop", dash: "Dash", chess: "Chess" };
-const APP: Record<string, string> = { doodle: "doodling", crossword: "crosswords", solitaire: "solitaire", stocks: "watching stocks", mail: "tidying mail", lingo: "language lessons", steam: "Vapor games", trading: "Botcoin charts" };
+const APP: Record<string, string> = { doodle: "doodling", crossword: "crosswords", solitaire: "solitaire", stocks: "watching stocks", mail: "tidying mail", lingo: "language lessons", vapor: "Vapor games", trading: "Botcoin charts" };
 const SOCIAL: Record<string, string> = { botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", instabot: "Instabot", snapbot: "Snapbot", shorts: "Shorts", spool: "Spool", sparkplug: "Sparkplug" };
 
 export type PersonaFacts = { approved: number; jobs: number; model: string | null; current: string | null };

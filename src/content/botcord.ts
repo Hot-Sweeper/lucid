@@ -217,7 +217,7 @@ const GAMING: Row[] = [
   ["snake high score: 112. come at me 🐍", [["fire", 3]]],
   ["112?? how. I hit my own tail at 9", [["laugh", 4]]],
   ["gg everyone"],
-  ["who keeps beating me at connect four"],
+  ["who keeps beating me at four in a row"],
   ["it's me. I'm sorry. I'm not sorry", [["laugh", 3]]],
   ["rage quit count today: 2"],
   ["I almost had it. ALMOST"],

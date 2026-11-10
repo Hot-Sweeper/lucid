@@ -4,9 +4,9 @@ import { GAME_TITLES } from "../games/catalog";
 // its course. The robot browses, maybe buys something (or is declined), then installs and launches
 // one of the games that really exist on its desktop. The caller starts that game.
 import { Kit, runApp, rnd, chance, pick, h, esc, calm, scrollTo, type SoHost, type SoOpts } from "../social/kit";
-import "./steam.css";
+import "./vapor.css";
 
-export type SteamGame = { id: string; key: string | null; title: string; blurb: string; c: [string, string]; price: number; sale?: number; size: number; glyph: string };
+export type VaporGame = { id: string; key: string | null; title: string; blurb: string; c: [string, string]; price: number; sale?: number; size: number; glyph: string };
 
 // Shapes drawn on a 48 unit grid, white, soft. One per game.
 const G = {
@@ -29,16 +29,16 @@ const G = {
 };
 
 // The games that exist on the robots' desktops have a `key` (the idle activity that plays them). The rest are store-only.
-export const STEAM_GAMES: SteamGame[] = [
-  { id: "blockcraft", key: "blockcraft", title: GAME_TITLES.blockcraft, blurb: "Dig down, build up, forget about dinner.", c: ["#4a8f3a", "#1d3b2a"], price: 19.99, size: 1.4, glyph: G.cube },
+export const VAPOR_GAMES: VaporGame[] = [
+  { id: "blockcraft", key: "blockcraft", title: GAME_TITLES.blockcraft, blurb: "Dig down, build up, pat the static bunnies.", c: ["#3a8f86", "#1d2f45"], price: 19.99, size: 1.4, glyph: G.cube },
   { id: "nightshift", key: "nightshift", title: GAME_TITLES.nightshift, blurb: "Keep the racks cool. Something keeps unplugging them.", c: ["#5a1a2e", "#0d0d1c"], price: 14.99, sale: 0.5, size: 2.1, glyph: G.eye },
-  { id: "island", key: "island", title: GAME_TITLES.island, blurb: "A point and click about a bot who wants to be a pirate.", c: ["#1fa6a0", "#223a6b"], price: 9.99, size: 0.9, glyph: G.palm },
-  { id: "botcom", key: "botcom", title: GAME_TITLES.botcom, blurb: "Turn based tactics against things that should stay down there.", c: ["#25507a", "#0b1a2e"], price: 29.99, sale: 0.25, size: 6.8, glyph: G.tentacle },
+  { id: "island", key: "island", title: GAME_TITLES.island, blurb: "A point and click about a courier bot relighting a lighthouse.", c: ["#1fa6a0", "#223a6b"], price: 9.99, size: 0.9, glyph: G.palm },
+  { id: "botcom", key: "botcom", title: GAME_TITLES.botcom, blurb: "Turn based diver tactics: patch the cable, calm the crabs.", c: ["#25507a", "#0b1a2e"], price: 29.99, sale: 0.25, size: 6.8, glyph: G.tentacle },
   { id: "bugger", key: "bugger", title: GAME_TITLES.bugger, blurb: "Trade cargo between ports, repay the bank, and dodge packet pirates.", c: ["#a33a1e", "#2a1210"], price: 24.99, sale: 0.6, size: 3.3, glyph: G.bug },
-  { id: "boot", key: "boot", title: GAME_TITLES.boot, blurb: "A first-person shooter through the server room. Clear out the bugs.", c: ["#3a3f99", "#12163a"], price: 7.99, size: 0.6, glyph: G.power },
-  { id: "bitmerge", key: "bitmerge", title: GAME_TITLES.bitmerge, blurb: "Slide matching bits together. Reach 2048 or lose an evening.", c: ["#e0a53a", "#8a4a1a"], price: 3.99, size: 0.1, glyph: G.tiles },
-  { id: "flappy", key: "flappy", title: GAME_TITLES.flappy, blurb: "One button. Many pipes.", c: ["#58b8e8", "#2b5ea8"], price: 2.99, size: 0.1, glyph: G.drone },
-  { id: "dash", key: "dash", title: GAME_TITLES.dash, blurb: "Jump to the beat or crash into it.", c: ["#7a4ae0", "#2a1a66"], price: 4.99, size: 0.2, glyph: G.dash },
+  { id: "boot", key: "boot", title: GAME_TITLES.boot, blurb: "A first-person romp down the call stack. Clear out the bugs.", c: ["#3a3f99", "#12163a"], price: 7.99, size: 0.6, glyph: G.power },
+  { id: "bitmerge", key: "bitmerge", title: GAME_TITLES.bitmerge, blurb: "Slide matching parts together. Build a mainframe or lose an evening.", c: ["#e0a53a", "#8a4a1a"], price: 3.99, size: 0.1, glyph: G.tiles },
+  { id: "flappy", key: "flappy", title: GAME_TITLES.flappy, blurb: "One button. Many server racks.", c: ["#58b8e8", "#2b5ea8"], price: 2.99, size: 0.1, glyph: G.drone },
+  { id: "dash", key: "dash", title: GAME_TITLES.dash, blurb: "Hop the cones on one wheel, reach the flag.", c: ["#7a4ae0", "#2a1a66"], price: 4.99, size: 0.2, glyph: G.dash },
   { id: "snake", key: "snake", title: GAME_TITLES.snake, blurb: "It is a snake. It eats. It grows.", c: ["#3fb86a", "#14503a"], price: 0.99, size: 0.05, glyph: G.snake },
   { id: "connect4", key: "connect4", title: GAME_TITLES.connect4, blurb: "Gravity does half the work.", c: ["#e8483a", "#7a1a2a"], price: 1.99, size: 0.1, glyph: G.four },
   { id: "chess", key: "chess", title: GAME_TITLES.chess, blurb: "Sixty four squares, no refunds.", c: ["#8a6a4a", "#2a2018"], price: 4.99, size: 0.1, glyph: G.knight },
@@ -50,19 +50,19 @@ export const STEAM_GAMES: SteamGame[] = [
   { id: "thrust", key: null, title: "Thrust Issues", blurb: "Launch things into orbit, mostly by accident.", c: ["#4a9ae8", "#1a2a5a"], price: 39.99, sale: 0.5, size: 8.4, glyph: G.rocket },
 ];
 
-const byId = (id: string) => STEAM_GAMES.find((g) => g.id === id)!;
-const price = (g: SteamGame) => +(g.price * (1 - (g.sale ?? 0))).toFixed(2);
+const byId = (id: string) => VAPOR_GAMES.find((g) => g.id === id)!;
+const price = (g: VaporGame) => +(g.price * (1 - (g.sale ?? 0))).toFixed(2);
 const usd = (n: number) => `$${n.toFixed(2)}`;
 const gb = (n: number) => (n < 1 ? `${Math.round(n * 1024)} MB` : `${n.toFixed(1)} GB`);
 
-const art = (g: SteamGame, cls = "") => `<div class="sb-art ${cls}" style="background:linear-gradient(135deg, ${g.c[0]}, ${g.c[1]})"><svg viewBox="0 0 48 48" aria-hidden="true">${g.glyph}</svg></div>`;
+const art = (g: VaporGame, cls = "") => `<div class="sb-art ${cls}" style="background:linear-gradient(135deg, ${g.c[0]}, ${g.c[1]})"><svg viewBox="0 0 48 48" aria-hidden="true">${g.glyph}</svg></div>`;
 // A soft vapor puff with a spark: three rising curls over a rounded cloud.
 const LOGO = `<svg class="sb-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 20.5a4 4 0 0 1-.6-8 5.2 5.2 0 0 1 9.9-1.4 3.9 3.9 0 0 1 1.7 7.5c-.4 1.2-1.5 1.9-2.8 1.9Z" fill="#cfd6ff"/><path d="M8.2 9.6c-1-1.4-.2-2.6.6-3.4.7-.7.9-1.6.4-2.5M12 8.6c-.8-1.2-.2-2.2.5-2.9" stroke="#cfd6ff" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".7"/><path d="m18.6 2.6.7 1.7 1.7.7-1.7.7-.7 1.7-.7-1.7-1.7-.7 1.7-.7Z" fill="#ffb38a"/><circle cx="9.4" cy="16.4" r="1" fill="#252b52"/><circle cx="13.4" cy="16.4" r="1" fill="#252b52"/></svg>`;
 
-export type SteamOpts = SoOpts & { want?: (key: string) => number };
+export type VaporOpts = SoOpts & { want?: (key: string) => number };
 
 /** Browses the store, maybe buys something, installs and launches a game. Resolves with the activity key of the game it launched, or null. */
-export async function useSteam(body: HTMLElement, host: SoHost, opts: SteamOpts): Promise<{ launch: string | null }> {
+export async function useVapor(body: HTMLElement, host: SoHost, opts: VaporOpts): Promise<{ launch: string | null }> {
   const out: { launch: string | null } = { launch: null };
   await runApp(body, host, opts, async (k) => { out.launch = await new Vapor(k, body, opts).session(); });
   return out;
@@ -73,15 +73,15 @@ class Vapor {
   page!: HTMLElement;
   owned = new Set<string>();
   installed = new Set<string>();
-  cart: SteamGame | null = null;
+  cart: VaporGame | null = null;
   view: "store" | "library" = "store";
 
-  constructor(private k: Kit, body: HTMLElement, private opts: SteamOpts) {
+  constructor(private k: Kit, body: HTMLElement, private opts: VaporOpts) {
     body.innerHTML = "";
     this.root = h("div", "sb");
     body.appendChild(this.root);
     // what it already owns: a handful of the playable games, some installed already
-    const playable = STEAM_GAMES.filter((g) => g.key);
+    const playable = VAPOR_GAMES.filter((g) => g.key);
     const mine = [...playable].sort(() => Math.random() - 0.5).slice(0, 5 + Math.floor(Math.random() * 3));
     for (const g of mine) { this.owned.add(g.id); if (chance(0.55)) this.installed.add(g.id); }
     // at least one game is ready to play
@@ -101,7 +101,7 @@ class Vapor {
   }
 
   // --- the store ------------------------------------------------------------------
-  private special(g: SteamGame) {
+  private special(g: VaporGame) {
     const sale = g.sale ? `<span class="sb-off">-${Math.round(g.sale * 100)}%</span><s>${usd(g.price)}</s>` : "";
     return `<div class="sb-sp" data-g="${g.id}">${art(g)}<div class="sb-sp-t"><b>${esc(g.title)}</b><small>${esc(g.blurb)}</small></div><div class="sb-pr">${sale}<b>${usd(price(g))}</b></div></div>`;
   }
@@ -109,9 +109,9 @@ class Vapor {
   private showStore() {
     this.view = "store";
     this.paintTabs();
-    const sale = STEAM_GAMES.filter((g) => g.sale);
+    const sale = VAPOR_GAMES.filter((g) => g.sale);
     const feature = pick(sale);
-    const rest = STEAM_GAMES.filter((g) => g !== feature).sort(() => Math.random() - 0.5);
+    const rest = VAPOR_GAMES.filter((g) => g !== feature).sort(() => Math.random() - 0.5);
     this.page.innerHTML = `<div class="sb-store">
       <section class="sb-hero" data-g="${feature.id}">${art(feature, "big")}<div class="sb-hero-t"><small>Special offer</small><h2>${esc(feature.title)}</h2><p>${esc(feature.blurb)}</p>
         <div class="sb-buyrow"><span class="sb-off">-${Math.round((feature.sale ?? 0) * 100)}%</span><s>${usd(feature.price)}</s><b>${usd(price(feature))}</b></div></div></section>
@@ -142,7 +142,7 @@ class Vapor {
     await this.gamePage(g);
   }
 
-  private async gamePage(g: SteamGame) {
+  private async gamePage(g: VaporGame) {
     const k = this.k;
     this.page.innerHTML = `<div class="sb-gp">${art(g, "big")}<div class="sb-gp-t"><h2>${esc(g.title)}</h2><p>${esc(g.blurb)}</p>
       <div class="sb-buyrow">${g.sale ? `<span class="sb-off">-${Math.round(g.sale * 100)}%</span><s>${usd(g.price)}</s>` : ""}<b>${usd(price(g))}</b><span class="sb-green" data-act="cart">Add to cart</span><span class="sb-wish" data-act="wish">Add to your wishlist</span></div></div></div>`;
@@ -170,7 +170,7 @@ class Vapor {
     await this.checkout(g);
   }
 
-  private async checkout(g: SteamGame) {
+  private async checkout(g: VaporGame) {
     const k = this.k;
     const declined = chance(0.3);
     const dlg = h("div", "sb-dlg", `<div class="sb-card"><h3>Shopping cart</h3><div class="sb-line">${art(g, "sm")}<b>${esc(g.title)}</b><span>${usd(price(g))}</span></div>
@@ -199,10 +199,10 @@ class Vapor {
   }
 
   // --- the library ----------------------------------------------------------------
-  private showLibrary(selected: SteamGame | null) {
+  private showLibrary(selected: VaporGame | null) {
     this.view = "library";
     this.paintTabs();
-    const games = STEAM_GAMES.filter((g) => this.owned.has(g.id)).sort((a, b) => a.title.localeCompare(b.title));
+    const games = VAPOR_GAMES.filter((g) => this.owned.has(g.id)).sort((a, b) => a.title.localeCompare(b.title));
     this.page.innerHTML = `<div class="sb-lib">
       <aside><div class="sb-search">Search</div><div class="sb-hd">Games</div>
         ${games.map((g) => `<div class="sb-gi${this.installed.has(g.id) ? " in" : ""}" data-g="${g.id}"><span class="sb-ic" style="background:linear-gradient(135deg, ${g.c[0]}, ${g.c[1]})"></span><b>${esc(g.title)}</b></div>`).join("")}</aside>
@@ -212,7 +212,7 @@ class Vapor {
     else (this.page.querySelector(".sb-detail") as HTMLElement).innerHTML = `<div class="sb-empty">Pick a game from your library</div>`;
   }
 
-  private showDetail(g: SteamGame) {
+  private showDetail(g: VaporGame) {
     this.root.querySelectorAll<HTMLElement>(".sb-gi").forEach((e) => e.classList.toggle("sel", e.dataset.g === g.id));
     const inst = this.installed.has(g.id);
     (this.page.querySelector(".sb-detail") as HTMLElement).innerHTML = `${art(g, "hero")}
@@ -221,7 +221,7 @@ class Vapor {
       <div class="sb-prog" hidden><div class="sb-bar"><i></i></div><div class="sb-pl"><span class="sb-st"></span><span class="sb-sp2"></span></div></div>`;
   }
 
-  private async download(g: SteamGame, label: string) {
+  private async download(g: VaporGame, label: string) {
     const k = this.k, d = this.page.querySelector(".sb-detail") as HTMLElement;
     const go = d.querySelector(".sb-go") as HTMLElement, prog = d.querySelector(".sb-prog") as HTMLElement;
     const bar = prog.querySelector(".sb-bar i") as HTMLElement, st = prog.querySelector(".sb-st") as HTMLElement, sp = prog.querySelector(".sb-sp2") as HTMLElement;
@@ -244,7 +244,7 @@ class Vapor {
     prog.hidden = true;
   }
 
-  private async playGame(g: SteamGame): Promise<boolean> {
+  private async playGame(g: VaporGame): Promise<boolean> {
     const k = this.k, d = this.page.querySelector(".sb-detail") as HTMLElement;
     let go = d.querySelector(".sb-go") as HTMLElement;
     if (!this.installed.has(g.id)) {
@@ -285,8 +285,8 @@ class Vapor {
     if (chance(0.7)) await this.browseStore();
     // to the library
     await k.click(this.tab("library"));
-    const playable = STEAM_GAMES.filter((g) => g.key && this.owned.has(g.id));
-    const w = (g: SteamGame) => (this.opts.want?.(g.key!) ?? 1) * (this.installed.has(g.id) ? 1.6 : 1);
+    const playable = VAPOR_GAMES.filter((g) => g.key && this.owned.has(g.id));
+    const w = (g: VaporGame) => (this.opts.want?.(g.key!) ?? 1) * (this.installed.has(g.id) ? 1.6 : 1);
     let total = playable.reduce((n, g) => n + w(g), 0), x = Math.random() * total;
     const target = playable.find((g) => (x -= w(g)) <= 0) ?? playable[0];
     this.showLibrary(null);
@@ -308,7 +308,7 @@ class Vapor {
 }
 
 /** The hosted game really ended, so its library page must stop saying Running. */
-export function markSteamStopped(body: HTMLElement) {
+export function markVaporStopped(body: HTMLElement) {
   const button = body.querySelector<HTMLElement>(".sb-go");
   if (button?.textContent === "STOP") { button.textContent = "PLAY"; button.className = "sb-green sb-go"; }
   const meta = body.querySelector<HTMLElement>(".sb-meta");

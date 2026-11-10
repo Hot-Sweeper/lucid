@@ -52,7 +52,6 @@ const german: Record<string, string> = {
   "low battery": "Akku fast leer", "rebooting": "Neustart", "bonk": "Bumm",
   "point": "zeigen", "clap": "klatschen", "roll": "rollen", "hop": "hüpfen", "spin": "drehen", "pose": "Pose",
   "one beat behind": "einen Takt zu spät", "the spin": "die Drehung", "wrong way": "falsche Richtung",
-  "AI CLOTH": "KI-STOFF", "IS PERFECT": "IST PERFEKT",
   "AI NEWS:": "KI-NEWS:", "WE'RE SO BACK": "WIR SIND ZURÜCK", "IT'S SO OVER": "ALLES VORBEI", "BREAKING": "EILMELDUNG",
   "6 AGENTS": "6 AGENTEN", "1 STARTUP": "1 STARTUP", "SHIPPED IT": "AUSGELIEFERT", "IN 4 MIN?!": "IN 4 MIN?!",
   "(it deleted 40 tests)": "(es hat 40 Tests gelöscht)", "MERGE CONFLICT": "MERGE-KONFLIKT", "we pivot": "wir schwenken um", "to toasters": "auf Toaster",

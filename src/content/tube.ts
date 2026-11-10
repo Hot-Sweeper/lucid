@@ -170,7 +170,7 @@ export const TUBE_TITLES: TubeTitle[] = [
     ["Speedrunning the office tutorial", "Any% Office"],
     ["I played tic tac toe for 24 hours", "Draw Gaming"],
     ["Voxel Valley: building a giant charging pad", "Cube Unit"],
-    ["Connect four, but every move is a coin flip", "Drop Zone"],
+    ["Four in a row, but every move is a coin flip", "Drop Zone"],
     ["Rage quit compilation, robot edition", "Clutch Circuit"],
   ]),
   ...t("tutorial", [

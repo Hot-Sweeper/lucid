@@ -35,11 +35,11 @@ if (!process.versions.electron) {
           assert(wm.dock.querySelector('[data-app="game"]').title===title,title+' has a matching dock label');
           idle.stop();await run;await wait(100);
         }
-        // The same path used after Steambot's Play click must not search/click a second time.
+        // The same path used after Vapor's Play click must not search/click a second time.
         wm.reset();wm.speed=15;idle.token++;idle.active=true;window.__launchQueries=[];
         const run=idle.doActivity('blockcraft',idle.token,true).catch(e=>{if(!(e instanceof Cancelled))throw e});
         for(let i=0;i<100;i++){if(wm.wins.get('game')?.body.children.length)break;await wait(15)}
-        assert(wm.wins.get('game')?.title.textContent==='Voxel Valley' && window.__launchQueries.length===0,'Steambot Play opens the chosen game directly without another search');
+        assert(wm.wins.get('game')?.title.textContent==='Voxel Valley' && window.__launchQueries.length===0,'Vapor Play opens the chosen game directly without another search');
         idle.stop();await run;await wait(100);
         wm.reset();wm.speed=1;wm.prefs={...wm.prefs,hobby:'gamer',launch:'dock'};
         window.__launchQueries=[];

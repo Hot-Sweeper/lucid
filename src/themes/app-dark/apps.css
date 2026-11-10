@@ -1,9 +1,9 @@
 /* Dark looks for the office suite, life, fun, games and leisure apps. Only colours change here.
 
    Already dark in their own design and left as they are: BeatLab and Botcord (src/life/life.css),
-   the fun pack with BotTube, TensorHub and Botflix (src/fun), the games pack and its frames
-   (src/games), Tradebot (Binance style near black, src/leisure/trading.css) and Steambot (Steam's own
-   slate palette, src/leisure/steam.css). Game artwork and parchment cards stay as drawn. */
+   the fun pack with BotTube, Benchtop and Botflix (src/fun), the games pack and its frames
+   (src/games), the Botcoin Exchange (near black, src/leisure/trading.css) and Vapor (dusky indigo,
+   src/leisure/vapor.css). Game artwork and parchment cards stay as drawn. */
 
 /* ============================================================================================
    Office suite chrome: the window, ribbon and status bars already go neutral through the OLED

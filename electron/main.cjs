@@ -619,7 +619,7 @@ app.on("before-quit", () => t3s.closeSock());
 // Office documents the agents wrote (docx, xlsx, pptx, csv...), read for the robots' office apps.
 require("./studio.cjs").register(ipcMain, app);
 require("./office.cjs").register(ipcMain);
-// Real Bitcoin candles and prices for the robots' Tradebot (cached, rate limited).
+// Real market candles and prices behind the robots' Botcoin Exchange (cached, rate limited).
 require("./market.cjs").register(ipcMain);
 
 // Offline dictation uses the local computer, including for remote-building chats.

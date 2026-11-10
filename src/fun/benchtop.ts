@@ -6,8 +6,8 @@ import { sparkle } from "./videos";
 import { Scope, esc, hash, clamp, seg, easeInOut, smooth, lerp } from "./util";
 import { C, circle, core, drawBot, drawFan, drawGPU, ellipse, fillRR, glow, lin, limb, loopFade, mix, poly, rad, text, withAlpha } from "./draw";
 import { Site, parseDur, commentsHtml, type Comment } from "./site";
-import { MORE_TENSOR_VIDEOS } from "./tensorvids";
-import "./tensorhub.css";
+import { MORE_BENCHTOP_VIDEOS } from "./benchtop-videos";
+import "./benchtop.css";
 
 const TEAL = "#3fe0d0";
 const BG = "#0b0e18";
@@ -338,7 +338,7 @@ const rack: VideoDef = {
   },
 };
 
-export const TENSOR_VIDEOS: VideoDef[] = [weights, nearby, heads, overclock, coolant, descent, paste, fins, rack, ...MORE_TENSOR_VIDEOS];
+export const BENCHTOP_VIDEOS: VideoDef[] = [weights, nearby, heads, overclock, coolant, descent, paste, fins, rack, ...MORE_BENCHTOP_VIDEOS];
 
 // Benchtop's mark: a small workbench with a spark above it.
 const MARK = `<svg class="fun-th-mark" viewBox="0 0 24 24" aria-hidden="true">
@@ -392,7 +392,7 @@ function thComments(v: VideoDef): Comment[] {
 const parts = (v: VideoDef) => { const k = seedOf(v.id); return [0, 1, 2].map((i) => PARTS[(k + i * 4) % PARTS.length]).join(", "); };
 const calm = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export async function browseTensorHub(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
+export async function browseBenchtop(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
   const scope = new Scope(body);
   const start = performance.now();
   try {
@@ -404,7 +404,7 @@ export async function browseTensorHub(body: HTMLElement, host: FunHost, opts: Fu
         <nav class="fun-th-nav">${NAV.map((n, i) => `<span class="${i === 0 ? "fun-on" : ""}">${n}</span>`).join("")}</nav>
       </header>`);
     const timeUp = () => host.stopped || performance.now() - start > opts.maxMs;
-    const vids = [...TENSOR_VIDEOS].sort(() => Math.random() - 0.5);
+    const vids = [...BENCHTOP_VIDEOS].sort(() => Math.random() - 0.5);
     const ad = ADS[Math.floor(Math.random() * ADS.length)];
     const tile = (v: VideoDef) => `
       <div class="fun-th-item" data-id="${v.id}">

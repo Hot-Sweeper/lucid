@@ -996,4 +996,4 @@ const dirty: VideoDef = {
   },
 };
 
-export const MORE_TENSOR_VIDEOS: VideoDef[] = [unminify, cable, wideRack, sorted, regex, endian, tag, logs, ports, cache, caught, firmware, bareMetal, forks, uncompressed, cobol, coreDump, gc, stack, ram, hotReload, dirty];
+export const MORE_BENCHTOP_VIDEOS: VideoDef[] = [unminify, cable, wideRack, sorted, regex, endian, tag, logs, ports, cache, caught, firmware, bareMetal, forks, uncompressed, cobol, coreDump, gc, stack, ram, hotReload, dirty];

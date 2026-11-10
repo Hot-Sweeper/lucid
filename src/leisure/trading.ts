@@ -36,11 +36,11 @@ const COINS: [string, string, number, number][] = [
   ["WHIRR", "Whirrcoin", 1.37, 0.01], ["ANTN", "Antennacoin", 0.088, 0.014],
 ];
 
-export async function tradeOnTradebot(body: HTMLElement, host: SoHost, opts: SoOpts) {
-  return runApp(body, host, opts, async (k) => { await new Tradebot(k, body, opts).session(); });
+export async function tradeOnBotcoinExchange(body: HTMLElement, host: SoHost, opts: SoOpts) {
+  return runApp(body, host, opts, async (k) => { await new BotcoinExchange(k, body, opts).session(); });
 }
 
-class Tradebot {
+class BotcoinExchange {
   root: HTMLElement;
   ctx!: CanvasRenderingContext2D;
   cw = 0; chh = 0;
@@ -136,7 +136,8 @@ class Tradebot {
       const last = real.candles[real.candles.length - 1];
       m.price = m.shown = last.c;
       m.open = real.candles[0].o;
-      m.note = `Live price, ${real.source}`;
+      // a fictional coin never sits next to a real exchange name
+      m.note = "Live market feed";
     } else {
       this.seed(m, m.price || 64000 * rnd(0.85, 1.2));
       m.note = "Offline, simulated prices";

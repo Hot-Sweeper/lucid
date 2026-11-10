@@ -4,7 +4,7 @@
 //   #parse    image generation items from T3 in several shapes, parsed (results in the log)
 //   #director a Codex image generation command played by the real Director, running then finished
 //   #skip     Botify playing and skipping songs
-//   #steam    Vapor: store, library, install, play
+//   #vapor    Vapor: store, library, install, play
 //   #trading  Botcoin Exchange: charts, orders, mistakes
 // The scene name goes in the hash because the Electron screenshot run appends its own query.
 import "@fontsource-variable/lexend";
@@ -68,7 +68,7 @@ const rigMove = desk.rig.moveMouse.bind(desk.rig);
 desk.rig.moveMouse = (p, turn) => { mousePts.push([p.x, p.y]); rigMove(p, turn); };
 const wm = new WM(screen, robot);
 wm.onCursor = (x, y) => cursorPts.push([x, y]);
-const base: Prefs = { wallpaper: 0, games: { snake: 1, flappy: 1, dash: 1, chess: 1 }, phone: "clips", subagents: "cli", music: 0.2, social: 0.4, mug: "#ff8a65", tasks: "board", hobby: "gamer", windows: "floating", listens: "always", launch: "dock", switching: "click", tidiness: "normal", git: "cli", apps: ["doodle", "steam", "trading"], socials: ["chirp"] };
+const base: Prefs = { wallpaper: 0, games: { snake: 1, flappy: 1, dash: 1, chess: 1 }, phone: "clips", subagents: "cli", music: 0.2, social: 0.4, mug: "#ff8a65", tasks: "board", hobby: "gamer", windows: "floating", listens: "always", launch: "dock", switching: "click", tidiness: "normal", git: "cli", apps: ["doodle", "vapor", "trading"], socials: ["chirp"] };
 wm.prefs = base;
 wm.robotName = "Pip";
 const stage = { phoneScreen: null, say() {}, sleepy() {}, setGlow() {} } as never;
@@ -156,8 +156,8 @@ async function scene() {
       // how often robots with different tastes pick Vapor and Botcoin Exchange (4000 draws each)
       const rows: Record<string, unknown> = {};
       const cases: [string, Partial<Prefs>][] = [
-        ["gamer, favourites steam + solitaire", { hobby: "gamer", apps: ["steam", "solitaire"] }],
-        ["gamer, no steam", { hobby: "gamer", apps: ["mail", "lingo"] }],
+        ["gamer, favourites vapor + solitaire", { hobby: "gamer", apps: ["vapor", "solitaire"] }],
+        ["gamer, no vapor", { hobby: "gamer", apps: ["mail", "lingo"] }],
         ["watcher, favourites trading + lingo", { hobby: "watcher", apps: ["trading", "lingo"] }],
         ["chiller, favourites stocks + crossword", { hobby: "chiller", apps: ["stocks", "crossword"] }],
       ];
@@ -166,7 +166,7 @@ async function scene() {
         const l = new IdleLife(fake, robot, {} as never) as unknown as { pick(r: string[]): string };
         const n: Record<string, number> = {};
         for (let i = 0; i < 4000; i++) { const a = l.pick([]); n[a] = (n[a] ?? 0) + 1; }
-        rows[name] = { steam: `${((n.steam ?? 0) / 40).toFixed(1)}%`, trading: `${((n.trading ?? 0) / 40).toFixed(1)}%`, stocks: `${((n.stocks ?? 0) / 40).toFixed(1)}%` };
+        rows[name] = { vapor: `${((n.vapor ?? 0) / 40).toFixed(1)}%`, trading: `${((n.trading ?? 0) / 40).toFixed(1)}%`, stocks: `${((n.stocks ?? 0) / 40).toFixed(1)}%` };
       }
       W.__lc.stats = rows;
       await new Promise(() => {});
@@ -176,7 +176,7 @@ async function scene() {
       wm.prefs = { ...base, listens: "always" };
       await music.start(0);
       for (;;) { await new Promise((r) => setTimeout(r, 3000)); await music.skip(); }
-    } else if (SCENE === "steam" || SCENE === "trading") {
+    } else if (SCENE === "vapor" || SCENE === "trading") {
       for (;;) { await life.doActivity(SCENE, life.token); await new Promise((r) => setTimeout(r, 800)); }
     }
   } catch (e) { if (!(e instanceof Cancelled)) { console.error(e); W.__lc.errors.push(String((e as Error)?.stack ?? e)); } }

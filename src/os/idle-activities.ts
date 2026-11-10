@@ -16,7 +16,7 @@ export const playDerBugger = lazyActivity(() => import("../games/bugger").then(m
 export const playBoot = lazyActivity(() => import("../games/boot").then(m => m.playBoot));
 export const watchBotflix = lazyActivity(() => import("../fun/botflix").then(m => m.watchBotflix));
 export const watchTube = lazyActivity(() => import("../fun/tube").then(m => m.watchTube));
-export const browseTensorHub = lazyActivity(() => import("../fun/tensorhub").then(m => m.browseTensorHub));
+export const browseBenchtop = lazyActivity(() => import("../fun/benchtop").then(m => m.browseBenchtop));
 export const makeBeat = lazyActivity(() => import("../life/beats").then(m => m.makeBeat));
 export const hangOutInChat = lazyActivity(() => import("../life/chat").then(m => m.hangOutInChat));
 export const usePhone = lazyActivity(() => import("../social/phonetime").then(m => m.usePhone));
@@ -32,19 +32,19 @@ export const learnWithLingobot = lazyActivity(() => import("../social/lingo").th
 export const browseInstaweb = lazyActivity(() => import("../social/instaweb").then(m => m.browseInstaweb));
 export const scrollSpoolWeb = lazyActivity(() => import("../social/spoolweb").then(m => m.scrollSpoolWeb));
 export const swipeSparkplug = lazyActivity(() => import("../social/sparkplug").then(m => m.swipeSparkplug));
-export const useSteam = lazyActivity(() => import("../leisure/steam").then(m => m.useSteam));
-export const tradeOnTradebot = lazyActivity(() => import("../leisure/trading").then(m => m.tradeOnTradebot));
+export const useVapor = lazyActivity(() => import("../leisure/vapor").then(m => m.useVapor));
+export const tradeOnBotcoinExchange = lazyActivity(() => import("../leisure/trading").then(m => m.tradeOnBotcoinExchange));
 
 const activities = {
   snake: playSnake, flappy: playFlappy, dash: playDash, blockcraft: playBlockcraft,
   nightshift: playNightShift, tictactoe: playTicTacToe, connect4: playConnectFour,
   bitmerge: playBitMerge, island: playRobotIsland, botcom: playBotCom, bugger: playDerBugger,
-  boot: playBoot, botflix: watchBotflix, tube: watchTube, tensorhub: browseTensorHub,
+  boot: playBoot, botflix: watchBotflix, tube: watchTube, benchtop: browseBenchtop,
   beats: makeBeat, social: hangOutInChat, phone: usePhone, botsapp: chatOnBotsApp,
   telegrid: browseTelegrid, chirp: scrollChirp, doodle: doodleInSketchpad,
   crossword: solveCrossword, solitaire: playSolitaire, stocks: watchStocks, mail: checkMail,
   lingo: learnWithLingobot, instaweb: browseInstaweb, spoolweb: scrollSpoolWeb,
-  sparkplug: swipeSparkplug, steam: useSteam, trading: tradeOnTradebot,
+  sparkplug: swipeSparkplug, vapor: useVapor, trading: tradeOnBotcoinExchange,
 };
 export function preloadActivity(name: string) {
   // A failed speculative load is retried by the actual activity, where its owner

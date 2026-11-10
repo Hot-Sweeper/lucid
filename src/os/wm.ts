@@ -10,7 +10,7 @@ import { watchClock, clockTime } from "../perf/clock";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "t3code" | "instaweb" | "spoolweb" | "sparkplug" | "photos" | "player" | "codex" | "steam" | "trading";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "t3code" | "instaweb" | "spoolweb" | "sparkplug" | "photos" | "player" | "codex" | "vapor" | "trading";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -49,13 +49,13 @@ const FRAMES: Record<AppId, Frame> = {
   photos: { x: 470, y: 228, w: 330, h: 170 },
   player: { x: 150, y: 14, w: 520, h: 340 },
 codex: { x: 70, y: 12, w: 680, h: 396 },
-  steam: { x: 50, y: 10, w: 720, h: 398 },
+  vapor: { x: 50, y: 10, w: 720, h: 398 },
   trading: { x: 40, y: 10, w: 740, h: 398 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Lucid Chat", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "Git", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", instaweb: "Instabot", spoolweb: "Spool", sparkplug: "Sparkplug", t3code: "T3 Code", photos: "Photos", player: "Player", codex: "Codex", steam: "Vapor", trading: "Botcoin Exchange" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "t3code", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "photos", "player", "codex", "steam", "trading"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Lucid Chat", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "Git", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", instaweb: "Instabot", spoolweb: "Spool", sparkplug: "Sparkplug", t3code: "T3 Code", photos: "Photos", player: "Player", codex: "Codex", vapor: "Vapor", trading: "Botcoin Exchange" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "t3code", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "photos", "player", "codex", "vapor", "trading"];
 // Real browser tabs, work, files, terminal output and thread conversations stay untouched.
-const FICTIONAL_APPS = new Set<AppId>(["beats", "social", "game", "music", "botsapp", "telegrid", "chirp", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "steam", "trading"]);
+const FICTIONAL_APPS = new Set<AppId>(["beats", "social", "game", "music", "botsapp", "telegrid", "chirp", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "vapor", "trading"]);
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 

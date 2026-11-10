@@ -77,14 +77,14 @@ module.exports = async ({ js, wc, wait, out }) => {
       f.startTrade=()=>{idle.active=true;const tok=++idle.token;f.trade=idle.doActivity('trading',tok).catch(e=>{if(e.constructor.name!=='Cancelled')f.tradeError=String(e)})};
       f.stopTrade=()=>{idle.stop();f.d.wm.reset()};f.startTrade();
     }`);
-    await until(`window.__screenDetails.d.wm.root.querySelector('.tb-pair small')?.textContent==='Live price, Fixture public feed' && window.__screenDetails.d.wm.root.querySelector('.tb-px')?.textContent.includes('12,345.67')`, 'Tradebot did not present the supplied candle response and price');
+    await until(`window.__screenDetails.d.wm.root.querySelector('.tb-pair small')?.textContent==='Live market feed' && window.__screenDetails.d.wm.root.querySelector('.tb-px')?.textContent.includes('12,345.67')`, 'Botcoin Exchange did not present the supplied candle response and price');
     result.market = await js(`{const r=window.__screenDetails.d.wm.root;({note:r.querySelector('.tb-pair small').textContent,price:r.querySelector('.tb-px').textContent,canvas:r.querySelector('.tb-chart canvas').width,fictional:r.querySelector('.tb-fic').textContent})}`);
-    check(result.market.price.includes('12,345.67') && result.market.canvas > 0 && result.market.fictional === 'Fictional coins', 'Tradebot uses supplied feed prices and identifies its fictional market section');
-    check(result.marketRequests.some(r => r.method === 'klines' && r.symbol === 'BTCUSDT' && r.interval === '1m'), 'Tradebot requests Bitcoin candles for the actual timeframe');
+    check(result.market.price.includes('12,345.67') && result.market.canvas > 0 && result.market.fictional === 'Fictional coins', 'Botcoin Exchange uses supplied feed prices and identifies its fictional market section');
+    check(result.marketRequests.some(r => r.method === 'klines' && r.symbol === 'BTCUSDT' && r.interval === '1m'), 'Botcoin Exchange requests live market candles for the actual timeframe');
     await shot('screen-details-trading-feed');
     await js(`window.__screenDetails.stopTrade()`);offline = true;
     await js(`window.__screenDetails.startTrade()`);
-    await until(`window.__screenDetails.d.wm.root.querySelector('.tb-pair small')?.textContent==='Offline, simulated prices'`, 'Tradebot offline simulation was not clearly labelled');
+    await until(`window.__screenDetails.d.wm.root.querySelector('.tb-pair small')?.textContent==='Offline, simulated prices'`, 'Botcoin Exchange offline simulation was not clearly labelled');
     check(true, 'Unavailable market data is explicitly labelled Offline, simulated prices');
     await shot('screen-details-trading-offline');
     await js(`{const f=window.__screenDetails;f.stopTrade();Math.random=()=>0.01;f.startTrade()}`);

@@ -13,7 +13,7 @@ export type TasksStyle = "board" | "checklist" | "sticky";
 // Office fans use Botword, Cellsheet or Slidedeck when bored and keep their favourites in the dock.
 export type OfficeTaste = "none" | "writer" | "numbers" | "slides" | "suite";
 // Pastime apps on the monitor, and the social apps a robot uses (desktop and phone). Each robot has its own mix.
-export type FunApp = "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "steam" | "trading";
+export type FunApp = "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "vapor" | "trading";
 export type SocialApp = "botsapp" | "telegrid" | "chirp" | "instabot" | "snapbot" | "shorts" | "spool" | "sparkplug";
 // What a robot mostly does with free time. Gamers game, musicians make beats, chatters hang
 // out with friends, watchers watch videos, chillers sip coffee and scroll.
@@ -113,7 +113,7 @@ export function interestsFrom(r: () => number, hobby: Hobby): { apps: FunApp[]; 
     mail: 0.8 + H("chatter"),
     lingo: 1 + 0.6 * H("chatter") + 0.6 * H("watcher"),
     // games on Vapor for the gamers, charts and regret on the Botcoin Exchange for the watchers and the restless
-    steam: 0.35 + 2.4 * H("gamer") + 0.2 * H("watcher"),
+    vapor: 0.35 + 2.4 * H("gamer") + 0.2 * H("watcher"),
     trading: 0.25 + 0.7 * H("watcher") + 0.5 * H("chiller") + 0.3 * H("musician"),
   };
   const apps: FunApp[] = [];
@@ -177,10 +177,12 @@ export class Roster {
         r.prefs.tidiness = ((x * 13) % 1) < 0.3 ? "tidy" : ((x * 13) % 1) < 0.7 ? "normal" : "messy";
       }
       if (r.prefs && !r.prefs.listens) { const x = idHash((r.id || r.name || "") + "music"); r.prefs.listens = x < 0.35 ? "always" : x < 0.7 ? "sometimes" : "never"; r.look.headphones = false; }
+      // the game store was saved as "steam" before it became Vapor
+      if (r.prefs?.apps?.includes("steam" as FunApp)) { r.prefs.apps = r.prefs.apps.map((a) => (a === ("steam" as FunApp) ? "vapor" : a)); migrated = true; }
       // robots hired before Vapor and the Botcoin Exchange: each gets (or does not get) them from its id, the same every launch
       if (r.prefs?.apps && !r.prefs.leisure2) {
         const rr = seeded((r.id || r.name || "") + "leisure2"), hb = r.prefs.hobby;
-        if (!r.prefs.apps.includes("steam") && rr() < 0.14 + (hb === "gamer" ? 0.5 : 0)) r.prefs.apps.push("steam");
+        if (!r.prefs.apps.includes("vapor") && rr() < 0.14 + (hb === "gamer" ? 0.5 : 0)) r.prefs.apps.push("vapor");
         if (!r.prefs.apps.includes("trading") && rr() < 0.1 + (hb === "watcher" ? 0.25 : hb === "chiller" ? 0.2 : 0)) r.prefs.apps.push("trading");
         r.prefs.leisure2 = true; migrated = true;
       }

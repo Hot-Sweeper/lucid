@@ -1,4 +1,4 @@
-// One name per playable game, shared by the desktop and the Steambot library.
+// One name per playable game, shared by the desktop and the Vapor library.
 export const GAME_TITLES = {
   snake: "Snake",
   flappy: "Drone Hop",
