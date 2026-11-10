@@ -1,6 +1,6 @@
 // Isolated check page for the robot Explorer and the "attach files in a message" hand-over.
 // It runs the production FilesApp, window manager, T3 Code composer and send choreography against a
-// real fixture folder on disk. The script that drives it (scripts/render-explorer-checks.cjs) supplies
+// real fixture folder on disk. The script that drives it (scripts/review/render-explorer-checks.cjs) supplies
 // real directory listings, real file facts and recorded tool steps; nothing is uploaded or sent.
 import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";

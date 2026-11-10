@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {transformWithOxc} from 'vite';
+const source = (await transformWithOxc(await readFile(new URL('../../src/localization.ts', import.meta.url), 'utf8'), 'localization.ts')).code.replace(/export\s*\{[^}]*\};?/g, '').replace(/^export /gm, '');
+let calls = 0, saved = '', release, malformed = false;
+const window = {lucid:{localize: async input => {
+  calls++;
+  if(release) await new Promise(done=>{release.done=done});
+  return {translated:true,entries:malformed?[]:input.entries.map(e=>({id:e.id,text:'DE:'+e.text}))};
+}}};
+const api = new Function('window','localStorage',source+';return {getLocale,setLocale,onLocaleChange,uiText,translateEntries,localizeData,canonicalText}')(window,{getItem:()=>null,setItem:(_k,v)=>{saved=v}});
+assert.equal(api.getLocale(),'en');
+assert.equal((await api.translateEntries([{id:'en',text:'Hello'}]))[0].text,'Hello');assert.equal(calls,0);
+let notices=0;const stop=api.onLocaleChange(()=>notices++);api.setLocale('de');assert.equal(saved,'de');assert.equal(notices,1);assert.equal(api.uiText('Games'),'Spiele');
+release={};const a=api.translateEntries([{id:'a',text:'Hello',context:'Greeting'}]);const b=api.translateEntries([{id:'b',text:'Hello',context:'Greeting'}]);
+assert.equal(calls,1);release.done();const [x,y]=await Promise.all([a,b]);release=null;
+assert.equal(x[0].text,'DE:Hello');assert.equal(y[0].id,'b');assert.equal(y[0].text,'DE:Hello');
+assert.equal(api.canonicalText('DE:Hello'),'Hello','localized content keeps its English source for language switching');
+await api.translateEntries([{id:'new node',text:'Hello',context:'Greeting'}]);assert.equal(calls,1);
+const original={lines:['First','Second'],empty:''};const translated=await api.localizeData(original,'One scene');assert.equal(translated.lines[1],'DE:Second');assert.equal(original.lines[1],'Second');assert.equal(translated.empty,'');
+malformed=true;assert.equal((await api.translateEntries([{id:'bad',text:'Fallback'}]))[0].text,'Fallback');
+assert.throws(()=>api.setLocale('fr'));stop();api.setLocale('en');assert.equal(notices,1);
+console.log('Localization client passed: English default, explicit persistence, in-flight/content deduplication, stable IDs, canonical data and invalid-reply fallback.');

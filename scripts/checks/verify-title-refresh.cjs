@@ -1,0 +1,31 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+const { createTitleRefresh } = require('../../electron/title-refresh.cjs');
+(async () => {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'lucid-titles-')), 'seen.json');
+  let threads = [{ id: 'a', runStatus: 'completed' }, { id: 'b', runStatus: 'completed', pinned: true }, { id: 'c', runStatus: 'running' }, { id: 'remote::x', runStatus: 'completed' }];
+  const runs = { a: 'r1', b: 'r1', c: 'r1', 'remote::x': 'r1' }, sent = [];
+  let fail = false;
+  const deps = { file, world: async () => ({ threads }), reportState: id => ({ run: { id: runs[id], status: 'completed' }, pendingRuns: 0, pendingRequests: 0 }), dispatch: async c => { if (fail) throw Error('offline'); sent.push(c); } };
+  let titles = createTitleRefresh(deps);
+  assert.deepEqual(await titles.tick(), [], 'first use records history without renaming old threads');
+  runs.a = 'r2';
+  assert.deepEqual(await titles.tick(), ['a'], 'a newly finished run asks for a new title');
+  assert.deepEqual(sent[0], { type: 'thread.metadata.update', threadId: 'a', regenerateTitle: true }, 'uses T3 title regeneration');
+  assert.deepEqual(await titles.tick(), [], 'once per run');
+  titles = createTitleRefresh(deps);
+  assert.deepEqual(await titles.tick(), [], 'handled runs survive restart');
+  runs.b = 'r2'; runs['remote::x'] = 'r2';
+  assert.deepEqual(await titles.tick(), [], 'pinned threads and linked computers are not renamed here');
+  threads.push({ id: 'd', runStatus: 'completed', settled: true }); runs.d = 'r9';
+  assert.deepEqual(await titles.tick(), [], 'settled work is not renamed');
+  runs.a = 'r3'; fail = true;
+  assert.deepEqual(await titles.tick(), [], 'failure retries later');
+  fail = false; assert.deepEqual(await titles.tick(), ['a']);
+  for (const id of ['e', 'f', 'g', 'h', 'i']) { threads.push({ id, runStatus: 'completed' }); runs[id] = 'x'; }
+  titles = createTitleRefresh(deps);
+  assert.equal((await titles.tick()).length, 3, 'bounded requests per pass');
+  threads = threads.filter(t => t.id !== 'a'); await titles.tick();
+  assert.equal(titles.seen().a, undefined, 'removed threads are forgotten');
+  console.log('PASS: title regeneration per finished run, restart, pinned threads, linked computers, settled work, retry, bound and cleanup.');
+})().catch(e => { console.error(e); process.exit(1); });
