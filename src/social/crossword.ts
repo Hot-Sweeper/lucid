@@ -26,7 +26,7 @@ class Crossbot {
     const N = p.grid.length;
     this.n = N;
     this.root.innerHTML = `
-      <header class="so-cw-top"><b>Crossbot</b><span>The Mini · Puzzle ${n}</span><time></time></header>
+      <header class="so-cw-top"><b>Crossbot</b><span>Daily grid · Puzzle ${n}</span><time></time></header>
       <div class="so-cw-bar"><b></b><span></span></div>
       <div class="so-cw-mid"><div class="so-cw-grid" style="grid-template-columns:repeat(${N},1fr);grid-template-rows:repeat(${N},1fr)"></div>
         <div class="so-cw-clues"><h5>Across</h5><ol class="a"></ol><h5>Down</h5><ol class="d"></ol></div></div>`;

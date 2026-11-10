@@ -1,4 +1,4 @@
-// Bit Merge: a 2048-style sliding tile game with robot parts. The robot plays with the arrow keys.
+// Bit Merge: slide matching robot parts together until they merge into bigger ones. The robot plays with the arrow keys.
 import "./games.css";
 import { Scope, Session, Halt, mountFrame, nap, chance, pick, type FunHost, type FunOpts, type Outcome } from "./kit";
 

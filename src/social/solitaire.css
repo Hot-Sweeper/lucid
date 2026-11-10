@@ -1,4 +1,4 @@
-/* Solitaire: green felt, white cards with flat suit shapes, a soft blue card back. */
+/* Solitaire: green felt, white cards with flat suit shapes, a navy robot card back. */
 .so-sol { display: flex; flex-direction: column; background: #1f7a45; color: #e9f7ee; }
 .so-sol-top { flex: none; height: 28px; display: flex; align-items: center; gap: 10px; padding: 0 12px; background: #19663a; }
 .so-sol-top b { font-weight: 600; font-size: 11px; }
@@ -13,7 +13,9 @@
 .so-sol-card.red .f { color: #d93a48; }
 .so-sol-card.up .f { display: block; }
 .so-sol-card.up .b { display: none; }
-.so-sol-card .b { background: #3d6fd6 repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.12) 0 3px, transparent 3px 7px); box-shadow: inset 0 0 0 3px #fff; }
+.so-sol-card .b { background: #3a4392 radial-gradient(circle, rgba(246, 236, 220, 0.16) 0 1.5px, transparent 2px) 0 0 / 8px 8px; box-shadow: inset 0 0 0 3px #f6ecdc; }
+.so-sol-card .b::after { content: ""; position: absolute; left: 50%; top: 50%; width: 20px; height: 12px; margin: -6px 0 0 -10px; border-radius: 5px;
+  background: radial-gradient(circle at 30% 50%, #4ff0a0 0 2px, transparent 2.5px), radial-gradient(circle at 70% 50%, #4ff0a0 0 2px, transparent 2.5px), #1d2246; }
 .so-sol-card .f b { position: absolute; left: 4px; top: 2px; font-size: 11px; font-weight: 700; line-height: 1.1; }
 .so-sol-card .f .s { position: absolute; left: 4px; top: 16px; width: 9px; height: 9px; fill: currentColor; }
 .so-sol-card .f .big { position: absolute; right: 5px; bottom: 6px; width: 24px; height: 24px; fill: currentColor; opacity: 0.9; }
