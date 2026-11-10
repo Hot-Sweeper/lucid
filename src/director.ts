@@ -21,6 +21,7 @@ import { attachmentsOf, sourcesFor } from "./os/attachment-source";
 import { attachmentSendOutcome, playSend, type DiskFact, type SendOutcome } from "./os/send-files";
 import { listingProblem } from "./os/explorer-model";
 import { T3CodeApp } from "./harness/t3code";
+import { T3ChildSession } from "./harness/t3-child";
 import { CodexApp } from "./os/codex";
 import { imageGenOf, imageResult, type ImageGen } from "./os/imagegen";
 import { ImageRefreshGate, type ImageRefresh, type ImageState } from "./os/image-refresh";
@@ -77,11 +78,11 @@ function gitActivity(steps: GitStep[]) {
   if (ops.includes("pr-merge")) return "Merging the pull request";
   if (ops.includes("commit") && ops.includes("push")) return "Committing and pushing";
   if (ops.includes("commit")) return "Committing its changes";
-  if (ops.includes("push")) return "Pushing to GitHub";
+  if (ops.includes("push")) return "Pushing its commits";
   if (ops.includes("pull")) return "Pulling the latest changes";
   if (m) return `Merging ${m.branch}`;
   if (c) return c.create ? `Creating branch ${c.branch}` : `Switching to ${c.branch}`;
-  return "Fetching from GitHub";
+  return "Fetching the latest changes";
 }
 
 // Reasoning effort from a T3 model selection: [{ id: "effort", value }], { effort }, Codex's "reasoningEffort"...
@@ -107,7 +108,7 @@ function outText(o: any): string {
   return "";
 }
 
-type Helper = { session: HarnessSession; child: string | null; prompt: string; since: string; timer: number; done: boolean; last: string; runSeen: boolean; ticks: number; hasModel: boolean };
+type Helper = { session: HarnessSession | T3ChildSession; child: string | null; prompt: string; since: string; timer: number; done: boolean; last: string; runSeen: boolean; ticks: number; hasModel: boolean };
 const cleanCmd = (c: any) => String(c || "").replace(/^"[^"]*powershell[^"]*"\s+-Command\s+/i, "").slice(0, 160);
 const lastLine = (o: any) => (o ? String(o).split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 120) : undefined);
 
@@ -128,10 +129,11 @@ export class Director {
   private files: FilesApp; private editor: EditorApp; private term: TerminalApp;
   private uac: UacPrompt;
   private compaction: CompactionScreen;
-  private browser: BrowserApp; private codex: CodexApp; private chat: T3CodeApp; private nativeMessages: T3CodeApp;
-  private get messages() { return this.wm.prefs?.chatApp === "t3code" ? this.chat : this.nativeMessages; }
+  // Screen rule: talking with you happens in the native chat app (messages), working with other
+  // robots (messaging, delegating, starting or checking threads) in T3 Code (chat).
+  private browser: BrowserApp; private codex: CodexApp; private chat: T3CodeApp; private messages: T3CodeApp;
   private attachmentChat: { id: string; app: T3CodeApp } | null = null;
-  private get messageApp(): "chat" | "t3code" { return this.wm.prefs?.chatApp === "t3code" ? "t3code" : "chat"; } private tool: ToolApp; private toolWatch = new ToolViewWatch(); private tasks: TasksApp;
+  private readonly messageApp = "chat"; private tool: ToolApp; private toolWatch = new ToolViewWatch(); private tasks: TasksApp;
   private planSig = "";
   onActivity: (text: string) => void = () => {};
   private idleLife: IdleLife;
@@ -164,9 +166,9 @@ export class Director {
       outcome: async (threadId, requestId) => (await lucid()?.requestOutcome?.(threadId, requestId)) ?? null,
     });
     this.browser = new BrowserApp(wm, peek);
-    // the thread itself plays out in T3 Code, the app it really lives in (stable or Nightly per robot)
+    // T3 Code is the build the user runs (stable or Nightly); the chat app is the conversation you see
     this.chat = new T3CodeApp(wm);
-    this.nativeMessages = new T3CodeApp(wm, "user");
+    this.messages = new T3CodeApp(wm, "user");
     this.tool = new ToolApp(wm);
     this.codex = new CodexApp(wm);
     this.tasks = new TasksApp(wm);
@@ -207,7 +209,7 @@ export class Director {
     this.harness.reset();
     this.chat.reset();
     this.files.reset();
-    this.nativeMessages.reset();
+    this.messages.reset();
     this.attachmentChat?.app.reset(); this.attachmentChat = null;
     this.imageRefresh.reset();
     this.browser.reset();
@@ -243,7 +245,7 @@ export class Director {
     const first = !this.info;
     this.info = info;
     this.chat.setInfo(info);
-    this.nativeMessages.setInfo(info);
+    this.messages.setInfo(info);
     this.codex.setInfo(info);
     this.term.setCwd(info.root || null);
     const status = info.run?.status || "";
@@ -447,9 +449,7 @@ export class Director {
   // The robot's notes: while it thinks, its reasoning gets jotted down here.
   private async openNotes() {
     const w = await this.wm.open("notes");
-    if (!w.body.querySelector(".notes")) w.body.innerHTML = `<div class="notes-workspace"><div class="notes-chrome" aria-hidden="true"></div><div class="notes"></div></div>`;
-    const chrome = w.body.querySelector(".notes-chrome");
-    if (chrome) chrome.textContent = this.wm.prefs?.notesApp === "notepad-plus-plus" ? "File   Edit   Search   View\nnotes.txt" : this.wm.prefs?.notesApp === "notepad" ? "File   Edit   View\nnotes.txt" : "Notes";
+    if (!w.body.querySelector(".notes")) w.body.innerHTML = `<div class="notes-workspace"><div class="notes"></div></div>`;
     return w.body.querySelector(".notes") as HTMLElement;
   }
   private noteFor = new WeakMap<HTMLElement, HTMLElement>();
@@ -468,9 +468,10 @@ export class Director {
   }
 
   /**
-   * The robot opens the harness app for a helper agent and types its brief. Native subagent items,
-   * T3's delegate_task tool and Claude's Agent tool all land here; the same helper seen twice
-   * (a delegate_task call, then its subagent item) keeps one tab.
+   * The robot briefs a helper. A helper with its own T3 thread (delegate_task, native subagents with a
+   * child thread) is another robot, so the robot starts and follows that thread in T3 Code. A helper
+   * inside the robot's own harness (Claude's Agent tool) runs in that harness's app or terminal.
+   * The same helper seen twice (a delegate_task call, then its subagent item) keeps one view.
    */
   private async openHelper(itemId: string, o: { child: string | null; prompt: string; title: string; provider?: string; driver?: string; model?: string; effort?: string; label?: string }) {
     const existing = this.findHelper(o.child, o.prompt);
@@ -491,6 +492,16 @@ export class Director {
     if (!o.child && kind === harnessKind(this.info?.provider)) { model = model || this.info?.model || undefined; effort = effort || this.info?.effort || undefined; }
     const key = o.child || itemId;
     this.helperOf.set(itemId, key);
+    if (o.child) {
+      this.onActivity(`Starting a thread in T3 Code: ${o.title}`);
+      this.stage.setGlow(GLOW.chat);
+      const session = new T3ChildSession(this.wm, o.child, { title: info?.title || o.title, provider, model, effort, projectTitle: this.info?.projectTitle, root: info?.root || this.info?.root });
+      const h: Helper = { session, child: o.child, prompt: o.prompt, since: "", timer: 0, done: false, last: "", runSeen: false, ticks: 0, hasModel: !!model };
+      this.sessions.set(key, h);
+      this.pollChild(h);
+      await session.start(o.prompt);
+      return;
+    }
     const flavor = this.wm.prefs?.subagents;
     const t = THEMES[kind];
     this.onActivity(`Briefing a helper in ${flavor === "cli" && t.cmd ? t.cmd : t.app || t.name}: ${o.title}`);
@@ -500,6 +511,12 @@ export class Director {
     const h: Helper = { session, child: o.child, prompt: o.prompt, since: "", timer: 0, done: false, last: "", runSeen: false, ticks: 0, hasModel: !!model };
     this.sessions.set(key, h);
     this.pollChild(h);
+  }
+
+  /** Look in on a helper: its thread in T3 Code, or its tab in the harness app. */
+  private checkOnHelper(key: string) {
+    const s = this.sessions.get(key)?.session;
+    return s instanceof T3ChildSession ? s.checkOn() : this.harness.checkOn(key);
   }
 
   private findHelper(child: string | null, prompt: string): string | null {
@@ -549,6 +566,7 @@ export class Director {
       for (const it of items) {
         if (it.updatedAt > s.since) s.since = it.updatedAt;
         if (it.type === "assistant_message") { if (it.data?.text) { s.last = String(it.data.text); session.stream(s.last); } continue; }
+        if (session instanceof T3ChildSession) { session.item(it); continue; }
         if (seen.has(it.id) || (it.status === "running" && it.type !== "command_execution")) continue;
         seen.add(it.id);
         const ev = map(it);
@@ -733,7 +751,7 @@ export class Director {
           const live = [...this.sessions.entries()].filter(([, s]) => !s.done);
           if (live.length && Math.random() < 0.2) {
             this.onActivity("Checking on its helper");
-            await this.harness.checkOn(live[Math.floor(Math.random() * live.length)][0]);
+            await this.checkOnHelper(live[Math.floor(Math.random() * live.length)][0]);
           }
         } catch (err) {
           if (err instanceof Cancelled) return;
@@ -768,7 +786,7 @@ export class Director {
       window.setTimeout(async () => {
         if (epoch !== this.wm.epoch || this.queue.length || !this.present()) return;
         const still = [...this.sessions.entries()].filter(([, s]) => !s.done);
-        if (still.length) { try { await this.harness.checkOn(still[0][0]); } catch {} }
+        if (still.length) { try { await this.checkOnHelper(still[0][0]); } catch {} }
         if (epoch === this.wm.epoch && !this.queue.length) this.idle();
       }, 9000 + Math.random() * 6000);
       return;
@@ -1211,7 +1229,7 @@ export class Director {
     }
   }
 
-  // --- git and GitHub -------------------------------------------------------------
+  // --- git and pull requests -------------------------------------------------------------
   private gitdesk: GitDeskApp;
   /** Files changed since the last commit it showed (repo-relative path to status and latest diff). */
   private changed = new Map<string, { status: DeskFile["status"]; diff?: string }>();
@@ -1259,7 +1277,7 @@ export class Director {
 
   /**
    * Git work looks like git work: terminal robots type it and get the real output (in git's
-   * colours), app robots do it in GitHub Desktop; pull requests open on GitHub in the browser.
+   * colours), app robots do it in the Git app; pull requests open on GitHub in the browser.
    */
   private async playGit(id: string, command: string): Promise<boolean> {
     const plan = gitPlan(command);
@@ -1274,7 +1292,7 @@ export class Director {
     const done = this.settle(id).then((x) => this.cmdResult(x));
     const desktop = (this.wm.prefs?.git ?? "cli") === "desktop" && !plan.other.length;
     const prStep = plan.steps.find((s) => s.op === "pr-create" || s.op === "pr-merge") || null;
-    this.onActivity(gitActivity(plan.steps) + (desktop ? " in GitHub Desktop" : ""));
+    this.onActivity(gitActivity(plan.steps) + (desktop ? " in Git" : ""));
     if (!desktop) {
       this.stage.setGlow(GLOW.terminal);
       const h = await this.term.run(unwrap(command));

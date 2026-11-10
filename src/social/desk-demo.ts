@@ -24,7 +24,7 @@ const robot = { setPose() {}, mouseTo() {}, lookAt() {}, click() {}, pressKey() 
 
 export function runDesk(root: HTMLElement) {
   const what = qs.get("desk")!;
-  const base: Prefs = { editor: "studio", wallpaper: 0, games: { snake: 1, flappy: 1, dash: 1, chess: 1 }, phone: "clips", subagents: "cli", music: 0.2, social: 0.4, mug: "#ff8a65", tasks: "board", hobby: "chatter", windows: "floating", listens: "never", launch: "dock", switching: "click", tidiness: "normal", git: "cli" };
+  const base: Prefs = { wallpaper: 0, games: { snake: 1, flappy: 1, dash: 1, chess: 1 }, phone: "clips", subagents: "cli", music: 0.2, social: 0.4, mug: "#ff8a65", tasks: "board", hobby: "chatter", windows: "floating", listens: "never", launch: "dock", switching: "click", tidiness: "normal", git: "cli" };
   if (what === "pick") {
     const out: string[] = [];
     const robots: [string, Prefs][] = [];

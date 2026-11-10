@@ -8,7 +8,7 @@
 - Same-site navigation types the actual destination URL. It no longer clicks an arbitrary visible heading and pretends that heading led there.
 - Tool actions with no recorded target show their real activity caption. They no longer click a random position on a reconstructed page. Leisure page reading scrolls the page instead of pretending to follow an unspecified link.
 - Image generation returns distinct completed, failed, pending and preview-unavailable outcomes. The activity line only claims a generated image after a returned image loads. Interrupted calls, nested tool errors and nonzero command exits produce failure states. Returned HTTP image URLs can be displayed.
-- Saved app interests now gate Mail, Steambot and Tradebot as well as the other pastime apps. A nonempty saved phone app list no longer silently gains Spool.
+- Saved app interests now gate Mail, Vapor and the Botcoin Exchange as well as the other pastime apps. A nonempty saved phone app list no longer silently gains Spool.
 - Old game speech timers cannot erase a new activity's speech after its idle session ends.
 - Music skips preserve actual elapsed playback time instead of jumping the clock forward before clicking Next.
 - Compaction activity names context compaction rather than an unrelated break.
@@ -16,10 +16,10 @@
 
 ## Existing paths inspected and preserved
 
-- `GAME_TITLES` supplies actual game titles for game windows. Steambot's returned launch key is passed to `doActivity(..., true)`, preserving the direct launch path from Play without another OS search.
+- `GAME_TITLES` supplies actual game titles for game windows. Vapor's returned launch key is passed to `doActivity(..., true)`, preserving the direct launch path from Play without another OS search.
 - Image viewer opens the Photos app and uses its existing Photos icon. Editor and video app icons already have dedicated entries. WM title, dock and taskbar handling is owned by the renderer worker.
 - BotsApp, Telegrid, Instabot, Sparkplug and Snapbot call shared typing indicators and phone keyboard helpers.
-- Tradebot reads real Bitcoin candles and price through the market bridge. Its fictional coin section and offline Bitcoin history have explicit labels. Steambot and robot coins remain local fictional leisure activities, not real purchases or trades.
+- the Botcoin Exchange reads real market candles and price through the market bridge. Its fictional coin section and offline market history have explicit labels. Vapor and robot coins remain local fictional leisure activities, not real purchases or trades.
 
 ## Checks run
 
@@ -33,7 +33,7 @@
 1. Open two preview tabs with distinct `pv:<tabId>` keys, close one through `preview_close`, and confirm the other tab and page remain visible. A failed close must leave both tabs intact.
 2. Run image fixtures for success, tool failure, interrupted call, tool still running past the presentation wait, and completed result with no readable image. Only the success fixture should say Generated image.
 3. Navigate between two URLs on one site. Confirm the address matches the destination and no unrelated heading is clicked. Search-result navigation should still click its matching actual result.
-4. Check a robot whose saved interests omit Steambot, Mail and Tradebot. None should enter its weighted pastime selection. Its phone home screen should contain only its saved social apps, plus utility icons.
+4. Check a robot whose saved interests omit Vapor, Mail and the Botcoin Exchange. None should enter its weighted pastime selection. Its phone home screen should contain only its saved social apps, plus utility icons.
 5. Observe actual runtime tool outputs and photo/video viewer titles alongside the other workers' WM icon changes.
 6. Set an image presentation's `maxMs` to a short budget, let it return pending, then push the same real item's completed output. Confirm its original result block fills, the prompt remains single, and another app retains focus. Repeat with a failed output and unreadable image. Start a second image while the first result is loading and confirm the stale first refresh is ignored.
 

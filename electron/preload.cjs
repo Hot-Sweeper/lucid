@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld("lucid", {
   userMessagesSince: (since, exclude) => ipcRenderer.invoke("t3:user-messages", since, exclude),
   removeProject: (o) => ipcRenderer.invoke("project:remove", o),
   host: () => ipcRenderer.invoke("app:host"),
+  t3Channel: () => ipcRenderer.invoke("t3:channel"),
   usage: () => ipcRenderer.invoke("usage:get"),
   coinUsage: () => ipcRenderer.invoke("coins:usage"),
   weather: () => ipcRenderer.invoke("weather:get"),
@@ -109,7 +110,7 @@ contextBridge.exposeInMainWorld("lucidT3", {
 });
 
 // Office documents for the robots' Botword, Cellsheet and Slidedeck: { ok, doc } or { ok: false, error }.
-// Real market data for Tradebot: { ok, value } or { ok: false, error }.
+// Real market data for the Botcoin Exchange: { ok, value } or { ok: false, error }.
 contextBridge.exposeInMainWorld("lucidMarket", {
   klines: (symbol, interval) => ipcRenderer.invoke("market:klines", symbol, interval),
   price: (symbol) => ipcRenderer.invoke("market:price", symbol),

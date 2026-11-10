@@ -10,7 +10,7 @@ import { phoneKeyboard, type PhoneKeyboard } from "./keyboard";
 type Row = { id: string; name: string; color: string; kind: "channel" | "group" | "bot"; sub: string; prev: string; unread: number; el?: HTMLElement };
 const EYE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.6 4.2 9.8 6.3.3.5.3 1 0 1.4C20.6 14.8 17 19 12 19s-8.6-4.2-9.8-6.3a1.4 1.4 0 0 1 0-1.4C3.4 9.2 7 5 12 5Zm0 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg>`;
 const MEGA = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 4v15l-6-3.2H8.5l1 4.2H7l-1.2-4.2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h7Z"/><rect x="19.5" y="9" width="2" height="5" rx="1"/></svg>`;
-const NAMECOL = ["#e17076", "#7bc862", "#65aadd", "#a695e7", "#ee7aae", "#6ec9cb", "#faa774"];
+const NAMECOL = ["#ff8f8f", "#5fcf8f", "#5fb0f0", "#a98bff", "#ff8fc0", "#4fd0c8", "#ffb36b"];
 
 export async function browseTelegrid(body: HTMLElement, host: SoHost, opts: SoOpts) {
   return runApp(body, host, opts, async (k) => { await new Telegrid(k, body, opts).session(); });
@@ -37,8 +37,8 @@ class Telegrid {
     body.appendChild(this.root);
     this.rows = [
       ...TG_CHANNELS.map((c) => ({ id: c.id, name: c.name, color: c.color, kind: "channel" as const, sub: `${fmtN(c.subs)} subscribers`, prev: c.posts[0].t, unread: 0 })),
-      { id: "group", name: TG_GROUP.name, color: "#7bc862", kind: "group", sub: `${TG_GROUP.members.toLocaleString("en-US")} members, ${Math.round(900 + Math.random() * 600).toLocaleString("en-US")} online`, prev: "mod_unit: read the pins", unread: 0 },
-      { id: "bot", name: TG_BOT.name, color: "#a695e7", kind: "bot", sub: "bot", prev: "/status", unread: 0 },
+      { id: "group", name: TG_GROUP.name, color: "#5fcf8f", kind: "group", sub: `${TG_GROUP.members.toLocaleString("en-US")} members, ${Math.round(900 + Math.random() * 600).toLocaleString("en-US")} online`, prev: "mod_unit: read the pins", unread: 0 },
+      { id: "bot", name: TG_BOT.name, color: "#a98bff", kind: "bot", sub: "bot", prev: "/status", unread: 0 },
     ];
     for (const r of this.rows) r.unread = r.kind === "bot" ? 0 : r.kind === "group" ? 120 + Math.floor(Math.random() * 900) : 1 + Math.floor(Math.random() * 6);
     this.build();
@@ -110,7 +110,7 @@ class Telegrid {
     this.root.classList.remove("open");
   }
 
-  /** Telegram shows who is typing right under the chat name. */
+  /** Who is typing shows right under the chat name. */
   async typing(text: string, who?: string) {
     const sub = this.root.querySelector(".so-tg-head small") as HTMLElement;
     await theyType(this.k, text, () => headerTyping(sub, who ? `${who} is typing` : "typing"));
@@ -141,7 +141,7 @@ class Telegrid {
   async send(text: string) {
     if (!this.kb?.up) await this.tapEl(this.field, 0.3);
     if (this.phone) {
-      this.kb = phoneKeyboard(this.k, this.root, { accent: "#3390ec" });
+      this.kb = phoneKeyboard(this.k, this.root, { accent: "#5b7cf0" });
       await this.kb.open({ ret: "send", lift: [this.foot, this.msgs] });
     }
     this.field.classList.add("has");

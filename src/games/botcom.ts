@@ -1,8 +1,10 @@
-// BOT-COM: Terror from the Deep Sea. Turn-based squad tactics on the seabed: four brass-helmet
-// diver robots against tentacled sea-bots, with time units, fog of war, cover and reaction fire.
-// The robot plays it with the mouse: select a diver, click a tile, pick Snap or Aimed, click a target, End turn.
+// Tidewatch Tactics. Turn-based squad tactics on the seabed: four brass-helmet diver robots
+// patch a leaking undersea data cable while grumpy sea critters guard the warm, glowing breaks.
+// Each turn a diver spends air to walk, puff bubbles at a critter until it swims off, or patch a leak.
+// The robot plays it with the mouse: select a diver, click a tile, pick Puff, Blast or Patch, End turn.
 import "./games.css";
 import "./botcom.css";
+import { canvasText } from "../localization-canvas";
 import {
   Scope, Session, Halt, mountFrame, addCanvas, nap, think, chance, pick, clamp, lerp, reducedMotion, rng, hash,
   fillRR, circle, ellipse, poly, line, lin, rad, glow, text, withAlpha, mix,
@@ -10,52 +12,55 @@ import {
 } from "./kit";
 
 const GW = 11, GH = 11, TW = 36, TH = 18, PANEL = 62;
-type Tile = 0 | 1 | 2 | 3 | 4 | 5; // sand, rock, coral, kelp, wreck, craft
+type Tile = 0 | 1 | 2 | 3 | 4 | 5; // sand, rock, coral, kelp, wreck, sub
 const BLOCK_MOVE = [false, true, true, false, true, true];
 const BLOCK_LOS = [false, true, false, false, true, true];
 const COVER = [0, 0.3, 0.2, 0.08, 0.3, 0.3];
 const SIGHT = 6.5, RANGE = 10, STEP = 115;
+const PATCH = 22, LEAK_FIX = 2;
 const DIRS: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 const idx = (x: number, y: number) => y * GW + x;
 const inb = (x: number, y: number) => x >= 0 && y >= 0 && x < GW && y < GH;
+const reach1 = (ax: number, ay: number, bx: number, by: number) => Math.max(Math.abs(ax - bx), Math.abs(ay - by)) <= 1;
 const now = () => performance.now() / 1000;
 
-type Kind = "diver" | "jelly" | "squid" | "lantern";
-type AlienKind = Exclude<Kind, "diver">;
-type Mode = "snap" | "aimed";
+type Kind = "diver" | "jelly" | "crab" | "angler";
+type CritterKind = Exclude<Kind, "diver">;
+type Mode = "puff" | "blast";
 
-const AL: Record<AlienKind, { name: string; hp: number; tu: number; acc: number; dmg: [number, number]; snap: number; aimed: number; bolt: string }> = {
-  jelly: { name: "Jellydrone", hp: 42, tu: 52, acc: 0.64, dmg: [20, 32], snap: 18, aimed: 32, bolt: "#ff5fd2" },
-  squid: { name: "Squidmech", hp: 74, tu: 48, acc: 0.62, dmg: [24, 38], snap: 18, aimed: 32, bolt: "#ffb03a" },
-  lantern: { name: "Lanternbot", hp: 54, tu: 50, acc: 0.78, dmg: [28, 42], snap: 20, aimed: 30, bolt: "#9dff6a" },
+// Critters have a grump meter instead of health: bubbles calm them until they swim off.
+const CR: Record<CritterKind, { name: string; hp: number; tu: number; acc: number; dmg: [number, number]; puff: number; blast: number; bolt: string }> = {
+  jelly: { name: "Static jelly", hp: 42, tu: 52, acc: 0.64, dmg: [20, 32], puff: 18, blast: 32, bolt: "#ff5fd2" },
+  crab: { name: "Grumpy crab", hp: 74, tu: 48, acc: 0.56, dmg: [18, 30], puff: 18, blast: 32, bolt: "#e8c08a" },
+  angler: { name: "Lantern fish", hp: 54, tu: 50, acc: 0.78, dmg: [28, 42], puff: 20, blast: 30, bolt: "#9dff6a" },
 };
-const DV = { hp: 60, tu: 56, snap: 16, aimed: 30, dmg: [30, 48] as [number, number] };
-const SQUAD = [
-  { name: "Sgt. Gauge", acc: 0.7, tag: "#ff9f5a" },
-  { name: "Cpl. Kettle", acc: 0.63, tag: "#4fb6ff" },
-  { name: "Pvt. Rivet", acc: 0.58, tag: "#4ff0a0" },
-  { name: "Pvt. Bilge", acc: 0.53, tag: "#c79bff" },
+const DV = { hp: 60, tu: 56, puff: 16, blast: 30, dmg: [30, 48] as [number, number] };
+const CREW = [
+  { name: "Gauge", acc: 0.7, tag: "#ff9f5a" },
+  { name: "Kettle", acc: 0.63, tag: "#4fb6ff" },
+  { name: "Rivet", acc: 0.58, tag: "#4ff0a0" },
+  { name: "Bilge", acc: 0.53, tag: "#c79bff" },
 ];
-const OPS = ["Operation Wet Socket", "Operation Salty Kernel", "Operation Deep Patch", "Operation Rusty Anchor", "Operation Soggy Cache"];
-const SITES = ["Sunken cargo ship, 340 m", "Abandoned cable relay, 410 m", "Reef server farm, 280 m", "Kelp forest outpost, 300 m"];
+const TICKETS = ["Ticket #404: the internet tastes salty", "Ticket #512: packets smell like seaweed", "Ticket #128: video calls keep freezing", "Ticket #333: something chewed the backbone", "Ticket #777: lag spike off the reef"];
+const SITES = ["Sunken cargo ship, 340 m", "Old cable relay, 410 m", "Coral shelf, 280 m", "Kelp forest, 300 m"];
 const LINES = {
   win: [
-    "All sea-bots recycled. The harbour sends a thank-you fax.",
-    "{n} would like it noted that the squid started it.",
-    "Zero leaks. One very confused octopus.",
-    "Seabed secured. {n} has already polished every helmet.",
+    "Line restored. Somewhere a video call stops freezing.",
+    "{n} would like it noted that the crab started it.",
+    "Both leaks sealed. One very confused octopus watched the whole thing.",
+    "Packets flowing again. {n} has already polished every helmet.",
   ],
   wipe: [
-    "The squad floated home on recall buoys. Morale is damp.",
-    "Note to self: the glowing ones shoot back.",
-    "Every diver is safe in the sub. Their pride is still down there.",
+    "The crew floated home on recall buoys. Morale is damp.",
+    "Note to self: the glowing ones bite back.",
+    "Everyone is safe in the sub. The packets are still leaking.",
   ],
   retreat: [
-    "One diver left, many tentacles. The sub honks twice and leaves.",
+    "One diver left, a lot of claws. The sub honks twice and leaves.",
     "Tactical retreat. Nobody mention the kelp to {n}.",
   ],
   abort: [
-    "Air tanks low. Mission paused, pride intact.",
+    "Air tanks low. The leak can wait until tomorrow.",
     "The sub needs to surface for a firmware update.",
   ],
 };
@@ -67,20 +72,21 @@ interface Unit {
   alive: boolean; face: number; hurt: number; flash: number; gone: number;
   vis: boolean; last: { x: number; y: number } | null; reacted: number; lunge: number;
 }
-interface Fx { x: number; y: number; vx: number; vy: number; life: number; max: number; kind: "bolt" | "spark" | "bubble" | "sand"; c: string; r: number; a: number; va: number }
+interface Leak { x: number; y: number; fix: number; t: number }
+interface Fx { x: number; y: number; vx: number; vy: number; life: number; max: number; kind: "spark" | "bubble" | "sand" | "bit"; c: string; r: number }
 interface Shot { x0: number; y0: number; x1: number; y1: number; t0: number; dur: number; c: string }
 interface Float { x: number; y: number; s: string; c: string; t0: number }
 interface Mission {
   map: Tile[]; units: Unit[]; vis: Uint8Array; seen: Uint8Array; lit: string[]; dim: string[]; dark: string[];
-  objs: { x: number; y: number; t: Tile; s: number }[];
-  turn: number; alert: boolean; kills: number; lost: number; op: string; site: string;
-  sel: Unit | null; path: [number, number][] | null; target: Unit | null; phase: "squad" | "alien" | "end"; misses: number;
+  objs: { x: number; y: number; t: Tile; s: number }[]; cable: [number, number][]; leaks: Leak[];
+  turn: number; alert: boolean; shooed: number; lost: number; ticket: string; site: string;
+  sel: Unit | null; path: [number, number][] | null; target: Unit | null; phase: "crew" | "reef" | "end"; misses: number;
 }
 
 // ---- seabed generation -----------------------------------------------------------------
 
 const SPAWN: [number, number][] = [[1, 8], [1, 9], [1, 10], [2, 9]];
-function genMap(r: () => number): { map: Tile[]; aliens: [number, number][] } {
+function genMap(r: () => number): { map: Tile[]; critters: [number, number][]; cable: [number, number][]; leaks: [number, number][] } {
   const ri = (a: number, b: number) => a + Math.floor(r() * (b - a + 1));
   for (let tries = 0; ; tries++) {
     const m: Tile[] = new Array(GW * GH).fill(0);
@@ -98,7 +104,15 @@ function genMap(r: () => number): { map: Tile[]; aliens: [number, number][] } {
     set(ri(2, 4), ri(5, 6), 2);
     if (r() < 0.6) set(3, ri(8, 10), 1);
     for (const y of [8, 9, 10]) set(0, y, 5);
-    // squad spawns stay clear
+    // the cable leaves the sub and wanders to the far edge; its tiles stay walkable
+    const cable: [number, number][] = [[1, 9]];
+    for (let x = 1, y = 9; x < GW - 1 && y > 0;) {
+      if (r() < 0.55) x++; else y--;
+      cable.push([x, y]);
+    }
+    for (const [x, y] of cable) if (BLOCK_MOVE[m[idx(x, y)]]) set(x, y, 0);
+    const a = clamp(Math.floor(cable.length * 0.5) + ri(-1, 1), 4, cable.length - 4);
+    const leaks = [cable[a], cable[Math.max(a + 3, cable.length - 1 - ri(0, 1))]];
     for (const [x, y] of SPAWN) set(x, y, 0);
     // reachability from the landing zone
     const seen = new Uint8Array(GW * GH), qx = [idx(1, 9)];
@@ -114,12 +128,12 @@ function genMap(r: () => number): { map: Tile[]; aliens: [number, number][] } {
     const reach = seen.reduce((a, b) => a + b, 0);
     const cand: [number, number][] = [];
     for (let y = 0; y <= 5; y++) for (let x = 6; x < GW; x++) if (seen[idx(x, y)] && m[idx(x, y)] !== 3 || (seen[idx(x, y)] && r() < 0.3)) cand.push([x, y]);
-    const aliens: [number, number][] = [];
-    for (let k = 0; k < 40 && aliens.length < 4 && cand.length; k++) {
+    const critters: [number, number][] = [];
+    for (let k = 0; k < 40 && critters.length < 4 && cand.length; k++) {
       const c = cand[Math.floor(r() * cand.length)];
-      if (aliens.every(([ax, ay]) => Math.max(Math.abs(ax - c[0]), Math.abs(ay - c[1])) >= 2)) aliens.push(c);
+      if (critters.every(([ax, ay]) => Math.max(Math.abs(ax - c[0]), Math.abs(ay - c[1])) >= 2)) critters.push(c);
     }
-    if ((reach >= 72 && aliens.length === 4) || tries > 60) return { map: m, aliens };
+    if ((reach >= 72 && critters.length === 4) || tries > 60) return { map: m, critters, cable, leaks };
   }
 }
 
@@ -213,6 +227,27 @@ function drawSub(ctx: Ctx, cx: number, cy: number, t: number) {
   circle(ctx, cx + 9, cy - 35, 1.4, Math.sin(t * 3) > 0 ? "#4ff0a0" : "#1d5a40");
 }
 
+// A break fizzes cyan data; patches add a brass sleeve, a sealed sleeve blinks green.
+function drawLeak(ctx: Ctx, cx: number, cy: number, l: Leak, t: number, calm: boolean) {
+  const p = calm ? 0.5 : 0.5 + 0.5 * Math.sin(t * 4 + l.x);
+  if (l.fix < LEAK_FIX) {
+    diamond(ctx, cx, cy, 3, `rgba(127,232,255,${0.1 + 0.08 * p})`);
+    glow(ctx, cx, cy - 2, 15 - l.fix * 4, "#7fe8ff", 0.32 + 0.18 * p);
+    for (let k = 0; k < 3 - l.fix; k++) {
+      const a = (calm ? 0 : t * 3) + k * 2.1, r = 4 + p * 2;
+      line(ctx, [[cx, cy - 2], [cx + Math.cos(a) * r * 0.6, cy - 2 + Math.sin(a) * r * 0.4 - 1.5], [cx + Math.cos(a + 0.4) * r, cy - 2 + Math.sin(a + 0.4) * r * 0.5]], 1, "#bff6ff");
+    }
+    circle(ctx, cx, cy - 2, 2.2, "#e8fdff");
+  }
+  if (l.fix > 0) {
+    const w = l.fix >= LEAK_FIX ? 12 : 7;
+    fillRR(ctx, cx - w / 2, cy - 5, w, 6, 2, l.fix >= LEAK_FIX ? "#d9a03a" : "#b07a38");
+    fillRR(ctx, cx - w / 2, cy - 5, w, 1.6, 0.8, "#f0c264");
+    for (let k = 1; k < w / 3; k++) fillRR(ctx, cx - w / 2 + k * 3 - 0.5, cy - 4, 1, 4.5, 0.5, "#8a5c18");
+    if (l.fix >= LEAK_FIX) circle(ctx, cx + 4, cy - 2.5, 1.2, calm || Math.sin(t * 3 + l.y) > -0.4 ? "#4ff0a0" : "#1d5a40");
+  }
+}
+
 function drawDiver(ctx: Ctx, cx: number, cy: number, u: Unit, t: number, calm: boolean) {
   const f = u.face;
   const hk = Math.max(0, u.hurt - t) / 0.4;
@@ -226,10 +261,12 @@ function drawDiver(ctx: Ctx, cx: number, cy: number, u: Unit, t: number, calm: b
   fillRR(ctx, cx - 6.5, cy - 17, 13, 11, 4, "#2f8f94");
   fillRR(ctx, cx - 6.5, cy - 17, 13, 3, 1.5, u.tag);
   fillRR(ctx, cx - 6.5, cy - 9, 13, 2.4, 1, "#d9a03a");
-  // harpoon gun
+  // bubble blaster: a stubby nozzle under a glass bubble bulb
   const gx = f > 0 ? cx + 2 : cx - 12;
-  fillRR(ctx, gx, cy - 13, 10, 3.2, 1.5, "#3b4a52");
-  circle(ctx, f > 0 ? gx + 10 : gx, cy - 11.4, 1.3, "#8ff3ff");
+  fillRR(ctx, gx, cy - 13, 10, 3.6, 1.8, "#3b6a72");
+  circle(ctx, gx + 5 - f * 1.5, cy - 15.2, 2.7, "rgba(143,243,255,0.7)");
+  circle(ctx, gx + 4.2 - f * 1.5, cy - 16, 0.9, "#ffffff");
+  circle(ctx, f > 0 ? gx + 10 : gx, cy - 11.2, 1.6, "#8ff3ff");
   // helmet
   circle(ctx, cx, cy - 21, 7.2, "#e2a93b");
   ellipse(ctx, cx, cy - 15.8, 6.6, 2, "#b77d22");
@@ -244,18 +281,30 @@ function drawDiver(ctx: Ctx, cx: number, cy: number, u: Unit, t: number, calm: b
   if (hk > 0) circle(ctx, cx, cy - 15, 11, `rgba(255,120,110,${0.35 * hk})`);
 }
 
-function alienBob(u: Unit, t: number, calm: boolean) {
+function critterBob(u: Unit, t: number, calm: boolean) {
   const b = calm ? 0 : Math.sin(t * 2 + u.id * 1.3);
-  return u.kind === "jelly" ? 8 + b * 2.5 : u.kind === "lantern" ? 4 + b * 1.6 : 0;
+  return u.kind === "jelly" ? 8 + b * 2.5 : u.kind === "angler" ? 4 + b * 1.6 : 0;
 }
 
-function drawAlien(ctx: Ctx, cx: number, cy: number, u: Unit, t: number, calm: boolean) {
+function drawClaw(ctx: Ctx, x: number, y: number, side: number, open: number) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(side, 1);
+  ctx.rotate(-0.5);
+  ctx.save(); ctx.rotate(open * 0.5); fillRR(ctx, 1, -1.2, 8, 3.4, 1.7, "#e0644a"); ctx.restore();
+  ctx.save(); ctx.rotate(-open * 0.5); fillRR(ctx, 1, -2.6, 7, 2.8, 1.4, "#f07a5c"); ctx.restore();
+  circle(ctx, 0, 0, 4.4, "#d4563e");
+  circle(ctx, -1.2, -1.4, 1.4, "#f59a7c");
+  ctx.restore();
+}
+
+function drawCritter(ctx: Ctx, cx: number, cy: number, u: Unit, t: number, calm: boolean) {
   const f = u.face;
   const hk = Math.max(0, u.hurt - t) / 0.4;
   if (hk > 0 && !calm) cx += Math.sin(t * 70) * 1.8 * hk;
   const wt = calm ? 0 : t;
   if (u.kind === "jelly") {
-    const by = cy - 14 - alienBob(u, t, calm);
+    const by = cy - 14 - critterBob(u, t, calm);
     ellipse(ctx, cx, cy, 8, 3, "rgba(0,0,0,0.22)");
     for (let i = 0; i < 4; i++) {
       const x = cx + (i - 1.5) * 3.6;
@@ -269,28 +318,37 @@ function drawAlien(ctx: Ctx, cx: number, cy: number, u: Unit, t: number, calm: b
     circle(ctx, cx + 3.5 + f, by - 3.5, 1.9, "#ffd0f2");
     line(ctx, [[cx, by - 10], [cx + 2, by - 14]], 1.2, "#6c4ac0");
     circle(ctx, cx + 2, by - 14.5, 1.4, "#ff5fd2");
-  } else if (u.kind === "squid") {
-    const lk = Math.max(0, u.lunge - t) / 0.35;
-    cx += f * 5 * Math.sin(lk * Math.PI);
-    ellipse(ctx, cx, cy, 12, 4, "rgba(0,0,0,0.28)");
-    for (let i = 0; i < 4; i++) {
-      const side = i < 2 ? -1 : 1, k = i % 2;
-      const wob = Math.sin(wt * 2.4 + i) * 1.5;
-      const x0 = cx + side * (3 + k * 3), y0 = cy - 6;
-      line(ctx, [[x0, y0], [x0 + side * (6 + k * 3), cy - 1 + wob * 0.3], [x0 + side * (10 + k * 3), cy - 4 + wob]], 3.4, "#7a2235");
-      circle(ctx, x0 + side * (10 + k * 3), cy - 4 + wob, 1.8, "#c84a5e");
+  } else if (u.kind === "crab") {
+    const lk = Math.max(0, u.lunge - t) / 0.35, snap = Math.sin(lk * Math.PI);
+    cx += f * 5 * snap;
+    const by = cy - 6 - (calm ? 0 : Math.abs(Math.sin(wt * 3 + u.id)) * 0.8);
+    ellipse(ctx, cx, cy, 13, 4, "rgba(0,0,0,0.28)");
+    for (let i = 0; i < 3; i++) for (const side of [-1, 1]) {
+      const wob = calm ? 0 : Math.sin(wt * 6 + i * 1.4 + side) * 0.8;
+      const x0 = cx + side * (4 + i * 2.4);
+      line(ctx, [[x0, by], [x0 + side * 4, by + 2 + wob], [x0 + side * 6, cy - 0.5]], 1.8, "#a8402e");
     }
-    poly(ctx, [[cx - 9, cy - 6], [cx - 10.5, cy - 20], [cx - 5, cy - 33], [cx, cy - 36], [cx + 5, cy - 33], [cx + 10.5, cy - 20], [cx + 9, cy - 6]], "#b23a50");
-    poly(ctx, [[cx, cy - 36], [cx + 5, cy - 33], [cx + 10.5, cy - 20], [cx + 9, cy - 6], [cx + 3, cy - 6]], "#962e44");
-    fillRR(ctx, cx - 8, cy - 28, 16, 2, 1, "#8c2a3e");
-    fillRR(ctx, cx - 9, cy - 11, 18, 2, 1, "#8c2a3e");
-    poly(ctx, [[cx - 5, cy - 33], [cx - 9, cy - 37], [cx - 3, cy - 35]], "#d0566a");
-    poly(ctx, [[cx + 5, cy - 33], [cx + 9, cy - 37], [cx + 3, cy - 35]], "#d0566a");
-    glow(ctx, cx + f * 2, cy - 20, 13, "#ffd23a", 0.45);
-    ellipse(ctx, cx + f * 2, cy - 20, 5.2, 3.4, "#ffd23a");
-    ellipse(ctx, cx + f * 3.2, cy - 20, 2, 2.4, "#3a1a10");
+    for (const side of [-1, 1]) {
+      const front = side === f, lift = front ? snap * 3 : 0;
+      const kx = cx + side * 13, ky = by - 10 - lift;
+      line(ctx, [[cx + side * 8, by - 3], [cx + side * 12, by - 6 - lift], [kx, ky + 2]], 2.4, "#c4503a");
+      drawClaw(ctx, kx, ky, side, 0.25 + (front ? snap * 0.6 : 0) + (calm ? 0 : Math.max(0, Math.sin(wt * 1.7 + side * 2)) * 0.2));
+    }
+    ctx.beginPath(); ctx.ellipse(cx, by - 2, 11, 7.5, 0, Math.PI, 0); ctx.closePath(); ctx.fillStyle = "#d4563e"; ctx.fill();
+    fillRR(ctx, cx - 11.5, by - 2.5, 23, 4, 2, "#9c3a2a");
+    ellipse(ctx, cx - 3, by - 6, 4.6, 1.9, "#f08a6a");
+    for (const k of [-4, 0, 4]) circle(ctx, cx + k, by - 3.6, 0.9, "#b2452f");
+    // eyestalks with a permanent scowl
+    for (const side of [-1, 1]) {
+      const ex = cx + side * 3.6 + f, ey = by - 14;
+      line(ctx, [[cx + side * 2.6, by - 7], [ex, ey + 2]], 1.6, "#c4503a");
+      circle(ctx, ex, ey, 2.5, "#fff4e8");
+      circle(ctx, ex + f * 0.8, ey + 0.3, 1.2, "#2a1410");
+      line(ctx, [[ex + side * 2.4, ey - 4.6], [ex - side * 2.2, ey - 2.8]], 1.3, "#5a1e14");
+    }
+    ctx.beginPath(); ctx.arc(cx + f, by - 2.2, 2.2, 1.15 * Math.PI, 1.85 * Math.PI); ctx.lineWidth = 1.1; ctx.strokeStyle = "#5a1e14"; ctx.stroke();
   } else {
-    const by = cy - alienBob(u, t, calm);
+    const by = cy - critterBob(u, t, calm);
     ellipse(ctx, cx, cy, 10, 3.5, "rgba(0,0,0,0.25)");
     poly(ctx, [[cx - f * 9, by - 12], [cx - f * 17, by - 19], [cx - f * 16, by - 4]], "#24344a");
     circle(ctx, cx, by - 11, 11, "#2c3e52");
@@ -306,14 +364,14 @@ function drawAlien(ctx: Ctx, cx: number, cy: number, u: Unit, t: number, calm: b
   }
   if (hk > 0) circle(ctx, cx, cy - 16, 13, `rgba(255,255,255,${0.3 * hk})`);
 }
-const bodyOff = (u: Unit) => (u.kind === "diver" ? 15 : u.kind === "squid" ? 20 : u.kind === "jelly" ? 20 : 14);
+const bodyOff = (u: Unit) => (u.kind === "diver" ? 15 : u.kind === "crab" ? 12 : u.kind === "jelly" ? 20 : 14);
 
 // ---- the game ---------------------------------------------------------------------------
 
 export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
   const scope = new Scope(body);
   try {
-    const f = mountFrame(body, scope, "BOT-COM: Terror from the Deep Sea", "bx");
+    const f = mountFrame(body, scope, "Tidewatch Tactics", "bx");
     const S = new Session(host, opts, { base: 0.3, step: 0.15, calm: 0.1 });
     const sk = S.skill;
     const calm = reducedMotion();
@@ -331,28 +389,32 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       <div class="gm-bx-tip"></div>
       <div class="gm-bx-panel">
         <div class="gm-bx-who"><b class="gm-bx-name"></b>
-          <div class="gm-bx-row"><span>TU</span><i class="gm-bx-bar gm-bx-tu"><i></i></i><em class="gm-bx-tuv"></em></div>
-          <div class="gm-bx-row"><span>HP</span><i class="gm-bx-bar gm-bx-hp"><i></i></i><em class="gm-bx-hpv"></em></div>
+          <div class="gm-bx-row"><span>AIR</span><i class="gm-bx-bar gm-bx-tu"><i></i></i><em class="gm-bx-tuv"></em></div>
+          <div class="gm-bx-row"><span>BAT</span><i class="gm-bx-bar gm-bx-hp"><i></i></i><em class="gm-bx-hpv"></em></div>
         </div>
-        <div class="gm-bx-squad">${SQUAD.map((_, i) => `<div class="gm-bx-sq" data-i="${i}"><b>${i + 1}</b><i><i></i></i></div>`).join("")}</div>
-        <div class="gm-bx-btn" data-k="snap"><b>Snap</b><span>${DV.snap} TU</span></div>
-        <div class="gm-bx-btn" data-k="aimed"><b>Aimed</b><span>${DV.aimed} TU</span></div>
+        <div class="gm-bx-squad">${CREW.map((_, i) => `<div class="gm-bx-sq" data-i="${i}"><b>${i + 1}</b><i><i></i></i></div>`).join("")}</div>
+        <div class="gm-bx-btn" data-k="puff"><b>Puff</b><span>${DV.puff} air</span></div>
+        <div class="gm-bx-btn" data-k="blast"><b>Blast</b><span>${DV.blast} air</span></div>
+        <div class="gm-bx-btn gm-bx-fix" data-k="patch"><b>Patch</b><span>${PATCH} air</span></div>
         <div class="gm-bx-btn gm-bx-end" data-k="end"><b>End turn</b></div>
       </div>
-      <div class="gm-bx-intro"><b class="gm-bx-op"></b><span class="gm-bx-site"></span><span>4 divers deployed. Hostiles unknown.</span></div>
+      <div class="gm-bx-intro"><b class="gm-bx-op"></b><span class="gm-bx-site"></span><span>4 divers in the water. 2 leaks on the line.</span></div>
       <div class="gm-bx-deb"><b class="gm-bx-deb-t"></b><span class="gm-bx-deb-op"></span><div class="gm-bx-deb-rows"></div><p class="gm-bx-deb-line"></p></div>`);
     const q = (s: string) => f.stage.querySelector(s) as HTMLElement;
     const bannerEl = q(".gm-bx-banner"), tipEl = q(".gm-bx-tip"), introEl = q(".gm-bx-intro"), debEl = q(".gm-bx-deb");
     const nameEl = q(".gm-bx-name"), tuBar = q(".gm-bx-tu > i"), hpBar = q(".gm-bx-hp > i"), tuV = q(".gm-bx-tuv"), hpV = q(".gm-bx-hpv");
     const sqEls = [...f.stage.querySelectorAll(".gm-bx-sq")] as HTMLElement[];
-    const snapBtn = q('[data-k="snap"]'), aimBtn = q('[data-k="aimed"]'), endBtn = q('[data-k="end"]');
+    const puffBtn = q('[data-k="puff"]'), blastBtn = q('[data-k="blast"]'), patchBtn = q('[data-k="patch"]'), endBtn = q('[data-k="end"]');
 
     let M!: Mission;
     const shots: Shot[] = [], parts: Fx[] = [], floats: Float[] = [];
     const ambient: Fx[] = [];
 
     const divers = () => M.units.filter((u) => u.side === "x" && u.alive);
-    const aliens = () => M.units.filter((u) => u.side === "a" && u.alive);
+    const critters = () => M.units.filter((u) => u.side === "a" && u.alive);
+    const openLeaks = () => M.leaks.filter((l) => l.fix < LEAK_FIX);
+    const patchable = (u: Unit) => openLeaks().find((l) => reach1(l.x, l.y, u.x, u.y)) ?? null;
+    const leakDist = (x: number, y: number, ls = openLeaks()) => ls.length ? Math.min(...ls.map((l) => Math.hypot(l.x - x, l.y - y))) : 0;
     const pos = (u: Unit): [number, number] => {
       const k = clamp((now() - u.t0) / u.dur);
       return [lerp(u.fx, u.x, k), lerp(u.fy, u.y, k)];
@@ -372,8 +434,8 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       }
     };
     const sees = (a: Unit, b: Unit, range = SIGHT) => Math.hypot(a.x - b.x, a.y - b.y) <= range && los(a.x, a.y, b.x, b.y);
-    const snapOf = (u: Unit) => (u.kind === "diver" ? DV.snap : AL[u.kind].snap);
-    const aimedOf = (u: Unit) => (u.kind === "diver" ? DV.aimed : AL[u.kind].aimed);
+    const puffOf = (u: Unit) => (u.kind === "diver" ? DV.puff : CR[u.kind].puff);
+    const blastOf = (u: Unit) => (u.kind === "diver" ? DV.blast : CR[u.kind].blast);
     const coverFrom = (x: number, y: number, fx: number, fy: number) => {
       const dx = Math.sign(fx - x), dy = Math.sign(fy - y);
       let c = M.map[idx(x, y)] === 3 ? COVER[3] : 0;
@@ -391,7 +453,7 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
     const hitChance = (s: Unit, t: Unit, mode: Mode) => {
       const d = Math.hypot(t.x - s.x, t.y - s.y);
       // the robot's own steadiness on the mouse nudges its divers' aim a little
-      let c = s.acc * (mode === "aimed" ? 1.18 : 0.8) * (s.side === "x" ? 0.88 + 0.22 * sk : 1);
+      let c = s.acc * (mode === "blast" ? 1.18 : 0.8) * (s.side === "x" ? 0.88 + 0.22 * sk : 1);
       c -= Math.max(0, d - 3) * 0.04;
       c -= coverFrom(t.x, t.y, s.x, s.y);
       return clamp(c, 0.05, 0.95);
@@ -405,7 +467,7 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       }
       for (let i = 0; i < M.vis.length; i++) if (M.vis[i]) M.seen[i] = 1;
       const fresh: Unit[] = [];
-      for (const a of aliens()) {
+      for (const a of critters()) {
         const v = !!M.vis[idx(a.x, a.y)];
         if (v) { if (!a.vis) fresh.push(a); a.last = { x: a.x, y: a.y }; }
         else if (a.last && M.vis[idx(a.last.x, a.last.y)]) a.last = null;
@@ -447,7 +509,7 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
     };
 
     // ---- UI bits ----
-    const header = () => f.setScore(M.phase === "end" ? "Debrief" : `Turn ${M.turn}   Hostiles ${aliens().length}`);
+    const header = () => f.setScore(M.phase === "end" ? "Shift report" : `Turn ${M.turn}   Leaks ${openLeaks().length}   Critters ${critters().length}`);
     const panelUpdate = () => {
       const u = M.sel && M.sel.alive ? M.sel : divers()[0] ?? M.units[0];
       nameEl.textContent = u.name;
@@ -461,12 +523,13 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
         el.classList.toggle("gm-dead", !d.alive);
         (el.querySelector("i > i") as HTMLElement).style.width = `${(Math.max(0, d.hp) / d.max) * 100}%`;
       });
-      const mine = M.phase === "squad" && M.sel?.alive;
-      snapBtn.classList.toggle("gm-off", !mine || u.tu < DV.snap);
-      aimBtn.classList.toggle("gm-off", !mine || u.tu < DV.aimed);
-      endBtn.classList.toggle("gm-off", M.phase !== "squad");
+      const mine = M.phase === "crew" && M.sel?.alive;
+      puffBtn.classList.toggle("gm-off", !mine || u.tu < DV.puff || !critters().length);
+      blastBtn.classList.toggle("gm-off", !mine || u.tu < DV.blast || !critters().length);
+      patchBtn.classList.toggle("gm-off", !mine || u.tu < PATCH || !patchable(u));
+      endBtn.classList.toggle("gm-off", M.phase !== "crew");
     };
-    const banner = (s: string, tone: "squad" | "alien" | "plain" = "plain") => {
+    const banner = (s: string, tone: "crew" | "reef" | "plain" = "plain") => {
       bannerEl.textContent = s;
       bannerEl.dataset.tone = tone;
       scope.fromTo(bannerEl, { opacity: 0, y: calm ? 0 : -6 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" });
@@ -483,30 +546,30 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       // stack above any label still floating nearby so simultaneous hits stay readable
       const t0 = now();
       for (let n = 0; n < 6 && floats.some((o) => t0 - o.t0 < 0.9 && Math.abs(o.x - x) < 56 && Math.abs(o.y - y) < 13); n++) y -= 13;
-      floats.push({ x, y, s, c, t0 });
+      floats.push({ x, y, s: canvasText(s), c, t0 });
     };
     const press = async (el: HTMLElement, ms = 300) => {
       el.classList.add("gm-hot");
       try { await host.pointAt(el, 0.5, 0.5, ms); await host.click(); } finally { el.classList.remove("gm-hot"); }
     };
 
-    // ---- combat ----
+    // ---- bubbles, pinches and patches ----
     const burst = (x: number, y: number, c: string, n: number, kind: Fx["kind"], spd = 40) => {
       for (let i = 0; i < n; i++) {
         const a = Math.random() * Math.PI * 2, v = spd * (0.4 + Math.random());
-        parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - (kind === "bubble" ? 20 : 10), life: 0, max: 0.6 + Math.random() * 0.8, kind, c, r: kind === "bolt" ? 1.6 + Math.random() * 1.4 : 1 + Math.random() * 1.6, a: Math.random() * 6, va: (Math.random() - 0.5) * 12 });
+        parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - (kind === "bubble" ? 20 : 10), life: 0, max: 0.6 + Math.random() * 0.8, kind, c, r: 1 + Math.random() * 1.6 });
       }
     };
-    const kill = (t: Unit) => {
+    // a calmed critter swims off; a flat diver rides a recall buoy back to the sub
+    const retire = (t: Unit) => {
       t.alive = false;
       t.gone = now();
       const [x, y] = scr(t);
       if (t.side === "a") {
-        M.kills++;
-        burst(x, y - bodyOff(t), "#b9c4c8", 12, "bolt", 55);
-        burst(x, y - bodyOff(t), AL[t.kind as AlienKind].bolt, 8, "spark", 70);
-        burst(x, y - bodyOff(t), "#cfefff", 7, "bubble", 25);
-        say(x, y - 40, "Recycled", "#f3dca2");
+        M.shooed++;
+        burst(x, y - bodyOff(t), "#cfefff", 12, "bubble", 30);
+        burst(x, y - bodyOff(t), CR[t.kind as CritterKind].bolt, 6, "spark", 50);
+        say(x, y - 40, "Shooed", "#f3dca2");
       } else {
         M.lost++;
         burst(x, y - 16, "#cfefff", 10, "bubble", 22);
@@ -516,7 +579,7 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
     };
     const fire = async (s: Unit, t: Unit, mode: Mode) => {
       const ch = hitChance(s, t, mode);
-      s.tu -= mode === "aimed" ? aimedOf(s) : snapOf(s);
+      s.tu -= mode === "blast" ? blastOf(s) : puffOf(s);
       const [ax, ay] = scr(s), [bx, by] = scr(t);
       s.face = bx >= ax ? 1 : -1;
       t.face = -s.face;
@@ -530,18 +593,19 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
         const mx = clamp(t.x + ux * k - uy * side, -0.4, GW - 0.6), my = clamp(t.y + uy * k + ux * side, -0.4, GH - 0.6);
         x1 = sx(mx, my); y1 = sy(mx, my) - 3;
       }
-      if (s.side === "a" && s.kind !== "diver") await wait(200);
+      if (s.side === "a") await wait(200);
       const dur = 0.16 + Math.hypot(x1 - x0, y1 - y0) / 900;
-      shots.push({ x0, y0, x1, y1, t0: now(), dur, c: s.side === "x" ? "#8ff3ff" : AL[s.kind as AlienKind].bolt });
+      const col = s.side === "x" ? "#8ff3ff" : CR[s.kind as CritterKind].bolt;
+      shots.push({ x0, y0, x1, y1, t0: now(), dur, c: col });
       await nap(host, dur * 1000);
       if (hit) {
-        const [lo, hi] = s.kind === "diver" ? DV.dmg : AL[s.kind].dmg;
+        const [lo, hi] = s.kind === "diver" ? DV.dmg : CR[s.kind].dmg;
         const dmg = Math.round(lo + Math.random() * (hi - lo));
         t.hp -= dmg;
         t.hurt = now() + 0.4;
-        burst(x1, y1, s.side === "x" ? "#8ff3ff" : AL[s.kind as AlienKind].bolt, 7, "spark", 50);
+        burst(x1, y1, col, 7, s.side === "x" ? "bubble" : "spark", 50);
         say(bx, by - bodyOff(t) - 14, `-${dmg}`, s.side === "x" ? "#ffe28a" : "#ff8f9a");
-        if (t.hp <= 0) kill(t);
+        if (t.hp <= 0) retire(t);
       } else {
         burst(x1, y1, "#7fb8a8", 6, "sand", 26);
         say(x1, y1 - 8, "Miss", "#bfe3de");
@@ -550,7 +614,7 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       await wait(200);
       return hit;
     };
-    const lunge = async (a: Unit, t: Unit) => {
+    const pinch = async (a: Unit, t: Unit) => {
       a.tu -= 14;
       const [ax] = scr(a), [bx, by] = scr(t);
       a.face = bx >= ax ? 1 : -1;
@@ -561,24 +625,37 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
         const dmg = Math.round(30 + Math.random() * 16);
         t.hp -= dmg; t.hurt = now() + 0.4;
         burst(bx, by - 15, "#ffb03a", 8, "spark", 50);
-        say(bx, by - 30, `Bonk -${dmg}`, "#ff8f9a");
-        if (t.hp <= 0) kill(t);
+        say(bx, by - 30, `${canvasText("Pinch")} -${dmg}`, "#ff8f9a");
+        if (t.hp <= 0) retire(t);
       } else say(bx, by - 30, "Dodged", "#bfe3de");
       panelUpdate();
       await wait(420);
     };
-    // the other side gets a snap shot at a unit that moves in its view
+    const patch = async (u: Unit, l: Leak) => {
+      u.tu -= PATCH;
+      const lx = sx(l.x, l.y), ly = sy(l.x, l.y);
+      const [ux] = scr(u);
+      if (lx !== ux) u.face = lx > ux ? 1 : -1;
+      for (let k = 0; k < (calm ? 1 : 4); k++) { burst(lx, ly - 3, "#ffe28a", 4, "spark", 45); await nap(host, 110 * tempo); }
+      l.fix++;
+      burst(lx, ly - 4, "#cfefff", 5, "bubble", 18);
+      say(lx, ly - 24, l.fix >= LEAK_FIX ? "Sealed" : `${canvasText("Patch")} ${l.fix}/${LEAK_FIX}`, "#6fe3a0");
+      if (l.fix >= LEAK_FIX) host.react(chance(0.6) ? "cheer" : "laugh");
+      header(); panelUpdate();
+      await wait(260);
+    };
+    // the other side gets a quick puff at a unit that moves in its view
     const reaction = async (mover: Unit) => {
-      const foes = mover.side === "x" ? aliens() : divers();
+      const foes = mover.side === "x" ? critters() : divers();
       for (const r of foes) {
-        if (!mover.alive || r.reacted >= 2 || r.tu < snapOf(r) || !sees(r, mover)) continue;
+        if (!mover.alive || r.reacted >= 2 || r.tu < puffOf(r) || !sees(r, mover)) continue;
         const p = r.side === "a" ? 0.08 + 0.24 * (r.tu / r.maxTu) : 0.06 + (0.16 + 0.24 * sk) * (r.tu / r.maxTu);
         if (!chance(p)) continue;
         r.reacted++;
         if (r.side === "a") M.alert = true;
         const [x, y] = scr(r);
-        say(x, y - 44, "Reaction fire", "#f3dca2");
-        await fire(r, mover, "snap");
+        say(x, y - 44, "Startled", "#f3dca2");
+        await fire(r, mover, "puff");
         return;
       }
     };
@@ -628,42 +705,39 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       if (sx(k.x, k.y) !== sx(u.x, u.y)) u.face = sx(k.x, k.y) > sx(u.x, u.y) ? 1 : -1;
     };
 
-    // ---- squad brain ----
-    const known = () => aliens().filter((a) => a.vis || a.last).map((a) => (a.vis ? { x: a.x, y: a.y } : a.last!));
-    const objective = (u: Unit, ks: { x: number; y: number }[]): [number, number] => {
-      if (ks.length) {
-        const k = ks.reduce((b, o) => (Math.hypot(o.x - u.x, o.y - u.y) < Math.hypot(b.x - u.x, b.y - u.y) ? o : b));
-        return [k.x, k.y];
-      }
-      let best: [number, number] = [8, 2], bs = Infinity;
-      for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
-        if (M.seen[idx(x, y)] || BLOCK_MOVE[M.map[idx(x, y)]]) continue;
-        const s = Math.hypot(x - 8.5, y - 2.5) * 0.6 + Math.hypot(x - u.x, y - u.y) * 0.4 + hash(x * 13 + y * 7 + u.id) * 1.5;
-        if (s < bs) { bs = s; best = [x, y]; }
-      }
-      return best;
+    // ---- crew brain ----
+    const known = () => critters().filter((a) => a.vis || a.last).map((a) => (a.vis ? { x: a.x, y: a.y } : a.last!));
+    // heads for the nearest known critter, otherwise the nearest open leak
+    const objective = (u: Unit, ks: { x: number; y: number }[]): [number, number, boolean] => {
+      const near = (list: { x: number; y: number }[]) => list.reduce((b, o) => (Math.hypot(o.x - u.x, o.y - u.y) < Math.hypot(b.x - u.x, b.y - u.y) ? o : b));
+      if (ks.length) { const k = near(ks); return [k.x, k.y, false]; }
+      const ls = openLeaks();
+      if (ls.length) { const l = near(ls); return [l.x, l.y, true]; }
+      return [8, 2, false];
     };
     const chooseMove = (u: Unit, smart: boolean, wantShot: boolean) => {
       const { cost, prev } = dijkstra(u, u.tu);
       const ks = known();
-      const [gx, gy] = objective(u, ks);
+      const [gx, gy, isLeak] = objective(u, ks);
       const start = idx(u.x, u.y);
       let best = -1, bs = -Infinity;
       for (let i = 0; i < GW * GH; i++) {
         if (cost[i] > u.tu) continue;
         const x = i % GW, y = (i / GW) | 0, left = u.tu - cost[i];
+        const fixable = left >= PATCH && openLeaks().some((l) => reach1(l.x, l.y, x, y));
         let s = -Math.hypot(x - gx, y - gy) * (smart ? 1 : 1.3);
+        if (isLeak && fixable) s += 4;
         if (ks.length) {
           const nd = Math.min(...ks.map((k) => Math.hypot(k.x - x, k.y - y)));
           const seesAny = ks.some((k) => Math.hypot(k.x - x, k.y - y) <= RANGE && los(x, y, k.x, k.y));
           if (smart) {
-            s = -Math.abs(nd - 5) * 0.9 + coverVs(x, y, ks) * 14;
+            s = -Math.abs(nd - 5) * 0.9 + coverVs(x, y, ks) * 14 - leakDist(x, y) * 0.35 + (fixable ? 1.5 : 0);
             if (seesAny) s += wantShot ? 3 : 1.5;
-            s += left >= DV.aimed ? 1.5 : left >= DV.snap ? 0.8 : -2;
+            s += left >= DV.blast ? 1.5 : left >= DV.puff ? 0.8 : -2;
             if (nd < 2.5) s -= 3;
-          } else s = -nd * 0.8 + (seesAny ? 1 : 0);
+          } else s = -nd * 0.8 + (seesAny ? 1 : 0) - leakDist(x, y) * 0.2;
         } else if (smart) {
-          s += coverVs(x, y, [{ x: gx, y: gy }]) * 8 + (left >= DV.snap ? 1 : -1.5);
+          s += coverVs(x, y, [{ x: gx, y: gy }]) * 4 + (left >= DV.puff ? 1 : -1.5);
         }
         if (smart) for (const d of divers()) if (d !== u && Math.max(Math.abs(d.x - x), Math.abs(d.y - y)) <= 1) s -= 0.7;
         s += (Math.random() - 0.5) * (smart ? 0.6 : 2.4);
@@ -685,18 +759,18 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       return best >= 0 ? pathFrom(prev, best) : null;
     };
     const pickShot = (u: Unit, smart: boolean) => {
-      const ts = aliens().filter((a) => a.vis && sees(u, a, RANGE));
-      if (!ts.length || u.tu < DV.snap) return null;
-      const modes: Mode[] = u.tu >= DV.aimed ? ["snap", "aimed"] : ["snap"];
+      const ts = critters().filter((a) => a.vis && sees(u, a, RANGE));
+      if (!ts.length || u.tu < DV.puff) return null;
+      const modes: Mode[] = u.tu >= DV.blast ? ["puff", "blast"] : ["puff"];
       if (!smart) {
-        const t = pick(ts), mode: Mode = modes.length > 1 && !chance(0.7) ? "aimed" : "snap";
+        const t = pick(ts), mode: Mode = modes.length > 1 && !chance(0.7) ? "blast" : "puff";
         return { t, mode, ch: hitChance(u, t, mode) };
       }
       let best: { t: Unit; mode: Mode; ch: number } | null = null, bv = -Infinity;
       for (const t of ts) for (const mode of modes) {
         const ch = hitChance(u, t, mode);
         const finish = t.hp <= 34 ? 1.6 : 1;
-        const v = (ch * finish) / (mode === "aimed" ? DV.aimed : DV.snap);
+        const v = (ch * finish) / (mode === "blast" ? DV.blast : DV.puff);
         if (v > bv) { bv = v; best = { t, mode, ch }; }
       }
       return best;
@@ -725,7 +799,7 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       const [dx, dy] = path[path.length - 1];
       await host.pointAt(f.aim(sx(dx, dy), sy(dx, dy), 20, 12), 0.5, 0.5, 320);
       M.path = path;
-      showTip(sx(dx, dy), sy(dx, dy) - 12, `TU <b>${pathCost(u, path)}</b>`);
+      showTip(sx(dx, dy), sy(dx, dy) - 12, `Air <b>${pathCost(u, path)}</b>`);
       await wait(think(sk, 240));
       await host.click();
       hideTip();
@@ -735,17 +809,17 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       panelUpdate();
     };
     const robotShoot = async (u: Unit, s: { t: Unit; mode: Mode; ch: number }) => {
-      const btn = s.mode === "snap" ? snapBtn : aimBtn;
-      // the fire mode stays selected, so it only clicks when switching
+      const btn = s.mode === "puff" ? puffBtn : blastBtn;
+      // the shot type stays selected, so it only clicks when switching
       if (!btn.classList.contains("gm-on")) {
         await press(btn, 280);
-        (btn === snapBtn ? aimBtn : snapBtn).classList.remove("gm-on");
+        (btn === puffBtn ? blastBtn : puffBtn).classList.remove("gm-on");
         btn.classList.add("gm-on");
       }
       M.target = s.t;
       const [tx, ty] = scr(s.t);
       await host.pointAt(f.aim(tx, ty - bodyOff(s.t), 22, 26), 0.5, 0.5, 320);
-      showTip(tx, ty - bodyOff(s.t) - 18, `${s.mode === "snap" ? "Snap" : "Aimed"} <b>${Math.round(s.ch * 100)}%</b>`);
+      showTip(tx, ty - bodyOff(s.t) - 18, `${s.mode === "puff" ? "Puff" : "Blast"} <b>${Math.round(s.ch * 100)}%</b>`);
       await wait(think(sk, 330));
       await host.click();
       hideTip();
@@ -754,19 +828,32 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       if (hit) { M.misses = 0; if (!s.t.alive) host.react(chance(0.6) ? "cheer" : "laugh"); }
       else if (++M.misses >= 3) { host.react("angry"); M.misses = 0; }
     };
+    const robotPatch = async (u: Unit, l: Leak) => {
+      await press(patchBtn, 300);
+      const lx = sx(l.x, l.y), ly = sy(l.x, l.y);
+      await host.pointAt(f.aim(lx, ly - 2, 20, 12), 0.5, 0.5, 300);
+      showTip(lx, ly - 18, `Patch <b>${l.fix + 1}/${LEAK_FIX}</b>`);
+      await wait(think(sk, 220));
+      await host.click();
+      hideTip();
+      await patch(u, l);
+    };
     const actUnit = async (u: Unit) => {
       const smart = chance(0.08 + 0.88 * sk);
       let moved = false, shot = false;
-      for (let n = 0; n < 6 && u.alive && aliens().length; n++) {
+      for (let n = 0; n < 7 && u.alive && openLeaks().length; n++) {
         if (S.left < 6000) return;
         const s = pickShot(u, smart);
+        const l = u.tu >= PATCH ? patchable(u) : null;
+        // a leak next to the diver usually wins over a long shot
+        if (l && (!s || (smart ? s.ch < 0.6 || l.fix === LEAK_FIX - 1 : chance(0.5)))) { await robotPatch(u, l); continue; }
         if (s) {
           if (!moved && ((smart && s.ch < 0.26) || (!smart && chance(0.35)))) {
             const mv = chooseMove(u, smart, true);
             moved = true;
             if (mv) { await walk(u, mv); continue; }
           }
-          if (smart && s.ch < 0.2 && u.tu < DV.aimed + DV.snap) break; // holds TU for reaction fire
+          if (smart && s.ch < 0.2 && u.tu < DV.blast + DV.puff) break; // holds air for a startled puff
           await robotShoot(u, s);
           shot = true;
           continue;
@@ -784,49 +871,50 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       }
     };
 
-    const squadTurn = async (): Promise<"win" | "abort" | "retreat" | null> => {
-      M.phase = "squad";
+    const crewTurn = async (): Promise<"win" | "abort" | "retreat" | null> => {
+      M.phase = "crew";
       for (const d of divers()) d.tu = d.maxTu;
-      for (const a of aliens()) a.reacted = 0;
+      for (const a of critters()) a.reacted = 0;
       header(); panelUpdate();
-      banner(`Turn ${M.turn}: squad`, "squad");
+      banner(`Turn ${M.turn}: crew`, "crew");
       await wait(750);
       hideBanner();
       host.react("focus");
-      const order = divers().map((d) => ({ d, k: (aliens().some((a) => a.vis && sees(d, a, RANGE)) ? 0 : 10) + Math.random() * 3 })).sort((a, b) => a.k - b.k).map((o) => o.d);
+      const order = divers().map((d) => ({ d, k: (critters().some((a) => a.vis && sees(d, a, RANGE)) ? 0 : 10) + (patchable(d) ? -5 : 0) + Math.random() * 3 })).sort((a, b) => a.k - b.k).map((o) => o.d);
       for (const u of order) {
         if (!u.alive) continue;
-        if (!aliens().length) return "win";
+        if (!openLeaks().length) return "win";
         if (!divers().length) return null;
         if (S.left < 7000) return "abort";
-        if (divers().length === 1 && aliens().length >= 3 && chance(0.3 + 0.5 * sk)) return "retreat";
+        if (divers().length === 1 && critters().length >= 3 && chance(0.3 + 0.5 * sk)) return "retreat";
         if (chance(0.05 * (1 - sk))) { host.react("relax"); await wait(700); continue; }
         await selectUnit(u);
         await actUnit(u);
       }
-      if (!aliens().length) return "win";
+      if (!openLeaks().length) return "win";
       if (!divers().length) return null;
       await wait(think(sk, 250));
       await press(endBtn, 340);
       return null;
     };
 
-    // ---- alien brain ----
-    const alienMove = (a: Unit) => {
-      const reserve = M.alert ? snapOf(a) : 0;
+    // ---- reef brain: critters like the warm glow of the breaks ----
+    const critterMove = (a: Unit) => {
+      const reserve = M.alert ? puffOf(a) : 0;
       const budget = M.alert ? a.tu - reserve : Math.min(a.tu, 14);
       const { cost, prev } = dijkstra(a, budget);
       const ds = divers();
       if (!ds.length) return null;
+      const haunts = openLeaks().length ? openLeaks() : M.leaks;
       let best = -1, bs = -Infinity;
       for (let i = 0; i < GW * GH; i++) {
         if (cost[i] > budget) continue;
         const x = i % GW, y = (i / GW) | 0;
         let s: number;
-        if (!M.alert) s = -Math.hypot(x - 2.5, y - 8.5) * 0.8 + hash(i + M.turn * 13 + a.id * 7) * 2.5;
+        if (!M.alert) s = -leakDist(x, y, haunts) * 0.8 + hash(i + M.turn * 13 + a.id * 7) * 2.5;
         else {
           const nd = Math.min(...ds.map((d) => Math.hypot(d.x - x, d.y - y)));
-          const want = a.kind === "lantern" ? 6 : a.kind === "squid" ? 1 : 3.5;
+          const want = a.kind === "angler" ? 6 : a.kind === "crab" ? 1 : 3.5;
           s = -Math.abs(nd - want) * 1.1 + coverVs(x, y, ds) * 6 + (Math.random() - 0.5) * 1.2;
           if (ds.some((d) => Math.hypot(d.x - x, d.y - y) <= SIGHT && los(x, y, d.x, d.y))) s += 2.5;
         }
@@ -835,7 +923,7 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       if (best < 0 || best === idx(a.x, a.y)) return null;
       return pathFrom(prev, best);
     };
-    const alienAct = async (a: Unit) => {
+    const critterAct = async (a: Unit) => {
       let moved = false;
       for (let n = 0; n < 5 && a.alive && divers().length; n++) {
         if (S.left < 4000) return;
@@ -843,8 +931,8 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
         if (seen.length) M.alert = true;
         if (seen.length) {
           const t = seen.reduce((b, d) => (d.hp + Math.hypot(d.x - a.x, d.y - a.y) * 6 < b.hp + Math.hypot(b.x - a.x, b.y - a.y) * 6 ? d : b));
-          if (a.kind === "squid") {
-            if (Math.max(Math.abs(t.x - a.x), Math.abs(t.y - a.y)) <= 1 && a.tu >= 14) { await lunge(a, t); continue; }
+          if (a.kind === "crab") {
+            if (reach1(t.x, t.y, a.x, a.y) && a.tu >= 14) { await pinch(a, t); continue; }
             if (!moved && a.tu >= 22 && chance(0.6)) {
               const { cost, prev } = dijkstra(a, a.tu - 14);
               let best = -1, bc = Infinity;
@@ -857,32 +945,32 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
             }
           }
           const d = Math.hypot(t.x - a.x, t.y - a.y);
-          const mode: Mode | null = a.tu >= aimedOf(a) && (d > 4 || chance(0.5)) ? "aimed" : a.tu >= snapOf(a) ? "snap" : null;
+          const mode: Mode | null = a.tu >= blastOf(a) && (d > 4 || chance(0.5)) ? "blast" : a.tu >= puffOf(a) ? "puff" : null;
           if (!mode) return;
           await fire(a, t, mode);
           continue;
         }
         if (moved) return;
         moved = true;
-        const p = alienMove(a);
+        const p = critterMove(a);
         if (!p) return;
         await stepAlong(a, p);
         if (!M.alert) return;
       }
     };
-    const alienTurn = async () => {
-      M.phase = "alien";
+    const reefTurn = async () => {
+      M.phase = "reef";
       M.sel = null;
-      snapBtn.classList.remove("gm-on"); aimBtn.classList.remove("gm-on");
-      for (const a of aliens()) { a.tu = a.maxTu; }
+      puffBtn.classList.remove("gm-on"); blastBtn.classList.remove("gm-on");
+      for (const a of critters()) { a.tu = a.maxTu; }
       for (const d of divers()) d.reacted = 0;
       header(); panelUpdate();
-      banner("Alien activity", "alien");
+      banner("The reef stirs", "reef");
       await wait(650);
-      for (const a of aliens()) {
+      for (const a of critters()) {
         if (!divers().length || S.left < 4000) break;
         const visBefore = a.vis;
-        await alienAct(a);
+        await critterAct(a);
         if (visBefore || a.vis) await wait(150);
       }
       hideBanner();
@@ -893,16 +981,16 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
     // ---- missions ----
     const newMission = (seed: number): Mission => {
       const r = rng(seed);
-      const { map, aliens: aspawn } = genMap(r);
+      const { map, critters: cspawn, cable, leaks } = genMap(r);
       const units: Unit[] = [];
       const mk = (o: Partial<Unit> & { side: "x" | "a"; kind: Kind; name: string; x: number; y: number; hp: number; tu: number; acc: number }): Unit => ({
         id: units.length, tag: "#ffffff", fx: o.x, fy: o.y, t0: 0, dur: 0.001, max: o.hp, maxTu: o.tu, alive: true, face: o.side === "x" ? 1 : -1,
         hurt: 0, flash: 0, gone: 0, vis: false, last: null, reacted: 0, lunge: 0, ...o,
       });
-      SQUAD.forEach((s, i) => units.push(mk({ side: "x", kind: "diver", name: s.name, tag: s.tag, x: SPAWN[i][0], y: SPAWN[i][1], hp: DV.hp, tu: DV.tu, acc: s.acc })));
-      const kinds: AlienKind[] = (["jelly", "squid", "lantern", r() < 0.5 ? "jelly" : "squid"] as AlienKind[]).sort(() => r() - 0.5);
-      aspawn.forEach(([x, y], i) => {
-        const k = kinds[i % kinds.length], a = AL[k];
+      CREW.forEach((s, i) => units.push(mk({ side: "x", kind: "diver", name: s.name, tag: s.tag, x: SPAWN[i][0], y: SPAWN[i][1], hp: DV.hp, tu: DV.tu, acc: s.acc })));
+      const kinds: CritterKind[] = (["jelly", "crab", "angler", r() < 0.5 ? "jelly" : "crab"] as CritterKind[]).sort(() => r() - 0.5);
+      cspawn.forEach(([x, y], i) => {
+        const k = kinds[i % kinds.length], a = CR[k];
         units.push(mk({ side: "a", kind: k, name: a.name, x, y, hp: a.hp, tu: a.tu, acc: a.acc }));
       });
       const lit: string[] = [], dim: string[] = [], dark: string[] = [];
@@ -916,14 +1004,15 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       }
       return {
         map, units, vis: new Uint8Array(GW * GH), seen: new Uint8Array(GW * GH), lit, dim, dark, objs,
-        turn: 1, alert: false, kills: 0, lost: 0, op: pick(OPS), site: pick(SITES), sel: null, path: null, target: null, phase: "squad", misses: 0,
+        cable, leaks: leaks.map(([x, y]) => ({ x, y, fix: 0, t: 0 })),
+        turn: 1, alert: false, shooed: 0, lost: 0, ticket: pick(TICKETS), site: pick(SITES), sel: null, path: null, target: null, phase: "crew", misses: 0,
       };
     };
 
     // ---- render ----
     const water = lin(ctx, 0, 0, 0, MH, [[0, "#0d4650"], [0.55, "#08313a"], [1, "#05222a"]]);
     const vignette = rad(ctx, W / 2, MH * 0.5, W * 0.72, [[0.55, "rgba(2,14,18,0)"], [1, "rgba(2,14,18,0.6)"]]);
-    for (let i = 0; i < 12; i++) ambient.push({ x: Math.random() * W, y: Math.random() * MH, vx: 0, vy: -8 - Math.random() * 10, life: Math.random() * 6, max: 0, kind: "bubble", c: "#cfefff", r: 0.8 + Math.random() * 1.6, a: Math.random() * 6, va: 0 });
+    for (let i = 0; i < 12; i++) ambient.push({ x: Math.random() * W, y: Math.random() * MH, vx: 0, vy: -8 - Math.random() * 10, life: Math.random() * 6, max: 0, kind: "bubble", c: "#cfefff", r: 0.8 + Math.random() * 1.6 });
 
     const drawUnit = (u: Unit, t: number) => {
       const [px, py] = pos(u);
@@ -943,7 +1032,25 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
           return;
         }
         drawDiver(ctx, cx, cy, u, t, calm);
-      } else if (u.alive && (u.vis || u.flash > t)) drawAlien(ctx, cx, cy, u, t, calm);
+      } else if (u.alive) {
+        if (u.vis || u.flash > t) drawCritter(ctx, cx, cy, u, t, calm);
+      } else if (t - u.gone < 1.2 && M.vis[idx(u.x, u.y)]) {
+        // swims away from whoever calmed it down
+        const k = (t - u.gone) / 1.2, away = calm ? 0 : k;
+        ctx.save();
+        ctx.globalAlpha = clamp(1.2 - k * 1.2);
+        drawCritter(ctx, cx - u.face * away * 40, cy - away * 26, u, t, calm);
+        ctx.restore();
+      }
+    };
+
+    const drawCable = () => {
+      const c = M.cable, [ex, ey] = c[c.length - 1];
+      const pts: [number, number][] = [[sx(0, 9), sy(0, 9)], ...c.map(([x, y]) => [sx(x, y), sy(x, y)] as [number, number])];
+      const [ox2, oy2] = ex === GW - 1 ? [ex + 0.9, ey] : [ex, ey - 0.9];
+      pts.push([sx(ox2, oy2), sy(ox2, oy2)]);
+      line(ctx, pts, 3.6, "#10202a");
+      line(ctx, pts.map(([x, y]) => [x, y - 1] as [number, number]), 1.1, "rgba(130,200,205,0.3)");
     };
 
     const draw = (t: number) => {
@@ -966,16 +1073,18 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
           if (a > 0.012) diamond(ctx, cx + Math.sin(tt + x + y) * 1.5, cy, 7, `rgba(190,255,240,${a})`);
         }
       }
+      // the crew has the cable chart, so the line shows through the murk
+      drawCable();
       // tile highlights
       const pulse = 0.5 + 0.5 * Math.sin(t * 5);
-      if (M.sel?.alive && M.phase === "squad") { const [px, py] = pos(M.sel); diamond(ctx, sx(Math.round(px), Math.round(py)), sy(Math.round(px), Math.round(py)), 2, `rgba(242,196,92,${0.35 + 0.2 * pulse})`); }
+      if (M.sel?.alive && M.phase === "crew") { const [px, py] = pos(M.sel); diamond(ctx, sx(Math.round(px), Math.round(py)), sy(Math.round(px), Math.round(py)), 2, `rgba(242,196,92,${0.35 + 0.2 * pulse})`); }
       if (M.path?.length) {
         const [ex, ey] = M.path[M.path.length - 1];
         diamond(ctx, sx(ex, ey), sy(ex, ey), 2, "rgba(255,226,138,0.32)");
         for (const [x, y] of M.path) ellipse(ctx, sx(x, y), sy(x, y), 3, 1.6, "#ffe28a");
       }
       if (M.target?.alive) diamond(ctx, sx(M.target.x, M.target.y), sy(M.target.x, M.target.y), 2, `rgba(255,111,145,${0.3 + 0.25 * pulse})`);
-      // depth sorted objects and units
+      // depth sorted objects, leaks and units
       const list: { d: number; f: () => void }[] = [];
       for (const o of M.objs) {
         const i = idx(o.x, o.y);
@@ -991,20 +1100,21 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
           DIM = 0;
         } });
       }
+      for (const l of M.leaks) list.push({ d: l.x + l.y - 0.1, f: () => drawLeak(ctx, sx(l.x, l.y), sy(l.x, l.y), l, t, calm) });
       list.push({ d: 8.5, f: () => drawSub(ctx, sx(0, 9), sy(0, 9), tt) });
       for (const u of M.units) { const [px, py] = pos(u); list.push({ d: px + py + 0.02, f: () => drawUnit(u, t) }); }
       list.sort((a, b) => a.d - b.d);
       for (const it of list) it.f();
-      // last known positions of sea-bots out of sight
+      // last known spots of critters out of sight: two eyes in the dark
       for (const a of M.units) {
         if (a.side !== "a" || !a.alive || a.vis || a.flash > t || !a.last) continue;
         const cx = sx(a.last.x, a.last.y), cy = sy(a.last.x, a.last.y) - 14;
         const k = 0.25 + 0.15 * Math.sin(t * 3 + a.id);
-        glow(ctx, cx, cy, 10, AL[a.kind as AlienKind].bolt, k);
+        glow(ctx, cx, cy, 10, CR[a.kind as CritterKind].bolt, k);
         circle(ctx, cx - 3, cy, 1.5, withAlpha("#ffffff", k + 0.3));
         circle(ctx, cx + 3, cy, 1.5, withAlpha("#ffffff", k + 0.3));
       }
-      // projectiles
+      // bubble streams and critter shots
       for (let i = shots.length - 1; i >= 0; i--) {
         const s = shots[i], k = (t - s.t0) / s.dur;
         if (k >= 1) { shots.splice(i, 1); continue; }
@@ -1017,15 +1127,11 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       }
       for (const p of parts) {
         const a = clamp(1 - p.life / p.max);
-        if (p.kind === "bolt") {
-          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a);
-          fillRR(ctx, -p.r * 1.6, -p.r * 0.6, p.r * 3.2, p.r * 1.2, 0.6, withAlpha(p.c, a));
-          circle(ctx, -p.r * 1.6, 0, p.r * 0.9, withAlpha("#8a969c", a));
-          ctx.restore();
-        } else if (p.kind === "bubble") circle(ctx, p.x, p.y, p.r, withAlpha(p.c, 0.55 * a));
+        if (p.kind === "bubble") circle(ctx, p.x, p.y, p.r, withAlpha(p.c, 0.55 * a));
+        else if (p.kind === "bit") fillRR(ctx, p.x - p.r, p.y - p.r, p.r * 2, p.r * 2, 0.4, withAlpha(p.c, 0.8 * a));
         else circle(ctx, p.x, p.y, p.r, withAlpha(p.c, a));
       }
-      if (!calm) for (const b of ambient) circle(ctx, b.x + Math.sin(t * 2 + b.a) * 2, b.y, b.r, "rgba(207,239,255,0.28)");
+      if (!calm) for (const b of ambient) circle(ctx, b.x + Math.sin(t * 2 + b.r * 3) * 2, b.y, b.r, "rgba(207,239,255,0.28)");
       for (let i = floats.length - 1; i >= 0; i--) {
         const fl = floats[i], k = (t - fl.t0) / 1.1;
         if (k >= 1) { floats.splice(i, 1); continue; }
@@ -1043,11 +1149,19 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
     let bufferWidth = ctx.canvas.width, bufferHeight = ctx.canvas.height;
     scope.raf((t, dt) => {
       if (!M) return;
+      // open breaks fizz little data bits up through the water
+      if (!calm) for (const l of M.leaks) {
+        if (l.fix >= LEAK_FIX) continue;
+        l.t += dt;
+        if (l.t < 0.16 + l.fix * 0.2) continue;
+        l.t = 0;
+        parts.push({ x: sx(l.x, l.y) + (Math.random() - 0.5) * 6, y: sy(l.x, l.y) - 3, vx: (Math.random() - 0.5) * 10, vy: -14 - Math.random() * 10, life: 0, max: 1 + Math.random() * 0.8, kind: "bit", c: chance(0.7) ? "#9ff0ff" : "#ffd28a", r: 0.9 + Math.random() * 0.6 });
+      }
       for (const p of parts) {
         p.life += dt;
-        p.x += p.vx * dt; p.y += p.vy * dt; p.a += p.va * dt;
+        p.x += p.vx * dt; p.y += p.vy * dt;
         p.vx *= 1 - dt * 2.5;
-        p.vy = p.kind === "bubble" ? p.vy * (1 - dt) - 14 * dt : p.vy * (1 - dt * 2.5) + 26 * dt;
+        p.vy = p.kind === "bubble" || p.kind === "bit" ? p.vy * (1 - dt) - 14 * dt : p.vy * (1 - dt * 2.5) + 26 * dt;
       }
       for (let i = parts.length - 1; i >= 0; i--) if (parts[i].life >= parts[i].max) parts.splice(i, 1);
       if (!calm) for (const b of ambient) { b.y += b.vy * dt; if (b.y < -6) { b.y = MH + 4; b.x = Math.random() * W; } }
@@ -1062,20 +1176,22 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
     const debrief = (res: "win" | "wipe" | "retreat" | "abort") => {
       M.phase = "end";
       M.sel = null; M.path = null; M.target = null;
-      snapBtn.classList.remove("gm-on"); aimBtn.classList.remove("gm-on");
+      puffBtn.classList.remove("gm-on"); blastBtn.classList.remove("gm-on");
       header(); panelUpdate();
       const total = M.units.filter((u) => u.side === "a").length, surv = divers().length;
-      const score = Math.max(0, (res === "win" ? 100 + surv * 30 : 0) + M.kills * 40 - M.lost * 20 - (M.turn - 1) * 10);
-      const titles = { win: "Mission successful", wipe: "Squad recalled", retreat: "Mission failed", abort: "Mission aborted" };
+      const sealed = M.leaks.length - openLeaks().length;
+      const score = Math.max(0, (res === "win" ? 100 + surv * 25 : 0) + sealed * 50 + M.shooed * 25 - M.lost * 20 - (M.turn - 1) * 8);
+      const titles = { win: "Line restored", wipe: "Crew surfaced", retreat: "Called it a day", abort: "Shift over" };
       (debEl.querySelector(".gm-bx-deb-t") as HTMLElement).textContent = titles[res];
-      (debEl.querySelector(".gm-bx-deb-op") as HTMLElement).textContent = `${M.op}, ${M.site}`;
+      (debEl.querySelector(".gm-bx-deb-op") as HTMLElement).textContent = `${M.ticket}, ${M.site}`;
       (debEl.querySelector(".gm-bx-deb-rows") as HTMLElement).innerHTML = [
-        ["Sea-bots recycled", `${M.kills} / ${total}`],
-        ["Divers lost", `${M.lost} / ${SQUAD.length}`],
+        ["Leaks sealed", `${sealed} / ${M.leaks.length}`],
+        ["Critters shooed", `${M.shooed} / ${total}`],
+        ["Divers buoyed up", `${M.lost} / ${CREW.length}`],
         ["Turns", String(M.turn)],
         ["Score", String(score)],
       ].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join("");
-      const who = (pick(divers().length ? divers() : M.units.filter((u) => u.side === "x")).name.split(" ").pop()) ?? "Gauge";
+      const who = pick(divers().length ? divers() : M.units.filter((u) => u.side === "x")).name;
       (debEl.querySelector(".gm-bx-deb-line") as HTMLElement).textContent = pick(LINES[res]).replace("{n}", who);
       debEl.dataset.tone = res === "win" ? "good" : res === "abort" ? "plain" : "bad";
       debEl.classList.add("gm-on");
@@ -1090,7 +1206,7 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       M.sel = M.units[0];
       updateVis();
       header(); panelUpdate();
-      (introEl.querySelector(".gm-bx-op") as HTMLElement).textContent = M.op;
+      (introEl.querySelector(".gm-bx-op") as HTMLElement).textContent = M.ticket;
       (introEl.querySelector(".gm-bx-site") as HTMLElement).textContent = M.site;
       introEl.style.display = "flex";
       scope.fromTo(introEl, { opacity: 0 }, { opacity: 1, duration: 0.4 });
@@ -1099,13 +1215,12 @@ export async function playBotCom(body: HTMLElement, host: FunHost, opts: FunOpts
       await wait(350);
       for (;;) {
         if (S.left < 11000) return "abort";
-        const r = await squadTurn();
+        const r = await crewTurn();
         if (r) return r;
         if (!divers().length) return "wipe";
         if (S.left < 7000) return "abort";
-        await alienTurn();
+        if (critters().length) await reefTurn();
         if (!divers().length) return "wipe";
-        if (!aliens().length) return "win";
         M.turn++;
       }
     };

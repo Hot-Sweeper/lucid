@@ -10,7 +10,7 @@ type Rack = { x: number; gapY: number; scored: boolean; aim: number; seed: numbe
 export async function playFlappy(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
   const scope = new Scope(body);
   try {
-    const view = mountGame(body, scope, "Flappy Drone", "flappy");
+    const view = mountGame(body, scope, "Drone Hop", "flappy");
     const { ctx, w, h } = view;
     scope.liveCanvas(view.canvas);
     const S = new Session(host, opts, { base: 0.32, step: 0.16, calm: 0.05 });

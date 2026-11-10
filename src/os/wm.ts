@@ -5,13 +5,12 @@ import { localizeGameDOM } from "../localization-dom";
 import type { SeatedRobot as Robot } from "../office/rig";
 const SCREEN = { w: 820, h: 461 };
 import { ICONS } from "./icons";
-import { noteAppIcon } from "./note-app-icon";
 import { wakeRender, renderFps } from "../perf/render";
 import { watchClock, clockTime } from "../perf/clock";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "t3code" | "instaweb" | "spoolweb" | "sparkplug" | "photos" | "player" | "codex" | "steam" | "trading";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "t3code" | "instaweb" | "spoolweb" | "sparkplug" | "photos" | "player" | "codex" | "vapor" | "trading";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -50,13 +49,13 @@ const FRAMES: Record<AppId, Frame> = {
   photos: { x: 470, y: 228, w: 330, h: 170 },
   player: { x: 150, y: 14, w: 520, h: 340 },
 codex: { x: 70, y: 12, w: 680, h: 396 },
-  steam: { x: 50, y: 10, w: 720, h: 398 },
+  vapor: { x: 50, y: 10, w: 720, h: 398 },
   trading: { x: 40, y: 10, w: 740, h: 398 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Lucid Chat", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "GitHub Desktop", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", instaweb: "Instabot", spoolweb: "Spool", sparkplug: "Sparkplug", t3code: "T3 Code", photos: "Photos", player: "Player", codex: "Codex", steam: "Steambot", trading: "Tradebot" };
-const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "t3code", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "photos", "player", "codex", "steam", "trading"];
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: "Lucid Chat", tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "Git", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", instaweb: "Instabot", spoolweb: "Spool", sparkplug: "Sparkplug", t3code: "T3 Code", photos: "Photos", player: "Player", codex: "Codex", vapor: "Vapor", trading: "Botcoin Exchange" };
+const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "gitdesk", "music", "t3code", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "photos", "player", "codex", "vapor", "trading"];
 // Real browser tabs, work, files, terminal output and thread conversations stay untouched.
-const FICTIONAL_APPS = new Set<AppId>(["beats", "social", "game", "music", "botsapp", "telegrid", "chirp", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "steam", "trading"]);
+const FICTIONAL_APPS = new Set<AppId>(["beats", "social", "game", "music", "botsapp", "telegrid", "chirp", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "vapor", "trading"]);
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
 
@@ -69,7 +68,7 @@ export class WM {
   onCursor?: (x: number, y: number) => void;
   private _prefs: import("../office/roster").Prefs | null = null;
   get prefs() { return this._prefs; }
-  set prefs(p) { this._prefs = p; this.root?.setAttribute("data-notes-app", p?.notesApp ?? "apple-notes"); if (this.dock) this.renderDock(false); }
+  set prefs(p) { this._prefs = p; if (this.dock) this.renderDock(false); }
   robotName = "unit";
   speed = 1;
   lastClickAt = 0;
@@ -446,12 +445,8 @@ export class WM {
   private appTitles: Partial<Record<AppId, string>> = {};
   private windowTitles = new WeakMap<Win, string>();
   private appIcons: Partial<Record<AppId, string>> = {};
-  titleOf(id: AppId) {
-    if (id === "notes") return this.prefs?.notesApp === "notepad-plus-plus" ? "Notepad++" : this.prefs?.notesApp === "notepad" ? "Notepad" : "Apple Notes";
-    return uiText(this.appTitles[id] ?? TITLES[id]); }
-  iconOf(id: AppId) {
-    if (id === "notes") return noteAppIcon(this.prefs?.notesApp ?? "apple-notes");
-    return this.appIcons[id] ?? ICONS[id]; }
+  titleOf(id: AppId) { return uiText(this.appTitles[id] ?? TITLES[id]); }
+  iconOf(id: AppId) { return this.appIcons[id] ?? ICONS[id]; }
   brandApp(id: AppId, o: { title?: string; icon?: string }) {
     if (o.title) this.appTitles[id] = o.title;
     if (o.icon) this.appIcons[id] = o.icon;
@@ -469,8 +464,7 @@ export class WM {
   // Everyone has the basics; a robot also pins what it uses a lot (games for gamers, music for
   // music lovers, its task app). Other apps show up while they are open and leave when closed.
   pinned(): AppId[] {
-    const p = this.prefs, pins = new Set<AppId>(["files", "editor", "terminal", "browser", "t3code"]);
-    if (p?.chatApp !== "t3code") pins.add("chat");
+    const p = this.prefs, pins = new Set<AppId>(["files", "editor", "terminal", "browser", "chat", "t3code"]);
     if (p?.hobby === "gamer") pins.add("game");
     if (p?.hobby === "musician") pins.add("beats");
     if (p?.hobby === "chatter") pins.add("social");

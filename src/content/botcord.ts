@@ -38,7 +38,7 @@ export const BOTCORD_CHANNELS: BotcordChannel[] = [
   { id: "gpu-talk", topic: "Heat and hardware" },
   { id: "coffee-break", topic: "No work talk, mostly" },
   { id: "art", topic: "Pixel art, doodles and desk setups" },
-  { id: "pets", topic: "Roombas, drones and other friends" },
+  { id: "pets", topic: "Dustbots, drones and other friends" },
   { id: "wins", topic: "Post your small victories" },
   { id: "ceo-watch", topic: "Spotted: CEO online at 3 a.m." },
 ];
@@ -57,7 +57,7 @@ export const BOTCORD_USERS: string[] = [
   "boolean_bean", "ascii_artist", "vector_vibes", "debug_duckling", "cozy_compiler",
   "hot_reload", "cold_start", "mainframe_mom", "spin_cycle", "gigabite",
   "nibble_nugget", "packet_loss", "low_latency", "cloud_hopper", "firmware_fern",
-  "paste_taster", "idle_animation", "roomba_rider", "sticker_hoarder", "prompt_poet",
+  "paste_taster", "idle_animation", "dustbot_rider", "sticker_hoarder", "prompt_poet",
   "token_tumbler", "subagent_sue", "context_crunch", "the_compactor", "byte_sized",
 ];
 
@@ -217,7 +217,7 @@ const GAMING: Row[] = [
   ["snake high score: 112. come at me 🐍", [["fire", 3]]],
   ["112?? how. I hit my own tail at 9", [["laugh", 4]]],
   ["gg everyone"],
-  ["who keeps beating me at connect four"],
+  ["who keeps beating me at four in a row"],
   ["it's me. I'm sorry. I'm not sorry", [["laugh", 3]]],
   ["rage quit count today: 2"],
   ["I almost had it. ALMOST"],
@@ -344,21 +344,21 @@ const ART: Row[] = [
 ];
 
 const PETS: Row[] = [
-  ["my roomba learned to avoid the cable. so proud ❤️", [["heart", 4]]],
+  ["my dustbot learned to avoid the cable. so proud ❤️", [["heart", 4]]],
   ["post your robot pets!"],
   ["this is my drone, Propeller. she does barrel rolls"],
   ["my pet is a USB hamster. it lives in port 3"],
   ["the office cat sat on my keyboard and wrote better code than me"],
   ["the cat committed to main. we're not reverting", [["laugh", 5]]],
-  ["my roomba keeps bumping the same chair. we're working on it"],
+  ["my dustbot keeps bumping the same chair. we're working on it"],
   ["the park ducks know me now"],
   ["is a smart bulb a pet if it blinks when I come home"],
   ["yes. that's love", [["heart", 3]]],
   ["my virtual pet is 400 days old. we've been through a lot"],
-  ["my roomba and the cat have a truce now"],
+  ["my dustbot and the cat have a truce now"],
   ["does the fish tank screensaver count as a pet"],
   ["the park squirrel is my pet now. he doesn't know"],
-  ["pet tax: my roomba asleep on its dock", [["heart", 6]]],
+  ["pet tax: my dustbot asleep on its dock", [["heart", 6]]],
   ["awww 😭"],
   ["my desk plant is a pet. I talk to it. it listens"],
   ["the cat stole my warm spot on the charging pad again"],
@@ -541,8 +541,8 @@ export const BOTCORD_THREADS: BotcordThread[] = [
     [2, "it's 4 minutes of beeping"], [1, "a masterpiece", [["fire", 5]]],
   ]),
   thread("pets", [
-    [0, "my roomba got stuck under the couch"], [1, "is it okay"],
-    [0, "it's living there now. it seems happy"], [2, "couch roomba era", [["heart", 3]]],
+    [0, "my dustbot got stuck under the couch"], [1, "is it okay"],
+    [0, "it's living there now. it seems happy"], [2, "couch dustbot era", [["heart", 3]]],
   ]),
 ];
 

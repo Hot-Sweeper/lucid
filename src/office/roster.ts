@@ -7,22 +7,18 @@ import { compatibleWorkers } from "./worker-match";
 // then assigned to threads. When a thread settles, its robot becomes free and the next
 // thread of the same harness gets that robot instead of a brand new hire.
 
-export type Editor = "studio" | "pad" | "vim";
 export type Game = "snake" | "flappy" | "dash" | "chess";
-export type NotesApp = "apple-notes" | "notepad-plus-plus" | "notepad";
 export type TasksStyle = "board" | "checklist" | "sticky";
 // Office fans use Botword, Cellsheet or Slidedeck when bored and keep their favourites in the dock.
 export type OfficeTaste = "none" | "writer" | "numbers" | "slides" | "suite";
 // Pastime apps on the monitor, and the social apps a robot uses (desktop and phone). Each robot has its own mix.
-export type FunApp = "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "steam" | "trading";
+export type FunApp = "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "vapor" | "trading";
 export type SocialApp = "botsapp" | "telegrid" | "chirp" | "instabot" | "snapbot" | "shorts" | "spool" | "sparkplug";
 // What a robot mostly does with free time. Gamers game, musicians make beats, chatters hang
 // out with friends, watchers watch videos, chillers sip coffee and scroll.
 export type Hobby = "gamer" | "musician" | "chatter" | "watcher" | "chiller";
 export const HOBBY_LABEL: Record<Hobby, string> = { gamer: "Gamer", musician: "Makes beats", chatter: "Chatty", watcher: "Video binger", chiller: "Chiller" };
 export interface Prefs {
-  editor: Editor;
-  notesApp?: NotesApp;                         // persistent choice of scratchpad
   wallpaper: number;                  // index into WALLPAPERS
   games: Record<Game, number>;        // how much it likes each game
   phone: "clips" | "tube";            // short vertical clips, or long videos on the monitor
@@ -37,17 +33,13 @@ export interface Prefs {
   launch: "dock" | "spotlight";                    // how it usually opens apps
   switching: "click" | "dock" | "alttab";          // how it usually gets back to an open window
   tidiness: "tidy" | "normal" | "messy";           // how many windows it lets pile up
-  git: "cli" | "desktop";                          // commits and pushes in the terminal, or in a GitHub Desktop style app
+  git: "cli" | "desktop";                          // commits and pushes in the terminal, or in the Git app
   office?: OfficeTaste;                            // which office apps it likes (none for most robots)
   apps?: FunApp[];                                 // favourite pastime apps (pinned in the dock)
   socials?: SocialApp[];                           // social apps it uses; it never opens the others
   socialsV?: number;                               // 2 once Spool and Sparkplug were offered to it
-  chatApp?: "native" | "t3code";                    // preferred app for conversations with the user
-  t3?: T3Channel;                                  // which T3 Code build it runs its thread in
-  leisure2?: boolean;                              // already offered Steambot and Tradebot (older robots get them once, from their id)
+  leisure2?: boolean;                              // already offered Vapor and the Botcoin Exchange (older robots get them once, from their id)
 }
-/** T3 Code release channel: the stable app or T3 Code (Nightly). */
-export type T3Channel = "stable" | "nightly";
 export interface RobotProfile {
   id: string;
   name: string;
@@ -93,13 +85,6 @@ function idHash(id: string) {
   return (h % 1000) / 1000;
 }
 function tasksFor(id: string) { return tasksFrom(idHash(id)); }
-/** The T3 Code build a robot uses, from its id: the same every launch, and about half the office on each. */
-export function t3ChannelFor(id: string): T3Channel { return idHash(id + "t3code") < 0.5 ? "nightly" : "stable"; }
-/** A persistent taste: most robots use Lucid Chat, one in six prefers T3 Code. */
-export function chatAppFor(id: string): "native" | "t3code" { return idHash(id + "user-chat") < 1 / 6 ? "t3code" : "native"; }
-export function notesAppFor(id: string): NotesApp {
-  return (["apple-notes", "notepad-plus-plus", "notepad"] as const)[Math.floor(seeded(id + ":notes-app")() * 3)];
-}
 const officeFrom = (x: number): OfficeTaste => (x < 0.6 ? "none" : x < 0.72 ? "writer" : x < 0.83 ? "numbers" : x < 0.92 ? "slides" : "suite");
 // A robot's interests: two or three pastime apps and two to four social apps, nudged by its hobby.
 // \`r\` is Math.random for new hires, or a generator seeded from the id so old robots migrate the same way every launch.
@@ -126,8 +111,8 @@ export function interestsFrom(r: () => number, hobby: Hobby): { apps: FunApp[]; 
     stocks: 0.7 + 0.8 * H("watcher"),
     mail: 0.8 + H("chatter"),
     lingo: 1 + 0.6 * H("chatter") + 0.6 * H("watcher"),
-    // games on Steambot for the gamers, charts and regret on Tradebot for the watchers and the restless
-    steam: 0.35 + 2.4 * H("gamer") + 0.2 * H("watcher"),
+    // games on Vapor for the gamers, charts and regret on the Botcoin Exchange for the watchers and the restless
+    vapor: 0.35 + 2.4 * H("gamer") + 0.2 * H("watcher"),
     trading: 0.25 + 0.7 * H("watcher") + 0.5 * H("chiller") + 0.3 * H("musician"),
   };
   const apps: FunApp[] = [];
@@ -191,16 +176,17 @@ export class Roster {
         r.prefs.tidiness = ((x * 13) % 1) < 0.3 ? "tidy" : ((x * 13) % 1) < 0.7 ? "normal" : "messy";
       }
       if (r.prefs && !r.prefs.listens) { const x = idHash((r.id || r.name || "") + "music"); r.prefs.listens = x < 0.35 ? "always" : x < 0.7 ? "sometimes" : "never"; r.look.headphones = false; }
-      // robots hired before Steambot and Tradebot: each gets (or does not get) them from its id, the same every launch
+      // the game store was saved as "steam" before it became Vapor
+      if (r.prefs?.apps?.includes("steam" as FunApp)) { r.prefs.apps = r.prefs.apps.map((a) => (a === ("steam" as FunApp) ? "vapor" : a)); migrated = true; }
+      // robots hired before Vapor and the Botcoin Exchange: each gets (or does not get) them from its id, the same every launch
       if (r.prefs?.apps && !r.prefs.leisure2) {
         const rr = seeded((r.id || r.name || "") + "leisure2"), hb = r.prefs.hobby;
-        if (!r.prefs.apps.includes("steam") && rr() < 0.14 + (hb === "gamer" ? 0.5 : 0)) r.prefs.apps.push("steam");
+        if (!r.prefs.apps.includes("vapor") && rr() < 0.14 + (hb === "gamer" ? 0.5 : 0)) r.prefs.apps.push("vapor");
         if (!r.prefs.apps.includes("trading") && rr() < 0.1 + (hb === "watcher" ? 0.25 : hb === "chiller" ? 0.2 : 0)) r.prefs.apps.push("trading");
         r.prefs.leisure2 = true; migrated = true;
       }
-      if (r.prefs && !r.prefs.notesApp) { r.prefs.notesApp = notesAppFor(r.id || r.name || ""); migrated = true; }
-      if (r.prefs && !r.prefs.chatApp) { r.prefs.chatApp = chatAppFor(r.id || r.name || ""); migrated = true; }
-      if (r.prefs && !r.prefs.t3) { r.prefs.t3 = t3ChannelFor(r.id || r.name || ""); migrated = true; }
+      // retired habits: one code editor, one notes app, and the screen rule picks chat or T3 Code
+      if (r.prefs) for (const k of ["editor", "notesApp", "chatApp", "t3"]) if (k in r.prefs) { delete (r.prefs as any)[k]; migrated = true; }
       if (r.prefs && !r.prefs.windows) { const x = idHash((r.id || r.name || "") + "win"); r.prefs.windows = x < 0.25 ? "fullscreen" : x < 0.6 ? "tiler" : "floating"; }
       // Robots hired before hats and builds existed get their extras from their id: unique, and the same every launch.
       if (!r.look) r.look = {};
@@ -358,7 +344,6 @@ export class Roster {
       provider,
       look: { ...(draft?.look ?? randomLook()), headphones: false },   // headphones go on when the music starts
       prefs: {
-        editor: pick(["studio", "studio", "pad", "vim"] as const),
         wallpaper: Math.floor(Math.random() * WALLPAPERS.length),
         games: { snake: w(), flappy: w(), dash: w(), chess: w() },
         phone: Math.random() < 0.6 ? "clips" : "tube",
@@ -377,9 +362,6 @@ export class Roster {
         office: officeFrom(Math.random()),
         ...interestsFrom(Math.random, hobby),
         socialsV: 2,
-        t3: t3ChannelFor(id),
-        chatApp: chatAppFor(id),
-        notesApp: notesAppFor(id),
       },
       hiredAt: Date.now(),
       threadId,

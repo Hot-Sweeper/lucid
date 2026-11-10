@@ -1,4 +1,4 @@
-/* Lucid fun pack: games, phone feed, BotTube, TensorHub. Every class is prefixed fun-. */
+/* Lucid fun pack: games, phone feed, BotTube, Benchtop. Every class is prefixed fun-. */
 
 /* ---------------- games ---------------- */
 .fun-game { height: 100%; display: flex; flex-direction: column; background: #161a45; font-family: var(--font); user-select: none; }
@@ -98,12 +98,11 @@
 .fun-tb-rec b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 10.5px; font-weight: 550; line-height: 1.3; margin-bottom: 2px; }
 .fun-tb-rec .fun-tb-thumb.fun-hover { transform: scale(1.05); }
 
-/* ---------------- TensorHub ---------------- */
+/* ---------------- Benchtop ---------------- */
 .fun-th { background: #0b0e18; color: #e6f3f2; }
 .fun-th-top { flex: none; display: grid; grid-template-columns: auto minmax(0, 260px) 1fr; grid-template-rows: 36px 24px; align-items: center; column-gap: 18px; padding: 0 16px; }
 .fun-th-logo { display: flex; align-items: center; gap: 0; font-size: 15px; letter-spacing: -0.01em; }
 .fun-th-logo b { font-weight: 700; }
-.fun-th-hub { color: #3fe0d0; }
 .fun-th-mark { width: 20px; height: 20px; margin-right: 7px; }
 .fun-th-search { height: 24px; display: flex; align-items: center; padding: 0 12px; border-radius: 7px; background: #161b2a; color: #6f7c94; font-size: 11px; }
 .fun-th-nav { grid-column: 1 / -1; display: flex; gap: 18px; font-size: 11px; color: #8d99b0; align-self: stretch; align-items: center; }
@@ -124,14 +123,6 @@
 .fun-th-rel { display: flex; flex-direction: column; gap: 10px; }
 .fun-th-rec { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 8px; align-items: start; }
 .fun-th-rec b { margin: 0; font-size: 10px; line-height: 1.3; font-weight: 550; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.fun-th-gate { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; background: rgba(6, 8, 14, 0.86); backdrop-filter: blur(6px); }
-.fun-th-gate-in { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 360px; text-align: center; }
-.fun-th-gate-in .fun-th-logo { font-size: 22px; }
-.fun-th-gate-in .fun-th-mark { width: 28px; height: 28px; }
-.fun-th-gate-in p { margin: 0; font-size: 12px; line-height: 1.5; color: #b8c4d6; }
-.fun-th-btns { display: flex; gap: 10px; margin-top: 4px; }
-.fun-th-btn { padding: 8px 14px; border-radius: 7px; font-size: 11.5px; font-weight: 600; background: #1b2232; color: #c9d4e4; }
-.fun-th-enter { background: #3fe0d0; color: #062420; }
 
 /* BotTube: like, comment and reply */
 .fun-tb-acts { margin-left: auto; display: flex; align-items: center; gap: 6px; }

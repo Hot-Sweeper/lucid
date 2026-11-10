@@ -1,5 +1,5 @@
 // Solitaire: a real Klondike deal, played by a robot that follows simple rules (foundations
-// first, free hidden cards, then draw). Sometimes it wins and the cards cascade, sometimes it
+// first, free hidden cards, then draw). Sometimes it wins and the cards bloom into a flower, sometimes it
 // runs out of moves and deals again.
 import { Kit, runApp, rnd, shuffle, h, calm, type SoHost, type SoOpts } from "./kit";
 import "./solitaire.css";
@@ -159,17 +159,19 @@ class Klondike {
     await this.k.sleep(rnd(350, 750));
   }
 
-  async cascade() {
+  // Win: every card flies to the middle and opens into a spinning flower, then fades.
+  async bloom() {
     this.k.host.react("cheer");
     if (calm()) { await this.k.sleep(2500); return; }
-    const H = this.board.clientHeight;
+    const x = (this.board.clientWidth - this.cw) / 2, y = this.board.clientHeight * 0.42 - this.ch / 2;
     const cards = this.found.flatMap((f) => [...f].reverse());
     cards.forEach((c, i) => {
-      const dir = Math.random() < 0.5 ? -1 : 1;
-      this.k.tl({ delay: i * 0.05 })
-        .to(c.el, { left: c.el.offsetLeft + dir * rnd(80, 220), duration: 1.4, ease: "none" }, 0)
-        .to(c.el, { top: H - this.ch, duration: 0.5, ease: "bounce.out" }, 0)
-        .to(c.el, { opacity: 0, duration: 0.3 }, 1.1);
+      const a = (i / cards.length) * 360;
+      c.el.style.zIndex = String(1000 + i);
+      this.k.tl({ delay: i * 0.025 })
+        .to(c.el, { left: x, top: y, rotation: a, transformOrigin: "50% 115%", duration: 0.6, ease: "power3.out" }, 0)
+        .to(c.el, { rotation: a + 120, duration: 1.6, ease: "sine.inOut" }, 0.6)
+        .to(c.el, { opacity: 0, scale: 0.7, duration: 0.4, ease: "sine.in" }, 2);
     });
     await this.k.sleep(3800);
   }
@@ -179,7 +181,7 @@ class Klondike {
     await this.k.sleep(rnd(1200, 1800));
     let idle = 0, passes = 0;
     while (this.k.left > 3000) {
-      if (this.found.every((f) => f.length === 13)) { await this.cascade(); return true; }
+      if (this.found.every((f) => f.length === 13)) { await this.bloom(); return true; }
       const m = this.next();
       if (m) { await m(); idle = 0; continue; }
       if (!this.stock.length) { passes++; if (passes > 2 || idle > 30) break; }

@@ -109,7 +109,7 @@ if (!process.versions.electron) {
         const idle=d.director.idleLife,original=idle.host.bind(idle);
         let Cancelled;try{d.wm.check(d.wm.epoch-1)}catch(e){Cancelled=e.constructor}
         idle.host=token=>{const h=original(token);return Object.assign(Object.create(h),{sleep:()=>new Promise((resolve,reject)=>{const check=()=>h.stopped?reject(new Cancelled()):setTimeout(check,100);check()})})};
-        const kind=['blockcraft','nightshift','botcom','boot','botflix','tensorhub'][index++%6];
+        const kind=['blockcraft','nightshift','botcom','boot','botflix','benchtop'][index++%6];
         window.__benchApps.push({id:d.threadId,kind});idle.active=true;
         void idle.doActivity(kind,idle.token,true).catch(e=>{if(!(e instanceof Cancelled))console.error(e)});
       }

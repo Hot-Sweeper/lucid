@@ -67,9 +67,9 @@ module.exports = async ({ js, wc, wait, out }) => {
         await wc.debugger.sendCommand('Emulation.setDeviceMetricsOverride', { ...viewport, deviceScaleFactor: 2, mobile: false });
         emulatedDpr = true;
         await js(`window.__canvasCheck.center(5)`);
-        await until(`{const s=window.__canvasCheck.sample();!!s&&Math.abs(s.dpr-2)<.001&&s.opaque>32&&s.densityX>=s.dpr-.01&&s.densityY>=s.dpr-.01}`, 'BOT-COM did not restore full content and sharp density after DPR change');
+        await until(`{const s=window.__canvasCheck.sample();!!s&&Math.abs(s.dpr-2)<.001&&s.opaque>32&&s.densityX>=s.dpr-.01&&s.densityY>=s.dpr-.01}`, 'Tidewatch Tactics did not restore full content and sharp density after DPR change');
         entry.dprChange = await js(`window.__canvasCheck.sample()`);
-        check(entry.dprChange.opaque > 32, 'BOT-COM redraw gate does not leave a cleared canvas after DPR change');
+        check(entry.dprChange.opaque > 32, 'Tidewatch Tactics redraw gate does not leave a cleared canvas after DPR change');
         await shot('canvas-botcom-dpr2');
         await wc.debugger.sendCommand('Emulation.clearDeviceMetricsOverride'); emulatedDpr = false;
       }

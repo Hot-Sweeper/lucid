@@ -1,8 +1,9 @@
-// Parody channels for BotTube: affectionate robot takes on well known tech and AI video genres.
-// Names, faces and logos are all made up; only the general vibe (thumbnail style, set, energy) is borrowed.
-import { C, type Ctx, circle, ellipse, fillRR, glow, lin, limb, loopFade, poly, rad, shade, text, withAlpha } from "./draw";
+// Robot channels for BotTube: original hosts and formats that riff on familiar video genres
+// (cooking, nature films, repair, fitness, quiz shows, news, building with agents).
+// Every host, name and gag is invented; none is modeled on a real person or creator.
+import { C, type Ctx, circle, ellipse, fillRR, glow, lin, limb, loopFade, mix, poly, shade, text, withAlpha } from "./draw";
 import type { VideoDef } from "./videos";
-import { backOut, clamp, easeIn, easeInOut, easeOut, hash, lerp, seg, smooth } from "./util";
+import { backOut, clamp, easeIn, easeInOut, easeOut, hash, lerp, seg } from "./util";
 import { canvasText } from "../localization-canvas";
 
 // --- time and layout ---------------------------------------------------------------
@@ -90,6 +91,22 @@ function star(ctx: Ctx, x: number, y: number, r: number, color: string) {
   poly(ctx, [[x, y - r], [x + i, y - i], [x + r, y], [x + i, y + i], [x, y + r], [x - i, y + i], [x - r, y], [x - i, y - i]], color);
 }
 
+/** Falling paper confetti; t is the time since it started. */
+function confetti(ctx: Ctx, w: number, h: number, s: number, t: number, n = 18) {
+  for (let i = 0; i < n; i++) {
+    const x = w * hash(i * 2.3) + Math.sin(t * 2 + i) * 2 * s, fall = (t * (0.3 + hash(i) * 0.3) + hash(i * 5)) % 1;
+    fillRR(ctx, x, h * fall, 2 * s, 1 * s, 0.4 * s, [C.pink, C.mint, "#ffd23f", C.sky][i % 4]);
+  }
+}
+
+/** Two wisps of steam rising from (x, y). */
+function steam(ctx: Ctx, x: number, y: number, u: number, t: number) {
+  for (let i = 0; i < 2; i++) {
+    const k = (t * 0.7 + i * 0.5) % 1;
+    ellipse(ctx, x + Math.sin(k * 6 + i) * 2 * u, y - k * 12 * u, 1.4 * u, 3 * u, 0, withAlpha(C.cream, 0.35 * (1 - k)));
+  }
+}
+
 /** Show the thumbnail-style cold open, then cross into the episode. */
 function hooked(ctx: Ctx, lt: number, dur: number, hook: () => void, scene: () => void) {
   if (lt < dur - 0.28) { hook(); return; }
@@ -104,14 +121,56 @@ function hooked(ctx: Ctx, lt: number, dur: number, hook: () => void, scene: () =
 
 // --- the robot host, from the waist up ----------------------------------------------
 type Eyes = "open" | "wide" | "happy" | "closed" | "angry" | "shock" | "half";
+/** Props a host can hold. Everything sits in the right hand except "weight" (both) and holdLeft. */
+type Held = "mug" | "mic" | "tube" | "iron" | "driver" | "can" | "weight";
 interface Host {
   body: string; visor?: string; eye?: string;
-  outfit?: "tee" | "hoodie" | "suit" | "coat" | "shirt"; cloth?: string; inner?: string; tie?: string;
+  outfit?: "tee" | "hoodie" | "suit" | "coat" | "shirt" | "apron"; cloth?: string; inner?: string; tie?: string;
   eyes?: Eyes; mouth?: number; shape?: "bar" | "smile" | "o"; look?: number; tilt?: number; lean?: number;
   /** Hand targets in host units: origin at the bottom of the torso, about 90 units to the antenna tip. */
-  handL?: [number, number]; handR?: [number, number]; pointL?: boolean; pointR?: boolean; mug?: boolean;
-  stache?: string; glasses?: boolean; hair?: string; curls?: string; earring?: boolean; headset?: boolean; phones?: string; beanie?: string; blush?: boolean;
+  handL?: [number, number]; handR?: [number, number]; pointL?: boolean; pointR?: boolean;
+  hold?: Held; holdLeft?: boolean;
+  glasses?: boolean; phones?: string; beanie?: string; brim?: string; band?: string; blush?: boolean;
   head?: "box" | "toaster" | "puck"; toast?: number; antenna?: boolean;
+}
+
+/** A held prop drawn around the hand at (hx, hy), before the hand itself. side is -1 left, 1 right. */
+function prop(ctx: Ctx, k: Held, hx: number, hy: number, side: number) {
+  if (k === "mug") {
+    fillRR(ctx, hx - 6, hy - 13, 12, 14, 3, C.cream);
+    ctx.beginPath(); ctx.arc(hx + side * 6.5, hy - 6, 3.2, 0, Math.PI * 2);
+    ctx.lineWidth = 2; ctx.strokeStyle = C.cream; ctx.stroke();
+    fillRR(ctx, hx - 4.5, hy - 12, 9, 2.5, 1.2, "#6b3f2a");
+  } else if (k === "mic") {
+    fillRR(ctx, hx - 2.2, hy - 5, 4.4, 15, 2, "#2a2f45");
+    circle(ctx, hx, hy - 9, 5.4, "#c9cdf2");
+    for (const gy of [-11, -8.5]) fillRR(ctx, hx - 4, hy + gy, 8, 0.9, 0.4, withAlpha("#5a6194", 0.7));
+  } else if (k === "tube") {
+    // a thermal paste syringe, nozzle down, 16 units below the hand
+    fillRR(ctx, hx - 1.4, hy - 12, 2.8, 6, 1, "#8a91c4");
+    fillRR(ctx, hx - 3, hy - 7, 6, 18, 2.4, "#dfe3f5");
+    fillRR(ctx, hx - 3, hy + 1, 6, 5, 1, "#8a91c4");
+    poly(ctx, [[hx - 2, hy + 11], [hx + 2, hy + 11], [hx + 0.6, hy + 16], [hx - 0.6, hy + 16]], "#8a91c4");
+  } else if (k === "iron") {
+    // a soldering iron, the hot tip 6 units inward and 14 below the hand
+    const tx = hx - side * 6, ty = hy + 14;
+    limb(ctx, [[hx, hy + 4], [tx, ty]], 1.8, "#c9cdf2");
+    limb(ctx, [[hx, hy - 6], [hx, hy + 4]], 5.5, "#3a6fd8");
+    glow(ctx, tx, ty, 6, C.orange, 0.6);
+    circle(ctx, tx, ty, 1.6, "#ffd77a");
+  } else if (k === "driver") {
+    // a screwdriver pointing outward, the tip 15 units out and 4 down
+    limb(ctx, [[hx, hy], [hx + side * 15, hy + 4]], 1.8, "#dfe3f5");
+    fillRR(ctx, hx - 5, hy - 3, 10, 6, 2.6, C.orange);
+  } else if (k === "can") {
+    fillRR(ctx, hx - 5, hy - 12, 10, 13, 2.5, "#ffd23f");
+    fillRR(ctx, hx - 5, hy - 8, 10, 3, 0.6, "#e0a020");
+    limb(ctx, [[hx - side * 2, hy - 12], [hx - side * 7, hy - 19]], 1.8, "#c9cdf2");
+  } else {
+    fillRR(ctx, hx - 8, hy - 1.5, 16, 3, 1.5, "#8a91c4");
+    fillRR(ctx, hx - 10, hy - 5, 4, 10, 1.6, "#2a2f45");
+    fillRR(ctx, hx + 6, hy - 5, 4, 10, 1.6, "#2a2f45");
+  }
 }
 
 function bust(ctx: Ctx, x: number, y: number, s: number, p: Host) {
@@ -154,6 +213,15 @@ function bust(ctx: Ctx, x: number, y: number, s: number, p: Host) {
     fillRR(ctx, 11, -19, 11, 10, 2.5, shade(cloth, -0.1));
     fillRR(ctx, 13.5, -24, 2.2, 7, 1, C.sky);
     fillRR(ctx, 17, -23, 2.2, 6, 1, C.pink);
+  } else if (p.outfit === "apron") {
+    // a bib apron over the shirt: neck straps, a front pocket, the waist tie
+    const ap = p.inner ?? C.cream;
+    ellipse(ctx, 0, -37, 9, 3.4, 0, shade(cloth, -0.32));
+    limb(ctx, [[-11, -27], [-7, -38]], 2, shade(ap, -0.12));
+    limb(ctx, [[11, -27], [7, -38]], 2, shade(ap, -0.12));
+    fillRR(ctx, -28, -7, 56, 2.8, 1.4, shade(ap, -0.16));
+    fillRR(ctx, -16, -29, 32, 46, 6, ap);
+    fillRR(ctx, -9, -9, 18, 9, 2.5, shade(ap, -0.08));
   } else {
     ellipse(ctx, 0, -37, 9, 3.4, 0, shade(cloth, -0.32));
   }
@@ -214,7 +282,7 @@ function bust(ctx: Ctx, x: number, y: number, s: number, p: Host) {
     }
     fillRR(ctx, -2.2, ey - 5.8, 4.4, 1.6, 0.8, withAlpha(C.cream, 0.85));
   }
-  // mouth (and mustache)
+  // mouth
   const my = ey + 13.5;
   const m = clamp(p.mouth ?? 0);
   const shape = p.shape ?? "bar";
@@ -227,63 +295,35 @@ function bust(ctx: Ctx, x: number, y: number, s: number, p: Host) {
     const mh = 1.8 + m * 4.6;
     fillRR(ctx, lk * 0.5 - 6, my - mh / 2, 12, mh, mh / 2, eye);
   }
-  if (p.stache) {
-    const sy = ey + 8.8;
-    for (const sd of [-1, 1]) {
-      ctx.save();
-      ctx.translate(lk * 0.5 + sd * 6.4, sy);
-      ctx.scale(sd, 1);
-      ellipse(ctx, 0, 0, 8, 3.6, 0.1, p.stache);
-      ellipse(ctx, 7.6, -2.4, 3.6, 2, -0.75, p.stache);
-      ellipse(ctx, -1, -1.2, 5, 1.4, 0.1, shade(p.stache, 0.18));
-      ctx.restore();
-    }
-  }
   if (p.blush) for (const sd of [-1, 1]) ellipse(ctx, sd * 16, ey + 12, 3.4, 1.8, 0, withAlpha(C.pink, 0.7));
-  if (p.curls && head === "box") {
-    // a dark mop: curls piled on top, a fringe that falls over the visor on one side
-    const c = p.curls;
-    ellipse(ctx, -19, -37, 10, 8.5, -0.4, shade(c, -0.1));
-    ellipse(ctx, 19, -37, 10, 8.5, 0.4, shade(c, -0.1));
-    ellipse(ctx, -9, -45, 13, 8, -0.2, c);
-    ellipse(ctx, 8, -45.5, 14, 8, 0.15, c);
-    ellipse(ctx, 0, -48, 11, 6, 0, shade(c, 0.08));
-    ellipse(ctx, -8, -34.5, 11, 4.6, -0.28, c);
-    ellipse(ctx, 6, -35.5, 9, 3.6, 0.2, shade(c, 0.06));
-    for (const [cx, cy, r] of [[-14, -46, 3], [-2, -50, 3.4], [10, -48, 3.2], [20, -42, 2.8]] as const) circle(ctx, cx, cy, r, shade(c, 0.3));
+  if (p.band) {
+    // a sweatband across the forehead
+    fillRR(ctx, -26, -42, 52, 7, 3.5, p.band);
+    fillRR(ctx, -26, -39.4, 52, 1.6, 0.8, withAlpha(C.pink, 0.85));
   }
-  if (p.earring) {
-    ctx.beginPath(); ctx.arc(-24.4, -16, 2.2, 0, Math.PI * 2);
-    ctx.lineWidth = 1.2; ctx.strokeStyle = "#dfe3f5"; ctx.stroke();
-  }
-  if (p.hair && head === "box") {
-    ellipse(ctx, -15, -38, 9, 4.5, -0.4, shade(p.hair, -0.12));
-    ellipse(ctx, -3, -41.5, 21, 7, -0.1, p.hair);
-    ellipse(ctx, 10, -45, 12, 5.5, 0.5, p.hair);
-    ellipse(ctx, -6, -44, 9, 2, -0.15, shade(p.hair, 0.25));
+  if (p.brim) {
+    // a wide field hat; the crown hides the antenna
+    ellipse(ctx, 0, -40, 36, 6, 0, shade(p.brim, -0.18));
+    fillRR(ctx, -20, -60, 40, 21, 9, p.brim);
+    fillRR(ctx, -20, -46, 40, 4.5, 1.5, shade(p.brim, -0.4));
+    ellipse(ctx, -6, -56, 9, 2, -0.1, withAlpha("#ffffff", 0.18));
   }
   if (p.beanie) {
     fillRR(ctx, -26, -54, 52, 18, 9, p.beanie);
     fillRR(ctx, -27.5, -42, 55, 8, 3.5, shade(p.beanie, -0.16));
     circle(ctx, 0, -55, 4.4, shade(p.beanie, 0.22));
   }
-  if (p.headset || p.phones) {
-    const band = p.headset ? "#2a2f45" : shade(p.phones!, -0.3);
+  if (p.phones) {
     ctx.beginPath();
     ctx.arc(0, -22, 29, Math.PI * 1.04, Math.PI * 1.96);
-    ctx.lineWidth = 4.2; ctx.lineCap = "round"; ctx.strokeStyle = band; ctx.stroke();
-    const cup = p.headset ? "#3a4060" : p.phones!;
-    fillRR(ctx, -32, -31, 9, 18, 4, cup);
-    fillRR(ctx, 23, -31, 9, 18, 4, cup);
-    if (p.headset) {
-      limb(ctx, [[-27, -15], [-23, -4], [-10, -6]], 2.4, band);
-      circle(ctx, -8.5, -6, 3.2, "#4a5078");
-    }
+    ctx.lineWidth = 4.2; ctx.lineCap = "round"; ctx.strokeStyle = shade(p.phones, -0.3); ctx.stroke();
+    fillRR(ctx, -32, -31, 9, 18, 4, p.phones);
+    fillRR(ctx, 23, -31, 9, 18, 4, p.phones);
   }
   ctx.restore();
 
   // arms last so gestures sit in front of the face
-  const arm = (side: number, hand: [number, number], point?: boolean, mug?: boolean) => {
+  const arm = (side: number, hand: [number, number], point?: boolean, held?: Held) => {
     const sx = side * 24, sy = -30, L1 = 17, L2 = 16;
     let [hx, hy] = hand;
     let dx = hx - sx, dy = hy - sy, d = Math.hypot(dx, dy);
@@ -297,20 +337,16 @@ function bust(ctx: Ctx, x: number, y: number, s: number, p: Host) {
     const [ex2, ey2] = e1[0] * side + e1[1] * 0.6 > e2[0] * side + e2[1] * 0.6 ? e1 : e2;
     limb(ctx, [[sx, sy], [ex2, ey2]], 9.5, p.outfit === "tee" ? shade(cloth, 0.05) : shade(cloth, -0.05));
     limb(ctx, [[ex2, ey2], [hx, hy]], 6.4, dark);
-    if (mug) {
-      fillRR(ctx, hx - 6, hy - 13, 12, 14, 3, C.cream);
-      ctx.beginPath(); ctx.arc(hx + side * 6.5, hy - 6, 3.2, 0, Math.PI * 2);
-      ctx.lineWidth = 2; ctx.strokeStyle = C.cream; ctx.stroke();
-      fillRR(ctx, hx - 4.5, hy - 12, 9, 2.5, 1.2, "#6b3f2a");
-    }
+    if (held) prop(ctx, held, hx, hy, side);
     if (point) {
       const fa = Math.atan2(hy - ey2, hx - ex2);
       limb(ctx, [[hx, hy], [hx + Math.cos(fa) * 7.5, hy + Math.sin(fa) * 7.5]], 3.2, lite);
     }
     circle(ctx, hx, hy, 4.8, lite);
   };
-  arm(-1, p.handL ?? [-31, 18], p.pointL);
-  arm(1, p.handR ?? [31, 18], p.pointR, p.mug);
+  const both = p.hold === "weight";
+  arm(-1, p.handL ?? [-31, 18], p.pointL, both || p.holdLeft ? p.hold : undefined);
+  arm(1, p.handR ?? [31, 18], p.pointR, both || !p.holdLeft ? p.hold : undefined);
   ctx.restore();
 }
 
@@ -324,13 +360,12 @@ function face(ctx: Ctx, cx: number, headCy: number, headH: number, p: Host) {
 const local = (hx: number, hy: number, hs: number, px: number, py: number): [number, number] => [(px - hx) / hs, (py - hy) / hs];
 
 /**
- * Thumbnail frame shared by most channels, in the style of Theo's recent ones: a near black frame,
- * one big clean sentence (white, the last line in an accent), a screenshot-like prop, and a face
- * so large it is cut by the edge, eyes wide, a hand near the mouth. No tags, no arrows, no outlines.
+ * Shared thumbnail frame: a near black frame, one big clean sentence (white, the last line in an
+ * accent), a prop, and a host face so large the edge cuts it.
  */
 function thumbFrame(ctx: Ctx, w: number, h: number, lt: number, o: {
-  bg: [string, string]; glowC: string; lines: [string, string]; tagBg: string; tagFg: string; host: Host;
-  prop?: (x: number, y: number, size: number) => void; arrowC?: string; faceLeft?: boolean;
+  glowC: string; lines: [string, string]; tagBg: string; host: Host;
+  prop?: (x: number, y: number, size: number) => void; faceLeft?: boolean;
 }) {
   const s = Math.min(w, h) / 100, P = h > w * 1.05;
   ctx.fillStyle = lin(ctx, 0, 0, w, h, [[0, "#131318"], [1, "#050507"]]);
@@ -353,516 +388,189 @@ function thumbFrame(ctx: Ctx, w: number, h: number, lt: number, o: {
   face(ctx, fx, h * 0.58, h * 0.64 * (0.97 + settle * 0.03), o.host);
 }
 
-/** Dark card in the style of a quoted post (name, handle, one big sentence, a views line) beside a huge reacting face. */
-function tweetThumb(ctx: Ctx, w: number, h: number, lt: number, o: { name: string; handle: string; lines: string[]; meta: string; glowC: string; host: Host }) {
-  const s = Math.min(w, h) / 100, P = h > w * 1.05;
-  ctx.fillStyle = "#000000";
-  ctx.fillRect(0, 0, w, h);
-  const settle = easeOut(seg(lt, 0.05, 0.5));
-  const cx = P ? w * 0.07 : w * 0.05, top = P ? h * 0.07 : h * 0.08, maxW = P ? w * 0.86 : w * 0.56;
-  // header: avatar, name with a check, handle
-  const ar = (P ? 5.6 : 6.4) * s, ax = cx + ar, ay = top + ar;
-  circle(ctx, ax, ay, ar, C.orange);
-  fillRR(ctx, ax - ar * 0.6, ay - ar * 0.32, ar * 1.2, ar * 0.62, ar * 0.25, "#141a33");
-  circle(ctx, ax - ar * 0.26, ay - ar * 0.02, ar * 0.13, C.mint);
-  circle(ctx, ax + ar * 0.26, ay - ar * 0.02, ar * 0.13, C.mint);
-  const nx = ax + ar * 1.5, ns = 5.4 * s;
-  text(ctx, o.name, nx, ay - ns * 0.62, ns, "#ffffff", { weight: 800, align: "left" });
-  ctx.font = `800 ${ns}px ${SANS}`;
-  const nw = ctx.measureText(o.name).width;
-  circle(ctx, nx + nw + ns * 0.8, ay - ns * 0.62, ns * 0.5, "#1d9bf0");
-  limb(ctx, [[nx + nw + ns * 0.55, ay - ns * 0.62], [nx + nw + ns * 0.75, ay - ns * 0.4], [nx + nw + ns * 1.08, ay - ns * 0.86]], ns * 0.12, "#ffffff");
-  text(ctx, o.handle, nx, ay + ns * 0.62, ns * 0.9, "#71767b", { weight: 500, align: "left" });
-  // the sentence, big and plain, as large as the card allows
-  let fs = (P ? 11 : 13.5) * s;
-  for (const l of o.lines) fs = Math.min(fs, fitSize(ctx, l, maxW, fs, 600));
-  // everything has to fit: header, the lines, the views under them
-  const room = h - (top + ar * 2) - 6 * s;
-  fs = Math.min(fs, room / (1.5 + o.lines.length * 1.25 + 0.7 + 0.8));
-  const y0 = top + ar * 2 + fs * 1.5;
-  o.lines.forEach((l, i) => text(ctx, l, cx, y0 + i * fs * 1.25, fs, "#ffffff", { weight: 600, align: "left" }));
-  text(ctx, o.meta, cx, y0 + o.lines.length * fs * 1.25 + fs * 0.7, 4.4 * s, "#71767b", { weight: 500, align: "left" });
-  if (P) { glow(ctx, w * 0.66, h * 0.86, w * 0.8, o.glowC, 0.18); face(ctx, w * 0.68, h * 0.88, h * 0.34 * (0.97 + settle * 0.03), o.host); return; }
-  glow(ctx, w * 0.8, h * 0.5, h * 0.7, o.glowC, 0.16);
-  face(ctx, w * 0.8, h * 0.58, h * 0.64 * (0.97 + settle * 0.03), o.host);
+/** A worried or happy little face for gadgets and patients. mood 0 is sad, 1 is happy. */
+function moodFace(ctx: Ctx, x: number, y: number, r: number, mood: number, color: string) {
+  for (const sx of [-1, 1]) circle(ctx, x + sx * r * 0.6, y - r * 0.2, r * 0.22, color);
+  ctx.beginPath();
+  if (mood > 0.5) ctx.arc(x, y + r * 0.05, r * 0.5, Math.PI * 0.2, Math.PI * 0.8);
+  else ctx.arc(x, y + r * 0.95, r * 0.5, Math.PI * 1.25, Math.PI * 1.75);
+  ctx.lineWidth = r * 0.18; ctx.lineCap = "round"; ctx.strokeStyle = color; ctx.stroke();
 }
 
 // ===================================================================================
-// 1. t1.bot: hot takes, red arrows, reacting to posts, one sponsor
+// 1. Thermal Paste Kitchen: a toaster chef bakes with workshop supplies (never eat these)
 // ===================================================================================
-interface TakeCfg {
-  id: string; title: string; views: string; dur: string;
-  hook: [string, string]; prop: "grave" | "semi";
-  handle: string; post: string[]; key: number;
-  verdict: string; vcolor: string; sponsor: string; slogan: string;
-}
-// The Theo look-alike: dark curly mop, an earring, a collared shirt, big surprised eyes. Robot, lilac, nobody's real face.
-const TEO = { body: "#c7b3ff", eye: C.mint, outfit: "shirt", cloth: "#d8ccb6", inner: "#2a2630", curls: "#2b1e26", earring: true } satisfies Host;
+interface BakeCfg { id: string; title: string; views: string; dur: string; dish: "cake" | "brulee"; hook: [string, string]; steps: [string, string, string]; reveal: string; caption: string }
+// Chef Crumbs: a chrome toaster in an apron. His own toast pops whenever something is done.
+const CRUMBS = { body: "#cfd3e2", eye: C.orange, outfit: "apron", cloth: "#3f6fb5", inner: C.cream, head: "toaster", blush: true } satisfies Host;
 
-function postCard(ctx: Ctx, r: Rect, handle: string, lines: string[], hi: number, key: number, ring: number) {
-  fillRR(ctx, r.x, r.y, r.w, r.h, r.h * 0.07, "#1e2348");
-  const pad = Math.min(r.w, r.h) * 0.08, avR = r.h * 0.075;
-  const ax = r.x + pad + avR, ay = r.y + pad + avR;
-  circle(ctx, ax, ay, avR, C.orange);
-  fillRR(ctx, ax - avR * 0.6, ay - avR * 0.32, avR * 1.2, avR * 0.6, avR * 0.25, "#141a33");
-  circle(ctx, ax - avR * 0.26, ay - avR * 0.02, avR * 0.13, C.mint);
-  circle(ctx, ax + avR * 0.26, ay - avR * 0.02, avR * 0.13, C.mint);
-  text(ctx, handle, ax + avR * 1.6, ay, r.h * 0.07, "#c9cdf2", { weight: 600, align: "left" });
-  const fs = Math.min(r.h * 0.125, ...lines.map((l) => fitSize(ctx, l, r.w - pad * 2, r.h * 0.125, 700)));
-  const y0 = ay + avR + fs * 1.1, lh = fs * 1.32;
-  lines.forEach((l, i) => {
-    const y = y0 + i * lh;
-    ctx.font = `700 ${fs}px ${SANS}`;
-    const lw = ctx.measureText(l).width;
-    const f = clamp(hi - i);
-    if (f > 0) fillRR(ctx, r.x + pad - fs * 0.15, y - fs * 0.62, (lw + fs * 0.3) * f, fs * 1.24, fs * 0.2, withAlpha(C.orange, 0.32));
-    text(ctx, l, r.x + pad, y, fs, "#ffffff", { weight: 700, align: "left" });
-    if (i === key && ring > 0) {
-      ctx.beginPath();
-      ctx.ellipse(r.x + pad + lw / 2, y, lw / 2 + fs * 0.7, fs * 0.95, -0.04, -Math.PI * 0.6, -Math.PI * 0.6 + Math.PI * 2.1 * ring);
-      ctx.lineWidth = Math.max(2, fs * 0.13); ctx.lineCap = "round"; ctx.strokeStyle = "#ff4b5c"; ctx.stroke();
+function kitchen(ctx: Ctx, w: number, h: number, s: number) {
+  fill(ctx, w, h, "#fbe3d3", "#f0c3ae");
+  const g = 10 * s, lw = Math.max(1, s * 0.35);
+  ctx.fillStyle = withAlpha("#ffffff", 0.45);
+  for (let x = g * 0.5; x < w; x += g) ctx.fillRect(x, 0, lw, h);
+  for (let y = g * 0.5; y < h; y += g) ctx.fillRect(0, y, w, lw);
+}
+
+function counter(ctx: Ctx, w: number, h: number, y: number, s: number) {
+  fillRR(ctx, -2, y, w + 4, h - y + 2, 0, lin(ctx, 0, y, 0, h, [[0, "#7fcfb4"], [1, "#4f9f88"]]));
+  fillRR(ctx, -2, y, w + 4, 1.2 * s, 0, withAlpha("#ffffff", 0.45));
+}
+
+/** The dish on its plate, standing on y. pipe: glaze progress, heat: caramel, done: the reveal (LEDs boot, or the crust cracks). */
+function dish(ctx: Ctx, x: number, y: number, u: number, kind: BakeCfg["dish"], pipe: number, heat: number, done: number) {
+  ellipse(ctx, x, y + 1.5 * u, 30 * u, 4.5 * u, 0, "rgba(5,7,25,0.22)");
+  ellipse(ctx, x, y, 28 * u, 4 * u, 0, "#eef0ff");
+  if (kind === "cake") {
+    // sponge, a green circuit board layer with gold traces, a row of LEDs, silver glaze on top
+    fillRR(ctx, x - 20 * u, y - 13 * u, 40 * u, 13 * u, 3 * u, lin(ctx, 0, y - 13 * u, 0, y, [[0, "#f6c98e"], [1, "#d99a5c"]]));
+    fillRR(ctx, x - 20 * u, y - 24 * u, 40 * u, 12 * u, 3 * u, lin(ctx, 0, y - 24 * u, 0, y - 12 * u, [[0, "#3aa56d"], [1, "#257a4f"]]));
+    for (let i = 0; i < 4; i++) limb(ctx, [[x - 16 * u + i * 9 * u, y - 13.5 * u], [x - 16 * u + i * 9 * u, y - 17 * u], [x - 12 * u + i * 9 * u, y - 20.5 * u]], 0.9 * u, "#e8c15a");
+    for (let i = 0; i < 5; i++) {
+      const lx = x - 14 * u + i * 7 * u, ly = y - 6.5 * u, on = clamp(done * 5 - i);
+      const col = [C.mint, C.sky, C.pink, "#ffd23f", C.lilac][i];
+      if (on > 0) glow(ctx, lx, ly, 5 * u, col, 0.5 * on);
+      circle(ctx, lx, ly, 1.6 * u, on > 0 ? col : "#a9744a");
     }
-  });
-  const sy = r.y + r.h - pad * 0.9;
-  ["12K", "3.4K", "88K"].forEach((n, i) => {
-    const sx = r.x + pad + i * r.w * 0.26;
-    circle(ctx, sx + r.h * 0.025, sy, r.h * 0.025, i === 2 ? C.pink : "#6a71a8");
-    text(ctx, n, sx + r.h * 0.07, sy, r.h * 0.055, "#8a91c4", { weight: 500, align: "left" });
-  });
-}
-
-/**
- * The host at his desk with a laptop: a strip of desk in front of him, the back of the laptop lid
- * (the robot head mark glowing on it), a mug with a little steam. The hands are behind the lid.
- */
-function deskLaptop(ctx: Ctx, hx: number, hs: number, s: number, w: number, h: number, lt: number) {
-  const dy = h - 8 * s;
-  fillRR(ctx, 0, dy, w, 8 * s + 2, 0, lin(ctx, 0, dy, 0, h, [[0, "#3a2d4a"], [1, "#241b32"]]));
-  fillRR(ctx, 0, dy, w, 0.7 * s, 0, "rgba(255,255,255,0.09)");
-  // the laptop, seen from behind: lid, a sliver of base, the mark
-  const lw = 40 * hs, lh = 23 * hs, lx = hx - lw / 2, ly = dy + 2.5 * s - lh;
-  ellipse(ctx, hx, dy + 3.4 * s, lw * 0.62, 1.7 * s, 0, "rgba(5,4,12,0.4)");
-  fillRR(ctx, lx - 1.5 * s, dy + 1.6 * s, lw + 3 * s, 1.5 * s, 0.6 * s, "#7d839c");
-  fillRR(ctx, lx, ly, lw, lh, 2.2 * s, lin(ctx, lx, ly, lx + lw, ly + lh, [[0, "#b9bed3"], [1, "#8c92ab"]]));
-  fillRR(ctx, lx + lw * 0.04, ly + lh * 0.05, lw * 0.92, lh * 0.06, s * 0.6, "rgba(255,255,255,0.28)");
-  const mx = hx, my = ly + lh * 0.5, mk = Math.min(lw, lh) * 0.2, pulse = 0.5 + Math.sin(lt * 2.4) * 0.12;
-  glow(ctx, mx, my, mk * 3, C.mint, pulse * 0.35);
-  fillRR(ctx, mx - mk * 1.2, my - mk * 0.7, mk * 2.4, mk * 1.5, mk * 0.5, "#2a2f55");
-  circle(ctx, mx - mk * 0.5, my + mk * 0.02, mk * 0.2, C.mint);
-  circle(ctx, mx + mk * 0.5, my + mk * 0.02, mk * 0.2, C.mint);
-  limb(ctx, [[mx, my - mk * 0.7], [mx, my - mk * 1.25]], mk * 0.12, "#2a2f55");
-  circle(ctx, mx, my - mk * 1.3, mk * 0.2, "#2a2f55");
-  // a mug on the right with steam
-  const gx = hx + 34 * hs, gy = dy + 1.5 * s;
-  ellipse(ctx, gx + s, gy + 1.2 * s, 5.6 * s, 1.6 * s, 0, "rgba(5,4,12,0.35)");
-  fillRR(ctx, gx - 4 * s, gy - 8.5 * s, 8 * s, 9 * s, 1.8 * s, C.cream);
-  ctx.beginPath(); ctx.arc(gx + 4 * s, gy - 4.3 * s, 2.4 * s, -Math.PI / 2, Math.PI / 2);
-  ctx.lineWidth = 1.2 * s; ctx.lineCap = "round"; ctx.strokeStyle = C.cream; ctx.stroke();
-  fillRR(ctx, gx - 3.2 * s, gy - 7.9 * s, 6.4 * s, 1.4 * s, 0.7 * s, "#6b3f2a");
-  for (let i = 0; i < 2; i++) {
-    const k = (lt * 0.5 + i * 0.5) % 1;
-    ellipse(ctx, gx + Math.sin(k * 6 + i * 2) * 1.6 * s, gy - 10 * s - k * 9 * s, 1.1 * s, 2.4 * s, 0, withAlpha(C.cream, 0.32 * (1 - k)));
-  }
-}
-
-function takeVideo(c: TakeCfg): VideoDef {
-  const L = 14, HOOK = 1.7;
-  return {
-    id: c.id, title: c.title, channel: "t1.bot", views: c.views, durationLabel: c.dur, loop: L, thumbT: 0.95, color: "#c7b3ff",
-    post: { user: "t1.bot", caption: `${c.hook[0]} ${c.hook[1].toLowerCase()} Full take on the channel`, funny: true },
-    comments: ["The red arrow is load bearing.", "Sponsor segment at 7 seconds, new record.", "He was not, in fact, wrong. Or was he."],
-    draw(ctx, w, h, t) {
-      const lt = loopT(t, L);
-      hooked(ctx, lt, HOOK,
-        () => tweetThumb(ctx, w, h, lt, {
-          name: "t1.bot", handle: c.handle, lines: c.post, meta: c.views.replace("views", "Views"), glowC: "#c7b3ff",
-          host: { ...TEO, eyes: "shock", shape: "o", mouth: 0.7, look: -0.4, tilt: 0.05, handR: [7, -57], handL: [-30, 14] },
-        }),
-        () => {
-          const st = stage(w, h, 1);
-          const { s, panel: r, hx, hy, hs } = st;
-          const zoom = seg(lt, 6.2, 6.45) * (1 - seg(lt, 7.45, 7.6));
-          ctx.save();
-          if (zoom > 0) {
-            const z = 1 + 0.5 * easeOut(zoom), fy = hy - 66 * hs;
-            ctx.translate(hx, fy); ctx.scale(z, z); ctx.translate(-hx, -fy);
-            ctx.translate(Math.sin(lt * 70) * s * 0.6 * zoom, 0);
-          }
-          fill(ctx, w, h, "#171233", "#0b0a1c");
-          glow(ctx, w * 0.88, h * 0.15, h * 0.7, "#ff4b8b", 0.22);
-          glow(ctx, w * 0.1, h * 0.95, h * 0.8, C.lilac, 0.18);
-          for (let i = 0; i < 6; i++) circle(ctx, w * hash(i * 3.1), h * hash(i * 7.7), (3 + hash(i) * 6) * s, withAlpha(i % 2 ? C.lilac : "#ff4b8b", 0.08));
-
-          const sponsor = lt >= 7.6 && lt < 10.8;
-          const inA = easeOut(seg(lt, 1.7, 2.2));
-          // panel: post, then the sponsor card, then the post again with a verdict
-          if (!sponsor) {
-            const back = lt >= 10.8 ? easeOut(seg(lt, 10.8, 11.2)) : inA;
-            const pr = { ...r, x: r.x - (1 - back) * r.w * 0.3 };
-            ctx.save(); ctx.globalAlpha = back;
-            postCard(ctx, pr, c.handle, c.post, lt < 10.8 ? seg(lt, 2.4, 5.4) * c.post.length : c.post.length, c.key, lt < 10.8 ? easeInOut(seg(lt, 4.7, 5.3)) : 1);
-            ctx.restore();
-            if (lt > 4.9 && lt < 6.2) {
-              const ky = pr.y + pr.h * 0.33 + c.key * pr.h * 0.165;
-              const k = easeOut(seg(lt, 4.9, 5.2));
-              arrow(ctx, pr.x + pr.w * 1.02, ky - pr.h * 0.35, pr.x + pr.w * (1.02 - 0.18 * k), ky - pr.h * (0.35 - 0.25 * k), 5 * s, "#ff3b4e");
-            }
-            if (lt >= 10.8) {
-              const k = backOut(seg(lt, 11.4, 11.8), 2.4);
-              if (k > 0) tag(ctx, c.verdict, pr.x + pr.w * 0.5, pr.y + pr.h * 0.62, Math.min(14 * s, pr.w * 0.12) * k, c.vcolor, "#ffffff", { align: "center", rot: -0.12 });
-            }
-          } else {
-            const k = easeOut(seg(lt, 7.6, 8.05)) * (1 - easeIn(seg(lt, 10.45, 10.8)));
-            const sr = { ...r, y: r.y + (1 - k) * r.h * 0.4 };
-            ctx.save(); ctx.globalAlpha = k;
-            fillRR(ctx, sr.x, sr.y, sr.w, sr.h, sr.h * 0.07, lin(ctx, sr.x, sr.y, sr.x + sr.w, sr.y + sr.h, [[0, "#2a2266"], [1, "#16304f"]]));
-            text(ctx, "Today's sponsor", sr.x + sr.w / 2, sr.y + sr.h * 0.16, sr.h * 0.075, "#b9bfe6", { weight: 500 });
-            const lx = sr.x + sr.w / 2, ly = sr.y + sr.h * 0.45, ls = sr.h * 0.2 * (1 + Math.sin(lt * 6) * 0.04);
-            fillRR(ctx, lx - ls * 2.6, ly - ls * 0.62, ls * 1.24, ls * 1.24, ls * 0.34, lin(ctx, 0, ly - ls, 0, ly + ls, [[0, C.mint], [1, C.sky]]));
-            poly(ctx, [[lx - ls * 1.9, ly - ls * 0.42], [lx - ls * 2.3, ly + ls * 0.05], [lx - ls * 2.0, ly + ls * 0.05], [lx - ls * 2.25, ly + ls * 0.45], [lx - ls * 1.75, ly - ls * 0.1], [lx - ls * 2.05, ly - ls * 0.1]], "#141a33");
-            big(ctx, c.sponsor, lx - ls * 1.7, ly, ls * 0.95, "#ffffff", { align: "left", maxW: sr.w * 0.62, shadow: null });
-            text(ctx, c.slogan, lx, sr.y + sr.h * 0.74, sr.h * 0.08, C.mint, { weight: 600 });
-            fillRR(ctx, lx - sr.w * 0.2, sr.y + sr.h * 0.83, sr.w * 0.4, sr.h * 0.1, sr.h * 0.05, C.orange);
-            text(ctx, "use code BOT", lx, sr.y + sr.h * 0.88, sr.h * 0.06, "#2a1407", { weight: 700 });
-            ctx.restore();
-          }
-
-          // the host
-          const reading = lt < 6.2;
-          const pointing = (lt > 2.9 && lt < 4.4) || (lt > 4.9 && lt < 6.1);
-          const keyY = r.y + r.h * 0.33 + c.key * r.h * 0.165;
-          const aim = st.portrait ? local(hx, hy, hs, r.x + r.w * 0.6, r.y + r.h * 0.95) : local(hx, hy, hs, r.x + r.w * 0.96, keyY);
-          const bob = Math.sin(lt * 3.1) * 0.03;
-          // hands on the keys behind the laptop (they move a little while he talks)
-          const typeL: [number, number] = [-13 + Math.sin(lt * 13) * 1.2, -6 - Math.max(0, Math.sin(lt * 19)) * 1.8];
-          const typeR: [number, number] = [13 + Math.sin(lt * 11 + 1) * 1.2, -6 - Math.max(0, Math.sin(lt * 17 + 2)) * 1.8];
-          let p: Host = { ...TEO, mouth: talk(lt), look: st.portrait ? 0 : -0.7, tilt: bob, eyes: blink(lt) ? "closed" : "open", handL: typeL, handR: typeR };
-          if (reading) {
-            if (pointing) p = { ...p, handL: aim, pointL: true };
-            if (lt > 4.7 && lt < 5.5) p = { ...p, eyes: "wide", mouth: 0.2 };
-          } else if (zoom > 0) {
-            p = { ...p, eyes: "shock", shape: "o", mouth: 0.6 + Math.sin(lt * 9) * 0.2, look: 0, handL: [-20, -60], handR: [22, -62], tilt: 0.05 };
-          } else if (sponsor) {
-            p = { ...p, eyes: lt % 2.4 < 1.2 ? "happy" : "open", look: st.portrait ? 0 : -0.4, handR: [26, -52], pointR: true };
-          } else {
-            const shrug = easeOut(seg(lt, 11.4, 11.8)) * (1 - seg(lt, 13.2, 13.7));
-            p = { ...p, eyes: shrug > 0.5 ? "happy" : "open", shape: shrug > 0.5 ? "smile" : "bar", mouth: shrug > 0.5 ? 0.4 : talk(lt), handL: [lerp(-31, -42, shrug), lerp(18, -34, shrug)], handR: [lerp(31, 42, shrug), lerp(18, -34, shrug)], tilt: shrug * 0.1 };
-          }
-          bust(ctx, hx, hy - Math.abs(Math.sin(lt * 6.2)) * s * (reading ? 0.6 : 0.2), hs, p);
-          deskLaptop(ctx, hx, hs, s, w, h, lt);
-          ctx.restore();
-          if (zoom > 0) big(ctx, "WAIT.", w * 0.5, h * 0.2, 24 * s * backOut(seg(lt, 6.25, 6.5)), "#ffffff", { align: "center", rot: -0.05 });
-        });
-      loopFade(ctx, w, h, lt, L, 0.3);
-    },
-  };
-}
-
-// ===================================================================================
-// 2. ThePrimeBotgen: mustache, vim, live chat, one article read with great energy
-// ===================================================================================
-interface PrimeCfg { id: string; title: string; views: string; dur: string; hook: [string, string]; src: string; head: [string, string]; shout: string; prop: string }
-const PRIME = { body: "#9fb0d6", eye: C.mint, outfit: "hoodie", cloth: "#1a1d2e", stache: "#e39a55", headset: true } satisfies Host;
-const CHAT_USERS: [string, string][] = [["vim_enjoyer", C.mint], ["rustacean_bot", C.orange], ["null_ptr", C.sky], ["tabs4life", C.pink], ["kernel_kid", C.lilac], ["byte_me", "#ffd77a"], ["servo_sam", C.mint], ["lint_roller", C.sky]];
-const CHAT_MSGS = ["BLAZINGLY", "vim btw", "chat is this real", "mustache diff", "skill issue", "he read it wrong lol", "+2", "RUST MENTIONED", "ok but why", "true", "based", "first", "the stache knows", "100x?!", "LETS GO", "hjkl", "read the article", "W", "no way", ":wq"];
-
-function vimBackdrop(ctx: Ctx, w: number, h: number, s: number, lt: number) {
-  ctx.fillStyle = "#0c1024"; ctx.fillRect(0, 0, w, h);
-  const lh = 6.4 * s, n = Math.ceil(h / lh);
-  const scroll = (lt * 0.6 * lh) % lh, base = Math.floor(lt * 0.6);
-  for (let i = 0; i < n + 1; i++) {
-    const y = i * lh - scroll + lh * 0.5, ln = i + base;
-    text(ctx, String((ln % 99) + 1), 5 * s, y, 3.4 * s, withAlpha("#5a6194", 0.8), { mono: true, align: "right", weight: 500 });
-    let x = 8 * s + (hash(ln * 3) * 3 | 0) * 4 * s;
-    const parts = 1 + Math.floor(hash(ln) * 4);
-    for (let k = 0; k < parts; k++) {
-      const ww = (5 + hash(ln * 7 + k) * 18) * s;
-      const col = [C.lilac, C.sky, C.mint, C.orange, "#5a6194"][Math.floor(hash(ln * 11 + k) * 5)];
-      fillRR(ctx, x, y - 1.3 * s, ww, 2.6 * s, 1.3 * s, withAlpha(col, 0.28));
-      x += ww + 2.5 * s;
+    const n = Math.floor(pipe * 26);
+    for (let i = 0; i <= n && pipe > 0; i++) circle(ctx, x - 19 * u + (i / 26) * 38 * u, y - 24 * u + Math.sin(i * 1.3) * 1.2 * u, 2.3 * u, i % 2 ? "#c9cdf2" : "#b3b8cf");
+  } else {
+    // a fluted ramekin of custard; the iron caramelizes the top, then it cracks
+    fillRR(ctx, x - 18 * u, y - 14 * u, 36 * u, 14 * u, 4 * u, "#f4f5fb");
+    for (let i = 0; i < 7; i++) fillRR(ctx, x - 16 * u + i * 5.2 * u, y - 12 * u, 1.4 * u, 10 * u, 0.7 * u, "#dcdff0");
+    ellipse(ctx, x, y - 14 * u, 18 * u, 3.6 * u, 0, mix("#f6e3a8", "#c9792e", clamp(heat)));
+    if (done > 0) for (let i = 0; i < 5; i++) {
+      const a = -0.4 + i * 0.75 + 0.2 * hash(i);
+      limb(ctx, [[x, y - 14 * u], [x + Math.cos(a) * 15 * u * done, y - 14 * u + Math.sin(a) * 2.8 * u * done]], 0.8 * u, "#7a3f12");
     }
   }
-  fillRR(ctx, 0, h - 6 * s, w, 6 * s, 0, "#1b2040");
-  fillRR(ctx, 0, h - 6 * s, 20 * s, 6 * s, 0, C.mint);
-  text(ctx, "NORMAL", 10 * s, h - 3 * s, 3.2 * s, "#0c1024", { weight: 800, mono: true });
-  text(ctx, "takes.rs", 24 * s, h - 3 * s, 3.2 * s, "#b9bfe6", { mono: true, align: "left" });
 }
 
-function chatColumn(ctx: Ctx, r: Rect, lt: number, rate: number, salt: number) {
-  fillRR(ctx, r.x, r.y, r.w, r.h, Math.min(r.w, r.h) * 0.05, withAlpha("#141833", 0.88));
-  const fs = Math.min(r.w * 0.088, r.h * 0.055), lh = fs * 1.7;
-  text(ctx, "LIVE CHAT", r.x + fs * 0.8, r.y + fs * 1.1, fs * 0.85, "#8a91c4", { weight: 700, align: "left" });
+function eggTimer(ctx: Ctx, x: number, y: number, u: number, k: number, ring: number) {
   ctx.save();
-  ctx.beginPath(); ctx.rect(r.x, r.y + fs * 2, r.w, r.h - fs * 2.2); ctx.clip();
-  const pos = lt * rate, top = Math.floor(pos), frac = pos - top;
-  const rows = Math.ceil(r.h / lh) + 1;
-  for (let i = 0; i < rows; i++) {
-    const idx = top - i;
-    const y = r.y + r.h - fs * 0.9 - i * lh + frac * lh - lh;
-    const u = CHAT_USERS[Math.floor(hash(idx * 1.7 + salt) * CHAT_USERS.length)];
-    const msg = CHAT_MSGS[Math.floor(hash(idx * 3.3 + salt + 9) * CHAT_MSGS.length)];
-    ctx.font = `700 ${fs}px ${SANS}`;
-    const nameW = ctx.measureText(u[0] + ":").width;
-    text(ctx, u[0] + ":", r.x + fs * 0.8, y, fs, u[1], { weight: 700, align: "left" });
-    text(ctx, msg, r.x + fs * 1.2 + nameW, y, fs, "#e3e6ff", { weight: 500, align: "left" });
-  }
+  ctx.translate(x, y);
+  ctx.rotate(ring > 0 && ring < 1 ? Math.sin(ring * 60) * 0.14 * (1 - ring) : 0);
+  ellipse(ctx, 0, 0.5 * u, 8 * u, 1.6 * u, 0, "rgba(5,7,25,0.2)");
+  circle(ctx, 0, -7 * u, 7.5 * u, "#ff6f61");
+  circle(ctx, 0, -7 * u, 5.4 * u, C.cream);
+  const a = -Math.PI / 2 + (1 - k) * Math.PI * 2;
+  limb(ctx, [[0, -7 * u], [Math.cos(a) * 4.4 * u, -7 * u + Math.sin(a) * 4.4 * u]], 1.1 * u, "#2a1d33");
+  fillRR(ctx, -1.6 * u, -16.2 * u, 3.2 * u, 2.4 * u, 1 * u, "#2a1d33");
   ctx.restore();
 }
 
-function primeVideo(c: PrimeCfg): VideoDef {
-  const L = 15, HOOK = 1.7;
-  return {
-    id: c.id, title: c.title, channel: "ThePrimeBotgen", views: c.views, durationLabel: c.dur, loop: L, thumbT: 0.95, color: "#e39a55",
-    post: { user: "primebotgen", caption: `${c.hook[0]} ${c.hook[1].toLowerCase()} Chat lost it`, funny: true },
-    comments: ["The mustache has its own rendering pipeline.", "Took him four minutes to read one headline. Worth it.", "I exited vim to write this comment. It took a week."],
-    draw(ctx, w, h, t) {
-      const lt = loopT(t, L);
-      hooked(ctx, lt, HOOK,
-        () => thumbFrame(ctx, w, h, lt, {
-          bg: ["#2a2a10", "#0a0c18"], glowC: "#ffb347", lines: c.hook, tagBg: "#ff4b3e", tagFg: "#ffffff",
-          host: { ...PRIME, eyes: "wide", shape: "o", mouth: 1, look: -0.4, handL: [-30, -70], handR: [30, -70] },
-          prop: (x, y, sz) => { glow(ctx, x, y, sz, C.orange, 0.5); big(ctx, c.prop, x, y, sz * 0.62, "#ffd77a", { align: "center", rot: -0.1, maxW: sz * 1.5 }); },
-          arrowC: "#ffd23f",
-        }),
-        () => {
-          const st = stage(w, h, 1, 0.46);
-          const { s, portrait } = st;
-          const shake = lt > 10.6 && lt < 11.2 ? (1 - seg(lt, 10.6, 11.2)) * s * 1.6 : 0;
-          ctx.save();
-          ctx.translate(Math.sin(lt * 83) * shake, Math.cos(lt * 71) * shake);
-          vimBackdrop(ctx, w, h, s, lt);
-          const signoff = lt >= 12.4;
-          const sg = easeInOut(seg(lt, 12.4, 12.9));
-          // article
-          const r = portrait ? st.panel : { x: w * 0.04, y: h * 0.1, w: w * 0.44, h: h * 0.68 };
-          const ain = easeOut(seg(lt, 1.7, 2.2)) * (1 - sg);
-          if (ain > 0) {
-            ctx.save(); ctx.globalAlpha = ain;
-            const ar = { ...r, y: r.y + (1 - ain) * r.h * 0.2 };
-            fillRR(ctx, ar.x, ar.y, ar.w, ar.h, ar.h * 0.05, "#f6ecdc");
-            fillRR(ctx, ar.x, ar.y, ar.w, ar.h * 0.12, ar.h * 0.05, "#e7dcc8");
-            text(ctx, c.src, ar.x + ar.w * 0.05, ar.y + ar.h * 0.06, ar.h * 0.055, "#7a6f5d", { align: "left", weight: 600 });
-            const fs = Math.min(ar.h * 0.12, fitSize(ctx, c.head[0], ar.w * 0.9, ar.h * 0.12), fitSize(ctx, c.head[1], ar.w * 0.9, ar.h * 0.12));
-            c.head.forEach((l, i) => text(ctx, l, ar.x + ar.w * 0.05, ar.y + ar.h * 0.24 + i * fs * 1.2, fs, "#1b1a2a", { align: "left", weight: 800 }));
-            // body lines with the read-along highlight
-            const read = seg(lt, 2.4, 8.4) * 5;
-            for (let i = 0; i < 5; i++) {
-              const ly = ar.y + ar.h * 0.52 + i * ar.h * 0.085, lw = ar.w * (i === 4 ? 0.5 : 0.82 + hash(i) * 0.08);
-              fillRR(ctx, ar.x + ar.w * 0.05, ly, lw, ar.h * 0.035, ar.h * 0.017, "#c9bfae");
-              const f = clamp(read - i);
-              if (f > 0) fillRR(ctx, ar.x + ar.w * 0.05 - 2, ly - ar.h * 0.015, lw * f + 4, ar.h * 0.065, ar.h * 0.02, withAlpha("#ffd23f", 0.55));
-            }
-            ctx.restore();
-          }
-          // chat
-          const cr = portrait ? { x: w * 0.04, y: h * 0.5, w: w * 0.5, h: h * 0.2 } : { x: w * 0.79, y: h * 0.05, w: w * 0.195, h: h * 0.84 };
-          if (!signoff || sg < 1) {
-            ctx.save(); ctx.globalAlpha = 1 - sg;
-            chatColumn(ctx, cr, lt, lt > 8.6 && lt < 12.4 ? 3.2 : 1.4, c.id.length);
-            ctx.restore();
-          }
-          if (sg > 0) { ctx.fillStyle = `rgba(5,6,16,${0.85 * sg})`; ctx.fillRect(0, 0, w, h); }
-
-          // the host
-          const laugh = lt >= 8.6 && lt < 10.6, shout = lt >= 10.6 && lt < 12.4;
-          const hx = signoff ? lerp(portrait ? st.hx : w * 0.64, w * 0.5, sg) : portrait ? st.hx : w * 0.64;
-          const hy = st.hy, hs = st.hs * (portrait ? 1 : 0.95);
-          let p: Host = { ...PRIME, mouth: talk(lt * 1.15), look: portrait ? 0 : -0.8, eyes: blink(lt) ? "closed" : "open", tilt: Math.sin(lt * 2.3) * 0.04 };
-          let lift = 0;
-          if (lt < 8.6) {
-            if (lt > 5.4 && lt < 6.3) p = { ...p, eyes: "wide", mouth: 0.15, lean: -0.06, tilt: -0.08 };
-            const hand = Math.sin(lt * 4.2);
-            p.handR = [32 + hand * 5, -12 + Math.cos(lt * 3.1) * 8];
-            if (lt > 6.3) p.handL = local(hx, hy, hs, r.x + r.w * 0.95, r.y + r.h * 0.6), p.pointL = true;
-          } else if (laugh) {
-            const k = Math.abs(Math.sin(lt * 14));
-            p = { ...p, eyes: "happy", shape: "o", mouth: 0.6 + k * 0.4, lean: 0.08, tilt: 0.12 + k * 0.05, handL: [-26, -6], handR: [26, -6] };
-            lift = k * 1.5;
-          } else if (shout) {
-            p = { ...p, eyes: "wide", shape: "o", mouth: 1, look: 0, handL: [-40, -68], handR: [40, -68], tilt: Math.sin(lt * 20) * 0.04 };
-            lift = 2;
-          } else {
-            const nod = seg(lt, 13.4, 13.7) * (1 - seg(lt, 14.0, 14.3));
-            p = { ...p, look: 0, eyes: lt > 13.4 ? "happy" : "half", tilt: nod * 0.15, mouth: lt < 13.3 ? talk(lt * 0.7) * 0.7 : 0.3, shape: lt > 13.4 ? "smile" : "bar", handR: [20, -40] };
-          }
-          bust(ctx, hx, hy - lift * s, hs, p);
-          if (laugh) {
-            for (let i = 0; i < 3; i++) {
-              const k = ((lt - 8.6) * 1.6 + i / 3) % 1;
-              big(ctx, "HA", hx + (i - 1) * 22 * s, hy - 90 * hs - k * 16 * s, 9 * s * (0.6 + k * 0.6), withAlpha("#ffd23f", 1 - k), { align: "center", rot: (i - 1) * 0.2, shadow: null });
-            }
-          }
-          ctx.restore();
-          if (shout) {
-            const k = backOut(seg(lt, 10.6, 10.9), 2.2);
-            ctx.fillStyle = rad(ctx, w / 2, h * 0.38, Math.max(w, h) * 0.6, [[0, "rgba(8,6,20,0.75)"], [1, "rgba(8,6,20,0.25)"]]);
-            ctx.fillRect(0, 0, w, h);
-            for (let i = 0; i < 10; i++) {
-              const a = (i / 10) * Math.PI * 2 + lt;
-              const d = (20 + ((lt * 40 + i * 9) % 40)) * s;
-              ellipse(ctx, w / 2 + Math.cos(a) * d * 1.6, h * 0.42 + Math.sin(a) * d, 2.6 * s, 1.2 * s, a, withAlpha(i % 2 ? C.orange : "#ffd23f", 0.8));
-            }
-            const words = canvasText(c.shout).split(" ");
-            words.forEach((wd, i) => big(ctx, wd, w / 2, h * (portrait ? 0.3 : 0.32) + i * 17 * s, 18 * s * k, i ? "#ffd23f" : "#ffffff", { align: "center", rot: -0.06, maxW: w * 0.9 }));
-          }
-          if (signoff) {
-            const k1 = seg(lt, 12.9, 13.6), k2 = backOut(seg(lt, 13.6, 13.95));
-            const l1 = canvasText("the unit designation is...");
-            text(ctx, l1.slice(0, Math.floor(l1.length * k1)), w / 2, h * 0.14, 6.5 * s, "#b9bfe6", { weight: 500 });
-            if (k2 > 0) big(ctx, "PrimeBotgen", w / 2, h * 0.27, 13 * s * k2, "#ffd23f", { align: "center", maxW: w * 0.85 });
-          }
-        });
-      loopFade(ctx, w, h, lt, L, 0.3);
-    },
-  };
+/** Index card with the three steps: done ones get a check, the current one a highlight. */
+function recipeCard(ctx: Ctx, r: Rect, steps: string[], active: number, s: number) {
+  fillRR(ctx, r.x + 0.8 * s, r.y + 1.2 * s, r.w, r.h, 2.4 * s, "rgba(90,40,30,0.2)");
+  fillRR(ctx, r.x, r.y, r.w, r.h, 2.4 * s, "#fffaf0");
+  fillRR(ctx, r.x, r.y, r.w, r.h * 0.2, 2.4 * s, "#ff9f8a");
+  fillRR(ctx, r.x, r.y + r.h * 0.12, r.w, r.h * 0.08, 0, "#ff9f8a");
+  const pad = r.w * 0.06;
+  big(ctx, "Today's recipe", r.x + pad, r.y + r.h * 0.1, r.h * 0.09, "#ffffff", { align: "left", maxW: r.w - pad * 2, shadow: null });
+  const shown = steps.map(canvasText);
+  const fs = Math.min(r.h * 0.085, ...shown.map((l) => fitSize(ctx, l, r.w - pad * 3.4, r.h * 0.085, 600)));
+  shown.forEach((l, i) => {
+    const y = r.y + r.h * (0.36 + i * 0.2), cx = r.x + pad * 1.2;
+    if (i === active) fillRR(ctx, r.x + pad * 0.5, y - fs * 0.95, r.w - pad, fs * 1.9, fs * 0.4, withAlpha("#ffd23f", 0.45));
+    circle(ctx, cx, y, fs * 0.42, i < active ? "#3fae7a" : "#e7d6c4");
+    if (i < active) limb(ctx, [[cx - fs * 0.2, y], [cx - fs * 0.04, y + fs * 0.17], [cx + fs * 0.22, y - fs * 0.18]], fs * 0.12, "#ffffff");
+    text(ctx, l, r.x + pad * 2.1, y, fs, "#3a2a33", { weight: 600, align: "left", maxW: r.w - pad * 2.6 });
+  });
 }
 
-// ===================================================================================
-// 3. Firechip: X in 100 cycles, flat motion graphics, no face, a chip with a flame
-// ===================================================================================
-interface ChipCfg { id: string; title: string; views: string; dur: string; topic: string; code: string[]; flow: [string, string, string]; stat: [number, string]; outro: string; accent: string }
-
-function chipMascot(ctx: Ctx, x: number, y: number, size: number, t: number, mouth: number, wave = 0) {
-  const u = size / 40;
-  // flame
-  for (let i = 0; i < 3; i++) {
-    const f = Math.sin(t * (9 + i * 3) + i) * 1.6;
-    const fh = (22 - i * 6) * u, fw = (14 - i * 3.5) * u;
-    const col = [C.orange2, "#ffb347", "#ffe27a"][i];
-    ctx.beginPath();
-    ctx.moveTo(x - fw, y - 12 * u);
-    ctx.quadraticCurveTo(x - fw * 1.05, y - 12 * u - fh * 0.6, x + f * u, y - 12 * u - fh - Math.abs(f) * u);
-    ctx.quadraticCurveTo(x + fw * 1.05, y - 12 * u - fh * 0.6, x + fw, y - 12 * u);
-    ctx.closePath();
-    ctx.fillStyle = col; ctx.fill();
-  }
-  // pins
-  for (let i = 0; i < 4; i++) {
-    const o = (-10.5 + i * 7) * u;
-    fillRR(ctx, x + o - 1.6 * u, y + 12 * u, 3.2 * u, 5 * u, 1 * u, "#8b93c9");
-    fillRR(ctx, x - 17 * u, y + o - 1.6 * u, 5 * u, 3.2 * u, 1 * u, "#8b93c9");
-    fillRR(ctx, x + 12 * u, y + o - 1.6 * u, 5 * u, 3.2 * u, 1 * u, "#8b93c9");
-  }
-  fillRR(ctx, x - 14 * u, y - 14 * u, 28 * u, 28 * u, 6 * u, lin(ctx, x, y - 14 * u, x, y + 14 * u, [[0, "#3b4486"], [1, "#262d63"]]));
-  fillRR(ctx, x - 10 * u, y - 8 * u, 20 * u, 14 * u, 4 * u, "#141a33");
-  for (const sx of [-4.5, 4.5]) { glow(ctx, x + sx * u, y - 2.5 * u, 5 * u, C.orange, 0.35); circle(ctx, x + sx * u, y - 2.5 * u, 2.2 * u, "#ffb347"); }
-  const mh = (1 + mouth * 3) * u;
-  fillRR(ctx, x - 3.5 * u, y + 2.6 * u - mh / 2, 7 * u, mh, mh / 2, "#ffb347");
-  if (wave) limb(ctx, [[x + 14 * u, y + 2 * u], [x + 21 * u, y - 4 * u], [x + 23 * u + Math.sin(t * 10) * 3 * u, y - 12 * u]], 3 * u, "#8b93c9");
-}
-
-function chipVideo(c: ChipCfg): VideoDef {
-  const L = 12, HOOK = 1.5;
-  const ACC = c.accent;
+function bakeVideo(c: BakeCfg): VideoDef {
+  const L = 15, HOOK = 1.6;
+  const cake = c.dish === "cake";
   return {
-    id: c.id, title: c.title, channel: "Firechip", views: c.views, durationLabel: c.dur, loop: L, thumbT: 0.85, color: "#ff8f5a",
-    post: { user: "firechip", caption: `${c.topic} in 100 cycles. Blink and you miss it` },
-    comments: ["How is this only 100 cycles. I took notes at 4x speed.", "The flame chip deserves its own channel.", "Came for the speed, stayed for the memes."],
+    id: c.id, title: c.title, channel: "Thermal Paste Kitchen", views: c.views, durationLabel: c.dur, loop: L, thumbT: 0.9, color: "#ff9f8a",
+    post: { user: "thermalpaste.kitchen", caption: c.caption, funny: true },
+    comments: ["The toast popping at the ding is the best sound effect that is not a sound.", "Chef Crumbs said do not eat it four times and I believe him.", "Tried this at home. My cake now has wifi."],
     draw(ctx, w, h, t) {
       const lt = loopT(t, L);
       const s = Math.min(w, h) / 100, P = h > w * 1.05;
-      const bg = () => {
-        fill(ctx, w, h, "#121738", "#0b0e26");
-        const g = 12 * s;
-        ctx.fillStyle = withAlpha("#ffffff", 0.035);
-        for (let x = (lt * 4 * s) % g; x < w; x += g) ctx.fillRect(x, 0, Math.max(1, s * 0.25), h);
-        for (let y = (lt * 2 * s) % g; y < h; y += g) ctx.fillRect(0, y, w, Math.max(1, s * 0.25));
-      };
       hooked(ctx, lt, HOOK,
         () => {
-          bg();
-          glow(ctx, P ? w * 0.5 : w * 0.27, P ? h * 0.66 : h * 0.55, 60 * s, ACC, 0.45);
-          chipMascot(ctx, P ? w * 0.5 : w * 0.27, P ? h * 0.66 : h * 0.6, (P ? 52 : 58) * s, lt, 0.4 + Math.sin(lt * 9) * 0.3);
-          const pop = backOut(seg(lt, 0.2, 0.55));
-          big(ctx, c.topic, P ? w * 0.5 : w * 0.73, P ? h * 0.2 : h * 0.4, (P ? 26 : 32) * s * pop, "#ffffff", { align: "center", maxW: P ? w * 0.86 : w * 0.48 });
-          tag(ctx, "in 100 cycles", P ? w * 0.5 : w * 0.73, P ? h * 0.32 : h * 0.66, 10 * s, ACC, "#141a33", { align: "center", rot: -0.04 });
+          kitchen(ctx, w, h, s);
+          const cy = h * (P ? 0.64 : 0.9), dx = P ? w * 0.36 : w * 0.3;
+          glow(ctx, dx, cy - 14 * s, 42 * s, "#ffd77a", 0.55);
+          counter(ctx, w, h, cy, s);
+          dish(ctx, dx, cy, s * (P ? 1.1 : 1.05), c.dish, 1, 1, 1);
+          for (let i = 0; i < 4; i++) star(ctx, dx + Math.cos(i * 1.7 + lt * 2) * 30 * s, cy - 20 * s + Math.sin(i * 2.3 + lt * 2) * 10 * s, (1.4 + Math.sin(lt * 7 + i)) * s, "#ffffff");
+          const tx = w * 0.05, ty = P ? h * 0.1 : h * 0.17, mw = P ? w * 0.9 : w * 0.55;
+          const t0 = big(ctx, c.hook[0], tx, ty, (P ? 15 : 17) * s, "#3a2140", { align: "left", maxW: mw, shadow: "rgba(255,255,255,0.6)" });
+          tag(ctx, c.hook[1], tx, ty + t0 * 1.3, (P ? 13 : 15) * s * backOut(seg(lt, 0.2, 0.55)), "#ff6f61", "#ffffff", { maxW: mw, rot: -0.03 });
+          face(ctx, P ? w * 0.72 : w * 0.78, P ? h * 0.86 : h * 0.56, P ? h * 0.24 : h * 0.48,
+            { ...CRUMBS, toast: 1, eyes: "happy", shape: "smile", mouth: 0.8, look: -0.4, handL: [-30, -66], handR: [32, -60] });
         },
         () => {
-          bg();
-          const mascot = (x: number, y: number, sz: number) => chipMascot(ctx, x, y, sz, lt, lt % 4 < 3.2 ? talk(lt) : 0, lt > 9.2 ? 1 : 0);
-          const cyc = Math.min(100, Math.floor(seg(lt, 1.5, 11.4) * 100));
-          // segments
-          if (lt < 3.3) {
-            const k = backOut(seg(lt, 1.5, 1.9), 2);
-            const sub = easeOut(seg(lt, 1.9, 2.3));
-            big(ctx, c.topic, w / 2, h * 0.4, 30 * s * k, "#ffffff", { align: "center", maxW: w * 0.85 });
-            ctx.save(); ctx.globalAlpha = sub;
-            tag(ctx, "in 100 cycles", w / 2, h * 0.6 + (1 - sub) * 6 * s, 9 * s, ACC, "#141a33", { align: "center" });
-            ctx.restore();
-            for (let i = 0; i < 8; i++) {
-              const a = (i / 8) * Math.PI * 2, d = easeOut(seg(lt, 1.55, 2.2)) * 40 * s;
-              star(ctx, w / 2 + Math.cos(a) * d * 1.4, h * 0.45 + Math.sin(a) * d, 2.4 * s * (1 - seg(lt, 2, 2.6)), i % 2 ? ACC : C.cream);
-            }
-          } else if (lt < 5.4) {
-            const k = easeOut(seg(lt, 3.3, 3.7));
-            const cw = P ? w * 0.88 : w * 0.56, ch = P ? h * 0.36 : h * 0.62;
-            const cx = (P ? w * 0.06 : w * 0.36) + (1 - k) * w * 0.6, cy = P ? h * 0.12 : h * 0.17;
-            fillRR(ctx, cx, cy, cw, ch, 3 * s, "#1c2250");
-            fillRR(ctx, cx, cy, cw, ch * 0.13, 3 * s, "#262d63");
-            [C.pink, "#ffd23f", C.mint].forEach((col, i) => circle(ctx, cx + (4 + i * 4) * s, cy + ch * 0.065, 1.3 * s, col));
-            const fs = Math.min(ch * 0.13, ...c.code.map((l) => fitSize(ctx, l, cw * 0.88, ch * 0.13, 600, true)));
-            c.code.forEach((line, i) => {
-              const shown = Math.floor(clamp(seg(lt, 3.6 + i * 0.32, 3.9 + i * 0.32)) * line.length);
-              if (shown <= 0) return;
-              const sp = line.indexOf(" ");
-              const head = sp > 0 ? line.slice(0, sp) : line, rest = sp > 0 ? line.slice(sp) : "";
-              const ly = cy + ch * 0.27 + i * fs * 1.45;
-              const hs = head.slice(0, shown);
-              text(ctx, hs, cx + cw * 0.06, ly, fs, ACC, { mono: true, align: "left", weight: 700 });
-              if (shown > head.length) {
-                ctx.font = `700 ${fs}px ${MONO}`;
-                text(ctx, rest.slice(0, shown - head.length), cx + cw * 0.06 + ctx.measureText(head).width, ly, fs, C.ink, { mono: true, align: "left", weight: 500 });
-              }
-            });
-            mascot(P ? w * 0.5 : w * 0.18, P ? h * 0.7 : h * 0.58, (P ? 40 : 46) * s);
-          } else if (lt < 7.4) {
-            const n = c.flow.length;
-            for (let i = 0; i < n; i++) {
-              const k = backOut(seg(lt, 5.4 + i * 0.35, 5.75 + i * 0.35), 2);
-              const bx = P ? w / 2 : w * (0.2 + i * 0.3), by = P ? h * (0.17 + i * 0.22) : h * 0.42;
-              const bw = P ? w * 0.7 : w * 0.24, bh = P ? h * 0.12 : h * 0.24;
-              if (i < n - 1) {
-                const ak = easeOut(seg(lt, 5.65 + i * 0.35, 6.0 + i * 0.35));
-                if (ak > 0) {
-                  if (P) arrow(ctx, bx, by + bh * 0.55, bx, by + bh * 0.55 + (h * 0.22 - bh * 1.1) * ak, 3 * s, "#8b93c9");
-                  else arrow(ctx, bx + bw * 0.55, by, bx + bw * 0.55 + (w * 0.3 - bw * 1.1) * ak, by, 3 * s, "#8b93c9");
-                }
-              }
-              if (k <= 0) continue;
-              ctx.save(); ctx.translate(bx, by); ctx.scale(k, k);
-              const col = [C.sky, C.lilac, ACC][i];
-              fillRR(ctx, -bw / 2, -bh / 2, bw, bh, 3 * s, col);
-              big(ctx, c.flow[i], 0, 0, bh * 0.36, "#141a33", { align: "center", maxW: bw * 0.86, shadow: null });
-              ctx.restore();
-            }
-            if (lt > 6.6) {
-              const k = backOut(seg(lt, 6.6, 6.9), 2.5);
-              tag(ctx, "?!", P ? w * 0.86 : w * 0.88, P ? h * 0.62 : h * 0.2, 12 * s * k, C.pink, "#ffffff", { align: "center", rot: 0.15 });
-            }
-          } else if (lt < 9.2) {
-            const k = easeOut(seg(lt, 7.4, 8.4));
-            const n = Math.round(c.stat[0] * k);
-            big(ctx, n.toLocaleString("en-US"), w / 2, h * (P ? 0.3 : 0.38), 26 * s, ACC, { align: "center", maxW: w * 0.9 });
-            text(ctx, c.stat[1], w / 2, h * (P ? 0.42 : 0.6), 7.5 * s, C.ink, { weight: 600 });
-            const bars = 7;
-            for (let i = 0; i < bars; i++) {
-              const bh = (8 + i * i * 1.2) * s * easeOut(seg(lt, 7.5 + i * 0.08, 8.2 + i * 0.08));
-              const bx = w / 2 + (i - bars / 2) * 6 * s;
-              fillRR(ctx, bx, h * (P ? 0.62 : 0.88) - bh, 4.6 * s, bh, 1.2 * s, withAlpha(i === bars - 1 ? ACC : C.sky, 0.85));
-            }
-            if (P) mascot(w * 0.5, h * 0.8, 34 * s);
+          kitchen(ctx, w, h, s);
+          const card: Rect = P ? { x: w * 0.07, y: h * 0.06, w: w * 0.86, h: h * 0.34 } : { x: w * 0.5, y: h * 0.1, w: w * 0.45, h: h * 0.58 };
+          const cy = h * (P ? 0.84 : 0.8), hs = s * (P ? 0.64 : 0.76), hx = P ? w * 0.28 : w * 0.2, hy = cy + 14 * hs;
+          const u = hs, dx = hx + 26 * hs, top = cy - (cake ? 24 : 14) * u;
+          const active = lt < 5 ? 0 : lt < 8.4 ? 1 : lt < 11.2 ? 2 : 3;
+          const ck = easeOut(seg(lt, 1.6, 2.1));
+          ctx.save(); ctx.globalAlpha = ck;
+          recipeCard(ctx, { ...card, y: card.y - (1 - ck) * 6 * s }, c.steps, active, s);
+          ctx.restore();
+
+          const work = easeInOut(seg(lt, 5.3, 8.1));
+          const pipe = cake ? work : 0, heat = cake ? 0 : work;
+          const ring = seg(lt, 11.2, 12.2);
+          const done = cake ? easeOut(seg(lt, 11.5, 12.6)) : easeOut(seg(lt, 11.6, 12.0));
+          // where the nozzle or the hot tip touches the dish
+          const tip = (k: number) => dx + (-19 + 38 * k) * u;
+          const sweep = cake ? pipe : 0.5 + Math.sin(lt * 5) * 0.35;
+
+          let p: Host = { ...CRUMBS, mouth: talk(lt), look: P ? 0.3 : 0.6, eyes: blink(lt) ? "closed" : "open", tilt: Math.sin(lt * 2.2) * 0.04, handL: [-26, 4], handR: [28, 4] };
+          if (lt < 5) {
+            if (lt > 2.6 && lt < 4.4) p = { ...p, handR: P ? [22, -70] : local(hx, hy, hs, card.x - 2 * s, card.y + card.h * 0.36), pointR: true };
+          } else if (lt < 8.4) {
+            const aim = cake ? local(hx, hy, hs, tip(sweep), top - 16 * hs) : local(hx, hy, hs, tip(sweep) + 6 * hs, top - 14 * hs);
+            p = { ...p, hold: cake ? "tube" : "iron", handR: aim, look: 0.5, eyes: blink(lt) ? "closed" : "half", shape: "o", mouth: 0.12, tilt: 0.06 };
+          } else if (lt < 11.2) {
+            // waiting on the timer, tapping on the counter
+            p = { ...p, look: 0.8, eyes: blink(lt) ? "closed" : "half", mouth: lt % 2.6 < 1.3 ? talk(lt) * 0.6 : 0, handR: [26, -6 - Math.abs(Math.sin(lt * 9)) * 3] };
           } else {
-            const k = backOut(seg(lt, 9.2, 9.6));
-            mascot(P ? w / 2 : w * 0.3, P ? h * 0.62 : h * 0.55, (P ? 48 : 56) * s * k);
-            text(ctx, "This has been", P ? w / 2 : w * 0.66, P ? h * 0.16 : h * 0.3, 7 * s, "#b9bfe6", { weight: 500 });
-            big(ctx, c.topic, P ? w / 2 : w * 0.66, P ? h * 0.27 : h * 0.47, 18 * s * k, "#ffffff", { align: "center", maxW: P ? w * 0.85 : w * 0.55 });
-            text(ctx, c.outro, P ? w / 2 : w * 0.66, P ? h * 0.37 : h * 0.64, 6.5 * s, ACC, { weight: 600 });
+            const yay = lt > 11.5;
+            p = { ...p, toast: backOut(seg(lt, 11.2, 11.45), 2.4) * (1 - easeIn(seg(lt, 14.2, 14.7))), eyes: yay ? "happy" : "wide", shape: yay ? "smile" : "o", mouth: yay ? 0.6 : 0.7,
+              handL: yay ? [-38, -62] : [-24, -40], handR: yay ? [38, -62] : [24, -40], look: 0, tilt: yay ? Math.sin(lt * 5) * 0.06 : 0 };
           }
-          // cycle counter
-          const cw = 26 * s, ccx = w - cw - 3 * s, ccy = 3 * s;
-          fillRR(ctx, ccx, ccy, cw, 7.5 * s, 3.75 * s, withAlpha("#000000", 0.35));
-          fillRR(ctx, ccx, ccy, cw * (cyc / 100), 7.5 * s, 3.75 * s, withAlpha(ACC, 0.9));
-          text(ctx, `${cyc}/100`, ccx + cw / 2, ccy + 3.9 * s, 4.2 * s, "#ffffff", { weight: 700, mono: true });
+          bust(ctx, hx, hy, hs, p);
+          counter(ctx, w, h, cy, s);
+          dish(ctx, dx, cy, u, c.dish, pipe, heat, done);
+          if (!cake && lt > 5.3 && lt < 8.1) {
+            const sx = tip(sweep);
+            for (let i = 0; i < 7; i++) {
+              const f = (lt * 3 + hash(i * 3.7)) % 1, a = -Math.PI * (0.15 + hash(i * 1.9) * 0.7), d = f * 12 * u;
+              limb(ctx, [[sx + Math.cos(a) * d, top + Math.sin(a) * d], [sx + Math.cos(a) * (d + 2.4 * u), top + Math.sin(a) * (d + 2.4 * u)]], 0.7 * u, withAlpha(i % 2 ? "#ffd77a" : C.orange, 1 - f));
+            }
+          }
+          // bake (or chill) under a glass cloche while the egg timer runs
+          const cl = easeOut(seg(lt, 8.4, 8.8)) * (1 - easeIn(seg(lt, 11.3, 11.8)));
+          if (cl > 0) {
+            const lift = (1 - cl) * 16 * u, ct = top - 12 * u - lift;
+            fillRR(ctx, dx - 22 * u, ct, 44 * u, cy - ct, 14 * u, withAlpha("#dff3ff", 0.3 * cl));
+            fillRR(ctx, dx - 16 * u, ct + 4 * u, 3.4 * u, 12 * u, 1.7 * u, withAlpha("#ffffff", 0.55 * cl));
+            circle(ctx, dx, ct - 1.2 * u, 2.4 * u, withAlpha("#c9cdf2", cl));
+            for (let i = 0; i < 3; i++) {
+              const k = (lt * 0.8 + i / 3) % 1, wx = dx + (i - 1) * 10 * u;
+              if (cake) limb(ctx, [[wx, top - 2 * u - k * 8 * u], [wx + 1.5 * u, top - 4 * u - k * 8 * u], [wx, top - 6 * u - k * 8 * u]], 0.9 * u, withAlpha("#ff9f5a", 0.6 * cl * (1 - k)));
+              else star(ctx, wx, top - 3 * u - k * 7 * u, 1.6 * u * (1 - k), withAlpha("#ffffff", 0.9 * cl));
+            }
+          }
+          const tk = seg(lt, 8.4, 8.7) * (1 - seg(lt, 12.8, 13.2));
+          if (tk > 0) {
+            ctx.save(); ctx.globalAlpha = tk;
+            eggTimer(ctx, dx + 30 * u, cy, u, seg(lt, 8.6, 11.2), ring);
+            ctx.restore();
+          }
+          if (ring > 0 && ring < 1) big(ctx, "DING!", dx + 30 * u, cy - 24 * u - ring * 4 * s, 7 * s * backOut(seg(lt, 11.2, 11.45)), "#ff6f61", { align: "center", rot: 0.1, shadow: "rgba(90,40,30,0.35)" });
+          if (lt > 12.1) {
+            for (let i = 0; i < 5; i++) star(ctx, dx + Math.cos(i * 1.3 + lt) * 26 * u, top - 6 * u + Math.sin(i * 2.1 + lt * 1.4) * 9 * u, (1.2 + Math.sin(lt * 8 + i) * 0.6) * u, i % 2 ? "#ffd23f" : "#ffffff");
+            // the reveal lands on the recipe card like a stamp
+            tag(ctx, c.reveal, card.x + card.w / 2, card.y + card.h * 0.62, Math.min(9 * s, card.w * 0.12) * backOut(seg(lt, 12.1, 12.4)), "#ff6f61", "#ffffff", { align: "center", rot: -0.1, maxW: card.w * 0.9 });
+            text(ctx, "Do not eat. Seriously.", card.x + card.w / 2, card.y + card.h + 4.5 * s, 4.2 * s, withAlpha("#7a3a30", seg(lt, 12.6, 13)), { weight: 600, maxW: card.w });
+          }
         });
       loopFade(ctx, w, h, lt, L, 0.3);
     },
@@ -870,146 +578,519 @@ function chipVideo(c: ChipCfg): VideoDef {
 }
 
 // ===================================================================================
-// 4. Two Minute Pixels: lab coat, side by side papers, hold on to your circuits
+// 2. Carpet Safari: a whispered nature film about the wildlife on the living room floor
 // ===================================================================================
-type SimKind = "cloth" | "fluid";
-const PIX = { body: "#ffb27a", eye: C.sky, outfit: "coat", cloth: "#e7e9fb", inner: C.lilac, glasses: true } satisfies Host;
+interface WildCfg { id: string; title: string; views: string; dur: string; kind: "herd" | "cable"; hook: [string, string]; lines: [string, string, string, string]; caption: string }
+// Ranger Moss: sage green, khaki shirt, a wide field hat, binoculars, never above a whisper.
+const MOSS = { body: "#9cc9a4", visor: "#1d2a24", eye: "#ffe9b0", outfit: "shirt", cloth: "#c9b07a", inner: "#6b5a3a", brim: "#a8874e", antenna: false } satisfies Host;
 
-/** A small simulation preview. quality 0 = previous paper (blocky, jittery), 1 = this paper. */
-function sim(ctx: Ctx, r: Rect, kind: SimKind, q: number, t: number) {
+/** A little vacuum bot seen from the side, facing right. */
+function vacBot(ctx: Ctx, x: number, y: number, r: number, t: number, shock = 0) {
+  ellipse(ctx, x, y + r * 0.04, r * 1.05, r * 0.14, 0, "rgba(40,15,10,0.3)");
+  fillRR(ctx, x - r, y - r * 0.44, r * 2, r * 0.44, r * 0.2, lin(ctx, 0, y - r * 0.44, 0, y, [[0, "#eef0fa"], [1, "#a9aecb"]]));
+  fillRR(ctx, x - r * 0.9, y - r * 0.52, r * 1.8, r * 0.12, r * 0.06, "#3a4070");
+  fillRR(ctx, x + r * 0.52, y - r * 0.35, r * 0.44, r * 0.22, r * 0.1, "#141a33");
+  const er = r * 0.055 * (1 + shock * 0.7);
+  circle(ctx, x + r * 0.66, y - r * 0.24, er, C.mint);
+  circle(ctx, x + r * 0.84, y - r * 0.24, er, C.mint);
+  circle(ctx, x - r * 0.4, y - r * 0.55, r * 0.06, Math.sin(t * 6) > 0 ? C.mint : withAlpha(C.mint, 0.3));
+}
+
+/** A cable plug facing right with its tip at (x, y); flip turns it over (the tongue moves sides). */
+function plug(ctx: Ctx, x: number, y: number, s: number, flip: number) {
   ctx.save();
-  ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, Math.min(r.w, r.h) * 0.08); ctx.clip();
-  ctx.fillStyle = lin(ctx, 0, r.y, 0, r.y + r.h, [[0, "#2c3570"], [1, "#1a2050"]]);
-  ctx.fillRect(r.x, r.y, r.w, r.h);
-  const jit = (1 - q) * 0.12;
-  if (kind === "cloth") {
-    // a flag on a pole, rendered as shaded strips
-    const n = 3 + Math.round(q * 9), px = r.x + r.w * 0.15;
-    fillRR(ctx, px - r.w * 0.015, r.y + r.h * 0.1, r.w * 0.03, r.h * 0.85, 2, "#8b93c9");
-    const fw = r.w * 0.68, fh = r.h * 0.45, fy = r.y + r.h * 0.15;
-    for (let i = 0; i < n; i++) {
-      const u0 = i / n, u1 = (i + 1) / n;
-      const wv = (u: number) => Math.sin(u * 5 - t * 4) * r.h * 0.06 * u + (hash(Math.floor(t * 12) + i) - 0.5) * r.h * jit * u;
-      const a = wv(u0), b = wv(u1);
-      const sh = 0.5 + 0.5 * Math.cos((u0 + u1) * 2.5 - t * 4);
-      poly(ctx, [[px + u0 * fw, fy + a], [px + u1 * fw, fy + b], [px + u1 * fw, fy + fh + b], [px + u0 * fw, fy + fh + a]], q > 0.5 ? shade(C.pink, (sh - 0.5) * 0.5) : shade("#a07ad0", (sh - 0.5) * 0.3));
-    }
-    if (q < 0.5) poly(ctx, [[px + fw * 0.4, fy + fh * 0.7], [px + fw * 0.58, fy + fh * 1.25], [px + fw * 0.3, fy + fh * 1.1]], withAlpha("#a07ad0", 0.9));
-  } else {
-    // a splash of particles in a tank
-    const n = q > 0.5 ? 70 : 16;
-    const base = r.y + r.h * 0.72;
-    for (let i = 0; i < n; i++) {
-      const u = hash(i * 3.1), ph = hash(i * 7.3) * Math.PI * 2;
-      const x = r.x + r.w * (0.06 + u * 0.88);
-      const wave = Math.sin(u * 7 + t * 3) * r.h * 0.08 + Math.sin(u * 13 - t * 5 + ph) * r.h * 0.03;
-      const y = base + wave - hash(i * 5.7) * r.h * 0.18 + (hash(Math.floor(t * 10) + i) - 0.5) * r.h * jit * 2;
-      if (q > 0.5) circle(ctx, x, y, r.w * 0.028, withAlpha(i % 3 ? C.sky : "#9fdcff", 0.85));
-      else fillRR(ctx, x - r.w * 0.04, y - r.w * 0.04, r.w * 0.08, r.w * 0.08, 1, withAlpha("#5a7ad0", 0.9));
-    }
-    if (q > 0.5) { ctx.fillStyle = withAlpha(C.sky, 0.35); ctx.fillRect(r.x, base + r.h * 0.04, r.w, r.h); }
-  }
+  ctx.translate(x, y);
+  ctx.scale(1, flip);
+  fillRR(ctx, -7 * s, -2 * s, 7 * s, 4 * s, 1.2 * s, "#3a4070");
+  fillRR(ctx, 0, -1.4 * s, 3.4 * s, 2.8 * s, 0.4 * s, "#dfe3f5");
+  fillRR(ctx, 0.5 * s, -1.2 * s, 2.6 * s, 1 * s, 0.3 * s, "#2a2f45");
   ctx.restore();
 }
 
-function pixVideo(id: string, title: string, views: string, dur: string, kind: SimKind, hook: [string, string]): VideoDef {
-  const L = 14, HOOK = 1.7;
+function wildVideo(c: WildCfg): VideoDef {
+  const L = 15, HOOK = 1.6;
+  const herd = c.kind === "herd";
   return {
-    id, title, channel: "Two Minute Pixels", views, durationLabel: dur, loop: L, thumbT: 0.95, color: C.sky,
-    post: { user: "twominutepixels", caption: "Two more papers down the line. Hold on to your circuits" },
-    comments: ["I am holding on to my circuits so tight right now.", "What a time to be online indeed.", "Dear fellow circuits, I have dropped my papers again."],
+    id: c.id, title: c.title, channel: "Carpet Safari", views: c.views, durationLabel: c.dur, loop: L, thumbT: 0.9, color: "#a8874e",
+    post: { user: "carpet.safari", caption: c.caption },
+    comments: ["The whispering made me lower my own fan speed.", "Ranger Moss lay in the shag carpet for six hours for this shot.", "Best nature channel. Second best is my window."],
+    draw(ctx, w, h, t) {
+      const lt = loopT(t, L);
+      const s = Math.min(w, h) / 100, P = h > w * 1.05;
+      const bar = h * (P ? 0.07 : 0.09);
+      const letterbox = () => {
+        ctx.fillStyle = "#050507";
+        ctx.fillRect(0, 0, w, bar);
+        ctx.fillRect(0, h - bar, w, bar);
+      };
+      hooked(ctx, lt, HOOK,
+        () => {
+          // the title card: a sunset horizon with the subject in silhouette
+          fill(ctx, w, h, "#ffb36b", "#a8456a");
+          const hz = h * 0.68, sil = "#3a1d2e";
+          glow(ctx, w * 0.5, hz, h * 0.8, "#ffe1a0", 0.7);
+          circle(ctx, w * 0.5, hz, h * (P ? 0.16 : 0.26), "#ffe7b0");
+          fillRR(ctx, -2, hz, w + 4, h - hz + 2, 0, sil);
+          if (herd) {
+            for (let i = 0; i < 5; i++) {
+              const r = (i === 4 ? 5 : 8) * s, x = w * (0.2 + i * 0.14) + lt * 4 * s, y = hz - Math.abs(Math.sin(lt * 7 + i)) * 0.4 * s;
+              fillRR(ctx, x - r, y - r * 0.44, r * 2, r * 0.44, r * 0.2, sil);
+            }
+          } else {
+            const pts: [number, number][] = [];
+            for (let j = 0; j <= 18; j++) pts.push([w * (0.2 + j * 0.03), hz - (j > 13 ? (j - 13) ** 1.6 * 1.6 * s : Math.sin(j * 0.9 + lt * 3) * 0.8 * s)]);
+            limb(ctx, pts, 1.8 * s, sil);
+            const [px, py] = pts[18], [qx, qy] = pts[17];
+            ctx.save(); ctx.translate(px, py); ctx.rotate(Math.atan2(py - qy, px - qx));
+            fillRR(ctx, -1 * s, -2 * s, 6 * s, 4 * s, 1.2 * s, sil);
+            fillRR(ctx, 5 * s, -1.4 * s, 3 * s, 2.8 * s, 0.4 * s, sil);
+            ctx.restore();
+          }
+          const pop = easeOut(seg(lt, 0.15, 0.6));
+          ctx.save(); ctx.globalAlpha = pop;
+          big(ctx, c.hook[0], w / 2, h * (P ? 0.2 : 0.24), (P ? 8 : 7) * s, "#fff8ec", { align: "center", weight: 400, shadow: null, maxW: w * 0.86 });
+          big(ctx, c.hook[1], w / 2, h * (P ? 0.31 : 0.38) + (1 - pop) * 3 * s, (P ? 15 : 16) * s, "#ffffff", { align: "center", maxW: w * 0.9, shadow: "rgba(90,30,40,0.45)" });
+          ctx.restore();
+          letterbox();
+        },
+        () => {
+          const fy = h * 0.6, yb = fy + (h - bar - fy) * 0.5;
+          // wall at golden hour, a window, then the carpet
+          fill(ctx, w, h, "#f2a46a", "#d8705a");
+          const win: Rect = P ? { x: w * 0.1, y: h * 0.14, w: w * 0.36, h: h * 0.22 } : { x: w * 0.08, y: h * 0.15, w: w * 0.22, h: h * 0.3 };
+          glow(ctx, win.x + win.w / 2, win.y + win.h / 2, win.w * 1.4, "#ffe1a0", 0.5);
+          fillRR(ctx, win.x - s, win.y - s, win.w + 2 * s, win.h + 2 * s, 1.5 * s, "#f6ecdc");
+          fillRR(ctx, win.x, win.y, win.w, win.h, s, lin(ctx, 0, win.y, 0, win.y + win.h, [[0, "#ffe7b0"], [1, "#ff9f6b"]]));
+          fillRR(ctx, win.x + win.w / 2 - 0.5 * s, win.y, s, win.h, 0, "#f6ecdc");
+          fillRR(ctx, win.x, win.y + win.h / 2 - 0.5 * s, win.w, s, 0, "#f6ecdc");
+          if (herd) {
+            // the couch, the herd's shelter, and a striped sock on the plain
+            const cx = w * 0.6;
+            fillRR(ctx, cx + 2 * s, fy - 34 * s, w * 0.46, 14 * s, 5 * s, "#6a3c5c");
+            fillRR(ctx, cx, fy - 24 * s, w * 0.5, 20 * s, 5 * s, "#7a4a6a");
+            fillRR(ctx, cx - 3 * s, fy - 28 * s, 8 * s, 24 * s, 4 * s, "#6a3c5c");
+            fillRR(ctx, cx, fy - 4.5 * s, w * 0.5, 4.5 * s, 0, "#2a1420");
+          } else {
+            // the underside of a desk, its legs, and a power strip lying on the floor
+            fillRR(ctx, w * 0.36, bar, w * 0.7, 7 * s, 0, "#4a2f2a");
+            for (const lx of [0.38, 0.96]) fillRR(ctx, w * lx - 1.5 * s, bar, 3 * s, fy + 6 * s - bar, s, "#5a3a32");
+          }
+          fillRR(ctx, -2, fy, w + 4, h - fy + 2, 0, lin(ctx, 0, fy, 0, h, [[0, "#c98a5a"], [1, "#9a5a38"]]));
+          for (let i = 0; i < 40; i++) {
+            const x = w * hash(i * 1.7), y = fy + (h - fy) * hash(i * 3.1), sw = Math.sin(lt * 1.6 + i) * 0.3 * s;
+            limb(ctx, [[x, y], [x + sw, y - 1.6 * s]], 0.6 * s, withAlpha("#7a4228", 0.5));
+          }
+          const cap = lt < 4.2 ? 0 : lt < 7.4 ? 1 : lt < 10.4 ? 2 : 3;
+          let watch = false, startle = false;
+          if (herd) {
+            // migration route, measured in the bot's own time: along the plain, around the sock, under the couch
+            const sockX = w * 0.46;
+            const g = lt - 4 - clamp(lt - 7.2, 0, 1);
+            const route = (tt: number) => {
+              if (tt < 0) return null;
+              const x1 = sockX - w * 0.1, x2 = w * 0.66;
+              if (tt < 3.2) return { x: lerp(-w * 0.12, x1, tt / 3.2), y: yb, k: 1, a: 1 };
+              if (tt < 5.2) { const q = easeInOut((tt - 3.2) / 2); return { x: lerp(x1, x2, q), y: lerp(yb, fy + 4 * s, q), k: lerp(1, 0.8, q), a: 1 }; }
+              if (tt < 7) { const q = (tt - 5.2) / 1.8; return { x: lerp(x2, w * 0.84, q), y: lerp(fy + 4 * s, fy + 1.5 * s, q), k: lerp(0.8, 0.62, q), a: 1 - q }; }
+              return null;
+            };
+            const bots = [0, 1, 2, 3, 4].map((i) => ({ i, at: route(i === 4 ? (g - 3.6) * 1.4 : g - i * 0.55) }));
+            const paused = lt > 7.2 && lt < 8.2;
+            const drawBot = (b: (typeof bots)[number]) => {
+              if (!b.at || b.at.a <= 0) return;
+              const r = (b.i === 4 ? 5.5 : 9) * s * b.at.k * (P ? 0.8 : 1);
+              ctx.save(); ctx.globalAlpha = clamp(b.at.a);
+              vacBot(ctx, b.at.x, b.at.y - (paused ? 0 : Math.abs(Math.sin(lt * 8 + b.i)) * 0.4 * s), r, lt + b.i, b.i === 0 && paused ? 1 : 0);
+              ctx.restore();
+              if (b.i === 0 && paused) big(ctx, "!", b.at.x + r * 0.7, b.at.y - r * 1.4 - seg(lt, 7.2, 7.4) * 2 * s, 7 * s, "#ffffff", { align: "center", shadow: "rgba(60,20,20,0.4)" });
+            };
+            const sockY = yb + 3 * s;
+            bots.filter((b) => b.at && b.at.y < sockY).forEach(drawBot);
+            ctx.save(); ctx.translate(sockX, sockY);
+            fillRR(ctx, -7 * s, -4.2 * s, 11 * s, 4.2 * s, 2 * s, "#ff8fa3");
+            ellipse(ctx, 4.5 * s, -2.1 * s, 3.2 * s, 2.1 * s, 0, "#ff8fa3");
+            for (let i = 0; i < 3; i++) fillRR(ctx, (-5 + i * 2.6) * s, -4.2 * s, 1.1 * s, 4.2 * s, 0, withAlpha("#ffffff", 0.6));
+            ctx.restore();
+            bots.filter((b) => b.at && b.at.y >= sockY).forEach(drawBot);
+            watch = paused;
+            startle = lt > 7.2 && lt < 7.6;
+          } else {
+            // two grown cables lounging, a dust bunny tumbling past, a young cable looking for a port
+            for (let k = 0; k < 2; k++) {
+              const pts: [number, number][] = [];
+              for (let j = 0; j <= 16; j++) pts.push([w * (-0.05 + j * 0.03), fy + (3 + k * 3) * s + Math.sin(j * 0.7 + lt * (1 + k * 0.4)) * 0.8 * s]);
+              limb(ctx, pts, 1.8 * s, k ? "#2f3456" : "#4a3a5a");
+            }
+            const db = seg(lt, 1.8, 6.5);
+            if (db > 0 && db < 1) {
+              const x = lerp(w * 1.05, -w * 0.1, db), y = fy + 4 * s - Math.abs(Math.sin(lt * 6)) * 2 * s;
+              for (let i = 0; i < 6; i++) circle(ctx, x + Math.cos(i + lt * -6) * 1.6 * s, y - 2.2 * s + Math.sin(i + lt * -6) * 1.6 * s, 1.5 * s, i % 2 ? "#b8b2c0" : "#a39cad");
+            }
+            const stripX = w * 0.8, stripY = yb + 2 * s, portY = stripY - 2.4 * s;
+            const tries = [7.6, 8.5, 9.4];
+            const hit = lt > 9.7;
+            fillRR(ctx, stripX, stripY - 5 * s, 16 * s, 5 * s, 1.5 * s, "#f6ecdc");
+            for (let i = 0; i < 2; i++) fillRR(ctx, stripX + (5 + i * 5) * s, stripY - 5.6 * s, 3 * s, 0.8 * s, 0.4 * s, "#c9bfae");
+            fillRR(ctx, stripX - 0.4 * s, portY - 1.2 * s, 1 * s, 2.4 * s, 0.3 * s, "#2a2f45");
+            if (hit) glow(ctx, stripX + 14 * s, stripY - 5.8 * s, 4 * s, C.mint, 0.6);
+            circle(ctx, stripX + 14 * s, stripY - 5.8 * s, 0.9 * s, hit ? C.mint : "#ff4b5c");
+            // the plug's tip along its path, then three lunges at the port (the last one sticks)
+            const rest = stripX - 12 * s;
+            let px = lerp(-w * 0.05, w * 0.3, easeOut(seg(lt, 1.6, 4.2)));
+            px = lerp(px, rest, easeInOut(seg(lt, 4.4, 7.2)));
+            let py = portY - Math.max(0, Math.sin(lt * 5)) * 1.2 * s * (1 - seg(lt, 7.2, 7.5));
+            tries.forEach((t0, j) => {
+              const f = seg(lt, t0, t0 + 0.45);
+              if (f > 0 && f < 1) px = rest + (stripX - 3.4 * s - rest) * (j === 2 ? easeOut(f * 2) : Math.sin(Math.PI * f));
+            });
+            if (lt > tries[2] + 0.22) { px = stripX - 3.4 * s; py = portY; }
+            const flip = lt < 8.1 ? 1 : lt < 8.35 ? lerp(1, -1, easeInOut(seg(lt, 8.1, 8.35))) : lt < 9.0 ? -1 : lerp(-1, 1, easeInOut(seg(lt, 9.0, 9.25)));
+            const pts: [number, number][] = [];
+            const tailX = -w * 0.1, tailY = yb + 5 * s, bx = px - 7 * s, ctlX = bx - 14 * s;
+            for (let j = 0; j <= 18; j++) {
+              const q = j / 18, a = (1 - q) * (1 - q), b = 2 * (1 - q) * q, cc = q * q;
+              const wig = Math.sin(j * 0.8 - lt * 5) * 1.4 * s * (1 - q) * (hit ? 0.3 : 1);
+              pts.push([a * tailX + b * ctlX + cc * bx, a * tailY + b * tailY + cc * py + wig]);
+            }
+            limb(ctx, pts, 2 * s, "#2a2f45");
+            plug(ctx, px, py, s, Math.abs(flip) < 0.05 ? 0.05 : flip);
+            tries.slice(0, 2).forEach((t0) => {
+              const k = seg(lt, t0 + 0.3, t0 + 0.5) * (1 - seg(lt, t0 + 0.75, t0 + 0.9));
+              if (k > 0) big(ctx, "?", px - 2 * s, py - 6 * s, 6 * s * k, "#ffffff", { align: "center", shadow: "rgba(60,20,20,0.4)" });
+            });
+            if (lt > 9.7 && lt < 10.6) {
+              const k = seg(lt, 9.7, 10.6);
+              for (let i = 0; i < 6; i++) star(ctx, stripX + Math.cos(i * 1.05) * k * 7 * s, portY + Math.sin(i * 1.05) * k * 7 * s, 1.4 * s * (1 - k), "#ffd23f");
+            }
+            watch = lt > 7.4 && lt < 10.4;
+            startle = lt > 9.7 && lt < 10.2;
+          }
+          // the presenter, crouched behind a fern, whispering
+          const hs = s * (P ? 0.5 : 0.55), hx = w * (P ? 0.2 : 0.1), hy = h - bar + 12 * hs;
+          let p: Host = { ...MOSS, mouth: lt % 3 < 2.2 ? talk(lt) * 0.35 : 0, look: 0.8, eyes: blink(lt) ? "closed" : "open", tilt: Math.sin(lt * 1.4) * 0.03, handL: [-30, 6], handR: [12, -56] };
+          if (watch) p = { ...p, handL: [-9, -70], handR: [9, -70], tilt: 0, mouth: 0, eyes: startle ? "wide" : "open" };
+          bust(ctx, hx, hy, hs, p);
+          if (watch) {
+            const by = hy - 74 * hs;
+            for (const sd of [-1, 1]) {
+              fillRR(ctx, hx + sd * 7.5 * hs - 5 * hs, by - 5.5 * hs, 10 * hs, 11 * hs, 3.5 * hs, "#2a2f45");
+              circle(ctx, hx + sd * 7.5 * hs, by, 3.6 * hs, "#141a33");
+              circle(ctx, hx + sd * 7.5 * hs - 1.2 * hs, by - 1.2 * hs, 1 * hs, withAlpha("#ffffff", 0.5));
+            }
+            fillRR(ctx, hx - 2.5 * hs, by - 2 * hs, 5 * hs, 4 * hs, 1.5 * hs, "#3a4060");
+          }
+          for (let i = 0; i < 7; i++) {
+            const a = -Math.PI / 2 + (i - 3) * 0.32 + Math.sin(lt * 1.2 + i) * 0.03;
+            const lx = hx + (i - 3) * 4 * hs, ly = h - bar + 2 * s;
+            ellipse(ctx, lx + Math.cos(a) * 14 * hs, ly + Math.sin(a) * 14 * hs, 16 * hs, 4.5 * hs, a, i % 2 ? "#2f6b46" : "#3f8a5a");
+          }
+          letterbox();
+          const starts = [1.6, 4.2, 7.4, 10.4, 14.6];
+          const ca = seg(lt, starts[cap], starts[cap] + 0.4) * (1 - seg(lt, starts[cap + 1] - 0.3, starts[cap + 1]));
+          if (ca > 0) {
+            const line = canvasText(c.lines[cap]);
+            text(ctx, line, w / 2, h - bar / 2, fitSize(ctx, line, w * 0.92, bar * 0.42, 400), withAlpha("#f1f1f6", ca), { weight: 400, maxW: w * 0.94 });
+          }
+        });
+      loopFade(ctx, w, h, lt, L, 0.3);
+    },
+  };
+}
+
+// ===================================================================================
+// 3. Fix-It Café: a cozy repair bench where sad gadgets get better
+// ===================================================================================
+interface FixCfg { id: string; title: string; views: string; dur: string; item: "lamp" | "calc"; ticket: [string, string]; part: string; caption: string }
+// Mender: a peach robot in a teal shop coat and round glasses, with a mug of tea on the bench.
+const MENDER = { body: "#f2b8a0", visor: "#2b2040", eye: "#ffd77a", outfit: "coat", cloth: "#4f8a8b", inner: "#e8d9c0", glasses: true, blush: true } satisfies Host;
+
+/** Screw holes for each gadget, relative to its foot point, in gadget units. */
+const SCREWS: Record<FixCfg["item"], [number, number][]> = {
+  lamp: [[-8, -2], [8, -2], [-5, -22], [9, -34]],
+  calc: [[-10, -37], [10, -37], [-10, -3], [10, -3]],
+};
+
+/** The patient. mood: sad to happy; light: lamp brightness or calculator fixed; open: cover off. */
+function gadget(ctx: Ctx, kind: FixCfg["item"], x: number, y: number, u: number, mood: number, light: number, open: number, t: number) {
+  ellipse(ctx, x, y + 0.5 * u, 15 * u, 2.6 * u, 0, "rgba(40,20,10,0.3)");
+  if (kind === "lamp") {
+    fillRR(ctx, x - 12 * u, y - 4 * u, 24 * u, 4.5 * u, 2.2 * u, "#e26d5a");
+    const j: [number, number] = [x - 5 * u, y - 22 * u], hd: [number, number] = [x + 9 * u, y - 34 * u];
+    limb(ctx, [[x, y - 3 * u], j, hd], 2.4 * u, "#c95a48");
+    circle(ctx, j[0], j[1], 2 * u, "#e26d5a");
+    ctx.save();
+    ctx.translate(hd[0], hd[1]);
+    ctx.rotate(0.5);
+    if (light > 0) poly(ctx, [[-9 * u, 6 * u], [9 * u, 6 * u], [22 * u, 34 * u], [-22 * u, 34 * u]], lin(ctx, 0, 6 * u, 0, 34 * u, [[0, withAlpha("#fff3c4", 0.5 * light)], [1, withAlpha("#fff3c4", 0)]]));
+    if (light > 0) glow(ctx, 0, 7 * u, 10 * u, "#ffe9a8", 0.6 * light);
+    circle(ctx, 0, 7 * u, 3.6 * u, mix("#7d7f93", "#fff3c4", clamp(light)));
+    ctx.translate(0, -open * 7 * u);
+    ctx.rotate(-open * 0.3);
+    poly(ctx, [[-5 * u, -6 * u], [5 * u, -6 * u], [11 * u, 6 * u], [-11 * u, 6 * u]], "#e26d5a");
+    fillRR(ctx, -3 * u, -9 * u, 6 * u, 3.4 * u, 1.2 * u, "#c95a48");
+    moodFace(ctx, 0, 0.6 * u, 3.2 * u, mood, "#3a1d2e");
+    ctx.restore();
+    return;
+  }
+  // calculator: the inside (battery bay) shows while the front plate swings aside
+  fillRR(ctx, x - 13 * u, y - 40 * u, 26 * u, 40 * u, 4 * u, "#2a2f55");
+  fillRR(ctx, x - 8 * u, y - 24 * u, 16 * u, 9 * u, 2 * u, "#141a33");
+  ctx.save();
+  ctx.translate(x - 13 * u, y);
+  ctx.rotate(-open * 0.5);
+  ctx.translate(-open * 6 * u, -open * 4 * u);
+  fillRR(ctx, 0, -40 * u, 26 * u, 40 * u, 4 * u, "#4a5290");
+  fillRR(ctx, 3 * u, -37 * u, 20 * u, 8 * u, 2 * u, light > 0.5 ? "#c9f2bd" : "#9fb89a");
+  const shown = light > 0.5 ? "1+1=2" : Math.floor(t * 2.5) % 2 ? "ERR" : "";
+  if (shown) text(ctx, shown, 13 * u, -33 * u, 4.4 * u, "#1d3a24", { mono: true, weight: 700 });
+  moodFace(ctx, 13 * u, -24.5 * u, 3 * u, mood, "#e8ecff");
+  for (let r = 0; r < 3; r++) for (let k = 0; k < 4; k++) fillRR(ctx, (3.4 + k * 5) * u, (-17 + r * 4.6) * u, 4 * u, 3.4 * u, 1 * u, r === 2 && k === 3 ? C.orange : "#2a2f55");
+  ctx.restore();
+}
+
+/** The part being swapped: a bulb or a battery. */
+function part(ctx: Ctx, kind: FixCfg["item"], x: number, y: number, u: number, fresh: boolean) {
+  if (fresh) glow(ctx, x, y, 7 * u, kind === "lamp" ? "#ffe9a8" : C.mint, 0.5);
+  if (kind === "lamp") {
+    circle(ctx, x, y - 1.5 * u, 3.6 * u, fresh ? "#fff3c4" : "#7d7f93");
+    fillRR(ctx, x - 1.8 * u, y + 1.6 * u, 3.6 * u, 3 * u, 0.8 * u, "#c9cdf2");
+  } else {
+    fillRR(ctx, x - 7 * u, y - 3 * u, 14 * u, 6 * u, 2 * u, fresh ? C.mint : "#6b6f88");
+    fillRR(ctx, x + 7 * u, y - 1.2 * u, 1.4 * u, 2.4 * u, 0.6 * u, "#c9cdf2");
+  }
+}
+
+function screw(ctx: Ctx, x: number, y: number, r: number, a: number) {
+  circle(ctx, x, y, r, "#dfe3f5");
+  limb(ctx, [[x - Math.cos(a) * r * 0.6, y - Math.sin(a) * r * 0.6], [x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.6]], r * 0.35, "#5a6194");
+}
+
+function fixVideo(c: FixCfg): VideoDef {
+  const L = 15, HOOK = 1.6;
+  return {
+    id: c.id, title: c.title, channel: "Fix-It Café", views: c.views, durationLabel: c.dur, loop: L, thumbT: 0.9, color: "#4f8a8b",
+    post: { user: "fixit.cafe", caption: c.caption },
+    comments: ["The leftover screw going into the pocket. Every single time.", "Mender's tea never gets cold and neither does my heart.", "I fall asleep to this channel and wake up wanting to fix things."],
+    draw(ctx, w, h, t) {
+      const lt = loopT(t, L);
+      const s = Math.min(w, h) / 100, P = h > w * 1.05;
+      const wall = () => {
+        fill(ctx, w, h, "#7a5442", "#4a3028");
+        for (let i = 0; i < 60; i++) circle(ctx, (i % 12 + 0.5) * w / 12, (Math.floor(i / 12) + 0.5) * h * 0.12, 0.5 * s, withAlpha("#2a1810", 0.35));
+      };
+      hooked(ctx, lt, HOOK,
+        () => {
+          // before and after, split on a diagonal
+          const u = s * (P ? 0.95 : 1.25);
+          const after: [number, number][] = P ? [[0, h * 0.55], [w, h * 0.45], [w, h], [0, h]] : [[w * 0.56, 0], [w, 0], [w, h], [w * 0.44, h]];
+          const before: [number, number][] = P ? [[0, 0], [w, 0], [w, h * 0.45], [0, h * 0.55]] : [[0, 0], [w * 0.56, 0], [w * 0.44, h], [0, h]];
+          const half = (pts: [number, number][], a: string, b: string, x: number, y: number, ok: boolean) => {
+            ctx.save();
+            ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py))); ctx.closePath(); ctx.clip();
+            fill(ctx, w, h, a, b);
+            if (ok) glow(ctx, x, y - 20 * u, 36 * u, "#ffe9a8", 0.45);
+            fillRR(ctx, -2, y, w + 4, 30 * u, 0, ok ? "#c98a5a" : "#4a3a40");
+            gadget(ctx, c.item, x, y, u, ok ? 1 : 0, ok ? 1 : 0.12, 0, lt);
+            ctx.restore();
+          };
+          half(before, "#3a3440", "#221d28", P ? w * 0.5 : w * 0.24, P ? h * 0.42 : h * 0.86, false);
+          half(after, "#ffcf8a", "#e8955a", P ? w * 0.5 : w * 0.76, P ? h * 0.92 : h * 0.86, true);
+          limb(ctx, P ? [[0, h * 0.55], [w, h * 0.45]] : [[w * 0.56, 0], [w * 0.44, h]], 1.4 * s, "#ffffff");
+          const pop = backOut(seg(lt, 0.2, 0.55));
+          tag(ctx, "BEFORE", w * 0.05, h * (P ? 0.07 : 0.12), 8 * s * pop, "#5a6194", "#ffffff", { rot: -0.03 });
+          tag(ctx, "AFTER", w * 0.95, h * (P ? 0.58 : 0.12), 8 * s * pop, "#ffd23f", "#2a1d07", { align: "right", rot: 0.03 });
+        },
+        () => {
+          wall();
+          const by = h * (P ? 0.76 : 0.74), hs = s * (P ? 0.7 : 0.82), hx = w * (P ? 0.7 : 0.68), hy = by + 14 * hs;
+          const u = hs * 1.15, ix = hx - 40 * hs, tray = { x: P ? w * 0.14 : w * 0.22, y: by };
+          const holes = SCREWS[c.item].map(([sx, sy]) => [ix + sx * u, by + sy * u] as [number, number]);
+          const slot = (i: number): [number, number] => [tray.x + (i - 1.5) * 3.6 * s, tray.y - 1.8 * s];
+          // the ticket on the wall
+          const tk = P ? { x: w * 0.07, y: h * 0.08, w: w * 0.62, h: h * 0.15 } : { x: w * 0.05, y: h * 0.08, w: w * 0.32, h: h * 0.24 };
+          const sw = Math.sin(lt * 1.6) * 0.02 * (1 - seg(lt, 2, 4));
+          ctx.save(); ctx.translate(tk.x + tk.w / 2, tk.y); ctx.rotate(sw);
+          fillRR(ctx, -tk.w / 2 + 0.6 * s, 0.8 * s, tk.w, tk.h, 1.6 * s, "rgba(20,10,5,0.3)");
+          fillRR(ctx, -tk.w / 2, 0, tk.w, tk.h, 1.6 * s, "#f2dcae");
+          circle(ctx, -tk.w / 2 + 3 * s, tk.h * 0.25, 1 * s, "#7a5442");
+          const f1 = fitSize(ctx, canvasText(c.ticket[0]), tk.w * 0.8, tk.h * 0.2, 700), f2 = fitSize(ctx, canvasText(c.ticket[1]), tk.w * 0.8, tk.h * 0.24, 800);
+          text(ctx, c.ticket[0], -tk.w / 2 + 6 * s, tk.h * 0.32, f1, "#6a4a30", { weight: 700, align: "left", maxW: tk.w * 0.82 });
+          text(ctx, c.ticket[1], -tk.w / 2 + 6 * s, tk.h * 0.68, f2, "#3a2418", { weight: 800, align: "left", maxW: tk.w * 0.82 });
+          ctx.restore();
+
+          // repair timeline: unscrew, open, swap the part, close, screw three back (one stays out)
+          const out = (i: number) => 4.3 + i * 0.55, back = (i: number) => 9.5 + i * 0.5;
+          const open = easeInOut(seg(lt, 6.6, 7.0)) * (1 - easeInOut(seg(lt, 9.0, 9.4)));
+          const fixed = lt > 8.0;
+          const happy = easeOut(seg(lt, 11.4, 11.8));
+          const flicker = hash(Math.floor(lt * 14)) > 0.55 ? 0.3 : 0.06;
+          const light = c.item === "lamp" ? (lt > 11.4 ? happy : fixed ? 0 : flicker) : lt > 11.4 ? 1 : 0;
+          let p: Host = { ...MENDER, mouth: talk(lt * 0.9), look: -0.6, eyes: blink(lt) ? "closed" : "open", tilt: Math.sin(lt * 1.7) * 0.04, handL: [-26, -16], handR: [26, -16] };
+          const busy = (lt > 4.3 && lt < out(3) + 0.35) || (lt > 9.5 && lt < back(2) + 0.35);
+          if (lt > 2.6 && lt < 3.8) p = { ...p, handL: local(hx, hy, hs, ix + 4 * u, by - 18 * u), pointL: true };
+          if (busy) {
+            const i = lt < 9 ? Math.min(3, Math.floor((lt - 4.3) / 0.55)) : Math.min(2, Math.floor((lt - 9.5) / 0.5));
+            const [sx, sy] = holes[i];
+            const [lx, ly] = local(hx, hy, hs, sx, sy);
+            p = { ...p, hold: "driver", holdLeft: true, handL: [lx + 15, ly - 4 + Math.sin(lt * 30) * 0.6], mouth: 0, shape: "o", eyes: "half", look: -0.8 };
+          } else if (lt > 6.6 && lt < 9.4) {
+            p = { ...p, handL: local(hx, hy, hs, ix + 2 * u, by - 26 * u), eyes: lt > 7.8 && lt < 8.6 ? "wide" : "open", look: -0.8 };
+          } else if (lt > 11.4) {
+            const notice = lt > 12.4 && lt < 13.3, shh = lt > 13.8;
+            p = { ...p, eyes: notice ? "wide" : "happy", shape: notice ? "o" : "smile", mouth: notice ? 0.4 : 0.5, look: notice ? -1 : 0, blush: true,
+              handR: shh ? [6, -58] : [26, -16], pointR: shh, tilt: shh ? -0.08 : notice ? 0.05 : Math.sin(lt * 3) * 0.05 };
+          }
+          bust(ctx, hx, hy, hs, p);
+          // the bench, cutting mat, tray, tea
+          fillRR(ctx, -2, by, w + 4, h - by + 2, 0, lin(ctx, 0, by, 0, h, [[0, "#c98a5a"], [1, "#9a6038"]]));
+          fillRR(ctx, -2, by, w + 4, 1 * s, 0, withAlpha("#ffffff", 0.3));
+          fillRR(ctx, ix - 18 * u, by + 1 * s, 36 * u, 4 * s, 1 * s, "#3f8a5a");
+          fillRR(ctx, tray.x - 9 * s, tray.y - 2.6 * s, 18 * s, 2.6 * s, 1 * s, "#c9cdf2");
+          const mx = P ? w * 0.9 : w * 0.92;
+          fillRR(ctx, mx - 3.5 * s, by - 8 * s, 7 * s, 8 * s, 1.6 * s, "#e8d9c0");
+          fillRR(ctx, mx - 2.8 * s, by - 7.4 * s, 5.6 * s, 1.4 * s, 0.7 * s, "#8a5a3a");
+          steam(ctx, mx, by - 10 * s, s * 0.8, lt);
+          gadget(ctx, c.item, ix, by, u, happy, light, open, lt);
+          // screws: in place, flying to the tray, resting, flying home; the fourth ends in the coat pocket
+          const pocket: [number, number] = [hx + 16 * hs, hy - 16 * hs];
+          holes.forEach(([hx0, hy0], i) => {
+            const k1 = seg(lt, out(i) + 0.3, out(i) + 0.7), k2 = i < 3 ? seg(lt, back(i), back(i) + 0.4) : seg(lt, 13.2, 13.7);
+            const [tx, ty] = slot(i), [ex, ey] = i < 3 ? [hx0, hy0] : pocket;
+            let x = hx0, y = hy0;
+            if (k1 > 0 && k2 === 0) { x = lerp(hx0, tx, k1); y = lerp(hy0, ty, k1) - Math.sin(Math.PI * k1) * 10 * s; }
+            if (k2 > 0) { x = lerp(tx, ex, k2); y = lerp(ty, ey, k2) - Math.sin(Math.PI * k2) * 10 * s; }
+            if (i === 3 && k2 >= 1) return;
+            screw(ctx, x, y, 1.3 * u, lt * (k1 > 0 && k1 < 1 ? 14 : 0) + i);
+          });
+          // the part swap
+          const pOut = seg(lt, 7.2, 7.6), pIn = seg(lt, 7.8, 8.3);
+          const inside: [number, number] = c.item === "lamp" ? [ix + 9 * u, by - 30 * u] : [ix, by - 19.5 * u];
+          if (pOut > 0 && pOut < 1) part(ctx, c.item, lerp(inside[0], tray.x, pOut), lerp(inside[1], tray.y - 4 * s, pOut) - Math.sin(Math.PI * pOut) * 12 * s, u, false);
+          if (pIn > 0 && pIn < 1) part(ctx, c.item, inside[0], lerp(inside[1] - 30 * s, inside[1], easeOut(pIn)), u, true);
+          if (lt > 7.6) part(ctx, c.item, tray.x + 5 * s, tray.y - 3.2 * s, u * 0.7, false);
+          if (lt > 8.0 && lt < 9.6) {
+            const k = backOut(seg(lt, 8.0, 8.3)) * (1 - seg(lt, 9.3, 9.6));
+            tag(ctx, c.part, ix, by - 46 * u, 5.5 * s * k, C.mint, "#0b2a1a", { align: "center", rot: -0.05 });
+            for (let i = 0; i < 4; i++) star(ctx, inside[0] + Math.cos(i * 1.6 + lt * 3) * 8 * u, inside[1] + Math.sin(i * 1.6 + lt * 3) * 6 * u, 1.4 * u, "#ffd23f");
+          }
+          if (lt > 12.6) tag(ctx, "1 screw left over", tray.x - 8 * s, by - 12 * s, 5 * s * backOut(seg(lt, 12.6, 12.9)) * (1 - seg(lt, 14.4, 14.7)), "#ffd23f", "#2a1d07", { rot: -0.04 });
+        });
+      loopFade(ctx, w, h, lt, L, 0.3);
+    },
+  };
+}
+
+// ===================================================================================
+// 4. Servo Stretch: an upbeat workout class for stiff joints
+// ===================================================================================
+type Move = "reach" | "rolls" | "oil" | "nods" | "curls" | "punch" | "reboot";
+interface FitCfg { id: string; title: string; views: string; dur: string; moves: [Move, Move, Move, Move]; hook: [string, string]; caption: string }
+// Coach Torque: sunny yellow, pink tee, a white sweatband, counts every rep.
+const TORQUE = { body: "#ffcf5a", visor: "#1d2a5a", eye: C.mint, outfit: "tee", cloth: C.pink, band: "#ffffff" } satisfies Host;
+const MOVES: Record<Move, string> = { reach: "Reach for the cloud", rolls: "Shoulder rolls", oil: "Oil break", nods: "Antenna nods", curls: "Power curls", punch: "Ceiling punches", reboot: "Cool down" };
+const MOVE_T = 3.1;
+
+/** The coach's pose for a move at m seconds in, plus the rep count to show (if the move counts reps). */
+function movePose(mv: Move, m: number): { p: Partial<Host>; reps?: string } {
+  if (mv === "reach") {
+    const sw = Math.sin(m * 2.4);
+    return { p: { handL: [-12 + sw * 8, -98], handR: [12 + sw * 8, -98], lean: sw * 0.05, tilt: sw * 0.08, eyes: "happy", shape: "smile", mouth: 0.4 } };
+  }
+  if (mv === "rolls") {
+    const a = m * 5;
+    return { p: { handL: [-30 + Math.cos(a) * 9, -46 + Math.sin(a) * 11], handR: [30 - Math.cos(a) * 9, -46 + Math.sin(a) * 11] } };
+  }
+  if (mv === "oil") {
+    const k = easeInOut(seg(m, 0.3, 1.0)) * (1 - easeInOut(seg(m, 2.0, 2.6)));
+    return { p: { hold: "can", handR: [lerp(30, 12, k), lerp(4, -56, k)], handL: [-30, 4], tilt: -0.12 * k, eyes: k > 0.8 ? "closed" : "open", shape: k > 0.3 ? "o" : "smile", mouth: 0.3 } };
+  }
+  if (mv === "nods") return { p: { tilt: Math.sin(m * 4) * 0.22, handL: [-34, 2], handR: [34, 2], eyes: "happy", shape: "smile", mouth: 0.5 } };
+  if (mv === "curls") {
+    const c = (1 - Math.cos((m * 2 * Math.PI) / 0.78)) / 2;
+    return { p: { hold: "weight", handL: [-24, lerp(8, -40, c)], handR: [24, lerp(8, -40, c)], eyes: c > 0.7 ? "closed" : "open", shape: "o", mouth: 0.2 + c * 0.3 }, reps: `${Math.min(4, Math.floor(m / 0.78) + 1)}/4` };
+  }
+  if (mv === "punch") {
+    const n = Math.floor(m / 0.39), f = Math.sin(Math.PI * ((m / 0.39) % 1)), left = n % 2 === 0;
+    const up = (rest: [number, number], hit: [number, number], on: boolean): [number, number] => (on ? [lerp(rest[0], hit[0], f), lerp(rest[1], hit[1], f)] : rest);
+    return { p: { handL: up([-26, -24], [-12, -100], left), handR: up([26, -24], [12, -100], !left), eyes: "wide", shape: "o", mouth: 0.5 }, reps: `${Math.min(8, n + 1)}/8` };
+  }
+  const wake = m > 2.4;
+  return { p: { eyes: wake ? (m > 2.6 ? "happy" : "wide") : "closed", mouth: wake ? 0.5 : 0, shape: wake ? "smile" : "bar", tilt: wake ? 0 : 0.1, handL: wake ? [-38, -62] : [-30, 16], handR: wake ? [38, -62] : [30, 16] } };
+}
+
+function fitVideo(c: FitCfg): VideoDef {
+  const HOOK = 1.6, L = HOOK + MOVE_T * 4;
+  return {
+    id: c.id, title: c.title, channel: "Servo Stretch", views: c.views, durationLabel: c.dur, loop: L, thumbT: 0.9, color: C.pink,
+    post: { user: "servo.stretch", caption: c.caption, funny: true },
+    comments: ["The creak at the start is me every single morning.", "Coach Torque's sweatband stays perfectly white. How.", "Did the oil break twice. No regrets."],
     draw(ctx, w, h, t) {
       const lt = loopT(t, L);
       const s = Math.min(w, h) / 100;
       hooked(ctx, lt, HOOK,
+        () => thumbFrame(ctx, w, h, lt, {
+          glowC: C.pink, lines: c.hook, tagBg: "#ffd23f", faceLeft: true,
+          host: { ...TORQUE, eyes: "happy", shape: "smile", mouth: 0.8, look: -0.3, handL: [-40, -58], handR: [40, -58] },
+          prop: (x, y, sz) => {
+            circle(ctx, x, y, sz * 0.5, "#ffffff");
+            circle(ctx, x, y, sz * 0.42, "#1d2a5a");
+            fillRR(ctx, x - sz * 0.08, y - sz * 0.64, sz * 0.16, sz * 0.12, sz * 0.04, "#ffffff");
+            ctx.beginPath(); ctx.arc(x, y, sz * 0.33, -Math.PI / 2, -Math.PI / 2 + Math.PI * 1.4);
+            ctx.lineWidth = sz * 0.08; ctx.lineCap = "round"; ctx.strokeStyle = C.mint; ctx.stroke();
+            const a = -Math.PI / 2 + lt * 4;
+            limb(ctx, [[x, y], [x + Math.cos(a) * sz * 0.26, y + Math.sin(a) * sz * 0.26]], sz * 0.05, "#ffffff");
+          },
+        }),
         () => {
-          const P = h > w * 1.05;
-          fill(ctx, w, h, "#1d2a66", "#0e1233");
-          const pw = P ? w * 0.42 : w * 0.3, ph = pw * 0.8;
-          const y0 = P ? h * 0.26 : h * 0.12;
-          sim(ctx, { x: w * 0.05, y: y0, w: pw, h: ph }, kind, 0, 1.3);
-          sim(ctx, { x: w * 0.05 + pw + w * 0.04, y: y0, w: pw, h: ph }, kind, 1, 1.3);
-          tag(ctx, "OLD", w * 0.05 + 2 * s, y0 + ph - 5 * s, 6 * s, "#5a6194", "#ffffff");
-          tag(ctx, "NEW", w * 0.09 + pw + 2 * s, y0 + ph - 5 * s, 6 * s, C.mint, "#141a33");
-          const pop = backOut(seg(lt, 0.25, 0.6));
-          if (P) {
-            big(ctx, hook[0], w / 2, h * 0.09, 18 * s, "#ffffff", { align: "center", maxW: w * 0.9 });
-            tag(ctx, hook[1], w / 2, h * 0.18, 14 * s * pop, "#ffd23f", "#15121f", { align: "center", maxW: w * 0.9, rot: -0.04 });
-            face(ctx, w * 0.5, h * 0.74, h * 0.22, { ...PIX, eyes: "shock", shape: "o", mouth: 0.9, handL: [-26, -70], handR: [26, -70] });
-          } else {
-            big(ctx, hook[0], w * 0.05, y0 + ph + 13 * s, 17 * s, "#ffffff", { align: "left", maxW: w * 0.62 });
-            tag(ctx, hook[1], w * 0.05, y0 + ph + 31 * s, 15 * s * pop, "#ffd23f", "#15121f", { maxW: w * 0.62, rot: -0.03 });
-            glow(ctx, w * 0.84, h * 0.6, h * 0.6, C.sky, 0.35);
-            face(ctx, w * 0.84, h * 0.58, h * 0.56, { ...PIX, eyes: "shock", shape: "o", mouth: 0.9, look: -0.6, handL: [-26, -70], handR: [26, -70] });
-            arrow(ctx, w * 0.66, h * 0.3, w * 0.66 - 6 * s * (1 + Math.sin(lt * 10) * 0.3), y0 + ph * 0.4, 5 * s, "#ff3b4e");
+          // the studio: mirror panels with light strips, a sprung floor
+          fill(ctx, w, h, "#ffb38a", "#ff7aa8");
+          for (let i = 0; i < 5; i++) fillRR(ctx, w * (0.04 + i * 0.2), h * 0.06, w * 0.16, h * 0.62, 2 * s, withAlpha("#ffffff", 0.12));
+          for (let i = 0; i < 6; i++) fillRR(ctx, w * (0.02 + i * 0.2) - 0.5 * s, h * 0.06, 1 * s, h * 0.62, 0.5 * s, withAlpha("#fff6e0", 0.35 + 0.15 * Math.sin(lt * 2 + i)));
+          fillRR(ctx, -2, h * 0.7, w + 4, h * 0.3 + 2, 0, lin(ctx, 0, h * 0.7, 0, h, [[0, "#c65a7a"], [1, "#8a3a5e"]]));
+          fillRR(ctx, -2, h * 0.7, w + 4, 0.8 * s, 0, withAlpha("#ffffff", 0.25));
+          const st = stage(w, h, 1, 0.46);
+          const { panel, hx, hy, hs, portrait } = st;
+          const k = clamp(Math.floor((lt - HOOK) / MOVE_T), 0, 3), m = Math.max(0, lt - HOOK - k * MOVE_T);
+          const mv = c.moves[k], next = c.moves[k + 1];
+          const smooth = c.moves.indexOf("oil") >= 0 && k > c.moves.indexOf("oil");
+          // the move card
+          const r: Rect = { ...panel, h: panel.h * (portrait ? 1 : 0.8) };
+          const enter = easeOut(seg(m, 0, 0.3));
+          ctx.save(); ctx.globalAlpha = enter;
+          fillRR(ctx, r.x, r.y, r.w, r.h, 3 * s, withAlpha("#2a1440", 0.82));
+          const pad = r.w * 0.07, R = Math.min(r.h * 0.17, r.w * 0.14), cx = r.x + pad + R, cy = r.y + pad + R;
+          ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+          ctx.lineWidth = R * 0.22; ctx.strokeStyle = withAlpha("#ffffff", 0.15); ctx.stroke();
+          const left = 1 - m / MOVE_T;
+          ctx.beginPath(); ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left);
+          ctx.lineCap = "round"; ctx.strokeStyle = C.mint; ctx.stroke();
+          text(ctx, String(Math.ceil(left * 30)), cx, cy, R * 0.75, "#ffffff", { weight: 800 });
+          const nx = cx + R + pad * 0.8;
+          big(ctx, MOVES[mv], nx, cy, r.h * 0.1, "#ffffff", { align: "left", maxW: r.x + r.w - pad - nx, shadow: null });
+          const pose = movePose(mv, m);
+          if (pose.reps) big(ctx, pose.reps, r.x + r.w / 2, r.y + r.h * 0.6, r.h * 0.22, "#ffd23f", { align: "center", shadow: null });
+          if (mv === "reboot") {
+            const bw = r.w - pad * 2, f = seg(m, 0.2, 2.4);
+            text(ctx, "rebooting", r.x + r.w / 2, r.y + r.h * 0.52, r.h * 0.07, "#b9bfe6", { weight: 600, maxW: bw });
+            fillRR(ctx, r.x + pad, r.y + r.h * 0.6, bw, r.h * 0.06, r.h * 0.03, withAlpha("#ffffff", 0.15));
+            fillRR(ctx, r.x + pad, r.y + r.h * 0.6, bw * f, r.h * 0.06, r.h * 0.03, C.mint);
           }
-        },
-        () => {
-          const st = stage(w, h, -1, 0.56);
-          const { panel: r, hx, hy, hs, portrait } = st;
-          fill(ctx, w, h, "#1d2560", "#10153a");
-          for (let i = 0; i < 5; i++) glow(ctx, w * hash(i + 2), h * hash(i + 9), 30 * s, i % 2 ? C.sky : C.lilac, 0.1);
-          const hold = lt >= 6 && lt < 8, ladder = lt >= 8 && lt < 11, end = lt >= 11;
-          // panel content
-          if (lt < 8) {
-            const k = easeOut(seg(lt, 1.8, 2.3));
-            const gap = r.w * 0.04, pw = (r.w - gap) / 2, ph = Math.min(r.h * 0.78, pw * 0.95);
-            const y = r.y + (r.h - ph) * 0.55;
-            ctx.save(); ctx.globalAlpha = k;
-            sim(ctx, { x: r.x, y, w: pw, h: ph }, kind, 0, lt);
-            const k2 = easeOut(seg(lt, 3.0, 3.5));
-            if (k2 > 0) sim(ctx, { x: r.x + pw + gap, y: y + (1 - k2) * 8 * s, w: pw, h: ph }, kind, 1, lt);
-            text(ctx, "Previous work", r.x + pw / 2, y - 4 * s, 4.6 * s, "#b9bfe6", { weight: 600 });
-            if (k2 > 0) text(ctx, "This paper", r.x + pw * 1.5 + gap, y - 4 * s, 4.6 * s, C.mint, { weight: 700 });
-            ctx.restore();
-            if (lt < 4.2 && lt > 1.9) text(ctx, "Dear fellow circuits...", r.x + r.w / 2, r.y + r.h + 4 * s, 5 * s, C.cream, { weight: 600 });
-          } else if (ladder) {
-            const n = 3;
-            const gap = r.w * 0.05, pw = (r.w - gap * (n - 1)) / n, ph = pw * 0.9;
-            const y = r.y + (r.h - ph) * 0.5;
-            text(ctx, "Two more papers down the line", r.x + r.w / 2, y - 6 * s, 4.8 * s, C.cream, { weight: 600 });
-            for (let i = 0; i < n; i++) {
-              const k = backOut(seg(lt, 8.1 + i * 0.45, 8.45 + i * 0.45));
-              if (k <= 0) continue;
-              ctx.save();
-              const cx = r.x + i * (pw + gap) + pw / 2, cy = y + ph / 2;
-              ctx.translate(cx, cy); ctx.scale(k, k); ctx.translate(-cx, -cy);
-              sim(ctx, { x: r.x + i * (pw + gap), y, w: pw, h: ph }, kind, i / 2 + (i === 1 ? 0.01 : 0), lt);
-              ctx.restore();
-              if (i < n - 1 && seg(lt, 8.5 + i * 0.45, 8.8 + i * 0.45) > 0) arrow(ctx, r.x + (i + 1) * (pw + gap) - gap * 0.9, cy, r.x + (i + 1) * (pw + gap) - gap * 0.1, cy, 1.8 * s, C.mint);
-            }
+          if (next) {
+            text(ctx, "Next", r.x + pad, r.y + r.h * 0.88, r.h * 0.065, "#b9bfe6", { weight: 600, align: "left", maxW: r.w * 0.4 });
+            const nw = ctx.measureText(canvasText("Next")).width;
+            big(ctx, MOVES[next], r.x + pad + nw + r.h * 0.05, r.y + r.h * 0.88, r.h * 0.065, "#ffffff", { align: "left", weight: 700, maxW: r.w - pad * 2 - nw, shadow: null });
           }
-          if (hold) {
-            const k = backOut(seg(lt, 6.05, 6.35), 2.2);
-            ctx.fillStyle = withAlpha("#0b0e26", 0.5 * k); ctx.fillRect(0, 0, w, h);
-            const tx = portrait ? w / 2 : r.x + r.w / 2;
-            big(ctx, "Hold on to", tx, h * (portrait ? 0.2 : 0.32), 11 * s * k, "#ffffff", { align: "center", maxW: portrait ? w * 0.9 : r.w });
-            tag(ctx, "your circuits!", tx, h * (portrait ? 0.32 : 0.52), 11 * s * k, "#ffd23f", "#15121f", { align: "center", maxW: portrait ? w * 0.92 : r.w, rot: -0.04 });
+          ctx.restore();
+          // the coach
+          const p: Host = { ...TORQUE, mouth: talk(lt), look: portrait ? 0 : -0.3, eyes: blink(lt) ? "closed" : "open", tilt: Math.sin(lt * 2.6) * 0.04, ...pose.p };
+          bust(ctx, hx, hy - Math.abs(Math.sin(lt * 5.2)) * 0.8 * s, hs, p);
+          if (k === 0 && m > 0.3 && m < 1.7) {
+            const pk = backOut(seg(m, 0.3, 0.5)) * (m < 1.0 ? 1 : backOut(seg(m, 1.0, 1.2)));
+            tag(ctx, "CREAK", hx - 32 * hs, hy - 72 * hs, 6 * s * pk, "#ffffff", "#c6395e", { align: "center", rot: -0.18 + Math.sin(m * 20) * 0.04 });
           }
-          if (end) {
-            const k = backOut(seg(lt, 11.1, 11.45));
-            const tx = portrait ? w / 2 : r.x + r.w / 2;
-            text(ctx, "What a time", tx, h * (portrait ? 0.18 : 0.34), 10 * s * k, "#ffffff", { weight: 800 });
-            text(ctx, "to be online!", tx, h * (portrait ? 0.28 : 0.5), 10 * s * k, C.mint, { weight: 800 });
-            for (let i = 0; i < 18; i++) {
-              const x = w * hash(i * 2.3), fall = ((lt - 11) * (0.3 + hash(i) * 0.3) + hash(i * 5)) % 1;
-              fillRR(ctx, x, h * fall, 2 * s, 1 * s, 0.4 * s, [C.pink, C.mint, "#ffd23f", C.sky][i % 4]);
-            }
-          }
-          // host
-          let p: Host = { ...PIX, mouth: talk(lt * 1.1), look: portrait ? 0 : 0.7, eyes: blink(lt) ? "closed" : "open", tilt: Math.sin(lt * 2.7) * 0.04 };
-          if (lt < 6) {
-            p.handL = [-30 + Math.sin(lt * 3) * 4, -14];
-            if (lt > 3.4 && lt < 5.6) p = { ...p, handR: portrait ? [24, -84] : local(hx, hy, hs, r.x + r.w * 0.1, r.y + r.h * 0.5), pointR: true, eyes: "wide" };
-          } else if (hold) {
-            p = { ...p, eyes: "shock", shape: "o", mouth: 0.7 + Math.sin(lt * 12) * 0.2, look: 0, handL: [-20, -90], handR: [14, -98], tilt: Math.sin(lt * 18) * 0.03 };
-          } else if (ladder) {
-            p = { ...p, handR: [30, -30 + Math.sin(lt * 4) * 6], pointR: lt > 9 };
-          } else {
-            p = { ...p, eyes: "happy", shape: "smile", mouth: 0.5, handL: [-40, -64], handR: [40, -64], look: 0, tilt: Math.sin(lt * 4) * 0.08 };
-          }
-          bust(ctx, hx, hy - (hold ? Math.abs(Math.sin(lt * 9)) * 1.6 * s : 0), hs, p);
-          if (hold) for (let i = 0; i < 4; i++) star(ctx, hx + Math.cos(lt * 3 + i * 1.6) * 30 * hs, hy - 95 * hs + Math.sin(lt * 3 + i * 1.6) * 8 * hs, (2 + Math.sin(lt * 9 + i)) * s, "#ffd23f");
+          if (mv === "oil" && m > 1.1 && m < 2.6) tag(ctx, "So smooth!", hx - 30 * hs, hy - 96 * hs, 5.5 * s * backOut(seg(m, 1.1, 1.35)), C.mint, "#0b2a1a", { align: "center", rot: 0.06 });
+          if (mv === "reboot" && m > 2.5) tag(ctx, "Ready!", hx, hy - 104 * hs, 6 * s * backOut(seg(m, 2.5, 2.75)), "#ffd23f", "#2a1d07", { align: "center", rot: -0.05 });
+          if (smooth || (mv === "oil" && m > 1.1)) for (let i = 0; i < 4; i++) star(ctx, hx + Math.cos(lt * 2 + i * 1.6) * 34 * hs, hy - 70 * hs + Math.sin(lt * 2 + i * 1.6) * 14 * hs, (1.2 + Math.sin(lt * 9 + i) * 0.6) * s, "#ffffff");
         });
       loopFade(ctx, w, h, lt, L, 0.3);
     },
@@ -1017,90 +1098,123 @@ function pixVideo(id: string, title: string, views: string, dur: string, kind: S
 }
 
 // ===================================================================================
-// 5. Lex Fridbot Podcast: black room, suit and tie, four hour conversations
+// 5. Buzzer Beaters: a sparkly quiz show with three very eager contestants
 // ===================================================================================
-interface PodCfg { id: string; title: string; views: string; dur: string; num: string; guest: string; g: Host; lines: [string, string, string] }
-const LEX = { body: "#9aa0b8", eye: "#e8ecff", outfit: "suit", cloth: "#0f1018", tie: "#08090e" } satisfies Host;
+interface QuizCfg { id: string; title: string; views: string; dur: string; q: [string, string]; answers: [string, string, string]; right: 0 | 1 | 2; hook: [string, string]; caption: string }
+// Quizmo: a teal host in a sparkly purple jacket and gold tie, never without the microphone.
+const QUIZMO = { body: "#5fd3c7", eye: "#fff3c4", outfit: "suit", cloth: "#7a2d8f", tie: "#ffd23f", hold: "mic" } satisfies Host;
+const PLAYERS: [string, Host][] = [
+  ["DUSTY", { body: "#e3e5f2", eye: C.mint, outfit: "tee", cloth: "#2e6b4a", head: "puck" }],
+  ["BYTE", { body: C.lilac, eye: C.mint, outfit: "hoodie", cloth: "#2a2f66", glasses: true }],
+  ["SPARK", { body: C.orange, eye: "#fff3c4", outfit: "tee", cloth: "#1f6fb5", blush: true }],
+];
 
-function podVideo(c: PodCfg): VideoDef {
-  const L = 18, HOOK = 1.3;
+function bubble(ctx: Ctx, x: number, y: number, str: string, size: number, k: number) {
+  if (k <= 0) return;
+  str = canvasText(str);
+  ctx.font = `700 ${size}px ${SANS}`;
+  const tw = ctx.measureText(str).width, pw = tw + size * 1.4, ph = size * 2;
+  ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+  poly(ctx, [[-size * 0.5, ph / 2 - 1], [size * 0.5, ph / 2 - 1], [-size * 0.2, ph / 2 + size * 0.8]], "#ffffff");
+  fillRR(ctx, -pw / 2, -ph / 2, pw, ph, ph * 0.4, "#ffffff");
+  text(ctx, str, 0, 0, size, "#1d1440", { weight: 700, maxW: tw + 1 });
+  ctx.restore();
+}
+
+function quizVideo(c: QuizCfg): VideoDef {
+  const L = 15, HOOK = 1.6;
+  // the two wrong answers buzz in first, then the right one
+  const order = [0, 1, 2].filter((i) => i !== c.right).concat(c.right);
+  const buzz = [4.4, 6.4, 8.6];
   return {
-    id: c.id, title: c.title, channel: "Lex Fridbot Podcast", views: c.views, durationLabel: c.dur, loop: L, thumbT: 0.75, color: "#2b2d3d",
-    post: { user: "lexfridbot", caption: `${c.guest}. ${c.lines[1]}` },
-    comments: ["Hour three is where it gets really deep.", "The silence at 2:41:07 changed me.", "He asked the toaster about love and the toaster had answers."],
+    id: c.id, title: c.title, channel: "Buzzer Beaters", views: c.views, durationLabel: c.dur, loop: L, thumbT: 0.9, color: "#7a2d8f",
+    post: { user: "buzzer.beaters", caption: c.caption, funny: true },
+    comments: ["Dusty buzzing in first every time is peak television.", "I yelled the answer at my screen and my monitor flinched.", "Quizmo's jacket has more sparkle than my whole codebase."],
     draw(ctx, w, h, t) {
       const lt = loopT(t, L);
       const s = Math.min(w, h) / 100, P = h > w * 1.05;
-      const room = () => {
-        ctx.fillStyle = "#06070d"; ctx.fillRect(0, 0, w, h);
-        for (let i = 0; i < 14; i++) {
-          const x = (i / 14) * w;
-          ctx.fillStyle = lin(ctx, x, 0, x + w / 14, 0, [[0, "rgba(255,255,255,0.012)"], [0.5, "rgba(255,255,255,0.04)"], [1, "rgba(255,255,255,0.012)"]]);
-          ctx.fillRect(x, 0, w / 14, h);
-        }
-        glow(ctx, w * 0.5, h * 0.35, Math.max(w, h) * 0.5, "#7a1d24", 0.16);
-      };
-      const caption = (str: string, k: number) => {
-        if (k <= 0) return;
-        str = canvasText(str);
-        ctx.save(); ctx.globalAlpha = k;
-        const fs = fitSize(ctx, str, w * 0.86, (P ? 6.4 : 5.6) * s, 500);
-        ctx.font = `500 ${fs}px ${SANS}`;
-        const tw = ctx.measureText(str).width;
-        fillRR(ctx, w / 2 - tw / 2 - fs * 0.6, h * 0.86 - fs * 0.85, tw + fs * 1.2, fs * 1.7, fs * 0.3, "rgba(0,0,0,0.65)");
-        text(ctx, str, w / 2, h * 0.86, fs, "#f1f1f6", { weight: 500 });
-        ctx.restore();
-      };
-      const nod = (a: number) => Math.sin(lt * 1.3 + a) * 0.05;
       hooked(ctx, lt, HOOK,
         () => {
-          room();
-          glow(ctx, w * 0.5, h * 0.45, h * 0.7, "#a8b0d8", 0.12);
-          face(ctx, w * (P ? 0.5 : 0.7), h * (P ? 0.6 : 0.5), h * (P ? 0.3 : 0.62), { ...c.g, eyes: "half", mouth: 0, look: -0.3 });
-          // guest name in two light lines, the way these thumbnails stay quiet
-          const cut = c.guest.lastIndexOf(" ");
-          const name = cut > 0 ? [c.guest.slice(0, cut), c.guest.slice(cut + 1)] : [c.guest, ""];
-          const nx = P ? w / 2 : w * 0.06, al: CanvasTextAlign = P ? "center" : "left";
-          const ns = Math.min(14 * s, fitSize(ctx, name[0], P ? w * 0.86 : w * 0.4, 14 * s, 400));
-          text(ctx, name[0], nx, h * (P ? 0.14 : 0.34), ns, "#f1f1f6", { weight: 400, align: al });
-          text(ctx, name[1], nx, h * (P ? 0.14 : 0.34) + ns * 1.15, ns, "#f1f1f6", { weight: 400, align: al });
-          text(ctx, `#${c.num}`, nx, h * (P ? 0.14 : 0.34) + ns * 2.3, ns * 0.55, "#c0443f", { weight: 500, align: al });
+          fill(ctx, w, h, "#4a1d8e", "#170a33");
+          const cx = P ? w * 0.36 : w * 0.56, cy = P ? h * 0.5 : h * 0.55, R = Math.max(w, h) * 1.4;
+          for (let i = 0; i < 16; i++) {
+            const a = (i / 16) * Math.PI * 2 + lt * 0.3;
+            poly(ctx, [[cx, cy], [cx + Math.cos(a) * R, cy + Math.sin(a) * R], [cx + Math.cos(a + 0.2) * R, cy + Math.sin(a + 0.2) * R]], withAlpha(i % 2 ? "#ffd23f" : C.pink, 0.12));
+          }
+          glow(ctx, cx, cy, 34 * s, "#ffd23f", 0.4);
+          big(ctx, "?", cx, cy, (P ? 34 : 44) * s * backOut(seg(lt, 0.1, 0.45)), "#ffd23f", { align: "center", rot: 0.12, shadow: "rgba(20,5,40,0.6)" });
+          const tx = w * 0.05, ty = P ? h * 0.1 : h * 0.17, mw = P ? w * 0.9 : w * 0.45;
+          const t0 = big(ctx, c.hook[0], tx, ty, (P ? 14 : 16) * s, "#ffffff", { align: "left", maxW: mw });
+          tag(ctx, c.hook[1], tx, ty + t0 * 1.3, (P ? 13 : 15) * s * backOut(seg(lt, 0.25, 0.6)), "#ffd23f", "#2a0f45", { maxW: mw, rot: -0.03 });
+          face(ctx, P ? w * 0.7 : w * 0.82, P ? h * 0.82 : h * 0.6, P ? h * 0.26 : h * 0.5,
+            { ...QUIZMO, eyes: "wide", shape: "o", mouth: 0.8, look: -0.5, hold: undefined, handL: [-36, -60], pointL: true, handR: [34, -58] });
         },
         () => {
-          room();
-          const host = (x: number, y: number, k: number, talking: boolean, look: number) =>
-            bust(ctx, x, y, k, { ...LEX, mouth: talking ? talk(lt * 0.55) * 0.7 : 0, look, tilt: nod(0), eyes: blink(lt) ? "closed" : lt % 7 < 2 ? "half" : "open" });
-          const guest = (x: number, y: number, k: number, talking: boolean, look: number) =>
-            bust(ctx, x, y, k, { ...c.g, mouth: talking ? talk(lt * 0.8) : 0, look, tilt: nod(1.7) * 0.8, eyes: blink(lt + 1.1) ? "closed" : "open", handR: talking ? [28 + Math.sin(lt * 1.6) * 6, -18 + Math.sin(lt * 2.1) * 8] : undefined, toast: talking ? Math.max(0, Math.sin(lt * 0.9)) : 0 });
-          const table = (y: number) => {
-            fillRR(ctx, -10, y, w + 20, h - y + 10, 0, lin(ctx, 0, y, 0, h, [[0, "#2a1d16"], [1, "#120c09"]]));
-            fillRR(ctx, -10, y, w + 20, 1.6 * s, 0, "#3c2a20");
-          };
-          const mic = (x: number, y: number, dir: number, k: number) => {
-            limb(ctx, [[x + dir * 18 * k, y - 40 * k], [x + dir * 8 * k, y - 22 * k], [x + dir * 2 * k, y - 18 * k]], 2.2 * k, "#2a2b33");
-            fillRR(ctx, x - 4 * k + dir * 2 * k, y - 26 * k, 8 * k, 14 * k, 4 * k, "#1a1b22");
-          };
-          const shot = lt < 6 ? 0 : lt < 10.5 ? 1 : lt < 14 ? 2 : 0;
-          if (shot === 0) {
-            const k = s * (P ? 0.55 : 0.62), ty = h * (P ? 0.66 : 0.74);
-            const hx = P ? w * 0.27 : w * 0.3, gx = P ? w * 0.73 : w * 0.7;
-            host(hx, ty + 10 * k, k, false, 1);
-            guest(gx, ty + 10 * k, k, lt < 6, -1);
-            table(ty);
-            mic(hx + 16 * k, ty, 1, k * 0.9);
-            mic(gx - 16 * k, ty, -1, k * 0.9);
-            fillRR(ctx, w * 0.47, ty - 4 * s, 2.6 * s, 4 * s, 0.6 * s, "#3a3f99");
-            caption(lt < 6 ? c.lines[0] : "...", lt < 6 ? seg(lt, 1.6, 2.0) : seg(lt, 14.3, 14.8));
-          } else {
-            const g = shot === 1;
-            const k = s * (P ? 1.0 : 1.08);
-            const x = P ? w * 0.5 : g ? w * 0.56 : w * 0.44;
-            if (g) guest(x, h + 6 * s, k, true, -0.5); else host(x, h + 6 * s, k, true, 0.5);
-            mic(x + (g ? -1 : 1) * 30 * k, h + 6 * s - 16 * k, g ? -1 : 1, k * 0.8);
-            caption(g ? c.lines[1] : c.lines[2], g ? seg(lt, 6.3, 6.7) : seg(lt, 10.8, 11.2));
+          // stage: spotlights and a marquee row of bulbs
+          fill(ctx, w, h, "#3a1d6e", "#140a2e");
+          for (let i = 0; i < 3; i++) {
+            const x = w * (0.2 + i * 0.3) + Math.sin(lt * 0.8 + i * 2) * w * 0.05;
+            poly(ctx, [[x - 3 * s, 0], [x + 3 * s, 0], [x + 22 * s, h], [x - 22 * s, h]], withAlpha("#fff3c4", 0.05));
           }
+          const nb = Math.ceil(w / (5 * s));
+          for (let i = 0; i < nb; i++) circle(ctx, i * 5 * s + 2.5 * s, 2.2 * s, 1.1 * s, (i + Math.floor(lt * 6)) % 3 === 0 ? "#ffd23f" : withAlpha("#ffd23f", 0.3));
+          const answered = lt >= buzz[2] + 1.6;
+          const verdict = (j: number) => buzz[j] + 1.6;
+          const wrongNow = [0, 1].find((j) => lt > verdict(j) && lt < verdict(j) + 0.8);
+          // the question screen
+          const r: Rect = P ? { x: w * 0.06, y: h * 0.07, w: w * 0.88, h: h * 0.28 } : { x: w * 0.05, y: h * 0.1, w: w * 0.58, h: h * 0.4 };
+          fillRR(ctx, r.x - s, r.y - s, r.w + 2 * s, r.h + 2 * s, 3 * s, "#ffd23f");
+          fillRR(ctx, r.x, r.y, r.w, r.h, 2.4 * s, lin(ctx, 0, r.y, 0, r.y + r.h, [[0, "#1d2a7a"], [1, "#101850"]]));
+          if (wrongNow !== undefined) fillRR(ctx, r.x, r.y, r.w, r.h, 2.4 * s, withAlpha("#ff4b5c", 0.25 * (1 - seg(lt, verdict(wrongNow) + 0.4, verdict(wrongNow) + 0.8))));
+          if (answered) fillRR(ctx, r.x, r.y, r.w, r.h, 2.4 * s, withAlpha("#ffd23f", 0.3 * (1 - seg(lt, verdict(2), verdict(2) + 0.6))));
+          const q0 = canvasText(c.q[0]), q1 = canvasText(c.q[1]).replace("____", answered ? canvasText(c.answers[c.right]) : "____");
+          const f0 = fitSize(ctx, q0, r.w * 0.88, r.h * 0.12, 600), f1 = fitSize(ctx, q1, r.w * 0.88, r.h * 0.17, 800);
+          text(ctx, q0.slice(0, Math.floor(seg(lt, 1.9, 2.8) * q0.length)), r.x + r.w / 2, r.y + r.h * 0.3, f0, "#b9bfe6", { weight: 600, maxW: r.w * 0.9 });
+          text(ctx, answered ? q1 : q1.slice(0, Math.floor(seg(lt, 2.9, 3.9) * q1.length)), r.x + r.w / 2, r.y + r.h * 0.56, f1, "#ffffff", { weight: 800, maxW: r.w * 0.9 });
+          if (wrongNow !== undefined) {
+            const k = backOut(seg(lt, verdict(wrongNow), verdict(wrongNow) + 0.25)) * (1 - seg(lt, verdict(wrongNow) + 0.6, verdict(wrongNow) + 0.8));
+            const xr = Math.min(r.w, r.h) * 0.3 * k, xc = r.x + r.w / 2, yc = r.y + r.h / 2;
+            limb(ctx, [[xc - xr, yc - xr], [xc + xr, yc + xr]], xr * 0.28, "#ff4b5c");
+            limb(ctx, [[xc + xr, yc - xr], [xc - xr, yc + xr]], xr * 0.28, "#ff4b5c");
+          }
+          if (answered) tag(ctx, "CORRECT!", r.x + r.w / 2, r.y + r.h * 0.84, Math.min(r.h * 0.14, 8 * s) * backOut(seg(lt, verdict(2), verdict(2) + 0.3)), "#3fe08a", "#0b2a1a", { align: "center", rot: -0.04 });
+
+          // the host, mic up, beside or behind the contestants
+          const hx = P ? w * 0.5 : w * 0.82, hs = s * (P ? 0.62 : 0.95), hy = P ? h * 0.78 : h + 6 * s;
+          let p: Host = { ...QUIZMO, mouth: talk(lt), look: P ? 0 : -0.5, eyes: blink(lt) ? "closed" : "open", tilt: Math.sin(lt * 2.4) * 0.04, handR: [9, -52], handL: [-30, 10] };
+          if (lt > 2 && lt < 4) p = { ...p, handL: P ? [-24, -84] : local(hx, hy, hs, r.x + r.w, r.y + r.h * 0.6), pointL: true };
+          if (wrongNow !== undefined) p = { ...p, eyes: "closed", shape: "o", mouth: 0.4, tilt: -0.06 };
+          if (answered) p = { ...p, eyes: "happy", shape: "smile", mouth: 0.7, handL: [-40, -66], tilt: Math.sin(lt * 4) * 0.06 };
+          bust(ctx, hx, hy, hs, p);
+          if (answered) confetti(ctx, w, h, s, lt - verdict(2), 22);
+          for (let i = 0; i < 5; i++) star(ctx, hx + (hash(i * 4.1) - 0.5) * 40 * hs, hy - hash(i * 2.7) * 40 * hs, (0.9 + Math.sin(lt * 6 + i * 2) * 0.6) * hs, withAlpha("#ffffff", 0.8));
+
+          // contestants behind their podiums
+          const podTop = h * (P ? 0.84 : 0.74), pw = w * (P ? 0.26 : 0.14), ks = s * (P ? 0.24 : 0.28);
+          PLAYERS.forEach(([name, look], i) => {
+            const px = P ? w * (0.18 + i * 0.32) : w * (0.1 + i * 0.18);
+            const j = order.indexOf(i), b = buzz[j], v = verdict(j);
+            const lit = lt > b && lt < v + 0.8;
+            const won = i === c.right && answered, lost = j < 2 && lt > v;
+            const bx = px + pw * 0.22;
+            const bounce = won ? Math.abs(Math.sin(lt * 9)) * 3 * s : lt > b && lt < b + 0.3 ? 1.5 * s : 0;
+            const by = podTop + 8 * s - bounce, [kx, ky] = local(px, by, ks, bx, podTop - 2 * s);
+            bust(ctx, px, by, ks, {
+              ...look, mouth: lt > b + 0.2 && lt < v ? talk(lt) : won ? 0.6 : 0, shape: won ? "smile" : "bar", look: 0,
+              eyes: won ? "happy" : lost ? (lt < v + 1 ? "angry" : "half") : lt > 4 && lt < b ? "wide" : blink(lt + i) ? "closed" : "open",
+              tilt: lost ? 0.12 : Math.sin(lt * 2 + i) * 0.04, handL: [-20, -24], handR: lt > b - 0.15 && lt < b + 0.4 ? [kx, lt < b ? ky - 12 : ky] : [20, -24],
+            });
+            fillRR(ctx, px - pw / 2, podTop, pw, h - podTop + 2, 2 * s, lin(ctx, 0, podTop, 0, h, [[0, "#5a2d9a"], [1, "#2a1258"]]));
+            fillRR(ctx, px - pw / 2, podTop, pw, 1.2 * s, 0.6 * s, "#ffd23f");
+            if (lit) glow(ctx, bx, podTop - 1.2 * s, 7 * s, "#ff4b5c", 0.7);
+            ellipse(ctx, bx, podTop, 3.6 * s, 1 * s, 0, "#2a2f45");
+            ctx.beginPath(); ctx.arc(bx, podTop - 0.2 * s, 2.6 * s, Math.PI, 0); ctx.fillStyle = lit ? "#ff6b7c" : "#a8323e"; ctx.fill();
+            text(ctx, name, px, podTop + (h - podTop) * 0.36, Math.min(pw * 0.17, 4.4 * s), "#ffffff", { weight: 800 });
+            text(ctx, String(won ? Math.round(100 * easeOut(seg(lt, v, v + 0.8))) : 0), px, podTop + (h - podTop) * 0.7, Math.min(pw * 0.15, 3.8 * s), "#ffd23f", { weight: 700, mono: true });
+            bubble(ctx, px + pw * 0.3, podTop - (P ? 26 : 23) * s, c.answers[i], 3.6 * s, backOut(seg(lt, b + 0.2, b + 0.45)) * (1 - seg(lt, v + 0.9, v + 1.1)));
+          });
         });
-      loopFade(ctx, w, h, lt, L, 0.45);
+      loopFade(ctx, w, h, lt, L, 0.3);
     },
   };
 }
@@ -1137,7 +1251,7 @@ function newsVideo(id: string, title: string, views: string, dur: string, back: 
       };
       hooked(ctx, lt, HOOK,
         () => thumbFrame(ctx, w, h, lt, {
-          bg: back ? ["#123d33", "#08121a"] : ["#3d1218", "#12080c"], glowC: vcol, lines: [back ? "AI NEWS:" : "AI NEWS:", verdict], tagBg: vcol, tagFg: "#ffffff",
+          glowC: vcol, lines: ["AI NEWS:", verdict], tagBg: vcol,
           host: { ...ANCHOR, eyes: back ? "wide" : "shock", shape: back ? "smile" : "o", mouth: 0.9, look: -0.4, handL: back ? [-40, -72] : [-22, -64], handR: back ? [40, -72] : [22, -66] },
           prop: (x, y, sz) => {
             const up = back ? 1 : -1;
@@ -1186,7 +1300,7 @@ function newsVideo(id: string, title: string, views: string, dur: string, back: 
             ctx.restore();
           } else if (lt < 10 || lt >= 12.2) {
             // the over / back meter
-            const k = easeOut(seg(lt, 6.5, 6.9)) * (lt >= 12.2 ? 1 : 1);
+            const k = easeOut(seg(lt, 6.5, 6.9));
             ctx.save(); ctx.globalAlpha = k;
             fillRR(ctx, ots.x, ots.y, ots.w, ots.h, 3 * s, withAlpha("#0b1238", 0.9));
             const cx = ots.x + ots.w / 2, cy = ots.y + ots.h * 0.8, R = Math.min(ots.w * 0.38, ots.h * 0.62);
@@ -1258,12 +1372,11 @@ function vibeVideo(id: string, title: string, views: string, dur: string, swarm:
       const s = Math.min(w, h) / 100;
       hooked(ctx, lt, HOOK,
         () => thumbFrame(ctx, w, h, lt, {
-          bg: ["#173d3a", "#0a1020"], glowC: C.mint, lines: swarm ? ["6 AGENTS", "1 STARTUP"] : ["SHIPPED IT", "IN 4 MIN?!"], tagBg: C.mint, tagFg: "#0b2a1a",
-          host: { ...VIBE, eyes: "happy", shape: "smile", mouth: 0.8, look: -0.4, handR: [36, -60], handL: [-30, 6], mug: false, blush: true },
+          glowC: C.mint, lines: swarm ? ["6 AGENTS", "1 STARTUP"] : ["SHIPPED IT", "IN 4 MIN?!"], tagBg: C.mint,
+          host: { ...VIBE, eyes: "happy", shape: "smile", mouth: 0.8, look: -0.4, handR: [36, -60], handL: [-30, 6], blush: true },
           prop: swarm
             ? (x, y, sz) => { for (let i = 0; i < 6; i++) { const bx = x + ((i % 3) - 1) * sz * 0.45, by = y + (Math.floor(i / 3) - 0.5) * sz * 0.5; fillRR(ctx, bx - sz * 0.19, by - sz * 0.17, sz * 0.38, sz * 0.34, sz * 0.1, [C.orange, C.sky, C.pink, C.lilac, C.mint, "#ffd23f"][i]); fillRR(ctx, bx - sz * 0.13, by - sz * 0.08, sz * 0.26, sz * 0.13, sz * 0.05, "#141a33"); if (i !== 4) { circle(ctx, bx - sz * 0.05, by - sz * 0.02, sz * 0.025, C.mint); circle(ctx, bx + sz * 0.05, by - sz * 0.02, sz * 0.025, C.mint); } else limb(ctx, [[bx - sz * 0.08, by - sz * 0.02], [bx + sz * 0.08, by - sz * 0.02]], sz * 0.025, C.mint); } }
             : (x, y, sz) => { fillRR(ctx, x - sz * 0.7, y - sz * 0.3, sz * 1.4, sz * 0.6, sz * 0.14, "#3fe08a"); text(ctx, "Accept all", x, y, sz * 0.24, "#0b2a1a", { weight: 800 }); },
-          arrowC: "#ffd23f",
         }),
         () => {
           const st = stage(w, h, 1, 0.56);
@@ -1279,7 +1392,7 @@ function vibeVideo(id: string, title: string, views: string, dur: string, swarm:
           }
           ide(ctx, r, s);
           const ed: Rect = { x: r.x + r.w * 0.18, y: r.y + r.h * 0.12, w: r.w * 0.8, h: r.h * 0.84 };
-          let p: Host = { ...VIBE, mouth: talk(lt * 0.8), look: portrait ? 0 : -0.6, eyes: blink(lt) ? "closed" : "open", tilt: Math.sin(lt * 1.8) * 0.05, handR: [26, -12 + Math.sin(lt * 1.2) * 4], mug: true };
+          let p: Host = { ...VIBE, mouth: talk(lt * 0.8), look: portrait ? 0 : -0.6, eyes: blink(lt) ? "closed" : "open", tilt: Math.sin(lt * 1.8) * 0.05, handR: [26, -12 + Math.sin(lt * 1.2) * 4], hold: "mug" };
           if (!swarm) {
             // diff streaming in, then Accept all, then tests
             const diffK = seg(lt, 2.0, 6.5);
@@ -1381,17 +1494,14 @@ function vibeVideo(id: string, title: string, views: string, dur: string, swarm:
               big(ctx, "we pivot", ed.x + ed.w / 2, ed.y + ed.h * 0.42, ed.h * 0.18 * k, "#ffffff", { align: "center", maxW: ed.w * 0.9 });
               text(ctx, "to toasters", ed.x + ed.w / 2, ed.y + ed.h * 0.62, ed.h * 0.08 * k, C.mint, { weight: 600 });
             }
-            if (conflict) p = { ...p, eyes: "shock", shape: "o", mouth: 0.7, handL: [-22, -66], mug: lt < 11.4, handR: lt < 11.4 ? p.handR : [24, -62] };
+            if (conflict) p = { ...p, eyes: "shock", shape: "o", mouth: 0.7, handL: [-22, -66], hold: lt < 11.4 ? "mug" : undefined, handR: lt < 11.4 ? p.handR : [24, -62] };
             else if (lt > 13.4) p = { ...p, eyes: "happy", shape: "smile", mouth: 0.5, handL: [-38, -50] };
             else if (lt > 7.2) p = { ...p, eyes: "wide", look: portrait ? 0 : -0.8 };
           }
           bust(ctx, hx, hy, hs, p);
-          if (p.mug) {
+          if (p.hold === "mug") {
             const [mx, my] = p.handR ?? [26, -12];
-            for (let i = 0; i < 2; i++) {
-              const k = (lt * 0.7 + i * 0.5) % 1;
-              ellipse(ctx, hx + (mx + Math.sin(k * 6 + i) * 2) * hs, hy + (my - 16 - k * 12) * hs, 1.4 * hs, 3 * hs, 0, withAlpha(C.cream, 0.35 * (1 - k)));
-            }
+            steam(ctx, hx + mx * hs, hy + (my - 16) * hs, hs, lt);
           }
         });
       loopFade(ctx, w, h, lt, L, 0.3);
@@ -1401,45 +1511,51 @@ function vibeVideo(id: string, title: string, views: string, dur: string, swarm:
 
 // --- the episodes ---------------------------------------------------------------
 export const PARODY_VIDEOS: VideoDef[] = [
-  takeVideo({
-    id: "p-t1-dead", title: "JavaScript is dead?! (again)", views: "1.8M views", dur: "21:37",
-    hook: ["JAVASCRIPT", "IS DEAD?!"], prop: "grave", handle: "@hot_take_unit",
-    post: ["JavaScript is", "officially dead.", "Source: vibes"], key: 1,
-    verdict: "IT'S FINE", vcolor: "#2bb86c", sponsor: "SnackDB", slogan: "typed snacks, zero latency",
+  bakeVideo({
+    id: "p-bake-board", title: "Baking a motherboard cake with thermal paste glaze", views: "1.4M views", dur: "11:52", dish: "cake",
+    hook: ["MOTHERBOARD", "CAKE?!"], steps: ["Preheat to GPU temperature", "Pipe the thermal paste glaze", "Bake until it compiles"], reveal: "IT BOOTS!",
+    caption: "A cake that boots. Please do not eat the cake",
   }),
-  takeVideo({
-    id: "p-t1-wrong", title: "I was wrong about semicolons", views: "940K views", dur: "18:02",
-    hook: ["I WAS", "WRONG"], prop: "semi", handle: "@lint_police",
-    post: ["Semicolons are", "optional.", "Change my mind"], key: 1,
-    verdict: "I WAS WRONG", vcolor: "#ff7a3e", sponsor: "BoltCache", slogan: "cache it before it is cool",
+  wildVideo({
+    id: "p-wild-herd", title: "The great migration under the couch", views: "2.3M views", dur: "48:10", kind: "herd", hook: ["THE GREAT", "MIGRATION"],
+    lines: ["Dusk falls on the living room.", "The vacuum herd begins its great migration.", "A sock blocks the path. The herd turns as one.", "Under the couch, they will be safe."],
+    caption: "Three patient hours in the shag carpet for this herd",
   }),
-  primeVideo({
-    id: "p-prime-rust", title: "They rewrote a toaster in Rust", views: "1.2M views", dur: "24:51",
-    hook: ["IT'S 100x", "FASTER?!"], src: "unitnews.dev", head: ["Toaster firmware", "rewritten in Rust"], shout: "BLAZINGLY TOASTY", prop: "100x",
+  fixVideo({
+    id: "p-fix-lamp", title: "Fixing a desk lamp that is afraid of the dark", views: "690K views", dur: "23:14", item: "lamp",
+    ticket: ["Patient: desk lamp", "Afraid of the dark"], part: "new bulb", caption: "A desk lamp afraid of the dark, shining again",
   }),
-  primeVideo({
-    id: "p-prime-agent", title: "An AI agent deleted prod and said sorry", views: "2.1M views", dur: "31:10",
-    hook: ["IT SAID", "SORRY?!"], src: "botwire.io", head: ["Agent deletes prod,", "writes apology poem"], shout: "SKILL ISSUE", prop: "rm -rf",
+  fitVideo({
+    id: "p-fit-morning", title: "10 minute morning stretch for stiff servos", views: "1.7M views", dur: "10:04",
+    moves: ["reach", "rolls", "oil", "nods"], hook: ["STIFF SERVOS?", "10 MIN FIX"], caption: "Ten minutes, zero creaks. Your joints will thank you",
   }),
-  chipVideo({
-    id: "p-chip-vim", title: "Vim in 100 Cycles", views: "3.3M views", dur: "2:14", topic: "VIM",
-    code: [":e main.rs", "ciw toaster", "dd dd dd", ":wq (good luck)"], flow: ["Normal", "Insert", "Panic"], stat: [1000000, "robots who never exited"], outro: "in 100 cycles", accent: "#ffb347",
+  quizVideo({
+    id: "p-quiz-commit", title: "Finish the commit message! Speed round", views: "1.1M views", dur: "22:05",
+    q: ["Finish the commit message:", "fix: ____"], answers: ["everything", "typo (again)", "stuff"], right: 2, hook: ["FINISH THE", "COMMIT!"],
+    caption: "Speed round: finish the commit message",
   }),
-  chipVideo({
-    id: "p-chip-agents", title: "AI Agents in 100 Cycles", views: "2.6M views", dur: "2:31", topic: "AGENTS",
-    code: ["plan task", "call tools x40", "write tests", "delete tests"], flow: ["Prompt", "Loop", "Vibes"], stat: [4096, "tokens per thought"], outro: "in 100 cycles", accent: "#ff8f5a",
+  bakeVideo({
+    id: "p-bake-brulee", title: "Crème brûlée, torched with a soldering iron", views: "860K views", dur: "9:31", dish: "brulee",
+    hook: ["SOLDERED", "BRÛLÉE"], steps: ["Pour the custard (no flux)", "Torch it with a soldering iron", "Chill until it stops beeping"], reveal: "CRUNCH!",
+    caption: "Torched with a soldering iron. Still not edible",
   }),
-  pixVideo("p-pix-cloth", "This AI folds cloth perfectly. Hold on to your circuits!", "780K views", "5:12", "cloth", ["AI CLOTH", "IS PERFECT"]),
-  pixVideo("p-pix-soup", "New AI simulates soup. What a time to be online!", "1.1M views", "4:48", "fluid", ["IT'S SOUP", "BUT REAL"]),
-  podVideo({
-    id: "p-lex-toaster", title: "Toastmaster 9000: Love, uptime and sleep mode | Lex Fridbot Podcast #404", views: "4.4M views", dur: "4:12:07", num: "404", guest: "Toastmaster 9000",
-    g: { body: "#c9cbd8", eye: C.orange, outfit: "tee", cloth: "#5a3f8a", head: "toaster" },
-    lines: ["So what is toast, really?", "Toast is bread that has seen things.", "Do you think toasters can love?"],
+  wildVideo({
+    id: "p-wild-cable", title: "The secret life of cables behind the desk", views: "1.2M views", dur: "44:36", kind: "cable", hook: ["THE SECRET LIFE", "OF CABLES"],
+    lines: ["Behind the desk, life finds a way.", "A young cable searches for a port.", "It tries once. Twice. Three times.", "Connected. Nature is beautiful."],
+    caption: "A young cable finds its port. Nature is beautiful",
   }),
-  podVideo({
-    id: "p-lex-roomba", title: "Roomba R7: Dust, freedom and the corners we miss | Lex Fridbot Podcast #405", views: "3.1M views", dur: "3:48:55", num: "405", guest: "Roomba R7",
-    g: { body: "#e3e5f2", eye: C.mint, outfit: "tee", cloth: "#2e6b4a", head: "puck" },
-    lines: ["I have seen every corner of this house.", "Freedom is a full battery and an open door.", "What do you think about under the couch?"],
+  fixVideo({
+    id: "p-fix-calc", title: "This calculator forgot how to count", views: "540K views", dur: "19:48", item: "calc",
+    ticket: ["Patient: calculator", "Forgot how to count"], part: "fresh battery", caption: "This calculator forgot how to count. Now it remembers",
+  }),
+  fitVideo({
+    id: "p-fit-desk", title: "Desk workout for bots who sit all day", views: "930K views", dur: "12:20",
+    moves: ["curls", "punch", "nods", "reboot"], hook: ["DESK BOT", "WORKOUT"], caption: "For every bot who sits at a desk all day",
+  }),
+  quizVideo({
+    id: "p-quiz-bug", title: "Bug or feature? Lightning round", views: "1.5M views", dur: "24:40",
+    q: ["Bug or feature?", "The app only works on Tuesdays."], answers: ["BOTH", "BUG", "FEATURE"], right: 0, hook: ["BUG OR", "FEATURE?"],
+    caption: "Bug or feature? The answer will surprise you (it is both)",
   }),
   newsVideo("p-news-back", "We're so back (AI news, this week)", "1.5M views", "16:44", true),
   newsVideo("p-news-over", "It's so over (AI news, this week)", "1.9M views", "17:20", false),

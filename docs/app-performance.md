@@ -18,7 +18,7 @@ Baseline for this pass: `1ef6115ada23caf8ead6ae0254386761cd028734`, which alread
 
 ## Native benchmark
 
-2026-10-31, Windows, i9-13900K, RTX 3080, DPR 1.5, offscreen Electron 45. The screenshot path disables background throttling. The fixture has 31 threads, 18 occupied desks, and 14 walker actors including the boss. The heavy-app stages open actual Blockcraft, Night Shift, Bot-Com, Boot, Botflix and TensorHub activities across all 18 desks, reaching roughly 180 to 210 canvases. Chat contains 200 Markdown messages and polls every 750 ms. Rain runs after the heavy-app stages.
+2026-10-31, Windows, i9-13900K, RTX 3080, DPR 1.5, offscreen Electron 45. The screenshot path disables background throttling. The fixture has 31 threads, 18 occupied desks, and 14 walker actors including the boss. The heavy-app stages open actual Voxel Valley, Night Shift, Bot-Com, Boot, Botflix and Benchtop activities across all 18 desks, reaching roughly 180 to 210 canvases. Chat contains 200 Markdown messages and polls every 750 ms. Rain runs after the heavy-app stages.
 
 Each stage measures four seconds after settling. These are renderer rAF intervals, not physical display FPS. Native comparison runs disable CPU tracing/profiling; the after run enables lightweight system counters. Ambient choices and other desktop/GPU work can vary between runs. Traces and isolation runs were used separately to identify causes.
 
@@ -107,6 +107,6 @@ Core: `src/perf/metrics.ts`, `src/perf/render.ts`, `src/world/budget.ts`, `src/w
 
 Screen and chat engines: `src/os/wm.ts`, `src/os/typing.ts`, `src/os/tasks.ts`, `src/office-apps/common.ts`, `src/harness/harness.ts`, `src/life/util.ts`, `src/office/chat-panel.ts`, `src/fun/util.ts`, `src/fun/site.ts`, `src/fun/botflix.ts`.
 
-Owner bindings: `src/fun/games/dash.ts`, `src/fun/games/flappy.ts`, `src/fun/games/snake.ts`, `src/fun/phone.ts`, `src/fun/tensorhub.ts`, `src/fun/tube.ts`, `src/games/kit.ts`, `src/games/blockcraft.ts`, `src/games/boot.ts`, `src/games/botcom.ts`, `src/games/bugger.ts`, `src/games/connect4.ts`, `src/games/island.ts`, `src/games/merge.ts`, `src/games/nightshift.ts`, `src/games/tictactoe.ts`.
+Owner bindings: `src/fun/games/dash.ts`, `src/fun/games/flappy.ts`, `src/fun/games/snake.ts`, `src/fun/phone.ts`, `src/fun/benchtop.ts`, `src/fun/tube.ts`, `src/games/kit.ts`, `src/games/blockcraft.ts`, `src/games/boot.ts`, `src/games/botcom.ts`, `src/games/bugger.ts`, `src/games/connect4.ts`, `src/games/island.ts`, `src/games/merge.ts`, `src/games/nightshift.ts`, `src/games/tictactoe.ts`.
 
 Verification: `scripts/render-profile.cjs`, `scripts/render-system-checks.cjs`, `docs/app-performance.md`.

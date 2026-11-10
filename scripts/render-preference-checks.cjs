@@ -13,7 +13,7 @@ module.exports = async ({ js, wc, wait, out }) => {
       f.weights=f.idle.constructor.interestWeights(wm.prefs,()=>1);
     }`);
     result.interests = await js(`{const f=window.__preferenceCheck;({weights:f.weights,phone:f.idle.phoneApps()})}`);
-    check(result.interests.weights.mail === 0 && result.interests.weights.steam === 0 && result.interests.weights.trading === 0 && result.interests.weights.botsapp > 0 && result.interests.weights.sparkplug === 0 && result.interests.phone.join() === "botsapp", "Saved app interests leaked into unrelated desktop or phone choices");
+    check(result.interests.weights.mail === 0 && result.interests.weights.vapor === 0 && result.interests.weights.trading === 0 && result.interests.weights.botsapp > 0 && result.interests.weights.sparkplug === 0 && result.interests.phone.join() === "botsapp", "Saved app interests leaked into unrelated desktop or phone choices");
     result.awareness = await js(`(async()=>{
       const f=window.__preferenceCheck,{d,wm,idle}=f;
       idle.lockEl=document.createElement('div');d.userTyping(true);await Promise.resolve();

@@ -1,6 +1,6 @@
-/* BotTube Shorts: the phone clip feed (fun-phone) dressed as a Shorts player. */
+/* BotTube Shorts: the phone clip feed (fun-phone) dressed as the short clip player. */
 .fun-ph-shorts .fun-ph-top { justify-content: flex-start; left: 8px; gap: 3px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.01em; }
-.fun-ph-shorts .fun-ph-mark { width: 11px; height: 13px; border-radius: 4px 5px 5px 4px; background: #ff2d2d; transform: rotate(-12deg); }
+.fun-ph-shorts .fun-ph-mark { width: 11px; height: 13px; border-radius: 3px; background: #ff5a4e; }
 .fun-ph-shorts .fun-ph-mark::after { inset: auto; left: 4px; top: 3.5px; width: 0; height: 0; border-radius: 0; background: none; border-style: solid; border-width: 3px 0 3px 4.5px; border-color: transparent transparent transparent #fff; }
 .fun-ph-shorts .fun-ph-side { gap: 6px; bottom: 30px; }
 .fun-ph-shorts .fun-ph-act svg { width: 15px; height: 15px; fill: #fff; }
@@ -11,10 +11,10 @@
 .fun-ph-shorts .fun-ph-av { order: 9; width: 16px; height: 16px; border-radius: 4px; margin: 2px 0 0; }
 .fun-ph-shorts .fun-ph-info { bottom: 9px; }
 .fun-ph-shorts .fun-ph-user { display: inline-block; margin-right: 4px; font-size: 7.5px; }
-.fun-ph-shorts .fun-ph-sub { display: inline-block; padding: 1.5px 5px; border-radius: 8px; background: #fff; color: #0f0f0f; font-size: 6px; font-weight: 600; text-shadow: none; vertical-align: 1px; }
+.fun-ph-shorts .fun-ph-sub { display: inline-block; padding: 1.5px 5px; border-radius: 8px; background: #fff; color: #14141c; font-size: 6px; font-weight: 600; text-shadow: none; vertical-align: 1px; }
 .fun-ph-shorts .fun-ph-cap { margin-top: 2px; }
 .fun-ph-shorts .fun-ph-prog { height: 1.5px; background: rgba(255, 255, 255, 0.25); }
-.fun-ph-shorts .fun-ph-prog i { background: #ff2d2d; }
+.fun-ph-shorts .fun-ph-prog i { background: #ff5a4e; }
 .fun-ph-shorts .fun-ph-burst { filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.4)); }
 .fun-ph-shorts .fun-ph-burst svg { fill: #fff; }
 .fun-ph-shorts .fun-ph-bit { background: #fff; }

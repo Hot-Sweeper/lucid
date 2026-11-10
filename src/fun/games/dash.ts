@@ -1,6 +1,6 @@
 import type { FunHost, FunOpts, Outcome } from "../host";
 import { Scope, gauss, hash, rng } from "../util";
-import { C, circle, fillRR, glow, lin, mix, poly, shade, text, withAlpha } from "../draw";
+import { C, circle, fillRR, glow, lin, mix, poly, shade, withAlpha } from "../draw";
 import { mountGame, Session, waitUntil } from "./common";
 
 // Physics in level units (1 unit = one block). y grows upward from the ground.
@@ -135,7 +135,7 @@ export async function playDash(body: HTMLElement, host: FunHost, opts: FunOpts):
     const finish = level.end - 2;
 
     let st: St = { x: 0, y: 0, vy: 0, grounded: true, dead: false };
-    let target: number | null = null, recheck = 0, rot = 0, attempt = 0, won = false, bestPct = 0, cheered = false;
+    let target: number | null = null, recheck = 0, spin = 0, attempt = 0, won = false, bestPct = 0, cheered = false;
     let deadAt = 0, beatT = 0, landed = 0;
     const parts: { x: number; y: number; vx: number; vy: number; r: number; a: number; life: number; c: string }[] = [];
     const trail: { x: number; y: number }[] = [];
@@ -145,10 +145,10 @@ export async function playDash(body: HTMLElement, host: FunHost, opts: FunOpts):
 
     const reset = () => {
       st = { x: 0, y: 0, vy: 0, grounded: true, dead: false };
-      target = null; recheck = 0; rot = 0; won = false; cheered = false;
+      target = null; recheck = 0; spin = 0; won = false; cheered = false;
       attempt++;
       trail.length = 0;
-      view.setScore(`Attempt ${attempt}`, attempt > 1);
+      view.setScore(`Run ${attempt}`, attempt > 1);
     };
     reset();
 
@@ -175,12 +175,9 @@ export async function playDash(body: HTMLElement, host: FunHost, opts: FunOpts):
       }
       const wasGrounded = st.grounded;
       stepSim(st, near(level.list, st.x, 3), jump);
-      if (!st.grounded) rot += ((Math.PI / 2) / ((2 * VJ) / G)) * DT;
-      else {
-        const snap = Math.round(rot / (Math.PI / 2)) * (Math.PI / 2);
-        rot += (snap - rot) * Math.min(1, DT * 30);
-        if (!wasGrounded) landed = performance.now();
-      }
+      // the wheel keeps rolling, a little faster in the air
+      spin += (VX / 0.28) * DT * (st.grounded ? 1 : 1.4);
+      if (st.grounded && !wasGrounded) landed = performance.now();
       if (st.dead) crash();
       if (st.x >= finish) won = true;
       const pct = Math.min(100, Math.floor((st.x / finish) * 100));
@@ -204,17 +201,13 @@ export async function playDash(body: HTMLElement, host: FunHost, opts: FunOpts):
 
       ctx.fillStyle = lin(ctx, 0, 0, 0, gy, [[0, mix("#141a33", accent, 0.08 + pulse * 0.06)], [1, mix("#252d5c", accent, 0.18 + pulse * 0.1)]]);
       ctx.fillRect(0, 0, w, h);
-      // far squares, slow parallax, breathing on the beat
+      // far city lights, slow parallax, breathing on the beat
       for (let i = 0; i < 14; i++) {
         const span = w * 1.4;
         const px = (((hash(i) * span - camX * u * 0.12) % span) + span) % span - w * 0.2;
-        const py = hash(i + 20) * gy * 0.8;
-        const s = (14 + hash(i + 40) * 30) * (1 + pulse * 0.12);
-        ctx.save();
-        ctx.translate(px, py);
-        ctx.rotate(hash(i + 60) * 3 + t * 0.1 * (hash(i) - 0.5));
-        fillRR(ctx, -s / 2, -s / 2, s, s, s * 0.18, withAlpha(accent, 0.05 + hash(i + 80) * 0.06));
-        ctx.restore();
+        const py = hash(i + 20) * gy * 0.8 + Math.sin(t * 0.4 + i) * 3;
+        const s = (10 + hash(i + 40) * 24) * (1 + pulse * 0.12);
+        circle(ctx, px, py, s / 2, withAlpha(accent, 0.05 + hash(i + 80) * 0.06));
       }
       // mid silhouettes
       const span = u * 2.5;
@@ -224,30 +217,34 @@ export async function playDash(body: HTMLElement, host: FunHost, opts: FunOpts):
         const hh = (1.2 + hash(n * 3.3) * 2.6) * u;
         fillRR(ctx, x, gy - hh, span * 0.8, hh + 4, 6, withAlpha("#141a33", 0.5));
       }
-      // attempt label in the world
-      text(ctx, `Attempt ${attempt}`, sx(4.5), sy(4.2), Math.round(u * 0.9), withAlpha(C.cream, 0.9), { weight: 600, align: "left" });
-
       for (const o of near(level.list, camX, w / u + 2)) {
         const x = sx(o.x), y = sy(o.y + o.h), bw = o.w * u, bh = o.h * u;
         if (o.kind === "block") {
+          // shipping crates with vent slits and a light strip that pulses on the beat
           fillRR(ctx, x, y, bw, bh, 4, lin(ctx, 0, y, 0, y + bh, [[0, "#3a4392"], [1, "#232a5e"]]));
-          fillRR(ctx, x + 5, y + 5, bw - 10, bh - 10, 3, withAlpha("#141a33", 0.35));
-          fillRR(ctx, x, y, bw, 3, 1.5, withAlpha(accent, 0.65 + pulse * 0.35));
+          for (let cx = 0; cx < o.w; cx++) for (let cy = 0; cy < o.h; cy++) {
+            for (let k = 0; k < 3; k++) fillRR(ctx, x + cx * u + u * 0.22, y + cy * u + u * (0.3 + k * 0.16), u * 0.56, 2, 1, withAlpha("#141a33", 0.45));
+          }
+          fillRR(ctx, x + 4, y + bh - 5, bw - 8, 2, 1, withAlpha(accent, 0.45 + pulse * 0.4));
         } else {
+          // traffic cones on a base plate
           const by = sy(o.y);
-          poly(ctx, [[x + 1, by], [x + u / 2, by - u * 0.98], [x + u - 1, by]], lin(ctx, 0, by - u, 0, by, [[0, shade(C.pink, 0.2)], [1, C.lilac]]));
-          poly(ctx, [[x + u * 0.32, by], [x + u / 2, by - u * 0.55], [x + u * 0.68, by]], withAlpha("#ffffff", 0.14));
+          const lx = (f: number) => x + u * (0.12 + 0.36 * f), rx = (f: number) => x + u * (0.88 - 0.36 * f);
+          poly(ctx, [[lx(0), by], [x + u / 2, by - u * 0.94], [rx(0), by]], lin(ctx, 0, by - u, 0, by, [[0, shade(C.pink, 0.2)], [1, C.lilac]]));
+          poly(ctx, [[lx(0.38), by - u * 0.36], [rx(0.38), by - u * 0.36], [rx(0.54), by - u * 0.51], [lx(0.54), by - u * 0.51]], withAlpha(C.cream, 0.8));
+          fillRR(ctx, x + u * 0.04, by - u * 0.1, u * 0.92, u * 0.1, 2, "#232a5e");
         }
       }
-      // finish portal
+      // finish flag
       const fx = sx(finish);
       if (fx < w + 40) {
-        glow(ctx, fx, sy(1.6), u * 2.6, C.mint, 0.4 + pulse * 0.2);
-        ctx.beginPath();
-        ctx.ellipse(fx, sy(1.6), u * 0.6, u * 1.7, 0, 0, Math.PI * 2);
-        ctx.ellipse(fx, sy(1.6), u * 0.34, u * 1.35, 0, 0, Math.PI * 2);
-        ctx.fillStyle = C.mint;
-        ctx.fill("evenodd");
+        glow(ctx, fx, sy(2), u * 2.4, C.mint, 0.3 + pulse * 0.2);
+        fillRR(ctx, fx - 2, sy(3.2), 4, u * 3.2, 2, C.cream);
+        const cs = u * 0.24;
+        for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) {
+          ctx.fillStyle = (r + c) % 2 ? "#141a33" : C.cream;
+          ctx.fillRect(fx + 2 + c * cs, sy(3.2) + r * cs + Math.sin(t * 5 + c * 0.8) * cs * 0.25, cs, cs);
+        }
       }
       // ground
       ctx.fillStyle = lin(ctx, 0, gy, 0, h, [[0, mix("#252d5c", accent, 0.15 + pulse * 0.1)], [1, "#141a33"]]);
@@ -267,20 +264,28 @@ export async function playDash(body: HTMLElement, host: FunHost, opts: FunOpts):
         if (trail.length > 10) trail.pop();
         trail.forEach((p, i) => {
           if (i % 2) return;
-          fillRR(ctx, sx(p.x) + u * 0.2, sy(p.y) - u * 0.8, u * 0.6, u * 0.6, 3, withAlpha(C.orange, (1 - i / 10) * 0.18));
+          circle(ctx, sx(p.x) + u * 0.5, sy(p.y) - u * 0.28, u * (0.16 - i * 0.01), withAlpha(C.orange, (1 - i / 10) * 0.16));
         });
-        const cx = sx(st.x) + u / 2, cy = sy(st.y) - u / 2;
+        // a unicycle robot: the wheel rolls, the body leans with the jump
         const land = Math.max(0, 1 - (performance.now() - landed) / 160);
+        const lean = st.grounded ? 0 : Math.max(-0.3, Math.min(0.3, -st.vy * 0.016));
+        const wr = u * 0.28;
         ctx.save();
-        ctx.translate(cx, cy + land * u * 0.06);
-        ctx.rotate(rot);
-        ctx.scale(1 + land * 0.12, 1 - land * 0.12);
-        const s = u * 0.96;
-        fillRR(ctx, -s / 2, -s / 2, s, s, 4, lin(ctx, 0, -s / 2, 0, s / 2, [[0, "#ffc08a"], [1, C.orange2]]));
-        fillRR(ctx, -s * 0.3, -s * 0.3, s * 0.6, s * 0.6, 3, "#e0703f");
-        fillRR(ctx, -s * 0.2, -s * 0.16, s * 0.13, s * 0.17, 1.5, C.cream);
-        fillRR(ctx, s * 0.07, -s * 0.16, s * 0.13, s * 0.17, 1.5, C.cream);
-        fillRR(ctx, -s * 0.16, s * 0.08, s * 0.32, s * 0.07, 1.5, "#7a2f1c");
+        ctx.translate(sx(st.x) + u / 2, sy(st.y));
+        ctx.scale(1 + land * 0.1, 1 - land * 0.1);
+        circle(ctx, 0, -wr, wr, "#2a2f45");
+        circle(ctx, 0, -wr, wr * 0.62, "#8a90a8");
+        for (let k = 0; k < 3; k++) {
+          const a = spin + (k * Math.PI * 2) / 3;
+          circle(ctx, Math.cos(a) * wr * 0.4, -wr + Math.sin(a) * wr * 0.4, wr * 0.13, "#2a2f45");
+        }
+        ctx.rotate(lean);
+        fillRR(ctx, -u * 0.05, -wr * 2 - u * 0.06, u * 0.1, u * 0.1, 1, "#8a90a8");
+        fillRR(ctx, -u * 0.36, -u * 1.02, u * 0.72, u * 0.48, u * 0.16, lin(ctx, 0, -u * 1.02, 0, -u * 0.54, [[0, "#ffc08a"], [1, C.orange2]]));
+        fillRR(ctx, -u * 0.24, -u * 0.93, u * 0.48, u * 0.22, u * 0.08, "#1d2246");
+        circle(ctx, -u * 0.1, -u * 0.82, u * 0.045, C.mint); circle(ctx, u * 0.1, -u * 0.82, u * 0.045, C.mint);
+        fillRR(ctx, -1, -u * 1.18, 2, u * 0.17, 1, "#8a90a8");
+        circle(ctx, 0, -u * 1.2, u * 0.06, C.pink);
         ctx.restore();
         if (st.grounded && Math.random() < 0.5) parts.push({ x: st.x + 0.1, y: st.y + 0.05, vx: -1 - Math.random() * 2, vy: 1 + Math.random() * 2, r: 0.06 + Math.random() * 0.06, a: 0, life: 0.5, c: accent });
       }
@@ -301,13 +306,14 @@ export async function playDash(body: HTMLElement, host: FunHost, opts: FunOpts):
         const a = Math.max(0, 1 - (performance.now() - deadAt) / 220);
         if (a > 0) { ctx.fillStyle = `rgba(255,236,220,${a * 0.4})`; ctx.fillRect(0, 0, w, h); }
       }
-      // progress: real distance through the level, with a dot at the best run
+      // route map: the robot rolls toward the flag, a tick marks the best run
       const pct = Math.min(1, st.x / finish);
-      const bw = w * 0.42, bx = (w - bw) / 2;
-      fillRR(ctx, bx, 10, bw, 5, 2.5, "rgba(255,255,255,0.12)");
-      fillRR(ctx, bx, 10, Math.max(5, bw * pct), 5, 2.5, C.mint);
-      if (bestPct > 0) circle(ctx, bx + bw * (bestPct / 100), 12.5, 2.2, C.cream);
-      text(ctx, `${Math.floor(pct * 100)}%`, bx + bw + 8, 12.5, 10, withAlpha(C.cream, 0.8), { align: "left", weight: 500 });
+      const bw = w * 0.3, bx = 12, by = 14;
+      fillRR(ctx, bx, by - 1, bw, 2, 1, "rgba(255,255,255,0.16)");
+      if (bestPct > 0) fillRR(ctx, bx + bw * (bestPct / 100) - 1, by - 4, 2, 8, 1, withAlpha(C.cream, 0.7));
+      for (let r = 0; r < 2; r++) for (let c = 0; c < 2; c++) { ctx.fillStyle = (r + c) % 2 ? "#141a33" : C.cream; ctx.fillRect(bx + bw + 3 + c * 3, by - 6 + r * 3, 3, 3); }
+      fillRR(ctx, bx + bw + 2, by - 6, 1, 10, 0.5, C.cream);
+      circle(ctx, bx + bw * pct, by, 3.4, C.orange);
     };
 
     scope.raf(frame);
@@ -319,7 +325,7 @@ export async function playDash(body: HTMLElement, host: FunHost, opts: FunOpts):
       if (won) {
         bestPct = 100;
         host.react("cheer");
-        view.showOver("Level complete", `Attempt ${attempt}`);
+        view.showOver("Finish line", `Run ${attempt}`);
         await host.sleep(2400);
         return { result: "win", score: 100 };
       }

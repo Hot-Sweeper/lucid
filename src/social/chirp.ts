@@ -1,4 +1,4 @@
-// Chirp: the robot scrolls its timeline, likes and reposts, reads a Community Note under a
+// Chirp: the robot scrolls its timeline, likes and reposts, reads a context note under a
 // wrong take, enjoys a ratio, and now and then writes a post of its own.
 import { CHIRP_POSTS, CHIRP_TRENDS, CHIRP_MINE, type ChirpPost } from "../content/social";
 import { pickFresh } from "../content";
@@ -7,7 +7,7 @@ import { sceneCanvas } from "./scenes";
 import "./chirp.css";
 import { phoneKeyboard } from "./keyboard";
 
-const LOGO = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13.5C4 8.3 8 4 13.2 4c2.6 0 4.6 1 5.8 2.4L22 6l-2 2.6c.1.5.2 1 .2 1.6C20.2 15.6 16 20 10.4 20 7.6 20 5.3 19 4 17.6c1.8.2 3.6-.3 4.9-1.4C6.2 16 4 14.9 4 13.5Z"/><circle cx="15.6" cy="8.6" r="1.2" fill="#000"/></svg>`;
+const LOGO = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="10.4" y="2.4" width="1.4" height="4.4" rx=".7"/><circle cx="11.1" cy="2.6" r="1.7"/><circle cx="11" cy="13.6" r="7.6"/><path d="M18 12 22.6 13.8 18 15.6Z"/><circle cx="14" cy="12" r="1.4" fill="#0d1120"/><path d="M5.6 14.4c2.1-.3 4 .8 4.6 2.7-2.1.6-4.1-.6-4.6-2.7Z" fill="#0d1120" opacity=".35"/></svg>`;
 const NAV = ["Home", "Explore", "Notifications", "Messages", "Bookmarks", "Profile"];
 const NAV_ICON = [
   `<path d="M12 3 2.5 10.5V21h7v-6h5v6h7V10.5Z"/>`,
@@ -55,14 +55,14 @@ class Chirp {
       <main class="so-cp-main">
         <header class="so-cp-head"><span class="so-av so-cp-meav">${avatar("#ff9f5a", seedOf(this.me))}</span><span class="so-cp-logo sm">${LOGO}</span><div class="so-cp-tabs"><span class="on">For you</span><span>Following</span></div></header>
         <div class="so-cp-feed">
-          <div class="so-cp-comp"><span class="so-av">${avatar("#ff9f5a", seedOf(this.me))}</span><div class="so-cp-cin"><span class="so-cp-ph">What's happening?</span><span class="so-cp-ct"></span></div><span class="so-cp-send">Post</span></div>
+          <div class="so-cp-comp"><span class="so-av">${avatar("#ff9f5a", seedOf(this.me))}</span><div class="so-cp-cin"><span class="so-cp-ph">What's buzzing?</span><span class="so-cp-ct"></span></div><span class="so-cp-send">Post</span></div>
         </div>
         <span class="so-cp-fab">+</span>
         <footer class="so-cp-bar">${NAV_ICON.slice(0, 4).map((p, i) => `<svg class="${i === 0 ? "on" : ""}" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`).join("")}</footer>
       </main>
       <aside class="so-cp-side">
         <div class="so-cp-search">${ICON.search}<span>Search</span></div>
-        <section class="so-cp-trends"><h4>What's happening</h4>${CHIRP_TRENDS.map(([cat, t]) => `<div><small>${cat} · Trending</small><b></b><small>${fmtN(Math.round(2000 + seedOf(t) % 90000))} posts</small></div>`).join("")}</section>
+        <section class="so-cp-trends"><h4>Buzzing now</h4>${CHIRP_TRENDS.map(([cat, t]) => `<div><small>${cat} · Trending</small><b></b><small>${fmtN(Math.round(2000 + seedOf(t) % 90000))} posts</small></div>`).join("")}</section>
       </aside>`;
     this.root.querySelectorAll(".so-cp-trends b").forEach((b, i) => (b.textContent = CHIRP_TRENDS[i][1]));
     this.feed = this.root.querySelector(".so-cp-feed")!;
@@ -90,7 +90,7 @@ class Chirp {
         <div class="so-cp-who"><b></b><span></span></div>
         <p class="so-cp-txt"></p>
         ${p.img ? `<div class="so-cp-img"></div>` : ""}
-        ${p.note ? `<div class="so-cp-note"><b>${NOTE}Readers added context</b><p></p></div>` : ""}
+        ${p.note ? `<div class="so-cp-note"><b>${NOTE}Other robots added context</b><p></p></div>` : ""}
         <div class="so-cp-acts">
           <span class="a-rep">${ICON.reply}<i>${fmtN(p.replies)}</i></span>
           <span class="a-rt">${ICON.repost}<i>${fmtN(p.reposts)}</i></span>
@@ -156,7 +156,7 @@ class Chirp {
     else await this.k.click(this.composer.querySelector(".so-cp-cin")!, 0.3);
     this.composer.classList.add("has");
     const text = nextMine();
-    const kb = this.phone ? phoneKeyboard(this.k, this.root, { dark: true, accent: "#1d9bf0" }) : undefined;
+    const kb = this.phone ? phoneKeyboard(this.k, this.root, { dark: true, accent: "#5b8cff" }) : undefined;
     await kb?.open({ ret: "return" });
     await typeInto(this.k, this.compText, text, { phone: this.phone, skill: this.opts.skill, kb });
     await this.k.sleep(rnd(500, 1000));

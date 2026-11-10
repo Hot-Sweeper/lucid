@@ -41,7 +41,7 @@ Read the actual implementation before editing. Main integration is in `src/main.
 
 The project history contains many coordinated releases and later source changes. Do not reuse an old successful build as proof of today's source.
 
-- Active parallel work at audit time: connected-device buildings; native Lucid Chat with rarer T3 user-chat preference and T3 agent/orchestrator routing; collectible rewards, spatial sound and clickable world/room interactions; office actions and agent guidance.
+- Active parallel work at audit time: connected-device buildings; native chat app for user conversations and T3 Code for robot-to-robot work (no per-robot preference since 2026-11-10); collectible rewards, spatial sound and clickable world/room interactions; office actions and agent guidance.
 - Localization has source and fixture checks but live Luna quality/native acceptance remains pending. Its cancelled thread status does not mean source was removed.
 - Accessories and rendering have genuine native evidence, but earlier reviews explicitly found gaps in walking-frame and change-after-creation acceptance. Later combined-release messages report additional coverage; verify exact captured source when relying on it.
 - Hiring context continuation, unattended desktop gating, frontend-on-monitor, dictation and performance work have separate source, fixture and delivery records. Their thread statuses alone do not establish current installation.
@@ -101,7 +101,7 @@ Links below identify all other retained project threads returned by the project 
 - Lucid: desk reorder, desk teleporting, main office drag and drop: <t3-thread://v2/35311fd2-1ff1-4b03-ba2f-301e3b5966eb/mcp:45151cef-464d-45fd-b328-9b8624c8add5> (completed).
 - Lucid: office to-do list from the queue: <t3-thread://v2/35311fd2-1ff1-4b03-ba2f-301e3b5966eb/mcp:2ca210a2-0e77-4c7f-adf0-904def7420fb> (completed).
 - Lucid: messages app, sheets, browser pages, channel names: <t3-thread://v2/35311fd2-1ff1-4b03-ba2f-301e3b5966eb/mcp:35e55b3b-e890-4f9b-8879-fc62b9140add> (completed).
-- Lucid: robot content (Codex image gen, Steam, bitcoin, Theo, song skips): <t3-thread://v2/35311fd2-1ff1-4b03-ba2f-301e3b5966eb/mcp:f33cb5b6-17c9-4822-a734-c04bc12a5fc7> (completed).
+- Lucid: robot content (Codex image gen, game store, coin trading, video channels, song skips): <t3-thread://v2/35311fd2-1ff1-4b03-ba2f-301e3b5966eb/mcp:f33cb5b6-17c9-4822-a734-c04bc12a5fc7> (completed).
 - /root/actor_performance: <t3-thread://v2/35311fd2-1ff1-4b03-ba2f-301e3b5966eb/thread:provider:codex:native-thread:01a19259-ce8c-7cf3-9378-12c727e191b5> (idle, child).
 - /root/static_quality: <t3-thread://v2/35311fd2-1ff1-4b03-ba2f-301e3b5966eb/thread:provider:codex:native-thread:01a19259-c1b8-74a2-b947-e1092ce9a515> (idle, child).
 - /root/screen_performance: <t3-thread://v2/35311fd2-1ff1-4b03-ba2f-301e3b5966eb/thread:provider:codex:native-thread:01a19259-dc59-79a3-b2c6-33ff6fe2927a> (idle, child).

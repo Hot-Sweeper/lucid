@@ -157,7 +157,7 @@ class Snapbot {
     if (chance(0.75)) {
       await touch(this.k, this.cam, this.root);
       bar.classList.add("on");
-      const kb = phoneKeyboard(this.k, this.root, { dark: true, accent: "#0fadff" });
+      const kb = phoneKeyboard(this.k, this.root, { dark: true, accent: "#6a8dff" });
       await kb.open({ ret: "done" });
       await typeInto(this.k, txt, pick(SNAP_CAPTIONS), { phone: true, skill: this.opts.skill, kb });
       await this.k.sleep(rnd(300, 600));
@@ -262,7 +262,7 @@ class Snapbot {
       msgs.scrollTop = msgs.scrollHeight;
     };
     await this.k.sleep(rnd(500, 900));
-    const kb = phoneKeyboard(this.k, view, { accent: "#0fadff" });
+    const kb = phoneKeyboard(this.k, view, { accent: "#6a8dff" });
     for (const l of sc.lines) {
       if (this.k.left < 3000) break;
       if (l.u === "them") {

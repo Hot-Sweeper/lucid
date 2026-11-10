@@ -38,7 +38,7 @@ import {setRenderView} from '${root}/src/perf/render.ts';window.review={Desk,use
         useRobot((host,rig)=>new TopDownRobot(host,rig));
         const desk=window.desk=new Desk(document.querySelector('#desk'),0,0,{peek:async()=>null,image:async()=>null,readText:async()=>null});
         desk.assign({id:'isolated-thought',title:'Streamed Notes review',provider:'claudeAgent',model:'Opus 5.5'});
-        desk.wm.prefs={...desk.wm.prefs,notesApp:'apple-notes',launch:'dock',windows:'floating'};desk.wm.speed=2;
+        desk.wm.prefs={...desk.wm.prefs,launch:'dock',windows:'floating'};desk.wm.speed=2;
         desk.setSeated(true);setRenderView(desk.el,true,920);setRenderView(desk.screen,true,820);setRenderView(desk.wm.root,true,820);
         window.keys=0;window.speech=[];const key=desk.robot.pressKey.bind(desk.robot);desk.robot.pressKey=k=>{keys++;key(k)};
         const say=desk.say.bind(desk);desk.say=(text,kind)=>{if(text)speech.push({text,kind});say(text,kind)};

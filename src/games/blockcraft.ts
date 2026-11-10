@@ -1,6 +1,7 @@
-// Blockcraft: a 2D side-view voxel sandbox. The robot chops a tree, digs a staircase for
+// Voxel Valley: a 2D side-view voxel sandbox. The robot chops a tree, digs a staircase for
 // stone and ore, builds a little hut before nightfall and sleeps through to morning.
-// A hissing green cube bot sometimes wanders over and pops a crater in the ground.
+// A static bunny sometimes hops over: its fur charges up until it zaps a few blocks loose.
+// A gentle pat grounds it.
 import "./games.css";
 import { canvasPixelRatio } from "../perf/canvas";
 import {
@@ -22,11 +23,18 @@ const G = 34, JUMP = 9.6, WALK = 3.4;
 class Dead extends Error {}
 class Quit extends Error {}
 // a function, so TypeScript does not narrow away state changes made by the frame loop
-const alive = (h: { state: string }) => h.state !== "dead";
+const alive = (h: { state: string }) => h.state !== "gone";
 
 interface Body { x: number; y: number; w: number; h: number; vx: number; vy: number; grounded: boolean; wet: boolean; goal: number | null; want: number; face: number; walkT: number }
-interface Hiss extends Body { state: "walk" | "fuse" | "stun" | "dead" | "idle"; fuse: number; stun: number; hp: number; noticed: boolean; night: boolean; poof: number; spot: number; lastX: number; stuck: number }
+// charge: static in the fur (0..1); wind: the crackling wind-up before a zap; pets: pats that grounded it
+interface Bunny extends Body { state: "hop" | "charge" | "giggle" | "leave" | "nap" | "gone"; charge: number; wind: number; stun: number; pets: number; away: number; leaveT: number; noticed: boolean; night: boolean; poof: number; spot: number; lastX: number; stuck: number }
 type Part = { x: number; y: number; vx: number; vy: number; life: number; r: number; c: string; g: number };
+type Arc = { x0: number; y0: number; x1: number; y1: number; life: number; seed: number };
+
+const FUR = "#d6d0ea", FUR_LIGHT = "#f1edfa", FUR_DARK = "#b3acd0";
+const FLUFF = [FUR_LIGHT, FUR, "#ffffff", FUR_DARK];
+const SPARK = ["#ffe07a", "#9fd8ff"];
+const ARC_LIFE = 0.35;
 
 function genWorld(seed: number) {
   const r = rng(seed);
@@ -132,7 +140,7 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
   const scope = new Scope(body);
   const calm = reducedMotion();
   try {
-    const f = mountFrame(body, scope, "Blockcraft", "bc");
+    const f = mountFrame(body, scope, "Voxel Valley", "bc");
     const S = new Session(host, opts, { base: 0.3, step: 0.15, calm: 0.08 });
     const skill = S.skill;
     const W = f.w, H = f.h;
@@ -182,7 +190,7 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
       cc.setTransform(2, 0, 0, 2, 0, 0);
       let terrainDensity = 2;
       ws.add(() => { cache.width = cache.height = 0; });
-      const empty = (c: number, r: number) => { const t = get(c, r); return t === AIR || t === WATER || (t === LEAF && false); };
+      const empty = (c: number, r: number) => { const t = get(c, r); return t === AIR || t === WATER; };
       const paintCell = (c: number, r: number) => {
         cc.clearRect(c * B, r * B, B, B);
         const t = get(c, r);
@@ -205,8 +213,8 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
       // ---- entities ----
       const mkBody = (x: number, y: number, w: number, h: number): Body => ({ x, y, w, h, vx: 0, vy: 0, grounded: false, wet: false, goal: null, want: 0, face: 1, walkT: 0 });
       const R = mkBody(site + 2.15, sh - 1.8, 0.7, 1.8);
-      let hiss: Hiss | null = null;
-      let hurtNow = false;
+      let bun: Bunny | null = null;
+      let hurtNow = false, petting = false, napped = false;
       let cells = 3, dead = false, sleeping = false, swing = 0, holding = -1, hurtT = 0;
       let crack: { c: number; r: number; p: number } | null = null;
       const inv = [0, 0, 0, 0, 0], shown = [0, 0, 0, 0, 0], bumpS = [0, 0, 0, 0, 0];
@@ -214,7 +222,8 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
       const parts: Part[] = [];
       const flies: { t: number; x: number; y: number; slot: number; icon: number }[] = [];
       const flashes: { c: number; r: number; t: number }[] = [];
-      let camX = clamp((R.x + 0.35) * B - W / 2, 0, COLS * B - W), shake = 0, boomFlash = 0, title = 1;
+      const arcs: Arc[] = [];
+      let camX = clamp((R.x + 0.35) * B - W / 2, 0, COLS * B - W), shake = 0, zapFlash = 0, title = 1;
       let dayT = 0.3, dayRate = 0.0062, zz = 0;
       let status = "";
       const setStatus = (s: string) => { status = s; f.setScore(s); };
@@ -249,7 +258,7 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
             b.vy = b.wet ? -5 : -JUMP;
             if (isRobot) host.tap(" ");
           } else if (b.wet) b.vy = Math.min(b.vy, -2.5);
-          // the hissbot has springy feet: it hops up to two blocks
+          // the bunny has springy feet: it hops up to two blocks
           else if (!isRobot && b.grounded && !solidAt(Math.floor(b.x + b.w / 2), feet - 2) && !solidAt(Math.floor(b.x + b.w / 2), feet - 3)) b.vy = -12.5;
           b.vx = 0;
         }
@@ -274,27 +283,51 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
         }
       };
 
-      const explode = (h: Hiss) => {
+      const fluff = (x: number, y: number, n: number) => burst(x, y, n, FLUFF, 3, 1.5);
+      const poofOut = (h: Bunny) => { h.state = "gone"; h.poof = 1; fluff(h.x + 0.45, h.y + 0.45, 14); };
+      const dropItem = () => {
+        const held = [0, 1, 2, 3].filter((i) => inv[i] > 0);
+        if (!held.length) return;
+        const slot = held[Math.floor(Math.random() * held.length)];
+        inv[slot]--; shown[slot] = Math.max(0, shown[slot] - 1); bumpS[slot] = 1;
+        burst(R.x + R.w / 2, R.y + 0.8, 6, [BASE[PLACE_AS[slot]], "#f6ecdc"], 4);
+      };
+
+      // Full of static, the bunny discharges: a few nearby blocks pop loose in a puff of fluff.
+      const zap = (h: Bunny) => {
         const ex = h.x + h.w / 2, ey = h.y + h.h / 2;
-        h.state = "dead"; h.poof = 1;
+        const loose: [number, number, number][] = [];
         for (let r = Math.floor(ey - 3); r <= Math.ceil(ey + 3); r++) for (let c = Math.floor(ex - 3); c <= Math.ceil(ex + 3); c++) {
-          const d = Math.hypot(c + 0.5 - ex, r + 0.5 - ey);
           const t = get(c, r);
-          if (d < 2.4 + hash(c * 3 + r) * 0.5 && t !== CORE && t !== WATER && t !== AIR) setBlock(c, r, AIR);
+          if (t === AIR || t === WATER || t === CORE) continue;
+          const d = Math.hypot(c + 0.5 - ex, r + 0.5 - ey);
+          if (d < 2.6 && (empty(c - 1, r) || empty(c + 1, r) || empty(c, r - 1) || empty(c, r + 1))) loose.push([c, r, d + hash(c * 5 + r) * 0.8]);
         }
-        burst(ex, ey, 34, ["#f6ecdc", "#ffd59a", "#5cc46e", "#8a5d40", "#7c86a6"], 9, 10);
-        boomFlash = 1;
-        shake = calm ? 0 : 1;
+        loose.sort((a, b) => a[2] - b[2]);
+        for (const [c, r] of loose.slice(0, chance(0.5) ? 3 : 2)) {
+          const t = get(c, r);
+          setBlock(c, r, AIR);
+          burst(c + 0.5, r + 0.5, 6, [BASE[t], "#f6ecdc", SPARK[0]], 4);
+          arcs.push({ x0: ex, y0: ey, x1: c + 0.5, y1: r + 0.5, life: ARC_LIFE, seed: Math.random() * 99 });
+        }
+        fluff(ex, ey, 22);
+        zapFlash = 1;
+        shake = calm ? 0 : 0.45;
+        h.charge = 0; h.state = "leave"; h.leaveT = 0;
+        h.away = Math.sign(ex - (R.x + R.w / 2)) || 1;
         const d = Math.hypot(R.x + R.w / 2 - ex, R.y + R.h / 2 - ey);
-        if (d < 3.4 && !sleeping) {
-          cells -= d < 2.6 ? 2 : 1;
+        if (d < 3.2 && !sleeping) {
+          // a static shock: the robot jolts, drops something and loses a charge cell
+          arcs.push({ x0: ex, y0: ey, x1: R.x + R.w / 2, y1: R.y + 0.6, life: ARC_LIFE, seed: Math.random() * 99 });
+          cells--;
           hurtT = 1;
-          R.vy = -8; R.vx = Math.sign(R.x + R.w / 2 - ex || 1) * 7; R.goal = null;
+          R.vy = -5; R.vx = Math.sign(R.x + R.w / 2 - ex || 1) * 4; R.goal = null;
+          dropItem();
           if (cells <= 0) { cells = 0; dead = true; } else hurtNow = true;
         }
       };
 
-      const spawnHiss = (night: boolean, far = 11) => {
+      const spawnBunny = (night: boolean, far = 11) => {
         const rc = Math.floor(R.x + R.w / 2);
         const sides = night ? [-1] : chance(0.5) ? [1, -1] : [-1, 1];
         for (const s of sides) {
@@ -304,15 +337,16 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
             let r = 0;
             while (r < ROWS && !solidAt(c, r)) r++;
             if (get(c, r - 1) === WATER || get(c, r) === LEAF) continue;
-            hiss = { ...mkBody(c + 0.05, r - 0.92, 0.9, 0.9), state: "walk", fuse: 0, stun: 0, hp: 2, noticed: false, night, poof: 0, lastX: c, stuck: 0,
+            bun = { ...mkBody(c + 0.05, r - 0.92, 0.9, 0.9), state: "hop", charge: 0, wind: 0, stun: 0, pets: 0, away: 1, leaveT: 0, noticed: false, night, poof: 0, lastX: c, stuck: 0,
               // decided up front: how close it gets before the robot spots it (0 = never)
               spot: chance(0.3 + 0.55 * skill) ? 1.5 + Math.random() * 5 : 0 };
+            fluff(c + 0.5, r - 0.5, 8);
             return;
           }
         }
       };
-      const hissPlan = [6 + Math.random() * 10];
-      if (chance(0.6)) hissPlan.push(hissPlan[0] + 12 + Math.random() * 8);
+      const bunnyPlan = [6 + Math.random() * 10];
+      if (chance(0.6)) bunnyPlan.push(bunnyPlan[0] + 12 + Math.random() * 8);
       let worldT = 0;
       let phase: "gather" | "build" | "sleep" = "gather";
 
@@ -322,32 +356,34 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
         dayT += dt * (sleeping ? 0.11 : dayRate);
         if (!dead) step(R, dt, WALK, true);
         else { R.vy += G * dt; const ny = R.y + R.vy * dt; if (!overlaps(R, R.x, ny)) R.y = ny; else R.vy = 0; }
-        if (phase === "gather" && hissPlan.length && worldT > hissPlan[0] && !hiss) { hissPlan.shift(); spawnHiss(false); }
-        const h = hiss;
-        if (h) {
-          if (h.state === "dead") { h.poof -= dt * 2; if (h.poof <= 0) hiss = null; }
-          else {
-            const dx = R.x + R.w / 2 - (h.x + h.w / 2), dy = R.y + R.h - (h.y + h.h);
-            if (h.state === "stun") { h.stun -= dt; h.want = 0; if (h.stun <= 0) h.state = "walk"; }
-            else if (h.state === "walk") {
-              h.want = Math.abs(dx) > 0.7 ? Math.sign(dx) : 0;
-              if (Math.abs(dx) < 1.7 && Math.abs(dy) < 2.6 && !dead) { h.state = "fuse"; h.fuse = 0; }
-            } else if (h.state === "fuse") {
-              h.want = 0; h.fuse += dt;
-              if (Math.abs(dx) > 3.4 || Math.abs(dy) > 3.4) h.state = "walk";
-              else if (h.fuse > 1.7) explode(h);
-            }
-            if (alive(h)) step(h, dt, 1.5, false);
-            // stuck behind a trunk or in a pond: it pops out and back in, closer
-            if (h.state === "walk" && !h.night) {
-              if (Math.abs(h.x - h.lastX) > 0.4) { h.lastX = h.x; h.stuck = 0; }
-              else if ((h.stuck += dt) > 3) { burst(h.x + 0.45, h.y + 0.45, 10, ["#5cc46e", "#f6ecdc"], 4, 4); hiss = null; spawnHiss(false, 6); }
-            }
-            if (h.night && dayT >= 0.98 && alive(h)) { h.state = "dead"; h.poof = 1; burst(h.x + 0.45, h.y + 0.45, 14, ["#5cc46e", "#f6ecdc"], 4, 4); }
-          }
+        if (phase === "gather" && bunnyPlan.length && worldT > bunnyPlan[0] && !bun) { bunnyPlan.shift(); spawnBunny(false); }
+        const h = bun;
+        if (!h) return;
+        if (h.state === "gone") { h.poof -= dt * 2; if (h.poof <= 0) bun = null; return; }
+        const dx = R.x + R.w / 2 - (h.x + h.w / 2), dy = R.y + R.h - (h.y + h.h);
+        if (h.state === "giggle") { h.stun -= dt; h.want = 0; if (h.stun <= 0) h.state = h.pets >= 2 ? "leave" : "hop"; }
+        else if (h.state === "hop") {
+          // hopping through the grass rubs static into the fur
+          h.charge = Math.min(1, h.charge + dt * 0.12);
+          h.want = Math.abs(dx) > 0.7 ? Math.sign(dx) : 0;
+          // at night it only wants to be near the robot, so it curls up against the hut
+          if (h.night) { if (h.stuck > 1.2 || Math.abs(dx) < 2.2) { h.state = "nap"; napped = true; } }
+          else if (Math.abs(dx) < 1.7 && Math.abs(dy) < 2.6 && !dead) { h.state = "charge"; h.wind = 0; }
+        } else if (h.state === "charge") {
+          h.want = 0; h.wind += dt; h.charge = Math.min(1, h.charge + dt * 0.6);
+          if (Math.abs(dx) > 3.4 || Math.abs(dy) > 3.4) h.state = "hop";
+          else if (h.wind > 1.7) zap(h);
+        } else if (h.state === "leave") {
+          h.want = h.away;
+          if ((h.leaveT += dt) > 2.6) poofOut(h);
+        } else h.want = 0;
+        if (alive(h)) step(h, dt, h.state === "leave" ? 2.2 : 1.5, false);
+        if (h.state === "hop") {
+          if (Math.abs(h.x - h.lastX) > 0.4) { h.lastX = h.x; h.stuck = 0; }
+          else if ((h.stuck += dt) > 3 && !h.night) { fluff(h.x + 0.45, h.y + 0.45, 10); bun = null; spawnBunny(false, 6); }
         }
+        if (h.night && dayT >= 0.98 && alive(h)) poofOut(h);
       };
-
       const sx = (x: number) => x * B - camX;
       const sky = () => {
         const sunH = Math.sin(dayT * Math.PI * 2);
@@ -415,7 +451,7 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
           if (fl.t <= 0) { flashes.splice(i, 1); continue; }
           fillRR(ctx, sx(fl.c) - 2 * fl.t, fl.r * B - 2 * fl.t, B + 4 * fl.t, B + 4 * fl.t, 4, `rgba(255,255,255,${fl.t * 0.5})`);
         }
-        if (hiss) drawHiss(hiss, t);
+        if (bun) drawBunny(bun, t);
         drawRobot(t);
         for (let i = parts.length - 1; i >= 0; i--) {
           const p = parts[i];
@@ -423,6 +459,7 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
           p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt;
           fillRR(ctx, sx(p.x) - p.r * B, p.y * B - p.r * B, p.r * B * 2, p.r * B * 2, p.r * B * 0.4, withAlpha(p.c, Math.min(1, p.life * 2)));
         }
+        drawArcs(t, dt);
         // water in front, so whatever is in it looks submerged
         const c0 = Math.floor(camX / B), c1 = Math.ceil((camX + W) / B);
         for (let c = c0; c <= c1; c++) for (let r = 0; r < ROWS; r++) {
@@ -444,7 +481,7 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
             if (g === CRYSTAL || g === COPPER) glow(ctx, sx(c) + B / 2, r * B + B / 2, B * 0.9, GEM[g], dark * 0.35);
           }
         }
-        if (boomFlash > 0) { ctx.fillStyle = `rgba(255,246,230,${boomFlash * 0.6})`; ctx.fillRect(-10, -10, W + 20, H + 20); boomFlash = Math.max(0, boomFlash - dt * 3); }
+        if (zapFlash > 0) { ctx.fillStyle = `rgba(222,240,255,${zapFlash * 0.35})`; ctx.fillRect(-10, -10, W + 20, H + 20); zapFlash = Math.max(0, zapFlash - dt * 4); }
         ctx.restore();
         drawHud(t, dt, light);
         if (title > 0) {
@@ -482,6 +519,8 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
         line(ctx, [[0, 0], [9 * s, 0]], 3.6 * s, "#ff9f5a");
         if (holding >= 0) {
           ctx.save(); ctx.translate(8 * s, -3 * s); ctx.scale(0.3, 0.3); drawBlock(ctx, PLACE_AS[holding] ?? DIRT, 0, 0, 20 * s, 3); ctx.restore();
+        } else if (petting) {
+          circle(ctx, 9.5 * s, 0, 2.6 * s, "#ffb37a");
         } else if (!sleeping) {
           line(ctx, [[8 * s, 4 * s], [8 * s, -9 * s]], 2.2 * s, "#9a6a44");
           ctx.beginPath(); ctx.moveTo(2 * s, -7 * s); ctx.quadraticCurveTo(8 * s, -12 * s, 14 * s, -7 * s);
@@ -508,34 +547,89 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
         }
       };
 
-      const drawHiss = (h: Hiss, t: number) => {
+      const drawBunny = (h: Bunny, t: number) => {
         const x = sx(h.x + h.w / 2), y = (h.y + h.h) * B, s = B / 20;
-        if (h.state === "dead") {
-          if (h.poof > 0) glow(ctx, x, y - 9 * s, 30 * s * (1.4 - h.poof), "#5cc46e", 0.4 * h.poof);
+        if (h.state === "gone") {
+          if (h.poof > 0) glow(ctx, x, y - 9 * s, 30 * s * (1.4 - h.poof), FUR_LIGHT, 0.45 * h.poof);
           return;
         }
-        const fuse = h.state === "fuse" ? h.fuse : 0;
-        const swell = 1 + (fuse ? 0.08 + Math.sin(fuse * (8 + fuse * 14)) * 0.06 * Math.min(1, fuse) : 0);
-        const hop = Math.abs(Math.sin(h.walkT * 0.7)) * 2 * s;
+        const q = h.charge, wind = h.state === "charge" ? h.wind : 0, napping = h.state === "nap", happy = h.state === "giggle" || h.state === "leave";
+        const hopK = Math.abs(Math.sin(h.walkT * 0.7));
+        const lift = hopK * 3 * s;
+        const squash = napping ? 0.8 + (calm ? 0 : Math.sin(t * 2) * 0.03) : 1 + (hopK - 0.5) * 0.08;
+        const r = 7.5 * s * (1 + q * 0.18 + (wind ? Math.sin(wind * (8 + wind * 14)) * 0.04 * Math.min(1, wind) : 0));
+        const cy = -r * squash;
         ctx.save();
-        ctx.translate(x, y - hop);
-        ctx.scale(h.face * swell, swell);
-        const z = 18 * s;
-        fillRR(ctx, -z / 2, -z, z, z, 4 * s, lin(ctx, 0, -z, 0, 0, [[0, "#7ad98a"], [1, "#4aa860"]]));
-        fillRR(ctx, -z / 2 + 2 * s, -z + 2 * s, z * 0.4, 3 * s, 1.5 * s, "rgba(255,255,255,0.25)");
-        circle(ctx, -1 * s, -z * 0.6, 2.6 * s, P.night);
-        circle(ctx, 5 * s, -z * 0.6, 2.6 * s, P.night);
-        circle(ctx, -1.6 * s, -z * 0.66, 0.9 * s, "#ffffff");
-        circle(ctx, 4.4 * s, -z * 0.66, 0.9 * s, "#ffffff");
-        fillRR(ctx, -0.5 * s, -z * 0.33, 6 * s, 3 * s, 1.5 * s, "#2f7a45");
-        line(ctx, [[-3 * s, -z], [-5 * s, -z - 5 * s]], 1.6 * s, "#2f7a45");
-        circle(ctx, -5 * s, -z - 6 * s, (fuse ? 2.4 + Math.random() : 1.6) * s, fuse ? P.orange : "#2f7a45");
-        if (fuse) {
-          const fl = Math.sin(fuse * (10 + fuse * 18)) > 0 ? 0.55 : 0;
-          if (fl) fillRR(ctx, -z / 2, -z, z, z, 4 * s, `rgba(255,255,255,${fl})`);
+        ctx.translate(x, y - lift);
+        ctx.scale(h.face, 1);
+        // ears flop when relaxed and stand straight up once the fur is full of static
+        const flop = napping ? 1.1 : lerp(0.55, 0, q);
+        for (const [ex, tilt] of [[-2.2 * s, -0.2 - flop], [2.4 * s, 0.15 + flop * 0.3]]) {
+          ctx.save();
+          ctx.translate(ex, cy - r * 0.7);
+          ctx.rotate(tilt);
+          fillRR(ctx, -2 * s, -9 * s, 4 * s, 10 * s, 2 * s, FUR_DARK);
+          fillRR(ctx, -1 * s, -7.5 * s, 2 * s, 7 * s, 1 * s, "#ffb8cc");
+          if (q > 0.8 && !napping) circle(ctx, 0, -9 * s, 1.2 * s, SPARK[0]);
+          ctx.restore();
+        }
+        circle(ctx, -r * 0.95, cy + r * 0.2, 2.8 * s, FUR_LIGHT);
+        // a fuzzy edge of tufts that stand further out as static builds up
+        for (let i = 0; i < 14; i++) {
+          const a = (i / 14) * Math.PI * 2 + hash(i * 3.3) * 0.3;
+          const out = r * (0.9 + q * 0.24 * (0.6 + hash(i) * 0.8));
+          circle(ctx, Math.cos(a) * out, cy + Math.sin(a) * out * squash, (2.2 + q * 1.2) * s, FUR_DARK);
+        }
+        ctx.beginPath();
+        ctx.ellipse(0, cy, r, r * squash, 0, 0, Math.PI * 2);
+        ctx.fillStyle = rad(ctx, -r * 0.3, cy - r * 0.4, r * 1.6, [[0, FUR_LIGHT], [1, FUR]]);
+        ctx.fill();
+        fillRR(ctx, -4.5 * s, -2 * s, 3.6 * s, 2.2 * s, 1.1 * s, FUR_LIGHT);
+        fillRR(ctx, 1.5 * s, -2 * s, 3.6 * s, 2.2 * s, 1.1 * s, FUR_LIGHT);
+        // face
+        const ey = cy - r * 0.12;
+        if (napping) {
+          line(ctx, [[1.2 * s, ey], [3.2 * s, ey]], 1 * s, P.night);
+          line(ctx, [[4.6 * s, ey], [6.6 * s, ey]], 1 * s, P.night);
+        } else if (happy) {
+          ctx.lineWidth = 1 * s; ctx.lineCap = "round"; ctx.strokeStyle = P.night;
+          for (const ex of [2.2 * s, 5.6 * s]) { ctx.beginPath(); ctx.arc(ex, ey + 0.6 * s, 1.2 * s, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); }
+        } else {
+          for (const ex of [2.2 * s, 5.6 * s]) { circle(ctx, ex, ey, 1.4 * s, P.night); circle(ctx, ex - 0.4 * s, ey - 0.5 * s, 0.5 * s, "#ffffff"); }
+        }
+        circle(ctx, 7.2 * s, ey + 2 * s, 1 * s, "#ff8fae");
+        circle(ctx, 1.4 * s, ey + 2.7 * s, 1.4 * s, "rgba(255,143,174,0.35)");
+        if (wind) {
+          const fl = Math.sin(wind * (10 + wind * 18)) > 0 ? 0.5 : 0;
+          if (fl) { ctx.beginPath(); ctx.ellipse(0, cy, r, r * squash, 0, 0, Math.PI * 2); ctx.fillStyle = `rgba(255,250,214,${fl})`; ctx.fill(); }
         }
         ctx.restore();
-        if (fuse) text(ctx, "hsss", x, y - 30 * s - Math.min(1, fuse) * 4, 9, withAlpha(P.cream, 0.85), { weight: 600 });
+        // crackles around the fur once it is charged; they hold still under reduced motion
+        if (q > 0.35 && !napping) {
+          const n = Math.round(q * 4) + (wind ? 3 : 0), tick = calm ? 0 : Math.floor(t * 12), by = y - lift + cy;
+          for (let i = 0; i < n; i++) {
+            const a = hash(i * 7.7 + tick * 1.3) * Math.PI * 2, d0 = r * 1.15, d1 = r * (1.5 + hash(i + tick) * 0.3);
+            const ca = Math.cos(a), sa = Math.sin(a), kink = 1.6 * s;
+            line(ctx, [[x + ca * d0, by + sa * d0], [x + ca * (d0 + d1) / 2 - sa * kink, by + sa * (d0 + d1) / 2 + ca * kink], [x + ca * d1, by + sa * d1]], 1.2, SPARK[i % 2]);
+          }
+        }
+        if (wind) text(ctx, "bzzt", x, y - 32 * s - Math.min(1, wind) * 4, 9, withAlpha(P.cream, 0.85), { weight: 600 });
+      };
+
+      // short zigzag sparks from the bunny to each block it popped loose
+      const drawArcs = (t: number, dt: number) => {
+        for (let i = arcs.length - 1; i >= 0; i--) {
+          const a = arcs[i];
+          a.life -= dt;
+          if (a.life <= 0) { arcs.splice(i, 1); continue; }
+          const k = clamp(a.life / ARC_LIFE), tick = calm ? 0 : Math.floor(t * 30), pts: [number, number][] = [];
+          for (let j = 0; j <= 6; j++) {
+            const u = j / 6, jit = j === 0 || j === 6 ? 0 : (hash(a.seed + j * 1.7 + tick) - 0.5) * B * 0.6;
+            pts.push([sx(lerp(a.x0, a.x1, u)) + jit, lerp(a.y0, a.y1, u) * B - jit * 0.6]);
+          }
+          line(ctx, pts, 4, withAlpha(SPARK[1], 0.45 * k));
+          line(ctx, pts, 1.6, withAlpha("#fffbe0", k));
+        }
       };
 
       const slotXY = (i: number) => {
@@ -589,19 +683,22 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
         if (host.stopped) throw new Halt();
         if (hurtNow) {
           hurtNow = false;
-          // a crater in the middle of the job can be the last straw
+          // a zap in the middle of the job can be the last straw
           if (chance(0.1 + 0.2 * (1 - skill))) throw new Quit();
           host.react(chance(0.5) ? "angry" : "surprised");
         }
       };
+      // a bunny the robot can still deal with: around, not napping, not already on its way
+      const pesky = (h: Bunny | null): h is Bunny => !!h && !h.night && (h.state === "hop" || h.state === "charge" || h.state === "giggle");
       const beat = async (ms: number) => {
         await nap(host, ms);
         check();
-        if (hiss && hiss.state !== "dead" && !handling && !hiss.night) return handleHiss();
+        if (pesky(bun) && !handling) return handleBunny();
         return false;
       };
-      const handleHiss = async (): Promise<boolean> => {
-        const h = hiss!;
+      // Two gentle pats ground the static. The calm bunny leaves a spark crystal behind.
+      const handleBunny = async (): Promise<boolean> => {
+        const h = bun!;
         const d = Math.hypot(h.x - R.x, h.y - R.y);
         if (!h.noticed) {
           if (d > h.spot) return false;
@@ -610,30 +707,32 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
         }
         handling = true;
         const prev = status;
-        setStatus("Hissbot!");
+        setStatus("Static bunny!");
         R.goal = null; R.want = 0;
         try {
           let tries = 0;
-          while (hiss === h && h.state !== "dead" && tries < 8) {
+          while (bun === h && pesky(h) && h.pets < 2 && tries < 8) {
             check();
-            const dist = Math.abs(h.x + h.w / 2 - rc());
+            const dx = h.x + h.w / 2 - rc(), dist = Math.abs(dx);
             if (dist > 3.4) { await nap(host, 160); tries += 0.25; continue; }
-            R.face = Math.sign(h.x - R.x) || 1;
+            if (dist > 1.5) { R.goal = rc() + dx - Math.sign(dx) * 1.1; await nap(host, 140); tries += 0.25; continue; }
+            R.goal = null;
+            R.face = Math.sign(dx) || 1;
+            petting = true;
             await host.pointAt(f.aim(sx(h.x + h.w / 2), (h.y + h.h / 2) * B, B, B), 0.5, 0.5, 260);
             check();
-            swing = 1;
+            swing = 0.5;
             await host.click();
             tries++;
-            if (hiss === h && alive(h) && Math.random() < 0.45 + 0.45 * skill) {
-              h.hp--;
-              h.state = "stun"; h.stun = 0.7; h.fuse = 0;
-              h.vy = -6; h.x += Math.sign(h.x - R.x) * 0.05;
-              const kb = Math.sign(h.x - R.x) || 1;
-              for (let k = 0; k < 12; k++) { const nx = h.x + kb * 0.2; if (!overlaps(h, nx, h.y - 0.3)) h.x = nx; }
-              burst(h.x + 0.45, h.y + 0.4, 6, ["#7ad98a", "#f6ecdc"], 4);
-              if (h.hp <= 0) {
-                h.state = "dead"; h.poof = 1;
-                burst(h.x + 0.45, h.y + 0.45, 18, ["#5cc46e", "#7ad98a", "#f6ecdc"], 6, 6);
+            if (bun === h && pesky(h) && Math.random() < 0.45 + 0.45 * skill) {
+              h.pets++;
+              h.charge = Math.max(0, h.charge - 0.6);
+              h.state = "giggle"; h.stun = 0.7; h.wind = 0; h.vy = -4;
+              fluff(h.x + 0.45, h.y + 0.3, 6);
+              // the static drains into the ground as falling sparks
+              burst(h.x + 0.45, h.y + 0.6, 5, SPARK, 2, 22);
+              if (h.pets >= 2) {
+                h.away = Math.sign(h.x - R.x) || 1; h.leaveT = 0;
                 inv[4]++;
                 flies.push({ t: 0, x: sx(h.x + 0.45), y: (h.y + 0.45) * B, slot: 4, icon: CRYSTAL });
                 host.react("cheer");
@@ -643,6 +742,8 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
           }
         } finally {
           handling = false;
+          petting = false;
+          R.goal = null;
           setStatus(prev);
         }
         check();
@@ -824,8 +925,8 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
         setStatus("Digging");
         if (S.left > 26000) await dig();
         phase = "build";
-        hissPlan.length = 0;
-        if (hiss && (hiss as Hiss).state !== "dead") await waitFor(() => !hiss || (hiss as Hiss).state === "dead", 4000);
+        bunnyPlan.length = 0;
+        if (pesky(bun)) await waitFor(() => !pesky(bun), 4000);
         setStatus("Building a hut");
         dayRate = Math.max(dayRate, (0.56 - dayT) / 12);
         const placed = await build();
@@ -837,17 +938,17 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
         const sealed = solidAt(site, world.sh - 1) && solidAt(site + 4, world.sh - 1) && solidAt(site + 2, world.sh - 4);
         dayRate = 0.05;
         await waitFor(() => dayT >= 0.56, 3500);
-        if (sealed && chance(0.6)) spawnHiss(true);
+        if (sealed && chance(0.6)) spawnBunny(true);
         host.react("relax");
         sleeping = true;
         dayT = Math.max(dayT, 0.56);
         await waitFor(() => dayT >= 1.02, 9000);
         sleeping = false;
-        if (hiss && (hiss as Hiss).night) host.react("laugh");
+        if (napped) host.react("laugh");
         await nap(host, 500);
         host.react("cheer");
         setStatus("Morning");
-        f.showOver("Good morning", placed >= 13 ? "Cozy hut built, night survived" : "A small hut, but it held", "good");
+        f.showOver("Good morning", napped ? "A static bunny napped by the door all night" : placed >= 13 ? "Cozy hut built, night survived" : "A small hut, but it held", "good");
         await nap(host, 2600);
         return "win";
       } catch (e) {
@@ -860,10 +961,10 @@ export async function playBlockcraft(body: HTMLElement, host: FunHost, opts: Fun
         }
         if (!(e instanceof Dead)) throw e;
         crack = null;
-        setStatus("Out of power");
+        setStatus("Rebooting");
         host.react("surprised");
         await nap(host, 1300);
-        f.showOver("Fizzed out", "A hissbot popped one time too many", "bad");
+        f.showOver("Static overload", "One zap too many. Time for a reboot", "bad");
         await nap(host, 1600);
         return "dead";
       }

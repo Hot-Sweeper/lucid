@@ -43,17 +43,6 @@ Counters we cannot know for real (tokens, cost, context left) are left out on pu
 - Composer: `+`, the model and reasoning picker ("GPT-5.6 Sol · High"), then a round send button.
 - Logo: a rounded cloud outline with `>_` inside.
 
-## Gemini CLI (v0.66)
-- Black background. Gradient `#4796E4 → #847ACE → #C3677F`.
-- Accents: blue `#87AFFF`, purple `#D7AFFF`, green `#D7FFD7`, gray `#AFAFAF`.
-- Header: a gradient `>` chevron block mark next to `Gemini CLI v0.66.0`.
-- Prompt: `>` between `─` rules, placeholder "Type your message or @path/to/file". Replies start with `✦`.
-- Tool calls sit in rounded boxes: `✓  ReadFile src/app.ts`, `✓  Shell npm test`.
-  - Glyphs: ✓ done, `o` pending, `x` error. The border turns yellow for shell.
-- Spinner: braille dots plus a witty phrase ("Reticulating splines") or the thought subject, then `(esc to cancel, 12s)`.
-- Footer columns: `workspace (/directory)`, `sandbox`, `/model`, `context`. The model appears only here; there is no effort level.
-- Consumer users moved to the Antigravity CLI in June 2026, but the tool still ships.
-
 ## Google Antigravity
 - Agent-first IDE. Antigravity 2.0 (May 2026) is a desktop command center: a sidebar with Pinned, Projects and Conversations, a conversation view, and an artifacts pane.
 - Finished work collapses under "Worked for 1m 12s". Terminal steps are collapsed rows.
@@ -75,34 +64,6 @@ Counters we cannot know for real (tokens, cost, context left) are left out on pu
 
 **Desktop app (beta)**: Inter with IBM Plex Mono, bg `#101010`, brand peach. It has a session header, a composer and a file tree.
 
-## Pi (badlogic/pi-mono)
-- TUI only, on the terminal background. Text `#dcdde3`, muted `#a0a4b0`, accent violet `#c18ee0`. User messages sit on blue `#283055`.
-- Tool calls are padded tinted blocks: grey `#33353a` while pending, green `#1c3b2e` on success, red `#45281f` on error. Titles are bold (`$ npm test`, `read src/a.ts`), with muted output.
-- The editor is framed by rules whose colour shows the thinking level: off grey, low blue, medium purple, high magenta, xhigh pink, max orange.
-- Footer: `~/proj (main)`, with `(anthropic) claude-opus-4-5 • high` on the right.
-- Logo: a pixel π in coral, blue and yellow half blocks.
-
-## Hermes Agent (Nous Research)
-- CLI default skin: bronze `#CD7F32` borders, gold `#FFD700` title, amber `#FFBF00` accent, cornsilk `#FFF8DC` text.
-- Banner: a "HERMES-AGENT" block wordmark shaded gold to bronze, then a bordered panel with a caduceus, the model and the cwd.
-- Prompt `❯`. Responses are labelled `☤ Hermes`.
-- Classic tool lines: `┊ terminal ls -la (0.3s)`.
-- Kaomoji spinner: `(｡•́︿•̀｡) pondering... (1.2s)` while working, then `✧٩(ˊᗜˋ*)و✧ got it!`.
-- Status bar: `☤ model │ context │ time`.
-- Hermes Desktop (preview June 2026): running tasks on the left, chat on the right, Nous blue `#0053fd`.
-
-## OpenClaw
-**TUI** (built on pi-tui)
-- Text `#E8E3D5`, dim `#7B7F87`, gold `#F6C453`, user bg `#2B2F36`. Tool card backgrounds tinted the same way as Pi's.
-- Header: `openclaw tui - ws://127.0.0.1:18789 - agent main - session main`.
-- Tool cards have a gold bold title plus "(running)" or "(completed)".
-- Status: `noodling… • 4s | streaming`. Footer: `agent main | session main | model high`.
-
-**Control UI**
-- Bg `#0e1015`, card `#161920`, text `#f4f4f5`, lobster red `#ff5c5c`, teal `#14b8a6`. Instrument Sans.
-- Sidebar with agent and sessions. Tool activity collapses to "Worked for …".
-- Logo: a red lobster with an egg-shaped body and two claws.
-
 ## Cursor
 **Agents window (3.x)**
 - Neutral dark `#181818`, sidebar `#141414`, cream `#EDECEC`. System sans.
@@ -117,42 +78,10 @@ Counters we cannot know for real (tokens, cost, context left) are left out on pu
 - Tool rows are a bold verb plus a dim target, e.g. `Grepped "foo" in src`.
 - Finish: a cyan-bordered "Summary" box. Spinner: two-cell braille, label "Generating".
 
-## Grok Build (xAI)
-- Ratatui TUI, GrokNight theme.
-  - Backgrounds `#0a0a0a`/`#141414`, text `#e1e1e1`.
-  - Magenta `#bb9af7` for the assistant and thinking, grey `#787878` for tools, blue `#7aa2f7` for system, teal `#1abc9c` for the model.
-  - Error `#f7768e`, success `#9ece6a`.
-- Layout:
-  - Blocks have a left accent rail `┃`. Prompts are prefixed `❯ `.
-  - Rounded prompt box with the placeholder "Type a message...".
-  - Info row under the box: model, then flags.
-- Text:
-  - Tool rows: "Read path", "Run cmd", "Edit path +3 -1".
-  - Thinking: "Thought for 3.2s".
-  - Spinner: braille, then label, timer and `[stop]`.
-- Logo: a circle split by a diagonal slash.
-
-## Aider
-- Plain terminal. Your input green `#00cc00`, assistant blue `#0088ff`, errors `#FF2222`, warnings `#FFA500`.
-- Startup lines: `Aider v0.86.2`, `Main model: X with diff edit format, reasoning high`, `Git repo: .git`.
-- Prompt: `> ` after a `─` rule. Edits read "Applied edit to x.py".
-- Spinner: "Waiting for <model>" with a bouncing `░█` scanner.
-
-## GitHub Copilot CLI
-- ANSI palette with Copilot magenta for the brand, blue accent and grey borders.
-- Input placeholder "Enter @ to mention files or / for commands".
-- Tool rows: `● Title`, then a muted `└ 12 lines...`. Spinner frames `∙ ◉ ◎` with "Thinking (Esc to cancel)".
-- Footer: cwd and branch, then the model with its effort.
-- Logo: a goggle-eyed helmet face.
-
-## Amp (Sourcegraph)
-- CLI and apps. Dark green `#0c1516`, cream `#dfdfc1`.
-- "The Dial" picks the mode: low, medium, high or ultra.
-- Logo: lowercase "amp" where the m is three slanted strokes.
-- The TUI glyphs could not be confirmed, so the recreation stays plain.
-
 ## Others
-Kimi CLI, Qwen Code, Factory Droid, Cline and Kilo fall back to the generic console, which shows their name, model and effort.
+The harness app only draws harnesses T3 Code can actually drive: Claude Code, Codex, Cursor, OpenCode and Antigravity (T3 drivers `claudeAgent`, `codex`, `cursor`, `opencode`, `antigravity`). Every other driver or provider (for example T3's `muse` driver) uses the generic console, which shows its name, model and effort. Looks for tools T3 cannot drive were removed so the robot never shows a fake app.
+
+Helpers that have their own T3 thread are shown in the robot's T3 Code window (`director.ts`), not in the harness app.
 
 ## T3 Code (stable and Nightly)
 Sources: the installed T3 Code (Nightly) 0.1.5-nightly.20261029 (its bundled web UI in `resources/server.asar`, installer art in `app.asar`), the public screenshot on t3.codes, and github.com/pingdotgg/t3code. thesvg.org has no T3 Code entry (only "t3-stack", a different project).

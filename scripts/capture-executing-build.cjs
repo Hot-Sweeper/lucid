@@ -6,9 +6,7 @@ const { fileURLToPath } = require('node:url');
 const PRODUCTION_ROOT = path.resolve('E:/T3 Projects/Lucid');
 const SOURCE_FILES = ['src/office/outside-zoom.ts', 'src/office/outside-canvas.ts', 'src/office/chat-panel.ts',
   'src/office/chat-message.ts', 'src/office/chat-scroll.ts', 'src/os/wm.ts', 'src/os/apps.ts',
-  'src/harness/note-presentation.ts', 'src/os/note-app-icon.ts',
-  'src/assets/note-apps/apple-notes.png', 'src/assets/note-apps/notepad-plus-plus.png',
-  'src/assets/note-apps/notepad.png', 'src/assets/note-apps/sources.json',
+  'src/harness/note-presentation.ts',
   'src/social/botsapp.ts', 'src/social/conversation-name.ts'];
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const samePath = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();

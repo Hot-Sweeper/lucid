@@ -55,7 +55,7 @@ function mount(prefs: Record<string, unknown> = {}) {
   el.className = "d-screen";
   stage.appendChild(el);
   wm = new WM(el, robot());
-  wm.prefs = { launch: "dock", windows: "floating", tidiness: "tidy", chatApp: "native", ...prefs } as any;
+  wm.prefs = { launch: "dock", windows: "floating", tidiness: "tidy", ...prefs } as any;
   wm.speed = 1.6;
   files = new FilesApp(wm);
   chat = new T3CodeApp(wm, "user");

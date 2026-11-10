@@ -1,6 +1,6 @@
-// A GitHub Desktop style git app for robots that prefer apps to the terminal: the changes
-// list with a diff, the commit box and "Commit to <branch>", Push origin / Fetch origin with
-// real progress (it waits for the real command), the branch dropdown and a merge dialog.
+// Git, drawn in Lucid's own simple style, for robots that prefer an app to the terminal: the
+// changed files with a diff, the commit box, push, pull and fetch with real progress (each waits
+// for the real command), a branch menu and a merge dialog. Remotes are named as git names them.
 import gsap from "gsap";
 import type { WM } from "./wm";
 import { esc, el, typeInto } from "./typing";
@@ -20,13 +20,13 @@ export class GitDeskApp {
   constructor(private wm: WM) {}
 
   private async ensure(repo: string, branch: string) {
-    const w = await this.wm.open("gitdesk", "GitHub Desktop");
+    const w = await this.wm.open("gitdesk", "Git");
     if (!w.body.querySelector(".gd")) {
       w.body.innerHTML = `
         <div class="gd">
           <div class="gd-bar">
-            <div class="gd-seg gd-repo">${IC.book}<span><small>Current repository</small><b class="v"></b></span>${IC.caret}</div>
-            <div class="gd-seg gd-branch">${IC.branch}<span><small>Current branch</small><b class="v"></b></span>${IC.caret}</div>
+            <div class="gd-seg gd-repo">${IC.book}<span><small>Repository</small><b class="v"></b></span>${IC.caret}</div>
+            <div class="gd-seg gd-branch">${IC.branch}<span><small>Branch</small><b class="v"></b></span>${IC.caret}</div>
             <div class="gd-seg gd-sync"><span class="gd-sico"></span><span><small class="k"></small><b class="v"></b></span><i class="gd-prog"></i></div>
           </div>
           <div class="gd-main">
@@ -34,8 +34,8 @@ export class GitDeskApp {
               <div class="gd-tabs"><span class="on" data-tab="changes">Changes<i class="n"></i></span><span data-tab="history">History</span></div>
               <div class="gd-list"></div>
               <div class="gd-commit">
-                <div class="gd-in gd-sum" data-ph="Summary (required)"></div>
-                <div class="gd-in gd-desc" data-ph="Description"></div>
+                <div class="gd-in gd-sum" data-ph="Commit message"></div>
+                <div class="gd-in gd-desc" data-ph="Details"></div>
                 <div class="gd-go">Commit to <b></b></div>
                 <div class="gd-last"></div>
               </div>
@@ -55,7 +55,7 @@ export class GitDeskApp {
     return gd;
   }
 
-  /** The third toolbar button: Fetch origin, Push origin with commits to push, Pull origin, or Publish branch. */
+  /** The sync button: fetch, push with commits waiting, pull, or push a new branch. */
   private sync(gd: HTMLElement, mode: "fetch" | "push" | "pull" | "publish" | "busy", label?: string) {
     gd.dataset.sync = mode;
     const seg = gd.querySelector(".gd-sync") as HTMLElement;
@@ -64,11 +64,11 @@ export class GitDeskApp {
     const up = `<svg class="gi" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V3M4 7l4-4 4 4"/></svg>`;
     const down = `<svg class="gi" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v10M4 9l4 4 4-4"/></svg>`;
     const spin = `<svg class="gi" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M12 1.8v2.6H9.4"/></svg>`;
-    if (mode === "push") { ico.innerHTML = up; k.textContent = "Push origin"; v.innerHTML = `${this.ahead ? `<i class="gd-badge">${this.ahead}</i>` : ""}Last fetched just now`; }
-    else if (mode === "pull") { ico.innerHTML = down; k.textContent = "Pull origin"; v.textContent = label || "Last fetched just now"; }
-    else if (mode === "publish") { ico.innerHTML = up; k.textContent = "Publish branch"; v.textContent = "Publish this branch to GitHub"; }
-    else if (mode === "busy") { ico.innerHTML = spin; k.textContent = label || "Pushing to origin"; v.textContent = "Waiting for the remote"; }
-    else { ico.innerHTML = spin; k.textContent = "Fetch origin"; v.textContent = label || "Last fetched just now"; }
+    if (mode === "push") { ico.innerHTML = up; k.textContent = "Push"; v.innerHTML = `${this.ahead ? `<i class="gd-badge">${this.ahead}</i>` : ""}to origin`; }
+    else if (mode === "pull") { ico.innerHTML = down; k.textContent = "Pull"; v.textContent = label || "from origin"; }
+    else if (mode === "publish") { ico.innerHTML = up; k.textContent = "Push branch"; v.textContent = "New on origin"; }
+    else if (mode === "busy") { ico.innerHTML = spin; k.textContent = label || "Pushing"; v.textContent = "Waiting for origin"; }
+    else { ico.innerHTML = spin; k.textContent = "Fetch"; v.textContent = label || "from origin"; }
   }
 
   private fileRow(f: DeskFile) {
@@ -106,7 +106,7 @@ export class GitDeskApp {
     (gd.querySelector(".gd-list") as HTMLElement).innerHTML = "";
     (gd.querySelector(".gd-tabs .n") as HTMLElement).textContent = "";
     (gd.querySelector(".gd-dh") as HTMLElement).textContent = "";
-    (gd.querySelector(".gd-db") as HTMLElement).innerHTML = `<div class="gd-empty"><b>No local changes</b><p>There are no uncommitted changes in this repository.</p>${extra}</div>`;
+    (gd.querySelector(".gd-db") as HTMLElement).innerHTML = `<div class="gd-empty"><b>Working tree clean</b><p>Nothing to commit.</p>${extra}</div>`;
   }
 
   /** Review the changed files, write the summary and commit. */
@@ -165,13 +165,13 @@ export class GitDeskApp {
     }
     sum.textContent = ""; dsc.textContent = "";
     this.ahead++;
-    (gd.querySelector(".gd-last") as HTMLElement).innerHTML = `<span>Committed just now</span><em>${esc(summary.slice(0, 60))}</em><i>Undo</i>`;
-    this.emptyState(gd, `<div class="gd-sugg"><b>Push commits to the origin remote</b><p>You have ${this.ahead} local commit${this.ahead === 1 ? "" : "s"} waiting to be pushed to GitHub.</p><span class="gd-btn">Push origin</span></div>`);
+    (gd.querySelector(".gd-last") as HTMLElement).innerHTML = `<span>Committed</span><em>${esc(summary.slice(0, 60))}</em>`;
+    this.emptyState(gd, `<div class="gd-sugg"><b>${this.ahead} commit${this.ahead === 1 ? "" : "s"} ahead of origin</b><p>Ready to push.</p><span class="gd-btn">Push</span></div>`);
     this.sync(gd, "push");
     await wm.sleep(instant ? 200 : 600, e);
   }
 
-  /** Push origin: the button waits for the real push, then shows what happened. */
+  /** Push: the button waits for the real push, then shows what happened. */
   async push(o: { repo: string; branch: string; publish?: boolean; done: Promise<Done>; instant?: boolean; prUrl?: (out: string) => string | null }) {
     const wm = this.wm, e = wm.epoch, instant = !!o.instant;
     const gd = await this.ensure(o.repo, o.branch);
@@ -179,7 +179,7 @@ export class GitDeskApp {
     else if (gd.dataset.sync !== "push") this.sync(gd, "push");
     const seg = gd.querySelector(".gd-sync") as HTMLElement;
     if (!instant) { await wm.pointAt(seg, 0.4, 0.5, 340); await wm.click(); }
-    this.sync(gd, "busy", o.publish ? "Publishing branch" : "Pushing to origin");
+    this.sync(gd, "busy", o.publish ? "Pushing branch" : "Pushing");
     const r = await o.done;
     wm.check(e);
     if (!r.ok) { this.sync(gd, "push"); await this.error(gd, r.output, instant); return; }
@@ -187,19 +187,19 @@ export class GitDeskApp {
     this.sync(gd, "fetch");
     const pr = o.prUrl?.(r.output);
     const pushed = (r.output.match(/^\s+\S+\.\.\S+\s+(\S+ -> \S+)/m) || r.output.match(/\[new branch\]\s+(\S+ -> \S+)/m))?.[1];
-    this.emptyState(gd, pr ? `<div class="gd-sugg"><b>Create a Pull Request from your current branch</b><p>The current branch (${esc(this.branch)}) is already published to GitHub. Create a pull request to propose and collaborate on your changes.</p><span class="gd-btn gd-blue">Preview Pull Request</span></div>` : pushed ? `<p class="gd-note">Pushed ${esc(pushed)}</p>` : "");
+    this.emptyState(gd, pr ? `<div class="gd-sugg"><b>Pushed ${esc(this.branch)}</b><p>The remote offers a pull request for this branch.</p><span class="gd-btn gd-go-btn">Open pull request</span></div>` : pushed ? `<p class="gd-note">Pushed ${esc(pushed)}</p>` : "");
     (gd.querySelector(".gd-last") as HTMLElement).innerHTML = "";
     await wm.sleep(instant ? 200 : 900, e);
   }
 
-  /** Fetch origin or Pull origin, waiting for the real command. */
+  /** Fetch or pull, waiting for the real command. */
   async fetch(o: { repo: string; branch: string; pull: boolean; done: Promise<Done>; instant?: boolean }) {
     const wm = this.wm, e = wm.epoch, instant = !!o.instant;
     const gd = await this.ensure(o.repo, o.branch);
     if (o.pull) this.sync(gd, "pull");
     const seg = gd.querySelector(".gd-sync") as HTMLElement;
     if (!instant) { await wm.pointAt(seg, 0.4, 0.5, 340); await wm.click(); }
-    this.sync(gd, "busy", o.pull ? "Pulling origin" : "Fetching origin");
+    this.sync(gd, "busy", o.pull ? "Pulling" : "Fetching");
     const r = await o.done;
     wm.check(e);
     if (!r.ok) { this.sync(gd, "fetch"); await this.error(gd, r.output, instant); return; }
@@ -242,11 +242,11 @@ export class GitDeskApp {
     await wm.sleep(instant ? 150 : 500, e);
   }
 
-  /** Branch > Merge into current branch: pick the branch, Create a merge commit. */
+  /** Merge: pick the other branch and merge it into the current one. */
   async merge(o: { repo: string; branch: string; from: string; done: Promise<Done>; instant?: boolean }) {
     const wm = this.wm, e = wm.epoch, instant = !!o.instant;
     const gd = await this.ensure(o.repo, o.branch);
-    const dlg = el(`<div class="gd-modal"><div class="gd-dlg"><h4>Merge into <b>${esc(this.branch)}</b></h4><div class="gd-in gd-filter" data-ph="Filter"></div><div class="gd-dsec">Other branches</div><div class="gd-ditem tgt">${IC.branch}${esc(o.from)}</div><p class="gd-mnote"></p><div class="gd-mbtn">Create a merge commit</div></div></div>`);
+    const dlg = el(`<div class="gd-modal"><div class="gd-dlg"><h4>Merge into <b>${esc(this.branch)}</b></h4><div class="gd-in gd-filter" data-ph="Filter"></div><div class="gd-dsec">Other branches</div><div class="gd-ditem tgt">${IC.branch}${esc(o.from)}</div><p class="gd-mnote"></p><div class="gd-mbtn">Merge</div></div></div>`);
     gd.appendChild(dlg);
     if (!instant) {
       gsap.fromTo(dlg.firstElementChild, { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.25 });
@@ -265,7 +265,7 @@ export class GitDeskApp {
     if (!r.ok) { await this.error(gd, r.output, instant); return; }
     this.ahead++;
     this.sync(gd, "push");
-    this.emptyState(gd, `<p class="gd-note">Successfully merged <b>${esc(o.from)}</b> into <b>${esc(this.branch)}</b></p>`);
+    this.emptyState(gd, `<p class="gd-note">Merged <b>${esc(o.from)}</b> into <b>${esc(this.branch)}</b></p>`);
     await wm.sleep(instant ? 200 : 1000, e);
   }
 

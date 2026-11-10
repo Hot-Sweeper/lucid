@@ -1,77 +1,77 @@
-/* Telegrid: a Telegram-style messenger. Blue accents, soft green patterned chat background. */
+/* Telegrid: a channel-heavy messenger. Indigo accents, a soft periwinkle chat background. */
 .so-tg { display: flex; background: #fff; color: #000; }
-.so-tg-side { width: 36%; min-width: 0; display: flex; flex-direction: column; background: #fff; box-shadow: 1px 0 0 #dfe1e5; z-index: 1; }
+.so-tg-side { width: 36%; min-width: 0; display: flex; flex-direction: column; background: #fff; box-shadow: 1px 0 0 #dfe1ea; z-index: 1; }
 .so-tg-top { flex: none; height: 38px; display: flex; align-items: center; gap: 9px; padding: 0 10px; }
 .so-tg-burger { width: 13px; display: flex; flex-direction: column; gap: 2.5px; }
-.so-tg-burger i { height: 1.5px; border-radius: 1px; background: #707579; }
-.so-tg-search { flex: 1; height: 24px; display: flex; align-items: center; gap: 6px; padding: 0 9px; border-radius: 12px; background: #f1f1f1; color: #a2acb4; }
-.so-tg-search svg { width: 11px; height: 11px; fill: #a2acb4; }
+.so-tg-burger i { height: 1.5px; border-radius: 1px; background: #6f7488; }
+.so-tg-search { flex: 1; height: 24px; display: flex; align-items: center; gap: 6px; padding: 0 9px; border-radius: 12px; background: #f1f1f6; color: #a3a8bd; }
+.so-tg-search svg { width: 11px; height: 11px; fill: #a3a8bd; }
 .so-tg-list { flex: 1; min-height: 0; overflow: hidden; padding: 0 5px; }
 .so-tg-row { display: flex; align-items: center; gap: 8px; padding: 6px 6px; border-radius: 8px; transition: background 0.2s; }
 .so-tg-row .so-av { width: 32px; height: 32px; }
-.so-tg-row.on { background: #3390ec; }
+.so-tg-row.on { background: #5b7cf0; }
 .so-tg-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .so-tg-mid b { display: flex; align-items: center; gap: 3px; font-weight: 600; font-size: 10.5px; white-space: nowrap; overflow: hidden; }
 .so-tg-mid b span { overflow: hidden; text-overflow: ellipsis; }
 .so-tg-mid b svg { width: 10px; height: 10px; fill: currentColor; flex: none; }
-.so-tg-prev { color: #707579; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.so-tg-prev { color: #6f7488; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .so-tg-meta { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; align-self: flex-start; padding-top: 1px; }
-.so-tg-meta time { color: #707579; font-size: 8.5px; }
-.so-tg-meta i { min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: #3390ec; color: #fff; font: 600 8px/15px var(--font); text-align: center; font-style: normal; }
-.so-tg-meta i.muted { background: #c4c9cc; }
+.so-tg-meta time { color: #6f7488; font-size: 8.5px; }
+.so-tg-meta i { min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: #5b7cf0; color: #fff; font: 600 8px/15px var(--font); text-align: center; font-style: normal; }
+.so-tg-meta i.muted { background: #c4c7d4; }
 .so-tg-row.on .so-tg-mid b, .so-tg-row.on .so-tg-prev, .so-tg-row.on time { color: #fff; }
-.so-tg-row.on .so-tg-meta i { background: #fff; color: #3390ec; }
+.so-tg-row.on .so-tg-meta i { background: #fff; color: #5b7cf0; }
 .so-tg-view { flex: 1; min-width: 0; display: none; flex-direction: column; position: relative;
-  background: linear-gradient(135deg, #c3d8a1 0%, #9fc7a2 35%, #d4d69c 70%, #b4cf9a 100%); }
+  background: linear-gradient(135deg, #c9d3f2 0%, #b9c6f0 35%, #d9d0f0 70%, #c3d0ee 100%); }
 .so-tg.open .so-tg-view { display: flex; }
-.so-tg-empty { flex: 1; display: grid; place-items: center; background: linear-gradient(135deg, #c3d8a1 0%, #9fc7a2 35%, #d4d69c 70%, #b4cf9a 100%); }
+.so-tg-empty { flex: 1; display: grid; place-items: center; background: linear-gradient(135deg, #c9d3f2 0%, #b9c6f0 35%, #d9d0f0 70%, #c3d0ee 100%); }
 .so-tg-empty span { padding: 3px 10px; border-radius: 10px; background: rgba(0, 0, 0, 0.2); color: #fff; }
 .so-tg.open .so-tg-empty { display: none; }
 .so-tg-head { flex: none; height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: #fff; }
 .so-tg-head div { display: flex; flex-direction: column; min-width: 0; }
 .so-tg-head b { font-size: 10.5px; font-weight: 600; }
-.so-tg-head small { color: #707579; font-size: 8.5px; white-space: nowrap; }
+.so-tg-head small { color: #6f7488; font-size: 8.5px; white-space: nowrap; }
 .so-tg-back { display: none; }
 .so-tg-pin { flex: none; display: none; align-items: center; gap: 7px; height: 30px; padding: 0 12px; background: #fff; box-shadow: 0 1px 0 #e6e6e6; transition: background 0.3s; }
 .so-tg.pin .so-tg-pin { display: flex; }
-.so-tg-pin.flash { background: #e8f3fd; }
-.so-tg-pin svg { width: 12px; height: 12px; fill: #3390ec; flex: none; }
-.so-tg-pin div { display: flex; flex-direction: column; min-width: 0; padding-left: 7px; box-shadow: inset 2px 0 0 #3390ec; }
-.so-tg-pin b { color: #3390ec; font-size: 8.5px; font-weight: 600; }
+.so-tg-pin.flash { background: #e9edfd; }
+.so-tg-pin svg { width: 12px; height: 12px; fill: #5b7cf0; flex: none; }
+.so-tg-pin div { display: flex; flex-direction: column; min-width: 0; padding-left: 7px; box-shadow: inset 2px 0 0 #5b7cf0; }
+.so-tg-pin b { color: #5b7cf0; font-size: 8.5px; font-weight: 600; }
 .so-tg-pin span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 9px; }
 .so-tg-msgs { flex: 1; min-height: 0; overflow: hidden; padding: 10px 8% 8px; display: flex; flex-direction: column; gap: 5px; }
 .so-tg-msg { display: flex; align-items: flex-end; gap: 6px; flex: none; max-width: 78%; }
 .so-tg-msg .so-av { width: 22px; height: 22px; }
 .so-tg-msg.me { align-self: flex-end; }
 .so-tg-bub, .so-tg-msg.post { position: relative; padding: 5px 8px 4px; border-radius: 10px 10px 10px 3px; background: #fff; min-width: 0; }
-.so-tg-msg.me .so-tg-bub { background: #effedd; border-radius: 10px 10px 3px 10px; }
+.so-tg-msg.me .so-tg-bub { background: #e6ebff; border-radius: 10px 10px 3px 10px; }
 .so-tg-msg.post { display: block; align-self: center; width: 78%; max-width: 330px; border-radius: 10px; }
 .so-tg-from { display: block; font-size: 9px; font-weight: 600; }
 .so-tg-msg p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.so-tg-bub time { float: right; margin: 3px 0 -2px 8px; color: #8fa7a3; font-size: 7.5px; }
-.so-tg-msg.me .so-tg-bub time { color: #4fae4e; }
+.so-tg-bub time { float: right; margin: 3px 0 -2px 8px; color: #8e97b5; font-size: 7.5px; }
+.so-tg-msg.me .so-tg-bub time { color: #5b7cf0; }
 .so-tg-img { margin: 3px -4px 4px; border-radius: 6px; overflow: hidden; }
 .so-tg-img canvas { width: 100% !important; height: auto !important; }
-.so-tg-foot2 { display: flex; justify-content: flex-end; align-items: center; gap: 3px; margin-top: 2px; color: #8fa7a3; font-size: 7.5px; }
-.so-tg-foot2 svg { width: 10px; height: 10px; fill: #8fa7a3; }
+.so-tg-foot2 { display: flex; justify-content: flex-end; align-items: center; gap: 3px; margin-top: 2px; color: #8e97b5; font-size: 7.5px; }
+.so-tg-foot2 svg { width: 10px; height: 10px; fill: #8e97b5; }
 .so-tg-foot2 time { margin-left: 4px; }
 .so-tg-kb { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin: 6px -4px -1px; clear: both; }
-.so-tg-kb span { padding: 4px 0; border-radius: 6px; background: rgba(51, 144, 236, 0.12); color: #3390ec; text-align: center; font-weight: 500; font-size: 8.5px; transition: background 0.2s; }
-.so-tg-kb span.on { background: #3390ec; color: #fff; }
+.so-tg-kb span { padding: 4px 0; border-radius: 6px; background: rgba(91, 124, 240, 0.12); color: #5b7cf0; text-align: center; font-weight: 500; font-size: 8.5px; transition: background 0.2s; }
+.so-tg-kb span.on { background: #5b7cf0; color: #fff; }
 .so-tg-foot { flex: none; display: flex; align-items: center; gap: 7px; padding: 6px 8% 9px; }
 .so-tg.chan .so-tg-foot { display: none; }
 .so-tg-field { flex: 1; min-width: 0; height: 28px; display: flex; align-items: center; padding: 0 12px; border-radius: 12px; background: #fff; white-space: nowrap; overflow: hidden; }
-.so-tg-ph { color: #a2acb4; }
+.so-tg-ph { color: #a3a8bd; }
 .so-tg-field.has .so-tg-ph { display: none; }
 .so-tg-send { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: #fff; }
-.so-tg-send svg { width: 13px; height: 13px; fill: #3390ec; }
+.so-tg-send svg { width: 13px; height: 13px; fill: #5b7cf0; }
 
 .so-tg.so-ph .so-tg-side { width: 100%; }
 .so-tg.so-ph .so-tg-empty { display: none; }
-.so-tg.so-ph .so-tg-top { height: 32px; padding-top: 4px; gap: 6px; background: #517da2; }
+.so-tg.so-ph .so-tg-top { height: 32px; padding-top: 4px; gap: 6px; background: #4a63c9; }
 .so-tg.so-ph .so-tg-burger i { background: #fff; }
-.so-tg.so-ph .so-tg-search { height: 18px; background: rgba(255, 255, 255, 0.2); color: #e3edf6; font-size: 7px; }
-.so-tg.so-ph .so-tg-search svg { fill: #e3edf6; width: 9px; height: 9px; }
+.so-tg.so-ph .so-tg-search { height: 18px; background: rgba(255, 255, 255, 0.2); color: #e4e9fa; font-size: 7px; }
+.so-tg.so-ph .so-tg-search svg { fill: #e4e9fa; width: 9px; height: 9px; }
 .so-tg.so-ph .so-tg-list { padding: 0; }
 .so-tg.so-ph .so-tg-row { padding: 5px 6px; border-radius: 0; gap: 6px; }
 .so-tg.so-ph .so-tg-row .so-av { width: 22px; height: 22px; }
@@ -79,7 +79,7 @@
 .so-tg.so-ph .so-tg-meta time { font-size: 6.5px; }
 .so-tg.so-ph .so-tg-meta i { min-width: 11px; height: 11px; font-size: 6px; line-height: 11px; padding: 0 3px; }
 .so-tg.so-ph .so-tg-view { position: absolute; inset: 0; z-index: 2; }
-.so-tg.so-ph .so-tg-head { height: 32px; padding: 4px 6px 0; gap: 5px; background: #517da2; color: #fff; }
+.so-tg.so-ph .so-tg-head { height: 32px; padding: 4px 6px 0; gap: 5px; background: #4a63c9; color: #fff; }
 .so-tg.so-ph .so-tg-head b { font-size: 8.5px; }
 .so-tg.so-ph .so-tg-head small { color: rgba(255, 255, 255, 0.75); font-size: 6.5px; }
 .so-tg.so-ph .so-tg-back { display: block; width: 6px; height: 6px; border: solid #fff; border-width: 0 0 1.5px 1.5px; transform: rotate(45deg); }
@@ -99,7 +99,7 @@
 .so-tg.so-ph .so-tg-send { width: 20px; height: 20px; }
 .so-tg.so-ph .so-tg-send svg { width: 10px; height: 10px; }
 /* who is typing, under the chat name; the keyboard lifts the list under the header */
-.so-tg-head small.typing { color: #3390ec; }
+.so-tg-head small.typing { color: #5b7cf0; }
 .so-tg.so-ph .so-tg-head small.typing { color: #fff; }
 .so-tg-head, .so-tg-pin { position: relative; z-index: 3; }
 .so-tg.so-ph .so-tg-foot { align-items: flex-end; }

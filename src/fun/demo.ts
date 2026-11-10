@@ -4,9 +4,10 @@ import "@fontsource-variable/jetbrains-mono";
 import gsap from "gsap";
 import "./fun.css";
 import type { FunHost, FunOpts, Outcome } from "./host";
-import { playSnake, playFlappy, playDash, watchPhoneFeed, watchTube, browseTensorHub, watchBotflix, VIDEOS, TENSOR_VIDEOS, drawThumbnail } from "./index";
+import { playSnake, playFlappy, playDash, watchPhoneFeed, watchTube, browseBenchtop, watchBotflix, VIDEOS, BENCHTOP_VIDEOS, drawThumbnail } from "./index";
 import { fitCanvas } from "./util";
 import { SHOWS, drawArt, renderStage } from "./shows";
+import { GAME_TITLES } from "../games/catalog";
 
 class Cancel extends Error {}
 
@@ -149,12 +150,12 @@ function panel(id: string, title: string, w: number, h: number, run: Run, phone 
 }
 
 const loops = [
-  panel("snake", "Snake", 440, 366, playSnake),
-  panel("flappy", "Flappy Drone", 440, 366, playFlappy),
-  panel("dash", "Dash", 440, 366, playDash),
+  panel("snake", GAME_TITLES.snake, 440, 366, playSnake),
+  panel("flappy", GAME_TITLES.flappy, 440, 366, playFlappy),
+  panel("dash", GAME_TITLES.dash, 440, 366, playDash),
   panel("phone", "Phone", 150, 300, watchPhoneFeed, true),
   panel("tube", "Browser", 740, 330, watchTube),
-  panel("th", "Browser", 740, 330, browseTensorHub),
+  panel("th", "Browser", 740, 330, browseBenchtop),
   // Botflix in a browser-sized window (740 x 390 frame, 364 body). ?bfw=&bfh= try other window sizes.
   panel("botflix", "Botflix", Number(params.get("bfw") || 740), Number(params.get("bfh") || 364),
     (b, h, o) => watchBotflix(b, h, { maxMs: o.maxMs, me: params.get("me") || undefined }).then((r) => ({ result: "done" as const, score: r.result === "closed" ? 0 : 1 }))),
@@ -179,7 +180,7 @@ if (!only || only.includes("videos")) {
   const galEl = root.querySelector(".d-videos") as HTMLElement;
   // ?gal=parody (or a comma list of ids) filters the gallery; ?gw=556&gh=313 sets the landscape size; ?portrait=0 skips phone shapes
   const gal = params.get("gal");
-  const pool = [...VIDEOS, ...TENSOR_VIDEOS];
+  const pool = [...VIDEOS, ...BENCHTOP_VIDEOS];
   const all = !gal ? pool : gal === "parody" ? pool.filter((v) => v.id.startsWith("p-")) : pool.filter((v) => gal.split(",").includes(v.id));
   const GW = Number(params.get("gw") || 240), GH = Number(params.get("gh") || 135);
   const sizes = params.get("portrait") === "0" ? [[GW, GH]] : [[GW, GH], [76, 135]];

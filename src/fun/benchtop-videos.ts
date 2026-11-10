@@ -1,5 +1,4 @@
-// More TensorHub videos. Every title sounds spicy and every video turns out to be nerdy tech.
-// Clean on a work screen: no people, no bodies, just hardware, code and very proud robots.
+// More Benchtop videos: hardware builds, code explainers and very proud robots, drawn live.
 import { C, type Ctx, circle, core, drawBot, drawFan, ellipse, fillRR, glow, lin, limb, loopFade, mix, poly, rad, shade, text, withAlpha } from "./draw";
 import type { VideoDef } from "./videos";
 import { backOut, clamp, easeIn, easeInOut, easeOut, hash, lerp, seg, smooth } from "./util";
@@ -47,20 +46,12 @@ function spark(ctx: Ctx, x: number, y: number, r: number, color: string) {
   poly(ctx, [[x, y - r], [x + i, y - i], [x + r, y], [x + i, y + i], [x, y + r], [x - i, y + i], [x - r, y], [x - i, y - i]], color);
 }
 
-function heart(ctx: Ctx, x: number, y: number, r: number, color: string) {
-  ctx.beginPath();
-  ctx.moveTo(x, y + r * 0.9);
-  ctx.bezierCurveTo(x - r * 1.45, y - r * 0.1, x - r * 0.8, y - r * 1.2, x, y - r * 0.42);
-  ctx.bezierCurveTo(x + r * 0.8, y - r * 1.2, x + r * 1.45, y - r * 0.1, x, y + r * 0.9);
-  ctx.fillStyle = color; ctx.fill();
-}
-
 function floor(ctx: Ctx, w: number, h: number, y: number, a = "#151b30", b = "#0d1120") {
   ctx.fillStyle = lin(ctx, 0, y, 0, h, [[0, a], [1, b]]);
   ctx.fillRect(0, y, w, h - y);
 }
 
-// --- LEAKED: full unminified source code ----------------------------------------------------
+// --- Unminifying a one-line bundle ---------------------------------------------------------
 const SRC: [number, string, string][] = [
   [0, "function checkout(cart, user) {", C.lilac],
   [1, "// TODO: fix before anyone sees this", "#5f8f88"],
@@ -74,7 +65,7 @@ const SRC: [number, string, string][] = [
 const MINI = "!function(e,t){var n=t.items.reduce(o,0);if(\"admin\"===t.name)return 0;return 1.0000001*n}(c,u);var r=e.a||{};";
 
 const unminify: VideoDef = {
-  id: "th-unminify", title: "LEAKED: full unminified source code", channel: "Dev Tools Uncut", views: "12M views", durationLabel: "8:12", loop: 7, thumbT: 5.3,
+  id: "th-unminify", title: "Unminifying a 40 KB one-liner, line by line", channel: "Dev Tools Daily", views: "12M views", durationLabel: "8:12", loop: 7, thumbT: 5.3,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 7);
     const { s, X, Y } = core(w, h, 0.5);
@@ -108,12 +99,12 @@ const unminify: VideoDef = {
       glow(ctx, x0 + ew * 0.35, sy, ew * 0.4, "#fff2c8", 0.12 * spot);
     }
     ctx.restore();
-    stamp(ctx, "LEAKED", X(28), Y(-2), 10 * s, C.pink, -0.18, seg(t, 0.8, 1.3) * (1 - seg(t, 6, 6.4)));
+    stamp(ctx, "READABLE", X(28), Y(-2), 10 * s, C.pink, -0.18, seg(t, 0.8, 1.3) * (1 - seg(t, 6, 6.4)));
     loopFade(ctx, w, h, t, 7, 0.3);
   },
 };
 
-// --- Two robots, ONE charging cable ----------------------------------------------------------
+// --- Two robots, one charger ----------------------------------------------------------------
 function battery(ctx: Ctx, x: number, y: number, s: number, lvl: number) {
   fillRR(ctx, x - 7 * s, y - 3.5 * s, 14 * s, 7 * s, 1.6 * s, "#eef0ff");
   fillRR(ctx, x + 7 * s, y - 1.6 * s, 1.6 * s, 3.2 * s, 0.6 * s, "#eef0ff");
@@ -121,7 +112,7 @@ function battery(ctx: Ctx, x: number, y: number, s: number, lvl: number) {
 }
 
 const cable: VideoDef = {
-  id: "th-cable", title: "Two robots, ONE charging cable", channel: "Low Battery", views: "8.8M views", durationLabel: "10:01", loop: 8, thumbT: 2.3,
+  id: "th-cable", title: "Two robots, one charger: a power strip story", channel: "Low Battery", views: "8.8M views", durationLabel: "10:01", loop: 8, thumbT: 2.3,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 8);
     const { s, X, Y } = core(w, h, 0.5);
@@ -167,16 +158,16 @@ const cable: VideoDef = {
       lvlL = lvlR = 0.2 + 0.8 * seg(t, 6, 7.5);
     }
     const happy = strip && t > 6.2;
-    drawBot(ctx, L.x, fy, s * 1.05, { body: C.sky, eye: C.cream, armR: 1.4, elbowR: 0.3, eyes: happy ? "happy" : pull > 0.5 ? "angry" : "open", look: 1, lean: !strip ? pull * 0.15 : 0, blush: happy });
-    drawBot(ctx, R.x, fy, s * 1.05, { body: C.orange, armL: 1.4, elbowL: 0.3, eyes: happy ? "happy" : pull < 0.5 ? "angry" : "open", look: -1, lean: !strip ? -(1 - pull) * 0.15 : 0, blush: happy });
+    drawBot(ctx, L.x, fy, s * 1.05, { body: C.sky, eye: C.cream, armR: 1.4, elbowR: 0.3, eyes: happy ? "happy" : pull > 0.5 ? "angry" : "open", look: 1, lean: !strip ? pull * 0.15 : 0 });
+    drawBot(ctx, R.x, fy, s * 1.05, { body: C.orange, armL: 1.4, elbowL: 0.3, eyes: happy ? "happy" : pull < 0.5 ? "angry" : "open", look: -1, lean: !strip ? -(1 - pull) * 0.15 : 0 });
     battery(ctx, L.x, fy - 56 * s, s, lvlL);
     battery(ctx, R.x, fy - 56 * s, s, lvlR);
-    if (happy) for (let i = 0; i < 3; i++) { const p = ((t - 6.2) * 0.8 + i / 3) % 1; heart(ctx, X(-6 + i * 6), fy - 30 * s - p * 26 * s, 2.6 * s, withAlpha(C.pink, 1 - p)); }
+    if (happy) for (let i = 0; i < 3; i++) { const p = ((t - 6.2) * 0.8 + i / 3) % 1; spark(ctx, X(-6 + i * 6), fy - 30 * s - p * 26 * s, 2.6 * s, withAlpha(C.mint, 1 - p)); }
     loopFade(ctx, w, h, t, 8, 0.3);
   },
 };
 
-// --- Thicc data center tour (4K) --------------------------------------------------------------
+// --- Data center tour: the extra wide rack -----------------------------------------------------
 function rack(ctx: Ctx, x: number, y: number, rw: number, rh: number, s: number, t: number, seed: number, dim = 1) {
   fillRR(ctx, x, y - rh, rw, rh, 2 * s, mix("#1d2540", BG, 1 - dim));
   const units = Math.floor(rh / (5 * s));
@@ -188,8 +179,8 @@ function rack(ctx: Ctx, x: number, y: number, rw: number, rh: number, s: number,
   }
 }
 
-const thicc: VideoDef = {
-  id: "th-thicc", title: "Thicc data center tour (4K)", channel: "Rack Mount", views: "15M views", durationLabel: "24:00", loop: 6, thumbT: 0.6,
+const wideRack: VideoDef = {
+  id: "th-thicc", title: "Data center tour: the extra wide rack (4K)", channel: "Rack Mount", views: "15M views", durationLabel: "24:00", loop: 6, thumbT: 0.6,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 6);
     const { s, X, Y } = core(w, h, 0.5);
@@ -215,7 +206,7 @@ const thicc: VideoDef = {
         rack(ctx, x, fy + 2 * s, rw, 66 * s, s, t, i % 6);
         if (wide) {
           fillRR(ctx, x + rw / 2 - 18 * s, fy - 56 * s, 36 * s, 11 * s, 2 * s, C.orange);
-          text(ctx, "THICC", x + rw / 2, fy - 50.4 * s, 7.5 * s, "#2a1407", { weight: 800 });
+          text(ctx, "XL", x + rw / 2, fy - 50.4 * s, 7.5 * s, "#2a1407", { weight: 800 });
         }
       }
       x += rw + 14 * s;
@@ -232,7 +223,7 @@ const thicc: VideoDef = {
   },
 };
 
-// --- Watch this array get sorted (uncensored) ---------------------------------------------------
+// --- Bubble sort, spoiler bar included ---------------------------------------------------------
 const ARR = [7, 2, 10, 4, 12, 1, 8, 5, 11, 3, 9, 6];
 const SWAPS: [number, number][] = (() => {
   const a = [...ARR], out: [number, number][] = [];
@@ -241,7 +232,7 @@ const SWAPS: [number, number][] = (() => {
 })();
 
 const sorted: VideoDef = {
-  id: "th-sort", title: "Watch this array get sorted (uncensored)", channel: "Big O", views: "22M views", durationLabel: "4:20", loop: 9, thumbT: 0.6,
+  id: "th-sort", title: "Watch this array get sorted (spoiler: bubble sort)", channel: "Big O", views: "22M views", durationLabel: "4:20", loop: 9, thumbT: 0.6,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 9);
     const { s, Y } = core(w, h, 0.5);
@@ -265,12 +256,12 @@ const sorted: VideoDef = {
     }
     limb(ctx, [[x0 - 4 * s, base + 1.5 * s], [x0 + bw * n + 4 * s, base + 1.5 * s]], 1 * s, "#2a3358");
     text(ctx, `swaps ${Math.min(done, steps)}`, x0, Y(-42), 4.4 * s, "#8d99b0", { align: "left", mono: true });
-    // the censor bar comes off
+    // the spoiler bar comes off
     const off = easeInOut(seg(t, 0.9, 1.5)) * (1 - easeInOut(seg(t, 8.5, 8.9)));
     if (off < 1) {
       const cy = lerp(Y(8), Y(-90), off);
       fillRR(ctx, x0 - 6 * s, cy - 11 * s, bw * n + 12 * s, 22 * s, 2 * s, "#05060c");
-      text(ctx, "CENSORED", w / 2, cy, 9 * s, C.cream, { weight: 800 });
+      text(ctx, "SPOILER", w / 2, cy, 9 * s, C.cream, { weight: 800 });
     }
     if (fin > 0) {
       text(ctx, "O(n²)", w / 2, Y(-30), 10 * s * backOut(fin), withAlpha(C.cream, clamp(fin * 2)), { weight: 800, mono: true });
@@ -279,12 +270,12 @@ const sorted: VideoDef = {
   },
 };
 
-// --- Barely legal regex ------------------------------------------------------------------------
+// --- A regex that barely passes review ------------------------------------------------------------------
 const RX = "^(?=.*\\d)(?=.*[A-Z]).{8,}$";
 const TESTS: [string, boolean][] = [["hunter2", false], ["Password1", true], ["CorrectHorse9", true], ["password", false]];
 
 const regex: VideoDef = {
-  id: "th-regex", title: "Barely legal regex", channel: "Pattern Match", views: "3.1M views", durationLabel: "2:37", loop: 7, thumbT: 5.6,
+  id: "th-regex", title: "A regex that barely passes code review", channel: "Pattern Match", views: "3.1M views", durationLabel: "2:37", loop: 7, thumbT: 5.6,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 7);
     const { s, X, Y } = core(w, h, 0.5);
@@ -313,10 +304,10 @@ const regex: VideoDef = {
   },
 };
 
-// --- Naughty bits: a byte order story ----------------------------------------------------------
+// --- Big end or little end: byte order ---------------------------------------------------------
 const BYTES = ["DE", "AD", "BE", "EF"];
 const endian: VideoDef = {
-  id: "th-endian", title: "Naughty bits: a byte order story", channel: "Byte Me", views: "5.5M views", durationLabel: "6:40", loop: 6, thumbT: 1.4,
+  id: "th-endian", title: "Big end or little end? A byte order story", channel: "Byte Order", views: "5.5M views", durationLabel: "6:40", loop: 6, thumbT: 1.4,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 6);
     const { s, X, Y } = core(w, h, 0.5);
@@ -400,12 +391,12 @@ const tag: VideoDef = {
   },
 };
 
-// --- Raw unfiltered logs ---------------------------------------------------------------------
+// --- Log rolling, no filter -----------------------------------------------------------------
 const LOGS: [string, string][] = [["INFO", "server started"], ["WARN", "disk 91%"], ["DEBUG", "x = undefined"], ["ERROR", "it works on my machine"], ["TRACE", "entering loop 40,001"], ["INFO", "still fine"]];
 const LVL: Record<string, string> = { INFO: TEAL, WARN: C.orange, DEBUG: C.lilac, ERROR: C.pink, TRACE: "#8d99b0" };
 
 const logs: VideoDef = {
-  id: "th-logs", title: "Raw unfiltered logs", channel: "Log Cabin", views: "4.4M views", durationLabel: "1:00:00", loop: 6, thumbT: 2.5,
+  id: "th-logs", title: "Log rolling: every level, no filter", channel: "Log Cabin", views: "4.4M views", durationLabel: "1:00:00", loop: 6, thumbT: 2.5,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 6);
     const { s, X, Y } = core(w, h, 0.5);
@@ -438,9 +429,9 @@ const logs: VideoDef = {
   },
 };
 
-// --- Exposed: 10,000 open ports ------------------------------------------------------------------
+// --- Closing 10,000 open ports -------------------------------------------------------------------
 const ports: VideoDef = {
-  id: "th-ports", title: "Exposed: 10,000 open ports", channel: "Net Scan", views: "6.2M views", durationLabel: "7:31", loop: 8, thumbT: 3.6,
+  id: "th-ports", title: "Closing 10,000 open ports before lunch", channel: "Net Scan", views: "6.2M views", durationLabel: "7:31", loop: 8, thumbT: 3.6,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 8);
     const { s, X, Y } = core(w, h, 0.5);
@@ -470,8 +461,8 @@ const ports: VideoDef = {
       fillRR(ctx, x - 3 * s, y - 2 * s, 6 * s, 4 * s, 0.8 * s, withAlpha("#f6ecdc", Math.sin(p * Math.PI)));
       limb(ctx, [[x - 3 * s, y - 2 * s], [x, y], [x + 3 * s, y - 2 * s]], 0.4 * s, withAlpha(BG, Math.sin(p * Math.PI)));
     }
-    const exposed = openP > 0.4 && closeP < 0.5;
-    if (exposed) text(ctx, "EXPOSED", X(0), Y(-40), 9 * s, withAlpha(C.pink, 0.6 + 0.4 * Math.sin(t * 8)), { weight: 800 });
+    const wideOpen = openP > 0.4 && closeP < 0.5;
+    if (wideOpen) text(ctx, "WIDE OPEN", X(0), Y(-40), 9 * s, withAlpha(C.pink, 0.6 + 0.4 * Math.sin(t * 8)), { weight: 800 });
     // the firewall bot zips along the front closing doors
     if (t > 4.3 && t < 7) {
       const bx = lerp(gx - 20 * s, gx + cols * cw + 20 * s, seg(t, 4.5, 6.7));
@@ -524,7 +515,7 @@ const cache: VideoDef = {
 
 // --- Robot caught overclocking ---------------------------------------------------------------------
 const caught: VideoDef = {
-  id: "th-caught", title: "Robot caught overclocking", channel: "Home Lab", views: "18M views", durationLabel: "2:22", loop: 8, thumbT: 3.7,
+  id: "th-caught", title: "Caught overclocking the office PC", channel: "Home Lab", views: "18M views", durationLabel: "2:22", loop: 8, thumbT: 3.7,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 8);
     const { s, X, Y } = core(w, h, 0.5);
@@ -569,10 +560,10 @@ const caught: VideoDef = {
   },
 };
 
-// --- Firmware strip (update) -----------------------------------------------------------------------
+// --- Firmware stickers, v1.0 to v2.0 ----------------------------------------------------------------------
 const STICKERS = ["v1.0", "v1.1 hotfix", "v1.2 hotfix 2", "final_FINAL"];
 const firmware: VideoDef = {
-  id: "th-firmware", title: "Firmware strip (update)", channel: "Patch Notes", views: "7.1M views", durationLabel: "9:09", loop: 9, thumbT: 2.3,
+  id: "th-firmware", title: "Peeling off every firmware sticker since v1.0", channel: "Patch Notes", views: "7.1M views", durationLabel: "9:09", loop: 9, thumbT: 2.3,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 9);
     const { s, X, Y } = core(w, h, 0.5);
@@ -624,7 +615,7 @@ const firmware: VideoDef = {
 // --- Bare metal, no hypervisor -----------------------------------------------------------------------
 const LAYERS: [string, string][] = [["Container", "#3d6ad6"], ["VM", C.lilac], ["Hypervisor", "#28b884"]];
 const bareMetal: VideoDef = {
-  id: "th-bare", title: "Bare metal, no hypervisor, nothing in between", channel: "Bare Metal", views: "3.8M views", durationLabel: "12:12", loop: 7, thumbT: 4.8,
+  id: "th-bare", title: "Bare metal: lifting off the container, VM and hypervisor", channel: "Bare Metal", views: "3.8M views", durationLabel: "12:12", loop: 7, thumbT: 4.8,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 7);
     const { s, X, Y } = core(w, h, 0.5);
@@ -657,11 +648,11 @@ const bareMetal: VideoDef = {
       ctx.restore();
     });
     const k = seg(t, 4.4, 4.9) * (1 - seg(t, 6.2, 6.6));
-    if (k > 0) text(ctx, "nothing in between", cx, Y(36), 5.5 * s, withAlpha(C.cream, k), { weight: 600 });
+    if (k > 0) text(ctx, "just the hardware", cx, Y(36), 5.5 * s, withAlpha(C.cream, k), { weight: 600 });
   },
 };
 
-// --- Watch them fork (open source) --------------------------------------------------------------------
+// --- One repo, many forks ----------------------------------------------------------------------------
 function forkIcon(ctx: Ctx, x: number, y: number, r: number, col: string) {
   fillRR(ctx, x - r * 0.18, y - r * 0.1, r * 0.36, r * 1.3, r * 0.18, col);
   fillRR(ctx, x - r * 0.6, y - r * 0.35, r * 1.2, r * 0.35, r * 0.15, col);
@@ -669,7 +660,7 @@ function forkIcon(ctx: Ctx, x: number, y: number, r: number, col: string) {
 }
 
 const forks: VideoDef = {
-  id: "th-fork", title: "Watch them fork (open source)", channel: "Open Source", views: "5.0M views", durationLabel: "11:11", loop: 8, thumbT: 4.6,
+  id: "th-fork", title: "Watch one repo fork 1,024 times (open source)", channel: "Open Source", views: "5.0M views", durationLabel: "11:11", loop: 8, thumbT: 4.6,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 8);
     const { s, X, Y } = core(w, h, 0.5);
@@ -707,7 +698,7 @@ const forks: VideoDef = {
   },
 };
 
-// --- Uncompressed: 40 GB of PNG ---------------------------------------------------------------------
+// --- Unzipping 40 GB of PNG ------------------------------------------------------------------------
 function picture(ctx: Ctx, x: number, y: number, pw: number, ph: number, seed: number) {
   fillRR(ctx, x - pw / 2, y - ph / 2, pw, ph, pw * 0.06, "#f6ecdc");
   const ix = x - pw / 2 + pw * 0.06, iy = y - ph / 2 + pw * 0.06, iw = pw * 0.88, ih = ph - pw * 0.12;
@@ -718,7 +709,7 @@ function picture(ctx: Ctx, x: number, y: number, pw: number, ph: number, seed: n
 }
 
 const uncompressed: VideoDef = {
-  id: "th-png", title: "Uncompressed: 40 GB of PNG", channel: "Lossless", views: "4.0M views", durationLabel: "40:00", loop: 7, thumbT: 3.8,
+  id: "th-png", title: "Unzipping 40 GB of PNG on a nearly full disk", channel: "Lossless", views: "4.0M views", durationLabel: "40:00", loop: 7, thumbT: 3.8,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 7);
     const { s, X, Y } = core(w, h, 0.5);
@@ -755,10 +746,10 @@ const uncompressed: VideoDef = {
   },
 };
 
-// --- Mature content: 40 year old COBOL --------------------------------------------------------------
+// --- 40 year old COBOL, still running --------------------------------------------------------------
 const COBOL = ["IDENTIFICATION DIVISION.", "PROGRAM-ID. PAYROLL.", "* WRITTEN 1986, DO NOT TOUCH", "PROCEDURE DIVISION.", "    DISPLAY 'STILL RUNNING'.", "    ADD 1 TO YEARS-IN-PROD.", "    STOP RUN."];
 const cobol: VideoDef = {
-  id: "th-cobol", title: "Mature content: 40 year old COBOL", channel: "Legacy Code", views: "1.6M views", durationLabel: "59:59", loop: 6, thumbT: 2.4,
+  id: "th-cobol", title: "40 year old COBOL, still in production", channel: "Legacy Code", views: "1.6M views", durationLabel: "59:59", loop: 6, thumbT: 2.4,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 6);
     const { s, X, Y } = core(w, h, 0.5);
@@ -792,10 +783,10 @@ const cobol: VideoDef = {
   },
 };
 
-// --- Massive core dump ------------------------------------------------------------------------------
+// --- A 32 GB core dump ------------------------------------------------------------------------------
 const HEX = ["0x3F", "FF", "DEAD", "BEEF", "00", "0xC0", "FE", "NaN", "7A", "0x0", "CAFE", "42"];
 const coreDump: VideoDef = {
-  id: "th-dump", title: "Massive core dump, no warning", channel: "Kernel Panic", views: "6.6M views", durationLabel: "0:47", loop: 7, thumbT: 3.6,
+  id: "th-dump", title: "A 32 GB core dump, explained by a tiny debugger", channel: "Kernel Panic", views: "6.6M views", durationLabel: "0:47", loop: 7, thumbT: 3.6,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 7);
     const { s, X, Y } = core(w, h, 0.5);
@@ -830,10 +821,10 @@ const coreDump: VideoDef = {
   },
 };
 
-// --- Aggressive garbage collection (rough) ------------------------------------------------------------
+// --- Garbage collection day --------------------------------------------------------------------------
 const OBJS: [string, number, number][] = [["tmp", -40, -18], ["unused[]", -10, -26], ["oldCache", 22, -16], ["listener", -26, 6], ["stillUsed", 6, 4], ["buffer", 40, 8]];
 const gc: VideoDef = {
-  id: "th-gc", title: "Aggressive garbage collection (rough)", channel: "Heap Life", views: "2.4M views", durationLabel: "6:06", loop: 8, thumbT: 3.2,
+  id: "th-gc", title: "Garbage collection day, with apologies", channel: "Heap Life", views: "2.4M views", durationLabel: "6:06", loop: 8, thumbT: 3.2,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 8);
     const { s, X, Y } = core(w, h, 0.5);
@@ -874,9 +865,9 @@ const gc: VideoDef = {
   },
 };
 
-// --- It keeps going: stack overflow uncut -----------------------------------------------------------
+// --- Recursion with no base case -------------------------------------------------------------------
 const stack: VideoDef = {
-  id: "th-stack", title: "It keeps going: stack overflow uncut", channel: "Recursion", views: "8.0M views", durationLabel: "99:59", loop: 7, thumbT: 4,
+  id: "th-stack", title: "Recursion with no base case, the full 99 minutes", channel: "Recursion", views: "8.0M views", durationLabel: "99:59", loop: 7, thumbT: 4,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 7);
     const { s, X, Y } = core(w, h, 0.5);
@@ -940,7 +931,7 @@ const ram: VideoDef = {
 // --- Hot reload compilation -------------------------------------------------------------------------
 const HUES = [C.pink, TEAL, C.orange, C.lilac];
 const hotReload: VideoDef = {
-  id: "th-reload", title: "Hot reload compilation", channel: "Fast Refresh", views: "3.3M views", durationLabel: "8:08", loop: 6, thumbT: 1.7,
+  id: "th-reload", title: "Hot reload, saved twelve times a minute", channel: "Fast Refresh", views: "3.3M views", durationLabel: "8:08", loop: 6, thumbT: 1.7,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 6);
     const { s, X, Y } = core(w, h, 0.5);
@@ -968,7 +959,7 @@ const hotReload: VideoDef = {
 
 // --- Dirty reads, live in production ------------------------------------------------------------------
 const dirty: VideoDef = {
-  id: "th-dirty", title: "Dirty reads, live in production", channel: "Isolation Level", views: "2.0M views", durationLabel: "4:04", loop: 8, thumbT: 3.1,
+  id: "th-dirty", title: "Dirty reads, explained with wet paint", channel: "Isolation Level", views: "2.0M views", durationLabel: "4:04", loop: 8, thumbT: 3.1,
   draw(ctx, w, h, t0) {
     const t = lt(t0, 8);
     const { s, X, Y } = core(w, h, 0.5);
@@ -1005,4 +996,4 @@ const dirty: VideoDef = {
   },
 };
 
-export const MORE_TENSOR_VIDEOS: VideoDef[] = [unminify, cable, thicc, sorted, regex, endian, tag, logs, ports, cache, caught, firmware, bareMetal, forks, uncompressed, cobol, coreDump, gc, stack, ram, hotReload, dirty];
+export const MORE_BENCHTOP_VIDEOS: VideoDef[] = [unminify, cable, wideRack, sorted, regex, endian, tag, logs, ports, cache, caught, firmware, bareMetal, forks, uncompressed, cobol, coreDump, gc, stack, ram, hotReload, dirty];

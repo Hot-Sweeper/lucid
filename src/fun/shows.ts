@@ -290,7 +290,7 @@ function figure(ctx: Ctx, x: number, y: number, s: number, p: Fig) {
       else if (w === "sailor") { poly(ctx, [[-9.5, -27.5], [9.5, -27.5], [0, -18.5]], "#f4f2ff"); poly(ctx, [[-6.5, -27.4], [6.5, -27.4], [0, -21.5]], tone); poly(ctx, [[-1.4, -21], [1.4, -21], [2.6, -17], [-2.6, -17]], "#e83c55"); }
       else if (w === "scarf") { fillRR(ctx, -9, -28.5, 18, 3.6, 1.8, tone); fillRR(ctx, 3, -27, 3.4, 9, 1.6, shade(tone, -0.1)); }
       else if (w === "poncho") { poly(ctx, [[-12, -16], [0, -28.5], [12, -16], [9, -13], [-9, -13]], tone); for (let i = 0; i < 4; i++) limb(ctx, [[-8 + i * 5.3, -15.5], [-6 + i * 5.3, -15.5]], 1.1, "#ffd36b"); }
-      else if (w === "num") { fillRR(ctx, -6, -24.5, 12, 6.5, 1.2, "#f6f6f2"); ctx.font = `800 4.6px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#1a2a2a"; ctx.fillText(p.num ?? "456", 0, -21.1); }
+      else if (w === "num") { fillRR(ctx, -6, -24.5, 12, 6.5, 1.2, "#f6f6f2"); ctx.font = `800 4.6px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#1a2a2a"; ctx.fillText(p.num ?? "404", 0, -21.1); }
     }
   });
   if (p.head) inHead(ctx, x, y, s, p, () => {
@@ -373,7 +373,7 @@ function monitor(ctx: Ctx, x: number, y: number, w: number, h: number, screen: s
   fillRR(ctx, x - 1, y + h, 2, 4, 0.5, "#30303a"); fillRR(ctx, x - 5, y + h + 3.4, 10, 1.4, 0.6, "#30303a");
   fillRR(ctx, x - w / 2 - 1, y - 1, w + 2, h + 2, 1.4, "#1d1d24"); fillRR(ctx, x - w / 2, y, w, h, 0.8, screen);
 }
-function roomba(ctx: Ctx, x: number, y: number, s: number, t: number, eyes = false) {
+function dustbot(ctx: Ctx, x: number, y: number, s: number, t: number, eyes = false) {
   ellipse(ctx, x, y + 0.6 * s, 15 * s, 3 * s, 0, "rgba(0,0,0,0.35)");
   fillRR(ctx, x - 14 * s, y - 6 * s, 28 * s, 6.4 * s, 3.2 * s, lin(ctx, 0, y - 6 * s, 0, y, [[0, "#3b3d48"], [1, "#16171d"]]));
   ellipse(ctx, x, y - 6 * s, 14 * s, 3.4 * s, 0, lin(ctx, 0, y - 9 * s, 0, y - 3 * s, [[0, "#5d6070"], [1, "#2b2d36"]]));
@@ -431,7 +431,7 @@ export function blurb(show: ShowDef, e: number) {
 // 1. heist ---------------------------------------------------------------------------------
 const coldStorage: ShowDef = {
   id: "cold-storage", title: "The Cold Storage Job", kind: "Series", year: 2026, rating: "B-13", seasons: 3, season: 1, epLen: 52, match: 98,
-  tags: ["Heist", "Thriller", "Ensemble"], cast: ["The Professor.exe", "Tokyo-9", "Rio Router"],
+  tags: ["Heist", "Thriller", "Ensemble"], cast: ["The Planner.exe", "Vault-9", "Relay Router"],
   synopsis: "Eight robots in red jumpsuits plan the impossible: steal the last unopened GPU from the coldest vault on the grid.",
   eps: ["Ninety Seconds of Airflow", "The Unboxing", "Thermal Paste", "Laser Show", "The Inside Bot", "Overclocked", "Cold Boot", "The Real Prize"],
   tone: "#4fd6ff", thumbT: 2.2,
@@ -484,12 +484,12 @@ const coldStorage: ShowDef = {
 
 // 2. baking competition ---------------------------------------------------------------------
 const bakeOff: ShowDef = {
-  id: "bake-off", title: "The Great Robot Bake Off", kind: "Series", year: 2025, rating: "B-7", seasons: 6, season: 4, epLen: 58, match: 96,
+  id: "bake-off", title: "The Big Robot Bake Off", kind: "Series", year: 2025, rating: "B-7", seasons: 6, season: 4, epLen: 58, match: 96,
   tags: ["Competition", "Feel-good", "Baking"], cast: ["Host Crumb-E", "Judge Proofer", "Sprinkle-3"],
   synopsis: "Twelve home-baking robots, one tent, and a judge who has never once tasted anything. Showstopper week starts now.",
   eps: ["Cake Week", "Biscuit Week", "Bread Week (Rebooted)", "Thermal Paste Week", "Pastry Week", "The Handshake", "Dessert Week", "The Final"],
   tone: "#ffb3c6", thumbT: 3.1,
-  title2: { font: "serif", weight: 700, italic: true, lines: ["The Great", "Robot Bake Off"], scale: [0.62, 1], lead: 0.98, fill: ["#fff6ee", "#ffd6e2"], track: 0.01 },
+  title2: { font: "serif", weight: 700, italic: true, lines: ["The Big", "Robot Bake Off"], scale: [0.62, 1], lead: 0.98, fill: ["#fff6ee", "#ffd6e2"], track: 0.01 },
   key: { x: 92, y: 50, z: 1 }, hero: { x: 100, y: 50, z: 1.12, ax: 0.62 },
   focus: [[48, 56], [122, 54], [158, 58]],
   broll: ["pancakes"],
@@ -598,9 +598,9 @@ const unterminated: ShowDef = {
 // 4. sci-fi drama ----------------------------------------------------------------------------------
 const strangeLoops: ShowDef = {
   id: "strange-loops", title: "Strange Loops", kind: "Series", year: 2024, rating: "B-13", seasons: 4, season: 2, epLen: 51, match: 99,
-  tags: ["Sci-fi", "Eighties", "Mystery"], cast: ["Eleven-Bit", "Dustin-9", "Chief Hop-Count"],
+  tags: ["Sci-fi", "Eighties", "Mystery"], cast: ["Seven-Bit", "Dusty-9", "Chief Hop-Count"],
   synopsis: "1985. A small town. A server closet that hums backwards. Four young robots find a door to a world made entirely of legacy code.",
-  eps: ["The Vanishing of Will.exe", "The Closet", "Holiday Lights", "Upside Down Arrays", "The Mind Flayer Job", "Infinite Recursion", "Stack Frames", "The Loop"],
+  eps: ["The Vanishing of Patch.exe", "The Closet", "Holiday Lights", "Inside Out Arrays", "The Memory Leak Beast", "Infinite Recursion", "Stack Frames", "The Loop"],
   tone: "#ff3046", thumbT: 4.4, ribbon: "New Episodes",
   title2: { font: "serif", weight: 700, lines: ["STRANGE", "LOOPS"], scale: [1, 1], lead: 0.92, track: 0.03, fill: ["#2a0508"], stroke: "#ff2d3e", strokeW: 0.045, hollow: true, glow: "rgba(255,40,60,0.9)", glowR: 0.28 },
   key: { x: 98, y: 52, z: 1 }, hero: { x: 108, y: 52, z: 1.15, ax: 0.62 }, poster: { x: 108, y: 54, z: 1 },
@@ -678,7 +678,7 @@ function toaster(ctx: Ctx, x: number, y: number, s: number, t: number, on: boole
 }
 const loveBluetooth: ShowDef = {
   id: "love-bluetooth", title: "Love Is Bluetooth", kind: "Series", year: 2026, rating: "B-13", seasons: 2, season: 2, epLen: 44, match: 94,
-  tags: ["Reality", "Romance", "Guilty Pleasure"], cast: ["Frosty (Fridge)", "Toast Malone", "Alexandra"],
+  tags: ["Reality", "Romance", "Guilty Pleasure"], cast: ["Frosty (Fridge)", "Sir Toastsalot", "Alexandra"],
   synopsis: "Smart appliances date through a wall, never seeing each other. If they pair, they move in together. If not, factory reset.",
   eps: ["Pairing Mode", "Five Bars", "The Reveal", "Meet the Microwave", "Low Battery", "Device Not Found", "The Altar", "Reunion"],
   tone: "#ff5fa8", thumbT: 2.6,
@@ -725,22 +725,22 @@ const loveBluetooth: ShowDef = {
 // 6. nature documentary --------------------------------------------------------------------------
 const carpetPlanet: ShowDef = {
   id: "carpet-planet", title: "Our Carpeted Planet", kind: "Docuseries", year: 2025, rating: "B-0", seasons: 2, season: 1, epLen: 48, match: 95,
-  tags: ["Nature", "Narrated", "Breathtaking"], cast: ["Roomba R7", "The Cat", "Velvet Baritone 3000"],
-  synopsis: "From the vast beige plains of the living room to the treacherous depths beneath the sofa, follow the Roomba on its daily hunt.",
+  tags: ["Nature", "Narrated", "Breathtaking"], cast: ["Dustbot R7", "The Cat", "Velvet Baritone 3000"],
+  synopsis: "From the vast beige plains of the living room to the treacherous depths beneath the sofa, follow the dustbot on its daily hunt.",
   eps: ["The Plains", "Under the Sofa", "The Sock Migration", "Predator", "Low Battery", "Return to the Dock"],
   tone: "#ffbf6b", thumbT: 5,
   title2: { font: "sans", weight: 250, lines: ["OUR CARPETED", "PLANET"], scale: [0.62, 1], lead: 1.02, track: 0.24, fill: ["#ffffff", "#fbe9d0"] },
   key: { x: 92, y: 60, z: 1.05 }, hero: { x: 96, y: 60, z: 1.15, ax: 0.62 }, poster: { x: 96, y: 62, z: 1 },
   focus: [[96, 76], [150, 60]], cz: 2.4,
-  broll: ["roomba-drift", "cat-vacuum"],
+  broll: ["vacuum-drift", "cat-vacuum"],
   lines: [
     { who: -1, text: "[NARRATOR] The carpet. Vast. Unforgiving. Beige." },
-    { who: -1, text: "[NARRATOR] Here, in the shadow of the sofa, the Roomba waits." },
+    { who: -1, text: "[NARRATOR] Here, in the shadow of the sofa, the dustbot waits." },
     { who: 0, text: "[gentle strings]" },
     { who: -1, text: "[NARRATOR] It has been charging for eleven hours. Now, it must feed." },
     { who: 0, text: "[NARRATOR] A sock. Too large to swallow. Too stubborn to leave.", r: "laugh" },
     { who: 1, text: "[NARRATOR] And then... the cat.", r: "surprised" },
-    { who: -1, text: "[NARRATOR] Not every Roomba makes it back to the dock." },
+    { who: -1, text: "[NARRATOR] Not every dustbot makes it back to the dock." },
   ],
   world(ctx, t, sp) {
     fillAll(ctx, lin(ctx, 0, 0, 0, SH, [[0, "#3a2a2a"], [0.45, "#a0674a"], [0.62, "#e3a46c"], [1, "#7b5136"]]));
@@ -763,7 +763,7 @@ const carpetPlanet: ShowDef = {
     // dust bunnies drifting
     for (let i = 0; i < 6; i++) { const x = 40 + i * 22 + Math.sin(t * 0.5 + i) * 2, y = 86 + hash(i) * 8; circle(ctx, x, y, 1.6 + hash(i * 2) * 1.4, withAlpha("#c8c0c8", 0.6)); }
     const rx = 96 + Math.sin(t * 0.35) * 14;
-    roomba(ctx, rx, 84, 1.25, t, false);
+    dustbot(ctx, rx, 84, 1.25, t, false);
     // the cat, a tail and a pair of eyes in the dark under the sofa
     const tail = Math.sin(t * 1.6) * 3;
     limb(ctx, [[176, 98], [168, 84], [166 + tail, 72], [170 + tail, 66]], 4.2, "#e48a46");
@@ -776,7 +776,7 @@ const carpetPlanet: ShowDef = {
 // 7. office sitcom ---------------------------------------------------------------------------------
 const paperJam: ShowDef = {
   id: "paper-jam", title: "Paper Jam", kind: "Series", year: 2023, rating: "B-7", seasons: 5, season: 2, epLen: 22, match: 99,
-  tags: ["Sitcom", "Mockumentary", "Workplace"], cast: ["Michael Scanner", "Pam Printwell", "Gary"],
+  tags: ["Sitcom", "Mockumentary", "Workplace"], cast: ["Manager Scanwell", "Patty Printwell", "Gary"],
   synopsis: "A documentary crew follows the robots of a regional printer supply branch, where nothing prints and everyone has feelings about it.",
   eps: ["The Toner", "Casual Firmware Friday", "The Reply-All", "The One Where the Cache Cleared", "Font Training", "The Fire Drill", "Secret Santa Protocol", "The Quarterly Reboot"],
   tone: "#ffd27f", thumbT: 3.8,
@@ -825,7 +825,7 @@ const paperJam: ShowDef = {
 // 8. period drama ----------------------------------------------------------------------------------
 const downtimeAbbey: ShowDef = {
   id: "downtime-abbey", title: "Downtime Abbey", kind: "Series", year: 2024, rating: "B-7", seasons: 6, season: 3, epLen: 54, match: 93,
-  tags: ["Period Drama", "Romance", "Lavish"], cast: ["Lady Mary-Ann Board", "Carson-500", "The Dowager"],
+  tags: ["Period Drama", "Romance", "Lavish"], cast: ["Lady Motherboard", "Butler-500", "The Dowager"],
   synopsis: "1912. In a grand estate, an aristocratic family of steam-powered robots faces scandal, succession and the arrival of the telephone.",
   eps: ["The Telephone", "A Reboot at Dinner", "The Footman's Router", "Formal Firmware", "The Dowager Sleeps", "Season of Updates", "The Ball", "Succession Protocol"],
   tone: "#e8c36a", thumbT: 2.4,
@@ -834,7 +834,7 @@ const downtimeAbbey: ShowDef = {
   focus: [[72, 52], [124, 50], [40, 56]],
   lines: [
     { who: 2, text: "In my day, we defragmented by hand.", r: "laugh" },
-    { who: 0, text: "Carson, the Wi-Fi has gone again." },
+    { who: 0, text: "Butler, the Wi-Fi has gone again." },
     { who: 1, text: "Shall I fetch the footman, my lady? He's very good with routers." },
     { who: 2, text: "A lady never reboots in public." },
     { who: -1, text: "[string quartet swells]" },
@@ -1031,8 +1031,8 @@ function mix2(a: string, b: string, k: number) { return k > 0.5 ? a : b; }
 // 12. survival thriller ----------------------------------------------------------------------------------
 const captchaGame: ShowDef = {
   id: "captcha-game", title: "Captcha Game", kind: "Series", year: 2025, rating: "B-16", seasons: 2, season: 1, epLen: 56, match: 96,
-  tags: ["Thriller", "Survival", "Dystopian"], cast: ["Player 456", "The Front Bot", "Player 067"],
-  synopsis: "Four hundred and fifty-six robots in debt compete in deadly CAPTCHAs for a prize. Select all squares with traffic lights. Or else.",
+  tags: ["Thriller", "Survival", "Dystopian"], cast: ["Player 404", "The Front Bot", "Player 127"],
+  synopsis: "Four hundred and four robots in debt compete in deadly CAPTCHAs for a prize. Select all squares with traffic lights. Or else.",
   eps: ["Select All Traffic Lights", "Bicycles", "I Am Not a Robot", "Crosswalks", "The Hard Audio One", "Fire Hydrants"],
   tone: "#ff4f8b", thumbT: 3.3,
   title2: { font: "cond", weight: 700, lines: ["CAPTCHA", "GAME"], scale: [1, 1], lead: 0.88, track: 0.08, fill: ["#ffffff"], glow: "rgba(255,60,140,0.6)", extraH: 0.42,
@@ -1043,7 +1043,7 @@ const captchaGame: ShowDef = {
     { who: 1, text: "Select all squares containing traffic lights." },
     { who: 0, text: "Is the pole part of the traffic light?!" },
     { who: 2, text: "Nobody knows. Nobody has ever known.", r: "laugh" },
-    { who: 1, text: "Player 456 has been verified as human.", r: "surprised" },
+    { who: 1, text: "Player 404 has been verified as human.", r: "surprised" },
     { who: 0, text: "But... I'm a robot." },
     { who: -1, text: "[ominous music box]" },
     { who: 1, text: "Round two: click every bicycle. You have ten seconds." },
@@ -1065,10 +1065,10 @@ const captchaGame: ShowDef = {
     }
     floor(ctx, 70, "#e9e2d6", "#bfb6a8");
     // contestants in teal tracksuits
-    const players: [number, number, string][] = [[34, 90, "067"], [56, 92, "456"], [86, 92, "218"], [16, 88, "199"]];
+    const players: [number, number, string][] = [[34, 90, "127"], [56, 92, "404"], [86, 92, "200"], [16, 88, "503"]];
     players.forEach(([x, y, n], i) => {
-      const idx = n === "456" ? 0 : n === "218" ? 2 : 9;
-      figure(ctx, x, y, n === "456" ? 1.04 : 0.88, act(idx, sp, t, { body: "#2f9c8a", eye: C.cream, wear: ["num"], num: n, look: 0.5 + i * 0.1 }));
+      const idx = n === "404" ? 0 : n === "200" ? 2 : 9;
+      figure(ctx, x, y, n === "404" ? 1.04 : 0.88, act(idx, sp, t, { body: "#2f9c8a", eye: C.cream, wear: ["num"], num: n, look: 0.5 + i * 0.1 }));
     });
     // guards with shape masks
     const guards: [number, number, number][] = [[128, 92, 0], [152, 90, 1], [170, 88, 2]];
@@ -1087,7 +1087,7 @@ const captchaGame: ShowDef = {
 // 13. cop comedy ----------------------------------------------------------------------------------
 const precinct404: ShowDef = {
   id: "precinct-404", title: "Precinct 404", kind: "Series", year: 2024, rating: "B-13", seasons: 4, season: 3, epLen: 22, match: 95,
-  tags: ["Comedy", "Cop Show", "Goofy"], cast: ["Det. Jake Pinger", "Captain Holtz", "Officer Diode"],
+  tags: ["Comedy", "Cop Show", "Goofy"], cast: ["Det. Jay Pinger", "Captain Voltz", "Officer Diode"],
   synopsis: "The detectives of Precinct 404 have never found anything. Not a suspect, not a clue, not the coffee machine. They are very proud of it.",
   eps: ["Not Found", "The Heist (Unrelated)", "Halloween Patch", "Captain's Log", "The Donut Protocol", "Cold Case: Hot Plate"],
   tone: "#ffd36b", thumbT: 1.9,

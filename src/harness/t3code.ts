@@ -1,5 +1,5 @@
 // T3 Code on the robot's monitor: the app its thread really lives in. Two builds exist, T3 Code
-// (stable) and T3 Code (Nightly); each robot runs one of them (prefs.t3). Layout, colours and
+// (stable) and T3 Code (Nightly); robots run the one the user runs (see installedT3Channel). Layout, colours and
 // wording follow the T3 Code web UI as bundled in the desktop app (late October 2026 nightly):
 // a sidebar with the wordmark, search and thread rows; the thread with your messages, work rows
 // ("Ran npm test", "Edited app.ts +12 -3"), "Working for 12s" and "Worked for 1m 2s"; and the
@@ -50,9 +50,18 @@ export function t3Icon(channel: T3Channel) {
   if (channel === "stable") return `<svg class="ico" viewBox="0 0 24 24"><rect width="24" height="24" rx="5.5" fill="#0b0b0c"/>${mark}</svg>`;
   return `<svg class="ico" viewBox="0 0 24 24" style="clip-path:inset(0 round 22.916667%)"><defs><linearGradient id="t3n-ico" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0d1a3c"/><stop offset=".6" stop-color="#1b1650"/><stop offset="1" stop-color="#3a1a66"/></linearGradient></defs><rect width="24" height="24" rx="5.5" fill="url(#t3n-ico)"/><circle cx="5" cy="4.4" r=".45" fill="#e4eaff"/><circle cx="16.5" cy="3.6" r=".4" fill="#e4eaff"/><path d="M8.6 3.4v1.6M7.8 4.2h1.6" stroke="#c8d7ff" stroke-width=".45"/><path d="M14 24c.3-2.6 2-4.2 4-4.2.6-1.6 2-2.6 3.6-2.6 1 0 1.8.3 2.4.9V24Z" fill="#7a5fd6" fill-opacity=".75"/><path d="M0 24v-3.4c.8-.9 2-1.3 3.2-1 .8-1.5 2.4-2.3 4-2 1.5.3 2.6 1.4 2.9 2.9 1 .1 1.8.9 2 2.1.1.5.1 1 0 1.4Z" fill="#4f6fd8" fill-opacity=".8"/>${mark}</svg>`;
 }
-// The dock can draw the app before a robot's build is known: the stable icon until then.
-ICONS.t3code ??= t3Icon("stable");
 export const t3Title = (channel: T3Channel) => (channel === "nightly" ? "T3 Code (Nightly)" : "T3 Code");
+
+// The build the user really runs, read by the backend from T3's own files. Stable until it answers
+// (and in demos without the bridge), then the same for every robot.
+let installed: T3Channel = "stable";
+ICONS.t3code = t3Icon(installed);
+void Promise.resolve((window as any).lucid?.t3Channel?.()).then((c) => {
+  if (c !== "nightly" && c !== "stable") return;
+  installed = c;
+  ICONS.t3code = t3Icon(c);
+}).catch(() => {});
+export const installedT3Channel = () => installed;
 
 // --- small icons, drawn to match the Lucide set T3 uses (stroked, round caps) ----------------
 const I = (d: string, extra = "") => `<svg class="t3-i" viewBox="0 0 24 24" aria-hidden="true"${extra}>${d}</svg>`;
@@ -89,7 +98,8 @@ export type DraftFile = { name: string; icon: string; thumb?: string | null; siz
 
 export interface T3Host {
   epoch: number;
-  prefs?: { t3?: T3Channel } | null;
+  /** A fixed build, for demo pages that show both side by side. */
+  channel?: T3Channel;
   robotName?: string;
   robot: { setTyping(on: boolean): void; setPose(p: any): void };
   open(id: AppId, title?: string, clicked?: boolean): Promise<{ el: HTMLElement; body: HTMLElement; title: HTMLElement }>;
@@ -189,14 +199,7 @@ export class T3CodeApp {
     this.build();
   }
 
-  private chan(): T3Channel {
-    const p = this.wm.prefs?.t3;
-    if (p) return p;
-    // a robot without the habit yet: pick from its name so it stays the same
-    let h = 7;
-    for (const c of this.wm.robotName || "") h = (h * 31 + c.charCodeAt(0)) >>> 0;
-    return h % 2 ? "nightly" : "stable";
-  }
+  private chan(): T3Channel { return this.wm.channel ?? installed; }
 
   private build() {
     this.root.innerHTML = `
@@ -449,6 +452,21 @@ export class T3CodeApp {
       if (!t.trim() && !delivered) p.remove();
       this.stick();
     }
+  }
+
+  /** A reply that already exists, added without bringing the window up; a longer version of the latest one replaces it. */
+  reply(text: string) {
+    if (!text.trim()) return;
+    const last = this.feed.lastElementChild as HTMLElement | null;
+    if (last?.classList.contains("t3-msg") && last.dataset.reply === "1") { last.innerHTML = md(text); this.stick(); return; }
+    this.closeGroup();
+    const p = document.createElement("div");
+    p.className = "t3-msg";
+    p.dataset.reply = "1";
+    p.innerHTML = md(text);
+    this.feed.append(p);
+    this.appear(p);
+    this.stick();
   }
 
   // --- files in the composer ---------------------------------------------------------------------

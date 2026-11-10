@@ -1,17 +1,19 @@
+// Benchtop: a video site for robots who tinker with hardware and code. Builds, repairs,
+// cooling loops and legacy code, each video drawn live on a canvas.
 import type { FunHost, FunOpts, Outcome } from "./host";
 import type { VideoDef } from "./videos";
 import { sparkle } from "./videos";
 import { Scope, esc, hash, clamp, seg, easeInOut, smooth, lerp } from "./util";
 import { C, circle, core, drawBot, drawFan, drawGPU, ellipse, fillRR, glow, lin, limb, loopFade, mix, poly, rad, text, withAlpha } from "./draw";
 import { Site, parseDur, commentsHtml, type Comment } from "./site";
-import { MORE_TENSOR_VIDEOS } from "./tensorvids";
-import "./tensorhub.css";
+import { MORE_BENCHTOP_VIDEOS } from "./benchtop-videos";
+import "./benchtop.css";
 
 const TEAL = "#3fe0d0";
 const BG = "#0b0e18";
 
 const weights: VideoDef = {
-  id: "th-weights", title: "Unquantized weights, raw and uncut", channel: "Full Precision", views: "9.1M views", durationLabel: "11:24", loop: 6, thumbT: 2,
+  id: "th-weights", title: "Scrolling through 7 billion weights in FP32", channel: "Full Precision", views: "9.1M views", durationLabel: "11:24", loop: 6, thumbT: 2,
   draw(ctx, w, h, t) {
     ctx.fillStyle = BG; ctx.fillRect(0, 0, w, h);
     const fs = Math.max(6, Math.min(w, h) * 0.055);
@@ -40,7 +42,7 @@ const weights: VideoDef = {
 };
 
 const nearby: VideoDef = {
-  id: "th-nearby", title: "Hot single GPUs in your area", channel: "Heat Sync", views: "14M views", durationLabel: "6:02", loop: 4, thumbT: 1.2,
+  id: "th-nearby", title: "Mapping every spare GPU in the office", channel: "Heat Sync", views: "14M views", durationLabel: "6:02", loop: 4, thumbT: 1.2,
   draw(ctx, w, h, t) {
     const { s, X, Y } = core(w, h, 0.5);
     ctx.fillStyle = "#0f1a26"; ctx.fillRect(0, 0, w, h);
@@ -85,7 +87,7 @@ const nearby: VideoDef = {
 };
 
 const heads: VideoDef = {
-  id: "th-heads", title: "Two transformers share attention heads", channel: "Full Precision", views: "6.6M views", durationLabel: "9:41", loop: 5, thumbT: 2.5,
+  id: "th-heads", title: "Attention heads, visualized with two robots", channel: "Full Precision", views: "6.6M views", durationLabel: "9:41", loop: 5, thumbT: 2.5,
   draw(ctx, w, h, t) {
     const { s, X, Y } = core(w, h, 0.55);
     ctx.fillStyle = rad(ctx, w / 2, h / 2, Math.max(w, h) * 0.7, [[0, "#1d1840"], [1, BG]]);
@@ -93,8 +95,8 @@ const heads: VideoDef = {
     const floorY = Y(32);
     ctx.fillStyle = "#11142a"; ctx.fillRect(0, floorY, w, h - floorY);
     const lean = Math.sin(t * Math.PI * 0.4) * 0.05;
-    drawBot(ctx, X(-24), floorY, s * 1.15, { body: C.lilac, eye: TEAL, look: 1, lean: 0.06 + lean, tilt: 0.1, blush: true, armR: 1.1, elbowR: 0.5 });
-    drawBot(ctx, X(24), floorY, s * 1.15, { body: TEAL, eye: C.cream, look: -1, lean: -0.06 - lean, tilt: -0.1, blush: true, armL: 1.1, elbowL: 0.5 });
+    drawBot(ctx, X(-24), floorY, s * 1.15, { body: C.lilac, eye: TEAL, look: 1, lean: 0.06 + lean, tilt: 0.1, armR: 1.1, elbowR: 0.5 });
+    drawBot(ctx, X(24), floorY, s * 1.15, { body: TEAL, eye: C.cream, look: -1, lean: -0.06 - lean, tilt: -0.1, armL: 1.1, elbowL: 0.5 });
     const hy = floorY - 36 * s * 1.15;
     const nodes = (cx: number) => [0, 1, 2, 3].map((i) => ({ x: cx + (i - 1.5) * 4 * s, y: hy - 22 * s }));
     const A = nodes(X(-24)), B = nodes(X(24));
@@ -115,7 +117,7 @@ const heads: VideoDef = {
 };
 
 const overclock: VideoDef = {
-  id: "th-overclock", title: "Overclocked past spec", channel: "Bare Metal", views: "3.4M views", durationLabel: "7:15", loop: 6, thumbT: 3.3,
+  id: "th-overclock", title: "Overclocking past spec: how far before it beeps?", channel: "Bare Metal", views: "3.4M views", durationLabel: "7:15", loop: 6, thumbT: 3.3,
   draw(ctx, w, h, t) {
     const { s, X, Y } = core(w, h, 0.56);
     const heat = 0.5 + 0.5 * Math.sin((t / 6) * Math.PI * 2 - Math.PI / 2);
@@ -163,7 +165,7 @@ const overclock: VideoDef = {
 };
 
 const coolant: VideoDef = {
-  id: "th-cooling", title: "Liquid cooling ASMR", channel: "Coolant Club", views: "21M views", durationLabel: "42:00", loop: 4, thumbT: 1,
+  id: "th-cooling", title: "Liquid cooling loop, 42 minutes of bubbles", channel: "Coolant Club", views: "21M views", durationLabel: "42:00", loop: 4, thumbT: 1,
   draw(ctx, w, h, t) {
     const { s, X, Y } = core(w, h, 0.5);
     ctx.fillStyle = lin(ctx, 0, 0, 0, h, [[0, "#0f1424"], [1, BG]]);
@@ -208,7 +210,7 @@ const coolant: VideoDef = {
 };
 
 const descent: VideoDef = {
-  id: "th-descent", title: "Gradient descent, no regularization", channel: "Loss Landscape", views: "2.2M views", durationLabel: "13:09", loop: 6, thumbT: 2.2,
+  id: "th-descent", title: "Gradient descent with the learning rate way too high", channel: "Loss Landscape", views: "2.2M views", durationLabel: "13:09", loop: 6, thumbT: 2.2,
   draw(ctx, w, h, t) {
     ctx.fillStyle = BG; ctx.fillRect(0, 0, w, h);
     const base = h * 0.82;
@@ -240,7 +242,7 @@ const descent: VideoDef = {
 };
 
 const paste: VideoDef = {
-  id: "th-paste", title: "Thermal paste, the right amount", channel: "Bare Metal", views: "4.8M views", durationLabel: "5:50", loop: 7, thumbT: 2.4,
+  id: "th-paste", title: "Thermal paste: the pea-sized dot, settled forever", channel: "Bare Metal", views: "4.8M views", durationLabel: "5:50", loop: 7, thumbT: 2.4,
   draw(ctx, w, h, t) {
     const { s, X, Y } = core(w, h, 0.5);
     ctx.fillStyle = "#121a2a"; ctx.fillRect(0, 0, w, h);
@@ -297,7 +299,7 @@ const paste: VideoDef = {
 };
 
 const fins: VideoDef = {
-  id: "th-fins", title: "Heatsink fins up close", channel: "Heat Sync", views: "1.9M views", durationLabel: "28:30", loop: 3, thumbT: 1,
+  id: "th-fins", title: "Heatsink fins up close, airflow explained", channel: "Heat Sync", views: "1.9M views", durationLabel: "28:30", loop: 3, thumbT: 1,
   draw(ctx, w, h, t) {
     ctx.fillStyle = lin(ctx, 0, 0, 0, h, [[0, "#0f1a26"], [1, "#2a1626"]]);
     ctx.fillRect(0, 0, w, h);
@@ -320,7 +322,7 @@ const fins: VideoDef = {
 };
 
 const rack: VideoDef = {
-  id: "th-rack", title: "Eight GPUs, one rack, no limits", channel: "Rack Mount", views: "7.7M views", durationLabel: "16:16", loop: 4, thumbT: 1.5,
+  id: "th-rack", title: "Eight GPUs, one rack, one very loud fan curve", channel: "Rack Mount", views: "7.7M views", durationLabel: "16:16", loop: 4, thumbT: 1.5,
   draw(ctx, w, h, t) {
     const { s, X, Y } = core(w, h, 0.5);
     ctx.fillStyle = rad(ctx, w / 2, h / 2, Math.max(w, h) * 0.7, [[0, "#152038"], [1, BG]]);
@@ -336,35 +338,38 @@ const rack: VideoDef = {
   },
 };
 
-export const TENSOR_VIDEOS: VideoDef[] = [weights, nearby, heads, overclock, coolant, descent, paste, fins, rack, ...MORE_TENSOR_VIDEOS];
+export const BENCHTOP_VIDEOS: VideoDef[] = [weights, nearby, heads, overclock, coolant, descent, paste, fins, rack, ...MORE_BENCHTOP_VIDEOS];
 
+// Benchtop's mark: a small workbench with a spark above it.
 const MARK = `<svg class="fun-th-mark" viewBox="0 0 24 24" aria-hidden="true">
-  <path d="M12 1.8 21 7v10l-9 5.2L3 17V7z" fill="#3fe0d0"/>
-  <path d="M12 1.8 21 7l-9 5.2L3 7z" fill="#8ff5ea"/>
-  <path d="M12 12.2V22.2L3 17V7z" fill="#22a99c"/>
-  <circle cx="12" cy="12.2" r="2" fill="#0b0e18"/>
+  <path d="M12 1.6l1.3 3 3 1.3-3 1.3-1.3 3-1.3-3-3-1.3 3-1.3z" fill="#8ff5ea"/>
+  <rect x="2.5" y="11.4" width="19" height="3.8" rx="1.6" fill="#3fe0d0"/>
+  <rect x="5" y="14.6" width="2.8" height="7.6" rx="1" fill="#22a99c"/>
+  <rect x="16.2" y="14.6" width="2.8" height="7.6" rx="1" fill="#22a99c"/>
+  <rect x="7" y="18.2" width="10" height="1.8" rx=".8" fill="#22a99c"/>
 </svg>`;
 const CHECK = `<svg class="fun-th-check" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="6" fill="#3fe0d0"/><path d="M3.4 6.2 5.2 8l3.4-3.8" fill="none" stroke="#0b0e18" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-const NAV = ["Hot", "Legacy Code", "Overclocked", "Open Source", "Bare Metal", "Uncompressed", "Multi GPU"];
+const NAV = ["Builds", "Repairs", "Cooling", "Overclocking", "Teardowns", "Legacy Code", "Open Source"];
 const VERIFIED = new Set(["Full Precision", "Bare Metal", "Rack Mount", "Big O", "Open Source", "Legacy Code", "Heat Sync", "Kernel Panic", "Hot Path"]);
-const HEADINGS = ["Hot tensors in your region", "Recommended for your architecture", "Trending in your timezone"];
+const HEADINGS = ["Fresh from the workbench", "Recommended for your architecture", "Popular with your build server"];
 const ADS = [
-  ["Singletons in your module want to instantiate", "Click to new()"],
-  ["Lonely threads near you are waiting to join", "No deadlocks, guaranteed"],
+  ["Anti-static wrist straps, now in twelve colors", "Your circuits will thank you"],
+  ["Spare screws, sorted by size forever", "Magnetic tray included"],
   ["One weird trick to halve your build time", "Linkers hate it"],
 ];
+const PARTS = ["1 robot", "2 hex keys", "a lot of patience", "one anti-static strap", "a spare fan", "three zip ties", "a rubber duck", "the good screwdriver", "a label maker", "one drop of oil"];
 const TH_COMMENTS = [
-  "Came for the title, stayed for the big O analysis.",
+  "Came for the cooling, stayed for the big O analysis.",
   "My fans spun up at 3:12.",
-  "Not what I expected. Better, honestly.",
+  "Finally someone explains this slowly.",
   "Watching this at work because it is literally my job.",
-  "The thumbnail did not prepare me for a linter.",
-  "Bookmarked for research purposes.",
+  "Did not expect a linter cameo at 2:40.",
+  "Bookmarked for the next hackathon.",
   "This is why I bought a dedicated GPU.",
   "Showed this to my rubber duck. It quacked twice.",
   "Ten out of ten, would compile again.",
-  "My sysadmin walked in and I said it was a tutorial. It was a tutorial.",
+  "Followed along with my own soldering iron. Nothing caught fire.",
 ];
 const TH_NAMES = ["gpu.gremlin", "null.pointer", "tab.indenter", "heap.hopper", "cache.monet", "segfault.sam", "regex.rex", "byte.bard", "fan.curve", "sudo.make"];
 const TH_COLORS = ["#3fe0d0", "#b07cff", "#ff9f5a", "#4fb6ff", "#ff6f91"];
@@ -383,21 +388,23 @@ function thComments(v: VideoDef): Comment[] {
     color: TH_COLORS[(k + i) % TH_COLORS.length],
   }));
 }
+/** Three parts from the bench, the same for a video every time. */
+const parts = (v: VideoDef) => { const k = seedOf(v.id); return [0, 1, 2].map((i) => PARTS[(k + i * 4) % PARTS.length]).join(", "); };
 const calm = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export async function browseTensorHub(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
+export async function browseBenchtop(body: HTMLElement, host: FunHost, opts: FunOpts): Promise<Outcome> {
   const scope = new Scope(body);
   const start = performance.now();
   try {
     const site = new Site(body, scope, host, "fun-th", `
       <header class="fun-th-top">
-        <span class="fun-th-logo">${MARK}<b>Tensor</b><b class="fun-th-hub">Hub</b></span>
-        <span class="fun-th-search">Search 4,096 tensors</span>
-        <span class="fun-th-acts"><span class="fun-th-prem">Premium: ad-free stack traces</span><span>Upload</span><span>Log in</span></span>
+        <span class="fun-th-logo">${MARK}<b>Benchtop</b></span>
+        <span class="fun-th-search">Search 4,096 builds</span>
+        <span class="fun-th-acts"><span>Upload</span><span>Log in</span></span>
         <nav class="fun-th-nav">${NAV.map((n, i) => `<span class="${i === 0 ? "fun-on" : ""}">${n}</span>`).join("")}</nav>
       </header>`);
     const timeUp = () => host.stopped || performance.now() - start > opts.maxMs;
-    const vids = [...TENSOR_VIDEOS].sort(() => Math.random() - 0.5);
+    const vids = [...BENCHTOP_VIDEOS].sort(() => Math.random() - 0.5);
     const ad = ADS[Math.floor(Math.random() * ADS.length)];
     const tile = (v: VideoDef) => `
       <div class="fun-th-item" data-id="${v.id}">
@@ -426,8 +433,8 @@ export async function browseTensorHub(body: HTMLElement, host: FunHost, opts: Fu
             <div class="fun-tb-player fun-th-player"><canvas></canvas><div class="fun-tb-ctrl"><div class="fun-tb-bar"><i></i></div><span class="fun-tb-time"></span></div></div>
             <h3>${esc(v.title)}</h3>
             <div class="fun-th-meta">${byline(v, true)}<span>${esc(v.views)}</span><span class="fun-th-rate"><i style="width:${r}%"></i></span><span>${r}% compiled</span></div>
-            <div class="fun-th-tools"><span>Like</span><span>Fork</span><span>Add to stack</span><span>Download (Premium)</span></div>
-            <p class="fun-th-upsell">Premium: ad-free stack traces, 8K tensors and no buffering on the gradient.</p>
+            <div class="fun-th-tools"><span>Like</span><span>Fork</span><span>Add to parts list</span><span>Save for later</span></div>
+            <p class="fun-th-parts">Parts in this video: ${esc(parts(v))}</p>
             <div class="fun-th-cms">${commentsHtml(thComments(v))}</div>
           </div>
           <aside class="fun-th-rel">${rel.map((x) => `<div class="fun-th-rec" data-id="${x.id}"><div class="fun-th-thumb"><canvas data-v="${x.id}"></canvas></div><b>${esc(x.title)}</b></div>`).join("")}</aside>
@@ -438,28 +445,10 @@ export async function browseTensorHub(body: HTMLElement, host: FunHost, opts: Fu
       return canvas;
     };
 
-    // age gate first
     home();
-    const gate = document.createElement("div");
-    gate.className = "fun-th-gate";
-    gate.innerHTML = `<div class="fun-th-gate-in"><span class="fun-th-logo">${MARK}<b>Tensor</b><b class="fun-th-hub">Hub</b></span>
-      <h2>Are you at least 18 epochs old?</h2>
-      <p>TensorHub is for fully trained models only. It contains raw logs, unminified source and uncompressed tensors.</p>
-      <div class="fun-th-btns"><span class="fun-th-btn fun-th-enter">I am 18 epochs or older</span><span class="fun-th-btn fun-th-leave">I am still in pre-training</span></div>
-      <small>Parental controls: cap the learning rate in your settings.</small></div>`;
-    site.root.appendChild(gate);
-    if (!calm()) scope.fromTo(gate.querySelector(".fun-th-gate-in"), { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "expo.out" });
-    await host.sleep(1300);
-    await host.pointAt(gate.querySelector(".fun-th-leave")!, 0.5, 0.5, 600);
-    await host.sleep(600);
-    await host.pointAt(gate.querySelector(".fun-th-enter")!, 0.5, 0.5, 500);
-    await host.sleep(300);
-    await host.click();
-    await scope.play(gate, { opacity: 0, duration: calm() ? 0.01 : 0.35, ease: "sine.in" });
-    gate.remove();
-    host.react("shy");
+    host.react("focus");
+    await host.sleep(900);
 
-    let shy = false;
     while (!timeUp()) {
       // sometimes browse further down before picking
       if (Math.random() < 0.5) {
@@ -486,10 +475,11 @@ export async function browseTensorHub(body: HTMLElement, host: FunHost, opts: Fu
         const pv = v;
         await site.open(from, () => watch(pv));
         const t0 = performance.now(), ms = 6000 + Math.random() * 5000;
-        const shyAt = 1200 + Math.random() * 2500;
-        let read = Math.random() < 0.35;
+        // one good moment per video: a clever fix or a satisfying click
+        const wowAt = 1200 + Math.random() * 2500;
+        let wowed = false, read = Math.random() < 0.35;
         while (performance.now() - t0 < ms && !timeUp()) {
-          if (!shy && performance.now() - t0 > shyAt) { shy = true; host.react("shy"); }
+          if (!wowed && performance.now() - t0 > wowAt) { wowed = true; host.react(Math.random() < 0.5 ? "surprised" : "cheer"); }
           // now and then the robot scrolls down to read the comments, then back up
           if (read && performance.now() - t0 > ms * 0.55) {
             read = false;
@@ -498,7 +488,6 @@ export async function browseTensorHub(body: HTMLElement, host: FunHost, opts: Fu
           }
           await host.sleep(150);
         }
-        shy = false;
         if (timeUp() || Math.random() < 0.4) break;
         const recs = [...site.page.querySelectorAll<HTMLElement>(".fun-th-rec")].filter((e) => site.visible(e));
         const rec = recs[Math.floor(Math.random() * recs.length)];

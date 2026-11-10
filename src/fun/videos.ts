@@ -146,8 +146,8 @@ const dance: VideoDef = {
   },
 };
 
-const roomba: VideoDef = {
-  id: "roomba-drift", title: "Roomba drifts the kitchen corner", channel: "Dust Kings", views: "880K views", durationLabel: "0:48", loop: 4.6, thumbT: 2.0,
+const vacuumDrift: VideoDef = {
+  id: "vacuum-drift", title: "Robot vacuum drifts the kitchen corner", channel: "Dust Kings", views: "880K views", durationLabel: "0:48", loop: 4.6, thumbT: 2.0,
   draw(ctx, w, h, t) {
     const { s, X, Y } = core(w, h, 0.5);
     // kitchen floor tiles
@@ -828,7 +828,7 @@ const arm: VideoDef = {
   },
 };
 
-export const VIDEOS: VideoDef[] = [dance, roomba, unbox, attention, pancakes, drones, catVac, servers, laundry, chat, baby, arm, ...PARODY_VIDEOS, ...DANCE_VIDEOS];
+export const VIDEOS: VideoDef[] = [dance, vacuumDrift, unbox, attention, pancakes, drones, catVac, servers, laundry, chat, baby, arm, ...PARODY_VIDEOS, ...DANCE_VIDEOS];
 
 /** One still frame of a video with its duration in the corner. */
 export function drawThumbnail(v: VideoDef, ctx: CanvasRenderingContext2D, w: number, h: number) {

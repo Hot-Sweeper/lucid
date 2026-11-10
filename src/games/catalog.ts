@@ -1,16 +1,16 @@
-// One name per playable game, shared by the desktop and the Steambot library.
+// One name per playable game, shared by the desktop and the Vapor library.
 export const GAME_TITLES = {
   snake: "Snake",
-  flappy: "Flappy Drone",
+  flappy: "Drone Hop",
   dash: "Dash",
   chess: "Chess",
-  blockcraft: "Blockcraft",
-  nightshift: "Five Nights at the Server Room",
+  blockcraft: "Voxel Valley",
+  nightshift: "Uptime Till Dawn",
   tictactoe: "Tic-tac-toe",
   connect4: "Four in a Row",
   bitmerge: "Bit Merge",
-  island: "The Secret of Robot Island",
-  botcom: "BOT-COM: Terror from the Deep Sea",
+  island: "Rustwater Bay",
+  botcom: "Tidewatch Tactics",
   bugger: "Der Bugger 2",
   boot: "BOOT",
 } as const;

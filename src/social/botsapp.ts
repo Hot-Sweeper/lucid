@@ -233,7 +233,7 @@ class BotsApp {
     } else {
       if (this.phone) {
         if (!this.kb?.up) await touch(this.k, this.field, this.root);
-        this.kb = phoneKeyboard(this.k, this.root, { accent: "#1daa61" });
+        this.kb = phoneKeyboard(this.k, this.root, { accent: "#1fae8a" });
         await this.kb.open({ ret: "send", lift: [this.root.querySelector<HTMLElement>(".so-ba-foot"), this.msgs, this.tray] });
       } else await this.k.click(this.field, rnd(0.2, 0.5), 0.5);
       this.field.classList.add("has");

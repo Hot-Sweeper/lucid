@@ -1,4 +1,5 @@
-// Public market data for the robots' Tradebot: real Bitcoin candles and the last price.
+// Public market data behind the robots' fictional Botcoin Exchange: real BTC/USD candles and the last
+// price. The app only labels them "Live market feed", never with an exchange or coin name.
 // Binance's public market data first (no key), CoinGecko as the fallback. Everything is cached
 // and spaced out, so ten robots watching the same chart cost the same as one: the renderer asks
 // as often as it likes, the network only sees a few requests a minute.

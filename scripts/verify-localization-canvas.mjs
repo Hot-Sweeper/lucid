@@ -18,7 +18,7 @@ assert.equal(api.canvasText('when the tests go green'), 'wenn alle Tests grün s
 assert.equal(api.canvasText('Spaces look the same everywhere.'), 'Leerzeichen sehen überall gleich aus.');
 assert.equal(api.canvasText('open ports: 10,000'), 'offene Ports: 10.000');
 for (const [source, expected] of [
-  ['AI CLOTH', 'KI-STOFF'], ['IS PERFECT', 'IST PERFEKT'], ['duet with @bun.bun', 'Duett mit @bun.bun'],
+  ['MERGE CONFLICT', 'MERGE-KONFLIKT'], ['WHAT PRINTS?', 'WAS KOMMT RAUS?'], ['duet with @bun.bun', 'Duett mit @bun.bun'],
   ['robot dance fails part 7', 'Roboter-Tanzpannen, Teil 7'], ['tutorial 0.5x mirrored', 'Tutorial, 0,5-fach gespiegelt'],
   ['full speed', 'volles Tempo'], ['heart hands trend with my best bot', 'Herzhände mit meinem besten Bot'],
   ['Fail #2: the spin', 'Panne #2: die Drehung'], ['12/12 passing', '12/12 bestanden'],

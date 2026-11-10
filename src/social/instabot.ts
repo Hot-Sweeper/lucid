@@ -1,5 +1,5 @@
 // Instabot: a photo feed on the robot's phone. Stories along the top, drawn photos of robots at
-// the beach and latte art, double-tap hearts, and now and then a few reels.
+// the beach and latte art, double-tap hearts, and now and then a few short clips.
 import { INSTA_POSTS, INSTA_STORIES, INSTA_COMMENTS, INSTA_MY_COMMENTS, INSTA_DMS, type InstaPost } from "../content/social";
 import { VIDEOS } from "../fun/videos";
 import { Kit, runApp, rnd, chance, pick, shuffle, h, avatar, seedOf, touch, calm, fmtN, canvas, ICON, type SoHost, type SoOpts } from "./kit";
@@ -207,7 +207,7 @@ class Instabot {
     const input = sheet.querySelector(".so-ig-in") as HTMLElement, tx = sheet.querySelector(".so-ig-tx") as HTMLElement;
     const foot = sheet.querySelector("footer") as HTMLElement;
     await touch(this.k, input, this.root);
-    const kb = phoneKeyboard(this.k, this.root, { accent: "#0095f6" });
+    const kb = phoneKeyboard(this.k, this.root, { accent: "#5a7dff" });
     await kb.open({ ret: "send", lift: [foot] });
     input.classList.add("has");
     const text = nextComment();
@@ -252,7 +252,7 @@ class Instabot {
       if (!calm()) this.k.fromTo(m, { opacity: 0, scale: 0.85, transformOrigin: u === "me" ? "100% 100%" : "0% 100%" }, { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(2)" });
     };
     await this.k.sleep(rnd(600, 1000));
-    const kb = phoneKeyboard(this.k, view, { accent: "#3797f0" });
+    const kb = phoneKeyboard(this.k, view, { accent: "#5a7dff" });
     for (const l of dm.lines) {
       if (this.k.left < 3000) break;
       if (l.u === "them") {

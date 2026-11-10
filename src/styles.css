@@ -295,23 +295,6 @@ textarea::placeholder { color: var(--ink-3); }
 .pc.lift { z-index: 5; filter: drop-shadow(0 8px 6px rgba(10, 8, 40, 0.45)); }
 .zz { position: absolute; left: 0; top: 0; font-size: 26px; font-weight: 600; color: #c9d4ff; pointer-events: none; }
 
-/* editor flavors, picked by each robot */
-.editor.ed-pad { background: #f7f5ef; }
-.editor.ed-pad .tabs { background: #e6e2d6; }
-.editor.ed-pad .tab { color: #6b6450; }
-.editor.ed-pad .tab.on { background: #f7f5ef; color: #2b2a24; box-shadow: inset 0 2px 0 #4fae6a; }
-.editor.ed-pad .ln b { color: #a39d8a; background: #ece9df; }
-.editor.ed-pad .code { color: #2b2a24; }
-.editor.ed-pad .t-k { color: #1f4fbf; } .editor.ed-pad .t-s { color: #8a5a00; } .editor.ed-pad .t-c { color: #3f8f50; } .editor.ed-pad .t-n { color: #c0392b; } .editor.ed-pad .t-f { color: #7a2fb0; } .editor.ed-pad .t-t { color: #1d7a8a; }
-.editor.ed-pad .ln.add { background: rgba(79, 174, 106, 0.16); }
-.editor.ed-pad .caret { background: #2b2a24; }
-.editor.ed-vim { background: #12140f; }
-.editor.ed-vim .tabs { display: none; }
-.editor.ed-vim .ln b { color: #5d6b48; }
-.editor.ed-vim .code { color: #d6dcc6; }
-.editor.ed-vim { display: flex; flex-direction: column; }
-.vim-bar { flex: none; display: flex; gap: 14px; padding: 3px 8px; background: #2b3122; color: #d6dcc6; font: 10px var(--mono); }
-.vim-bar b { color: #b8e07a; font-weight: 600; }
 .desk-plate b { font-weight: 600; margin-right: 3px; }
 .desk-plate i { font-style: normal; opacity: 0.85; }
 
@@ -468,11 +451,4 @@ textarea::placeholder { color: var(--ink-3); }
 
 /* Persistent robot scratchpad styles. */
 .notes-workspace { height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #fff7d6; }
-.notes-chrome { flex: none; padding: 7px 10px; white-space: pre-wrap; font-size: 10px; line-height: 1.8; background: #f2e8bc; color: #62502b; }
 .notes-workspace .notes { flex: 1; min-height: 0; height: auto; box-sizing: border-box; }
-.os[data-notes-app="notepad"] .app-notes .win-bar { background: #dce9f5; color: #263b50; }
-.os[data-notes-app="notepad"] .notes-chrome { background: #edf3f9; color: #34475c; }
-.os[data-notes-app="notepad"] .notes { background: #fff; color: #26313e; font-family: "JetBrains Mono", monospace; }
-.os[data-notes-app="notepad-plus-plus"] .app-notes .win-bar { background: #dce7d1; color: #314128; }
-.os[data-notes-app="notepad-plus-plus"] .notes-chrome { background: #e7ecdf; color: #35452e; }
-.os[data-notes-app="notepad-plus-plus"] .notes { background: linear-gradient(to right, #e5e8df 28px, #f9fbf5 28px); color: #2d3c26; padding-left: 38px; font-family: "JetBrains Mono", monospace; }

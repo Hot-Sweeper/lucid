@@ -1,7 +1,7 @@
 import { canonicalText, getLocale, onLocaleChange, translateEntries, uiText } from "./localization";
 
 const protectedElements = "script,style,svg,canvas,pre,code,input,textarea,[contenteditable], [data-no-localize], .os-clock, .so-kb, .phone-keyboard";
-const brands = new Set(["Lucid", "BotTube", "BotTube Shorts", "Botcord", "BotsApp", "Botify", "Botword", "Cellsheet", "Slidedeck", "Telegrid", "Chirp", "Instabot", "Snapbot", "Spool", "Sparkplug", "T3 Code", "Codex", "GitHub Desktop"]);
+const brands = new Set(["Lucid", "BotTube", "BotTube Shorts", "Botcord", "BotsApp", "Botify", "Botword", "Cellsheet", "Slidedeck", "Telegrid", "Chirp", "Instabot", "Snapbot", "Spool", "Sparkplug", "Vapor", "Botcoin", "Botcoin Exchange", "Benchtop", "Lingobot", "Botmail", "Botflix", "T3 Code", "Codex", "Claude Code", "Git"]);
 type Slot = { source: string; shown: string; locale: string };
 
 /** Only attach to fictional game content. Never attach to a real thread or the app shell. */

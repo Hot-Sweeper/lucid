@@ -18,7 +18,7 @@ import "../life/life.css";
 import { officeIdle, officePick, OFFICE_IDLE_LINE } from "../office-apps/idle";
 import { PHONE_APP_DOING, type PhoneApp } from "../social/phone-apps";
 import type { SoOpts } from "../social/kit";
-import { playSnake, playFlappy, playDash, playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge, playRobotIsland, playBotCom, playDerBugger, playBoot, watchBotflix, watchTube, browseTensorHub, makeBeat, hangOutInChat, usePhone, chatOnBotsApp, browseTelegrid, scrollChirp, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, browseInstaweb, scrollSpoolWeb, swipeSparkplug, useSteam, tradeOnTradebot, preloadActivity, } from "./idle-activities";
+import { playSnake, playFlappy, playDash, playBlockcraft, playNightShift, playTicTacToe, playConnectFour, playBitMerge, playRobotIsland, playBotCom, playDerBugger, playBoot, watchBotflix, watchTube, browseBenchtop, makeBeat, hangOutInChat, usePhone, chatOnBotsApp, browseTelegrid, scrollChirp, doodleInSketchpad, solveCrossword, playSolitaire, watchStocks, checkMail, learnWithLingobot, browseInstaweb, scrollSpoolWeb, swipeSparkplug, useVapor, tradeOnBotcoinExchange, preloadActivity, } from "./idle-activities";
 import type { Prefs } from "../office/roster";
 
 // What the robot does when there is no work: tidy the desktop, play a game,
@@ -201,7 +201,7 @@ export class IdleLife {
       blockcraft: games * 1.1, nightshift: games * 0.8, tictactoe: games * 0.5, connect4: games * 0.5, bitmerge: games * 0.6,
       phone: (p?.phone === "tube" ? 0.4 : 1) * (0.6 + 1.6 * H("chiller") + 1.2 * H("watcher")) * (1 + 0.2 * (p?.socials?.length ?? 0)),
       tube: (p?.phone === "tube" ? 1 : 0.4) * (0.4 + 2.4 * H("watcher")),
-      tensorhub: 0.05 + 0.1 * H("watcher"),
+      benchtop: 0.05 + 0.1 * H("watcher"),
       botflix: 0.3 + 1.6 * H("watcher") + 0.4 * H("chiller"),
       island: games * 0.6, botcom: games * 0.5, bugger: games * 0.45, boot: games * 0.7,
       coffee: 0.6 + 0.8 * H("chiller"), stretch: 0.3 + 0.3 * H("chiller"),
@@ -316,14 +316,14 @@ export class IdleLife {
         await watchTube(w.body, host, { maxMs: 50000 + Math.random() * 50000 });
         return this.closeWin("browser", tok);
       }
-      case "tensorhub": {
-        this.onActivity("Browsing something it should not");
-        const w = await this.wm.open("browser", "TensorHub");
+      case "benchtop": {
+        this.onActivity("Watching hardware videos on Benchtop");
+        const w = await this.wm.open("browser", "Benchtop");
         this.alive(tok);
         w.body.innerHTML = "";
-        await browseTensorHub(w.body, host, { maxMs: 18000 + Math.random() * 12000 });
+        await browseBenchtop(w.body, host, { maxMs: 18000 + Math.random() * 12000 });
         this.alive(tok);
-        this.wm.close("browser"); // closed fast, nobody saw anything
+        this.wm.close("browser");
         this.robot.react("shy");
         return this.wait(1500, tok);
       }
@@ -415,23 +415,23 @@ export class IdleLife {
       case "instaweb": return this.socialApp("instaweb", "Scrolling Instabot on the web", browseInstaweb, tok);
       case "spoolweb": return this.socialApp("spoolweb", "Watching Spool clips on the desktop", scrollSpoolWeb, tok);
       case "sparkplug": return this.socialApp("sparkplug", "Swiping on Sparkplug", swipeSparkplug, tok, 40000);
-      case "steam": {
+      case "vapor": {
         // the store, the library, a download and a launch: then the game itself runs on its desktop
-        this.onActivity("Browsing Steambot");
-        const w = await this.wm.open("steam");
+        this.onActivity("Browsing Vapor");
+        const w = await this.wm.open("vapor");
         this.alive(tok);
         this.robot.setPose("mouse");
         const g = this.wm.prefs?.games ?? { snake: 1, flappy: 1, dash: 1, chess: 1 };
         const want = (key: string) => (key === "snake" ? g.snake : key === "flappy" ? g.flappy : key === "dash" ? g.dash : key === "chess" ? g.chess : 1);
-        const out = await useSteam(w.body, this.host(tok), { maxMs: 130000, me: this.wm.robotName, skill: 0.5 + Math.random() * 0.4, want });
+        const out = await useVapor(w.body, this.host(tok), { maxMs: 130000, me: this.wm.robotName, skill: 0.5 + Math.random() * 0.4, want });
         this.alive(tok);
         if (out.launch) {
           try { await this.doActivity(out.launch, tok, true); }
-          finally { (await import("../leisure/steam")).markSteamStopped(w.body); }
+          finally { (await import("../leisure/vapor")).markVaporStopped(w.body); }
         }
-        return this.closeWin("steam", tok);
+        return this.closeWin("vapor", tok);
       }
-      case "trading": return this.socialApp("trading", "Trading bitcoin on Tradebot", tradeOnTradebot, tok, 60000);
+      case "trading": return this.socialApp("trading", "Trading Botcoin on the Botcoin Exchange", tradeOnBotcoinExchange, tok, 60000);
     }
   }
 
@@ -498,7 +498,7 @@ export class IdleLife {
       instaweb: uses("instabot") ? 0.6 + 0.5 * H("chiller") : 0,
       spoolweb: uses("spool") ? 0.6 + 0.8 * H("watcher") : 0,
       sparkplug: uses("sparkplug") ? 0.5 + 0.5 * H("chatter") : 0,
-      steam: likes("steam") ? 1.7 + 1.0 * H("gamer") : 0,
+      vapor: likes("vapor") ? 1.7 + 1.0 * H("gamer") : 0,
       trading: likes("trading") ? 1.5 : 0,
     };
   }

@@ -2,20 +2,13 @@
 // them (white on dark panels, dark on light ones); colour logos keep their own colours.
 import claude from "../assets/harness/claude.svg?raw";
 import codex from "../assets/harness/codex.svg?raw";
-import gemini from "../assets/harness/gemini.svg?raw";
 import antigravity from "../assets/harness/antigravity.svg?raw";
 import opencode from "../assets/harness/opencode.svg?raw";
-import pi from "../assets/harness/pi.svg?raw";
-import hermes from "../assets/harness/hermes.svg?raw";
-import openclaw from "../assets/harness/openclaw.svg?raw";
 import cursor from "../assets/harness/cursor.svg?raw";
-import grok from "../assets/harness/grok.svg?raw";
-import copilot from "../assets/harness/copilot.svg?raw";
-import amp from "../assets/harness/amp.svg?raw";
 import type { HarnessKind } from "./themes";
 
-const RAW: Partial<Record<HarnessKind, string>> = { claude, codex, gemini, antigravity, opencode, pi, hermes, openclaw, cursor, grok, copilot, amp };
-const MONO = new Set<HarnessKind>(["codex", "opencode", "pi", "hermes", "cursor", "grok", "copilot"]);
+const RAW: Partial<Record<HarnessKind, string>> = { claude, codex, antigravity, opencode, cursor };
+const MONO = new Set<HarnessKind>(["codex", "opencode", "cursor"]);
 
 const clean = new Map<HarnessKind, string>();
 /** The logo as inline SVG markup that fills its box, or null when there is none. */

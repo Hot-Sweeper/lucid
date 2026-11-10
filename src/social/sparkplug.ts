@@ -1,6 +1,7 @@
-// Sparkplug: robot dating, very wholesome. Profile cards with portraits of robots and their
-// bios ("Looking for someone who won't mind my fan noise"), swipes with a real card throw,
-// now and then "It's a match!", and then a shy little chat. Phone and desktop web layouts.
+// Sparkplug: a robot buddy finder, strictly wholesome. Profile cards with portraits of robots,
+// their favourite voltage and hobbies ("Looking for a desk buddy who won't mind my fan noise"),
+// swipes with a real card throw, now and then "New buddy!", and then a friendly little chat.
+// Phone and desktop web layouts.
 import { SPARK_PROFILES, SPARK_CHATS, type SparkProfile } from "../content/social";
 import { portraitSvg, randomLook, seeded } from "../world/look";
 import { PALETTES } from "../world/seated-parts";
@@ -67,8 +68,8 @@ class Sparkplug {
       this.root.innerHTML = `
         <aside class="so-sp-side">
           <header class="so-sp-mine"><span class="so-sp-av">${face(this.me, 30, false)}</span><b>My profile</b>${logo}</header>
-          <div class="so-sp-tabs"><span class="on">Matches</span><span>Messages</span></div>
-          <div class="so-sp-matches"><div class="so-sp-mgrid"></div><p class="so-sp-hint">Start swiping to get matches</p></div>
+          <div class="so-sp-tabs"><span class="on">Buddies</span><span>Messages</span></div>
+          <div class="so-sp-matches"><div class="so-sp-mgrid"></div><p class="so-sp-hint">Start swiping to find buddies</p></div>
         </aside>
         <div class="so-sp-main"><div class="so-sp-deck"></div>
           <nav class="so-sp-btns"><span class="b-nope">${ICO.nope}</span><span class="b-star">${ICO.star}</span><span class="b-like">${ICO.like}</span></nav></div>`;
@@ -87,8 +88,8 @@ class Sparkplug {
     const el = h("article", "so-sp-card");
     el.style.background = `linear-gradient(170deg, ${a}, ${b})`;
     el.innerHTML = `<div class="so-sp-photo">${face(p.name, this.phone ? 130 : 230)}</div>
-      <span class="so-sp-stamp like">LIKE</span><span class="so-sp-stamp nope">NOPE</span>
-      <div class="so-sp-info"><h3><b></b> <span></span></h3><small>${ICO.pin}<i></i></small><p></p><div class="so-sp-tags">${p.tags.map((t) => esc(t)).join(" &middot; ")}</div></div>`;
+      <span class="so-sp-stamp like">BUDDY</span><span class="so-sp-stamp nope">PASS</span>
+      <div class="so-sp-info"><h3><b></b> <span></span></h3><small>${ICO.pin}<i></i></small><p></p><div class="so-sp-tags">${[`likes ${p.volt}`, ...p.tags].map((t) => esc(t)).join(" &middot; ")}</div></div>`;
     el.querySelector("h3 b")!.textContent = p.name;
     el.querySelector("h3 span")!.textContent = p.age;
     el.querySelector("small i")!.textContent = p.dist;
@@ -156,7 +157,7 @@ class Sparkplug {
   async look(p: SparkProfile) {
     // reading the bio, as one does
     await this.k.sleep(rnd(1400, 2400) + p.bio.length * rnd(15, 28));
-    if (chance(0.3)) this.k.host.react(chance(0.6) ? "laugh" : "shy");
+    if (chance(0.3)) this.k.host.react(chance(0.6) ? "laugh" : "relax");
   }
 
   async session() {
@@ -168,7 +169,7 @@ class Sparkplug {
       const right = chance(0.5);
       await this.swipe(right);
       if (right) this.likes++;
-      // a match now and then; the first like after a few swipes is a sure one, so it shows up
+      // a new buddy now and then; the first like after a few swipes is a sure one, so it shows up
       if (right && this.k.left > 20000 && (chance(0.35) || (this.likes >= 2 && !this.matched))) {
         this.matched++;
         await this.match(p);
@@ -192,11 +193,11 @@ class Sparkplug {
   async match(p: SparkProfile) {
     this.k.host.react("surprised");
     const ov = h("div", "so-sp-match");
-    ov.innerHTML = `<div class="so-sp-mtitle">It's a match!</div><p></p>
+    ov.innerHTML = `<div class="so-sp-mtitle">New buddy!</div><p></p>
       <div class="so-sp-pair"><span>${face(this.me, this.phone ? 64 : 110)}</span><span>${face(p.name, this.phone ? 64 : 110)}</span></div>
       <div class="so-sp-say"><span class="so-sp-sayph">Say something nice...</span><span class="so-sp-saytx"></span><b>Send</b></div>
       <span class="so-sp-keep">Keep swiping</span>`;
-    ov.querySelector("p")!.textContent = `You and ${p.name} liked each other.`;
+    ov.querySelector("p")!.textContent = `You and ${p.name} both want to hang out.`;
     (this.phone ? this.root : this.main).appendChild(ov);
     if (!calm()) {
       this.k.fromTo(ov, { opacity: 0 }, { opacity: 1, duration: 0.3 });
@@ -219,7 +220,7 @@ class Sparkplug {
       const say = ov.querySelector(".so-sp-say") as HTMLElement, tx = ov.querySelector(".so-sp-saytx") as HTMLElement;
       await this.tap(say, 0.3);
       say.classList.add("has");
-      if (this.phone) { this.kb = phoneKeyboard(this.k, this.root, { accent: "#ff6f91" }); ov.classList.add("kbup"); await this.kb.open({ ret: "send" }); }
+      if (this.phone) { this.kb = phoneKeyboard(this.k, this.root, { accent: "#8f6cf2" }); ov.classList.add("kbup"); await this.kb.open({ ret: "send" }); }
       await typeInto(this.k, tx, script[0].t, { phone: this.phone, skill: this.opts.skill, kb: this.kb ?? undefined });
       await this.k.sleep(rnd(250, 500));
       if (this.phone) { await this.kb!.enter(); await this.kb!.close(); } else this.k.tap("Enter");
@@ -241,11 +242,11 @@ class Sparkplug {
     el.remove();
   }
 
-  /** The chat with a match: their typing dots, the robot's answers. `from` lines were already sent. */
+  /** The chat with a new buddy: their typing dots, the robot's answers. `from` lines were already sent. */
   async chat(p: SparkProfile, lines: { u: "me" | "them"; t: string }[], from: number) {
     const view = h("div", "so-sp-chat");
-    view.innerHTML = `<header><span class="so-sp-bk"></span><span class="so-sp-cav">${face(p.name, this.phone ? 20 : 30, false)}</span><div><b></b><small>Matched today</small></div></header>
-      <div class="so-sp-msgs"><p class="so-sp-day">You matched with ${esc(p.name)}</p></div>
+    view.innerHTML = `<header><span class="so-sp-bk"></span><span class="so-sp-cav">${face(p.name, this.phone ? 20 : 30, false)}</span><div><b></b><small>Buddies since today</small></div></header>
+      <div class="so-sp-msgs"><p class="so-sp-day">You and ${esc(p.name)} are buddies now</p></div>
       <footer><div class="so-sp-field"><span class="so-sp-fph">Type a message</span><span class="so-sp-ftx"></span></div><b class="so-sp-send">Send</b></footer>`;
     view.querySelector("header b")!.textContent = p.name;
     (this.phone ? this.root : this.main).appendChild(view);
@@ -264,7 +265,7 @@ class Sparkplug {
     };
     for (let i = 0; i < from; i++) add(lines[i].u, lines[i].t);
     await this.k.sleep(rnd(600, 1000));
-    const kb = this.phone ? phoneKeyboard(this.k, view, { accent: "#ff6f91" }) : null;
+    const kb = this.phone ? phoneKeyboard(this.k, view, { accent: "#8f6cf2" }) : null;
     for (let i = from; i < lines.length; i++) {
       if (this.k.left < 4000) break;
       const l = lines[i];
@@ -273,7 +274,7 @@ class Sparkplug {
         await theyType(this.k, l.t, () => { const off = dotsBubble(this.k, list, "so-sp-b them dots", `<span class="so-sp-bav">${face(p.name, this.phone ? 12 : 18, false)}</span>`); list.scrollTop = list.scrollHeight; return off; });
         add("them", l.t);
         await this.k.sleep(600 + l.t.length * rnd(30, 45));
-        if (chance(0.4)) this.k.host.react(chance(0.5) ? "shy" : "laugh");
+        if (chance(0.4)) this.k.host.react(chance(0.5) ? "cheer" : "laugh");
       } else {
         if (kb) { if (!kb.up) await touch(this.k, field, view); await kb.open({ ret: "send", lift: [foot, list] }); }
         else await this.k.click(field, 0.3);

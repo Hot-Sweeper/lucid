@@ -1,7 +1,5 @@
-/* TensorHub additions: categories, badges, ratings, upsell and the age gate. Scoped under .fun-th. */
-.fun-th .fun-th-logo .fun-th-hub { margin-left: 3px; padding: 0 4px; border-radius: 3px; background: #3fe0d0; color: #0b0e18; line-height: 1.3; }
+/* Benchtop additions: categories, badges, ratings and the parts list. Scoped under .fun-th. */
 .fun-th .fun-th-acts { justify-self: end; display: flex; align-items: center; gap: 14px; font-size: 10.5px; color: #8d99b0; white-space: nowrap; }
-.fun-th .fun-th-prem { color: #3fe0d0; font-weight: 550; }
 .fun-th .fun-th-nav { gap: 16px; }
 
 .fun-th .fun-th-head { display: flex; align-items: baseline; justify-content: space-between; padding: 10px 16px 0; }
@@ -25,11 +23,8 @@
 .fun-th .fun-th-rate { width: 54px; height: 3px; border-radius: 2px; background: #1b2232; overflow: hidden; margin-left: auto; }
 .fun-th .fun-th-rate i { display: block; height: 100%; background: #3fe0d0; }
 .fun-th .fun-th-tools { display: flex; gap: 14px; margin-top: 9px; font-size: 10.5px; color: #b8c4d6; }
-.fun-th .fun-th-upsell { margin: 10px 0 0; padding-top: 9px; border-top: 1px solid #161b2a; font-size: 10.5px; color: #3fe0d0; }
+.fun-th .fun-th-parts { margin: 10px 0 0; padding-top: 9px; border-top: 1px solid #161b2a; font-size: 10.5px; color: #8d99b0; }
 .fun-th .fun-th-cms { margin-top: 8px; }
-
-.fun-th .fun-th-gate-in h2 { margin: 2px 0 0; font-size: 17px; font-weight: 650; color: #fff; }
-.fun-th .fun-th-gate-in small { font-size: 10px; color: #6f7c94; }
 
 @media (prefers-reduced-motion: reduce) {
   .fun-th .fun-th-thumb { transition: none; }
