@@ -151,9 +151,9 @@ On a monitor showing one question, keep the question at the top and align its an
 Keep App library, Website studio, Office & settings, Help and Hide in one compact action group. Only the group absorbs spare header width. Its 30px buttons use 4px gaps, 6px corners, lavender icons and peach focus; visual order follows keyboard order. At narrow sidebar widths the whole group moves below the weather instead of spreading or wrapping individual icons. Long weather labels ellipsize within the header, retaining their full accessible text and existing tooltip. Update keeps its separate row. Hover feedback takes 130 ms and respects reduced motion.
 
 
-## Tradebot chart jokes
+## Botcoin Exchange chart jokes
 
-The robot can use the existing Tradebot cursor to draw a dinosaur outline, circle a real candle as god-candle analysis, scribble spaghetti divergence or project a trust-me-bro rally. Keep the near-black exchange, actual candles and price axes intact. These are bounded canvas annotations stored separately from market data, with a compact Robot doodle caption and an absurd verdict typed after the drawing. The god-candle halo follows an actual candle; no fake candle or price spike is added to Bitcoin. Fictional coin trades keep their existing simulation. Stroke growth follows the one existing cursor and stops through the shared Kit when real work returns. Reduced motion shows the complete drawing and verdict immediately. Use existing click/typing feedback, robot focus and celebration, localization and render scheduling.
+The robot can use the existing Botcoin Exchange cursor to draw a dinosaur outline, circle a real candle as god-candle analysis, scribble spaghetti divergence or project a trust-me-bro rally. Keep the near-black exchange, actual candles and price axes intact. These are bounded canvas annotations stored separately from market data, with a compact Robot doodle caption and an absurd verdict typed after the drawing. The god-candle halo follows an actual candle; no fake candle or price spike is added to the live market feed, which is labelled only "Live market feed" and never with a real exchange or coin name. Fictional coin trades keep their existing simulation. Stroke growth follows the one existing cursor and stops through the shared Kit when real work returns. Reduced motion shows the complete drawing and verdict immediately. Use existing click/typing feedback, robot focus and celebration, localization and render scheduling.
 
 
 ## Empty desk cleanup
@@ -209,3 +209,7 @@ Keep the current conversation visibly selected with an inset outline and softly 
 ## Sidebar settlement
 
 Eligible active threads show a mint SVG circle-check and Done in the status position. Hover or keyboard focus replaces the status with a compact SVG check and gray Settle action that brightens to white on hover, matching T3 Code; touch devices show the action directly. Coin amounts remain in the tooltip and accessible action name. Reuse desk eligibility, review approval and collection behavior. Keep the action separate from navigation, disable it during settlement, and show recoverable errors inline.
+
+## Fictional apps and real tools
+
+Fun apps on robot computers and phones are original robot parodies (Vapor, Botcoin Exchange, Benchtop, BotTube, Botflix, Botcord, BotsApp, Botify, Chirp, Instabot, Snapbot, Telegrid, Spool, Sparkplug, Lingobot, Botmail). Names and marks may lean toward a familiar app but never copy a real logo, palette or layout signature, and no channel, show or character imitates a real person. Real tools the robots really use keep their real names and are drawn in Lucid's simplified style: T3 Code (the build the user runs), Claude Code, Codex, the harnesses T3 Code can drive, and Git. A robot talking with the user shows the native chat app; working with other robots it shows T3 Code.
