@@ -39,7 +39,7 @@ export interface Prefs {
   apps?: FunApp[];                                 // favourite pastime apps (pinned in the dock)
   socials?: SocialApp[];                           // social apps it uses; it never opens the others
   socialsV?: number;                               // 2 once Spool and Sparkplug were offered to it
-  leisure2?: boolean;                              // already offered Steambot and Tradebot (older robots get them once, from their id)
+  leisure2?: boolean;                              // already offered Vapor and the Botcoin Exchange (older robots get them once, from their id)
 }
 export interface RobotProfile {
   id: string;
@@ -112,7 +112,7 @@ export function interestsFrom(r: () => number, hobby: Hobby): { apps: FunApp[]; 
     stocks: 0.7 + 0.8 * H("watcher"),
     mail: 0.8 + H("chatter"),
     lingo: 1 + 0.6 * H("chatter") + 0.6 * H("watcher"),
-    // games on Steambot for the gamers, charts and regret on Tradebot for the watchers and the restless
+    // games on Vapor for the gamers, charts and regret on the Botcoin Exchange for the watchers and the restless
     steam: 0.35 + 2.4 * H("gamer") + 0.2 * H("watcher"),
     trading: 0.25 + 0.7 * H("watcher") + 0.5 * H("chiller") + 0.3 * H("musician"),
   };
@@ -177,7 +177,7 @@ export class Roster {
         r.prefs.tidiness = ((x * 13) % 1) < 0.3 ? "tidy" : ((x * 13) % 1) < 0.7 ? "normal" : "messy";
       }
       if (r.prefs && !r.prefs.listens) { const x = idHash((r.id || r.name || "") + "music"); r.prefs.listens = x < 0.35 ? "always" : x < 0.7 ? "sometimes" : "never"; r.look.headphones = false; }
-      // robots hired before Steambot and Tradebot: each gets (or does not get) them from its id, the same every launch
+      // robots hired before Vapor and the Botcoin Exchange: each gets (or does not get) them from its id, the same every launch
       if (r.prefs?.apps && !r.prefs.leisure2) {
         const rr = seeded((r.id || r.name || "") + "leisure2"), hb = r.prefs.hobby;
         if (!r.prefs.apps.includes("steam") && rr() < 0.14 + (hb === "gamer" ? 0.5 : 0)) r.prefs.apps.push("steam");
