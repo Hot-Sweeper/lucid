@@ -72,6 +72,8 @@ contextBridge.exposeInMainWorld("lucid", {
   peek: (url) => ipcRenderer.invoke("web:peek", url),
   shot: (req) => ipcRenderer.invoke("web:shot", req),
   frontendFrame: (req) => ipcRenderer.invoke("frontend:frame", req),
+  studioOpen: (req) => ipcRenderer.invoke("studio:open", req),
+  studioClose: (id) => ipcRenderer.invoke("studio:close", id),
   siteFetch: (url, as) => ipcRenderer.invoke("site:fetch", url, as),
   webSearch: (q) => ipcRenderer.invoke("web:search", q),
   favicon: (host) => ipcRenderer.invoke("favicon:get", host),

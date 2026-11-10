@@ -1,5 +1,9 @@
 # Lucid interface
 
+## Studio on robot monitors
+
+When a robot saves a web file, its Studio app shows that page being built like a person in a design tool, reconstructed only from the saved renders. The page sits as a 1200px artboard on the navy `#1b2044` canvas, scaled to fit with 16px gutters, a soft two-layer shadow and 3px corners. A quiet line above the artboard names the page and shows the real zoom in tabular mono. Selection boxes, handles, size readouts, guides and the caret are peach; the cursor is the robot's own white desktop arrow, switching to a white crosshair, I-beam or resize mark with a navy halo while it draws, types or scales. A small peach tag names the current action. The desktop cursor hides while the Studio cursor works and continues from where it stopped. Settling uses the strong ease-out, element moves the in-out curve, fades the plain ease-out. Reduced motion, a far camera, a covered window or an empty chair show the change directly.
+
 ## Actual agent browser pages
 
 When a tool identifies a browser launched in an agent workspace, the robot browser follows that exact window through a read-only capture. Retain native tabs, authentication, navigation and scroll position. Hide the duplicate Lucid tab and address bars while showing this source. Fit the complete window without stretching or cropping, on the existing navy surface. Visible views refresh once per second; covered or hidden views pause. Stopped apps and reused workspace sessions show an explicit waiting state. Never attach these handles to the host browser or to a different linked environment. Existing local frontend and HTML previews keep their own lifecycle.

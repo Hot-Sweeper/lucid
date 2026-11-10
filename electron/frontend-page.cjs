@@ -10,10 +10,8 @@ function install() {
 function sample(mode, action) {
   const width = innerWidth, height = innerHeight;
   const scene = [];
-  const sourceDocument = document, sourceWindow = window, offsetX = 0, offsetY = 0, scale = 1;
-  const mapped = r => ({ left: offsetX + r.left * scale, right: offsetX + r.right * scale, top: offsetY + r.top * scale, bottom: offsetY + r.bottom * scale });
-  const clip = r => ({ x: Math.max(0, r.left), y: Math.max(0, r.top), w: Math.max(0, Math.min(width, r.right) - Math.max(0, r.left)), h: Math.max(0, Math.min(height, r.bottom) - Math.max(0, r.top)) });
-  const rect = r => clip(mapped(r));
+  const sourceDocument = document, sourceWindow = window;
+  const rect = r => ({ x: Math.max(0, r.left), y: Math.max(0, r.top), w: Math.max(0, Math.min(width, r.right) - Math.max(0, r.left)), h: Math.max(0, Math.min(height, r.bottom) - Math.max(0, r.top)) });
   const visible = r => r.w > 1 && r.h > 1;
   const elements = sourceDocument.body ? sourceDocument.body.querySelectorAll('*') : [];
   for (let i = 0; i < Math.min(elements.length, 500) && scene.length < 550; i++) {
@@ -48,7 +46,6 @@ function sample(mode, action) {
     // An ambiguous or stale reference must not invent a cursor destination.
     if (matches.length === 1) { const r = rect(matches[0].getBoundingClientRect()); if (visible(r)) target = r; }
   }
-  if (canvasFrame) { const cursor = document.querySelector('.agent-cursor.is-shown'); if (cursor) { const c = cursor.getBoundingClientRect(); scene.push({ x: c.x, y: c.y, w: 4, h: 8, color: '#ff9f5a' }); } }
   let pointer = null;
   if (Number.isFinite(action?.x) && Number.isFinite(action?.y)) {
     const x = action.x * width / (action.viewportWidth || width), y = action.y * height / (action.viewportHeight || height);

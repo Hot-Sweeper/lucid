@@ -1,4 +1,4 @@
-// Ported from the user-owned Ares Studio human-designer prototype. Saved-render reconstruction, never recorded mouse input.
+// Website build playback for the robots' Studio app. Reconstructed from saved renders, never from recorded input.
 // The live canvas: shows the site, diffs each new render against the previous one, and plays the
 // change back the way a person builds a page in a design tool. New things take no space until the
 // cursor places them: boxes are drawn and then filled, rounded and shadowed, text is clicked into
@@ -30,7 +30,8 @@ const TAG_WORDS = {
   DL: 'list', DT: 'term', DD: 'description', HR: 'rule', CANVAS: 'canvas', IFRAME: 'embed', TIME: 'time', ADDRESS: 'address',
 };
 const MEDIA = new Set(['IMG', 'PICTURE', 'VIDEO', 'CANVAS', 'IFRAME']);
-const BUDGET_MS = 28000;
+// Longest playback of one save; longer builds play faster.
+const BUDGET_MS = 16000;
 // Motion tokens (DESIGN.md): settling after a click, and something on screen changing place or size.
 const EASE_OUT_STRONG = 'cubic-bezier(.23, 1, .32, 1)';
 const EASE_IN_OUT = 'cubic-bezier(.77, 0, .175, 1)';
@@ -149,24 +150,27 @@ function rawIndexAfter(raw, len) {
 }
 
 const CURSOR_SHAPES = `
-  <div class="cursor-shape" data-for="arrow"><svg width="18" height="20" viewBox="0 0 18 20"><path class="fill" d="M1.5 1.5 L1.5 16.2 L5.6 12.6 L8.4 18.6 L11 17.4 L8.3 11.6 L13.9 11.4 Z"/></svg></div>
+  <div class="cursor-shape" data-for="arrow"><svg width="15" height="18" viewBox="0 0 20 24"><path d="M2 1 L2 19 L7 14.5 L10.5 22 L13.5 20.6 L10 13.4 L16.5 13 Z" fill="#fff"/><path d="M3.6 4.4 L3.6 15.6 L7.4 12.3 L10.9 19.6 L11.6 19.3 L8.2 12 L12.8 11.7 Z" fill="#11142c"/></svg></div>
   <div class="cursor-shape" data-for="text"><svg width="12" height="22" viewBox="0 0 12 22"><path class="halo" d="M2.5 2.5c1.7 0 2.7.6 3.5 1.6.8-1 1.8-1.6 3.5-1.6M6 4.2v13.6M2.5 19.5c1.7 0 2.7-.6 3.5-1.6.8 1 1.8 1.6 3.5 1.6"/><path class="line" d="M2.5 2.5c1.7 0 2.7.6 3.5 1.6.8-1 1.8-1.6 3.5-1.6M6 4.2v13.6M2.5 19.5c1.7 0 2.7-.6 3.5-1.6.8 1 1.8 1.6 3.5 1.6"/></svg></div>
   <div class="cursor-shape" data-for="cross"><svg width="20" height="20" viewBox="0 0 20 20"><path class="halo" d="M10 1.5v6M10 12.5v6M1.5 10h6M12.5 10h6"/><path class="line" d="M10 1.5v6M10 12.5v6M1.5 10h6M12.5 10h6"/></svg></div>
   <div class="cursor-shape" data-for="resize"><svg width="20" height="20" viewBox="0 0 20 20"><path class="halo" d="M4 4l12 12M4 4h5M4 4v5M16 16h-5M16 16v-5"/><path class="line" d="M4 4l12 12M4 4h5M4 4v5M16 16h-5M16 16v-5"/></svg></div>`;
 
 export class Stage {
-  constructor({ stage, holder, overlay, onPageChange, onFollowChange, onReady }) {
+  constructor({ stage, holder, overlay, frameUrl, onPlayback, onSettled, onPointer, onPress, onTyping, onMissing, onLayout }) {
     this.stageEl = stage;
     this.holder = holder;
     this.overlay = overlay;
-    this.onPageChange = onPageChange;
-    this.onFollowChange = onFollowChange;
-    this.onReady = onReady;
+    this.frameUrl = frameUrl;
+    this.onPlayback = onPlayback;
+    this.onSettled = onSettled;
+    this.onPointer = onPointer;
+    this.onPress = onPress;
+    this.onTyping = onTyping;
+    this.onMissing = onMissing;
+    this.onLayout = onLayout;
     this.front = null;
     this.leaving = null;
-    this.project = null;
-    this.page = 'index.html';
-    this.viewport = 'desktop';
+    this.opened = false;
     this.scale = 1;
     this.follow = true;
     this.queue = Promise.resolve();
@@ -175,9 +179,14 @@ export class Stage {
     this.pendingRestore = [];
     this.token = null;
     this.items = new Set(); // overlay items rendered each frame
-    this.activity = null;
-    this.modelName = 'Codex';
     this.working = false;
+    // The host turns motion off while nobody watches (far camera, covered window, robot away).
+    this.motion = true;
+    // Faster playback when the robot has more real work waiting.
+    this.pace = 1;
+    this.typing = false;
+    this.pointerAt = 0;
+    this.startAt = null;
 
     // Cursor state lives in page coordinates so it scrolls with the site.
     this.cursor = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, placed: false, k: 240, path: null, press: 0, pressTarget: 0 };
@@ -185,8 +194,7 @@ export class Stage {
     this.cursorEl.className = 'agent-cursor';
     this.cursorEl.dataset.shape = 'arrow';
     this.cursorEl.setAttribute('aria-hidden', 'true');
-    this.cursorEl.innerHTML = `${CURSOR_SHAPES}<div class="agent-tag"><b></b><span></span></div>`;
-    this.tagName = this.cursorEl.querySelector('b');
+    this.cursorEl.innerHTML = `${CURSOR_SHAPES}<div class="agent-tag"><span></span></div>`;
     this.tagLabel = this.cursorEl.querySelector('.agent-tag span');
     overlay.append(this.cursorEl);
     this.caretEl = document.createElement('div');
@@ -200,89 +208,52 @@ export class Stage {
     this.resizeObserver = new ResizeObserver(() => { this.layout(); this.kick(); }); this.resizeObserver.observe(stage);
   }
 
-  destroy() { this.project = null; this.cancel(true); this.resizeObserver.disconnect(); cancelAnimationFrame(this.raf); this.raf = 0; this.holder.replaceChildren(); this.overlay.replaceChildren(); }
+  destroy() { this.opened = false; this.cancel(true); this.resizeObserver.disconnect(); cancelAnimationFrame(this.raf); this.raf = 0; this.holder.replaceChildren(); this.overlay.replaceChildren(); }
 
   // ---------- public API ----------
-  setModelName(name) {
-    this.modelName = name || 'Codex';
-    this.tagName.textContent = this.modelName;
-  }
-
   setWorking(on) {
     this.working = on;
     this.cursorEl.classList.toggle('is-idle', !on);
-    if (on && !this.cursor.placed && this.front) this.placeCursorCenter();
     this.kick();
   }
 
-  setActivity(activity) {
-    this.activity = activity;
-    if (!this.token) this.label(activity?.label || '');
+  // Nobody is watching: finish what is playing now and show later renders directly.
+  setMotion(on) {
+    this.motion = on;
+    if (!on) this.finish();
   }
 
-  setFollow(on) {
-    this.follow = on;
-    this.onFollowChange?.(on);
-    if (on && this.cursor.placed) this.scrollToDoc(this.cursor.ty);
+  // Jump to the end of the current playback (and of a render still waiting to play).
+  finish() {
+    if (this.pendingRender) this.pendingRender.opts.animate = false;
+    if (this.token) this.cancel(true);
   }
 
-  setViewport(v) {
-    this.viewport = v;
-    this.layout();
+  // Start where the robot's own pointer is, in overlay coordinates.
+  placeCursorAt(ox, oy) {
+    const m = this.map();
+    if (!m || !Number.isFinite(ox) || !Number.isFinite(oy)) return;
+    const x = m.sx + (ox - m.ox) / m.s, y = m.sy + (oy - m.oy) / m.s;
+    Object.assign(this.cursor, { x, y, tx: x, ty: y, vx: 0, vy: 0, placed: true, path: null });
     this.kick();
   }
 
-  async openProject(id, { hasSite, version }) {
-    this.frozen = false;
-    this.cancel(true);
-    this.project = id;
-    this.page = 'index.html';
+  // The first render: shown directly, or built from a blank canvas when the page is new.
+  open(version, { animate = false } = {}) {
+    this.opened = true;
     this.latestVersion = version;
     this.shownVersion = -1;
     this.cursor.placed = false;
     this.cursorEl.classList.remove('is-shown');
-    for (const f of this.holder.querySelectorAll('iframe')) f.remove();
-    this.front = null;
-    this.stageEl.classList.toggle('is-empty', !hasSite);
-    if (hasSite) await this.enqueue(version, { animate: this.working });
+    return this.enqueue(version, { animate });
   }
 
   // Files changed on disk.
-  update(version) {
+  update(version, { animate = true } = {}) {
     this.latestVersion = Math.max(this.latestVersion, version);
     // Finish the current action, then continue building from here with the newer files.
     if (this.token) { this.token.rush = true; this.token.supersede = true; }
-    return this.enqueue(version, { animate: true });
-  }
-
-  reload() {
-    return this.enqueue(this.latestVersion, { animate: false, force: true });
-  }
-
-  // Rebuild the current page from a blank canvas, with the full playback.
-  replay() {
-    if (!this.front) return Promise.resolve();
-    if (this.token) { this.token.rush = true; this.token.supersede = true; }
-    if (!this.follow) this.setFollow(true);
-    return this.enqueue(this.latestVersion, { animate: true, force: true, replay: true });
-  }
-
-  get hasPage() {
-    return !!this.front;
-  }
-
-  look(phase) {
-    if (phase !== 'start' || !this.front) return;
-    const line = document.createElement('div');
-    line.className = 'look-scan';
-    this.overlay.append(line);
-    const m = this.map();
-    if (!m) return line.remove();
-    line.style.left = `${m.ox}px`;
-    line.style.width = `${m.w}px`;
-    line.animate([{ transform: `translateY(${m.oy}px)`, opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 1, offset: 0.85 }, { transform: `translateY(${m.oy + m.h}px)`, opacity: 0 }], {
-      duration: reducedMotion() ? 1 : 1100, easing: EASE_IN_OUT,
-    }).finished.then(() => line.remove(), () => line.remove());
+    return this.enqueue(version, { animate });
   }
 
   // ---------- frames ----------
@@ -291,49 +262,57 @@ export class Stage {
     if (this.draining) return this.queue;
     this.draining = true;
     this.queue = (async () => {
-      try { while (this.pendingRender && this.project) { const next = this.pendingRender; this.pendingRender = null; await this.refresh(next.version, next.opts); } }
-      catch (err) { console.error(err); this.onError?.(err); }
-      finally { this.draining = false; }
+      try {
+        while (this.pendingRender && this.opened) {
+          const next = this.pendingRender;
+          this.pendingRender = null;
+          try { await this.refresh(next.version, next.opts); } catch (err) { console.error(err); }
+          this.onSettled?.(next.version);
+        }
+      } finally { this.draining = false; }
     })();
     return this.queue;
   }
 
-  async refresh(version, { animate, force, replay = false }) {
-    if (!this.project) return;
+  async refresh(version, { animate, force }) {
+    if (!this.opened) return;
     if (!force && version < this.latestVersion && animate) return; // a newer save is queued; skip straight to it
     if (!force && version === this.shownVersion) return;
-    const project = this.project;
-    const url = '/__lucid/frame';
+    const url = this.frameUrl;
     const head = await fetch(url, { method: 'HEAD', cache: 'no-store' }).catch(() => null);
-    if (project !== this.project) return;
+    if (!this.opened) return;
     if (!head?.ok) {
-      if (this.page !== 'index.html') { this.page = 'index.html'; this.onPageChange?.(this.page); return this.refresh(version, { animate, force }); }
-      this.stageEl.classList.add('is-empty');
+      if (!this.front) this.stageEl.classList.add('is-empty');
+      this.onMissing?.();
       return;
     }
     const back = document.createElement('iframe');
     back.className = 'site-frame is-back';
     back.title = 'Site preview';
-    back.src = `${url}${url.includes('?') ? '&' : '?'}ares=${version}`;
+    back.tabIndex = -1;
+    back.src = `${url}${url.includes('?') ? '&' : '?'}render=${version}`;
     this.holder.append(back);
     const loaded = await new Promise((resolve) => {
       const t = setTimeout(() => resolve(false), 15000);
       back.addEventListener('load', () => { clearTimeout(t); resolve(true); }, { once: true });
     });
-    if (project !== this.project || !loaded) { back.remove(); return; }
+    if (!this.opened || !loaded) { back.remove(); if (!loaded) this.onMissing?.(); return; }
     let bdoc;
     try { bdoc = back.contentDocument; } catch { bdoc = null; }
-    // Markup saved before its stylesheet exists: while Codex is still working, wait a little for the
-    // styles so the page is built in its real look rather than as unstyled text.
-    if (animate && !replay && this.working && bdoc && this.missingStylesheet(bdoc)) {
+    // Script-built pages (framework dev servers) render after load: wait until the DOM settles.
+    if (bdoc?.scripts.length) await this.settleDom(bdoc);
+    // Markup saved before its stylesheet exists: while the robot is still working, wait a little
+    // for the styles so the page is built in its real look rather than as unstyled text.
+    if (animate && this.motion && this.working && bdoc && this.missingStylesheet(bdoc)) {
       const until = performance.now() + 25000;
-      this.setActivity({ kind: 'wait', label: 'Waiting for the stylesheet' });
-      while (performance.now() < until && this.working && this.latestVersion === version && project === this.project) await sleep(250);
-      if (this.latestVersion > version || project !== this.project) { back.remove(); return; }
+      this.label('Waiting for the stylesheet');
+      while (performance.now() < until && this.working && this.motion && this.latestVersion === version && this.opened) await sleep(250);
+      this.label('');
+      if (this.latestVersion > version || !this.opened) { back.remove(); return; }
     }
     if (bdoc?.fonts) await Promise.race([bdoc.fonts.ready, sleep(1200)]);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    if (project !== this.project) { back.remove(); return; }
+    if (!this.opened) { back.remove(); return; }
 
     // Settle whatever is still playing. A build that was handed over to a newer save stays as it
     // is: what was not placed yet counts as not there, so the next plan places it with the new files.
@@ -346,18 +325,16 @@ export class Stage {
     let plan = null;
     let odoc = null;
     try { odoc = old?.contentDocument; } catch {}
-    if (animate && bdoc) {
+    if (animate && this.motion && bdoc) {
       try {
-        plan = replay
-          ? this.plan(document.implementation.createHTMLDocument(''), null, bdoc, back.contentWindow, { budget: 60000 })
-          : this.plan(odoc || document.implementation.createHTMLDocument(''), old?.contentWindow || null, bdoc, back.contentWindow);
+        plan = this.plan(odoc || document.implementation.createHTMLDocument(''), old?.contentWindow || null, bdoc, back.contentWindow);
       } catch (err) {
         console.warn('Diff failed, showing the page without playback', err);
         this.runRestores();
         plan = null;
       }
     }
-    if (old && odoc && bdoc && !replay) {
+    if (old && odoc && bdoc) {
       try { back.contentWindow.scrollTo({ top: old.contentWindow.scrollY, left: 0, behavior: 'instant' }); } catch {}
     }
     back.classList.remove('is-back');
@@ -372,11 +349,23 @@ export class Stage {
       this.pendingRestore.push(() => { old.remove(); if (this.leaving === old) this.leaving = null; });
     } else if (old) requestAnimationFrame(() => old.remove());
     this.layout();
-    this.onReady?.();
-    if (plan) this.onPlan?.(plan);
-    this.onPlayback?.(!!plan?.steps.length);
-    if (plan?.steps.length) await this.play(plan);
-    this.onPlayback?.(false);
+    if (plan?.steps.length) {
+      this.onPlayback?.(true);
+      await this.play(plan);
+      this.onPlayback?.(false);
+    }
+  }
+
+  // Resolves once the document has stopped changing for a moment (at most a few seconds).
+  settleDom(doc) {
+    return new Promise((resolve) => {
+      let quiet = 0;
+      const done = () => { clearTimeout(quiet); clearTimeout(cap); observer.disconnect(); resolve(); };
+      const observer = new MutationObserver(() => { clearTimeout(quiet); quiet = setTimeout(done, 300); });
+      const cap = setTimeout(done, 4000);
+      observer.observe(doc.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
+      quiet = setTimeout(done, 300);
+    });
   }
 
   // A linked same-site stylesheet that failed to load (usually: not written yet).
@@ -395,56 +384,27 @@ export class Stage {
     let win, doc;
     try { win = frame.contentWindow; doc = frame.contentDocument; } catch { return; }
     if (!doc) return;
-    const stopFollow = () => { if (this.follow) this.setFollow(false); };
-    const keys = new Set(['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' ']);
-    doc.addEventListener('wheel', stopFollow, { passive: true });
-    doc.addEventListener('touchmove', stopFollow, { passive: true });
-    doc.addEventListener('keydown', (e) => { if (keys.has(e.key)) stopFollow(); });
     win.addEventListener('scroll', () => this.kick(), { passive: true });
     win.addEventListener('resize', () => this.kick());
-    doc.addEventListener('click', event => { if (event.target.closest('a,button,input,form')) event.preventDefault(); }, true);
+    // A preview, not a browser: links and forms stay where they are.
+    doc.addEventListener('click', event => { if (event.target.closest?.('a,button,input,form')) event.preventDefault(); }, true);
     doc.addEventListener('submit', event => event.preventDefault(), true);
-    // Later navigations inside the preview (user clicked a link).
-    frame.addEventListener('load', () => {
-      if (frame !== this.front) return;
-      try {
-        const p = frame.contentWindow.location.pathname;
-        const prefix = `/p/${this.project}/`;
-        if (p.startsWith(prefix)) { this.page = p.slice(prefix.length) || 'index.html'; this.onPageChange?.(this.page); }
-      } catch { this.onPageChange?.(null); }
-      this.attachFrame(frame);
-    }, { once: true });
-    try {
-      const p = win.location.pathname;
-      const prefix = `/p/${this.project}/`;
-      if (p.startsWith(prefix)) { this.page = p.slice(prefix.length) || 'index.html'; this.onPageChange?.(this.page); }
-    } catch {}
   }
 
+  // The page sits on a design canvas as a 1200 px wide artboard, scaled to fit the window.
   layout() {
-    const sizes = { desktop: 1440, tablet: 820, phone: 390 };
-    const want = sizes[this.viewport];
     const box = this.stageEl.getBoundingClientRect();
-    const availW = box.width;
-    const availH = box.height;
+    if (box.width < 1 || box.height < 1) return;
+    const width = 1200, gutter = 16, top = 30;
+    const s = clamp((box.width - gutter * 2) / width, 0.05, 1);
     const hs = this.holder.style;
-    if (!want) {
-      this.scale = 1;
-      hs.width = `${availW}px`;
-      hs.height = `${availH}px`;
-      hs.transform = '';
-      hs.left = '0px';
-    } else {
-      const gutter = 24;
-      const height = this.viewport === 'phone' ? 844 : this.viewport === 'tablet' ? 1180 : 900;
-      const s = Math.max(.05, Math.min(1, (availW - gutter * 2) / want, (availH - gutter * 2) / height));
-      this.scale = s;
-      hs.width = `${want}px`;
-      hs.height = `${height}px`;
-      hs.transform = `scale(${s})`;
-      hs.left = `${Math.max(gutter, (availW - want * s) / 2)}px`;
-    }
-    this.holder.dataset.viewport = this.viewport;
+    this.scale = s;
+    hs.width = `${width}px`;
+    hs.height = `${Math.max(120, (box.height - top - gutter) / s)}px`;
+    hs.transform = `scale(${s})`;
+    hs.left = `${Math.max(gutter, (box.width - width * s) / 2)}px`;
+    hs.top = `${top}px`;
+    this.onLayout?.(s);
   }
 
   // ---------- coordinates ----------
@@ -466,10 +426,10 @@ export class Stage {
   }
   // Where a still-hidden element will land, measured without ever painting it.
   landing(el) {
-    const wasPending = el.hasAttribute('data-ares-pending');
-    if (wasPending) el.removeAttribute('data-ares-pending');
+    const wasPending = el.hasAttribute('data-studio-pending');
+    if (wasPending) el.removeAttribute('data-studio-pending');
     const r = this.docRect(el);
-    if (wasPending) el.setAttribute('data-ares-pending', '');
+    if (wasPending) el.setAttribute('data-studio-pending', '');
     return r;
   }
 
@@ -600,7 +560,7 @@ export class Stage {
     for (const r of ops.filter((o) => o.type === 'remove').slice(0, 30)) {
       if (!r.newParent) continue;
       const clone = ndoc.importNode(r.oldEl, true);
-      clone.setAttribute('data-ares-ghost', '');
+      clone.setAttribute('data-studio-ghost', '');
       clones.push({ clone, parent: r.newParent, before: r.newBefore, y: r.rect.y });
     }
     if (clones.length) steps.push({ kind: 'delete', clones });
@@ -632,13 +592,13 @@ export class Stage {
     // ----- prepare the new page: hide what is new, keep old text and old styles until visited -----
     const restores = [];
     const style = ndoc.createElement('style');
-    style.setAttribute('data-ares', '');
-    style.textContent = '[data-ares-pending]{display:none!important}';
+    style.setAttribute('data-studio', '');
+    style.textContent = '[data-studio-pending]{display:none!important}';
     ndoc.head?.append(style);
     restores.push(() => style.remove());
     for (const el of pending) {
-      el.setAttribute('data-ares-pending', '');
-      restores.push(() => el.removeAttribute('data-ares-pending'));
+      el.setAttribute('data-studio-pending', '');
+      restores.push(() => el.removeAttribute('data-studio-pending'));
     }
     for (const s of steps) {
       if (s.kind === 'text') {
@@ -690,7 +650,7 @@ export class Stage {
   }
 
   walk(o, n, ops, ctx) {
-    const oc = o ? kids(o).filter((c) => !c.hasAttribute('data-ares-pending')) : [];
+    const oc = o ? kids(o).filter((c) => !c.hasAttribute('data-studio-pending')) : [];
     const nc = kids(n);
     const pairs = matchChildren(oc, nc);
     const mo = new Set(pairs.map((p) => p[0]));
@@ -782,7 +742,14 @@ export class Stage {
     this.caretEl.classList.remove('is-on');
     this.pressCursor(false);
     this.shape('arrow');
-    this.label(this.activity?.label || '');
+    this.label('');
+    this.setTyping(false);
+  }
+
+  setTyping(on) {
+    if (this.typing === on) return;
+    this.typing = on;
+    this.onTyping?.(on);
   }
 
   runRestores() {
@@ -792,19 +759,19 @@ export class Stage {
   }
 
   async play(plan) {
-    const token = { cancelled: false, rush: false, rushAt: 0, base: plan.speed, reduced: reducedMotion() };
+    // Reduced motion, or nobody watching: the change appears directly.
+    if (reducedMotion() || !this.motion) { this.runRestores(); this.cursorEl.classList.remove('is-shown'); return; }
+    const token = { cancelled: false, rush: false, rushAt: 0, base: plan.speed };
     this.token = token;
-    if (token.reduced) { this.runRestores(); this.token = null; this.cursorEl.classList.remove('is-shown'); return; }
-    if (!token.reduced) {
-      this.cursorEl.classList.add('is-shown');
-      if (!this.cursor.placed) this.placeCursorCenter();
-    }
+    this.cursorEl.classList.add('is-shown');
+    // Pick up the robot's pointer where it is on its desktop (overlay coordinates from the host).
+    if (this.startAt) { this.placeCursorAt(this.startAt.x, this.startAt.y); this.startAt = null; }
+    if (!this.cursor.placed) this.placeCursorCenter();
     try {
       for (const step of plan.steps) {
         if (!this.alive(token) || !this.front) return;
-        if (token.supersede && !token.reduced) { token.handedOver = true; break; }
-        if (token.reduced) await this.stepGentle(step, token);
-        else await this[`step_${step.kind}`](step, token);
+        if (token.supersede) { token.handedOver = true; break; }
+        await this[`step_${step.kind}`](step, token);
       }
     } finally {
       if (this.token === token) {
@@ -819,14 +786,17 @@ export class Stage {
         this.caretEl.classList.remove('is-on');
         this.pressCursor(false);
         this.shape('arrow');
-        this.label(this.activity?.label || '');
+        this.label('');
+        this.setTyping(false);
+        // The robot's own pointer takes over again where this one stops.
+        this.cursorEl.classList.remove('is-shown');
         this.kick();
       }
     }
   }
 
   speed(token) {
-    return token.base * (token.rush ? 2 : 1);
+    return token.base * (token.rush ? 2 : 1) * this.pace;
   }
   wait(ms, token) {
     return sleep(ms / this.speed(token));
@@ -838,19 +808,6 @@ export class Stage {
     return this.front.contentWindow;
   }
 
-  // Reduced motion: no cursor travel, typing or drags; things simply fade in.
-  async stepGentle(s, token) {
-    const fade = (el) => { try { el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: EASE_OUT_STRONG }); } catch {} };
-    if (s.el) s.el.removeAttribute('data-ares-pending');
-    for (const it of s.items || []) it.removeAttribute('data-ares-pending');
-    if (s.nodes) for (const n of s.nodes) n.node.data = n.full;
-    if (s.morph) s.morph.cancel();
-    if (s.clones) for (const c of s.clones) c.clone.remove();
-    if (s.kind === 'sweep' && this.leaving) { this.leaving.remove(); this.leaving = null; }
-    if (s.el && s.kind !== 'reveal') fade(s.el);
-    await this.wait(40, token);
-  }
-
   // Siblings and ancestors' siblings that can move when `el` changes size. They are disjoint
   // subtrees, so no element is animated twice.
   followersOf(el) {
@@ -859,7 +816,7 @@ export class Stage {
     for (let depth = 0; node && depth < 6; depth++) {
       const p = node.parentElement;
       if (!p || p === el.ownerDocument.documentElement) break;
-      for (const s of p.children) if (s !== node && !SKIP.has(s.tagName) && !s.hasAttribute('data-ares-pending')) out.push(s);
+      for (const s of p.children) if (s !== node && !SKIP.has(s.tagName) && !s.hasAttribute('data-studio-pending')) out.push(s);
       node = p;
     }
     return out.slice(0, 80);
@@ -885,7 +842,7 @@ export class Stage {
 
   // ---------- steps ----------
   async step_reveal(s) {
-    s.el.removeAttribute('data-ares-pending');
+    s.el.removeAttribute('data-studio-pending');
   }
 
   // Draw a box with a crosshair; the page makes room as it grows. Then fill, round, shadow.
@@ -908,7 +865,7 @@ export class Stage {
     if (s.look.radius) el.style.setProperty('border-radius', '0px', 'important');
     if (s.look.shadow) el.style.setProperty('box-shadow', 'none', 'important');
     el.style.setProperty('clip-path', 'inset(0 100% 100% 0)');
-    el.removeAttribute('data-ares-pending');
+    el.removeAttribute('data-studio-pending');
     r = this.docRect(el);
     const box = this.addItem({ kind: 'drag', x0: r.x, y0: r.y });
     const veil = (s.look.fill || s.look.image) ? this.addItem({ kind: 'veil', color: s.look.gray, drag: box }) : null;
@@ -996,12 +953,12 @@ export class Stage {
   async step_text(s, token) {
     const el = s.el;
     if (!el.isConnected) return;
-    if (el.hasAttribute('data-ares-pending')) {
+    if (el.hasAttribute('data-studio-pending')) {
       await this.bringRectIntoView(this.landing(el), token);
       if (!this.alive(token)) return;
       const followers = this.followersOf(el);
       const before = this.rectsOf(followers);
-      el.removeAttribute('data-ares-pending');
+      el.removeAttribute('data-studio-pending');
       this.slideFrom(followers, before, 240 / this.speed(token));
     } else {
       await this.bringIntoView(el, token);
@@ -1091,6 +1048,7 @@ export class Stage {
     let height = el.getBoundingClientRect().height;
     const begin = performance.now();
     this.caret.blink = false;
+    this.setTyping(true);
     while (this.alive(token) && shown < chars.length) {
       await frame();
       if (!this.alive(token)) break;
@@ -1111,6 +1069,7 @@ export class Stage {
       }
       this.kick();
     }
+    this.setTyping(false);
     for (const n of nodes) n.node.data = n.full;
     this.caret = null;
     this.fadeItem(tbox, 280);
@@ -1141,7 +1100,7 @@ export class Stage {
     el.style.setProperty('transform-origin', '0 0');
     el.style.setProperty('transform', `scale(${s0})`);
     if (s.look.radius) el.style.setProperty('border-radius', '0px', 'important');
-    el.removeAttribute('data-ares-pending');
+    el.removeAttribute('data-studio-pending');
     this.slideFrom(followers, before, (dragMs + 650) / this.speed(token));
     try { el.animate([{ opacity: 0, scale: '0.96' }, { opacity: 1, scale: '1' }], { duration: 180, easing: EASE_OUT_STRONG }); } catch {}
     await this.wait(90, token);
@@ -1181,7 +1140,7 @@ export class Stage {
     const parent = items[0].parentElement;
     const followers = parent ? this.followersOf(parent) : [];
     const before = this.rectsOf(followers);
-    for (const it of items) it.removeAttribute('data-ares-pending');
+    for (const it of items) it.removeAttribute('data-studio-pending');
     const rects = new Map(items.map((it) => [it, it.getBoundingClientRect()]));
     const original = new Map(items.map((it) => [it, it.getAttribute('style') || null]));
     const restoreItem = (it) => { const v = original.get(it); if (v == null) it.removeAttribute('style'); else it.setAttribute('style', v); };
@@ -1403,7 +1362,7 @@ export class Stage {
     let checked = 0;
     for (const c of candidates) {
       if (++checked > 400 || out.length >= 2) break;
-      if (c === el || el.contains(c) || c.contains(el) || c.closest('[data-ares-pending]')) continue;
+      if (c === el || el.contains(c) || c.contains(el) || c.closest('[data-studio-pending]')) continue;
       const cr = c.getBoundingClientRect();
       if (cr.width < 8 || cr.height < 8) continue;
       for (const x of edges) {
@@ -1464,6 +1423,7 @@ export class Stage {
   }
 
   pressCursor(on, x, y) {
+    if (on && !this.cursor.pressTarget) this.onPress?.();
     this.cursor.pressTarget = on ? 1 : 0;
     if (x != null && !reducedMotion()) this.ripple(x, y);
     this.kick();
@@ -1615,6 +1575,8 @@ export class Stage {
     if (c.placed) {
       const [x, y] = this.toOverlay(c.x, c.y, m);
       this.cursorEl.style.transform = `translate(${x}px, ${y}px)`;
+      // The robot's hand follows on its desk mouse, a few times a second is enough.
+      if (this.token && now - this.pointerAt > 50) { this.pointerAt = now; this.onPointer?.(x, y); }
       const tag = this.cursorEl.querySelector('.agent-tag');
       if (tag) { tag.style.left = x > this.overlay.clientWidth - 260 ? 'auto' : '13px'; tag.style.right = x > this.overlay.clientWidth - 260 ? '8px' : 'auto'; tag.style.top = y > this.overlay.clientHeight - 50 ? '-32px' : '18px'; }
       // Lean slightly into horizontal motion (pointer only); squish on press.

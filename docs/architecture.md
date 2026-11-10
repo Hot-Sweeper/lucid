@@ -43,7 +43,7 @@ when adding one.
 
 ## Further reading
 
-`renderer-structure.md`, `camera-and-office-layout.md`, `screen-fidelity.md`,
+`renderer-structure.md`, `camera-and-office-layout.md`, `screen-fidelity.md`, `studio.md`,
 `rendering-performance.md`, `outside-viewport.md`, `workers-and-desks.md`, `localization.md`,
 `office-audio.md`, `themes.md`, `agent-browser.md`, `explorer-and-attachments.md`,
 `chat-review-presentation.md` and `releasing.md`.
