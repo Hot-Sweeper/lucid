@@ -19,3 +19,6 @@ docs/evidence/
 *.pem
 *.key
 __pycache__/
+
+# Packaged builds (electron-builder output).
+release/

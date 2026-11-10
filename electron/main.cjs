@@ -1,4 +1,8 @@
 const { app, BrowserWindow, ipcMain, shell, net, protocol, nativeImage } = require("electron");
+// One data folder whatever the product is called, shared by source checkouts and installed builds.
+app.setPath("userData", require("node:path").join(app.getPath("appData"), "lucid"));
+app.setName(require("./brand.cjs").name);
+if (process.platform === "win32") app.setAppUserModelId(require("./brand.cjs").appId);
 // Screenshot runs use isolated profiles. Normal launches share one office process.
 if (!process.env.LUCID_SHOT && !app.requestSingleInstanceLock()) {
   app.quit();
@@ -9,7 +13,8 @@ const fsp = require("node:fs/promises");
 const path = require("node:path");
 const t3 = require("./t3.cjs");
 const brand = require("./brand.cjs");
-const updater = require("./updater.cjs");
+// Installed builds update from GitHub Releases; source checkouts through the coordinated git updater.
+const updater = app.isPackaged ? require("./packaged-updater.cjs").createPackagedUpdater({ app, shell, net }) : require("./updater.cjs");
 require("./gpu-fallback.cjs").install(app);
 // Chromium often cannot read video memory on Linux and falls back to a small tile budget.
 // At 4K with Lucid's layers that ran out ("tile memory limits exceeded"): tiles were skipped,
@@ -456,6 +461,7 @@ ipcMain.handle("app:apply-update", async () => {
     if (!result.updated) return { ok: true };
     delete process.env.LUCID_DEV_URL;
     await flushUserState({ requireSaved: true });
+    if (result.install) { result.install(); return { ok: true }; }
     app.relaunch();
     app.exit(0);
     return { ok: true };
@@ -495,6 +501,7 @@ app.whenReady().then(() => {
       return new Response("missing", { status: 404 });
     }
   });
+  require("./app-menu.cjs").install();
   createWindow();
 });
 app.on("window-all-closed", () => app.quit());

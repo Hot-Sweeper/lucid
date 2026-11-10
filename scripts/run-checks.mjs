@@ -141,6 +141,7 @@ export const CHECKS = [
   "verify-work-details.mjs",
   "verify-workspace-browser.cjs",
   "verify-workspace-browser.mjs",
+  "verify-packaging.cjs",
 ];
 
 const filters = process.argv.slice(2);

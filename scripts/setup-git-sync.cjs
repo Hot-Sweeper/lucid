@@ -44,6 +44,14 @@ function install(root = process.cwd()) {
   return plans;
 }
 module.exports = { install };
+// npm install passes --if-enabled: only computers that already use automatic push (or set
+// LUCID_GIT_SYNC=1) are refreshed, so contributors' clones never start pushing on their own.
+function enabled(root = process.cwd()) {
+  if (process.env.LUCID_GIT_SYNC === '1') return true;
+  const hooks = spawnSync('git', ['-C', root, 'config', '--get', 'core.hooksPath'], { encoding: 'utf8', windowsHide: true });
+  return hooks.status === 0 && /[\\/]lucid-sync[\\/]hooks-/.test(hooks.stdout);
+}
+module.exports.enabled = enabled;
 if (require.main === module) {
-  try { install(); } catch (error) { console.error(error.message); process.exitCode = 1; }
+  try { if (!process.argv.includes('--if-enabled') || enabled()) install(); } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
