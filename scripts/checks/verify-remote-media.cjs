@@ -5,11 +5,11 @@ const { split, createRemoteBuilding } = require('../../electron/remote-building.
 const url = (thread, file) => `lucid-file://remote/${encodeURIComponent(thread)}/${encodeURIComponent(file)}`;
 (async () => {
   const thread = 'ares-env::thread-1';
-  const t = parseRemoteMediaUrl(url(thread, 'C:\\Users\\tim\\.t3\\userdata\\attachments\\thread-1-abc.png'), split);
+  const t = parseRemoteMediaUrl(url(thread, 'C:\\Users\\robin\\.t3\\userdata\\attachments\\thread-1-abc.png'), split);
   assert.deepEqual([t.environmentId, t.threadId, t.ext], ['ares-env', 'thread-1', '.png']);
   assert.equal(parseRemoteMediaUrl(url('local-thread', '/x.png'), split), null, 'local threads never go remote');
   assert.deepEqual(assetResource(t), { _tag: 'attachment', attachmentId: 'thread-1-abc', fileName: 'thread-1-abc.png', mimeType: 'image/png', disposition: 'inline' }, 'chat attachments by id');
-  assert.deepEqual(assetResource(parseRemoteMediaUrl(url(thread, '/home/tim/project/shot.png'), split)), { _tag: 'media-file', threadId: 'thread-1', path: '/home/tim/project/shot.png' }, 'other media through the thread');
+  assert.deepEqual(assetResource(parseRemoteMediaUrl(url(thread, '/home/robin/project/shot.png'), split)), { _tag: 'media-file', threadId: 'thread-1', path: '/home/robin/project/shot.png' }, 'other media through the thread');
 
   const calls = [], raws = [];
   let failAttachment = false, failAll = false;
@@ -18,9 +18,9 @@ const url = (thread, file) => `lucid-file://remote/${encodeURIComponent(thread)}
     raw: async (env, route) => { raws.push([env, route]); return { body: Buffer.from('PNG' + route), type: 'image/png' }; },
   };
   const media = createRemoteMedia({ client, split });
-  const first = await media.get(url(thread, 'C:\\Users\\tim\\.t3\\userdata\\attachments\\thread-1-abc.png'));
+  const first = await media.get(url(thread, 'C:\\Users\\robin\\.t3\\userdata\\attachments\\thread-1-abc.png'));
   assert.equal(first.status, 200); assert.equal(first.type, 'image/png'); assert.equal(raws[0][0], 'ares-env', 'bytes come from the same building');
-  await media.get(url(thread, 'C:\\Users\\tim\\.t3\\userdata\\attachments\\thread-1-abc.png'));
+  await media.get(url(thread, 'C:\\Users\\robin\\.t3\\userdata\\attachments\\thread-1-abc.png'));
   assert.equal(calls.length, 1, 'repeated views use the cache');
   await Promise.all([1, 2, 3].map(() => media.get(url(thread, '/shared.png'))));
   assert.equal(calls.length, 2, 'concurrent views share one request');

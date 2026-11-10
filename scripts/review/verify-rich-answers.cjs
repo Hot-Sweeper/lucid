@@ -76,7 +76,7 @@ if (!process.versions.electron) {
         wc.debugger.detach();
         // Real files through the production Markdown renderer, protocol, media decoders and save handler.
         fs.writeFileSync(out+'/download-source.txt','Lucid answer download, exact bytes.');
-        const text='![Video](/tmp/claude-ultracode.mp4)\n\n[Audio](/home/spacestation/Applications/lucid/src/assets/audio/first-coffee.mp3)\n\n[File]('+out+'/download-source.txt)';
+        const text='![Video](/tmp/claude-ultracode.mp4)\n\n[Audio]('+require('node:path').resolve(__dirname,'../../src/assets/audio/first-coffee.opus')+')\n\n[File]('+out+'/download-source.txt)';
         await js(`{const c=window.__chat;c.setCollapsed(false);c.renderHistory([{id:'media-check',role:'assistant',text:${JSON.stringify(text)},at:new Date().toISOString(),streaming:false,attachments:[]}]);undefined}`);
         await wait(1500);
         result.media=await js(`(async()=>{const list=[...window.__chat.el.querySelectorAll('audio,video')];const result=[];for(const m of list){await m.play();await new Promise(r=>setTimeout(r,150));result.push({tag:m.tagName,duration:m.duration,played:m.currentTime>0});m.pause()}return result})()`);

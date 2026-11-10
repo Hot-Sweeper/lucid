@@ -21,14 +21,14 @@ const require = createRequire(import.meta.url);
 const { fileFacts } = require("../../electron/file-facts.cjs");
 
 // ---- paths -------------------------------------------------------------------------------------------
-assert.equal(model.normPath("c:\\Users\\tim\\"), "C:/Users/tim");
+assert.equal(model.normPath("c:\\Users\\robin\\"), "C:/Users/robin");
 assert.equal(model.normPath("C:\\"), "C:/");
 assert.equal(model.parentOf("C:/Users"), "C:/");
 assert.equal(model.parentOf("C:/"), null);
 assert.equal(model.parentOf("/home"), "/");
 assert.equal(model.nameOf("C:/"), "C:");
-assert.equal(model.pathKey("C:/Users/Tim"), model.pathKey("c:\\users\\tim"), "Windows paths ignore case");
-assert.notEqual(model.pathKey("/Home/Tim"), model.pathKey("/home/tim"), "other paths keep case");
+assert.equal(model.pathKey("C:/Users/Robin"), model.pathKey("c:\\users\\robin"), "Windows paths ignore case");
+assert.notEqual(model.pathKey("/Home/Robin"), model.pathKey("/home/robin"), "other paths keep case");
 assert.ok(model.isInside("C:/proj/src", "c:/PROJ"));
 assert.ok(!model.isInside("C:/proj2", "C:/proj"), "a sibling with the same prefix is not inside");
 assert.deepEqual(model.ancestry("C:/a/b"), ["C:/", "C:/a", "C:/a/b"]);
