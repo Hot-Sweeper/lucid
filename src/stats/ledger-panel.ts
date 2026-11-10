@@ -174,7 +174,11 @@ export class CoinLedgerPanel {
     this.announcer.setAttribute("role", "status");
     r.append(head, figs, cal, rec, split, this.foot, this.status);
     document.body.append(r, this.announcer);
-    document.addEventListener("visibilitychange", () => { if (!document.hidden && !r.hidden) this.render(); });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) return;
+      if (this.doc) this.checkRecords();
+      if (!r.hidden) this.render();
+    });
   }
 
   get open() { return !this.root.hidden && !this.closing; }
@@ -188,7 +192,7 @@ export class CoinLedgerPanel {
   private read(rev?: number): Promise<void> {
     if (this.reading) return this.reading;
     this.reading = this.opts.load().then(doc => {
-      this.doc = doc; this.rev = rev ?? doc.rev;
+      this.doc = doc; this.rev = doc.rev ?? rev ?? -1;
       this.view = null;
       this.checkRecords();
       if (this.open) this.render();
