@@ -1,20 +1,14 @@
 import type { TurnWork } from "./chat-message";
 import "./chat-work.css";
+import { icon as uiIcon, type IconName } from "../ui/icons";
 
 // T3's work log in the chat: each turn folds its progress updates and actions behind one line,
 // "Worked for 7m 17s", above the final reply.
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const LIVE = new Set(["running", "starting", "preparing"]);
 
-const ICON: Record<TurnWork["lines"][number]["k"], string> = {
-  cmd: '<path d="M2.5 4l3.5 4-3.5 4M8 12h5.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
-  edit: '<path d="M3 13l.7-2.8L10.5 3.4a1.4 1.4 0 012 2L5.8 12.3 3 13z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/>',
-  search: '<circle cx="7" cy="7" r="4.2" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.2 10.2l3.3 3.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-  tool: '<path d="M6 2.5h4v3h3v4h-3v4H6v-4H3v-4h3z" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linejoin="round"/>',
-  agent: '<rect x="3" y="4.5" width="10" height="8" rx="2.5" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M8 2v2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="6.2" cy="8.5" r=".9" fill="currentColor"/><circle cx="9.8" cy="8.5" r=".9" fill="currentColor"/>',
-  error: '<path d="M8 2.5l6 10.5H2z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/><path d="M8 6.5v3M8 11.3v.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-};
-const icon = (k: keyof typeof ICON) => `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">${ICON[k]}</svg>`;
+const ICON: Record<TurnWork["lines"][number]["k"], IconName> = { cmd: "terminal", edit: "pencilLine", search: "search", tool: "tool", agent: "agent", error: "warning" };
+const icon = (k: keyof typeof ICON) => uiIcon(ICON[k], 14);
 
 export function duration(ms: number) {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -36,7 +30,7 @@ export function workLabel(w: TurnWork, now = Date.now()) {
   return { head, counts, live };
 }
 
-const CHEVRON = `<svg class="cw-chev" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const CHEVRON = uiIcon("chevronRight", 12, { cls: "cw-chev" });
 
 /** The fold's one line: "Worked for 7m 17s ›  31 commands · 2 files". */
 export function turnLabel(w: TurnWork | null, startAt: string | null, endAt: string | null, live: boolean, updates: number) {
@@ -115,8 +109,8 @@ export function summarizeTools(lines: Line[]) {
   return { summary, iconKind, failed: lines.some(l => l.s === "failed" || l.k === "error") };
 }
 
-const CHEVRON_ROW = `<svg class="cw-chev" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const FAILED = `<svg class="cw-x" viewBox="0 0 16 16" width="11" height="11" aria-label="Failed" role="img"><path d="M4 4l8 8m0-8l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+const CHEVRON_ROW = CHEVRON;
+const FAILED = uiIcon("close", 12, { cls: "cw-x", label: "Failed" });
 const clock = (iso?: string) => { const d = iso ? new Date(iso) : null; return d && Number.isFinite(d.getTime()) ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""; };
 
 function rowsHtml(lines: Line[]) {

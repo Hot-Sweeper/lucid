@@ -88,6 +88,15 @@ export function projectRoomSeats<T extends ActivityThread>(reservations: (string
   return { threads: physical, slots, collapsed: false };
 }
 
+/**
+ * Snake place of the Add a desk placeholder, or null when there is none. It stands at the
+ * next place only while every physical desk is taken (an empty office counts: place 0). A
+ * vacant desk already offers that place, so a second empty one would be redundant.
+ */
+export function addDeskPlace(physical: readonly unknown[], folded = false) {
+  return !folded && physical.every(Boolean) ? physical.length : null;
+}
+
 /** Physical desk k is reservation k. */
 export function physicalSeatIndices(_reservations: (string | null)[], physical: (string | null)[]) {
   return physical.map((_, i) => i);

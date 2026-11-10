@@ -85,8 +85,6 @@ html:root[data-theme] .world-card { background: var(--wd-plate); color: var(--wd
 html:root[data-theme] .lucid-store { --wd-bought-shade: 0; --wd-floor: initial; --wd-seam: initial; --wd-wall: initial; --wd-trim: initial; }
 html:root[data-theme] .desk-plate { background: var(--wd-plate); color: var(--wd-plate-ink); }
 html:root[data-theme] .desk-plate span b { color: var(--wd-plate-sub); }
-html:root[data-theme] .add-desk { background: var(--wd-add); border-color: var(--wd-add-line); color: var(--wd-add-ink); }
-html:root[data-theme] .add-desk:hover { background: var(--wd-add-hover); }
 
 /* ---- Robot computers ---------------------------------------------------------------------- */
 html:root[data-theme] .os { color: var(--os-ink); }

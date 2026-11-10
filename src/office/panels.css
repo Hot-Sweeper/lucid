@@ -9,11 +9,6 @@
 .panel.folding { overflow: hidden; }
 .panel.folding > * { min-width: 208px; }
 
-.side-hide { flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 12.5px; padding: 4px 7px; margin-right: -7px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
-.side-hide:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
-.brand .update:not([hidden]) ~ .side-hide { margin-left: 6px; }
-.sh-more { white-space: pre; }
-.brand .wx:not([hidden]) ~ .side-hide .sh-more, .brand .update:not([hidden]) ~ .side-hide .sh-more { display: none; }   /* a full header keeps it short; the name is in its tooltip */
 
 /* each section's labeled Hide / Show */
 .sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -22,7 +17,7 @@
 .fold-body[hidden] { display: none !important; }
 .sec-fold { flex: none; display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 12px; line-height: 1.2; padding: 3px 6px; margin: -3px -6px -3px 0; border-radius: 7px; cursor: pointer; }
 .sec-fold:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
-.sec-fold svg { transition: transform 0.22s ease; }
+.sec-fold svg { transition: transform 200ms var(--ease-out-strong); }
 .sec-fold[aria-expanded="false"] svg { transform: rotate(-90deg); }
 .th-head { justify-content: flex-start; }
 .th-head h3 { margin-right: auto; }
@@ -42,23 +37,17 @@
 .rail-th:hover { background: rgba(255, 255, 255, 0.07); }
 .rail-th.cur { background: rgba(255, 255, 255, 0.11); }
 .rail-th img { width: 18px; height: 18px; object-fit: contain; pointer-events: none; }
-.rail-th:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.rail-th:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .rail-mono { width: 18px; height: 18px; border-radius: 4px; display: grid; place-items: center; font: 700 8px var(--font); background: #5a2340; color: #ff9fc6; }
-.rail-st { position: absolute; right: 7px; bottom: 7px; width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 2px var(--night-2); }
-.rail-st.work { background: #6fb6ff; }
-.rail-st.ask { background: #ffd27a; }
-.rail-st.done { background: #4fd18b; }
-.rail-st.fail { background: #ff6b6b; }
 
 /* the folded chat: a slim rail on the right edge with the robot's name */
-.cp-hide { flex: none; padding: 7px 10px; font-size: 12.5px; white-space: nowrap; }
-.cp-hide:focus-visible, .cp-view:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.cp-hide:not(.cp-icon) { flex: none; padding: 7px 10px; font-size: 12.5px; white-space: nowrap; }
 .cp-tab { grid-column: 3; grid-row: 1; justify-self: end; align-self: stretch; width: 44px; padding: 16px 0 14px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 10px; border: 0; border-radius: 0; background: #161b3a; color: var(--ink-2); cursor: pointer; font: inherit; min-height: 0; }
 .cp-tab[hidden] { display: none; }
 .cp-tab:hover { background: #1d2350; color: var(--ink); }
 .cp-tab img { width: 18px; height: 18px; flex: none; }
 .cp-tab span { writing-mode: vertical-rl; font-size: 13px; font-weight: 500; white-space: nowrap; max-height: calc(100vh - 110px); overflow: hidden; text-overflow: ellipsis; }
-.cp-tab:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+.cp-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 .cp-tab.ref-dragging { box-shadow: inset 0 0 0 1.5px rgba(255, 159, 90, 0.45), 0 14px 34px rgba(5, 8, 30, 0.45); }
 .cp-tab.ref-over { background: #262553; color: #ffd27a; box-shadow: inset 0 0 0 2px var(--accent), 0 14px 34px rgba(5, 8, 30, 0.45); }
 
@@ -127,7 +116,6 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .panel .th-head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto 28px; gap: 8px; }
 .panel .th-head h3 { grid-column: 1; grid-row: 1; }
 .panel .th-new-task { grid-column: 2; grid-row: 1; padding: 5px 10px; font-size: 12px; border-radius: 7px; white-space: nowrap; }
-.panel .th-new-task span { font-weight: 700; }
 .panel .th-new-project { grid-column: 3; grid-row: 1; padding: 5px 8px; }
 .panel .th-head .sec-fold { grid-column: 4; grid-row: 1; margin: 0; }
 .panel .th-head .th-search { grid-column: 1 / -1; grid-row: 2; padding: 7px 9px; }
@@ -162,10 +150,6 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .hire-attachments img { width:64px; height:48px; object-fit:contain; background:var(--bg); }
 .hire-attachments span { flex:1; overflow-wrap:anywhere; min-width:0; }
 .hire-runtime { font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
-/* How Lucid works: a quiet round button before Hide */
-.brand .side-help { flex: none; margin-left: auto; width: 26px; height: 26px; padding: 0; border-radius: 50%; display: inline-grid; place-items: center; font: 600 13px var(--font); color: var(--ink-3); border: 1px solid var(--line); background: none; cursor: pointer; }
-.brand .side-help:hover { color: var(--ink); background: rgba(255, 255, 255, 0.07); }
-.brand .side-help ~ .side-hide { margin-left: 2px; }
 
 /* Thread rows in T3's layout: three single lines beside the worker's face. */
 .panel .th-row.th-t3 { align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; }
@@ -178,8 +162,6 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .panel .th-t3 .th-top > .th-mono { font-size: 8.5px; }
 .panel .th-t3 .th-top > .th-none { border-width: 1.5px; }
 .panel .th-t3 .th-top :is(.th-st, .th-ago) { font-size: 11.5px; line-height: 18px; white-space: nowrap; }
-.panel .th-t3 .th-st.review { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-.panel .th-t3 .th-top:has(.th-st.review) { flex-wrap: nowrap; }
 .panel .th-row .th-title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-line-clamp: unset; }
 .panel .th-row.th-t3 .th-title { font-size: 13.5px; line-height: 19px; font-weight: 600; color: var(--ink); }
 .panel .th-row.th-t3:not(.on):not(.sel) .th-title { font-weight: 500; color: var(--ink-2); }
@@ -193,20 +175,12 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .cp-head { padding: 12px 12px 10px 16px; gap: 10px; }
 .cp-who b { font-size: 15px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
 .cp-who span { font-size: 12px; line-height: 16px; }
-.cp-icon { flex: none; width: 32px; height: 32px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 9px; background: none; color: var(--ink-3); cursor: pointer; }
-.cp-icon:hover { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
-.cp-icon.on { background: rgba(255, 159, 90, 0.16); color: var(--accent-2); }
-.cp-head > .cp-hide.cp-icon { padding: 0; }
 .cp-sub { flex: none; display: flex; align-items: center; gap: 10px; padding: 0 16px 10px; border-bottom: 1px solid var(--line); }
 .cp-sub .cp-status { flex: 1; min-width: 0; padding: 0; font-size: 12.5px; }
 .cp-sub .cp-status span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* One header line like T3's: the name and weather, then help and Hide; Update gets its own line. */
 .brand { flex-wrap: wrap; row-gap: 8px; }
 .brand .update { order: 10; flex: none; margin-left: 0; }
-.brand .side-help { order: 4; margin-left: auto; }
-.brand .side-hide { order: 5; margin-left: 2px; }
-.brand .side-hide > span { display: none; }
-.brand .side-hide { padding: 6px; margin-right: -6px; }
 .brand:has(.update:not([hidden]))::after { content: ""; order: 9; flex-basis: 100%; height: 0; }
 
 /* Thread rows like T3: project and state, then the title with the harness logo. No faces, no stripe. */
@@ -236,10 +210,6 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .side-limits .st-high .st-pct { color: #ff8a7a; }
 
 /* Office & settings: occasional controls in a panel from the gear, not a sidebar section. */
-.brand .side-settings { order: 3; margin-left: auto; }
-.brand .side-settings ~ .side-help { margin-left: 2px; }
-.brand .side-settings > svg { display: block; }
-.brand .side-settings[aria-expanded="true"] { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
 .office-settings { position: fixed; z-index: 250; width: min(380px, calc(100vw - 32px)); max-height: calc(100dvh - 120px); overflow: auto; padding: 14px 16px 16px; border-radius: 14px; background: var(--night-3); box-shadow: 0 18px 48px rgba(4, 6, 24, 0.55); overscroll-behavior: contain; }
 .office-settings[hidden] { display: none; }
 .os-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }

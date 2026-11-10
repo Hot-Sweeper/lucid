@@ -1,22 +1,10 @@
 /* Selection follows the operational status, with a neutral fallback for idle threads. */
 #th-list .th-row[aria-current="true"], #rail-list .rail-th[aria-current="true"] {
-  outline: 2px solid var(--thread-color, var(--ink-2)); outline-offset: -2px;
-  background: color-mix(in srgb, var(--night-2) 85%, var(--thread-color, var(--ink-2)));
+  outline: 2px solid var(--status-color, var(--ink-2)); outline-offset: -2px;
+  background: color-mix(in srgb, var(--night-2) 85%, var(--status-color, var(--ink-2)));
 }
-#th-list .th-row[aria-current="true"]:hover, #rail-list .rail-th[aria-current="true"]:hover { background: color-mix(in srgb, var(--night-2) 80%, var(--thread-color, var(--ink-2))); }
-#th-list .th-row[aria-current="true"]:focus-visible, #rail-list .rail-th[aria-current="true"]:focus-visible { outline-color: var(--thread-color, var(--ink-2)); }
-.chat-panel .cp-status[data-tone] { color: var(--ink-2); }
-.chat-panel .cp-status[data-tone="work"], .chat-panel .cp-status[data-tone="queued"] { color: var(--thread-work); }
-.chat-panel .cp-status[data-tone="ask"] { color: var(--thread-ask); }
-.chat-panel .cp-status[data-tone="review"] { color: var(--thread-review); }
-.chat-panel .cp-status[data-tone="fail"] { color: var(--thread-fail); }
-.chat-panel .cp-status[data-tone="done"] { color: var(--thread-done); }
-.chat-panel .cp-status[data-tone]:not([data-tone=""]) > i { display: inline-grid; place-items: center; width: 13px; height: 13px; box-sizing: border-box; background: none; color: currentColor; font: 600 11px var(--font); font-style: normal; }
-.chat-panel .cp-status[data-tone="done"] > i::before { content: '✓'; }
-.chat-panel .cp-status[data-tone="fail"] > i::before, .chat-panel .cp-status[data-tone="ask"] > i::before { content: '!'; }
-.chat-panel .cp-status:is([data-tone="fail"],[data-tone="ask"]) > i { border: 1.5px solid currentColor; border-radius: 50%; }
-.chat-panel .cp-status[data-tone="review"] > i::before { content: '◇'; }
-.chat-panel .cp-status[data-tone="work"] > i { border: 1.5px dashed currentColor; border-radius: 50%; animation: th-spin 2.4s linear infinite; }
-.chat-panel .cp-status[data-tone="queued"] > i { border: 1.5px dotted currentColor; border-radius: 50%; }
-.chat-panel .cp-status:not([data-tone="work"]) > i { animation: none; transform: none; }
-@media (prefers-reduced-motion: reduce) { .chat-panel .cp-status[data-tone="work"] > i { animation: none; } }
+#th-list .th-row[aria-current="true"]:hover, #rail-list .rail-th[aria-current="true"]:hover { background: color-mix(in srgb, var(--night-2) 80%, var(--status-color, var(--ink-2))); }
+#th-list .th-row[aria-current="true"]:focus-visible, #rail-list .rail-th[aria-current="true"]:focus-visible { outline-color: var(--status-color, var(--ink-2)); }
+/* The chat header shows the shared status (src/ui/status.ts): same icon, word and colour as the row. */
+.chat-panel .cp-status[data-status] { color: var(--status-color); }
+.chat-panel .cp-status[data-status] > i { width: auto; height: auto; border-radius: 0; background: none; display: inline-grid; place-items: center; }

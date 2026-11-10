@@ -2,11 +2,12 @@ import { gameSound } from './sound';
 import { getLocale, onLocaleChange } from '../localization';
 import type { WM } from '../os/wm';
 import './desk-plan.css';
+import { icon } from '../ui/icons';
 
 export type PlanStep = { text: string; status: string };
 const label = (en: string, de: string) => getLocale() === 'de' ? de : en;
 const state = (step: PlanStep) => /^(completed|done)$/.test(step.status) ? 'done' : /^(in_progress|inProgress|running)$/.test(step.status) ? 'doing' : 'next';
-const icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="19" rx="3"/><path d="m7 9 1.5 1.5L11 8m2 2h4M7 15h3m3 0h4"/></svg>';
+const PLAN_ICON = icon('checklist', 24);
 let nextId = 0;
 
 /** Human inspection stays on the monitor; the robot's desktop remains intact underneath. */
@@ -24,7 +25,7 @@ export class DeskPlanWidget {
     this.button = document.createElement('button');
     this.button.type = 'button'; this.button.className = 'desk-plan';
     this.button.setAttribute('aria-controls', this.id); this.button.setAttribute('aria-expanded', 'false');
-    this.button.innerHTML = `${icon}<span class="desk-plan-label"></span><span class="desk-plan-count"></span>`;
+    this.button.innerHTML = `${PLAN_ICON}<span class="desk-plan-label"></span><span class="desk-plan-count"></span>`;
     this.button.addEventListener('pointerdown', e => e.stopPropagation());
     this.button.addEventListener('click', e => { e.stopPropagation(); this.toggle(); });
     li.append(this.button); list.replaceChildren(li); li.hidden = true;

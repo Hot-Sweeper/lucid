@@ -79,10 +79,9 @@
   --wd-plate: rgba(22, 20, 19, 0.94);
   --wd-plate-ink: #e6e1da;
   --wd-plate-sub: #a39b91;
-  --wd-add: #1d1a17;
-  --wd-add-hover: #2a241f;
-  --wd-add-line: #3d3128;
-  --wd-add-ink: #eadbc6;
+  --wd-ghost-line: #bfae98;
+  --wd-ghost-fill: rgba(234, 219, 198, 0.06);
+  --wd-ghost-ink: #eadbc6;
 
   /* robots: dark bodies in their own hue, managers more strongly tinted */
   --robot-dark: 100%;

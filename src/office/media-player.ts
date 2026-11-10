@@ -1,15 +1,15 @@
 import { getLocale, onLocaleChange } from '../localization';
 import './media-player.css';
+import { icon } from '../ui/icons';
 
 const text = (en: string, de: string) => getLocale() === 'de' ? de : en;
-const svg = (path: string) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
 const icons = {
-  play: svg('<path d="m9 5 11 7-11 7Z" fill="currentColor" stroke="none"/>'),
-  pause: svg('<path d="M8 5v14M16 5v14" stroke-width="4"/>'),
-  volume: svg('<path d="M11 5 6 9H3v6h3l5 4ZM15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>'),
-  muted: svg('<path d="M11 5 6 9H3v6h3l5 4ZM16 9l6 6m0-6-6 6"/>'),
-  full: svg('<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>'),
-  shrink: svg('<path d="M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5"/>'),
+  play: icon('play', 18),
+  pause: icon('pause', 18),
+  volume: icon('volume', 18),
+  muted: icon('muted', 18),
+  full: icon('fullscreen', 18),
+  shrink: icon('fullscreenExit', 18),
 };
 export function mediaTime(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return '--:--';

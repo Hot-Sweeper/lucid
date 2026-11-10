@@ -118,11 +118,13 @@ const dictationCall = (channel) => async (value) => {
   if (!result?.ok) throw new Error(result?.error || 'Dictation did not answer. Try again.');
   return result.value;
 };
-// Lucid's own title bar (Linux): window buttons and maximized state.
+// The window's top (src/titlebar.ts): Linux window buttons, window state, Windows overlay colours.
 contextBridge.exposeInMainWorld("lucidWindow", {
   control: (action) => ipcRenderer.invoke("window:control", action),
   state: () => ipcRenderer.invoke("window:state"),
+  overlay: (colors) => ipcRenderer.invoke("window:overlay", colors),
   onMaximized: (fn) => { const h = (_e, on) => fn(!!on); ipcRenderer.on("window:maximized", h); return () => ipcRenderer.removeListener("window:maximized", h); },
+  onFullscreen: (fn) => { const h = (_e, on) => fn(!!on); ipcRenderer.on("window:fullscreen", h); return () => ipcRenderer.removeListener("window:fullscreen", h); },
 });
 contextBridge.exposeInMainWorld('lucidDictation', {
   load: dictationCall('load'),

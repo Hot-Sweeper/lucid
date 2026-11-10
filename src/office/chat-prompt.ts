@@ -1,3 +1,5 @@
+import { icon } from '../ui/icons';
+
 /** A compact, read-only view of the latest submitted prompt when its bubble is offscreen. */
 export class ChatPromptContext {
   private button = document.createElement('button');
@@ -9,7 +11,7 @@ export class ChatPromptContext {
     const wrap = document.createElement('div'); wrap.className = 'cp-transcript';
     list.before(wrap); wrap.append(list);
     this.button.type = 'button'; this.button.className = 'cp-prompt-context'; this.button.hidden = true;
-    this.button.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4-4 4 4M8 2v9a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    this.button.innerHTML = icon('returnUp', 14);
     this.button.append(this.text); wrap.append(this.button);
     this.button.addEventListener('click', () => {
       if (!this.row?.isConnected) return;

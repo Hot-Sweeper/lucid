@@ -6,6 +6,16 @@ import type { Desk } from './desk';
 import type { World, WorldData } from './world';
 import { gameSound } from './sound';
 import './monitor-tasks.css';
+import { statusBadge, statusIcon, type Status } from '../ui/status';
+
+// Completion states on the monitor, in the shared status vocabulary. Stopped work has no status.
+const MONITOR_STATUS: Record<string, { status: Status; detail?: string; suffix?: string } | undefined> = {
+  done: { status: 'done' },
+  settled: { status: 'settled', suffix: '· coins waiting' },
+  kept: { status: 'settled' },
+  background: { status: 'working', detail: 'Running in the background' },
+  'job-failed': { status: 'needs', detail: 'Background job failed' },
+};
 
 /** Share in-flight request reads between chat and monitors without another poll. */
 export function sharedPendingRequests(read: AnswerDeps['pending']): AnswerDeps['pending'] {
@@ -103,8 +113,15 @@ export class MonitorTasks {
       }
       if (view.answer) { void view.answer.refresh(); }
       else if (ready) {
+        // the shared status vocabulary, as in the sidebar and the chat header
         const chip = view.el.querySelector<HTMLElement>('.mt-chip')!;
-        setText(chip, ready.state === 'kept' ? 'Settled' : ready.state === 'settled' ? 'Settled · coins waiting' : ready.state === 'stopped' ? 'Stopped' : ready.state === 'background' ? 'Running in the background' : ready.state === 'job-failed' ? 'Background job failed' : 'Finished');
+        if (chip.dataset.state !== ready.state) {
+          const st = MONITOR_STATUS[ready.state];
+          chip.innerHTML = st ? statusBadge(st.status, { detail: st.detail, suffix: st.suffix, size: 18 }) : 'Stopped';
+          const mark = view.el.querySelector<HTMLElement>('.mt-head-mark')!;
+          mark.hidden = st?.status !== 'done';
+          mark.innerHTML = mark.hidden ? '' : statusIcon('done', 28);
+        }
         // the job's live line (its latest progress, or why it stopped) updates with every refresh
         const jobLine = view.el.querySelector<HTMLElement>('.mt-job')!;
         setText(jobLine, ready.job || ''); if (jobLine.hidden !== !ready.job) jobLine.hidden = !ready.job;
@@ -124,7 +141,7 @@ export class MonitorTasks {
     el.setAttribute('aria-label', mode === 'question' ? 'Answer this robot' : 'Completed work');
     el.innerHTML = mode === 'question'
       ? `<header><div><h2></h2><p class="monitor-task-name"></p></div><button type="button" class="ghost" data-task-read>Read chat</button></header><div class="win-body monitor-task-body"></div>`
-      : `<header><div><h2></h2><p class="monitor-task-name"></p></div><button type="button" class="ghost" data-task-read>Continue session</button></header><div class="win-body monitor-task-body"></div>`;
+      : `<header><div><span class="mt-head-mark" data-status="done" hidden></span><h2></h2><p class="monitor-task-name"></p></div><button type="button" class="ghost" data-task-read>Continue session</button></header><div class="win-body monitor-task-body"></div>`;
     const body = el.querySelector<HTMLElement>('.monitor-task-body')!;
     const view: View = { desk, id, mode, el, body, answer: null, stamp: '', detailsFor: '' };
     for (const type of ['click', 'dblclick', 'keydown']) el.addEventListener(type, e => e.stopPropagation());

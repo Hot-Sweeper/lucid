@@ -1,11 +1,12 @@
 import gsap from "gsap";
+import { icon } from "../ui/icons";
 
 // Folding parts of the left sidebar: each section folds up into its header, and the whole
 // sidebar folds into a slim rail on the left edge that still lists the threads and coins.
 
 const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export const FOLD_ICON = `<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+export const FOLD_ICON = icon("chevronDown", 12);
 
 /** The labeled Hide/Show button in a section header. */
 export const foldButton = (key: string, name: string, open = true) =>

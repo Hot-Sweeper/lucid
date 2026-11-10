@@ -12,7 +12,7 @@ import gsap from "gsap";
 import { setZoom, setCameraMoving } from "../world/budget";
 import { canvasRobotsWanted, syncRobotCanvases } from "../world/robot-canvas";
 import { watchSvgOpacity } from "../perf/svg-write";
-import { GLIDE_MS, GLIDE_EASING, GLIDE_EASE } from "../perf/ease";
+import { GLIDE_MS, GLIDE_EASING, GLIDE_EASE, cubicBezier } from "../perf/ease";
 import { Desk, UNIT_W, UNIT_H, shortTitle, type DeskServices } from "./desk";
 import { drawFloor, drawWall, drawDecor, placeDecor, decorFootprint, DECOR } from "../decor/decor";
 import { furniturePath, type Footprint } from "./navigation";
@@ -22,7 +22,7 @@ import { campusNight } from "./campus-light";
 import { campusPlan, districtPlan } from "./campus-plan";
 import { officePlan, hallRoute, hallPreference, inHall, type OfficePlan } from "./floor-plan";
 import { buildingFootprint, footprintCovers } from "./building-footprint";
-import { hasOfficeWork, hasOfficeDesk, reserveRoomSeats, remainingDeskExtras, snakeSeat, projectRoomSeats, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, layoutSafeAt, FOLDED_OFFICE } from "./room-policy";
+import { hasOfficeWork, hasOfficeDesk, reserveRoomSeats, remainingDeskExtras, snakeSeat, projectRoomSeats, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, layoutSafeAt, addDeskPlace, FOLDED_OFFICE } from "./room-policy";
 import type { RoomTheme } from "./decorate";
 import { Park } from "./park";
 import { Walker, SIT_HEAD, pause, type Facing } from "../world/walker";
@@ -47,6 +47,7 @@ import { orderedRooms, moveRoomOrder, movableRoom } from "./room-order";
 import { mountTouchCamera } from "./touch-camera";
 import { exposedScene } from "./exposed-scene";
 import { wireDeskChatTargets } from "./desk-chat-targets";
+import { icon } from "../ui/icons";
 
 
 
@@ -76,7 +77,9 @@ export type OfficeLayout = {
 };
 export type RoomKind = "main" | "project" | "freelance" | "break" | "queue" | "charging";
 export type Room = { id: string; kind: RoomKind; title: string; icon: string | null; x: number; y: number; w: number; h: number; el: HTMLElement; threadIds: string[]; collapsed: boolean };
-type PhysicalRoomPlan = { id: string; kind: RoomKind; title: string; icon: string | null; threads: (WThread | null)[]; slots: number; w: number; h: number; collapsed: boolean };
+type PhysicalRoomPlan = { id: string; kind: RoomKind; title: string; icon: string | null; threads: (WThread | null)[]; slots: number; w: number; h: number; collapsed: boolean;
+  /** The Add a desk placeholder stands at place `slots`; the floor reserves that place. */
+  ghost?: boolean };
 
 export interface RoomExtension {
   el: HTMLElement;
@@ -102,6 +105,13 @@ function officeSize(slots: number, lounge = 0, columns = 1) {
   return officeDimensions(slots, columns, SLOT_W, SLOT_H, lounge);
 }
 const columnsForRoom = (room: { w: number }) => officeColumns((room.w - 120) / SLOT_W);
+/** Desk places the floor holds: every desk plus the Add a desk placeholder. Decor keeps clear of them. */
+const floorSlots = (plan: PhysicalRoomPlan) => plan.slots + (plan.ghost ? 1 : 0);
+/** Top-left corner of desk place `index` in world coordinates, following the snake. */
+const slotOrigin = (room: { x: number; y: number; w: number }, index: number) => {
+  const { c, row } = snakeSeat(index, columnsForRoom(room));
+  return { x: room.x + 70 + c * SLOT_W, y: room.y + WALL_FACE + 40 + row * SLOT_H };
+};
 // The decorations a room asks for (all of them are free).
 const usable = (t: RoomTheme | undefined) => (t?.decor ?? []).filter((d) => DECOR[d]);
 const needsLounge = (t: RoomTheme | undefined) => usable(t).some((d) => DECOR[d].spot === "floor");
@@ -334,7 +344,10 @@ export class World {
       const f = printerStation(r.h).footprint;
       blocks.push({ ...f, x: r.x + f.x, y: r.y + f.y });
     }
-    const slots = this.physicalPlans.find((p) => p.id === r.id)?.slots ?? 0;
+    const plan = this.physicalPlans.find((p) => p.id === r.id);
+    const slots = plan ? floorSlots(plan) : 0;
+    // Walkers keep off the placeholder too, so a desk built there never lands on a route.
+    if (plan?.ghost) { const g = slotOrigin(r, plan.slots); blocks.push({ x: g.x + 34, y: g.y + GEOM.monitor.y, w: 332, h: 264 }); }
     for (const p of officeDecor(r, slots, this.themes.get(r.id))) {
       const b = decorFootprint(p); if (b) blocks.push({ ...b, x: b.x + r.x, y: b.y + r.y });
     }
@@ -1107,8 +1120,9 @@ export class World {
       const extra = this.extra.get(id) ?? 0;
       const projection = projectRoomSeats(this.seats.get(id)!, reserved, this.isRoomExpanded(id), this.revealedThread, extra, this.collapsedRooms.has(id));
       const { slots, collapsed } = projection;
-      const { w, h } = collapsed ? FOLDED_OFFICE : officeSize(slots, needsLounge(this.themes.get(id)) ? LOUNGE : 0, officeColumns(this.roomColumns.get(id)));
-      return { id, kind, title, icon, threads: projection.threads, slots, w, h, collapsed };
+      const ghost = addDeskPlace(projection.threads, collapsed) !== null;
+      const { w, h } = collapsed ? FOLDED_OFFICE : officeSize(slots + (ghost ? 1 : 0), needsLounge(this.themes.get(id)) ? LOUNGE : 0, officeColumns(this.roomColumns.get(id)));
+      return { id, kind, title, icon, threads: projection.threads, slots, w, h, collapsed, ghost };
     };
     let top: Plan[] = [
       { id: "queue", kind: "queue", title: "Questions for you", icon: null, threads: queue, slots: 0, w: 720, h: 800, collapsed: false },
@@ -1211,7 +1225,7 @@ export class World {
       this.wakeRoutes();
     }
 
-    const key = rooms.map((r, i) => `${r.id}:${plans[i].slots}:${r.w}:${r.h}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|");
+    const key = rooms.map((r, i) => `${r.id}:${floorSlots(plans[i])}:${r.w}:${r.h}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|");
     if (key !== this.lastKey) {
       this.lastKey = key;
       // Keep unchanged artwork and residents alive while neighboring rooms move.
@@ -1224,7 +1238,7 @@ export class World {
       const oldRooms = new Map(this.rooms.map((r) => [r.id, r]));
       rooms.forEach((r, i) => {
         const old = oldRooms.get(r.id);
-        const signature = JSON.stringify([r.kind, r.title, r.icon, r.w, r.h, plans[i].slots, this.themes.get(r.id)]);
+        const signature = JSON.stringify([r.kind, r.title, r.icon, r.w, r.h, floorSlots(plans[i]), this.themes.get(r.id)]);
         const utility = r.kind === 'break' || r.kind === 'queue' || r.kind === 'charging';
         if (old && old.w === r.w && old.h === r.h && (utility || old.el.dataset.artSignature === signature)) {
           r.el = old.el;
@@ -1248,7 +1262,7 @@ export class World {
           ext.onDeparture = (id, w) => this.prepareDeparture(id, w, () => ({ x: parseFloat(el.style.left), y: parseFloat(el.style.top) }));
           ext.onExit = (id, at, face) => this.handOver(id, { x: at.x + r.x, y: at.y + r.y }, face);
           this.ext[r.kind as "break" | "queue" | "charging"] = ext;
-        } else {el.dataset.vectorOwner=vectorOwner("room");el.innerHTML=roomSvg(r,plans[i].slots,this.themes.get(r.id),el.dataset.vectorOwner)}
+        } else {el.dataset.vectorOwner=vectorOwner("room");el.innerHTML=roomSvg(r,floorSlots(plans[i]),this.themes.get(r.id),el.dataset.vectorOwner)}
         this.roomLayer.appendChild(el);
         const art=el.querySelector<SVGSVGElement>(":scope > .room-art");if(art)cacheStaticArt(art);
         this.cull.observe(el);
@@ -1281,7 +1295,7 @@ export class World {
         r.el.appendChild(hit);
         const size = document.createElement('button'); size.type = 'button'; size.className = 'room-size-hit';
         size.dataset.roomId = r.id;
-        size.innerHTML = '<span class="room-size-label"></span><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        size.innerHTML = `<span class="room-size-label"></span>${icon("chevronDown", 24)}`;
         size.addEventListener('click', event => { event.stopPropagation(); this.setRoomExpanded(r.id, !this.isRoomExpanded(r.id)); });
         size.addEventListener('pointerdown', event => event.stopPropagation());
         r.el.append(size);
@@ -1358,7 +1372,7 @@ export class World {
     }
     this.known = new Map(data.threads.map((t) => [t.id, t]));
     this.roomOf = nowRoom;
-    this.addTiles(plans, rooms);
+    this.placeDeskGhosts(plans, rooms);
     for (const [id, d] of this.desks) if (!wanted.has(id)) { if (this.selected === d) this.select(null); this.cull.unobserve(d.el); d.destroy(); this.allDesks.delete(d); this.desks.delete(id); for (const [k, v] of this.slotDesks) if (v === d) this.slotDesks.delete(k); }
     const slotKeys = new Set(slots.map((s) => s.key));
     for (const k of [...this.slotDesks.keys()]) if (!slotKeys.has(k)) this.slotDesks.delete(k);
@@ -1400,6 +1414,7 @@ export class World {
         this.slideDesk(d, s);
       }
     }
+    this.playDeskBuild();
     // desks whose seat disappeared are retired properly (their robot and computer stop)
     const inUse = new Set(this.slotDesks.values());
     for (const d of this.allDesks) if (!inUse.has(d)) { this.allDesks.delete(d); if (this.selected === d) this.select(null); this.cull.unobserve(d.el); d.destroy(); }
@@ -1482,34 +1497,87 @@ export class World {
 
   private allDesks = new Set<Desk>();
   roster: Roster;
-  // "+" tiles: add a desk to an office.
-  private tileSig = "";
-  private addTiles(plans: { id: string; kind: RoomKind; slots: number }[], rooms: Room[]) {
-    const sig = rooms.map((r, i) => [r.id, r.title, r.x, r.y, r.w, r.h, plans[i].slots, this.extra.get(r.id) ?? 0].join("|")).join(";");
-    if (sig === this.tileSig) return;
-    this.tileSig = sig;
-    this.deskLayer.querySelectorAll(".add-desk").forEach((e) => e.remove());
+  // The Add a desk placeholder: a faint ghost of the next workstation (room-policy addDeskPlace).
+  // Unchanged ghosts keep their DOM node, focus and pending state across refreshes.
+  private ghosts = new Map<string, { el: HTMLButtonElement; sig: string; pending: number | null; timer: number }>();
+  private deskBuild: { key: string; since: number } | null = null;
+  private deskBuildTween: gsap.core.Timeline | null = null;
+  private placeDeskGhosts(plans: PhysicalRoomPlan[], rooms: Room[]) {
+    const shown = new Set<string>();
     plans.forEach((p, i) => {
-      if (!["main", "project", "freelance"].includes(p.kind)) return;
       const r = rooms[i];
-      if (r.collapsed) return;
-      const cols = columnsForRoom(rooms[i]);
-      const k = p.slots, { c, row } = snakeSeat(k, cols);
-      if (row > 0 && k % cols === 0 && (this.extra.get(p.id) ?? 0) >= 6) return;
-      const fits = k % cols !== 0; // only inside the room's current width
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "add-desk";
-      b.title = "Add a desk";
-      b.setAttribute("aria-label", `Add a desk to ${r.title}`);
-      b.innerHTML = `<span aria-hidden="true">+</span><i>Add a desk</i>`;
-      const x = fits ? r.x + 70 + c * SLOT_W + 110 : r.x + r.w - 214;
-      const y = fits ? r.y + WALL_FACE + 40 + row * SLOT_H + 120 : r.y + WALL_FACE + 10;
-      b.classList.toggle("compact", !fits);
-      b.style.cssText = `left:${x}px;top:${y}px`;
-      b.addEventListener("click", (e) => { e.stopPropagation(); this.onAddDesk(p.id); });
-      this.deskLayer.appendChild(b);
+      if (!p.ghost || r.collapsed || !["main", "project", "freelance"].includes(p.kind)) return;
+      shown.add(p.id);
+      const at = slotOrigin(r, p.slots), sig = [r.title, at.x, at.y, p.slots].join("|");
+      let g = this.ghosts.get(p.id);
+      if (g?.sig === sig) return;
+      const fresh = !g;
+      if (!g) { g = { el: this.makeDeskGhost(p.id), sig: "", pending: null, timer: 0 }; this.ghosts.set(p.id, g); }
+      // The ghost moved on to a new place: the earlier add has landed, so presses count again.
+      if (g.pending !== null && g.pending !== p.slots) this.settleGhost(g);
+      g.sig = sig;
+      g.el.setAttribute("aria-label", `Add a desk to ${r.title}`);
+      // The hit area is the whole ghost: monitor and desk top of a real workstation.
+      const left = at.x + 34, top = at.y + GEOM.monitor.y;
+      if (fresh) g.el.style.cssText = `left:${left}px;top:${top}px;width:332px;height:264px`;
+      g.el.style.zIndex = String(Math.round(at.y));
+      // It slides with the desks and rooms around it, the way slideDesk moves a workstation.
+      if (!fresh && !document.hidden && !matchMedia("(prefers-reduced-motion: reduce)").matches) gsap.to(g.el, { left, top, duration: .3, ease: "power3.out", overwrite: "auto" });
+      else if (!fresh) { gsap.killTweensOf(g.el); gsap.set(g.el, { left, top }); }
+      this.cull.observe(g.el);
     });
+    for (const [id, g] of this.ghosts) if (!shown.has(id)) { window.clearTimeout(g.timer); gsap.killTweensOf(g.el); this.cull.unobserve(g.el); g.el.remove(); this.ghosts.delete(id); }
+  }
+  private makeDeskGhost(room: string) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "desk-ghost"; b.title = "Add a desk";
+    b.innerHTML = `<svg viewBox="0 0 332 264" width="332" height="264" aria-hidden="true" focusable="false">
+      <g class="dg-frame"><rect x="21.5" y="1.5" width="289" height="169" rx="12"/><path d="M166 172v12"/><rect x="1.5" y="177.5" width="329" height="76" rx="8"/></g>
+      <g class="dg-plus"><circle cx="166" cy="86" r="30"/><path d="M166 73v26M153 86h26"/></g>
+    </svg><span aria-hidden="true">Add a desk</span>`;
+    b.addEventListener("click", (e) => { e.stopPropagation(); this.addDeskFromGhost(room); });
+    b.addEventListener("dblclick", (e) => e.stopPropagation());
+    this.deskLayer.appendChild(b);
+    return b;
+  }
+  private settleGhost(g: { el: HTMLButtonElement; pending: number | null; timer: number }) {
+    window.clearTimeout(g.timer); g.timer = 0; g.pending = null;
+    g.el.classList.remove("is-pending"); g.el.removeAttribute("aria-disabled");
+  }
+  private addDeskFromGhost(room: string) {
+    const g = this.ghosts.get(room), plan = this.physicalPlans.find((p) => p.id === room);
+    // Repeat presses wait until the pending desk stands (a held floor plan can delay it).
+    if (!g || !plan?.ghost || g.pending !== null || g.el.disabled) return;
+    const focused = document.activeElement === g.el, before = this.extra.get(room) ?? 0;
+    g.pending = plan.slots; g.el.classList.add("is-pending"); g.el.setAttribute("aria-disabled", "true");
+    this.deskBuild = { key: `${room}#${plan.slots}`, since: performance.now() };
+    // The same path as every added desk: saved layout, reservations, safe floor-plan transition.
+    this.onAddDesk(room);
+    if (this.ghosts.get(room) === g && (this.extra.get(room) ?? 0) === before) {
+      // Nothing was added here (a neighbouring building opens first, or a companion client).
+      this.deskBuild = null;
+      window.clearTimeout(g.timer); g.timer = window.setTimeout(() => this.settleGhost(g), 2500);
+    }
+    if (focused && !g.el.isConnected) this.rooms.find((r) => r.id === room)?.el.querySelector<HTMLElement>(".room-sign-hit")?.focus({ preventScroll: true });
+  }
+  /** The desk added from a ghost assembles where the ghost stood: top drops in, monitor rises. */
+  private playDeskBuild() {
+    const build = this.deskBuild;
+    if (!build) return;
+    if (performance.now() - build.since > 30000) { this.deskBuild = null; return; }
+    const d = this.slotDesks.get(build.key);
+    if (!d) return;   // a held floor plan opens the new desk later
+    this.deskBuild = null;
+    gameSound.at("build", d.el, .8);
+    if (document.hidden || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    this.deskBuildTween?.progress(1).kill();
+    const table = d.el.querySelector<SVGSVGElement>(".desk-table"), parts = [table, d.monitor].filter((e): e is SVGSVGElement | HTMLElement => !!e);
+    const ease = cubicBezier(.23, 1, .32, 1);
+    const tl = gsap.timeline({ onComplete: () => done(), onInterrupt: () => done() });
+    const done = () => { gsap.set(parts, { clearProps: "transform,transformOrigin,opacity" }); if (this.deskBuildTween === tl) this.deskBuildTween = null; };
+    if (table) tl.fromTo(table, { y: -24, opacity: 0 }, { y: 0, opacity: 1, duration: .22, ease }, 0);
+    tl.fromTo(d.monitor, { scaleY: .15, opacity: 0, transformOrigin: "50% 100%" }, { scaleY: 1, opacity: 1, duration: .24, ease }, .13);
+    this.deskBuildTween = tl;
   }
 
   // Desks and rooms outside the view are not painted at all; their robots keep working, nobody
@@ -1598,7 +1666,7 @@ export class World {
     const remove = document.createElement('button');
     remove.type = 'button'; remove.className = 'empty-desk-remove';
     remove.title = 'Remove empty desk'; remove.setAttribute('aria-label', 'Remove empty desk');
-    remove.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+    remove.innerHTML = icon("close");
     remove.addEventListener('pointerdown', e => e.stopPropagation());
     remove.addEventListener('dblclick', e => e.stopPropagation());
     remove.addEventListener('click', e => { e.stopPropagation(); this.onRemoveEmptyDesk(d.el.dataset.slot || ''); });
@@ -2337,6 +2405,8 @@ export class World {
     document.removeEventListener('visibilitychange', this.visibilityPresentation);
     this.cancelCameraTween(); this.cancelOutsideWarm(); window.clearTimeout(this.zoomEnd); cancelAnimationFrame(this.resharpen); this.resharpen = 0;
     this.cancelTouchLayoutFlush();
+    this.deskBuildTween?.progress(1).kill(); this.deskBuildTween = null;
+    for (const g of this.ghosts.values()) { window.clearTimeout(g.timer); gsap.killTweensOf(g.el); }
     for (const walker of this.transit.values()) walker.destroy(); this.transit.clear(); this.trips.clear(); this.wakeRoutes();
     for (const d of this.allDesks) d.destroy(); this.allDesks.clear(); this.desks.clear();
     for (const extension of Object.values(this.ext)) extension?.destroy();

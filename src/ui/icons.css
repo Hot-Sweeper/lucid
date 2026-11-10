@@ -1,0 +1,3 @@
+/* Interface icons (src/ui/icons.ts): the stroke stays 1.5px whatever size an icon is drawn at. */
+.ui-icon { display: inline-block; vertical-align: middle; flex: none; overflow: visible; }
+.ui-icon :is(path, circle, rect, ellipse, line, polyline) { vector-effect: non-scaling-stroke; }

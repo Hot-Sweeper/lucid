@@ -31,11 +31,11 @@ else{const{app,BrowserWindow}=require('electron');app.setPath('userData',path.jo
     await ev(`window.base={id:'chat-report',projectId:'lucid',title:'Make Review Reports Readable in Chat',provider:'codex',runStatus:'completed',lastStatus:'completed',unseen:true,pinned:false,settled:false,question:null,updatedAt:'2026-11-02T21:42:00Z',runStartedAt:'2026-11-02T21:40:00Z'};window.paper={threadId:base.id,status:'submitted',submittedAt:'2026-11-02T21:42:10Z'};review.world.lastData.threads=[{...base,id:'active',title:'Give Robot Tool Windows a Real App Theme',runStatus:'running'},base];review.orch.papers=[paper];review.render();void 0`);
     await wait(150);await capture(mode+'-waiting');
     if(mode==='before'){check('Old row labels the unreviewed completed worker Done',await ev(`document.querySelector('[data-id="chat-report"] .th-st').textContent==='Done'`));continue;}
-    check('Submitted report shows waiting for Orchestrator instead of Done',await ev(`document.querySelector('[data-id="chat-report"] .th-st').textContent==='Waiting for Orchestrator review'`));
+    check('Submitted report shows waiting for Orchestrator instead of Done',await ev(`document.querySelector('[data-id="chat-report"] .th-st').title.endsWith('Waiting for Orchestrator review')`));
     check('Active work retains Working and source thread order',await ev(`document.querySelector('.th-row').dataset.id==='active'&&document.querySelector('.th-row .th-st').textContent.startsWith('Working')`));
     for(const [status,label] of [['reviewing','Orchestrator reviewing'],['manual-review','Needs your review'],['pending-dependency','Review on hold'],['changes-requested','Changes requested'],['approved','Ready to collect']]){
       await ev(`review.orch.papers=[{...paper,status:${JSON.stringify(status)}}];review.render();`);
-      check('Saved '+status+' is accurately presented',await ev(`document.querySelector('[data-id="chat-report"] .th-st').textContent===${JSON.stringify(label)}`));
+      check('Saved '+status+' is accurately presented',await ev(`document.querySelector('[data-id="chat-report"] .th-st').title.endsWith(${JSON.stringify(label)})`));
     }
     check('Opening the chat does not hide the waiting status',await ev(`review.label({...base,unseen:false},paper)==='Waiting for Orchestrator review'`));
     check('Old verdict is not reused for a later completed run',await ev(`review.label({...base,runStartedAt:'2026-11-02T22:00:00Z'},{...paper,status:'changes-requested'},true)==='Awaiting report'`));

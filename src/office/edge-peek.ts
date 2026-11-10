@@ -1,4 +1,5 @@
 import "./edge-peek.css";
+import { icon } from "../ui/icons";
 
 // Auto-hide panels: a folded sidebar or chat slides over the office while you hover its edge
 // (or open it on purpose), and tucks itself away again when you leave. The office keeps its
@@ -226,7 +227,7 @@ export class EdgePeek {
 }
 
 /** The pin icon: upright and filled when the panel stays open, tilted and outlined when it auto-hides. */
-export const PIN_ICON = `<svg class="pin-icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><g class="pin-body"><path d="M6 2.2h4l-.5 4.1 2.3 2.2H4.2l2.3-2.2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 8.6v5.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></g></svg>`;
+export const PIN_ICON = icon("pin", 16, { cls: "pin-icon" });
 
 /** Keeps a pin button's label, tooltip and pressed state in step with its panel's mode. */
 export function paintPin(btn: HTMLElement, pinned: boolean, what: "sidebar" | "chat", edge: "left" | "right") {

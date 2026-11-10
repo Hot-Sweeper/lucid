@@ -1,6 +1,8 @@
 import { mountLimitsSection } from "./office/limits-section";
 import { completionFirst, pinnedFirst, reconcileThreadList } from "./office/thread-list";
 import { threadState } from "./office/thread-state";
+import { statusBadge } from "./ui/status";
+import { icon as uiIcon } from "./ui/icons";
 import { mountInterfaceThemeSetting } from "./interface-theme";
 import { buildWorkDetails } from "./office/work-details";
 import { ProjectLife } from "./office/project-life";
@@ -70,6 +72,10 @@ import openaiLogo from "./assets/openai.svg";
 import claudeLogo from "./assets/claude.svg";
 import { openShortcutHelp, isShortcutHelpOpen, typing } from "./office/shortcuts";
 import { mountTitlebar } from "./titlebar";
+import { BRAND } from "./brand";
+import { brandMark } from "./ui/brand-mark";
+// Shared control styles load after every feature stylesheet imported above.
+import "./ui/controls.css";
 
 declare global {
   interface Window {
@@ -110,17 +116,17 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 document.getElementById("app")!.innerHTML = `
   <aside class="panel" id="side-panel">
-    <header class="brand"><span class="mark" aria-hidden="true"></span><h1>Lucid</h1><button type="button" class="wx" id="wx" hidden aria-haspopup="menu"></button>
+    <header class="brand"><span class="mark" aria-hidden="true">${brandMark()}</span><h1>${esc(BRAND.name)}</h1><button type="button" class="wx" id="wx" hidden aria-haspopup="menu"></button>
       <button class="update" id="update" type="button" title="Check for game updates">Check updates</button>
       <div class="brand-actions">
-      <button type="button" class="ghost side-help side-settings" id="side-settings" aria-label="Office and settings" aria-expanded="false" title="Office and settings: rooms, language, staff wall, linked computers"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 5.6a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.8v1.6M8 12.6v1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M1.8 8h1.6M12.6 8h1.6M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button><button type="button" class="ghost side-help" id="side-help" aria-label="How Lucid works" title="How Lucid works and keyboard shortcuts (?)">?</button><button type="button" class="side-pin pin-btn" id="side-pin" aria-pressed="true">${PIN_ICON}</button><button type="button" class="side-hide" id="side-hide" aria-expanded="true" aria-controls="side-panel" aria-label="Hide sidebar" title="Hide sidebar: it folds into a rail on the left (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M9.5 4L5.5 8l4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Hide<span class="sh-more"> sidebar</span></span></button>
+      <button type="button" class="ghost side-help side-settings" id="side-settings" aria-label="Office and settings" aria-expanded="false" title="Office and settings: rooms, language, staff wall, linked computers">${uiIcon("settings")}</button><button type="button" class="ghost side-help" id="side-help" aria-label="How ${esc(BRAND.name)} works" title="How ${esc(BRAND.name)} works and keyboard shortcuts (?)">${uiIcon("help")}</button><button type="button" class="side-pin pin-btn" id="side-pin" aria-pressed="true">${PIN_ICON}</button><button type="button" class="side-hide" id="side-hide" aria-expanded="true" aria-controls="side-panel" aria-label="Hide sidebar" title="Hide sidebar: it folds into a rail on the left (Ctrl+B)">${uiIcon("sidebarHide")}<span>Hide<span class="sh-more"> sidebar</span></span></button>
       </div>
     </header>
 
     <section class="wallet" id="wallet"><span class="wl-coins" title="1 coin for every dollar of AI work at API prices">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></span></section>
 
     <section class="threads">
-      <div class="th-head"><h3>Threads</h3><label class="th-search"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label><button type="button" class="primary th-new-task" id="th-new-task" title="Start a new task (Ctrl+N)"><span aria-hidden="true">+</span> Task</button><button type="button" class="ghost th-new-project" id="th-new-project" aria-label="New project" title="New project: create a folder or add one you have"><span aria-hidden="true">+</span> Project</button>${foldButton("threads", "threads")}</div>
+      <div class="th-head"><h3>Threads</h3><label class="th-search">${uiIcon("search", 14)}<input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label><button type="button" class="primary th-new-task" id="th-new-task" title="Start a new task (Ctrl+N)">${uiIcon("plus", 14)}Task</button><button type="button" class="ghost th-new-project" id="th-new-project" aria-label="New project" title="New project: create a folder or add one you have">${uiIcon("plus", 14)}Project</button>${foldButton("threads", "threads")}</div>
       <div class="fold-body" id="fold-threads"><ol class="th-list" id="th-list" aria-label="Threads. Drag one into the chat, or press R, to reference it"></ol></div>
     </section>
 
@@ -147,7 +153,7 @@ document.getElementById("app")!.innerHTML = `
 
   </aside>
   <nav class="side-rail" id="side-rail" aria-label="Folded sidebar" hidden>
-    <button type="button" class="rail-show" id="rail-show" aria-expanded="false" aria-controls="side-panel" title="Show sidebar (Ctrl+B)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M6.5 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Show<br>sidebar</span></button>
+    <button type="button" class="rail-show" id="rail-show" aria-expanded="false" aria-controls="side-panel" title="Show sidebar (Ctrl+B)">${uiIcon("sidebarShow")}<span>Show<br>sidebar</span></button>
     <p class="rail-coins" id="rail-coins">${coinIcon(16)}<b id="rail-bal">0</b><span class="coin-label"> coins</span></p>
     <ol class="rail-list" id="rail-list" aria-label="Threads"></ol>
   </nav>
@@ -439,7 +445,7 @@ world.onRooms = (rooms: Room[]) => {
     const office = ["main", "project", "freelance"].includes(r.kind);
     const pin = office && world.isRoomExpanded(r.id);
     return `<li class="room-list-row">
-      ${movableRoom(r.id) ? `<button type="button" class="room-grab" data-room-id="${esc(r.id)}" aria-label="Move ${esc(r.title)}" title="Drag to reorder ${esc(r.title)}. Click for move options."><svg viewBox="0 0 10 16" width="8" height="13" aria-hidden="true"><path d="M3 3h.01M7 3h.01M3 8h.01M7 8h.01M3 13h.01M7 13h.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>` : ""}
+      ${movableRoom(r.id) ? `<button type="button" class="room-grab" data-room-id="${esc(r.id)}" aria-label="Move ${esc(r.title)}" title="Drag to reorder ${esc(r.title)}. Click for move options.">${uiIcon("grip", 14)}</button>` : ""}
       <button type="button" class="room-open" data-room="${esc(r.id)}" title="${esc(r.title)}${r.collapsed ? ": open quiet office" : ""}">
         ${r.icon ? `<img src="${esc(r.icon)}" alt="">` : `<span class="dot ${r.kind}"></span>`}
         <span class="rt">${esc(r.title)}</span><span class="rc">${r.threadIds.length || ""}</span>
@@ -1471,15 +1477,15 @@ function renderThreads(force = false) {
   const presentationOf = (t: typeof list[number]) => threadState(t, reviewOf(t), delegate.phaseOf(t.id) === "reading");
   const stateOf = (t: typeof list[number]) => {
     const state = presentationOf(t);
-    if (!state.label) return `<span class="th-ago">${ago(t.updatedAt)}</span>`;
-    return `<span class="th-st ${state.tone}" title="${esc(state.detail || state.label)}">${state.tone === 'done' ? '<svg class="th-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>' : state.tone ? '<i aria-hidden="true"></i>' : ''}${esc(state.label)}${state.since ? ` ${ago(state.since)}` : ''}</span>`;
+    return state.tone ? statusBadge(state.tone, { detail: state.detail, suffix: state.since ? ago(state.since) : "", cls: "th-st", size: 13 }) : `<span class="th-ago" title="${esc(state.detail || "")}">${ago(t.updatedAt)}</span>`;
   };
   const dotOf = (t: typeof list[number]) => presentationOf(t).tone;
+  const statusAttr = (t: typeof list[number]) => { const s = dotOf(t); return s ? ` data-status="${s}"` : ""; };
   const row = (t: typeof list[number]) => {
     const p = projects.get(t.projectId);
     const proj = !p || p.scratch ? "No project" : p.title;
     const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
-    if (t.settled) return `<li><button type="button" class="th-row th-settled-row" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${world.roster.byThread(t.id) ? `
+    if (t.settled) return `<li><button type="button" class="th-row th-settled-row" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${world.roster.byThread(t.id) ? `
 ${world.roster.byThread(t.id)!.name}` : ""}`)}">${icon}<span class="th-settled-title">${esc(t.title || "Untitled")}${snippetOf(t) ? `<span class="th-snippet">${esc(snippetOf(t))}</span>` : ""}</span><span class="th-ago">${ago(t.updatedAt)}</span></button></li>`;
     // T3's row, one line each: project (logo and name) with the state, the title, then the
     // worker, model and branch with the harness logo. Nothing wraps; the tooltip has it all.
@@ -1490,9 +1496,9 @@ ${world.roster.byThread(t.id)!.name}` : ""}`)}">${icon}<span class="th-settled-t
     const ready = collectible(t.id, true);
     const busy = collectingWork.has(t.id);
     const label = ready?.coins ? `Settle & collect ${ready.coins} coins` : 'Settle session';
-    const collect = ready ? `<button type="button" class="th-collect" data-collect-id="${esc(t.id)}" title="${esc(label)}" aria-label="${esc(`${label}: ${t.title || 'Untitled'}`)}"${busy ? ' disabled aria-busy="true"' : ''}><svg class="th-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg> ${busy ? 'Settling…' : 'Settle'}</button>${sidebarCollectErrors.has(t.id) ? `<p class="th-collect-error" role="status">${esc(sidebarCollectErrors.get(t.id)!)}</p>` : ''}` : '';
+    const collect = ready ? `<button type="button" class="th-collect" data-collect-id="${esc(t.id)}" title="${esc(label)}" aria-label="${esc(`${label}: ${t.title || 'Untitled'}`)}"${busy ? ' disabled aria-busy="true"' : ''}>${uiIcon("check", 14)} ${busy ? 'Settling…' : 'Settle'}</button>${sidebarCollectErrors.has(t.id) ? `<p class="th-collect-error" role="status">${esc(sidebarCollectErrors.get(t.id)!)}</p>` : ''}` : '';
     const sel = t.id === chat.threadId ? " sel" : "";
-    return `<li class="th-entry${ready ? ' th-can-collect' : ''}"><button type="button" class="th-row th-worker th-t3${t.runStatus === "running" ? " on" : ""}${sel}" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${robot ? `
+    return `<li class="th-entry${ready ? ' th-can-collect' : ''}"><button type="button" class="th-row th-worker th-t3${t.runStatus === "running" ? " on" : ""}${sel}"${statusAttr(t)} data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${robot ? `
 ${robot.name}${t.model ? `, ${t.model}` : ""}` : ""}${t.branch ? `
 ${t.branch}` : ""}`)}">
       <span class="th-text">
@@ -1643,10 +1649,10 @@ function renderRail() {
     const { tone: st, label: said } = threadState(t, review, delegate.phaseOf(t.id) === "reading");
     const logo = logoFor(t.provider);
     const name = `${t.pinned ? "Pinned, " : ""}${t.title}, ${proj}${said ? `, ${said}` : ""}`;
-    return `<li><button type="button" class="rail-th${t.id === chat.threadId ? " cur" : ""}" data-state="${st}" data-id="${esc(t.id)}" aria-label="${esc(name)}" title="${esc(`${t.title}
+    return `<li><button type="button" class="rail-th${t.id === chat.threadId ? " cur" : ""}"${st ? ` data-status="${st}"` : ""} data-id="${esc(t.id)}" aria-label="${esc(name)}" title="${esc(`${t.title}
 ${proj}${said ? ` · ${said[0].toUpperCase()}${said.slice(1)}` : ""}`)}">`
       + (logo ? `<img src="${logo}" alt="">` : `<span class="rail-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`)
-      + (st ? `<i class="rail-st ${st}" aria-hidden="true"></i>` : "") + `</button></li>`;
+      + (st ? `<i class="rail-st" aria-hidden="true"></i>` : "") + `</button></li>`;
   }).join("");
   if (html === railSig) return;
   railSig = html;

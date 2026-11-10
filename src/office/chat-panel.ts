@@ -1,4 +1,6 @@
 import type { ThreadState } from "./thread-state";
+import { statusIcon } from "../ui/status";
+import { icon } from "../ui/icons";
 import { ChatPromptContext } from "./chat-prompt";
 import "./chat-prompt.css";
 import { watchLucidMedia } from "./media-player";
@@ -87,15 +89,15 @@ function carryOptions(m: T3Model | undefined, prev: Record<string, OptionValue>)
   return out;
 }
 const ordLabel = (n: number) => (n === 1 ? "next" : `${n}${n === 2 ? "nd" : n === 3 ? "rd" : "th"}`);
-const CHEVRON = `<svg viewBox="0 0 10 10" width="9" height="9" aria-hidden="true"><path d="M2 3.8l3 3 3-3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const CHEVRON = icon("chevronDown", 12);
 const ICON = {
-  up: `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 10l4-4 4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  down: `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  edit: `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M10.5 3.5l2 2L6 12H4v-2l6.5-6.5z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></svg>`,
-  steer: `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 4.5v3a2 2 0 0 0 2 2h7.5M9.5 6.5l3 3-3 3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  remove: `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M4 4l8 8m0-8l-8 8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`,
-  grip: `<svg viewBox="0 0 10 16" width="8" height="13" aria-hidden="true"><g fill="currentColor"><circle cx="3" cy="3.5" r="1.2"/><circle cx="7" cy="3.5" r="1.2"/><circle cx="3" cy="8" r="1.2"/><circle cx="7" cy="8" r="1.2"/><circle cx="3" cy="12.5" r="1.2"/><circle cx="7" cy="12.5" r="1.2"/></g></svg>`,
-  check: `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  up: icon("chevronUp", 14),
+  down: icon("chevronDown", 14),
+  edit: icon("edit", 14),
+  steer: icon("steer", 14),
+  remove: icon("close", 14),
+  grip: icon("grip", 14),
+  check: icon("check", 14),
 };
 
 const HINT = "Enter to send, Shift+Enter for a new line";
@@ -115,6 +117,8 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 // file paths show as file chips). Everything goes through DOMPurify.
 const FENCE: Record<string, string> = { ts: "c", tsx: "c", js: "c", jsx: "c", typescript: "c", javascript: "c", rust: "c", go: "c", java: "c", c: "c", cpp: "c", cs: "c", py: "hash", python: "hash", sh: "hash", bash: "hash", shell: "hash", powershell: "hash", ps1: "hash", yaml: "hash", yml: "hash", toml: "hash", json: "json", html: "markup", xml: "markup", svg: "markup", css: "css", scss: "css", md: "text", markdown: "text", text: "text", txt: "text" };
 const mdParser = new Marked({ gfm: true, breaks: true });
+/** Soft wrap points after path separators, in text only (never inside tags or attributes). */
+const wrapPaths = (html: string) => html.replace(/(^|>)([^<]+)/g, (_m, edge: string, text: string) => edge + text.replace(/([/\\])(?=[^\s/\\])/g, "$1<wbr>"));
 mdParser.use({
   extensions: [{ name: "t3thread", level: "inline", start: (text: string) => text.indexOf("t3-thread://"),
     tokenizer(text: string) { const match = /^t3-thread:\/\/v2\/[a-z0-9-]+\/[^\s<>`]+/i.exec(text); if (!match) return; const raw = match[0].replace(/[.,;!]+$/, ""); return parseThreadReference(raw) ? { type: "t3thread", raw, href: raw } : undefined; },
@@ -136,9 +140,11 @@ mdParser.use({
       if (/^(https?:|mailto:)/i.test(href)) return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${inner}</a>`;
       return inlineChatFile(href, tokens.map((t: any) => t.text ?? "").join("") || href);
     },
+    // Cells never break words; long paths may wrap after their slashes. GFM column alignment is kept.
     table(this: any, token: any) {
-      const head = token.header.map((c: any) => `<th>${this.parser.parseInline(c.tokens)}</th>`).join("");
-      const rows = token.rows.map((r: any[]) => `<tr>${r.map((c) => `<td>${this.parser.parseInline(c.tokens)}</td>`).join("")}</tr>`).join("");
+      const cell = (tag: string, c: any, i: number) => `<${tag}${token.align?.[i] ? ` style="text-align:${token.align[i]}"` : ""}>${wrapPaths(this.parser.parseInline(c.tokens))}</${tag}>`;
+      const head = token.header.map((c: any, i: number) => cell("th", c, i)).join("");
+      const rows = token.rows.map((r: any[]) => `<tr>${r.map((c, i) => cell("td", c, i)).join("")}</tr>`).join("");
       return `<div class="md-table"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
     },
   },
@@ -241,7 +247,7 @@ export class ChatPanel {
       return `<div class="cp-chip cp-refchip${i < 0 ? " preview" : ""}" data-ref="${esc(r.id)}" title="${esc(`${r.title}\n${r.project}`)}">`
         + `<span class="cpc-ref">${logo ? `<img src="${logo}" alt="">` : ""}</span>`
         + `<span class="cpc-two"><span class="cpc-proj">${esc(r.project)}</span><span class="cpc-name">${esc(r.title)}</span></span>`
-        + (i < 0 ? "" : `<button type="button" data-rmref="${i}" aria-label="Remove reference to ${esc(r.title)}" title="Remove reference">&times;</button>`) + `</div>`;
+        + (i < 0 ? "" : `<button type="button" data-rmref="${i}" aria-label="Remove reference to ${esc(r.title)}" title="Remove reference">${icon("close", 12)}</button>`) + `</div>`;
     };
     box.innerHTML = this.refs.map(refChip).join("") + (preview ? refChip(preview, -1) : "") + this.files.map((f, i) => {
       let thumb = "";
@@ -249,7 +255,7 @@ export class ChatPanel {
         if (!this.previews.has(f)) this.previews.set(f, URL.createObjectURL(f));
         thumb = `<img src="${this.previews.get(f)}" alt="">`;
       } else thumb = `<span class="cpc-ext">${esc((f.name.split(".").pop() || "file").slice(0, 4).toUpperCase())}</span>`;
-      return `<div class="cp-chip"><button type="button" class="cp-file-preview" data-preview-file="${i}" aria-label="Preview ${esc(f.name)}">${thumb}<span class="cpc-name" title="${esc(f.name)}">${esc(f.name)}</span></button><button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">&times;</button></div>`;
+      return `<div class="cp-chip"><button type="button" class="cp-file-preview" data-preview-file="${i}" aria-label="Preview ${esc(f.name)}">${thumb}<span class="cpc-name" title="${esc(f.name)}">${esc(f.name)}</span></button><button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">${icon("close", 12)}</button></div>`;
     }).join("");
   }
 
@@ -427,10 +433,10 @@ export class ChatPanel {
       <header class="cp-head">
         <img class="cp-logo" alt="">
         <div class="cp-who"><b></b><span></span></div>
-        <button type="button" class="cp-view cp-icon" aria-label="Look at the screen" title="Look at the screen"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="2" y="2.5" width="12" height="8.5" rx="1.6" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M6 13.5h4M8 11v2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+        <button type="button" class="cp-view cp-icon" aria-label="Look at the screen" title="Look at the screen">${icon("screen")}</button>
         <button type="button" class="cp-pin cp-icon pin-btn" aria-pressed="true">${PIN_ICON}</button>
-        <button type="button" class="cp-hide cp-icon" aria-expanded="true" aria-label="Hide chat" title="Hide the chat for more room. It stays as a tab on the right edge."><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M6.5 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 2.5v11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
-        <button type="button" class="cp-close" aria-label="Back to the office" title="Back to the office (Esc)"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+        <button type="button" class="cp-hide cp-icon" aria-expanded="true" aria-label="Hide chat" title="Hide the chat for more room. It stays as a tab on the right edge.">${icon("chatHide")}</button>
+        <button type="button" class="cp-close" aria-label="Back to the office" title="Back to the office (Esc)">${icon("fullscreenExit")}</button>
       </header>
       <div class="cp-sub"><p class="cp-status" aria-live="polite"><i></i><span></span></p></div>
       <details class="cp-plan" hidden><summary>Plan</summary><ol></ol></details>
@@ -451,9 +457,9 @@ export class ChatPanel {
           <div class="cp-chips" hidden></div>
           <textarea rows="1" placeholder="Message this robot" aria-label="Message"></textarea>
           <div class="cp-tools">
-            <button type="button" class="cp-attach" aria-label="Attach files or images" title="Attach files or images (you can also paste or drop them)"><svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="M13.5 6.5l-5.6 5.6a1.6 1.6 0 0 0 2.3 2.3l6-6a3.2 3.2 0 0 0-4.5-4.5l-6.2 6.2a4.8 4.8 0 0 0 6.8 6.8l5-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" class="cp-attach" aria-label="Attach files or images" title="Attach files or images (you can also paste or drop them)">${icon("attach", 18)}</button>
             <span class="cp-hint">${HINT}</span>
-            <button type="submit" class="cp-send" aria-label="Send"><span>Send</span><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="submit" class="cp-send" aria-label="Send"><span>Send</span>${icon("send", 14)}</button>
           </div>
           <input type="file" class="cp-fileinput" multiple hidden>
         </div>
@@ -482,7 +488,7 @@ export class ChatPanel {
     this.tab.setAttribute("aria-expanded", "false");
     this.tab.setAttribute("aria-label", "Show chat");
     this.tab.title = "Show the chat";
-    this.tab.innerHTML = `<svg class="cp-rail-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5H9l-5.5 4V6A1.5 1.5 0 0 1 5 4.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 9h8M8 13h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><img alt="" hidden><span>Chat</span><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    this.tab.innerHTML = `${icon("chat", 20, { cls: "cp-rail-icon" })}<img alt="" hidden><span>Chat</span>${icon("chatShow", 16)}`;
     host.appendChild(this.tab);
     this.tab.addEventListener("click", () => this.setCollapsed(false));
     this.tab.title = "Choose a thread to chat";
@@ -791,7 +797,9 @@ export class ChatPanel {
   setStatus(text: string, state: "working" | "idle" | "waiting") {
     const p = this.el.querySelector(".cp-status") as HTMLElement;
     p.dataset.state = state;
-    delete p.dataset.tone;
+    delete p.dataset.status;
+    const mark = p.querySelector("i")!;
+    if (mark.dataset.icon) { mark.dataset.icon = ""; mark.innerHTML = ""; }
     p.title = "";
     const send = this.el.querySelector(".cp-send span") as HTMLElement;
     send.textContent = state === "working" ? "Queue" : "Send";
@@ -802,11 +810,14 @@ export class ChatPanel {
 
   /** Real task status takes precedence over the robot's fictional leisure activity. */
   setThreadStatus(status: ThreadState) {
-    const busy = status.label === "Working" || status.tone === "queued";
-    this.setStatus(status.label || "Idle", busy ? "working" : status.tone === "ask" || status.tone === "review" ? "waiting" : "idle");
+    // the shared word, then why in quieter text ("Needs you · Run failed")
+    const said = status.label ? (status.detail ? `${status.label} · ${status.detail}` : status.label) : status.detail || "Idle";
+    this.setStatus(said, status.run ? "working" : status.tone === "needs" ? "waiting" : "idle");
     const p = this.el.querySelector<HTMLElement>(".cp-status")!;
-    p.dataset.tone = status.tone;
-    p.title = status.detail || status.label || "Idle";
+    if (status.tone) p.dataset.status = status.tone; else delete p.dataset.status;
+    const mark = p.querySelector("i")!;
+    if (mark.dataset.icon !== (status.tone || "")) { mark.dataset.icon = status.tone || ""; mark.innerHTML = status.tone ? statusIcon(status.tone) : ""; }
+    p.title = said;
   }
 
   // "Bolt is typing" with bouncing dots, at the bottom of the conversation

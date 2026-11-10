@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { gameSound } from "./sound";
 import "./new-project.css";
+import { icon } from "../ui/icons";
 
 // New project: make a fresh folder in T3 Projects, or add a folder that already exists.
 // The office for it appears as soon as T3 registers it. Opened from the sidebar.
@@ -18,7 +19,7 @@ export function openNewProject(api: NewProjectApi, opts: { onDone: (title: strin
   const wrap = document.createElement("div");
   wrap.className = "dialog-wrap";
   wrap.innerHTML = `<form class="dialog new-project" role="dialog" aria-modal="true" aria-labelledby="np-title">
-    <header class="np-head"><h2 id="np-title">New project</h2><button type="button" class="ghost np-close" aria-label="Close">×</button></header>
+    <header class="np-head"><h2 id="np-title">New project</h2><button type="button" class="ghost np-close" aria-label="Close">${icon("close")}</button></header>
     <label class="np-field"><span>Name</span><input type="text" class="np-name" maxlength="60" autocomplete="off" placeholder="My new project" required></label>
     <fieldset class="np-where"><legend>Folder</legend>
       <label class="np-choice"><input type="radio" name="np-where" value="new" checked><span>Create a new folder</span></label>

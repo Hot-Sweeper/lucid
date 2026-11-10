@@ -14,7 +14,7 @@ Baseline for this pass: `1ef6115ada23caf8ead6ae0254386761cd028734`, which alread
 - Static posters and video thumbnails are built only when visible, at most one queued image per frame. Existing art caches are reused. Layout containment isolates desks, rooms and robot hosts; it does not clip their overlays.
 - The scenery renderer retains two recently used sharp viewport crops, in addition to the current crop and small overview. Backtracking can reuse pixels instead of decoding and rasterizing the same SVG again. Cache storage is bounded, stale jobs do not replace a usable crop, and source replacement releases the history. This trades up to two extra viewport buffers for fewer pan hitches.
 - Window placement now uses coordinates owned by the window manager, avoiding repeated offset geometry reads after writes. Fully covered windows stop drawing and resume on focus or movement. Cursor setters are reused, invisible typing avoids intermediate DOM updates, and workstation clock timers are destroyed with their desks.
-- Chat compares source content before Markdown parsing. Unchanged polls parse zero messages, same-length edits and attachment changes still update, and polling preserves scroll position. Unchanged project labels and add-desk controls retain their DOM nodes. The chat layout and sidebar resizing are unchanged.
+- Chat compares source content before Markdown parsing. Unchanged polls parse zero messages, same-length edits and attachment changes still update, and polling preserves scroll position. Unchanged project labels and Add a desk placeholders retain their DOM nodes. The chat layout and sidebar resizing are unchanged.
 
 ## Native benchmark
 

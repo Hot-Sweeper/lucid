@@ -36,7 +36,21 @@ A robot is a permanent **worker**. A desk is one **job**, which is one T3 thread
 
 ## Desk places
 
-Desk k in a room is reservation k (`src/office/room-policy.ts`). The places follow a snake: the first row goes left to right, the second right to left, and subsequent rows alternate. Removing a desk closes its gap by shifting every later workstation forward in the same order, including running work, questions and pinned threads. Existing desk objects, sessions, reports and drafts stay mounted. A launch that has only a temporary reservation holds compaction until its thread is known. Room capacity trims at the empty tail; deliberate extra capacity remains available. Placement, drag targets, add-desk controls and decoration footprints share the same snake coordinates.
+Desk k in a room is reservation k (`src/office/room-policy.ts`). The places follow a snake: the first row goes left to right, the second right to left, and subsequent rows alternate. Removing a desk closes its gap by shifting every later workstation forward in the same order, including running work, questions and pinned threads. Existing desk objects, sessions, reports and drafts stay mounted. A launch that has only a temporary reservation holds compaction until its thread is known. Room capacity trims at the empty tail; deliberate extra capacity remains available. Placement, drag targets, the Add a desk placeholder and decoration footprints share the same snake coordinates.
+
+### Adding a desk
+
+Desks are real furniture only. `projectRoomSeats` makes one physical desk per reservation up to the last occupied one, plus the spare desks added by hand (`extra`). The rest of a partly filled row is bare floor, not a vacant desk.
+
+An open office shows exactly one faint ghost desk, the Add a desk placeholder, when every desk in it is taken (`addDeskPlace` in `src/office/room-policy.ts`). It stands at the next place of the snake:
+
+- An empty office shows it at place 0, so the first desk can always be added.
+- In a partly filled row it takes the free spot right after the last desk.
+- When the last row is full, the snake turns: the placeholder stands directly below the row's last desk (at the right end after a left to right row, at the left end after a right to left row), and the room is sized to hold that row.
+
+A vacant desk already offers a place to start work, so no placeholder appears while one exists, and folded offices show none. The floor reserves the placeholder's place like a desk: decorations keep clear of it, walkers route around it, and adding through it does not resize the room. Width changes move it with the snake.
+
+Pressing it (click, Enter or Space) runs the same add path as before (`world.onAddDesk` in `src/main.ts`): it keeps the saved layout and reservations and uses the safe floor-plan transition. The new vacant desk assembles where the ghost stood (the desk top drops in, the monitor rises, about 370 ms) with the shared `build` cue. Repeat presses are ignored until that desk stands. Reduced motion shows the desk at once; the cue still plays.
 
 
 ## Job lifecycle

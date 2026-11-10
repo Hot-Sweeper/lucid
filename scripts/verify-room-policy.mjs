@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 const load = async (name) => { const source = await transformWithOxc(await readFile(new URL(`../src/office/${name}.ts`, import.meta.url), 'utf8'), `${name}.ts`); return import('data:text/javascript;base64,' + Buffer.from(source.code).toString('base64')); };
-const { hasOfficeWork, reserveRoomSeats, snakeSeat, projectRoomSeats, reorderPhysicalSeats, physicalSeatIndices, layoutMeeting, layoutWaitingSpots, layoutClearAt, layoutSafeAt, FOLDED_OFFICE } = await load('room-policy');
+const { hasOfficeWork, reserveRoomSeats, snakeSeat, projectRoomSeats, reorderPhysicalSeats, physicalSeatIndices, layoutMeeting, layoutWaitingSpots, layoutClearAt, layoutSafeAt, addDeskPlace, FOLDED_OFFICE } = await load('room-policy');
 const { officePlan, hallRoute, inHall } = await load('floor-plan');
 const { hasOfficeDesk } = await load('room-policy');
 const settledWorker = { id: 'settled', runStatus: 'completed', settled: true };
@@ -66,6 +66,21 @@ assert.deepEqual(reserveRoomSeats(['quiet', 'busy'], [{ id: 'quiet', runStatus: 
 const reordered = reorderPhysicalSeats(reservations, [null, null, 'b'], ['b', null, null]);
 assert.deepEqual(projectRoomSeats(reordered, working, false, null).threads.map((t) => t?.id ?? null), ['b', null, null, 'a', null, 'c'], 'dragging moves only the dragged desks');
 assert.deepEqual(physicalSeatIndices(['old', 'a'], [null, null, null]), [0, 1, 2], 'physical desk k is reservation k');
+// One Add a desk placeholder, at the next snake place, only while every desk is taken.
+{
+  const busy = (...ids) => ids.map(id => ({ id, runStatus: 'running' }));
+  assert.equal(addDeskPlace(projectRoomSeats([], [], true, null).threads), 0, 'an empty office offers its first desk at place 0');
+  assert.equal(addDeskPlace(projectRoomSeats(['a', 'b'], busy('a', 'b'), true, null).threads), 2, 'a full office offers the next place');
+  assert.equal(addDeskPlace(projectRoomSeats(['a'], busy('a'), true, null, 1).threads), null, 'a vacant spare desk makes the placeholder redundant');
+  assert.equal(addDeskPlace(projectRoomSeats([], [], true, null, 1).threads), null, 'an empty office with a spare desk needs no placeholder');
+  assert.equal(addDeskPlace([busy('a')[0], null, busy('c')[0]]), null, 'a held gap is a vacant desk too');
+  assert.equal(addDeskPlace(projectRoomSeats(['a'], busy('a'), false, null, 0, true).threads, true), null, 'folded offices show no placeholder');
+  // Partly filled rows continue after the last desk; a full row turns the snake under its own end.
+  assert.deepEqual(snakeSeat(addDeskPlace(busy('a', 'b')), 3), { c: 2, row: 0 });
+  assert.deepEqual(snakeSeat(addDeskPlace(busy('a', 'b', 'c')), 3), { c: 2, row: 1 }, 'below the end of a left to right row');
+  assert.deepEqual(snakeSeat(addDeskPlace(busy('a', 'b', 'c', 'd', 'e', 'f')), 3), { c: 0, row: 2 }, 'below the end of a right to left row');
+  assert.deepEqual(snakeSeat(addDeskPlace(busy('a')), 1), { c: 0, row: 1 }, 'a one column office grows the placeholder below its last desk');
+}
 
 let routes = 0;
 const previousFloor = officePlan([{ id: 'main', w: 1380, h: 800 }], [{ id: 'a', w: 960, h: 580 }]);
