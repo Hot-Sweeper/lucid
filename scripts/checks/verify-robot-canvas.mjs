@@ -1,4 +1,4 @@
-// Canvas robots (src/world/robot-canvas.ts): SVG transforms become the same matrices the
+// Canvas robots (src/robot/render/canvas.ts): SVG transforms become the same matrices the
 // browser would use, robot colors resolve through nested var() fallbacks, and the zoom switch
 // can be turned off.
 import fs from 'node:fs/promises';
@@ -23,7 +23,7 @@ class M {
 }
 globalThis.DOMMatrix = M;
 
-let source = await fs.readFile(new URL('../../src/world/robot-canvas.ts', import.meta.url), 'utf8');
+let source = await fs.readFile(new URL('../../src/robot/render/canvas.ts', import.meta.url), 'utf8');
 source = source.replace(/^import .*$/gm, '').replace(/^/, 'const pixelRatioBucket = (x: number) => x; const LOD_PX = { icon: 190 }; const monitorPx = (s: number) => 276 * s;\n');
 const { code } = await transformWithOxc(source, 'robot-canvas.ts');
 const mod = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));

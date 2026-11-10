@@ -10,8 +10,8 @@
 // the robot's own SVG once (shared between robots that look alike); parts whose shape changes
 // every frame (arm strokes, contact shadows, chair spokes) are drawn as vector shapes. Close up,
 // the real SVG is shown again.
-import { pixelRatioBucket } from "../perf/render";
-import { LOD_PX, monitorPx } from "../perf/lod";
+import { pixelRatioBucket } from "../../perf/render";
+import { LOD_PX, monitorPx } from "../../perf/lod";
 
 const NS = "http://www.w3.org/2000/svg";
 /** Space around the robot's box that its arms and props may reach into (SVG units). */

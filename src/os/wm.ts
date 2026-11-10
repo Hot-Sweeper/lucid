@@ -2,7 +2,7 @@ import gsap from "gsap";
 import "./monitor-cover.css";
 import { uiText, onLocaleChange } from "../localization";
 import { localizeGameDOM } from "../localization-dom";
-import type { SeatedRobot as Robot } from "../office/rig";
+import type { SeatedRobot as Robot } from "../robot/rig";
 const SCREEN = { w: 820, h: 461 };
 import { ICONS } from "./icons";
 import { wakeRender, renderFps } from "../perf/render";
@@ -68,7 +68,7 @@ export class WM {
   cursorEl: HTMLElement;
   wins = new Map<AppId, Win>();
   onCursor?: (x: number, y: number) => void;
-  private _prefs: import("../office/roster").Prefs | null = null;
+  private _prefs: import("../robot/roster").Prefs | null = null;
   get prefs() { return this._prefs; }
   set prefs(p) { this._prefs = p; if (this.dock) this.renderDock(false); }
   robotName = "unit";

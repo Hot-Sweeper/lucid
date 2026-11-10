@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { Walker, type Facing } from "./walker";
+import { Walker, type Facing } from "../robot/walker/walker";
 import { PAL, RoomStage, WALL, plantSvg, posterArt, windowArt } from "./room";
 import type { BreakThread, RoomExtension } from "./breakroom";
 import { Boss, type BossInfo } from "./boss";

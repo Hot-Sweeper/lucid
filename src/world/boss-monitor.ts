@@ -1,8 +1,8 @@
 import { Director, type Item, type ThreadInfo } from "../director";
 import { WM } from "../os/wm";
-import { DeferredRobot } from "../perf/deferred-robot";
+import { DeferredRobot } from "../robot/render/deferred";
 import { setRenderView, releaseRenderView } from "../perf/render";
-import { logoFor } from "../office/brand";
+import { logoFor } from "../robot/brand";
 import type { BossInfo } from "./boss";
 import "./boss-monitor.css";
 

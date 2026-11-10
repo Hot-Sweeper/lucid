@@ -1,4 +1,4 @@
-import type { AccessoryKind, Build, EyeStyle, Expression, HatKind, RobotLook, StickerKind, Tint } from "../office/rig";
+import type { AccessoryKind, Build, EyeStyle, Expression, HatKind, RobotLook, StickerKind, Tint } from "./rig";
 
 // Robot customisation shared by every robot drawing: the desk robot (seated.ts), the hiring
 // portraits, the customize dialog and, later, the walker. Everything is drawn in the v0 robot

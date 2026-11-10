@@ -7,9 +7,9 @@ if (!process.versions.electron) {
     fs.mkdirSync(out, { recursive: true });
     const root = path.resolve('.').replaceAll('\\', '/');
     const entry = path.join(fixture, 'entry.ts');
-    fs.writeFileSync(entry, `import {Walker} from '${root}/src/world/walker';
-import {TopDownRobot} from '${root}/src/world/seated';
-import {modelStickerKind} from '${root}/src/world/model-sticker';
+    fs.writeFileSync(entry, `import {Walker} from '${root}/src/robot/walker/walker';
+import {TopDownRobot} from '${root}/src/robot/seated/robot';
+import {modelStickerKind} from '${root}/src/robot/art/model-sticker';
 import '${root}/src/world/world.css';
 window.review={Walker,TopDownRobot,modelStickerKind};`);
     await (await import('vite')).build({ configFile: false, logLevel: 'error', build: { outDir: fixture, emptyOutDir: false, lib: { entry, name: 'Review', formats: ['iife'], fileName: () => 'fixture.js', cssFileName: 'fixture' } } });

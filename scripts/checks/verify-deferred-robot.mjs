@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {transformWithOxc} from 'vite';
-const result=await transformWithOxc(await fs.readFile(new URL('../../src/perf/deferred-robot.ts',import.meta.url),'utf8'),'deferred-robot.ts');
+const result=await transformWithOxc(await fs.readFile(new URL('../../src/robot/render/deferred.ts',import.meta.url),'utf8'),'deferred-robot.ts');
 const {DeferredRobot}=await import('data:text/javascript;base64,'+Buffer.from(result.code).toString('base64'));
 let created=0,active=0,destroyed=0;const calls=[];
 const host={empty:true};

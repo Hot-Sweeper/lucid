@@ -7,7 +7,7 @@ if (!process.versions.electron) {
     fs.writeFileSync(entry, [
       "import '" + root + "/node_modules/@fontsource-variable/lexend/index.css';",
       ...['src/styles.css','src/office/office.css','src/os/os.css'].filter(p => fs.existsSync(p)).map(p => "import '" + root + '/' + p + "';"),
-      ...[['WM','src/os/wm.ts'],['Director','src/director.ts'],['T3CodeApp','src/harness/t3code.ts'],['Roster,chatAppFor','src/office/roster.ts'],['setRenderView','src/perf/render.ts']].map(([n,p]) => 'import {'+n+"} from '"+root+'/'+p+"';"),
+      ...[['WM','src/os/wm.ts'],['Director','src/director.ts'],['T3CodeApp','src/harness/t3code.ts'],['Roster,chatAppFor','src/robot/roster.ts'],['setRenderView','src/perf/render.ts']].map(([n,p]) => 'import {'+n+"} from '"+root+'/'+p+"';"),
       'window.review={WM,Director,T3CodeApp,Roster,chatAppFor,setRenderView};'
     ].join('\n'));
     await (await import('vite')).build({configFile:false,logLevel:'error',build:{outDir:folder,emptyOutDir:false,lib:{entry,name:'Review',formats:['iife'],fileName:()=> 'test.js',cssFileName:'test'}}});

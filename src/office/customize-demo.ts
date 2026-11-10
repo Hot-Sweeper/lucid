@@ -5,8 +5,8 @@ import "./office.css";
 import "../world/world.css";
 import { openCustomize } from "./customize";
 import { openHire, BUILTIN_ROLES } from "./hire";
-import { Roster } from "./roster";
-import { randomLook, seeded } from "../world/look";
+import { Roster } from "../robot/roster";
+import { randomLook, seeded } from "../robot/look";
 
 // Customize dialog test bench. URL params:
 //   dialog=customize|hire     which dialog opens

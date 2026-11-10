@@ -90,7 +90,7 @@ Orchestrator settings, Take the chair (`src/office/chair.ts`). The AI orchestrat
 
 ## Personas and generated text
 
-- `src/office/persona.ts` writes each worker's persona from its hire preferences (hobby, apps, editor, windows, launch and switching habits, git, music, notes, games, socials) plus approved work only. Approvals are recorded once per paper (`Roster.recordApproval`).
+- `src/robot/persona.ts` writes each worker's persona from its hire preferences (hobby, apps, editor, windows, launch and switching habits, git, music, notes, games, socials) plus approved work only. Approvals are recorded once per paper (`Roster.recordApproval`).
 - `electron/daily-writer.cjs` saves the persona files to the app data folder (`daily/personas/`, next to `daily/dialogs.json`) and once a day asks the headless writer (`electron/headless-writer.cjs`) to read them one after another and write conversations, per-robot lines, CEO lines, gossip, Botcord messages, Tube titles and the day's event in the current language. The writer runs an installed harness CLI headlessly (Codex `codex exec` or Claude Code `claude -p`, T3's text generation model when its CLI is installed, otherwise the cheapest default), with no tools, no MCP servers, no saved session and a strict timeout. It never creates a T3 thread.
 - A pack written in the current language is shown as written; others go through the existing localization. Office & tools, Rewrite robot lines regenerates on demand, for example after a language change.
 

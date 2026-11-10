@@ -2,7 +2,7 @@
 // syllables whose vowel color, consonant hiss and melody follow the actual letters, so a line
 // "sounds like" what is written. Every robot keeps one voice wherever it appears, derived
 // from its persistent name, its harness family and its head size.
-import { gameSound, type SoundMix } from './sound';
+import { gameSound, type SoundMix } from '../office/sound';
 import { brandFor, type BrandKind } from './brand';
 
 export type VoiceProfile = {

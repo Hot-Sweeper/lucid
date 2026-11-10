@@ -1,10 +1,10 @@
 import gsap from "gsap";
-import { Walker } from "../world/walker";
+import { Walker } from "../robot/walker/walker";
 import { fileUrl } from "./chat-panel";
 import { reportMarkdown } from "./report";
-import { harnessName } from "./brand";
+import { harnessName } from "../robot/brand";
 import { gameSound } from "./sound";
-import type { RobotProfile } from "./roster";
+import type { RobotProfile } from "../robot/roster";
 import "./chair.css";
 
 // The orchestrator's chair. You take its seat behind the review counter: the workers who

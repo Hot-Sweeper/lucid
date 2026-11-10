@@ -15,7 +15,7 @@ import { IdleLife } from "./os/idle";
 import { HarnessApp, harnessKind, THEMES, type HarnessSession, type SubagentEvent } from "./harness/harness";
 import { fileUrl } from "./office/chat-panel";
 import { UacPrompt } from "./os/uac";
-import { harnessName } from "./office/brand";
+import { harnessName } from "./robot/brand";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, toolActivity } from "./os/apps";
 import { StudioApp } from "./os/studio";
 import { findUpload, ToolViewWatch } from "./os/tool-view";
@@ -34,7 +34,7 @@ import { GitDeskApp, type DeskFile } from "./os/gitdesk";
 import { gitPlan, gitFacts, isGitWork, type GitPlan, type GitStep, type GitFacts } from "./os/git";
 import { cleanQuery, hostOf, type Result } from "./os/sites";
 import type { PrInfo } from "./os/browser";
-import type { SeatedRobot as Robot } from "./office/rig";
+import type { SeatedRobot as Robot } from "./robot/rig";
 import type { DeskStage as Stage } from "./office/desk";
 import { OfficeSuite, OFFICE_GLOW, officeActivity, officeKind, officeTargets, resolveIn } from "./office-apps";
 

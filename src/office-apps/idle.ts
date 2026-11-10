@@ -7,7 +7,7 @@ import { Slidedeck } from "./slidedeck";
 import type { DeckDoc, SheetDoc, WordDoc, Cell, Slide } from "./model";
 import "./office.css";
 
-import type { OfficeTaste } from "../office/roster";
+import type { OfficeTaste } from "../robot/roster";
 export type { OfficeTaste };
 
 const n = (v: number): Cell => ({ v: String(v), n: v });

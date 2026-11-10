@@ -9,18 +9,18 @@ if (!process.versions.electron) {
     fs.mkdirSync(out, { recursive: true });
     const src = root.replaceAll('\\', '/');
     const entry = path.join(out, 'entry.ts');
-    fs.writeFileSync(entry, `import {Walker} from '${src}/src/world/walker';
+    fs.writeFileSync(entry, `import {Walker} from '${src}/src/robot/walker/walker';
 import {QuestionLine} from '${src}/src/world/queue';
 import '${src}/node_modules/@fontsource-variable/lexend/index.css';
 import '${src}/src/world/world.css';
 window.review={Walker,QuestionLine};`);
-    const before = Object.fromEntries(['src/world/walker.ts', 'src/world/queue.ts'].map(p => [path.join(root, p).replaceAll('\\','/'), execFileSync('git', ['show', baseline + ':' + p], { cwd: root, encoding: 'utf8' })]));
+    const before = Object.fromEntries(['src/robot/walker/walker.ts', 'src/world/queue.ts'].map(p => [path.join(root, p).replaceAll('\\','/'), execFileSync('git', ['show', baseline + ':' + p], { cwd: root, encoding: 'utf8' })]));
     for (const mode of ['before', 'after']) {
       const dir = path.join(out, mode);
       await (await import('vite')).build({ configFile: false, logLevel: 'error', plugins: mode === 'before' ? [{ name: 'retained-baseline', enforce: 'pre', load(id) { return before[id.replaceAll('\\', '/')] ?? null; } }] : [], build: { outDir: dir, emptyOutDir: false, lib: { entry, name: 'ReportReview', formats: ['iife'], fileName: () => 'fixture.js', cssFileName: 'fixture' } } });
       fs.writeFileSync(path.join(dir, 'index.html'), `<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"><link rel="stylesheet" href="fixture.css"><style>body{margin:0;background:#b99c7d;color:#332d37;font:16px 'Lexend Variable',sans-serif;--font:'Lexend Variable',sans-serif}#stage{position:relative;width:1080px;height:640px;background:repeating-linear-gradient(0deg,transparent 0 79px,#a98e7130 80px 82px),#b99c7d}.label{position:absolute;top:32px;text-align:center;width:220px;font-size:16px}#queue{position:relative;width:1000px;height:800px}</style><div id="stage"></div><div id="queue" hidden></div><script src="fixture.js"></script>`);
     }
-    fs.writeFileSync(path.join(out, 'provenance.json'), JSON.stringify({ baselineCommit: baseline, baseline: 'Retained production components rebuilt in the same isolated fixture, not an installed-app capture.', source: Object.fromEntries(['src/world/walker.ts','src/world/queue.ts'].map(p=>[p,hash(path.join(root,p))])), bundles: Object.fromEntries(['before','after'].map(m=>[m,hash(path.join(out,m,'fixture.js'))])) }, null, 2));
+    fs.writeFileSync(path.join(out, 'provenance.json'), JSON.stringify({ baselineCommit: baseline, baseline: 'Retained production components rebuilt in the same isolated fixture, not an installed-app capture.', source: Object.fromEntries(['src/robot/walker/walker.ts','src/world/queue.ts'].map(p=>[p,hash(path.join(root,p))])), bundles: Object.fromEntries(['before','after'].map(m=>[m,hash(path.join(out,m,'fixture.js'))])) }, null, 2));
     const env = {...process.env}; delete env.ELECTRON_RUN_AS_NODE;
     spawn(require('electron'),[__filename,out],{env,windowsHide:true,stdio:'inherit'}).on('exit',c=>process.exit(c ?? 1));
   })().catch(e=>{console.error(e);process.exitCode=1;});

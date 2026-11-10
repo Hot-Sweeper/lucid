@@ -2,10 +2,10 @@ import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import gsap from "gsap";
 import "./world.css";
-import { UNIT, type Pose, type RobotLook } from "../office/rig";
-import { TopDownRobot } from "./seated";
+import { UNIT, type Pose, type RobotLook } from "../robot/rig";
+import { TopDownRobot } from "../robot/seated/robot";
 import { DemoDesk } from "./demo-desk";
-import { ACCESSORIES, BUILDS, EYES, HATS, HEAD_SIZES, randomLook, seeded, STICKERS, TINTS } from "./look";
+import { ACCESSORIES, BUILDS, EYES, HATS, HEAD_SIZES, randomLook, seeded, STICKERS, TINTS } from "../robot/look";
 
 // Seated robot test bench. URL params:
 //   scene=play|grid|typing|mouse|phone|drink|notice|celebrate|headphones|think|rest|sleep

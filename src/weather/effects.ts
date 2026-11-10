@@ -1,5 +1,5 @@
 import { diagnosticOff, onDiagnosticsChange } from "../perf/diagnostics";
-import { isCalm, isAsleep, onCalmChange } from "../world/budget";
+import { isCalm, isAsleep, onCalmChange } from "../perf/budget";
 import { outdoorLook } from "./season";
 import { beginSystem, endSystem } from "../perf/metrics";
 import type { Season, Weather, WeatherKind } from "./types";

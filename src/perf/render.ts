@@ -1,5 +1,5 @@
 import { ambientBeat, nextBeat } from "./beat";
-import { isAsleep, onCalmChange } from "../world/budget";
+import { isAsleep, onCalmChange } from "./budget";
 import { diagnosticOff, onDiagnosticsChange } from "./diagnostics";
 import { setScreenDetail, releaseScreenDetail } from "./screen-detail";
 import { beginSystem, endSystem } from "./metrics";

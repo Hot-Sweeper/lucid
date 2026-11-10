@@ -19,7 +19,7 @@ assert.equal(payload.modelSelection.options[1].value, false);
 assert.equal(payload.runtimeMode, 'auto');
 assert.equal(payload.initialMessage.text, request.message);
 assert.deepEqual(payload, launchPayload(request, 'auto'), 'retry reuses the exact command, thread and message identity');
-const rosterSource = require('node:module').stripTypeScriptTypes(fs.readFileSync(require.resolve('../../src/office/roster.ts'), 'utf8'), { mode: 'transform' }).replace(/^import .*;$/gm, '').replace(/export /g, '');
+const rosterSource = require('node:module').stripTypeScriptTypes(fs.readFileSync(require.resolve('../../src/robot/roster.ts'), 'utf8'), { mode: 'transform' }).replace(/^import .*;$/gm, '').replace(/export /g, '');
 const rosterContext = { companionClient: () => false, module: { exports: {} }, brandFor: provider => provider };
 vm.runInNewContext(rosterSource + '\nmodule.exports=Roster;', rosterContext);
 const Roster = rosterContext.module.exports, roster = Object.create(Roster.prototype);

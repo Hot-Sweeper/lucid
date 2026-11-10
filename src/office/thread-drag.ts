@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { logoFor } from "./brand";
+import { logoFor } from "../robot/brand";
 import type { ThreadRef } from "./thread-ref";
 import type { ChatPanel } from "./chat-panel";
 

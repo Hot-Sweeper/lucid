@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { GEOM, UNIT, type DeskRig, type Pt } from "../office/rig";
+import { GEOM, UNIT, type DeskRig, type Pt } from "../robot/rig";
 
 // A stand-in desk for the demo: same geometry, keyboard layout and DeskRig behavior as the
 // real desk in src/office/desk.ts, without the computer behind it.

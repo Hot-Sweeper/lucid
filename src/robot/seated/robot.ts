@@ -1,16 +1,16 @@
-import { ModelSticker } from "./model-sticker";
+import { ModelSticker } from "../art/model-sticker";
 import gsap from "gsap";
-import { batteryWeakness, subscriptionBatteries } from "../office/battery";
-import { prettyModel } from "../harness/themes";
-import { watch, unwatch, drawNow, sinceDraw, finishDraw, cameraScale } from "./budget";
-import { RobotCanvas, canvasRobotsWanted } from "./robot-canvas";
-import { beginSystem, endSystem } from "../perf/metrics";
-import { setSvgAttribute } from "../perf/svg-write";
-import { sharedVector, releaseVectors } from "../perf/shared-vector";
-import { GEOM, PHONE_SCALE, UNIT, type DeskRig, type Expression, type PhoneReaction, type Pose, type Pt, type Reaction, type RobotLook, type SeatedRobot } from "../office/rig";
-import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, solveArm, uid, type BrandKind, type ArmMemo } from "./seated-parts";
-import { accessoryInfo, accessorySvg, blushSvg, BUILD_SHAPE, hatInfo, hatSvg, lookMotion, paintLookColors, resolveLook, stepLookMotion, styledEyes, type FullLook, type LookMotion } from "./look";
-import { tierFor } from "../office/tier";
+import { batteryWeakness, subscriptionBatteries } from "../../office/battery";
+import { prettyModel } from "../../harness/themes";
+import { watch, unwatch, drawNow, sinceDraw, finishDraw, cameraScale } from "../../perf/budget";
+import { RobotCanvas, canvasRobotsWanted } from "../render/canvas";
+import { beginSystem, endSystem } from "../../perf/metrics";
+import { setSvgAttribute } from "../../perf/svg-write";
+import { sharedVector, releaseVectors } from "../../perf/shared-vector";
+import { GEOM, PHONE_SCALE, UNIT, type DeskRig, type Expression, type PhoneReaction, type Pose, type Pt, type Reaction, type RobotLook, type SeatedRobot } from "../rig";
+import { bind, brandFor, clamp, defsSvg, eyesSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, solveArm, uid, type BrandKind, type ArmMemo } from "../art/head";
+import { accessoryInfo, accessorySvg, blushSvg, BUILD_SHAPE, hatInfo, hatSvg, lookMotion, paintLookColors, resolveLook, stepLookMotion, styledEyes, type FullLook, type LookMotion } from "../look";
+import { tierFor } from "../../office/tier";
 
 // The v0 robot, seated on the south side of its desk, seen from behind and above.
 // The head is the original v0 head (v0 coordinates, scaled by S); the body is a slim, tapered

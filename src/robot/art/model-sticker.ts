@@ -1,5 +1,5 @@
-import { gameSound } from "../office/sound";
-import { setSvgAttribute } from "../perf/svg-write";
+import { gameSound } from "../../office/sound";
+import { setSvgAttribute } from "../../perf/svg-write";
 
 /** Model identity is derived from live model data, never persisted as an outfit choice. */
 export function modelStickerKind(model: string | null | undefined) {

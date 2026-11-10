@@ -1,7 +1,7 @@
-import { portraitSvg } from "../world/look";
-import { PALETTES } from "../world/seated-parts";
-import { brandFor } from "./brand";
-import type { RobotLook } from "./rig";
+import { portraitSvg } from "../robot/look";
+import { PALETTES } from "../robot/art/head";
+import { brandFor } from "../robot/brand";
+import type { RobotLook } from "../robot/rig";
 import { icon, type IconName } from "../ui/icons";
 
 export const reportPortrait = (provider: string, look: RobotLook = {}, size = 116) => portraitSvg(look, PALETTES[brandFor(provider)], { size, bust: true, cls: "paper-robot" });

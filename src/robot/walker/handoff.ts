@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { Walker } from "./walker";
-import { line } from "../lines";
+import { line } from "../../lines";
 
 // A handoff: when a thread switches harness, the old robot stands next to the new one and
 // explains the work (gestures and a few speech bubbles) while the new one nods along. A little

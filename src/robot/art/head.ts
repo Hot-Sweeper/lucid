@@ -1,13 +1,13 @@
-import openaiLogo from "../assets/openai.svg";
-import claudeLogo from "../assets/claude.svg";
-import grokLogo from "./assets/grok.svg";
-import opencodeLogo from "../assets/harness/opencode.svg";
-import geminiLogo from "../assets/harness/gemini.svg";
-import antigravityLogo from "../assets/harness/antigravity.svg";
-import museLogo from "../assets/harness/muse.svg";
-import { brandFor, type BrandKind } from "../office/brand";
-import type { Expression, Pt, RobotLook } from "../office/rig";
-import { stickerSvg as lookSticker, bodyColors } from "./look";
+import openaiLogo from "../../assets/openai.svg";
+import claudeLogo from "../../assets/claude.svg";
+import grokLogo from "../../world/assets/grok.svg";
+import opencodeLogo from "../../assets/harness/opencode.svg";
+import geminiLogo from "../../assets/harness/gemini.svg";
+import antigravityLogo from "../../assets/harness/antigravity.svg";
+import museLogo from "../../assets/harness/muse.svg";
+import { brandFor, type BrandKind } from "../brand";
+import type { Expression, Pt, RobotLook } from "../rig";
+import { stickerSvg as lookSticker, bodyColors } from "../look";
 
 // Drawing pieces of the seated desk robot. Started as a copy of parts.ts (the walker and the
 // break room keep using that file), so the desk robot can evolve on its own. Everything is in

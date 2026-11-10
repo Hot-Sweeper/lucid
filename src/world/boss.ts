@@ -1,6 +1,6 @@
 import gsap from "gsap";
-import { Walker } from "./walker";
-import type { RobotLook } from "../office/rig";
+import { Walker } from "../robot/walker/walker";
+import type { RobotLook } from "../robot/rig";
 import { line } from "../lines";
 
 // The orchestrator (your stand-in) at the big desk in the questions room: it sits in the chair

@@ -1,6 +1,6 @@
-import { ambientBeat, setAmbientRate, nextBeat, AMBIENT_HZ, CALM_HZ, CALM_AWAY_HZ } from "../perf/beat";
-import { diagnosticOff } from "../perf/diagnostics";
-import { LOD_PX, zoomForMonitorPx } from "../perf/lod";
+import { ambientBeat, setAmbientRate, nextBeat, AMBIENT_HZ, CALM_HZ, CALM_AWAY_HZ } from "./beat";
+import { diagnosticOff } from "./diagnostics";
+import { LOD_PX, zoomForMonitorPx } from "./lod";
 // How often robots redraw their bodies. Every robot rebuilds its arms and joints each frame,
 // which is most of the app's work. Robots off screen do not need it at all, and when the camera
 // is zoomed far out a robot is a few pixels tall, so fewer redraws look the same.

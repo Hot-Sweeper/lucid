@@ -1,7 +1,7 @@
 import type { RobotLook } from "./rig";
 import { brandFor, type BrandKind } from "./brand";
-import { migrateLook, randomLook } from "../world/look";
-import { compatibleWorkers } from "./worker-match";
+import { migrateLook, randomLook } from "./look";
+import { compatibleWorkers } from "../office/worker-match";
 
 // The team. Robots are persistent workers: hired once with a name, a look and habits,
 // then assigned to threads. When a thread settles, its robot becomes free and the next

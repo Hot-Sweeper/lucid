@@ -11,7 +11,7 @@ globalThis.window.setTimeout = setTimeout; globalThis.window.clearTimeout = clea
 const server = await createServer({ configFile: false, root: process.cwd(), logLevel: 'error', server: { middlewareMode: true, hmr: false }, appType: 'custom' });
 try {
   const { compatibleWorkers } = await server.ssrLoadModule('/src/office/worker-match.ts');
-  const { Roster } = await server.ssrLoadModule('/src/office/roster.ts');
+  const { Roster } = await server.ssrLoadModule('/src/robot/roster.ts');
 
   const w = (id, provider, model, jobs = 1, extra = {}) => ({ id, name: id, provider, lastModel: model, jobs, ...extra });
   const free = [w('opusA', 'claude', 'opus', 3), w('sonnet', 'claude', 'sonnet', 9), w('legacy', 'claude', null, 20), w('codex', 'codex', 'gpt', 50), w('gone', 'claude', 'opus', 99, { retired: true })];

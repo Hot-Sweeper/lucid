@@ -1,4 +1,4 @@
-import type { Expression, PhoneReaction, Pose, Reaction, RobotLook, SeatedRobot } from "../office/rig";
+import type { Expression, PhoneReaction, Pose, Reaction, RobotLook, SeatedRobot } from "../rig";
 
 // Computers keep one stable robot reference, but an unoccupied desk needs no SVG
 // character, animation ticker or repeating tween. Assignment materializes the

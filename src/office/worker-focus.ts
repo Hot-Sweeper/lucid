@@ -1,11 +1,11 @@
 import gsap from "gsap";
-import { Walker } from "../world/walker";
-import { PALETTES } from "../world/seated-parts";
-import { brandFor, harnessName } from "./brand";
+import { Walker } from "../robot/walker/walker";
+import { PALETTES } from "../robot/art/head";
+import { brandFor, harnessName } from "../robot/brand";
 import { gameSound } from "./sound";
-import { personaLines } from "./persona";
+import { personaLines } from "../robot/persona";
 import { avatar, type HireRuntime } from "./hire";
-import type { RobotProfile } from "./roster";
+import type { RobotProfile } from "../robot/roster";
 import "./worker-focus.css";
 
 // A worker up close. Clicking a robot twice lifts it out of the office: it floats in front

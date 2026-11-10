@@ -1,17 +1,17 @@
 import { readPromptDraft, writePromptDraft } from "./prompt-draft";
 import gsap from "gsap";
-import { Roster, type RobotProfile } from "./roster";
-import { brandFor, harnessName, logoFor } from "./brand";
+import { Roster, type RobotProfile } from "../robot/roster";
+import { brandFor, harnessName, logoFor } from "../robot/brand";
 import { BRAND } from "../brand";
-import type { RobotLook } from "./rig";
-import { portraitSvg } from "../world/look";
-import { PALETTES } from "../world/seated-parts";
+import type { RobotLook } from "../robot/rig";
+import { portraitSvg } from "../robot/look";
+import { PALETTES } from "../robot/art/head";
 import "./hire.css";
 import { icon } from "../ui/icons";
 import { openCustomize } from "./customize";
-import { Walker } from "../world/walker";
+import { Walker } from "../robot/walker/walker";
 import { compatibleWorkers } from "./worker-match";
-import { randomLook } from "../world/look";
+import { randomLook } from "../robot/look";
 import { gameSound } from "./sound";
 
 const LAST_SETUP = "lucid.hire.lastSetup";

@@ -3,7 +3,7 @@ import DOMPurify from "dompurify";
 import { fileUrl } from "./chat-panel";
 import { reportPortrait, reportIcon } from "./report-art";
 import "./report.css";
-import { harnessName, logoFor } from "./brand";
+import { harnessName, logoFor } from "../robot/brand";
 import { costText } from "./orchestrator-panel";
 
 const esc = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

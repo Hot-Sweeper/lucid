@@ -1,13 +1,13 @@
 import gsap from "gsap";
-import { GEOM, UNIT, type DeskRig, type Pt, type RobotLook, type SeatedRobot } from "./rig";
-import { brandFor, harnessName } from "./brand";
-import type { Roster, RobotProfile } from "./roster";
-import { TopDownRobot } from "../world/seated";
-import { PALETTES } from "../world/seated-parts";
+import { GEOM, UNIT, type DeskRig, type Pt, type RobotLook, type SeatedRobot } from "../robot/rig";
+import { brandFor, harnessName } from "../robot/brand";
+import type { Roster, RobotProfile } from "../robot/roster";
+import { TopDownRobot } from "../robot/seated/robot";
+import { PALETTES } from "../robot/art/head";
 import {
   ACCENTS, ACCESSORIES, ANTENNA_TIPS, BUILDS, COLOR_NAMES, EYES, GLOWS, HATS, HEAD_SIZES, randomLook, resolveLook, STICKERS, stickerSvg, TINTS,
   portraitSvg, tintPalette, type View,
-} from "../world/look";
+} from "../robot/look";
 
 // The customize dialog: a live preview of the robot at a little desk, plus every look option.
 // Opened from a desk's right-click menu (openCustomizeFor) and from the hiring screen (openCustomize).

@@ -1,4 +1,4 @@
-import type { Pt } from "./rig";
+import type { Pt } from "../robot/rig";
 
 export type Footprint = { x: number; y: number; w: number; h: number };
 export function crosses(a: Pt, b: Pt, r: Footprint) {

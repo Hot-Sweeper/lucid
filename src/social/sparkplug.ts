@@ -3,8 +3,8 @@
 // swipes with a real card throw, now and then "New buddy!", and then a friendly little chat.
 // Phone and desktop web layouts.
 import { SPARK_PROFILES, SPARK_CHATS, type SparkProfile } from "../content/social";
-import { portraitSvg, randomLook, seeded } from "../world/look";
-import { PALETTES } from "../world/seated-parts";
+import { portraitSvg, randomLook, seeded } from "../robot/look";
+import { PALETTES } from "../robot/art/head";
 import { Kit, runApp, rnd, chance, pick, shuffle, h, esc, touch, typeInto, calm, marker, type SoHost, type SoOpts } from "./kit";
 import { phoneKeyboard, type PhoneKeyboard } from "./keyboard";
 import { theyType, dotsBubble } from "./typing";

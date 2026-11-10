@@ -1,17 +1,17 @@
-import { RobotPower, robotModeFor } from "./robot-power";
-import { ModelSticker } from "./model-sticker";
-import { accessorySvg, blushSvg, hatInfo, hatSvg, paintLookColors, styledEyes } from "./look";
-import { robotSay } from "../office/robot-voice";
+import { RobotPower, robotModeFor } from "../render/power";
+import { ModelSticker } from "../art/model-sticker";
+import { accessorySvg, blushSvg, hatInfo, hatSvg, paintLookColors, styledEyes } from "../look";
+import { robotSay } from "../voice";
 import gsap from "gsap";
-import { flavorSpeech } from "../localization-speech";
-import { batteryWeakness, subscriptionBatteries } from "../office/battery";
-import { watch, unwatch, drawNow, sinceDraw, finishDraw } from "./budget";
-import { routeSuffixLengths } from "./route-distance";
-import { hiddenRoutePrefix, type RouteView } from "./hidden-route";
-import { beginSystem, endSystem } from "../perf/metrics";
-import { setSvgAttribute } from "../perf/svg-write";
-import type { Expression, RobotLook } from "../office/rig";
-import { bind, brandFor, clamp, defsSvg, eyesSvg, headSideSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, uid, type BrandKind } from "./parts";
+import { flavorSpeech } from "../../localization-speech";
+import { batteryWeakness, subscriptionBatteries } from "../../office/battery";
+import { watch, unwatch, drawNow, sinceDraw, finishDraw } from "../../perf/budget";
+import { routeSuffixLengths } from "../../world/route-distance";
+import { hiddenRoutePrefix, type RouteView } from "../../world/hidden-route";
+import { beginSystem, endSystem } from "../../perf/metrics";
+import { setSvgAttribute } from "../../perf/svg-write";
+import type { Expression, RobotLook } from "../rig";
+import { bind, brandFor, clamp, defsSvg, eyesSvg, headSideSvg, headSvg, lerp, paintBrand, paintLook, PALETTES, uid, type BrandKind } from "../art/walker-head";
 
 // The v0 robot standing on the top-down floor, the same character as the desk robot: the
 // original head on a slim tapered shell, thin two-bone arms and legs with real elbows and knees.

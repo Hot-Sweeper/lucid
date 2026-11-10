@@ -12,7 +12,7 @@ const gameSound = {
 };
 const brandFor = provider => /claude/i.test(provider || '') ? 'claude' : /gemini/i.test(provider || '') ? 'gemini' : 'codex';
 const context = { gameSound, brandFor };
-const source = fs.readFileSync('src/office/robot-voice.ts', 'utf8').replace(/^import .*;$/gm, '').replace(/export /g, '');
+const source = fs.readFileSync('src/robot/voice.ts', 'utf8').replace(/^import .*;$/gm, '').replace(/export /g, '');
 vm.runInNewContext(stripTypeScriptTypes(source, { mode: 'transform' }) + '\nObject.assign(globalThis, { voiceFor, speechPlan, robotSay, voiceInternals });', context);
 const { voiceFor, speechPlan, robotSay, voiceInternals } = context;
 

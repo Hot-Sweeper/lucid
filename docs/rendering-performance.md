@@ -36,7 +36,7 @@ remaining cost at the overview: each is about 240 SVG elements.
 
 ### Canvas robots (zoomed out)
 
-Below camera scale 0.5 a seated robot is drawn on its own `<canvas>` (`src/world/robot-canvas.ts`)
+Below camera scale 0.5 a seated robot is drawn on its own `<canvas>` (`src/robot/render/canvas.ts`)
 instead of as ~240 live SVG elements; close up the real SVG is shown. The rig is unchanged: it
 keeps writing to its SVG, which is `display: none`, and the canvas mirrors that state after each
 body draw. Parts that never change shape become pictures made from the robot's own SVG (colors
