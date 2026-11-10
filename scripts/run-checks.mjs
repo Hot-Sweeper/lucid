@@ -78,6 +78,7 @@ export const CHECKS = [
   "verify-chat-shelf.mjs",
   "verify-coin-controller.cjs",
   "verify-coins.cjs",
+  "verify-coin-calendar.mjs",
   "verify-compaction-screen.mjs",
   "verify-connect.cjs",
   "verify-conversation-name.mjs",

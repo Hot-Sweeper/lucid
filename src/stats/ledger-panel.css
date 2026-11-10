@@ -1,0 +1,125 @@
+/* The coin ledger (ledger-panel.ts): a raised night panel beside the coin counter, in the side
+   panel's type scale. Coin gold marks earnings; everything else uses the interface tokens. */
+.coin-ledger {
+  --cl-gold: #f2b84b;
+  --cl-cell: 13px;
+  position: fixed; z-index: 250; width: min(540px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; overscroll-behavior: contain;
+  padding: 14px 18px 18px; border-radius: var(--radius-xl); background: var(--night-3); color: var(--ink); box-shadow: var(--shadow-pop);
+  font-variant-numeric: tabular-nums;
+}
+.coin-ledger[hidden] { display: none; }
+.coin-ledger:focus { outline: none; }
+html:root[data-theme] .coin-ledger { outline: 1px solid var(--ui-edge); outline-offset: -1px; }
+.coin-ledger.cl-entering { animation: cl-in 200ms var(--ease-out) both; }
+.coin-ledger.cl-leaving { animation: cl-out 140ms var(--ease-in) forwards; pointer-events: none; }
+@keyframes cl-in { from { opacity: 0; transform: scale(.96); } }
+@keyframes cl-out { to { opacity: 0; transform: scale(.97); } }
+
+.cl-head { display: flex; align-items: center; gap: 10px; }
+.cl-head h2 { margin: 0 auto 0 0; font-size: 15px; font-weight: 600; }
+.cl-close { padding: 5px 10px; font-size: 12px; }
+.coin-ledger h3 { margin: 0; }
+.cl-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* This week, streak and best day: plain figures, no boxes. */
+.cl-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 14px 0 0; }
+.cl-fig { display: flex; flex-direction: column; min-width: 0; }
+.cl-note { margin-top: 4px; font-size: 12px; line-height: 1.35; color: var(--ink-2); }
+button.cl-note { align-self: flex-start; padding: 0; font-size: 12px; text-align: left; }
+button.cl-note:disabled { color: var(--ink-3); cursor: default; text-decoration: none; }
+
+/* Calendar heatmap: weeks are columns, Monday on top. */
+.cl-cal { margin-top: 18px; }
+.cl-calhead { display: flex; align-items: center; gap: 2px; margin-bottom: 6px; }
+.cl-calhead h3 { margin-right: auto; }
+button.cl-page { width: 26px; height: 26px; display: inline-grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink-2); cursor: pointer; transition: background var(--dur-hover) var(--ease-out-strong), transform var(--dur-press) var(--ease-out-strong); }
+button.cl-page:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 9%, transparent); }
+button.cl-page:active:not(:disabled) { transform: scale(.94); }
+button.cl-page:disabled { opacity: .35; cursor: default; }
+.cl-calbody { display: flex; gap: 6px; }
+.cl-wd { display: grid; grid-template-rows: repeat(7, var(--cl-cell)); gap: 3px; margin-top: 18px; font-size: 10px; line-height: var(--cl-cell); color: var(--ink-3); }
+.cl-weeks { min-width: 0; }
+.cl-months { display: grid; grid-template-columns: repeat(26, var(--cl-cell)); column-gap: 3px; height: 18px; font-size: 10.5px; color: var(--ink-3); }
+.cl-months span { white-space: nowrap; }
+.cl-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, var(--cl-cell)); grid-auto-columns: var(--cl-cell); gap: 3px; }
+.cl-cell { display: block; width: var(--cl-cell); height: var(--cl-cell); padding: 0; border: 0; border-radius: 3px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
+button.cl-cell { cursor: pointer; transition: transform var(--dur-press) var(--ease-out-strong); }
+button.cl-cell:hover { transform: scale(1.2); }
+.cl-cell[data-l="1"] { background: color-mix(in srgb, var(--cl-gold) 32%, transparent); }
+.cl-cell[data-l="2"] { background: color-mix(in srgb, var(--cl-gold) 56%, transparent); }
+.cl-cell[data-l="3"] { background: color-mix(in srgb, var(--cl-gold) 80%, transparent); }
+.cl-cell[data-l="4"] { background: #ffd27a; }
+.cl-cell.cl-before { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 9%, transparent); }
+.cl-cell.cl-today { box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+.cl-cell[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cl-cell.cl-future { visibility: hidden; }
+.cl-calfoot { display: flex; align-items: flex-start; gap: 12px; margin-top: 8px; }
+.cl-daynote { flex: 1; min-width: 0; min-height: 2.8em; margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
+.cl-legend { display: flex; align-items: center; gap: 3px; flex: none; font-size: 10.5px; line-height: var(--cl-cell); color: var(--ink-3); }
+.cl-legend span { margin: 0 3px; }
+
+/* Personal records reuse the usage meter (stats.css): the tick is the user's usual pace. */
+.cl-sec { margin-top: 18px; }
+.cl-sec > h3 { margin-bottom: 8px; }
+.cl-records { display: flex; flex-direction: column; gap: 12px; }
+.cl-record { margin: 0 -8px; padding: 2px 8px; border-radius: var(--radius-md); }
+.cl-rtop { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; line-height: 1.3; }
+.cl-rname { flex: 1; min-width: 0; color: var(--ink-2); }
+.cl-rval { flex: none; font-weight: 600; color: var(--ink); }
+.cl-beaten .cl-rval { color: var(--status-done, var(--mint)); }
+.cl-beaten .st-bar i { background: var(--cl-gold); }
+.cl-record .st-pacemark { box-shadow: 0 0 0 1.5px var(--night-3); }
+.cl-rnote { margin: 4px 0 0; font-size: 11.5px; line-height: 1.35; color: var(--ink-3); }
+.cl-flash { animation: cl-flash 1.4s var(--ease-out) both; }
+@keyframes cl-flash { from { background: color-mix(in srgb, var(--cl-gold) 24%, transparent); } to { background: transparent; } }
+
+/* Where the coins came from. */
+.cl-controls { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 4px; }
+.cl-seg { position: relative; display: inline-flex; padding: 3px; border-radius: var(--radius-md); background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.cl-seg button { position: relative; z-index: 1; padding: 4px 10px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink-2); font-size: 12.5px; cursor: pointer; transition: color var(--dur-hover) var(--ease-out-strong), transform var(--dur-press) var(--ease-out-strong); }
+.cl-seg button:hover, .cl-seg button[aria-checked="true"] { color: var(--ink); }
+.cl-seg button:active { transform: scale(.97); }
+.cl-seg-thumb { position: absolute; left: 0; top: 3px; bottom: 3px; width: 0; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--ink) 11%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, transparent); transition: transform 220ms var(--ease-in-out), width 220ms var(--ease-in-out); }
+.cl-list { margin: 4px 0 0; padding: 0; list-style: none; }
+.cl-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; row-gap: 4px; align-items: center; padding: 6px 0; }
+.cl-faces .cl-row { grid-template-columns: 28px minmax(0, 1fr) auto; }
+.cl-face { grid-row: span 2; width: 28px; height: 28px; }
+.cl-face svg { display: block; width: 28px; height: 28px; }
+.cl-name { min-width: 0; font-size: 13px; line-height: 1.3; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-name small { display: block; font-size: 11.5px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; }
+.cl-num { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+.cl-share { position: relative; grid-column: 1 / -1; height: 3px; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.cl-faces .cl-share { grid-column: 2 / -1; }
+.cl-share::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--cl-gold); transform-origin: left; transform: scaleX(var(--w, 0)); transition: transform 300ms var(--ease-in-out); }
+.cl-more { margin-top: 4px; font-size: 12.5px; }
+.cl-more[hidden], .cl-listnote[hidden] { display: none; }
+.cl-listnote { margin: 6px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink-3); }
+.cl-foot { margin: 18px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink-3); }
+.cl-status { margin: 8px 0 0; font-size: 12px; color: var(--ink-2); }
+.cl-status:empty { display: none; }
+
+/* A beaten record: one short note rising from the coin counter. */
+.cl-cheer { position: fixed; z-index: 10001; display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 12px; border-radius: var(--radius-lg); background: var(--night-3); color: var(--ink); box-shadow: var(--shadow-pop); pointer-events: none; font-size: 13px; line-height: 1.3; }
+html:root[data-theme] .cl-cheer { outline: 1px solid var(--ui-edge); outline-offset: -1px; }
+.cl-cheer b { display: block; font-weight: 600; }
+.cl-cheer small { display: block; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.cl-spark { position: fixed; z-index: 10000; width: 14px; height: 14px; pointer-events: none; }
+
+/* The coin counters open the ledger. */
+button.rail-coins { border: 0; background: none; color: var(--ink-2); cursor: pointer; transition: background var(--dur-hover) var(--ease-out-strong), transform var(--dur-press) var(--ease-out-strong); }
+button.rail-coins:hover, button.rail-coins[aria-expanded="true"] { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+button.wl-coins { margin: -4px -6px; padding: 4px 6px; border: 0; border-radius: var(--radius-sm); background: none; cursor: pointer; transition: background var(--dur-hover) var(--ease-out-strong), transform var(--dur-press) var(--ease-out-strong); }
+button.wl-coins:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.zoom-ui button#coin-bank { cursor: pointer; transition: background var(--dur-hover) var(--ease-out-strong), transform var(--dur-press) var(--ease-out-strong); }
+.zoom-ui button#coin-bank:hover, .zoom-ui button#coin-bank[aria-expanded="true"] { background: var(--ui-float-hover, rgba(37, 45, 92, .95)); }
+.zoom-ui button#coin-bank:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:is(button.rail-coins, button.wl-coins, .zoom-ui button#coin-bank):active { transform: scale(.96); }
+
+@media (prefers-reduced-motion: reduce) {
+  .coin-ledger.cl-entering { animation: cl-fade 150ms var(--ease-out) both; }
+  .coin-ledger.cl-leaving { animation: cl-fade 120ms var(--ease-out) reverse forwards; }
+  .cl-seg-thumb, .cl-share::after, button.cl-cell, .cl-seg button, button.cl-page { transition: none; }
+  button.cl-cell:hover, :is(button.rail-coins, button.wl-coins, .zoom-ui button#coin-bank):active { transform: none; }
+  .cl-flash { animation-duration: .6s; }
+}
+@keyframes cl-fade { from { opacity: 0; } }

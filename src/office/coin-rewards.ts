@@ -21,7 +21,9 @@ export class CoinRewards {
   private timer: number;
   private seen = new Set<string>();
   private initialized = false;
-  constructor(private wallet: Wallet, private world: World, private load: () => Promise<{ usage: Parameters<Wallet['observe']>[0]; sources: CoinSource[] }>,
+  /** Called after every successful read, for the coin ledger's calendar revision. */
+  onRead: (snapshot: { calendarRev?: number }) => void = () => {};
+  constructor(private wallet: Wallet, private world: World, private load: () => Promise<{ usage: Parameters<Wallet['observe']>[0]; sources: CoinSource[]; calendarRev?: number }>,
     private work: { ready(id: string): boolean; collected(id: string): Promise<void> } = { ready: () => true, collected: async () => {} }) {
     this.tray.className = 'coin-tray'; this.tray.hidden = true;
     this.summary.textContent = 'Coins to collect';
@@ -73,6 +75,7 @@ export class CoinRewards {
       this.syncHolds();
       this.tray.removeAttribute('title');
       this.render();
+      this.onRead(snapshot);
     } catch {
       // Keep saved rewards usable through a temporary usage-reader outage.
       this.tray.title = 'Usage could not be refreshed. Saved coins are still available; Lucid will retry.';

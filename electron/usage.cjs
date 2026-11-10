@@ -689,6 +689,7 @@ async function getSessionUsage(bindings, { from = -Infinity, to = Infinity } = {
   totals.tokens = totals.input + totals.output + totals.cacheRead + totals.cacheWrite;
   return { ...totals, costUsd: priced ? totals.costUsd : null, available: true, priced, scope: "API price estimate, not a bill. Observed recent native-session logs, including linked subagents; older or unlinked usage may be absent." };
 }
+const localDay = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 async function getCoinSources(bindings) {
   const usage = await getUsage();
   const owners = new Map(), ambiguous = new Set();
@@ -708,14 +709,20 @@ async function getCoinSources(bindings) {
     const old = best.get(key);
     if (!old || r.output > old.output || (r.output === old.output && r.input + r.cacheRead + r.cacheWrite > old.input + old.cacheRead + old.cacheWrite)) best.set(key, r);
   }
+  // Priced work per local day for the coin calendar (electron/coin-calendar.cjs). Only whole days
+  // inside the kept log window count, so the oldest day is never recorded cut short.
+  const firstWholeDay = new Date(Date.now() - KEEP); firstWholeDay.setHours(24, 0, 0, 0);
   const sources = [...owners].filter(([key]) => !ambiguous.has(key)).map(([key, b]) => {
     let costUsd = 0, priced = !!records.get(key)?.size;
+    const days = {};
     for (const r of records.get(key)?.values() || []) {
       const rate = priceFor(r.model);
       if (!rate) priced = false;
-      costUsd += costOf(r, rate);
+      const cost = costOf(r, rate);
+      costUsd += cost;
+      if (rate && cost > 0 && r.ts >= firstWholeDay.getTime()) days[localDay(r.ts)] = (days[localDay(r.ts)] || 0) + cost;
     }
-    return { key, threadId: b.threadId, title: b.title, status: b.status, costUsd: priced ? costUsd : null };
+    return { key, threadId: b.threadId, title: b.title, status: b.status, projectId: b.projectId ?? null, project: b.project ?? null, costUsd: priced ? costUsd : null, days };
   });
   return { usage, sources };
 }

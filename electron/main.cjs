@@ -264,7 +264,7 @@ ipcMain.handle("t3:channel", () => require("./t3-channel.cjs").t3Channel());
 const usage = require("./usage.cjs");
 usage.setProviderLimitsReader(() => require("./t3server.cjs").usageLimits());
 ipcMain.handle("usage:get", () => usage.getUsage());
-ipcMain.handle("coins:usage", () => usage.getCoinSources(t3.coinBindings()));
+require("./coin-calendar.cjs").register(ipcMain, { usage, t3, dir: app.getPath("userData") });
 const reports = require("./reports.cjs").createReports({
   robots: roster, name: brand.name, spent: orchestrator.spent,
   dir: process.env.LUCID_SHOT ? path.join(app.getPath("userData"), "reports") : path.join(ORCH_DIR, "reports"), t3, server: require("./t3server.cjs"), usage,

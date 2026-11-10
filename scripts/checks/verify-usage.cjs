@@ -9,6 +9,7 @@ const { test } = require("node:test");
 const NOW = Date.parse("2026-10-31T12:00:00Z");
 const iso = (offset = 0) => new Date(NOW + offset).toISOString();
 const hour = 3600000;
+const localDay = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const source = fs.readFileSync(path.join(__dirname, "../../electron/usage.cjs"), "utf8");
 
 function fixture(t) {
@@ -232,6 +233,20 @@ test("coin sources use exact sessions, deduplicate streaming and exclude ambiguo
   assert.ok(Math.abs(result.sources.find(s => s.threadId === 'child').costUsd - .0000412) < 1e-12);
   assert.equal(result.sources.find(s => s.threadId === 'empty').costUsd, null);
   assert.equal(result.sources.find(s => s.threadId === 'child').status, 'running');
+  const ta = result.sources.find(s => s.threadId === 'ta');
+  assert.deepEqual(Object.keys(ta.days), [localDay(NOW - hour)], 'work is bucketed by its local day');
+  assert.ok(Math.abs(ta.days[localDay(NOW - hour)] - ta.costUsd) < 1e-12, 'day buckets add up to the session cost');
+  assert.equal(Object.keys(result.sources.find(s => s.threadId === 'empty').days).length, 0);
+});
+
+test("coin calendar days skip the day cut short by log retention", async (t) => {
+  const f = fixture(t);
+  const old = NOW - (7 * 24 + 2) * hour + 60000;
+  f.log("claude", "old", [claude(9, { timestamp: new Date(old).toISOString(), requestId: "old", message: { id: "old", model: "m", usage: { input_tokens: 3, output_tokens: 9 } } }), claude(4)]);
+  const { sources } = await f.getCoinSources([{ harness: 'claudeAgent', sessionId: 'claude-native', threadId: 'child', title: 'Helper', status: 'completed', projectId: 'alpha', project: 'Alpha' }]);
+  assert.deepEqual(Object.keys(sources[0].days), [localDay(NOW - hour)], 'the oldest, partial day is not recorded');
+  assert.ok(sources[0].days[localDay(NOW - hour)] < sources[0].costUsd, 'the old record still counts toward the session cost');
+  assert.equal(sources[0].projectId, 'alpha'); assert.equal(sources[0].project, 'Alpha');
 });
 
 

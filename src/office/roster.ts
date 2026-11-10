@@ -225,6 +225,8 @@ export class Roster {
   }
 
   byThread(threadId: string) { return this.robots.find((r) => r.threadId === threadId) ?? null; }
+  /** The worker who did a thread's job, also after it moved on to other work or retired. */
+  forJob(threadId: string) { return this.byThread(threadId) ?? this.robots.find((r) => r.done?.includes(threadId)) ?? null; }
 
   // Give every working thread a robot. Robots whose thread is settled or gone are free.
   // A free worker with the same harness and model takes the job; otherwise a new one is hired.

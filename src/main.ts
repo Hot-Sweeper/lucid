@@ -58,6 +58,7 @@ import { openOrchestratorControls } from "./office/orchestrator-controls";
 import { openOrchestratorSetup } from "./office/orchestrator-setup";
 import { renderOrchestratorPanel } from "./office/orchestrator-panel";
 import { mountStats } from "./stats/stats";
+import { CoinLedgerPanel } from "./stats/ledger-panel";
 import { mountEnvironments } from "./office/environments";
 import { Wallet, coinIcon, type WalletState } from "./office/wallet";
 import { watchDaily } from "./office/daily";
@@ -125,7 +126,7 @@ document.getElementById("app")!.innerHTML = `
       </div>
     </header>
 
-    <section class="wallet" id="wallet"><span class="wl-coins" title="1 coin for every dollar of AI work at API prices">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></span></section>
+    <section class="wallet" id="wallet"><button type="button" class="wl-coins" id="wl-coins" aria-haspopup="dialog" aria-expanded="false" title="1 coin for every dollar of AI work at API prices. Open the coin ledger">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></button></section>
 
     <section class="threads">
       <div class="th-head"><h3>Threads</h3><label class="th-search">${uiIcon("search", 14)}<input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label><button type="button" class="primary th-new-task" id="th-new-task" title="Start a new task (Ctrl+N)">${uiIcon("plus", 14)}Task</button><button type="button" class="ghost th-new-project" id="th-new-project" aria-label="New project" title="New project: create a folder or add one you have">${uiIcon("plus", 14)}Project</button>${foldButton("threads", "threads")}</div>
@@ -156,7 +157,7 @@ document.getElementById("app")!.innerHTML = `
   </aside>
   <nav class="side-rail" id="side-rail" aria-label="Folded sidebar" hidden>
     <button type="button" class="rail-show" id="rail-show" aria-expanded="false" aria-controls="side-panel" title="Show sidebar (Ctrl+B)">${uiIcon("sidebarShow")}<span>Show<br>sidebar</span></button>
-    <p class="rail-coins" id="rail-coins">${coinIcon(16)}<b id="rail-bal">0</b><span class="coin-label"> coins</span></p>
+    <button type="button" class="rail-coins" id="rail-coins" aria-haspopup="dialog" aria-expanded="false">${coinIcon(16)}<b id="rail-bal">0</b><span class="coin-label"> coins</span></button>
     <ol class="rail-list" id="rail-list" aria-label="Threads"></ol>
   </nav>
   <main class="scene" id="scene"></main>
@@ -165,7 +166,7 @@ document.getElementById("app")!.innerHTML = `
     <button type="button" class="link-btn" id="orch-power-attention" hidden></button>
     <button type="button" class="link-btn" id="orch-controls-open" aria-label="Orchestrator settings">Settings</button>
   </section>
-  <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button><p id="coin-bank" class="coin-bank" tabindex="-1">${coinIcon(18)}<b id="coin-bank-bal">0</b><span class="coin-label"> coins</span></p><button type="button" id="terrible-song" disabled>Mark song terrible</button><button type="button" id="game-sound" aria-pressed="true">Sound on</button></div>`;
+  <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button><button type="button" id="coin-bank" class="coin-bank" aria-haspopup="dialog" aria-expanded="false">${coinIcon(18)}<b id="coin-bank-bal">0</b><span class="coin-label"> coins</span></button><button type="button" id="terrible-song" disabled>Mark song terrible</button><button type="button" id="game-sound" aria-pressed="true">Sound on</button></div>`;
 
 void mountTitlebar();
 // Keep threads in front and put occasional office controls behind one disclosure.
@@ -1226,10 +1227,10 @@ const paintWallet = (gained = 0) => {
     // Count up while the collected coins land on the counter (coin-rewards.ts fly).
     (bank as any).__count = gsap.to(target, { value: wallet.balance, delay: .5, duration: .7, ease: 'power1.inOut', onUpdate: () => { bank.textContent = formatCoins(target.value); bankAmount = target.value; } });
   } else { bankAmount = wallet.balance; bank.textContent = formatCoins(bankAmount); }
-  $('coin-bank').title = `${formatCoins(wallet.balance)} coins from collected work`;
+  $('coin-bank').title = `${formatCoins(wallet.balance)} coins from collected work. Open the coin ledger`;
   const rb = $("rail-bal"), n = wallet.balance;
   rb.textContent = n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : formatCoins(n);
-  $("rail-coins").title = `${n.toLocaleString()} coins from collected work`;
+  $("rail-coins").title = `${n.toLocaleString()} coins from collected work. Open the coin ledger`;
   if (gained > 0 && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     const f = document.createElement("span");
     f.className = "wl-gain";
@@ -1243,6 +1244,14 @@ wallet.onChange = (_bal, gained) => paintWallet(gained);
 paintWallet();
 coinRewards = new CoinRewards(wallet, world, () => (api as any).coinUsage(), { ready: id => coinReady(id), collected: id => coinCollected(id).then(() => refresh()) });
 (window as any).__coinRewards = coinRewards;
+// The coin ledger opens from every coin counter; the wallet sits in Office & settings, which closes first.
+const coinLedger = new CoinLedgerPanel({
+  load: () => (api as any).coinCalendar(), refresh: () => coinRewards!.refresh(), wallet,
+  robotOf: id => { const r = world.roster.forJob(id); return r ? { id: r.id, name: r.name, provider: r.provider, look: r.look } : null; },
+});
+coinRewards.onRead = snapshot => coinLedger.observe(snapshot.calendarRev);
+for (const id of ["rail-coins", "coin-bank"]) $(id).addEventListener("click", () => coinLedger.toggle($(id)));
+$("wl-coins").addEventListener("click", () => { document.querySelector<HTMLElement>(".office-settings .os-close")?.click(); coinLedger.show($("side-settings")); });
 (window as any).__wallet = wallet;
 (window as any).__gameSound = gameSound;
 const soundscape = new OfficeSoundscape(world);

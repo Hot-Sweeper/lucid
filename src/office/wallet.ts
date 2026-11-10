@@ -5,7 +5,8 @@ import { startCoinLedger, observeCoinLedger, collectCoinJob, collectible, roundC
 // The saved state is kept whole, older fields included, for the coin calendar.
 
 export const COINS_PER_DOLLAR = 1;
-export type WalletState = { ledger: Record<string, number>; spent?: number; v?: number; collection?: CoinLedger; [legacy: string]: unknown };
+/** `celebrated`: the last personal record of each kind the ledger celebrated (src/stats/coin-calendar.ts). */
+export type WalletState = { ledger: Record<string, number>; spent?: number; v?: number; collection?: CoinLedger; celebrated?: Record<string, string>; [legacy: string]: unknown };
 
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -45,6 +46,10 @@ export class Wallet {
     this.onChange(this.balance, payout.coins);
     return payout.coins;
   }
+  /** Whole-day totals saved before the coin calendar existed, for its backfill. */
+  get dailyHistory() { return Object.fromEntries(Object.entries(this.state().ledger).filter(([k]) => /^\d{4}-\d{2}-\d{2}$/.test(k))); }
+  celebrated(kind: string) { return this.state().celebrated?.[kind] ?? null; }
+  markCelebrated(kind: string, key: string) { const s = this.state(); s.celebrated = { ...s.celebrated, [kind]: key }; this.set(s); }
   get balance() { return roundCoins(this.earned - (this.state().spent ?? 0)); }
 
   // Before the per-session ledger existed, coins followed the daily spend. The first reading

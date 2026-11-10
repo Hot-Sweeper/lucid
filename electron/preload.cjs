@@ -53,6 +53,7 @@ contextBridge.exposeInMainWorld("lucid", {
   t3Channel: () => ipcRenderer.invoke("t3:channel"),
   usage: () => ipcRenderer.invoke("usage:get"),
   coinUsage: () => ipcRenderer.invoke("coins:usage"),
+  coinCalendar: () => ipcRenderer.invoke("coins:calendar"),
   weather: () => ipcRenderer.invoke("weather:get"),
   answerVisual: (html) => ipcRenderer.invoke("answer:visual", html),
   downloadAnswer: (src, name) => ipcRenderer.invoke("fs:download-answer", { src, name }),

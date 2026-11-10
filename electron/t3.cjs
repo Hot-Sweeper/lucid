@@ -334,13 +334,13 @@ function coinBindings() {
   // Archived sessions also belong in the baseline, so reopening old work
   // cannot mint coins for usage credited before manual collection existed.
   const rows = getDb().prepare(`select p.provider, p.thread_id as threadId, p.payload_json as binding,
-    t.title, (select r.status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by case when r.status in ('running','starting','preparing','waiting','awaiting_input','queued') then 0 else 1 end, r.ordinal desc limit 1) as status,
+    t.title, t.project_id as projectId, (select pp.title from projection_projects pp where pp.project_id = t.project_id) as project, (select r.status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by case when r.status in ('running','starting','preparing','waiting','awaiting_input','queued') then 0 else 1 end, r.ordinal desc limit 1) as status,
     (select count(*) from orchestration_v2_projection_runtime_requests q where q.thread_id = t.thread_id and q.status not in ('resolved','cancelled','expired','failed')) as pending
     from orchestration_v2_projection_provider_threads p join orchestration_v2_projection_threads t on t.thread_id = p.thread_id`).all();
   return rows.flatMap(r => {
     const ref = safeJson(r.binding)?.nativeThreadRef;
     return ref?.strength === 'strong' && typeof ref.nativeId === 'string'
-      ? [{ harness: r.provider, sessionId: ref.nativeId, threadId: r.threadId, title: r.title, status: r.pending ? 'waiting' : r.status }] : [];
+      ? [{ harness: r.provider, sessionId: ref.nativeId, threadId: r.threadId, title: r.title, projectId: r.projectId ?? null, project: r.project ?? null, status: r.pending ? 'waiting' : r.status }] : [];
   });
 }
 function world(limit = 40) {
