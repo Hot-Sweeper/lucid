@@ -1,6 +1,6 @@
-// BOOT: Knee-Deep in the Kernel. A tiny raycaster shooter in the classic style: the robot
-// fights through a server base full of hellbots, grabs the blue keycard and flips the exit
-// switch. Hellbots pop into bolts and sparks. The sim (Run) is plain data and maths; the
+// BOOT: Down the Call Stack. A tiny raycaster shooter: the robot fights its way through the
+// first stack frame of a misbehaving program, squashing bugs, grabs the blue keycard and flips
+// the return switch. Bugs pop into bolts and sparks. The sim (Run) is plain data and maths; the
 // renderer writes a low-res pixel buffer that CSS scales up.
 import "./games.css";
 import "./boot.css";
@@ -49,17 +49,17 @@ const isDoor = (c: number) => c === DOOR || c === BDOOR;
 
 interface Spec { name: string; hp: number; speed: number; rad: number; range: number; keep: number; cd: [number, number]; dmg: [number, number]; w: number; h: number; z: number; shot: number }
 const SPEC: Spec[] = [
-  { name: "a Glitch Imp", hp: 30, speed: 1.45, rad: 0.3, range: 7.5, keep: 2.6, cd: [1.1, 1.9], dmg: [12, 20], w: 0.64, h: 0.84, z: 0, shot: 0 },
-  { name: "a Chomper", hp: 50, speed: 2.3, rad: 0.38, range: 0.95, keep: 0, cd: [0.9, 1.25], dmg: [11, 19], w: 0.92, h: 0.8, z: 0, shot: -1 },
-  { name: "a Cache Orb", hp: 60, speed: 1.0, rad: 0.38, range: 8.5, keep: 3.6, cd: [1.6, 2.5], dmg: [18, 28], w: 0.8, h: 0.8, z: 0.3, shot: 1 },
+  { name: "a Glitch Sprite", hp: 30, speed: 1.45, rad: 0.3, range: 7.5, keep: 2.6, cd: [1.1, 1.9], dmg: [12, 20], w: 0.64, h: 0.84, z: 0, shot: 0 },
+  { name: "a Race Condition", hp: 50, speed: 2.3, rad: 0.38, range: 0.95, keep: 0, cd: [0.9, 1.25], dmg: [11, 19], w: 0.92, h: 0.8, z: 0, shot: -1 },
+  { name: "a Memory Leak", hp: 60, speed: 1.0, rad: 0.38, range: 8.5, keep: 3.6, cd: [1.6, 2.5], dmg: [18, 28], w: 0.8, h: 0.8, z: 0.3, shot: 1 },
 ];
 const SHOT_SPEED = [4.8, 3.4];
 const FOES: [number, number, number][] = [[0, 17.5, 11.5], [0, 15.5, 17.5], [0, 13.5, 11.5], [1, 21.5, 13.5], [2, 14.5, 2.5], [0, 11.5, 5.5], [1, 16.5, 2.5]];
 const KIT = 0, CELL = 1, KEY = 2, PLATE = 3;
 const ITEMS: [number, number, number][] = [[PLATE, 2.5, 14.5], [KIT, 10.5, 11.5], [CELL, 17.5, 17.5], [KEY, 22.5, 14.5], [CELL, 22.5, 12.5], [KIT, 17.5, 5.5], [CELL, 10.5, 2.5]];
-const ITEM_MSG = ["Picked up a repair kit.", "Picked up an energy cell.", "Picked up a blue keycard.", "Picked up armor plating."];
+const ITEM_MSG = ["Grabbed a repair kit.", "Grabbed an energy cell.", "Grabbed the blue keycard.", "Grabbed a shield plate."];
 const ITEM_SIZE: [number, number][] = [[0.36, 0.28], [0.24, 0.32], [0.3, 0.2], [0.38, 0.34]];
-const SKILLS = ["Too young to reboot", "Hey, not too rough on my RAM", "Hurt me plenty of bits", "Ultra-voltage", "Kernel panic!"];
+const SKILLS = ["Tutorial mode", "Debug build", "Release build", "Production on a Friday", "Legacy codebase"];
 const SKILL_DMG = [1.2, 1.4, 1.6, 2, 2.6];
 const BIT_NUT = 0, BIT_BOLT = 1, BIT_SPARK = 2, BIT_GEAR = 3, BIT_POP = 4, BIT_ZAP = 5;
 
@@ -80,7 +80,7 @@ class Run {
   going = new Uint8Array(MW * MH);
   x = START.x; y = START.y; a = START.a; vx = 0; vy = 0; av = 0;
   hp = 100; armor = 0; ammo = 35; key = false; dead = false; eyeZ = 0.5;
-  t = 0; fireT = 9; cool = 0; hurtT = 0; hurtSide = 0; gotT = 0; walk = 0; speed = 0;
+  t = 0; fireT = 9; cool = 0; hurtT = 0; gotT = 0; walk = 0; speed = 0;
   kills = 0; got = 0; end: "" | "win" | "dead" = ""; killer = ""; exitOn = false; winT = 0;
   foes: Foe[]; items: Item[]; shots: Shot[] = []; bits: Bit[] = [];
   private path = new Int16Array(MW * MH); private plen = 0; private pi = 0; private goal = -1;
@@ -229,10 +229,7 @@ class Run {
     if (this.armor > 0) { const ab = Math.min(this.armor, Math.floor(d / 3)); this.armor -= ab; d -= ab; }
     this.hp = Math.max(0, this.hp - d);
     this.hurtT = 0.35;
-    if (from) {
-      this.hurtSide = Math.sign(wrap(Math.atan2(from.y - this.y, from.x - this.x) - this.a));
-      if (!from.seen) { from.seen = true; from.noticeAt = this.t + this.react0 * 0.6; }
-    }
+    if (from && !from.seen) { from.seen = true; from.noticeAt = this.t + this.react0 * 0.6; }
     if (this.hp <= 0) { this.dead = true; this.end = "dead"; this.killer = from ? SPEC[from.kind].name : "a stray spark"; this.ev.react("angry"); }
   }
 
@@ -596,54 +593,57 @@ function paintCeil(g: G, L: Lit, R: () => number, lamp: boolean) {
   if (lamp) { box(g, 6, 6, 20, 20, "#3a3b44"); L.r(8, 8, 16, 16, "#d9d4b8"); L.r(10, 10, 12, 12, "#fff8dc"); }
 }
 
-function paintImp(frame: number) {
+function paintSprite(frame: number) {
   return mk(32, 40, 11, (g, L) => {
     const atk = frame === 2, step = frame === 1;
-    box(g, 10, 28, 5, step ? 9 : 11, "#6e1f15"); box(g, 17, 28, 5, step ? 11 : 9, "#6e1f15");
-    box(g, 9, step ? 36 : 38, 7, 2, "#3b2422"); box(g, 16, step ? 38 : 36, 7, 2, "#3b2422");
-    box(g, 8, 15, 16, 14, "#b8321e"); box(g, 8, 15, 16, 2, "#e0553a"); box(g, 8, 27, 16, 2, "#7e2014");
-    box(g, 11, 18, 10, 7, "#d9472c"); box(g, 11, 24, 10, 1, "#8e2618");
-    L.r(14, 20, 4, 3, "#ffcf3a"); L.r(15, 21, 2, 1, "#fff4c0");
-    box(g, 5, 14, 4, 4, "#8e2618"); box(g, 23, 14, 4, 4, "#8e2618"); box(g, 6, 12, 2, 2, "#efe6d6"); box(g, 24, 12, 2, 2, "#efe6d6");
-    box(g, 4, 16, 4, 11, "#a02a1a"); box(g, 3, 27, 2, 3, "#efe6d6"); box(g, 6, 27, 2, 3, "#efe6d6");
-    if (atk) { box(g, 24, 3, 4, 13, "#a02a1a"); L.c(26, 3, 4, "#ff9a2a"); L.c(26, 3, 2.4, "#ffe27a"); L.c(26, 3, 1.2, "#fff8d8"); }
-    else { box(g, 24, 16, 4, 11, "#a02a1a"); box(g, 24, 27, 2, 3, "#efe6d6"); box(g, 27, 27, 2, 3, "#efe6d6"); }
-    box(g, 10, 5, 12, 10, "#c43a22"); box(g, 10, 5, 12, 1, "#e8604a"); box(g, 11, 8, 10, 5, "#2a0d09");
-    L.r(12, 9, 3, 2, "#ffe14a"); L.r(17, 9, 3, 2, "#ffe14a");
-    for (const x of [13, 15, 17, 19]) L.r(x, 12, 1, 1, "#ff7a3a");
-    box(g, 9, 2, 2, 4, "#efe6d6"); box(g, 7, 0, 2, 3, "#efe6d6"); box(g, 21, 2, 2, 4, "#efe6d6"); box(g, 23, 0, 2, 3, "#efe6d6");
+    box(g, 10, 28, 5, step ? 9 : 11, "#1f2c66"); box(g, 17, 28, 5, step ? 11 : 9, "#1f2c66");
+    box(g, 9, step ? 36 : 38, 7, 2, "#22253b"); box(g, 16, step ? 38 : 36, 7, 2, "#22253b");
+    box(g, 8, 15, 16, 14, "#3a5fd0"); box(g, 8, 15, 16, 2, "#6a8ff0"); box(g, 8, 27, 16, 2, "#2a3f8e");
+    box(g, 11, 18, 10, 7, "#4f78e6"); box(g, 11, 24, 10, 1, "#2f4aa8");
+    L.r(14, 20, 4, 3, "#ff5ad0"); L.r(15, 21, 2, 1, "#ffd0f4");
+    box(g, 5, 14, 4, 4, "#2f4aa8"); box(g, 23, 14, 4, 4, "#2f4aa8");
+    box(g, 4, 16, 4, 11, "#3350b8"); box(g, 3, 27, 2, 3, "#9aa0b0"); box(g, 6, 27, 2, 3, "#9aa0b0");
+    if (atk) { box(g, 24, 3, 4, 13, "#3350b8"); L.c(26, 3, 4, "#ff8a2a"); L.c(26, 3, 2.4, "#ffe27a"); L.c(26, 3, 1.2, "#fff8d8"); }
+    else { box(g, 24, 16, 4, 11, "#3350b8"); box(g, 24, 27, 2, 3, "#9aa0b0"); box(g, 27, 27, 2, 3, "#9aa0b0"); }
+    box(g, 10, 5, 12, 10, "#4466d8"); box(g, 10, 5, 12, 1, "#7090f0"); box(g, 11, 8, 10, 5, "#101634");
+    L.r(12, 9, 3, 2, "#5ff0ff"); L.r(17, 9, 3, 2, "#5ff0ff");
+    for (const x of [13, 15, 17, 19]) L.r(x, 12, 1, 1, "#ff5ad0");
+    // two wobbly antennas with glowing tips
+    box(g, 11, 1, 1, 4, "#9aa0b0"); box(g, 20, 1, 1, 4, "#9aa0b0");
+    L.r(10, 0, 3, 2, "#ffe14a"); L.r(19, 0, 3, 2, "#ffe14a");
   });
 }
-function paintChomper(frame: number) {
+function paintRacer(frame: number) {
   return mk(36, 34, 12, (g, L) => {
     const bite = frame === 2, step = frame === 1;
-    box(g, 7, 26, 7, step ? 8 : 7, "#7e2350"); box(g, 22, 26, 7, step ? 7 : 8, "#7e2350");
-    g.beginPath(); g.roundRect(2, 5, 32, 23, 7); g.fillStyle = "#d9467e"; g.fill();
-    g.beginPath(); g.roundRect(4, 6, 28, 4, 3); g.fillStyle = "#f27aa8"; g.fill();
-    box(g, 4, 23, 28, 4, "#b2366a");
+    box(g, 7, 26, 7, step ? 8 : 7, "#7a3f10"); box(g, 22, 26, 7, step ? 7 : 8, "#7a3f10");
+    g.beginPath(); g.roundRect(2, 5, 32, 23, 7); g.fillStyle = "#e08a2a"; g.fill();
+    g.beginPath(); g.roundRect(4, 6, 28, 4, 3); g.fillStyle = "#ffb45a"; g.fill();
+    box(g, 4, 23, 28, 4, "#b8641a");
     const my = bite ? 12 : 15, mh = bite ? 14 : 9;
-    box(g, 5, my, 26, mh, "#2a0b1c");
-    L.r(13, my + (mh >> 1) - 1, 10, 2, "#ff5a8a");
+    box(g, 5, my, 26, mh, "#2a1406");
+    L.r(13, my + (mh >> 1) - 1, 10, 2, "#ff5a3a");
     for (let x = 6; x < 30; x += 4) { box(g, x, my, 3, 2, "#f4efe6"); box(g, x + 1, my + 2, 1, 1, "#f4efe6"); box(g, x + 1, my + mh - 2, 3, 2, "#f4efe6"); box(g, x + 2, my + mh - 3, 1, 1, "#f4efe6"); }
     L.r(9, 8, 5, 3, "#a6ff4a"); L.r(22, 8, 5, 3, "#a6ff4a");
-    box(g, 8, 6, 3, 1, "#7e2350"); box(g, 11, 7, 3, 1, "#7e2350"); box(g, 25, 6, 3, 1, "#7e2350"); box(g, 22, 7, 3, 1, "#7e2350");
+    box(g, 8, 6, 3, 1, "#7a3f10"); box(g, 11, 7, 3, 1, "#7a3f10"); box(g, 25, 6, 3, 1, "#7a3f10"); box(g, 22, 7, 3, 1, "#7a3f10");
     box(g, 17, 0, 2, 5, "#9aa0b0"); L.r(16, 0, 4, 2, "#ff4a3a");
   });
 }
-function paintOrb(frame: number) {
+function paintLeak(frame: number) {
   return mk(36, 36, 13, (g, L) => {
-    const atk = frame === 2;
-    box(g, 0, 14, 5, 8, "#3a1f86"); box(g, 31, 14, 5, 8, "#3a1f86"); box(g, 1, 16, 3, 1, "#6a4ad0"); box(g, 32, 16, 3, 1, "#6a4ad0");
-    disc(g, 18, 18, 15, "#4c2a9a"); disc(g, 16.5, 16.5, 13, "#6e42d0"); disc(g, 11, 10, 4, "#a07af2");
+    const atk = frame === 2, drip = frame === 1 ? 2 : 0;
+    disc(g, 18, 18, 15, "#1f7a5a"); disc(g, 16.5, 16.5, 13, "#2fae7e"); disc(g, 11, 10, 4, "#8ff0c4");
+    // the leak: drops that never stop falling
+    for (const [x, h] of [[10, 5], [17, 7], [24, 4]]) { box(g, x, 30, 3, h + drip, "#2fae7e"); box(g, x, 30 + h + drip, 3, 1, "#1f7a5a"); }
     disc(g, 18, 16, 8, "#e8f2ff");
     L.c(18 + (frame === 1 ? 1 : 0), 16, 5, "#3ff0ff"); disc(g, 18 + (frame === 1 ? 1 : 0), 16, 2.2, "#0a1030");
-    if (atk) { L.r(11, 27, 14, 4, "#ff5ad0"); L.r(13, 28, 10, 2, "#ffd0f4"); }
-    else { box(g, 12, 27, 12, 3, "#2a1660"); for (let x = 13; x < 24; x += 3) box(g, x, 28, 1, 1, "#7a50e0"); }
-    box(g, 17, 0, 2, 4, "#c9cdf5"); L.r(16, 0, 4, 1, "#ff5ad0");
+    if (atk) { L.r(11, 26, 14, 3, "#b8ff6a"); L.r(13, 27, 10, 1, "#f0ffd0"); }
+    else box(g, 13, 26, 10, 2, "#1a5a40");
+    box(g, 17, 0, 2, 4, "#c9cdf5"); L.r(16, 0, 4, 1, "#b8ff6a");
   });
 }
 function paintPile(kind: number) {
-  const col = ["#b8321e", "#d9467e", "#6e42d0"][kind], eye = ["#ffe14a", "#a6ff4a", "#3ff0ff"][kind];
+  const col = ["#3a5fd0", "#e08a2a", "#2fae7e"][kind], eye = ["#5ff0ff", "#a6ff4a", "#3ff0ff"][kind];
   return mk(24, 12, 20 + kind, (g, L, R) => {
     g.beginPath(); g.ellipse(12, 11, 11, 4, 0, 0, Math.PI * 2); g.fillStyle = "#33363f"; g.fill();
     for (let i = 0; i < 16; i++) box(g, 2 + ((R() * 18) | 0), 5 + ((R() * 5) | 0), 2 + ((R() * 3) | 0), 2, ["#5a5e6b", "#8a90a0", "#454956"][(R() * 3) | 0]);
@@ -671,7 +671,7 @@ function buildPack(): Pack {
     floor: mk(32, 32, 7, paintFloor),
     ceil: mk(32, 32, 8, (g, L, R) => paintCeil(g, L, R, false)),
     lamp: mk(32, 32, 8, (g, L, R) => paintCeil(g, L, R, true)),
-    foe: [[0, 1, 2].map(paintImp), [0, 1, 2].map(paintChomper), [0, 1, 2].map(paintOrb)],
+    foe: [[0, 1, 2].map(paintSprite), [0, 1, 2].map(paintRacer), [0, 1, 2].map(paintLeak)],
     pile: [0, 1, 2].map(paintPile),
     item: [
       mk(18, 14, 30, (g, L) => { box(g, 1, 3, 16, 11, "#e6e6ea"); box(g, 1, 3, 16, 2, "#ffffff"); box(g, 1, 12, 16, 2, "#b0b0bc"); box(g, 6, 0, 6, 1, "#9aa0ad"); box(g, 6, 0, 1, 3, "#9aa0ad"); box(g, 11, 0, 1, 3, "#9aa0ad"); L.r(8, 5, 2, 7, "#2fd06a"); L.r(5, 7, 8, 3, "#2fd06a"); }),
@@ -681,7 +681,7 @@ function buildPack(): Pack {
     ],
     shot: [
       mk(12, 12, 40, (_g, L) => { L.c(6, 6, 5.5, "#ff8a2a"); L.c(6, 6, 3.6, "#ffd24a"); L.c(6, 6, 1.8, "#fff8d8"); }),
-      mk(12, 12, 41, (_g, L) => { L.c(6, 6, 5.5, "#c04aff"); L.c(6, 6, 3.6, "#ff8af0"); L.c(6, 6, 1.8, "#ffffff"); }),
+      mk(12, 12, 41, (_g, L) => { L.c(6, 6, 5.5, "#6ad04a"); L.c(6, 6, 3.6, "#b8ff6a"); L.c(6, 6, 1.8, "#ffffff"); }),
     ],
     bit: [
       mk(6, 6, 50, (g) => { box(g, 1, 0, 4, 6, "#b8bdca"); box(g, 0, 1, 6, 4, "#b8bdca"); box(g, 1, 0, 4, 1, "#e2e6ee"); g.clearRect(2, 2, 2, 2); }),
@@ -689,7 +689,7 @@ function buildPack(): Pack {
       mk(3, 3, 52, (_g, L) => { L.r(0, 1, 3, 1, "#ffd24a"); L.r(1, 0, 1, 3, "#ffd24a"); L.r(1, 1, 1, 1, "#ffffff"); }),
       mk(8, 8, 53, (g) => { disc(g, 4, 4, 3, "#8d93a3"); for (const [x, y] of [[3, 0], [3, 6], [0, 3], [6, 3]]) box(g, x, y, 2, 2, "#8d93a3"); g.clearRect(3, 3, 2, 2); }),
       mk(16, 16, 54, (_g, L) => { L.c(8, 8, 7.5, "#ffb347"); L.c(8, 8, 5.5, "#ffe8a0"); L.c(8, 8, 3, "#ffffff"); }),
-      mk(3, 3, 55, (_g, L) => { L.r(0, 1, 3, 1, "#ff8af0"); L.r(1, 0, 1, 3, "#ff8af0"); L.r(1, 1, 1, 1, "#ffffff"); }),
+      mk(3, 3, 55, (_g, L) => { L.r(0, 1, 3, 1, "#b8ff6a"); L.r(1, 0, 1, 3, "#b8ff6a"); L.r(1, 1, 1, 1, "#ffffff"); }),
     ],
     gun: mk(96, 64, 60, (g, L) => {
       g.beginPath(); g.moveTo(28, 56); g.lineTo(60, 56); g.lineTo(53, 33); g.lineTo(35, 33); g.closePath(); g.fillStyle = "#5d6780"; g.fill();
@@ -889,33 +889,22 @@ function renderer(P: Pack, RW: number, RH: number, buf: Uint32Array) {
 
 // ---- HUD art -------------------------------------------------------------------------------
 
-function drawFace(g: G, hp: number, look: number, mode: string, ph: number) {
+/** The status bar core: a CPU chip whose die cools from mint to red as integrity drops. */
+function drawCore(g: G, hp: number, mode: string, ph: number) {
   g.clearRect(0, 0, 22, 24);
   const tier = hp >= 80 ? 0 : hp >= 60 ? 1 : hp >= 40 ? 2 : hp >= 20 ? 3 : 4;
-  const dead = mode === "dead";
-  const ec = dead ? "#ff3a2a" : tier <= 1 ? "#5ff0ff" : tier === 2 ? "#ffd24a" : "#ff6a3a";
-  box(g, 10, 0, 2, 3, "#7d8597"); box(g, 9, 0, 4, 2, dead ? "#5a2a2a" : "#ff5a4a");
-  box(g, 0, 9, 2, 7, "#5d6475"); box(g, 20, 9, 2, 7, "#5d6475");
-  box(g, 2, 3, 18, 19, "#9ba4b7"); box(g, 2, 3, 18, 2, "#c5ccda"); box(g, 2, 3, 2, 19, "#b3bbcb"); box(g, 18, 3, 2, 19, "#788092"); box(g, 2, 20, 18, 2, "#646b7c");
-  box(g, 4, 7, 14, 7, "#10141e");
-  const l = dead ? 0 : look;
-  if (dead) { for (let k = 0; k < 3; k++) { box(g, 6 + k, 9 + k, 1, 1, ec); box(g, 8 - k, 9 + k, 1, 1, ec); box(g, 13 + k, 9 + k, 1, 1, ec); box(g, 15 - k, 9 + k, 1, 1, ec); } }
-  else if (mode === "ouch") { box(g, 6, 10, 3, 1, ec); box(g, 13, 10, 3, 1, ec); box(g, 5, 8, 3, 1, "#4a5262"); box(g, 14, 8, 3, 1, "#4a5262"); }
-  else if (mode === "grin") { for (const ex of [6, 13]) { box(g, ex + l, 11, 1, 1, ec); box(g, ex + 1 + l, 10, 1, 1, ec); box(g, ex + 2 + l, 11, 1, 1, ec); } }
-  else { box(g, 6 + l, 9, 3, 3, ec); box(g, 13 + l, 9, 3, 3, ec); box(g, 6 + l, 9, 1, 1, "#ffffff"); box(g, 13 + l, 9, 1, 1, "#ffffff"); }
-  if (!dead && tier >= 3 && ph % 2 === 0) box(g, 13 + l, 8, 4, 5, "#10141e");
-  if (mode === "grin") { box(g, 6, 16, 10, 3, "#3b4252"); box(g, 7, 16, 1, 1, ec); box(g, 8, 17, 6, 1, ec); box(g, 14, 16, 1, 1, ec); }
-  else if (mode === "ouch" || dead) { box(g, 8, 15, 6, 5, "#1a1f2a"); box(g, 9, 16, 4, 3, "#2a0d09"); }
-  else { box(g, 7, 16, 8, 3, "#3b4252"); for (let x = 8; x < 15; x += 2) box(g, x, 16, 1, 3, "#262b36"); }
-  if (tier >= 1) { box(g, 4, 5, 3, 1, "#6b7385"); box(g, 15, 19, 3, 1, "#6b7385"); }
-  if (tier >= 2) { box(g, 14, 3, 4, 3, "#79818f"); box(g, 15, 4, 2, 1, "#555c6b"); box(g, 3, 15, 2, 3, "#7d8597"); }
-  if (tier >= 3) for (const [x, y] of [[9, 7], [10, 8], [10, 9], [11, 10], [12, 11], [12, 12], [13, 13]]) box(g, x, y, 1, 1, "#d6e2f2");
-  if (tier >= 4 && !dead) {
-    const sp = [[3, 6], [18, 14], [11, 3], [17, 5]][ph % 4];
-    box(g, sp[0] - 1, sp[1], 3, 1, "#ffd24a"); box(g, sp[0], sp[1] - 1, 1, 3, "#ffd24a"); box(g, sp[0], sp[1], 1, 1, "#ffffff");
-    box(g, 5 + ph, 1, 2, 1, "#6a6a72");
-  }
-  if (dead) { g.fillStyle = "rgba(24,10,10,0.35)"; g.fillRect(0, 0, 22, 24); }
+  const dead = mode === "dead", ouch = mode === "ouch";
+  const pin = ouch ? "#ff6a4a" : "#9aa0b0";
+  for (const k of [6, 10, 14]) { box(g, k, 0, 2, 3, pin); box(g, k, 19, 2, 3, pin); box(g, 0, k, 3, 2, pin); box(g, 19, k, 3, 2, pin); }
+  box(g, 3, 3, 16, 16, "#2a2f45"); box(g, 3, 3, 16, 1, "#454c6a"); box(g, 3, 3, 1, 16, "#3a4060"); box(g, 3, 18, 16, 1, "#1a1e30");
+  const die = dead ? "#3a1414" : ouch ? "#ffffff" : ["#5ff0c8", "#9ff05f", "#ffd24a", "#ff8a3a", "#ff3a2a"][tier];
+  box(g, 7, 7, 8, 8, tier === 4 && !dead && ph % 2 ? "#8a1a12" : die);
+  if (!dead && !ouch) box(g, 7, 7, 8, 1, "rgba(255,255,255,0.45)");
+  if (tier >= 2 || dead) for (const [x, y] of [[4, 5], [5, 6], [6, 7], [7, 7]]) box(g, x, y, 1, 1, "#0e1020");
+  if (tier >= 3 || dead) for (const [x, y] of [[17, 13], [16, 14], [15, 15], [14, 16], [13, 17]]) box(g, x, y, 1, 1, "#0e1020");
+  if (dead) for (let k = 0; k < 6; k++) { box(g, 8 + k, 8 + k, 1, 1, "#ff3a2a"); box(g, 13 - k, 8 + k, 1, 1, "#ff3a2a"); }
+  if (mode === "grin") for (const [x, y] of ph % 2 ? [[0, 0], [18, 20]] : [[18, 0], [0, 20]]) { box(g, x, y + 1, 3, 1, "#ffd24a"); box(g, x + 1, y, 1, 3, "#ffd24a"); }
+  box(g, 9, 22, 4, 2, dead ? "#3a1414" : ph % 2 ? "#5ff0c8" : "#1f6a5a");
 }
 
 const GLYPH: Record<string, string[]> = {
@@ -925,28 +914,32 @@ const GLYPH: Record<string, string[]> = {
 };
 function drawLogo(c: HTMLCanvasElement) {
   const cs = 5, word = "BOOT";
-  c.width = (word.length * 6 - 1) * cs + 3; c.height = 7 * cs + 3;
+  c.width = (word.length * 6 + 4) * cs + 3; c.height = 7 * cs + 3;
   const g = c.getContext("2d")!;
-  const rows = ["#ffe27a", "#ffc24a", "#ff9a2e", "#f26a22", "#d8421c", "#b02a16", "#7e1a10"];
+  const rows = ["#f0fff8", "#c8fff0", "#8ff5de", "#5fe6cc", "#3fcfb8", "#2aa89a", "#1d7a74"];
+  const cell = (x: number, y: number, r: number, pass: number) => {
+    if (!pass) { box(g, x + 3, y + 3, cs, cs, "#06161c"); return; }
+    box(g, x, y, cs, cs, rows[r]);
+    box(g, x, y, cs, 1, "rgba(255,255,255,0.5)"); box(g, x + cs - 1, y, 1, cs, "rgba(4,30,32,0.4)");
+  };
   for (const pass of [0, 1]) {
-    word.split("").forEach((ch, li) => GLYPH[ch].forEach((row, r) => row.split("").forEach((b, col) => {
-      if (b !== "1") return;
-      const x = (li * 6 + col) * cs, y = r * cs;
-      if (!pass) { box(g, x + 3, y + 3, cs, cs, "#1a0503"); return; }
-      box(g, x, y, cs, cs, rows[r]);
-      box(g, x, y, cs, 1, "rgba(255,250,220,0.55)"); box(g, x, y, 1, cs, "rgba(255,250,220,0.3)");
-      box(g, x, y + cs - 1, cs, 1, "rgba(60,8,4,0.55)"); box(g, x + cs - 1, y, 1, cs, "rgba(60,8,4,0.45)");
-    })));
+    word.split("").forEach((ch, li) => GLYPH[ch].forEach((row, r) => row.split("").forEach((b, col) => { if (b === "1") cell((li * 6 + col) * cs, r * cs, r, pass); })));
+    // a prompt cursor after the word, like a machine waiting to boot
+    for (const x of [0, 1, 2]) cell((word.length * 6 + 1 + x) * cs, 6 * cs, 6, pass);
   }
   // the two O's are a robot looking back at you
-  for (const li of [1, 2]) { box(g, (li * 6 + 2) * cs, 3 * cs, cs, cs, "#14080a"); box(g, (li * 6 + 2) * cs + 1, 3 * cs + 1, cs - 2, cs - 2, "#5ff0ff"); }
+  for (const li of [1, 2]) { box(g, (li * 6 + 2) * cs, 3 * cs, cs, cs, "#06161c"); box(g, (li * 6 + 2) * cs + 1, 3 * cs + 1, cs - 2, cs - 2, "#ffd24a"); }
+  // faint scanlines over the letters only
+  g.globalCompositeOperation = "source-atop";
+  for (let y = 0; y < c.height; y += 2) box(g, 0, y, c.width, 1, "rgba(4,22,28,0.18)");
+  g.globalCompositeOperation = "source-over";
 }
 function hudBg() {
   const c = document.createElement("canvas"); c.width = 48; c.height = 24;
   const g = c.getContext("2d")!;
   const R = rng(77);
-  box(g, 0, 0, 48, 24, "#4b443e");
-  noise(g, R, 48, 24, 420, ["#544c45", "#433d38", "#5a524a", "#3e3833", "#4f4741"]);
+  box(g, 0, 0, 48, 24, "#262b46");
+  noise(g, R, 48, 24, 420, ["#2c3250", "#22273f", "#30365a", "#1f2440", "#2a3050"]);
   return c.toDataURL();
 }
 
@@ -966,19 +959,18 @@ export async function playBoot(body: HTMLElement, host: FunHost, opts: FunOpts):
     f.stage.insertAdjacentHTML("beforeend", `
       <div class="gm-bt-view" style="height:${VH}px"><canvas class="gm-bt-cv"></canvas><i class="gm-bt-flash"></i><div class="gm-bt-msg"></div></div>
       <div class="gm-bt-hud">
-        <div class="gm-bt-cell"><b class="gm-bt-ammo">35</b><span>AMMO</span></div>
-        <div class="gm-bt-cell"><b class="gm-bt-hp">100%</b><span>HEALTH</span></div>
-        <div class="gm-bt-cell"><div class="gm-bt-arms-g"><i class="gm-on">2</i><i>3</i><i>4</i><i>5</i><i>6</i><i>7</i></div><span>ARMS</span></div>
-        <div class="gm-bt-face"><canvas width="22" height="24"></canvas></div>
-        <div class="gm-bt-cell"><b class="gm-bt-ar">0%</b><span>ARMOR</span></div>
-        <div class="gm-bt-keys"><i data-k="b"></i><i data-k="y"></i><i data-k="r"></i></div>
+        <div class="gm-bt-cell"><b class="gm-bt-ammo">35</b><span>CHARGE</span></div>
+        <div class="gm-bt-cell"><b class="gm-bt-hp">100%</b><span>INTEGRITY</span></div>
+        <div class="gm-bt-core"><canvas width="22" height="24"></canvas></div>
+        <div class="gm-bt-cell"><b class="gm-bt-ar">0%</b><span>SHIELD</span></div>
+        <div class="gm-bt-keys"><i data-k="b"></i></div>
       </div>
       <div class="gm-bt-tally"></div>
-      <div class="gm-bt-title"><canvas class="gm-bt-logo"></canvas><span class="gm-bt-sub">Knee-Deep in the Kernel</span><div class="gm-bt-menu"></div></div>`);
+      <div class="gm-bt-title"><canvas class="gm-bt-logo"></canvas><span class="gm-bt-sub">Down the Call Stack</span><div class="gm-bt-menu"></div></div>`);
     const q = <T extends Element = HTMLElement>(s: string) => f.stage.querySelector(s) as T;
     const cv = q<HTMLCanvasElement>(".gm-bt-cv"), flashEl = q(".gm-bt-flash"), msgEl = q(".gm-bt-msg");
     const ammoB = q(".gm-bt-ammo"), hpB = q(".gm-bt-hp"), arB = q(".gm-bt-ar"), keyB = q('.gm-bt-keys i[data-k="b"]');
-    const faceCv = q<HTMLCanvasElement>(".gm-bt-face canvas"), faceG = faceCv.getContext("2d")!;
+    const coreG = q<HTMLCanvasElement>(".gm-bt-core canvas").getContext("2d")!;
     const title = q(".gm-bt-title"), menu = q(".gm-bt-menu"), tally = q(".gm-bt-tally");
     q(".gm-bt-hud").style.backgroundImage = `url(${hudBg()})`;
     drawLogo(q<HTMLCanvasElement>(".gm-bt-logo"));
@@ -996,25 +988,23 @@ export async function playBoot(body: HTMLElement, host: FunHost, opts: FunOpts):
     };
 
     // ---- per-frame HUD ----
-    let faceKey = "", look = 0, lookT = 0, grinT = 0, lastKills = 0, lastGot = 0;
+    let coreKey = "", grinT = 0, lastKills = 0, lastGot = 0;
     const hv = { ammo: -1, hp: -1, ar: -1, key: false, kills: -1, fl: -1 };
-    const face = (hp: number, mode: string, t: number) => {
-      const ph = Math.floor(t * 6) % 4;
-      const k = `${hp >= 80 ? 0 : hp >= 60 ? 1 : hp >= 40 ? 2 : hp >= 20 ? 3 : 4}|${look}|${mode}|${hp < 40 ? ph : 0}`;
-      if (k !== faceKey) { faceKey = k; drawFace(faceG, hp, look, mode, ph); }
+    const core = (hp: number, mode: string, t: number) => {
+      const ph = calm ? 0 : Math.floor(t * 6) % 4;
+      const k = `${hp >= 80 ? 0 : hp >= 60 ? 1 : hp >= 40 ? 2 : hp >= 20 ? 3 : 4}|${mode}|${ph}`;
+      if (k !== coreKey) { coreKey = k; drawCore(coreG, hp, mode, ph); }
     };
     const hud = (r: Run, dt: number, t: number) => {
       if (r.ammo !== hv.ammo) { hv.ammo = r.ammo; ammoB.textContent = String(r.ammo); }
       if (r.hp !== hv.hp) { hv.hp = r.hp; hpB.textContent = `${r.hp}%`; }
       if (r.armor !== hv.ar) { hv.ar = r.armor; arB.textContent = `${r.armor}%`; }
       if (r.key !== hv.key) { hv.key = r.key; keyB.classList.toggle("gm-on", r.key); }
-      if (r.kills !== hv.kills) { hv.kills = r.kills; f.setScore(`Kills ${r.kills}/${r.foes.length}`, r.kills > 0); }
+      if (r.kills !== hv.kills) { hv.kills = r.kills; f.setScore(`Bugs ${r.kills}/${r.foes.length}`, r.kills > 0); }
       if (r.kills > lastKills || r.got > lastGot) grinT = 1.1;
       lastKills = r.kills; lastGot = r.got;
-      grinT -= dt; lookT -= dt;
-      if (r.hurtT > 0.2) { look = r.hurtSide; lookT = 0.9; }
-      else if (lookT <= 0) { look = [-1, 0, 0, 1][(Math.random() * 4) | 0]; lookT = 0.7 + Math.random() * 1.2; }
-      face(r.hp, r.dead ? "dead" : r.hurtT > 0.12 ? "ouch" : grinT > 0 || r.exitOn ? "grin" : "", t);
+      grinT -= dt;
+      core(r.hp, r.dead ? "dead" : r.hurtT > 0.12 ? "ouch" : grinT > 0 || r.exitOn ? "grin" : "", t);
       let fa = 0, col = "#ff2a1a";
       if (r.dead) fa = 0.32;
       else if (r.hurtT > 0) fa = (r.hurtT / 0.35) * (calm ? 0.22 : 0.42);
@@ -1040,11 +1030,10 @@ export async function playBoot(body: HTMLElement, host: FunHost, opts: FunOpts):
     scenic.x = 10.6; scenic.y = 17.6; scenic.a = -0.6;
     draw(scenic, 0, true);
     ctx.putImageData(img, 0, 0);
-    face(100, "", 0);
+    core(100, "", 0);
     f.setScore("Main menu");
-    const ptr = document.createElement("canvas");
-    ptr.width = 22; ptr.height = 24; ptr.className = "gm-bt-ptr";
-    drawFace(ptr.getContext("2d")!, 100, 1, "grin", 0);
+    const ptr = document.createElement("i");
+    ptr.className = "gm-bt-ptr";
     const fill = (head: string, labels: string[]) => {
       menu.innerHTML = (head ? `<div class="gm-bt-mh">${head}</div>` : "") + labels.map((s) => `<div class="gm-bt-mi">${s}</div>`).join("");
       menu.appendChild(ptr);
@@ -1052,9 +1041,9 @@ export async function playBoot(body: HTMLElement, host: FunHost, opts: FunOpts):
     };
     const hover = (els: HTMLElement[], i: number) => {
       els.forEach((e, k) => e.classList.toggle("gm-hot", k === i));
-      ptr.style.top = `${els[i].offsetTop + (els[i].offsetHeight - 24) / 2}px`;
+      ptr.style.top = `${els[i].offsetTop + (els[i].offsetHeight - 14) / 2}px`;
     };
-    let mi = fill("", ["New Game", "Options", "Load Game", "Read This!", "Quit Game"]);
+    let mi = fill("", ["New Run", "Settings", "Load Save", "Patch Notes", "Quit"]);
     hover(mi, 0);
     scope.fromTo(title, { opacity: 0 }, { opacity: 1, duration: calm ? 0.01 : 0.5 });
     await nap(host, 1100);
@@ -1062,7 +1051,7 @@ export async function playBoot(body: HTMLElement, host: FunHost, opts: FunOpts):
     await nap(host, think(S.skill, 280));
     await host.click();
     await nap(host, 250);
-    mi = fill("Choose skill level", SKILLS);
+    mi = fill("Choose a build", SKILLS);
     let cur = 2;
     hover(mi, cur);
     const choice = S.skill < 0.42 ? 0 : S.skill < 0.55 ? 1 : S.skill < 0.8 ? 2 : 3;
@@ -1086,14 +1075,14 @@ export async function playBoot(body: HTMLElement, host: FunHost, opts: FunOpts):
       run = new Run(S.skill, SKILL_DMG[choice], ev);
       live = true;
       hv.kills = -1; lastKills = 0; lastGot = 0;
-      if (attempt === 1) ev.msg(`Skill: ${SKILLS[choice]}`);
+      if (attempt === 1) ev.msg(`Build: ${SKILLS[choice]}`);
       host.react("focus");
       while (!run.end && S.left > 1600) await nap(host, 100);
       const r = run;
       const clock = `${Math.floor(r.t / 60)}:${String(Math.floor(r.t % 60)).padStart(2, "0")}`;
       if (!r.end) {
         live = false;
-        f.showOver("Break's over", `Kills ${r.kills}/${r.foes.length}   ${clock}`, "plain");
+        f.showOver("Break's over", `Bugs ${r.kills}/${r.foes.length}   ${clock}`, "plain");
         await nap(host, cap(900));
         return { result: "done", score: r.kills };
       }
@@ -1101,14 +1090,14 @@ export async function playBoot(body: HTMLElement, host: FunHost, opts: FunOpts):
         await nap(host, cap(500));
         live = false;
         host.react("cheer");
-        f.setScore("Level complete", true);
+        f.setScore("Frame cleared", true);
         const kp = Math.round((r.kills / r.foes.length) * 100), ip = Math.round((r.got / r.items.length) * 100);
-        tally.innerHTML = `<h3>Server Pit</h3><p>Finished</p>
-          <div class="gm-bt-row"><span>Kills</span><b>0%</b></div>
-          <div class="gm-bt-row"><span>Items</span><b>0%</b></div>
+        tally.innerHTML = `<h3><code>main()</code></h3><p>returned 0</p>
+          <div class="gm-bt-row"><span>Bugs</span><b>0%</b></div>
+          <div class="gm-bt-row"><span>Parts</span><b>0%</b></div>
           <div class="gm-bt-row"><span>Time</span><b>${clock}</b></div>
-          <div class="gm-bt-row"><span>Par</span><b>1:30</b></div>
-          <div class="gm-bt-next">Entering: Cooling Tower</div>`;
+          <div class="gm-bt-row"><span>Best</span><b>1:30</b></div>
+          <div class="gm-bt-next">Next frame: <code>parseConfig()</code></div>`;
         tally.classList.add("gm-on");
         msgEl.style.opacity = "0";
         const cells = [...tally.querySelectorAll(".gm-bt-row b")] as HTMLElement[];
@@ -1123,7 +1112,7 @@ export async function playBoot(body: HTMLElement, host: FunHost, opts: FunOpts):
       // rebooted
       await nap(host, cap(1300));
       live = false;
-      f.showOver("Rebooted", `by ${r.killer}   Kills ${r.kills}/${r.foes.length}`, "bad");
+      f.showOver("Rebooted", `by ${r.killer}   Bugs ${r.kills}/${r.foes.length}`, "bad");
       await nap(host, cap(1500));
       S.rounds = attempt;
       const next = S.afterLoss(0.12);
