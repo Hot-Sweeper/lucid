@@ -1,4 +1,4 @@
-// Interface themes. A theme is two things:
+// Interface themes. A theme is two things (Follow T3 also reads T3 Code's palette at run time):
 //   1. this entry: its id, settings label and how the office world is lit and drawn;
 //   2. a CSS file of token values on :root[data-theme="<id>"] (see themes/oled.css).
 // Every themed surface reads tokens (themes/tokens.css holds the defaults, which are the night
@@ -6,6 +6,7 @@
 import "./tokens.css";
 import "./surfaces.css";
 import "./oled.css";
+import "./t3.css";
 import "./app-dark/index.css";
 
 export type WorldLook = {
@@ -30,7 +31,25 @@ export type ThemeDef = {
   world: WorldLook;
 };
 
+// Follow T3 takes the colours of the theme active in T3 Code (themes/t3-theme.ts). Its scheme,
+// window colour and world change with that theme, so this entry is updated in place.
+const DARK_WORLD: WorldLook = { alwaysMidnight: true, nightSky: { sky1: "#000000", sky2: "#08080b" }, artShade: 0.78, mapEdge: "#000000" };
+export const T3_THEME: ThemeDef = {
+  id: "t3",
+  label: { en: "Follow T3", de: "Wie T3" },
+  metaColor: "#000000",
+  appScheme: "dark",
+  world: DARK_WORLD,
+};
+/** A light T3 theme keeps the warm daylight office; a dark one takes the moonlit office of OLED black. */
+export function setT3Look(appearance: "light" | "dark", canvas: string, raised: string) {
+  T3_THEME.metaColor = canvas;
+  T3_THEME.appScheme = appearance;
+  T3_THEME.world = appearance === "dark" ? { ...DARK_WORLD, nightSky: { sky1: canvas, sky2: raised }, mapEdge: canvas } : { alwaysMidnight: false, artShade: 0 };
+}
+
 export const THEMES: readonly ThemeDef[] = [
+  T3_THEME,
   {
     id: "night",
     label: { en: "Night blue", de: "Nachtblau" },
@@ -47,7 +66,7 @@ export const THEMES: readonly ThemeDef[] = [
   },
 ];
 
-const DEFAULT = THEMES[0];
+const DEFAULT = THEMES[1];
 export const themeById = (id: string | null | undefined) => THEMES.find((t) => t.id === id) ?? DEFAULT;
 
 /** The theme on screen now (also safe where there is no document). */

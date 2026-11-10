@@ -41,7 +41,13 @@
   --mt-chip-kept: #222225;
   --mt-remove: #222225;
   --mt-viewer-scrim: rgba(0, 0, 0, 0.88);
+}
 
+/* The dark office: moonlit grounds, dark oak and charcoal materials, dark robot bodies and the
+   robots' computers in their dark look. Follow T3 uses the same office under a dark T3 theme
+   (themes/t3.css then gives the interface and the computers' chrome T3's own colours). */
+:root[data-theme="oled"],
+:root[data-theme="t3"][data-t3-appearance="dark"] {
   /* world: the grounds are drawn moonlit, so the outdoor tint is lighter; indoors is deeper */
   --world-night-tint: #000000;
   --world-outdoor-tint: #000000;

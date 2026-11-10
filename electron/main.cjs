@@ -624,6 +624,8 @@ require("./market.cjs").register(ipcMain);
 
 // Dictation goes through the local T3 Code's speech service, including for remote-building chats.
 require("./t3-voice.cjs").register({ ipcMain, app, window: () => win, server: t3s });
+// The palette of the theme picked in T3 Code, for the Follow T3 interface theme.
+require("./t3-theme.cjs").register(ipcMain, app);
 // Lucid's own title bar: window buttons and the maximized state for its restore icon.
 ipcMain.handle("window:control", (event, action) => {
   const w = BrowserWindow.fromWebContents(event.sender);

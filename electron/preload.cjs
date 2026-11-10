@@ -86,6 +86,7 @@ contextBridge.exposeInMainWorld("lucid", {
   applyUpdate: () => ipcRenderer.invoke("app:apply-update"),
   onUpdateStep: on("app:update-step"),
   version: () => ipcRenderer.invoke("app:version"),
+  t3Theme: () => ipcRenderer.invoke("t3:theme"),
 });
 
 // T3 server actions that need Lucid's paired session. Each call resolves with the value or rejects with a readable message.

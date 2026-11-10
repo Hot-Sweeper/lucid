@@ -1,6 +1,6 @@
 # Interface themes
 
-Lucid's interface, office lighting and robot computers are themed together. Night blue is the default; OLED black is the second theme.
+Lucid's interface, office lighting and robot computers are themed together. Follow T3 is the default when T3 Code's theme can be read; Night blue is the default otherwise; OLED black is the third theme.
 
 ## How it fits together
 
@@ -9,6 +9,14 @@ Lucid's interface, office lighting and robot computers are themed together. Nigh
 - `src/themes/surfaces.css` applies the tokens to Lucid's chrome, the office lighting and the robot desktop apps. Its `html:root[data-theme]` prefix outranks each component's own colour rule, including stylesheets that load later with their app.
 - `src/themes/<id>.css` sets token values on `:root[data-theme="<id>"]` and nothing else.
 - `src/interface-theme.ts` applies the saved theme before the interface is built, builds the Interface selector in Office & settings from the registry, and crossfades switches with View Transitions (instant under reduced motion). The world relights on the `lucid:interface-theme` event.
+
+## Follow T3
+
+Follow T3 copies the theme active in T3 Code. T3 has no API or file for the active choice (its environment theme in `settings.json` and `themes/` is only a default it pushes to clients), so `electron/t3-theme.cjs` reads T3's own window storage, read-only: the Chromium Local Storage folder `<appData>/t3code-v2/Local Storage/leveldb` (origin `t3code://app`, keys `t3code:theme`, `t3code:theme-appearance-mode`, `t3code:theme-follow-system`, `t3code:theme-halves:v1`, `t3code:themes:v1`) through `electron/chromium-local-storage.cjs`. It never locks or writes the database and returns nothing on a missing folder, an unknown format or a compaction in progress. Without that folder it uses T3's environment theme (`~/.t3/userdata/settings.json` `defaultTheme` and `~/.t3/userdata/themes/*.json`).
+
+The resolution mirrors T3's web client: the theme id, appearance mode, light and dark halves, custom themes (missing colours from T3 Chat) and the system appearance. Built-in palettes come from `electron/t3-theme-builtins.cjs`, a copy of T3's table; a built-in that a newer T3 adds falls back to T3's default palette until that table is refreshed. Colours are converted to sRGB hex, and text, muted text, link accent and accent ink are lifted to WCAG AA.
+
+`src/themes/t3-theme.ts` sets the palette as `--t3-*` on `<html>` with `data-t3-appearance`, keeps the last palette in localStorage for the next launch, and checks again every 8 seconds while the window is visible and Follow T3 is in use (one check at a time, again on focus). The main process answers from a cache while the files' sizes and times are unchanged. `src/themes/t3.css` maps those colours onto the tokens; the dark office block of `oled.css` also applies under a dark T3 theme. `registry.ts` updates the Follow T3 entry's window colour, app scheme and world (moonlit under T3's canvas for dark, the daylight office for light).
 
 ## Office materials
 
