@@ -18,6 +18,15 @@ html:root[data-theme] .chat-panel .cp-box.ref-over { background: var(--ui-drop-f
 html:root[data-theme] .md-code { background: var(--ui-code); }
 html:root[data-theme] .pop-menu,
 html:root[data-theme] .dialog { background: var(--ui-raised); outline: 1px solid var(--ui-edge); outline-offset: -1px; }
+html:root[data-theme] .cm-menu { background: var(--ui-raised); outline: 1px solid var(--ui-edge); outline-offset: -1px; }
+html:root[data-theme] .office-width-controls button,
+html:root[data-theme] .office-width-handle,
+html:root[data-theme] .neighbor-open,
+html:root[data-theme] .neighbor-status { background: var(--ui-plate); }
+html:root[data-theme] .office-width-controls button:hover:enabled,
+html:root[data-theme] .office-width-handle:hover { background: var(--ui-plate-hover); }
+html:root[data-theme] .building-plate { background: var(--ui-building-plate); }
+html:root[data-theme] .cp-drop { background: var(--ui-drop-scrim); }
 html:root[data-theme] .wx-menu { background: var(--ui-menu); outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 html:root[data-theme] .office-settings { outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 html:root[data-theme] .dialog-wrap { background: var(--ui-scrim); }

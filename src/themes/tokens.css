@@ -29,6 +29,10 @@
   --ui-queue-drag: #2e2a4c;
   --ui-tray: #1b2246f5;
   --ui-toast: #241f3a;             /* milestone toast */
+  --ui-plate: #36364e;              /* office width controls, neighbour office labels */
+  --ui-plate-hover: #514b68;
+  --ui-building-plate: #3a3f4f;     /* the building name over each campus */
+  --ui-drop-scrim: rgba(18, 21, 58, 0.94);   /* drop files onto the chat */
   --ui-scroll: rgba(185, 191, 230, 0.18);
   --ui-scroll-hover: rgba(185, 191, 230, 0.32);
   --mt-panel: #171d3b;              /* Lucid's own monitor screens */

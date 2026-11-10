@@ -28,6 +28,10 @@
   --ui-queue-drag: #1f1f1f;
   --ui-tray: rgba(10, 10, 10, 0.96);
   --ui-toast: #161616;
+  --ui-plate: #1c1c1f;
+  --ui-plate-hover: #2a2a2e;
+  --ui-building-plate: #1c1c1f;
+  --ui-drop-scrim: rgba(0, 0, 0, 0.94);
   --ui-scroll: rgba(255, 255, 255, 0.16);
   --ui-scroll-hover: rgba(255, 255, 255, 0.3);
   --mt-panel: #000000;
