@@ -11,7 +11,7 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lucid-settlement-recovery-')
   const config = {threadId:'boss',review:true,paused:false};
   const sends = [], dispatches = [];
   let usageCalls = 0;
-  const facts = () => ({run:{id:run,status:'completed'},title:'Completed task',pendingRuns:0,pendingRequests:0,pinned:false,settled,messages:[{role:'assistant',text:'Actual completion'}],sessions:[]});
+  const facts = () => ({run:{id:run,status:'completed'},title:'Completed task',originalRequest:'Finish the task',pendingRuns:0,pendingRequests:0,pinned:false,settled,messages:[{role:'assistant',text:'Actual completion'}],sessions:[]});
   const deps = {dir:path.join(root,'papers'),settings:()=>config,robots:()=>[],
     t3:{world:()=>({threads:[{id:'worker',runStatus:'completed'}]}),reportState:facts,reportFacts:facts,repliesSince:()=>({messages:replies}),sendMessage:async m=>sends.push(m)},
     usage:{getSessionUsage:async()=>{usageCalls++;if(scanRelease) await new Promise(resolve=>{scanRelease=resolve});return {available:false};}},

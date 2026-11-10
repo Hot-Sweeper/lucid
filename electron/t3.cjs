@@ -568,6 +568,23 @@ function repliesSince(threadId, since) {
   return { messages, runStatus: run?.status || null, exists };
 }
 
+/** Whether a message containing `marker` reached a thread since a moment, and how its run went. */
+function sentSince(threadId, since, marker) {
+  const row = getDb().prepare(`select m.run_id as runId, r.status from orchestration_v2_projection_messages m
+                               left join orchestration_v2_projection_runs r on r.run_id = m.run_id
+                               where m.thread_id = ? and m.role = 'user' and m.created_at > ? and instr(m.payload_json, ?) > 0
+                               order by m.created_at desc limit 1`).get(threadId, since, String(marker));
+  return { sent: !!row, runStatus: row?.status || null };
+}
+
+/** The orchestrator's own thread in T3: whether it still exists, is pinned, and its latest run. */
+function threadHealth(threadId) {
+  const db = getDb();
+  const t = db.prepare("select archived_at as archived, deleted_at as deleted, payload_json as p from orchestration_v2_projection_threads where thread_id = ?").get(threadId);
+  const run = db.prepare("select status from orchestration_v2_projection_runs where thread_id = ? order by ordinal desc limit 1").get(threadId);
+  return { exists: !!t && !t.archived && !t.deleted, archived: !!t?.archived, pinned: !!safeJson(t?.p)?.pinnedAt, runStatus: run?.status || null };
+}
+
 /** Questions and approvals that were answered since a moment (by anyone), with what was asked and the answer. */
 function resolvedRequestsSince(since) {
   const db = getDb();
@@ -602,4 +619,4 @@ function threadFolders() {
   return getDb().prepare("select thread_id as id, json_extract(payload_json, '$.worktreePath') as path from orchestration_v2_projection_threads where archived_at is null and deleted_at is null and json_extract(payload_json, '$.worktreePath') is not null").all();
 }
 
-module.exports = { threadFolders, coinBindings, reportState: id => reportFacts(id, false), reportFacts, officeTasks, requestContext, repliesSince, resolvedRequestsSince, requestOutcome, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, conversationPage, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };
+module.exports = { sentSince, threadHealth, threadFolders, coinBindings, reportState: id => reportFacts(id, false), reportFacts, officeTasks, requestContext, repliesSince, resolvedRequestsSince, requestOutcome, pendingRequests, userMessagesSince, itemsSince, recentItems, addProject, removeProject, conversation, conversationPage, attachmentPath, world, listProjects, listProjectsWithCounts, listThreads, threadInfo, watchThread, startThread, sendMessage, office, DB_PATH };

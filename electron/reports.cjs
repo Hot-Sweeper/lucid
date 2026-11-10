@@ -5,6 +5,11 @@ const crypto = require('node:crypto');
 const hash = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 24);
 const IMAGE = /\.(png|jpe?g|webp|gif|avif)$/i;
 const terminal = new Set(['settled', 'changes-requested', 'manual-review', 'superseded', 'manager-excluded', 'pending-dependency']);
+const STOPPED = new Set(['failed', 'interrupted', 'cancelled', 'canceled', 'error', 'stopped', 'aborted']);
+const MAX_SENDS = 3;
+// Retry delays grow so an unreachable T3 is not hammered, but a retry always comes.
+const backoff = (attempts, first) => Math.min(first * 2 ** Math.max(0, attempts - 1), 5 * 60_000);
+const marker = p => `settlement review ${p.id}`;
 // Bounded extraction also accepts fenced JSON and skips unrelated objects in a reply.
 const parseVerdict = (text, reportId = null) => {
   text = String(text || '').slice(-256 * 1024);
@@ -25,7 +30,7 @@ const parseVerdict = (text, reportId = null) => {
   return null;
 };
 
-function createReports({ dir, t3, server, usage, settings, robots = () => [] }) {
+function createReports({ dir, t3, server, usage, settings, robots = () => [], name = 'Lucid', spent = null }) {
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, 'index.json');
   let papers = [];
@@ -93,6 +98,8 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
     return p;
   }
   function evidenceIssue(p, verdict) {
+    if (!String(p.originalRequest || '').trim()) return 'The original request is missing, so this work cannot be approved.';
+    if (!String(p.response || '').trim()) return 'The robot has not delivered a final result, so this work cannot be approved.';
     if (typeof verdict.summary !== 'string' || !verdict.summary.trim() || !Array.isArray(verdict.checks) || !verdict.checks.length || verdict.checks.some(c => typeof c !== 'string' || !c.trim())) return 'The review needs a summary and actual validation results.';
     if (typeof verdict.visualChanged !== 'boolean') return 'The review must state whether the job changed visuals.';
     if (verdict.visualChanged && (!p.images.some(i => i.label === 'Before') || !p.images.some(i => i.label === 'After'))) return 'Before and after screenshots are missing. Request evidence before settlement.';
@@ -100,7 +107,7 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
   }
   function excludePinned(p) {
     if (!reportState(p.threadId).pinned) return false;
-    event(p, 'Excluded from automatic review', 'Lucid', 'Pinned threads stay active.');
+    event(p, 'Excluded from automatic review', name, 'Pinned threads stay active.');
     update(p, { status: 'manager-excluded', error: null });
     return true;
   }
@@ -119,8 +126,11 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
         if (image) image.label = label;
       }
     }
-    if (Array.isArray(verdict.humanChecks)) verdict.humanChecks = verdict.humanChecks.filter(c => c && typeof c.question === 'string' && c.question.trim()).map(c => ({ question: c.question, instructions: typeof c.instructions === 'string' ? c.instructions : '' }));
-    if (automatic && verdict.humanChecks?.length) verdict.decision = 'manual';
+    // The questionnaire stays short: at most three human-only checks.
+    if (Array.isArray(verdict.humanChecks)) verdict.humanChecks = verdict.humanChecks.filter(c => c && typeof c.question === 'string' && c.question.trim()).slice(0, 3).map(c => ({ question: c.question, instructions: typeof c.instructions === 'string' ? c.instructions : '' }));
+    // Human checks always come to you. The orchestrator's own call is kept so your answers can finish it.
+    if (automatic && verdict.humanChecks?.length) { verdict.proposed = verdict.decision; verdict.decision = 'manual'; }
+    if (automatic && spent && p.orchestratorId && p.sentAt) p.reviewUsage = await spent(p.orchestratorId, Date.parse(p.sentAt), Date.now()).catch(() => null);
     const issue = verdict.decision === 'approve' ? evidenceIssue(p, verdict) : typeof verdict.summary !== 'string' || !verdict.summary.trim() ? 'The decision needs a written explanation.' : null;
     update(p, { verdict, reviewer: by, status: issue ? 'manual-review' : 'reviewed', error: issue });
     event(p, issue ? 'Evidence incomplete' : `Review: ${verdict.decision}`, by, issue || verdict.summary); save();
@@ -135,7 +145,7 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
       // The user may decide directly from the orchestrator's chair; elsewhere the orchestrator reviews first.
       const fromChair = by === 'You' && verdict.chair === true;
       if (!fromChair && (!p.orchestratorId || !p.sentAt || (by !== 'Orchestrator' && !p.history.some(h => h.by === 'Orchestrator' && h.action.startsWith('Review:'))))) {
-        update(p, { status: 'manual-review', error: 'Send this report to the orchestrator for review before settlement.' });
+        update(p, { status: 'manual-review', error: 'Approve it from the orchestrator\'s chair, or let the orchestrator review it first.' });
         return;
       }
       // Approval puts the report on the worker's desk. Settlement waits for the user's
@@ -149,20 +159,39 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
     } else if (verdict.decision === 'changes') {
       const feedback = typeof verdict.feedback === "string" && verdict.feedback.trim() ? verdict.feedback : verdict.summary;
       if (automatic && !enabled()) { update(p, { status: 'manual-review' }); return; }
-      await t3.sendMessage({ threadId: p.threadId, message: `Lucid review of ${p.title}:\n${feedback}\n\nWhen finished, include what changed, actual checks, and before/after screenshot links for visual changes. This job remains unsettled until reviewed.` });
+      await t3.sendMessage({ threadId: p.threadId, message: `${name} review of ${p.title}:\n${feedback}\n\nWhen finished, include what changed, actual checks, and before/after screenshot links for visual changes. This job remains unsettled until reviewed.` });
       event(p, 'Changes requested', by, feedback); update(p, { status: 'changes-requested', error: null });
     } else update(p, { status: 'manual-review' });
   }
   async function settle(p, by) {
     if (!current(p)) { update(p, { status: 'superseded' }); return; }
     if (excludePinned(p)) return;
+    p.settleAttempts = (p.settleAttempts || 0) + 1;
     await server.settleThread(p.threadId, { excludePinned: true, expectedRunId: p.runId });
     if (!reportState(p.threadId).settled) {
-      update(p, { status: 'approved', retryAt: Date.now() + 5000, error: 'Waiting for T3 to confirm settlement.' });
+      update(p, { status: 'approved', retryAt: Date.now() + backoff(p.settleAttempts, 5000), error: 'Waiting for T3 to confirm settlement.' });
       return;
     }
     event(p, 'Collected and settled in T3', by, p.verdict?.summary);
-    update(p, { status: 'settled', settledAt: new Date().toISOString(), error: null, retryAt: null });
+    update(p, { status: 'settled', settledAt: new Date().toISOString(), error: null, retryAt: null, settleAttempts: 0 });
+  }
+  // Whether a review message failed to reach the orchestrator (null when it cannot be told).
+  function unsent(p) {
+    try { return t3.sentSince ? !t3.sentSince(p.orchestratorId, p.sentAt, marker(p)).sent : null; } catch { return null; }
+  }
+  // Called after your questionnaire answers: all yes finishes the orchestrator's own approval.
+  function afterAnswers(p) {
+    const checks = p.verdict?.humanChecks || [];
+    const answers = checks.map((_, i) => p.humanAnswers?.[i]?.answer);
+    if (answers.some(a => !a)) return;
+    const no = checks.find((_, i) => answers[i] === 'no');
+    if (no) { update(p, { error: `You answered no to "${no.question}". Request changes or review it yourself.` }); return; }
+    if (answers.some(a => a !== 'yes')) { update(p, { error: 'Some checks could not be done yet. Answer them when you can, or review it yourself.' }); return; }
+    if (p.status !== 'manual-review' || p.reviewer !== 'Orchestrator' || p.verdict.proposed !== 'approve' || !current(p) || excludePinned(p)) return;
+    const issue = evidenceIssue(p, p.verdict);
+    if (issue) { update(p, { error: issue }); return; }
+    event(p, 'Approved after your answers, ready to collect', 'You', p.verdict.summary);
+    update(p, { status: 'approved', approvedAt: new Date().toISOString(), retryAt: null, error: null });
   }
   async function tick(arrived = []) {
     if (busy) return papers;
@@ -181,15 +210,16 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
         else if (enabled() && p.status === 'manual-review' && p.reviewer === 'Orchestrator' && p.error &&
           p.verdict?.decision === 'approve' && !p.verdict.humanChecks?.length && !evidenceIssue(p, p.verdict) &&
           p.history.some(h => h.action === 'Review: approve')) {
-          event(p, 'Approved settlement recovered', 'Lucid');
+          event(p, 'Approved settlement recovered', name);
           update(p, { status: 'approved', retryAt: null });
         }
       }
-      if (!enabled()) return papers;
-      const s = settings();
       // Finish a collection whose settlement was interrupted, without asking for another verdict.
+      // Collect is your own decision, so this runs while the orchestrator is off too.
       const approved = papers.find(p => p.status === 'approved' && p.collectRequested && (!p.retryAt || p.retryAt <= Date.now()));
       if (approved) { actionPaper = approved; await settle(approved, 'You'); return papers; }
+      if (!enabled()) return papers;
+      const s = settings();
       const pending = papers.find(p => p.status === 'reviewing');
       if (pending) {
         actionPaper = pending;
@@ -199,18 +229,27 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
           if (verdict?.report !== pending.id || !['approve', 'changes', 'manual', 'pending'].includes(verdict.decision)) continue;
           await apply(pending, verdict, 'Orchestrator', true); return papers;
         }
-        if (Date.now() - Date.parse(pending.sentAt) > 15 * 60_000) update(pending, { status: 'manual-review', error: 'The review did not return a decision. Retry or review manually.' });
+        // Do not wait out the timeout when the orchestrator cannot answer any more.
+        let health = null, run = null;
+        try { health = t3.threadHealth?.(pending.orchestratorId) || null; } catch {}
+        try { run = t3.sentSince?.(pending.orchestratorId, pending.sentAt, marker(pending)) || null; } catch {}
+        const stop = health && !health.exists ? 'The orchestrator\'s thread in T3 is gone. Set it up again, or review this yourself.'
+          : run?.sent && STOPPED.has(run.runStatus) ? 'The orchestrator\'s run stopped before it decided. Retry automatic review, or review this yourself.'
+          : Date.now() - Date.parse(pending.sentAt) > 15 * 60_000 ? 'The review did not return a decision. Retry or review manually.' : null;
+        if (stop) { event(pending, 'Review returned no decision', name, stop); update(pending, { status: 'manual-review', error: stop }); }
         return papers;
       }
       // Delivery is presentation only. Hidden, blocked or closed offices cannot hold real reviews.
-      const p = [...papers].reverse().find(p => p.status === 'submitted');
+      const p = [...papers].reverse().find(p => p.status === 'submitted' && (!p.retryAt || p.retryAt <= Date.now()));
       if (!p) return papers;
       if (!current(p)) { update(p, { status: 'superseded' }); return papers; }
+      // Papers wait while its thread is gone; the office shows why.
+      try { if (t3.threadHealth && !t3.threadHealth(s.threadId).exists) return papers; } catch { return papers; }
       actionPaper = p;
       const sentAt = new Date(Date.now() - 1000).toISOString();
-      // Persist the dispatch intent. On an ambiguous transport failure, require explicit retry.
-      update(p, { status: 'reviewing', sentAt, orchestratorId: s.threadId, error: null });
-      await t3.sendMessage({ threadId: s.threadId, message: `Lucid settlement review ${p.id}. You represent the user. Read memory.md and inspect this submission against the original task. Read the full thread with the t3 CLI if needed. Inspect the real artifacts and screenshots. Decide if the task is fully done. Do not settle or message the source thread yourself: Lucid applies your recorded verdict. If work is actionable in the source thread, return changes with concrete feedback. If waiting for another task or coordinated acceptance evidence, return pending instead: retain existing evidence without messaging the worker or submitting acknowledgment runs. Resume review explicitly with Retry automatic review only when materially new acceptance evidence and matching delivery proof are available. Never invent before states, checks, screenshots, usage, or cost. For visual changes require real before and after images; the lists must use captured evidence source paths below. For nonvisual work explain the relevant before/after behavior in the summary. Write summary as a brief user-facing report of relevant behavior changes and limitations, without implementation chatter. Include humanChecks only for physical device checks, private observations or approvals only the human can provide. Do routine agent-verifiable work yourself. Never guess human answers. Use manual if human checks remain. Return exactly JSON:\n{"report":"${p.id}","decision":"approve|changes|manual|pending","summary":"what changed and why this verdict","visualChanged":false,"checks":["actual checks and results"],"before":["source image path"],"after":["source image path"],"feedback":"concrete next steps if needed","humanChecks":[{"question":"human-only yes/no question","instructions":"how the user can check"}]}\n\nSubmission:\n${JSON.stringify(p)}\n\nThe permanent archive is ${file}. You can read it when the user asks what changed, who did it, or what was submitted or settled. Do not edit archive files.` });
+      // Persist the dispatch intent first, so a restart never sends the same review twice.
+      update(p, { status: 'reviewing', sentAt, orchestratorId: s.threadId, sends: (p.sends || 0) + 1, error: null });
+      await t3.sendMessage({ threadId: s.threadId, message: `${name} ${marker(p)}. You represent the user. Read memory.md and inspect this submission against the original task. Read the full thread with the t3 CLI if needed. Inspect the real artifacts and screenshots. Decide if the task is fully done. Approve only with the original request, a final result and real evidence. Do not settle or message the source thread yourself: ${name} applies your recorded verdict. If work is actionable in the source thread, return changes with concrete feedback. If waiting for another task or coordinated acceptance evidence, return pending instead: retain existing evidence without messaging the worker or submitting acknowledgment runs. Resume review explicitly with Retry automatic review only when materially new acceptance evidence and matching delivery proof are available. Never invent before states, checks, screenshots, usage, or cost. For visual changes require real before and after images; the lists must use captured evidence source paths below. For nonvisual work explain the relevant before/after behavior in the summary. Write summary as a brief user-facing report of relevant behavior changes and limitations, without implementation chatter. Include at most three humanChecks, only for physical device checks, private observations or approvals only the human can provide. Do routine agent-verifiable work yourself. Never guess human answers. Return exactly JSON:\n{"report":"${p.id}","decision":"approve|changes|manual|pending","summary":"what changed and why this verdict","visualChanged":false,"checks":["actual checks and results"],"before":["source image path"],"after":["source image path"],"feedback":"concrete next steps if needed","humanChecks":[{"question":"human-only yes/no question","instructions":"how the user can check"}]}\n\nSubmission:\n${JSON.stringify(p)}\n\nThe permanent archive is ${file}. You can read it when the user asks what changed, who did it, or what was submitted or settled. Do not edit archive files.` });
       return papers;
     } catch (e) {
       const p = actionPaper;
@@ -218,8 +257,11 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
         const protectedPin = e.code === 'manager-protected';
         const stale = e.code === 'stale-review';
         const approved = p.status === 'approved';
-        update(p, { status: protectedPin ? 'manager-excluded' : stale ? 'superseded' : approved ? 'approved' : 'manual-review',
-          retryAt: approved ? Date.now() + 5000 : null, error: protectedPin ? null : String(e.message || e) });
+        // A review that provably never reached the orchestrator goes back in line by itself.
+        const resend = p.status === 'reviewing' && !protectedPin && !stale && unsent(p) === true && (p.sends || 1) < MAX_SENDS;
+        update(p, { status: protectedPin ? 'manager-excluded' : stale ? 'superseded' : approved ? 'approved' : resend ? 'submitted' : 'manual-review',
+          retryAt: approved ? Date.now() + backoff(p.settleAttempts || 1, 5000) : resend ? Date.now() + backoff(p.sends || 1, 30_000) : null,
+          error: protectedPin ? null : resend ? `Could not reach the orchestrator (${e.message || e}). Retrying automatically.` : String(e.message || e) });
       }
       return papers;
     } finally { busy = false; }
@@ -236,8 +278,12 @@ function createReports({ dir, t3, server, usage, settings, robots = () => [] }) 
         p.humanAnswers ||= {};
         p.humanAnswers[index] = { answer: values.answer, at: new Date().toISOString() };
         event(p, 'Human check answered', 'You', `${check.question}: ${values.answer}`); save();
+        afterAnswers(p);
       }
-      else if (action === 'retry') { event(p, 'Review retried', 'You'); update(p, { status: 'submitted', error: null }); }
+      else if (action === 'retry') {
+        if (['settled', 'superseded', 'reviewing'].includes(p.status)) throw new Error('This paper cannot be sent for review again.');
+        event(p, 'Review retried', 'You'); update(p, { status: 'submitted', error: null, retryAt: null, sends: 0 });
+      }
       else if (action === 'collect') {
         if (p.status !== 'approved') throw new Error('Only approved work can be collected.');
         // Record the intent first. If T3 is slow or Lucid closes, collection finishes on recovery.
