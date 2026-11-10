@@ -50,16 +50,22 @@ assert(speechPlan('こんにちは', ada).syllables.length === 5, 'non-Latin scr
 assert(speechPlan('hmm', ada).syllables[0].nasal, 'a consonant-only word is a hum');
 
 // Live speaking: gated by the camera, bounded, and robots interrupt themselves.
-const el = (far = false) => ({ isConnected: true, far, closest: () => ({}) });
+const el = (far = false, culled = false) => ({ isConnected: true, far, closest: sel => sel === '.culled' ? (culled ? {} : null) : {} });
 assert.equal(robotSay({ el: el(true), seed: 'Far' }, 'Hello'), false, 'a robot outside the listening range stays quiet');
-assert.equal(robotSay({ el: el(), seed: 'Ada', provider: 'claude' }, 'Hello!'), true);
+assert.equal(robotSay({ el: el(), seed: 'Ada', provider: 'claude' }, 'Hello there, sunshine!'), true);
 assert.equal(synths.at(-1).owner, 'voice:Ada'); assert.equal(synths.at(-1).sources, 3, 'warm voices skip ring modulation');
+assert.equal(robotSay({ el: el(true, false), seed: 'Far' }, 'x') || robotSay({ el: el(false, true), seed: 'Hidden' }, 'Hello'), false, 'robots in a culled room stay quiet');
+assert.equal(robotSay({ el: el(), seed: 'Ada', provider: 'claude' }, 'Again'), false, 'a robot cannot restart its voice instantly');
+gameSound.time += .4;
 assert.equal(robotSay({ el: el(), seed: 'Ada', provider: 'claude' }, 'Wait, one more thing'), true);
 assert(silenced.includes('voice:Ada'), 'a new line from the same robot cuts its previous one');
 robotSay({ el: el(), seed: 'Bolt', provider: 'codex' }, 'Ping'); assert.equal(synths.at(-1).sources, 4, 'metallic voices add a ring modulator');
 robotSay({ el: el(), seed: 'Cy', provider: 'gemini' }, 'Hi');
 assert.equal(robotSay({ el: el(), seed: 'Dot' }, 'Me too'), false, 'only three robots talk at once');
 gameSound.time += 10; assert.equal(robotSay({ el: el(), seed: 'Dot' }, 'Me too'), true, 'finished voices free their slot');
+for (const seed of ['F1', 'F2', 'F3', 'F4', 'F5']) { gameSound.time += 3; robotSay({ el: el(), seed }, 'Hi'); }
+const burst = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7'].map(seed => { gameSound.time += .45; return robotSay({ el: el(), seed }, 'Hi'); });
+assert(burst.includes(false), 'the office starts only a few voices per window');
 gameSound.active = false; assert.equal(robotSay({ el: el(), seed: 'Eve' }, 'Hello'), false, 'muted or locked audio schedules nothing');
 
 // The voice graph schedules monotonic envelopes and starts and stops every source.
@@ -87,4 +93,4 @@ for (const env of envelopes) {
   for (let i = 1; i < times.length; i++) assert(times[i] >= times[i - 1] - 1e-9, 'envelope automation stays in time order');
   assert(env.gain.events.every(e => e[1] >= 0 && e[1] <= .3), 'syllable levels stay modest');
 }
-console.log('PASS: stable per-robot voices by name, family and head size; letter-driven vowels, hiss and melody; rising questions, louder exclamations, short bursts for long lines, non-Latin babble; camera gating, self-interruption, three-voice limit, mute safety; ordered envelopes and full source lifecycle.');
+console.log('PASS: stable per-robot voices by name, family and head size; letter-driven vowels, hiss and melody; rising questions, louder exclamations, short bursts for long lines, non-Latin babble; camera gating, self-interruption, three-voice limit, mute safety, culled rooms, per-robot and office rate limits; ordered envelopes and full source lifecycle.');

@@ -36,21 +36,6 @@ vm.runInNewContext(source, {
   assert.equal(scene.lines[0].text, 'Setup', 'canonical source stays English');
   locale = 'en';
   assert.equal(localizedFlavor(scene, 'conversation'), scene);
-  const jokes = {};
-  const jokeCode = stripTypeScriptTypes(fs.readFileSync('src/world/jokes.ts', 'utf8')
-    .replace(/^import[^;]+;/gm, '').replace(/^export /gm, ''));
-  vm.runInNewContext(jokeCode + '; Object.assign(exports, { JOKES, GERMAN_JOKES, shuffled });', {
-    exports: jokes, getLocale: () => locale, localizedFlavor: (item) => item, rememberTranslation() {},
-  });
-  assert.equal(jokes.JOKES.length, jokes.GERMAN_JOKES.length);
-  locale = 'de';
-  const nextJoke = jokes.shuffled(jokes.JOKES);
-  const germanSet = new Set(jokes.GERMAN_JOKES.map((pair) => JSON.stringify(pair)));
-  const dealt = Array.from({ length: jokes.JOKES.length }, () => nextJoke());
-  assert.equal(new Set(dealt.map((pair) => JSON.stringify(pair))).size, jokes.JOKES.length);
-  assert.ok(dealt.every((pair) => germanSet.has(JSON.stringify(pair))));
-  locale = 'en';
-  assert.ok(jokes.JOKES.includes(nextJoke()), 'switching languages preserves the existing shuffled deck');
   console.log('Flavor localization: protected IDs, coherent scene projection, deduplication and canonical fallback passed.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
 

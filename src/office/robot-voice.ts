@@ -46,6 +46,9 @@ const FAMILIES: Record<BrandKind, Family> = {
 const VOWELS: Record<string, [number, number]> = { a: [780, 1250], e: [500, 1900], i: [320, 2350], o: [520, 900], u: [360, 780], y: [330, 2050] };
 const VOWEL_KEYS = 'aeiou';
 const MAX_SECONDS = 2.6, MAX_SYLLABLES = 30, MAX_TALKERS = 3;
+// Rate limits: a robot cannot restart its own voice faster than this, and the office starts
+// at most a few voices per window, so bursts of bubbles never become a wall of babble.
+const SELF_GAP = .35, BURST_WINDOW = 4, BURST_MAX = 6;
 
 const hash = (value: string) => { let h = 2166136261; for (const c of value) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 const unit = (seed: number, salt: number) => (hash(`${seed}:${salt}`) % 10000) / 10000;
@@ -188,15 +191,20 @@ function renderPlan(ctx: AudioContext, input: AudioNode, noise: AudioBuffer, pla
 }
 
 const talking = new Map<string, number>();
+const started = new Map<string, number>();
+let recent: number[] = [];
 
-/** A robot says a line out loud. Thought bubbles stay silent; quiet or far robots stay quiet. */
+/** A robot says a line out loud wherever its bubble appears. Thought bubbles stay silent; muted,
+ *  hidden, culled, quiet or far robots stay quiet; voices are rate limited per robot and office. */
 export function robotSay(speaker: Speaker, text: string, intensity = 1): boolean {
-  if (!gameSound.active || !text || !speaker.el.isConnected || !speaker.el.closest('.scene')) return false;
+  if (!gameSound.active || !text || !speaker.el.isConnected || !speaker.el.closest('.scene') || speaker.el.closest('.culled')) return false;
   const placed = gameSound.placement(speaker.el, intensity);
   if (!placed) return false;
   const now = gameSound.time;
   for (const [key, until] of talking) if (until <= now) talking.delete(key);
   const owner = `voice:${speaker.seed}`;
+  recent = recent.filter(at => now - at < BURST_WINDOW);
+  if (now - (started.get(owner) ?? -Infinity) < SELF_GAP || recent.length >= BURST_MAX) return false;
   // Robots interrupt themselves; the office only carries a few voices at once.
   if (talking.has(owner)) gameSound.silence(owner);
   else if (talking.size >= MAX_TALKERS) return false;
@@ -206,7 +214,10 @@ export function robotSay(speaker: Speaker, text: string, intensity = 1): boolean
   const mix: SoundMix = { ...placed.mix, lowpass: Math.min(placed.mix.lowpass ?? 14000, 9000) };
   const sources = voice.ringDepth > 0 ? 4 : 3;
   const ok = gameSound.synth(mix, owner, sources, (ctx, input, noise) => renderPlan(ctx, input, noise, plan, voice));
-  if (ok) talking.set(owner, now + plan.length + .15);
+  if (ok) {
+    talking.set(owner, now + plan.length + .15); started.set(owner, now); recent.push(now);
+    if (started.size > 64) for (const [key, at] of started) if (now - at > 10) started.delete(key);
+  }
   return ok;
 }
 

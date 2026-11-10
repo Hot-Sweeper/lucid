@@ -24,6 +24,7 @@ export const CHECKS = [
   "verify-soundtrack.cjs",
   "verify-soundscape.cjs",
   "verify-robot-voice.cjs",
+  "verify-robot-lines.cjs",
   "verify-dictation.cjs",
   "verify-reports.cjs",
   "verify-headless-writer.cjs",

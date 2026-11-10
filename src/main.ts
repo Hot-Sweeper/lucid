@@ -62,6 +62,8 @@ import { CoinLedgerPanel } from "./stats/ledger-panel";
 import { mountEnvironments } from "./office/environments";
 import { Wallet, coinIcon, type WalletState } from "./office/wallet";
 import { watchDaily } from "./office/daily";
+import { setPersonaSource } from "./lines";
+import { ThreadEventLines } from "./lines/thread-events";
 import type { Desk } from "./office/desk";
 import type { ThreadInfo } from "./director";
 import { logoFor, harnessName } from "./office/brand";
@@ -218,6 +220,9 @@ $("side-panel").appendChild($("usage"));
 // robots in the original design, plus the break room and the question line
 useRobot((host, rig) => new TopDownRobot(host, rig));
 const world = new World($("scene"), { peek: (u) => api.peek(u), image: (p) => api.image(p), readText: (p) => api.readText(p) });
+// Robot lines keep each robot's hobby, and seated robots remark on real T3 changes to their thread.
+setPersonaSource(name => world.roster.robots.find(r => r.name === name)?.prefs?.hobby);
+const threadLines = new ThreadEventLines(world);
 const projectLife = new ProjectLife(world);
 world.extFactory.break = (h, w, hh) => new BreakRoom(h, w, hh);
 world.extFactory.charging = (h, w, hh) => new ChargingRoom(h, w, hh);
@@ -569,6 +574,7 @@ async function refresh() {
     }
     monitorTasks.prepare(data);
     coinRewards?.prepare(data);
+    threadLines.observe(data);
     for (const p of data.projects) projectTitles.set(p.id, p.title);
     world.orchThread = data.environmentId ? '' : settings.orch?.threadId || '';
     world.update(data);

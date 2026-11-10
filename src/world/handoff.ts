@@ -1,5 +1,6 @@
 import gsap from "gsap";
 import { Walker } from "./walker";
+import { line } from "../lines";
 
 // A handoff: when a thread switches harness, the old robot stands next to the new one and
 // explains the work (gestures and a few speech bubbles) while the new one nods along. A little
@@ -7,8 +8,6 @@ import { Walker } from "./walker";
 // robots' feet, in the parent's coordinates (desk-unit coordinates work).
 
 export type HandoffRobot = { provider: string; model?: string; name?: string };
-
-const LINES = ["So here is where we are.", "This file is the tricky one.", "Tests pass except one.", "All yours."];
 
 export function playHandoff(parent: Element, from: HandoffRobot, to: HandoffRobot, at: { x: number; y: number }, scale = 0.48): Promise<void> {
   const gap = 46 * (scale / 0.48);
@@ -31,14 +30,14 @@ export function playHandoff(parent: Element, from: HandoffRobot, to: HandoffRobo
       onComplete: () => { oldR.destroy(); newR.destroy(); spark.remove(); resolve(); },
     });
     tl.to(oldR.el, { opacity: 1, duration: 0.35 }, 0)
-      .add(() => { oldR.do("idle"); oldR.say("Oh hi!", 900); }, 0.1)
+      .add(() => { oldR.do("idle"); oldR.say(line("handoffHi", from.name), 900); }, 0.1)
       .to(newR.el, { opacity: 1, duration: 0.3 }, 0.1)
       .add(() => { void newR.walkTo(at.x + gap, at.y).then(() => { newR.face("left"); newR.do("listen"); }); }, 0.1)
-      .add(() => { oldR.do("explain"); oldR.say(LINES[0], 1300); }, 1.25)
-      .add(() => oldR.say(LINES[1], 1300), 2.6)
-      .add(() => oldR.say(LINES[2], 1300), 3.95)
-      .add(() => { newR.say("Got it.", 900); newR.setExpression("happy"); }, 5.1)
-      .add(() => { oldR.do("idle"); oldR.say(LINES[3], 1000); }, 5.6)
+      // Flavor only: the real work stays in the thread, so nothing here claims a result.
+      .add(() => { oldR.do("explain"); oldR.say(line("handoffBrief", from.name), 1300); }, 1.25)
+      .add(() => oldR.say(line("handoffBrief", from.name), 1300), 2.6)
+      .add(() => { newR.say(line("handoffGotIt", to.name), 900); newR.setExpression("happy"); }, 4.2)
+      .add(() => { oldR.do("idle"); oldR.say(line("handoffBye", from.name), 1000); }, 5.6)
       .add(() => { oldR.highFive(); newR.do("idle"); newR.highFive(); }, 6.3)
       .add(() => {
         gsap.timeline()

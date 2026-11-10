@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { Walker } from "./walker";
 import type { RobotLook } from "../office/rig";
+import { line } from "../lines";
 
 // The orchestrator (your stand-in) at the big desk in the questions room: it sits in the chair
 // facing the line, types in bursts, glances at its monitor and at whoever waits, waves at robots
@@ -17,7 +18,6 @@ export type BossDesk = {
 
 const SCALE = 0.42;
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
-const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export class Boss {
@@ -166,7 +166,7 @@ export class Boss {
     this.busyUntil = performance.now() + 3600;
     w.setExpression("shy");
     gsap.delayedCall(2.8, () => this.w === w && w.setExpression("neutral"));
-    w.say("Over to you.", 2200);
+    w.say(line("bossHandoff", w), 2200);
     if (reduced()) return;
     w.shakeNo().add(() => { if (this.w === w) w.pointAtYou(1.2); });
   }
@@ -178,7 +178,7 @@ export class Boss {
     w.stamp(() => this.thunk()).add(() => {
       w.setExpression("happy");
       w.nodYes();
-      w.say(pick(["Done.", "Checked.", "Noted.", "All set."]), 1500);
+      w.say(line("bossAck", w), 1500);
       gsap.delayedCall(1.6, () => this.w === w && w.setExpression("neutral"));
     });
   }

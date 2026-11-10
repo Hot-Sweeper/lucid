@@ -5,6 +5,7 @@ import type { BreakThread, RoomExtension } from "./breakroom";
 import { Boss, type BossInfo } from "./boss";
 import { BossMonitor } from "./boss-monitor";
 import { questionPlaces } from "./question-layout";
+import { eventLine, line, smallTalk } from "../lines";
 
 // The question line: robots with a question for you queue up in front of your desk (an empty
 // human chair, a bell, a monitor, a plant). The front robot holds up a card with a short
@@ -93,7 +94,8 @@ export class QuestionLine implements RoomExtension {
     this.later(q, v.phase === "answered" ? 1.1 : 1.6, () => {
       if (!q.alive || v.shown) return;
       v.shown = true;
-      q.w.say(v.phase === "answered" ? `The boss said: ${shortQuestion(v.text || "yes")}` : "Needs your answer", v.phase === "answered" ? 4000 : 5000);
+      const said = v.phase === "answered" ? v.text ? eventLine({ kind: "answered", answer: shortQuestion(v.text) }, q.w) : line("thanks", q.w) : eventLine({ kind: "waiting" }, q.w);
+      q.w.say(said, v.phase === "answered" ? 4000 : 5000);
     });
   }
 
@@ -202,7 +204,7 @@ export class QuestionLine implements RoomExtension {
       q.w.do("hold-card", { card: q.question });
       if (this.reports.has(q.id)) {
         q.delivered = true;
-        q.w.say("Report ready for review.", 2500);
+        q.w.say(eventLine({ kind: "report", title: q.question.replace(/^Report:\s*/, "") }, q.w), 2500);
         this.onReportArrived(q.id);
         // Receiving a paper does not occupy the service counter for its whole review.
         this.later(q, .65, () => this.reflow());
@@ -229,7 +231,7 @@ export class QuestionLine implements RoomExtension {
         .sort((a, b) => Math.hypot(a.w.x - q.w.x, a.w.y - q.w.y) - Math.hypot(b.w.x - q.w.x, b.w.y - q.w.y))[0];
       if (mate && !this.conversation && !document.hidden && !this.el.closest(".culled")) {
         const conversation = this.conversation = {a: q, b: mate, av: q.version, bv: mate.version};
-        const lines = pick([["Hey, how's it going?", "Pretty good. You?"], ["Want to grab a coffee later?", "Sure, sounds good."], ["Mind if I wait here?", "Go ahead."]]);
+        const lines = smallTalk(q.w);
         const dx = mate.w.x - q.w.x, dy = mate.w.y - q.w.y;
         const facing: Facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
         const opposite = {up: "down", down: "up", left: "right", right: "left"} as const;
@@ -276,9 +278,9 @@ export class QuestionLine implements RoomExtension {
     const v = this.verdicts.get(q.id);
     this.verdicts.delete(q.id);
     // answered by the boss: it repeats the answer (long enough to read), then goes
-    if (v?.phase === "answered") q.w.say(`The boss said: ${shortQuestion(v.text || "yes")}`, 3200);
-    else if (q.question.startsWith("Report:")) q.w.say("Review complete.", 1600);
-    else q.w.say(pick(["Thanks!", "Got it, thank you!", "Back to work!", "Perfect, thanks!"]), 1600);
+    if (v?.phase === "answered" && v.text) q.w.say(eventLine({ kind: "answered", answer: shortQuestion(v.text) }, q.w), 3200);
+    else if (q.question.startsWith("Report:")) q.w.say(eventLine({ kind: "reviewed" }, q.w), 1600);
+    else q.w.say(line("thanks", q.w), 1600);
     gsap.delayedCall(0.6, () => this.reflow());
     await new Promise((r) => gsap.delayedCall(v?.phase === "answered" ? 3 : 1.7, r));
     if (q.alive || q.version !== version) return;
@@ -366,7 +368,6 @@ export function shortQuestion(q: string) {
   return s;
 }
 
-const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
 function wallArt(w: number) {
   const pal = { wall: "#ebe4ef", trim: "#d6cddd", floor: PAL.floor, seam: PAL.seam, accent: PAL.violet };

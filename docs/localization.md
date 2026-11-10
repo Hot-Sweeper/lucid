@@ -13,8 +13,11 @@ German dialogue comes from the headless writer (`electron/headless-writer.cjs`):
 an installed harness CLI run without tools on its cheapest suitable model, never
 a T3 thread. Translation instructions request natural informal German,
 matching alternatives for wordplay, coherent exchanges, concise controls, and
-unchanged names and protected tokens. All 28 classic jokes also have authored
-German pairs, available without a model.
+unchanged names and protected tokens. The robots' built-in base set of short
+remarks, the 28 classic jokes and the question-line small talk have authored German
+pairs in `src/lines/catalog.ts`, available without a model; event lines about real
+T3 activity are authored templates in both languages (`src/lines/events.ts`). Speech
+bubbles switch authored lines between languages directly.
 
 The backend validates responses and persists at most 4,000 translations. Matching
 requests share pending work; model requests are serialized and pending entries

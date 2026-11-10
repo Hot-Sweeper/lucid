@@ -16,14 +16,16 @@ import { chatOnBotsApp } from "../../src/social/botsapp";
 import { Walker } from "../../src/world/walker";
 import { WM } from "../../src/os/wm";
 import { t3Icon, t3Title } from "../../src/harness/t3code";
-import { JOKES, shuffled } from "../../src/world/jokes";
+import { joke } from "../../src/lines";
 import { CONVOS } from "../../src/content/convos";
 import { localizedFlavor } from "../../src/content/localized";
-import { loadDaily, dailyConvo } from "../../src/office/daily";
+import { loadDaily, dailyPack } from "../../src/office/daily";
 import { drawMeme } from "../../src/life/memes";
 
 document.body.style.cssText = "margin:0;padding:22px;background:#141a33;color:#eef0ff;font-family:'Lexend Variable',sans-serif";
 const root = document.querySelector<HTMLElement>("#fixture")!;
+// The generated exchange under review: the pack's first conversation, as shown.
+const dailyConvo = () => dailyPack()?.convos?.[0] ?? null;
 root.innerHTML = `<div id="language" style="width:740px;margin-bottom:16px"></div><h2 id="heading" style="font-size:16px"></h2><div id="app-body" style="position:relative;width:740px;height:396px;overflow:hidden;background:#1d2252"></div><div id="speech" class="room" style="position:relative;width:740px;height:230px"></div><div id="exchange" style="width:740px;font-size:14px;line-height:1.7"></div>`;
 mountLanguageSetting(document.querySelector<HTMLElement>("#language")!);
 const body = document.querySelector<HTMLElement>("#app-body")!;
@@ -54,7 +56,7 @@ const show = async (kind:string) => {
     actor = new Walker(document.querySelector("#speech")!,{id:"language-review",provider:"codex",flavorSpeech:true,name:"review_bot"});
     actor.setPos(370,190);actor.say("The clouds are buffering today.",120000);
     const exchange = document.querySelector<HTMLElement>("#exchange")!;
-    exchange.textContent = (shuffled(JOKES)()).join("\n"); exchange.style.whiteSpace="pre-line";
+    exchange.textContent = joke().join("\n"); exchange.style.whiteSpace="pre-line";
     stop = localizeGameDOM(exchange,"Authored robot exchange");
   }
   if(kind === "Titles") {

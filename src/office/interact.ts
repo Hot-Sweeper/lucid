@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { gameSound } from './sound';
 import type { Walker } from "../world/walker";
+import { line } from "../lines";
 
 // Little toys in the world: pick up a walking robot, carry it somewhere, or fling it and
 // watch it tumble; poke it to say hi. Each robot's owner (park, hallway, shop) decides what
@@ -23,11 +24,6 @@ export const isHeld = (w: Walker) => held.has(w);
 export const whenFree = async (w: Walker) => { while (held.has(w)) await new Promise((r) => setTimeout(r, 120)); };
 
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
-const GRAB = ["Whoa!", "Hey!", "Put me down!", "I can fly?", "Wheee", "Careful, I'm fragile", "Where are we going?"];
-const CARRY = ["Thanks for the lift.", "Nice view up here.", "This is not my floor.", "Okay. I live here now."];
-const THROWN = ["WHEEE!", "AAAAH", "Was that necessary?", "Again! Again!", "My circuits...", "I saw my whole commit history", "10 out of 10 landing"];
-const POKE = ["Hi!", "That tickles.", "Yes, CEO?", "Beep.", "I'm on break!", "Boop.", "Can I help you?", "*happy whirr*"];
-const SPINNY = ["Everything is spinning.", "Which way is up?", "Need a reboot.", "Hold on, buffering."];
 
 /** World zoom: how many screen pixels one world pixel is right now. */
 function zoom(el: HTMLElement) {
@@ -65,7 +61,7 @@ export function makeInteractive(w: Walker, o: Opts = {}) {
         w.grabbed(true);   // legs dangle and kick, arms flail
         w.setExpression("surprised");
         gameSound.at('boop', el, .7);
-        w.say(pick(GRAB), 1400);
+        w.say(line("grab", w), 1400);
         el.classList.add("held");
         gsap.to(el.style, { scale: 1.12, duration: 0.15 } as any);
       }
@@ -91,8 +87,8 @@ export function makeInteractive(w: Walker, o: Opts = {}) {
         w.hop();
         gameSound.at('poke', el, .8);
         w.poke();
-        if (pokes >= 4) { w.setExpression("angry"); w.say(pick(["Okay, stop it.", "I will file a ticket.", "Rude.", "Poke limit reached."]), 1800); }
-        else { w.setExpression(pick(["happy", "laugh", "shy"] as const)); w.say(pick(POKE), 1500); }
+        if (pokes >= 4) { w.setExpression("angry"); w.say(line("pokeAngry", w), 1800); }
+        else { w.setExpression(pick(["happy", "laugh", "shy"] as const)); w.say(line("poke", w), 1500); }
         window.setTimeout(() => w.setExpression("neutral"), 1600);
         o.onPoke?.();
         return;
@@ -115,13 +111,13 @@ export function makeInteractive(w: Walker, o: Opts = {}) {
         const end = { x: clampX(w.x + vx * 0.35), y: clampY(w.y + vy * 0.35 - 14) };
         const spin = { r: parseFloat(el.style.rotate) || 0, h: 0 };
         const turns = (vx >= 0 ? 1 : -1) * 360 * Math.min(3, Math.round(speed / 900) + 1);
-        w.say(pick(THROWN), 1600);
+        w.say(line("thrown", w), 1600);
         const from = { x: w.x, y: w.y };
         gsap.timeline({ onComplete: () => {
           el.style.rotate = "";
           gsap.to(el.style, { scale: 1, duration: 0.2 } as any);
           w.setExpression("sleepy");
-          w.say(pick(SPINNY), 2000);
+          w.say(line("spin", w), 2000);
           // a little wobble before it gets its bearings back
           gsap.fromTo(el, { "--wob": 0 } as any, { "--wob": 1, duration: 1.4, onUpdate() { el.style.rotate = `${Math.sin((this as any).progress() * 18) * 9 * (1 - (this as any).progress())}deg`; }, onComplete: () => { el.style.rotate = ""; w.setExpression("neutral"); land(); } } as any);
         } })
@@ -139,7 +135,7 @@ export function makeInteractive(w: Walker, o: Opts = {}) {
         el.style.rotate = "";
         gsap.to(el.style, { scale: 1, duration: 0.2 } as any);
         w.setExpression("happy");
-        w.say(pick(CARRY), 1600);
+        w.say(line("carry", w), 1600);
         window.setTimeout(() => { w.setExpression("neutral"); land(); }, 700);
       }
     };

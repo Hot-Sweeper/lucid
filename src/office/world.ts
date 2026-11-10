@@ -1,4 +1,5 @@
 import { officeColumns, officeDimensions, mountOfficeWidth, releaseOfficeWidth } from "./office-width";
+import { line } from "../lines";
 import { currentTheme } from "../themes/registry";
 import { setRobotModes } from "../world/robot-power";
 import { LOD_PX, monitorPx } from "../perf/lod";
@@ -394,7 +395,7 @@ export class World {
           await this.walkLegs(t, [printer], trip, revision);
           if (this.trips.get(t.id) !== trip) return;
           if (Math.hypot(w.x - printer.x, w.y - printer.y) < 12) {
-            w.face("left"); w.say("Printing report...", 1600);
+            w.face("left"); w.say(line("printing", w), 1600);
             gameSound.at("servo", r.el, .6);
             const sheet = r.el.querySelector(".report-sheet");
             if (sheet) gsap.fromTo(sheet, { y: -12, opacity: 0 }, { y: 0, opacity: 1, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1.2 });

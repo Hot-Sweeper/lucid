@@ -1,8 +1,6 @@
 import gsap from "gsap";
 import { Walker } from "./walker";
-import { JOKES, LAUGHS, shuffled } from "./jokes";
-import { CONVOS, THOUGHTS, pickFresh, type Place } from "../content";
-import { dailyConvo, dailyLine } from "../office/daily";
+import { conversation, line, musing, thought, type LineKind } from "../lines";
 import { makeInteractive, whenFree } from "../office/interact";
 import { Anims, PAL, Paths, RoomStage, WALL, plantSvg, posterArt, reducedMotion, windowArt, type Pt } from "./room";
 import { PingPong } from "./pingpong";
@@ -152,12 +150,6 @@ class Group {
 }
 
 const DOCKS = [150, 260, 370];
-// Written content: chats and thoughts dealt without repeats (remembered across launches).
-const nextConvo = pickFresh(CONVOS, "lucid:break:convos");
-const thoughts = (place?: Place) => pickFresh(THOUGHTS.filter((t) => (place ? t.place === place : !t.place)), `lucid:break:thoughts:${place ?? "any"}`);
-const windowThought = thoughts("window"), fridgeThought = thoughts("fridge"), dream = thoughts("nappod"), anyThought = thoughts();
-const BACK = ["Where was I?", "Okay. Back to it.", "As I was saying...", "Right. Snack time resumes."];
-const SALTY = ["Edge ball!", "The net moved.", "Lag.", "That was out. Probably.", "Sun in my sensors.", "My paddle needs a firmware update."];
 const pickOne = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
 export class BreakRoom implements RoomExtension {
@@ -182,8 +174,6 @@ export class BreakRoom implements RoomExtension {
   private anims: gsap.core.Animation[] = [];   // idle loops, paused while the room is empty
   private fx = new Anims();                       // machines at work
   private calls = new Set<gsap.core.Tween>();
-  private joke = shuffled(JOKES);
-  private laugh = shuffled(LAUGHS);
   private busyThings = new Set<string>();
   // A robot that wants to chat waits at a chat spot; the next robot that frees up joins it.
   private host: { r: Resident; pair: [string, string]; guest: Resident | null; arrived: boolean; over: Promise<void>; end: () => void } | null = null;
@@ -215,13 +205,11 @@ export class BreakRoom implements RoomExtension {
     const group = this.groups[kind];
     if (!group?.alive) return;
     const viewers = group.players.filter(r => r.alive && !r.held && group.arrived.has(r));
-    const lines = kind === 'console'
-      ? restored ? ["There we go!", "Rematch. I was winning.", "Controller still works!"] : ["Hey! My high score!", "Did you unplug the boss fight?", "I was definitely winning."]
-      : restored ? ["The toaster returns!", "Okay. Nobody spoil it.", "Popcorn still warm. Continue."] : ["The wall has no subtitles.", "We were watching that!", "Is this the director's cut?"];
+    const kindOf: LineKind = kind === 'console' ? restored ? 'consoleBack' : 'consoleCut' : restored ? 'movieBack' : 'movieCut';
     viewers.slice(0, 2).forEach((r, index) => this.later(index * .24, () => {
       if (this.dead || !group.has(r) || r.held) return;
       r.w.setExpression(restored ? 'happy' : 'surprised'); r.w.hop();
-      if (!index) r.w.say(pickOne(lines), 1800);
+      if (!index) r.w.say(line(kindOf, r.w), 1800);
       this.later(1.9, () => { if (!this.dead && group.has(r) && !r.held) r.w.setExpression('neutral'); });
     }));
   }
@@ -634,7 +622,7 @@ export class BreakRoom implements RoomExtension {
     r.w.mashRate = 1;
     // a chat partner is left talking to nobody
     const m = r.mate;
-    if (m && m.alive) { r.mate = null; m.mate = null; for (const s of [...m.stops]) s(new Error("partner left")); this.later(0.4, () => m.alive && !m.held && m.w.say(pickOne(["Hey! We were talking!", "Rude. Bring them back.", "Uh, bye?"]), 1600)); }
+    if (m && m.alive) { r.mate = null; m.mate = null; for (const s of [...m.stops]) s(new Error("partner left")); this.later(0.4, () => m.alive && !m.held && m.w.say(line("partnerLeft", m.w), 1600)); }
   }
 
   /** Put down again: off any furniture it landed on, then back to what it was doing (or something new). */
@@ -677,14 +665,16 @@ export class BreakRoom implements RoomExtension {
     await this.walk(r, p);
     r.w.face(Math.random() < 0.5 ? "down" : "up");
     r.w.do("idle");
-    if (Math.random() < 0.25) this.later(1.2, () => r.alive && !r.held && r.w.activity === "idle" && r.w.say((Math.random() < 0.3 ? dailyLine(r.w.name) : null) ?? anyThought().text, 2600, true));
+    if (Math.random() < 0.25) this.later(1.2, () => r.alive && !r.held && r.w.activity === "idle" && r.w.say(musing(r.w).text, 2600, true));
     await this.wait(2 + Math.random() * 2, r);
   }
 
-  /** Something to say over a meal or a coffee: today's news sometimes, otherwise a passing thought. */
-  private aside(r: Resident, extra: string[]) {
-    const line = Math.random() < 0.25 ? dailyLine(r.w.name) : null;
-    r.w.say(line ?? (Math.random() < 0.5 ? pickOne(extra) : anyThought().text), undefined, !line && Math.random() < 0.5);
+  /** Something to say over a meal or a coffee: its own or today's news sometimes, a remark that
+   *  fits its hobby, or a passing thought. */
+  private aside(r: Resident, kind: "meal" | "coffee") {
+    const m = musing(r.w);
+    if (m.spoken) { r.w.say(m.text); return; }
+    if (Math.random() < 0.5) r.w.say(line(kind, r.w)); else r.w.say(m.text, undefined, Math.random() < 0.5);
   }
 
   private async microwave(r: Resident) {
@@ -721,7 +711,7 @@ export class BreakRoom implements RoomExtension {
     await this.wait(0.7, r);
     r.w.do("eat", { keep: true });
     r.doing = { kind: "eat", key: seat.key };
-    if (Math.random() < 0.5) this.later(2.4, () => r.alive && r.w.activity === "eat" && this.aside(r, ["Leftover pixels. Still good.", "Mmm, fresh bytes.", "Five stars, would reheat.", "Needs more salt. Or a patch."]));
+    if (Math.random() < 0.5) this.later(2.4, () => r.alive && r.w.activity === "eat" && this.aside(r, "meal"));
     await this.wait(secs, r);
     r.doing = null;
     r.w.calm();
@@ -750,8 +740,8 @@ export class BreakRoom implements RoomExtension {
     if (s?.sit) { r.w.do("sit", { keep: true }); await this.wait(0.6, r); }
     r.w.do("drink", { keep: true });
     if (s) r.doing = { kind: "drink", key: s.key };
-    if (Math.random() < 0.4) this.later(2.5, () => r.alive && r.w.activity === "drink" && this.aside(r, ["Coffee: the original bootloader.", "Ahh. Warm fans.", "Caffeine loaded."]));
-    else if (s && !s.sit && Math.random() < 0.5) this.later(4, () => r.alive && r.w.activity === "drink" && r.w.say(windowThought().text, 2800, true));
+    if (Math.random() < 0.4) this.later(2.5, () => r.alive && r.w.activity === "drink" && this.aside(r, "coffee"));
+    else if (s && !s.sit && Math.random() < 0.5) this.later(4, () => r.alive && r.w.activity === "drink" && r.w.say(thought(r.w, "window"), 2800, true));
     await this.wait(secs, r);
     r.doing = null;
     r.w.calm();
@@ -793,7 +783,7 @@ export class BreakRoom implements RoomExtension {
     r.doing = { kind: "nap", key };
     if (key === "pod") gsap.to(this.$.podGlow, { opacity: 0.9, duration: 1.5 });
     // dreams, now and then
-    if (Math.random() < 0.6) this.later(4 + Math.random() * 4, () => r.alive && r.w.activity === "nap" && r.w.say(dream().text, 3200, true));
+    if (Math.random() < 0.6) this.later(4 + Math.random() * 4, () => r.alive && r.w.activity === "nap" && r.w.say(thought(r.w, "nappod"), 3200, true));
     await this.wait(secs, r).finally(() => { if (key === "pod" && !this.dead) gsap.to(this.$.podGlow, { opacity: 0.25, duration: 1 }); });
     r.doing = null;
     r.w.do("sit");
@@ -814,7 +804,7 @@ export class BreakRoom implements RoomExtension {
     r.soft = true;
     r.w.do("idle");
     r.doing = { kind: "window", key };
-    if (Math.random() < 0.6) this.later(1.5, () => r.alive && !r.group && !r.held && r.w.say((Math.random() < 0.2 ? dailyLine(r.w.name) : null) ?? windowThought().text, undefined, true));
+    if (Math.random() < 0.6) this.later(1.5, () => r.alive && !r.group && !r.held && r.w.say(musing(r.w, "window").text, undefined, true));
     await this.wait(secs, r);
     r.doing = null;
   }
@@ -822,7 +812,7 @@ export class BreakRoom implements RoomExtension {
   /** Back to what it was doing before it got picked up. */
   private async resumeDoing(r: Resident, d: Doing) {
     const s = this.reserve(r, d.key);
-    if (Math.random() < 0.6) r.w.say(pickOne(BACK), 1400);
+    if (Math.random() < 0.6) r.w.say(line("back", r.w), 1400);
     if (d.kind === "eat") r.w.hold("bowl", "spoon");
     if (d.kind === "drink") r.w.hold("none", "mug");
     await this.goTo(r, s);
@@ -848,7 +838,7 @@ export class BreakRoom implements RoomExtension {
     try {
       r.w.do("idle");
       await this.wait(1.6, r);
-      r.w.say(Math.random() < 0.7 ? fridgeThought().text : pickOne(["Out of RAM again.", "Who ate my cookies? Browser cookies.", "Still no snacks with extra cache."]));
+      r.w.say(Math.random() < 0.7 ? thought(r.w, "fridge") : line("fridge", r.w));
       await this.wait(1.6, r);
     } finally { close(); }
     await this.wait(0.8, r);
@@ -914,7 +904,7 @@ export class BreakRoom implements RoomExtension {
       else { a.w.face(a.spot?.face ?? "right"); b.w.face(b.spot?.face ?? "left"); }
       // side by side on the couch they turn their heads to each other
       a.w.lookToward(b.w.x); b.w.lookToward(a.w.x);
-      const lines = (Math.random() < 0.3 ? dailyConvo() : null) ?? (Math.random() < 0.8 ? [...nextConvo().lines] : this.joke());
+      const lines = conversation();
       for (let i = 0; i < lines.length; i++) {
         const x = i % 2 ? b : a, y = i % 2 ? a : b;
         x.w.do("talk", { keep: true });
@@ -926,7 +916,7 @@ export class BreakRoom implements RoomExtension {
       // whoever heard the last line laughs; the other one often joins in
       const last = lines.length % 2 ? b : a, other = last === a ? b : a;
       last.w.do("laugh", { keep: true });
-      last.w.say(this.laugh(), 1300);
+      last.w.say(line("laugh", last.w), 1300);
       if (Math.random() < 0.6) this.later(0.25, () => other.alive && !other.held && other.w.do("laugh", { keep: true }));
       await this.wait(2.1, last);
     } finally {
@@ -958,7 +948,7 @@ export class BreakRoom implements RoomExtension {
       if (!this.dead) {
         this.resetCorner(kind);
         const stay = all.filter((r) => r.alive && r.group === g);
-        if (g.lostOne && stay.length && kind !== "movie") stay[0].w.say(pickOne(["Hey, we were not done!", "Rage quit?", "I win by default, then."]));
+        if (g.lostOne && stay.length && kind !== "movie") stay[0].w.say(line("quitGame", stay[0].w));
         for (const r of stay) { r.w.calm(); r.w.hold("none", "none"); r.w.mashRate = 1; this.release(r); }
       }
     }
@@ -1018,7 +1008,7 @@ export class BreakRoom implements RoomExtension {
     try { await this.stand(r); } catch (err) { if (this.spots[key].taken === r.id) this.spots[key].taken = null; throw err; }
     if (spotNow && spotNow.taken === r.id) spotNow.taken = null;
     const s = this.reserve(r, key);
-    if (!extra && Math.random() < 0.4) r.w.say(pickOne(["I'm in!", "Count me in.", "Oh, yes."]), 1200);
+    if (!extra && Math.random() < 0.4) r.w.say(line("joinGame", r.w), 1200);
     await g.until(this.goTo(r, s));
     g.arrived.add(r);
     g.onArrive(r);
@@ -1041,11 +1031,11 @@ export class BreakRoom implements RoomExtension {
   // ---- ping pong -------------------------------------------------------------------------------------
   private async pingpong(g: Group) {
     const host = g.host;
-    host.w.say(pickOne(["Ping pong, anyone?", "Who wants to lose at ping pong?", "Paddles up!"]), 1800);
+    host.w.say(line("pingpongInvite", host.w), 1800);
     this.recruit(g, 1);
     await this.seatHost(g);
     host.w.do("ready");
-    if (!(await this.gather(g, 2, 16))) { host.w.say(pickOne(["Nobody? I'll practice my serve.", "Fine. Air ping pong."]), 1800); await g.wait(1.5); return; }
+    if (!(await this.gather(g, 2, 16))) { host.w.say(line("pingpongAlone", host.w), 1800); await g.wait(1.5); return; }
     g.open = false;
     let P = this.ppOrder(g);
     for (const p of P) { p.w.face(p.spot!.face); p.w.do("ready"); }
@@ -1060,8 +1050,8 @@ export class BreakRoom implements RoomExtension {
         score[won]++;
         this.pp.setScore(score[0], score[1]);
         const W = P[won], L = P[won ? 0 : 1];
-        if (Math.random() < 0.3) W.w.say(pickOne(["Yes!", "Point!", "Too easy.", "Boom."]), 1200);
-        else if (Math.random() < 0.3) L.w.say(pickOne(SALTY), 1500);
+        if (Math.random() < 0.3) W.w.say(line("point", W.w), 1200);
+        else if (Math.random() < 0.3) L.w.say(line("salty", L.w), 1500);
         if (score[0] < 5 && score[1] < 5) await this.fetchBall(g, fetcher);
         else this.pp.hide();
         if (++serves % 2 === 0) server = server ? 0 : 1;
@@ -1070,11 +1060,11 @@ export class BreakRoom implements RoomExtension {
       const won = score[0] >= 5 ? 0 : 1;
       const W = P[won], L = P[won ? 0 : 1];
       W.w.do("cheer");
-      W.w.say(pickOne(["Undefeated!", "Too fast for you.", "Five! Read it and weep."]), 2000);
+      W.w.say(line("pingpongWin", W.w), 2000);
       if (Math.random() < 0.5) {
         L.w.do("sulk");
         await g.wait(0.8);
-        L.w.say(pickOne(SALTY), 2000);
+        L.w.say(line("salty", L.w), 2000);
         await g.wait(2.6);
       } else {
         // good sports: meet at the net for a high five
@@ -1084,13 +1074,13 @@ export class BreakRoom implements RoomExtension {
         P[0].w.face("right"); P[1].w.face("left");
         P[0].w.calm(); P[1].w.calm();
         P[0].w.highFive(); P[1].w.highFive();
-        L.w.say(pickOne(["Good game.", "Rematch later.", "You got lucky."]), 1600);
+        L.w.say(line("goodLoser", L.w), 1600);
         await g.wait(1.6);
         await g.until(Promise.all(P.map((p) => p.w.walkPath([{ x: p.w.x, y: ny }, { x: p.spot!.x, y: ny }, { x: p.spot!.x, y: p.spot!.y }]))));
       }
       if (game === 1 || Math.random() < 0.55) break;
       // rematch: swap ends, walking around the table
-      L.w.say(pickOne(["Rematch. Switch sides.", "Again! Other side."]), 1600);
+      L.w.say(line("switchSides", L.w), 1600);
       const [a, b] = P;
       const sa = a.spot!, sb = b.spot!;
       this.release(a); this.release(b);
@@ -1133,8 +1123,8 @@ export class BreakRoom implements RoomExtension {
         if (kind === "pass") g.later(dur * 0.95, () => B.w.whiff());
         const rest = await g.until(pp.miss(kind, a, b, row(from), row(to), dur));
         const loser = kind === "pass" ? to : from;
-        if (kind === "net" && Math.random() < 0.5) A.w.say(pickOne(["Net!", "Argh, the net."]), 1200);
-        if (kind === "pass" && Math.random() < 0.4) B.w.say(pickOne(["Whoa.", "Too fast!", "Didn't see it."]), 1200);
+        if (kind === "net" && Math.random() < 0.5) A.w.say(line("net", A.w), 1200);
+        if (kind === "pass" && Math.random() < 0.4) B.w.say(line("pass", B.w), 1200);
         // whoever is on the side the ball rolled to fetches it
         return { won: loser ? 0 : 1, fetcher: rest.x < pp.net ? P[0] : P[1] };
       }
@@ -1157,7 +1147,7 @@ export class BreakRoom implements RoomExtension {
     await this.anim(g, r.w.pickUp());
     this.pp.hide();
     r.w.hold("ball", "paddle");
-    if (Math.random() < 0.25) r.w.say(pickOne(["Got it.", "Rolled under everything.", "Why is it always me?"]), 1300);
+    if (Math.random() < 0.25) r.w.say(line("fetchBall", r.w), 1300);
     await g.until(this.walk(r, { x: home.x, y: home.y }));
     r.w.face(home.face);
     r.w.do("ready");
@@ -1167,11 +1157,11 @@ export class BreakRoom implements RoomExtension {
   private async chess(g: Group) {
     const host = g.host, t = this.chessT;
     g.onArrive = (r) => { if (g.extras.includes(r)) { r.w.face("down"); r.w.do("listen"); } };
-    host.w.say(pickOne(["Chess, anyone?", "Fancy a game of chess?", "I'll go easy on you. Chess?"]), 1800);
+    host.w.say(line("chessInvite", host.w), 1800);
     this.recruit(g, 1);
     await this.seatHost(g);
     host.w.do("sit");
-    if (!(await this.gather(g, 2, 16))) { host.w.say("Guess I'll play myself.", 1600); await g.wait(1.5); return; }
+    if (!(await this.gather(g, 2, 16))) { host.w.say(line("chessAlone", host.w), 1600); await g.wait(1.5); return; }
     g.open = false;
     const [p, q] = g.here;
     const W = p.spot?.key === "chessW" ? p : q, B = W === p ? q : p;
@@ -1190,29 +1180,29 @@ export class BreakRoom implements RoomExtension {
         mover.w.do("think", { seated: true });
         think += 1.5;
       }
-      if (!book && Math.random() < 0.12) mover.w.say(pickOne(["Hmm.", "If I go there...", "Calculating.", "Sixteen moves ahead."]), 1600, true);
+      if (!book && Math.random() < 0.12) mover.w.say(line("chessThink", mover.w), 1600, true);
       await g.wait(think);
       if (mover.w.activity === "think") { mover.w.do("sit"); await g.wait(0.3); }
       mover.w.poke();
       await g.wait(0.18);
       const res = await g.until(t.move(game.moves[i]));
       if (res.capture) {
-        if (Math.random() < 0.3) other.w.say(pickOne(["Hey!", "I needed that.", "Rude."]), 1200);
-        for (const s of spectators()) if (Math.random() < 0.5) { s.w.say(pickOne(["Ooh!", "Ouch.", "Spicy."]), 1100); s.w.hop(); }
+        if (Math.random() < 0.3) other.w.say(line("captured", other.w), 1200);
+        for (const s of spectators()) if (Math.random() < 0.5) { s.w.say(line("spectate", s.w), 1100); s.w.hop(); }
       }
       if (Math.random() < 0.1) other.w.do("think", { seated: true });
       else if (other.w.activity !== "sit") other.w.do("sit");
     }
     const winner = game.winner === "w" ? W : B, loser = winner === W ? B : W, loserWhite = loser === W;
     if (game.result === "mate") {
-      winner.w.say("Checkmate.", 1800);
+      winner.w.say(line("checkmate", winner.w), 1800);
       t.flashKing(loserWhite);
       await g.wait(1.6);
     } else {
       loser.w.do("think", { seated: true });
       await g.wait(1.8);
       loser.w.do("sit");
-      loser.w.say(pickOne(["I resign.", "Okay. I resign.", "That's lost. I resign."]), 1800);
+      loser.w.say(line("resign", loser.w), 1800);
       await g.wait(0.8);
     }
     loser.w.poke();
@@ -1228,11 +1218,11 @@ export class BreakRoom implements RoomExtension {
     if (Math.random() < 0.65) {
       W.w.face("right"); B.w.face("left");
       W.w.shake(); B.w.shake();
-      loser.w.say(pickOne(["Good game.", "Well played.", "Again tomorrow?"]), 1600);
+      loser.w.say(line("chessGG", loser.w), 1600);
     } else {
       winner.w.do("cheer");
       loser.w.do("sulk");
-      loser.w.say(pickOne(["I blundered on purpose.", "My opening book is outdated.", "Best of three?"]), 1800);
+      loser.w.say(line("chessExcuse", loser.w), 1800);
     }
     await g.wait(2.6);
   }
@@ -1241,11 +1231,11 @@ export class BreakRoom implements RoomExtension {
   private async console(g: Group) {
     const host = g.host;
     g.onArrive = (r) => { if (g.extras.includes(r)) { r.w.face("up"); r.w.do("idle"); } };
-    host.w.say(pickOne(["Robo Kart, anyone?", "One round. Loser makes coffee.", "Who wants to get destroyed? On the TV."]), 1800);
+    host.w.say(line("kartInvite", host.w), 1800);
     this.recruit(g, 1);
     await this.seatHost(g);
     host.w.do("sit");
-    if (!(await this.gather(g, 2, 16))) { host.w.say("Single player it is.", 1500); await g.wait(1.5); return; }
+    if (!(await this.gather(g, 2, 16))) { host.w.say(line("kartAlone", host.w), 1500); await g.wait(1.5); return; }
     g.open = false;
     const [p, q] = g.here;
     const P: [Resident, Resident] = p.spot?.key === "gameP1" ? [p, q] : [q, p];
@@ -1261,9 +1251,9 @@ export class BreakRoom implements RoomExtension {
           by.w.mashRate = 2.5;
           g.later(0.7, () => (by.w.mashRate = 1));
         }
-        if (e.type === "big" && Math.random() < 0.5) vs.w.say(pickOne(["No no no!", "Cheap move!", "How?!"]), 1100);
-        if (e.type === "spin" && Math.random() < 0.6) by.w.say(pickOne(["Banana?!", "Who put that there?", "My kart!"]), 1200);
-        if (e.type === "overtake" && Math.random() < 0.4) by.w.say(pickOne(["See ya!", "Coming through!", "Bye!"]), 1000);
+        if (e.type === "big" && Math.random() < 0.5) vs.w.say(line("kartHit", vs.w), 1100);
+        if (e.type === "spin" && Math.random() < 0.6) by.w.say(line("kartSpin", by.w), 1200);
+        if (e.type === "overtake" && Math.random() < 0.4) by.w.say(line("kartPass", by.w), 1000);
         const wt = watcher();
         if (wt && (e.type === "big" || e.type === "spin") && Math.random() < 0.5) { wt.w.do("laugh", { keep: true }); g.later(1.6, () => wt.w.activity === "laugh" && wt.w.do("idle")); }
       };
@@ -1271,11 +1261,11 @@ export class BreakRoom implements RoomExtension {
       const won = await g.until(Math.random() < 0.5 ? this.arcade.fight(brands, ev) : this.arcade.race(brands, ev));
       const W = P[won], L = P[won ? 0 : 1];
       W.w.do("cheer");
-      W.w.say(pickOne(["GG!", "Undefeated on this couch!", "Too easy. GG."]), 1800);
+      W.w.say(line("kartWin", W.w), 1800);
       if (Math.random() < 0.6) {
         L.w.do("sulk", { seated: true });
         await g.wait(0.6);
-        L.w.say(pickOne(["My controller is broken.", "Lag!", "I was letting you win.", "The sun was in my eyes. Indoors."]), 2000);
+        L.w.say(line("kartExcuse", L.w), 2000);
       } else {
         L.w.do("laugh", { seated: true });
       }
@@ -1283,7 +1273,7 @@ export class BreakRoom implements RoomExtension {
       if (wt) { wt.w.do(Math.random() < 0.5 ? "laugh" : "cheer"); }
       await g.wait(3);
       if (round + 1 < rounds) {
-        L.w.say(pickOne(["Rematch. Now.", "Best of three!", "Again!"]), 1400);
+        L.w.say(line("kartRematch", L.w), 1400);
         for (const r of P) r.w.do("play", { seated: true });
         await g.wait(1);
       }
@@ -1295,7 +1285,7 @@ export class BreakRoom implements RoomExtension {
   // ---- movie night ----------------------------------------------------------------------------------
   private async movieNight(g: Group) {
     const host = g.host, mv = this.movie;
-    host.w.say(pickOne(["Movie night! Who's in?", "Movie time. I'm making popcorn.", "New trailer dropped. Movie night!"]), 2000);
+    host.w.say(line("movieInvite", host.w), 2000);
     this.recruit(g, 3);
     // popcorn first
     const pop = this.reserve(host, "popcorn");
@@ -1309,7 +1299,7 @@ export class BreakRoom implements RoomExtension {
     await this.seatHost(g);
     host.w.do("sit", { keep: true });
     g.later(0.6, () => watch(host));
-    if (!(await this.gather(g, 2, 18))) { host.w.say("More popcorn for me, then.", 1600); await g.wait(1.5); return; }
+    if (!(await this.gather(g, 2, 18))) { host.w.say(line("movieAlone", host.w), 1600); await g.wait(1.5); return; }
     await g.wait(1);
     g.started = true;
     await g.until(mv.start());
@@ -1323,13 +1313,13 @@ export class BreakRoom implements RoomExtension {
       if (b === "gasp" || b === "scare") {
         vs.forEach((r, i) => g.later(i * 0.08, () => { if (!g.has(r)) return; r.w.flinch(); g.later(1.4, () => g.has(r) && r.w.setExpression("neutral")); }));
         const loud = pickOne(vs);
-        if (loud) loud.w.say(b === "scare" ? pickOne(["AAH!", "Nope. Nope.", "Who approved this?"]) : pickOne(["Whoa!", "That bug is huge.", "Oh no."]), 1300);
+        if (loud) loud.w.say(line(b === "scare" ? "movieScare" : "movieGasp", loud.w), 1300);
       } else if (b === "laugh") {
         vs.forEach((r) => { r.w.do("laugh", { seated: true, keep: true }); g.later(1.9, () => watch(r)); });
         const one = pickOne(vs);
-        if (one) one.w.say(pickOne(["Turn it off and on again!", "Ha! v2.0!", "Classic fix."]), 1500);
+        if (one) one.w.say(line("movieLaugh", one.w), 1500);
       } else if (b === "aww") {
-        vs.slice(0, 2).forEach((r, i) => g.later(i * 0.5, () => { if (!g.has(r)) return; r.w.setExpression("happy"); r.w.say(pickOne(["Aww.", "A toaster!", "They're perfect."]), 1300); g.later(2, () => g.has(r) && r.w.setExpression("neutral")); }));
+        vs.slice(0, 2).forEach((r, i) => g.later(i * 0.5, () => { if (!g.has(r)) return; r.w.setExpression("happy"); r.w.say(line("movieAww", r.w), 1300); g.later(2, () => g.has(r) && r.w.setExpression("neutral")); }));
       } else if (b === "credits") {
         g.open = false;
         if (sleeper && g.has(sleeper)) {
@@ -1338,10 +1328,10 @@ export class BreakRoom implements RoomExtension {
           s.w.do("sit", { keep: true });
           s.w.setExpression("surprised");
           s.w.hop();
-          s.w.say(pickOne(["Wait, is it over?", "I was resting my eyes.", "Best movie ever. Probably."]), 2000);
+          s.w.say(line("movieWake", s.w), 2000);
           g.later(1.6, () => { if (g.has(s)) { s.w.setExpression("neutral"); watch(s); } });
         }
-        g.later(2.6, () => { const c = pickOne(awake()); if (c) c.w.say(pickOne(["Ten out of ten.", "The toaster carried.", "Better than the book.", "I cried at the toaster part."]), 2200); });
+        g.later(2.6, () => { const c = pickOne(awake()); if (c) c.w.say(line("movieReview", c.w), 2200); });
       }
     };
     const film = mv.play(beat);

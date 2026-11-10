@@ -2,6 +2,7 @@ import { CompactionScreen } from './os/compaction';
 import { Botword } from "./office-apps/botword";
 import { reportDocument } from "./office-apps/word-markdown";
 import { uiText } from "./localization";
+import { eventLine, testOutcome } from "./lines";
 import { WorkspaceBrowserTracker } from './os/workspace-browser';
 import { frontendUrlFromOutput } from "./os/frontend";
 import { renderFps } from "./perf/render";
@@ -1370,6 +1371,10 @@ export class Director {
 
   /** After a command that obviously wrote documents (python-docx, openpyxl, pandas to_excel, a csv redirect), show them. */
   private async officeFollowUp(command: string, output: string, exit: number | null | undefined) {
+    // A real test run gets a remark with its parsed result (live work only, not a catch-up replay).
+    const tests = this.catchingUp ? null : testOutcome(String(command), String(output), exit);
+    const said = tests && eventLine(tests);
+    if (said) this.stage.remark?.(said);
     if (exit != null && exit !== 0) return;
     for (const f of officeTargets(String(command), String(output))) { await this.wm.sleep(300); await this.playOffice(f, "add"); }
   }

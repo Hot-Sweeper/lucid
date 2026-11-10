@@ -1,7 +1,5 @@
 import { Walker, type Facing } from "../world/walker";
-import { JOKES, LAUGHS, shuffled } from "../world/jokes";
-import { dailyConvo, dailyLine } from "./daily";
-import { CONVOS, THOUGHTS, pickFresh } from "../content";
+import { conversation, line, musing } from "../lines";
 import { makeInteractive, whenFree } from "./interact";
 import { ParkToys, type ParkToyKind } from './park-toys';
 import { dress, type Gear } from "../weather/gear";
@@ -21,10 +19,8 @@ const SCALE = 0.42;   // same size as in the break room and the hallway
 const MAX = 6;
 const wait = (s: number) => new Promise<void>((r) => window.setTimeout(r, s * 1000));
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
-// lots of lines, shown without repeats until they run out (remembered across launches)
-const nextConvo = pickFresh(CONVOS, "lucid:park:convos");
-const nextThought = pickFresh(THOUGHTS.filter((t) => !t.place || t.place === "park" || t.place === "bench"), "lucid:park:thoughts");
-const PARK_THOUGHTS = ["Nice out today.", "The ducks are back.", "No merge conflicts out here.", "Fresh air. Well, fresh packets.", "I could get used to this.", "Is that a real tree or a sprite?"];
+// What a visitor says to itself: its own daily lines, office news, or a park or bench thought.
+const parkMusing = (w: Walker) => musing(w, Math.random() < 0.6 ? "park" : "bench").text;
 
 export class Park {
   layer: HTMLElement;
@@ -35,7 +31,6 @@ export class Park {
   private vis = new Map<string, Visitor>();
   private spots: Spot[] = [];
   private geo: { park: Rect; door: { x: number; y: number }; routeY?: number } | null = null;
-  private joke = shuffled(JOKES);
   private dead = false;
   private toys: ParkToys;
   private reactionAt = -2000;
@@ -212,14 +207,7 @@ export class Park {
       .sort((a, b) => Math.hypot(a.w.x - at.x, a.w.y - at.y) - Math.hypot(b.w.x - at.x, b.w.y - at.y))[0];
     if (!nearby) return;
     this.reactionAt = now;
-    const lines: Record<ParkToyKind, string[]> = {
-      tree: ['Tiny bird, big opinions.', 'The tree says hi.', 'Leaf me out of this.'],
-      bush: ['Something rustled!', 'I thought that was my phone.', 'Hello, tiny forest friend.'],
-      pond: ['The ducks have feedback.', 'Quack to you too.', 'That duck is the manager.'],
-      fountain: ['My waterproofing has limits.', 'A little splash break.', 'Refreshing!'],
-      flowers: ['Careful, they are growing.', 'A bouquet of good commits.', 'Tiny flowers, tiny happy circuits.'],
-    };
-    nearby.w.say(pick(lines[kind]), 2100);
+    nearby.w.say(line(kind, nearby.w), 2100);
     // A reaction never replaces the visitor's walk, conversation or current props.
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches) nearby.w.hop();
   }
@@ -250,7 +238,7 @@ export class Park {
       this.release(v);
       await this.go(v, this.strollPoint());
       if (v.alive) await this.go(v, this.strollPoint());
-      if (Math.random() < 0.3) v.w.say((Math.random() < 0.3 ? dailyLine(v.w.name) : null) ?? nextThought().text, 2800);
+      if (Math.random() < 0.3) v.w.say(parkMusing(v.w), 2800);
       return;
     }
     this.take(v, s);
@@ -265,19 +253,19 @@ export class Park {
       if (mate && Math.random() < 0.7) {
         v.busy = mate.busy = true;
         // today's chatter from the orchestrator first now and then, otherwise a classic
-        const lines = (Math.random() < 0.35 ? dailyConvo() : null) ?? (Math.random() < 0.8 ? [...nextConvo().lines] : this.joke());
+        const lines = conversation();
         for (let i = 0; i < lines.length; i++) {
           const who = i % 2 === 0 ? v : mate;
           if (!v.alive || !mate.alive) break;
           who.w.say(lines[i], 2400 + lines[i].length * 25);
           await wait(2.6 + lines[i].length * 0.025);
         }
-        if (v.alive) { v.w.do("laugh", { keep: true }); v.w.say(pick(LAUGHS), 1600); }
+        if (v.alive) { v.w.do("laugh", { keep: true }); v.w.say(line("laugh", v.w), 1600); }
         v.busy = mate.busy = false;
       }
     } else if (s.kind === "pond") {
       v.w.do("idle");
-      if (Math.random() < 0.35) { await wait(2); if (v.alive) v.w.say((Math.random() < 0.3 ? dailyLine(v.w.name) : null) ?? nextThought().text, 2800); }
+      if (Math.random() < 0.35) { await wait(2); if (v.alive) v.w.say(parkMusing(v.w), 2800); }
     } else {
       v.w.do("wave");
       await wait(1.5);
@@ -294,8 +282,7 @@ export class Park {
     this.vis.delete(v.t.id);
     this.leaving.add(v.w);
     v.w.calm();
-    v.w.say(this.rainSoon ? pick(["Rain's coming, pack up!", "Those clouds look wet.", "Grab the blanket, rain!", "Inside before it pours!"])
-      : this.wet ? pick(["It's raining, inside!", "Nope, too wet.", "My circuits hate rain.", "Race you to the door!"]) : "Back to work!", 1600);
+    v.w.say(line(this.rainSoon ? "rainSoon" : this.wet ? "raining" : "leavePark", v.w), 1600);
     this.onDeparture?.(v.t.id, v.w);
     const g = this.geo;
     if (g) {

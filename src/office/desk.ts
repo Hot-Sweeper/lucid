@@ -1,5 +1,6 @@
 import { RobotPower } from "../world/robot-power";
 import { robotSay } from "./robot-voice";
+import { eventLine, line } from "../lines";
 import { DeskPlanWidget } from "./desk-plan";
 import gsap from "gsap";
 import { gameSound } from './sound';
@@ -29,6 +30,8 @@ export const SCREEN_H = 461;
 
 export interface DeskStage {
   say(text: string | null, kind?: "think" | "speak"): void;
+  /** A short spoken remark that never covers a bubble already showing. */
+  remark?(text: string, ms?: number): boolean;
   setPlan(steps: { text: string; status: string }[]): void;
   setGlow(color: string): void;
   sleepy(on: boolean): void;
@@ -258,7 +261,7 @@ export class Desk implements DeskStage {
     gsap.to(host, { opacity: 0, duration: 0.3 });
     this.lift("handoff", true);
     const nice = (p: string) => ({ claude: "Claude", codex: "Codex", grok: "Grok" } as Record<string, string>)[brandFor(p)] ?? "another agent";
-    this.say(`This chat moved from ${nice(from)} to ${nice(to)}. ${nice(from)} hands over the work.`, "speak");
+    this.say(eventLine({ kind: "moved", from: nice(from), to: nice(to) }, name), "speak");
     try {
       await playHandoff(this.el, { provider: from, model: this.model ?? undefined, name }, { provider: to, model: model ?? undefined }, { x: UNIT.w / 2, y: UNIT.h - 10 });
     } catch (e) { console.error("handoff failed", e); }
@@ -277,8 +280,6 @@ export class Desk implements DeskStage {
   private pokes = 0;
   private pokeTimer = 0;
   private wireToys() {
-    const lines = ["Hey!", "I'm working here!", "Yes, CEO?", "That tickles.", "Boop.", "Almost done, promise.", "Did you need something?"];
-    const grumpy = ["Okay, okay!", "Stop poking me.", "I will tell HR.", "Poke limit reached."];
     const stop = (e: Event) => { e.stopPropagation(); e.preventDefault(); };
     this.el.querySelector(".poke-head")!.addEventListener("click", (e) => {
       stop(e);
@@ -289,7 +290,7 @@ export class Desk implements DeskStage {
       this.pokeTimer = window.setTimeout(() => (this.pokes = 0), 3000);
       const angry = this.pokes >= 4;
       this.robot.react(angry ? "angry" : (["surprised", "laugh", "shy"] as const)[Math.floor(Math.random() * 3)]);
-      this.say((angry ? grumpy : lines)[Math.floor(Math.random() * (angry ? grumpy : lines).length)], "speak");
+      this.say(line(angry ? "pokeAngry" : "pokeWorking", this.profile?.name), "speak");
       window.setTimeout(() => this.say(null), 1800);
     });
     this.el.querySelector(".poke-mug")!.addEventListener("click", (e) => { stop(e); if (this.threadId) { gameSound.play('coffee'); void this.robot.drink(); } });
@@ -298,7 +299,7 @@ export class Desk implements DeskStage {
       if (this.threadId) gameSound.play('phone');
       const ph = this.el.querySelector("[data-d=phone]") as SVGGElement | null;
       if (ph) gsap.fromTo(ph, { x: -2 }, { x: 2, duration: 0.05, repeat: 9, yoyo: true, clearProps: "x" });
-      if (this.threadId) { this.robot.react("surprised"); this.say(["Bzzz!", "Who is texting me?", "Probably spam."][Math.floor(Math.random() * 3)], "speak"); window.setTimeout(() => this.say(null), 1600); }
+      if (this.threadId) { this.robot.react("surprised"); this.say(line("phoneBuzz", this.profile?.name), "speak"); window.setTimeout(() => this.say(null), 1600); }
     });
   }
 
@@ -335,6 +336,17 @@ export class Desk implements DeskStage {
     if (kind === "speak") robotSay({ el: this.el.querySelector(".robot-host") ?? this.el, seed: this.profile?.name || this.threadId || "desk", provider: this.info?.provider, head: this.profile?.look?.head }, text);
     this.onSay();
     if (!was) gsap.fromTo(b, { opacity: 0, y: 12, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.8)" });
+  }
+
+  /** A short spoken remark from the seated robot. Never covers a bubble that is already up;
+   *  clears itself unless something else was said meanwhile. */
+  private remarkTimer = 0;
+  remark(text: string, ms = 2600 + text.length * 45) {
+    if (!this.threadId || this.handoffBusy || this.el.classList.contains("arriving") || this.bubble.classList.contains("show")) return false;
+    this.say(text, "speak");
+    window.clearTimeout(this.remarkTimer);
+    this.remarkTimer = window.setTimeout(() => { if (this.bubble.querySelector("p")?.textContent === text) this.say(null); }, ms);
+    return true;
   }
 
   planSteps: { text: string; status: string }[] = [];

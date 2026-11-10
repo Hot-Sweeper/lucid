@@ -1,9 +1,11 @@
 import { setTrending } from "../fun/trending";
 import { getLocale, localizeData, onLocaleChange } from "../localization";
+import { lineId, lineMemory } from "../lines/memory";
 
-// Today's dialog pack from the orchestrator: conversations, lines about the CEO (you) and
-// gossip about the other robots, written once a day from what it has learned. Robots mix
-// these into their chats so the office talks about what actually happened.
+// Today's dialog pack from the headless writer (daily-writer.cjs): conversations, lines each
+// robot says in its own voice, lines about the CEO (you) and gossip, written once a day from
+// the robots' personas. It is the third layer of the line system (src/lines), after the
+// built-in base set and lines about real T3 events.
 
 export type DailyPack = {
   date: string;
@@ -20,7 +22,6 @@ export type DailyPack = {
 };
 
 let pack: DailyPack | null = null;
-const used = new Set<string>();
 const canonicalKeys = new Map<string, string>();
 let loading = false;
 let reload = false;
@@ -70,30 +71,16 @@ export async function loadDaily() {
 /** Called whenever a new pack is loaded (the building sign shows today's event). */
 export let onDaily: (p: DailyPack | null) => void = () => {};
 export function watchDaily(f: (p: DailyPack | null) => void) { onDaily = f; f(pack); }
-export const dailyEvent = () => pack?.event ?? null;
 void loadDaily();
 onLocaleChange(() => { pack = null; setTrending(undefined); onDaily(null); void loadDaily(); });
 setInterval(() => void loadDaily(), 10 * 60 * 1000);
 
-const fresh = <T,>(list: T[] | undefined, key: (x: T) => string): T | null => {
-  if (!list?.length) return null;
-  const stableKey = (x: T) => canonicalKeys.get(key(x)) ?? key(x);
-  const left = list.filter((x) => !used.has(stableKey(x)));
-  const pool = left.length ? left : list;
-  const x = pool[Math.floor(Math.random() * pool.length)];
-  used.add(stableKey(x));
-  return x;
-};
-
-/** A conversation from today's pack (2 to 4 alternating lines), or null. */
-export const dailyConvo = () => fresh(pack?.convos?.filter((c) => Array.isArray(c) && c.length >= 2), (c) => c[0]);
-/** A single line about the CEO or another robot, or null. With a speaker, often its own line. */
-export const dailyLine = (speaker?: string) => (speaker && pack?.robots?.[speaker]?.length && Math.random() < 0.6 ? fresh(pack.robots[speaker], (l) => l) : null) ?? fresh([
-  ...(pack?.ceo ?? []), ...(pack?.gossip ?? []),
-  ...(pack?.event ? (getLocale() === "de"
-    ? [`Kommst du zu ${pack.event.name}?`, `Heute ist wohl ${pack.event.name}.`, `Ich spare meinen Akku für ${pack.event.name}.`]
-    : [`Are you coming to ${pack.event.name}?`, `I heard ${pack.event.name} is today.`, `Saving my battery for ${pack.event.name}.`]) : []),
-  ...(pack?.trending ?? []).slice(0, 3).map((t) => getLocale() === "de" ? `Hast du "${t.title}" gesehen?` : `Did you see "${t.title}"?`),
-], (l) => l);
+/** Today's pack as shown (translated when needed). Lines are chosen in src/lines. */
+export const dailyPack = () => pack;
+/** The canonical (as written) text of a shown pack line, so repetition history survives language changes. */
+export const dailyKey = (text: string) => canonicalKeys.get(text) ?? text;
 /** A Botcord message from today's pack, or null. */
-export const dailyBotcord = () => fresh(pack?.botcord?.filter((m) => m?.text), (m) => m.text);
+export const dailyBotcord = () => {
+  const list = pack?.botcord?.filter((m) => m?.text) ?? [];
+  return lineMemory.pick(list.map((m) => ({ id: lineId(dailyKey(m.text)), value: m })));
+};
