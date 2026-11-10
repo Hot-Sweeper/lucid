@@ -6,3 +6,7 @@
 .cp-dictation-note { margin:6px 0 0; color:var(--ink-3); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
 .cp-dictation-note[hidden] { display:none; }
 .cp-dictation-note .cp-dictation-setup { font-size: 12px; padding: 0; margin-left: 2px; }
+.cp-dictation-progress { display:block; width:100%; height:4px; margin:6px 0 4px; border:0; border-radius:2px; background:var(--ui-field); overflow:hidden; appearance:none; accent-color:var(--accent); }
+.cp-dictation-progress::-webkit-progress-bar { background:var(--ui-field); border-radius:2px; }
+.cp-dictation-progress::-webkit-progress-value { background:var(--accent); border-radius:2px; transition:width .3s ease-out; }
+@media (prefers-reduced-motion: reduce) { .cp-dictation-progress::-webkit-progress-value { transition:none; } }

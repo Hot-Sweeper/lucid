@@ -613,6 +613,7 @@ ipcMain.handle("t3s:edit", t3sWrap((o) => t3s.editQueued(o.threadId, o.runId, o.
 ipcMain.handle("t3s:steer", t3sWrap((o) => t3s.steerNow(o.threadId, o.queuedRunId, o.targetRunId)));
 ipcMain.handle("t3s:setModel", t3sWrap((o) => t3s.setThreadModel(o.threadId, o.selection)));
 ipcMain.handle("t3s:respond", t3sWrap((o) => t3s.respondToRequest(o.threadId, o.requestId, o)));
+ipcMain.handle("t3s:reset-credit", t3sWrap((o) => { if (activeBuilding()) throw Error('Use reset credits on the computer that owns the subscription.'); return t3s.consumeResetCredit(o?.instanceId); }));
 app.on("before-quit", () => t3s.closeSock());
 
 // Office documents the agents wrote (docx, xlsx, pptx, csv...), read for the robots' office apps.
@@ -621,8 +622,8 @@ require("./office.cjs").register(ipcMain);
 // Real Bitcoin candles and prices for the robots' Tradebot (cached, rate limited).
 require("./market.cjs").register(ipcMain);
 
-// Offline dictation uses the local computer, including for remote-building chats.
-require("./dictation.cjs").register({ ipcMain, app, window: () => win });
+// Dictation goes through the local T3 Code's speech service, including for remote-building chats.
+require("./t3-voice.cjs").register({ ipcMain, app, window: () => win, server: t3s });
 // Lucid's own title bar: window buttons and the maximized state for its restore icon.
 ipcMain.handle("window:control", (event, action) => {
   const w = BrowserWindow.fromWebContents(event.sender);

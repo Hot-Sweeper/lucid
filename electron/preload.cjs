@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld("lucid", {
   frontendFrame: (req) => ipcRenderer.invoke("frontend:frame", req),
   siteFetch: (url, as) => ipcRenderer.invoke("site:fetch", url, as),
   webSearch: (q) => ipcRenderer.invoke("web:search", q),
+  favicon: (host) => ipcRenderer.invoke("favicon:get", host),
   gitInfo: (root) => ipcRenderer.invoke("git:info", root),
   image: (p) => ipcRenderer.invoke("fs:image", p),
   readText: (p) => ipcRenderer.invoke("fs:text", p),
@@ -112,6 +113,7 @@ contextBridge.exposeInMainWorld("lucidT3", {
   steer: t3s("t3s:steer"),
   setModel: t3s("t3s:setModel"),
   respond: t3s("t3s:respond"),
+  useResetCredit: t3s("t3s:reset-credit"),
 });
 
 // Office documents for the robots' Botword, Cellsheet and Slidedeck: { ok, doc } or { ok: false, error }.
@@ -122,9 +124,10 @@ contextBridge.exposeInMainWorld("lucidMarket", {
 });
 contextBridge.exposeInMainWorld("lucidDocs", { read: (p) => ipcRenderer.invoke("doc:read", p) });
 
-const dictationCall = (channel) => async (value) => {
-  const result = await ipcRenderer.invoke(`dictation:${channel}`, value);
-  if (!result?.ok) throw new Error(result?.error || 'Dictation did not answer. Try again.');
+// Dictation through T3 Code's speech service. Errors keep T3's reason as `code`.
+const voiceCall = (channel) => async (value) => {
+  const result = await ipcRenderer.invoke(`voice:${channel}`, value);
+  if (!result?.ok) { const err = new Error(result?.error || 'Dictation did not answer. Try again.'); err.code = result?.code; throw err; }
   return result.value;
 };
 // Lucid's own title bar (Linux): window buttons and maximized state.
@@ -134,9 +137,11 @@ contextBridge.exposeInMainWorld("lucidWindow", {
   onMaximized: (fn) => { const h = (_e, on) => fn(!!on); ipcRenderer.on("window:maximized", h); return () => ipcRenderer.removeListener("window:maximized", h); },
 });
 contextBridge.exposeInMainWorld('lucidDictation', {
-  load: dictationCall('load'),
-  run: dictationCall('run'),
-  cancel: dictationCall('cancel'),
-  status: dictationCall('status'),
-  setup: dictationCall('setup'),
+  status: voiceCall('status'),
+  progress: voiceCall('progress'),
+  download: voiceCall('download'),
+  cancelDownload: voiceCall('cancelDownload'),
+  prepare: voiceCall('prepare'),
+  transcribe: voiceCall('transcribe'),
+  cancel: voiceCall('cancel'),
 });

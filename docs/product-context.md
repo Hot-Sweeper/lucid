@@ -29,7 +29,7 @@ The user wants discoverable office-level creation/delegation, direct manipulatio
 - Reuse existing T3 Connect environments. Users should not reconnect Ares or other devices separately in Lucid.
 - Subscription limits drive a dedicated industrial charging room with actual stations, reset countdowns and progress based on real usage. Low-battery behavior should communicate approaching limits.
 - Earned API-cost coins should be collectible on the monitor, animated and rewarding, with Collect all. Retain uncollected desks/rewards until claimed.
-- Offline dictation supports English and German without requiring streaming. The selected model is Parakeet Ultra. Keep recording responsive; model startup/transcription must not freeze Lucid.
+- Dictation runs through T3 Code's voice API (`electron/t3-voice.cjs`): T3's selected local speech model, shared with T3, downloaded on first use with T3's own progress. Keep recording responsive; transcription must not freeze Lucid.
 - Flavor localization supports English and German, natural joke alternatives and fictional apps. Preserve user text, real conversations, code, names and identities. See [localization.md](localization.md).
 - Flavor includes varied fictional chat, feeds, games, music, image generation and phone behavior. Do not confuse this entertainment with genuine task state or fabricate operational progress.
 
