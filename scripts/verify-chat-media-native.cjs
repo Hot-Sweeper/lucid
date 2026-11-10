@@ -38,9 +38,8 @@ window.review={ChatPanel,...media};`);
     const deadline = setTimeout(() => { result.errors.push('Fixture deadline exceeded'); fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify(result, null, 2)); app.exit(1); }, 25000);
     try {
       await win.loadFile(path.join(out, 'index.html'));
-      // Use a genuine local screenshot and a special-character filename copy.
-      const original = 'E:/Lucid-validation/landscape-20261101/s5/autumn-day.png';
-      const image = fs.existsSync(original) ? original : 'C:/Users/tim/.t3/userdata/lucid-attachments/1793574443374-image.png';
+      // Use a real image from the repository and a special-character filename copy.
+      const image = path.join(root, 'src/assets/note-apps/notepad.png');
       const special = path.join(out, 'image #1 (ä) 50%.png'); fs.copyFileSync(image, special);
       const input = { image: image.replaceAll('\\', '/'), special: special.replaceAll('\\', '/'), missing: path.join(out, 'not-present.png').replaceAll('\\', '/') };
       const value = await win.webContents.executeJavaScript(`(async()=>{

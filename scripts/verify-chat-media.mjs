@@ -5,7 +5,7 @@ import { transformWithOxc } from 'vite';
 const source = await readFile(new URL('../src/office/chat-media.ts', import.meta.url), 'utf8');
 const code = (await transformWithOxc(source, 'chat-media.ts')).code.replace(/^export /gm, '').replace(/export\s*\{[^}]*\};?/g, '');
 const media = new Function(`${code};return {localMediaPath,chatFileUrl,chatMediaSource,chatMediaKind,inlineChatImage}`)();
-const path = 'E:/T3 Projects/Lucid/image #1 (ä) 50%.png';
+const path = 'D:/Projects/Office/image #1 (ä) 50%.png';
 for (const value of [path, `/${path}`, `file:///${encodeURI(path).replace('#', '%23')}`, media.chatFileUrl(path)]) {
   assert.equal(media.localMediaPath(value), path, value);
   assert.equal(media.chatMediaSource(value), `lucid-file://local/${encodeURIComponent(path)}`);

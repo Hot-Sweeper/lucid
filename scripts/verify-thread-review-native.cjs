@@ -1,7 +1,7 @@
 // Bounded native rendering of the production renderThreads function and sidebar CSS.
 // Status fixtures never call T3, save a report, answer a question or settle a thread.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),{execFileSync,spawn}=require('node:child_process');
-const root=path.resolve(__dirname,'..'),out=path.resolve(process.argv[2]||'E:/Lucid-validation/thread-review-20261102');
+const root=path.resolve(__dirname,'..'),out=path.resolve(process.argv[2]||fs.mkdtempSync(path.join(require('node:os').tmpdir(),'lucid-thread-review-')));
 const baseline='d58142b',hash=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 if(!process.versions.electron){(async()=>{
   fs.mkdirSync(out,{recursive:true});const src=root.replaceAll('\\','/');
