@@ -24,3 +24,12 @@
 .panel > .usage #fold-subscriptions { max-height: min(20dvh, 160px); overflow: auto; overscroll-behavior: contain; }
 .panel .th-row.th-t3 { content-visibility: visible; }
 @media (prefers-reduced-motion: reduce) { .panel .th-settled-section > .th-settled-toggle { transition: none; } }
+
+/* Separate sibling actions keep row navigation and settlement independently accessible. */
+.th-collect-actions { padding: 0 10px 10px; }
+.th-collect { min-height: 32px; max-width: 100%; padding: 6px 12px; border: 0; border-radius: 8px; background: var(--accent); color: var(--night); font: 500 12px var(--font); cursor: pointer; transition: filter 130ms var(--ease-out-strong); }
+.th-collect:hover { filter: brightness(1.08); }
+.th-collect:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.th-collect:disabled { opacity: .65; cursor: wait; }
+.th-collect-error { margin: 6px 0 0; color: var(--ink); font: 12px var(--font); overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .th-collect { transition: none; } }

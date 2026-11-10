@@ -1670,6 +1670,7 @@ const ago = (iso?: string | null) => {
   return m < 1 ? "now" : m < 60 ? `${Math.floor(m)}m` : m < 1440 ? `${Math.floor(m / 60)}h` : `${Math.floor(m / 1440)}d`;
 };
 let thSig = "";
+const sidebarCollectErrors = new Map<string, string>();
 let settledOpen = false;
 // The Managers group: pinned threads shown as their robots, with profile pictures.
 const managerPictures = new Map<string, string>();
@@ -1790,6 +1791,10 @@ ${world.roster.byThread(t.id)!.name}` : ""}`)}">${icon}<span class="th-settled-t
     const robot = world.roster.byThread(t.id);
     const logo = logoFor(t.provider);
     const where = t.branch || "";
+    const ready = collectible(t.id, true);
+    const busy = collectingWork.has(t.id);
+    const label = ready?.coins ? `Settle & collect ${ready.coins} coins` : 'Settle session';
+    const collect = ready ? `<div class="th-collect-actions"><button type="button" class="th-collect" data-collect-id="${esc(t.id)}" aria-label="${esc(`${label}: ${t.title || 'Untitled'}`)}"${busy ? ' disabled aria-busy="true"' : ''}>${busy ? 'Settling…' : esc(label)}</button>${sidebarCollectErrors.has(t.id) ? `<p class="th-collect-error" role="status">${esc(sidebarCollectErrors.get(t.id)!)}</p>` : ''}</div>` : '';
     const sel = t.id === chat.threadId ? " sel" : "";
     return `<li><button type="button" class="th-row th-worker th-t3${t.runStatus === "running" ? " on" : ""}${sel}" data-state="${dotOf(t)}" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${robot ? `
 ${robot.name}${t.model ? `, ${t.model}` : ""}` : ""}${t.branch ? `
@@ -1800,7 +1805,7 @@ ${t.branch}` : ""}`)}">
         ${where ? `<span class="th-meta"><span class="th-where">${esc(where)}</span></span>` : ""}
         ${snippetOf(t) ? `<span class="th-snippet">${esc(snippetOf(t))}</span>` : ""}
       </span>
-    </button></li>`;
+    </button>${collect}</li>`;
   };
   const order = active.map(t => t.id).join(" ");
   if (listHeld && !force && heldOrder && order !== heldOrder) {
@@ -1865,6 +1870,21 @@ $("th-new-project").addEventListener("click", () => newProject());
 whenProjectColors(() => { if (world.lastData) world.update(world.lastData); thSig = ""; renderThreads(); });
 $("th-list").addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
+  const collectButton = target.closest<HTMLButtonElement>(".th-collect");
+  if (collectButton) {
+    const id = collectButton.dataset.collectId!;
+    if (collectingWork.has(id) || !collectible(id, true)) return;
+    sidebarCollectErrors.delete(id);
+    const pending = collectWork(id, collectButton);
+    renderThreads(true);
+    void pending.catch(error => {
+      sidebarCollectErrors.set(id, error instanceof Error ? error.message : String(error));
+    }).finally(() => {
+      renderThreads(true);
+      if (!document.activeElement || document.activeElement === document.body) $("th-q").focus({ preventScroll: true });
+    });
+    return;
+  }
   if (target.closest(".mg-toggle")) { toggleManagers(); return; }
   if (target.closest(".th-settled-toggle")) { settledOpen = !settledOpen; renderThreads(true); return; }
   if (target.closest(".th-settled-more")) { settledLimit += 25; renderThreads(true); return; }

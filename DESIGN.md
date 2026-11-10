@@ -205,3 +205,7 @@ The conversation keeps a compact two-line view of the latest submitted user prom
 ## Selected thread and shared status
 
 Keep the current conversation visibly selected with an inset peach outline and a warm filled surface, independent of its status color, in expanded rows and the folded rail. Expose the same selection with aria-current and update it immediately for desk, robot and thread navigation, retaining it while the chat is folded. The chat status uses the same operational resolver as the sidebar, including Done after reading, failures, questions, review, queued and background work. Fictional leisure activity must never replace the task status. Sending is queued only while a run is working or queued, not merely because its background job continues.
+
+## Sidebar settlement
+
+Eligible active threads expose a peach Settle session or Settle & collect button beneath their navigation row. Reuse desk eligibility, review approval and collection behavior. Keep the action separate from navigation, disable it during settlement, and show recoverable errors inline.
