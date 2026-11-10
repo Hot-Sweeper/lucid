@@ -1,5 +1,5 @@
-/* Sparkplug: robot dating. Warm pink to orange brand, white app, big photo cards. */
-.so-sp { --sp-a: #ff6f91; --sp-b: #ff9f5a; position: absolute; inset: 0; overflow: hidden; user-select: none; display: flex; background: #f4f2f5; color: #21262e; font-family: var(--font); -webkit-font-smoothing: antialiased; font-size: 10px; line-height: 1.35; }
+/* Sparkplug: a robot buddy finder. Lavender to pink brand, white app, big photo cards. */
+.so-sp { --sp-a: #8f6cf2; --sp-b: #ff8fb1; position: absolute; inset: 0; overflow: hidden; user-select: none; display: flex; background: #f4f2f5; color: #21262e; font-family: var(--font); -webkit-font-smoothing: antialiased; font-size: 10px; line-height: 1.35; }
 .so-sp.so-ph { flex-direction: column; background: #fff; font-size: 7.5px; }
 .so-sp-logo { display: flex; align-items: center; gap: 3px; }
 .so-sp-logo svg { width: 13px; height: 13px; fill: var(--sp-a); }
@@ -35,12 +35,12 @@
 .so-sp-btns .b-nope svg { fill: #ff4f6d; }
 .so-sp-btns .b-like svg { fill: #2fd18c; }
 
-/* the match screen */
-.so-sp-match { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 0 12px; background: linear-gradient(160deg, rgba(255, 111, 145, 0.97), rgba(255, 159, 90, 0.97)); color: #fff; text-align: center; }
-.so-sp-mtitle { font-size: 19px; font-weight: 800; font-style: italic; letter-spacing: -0.03em; transform: rotate(-4deg); }
+/* the new buddy screen */
+.so-sp-match { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 0 12px; background: linear-gradient(160deg, rgba(143, 108, 242, 0.97), rgba(255, 143, 177, 0.97)); color: #fff; text-align: center; }
+.so-sp-mtitle { font-size: 19px; font-weight: 800; letter-spacing: -0.03em; transform: rotate(-4deg); }
 .so-sp-match p { margin: 0; font-size: 7px; opacity: 0.92; }
 .so-sp-pair { display: flex; margin: 6px 0 4px; }
-.so-sp-pair span { width: 56px; height: 56px; display: flex; justify-content: center; align-items: flex-start; border-radius: 50%; overflow: hidden; background: #fff4ec; box-shadow: 0 0 0 2px #fff, 0 4px 12px rgba(80, 20, 40, 0.25); }
+.so-sp-pair span { width: 56px; height: 56px; display: flex; justify-content: center; align-items: flex-start; border-radius: 50%; overflow: hidden; background: #f6f0ff; box-shadow: 0 0 0 2px #fff, 0 4px 12px rgba(40, 20, 80, 0.25); }
 .so-sp-pair span + span { margin-left: -8px; }
 .so-sp-pair svg { flex: none; margin-top: 2px; }
 .so-sp-say { width: 100%; display: flex; align-items: center; gap: 4px; min-height: 22px; padding: 4px 6px 4px 9px; border-radius: 11px; background: #fff; color: #21262e; text-align: left; font-size: 7px; overflow-wrap: anywhere; }
@@ -53,13 +53,13 @@
 .so-sp-keep { font-size: 7px; font-weight: 600; opacity: 0.9; }
 .so-sp-spark { position: absolute; left: 50%; top: 38%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: #fff3b0; }
 
-/* chat with a match */
+/* chat with a new buddy */
 .so-sp-chat { position: absolute; inset: 0; z-index: 9; display: flex; flex-direction: column; background: #fff; }
 .so-sp-chat header { position: relative; z-index: 3; flex: none; height: 32px; display: flex; align-items: center; gap: 5px; padding: 6px 8px 0; background: #fff; box-shadow: 0 1px 0 #eef0f3; }
 .so-sp-chat header div { display: flex; flex-direction: column; }
 .so-sp-chat header b { font-size: 8px; font-weight: 700; }
 .so-sp-chat header small { font-size: 5.5px; color: #9aa0aa; }
-.so-sp-cav, .so-sp-bav { flex: none; display: flex; justify-content: center; align-items: center; border-radius: 50%; overflow: hidden; background: #ffe3d6; }
+.so-sp-cav, .so-sp-bav { flex: none; display: flex; justify-content: center; align-items: center; border-radius: 50%; overflow: hidden; background: #efe6ff; }
 .so-sp-cav { width: 20px; height: 20px; }
 .so-sp-bav { width: 12px; height: 12px; align-self: flex-end; }
 .so-sp-bk { width: 6px; height: 6px; border: solid var(--sp-a); border-width: 0 0 1.5px 1.5px; transform: rotate(45deg); margin: 0 2px 0 3px; }
@@ -68,7 +68,7 @@
 .so-sp-b { display: flex; gap: 3px; max-width: 82%; align-self: flex-start; }
 .so-sp-bt { padding: 4px 8px; border-radius: 10px; font-size: 7px; line-height: 1.35; overflow-wrap: anywhere; background: #eef0f3; }
 .so-sp-b.me { align-self: flex-end; }
-.so-sp-b.me .so-sp-bt { background: #3d8bff; color: #fff; }
+.so-sp-b.me .so-sp-bt { background: #8f6cf2; color: #fff; }
 .so-sp-b.dots { align-items: center; color: #9aa0aa; }
 .so-sp-b.dots .so-dots { margin: 0; padding: 5px 8px; border-radius: 10px; background: #eef0f3; height: auto; }
 .so-sp-chat footer { position: relative; z-index: 2; flex: none; display: flex; align-items: flex-end; gap: 6px; padding: 5px 8px 11px; background: #fff; box-shadow: 0 -1px 0 #eef0f3; }
@@ -78,13 +78,13 @@
 .so-sp-send { flex: none; padding-bottom: 3px; color: var(--sp-a); font-size: 7px; font-weight: 700; opacity: 0.4; }
 .so-sp-send.on { opacity: 1; }
 
-/* desktop web: matches on the left, the card in the middle */
+/* desktop web: buddies on the left, the card in the middle */
 .so-sp:not(.so-ph) .so-sp-side { width: 196px; flex: none; display: flex; flex-direction: column; background: #fff; box-shadow: 1px 0 0 #eceaee; }
 .so-sp-mine { flex: none; height: 46px; display: flex; align-items: center; gap: 7px; padding: 0 10px; background: linear-gradient(110deg, var(--sp-a), var(--sp-b)); color: #fff; }
 .so-sp-mine > b { flex: 1; font-size: 10.5px; font-weight: 600; }
 .so-sp-mine .so-sp-logo svg { fill: #fff; width: 15px; height: 15px; }
 .so-sp-mine .so-sp-logo b { display: none; }
-.so-sp-av { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: flex; justify-content: center; align-items: center; background: #fff4ec; }
+.so-sp-av { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: flex; justify-content: center; align-items: center; background: #f6f0ff; }
 .so-sp-tabs { flex: none; display: flex; gap: 14px; padding: 10px 12px 0; font-size: 10px; font-weight: 600; color: #9aa0aa; }
 .so-sp-tabs .on { color: #21262e; box-shadow: 0 2px 0 var(--sp-a); padding-bottom: 4px; }
 .so-sp-matches { flex: 1; min-height: 0; padding: 10px 10px; overflow: hidden; }
@@ -130,7 +130,7 @@
 .so-sp:not(.so-ph) .so-sp-chat footer { padding: 8px 16px 12px; gap: 10px; align-items: center; }
 .so-sp:not(.so-ph) .so-sp-field { min-height: 28px; padding: 6px 12px; border-radius: 14px; font-size: 10px; }
 .so-sp:not(.so-ph) .so-sp-send { font-size: 10px; padding: 0; }
-/* phone: the keyboard is up on the match screen, so the content moves into the space above it */
+/* phone: the keyboard is up on the new buddy screen, so the content moves into the space above it */
 .so-sp.so-ph .so-sp-match.kbup { justify-content: flex-start; padding-top: 16px; gap: 6px; }
 .so-sp.so-ph .so-sp-match.kbup p, .so-sp.so-ph .so-sp-match.kbup .so-sp-keep { display: none; }
 .so-sp.so-ph .so-sp-match.kbup .so-sp-mtitle { font-size: 15px; }

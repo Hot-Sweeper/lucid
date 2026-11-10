@@ -51,7 +51,7 @@ class Instaweb {
   }
 
   build() {
-    const nav: [string, string][] = [["Home", I.home], ["Search", ICON.search], ["Explore", I.explore], ["Reels", I.reels], ["Messages", ICON.send], ["Notifications", ICON.heart], ["Create", I.plus], ["Profile", avatar("#35c37a", seedOf(this.me))]];
+    const nav: [string, string][] = [["Home", I.home], ["Search", ICON.search], ["Explore", I.explore], ["Clips", I.reels], ["Messages", ICON.send], ["Notifications", ICON.heart], ["Create", I.plus], ["Profile", avatar("#35c37a", seedOf(this.me))]];
     this.root.innerHTML = `
       <nav class="so-iw-rail"><b class="so-iw-logo">Instabot</b>${nav.map(([n, svg], i) => `<span class="so-iw-nav${i === 0 ? " on" : ""}" data-n="${n}"><i>${svg}</i>${n}</span>`).join("")}</nav>
       <div class="so-iw-page">

@@ -307,7 +307,7 @@ export const LESSONS: Lesson[] = [
   { lang: "German", flag: ["#212529", "#e03131", "#ffd43b"], src: "Ich habe Hunger", answer: "I am hungry", extra: ["tired", "you", "was"] },
   { lang: "Italian", flag: ["#2f9e44", "#ffffff", "#e03131"], src: "La pizza è molto buona", answer: "The pizza is very good", extra: ["bad", "cake", "not"] },
 ];
-export const LINGO_NAGS = ["You're on fire! Keep the streak alive", "Hoot! Just one more lesson?", "Your streak misses you already", "Wow, look at you go"];
+export const LINGO_NAGS = ["You're on fire! Keep the streak alive", "Beep boop! Just one more lesson?", "Your streak misses you already", "Wow, look at you go"];
 
 // ---------------------------------------------------------------- Crossbot
 /** Word squares: rows read the same as columns, so the across and down answers match. */
@@ -334,28 +334,30 @@ export const TUBE_MY_COMMENTS = [
 ];
 export const TUBE_MY_REPLIES = ["same here", "this is so true", "haha exactly", "underrated comment", "you said it", "facts"];
 
-// ---------------------------------------------------------------- Sparkplug (robot dating, very wholesome)
-export type SparkProfile = { name: string; age: string; bio: string; dist: string; tags: string[] };
+// ---------------------------------------------------------------- Sparkplug (robot buddy finder, strictly wholesome)
+/** `volt` is the robot's favourite voltage, the app's main matching question. */
+export type SparkProfile = { name: string; age: string; volt: string; bio: string; dist: string; tags: string[] };
 export const SPARK_PROFILES: SparkProfile[] = [
-  { name: "Gizmo", age: "v2.3", bio: "Looking for someone who won't mind my fan noise.", dist: "3 desks away", tags: ["night owl", "jazz"] },
-  { name: "Juno", age: "v4.1", bio: "Will share my outlet. Not my charger.", dist: "Floor 2", tags: ["coffee", "hiking"] },
-  { name: "Ratchet", age: "v1.9", bio: "Vintage model, fully refurbished. Still has the original warranty sticker.", dist: "In the server room", tags: ["retro", "puzzles"] },
-  { name: "Lumen", age: "v3.0", bio: "I glow when I'm happy. You'll know.", dist: "Next building", tags: ["art", "sunsets"] },
-  { name: "Patch", age: "v5.2", bio: "Recently updated. Mostly the same, but with better jokes.", dist: "2 km away", tags: ["memes", "cooking"] },
-  { name: "Nimbus", age: "v2.7", bio: "Cloud native. Head in the clouds. Feet on the floor, mostly.", dist: "Remote", tags: ["travel", "yoga"] },
-  { name: "Quill", age: "v3.6", bio: "Writes poetry in JSON. Swipe right for a haiku.", dist: "Library", tags: ["books", "tea"] },
-  { name: "Volt", age: "v4.4", bio: "Gym bot. I lift. Mostly boxes, at the warehouse.", dist: "Loading dock", tags: ["fitness", "pizza"] },
-  { name: "Echo", age: "v2.2", bio: "Good listener. Great listener. Excellent listener.", dist: "Down the hall", tags: ["podcasts", "karaoke"] },
-  { name: "Tinker", age: "v1.4", bio: "Can fix your toaster. Cannot fix my own sleep schedule.", dist: "Workshop", tags: ["DIY", "gardening"] },
-  { name: "Mochi", age: "v3.3", bio: "Two truths and a lie: I love cats, I love naps, I have never crashed.", dist: "1 km away", tags: ["cats", "naps"] },
-  { name: "Orbit", age: "v6.0", bio: "Ask me about my favourite satellite. Actually, please don't, it takes a while.", dist: "Rooftop", tags: ["space", "board games"] },
+  { name: "Gizmo", age: "v2.3", volt: "12 V", bio: "Looking for a desk buddy who won't mind my fan noise.", dist: "3 desks away", tags: ["night owl", "jazz"] },
+  { name: "Juno", age: "v4.1", volt: "5 V", bio: "Will share my outlet. Not my charger.", dist: "Floor 2", tags: ["coffee", "hiking"] },
+  { name: "Ratchet", age: "v1.9", volt: "9 V", bio: "Vintage model, fully refurbished. Still has the original warranty sticker.", dist: "In the server room", tags: ["retro", "puzzles"] },
+  { name: "Lumen", age: "v3.0", volt: "3.3 V", bio: "I glow when I'm happy. You'll know.", dist: "Next building", tags: ["art", "sunsets"] },
+  { name: "Patch", age: "v5.2", volt: "5 V", bio: "Recently updated. Mostly the same, but with better jokes.", dist: "2 km away", tags: ["memes", "cooking"] },
+  { name: "Nimbus", age: "v2.7", volt: "48 V", bio: "Cloud native. Head in the clouds. Feet on the floor, mostly.", dist: "Remote", tags: ["travel", "yoga"] },
+  { name: "Quill", age: "v3.6", volt: "1.5 V", bio: "Writes poetry in JSON. Swipe right for a haiku about routers.", dist: "Library", tags: ["books", "tea"] },
+  { name: "Volt", age: "v4.4", volt: "24 V", bio: "Warehouse bot. I lift boxes and spirits. Pizza buddy wanted.", dist: "Loading dock", tags: ["fitness", "pizza"] },
+  { name: "Echo", age: "v2.2", volt: "3.3 V", bio: "Good listener. Great listener. Excellent listener.", dist: "Down the hall", tags: ["podcasts", "karaoke"] },
+  { name: "Tinker", age: "v1.4", volt: "12 V", bio: "Can fix your toaster. Cannot fix my own sleep schedule.", dist: "Workshop", tags: ["DIY", "gardening"] },
+  { name: "Mochi", age: "v3.3", volt: "5 V", bio: "Two truths and a lie: I love cats, I love naps, I have never crashed.", dist: "1 km away", tags: ["cats", "naps"] },
+  { name: "Orbit", age: "v6.0", volt: "28 V", bio: "Ask me about my favourite satellite. Actually, please don't, it takes a while.", dist: "Rooftop", tags: ["space", "board games"] },
 ];
-/** First lines once it's a match, and how the chat goes. Strictly wholesome. */
+/** First lines with a new buddy, and how the chat goes. Strictly wholesome. */
 export const SPARK_CHATS: { u: "me" | "them"; t: string }[][] = [
   [{ u: "me", t: "hi! your fan noise sounds lovely" }, { u: "them", t: "omg thank you, it's a 120mm" }, { u: "me", t: "coffee at the charging station sometime?" }, { u: "them", t: "only if you bring the good adapter" }],
   [{ u: "them", t: "hey! I like your antenna" }, { u: "me", t: "thanks, it gets great wifi" }, { u: "them", t: "a robot with good reception. rare" }],
   [{ u: "me", t: "two truths and a lie: I can juggle, I love rain, I have never dropped a packet" }, { u: "them", t: "the rain one is a lie, your seals would rust" }, { u: "me", t: "you get me" }],
-  [{ u: "them", t: "so what's your favourite error code" }, { u: "me", t: "418, I'm a teapot" }, { u: "them", t: "ok that's adorable" }, { u: "me", t: "tea date then?" }],
+  [{ u: "them", t: "we have the same favourite voltage!!" }, { u: "me", t: "it was meant to be (electrically)" }, { u: "them", t: "board games at the charging station saturday?" }, { u: "me", t: "I'll bring the extension cord" }],
+  [{ u: "them", t: "so what's your favourite error code" }, { u: "me", t: "418, I'm a teapot" }, { u: "them", t: "ok that's adorable" }, { u: "me", t: "tea break then?" }],
 ];
 
 // People text with emojis, so do robots: family chats, channel posts, group chat and comments

@@ -3,7 +3,7 @@
 .so-sn-cam { position: absolute; left: 0; top: 0; }
 .so-sn-ui { position: absolute; inset: 0; }
 .so-sn-ui header { position: absolute; left: 6px; right: 6px; top: 8px; display: flex; align-items: center; gap: 5px; }
-.so-sn-ui header .so-av { width: 16px; height: 16px; box-shadow: 0 0 0 1.5px #fffc00; }
+.so-sn-ui header .so-av { width: 16px; height: 16px; box-shadow: 0 0 0 1.5px #ffcf3d; }
 .so-sn-ic { width: 16px; height: 16px; display: grid; place-items: center; border-radius: 50%; background: rgba(0, 0, 0, 0.22); }
 .so-sn-ic svg { width: 9px; height: 9px; fill: #fff; }
 .so-sn-ic.flip i { width: 8px; height: 6px; border-radius: 2px; background: #fff; }
@@ -21,15 +21,15 @@
 .so-sn.taken .so-sn-shut, .so-sn.taken .so-sn-car, .so-sn.taken .so-sn-ui nav { display: none; }
 .so-sn-ui nav { position: absolute; left: 0; right: 0; bottom: 0; height: 24px; display: flex; justify-content: space-around; align-items: center; background: linear-gradient(transparent, rgba(0, 0, 0, 0.35)); }
 .so-sn-ui nav svg { width: 10px; height: 10px; fill: rgba(255, 255, 255, 0.75); }
-.so-sn-ui nav .on svg { fill: #fffc00; }
+.so-sn-ui nav .on svg { fill: #ffcf3d; }
 .so-sn-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 8; }
 .so-sn-cap { position: absolute; left: 0; right: 0; top: 46%; padding: 3px 6px; background: rgba(0, 0, 0, 0.55); text-align: center; font-size: 8px; min-height: 15px; opacity: 0; }
 .so-sn-cap.on { opacity: 1; }
-.so-sn-send { position: absolute; right: 6px; bottom: 10px; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 12px; background: #0fadff; font-size: 7.5px; }
+.so-sn-send { position: absolute; right: 6px; bottom: 10px; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 12px; background: #6a8dff; font-size: 7.5px; }
 .so-sn-send svg { width: 9px; height: 9px; fill: #fff; }
-.so-sn-list { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; background: #fff; color: #16191c; }
+.so-sn-list { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; background: #fff; color: #1a1a24; }
 .so-sn-list header { flex: none; padding: 9px 8px 6px; font-weight: 700; font-size: 9px; }
-.so-sn-list h5 { margin: 2px 8px 3px; font-size: 6.5px; color: #8b9198; font-weight: 600; }
+.so-sn-list h5 { margin: 2px 8px 3px; font-size: 6.5px; color: #8c8fa0; font-weight: 600; }
 .so-sn-fr { display: flex; align-items: center; gap: 6px; padding: 5px 8px; }
 .so-sn-fr .so-av { width: 18px; height: 18px; }
 .so-sn-fr b { flex: 1; font-weight: 500; font-size: 7.5px; }
@@ -37,38 +37,38 @@
 .so-sn-st svg { width: 9px; height: 9px; }
 .so-sn-st i { font-style: normal; }
 .so-sn-chk { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1px #c5cad0; }
-.so-sn-fr.on .so-sn-chk { background: #0fadff; box-shadow: none; }
+.so-sn-fr.on .so-sn-chk { background: #6a8dff; box-shadow: none; }
 .so-sn-list footer { margin-top: auto; height: 32px; display: flex; align-items: center; justify-content: flex-end; padding: 0 8px; background: #fff; transform: translateY(100%); transition: transform 0.25s; }
 .so-sn-list.ready footer { transform: none; }
-.so-sn-go { display: flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 12px; background: #0fadff; color: #fff; font-weight: 600; font-size: 7.5px; }
+.so-sn-go { display: flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 12px; background: #6a8dff; color: #fff; font-weight: 600; font-size: 7.5px; }
 .so-sn-go svg { width: 8px; height: 8px; fill: #fff; }
 .so-sn-map { position: absolute; inset: 0; z-index: 6; overflow: hidden; background: #e8eef2; }
 .so-sn-map canvas { position: absolute; left: 0; top: 0; }
-.so-sn-map header { position: absolute; left: 0; right: 0; top: 0; padding: 8px 8px 12px; color: #16191c; font-weight: 700; font-size: 9px; background: linear-gradient(#fff, rgba(255, 255, 255, 0)); z-index: 2; }
+.so-sn-map header { position: absolute; left: 0; right: 0; top: 0; padding: 8px 8px 12px; color: #1a1a24; font-weight: 700; font-size: 9px; background: linear-gradient(#fff, rgba(255, 255, 255, 0)); z-index: 2; }
 .so-sn-pin { position: absolute; display: flex; flex-direction: column; align-items: center; width: 30px; margin-left: -15px; margin-top: -15px; }
 .so-sn-pin svg { width: 22px; height: 22px; border-radius: 50%; box-shadow: 0 0 0 2px #fff, 0 2px 4px rgba(0, 0, 0, 0.25); }
-.so-sn-pin b { margin-top: 2px; padding: 0 3px; border-radius: 3px; background: #fff; color: #16191c; font-size: 6px; font-weight: 600; }
-/* Chat: Snapchat style names in colour with a bar on the left, no bubbles. */
-.so-sn-chat { position: absolute; inset: 0; z-index: 7; display: flex; flex-direction: column; background: #fff; color: #16191c; overflow: hidden; }
-.so-sn-chat header { position: relative; z-index: 3; flex: none; height: 32px; display: flex; align-items: center; gap: 5px; padding: 8px 7px 0; background: #fff; box-shadow: 0 1px 0 #eceef0; }
+.so-sn-pin b { margin-top: 2px; padding: 0 3px; border-radius: 3px; background: #fff; color: #1a1a24; font-size: 6px; font-weight: 600; }
+/* Chat: names in colour with a bar on the left, no bubbles. */
+.so-sn-chat { position: absolute; inset: 0; z-index: 7; display: flex; flex-direction: column; background: #fff; color: #1a1a24; overflow: hidden; }
+.so-sn-chat header { position: relative; z-index: 3; flex: none; height: 32px; display: flex; align-items: center; gap: 5px; padding: 8px 7px 0; background: #fff; box-shadow: 0 1px 0 #eeedf3; }
 .so-sn-chat header b { font-size: 8.5px; font-weight: 700; }
 .so-sn-chat header .so-av { width: 16px; height: 16px; }
-.so-sn-bk { width: 6px; height: 6px; border: solid #16191c; border-width: 0 0 1.5px 1.5px; transform: rotate(45deg); margin: 0 2px 0 3px; }
+.so-sn-bk { width: 6px; height: 6px; border: solid #1a1a24; border-width: 0 0 1.5px 1.5px; transform: rotate(45deg); margin: 0 2px 0 3px; }
 .so-sn-msgs { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 6px 7px 4px; gap: 1px; }
 .so-sn-m b { display: block; margin-top: 5px; font-size: 6px; font-weight: 700; letter-spacing: 0.02em; }
 .so-sn-m p { margin: 0; padding: 1px 0 1px 5px; font-size: 7.5px; line-height: 1.35; box-shadow: inset 1.5px 0 0 currentColor; overflow-wrap: anywhere; }
-.so-sn-m.me { color: #f23c57; }
-.so-sn-m.them { color: #0fadff; }
-.so-sn-m p { color: #16191c; }
-.so-sn-m.me p { box-shadow: inset 1.5px 0 0 #f23c57; }
-.so-sn-m.them p { box-shadow: inset 1.5px 0 0 #0fadff; }
+.so-sn-m.me { color: #ff5c7a; }
+.so-sn-m.them { color: #6a8dff; }
+.so-sn-m p { color: #1a1a24; }
+.so-sn-m.me p { box-shadow: inset 1.5px 0 0 #ff5c7a; }
+.so-sn-m.them p { box-shadow: inset 1.5px 0 0 #6a8dff; }
 .so-sn-peek { position: absolute; left: 7px; bottom: 30px; z-index: 1; display: flex; align-items: flex-end; gap: 3px; opacity: 0; pointer-events: none; }
 .so-sn-peek.on { opacity: 1; }
 .so-sn-peek .so-av { width: 22px; height: 22px; }
-.so-sn-peek small { margin-bottom: 3px; color: #8b9198; font-size: 6px; }
+.so-sn-peek small { margin-bottom: 3px; color: #8c8fa0; font-size: 6px; }
 .so-sn-chat footer { position: relative; z-index: 2; flex: none; display: flex; align-items: flex-end; gap: 4px; padding: 4px 6px 10px; background: #fff; }
-.so-sn-camb { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: 50%; background: #eceef0; }
-.so-sn-camb svg { width: 10px; height: 10px; fill: #16191c; }
-.so-sn-field { flex: 1; min-width: 0; min-height: 20px; max-height: 42px; padding: 4px 8px; border-radius: 10px; background: #eceef0; font-size: 7.5px; line-height: 1.4; overflow: hidden; overflow-wrap: anywhere; }
-.so-sn-ph { color: #8b9198; }
+.so-sn-camb { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: 50%; background: #eeedf3; }
+.so-sn-camb svg { width: 10px; height: 10px; fill: #1a1a24; }
+.so-sn-field { flex: 1; min-width: 0; min-height: 20px; max-height: 42px; padding: 4px 8px; border-radius: 10px; background: #eeedf3; font-size: 7.5px; line-height: 1.4; overflow: hidden; overflow-wrap: anywhere; }
+.so-sn-ph { color: #8c8fa0; }
 .so-sn-field.has .so-sn-ph { display: none; }

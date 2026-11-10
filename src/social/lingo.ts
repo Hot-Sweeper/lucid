@@ -1,11 +1,11 @@
-// Lingobot: a language lesson with a pushy owl-bot mascot. The robot taps word tiles to
+// Lingobot: a language lesson with a chatty speech-bubble robot mascot. The robot taps word tiles to
 // translate a sentence, checks, gets a green "Nice!" (or a gentle red correction), and
 // keeps its streak alive.
 import { LESSONS, LINGO_NAGS, type Lesson } from "../content/social";
 import { Kit, runApp, rnd, chance, pick, shuffle, h, calm, ICON, type SoHost, type SoOpts } from "./kit";
 import "./lingo.css";
 
-const OWL = `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 22 18 8l9 8h10l9-8 4 14v18a18 18 0 0 1-18 18h0a18 18 0 0 1-18-18Z" fill="#58cc02"/><path d="M20 40c0 7 5 12 12 12s12-5 12-12c0-4-5-6-12-6s-12 2-12 6Z" fill="#d7ffb8"/><circle cx="24" cy="28" r="8" fill="#fff"/><circle cx="40" cy="28" r="8" fill="#fff"/><rect x="19" y="24" width="10" height="8" rx="3" fill="#141a33"/><rect x="35" y="24" width="10" height="8" rx="3" fill="#141a33"/><circle cx="26" cy="27" r="1.6" fill="#4ff0a0"/><circle cx="42" cy="27" r="1.6" fill="#4ff0a0"/><path d="m29 34 3 4 3-4Z" fill="#ffb84d"/><rect x="30.8" y="2" width="2.4" height="7" fill="#46a302"/><circle cx="32" cy="2.5" r="2.5" fill="#ffd27a"/></svg>`;
+const MASCOT = `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="30.8" y="3" width="2.4" height="10" rx="1.2" fill="#3a6fd6"/><circle cx="32" cy="4.5" r="3.4" fill="#ffd27a"/><path d="M20 12h24a12 12 0 0 1 12 12v12a12 12 0 0 1-12 12H27l-10 8 2.2-8.4A12 12 0 0 1 8 36V24a12 12 0 0 1 12-12Z" fill="#4c8dff"/><rect x="15" y="19" width="34" height="20" rx="8" fill="#141a33"/><rect x="21" y="24" width="6" height="8" rx="3" fill="#7fd3ff"/><rect x="37" y="24" width="6" height="8" rx="3" fill="#7fd3ff"/><circle cx="25.4" cy="26" r="1.2" fill="#fff"/><circle cx="41.4" cy="26" r="1.2" fill="#fff"/><path d="M28.5 34.5h7a3.5 3.5 0 0 1-7 0Z" fill="#7fd3ff"/><circle cx="17.5" cy="43" r="2.4" fill="#ff9fb4"/><circle cx="46.5" cy="43" r="2.4" fill="#ff9fb4"/></svg>`;
 const HEART = ICON.heart;
 
 export async function learnWithLingobot(body: HTMLElement, host: SoHost, opts: SoOpts) {
@@ -40,7 +40,7 @@ class Lingobot {
     const main = this.frame(progress);
     const words = l.answer.split(" ");
     main.innerHTML = `<h4>Write this in English</h4>
-      <div class="so-lg-ask"><span class="so-lg-owl">${OWL}</span><div class="so-lg-bub"><span class="so-lg-flag"><i style="background:${l.flag[0]}"></i><i style="background:${l.flag[1]}"></i><i style="background:${l.flag[2]}"></i></span><span></span></div></div>
+      <div class="so-lg-ask"><span class="so-lg-mascot">${MASCOT}</span><div class="so-lg-bub"><span class="so-lg-flag"><i style="background:${l.flag[0]}"></i><i style="background:${l.flag[1]}"></i><i style="background:${l.flag[2]}"></i></span><span></span></div></div>
       <div class="so-lg-line"></div>
       <div class="so-lg-bank"></div>`;
     main.querySelector(".so-lg-bub > span:last-child")!.textContent = l.src;
@@ -89,10 +89,10 @@ class Lingobot {
   async finish(xp: number) {
     const main = this.frame(1);
     this.root.querySelector(".so-lg-foot")!.innerHTML = `<span class="so-lg-check ready">Continue</span>`;
-    main.innerHTML = `<div class="so-lg-done"><span class="so-lg-owl big">${OWL}</span><h3>Lesson complete!</h3><div class="so-lg-stats"><div><small>Total XP</small><b>${xp}</b></div><div class="fire"><small>Streak</small><b>${ICON.fire}<i>${this.streak}</i></b></div></div><p></p></div>`;
+    main.innerHTML = `<div class="so-lg-done"><span class="so-lg-mascot big">${MASCOT}</span><h3>Lesson complete!</h3><div class="so-lg-stats"><div><small>Total XP</small><b>${xp}</b></div><div class="fire"><small>Streak</small><b>${ICON.fire}<i>${this.streak}</i></b></div></div><p></p></div>`;
     main.querySelector("p")!.textContent = pick(LINGO_NAGS);
-    const owl = main.querySelector(".so-lg-owl") as HTMLElement;
-    if (!calm()) this.k.fromTo(owl, { y: 0 }, { y: -10, duration: 0.35, yoyo: true, repeat: 3, ease: "power2.out" });
+    const mascot = main.querySelector(".so-lg-mascot") as HTMLElement;
+    if (!calm()) this.k.fromTo(mascot, { y: 0 }, { y: -10, duration: 0.35, yoyo: true, repeat: 3, ease: "power2.out" });
     await this.k.sleep(1200);
     this.streak++;
     const n = main.querySelector(".fire i") as HTMLElement;
