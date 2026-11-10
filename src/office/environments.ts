@@ -3,7 +3,20 @@ import "./environments.css";
 export type EnvironmentBuilding = {
   id: string; label: string; local: boolean; status: "reachable" | "unreachable" | "expired" | "unknown";
   canOpen: boolean; reason: string | null;
+  /** configured: saved in T3 but not read yet; authenticated: a real read worked; linked: T3 keeps the access to itself */
+  link?: "local" | "configured" | "authenticated" | "failed" | "linked"; linkError?: string | null;
 };
+
+/** One honest line for a building, shared by the sidebar and the campus sign. */
+export function buildingState(b: EnvironmentBuilding) {
+  if (b.local) return "This computer";
+  if (b.status === "expired") return "Link expired in T3 Code";
+  if (b.status === "unreachable") return "Offline in T3 Code";
+  if (!b.canOpen) return "Linked in T3 Code, sessions not shared";
+  if (b.link === "authenticated") return "Connected";
+  if (b.link === "failed") return b.linkError ? `Could not connect: ${b.linkError}` : "Could not connect";
+  return "Saved in T3 Code, not connected yet";
+}
 export type EnvironmentInventory = {
   localId: string; buildings: EnvironmentBuilding[]; error: string | null;
   connectionState: "no-linked-environments" | "remote-feed-unavailable" | "inventory-unavailable" | "available";
@@ -54,12 +67,12 @@ export function mountEnvironments(host: HTMLElement, load: (fresh?: boolean) => 
         row.name.textContent = building.label;
         row.button.disabled = !building.canOpen || openingId === building.id;
         row.button.setAttribute("aria-current", building.id === (selectedId || data.localId) ? "location" : "false");
-        row.state.textContent = building.local ? "This computer" : building.status === "expired" ? "Link expired in T3 Code" : building.status === "unreachable" ? "Offline in T3 Code" : building.canOpen ? 'Open building' : "Lucid connection needed";
+        row.state.textContent = buildingState(building);
         row.button.title = building.reason || `Show ${building.label}`;
         if (list.children[index] !== row.button) list.insertBefore(row.button, list.children[index] || null);
       });
       if (!choosing) {
-        note.textContent = data.error || (data.connectionState === "no-linked-environments" ? "Other machines must be linked in T3 Code." : data.connectionState === "remote-feed-unavailable" ? "Remote buildings need an authenticated Lucid connection." : "");
+        note.textContent = data.error || (data.connectionState === "no-linked-environments" ? "Other machines must be linked in T3 Code." : data.connectionState === "remote-feed-unavailable" ? "T3 keeps these links to itself, so their sessions cannot be shown here yet." : "");
         note.hidden = !note.textContent;
       }
     } catch {

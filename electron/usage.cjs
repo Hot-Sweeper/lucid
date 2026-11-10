@@ -667,12 +667,13 @@ async function getUsage() {
 }
 
 // Exact session attribution only. Never assign an entire project's cost to a job.
-async function getSessionUsage(bindings) {
+// An optional window (ms since epoch) limits it to one stretch, such as a single review.
+async function getSessionUsage(bindings, { from = -Infinity, to = Infinity } = {}) {
   await getUsage();
   const keys = new Set(bindings.map(b => `${harnessOf(b.harness)}:${b.sessionId}`));
   const best = new Map();
   for (const st of files.values()) for (const r of st.records) {
-    if (!keys.has(`${r.harness}:${r.sessionId}`)) continue;
+    if (!keys.has(`${r.harness}:${r.sessionId}`) || r.ts < from || r.ts > to) continue;
     const key = r.key || `${st.path}:${r.ts}:${r.input}:${r.output}`;
     const old = best.get(key);
     if (!old || r.output > old.output || (r.output === old.output && r.input + r.cacheRead + r.cacheWrite > old.input + old.cacheRead + old.cacheWrite)) best.set(key, r);

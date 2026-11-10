@@ -1,5 +1,5 @@
 // Reuse the desktop's OS-protected T3 Connect catalog. Credentials stay in the
-// main process, are never persisted by Lucid, and never cross the renderer IPC.
+// main process, are never persisted by this app, and never cross the renderer IPC.
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');

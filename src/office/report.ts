@@ -4,6 +4,7 @@ import { fileUrl } from "./chat-panel";
 import { reportPortrait, reportIcon } from "./report-art";
 import "./report.css";
 import { harnessName, logoFor } from "./brand";
+import { costText } from "./orchestrator-panel";
 
 const esc = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const state = (s: string) => ({ "manager-excluded": "Pinned, excluded from automatic review", "pending-dependency": "Waiting for dependency evidence", submitted: "Awaiting delivery", reviewing: "Under review", approved: "Approved, ready to collect", settled: "Settled", "manual-review": "Needs review", "changes-requested": "Changes requested", superseded: "Replaced by newer work" }[s] || s);
@@ -49,6 +50,7 @@ export async function showReport(id: string, title: string, openThread: () => vo
         <div>${reportIcon("crew")}<span><strong>${p.children.length}</strong> linked subagents</span></div>
         <div>${reportIcon("energy")}<span><strong>${p.usage?.tokens == null ? "Unavailable" : Number(p.usage.tokens).toLocaleString()}</strong> observed tokens</span></div>
         <div>${reportIcon("coin")}<span><strong>${esc(cost)}</strong> API estimate</span></div>
+        ${costText(p.reviewUsage) ? `<div>${reportIcon("check")}<span><strong>${esc(costText(p.reviewUsage))}</strong> for the orchestrator's review</span></div>` : ""}
       </div>
       <div class="paper-result"><h3>${reportIcon("paper")}What changed</h3><p>${esc(p.verdict?.summary || (p.response || "Waiting for the robot's report.").replace(/<[^>]*>/g, "").replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/[#*_`>]/g, "").split(/\n\s*\n/)[0].slice(0, 420))}</p></div>
       ${p.verdict?.humanChecks?.length ? `<section class="paper-checks"><h3>Human questionnaire</h3>${p.verdict.humanChecks.map((c: any, i: number) => `<div><p><strong>${esc(c.question)}</strong></p><p>${esc(c.instructions)}</p><label>Your answer <select data-human-answer="${i}"><option value="">Not answered</option>${[["yes", "Yes"], ["no", "No"], ["unable", "Cannot check yet"]].map(([value, label]) => `<option value="${value}" ${p.humanAnswers?.[i]?.answer === value ? "selected" : ""}>${label}</option>`).join("")}</select></label></div>`).join("")}</section>` : ""}
@@ -65,7 +67,12 @@ export async function showReport(id: string, title: string, openThread: () => vo
       select.addEventListener("change", async () => {
         if (!select.value) return;
         select.disabled = true;
-        try { const saved = await api.reportsManual(p.id, "human-answer", { index: Number(select.dataset.humanAnswer), answer: select.value }); p.humanAnswers = saved.humanAnswers; }
+        try {
+          const saved = await api.reportsManual(p.id, "human-answer", { index: Number(select.dataset.humanAnswer), answer: select.value });
+          p.humanAnswers = saved.humanAnswers;
+          // Your last answer can finish the orchestrator's approval: show the new state.
+          if (saved.status !== p.status || saved.error !== p.error) { view.close(); void showReport(id, title, openThread, p.id, openRelated); return; }
+        }
         catch { select.value = p.humanAnswers?.[select.dataset.humanAnswer!]?.answer || ""; view.body.querySelector<HTMLElement>("[data-status]")!.textContent = "Could not save your answer. Try again."; }
         finally { select.disabled = false; }
       });

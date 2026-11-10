@@ -62,6 +62,14 @@ function createLinkedInventory({ connect, links }) {
 
 function createEnvironmentRegistry({ descriptor = localDescriptor, links = cliLinks, hostname = os.hostname, now = Date.now } = {}) {
   let cached = null, at = 0, pending = null;
+  // A saved connection is only "configured" until a real authenticated read succeeds.
+  const live = new Map();
+  const withLink = snapshot => snapshot && ({ ...snapshot, buildings: snapshot.buildings.map(b => {
+    if (b.local) return { ...b, link: "local", linkError: null };
+    if (!b.canOpen) return { ...b, link: "linked", linkError: null };
+    const seen = live.get(b.id);
+    return { ...b, link: seen ? seen.ok ? "authenticated" : "failed" : "configured", linkError: seen && !seen.ok ? seen.error : null };
+  }) });
   const read = async () => {
     const [identity, inventory] = await Promise.allSettled([descriptor(), links()]);
     const local = identity.status === "fulfilled" ? identity.value : null;
@@ -81,7 +89,7 @@ function createEnvironmentRegistry({ descriptor = localDescriptor, links = cliLi
       device.origins = publicOrigins([...device.origins, ...(Array.isArray(row.urls) ? row.urls : [])]);
     }
     for (const device of devices.values()) buildings.push({ ...device, label: device.label || "Connected computer", local: false,
-      reason: device.canOpen ? null : "This environment is linked in T3 Code. Its authenticated building feed is not connected to Lucid." });
+      reason: device.canOpen ? null : "Linked in T3 Code. T3 keeps this link's access to itself, so its sessions cannot be shown here yet." });
     // A temporary inventory failure must not make already discovered buildings
     // disappear. A successful empty inventory still removes disconnected devices.
     if (inventory.status === "rejected" && cached) for (const building of cached.buildings) {
@@ -94,20 +102,22 @@ function createEnvironmentRegistry({ descriptor = localDescriptor, links = cliLi
   };
   return {
     get({ fresh = false } = {}) {
-      if (!fresh && cached && now() - at < 60000) return Promise.resolve(cached);
+      if (!fresh && cached && now() - at < 60000) return Promise.resolve(withLink(cached));
       if (!pending) pending = read().finally(() => { pending = null; });
-      return pending;
+      return pending.then(withLink);
     },
-    async requireLocal(environmentId) {
-      const snapshot = await this.get();
-      if (!environmentId || environmentId === snapshot.localId) return snapshot.localId;
-      const error = new Error("This building's authenticated data is not connected to Lucid. Continue in T3 Code.");
-      error.code = "remote-environment-unavailable"; throw error;
-    },
+    /** Record the outcome of an authenticated read of a linked computer. */
+    markLink(id, ok, error = null) { live.set(id, { ok, error: ok ? null : String(error || "The connection failed."), at: now() }); }
   };
 }
 
 const client = require('./connect-client.cjs').createConnectClient();
 const remote = require('./remote-building.cjs').createRemoteBuilding(client);
 const registry = createEnvironmentRegistry({ links: createLinkedInventory({ connect: () => client.inventory(true), links: cliLinks }) });
-module.exports = { client, remote, getEnvironments: options => registry.get(options), requireLocalEnvironment: id => registry.requireLocal(id), createEnvironmentRegistry, createLinkedInventory };
+// Every authenticated world read (campus, opening, refresh) updates that computer's live state.
+const readWorld = remote.world;
+remote.world = async id => {
+  try { const world = await readWorld(id); registry.markLink(id, true); return world; }
+  catch (error) { registry.markLink(id, false, error?.message); throw error; }
+};
+module.exports = { client, remote, getEnvironments: options => registry.get(options), createEnvironmentRegistry, createLinkedInventory };

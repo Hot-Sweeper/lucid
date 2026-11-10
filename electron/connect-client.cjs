@@ -63,7 +63,7 @@ function createConnectClient({ catalog = readCatalog, decrypt = decryptDesktop, 
     if (connection.environmentId !== environmentId) throw Error('T3 Connect returned a different building.');
     const origin = new URL(connection.endpoint.httpBaseUrl).origin;
     const tokenUrl = `${origin}/oauth/token`;
-    const token = await json(tokenUrl, { method: 'POST', headers: { dpop: proof('POST', tokenUrl) }, body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange', subject_token: connection.credential, subject_token_type: 'urn:t3:params:oauth:token-type:environment-bootstrap', requested_token_type: 'urn:ietf:params:oauth:token-type:access_token', scope: scopes, client_label: 'Lucid', client_device_type: 'desktop', client_os: process.platform }) });
+    const token = await json(tokenUrl, { method: 'POST', headers: { dpop: proof('POST', tokenUrl) }, body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange', subject_token: connection.credential, subject_token_type: 'urn:t3:params:oauth:token-type:environment-bootstrap', requested_token_type: 'urn:ietf:params:oauth:token-type:access_token', scope: scopes, client_label: require('./brand.cjs').name, client_device_type: 'desktop', client_os: process.platform }) });
     let route = origin;
     for (const address of inventory().find(t => t.environmentId === environmentId)?.urls || []) {
       try {

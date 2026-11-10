@@ -242,36 +242,12 @@ ipcMain.handle("project:pick-folder", async (e) => {
   return r.canceled ? null : r.filePaths[0] || null;
 });
 // --- orchestrator -----------------------------------------------------------------
-const orch = require("./orchestrator.cjs");
-const ORCH_DIR = process.env.LUCID_SHOT ? path.join(app.getPath("userData"), "orchestrator") : path.join(require("node:os").homedir(), "T3 Projects", "Lucid Orchestrator");
-// keep the orchestrator's instructions current (they gain new duties over time)
-try { if (require("node:fs").existsSync(ORCH_DIR)) orch.ensureFolder(ORCH_DIR); } catch {}
-ipcMain.handle("orch:init", async (_e, { provider = "claudeAgent", model = "claude-sonnet-5-5" } = {}) => {
-  const { dir } = orch.ensureFolder(ORCH_DIR);
-  const norm = (s) => String(s || "").replace(/[\/]+$/, "").toLowerCase();
-  let project = t3.listProjects().find((p) => norm(p.root) === norm(dir));
-  if (!project) {
-    await t3.addProject({ path: dir, title: "Lucid Orchestrator" });
-    project = t3.listProjects().find((p) => norm(p.root) === norm(dir));
-  }
-  if (!project) throw new Error("T3 did not register the orchestrator folder as a project.");
-  const intro = "You are now the Orchestrator for Lucid. Read CLAUDE.md and memory.md in this folder, then reply with two short lines: what you know about the user, and how you will help.";
-  const { threadId } = await t3.startThread({ project: project.id, message: intro, provider, model });
-  return { threadId, projectId: project.id, dir };
-});
-ipcMain.handle("orch:memory", () => orch.readMemory(ORCH_DIR));
-ipcMain.handle("orch:dialogs", () => orch.readDialogs(ORCH_DIR));
-ipcMain.handle("orch:dir", () => ORCH_DIR);
-// answering robots' questions for the user (see src/office/delegate.ts)
-ipcMain.handle("orch:answers", () => orch.readAnswers(ORCH_DIR));
-ipcMain.handle("orch:record", (_e, list) => orch.recordAnswers(ORCH_DIR, list));
-ipcMain.handle("orch:decisions", () => orch.readDecisions(ORCH_DIR));
-ipcMain.handle("orch:approval-papers", () => orch.readApprovalPapers(ORCH_DIR));
-ipcMain.handle("orch:log", (_e, d) => {
-  let robot = null;
-  try { robot = JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "roster.json"), "utf8")).find(r => r.threadId === d.threadId); } catch {}
-  return orch.logDecision(ORCH_DIR, { ...d, robot: robot ? { id: robot.id, name: robot.name, provider: robot.provider, look: robot.look } : null });
-});
+const roster = () => { try { return JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "roster.json"), "utf8")); } catch { return []; } };
+// Daily flavor text is app data, not the opt-in orchestrator's, so it lives with the settings.
+const DAILY_DIR = path.join(app.getPath("userData"), "daily");
+const orchestrator = require("./orchestrator-ipc.cjs").registerOrchestrator({ dailyDir: DAILY_DIR, ipcMain, t3, t3s: require("./t3server.cjs"), brand, base: PROJECTS_BASE, userData: app.getPath("userData"), usage: require("./usage.cjs"), shot: !!process.env.LUCID_SHOT, roster });
+const ORCH_DIR = orchestrator.dir;
+app.whenReady().then(() => void orchestrator.repairRoots());
 ipcMain.handle("t3:request-context", (_e, id) => t3.requestContext(id));
 ipcMain.handle("t3:replies-since", (_e, id, since) => t3.repliesSince(id, since));
 ipcMain.handle("t3:resolved-since", (_e, since) => t3.resolvedRequestsSince(since));
@@ -284,7 +260,7 @@ usage.setProviderLimitsReader(() => require("./t3server.cjs").usageLimits());
 ipcMain.handle("usage:get", () => usage.getUsage());
 ipcMain.handle("coins:usage", () => usage.getCoinSources(t3.coinBindings()));
 const reports = require("./reports.cjs").createReports({
-  robots: () => { try { return JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "roster.json"), "utf8")); } catch { return []; } },
+  robots: roster, name: brand.name, spent: orchestrator.spent,
   dir: process.env.LUCID_SHOT ? path.join(app.getPath("userData"), "reports") : path.join(ORCH_DIR, "reports"), t3, server: require("./t3server.cjs"), usage,
   settings: () => { if (process.env.LUCID_SHOT) return null; try { return JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "settings.json"), "utf8")).orch || null; } catch { return null; } },
 });
@@ -506,7 +482,7 @@ const t3s = require("./t3server.cjs");
 const { createLocalization, createWriterTranslator } = require('./localization.cjs');
 // Flavor text, translations and board ideas come from a headless harness CLI, never a T3 thread.
 const writer = require('./headless-writer.cjs').createHeadlessWriter({ settingsFile: path.join(path.dirname(t3.DB_PATH), 'settings.json') });
-const dailyWriter = require('./daily-writer.cjs').createDailyWriter({ writer, dir: ORCH_DIR });
+const dailyWriter = require('./daily-writer.cjs').createDailyWriter({ writer, dir: DAILY_DIR });
 ipcMain.handle("writer:daily", (_e, input) => { if (activeBuilding()) throw Error('Write daily lines on the computer that owns the robots.'); return dailyWriter.write(input); });
 const projectLife = require('./project-life.cjs').createProjectLife({ file: path.join(app.getPath('userData'), 'project-offices.json'), t3, writer, isLocal: () => !activeBuilding() });
 ipcMain.handle('project-life:get', (_e, input) => projectLife.get(input));
@@ -526,6 +502,12 @@ ipcMain.handle("t3s:pin", t3sWrap((o) => {
   const command = { type: o.pinned ? 'thread.pin' : 'thread.unpin', threadId: o.threadId };
   return remote.split(o.threadId) ? remote.dispatch(command) : t3s.dispatch(command);
 }));
+// Stop, rename and archive through T3's own commands (thread-actions.cjs validates them).
+const orchThreadId = () => { try { return JSON.parse(require("node:fs").readFileSync(path.join(app.getPath("userData"), "settings.json"), "utf8")).orch?.threadId || null; } catch { return null; } };
+for (const action of ["stop", "rename", "archive"]) ipcMain.handle(`t3s:${action}`, t3sWrap((o) => {
+  const command = require("./thread-actions.cjs").threadCommand(action, o, { local: t3.reportState, reserved: id => id === orchThreadId() ? "The orchestrator's thread stays. Stop using it in its settings first." : null });
+  return remote.split(command.threadId) ? remote.dispatch(command) : t3s.dispatch(command);
+}));
 ipcMain.handle("t3s:providers", t3sWrap((o) => activeBuilding() ? remote.providers(activeBuilding()) : t3s.listProviders(o || {})));
 ipcMain.handle("t3s:search-threads", t3sWrap((q) => activeBuilding() ? { matches: [], threads: [] } : t3s.searchThreads(q)));
 ipcMain.handle("t3s:hire-config", t3sWrap((o) => { if (activeBuilding()) throw Error('Start a new thread in T3 Code for this building.'); return t3s.hireConfig(o || {}); }));
@@ -535,8 +517,12 @@ ipcMain.handle("t3s:move-thread", t3sWrap(async (o) => {
   if (threadMovePending) throw Error('A thread move is still saving. Try again in a moment.');
   threadMovePending = true;
   try {
-    const assignments = require('./thread-order.cjs').moveAssignments(t3.world().threads, o.threadId, o.targetId, o.after === true);
-    for (const a of assignments) await t3s.dispatch({ type: a.pinned ? 'thread.pin.reorder' : 'thread.active.reorder', threadId: a.threadId, orderKey: a.orderKey });
+    // A linked computer's order comes from and goes to that computer, never the local T3.
+    const building = remote.split(o?.threadId)?.environmentId || null;
+    if ((remote.split(o?.targetId)?.environmentId || null) !== building) throw Error('Move threads within one building.');
+    const threads = building ? remote.cached(building)?.threads || [] : t3.world().threads;
+    const assignments = require('./thread-order.cjs').moveAssignments(threads, o.threadId, o.targetId, o.after === true);
+    for (const a of assignments) { const command = { type: a.pinned ? 'thread.pin.reorder' : 'thread.active.reorder', threadId: a.threadId, orderKey: a.orderKey }; await (building ? remote.dispatch(command) : t3s.dispatch(command)); }
   } finally { threadMovePending = false; }
 }));
 ipcMain.handle("t3s:reorder", t3sWrap((o) => t3s.reorderQueued(o.threadId, o.runId, o.beforeRunId ?? null)));

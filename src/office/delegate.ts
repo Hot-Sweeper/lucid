@@ -1,10 +1,12 @@
 import { answerFor, type InputQuestion, type PendingRequest } from "./answer";
 import "./delegate.css";
+import { BRAND } from "../brand";
+import { costText } from "./orchestrator-panel";
 import type { WThread } from "./world";
 
-// The orchestrator answers robots' questions for you. A new question goes to it first: Lucid
+// The orchestrator answers robots' questions for you. A new question goes to it first: the app
 // sends it to the orchestrator's own T3 thread with your past answers, and it replies with an
-// answer and how sure it is. Lucid sends that answer only when it is sure enough and the
+// answer and how sure it is. The app sends that answer only when it is sure enough and the
 // question is a safe kind; everything else comes to you, with its reason and its suggestion
 // picked but not sent. Every answer you give (here or in T3 Code) becomes a new example for it.
 
@@ -25,6 +27,8 @@ export type Decision = {
   attempts?: number;
   /** what the answer card shows, kept so it survives a restart */
   advice?: Advice;
+  /** what deciding cost on its own model, from its native session logs */
+  cost?: { available: boolean; tokens: number | null; costUsd: number | null } | null;
 };
 type Log = { auto: number; asked: number; log: Decision[] };
 type Example = { q: string; options: string[]; answer: string | string[]; project: string; thread: string; count: number; last: string };
@@ -40,6 +44,7 @@ type Api = {
   orchRecord(list: unknown[]): Promise<number>;
   orchDecisions(): Promise<Log>;
   orchLog(d: Decision): Promise<Log>;
+  orchSpent?(threadId: string, from: number, to: number): Promise<Decision["cost"]>;
 };
 type T3 = { respond(o: { threadId: string; requestId: string; answers?: Record<string, string | string[]>; decision?: string }): Promise<unknown> };
 
@@ -98,7 +103,7 @@ export class Delegate {
     window.setTimeout(() => void this.learn(), 8_000);
   }
 
-  // only Lucid's own window answers (a page another tool opens with the same build does not)
+  // only the app's own window answers (a page another tool opens with the same build does not)
   private appWindow = new URLSearchParams(location.search).has("app");
   get on() { const s = this.get(); return this.appWindow && !!s && s.auto !== false && !s.paused; }
   get threshold() { return this.get()?.threshold ?? 0.8; }
@@ -151,7 +156,7 @@ export class Delegate {
               Date.now() - Date.parse(last.at) < RETRY_MS) continue;
           this.seen.delete(r.id);
         }
-        // waiting since before Lucid opened: that one was already yours
+        // waiting since before the app opened: that one was already yours
         // Existing requests are part of the backlog too. Pause keeps them available for resume.
         if (!this.on) continue;
         this.seen.add(r.id);
@@ -220,13 +225,15 @@ export class Delegate {
       .filter(m => !m.streaming).map(m => parseReply(m.text, tag)).find(Boolean) : null;
     if (!reply) {
       let message: string;
-      try { message = await this.prompt(tag, r, t); } catch { return fail("Lucid could not read this robot's thread."); }
+      try { message = await this.prompt(tag, r, t); } catch { return fail(`${BRAND.name} could not read this robot's thread.`); }
       if(!this.on || this.get()?.threadId!==orchestratorId){this.seen.delete(r.id);this.phase(t.id,null);return;}
       this.advice.set(r.id, { state: "deciding", reason: "" });
       this.phase(t.id, "reading");
       const since = new Date(Date.now() - 1000).toISOString();
-      try { await this.api.sendMessage({ threadId: orchestratorId, message }); } catch { return fail("Lucid could not send the question to it."); }
+      try { await this.api.sendMessage({ threadId: orchestratorId, message }); } catch { return fail(`${BRAND.name} could not send the question to it.`); }
       reply = await this.awaitReply(orchestratorId, since, tag, {threadId: t.id, id: r.id});
+      // What this decision cost on its own model, so its record shows it.
+      if (reply && typeof reply === "object") (base as Partial<Decision>).cost = await this.api.orchSpent?.(orchestratorId, Date.parse(since), Date.now()).catch(() => null) ?? null;
     }
     if (reply === PAUSED) { this.seen.delete(r.id); this.advice.delete(r.id); this.phase(t.id, null); return; }
     if (reply === RESOLVED) {
@@ -238,7 +245,7 @@ export class Delegate {
     // 3. still waiting for an answer? (you may have answered it meanwhile)
     let still: PendingRequest | undefined;
     try { still = (await this.api.pendingRequests(t.id)).find((x) => x.id === r.id); }
-    catch { return fail("Lucid could not verify whether this question is still open."); }
+    catch { return fail(`${BRAND.name} could not verify whether this question is still open.`); }
     if (!this.on || this.get()?.threadId !== orchestratorId) { this.seen.delete(r.id); this.phase(t.id, null); return; }
     const verdict = this.judge(r, reply);
     if (!still) {
@@ -259,7 +266,7 @@ export class Delegate {
       if (!this.t3) throw new Error("not connected");
       await this.t3.respond({ threadId: t.id, requestId: r.id, ...(verdict.answers ? { answers: verdict.answers } : { decision: verdict.decision }) });
     } catch (err: any) {
-      this.advice.set(r.id, { state: "failed", reason: `Lucid could not send its answer (${clip(err?.message || "T3 did not answer", 80)}).`, suggestion: verdict.suggestion, decision: verdict.decision, answerText: verdict.answerText });
+      this.advice.set(r.id, { state: "failed", reason: `${BRAND.name} could not send its answer (${clip(err?.message || "T3 did not answer", 80)}).`, suggestion: verdict.suggestion, decision: verdict.decision, answerText: verdict.answerText });
       this.phase(t.id, "asked");
       await this.record({ ...base, outcome: "failed", reason: "Its answer could not be sent.", confidence: verdict.confidence, suggestion: verdict.answerText });
       return;
@@ -279,7 +286,7 @@ export class Delegate {
       .map((e) => { let n = 0; for (const w of words(e.q)) if (ask.has(w)) n++; return { e, n: n + (e.project === project ? 0.5 : 0) + Math.min(e.count, 5) * 0.1 }; })
       .filter((x) => x.n >= 1).sort((a, b) => b.n - a.n).slice(0, 10)
       .map(({ e }) => `- "${clip(e.q, 140)}" -> ${clip(say(e.answer), 80)}${e.count > 1 ? ` (${e.count} times)` : ""}${e.project ? ` [${e.project}]` : ""}`);
-    const head = `Lucid decision ${tag}. A robot asked the user something. Decide for the user only if memory.md or the past answers below clearly cover it.
+    const head = `${BRAND.name} decision ${tag}. A robot asked the user something. Decide for the user only if memory.md or the past answers below clearly cover it.
 Reply with only this JSON, nothing else, no tools, no file reads:`;
     const robot = `Robot thread: "${clip(ctx.title || t.title, 90)}" in project "${clip(project || "none", 50)}".
 ${ctx.user ? `The user last told it: "${clip(ctx.user, 300)}"\n` : ""}${ctx.robot ? `It last said: "${clip(ctx.robot, 400)}"\n` : ""}`;
@@ -483,6 +490,10 @@ function ago(iso: string) {
   return new Date(iso).toLocaleDateString();
 }
 function outcomeLine(d: Decision) {
+  const cost = costText(d.cost);
+  return outcomeText(d) + (cost ? `<p class="dl-why">Deciding cost ${escH(cost)} on its model.</p>` : "");
+}
+function outcomeText(d: Decision) {
   const sure = d.confidence != null ? ` (${Math.round(d.confidence * 100)}% sure)` : "";
   if (d.outcome === "answered") return `<p class="dl-out"><b>Sent: ${escH(d.answer ?? "")}</b>${sure}</p><p class="dl-why">${escH(d.reason)}</p>`;
   if (d.outcome === "user") return `<p class="dl-out">You answered before it decided.${d.suggestion ? ` It would have said ${escH(d.suggestion)}${sure}.` : ""}</p>`;

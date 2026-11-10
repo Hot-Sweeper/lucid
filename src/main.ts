@@ -55,6 +55,8 @@ import { hasOfficeWork, remainingDeskExtras } from "./office/room-policy";
 import type { RobotProfile } from "./office/roster";
 import { Orchestrator, type OrchState } from "./office/orchestrator";
 import { openOrchestratorControls } from "./office/orchestrator-controls";
+import { openOrchestratorSetup } from "./office/orchestrator-setup";
+import { renderOrchestratorPanel } from "./office/orchestrator-panel";
 import { mountStats } from "./stats/stats";
 import { mountEnvironments } from "./office/environments";
 import { Wallet, coinIcon, type WalletState } from "./office/wallet";
@@ -160,6 +162,7 @@ document.getElementById("app")!.innerHTML = `
   <main class="scene" id="scene"></main>
   <section class="orch-power" aria-label="Global orchestrator controls">
     <label class="switch orch-power-switch"><span>Orchestrator</span><input type="checkbox" id="orch-power-toggle" role="switch" aria-label="Orchestrator enabled" disabled><span class="track" aria-hidden="true"><i></i></span><b id="orch-power-status">Off</b></label>
+    <button type="button" class="link-btn" id="orch-power-attention" hidden></button>
     <button type="button" class="link-btn" id="orch-controls-open" aria-label="Orchestrator settings">Settings</button>
   </section>
   <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button><p id="coin-bank" class="coin-bank" tabindex="-1">${coinIcon(18)}<b id="coin-bank-bal">0</b><span class="coin-label"> coins</span></p><button type="button" id="terrible-song" disabled>Mark song terrible</button><button type="button" id="game-sound" aria-pressed="true">Sound on</button></div>`;
@@ -745,7 +748,7 @@ function setupMenus() {
       { label: "Go to its desk", run: () => world.showDesk(d) },
       { label: "Customize robot", run: () => openCustomizeFor(d, world.roster) },
     ];
-    if (d.threadId) items.push(...pinItems(d.threadId), ...officeMoveItems(d.threadId));
+    if (d.threadId) items.push(...pinItems(d.threadId), ...threadActionItems(d.threadId), ...officeMoveItems(d.threadId));
     if (d.room === "freelance" && d.folder) {
       items.push({ input: "Turn this work into a project", placeholder: "Project name", value: (d.info?.title || "").slice(0, 40), submit: "Create project",
         run: async (name: string) => { await api.addProject({ path: d.folder!, title: name }); await refresh(); } });
@@ -1118,72 +1121,42 @@ function renderOrch() {
   const s = settings.orch;
   world.orchPresence = s?.paused ? (s.presence === "away" ? "away" : "sleep") : "awake";
   (world.ext.queue as QuestionLine | undefined)?.setPresence(world.orchPresence);
+  // Opt-in: until it is set up, the top bar offers setup instead of a dead switch.
   const power = $<HTMLInputElement>("orch-power-toggle");
-  power.disabled = !s;
-  power.checked = !!s && !s.paused;
-  $("orch-power-status").textContent = !s ? "Not hired" : s.paused ? "Off" : "On";
+  power.disabled = !s; power.checked = !!s && !s.paused;
+  power.closest<HTMLElement>("label")!.querySelector<HTMLElement>(".track")!.hidden = !s;
+  $("orch-power-status").textContent = !s ? "" : s.paused ? "Off" : "On";
   $("orch-controls-open").textContent = s ? "Settings" : "Set up";
-  const body = $("orch-body");
-  if (!s) {
-    body.innerHTML = `<p class="hint">Your stand-in: it learns how you like things done from what you tell robots, and can review their finished work for you.</p><button type="button" class="primary" id="orch-hire">Hire the orchestrator</button><button type="button" class="ghost" id="orch-archive">Settlement papers</button><p class="form-msg" id="orch-msg" role="status"></p>`;
-    $("orch-archive").addEventListener("click", () => void showReportArchive(openThread));
-    $("orch-hire").addEventListener("click", async () => {
-      const b = $<HTMLButtonElement>("orch-hire");
-      b.disabled = true;
-      $("orch-msg").textContent = "Setting up its desk and notebook…";
-      try {
-        const id = await orch.hire();
-        await refresh();
-        const d = world.deskFor(id);
-        if (d) { world.select(d); world.focusOn(d); }
-      } catch (err: any) {
-        $("orch-msg").textContent = `Could not hire it: ${err.message || err}`;
-        b.disabled = false;
-      }
-    });
-    return;
-  }
-  const log = delegate.log;
-  body.innerHTML = `
-    <label class="switch"><input type="checkbox" id="orch-paused" ${s.paused ? "checked" : ""}><span class="track" aria-hidden="true"><i></i></span><span>Pause automatic review and answers</span></label>
-    <p class="hint">Pausing holds new reports for you. Reviews already sent may still finish.</p>
-    <div id="orch-reports"></div>
-    <p class="orch-line">Learned from <b>${s.learned}</b> of your messages</p>
-    <p class="orch-line">Answered <b>${log.auto}</b> ${log.auto === 1 ? "question" : "questions"} for you, asked you <b>${log.asked}</b></p>
-    <label class="switch"><input type="checkbox" id="orch-auto" ${s.auto !== false ? "checked" : ""}><span class="track" aria-hidden="true"><i></i></span><span>Handle questions and approvals for me</span></label>
-    <label class="switch"><input type="checkbox" id="orch-review" ${s.review ? "checked" : ""}><span class="track" aria-hidden="true"><i></i></span><span>Review finished work for me</span></label>
-    <div class="orch-actions"><button type="button" class="ghost" id="orch-archive">Settlement papers</button><button type="button" class="ghost" id="orch-chat">Chat with orchestrator</button><button type="button" class="ghost" id="orch-decisions">Recent decisions</button><button type="button" class="ghost" id="orch-notes">Read its notebook</button><button type="button" class="ghost" id="orch-desk">Go to its chair</button></div>`;
-  $<HTMLInputElement>("orch-review").addEventListener("change", (e) => orch.setReview((e.target as HTMLInputElement).checked));
-  $<HTMLInputElement>("orch-auto").addEventListener("change", (e) => { if (settings.orch) { settings.orch = { ...settings.orch, auto: (e.target as HTMLInputElement).checked }; saveSettings(); } });
-  $<HTMLInputElement>("orch-paused").addEventListener("change", e => orch.setPaused((e.target as HTMLInputElement).checked));
-  const reports = $("orch-reports");
-  for (const [id, report] of world.reports) {
-    const row = document.createElement("p");
-    const open = document.createElement("button");
-    open.type = "button"; open.className = "ghost";
-    const paper = orch.papers.find(p => p.threadId === id);
-    const status = paper?.status === "reviewing" ? "Under review" : paper?.status === "manual-review" ? "Needs your review" : report.arrived ? "Awaiting review" : "Printing / delivering";
-    open.textContent = `${report.title}: ${status}`;
-    open.addEventListener("click", () => void showReport(id, report.title, () => openThread(id), undefined, openThread));
-    row.appendChild(open); reports.appendChild(row);
-  }
-  if (!world.reports.size) reports.textContent = "No reports waiting.";
-  $("orch-archive").addEventListener("click", () => void showReportArchive(openThread));
-  $("orch-chat").addEventListener("click", () => openThread(s.threadId));
-  $("orch-decisions").addEventListener("click", () => showDecisions(delegate, (v) => { if (settings.orch) { settings.orch = { ...settings.orch, threshold: v }; saveSettings(); } }));
-  $("orch-notes").addEventListener("click", () => void orch.showNotebook());
-  // it sits in the boss chair in the questions room: follow it there (or its desk, if it has one)
-  $("orch-desk").addEventListener("click", () => {
-    openThread(s.threadId);
+  $("orch-controls-open").setAttribute("aria-label", s ? "Orchestrator settings" : "Set up the orchestrator");
+  const waiting = s && !currentEnvironment ? orch.waiting.length : 0, attention = $<HTMLButtonElement>("orch-power-attention");
+  attention.hidden = !waiting;
+  attention.textContent = `${waiting} for you`;
+  attention.setAttribute("aria-label", `${waiting} ${waiting === 1 ? "report needs" : "reports need"} your review`);
+  renderOrchestratorPanel($("orch-body"), s ?? null, orch, delegate.log, !!currentEnvironment, {
+    setup: openSetup, settings: openControls, chair: takeChair, archive: () => void showReportArchive(openThread), chat: openThread,
+    notebook: () => void orch.showNotebook(), paper: p => void showReport(p.threadId, p.title, () => openThread(p.threadId), p.id, openThread),
+    decisions: () => showDecisions(delegate, (v) => { if (settings.orch) { settings.orch = { ...settings.orch, threshold: v }; saveSettings(); } }),
+    setReview: on => orch.setReview(on), setAuto: on => orch.setAuto(on),
   });
+}
+function openSetup() {
+  if (currentEnvironment) return;
+  openOrchestratorSetup(orch, async id => {
+    await refresh();
+    const d = world.deskFor(id);
+    if (d) { world.select(d); world.focusOn(d); }
+  });
+}
+function openControls() {
+  openOrchestratorControls(orch, () => settings.orch ?? null, () => void showReportArchive(openThread), openSetup, () => takeChair());
 }
 renderOrch();
 $("orch-power-toggle").addEventListener("change", e => {
   const enabled = (e.target as HTMLInputElement).checked;
   orch.setPresence(enabled ? "awake" : "sleep");
 });
-$("orch-controls-open").addEventListener("click",()=>openOrchestratorControls(orch,()=>settings.orch??null,
-  ()=>void showReportArchive(openThread),()=>{folded.delete("orch");foldSection("orch",true,false);$("orch-body").scrollIntoView({block:"nearest"});$("orch-hire")?.focus();},()=>takeChair()));
+$("orch-controls-open").addEventListener("click", () => settings.orch ? openControls() : openSetup());
+$("orch-power-attention").addEventListener("click", () => takeChair());
 // You in the orchestrator's chair: the AI orchestrator rests until you leave.
 let inChair = false;
 function takeChair() {
@@ -1711,6 +1684,25 @@ function pinItems(id: string) {
     catch (err: any) { void confirmDialog(t.pinned ? "T3 kept the thread pinned" : "T3 did not pin the thread", String(err?.message || err), "OK"); }
   } }];
 }
+/** Stop, rename and archive through T3's own thread commands. */
+const RUNNING = new Set(["running", "starting", "preparing", "queued"]);
+function threadActionItems(id: string) {
+  const t = world.lastData?.threads.find(x => x.id === id);
+  if (!t) return [];
+  const t3 = (window as any).lucidT3;
+  const items: any[] = [];
+  if (RUNNING.has((t.runStatus ?? "").toLowerCase())) items.push({ label: "Stop", run: async () => {
+    try { await t3.stop({ threadId: id }); gameSound.play("switch"); await refresh(); }
+    catch (err: any) { void confirmDialog("T3 did not stop the thread", String(err?.message || err), "OK"); }
+  } });
+  items.push({ input: "Rename", placeholder: "Thread name", value: t.title || "", submit: "Rename", run: async (title: string) => { await t3.rename({ threadId: id, title }); await refresh(); renderThreads(true); } });
+  if (id !== world.orchThread && !RUNNING.has((t.runStatus ?? "").toLowerCase())) items.push({ label: "Archive in T3", danger: true, run: async () => {
+    if (!await confirmDialog("Archive this thread?", "It leaves the office and T3's thread list. Archived threads stay in T3, where you can restore them.", "Archive")) return;
+    try { await t3.archive({ threadId: id }); gameSound.play("paper"); await refresh(); renderThreads(true); }
+    catch (err: any) { void confirmDialog("T3 did not archive the thread", String(err?.message || err), "OK"); }
+  } });
+  return items;
+}
 function officeMoveItems(id: string) {
   if (id === world.orchThread) return [];
   const current = world.homes.get(id) ?? world.deskFor(id)?.room;
@@ -1727,7 +1719,7 @@ function threadMenu(row: HTMLElement, x: number, y: number) {
   if (previous) items.push({ label: "Move up (Alt+Up)", run: () => { void moveThread(id, previous.id, false); } });
   if (next) items.push({ label: "Move down (Alt+Down)", run: () => { void moveThread(id, next.id, true); } });
   if (chat.isOpen && chat.threadId && chat.threadId !== id) items.unshift({ label: "Reference in chat (R)", run: () => { chat.addReference(ref); } });
-  items.push(...pinItems(id), ...officeMoveItems(id));
+  items.push(...pinItems(id), ...threadActionItems(id), ...officeMoveItems(id));
   showMenu(x, y, ref.title, items);
 }
 for (const box of [$("th-list"), $("rail-list")]) {

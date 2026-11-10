@@ -20,6 +20,7 @@ import { forestPlan } from "./forest-plan";
 import { mountNativeContourCull } from "./outside-cull";
 import { campusNight } from "./campus-light";
 import { campusPlan, districtPlan } from "./campus-plan";
+import { buildingState, type EnvironmentBuilding } from "./environments";
 import { officePlan, hallRoute, hallPreference, inHall, type OfficePlan } from "./floor-plan";
 import { buildingFootprint, footprintCovers } from "./building-footprint";
 import { hasOfficeWork, hasOfficeDesk, reserveRoomSeats, remainingDeskExtras, snakeSeat, projectRoomSeats, reorderPhysicalSeats, layoutMeeting, layoutWaitingSpots, layoutSafeAt, addDeskPlace, FOLDED_OFFICE } from "./room-policy";
@@ -2370,7 +2371,7 @@ export class World {
     return this.layoutArchive;
   }
 
-  private buildings: { id: string; label: string; local: boolean; canOpen: boolean; reason: string | null }[] = [];
+  private buildings: EnvironmentBuilding[] = [];
   private openBuilding: (id: string) => Promise<void> = async () => {};
   private loadBuilding: (id: string) => Promise<WorldData> = async () => { throw Error('Connection unavailable'); };
   private neighbors = new Map<string, { el: HTMLElement; office: World | null; x: number; y: number; busy: boolean; status: HTMLElement; open: HTMLButtonElement }>();
@@ -2495,12 +2496,17 @@ export class World {
         const el = document.createElement('section'); el.className = 'neighbor-building'; el.dataset.environment = building.id;
         const open = document.createElement('button'); open.type = 'button'; open.className = 'neighbor-open';
         const status = document.createElement('p'); status.className = 'neighbor-status'; status.setAttribute('role', 'status');
-        status.textContent = building.canOpen ? 'Reading projects and sessions from T3 Code' : building.reason || 'Connection needed';
         const created = { el, office: null, x, y, busy: false, status, open }; entry = created;
         open.addEventListener('click', async () => { if (open.disabled) return; open.disabled = true; gameSound.at('open', open); try { await this.openBuilding(building.id); } catch (error) { status.textContent = error instanceof Error ? error.message : 'Could not open this computer. Try again.'; } finally { open.disabled = !this.buildings.find(b => b.id === building.id)?.canOpen; } });
         el.append(open, status); this.root.append(el); this.neighbors.set(building.id, entry); createdOffice = true;
       }
       entry.open.textContent = building.label; entry.open.disabled = !building.canOpen;
+      // The sign follows T3's live state: offline, expired, not shared, or a failed connection.
+      const quiet = building.canOpen && building.link !== 'failed' && building.status !== 'unreachable' && building.status !== 'expired';
+      const note = !quiet ? buildingState(building) : entry.office ? '' : 'Reading projects and sessions from T3 Code';
+      if (entry.status.textContent !== note) entry.status.textContent = note;
+      entry.el.dataset.state = quiet ? 'open' : building.status === 'unreachable' || building.status === 'expired' ? 'offline' : 'closed';
+      entry.open.title = building.reason || buildingState(building);
       entry.el.setAttribute('aria-label', `${building.label} office`);
       const moving = entry.el.style.left && (entry.x !== x || entry.y !== y);
       entry.x = x; entry.y = y;
