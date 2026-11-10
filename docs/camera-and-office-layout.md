@@ -16,7 +16,6 @@ The backend no longer promotes an explicitly completed run to running for 90 sec
 
 ## Validation
 
-- `verify-camera-queue.mjs`: 200-event bursts coalesce, the latest state wins, 144 Hz callback timestamps are honored, and idle camera frames stop.
 - `verify-outside-viewport.mjs` and `verify-weather-retention.mjs`: repeated covered pans reuse buffers, preserve source density/mapping, renew at coverage edges, keep the real weather clock and clean up.
 - `verify-room-policy.mjs`: active/terminal statuses, zero/one/many desks, durable and reordered reservations, history reveal and connected folded-room routes.
 - `verify-room-drag.mjs`: saved/hidden room order, previews, valid drops, cancellation, capture loss and cleanup.

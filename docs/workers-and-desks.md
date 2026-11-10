@@ -91,7 +91,7 @@ Orchestrator settings, Take the chair (`src/office/chair.ts`). The AI orchestrat
 
 ## Evidence
 
-`scripts/verify-workers-native.cjs` runs the real Electron main process and renderer build against synthetic office data with T3 transport recorded instead of sent, and captures before (previous commit's own build and backend) and after screenshots. Node checks: room policy, coin retention, worker match (real Roster), reports and settlement recovery (approve, collect, chair), monitor tasks, title refresh; all part of `npm run verify:update`.
+`scripts/review/verify-workers-native.cjs` runs the real Electron main process and renderer build against synthetic office data with T3 transport recorded instead of sent, and captures before (previous commit's own build and backend) and after screenshots. Node checks: room policy, coin retention, worker match (real Roster), reports and settlement recovery (approve, collect, chair), monitor tasks, title refresh; all part of `npm run verify:update`.
 
 ## Kept desks
 

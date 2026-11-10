@@ -36,7 +36,7 @@ reverb and tempo-synced delay sends, tape and vinyl character where the genre
 wants it), then a master stage sets -18 LUFS with true peaks at or below
 -3.4 dBTP. The genre writing rules are in
 [tools/music/lucid_music/COMPOSING.md](../tools/music/lucid_music/COMPOSING.md).
-Background on the user's reference playlists is in
+Background on the reference playlists is in
 [music-production-research.md](music-production-research.md); its comments on
 individual songs describe the retired set.
 

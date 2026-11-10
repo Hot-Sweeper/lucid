@@ -1,0 +1,50 @@
+# AUR template: builds from the source of a release tag. Rename pkgname with the brand
+# (electron/brand.cjs); package name and executable are its lowercase slug.
+pkgname=token-industries
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="A living office for your T3 Code agents"
+arch=('x86_64' 'aarch64')
+url="https://github.com/OWNER/REPO"
+license=('MIT')
+depends=('gtk3' 'nss' 'alsa-lib' 'libxss' 'libsecret')
+makedepends=('git' 'nodejs>=20' 'npm')
+optdepends=('t3code: the T3 Code app this office runs on (required at runtime)')
+options=('!strip')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "$srcdir/${url##*/}-$pkgver"
+  npm ci --no-audit --no-fund
+  npm run build
+  # An unpacked build: pacman owns the files, so the app does not update itself
+  # (no package-type marker, see electron/packaged-updater.cjs).
+  npx electron-builder --config electron-builder.config.cjs --linux dir --publish never
+}
+
+package() {
+  cd "$srcdir/${url##*/}-$pkgver"
+  local out=release/linux-unpacked
+  [ -d "$out" ] || out=release/linux-arm64-unpacked
+  install -d "$pkgdir/opt/$pkgname"
+  cp -a "$out"/. "$pkgdir/opt/$pkgname/"
+  install -d "$pkgdir/usr/bin"
+  ln -s "/opt/$pkgname/$pkgname" "$pkgdir/usr/bin/$pkgname"
+  for size in 16 24 32 48 64 128 256 512; do
+    install -Dm644 "build/icons/${size}x${size}.png" "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/$pkgname.png"
+  done
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/$pkgname.desktop" <<DESKTOP
+[Desktop Entry]
+Name=Token Industries
+Comment=A living office for your T3 Code agents
+Exec=$pkgname --ozone-platform-hint=auto %U
+Icon=$pkgname
+Terminal=false
+Type=Application
+Categories=Development;
+StartupWMClass=Token Industries
+DESKTOP
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 THIRD_PARTY_NOTICES.md "$pkgdir/usr/share/licenses/$pkgname/THIRD_PARTY_NOTICES.md"
+}

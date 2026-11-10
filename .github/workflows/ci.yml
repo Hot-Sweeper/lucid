@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    tags-ignore: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      # Some checks create throwaway git repositories.
+      GIT_AUTHOR_NAME: CI
+      GIT_AUTHOR_EMAIL: ci@example.invalid
+      GIT_COMMITTER_NAME: CI
+      GIT_COMMITTER_EMAIL: ci@example.invalid
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

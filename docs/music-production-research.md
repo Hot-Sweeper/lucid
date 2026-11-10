@@ -2,9 +2,9 @@
 
 ## What was inspected
 
-The user supplied [Lunar Phonk](https://open.spotify.com/playlist/4TSS20kz15g85iWvy93H5t)
+The reference playlists were [Lunar Phonk](https://open.spotify.com/playlist/4TSS20kz15g85iWvy93H5t)
 and [Breakcore/DnB](https://open.spotify.com/playlist/2ctnq32JxZBG7LDEVYxv8G),
-then named Lofi Girl for lo-fi and a broad Spotify synthwave sound. Spotify's
+plus Lofi Girl for lo-fi and a broad Spotify synthwave sound. Spotify's
 public embeds exposed their track lists and short preview URLs. Eight public
 previews were analysed privately, including KEDELA's VACUUM, SATURN and ASTRAL,
 DVRST's Dream Space, INTERWORLD's METAMORPHOSIS, ERRx's breaking down and

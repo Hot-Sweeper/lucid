@@ -1,6 +1,6 @@
-# Renderer structure changes
+# Renderer structure
 
-2026-10-31. These changes address retained SVG elements and animation ownership in the actual office workload. They preserve visible screen contents, robot artwork, animation cadence and vector sharpness. Native live measurements belong to the coordinating worker.
+How the office keeps its SVG element count and animation ownership bounded while preserving visible screen contents, robot artwork, animation cadence and vector sharpness.
 
 ## Empty desk characters
 
@@ -40,11 +40,8 @@ Jobs are serialized and shared by source/crop/density, stale asynchronous result
 
 ## Checks
 
-- `node scripts/verify-deferred-robot.mjs`: passed. Covers empty construction/reset, idempotent mounting, look/model/phone forwarding, one release and clean reassignment.
-- `node scripts/verify-svg-writes.mjs`: passed. Covers stable geometry, visible fractional changes, external writers and visibility changes.
-- `node scripts/verify-shared-vectors.mjs`: passed. Covers exact geometry reuse, two-rig ownership, idempotent release, re-creation and cleanup of the definition library.
-- Whole-project TypeScript and scoped diff/syntax checks passed while other workers' independent changes were in progress.
-- `scripts/render-floor-checks.cjs` exports `async ({ js, out })` for the root's isolated Electron run. It checks actual desk assignment/release during a phone animation and pressed-key identity/reset, then compares original rect artwork with the shared vector references at four densities. It also compares actual shared robot geometry and inherited colors with an equivalent inline clone. It saves `lazy-robot-checks.json`, `shared-vector-palette-checks.json` and `floor-pixel-checks.json`. Final combined runtime acceptance and live performance measurement remain with the coordinator.
-- `scripts/render-static-art-checks.cjs` checks actual cached pixels against their original self-contained SVG source at 2x and 3.932x camera zoom, viewport/DPR bounds, retained live controls, native fallback during density changes, and decode-failure backoff. It saves screenshots and `static-art-checks.json`. This worker supplies the module; the coordinator owns native execution and live timing.
+- `node scripts/checks/verify-deferred-robot.mjs`: covers empty construction/reset, idempotent mounting, look/model/phone forwarding, one release and clean reassignment.
+- `node scripts/checks/verify-shared-vectors.mjs`: covers exact geometry reuse, two-rig ownership, idempotent release, re-creation and cleanup of the definition library.
+- `scripts/review/render-floor-checks.cjs` exports `async ({ js, out })` for the root's isolated Electron run. It checks actual desk assignment/release during a phone animation and pressed-key identity/reset, then compares original rect artwork with the shared vector references at four densities. It also compares actual shared robot geometry and inherited colors with an equivalent inline clone. It saves `lazy-robot-checks.json`, `shared-vector-palette-checks.json` and `floor-pixel-checks.json`.
+- `scripts/review/render-static-art-checks.cjs` checks actual cached pixels against their original self-contained SVG source at 2x and 3.932x camera zoom, viewport/DPR bounds, retained live controls, native fallback during density changes, and decode-failure backoff. It saves screenshots and `static-art-checks.json`.
 
-No changes to app update rates, scenery detail, visible content or placeholder behavior are part of this work. No live checkout, server, commit or subagent was created by this worker.

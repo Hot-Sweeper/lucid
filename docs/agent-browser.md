@@ -8,10 +8,10 @@ Visible views request at most one capture per second. Requests for the same sour
 
 Checks:
 
-- `node scripts/verify-workspace-browser.mjs`: event parsing, actual browser handles, navigation, failure, terminal isolation, stop and reset.
-- `node scripts/verify-workspace-browser.cjs`: command scope, session reuse, ownership, pause, stable frames and cleanup.
-- `node scripts/verify-frontend-client.mjs`: serial polling, suspension, recovery and disposal.
-- `node scripts/verify-frontend.cjs`: native frontend sandbox and session lifecycle.
+- `node scripts/checks/verify-workspace-browser.mjs`: event parsing, actual browser handles, navigation, failure, terminal isolation, stop and reset.
+- `node scripts/checks/verify-workspace-browser.cjs`: command scope, session reuse, ownership, pause, stable frames and cleanup.
+- `node scripts/checks/verify-frontend-client.mjs`: serial polling, suspension, recovery and disposal.
+- `node scripts/review/verify-frontend.cjs`: native frontend sandbox and session lifecycle.
 - `npm run verify:update`: required repository validation and candidate build.
 
 Native verification uses two hidden KWin workspaces: Firefox on the source workspace and Lucid on the observer workspace. This keeps switching or covering the source browser from hiding the observer. Feed the observed tool result into the real director, navigate Firefox, and verify that the monitor title and pixels change to the new page. Capture the monitor itself as result evidence. A separately loaded URL or a generated test page does not verify that workflow.

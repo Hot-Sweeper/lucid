@@ -3,6 +3,7 @@ const { app, BrowserWindow, ipcMain, shell, net, protocol, nativeImage } = requi
 app.setPath("userData", require("node:path").join(app.getPath("appData"), "lucid"));
 app.setName(require("./brand.cjs").name);
 if (process.platform === "win32") app.setAppUserModelId(require("./brand.cjs").appId);
+if (app.isPackaged) void require("./shell-path.cjs").loadShellPath();
 // Screenshot runs use isolated profiles. Normal launches share one office process.
 if (!process.env.LUCID_SHOT && !app.requestSingleInstanceLock()) {
   app.quit();

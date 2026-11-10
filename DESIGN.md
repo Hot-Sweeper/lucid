@@ -81,7 +81,7 @@ Assistant answers retain real T3 `html_render` visuals in the transcript, outsid
 
 Native T3 references use compact robot portrait buttons with the current title, harness and model. Preserve the complete thread ID and environment identity. The whole card responds to keyboard activation; unavailable references say so.
 
-Ultra fire follows the approved compact purple pixel-fire reference documented in `docs/robot-power.md`. A 32 by 40 upward-advected heat field uses touching violet, magenta and lavender cells, with no gutters or cell outlines. Shoulder-side sources feed uneven tongues behind the head, while a separate layer adds lower-body foreground wisps. Preserve the actual robot, face, logo, chair and nameplate. Active run options still determine Ultra and fast state; reduced motion freezes the field and actor teardown releases both surfaces.
+Ultra fire is compact purple pixel fire. A 32 by 40 upward-advected heat field uses touching violet, magenta and lavender cells, with no gutters or cell outlines. Shoulder-side sources feed uneven tongues behind the head, while a separate layer adds lower-body foreground wisps. Preserve the actual robot, face, logo, chair and nameplate. Active run options still determine Ultra and fast state; reduced motion freezes the field and actor teardown releases both surfaces.
 
 ## Thread labels at room scale
 

@@ -115,6 +115,16 @@ async function main() {
     const status = await u.check();
     assert.equal(status.available, false); assert.match(status.reason, /package manager/); assert.equal(loaded, false);
   }
+  // Installed apps pick up the login shell's PATH for the CLIs they run.
+  const { loadShellPath, mergePath } = require('../../electron/shell-path.cjs');
+  assert.equal(mergePath('/usr/bin:/bin', '/opt/homebrew/bin:/usr/bin', ':'), '/usr/bin:/bin:/opt/homebrew/bin');
+  const env = { PATH: '/usr/bin', SHELL: '/bin/zsh' };
+  assert.equal(await loadShellPath({ platform: 'darwin', env, run: (_cmd, _args, _opts, done) => done(null, 'motd noise __LUCID_PATH__/opt/homebrew/bin:/usr/bin__LUCID_PATH__') }), true);
+  assert.equal(env.PATH, '/usr/bin:/opt/homebrew/bin');
+  assert.equal(await loadShellPath({ platform: 'linux', env, run: (_c, _a, _o, done) => done(Error('timeout')) }), false);
+  assert.equal(env.PATH, '/usr/bin:/opt/homebrew/bin', 'a failing shell leaves PATH alone');
+  assert.equal(await loadShellPath({ platform: 'win32', env }), false);
+  assert.match(main, /if \(app\.isPackaged\) void require\("\.\/shell-path\.cjs"\)\.loadShellPath\(\);/);
   console.log('PASS: packaging names from the brand module, packaged runtime files, icons, updater selection by app.isPackaged, installed-build update modes, shared checks, explicit download and install after save.');
 }
 
