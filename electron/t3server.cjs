@@ -187,12 +187,12 @@ async function hasScope(scope) {
  * The WebSocket reconnects with the new session on its next call.
  */
 async function grantScope(scope) {
-  if (!EXTRA_SCOPES.has(scope)) throw new T3ServerError("Lucid does not ask T3 for that permission.", "invalid");
+  if (!EXTRA_SCOPES.has(scope)) throw new T3ServerError("This app does not ask T3 for that permission.", "invalid");
   if (await hasScope(scope)) return cred;
   extraScopes.add(scope);
   const c = await ensurePaired({ force: true });
   closeSock();
-  if (!String(c.scope || "").split(/\s+/).includes(scope)) throw new T3ServerError("T3 did not give Lucid that permission.", "unauthorized");
+  if (!String(c.scope || "").split(/\s+/).includes(scope)) throw new T3ServerError("T3 did not give this app that permission.", "unauthorized");
   return c;
 }
 
