@@ -214,9 +214,9 @@ class Song:
             mix = mix[start - int(.05 * SR):]
         return mix
 
-    def encode(self, wav: Path, mp3: Path):
-        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(wav), '-codec:a', 'libmp3lame', '-b:a', '192k',
-                        '-ar', '44100', str(mp3)], check=True)
+    def encode(self, wav: Path, out: Path):
+        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(wav), '-c:a', 'libopus', '-b:a', '128k', '-vbr', 'constrained',
+                        '-application', 'audio', str(out)], check=True)
 
     def catalog_row(self):
         return dict(id=self.id, title=self.title, period=self.period, bpm=self.bpm, genre=self.genre,

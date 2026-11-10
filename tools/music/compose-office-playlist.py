@@ -169,7 +169,7 @@ def main():
             with wave.open(str(wav),'wb') as writer:
                 writer.setnchannels(2);writer.setsampwidth(2);writer.setframerate(RATE)
                 writer.writeframes((np.clip(song,-1,1)*32767).astype('<i2').tobytes())
-            subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-y','-i',str(wav),'-c:a','libmp3lame','-b:a','160k',str(OUT/f"{piece['id']}.mp3")],check=True)
+            subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-y','-i',str(wav),'-c:a','libopus','-b:a','128k','-vbr','constrained','-application','audio',str(OUT/f"{piece['id']}.opus")],check=True)
         row={k:piece[k] for k in ['id','title','period','bpm','meter']}
         row.update(seconds=len(song)/RATE,peakDbFS=float(20*np.log10(np.max(np.abs(song)))),rmsDbFS=float(20*np.log10(np.sqrt(np.mean(song**2)))))
         if percussion:row['percussion']=percussion

@@ -1,8 +1,8 @@
 """Render Lucid songs from tools/music/lucid_music/songs/*.py.
 
 python tools/music/render-music.py rain_on_the_tram [--preview 40] [--png] [--install]
-Outputs WAV/MP3 to ~/.cache/lucid-audio-authoring/renders; --install copies the
-MP3 into src/assets/audio. Offline authoring only.
+Outputs WAV/Opus to ~/.cache/lucid-audio-authoring/renders; --install copies the
+Opus file into src/assets/audio. Offline authoring only.
 """
 import argparse
 import importlib
@@ -47,8 +47,8 @@ def main():
         mod = importlib.import_module(f'lucid_music.songs.{name}')
         song = mod.build()
         wav, report, mix = song.render(OUT, preview=args.preview)
-        mp3 = OUT / f'{song.id}.mp3'
-        song.encode(wav, mp3)
+        encoded = OUT / f'{song.id}.opus'
+        song.encode(wav, encoded)
         meta = song.catalog_row() | dict(seconds=round(len(mix) / SR, 3), lufs=round(float(fx.loudness(mix)), 2),
                                          truePeak=round(float(fx.true_peak_db(mix)), 2), tracks=report)
         (OUT / f'{song.id}.json').write_text(json.dumps(meta, indent=1))
@@ -58,7 +58,7 @@ def main():
         for r in report:
             print(f'   {r["track"]:<16} peak {r["peak"]:<8} rms {r["rms"]}')
         if args.install:
-            shutil.copy(mp3, ROOT / 'src/assets/audio' / f'{song.id}.mp3')
+            shutil.copy(encoded, ROOT / 'src/assets/audio' / f'{song.id}.opus')
 
 
 if __name__ == '__main__':

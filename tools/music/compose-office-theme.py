@@ -159,7 +159,7 @@ def export(name, samples):
             writer.setframerate(RATE)
             writer.writeframes((np.clip(samples,-1,1)*32767).astype('<i2').tobytes())
         subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-y','-i',str(wav),
-                        '-c:a','libmp3lame','-b:a','160k',str(OUT/f'{name}.mp3')], check=True)
+                        '-c:a','libopus','-b:a','128k','-vbr','constrained','-application','audio',str(OUT/f'{name}.opus')], check=True)
     return {'seconds': len(samples)/RATE, 'peakDbFS': float(20*np.log10(np.max(np.abs(samples)))),
             'rmsDbFS': float(20*np.log10(np.sqrt(np.mean(samples**2))))}
 

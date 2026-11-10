@@ -3,7 +3,7 @@
 Offline: Python + numpy/scipy/Pedalboard, FFmpeg and the pinned VCSL drum cache.
 Each score has a hand-written eight-bar
 hook, its own harmony/groove/timbres, a bridge, a quiet middle and a final reprise.
-Only these five MP3s and their metrics are replaced when this script runs.
+Only these five Opus files and their metrics are replaced when this script runs.
 """
 from pathlib import Path
 import argparse
@@ -234,8 +234,8 @@ def main():
                 w.setnchannels(2); w.setsampwidth(2); w.setframerate(RATE)
                 w.writeframes((np.clip(song,-1,1)*32767).astype('<i2').tobytes())
             subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-y','-i',str(wav),
-                            '-c:a','libmp3lame','-b:a','160k','-metadata',f"title={p['title']}",
-                            '-metadata','artist=Lucid',str(OUT/f"{p['id']}.mp3")],check=True)
+                            '-c:a','libopus','-b:a','128k','-vbr','constrained','-application','audio','-metadata',f"title={p['title']}",
+                            '-metadata','artist=Lucid',str(OUT/f"{p['id']}.opus")],check=True)
         row = {k:p[k] for k in ('id','title','period','bpm','meter')}
         row.update(seconds=len(song)/RATE,peakDbFS=float(20*np.log10(np.max(np.abs(song)))),
                    rmsDbFS=float(20*np.log10(np.sqrt(np.mean(song**2)))))

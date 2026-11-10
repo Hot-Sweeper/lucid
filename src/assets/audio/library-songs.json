@@ -1,5 +1,5 @@
 {
- "engine": "scripts/lucid_music (sampled instruments, Surge XT patches, offline mastering)",
+ "engine": "tools/music/lucid_music (sampled instruments, Surge XT patches, offline mastering)",
  "libraries": [
   "jRhodes3d (Jeff Learman, free use)",
   "Salamander Grand Piano V3 (Alexander Holm, CC-BY 3.0)",
@@ -16,7 +16,7 @@
    "title": "Night Conservatory",
    "genre": "ambient",
    "bpm": 58,
-   "source": "scripts/lucid_music/songs/night_conservatory.py",
+   "source": "tools/music/lucid_music/songs/night_conservatory.py",
    "sections": [
     {
      "name": "intro",
@@ -79,7 +79,7 @@
    "title": "Reservoir Moon",
    "genre": "ambient",
    "bpm": 62,
-   "source": "scripts/lucid_music/songs/reservoir_moon.py",
+   "source": "tools/music/lucid_music/songs/reservoir_moon.py",
    "sections": [
     {
      "name": "intro",
@@ -132,7 +132,7 @@
    "title": "Glass River Morning",
    "genre": "ambient",
    "bpm": 70,
-   "source": "scripts/lucid_music/songs/glass_river_morning.py",
+   "source": "tools/music/lucid_music/songs/glass_river_morning.py",
    "sections": [
     {
      "name": "intro",
@@ -195,7 +195,7 @@
    "title": "After the Last Train",
    "genre": "ambient",
    "bpm": 64,
-   "source": "scripts/lucid_music/songs/after_the_last_train.py",
+   "source": "tools/music/lucid_music/songs/after_the_last_train.py",
    "sections": [
     {
      "name": "intro",
@@ -258,7 +258,7 @@
    "title": "Honey on the Windowsill",
    "genre": "ambient",
    "bpm": 72,
-   "source": "scripts/lucid_music/songs/honey_on_the_windowsill.py",
+   "source": "tools/music/lucid_music/songs/honey_on_the_windowsill.py",
    "sections": [
     {
      "name": "intro",
@@ -326,7 +326,7 @@
    "title": "Low Tide Lights",
    "genre": "ambient",
    "bpm": 80,
-   "source": "scripts/lucid_music/songs/low_tide_lights.py",
+   "source": "tools/music/lucid_music/songs/low_tide_lights.py",
    "sections": [
     {
      "name": "intro",
@@ -404,7 +404,7 @@
    "title": "Soft Focus",
    "genre": "lofi",
    "bpm": 76,
-   "source": "scripts/lucid_music/songs/soft_focus.py",
+   "source": "tools/music/lucid_music/songs/soft_focus.py",
    "sections": [
     {
      "name": "intro",
@@ -492,7 +492,7 @@
    "title": "Linen and Sunlight",
    "genre": "lofi",
    "bpm": 74,
-   "source": "scripts/lucid_music/songs/linen_and_sunlight.py",
+   "source": "tools/music/lucid_music/songs/linen_and_sunlight.py",
    "sections": [
     {
      "name": "intro",
@@ -575,7 +575,7 @@
    "title": "Umbrella Hour",
    "genre": "lofi",
    "bpm": 70,
-   "source": "scripts/lucid_music/songs/umbrella_hour.py",
+   "source": "tools/music/lucid_music/songs/umbrella_hour.py",
    "sections": [
     {
      "name": "intro",
@@ -653,7 +653,7 @@
    "title": "Rain on the Tram",
    "genre": "lofi",
    "bpm": 78,
-   "source": "scripts/lucid_music/songs/rain_on_the_tram.py",
+   "source": "tools/music/lucid_music/songs/rain_on_the_tram.py",
    "sections": [
     {
      "name": "intro",
@@ -726,7 +726,7 @@
    "title": "Margins in Pencil",
    "genre": "lofi",
    "bpm": 82,
-   "source": "scripts/lucid_music/songs/margins_in_pencil.py",
+   "source": "tools/music/lucid_music/songs/margins_in_pencil.py",
    "sections": [
     {
      "name": "intro",
@@ -804,7 +804,7 @@
    "title": "Streetlamp Haze",
    "genre": "lofi",
    "bpm": 86,
-   "source": "scripts/lucid_music/songs/streetlamp_haze.py",
+   "source": "tools/music/lucid_music/songs/streetlamp_haze.py",
    "sections": [
     {
      "name": "intro",
@@ -892,7 +892,7 @@
    "title": "Citrus Crosswalk",
    "genre": "lofi",
    "bpm": 90,
-   "source": "scripts/lucid_music/songs/citrus_crosswalk.py",
+   "source": "tools/music/lucid_music/songs/citrus_crosswalk.py",
    "sections": [
     {
      "name": "intro",
@@ -980,7 +980,7 @@
    "title": "Slow Dance for an Empty Caf\u00e9",
    "genre": "jazz",
    "bpm": 68,
-   "source": "scripts/lucid_music/songs/slow_dance_for_an_empty_cafe.py",
+   "source": "tools/music/lucid_music/songs/slow_dance_for_an_empty_cafe.py",
    "sections": [
     {
      "name": "intro",
@@ -1043,7 +1043,7 @@
    "title": "Citrus Promenade",
    "genre": "jazz",
    "bpm": 132,
-   "source": "scripts/lucid_music/songs/citrus_promenade.py",
+   "source": "tools/music/lucid_music/songs/citrus_promenade.py",
    "sections": [
     {
      "name": "intro",
@@ -1111,7 +1111,7 @@
    "title": "Waltz for the Window Seat",
    "genre": "jazz",
    "bpm": 160,
-   "source": "scripts/lucid_music/songs/waltz_for_the_window_seat.py",
+   "source": "tools/music/lucid_music/songs/waltz_for_the_window_seat.py",
    "sections": [
     {
      "name": "intro",
@@ -1194,7 +1194,7 @@
    "title": "Sunday Corduroy",
    "genre": "jazz",
    "bpm": 90,
-   "source": "scripts/lucid_music/songs/sunday_corduroy.py",
+   "source": "tools/music/lucid_music/songs/sunday_corduroy.py",
    "sections": [
     {
      "name": "intro",
@@ -1277,7 +1277,7 @@
    "title": "Last Set at Marlowe's",
    "genre": "jazz",
    "bpm": 126,
-   "source": "scripts/lucid_music/songs/last_set_at_marlowes.py",
+   "source": "tools/music/lucid_music/songs/last_set_at_marlowes.py",
    "sections": [
     {
      "name": "intro",
@@ -1335,7 +1335,7 @@
    "title": "Indigo Stairwell",
    "genre": "jazz",
    "bpm": 110,
-   "source": "scripts/lucid_music/songs/indigo_stairwell.py",
+   "source": "tools/music/lucid_music/songs/indigo_stairwell.py",
    "sections": [
     {
      "name": "intro",
@@ -1423,7 +1423,7 @@
    "title": "Satellite Lullaby",
    "genre": "phonk",
    "bpm": 70,
-   "source": "scripts/lucid_music/songs/satellite_lullaby.py",
+   "source": "tools/music/lucid_music/songs/satellite_lullaby.py",
    "sections": [
     {
      "name": "intro",
@@ -1506,7 +1506,7 @@
    "title": "Pale Halo",
    "genre": "phonk",
    "bpm": 130,
-   "source": "scripts/lucid_music/songs/pale_halo.py",
+   "source": "tools/music/lucid_music/songs/pale_halo.py",
    "sections": [
     {
      "name": "intro",
@@ -1584,7 +1584,7 @@
    "title": "Astral Ferry",
    "genre": "phonk",
    "bpm": 128,
-   "source": "scripts/lucid_music/songs/astral_ferry.py",
+   "source": "tools/music/lucid_music/songs/astral_ferry.py",
    "sections": [
     {
      "name": "intro",
@@ -1672,7 +1672,7 @@
    "title": "Moonwake Drift",
    "genre": "phonk",
    "bpm": 140,
-   "source": "scripts/lucid_music/songs/moonwake_drift.py",
+   "source": "tools/music/lucid_music/songs/moonwake_drift.py",
    "sections": [
     {
      "name": "intro",
@@ -1745,7 +1745,7 @@
    "title": "Moth Hour",
    "genre": "phonk",
    "bpm": 144,
-   "source": "scripts/lucid_music/songs/moth_hour.py",
+   "source": "tools/music/lucid_music/songs/moth_hour.py",
    "sections": [
     {
      "name": "intro",
@@ -1823,7 +1823,7 @@
    "title": "Aurora Run",
    "genre": "phonk",
    "bpm": 135,
-   "source": "scripts/lucid_music/songs/aurora_run.py",
+   "source": "tools/music/lucid_music/songs/aurora_run.py",
    "sections": [
     {
      "name": "intro",
@@ -1911,7 +1911,7 @@
    "title": "Sodium Lights",
    "genre": "synthwave",
    "bpm": 94,
-   "source": "scripts/lucid_music/songs/sodium_lights.py",
+   "source": "tools/music/lucid_music/songs/sodium_lights.py",
    "sections": [
     {
      "name": "intro",
@@ -2019,7 +2019,7 @@
    "title": "Magenta Coastline",
    "genre": "synthwave",
    "bpm": 96,
-   "source": "scripts/lucid_music/songs/magenta_coastline.py",
+   "source": "tools/music/lucid_music/songs/magenta_coastline.py",
    "sections": [
     {
      "name": "intro",
@@ -2122,7 +2122,7 @@
    "title": "Taillights in the Rain",
    "genre": "synthwave",
    "bpm": 88,
-   "source": "scripts/lucid_music/songs/taillights_in_the_rain.py",
+   "source": "tools/music/lucid_music/songs/taillights_in_the_rain.py",
    "sections": [
     {
      "name": "intro",
@@ -2220,7 +2220,7 @@
    "title": "Last Light Promenade",
    "genre": "synthwave",
    "bpm": 104,
-   "source": "scripts/lucid_music/songs/last_light_promenade.py",
+   "source": "tools/music/lucid_music/songs/last_light_promenade.py",
    "sections": [
     {
      "name": "intro",
@@ -2338,7 +2338,7 @@
    "title": "Coin-Op Daybreak",
    "genre": "synthwave",
    "bpm": 120,
-   "source": "scripts/lucid_music/songs/coin_op_daybreak.py",
+   "source": "tools/music/lucid_music/songs/coin_op_daybreak.py",
    "sections": [
     {
      "name": "intro",
@@ -2461,7 +2461,7 @@
    "title": "Chrome Horizon",
    "genre": "synthwave",
    "bpm": 114,
-   "source": "scripts/lucid_music/songs/chrome_horizon.py",
+   "source": "tools/music/lucid_music/songs/chrome_horizon.py",
    "sections": [
     {
      "name": "intro",
@@ -2569,7 +2569,7 @@
    "title": "Overpass in Bloom",
    "genre": "breakcore",
    "bpm": 160,
-   "source": "scripts/lucid_music/songs/overpass_in_bloom.py",
+   "source": "tools/music/lucid_music/songs/overpass_in_bloom.py",
    "sections": [
     {
      "name": "intro",
@@ -2672,7 +2672,7 @@
    "title": "Lanterns on the Water",
    "genre": "breakcore",
    "bpm": 172,
-   "source": "scripts/lucid_music/songs/lanterns_on_the_water.py",
+   "source": "tools/music/lucid_music/songs/lanterns_on_the_water.py",
    "sections": [
     {
      "name": "intro",
@@ -2780,7 +2780,7 @@
    "title": "Lemonade Skyline",
    "genre": "breakcore",
    "bpm": 168,
-   "source": "scripts/lucid_music/songs/lemonade_skyline.py",
+   "source": "tools/music/lucid_music/songs/lemonade_skyline.py",
    "sections": [
     {
      "name": "intro",
@@ -2893,7 +2893,7 @@
    "title": "Glass Planetarium",
    "genre": "breakcore",
    "bpm": 165,
-   "source": "scripts/lucid_music/songs/glass_planetarium.py",
+   "source": "tools/music/lucid_music/songs/glass_planetarium.py",
    "sections": [
     {
      "name": "intro",
@@ -3001,7 +3001,7 @@
    "title": "Polaroid Summer",
    "genre": "breakcore",
    "bpm": 170,
-   "source": "scripts/lucid_music/songs/polaroid_summer.py",
+   "source": "tools/music/lucid_music/songs/polaroid_summer.py",
    "sections": [
     {
      "name": "intro",
@@ -3109,7 +3109,7 @@
    "title": "Letters I Never Sent",
    "genre": "breakcore",
    "bpm": 174,
-   "source": "scripts/lucid_music/songs/letters_i_never_sent.py",
+   "source": "tools/music/lucid_music/songs/letters_i_never_sent.py",
    "sections": [
     {
      "name": "intro",

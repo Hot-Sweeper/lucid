@@ -1,7 +1,7 @@
 """Multisampled instruments rendered offline from real recordings.
 
-Libraries live in ~/.cache/lucid-audio-authoring/libs (fetched by
-scripts/fetch-music-libraries.py). Only rendered MP3s ship with Lucid.
+Libraries live in ~/.cache/lucid-audio-authoring/libs (downloaded by hand from
+the sources in THIRD_PARTY_NOTICES.md). Only rendered Opus files ship with Lucid.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field

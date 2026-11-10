@@ -278,12 +278,12 @@ assert(songAffinity(reference,variant({textures:['pads']})) > songAffinity(refer
 const hashes = new Set();
 const mastered = JSON.parse(fs.readFileSync('src/assets/audio/library-mastering.json'));
 for (const song of SOUNDTRACK) {
-  const file = 'src/assets/audio/' + song.id + '.mp3';
+  const file = 'src/assets/audio/' + song.id + '.opus';
   assert(fs.statSync(file).size > 500000, `${song.title} is a full-length encoded asset`);
   const hash = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
   hashes.add(hash);
   const m = mastered.tracks.find(row => row.id === song.id);
-  assert(m && m.sha256 === hash, `${song.title} measurements match this exact MP3 (run tools/music/verify-music-masters.py --write)`);
+  assert(m && m.sha256 === hash, `${song.title} measurements match this exact recording (run tools/music/verify-music-masters.py --write)`);
   assert(Math.abs(m.seconds-song.seconds)<.03 && Math.abs(m.gainDb-song.gainDb)<.05, `${song.title} uses its measured duration and trim`);
   assert(m.finite && m.truePeakDbTP<=-2.7 && m.dcOffset<.002 && m.stereoCorrelation>-.1, `${song.title} headroom and stereo integrity`);
   assert(Math.abs(m.effectiveLUFS+20)<=.25 && m.truePeakDbTP+song.gainDb<=-2.49, `${song.title} playback loudness`);

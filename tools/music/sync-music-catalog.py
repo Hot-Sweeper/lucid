@@ -2,7 +2,7 @@
 
 The 14 original cozy recordings keep their rows untouched. Every song module in
 tools/music/lucid_music/songs/ is installed from its latest render
-(~/.cache/lucid-audio-authoring/renders/<id>.mp3 + .json). Afterwards run
+(~/.cache/lucid-audio-authoring/renders/<id>.opus + .json). Afterwards run
 `python tools/music/verify-music-masters.py --write` to measure durations and
 playback trims from the encoded files.
 """
@@ -36,7 +36,7 @@ def main():
     rows = re.findall(r"^  \{ id: '([a-z0-9-]+)'.*$", source, re.M)
     keep_rows = {i: re.search(r"^  \{ id: '" + i + r"'.*$", source, re.M)[0] for i in rows if i in ORIGINALS}
     assert list(keep_rows) == ORIGINALS, 'original rows changed'
-    keep_imports = [l for l in imports if any(f"/{i}.mp3'" in l for i in ORIGINALS)]
+    keep_imports = [l for l in imports if any(f"/{i}.opus'" in l for i in ORIGINALS)]
 
     songs = []
     for f in sorted((ROOT / 'tools/music/lucid_music/songs').glob('[a-z]*.py')):
@@ -47,9 +47,9 @@ def main():
 
     new_imports, new_rows, provenance = [], [], []
     for module, m in songs:
-        shutil.copy(RENDERS / f'{m["id"]}.mp3', AUDIO / f'{m["id"]}.mp3')
+        shutil.copy(RENDERS / f'{m["id"]}.opus', AUDIO / f'{m["id"]}.opus')
         var = camel(m['id'])
-        new_imports.append(f"import {var} from '../assets/audio/{m['id']}.mp3';")
+        new_imports.append(f"import {var} from '../assets/audio/{m['id']}.opus';")
         new_rows.append(
             f"  {{ id: '{m['id']}', title: {json.dumps(m['title'])}, url: {var}, period: '{m['period']}', "
             f"bpm: {m['bpm']}, genre: '{m['genre']}', energy: {m['energy']}, seconds: {m['seconds']:.4f}, "

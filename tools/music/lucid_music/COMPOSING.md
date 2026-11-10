@@ -1,14 +1,14 @@
 # Writing a Lucid song
 
-Each song is one file in `scripts/lucid_music/songs/<snake_id>.py` with a
+Each song is one file in `tools/music/lucid_music/songs/<snake_id>.py` with a
 `build()` that returns a `Song`. Render with:
 
 ```bash
-PY=~/.t3/scratch/2026-11-08-in-lucid-check-what-songs-d203e92a/.audio-tools/bin/python
-cd ~/Applications/lucid/scripts && $PY render-music.py <snake_id> --png
+python -m venv .venv && .venv/bin/pip install -r tools/music/requirements-music.txt
+.venv/bin/python tools/music/render-music.py <snake_id> --png
 ```
 
-Output (WAV, MP3, JSON with per-track levels, spectrogram PNG) goes to
+Output (WAV, Opus, JSON with per-track levels, spectrogram PNG) goes to
 `~/.cache/lucid-audio-authoring/renders/`. `rain_on_the_tram.py` is the
 reference: copy its structure.
 

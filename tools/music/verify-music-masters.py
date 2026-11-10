@@ -21,7 +21,7 @@ TARGET = -20.0
 
 
 def measure(ident):
-    path = AUDIO/f'{ident}.mp3'
+    path = AUDIO/f'{ident}.opus'
     raw = subprocess.check_output(['ffmpeg','-v','error','-i',str(path),'-ar',str(RATE),'-ac','2','-f','f32le','-'])
     pcm = np.frombuffer(raw,dtype='<f4').reshape(-1,2)
     assert np.isfinite(pcm).all(), f'{ident}: non-finite samples'
