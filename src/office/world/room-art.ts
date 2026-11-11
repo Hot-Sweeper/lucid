@@ -51,7 +51,7 @@ export function roomSvg(r: Room, slots: number, theme?: RoomTheme, owner?:string
       <rect x="${doorX}" y="${doorY}" width="60" height="${kind === "main" ? 64 : 94}" rx="3" fill="#887461"/>
       <rect x="${doorX + 7}" y="${doorY + 8}" width="46" height="${kind === "main" ? 43 : 72}" rx="2" fill="#9b8771"/>
       <circle cx="${doorX + 49}" cy="${doorY + 48}" r="3" fill="#ffd27a"/>
-      <text x="26" y="147" font-size="18" fill="#554b42" font-family="var(--font)">Quiet office</text>
+      <text x="26" y="147" font-size="18" fill="#554b42" font-family="var(--font)">${r.threadIds.length ? `${r.threadIds.length} ${r.threadIds.length === 1 ? "desk" : "desks"} inside` : "Folded office"}</text>
       <rect y="${h - 12}" width="${w}" height="12" style="fill:${pal.trim}"/>
     </svg>`;
   }

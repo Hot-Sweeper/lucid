@@ -50,6 +50,7 @@ export const CHECKS = [
   "verify-office-drag.mjs",
   "verify-worker-match.mjs",
   "verify-harness-swap.mjs",
+  "verify-chat-robot-marks.mjs",
   "verify-title-refresh.cjs",
   "verify-remote-media.cjs",
   "verify-coin-retention.cjs",

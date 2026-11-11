@@ -90,6 +90,8 @@ export function makeInteractive(w: Walker, o: Opts = {}) {
         if (pokes >= 4) { w.setExpression("angry"); w.say(line("pokeAngry", w), 1800); }
         else { w.setExpression(pick(["happy", "laugh", "shy"] as const)); w.say(line("poke", w), 1500); }
         window.setTimeout(() => w.setExpression("neutral"), 1600);
+        // Clicking a robot opens its chat (the office listens for this, world/chat-mark.ts).
+        el.dispatchEvent(new CustomEvent("robot-chat", { bubbles: true, detail: w.id }));
         o.onPoke?.();
         return;
       }

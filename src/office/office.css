@@ -323,8 +323,7 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .hire-task { display: flex; flex-direction: column; gap: 6px; }
 .hire-msg { margin: 0; min-height: 1.2em; font-size: 13px; color: var(--accent-2); }
 
-/* chat status, queued messages, view toggle */
-.cp-view { flex: none; font-size: 12px; padding: 6px 10px; }
+/* chat status, queued messages */
 .cp-status { flex: none; display: flex; align-items: center; gap: 8px; margin: 0; padding: 0 16px 10px; font-size: 13px; color: var(--ink-2); }
 .cp-status i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; }
 .cp-status[data-state="working"] i { background: var(--mint); }

@@ -72,7 +72,7 @@ export function createChat(app: App) {
     openReviewThread: paper => { if (!app.currentEnvironment) app.openThread(paper.threadId); },
   });
   // the sidebar and the chat are columns beside the scene, so the camera always fits what is left (see World)
-  app.world.onFocus = (d) => { if (d) { app.world.revealThread(d.threadId); app.chat.open(d); app.chat.setView(app.world.focusMode); app.pushStatus(d); } };
+  app.world.onFocus = (d) => { if (d) { app.world.revealThread(d.threadId); app.chat.open(d); app.pushStatus(d); } };
   // a robot's question, answered from its chat (see openAnswer)
   app.answerDeps = { pending: sharedPendingRequests((id) => (window as any).lucid.pendingRequests(id)), t3: (window as any).lucidT3, advice: (rid: string) => app.delegate.advice.get(rid) ?? null };
   app.answer = new AnswerCard(app.chat, app.answerDeps);
@@ -97,13 +97,8 @@ export function wireChatHooks(app: App) {
     search.focus();
     app.saveSettings();
   };
-  // Office navigation leaves the conversation open until the user hides it.
-  app.chat.onToggleView = () => {
-    const d = app.world.focusDesk;
-    if (!d) return;
-    if (app.world.focusMode === "desk") app.world.focusScreen(d); else app.world.focusOn(d);
-    app.chat.setView(app.world.focusMode);
-  };
+  // "Show this robot": the camera glides to the open chat's robot, wherever it is.
+  app.chat.onShowRobot = () => { if (app.chat.threadId) app.world.showRobot(app.chat.threadId); };
   app.chat.onPresent = app.paintSelectedStatus;
   // A harness swap gave the thread another worker: the header names the new one.
   app.world.onWorkerSwap = (id) => app.chat.repaintHeader(id);

@@ -205,7 +205,8 @@ export class ChatPanel {
   onChooseThread: () => void = () => {};
   /** A conversation was selected, including one already open in the panel. */
   onPresent: () => void = () => {};
-  onToggleView: () => void = () => {};
+  /** "Show this robot": the camera goes to the open chat's robot (World.showRobot). */
+  onShowRobot: () => void = () => {};
   /** The thread's title and project from the thread list, for desks whose details are still loading. */
   threadFacts: (id: string) => { title?: string; project?: string; model?: string | null } | null = () => null;
   /** You started or stopped typing a message to this robot. */
@@ -436,7 +437,7 @@ export class ChatPanel {
       <header class="cp-head">
         <img class="cp-logo" alt="">
         <div class="cp-who"><b></b><span></span></div>
-        <button type="button" class="cp-view cp-icon" aria-label="Look at the screen" title="Look at the screen">${icon("screen")}</button>
+        <button type="button" class="cp-locate cp-icon" aria-label="Show this robot" title="Show this robot in the office">${icon("locateRobot")}</button>
         <button type="button" class="cp-pin cp-icon pin-btn" aria-pressed="true">${PIN_ICON}</button>
         <button type="button" class="cp-hide cp-icon" aria-expanded="true" aria-label="Hide chat" title="Hide the chat for more room. It stays as a tab on the right edge.">${icon("chatHide")}</button>
         <button type="button" class="cp-close" aria-label="Back to the office" title="Back to the office (Esc)">${icon("fullscreenExit")}</button>
@@ -510,7 +511,12 @@ export class ChatPanel {
     this.paintPin();
     this.el.querySelectorAll<HTMLElement>(".cp-pin").forEach((b) => b.addEventListener("click", () => { this.setAutoHide(!this.autoHide); gameSound.play("clip"); }));
     this.el.querySelector(".cp-close")!.addEventListener("click", () => this.onClose());
-    this.el.querySelector(".cp-view")!.addEventListener("click", () => this.onToggleView());
+    const locate = this.el.querySelector<HTMLElement>(".cp-locate")!;
+    locate.addEventListener("click", () => {
+      locate.classList.remove("going"); void locate.offsetWidth; locate.classList.add("going");
+      this.onShowRobot();
+    });
+    locate.addEventListener("animationend", () => locate.classList.remove("going"));
     // T3's tool groups: the summary line opens and closes its calls; your choice is remembered.
     this.promptContext = new ChatPromptContext(this.el.querySelector<HTMLElement>(".cp-list")!);
     this.el.querySelector(".cp-list")!.addEventListener("click", (e) => {
@@ -761,6 +767,8 @@ export class ChatPanel {
     const projectTitle = info?.projectTitle || facts?.project || "";
     const project = projectTitle && !/^no project$/i.test(projectTitle) ? projectTitle : "";
     this.el.querySelector(".cp-who span")!.textContent = [robotName, project, model].filter(Boolean).join(" · ");
+    const locate = this.el.querySelector<HTMLElement>(".cp-locate")!, show = desk.profile?.name ? `Show ${desk.profile.name}` : "Show this robot";
+    locate.setAttribute("aria-label", show); locate.title = `${show} in the office`;
     this.tabLabel = `Chat with ${robotName}`;
     (this.tab.querySelector("span") as HTMLElement).textContent = this.tabLabel;
     this.tab.setAttribute("aria-label", `Show ${this.tabLabel.replace(/^Chat/, "chat")}`);
@@ -805,11 +813,6 @@ export class ChatPanel {
     this.setCollapsed(true);
     const empty = this.el.querySelector(".cp-empty") as HTMLElement;
     gsap.fromTo(empty, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out", clearProps: "opacity" });
-  }
-
-  setView(mode: "desk" | "screen") {
-    const view = this.el.querySelector(".cp-view") as HTMLElement, label = mode === "desk" ? "Look at the screen" : "Back to the desk";
-    view.title = label; view.setAttribute("aria-label", label); view.classList.toggle("on", mode === "screen");
   }
 
   // What the robot is doing right now, in plain words.

@@ -236,7 +236,7 @@ export class WorldLayout {
       this.wakeRoutes();
     }
 
-    const key = rooms.map((r, i) => `${r.id}:${floorSlots(plans[i])}:${r.w}:${r.h}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|");
+    const key = rooms.map((r, i) => `${r.id}:${floorSlots(plans[i])}:${r.collapsed ? r.threadIds.length : ""}:${r.w}:${r.h}:${r.x}:${r.y}:${r.icon ? 1 : 0}:${r.title}:${JSON.stringify(this.themes.get(r.id) ?? null)}`).join("|");
     if (key !== this.lastKey) {
       this.lastKey = key;
       // Keep unchanged artwork and residents alive while neighboring rooms move.
@@ -249,7 +249,7 @@ export class WorldLayout {
       const oldRooms = new Map(this.rooms.map((r) => [r.id, r]));
       rooms.forEach((r, i) => {
         const old = oldRooms.get(r.id);
-        const signature = JSON.stringify([r.kind, r.title, r.icon, r.w, r.h, floorSlots(plans[i]), this.themes.get(r.id)]);
+        const signature = JSON.stringify([r.kind, r.title, r.icon, r.w, r.h, floorSlots(plans[i]), r.collapsed ? r.threadIds.length : 0, this.themes.get(r.id)]);
         const utility = r.kind === 'break' || r.kind === 'queue' || r.kind === 'charging';
         if (old && old.w === r.w && old.h === r.h && (utility || old.el.dataset.artSignature === signature)) {
           r.el = old.el;
@@ -476,6 +476,7 @@ export class WorldLayout {
     }
     if (JSON.stringify([...this.seats]) !== seatsBefore) this.onLayoutChange();
     this.syncPlacementPreview();
+    if (this.chatThread && !this.hostWorld) this.paintChatMark();
     if (wasHeld && !holdPhysical) this.reconcilePhysicalLayout(true);
   }
 }

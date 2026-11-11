@@ -54,6 +54,8 @@ const PATHS = {
   terminal: '<path d="M3 4.5 6 8l-3 3.5M8.5 12H13"/>',
   pencilLine: '<path d="M3 13l.7-2.8 6.8-6.8a1.4 1.4 0 0 1 2 2l-6.8 6.9z"/>',
   tool: '<path d="M6 2.5h4v3h3v4h-3v4H6v-4H3v-4h3z"/>',
+  // a viewfinder round a robot head: "Show this robot" (the camera goes to it)
+  locateRobot: '<path d="M2 5V3.5A1.5 1.5 0 0 1 3.5 2H5M11 2h1.5A1.5 1.5 0 0 1 14 3.5V5M14 11v1.5a1.5 1.5 0 0 1-1.5 1.5H11M5 14H3.5A1.5 1.5 0 0 1 2 12.5V11"/><rect class="ic-bot" x="5" y="6.5" width="6" height="5" rx="1.5"/><path class="ic-bot" d="M8 4.5v2M6.9 9h.01M9.1 9h.01"/>',
   agent: '<rect x="3" y="4.5" width="10" height="8" rx="2.5"/><path d="M8 2v2.5M6.2 8.5h.01M9.8 8.5h.01" />',
   warning: '<path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.3h.01"/>',
   users: '<circle cx="6" cy="5" r="2.2"/><path d="M2 13v-1.5a4 4 0 0 1 8 0V13M11 3a2.2 2.2 0 0 1 0 4.4M12.5 9.5a3.5 3.5 0 0 1 1.5 2.9V13"/>',

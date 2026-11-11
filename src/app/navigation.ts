@@ -46,7 +46,7 @@ export function defineNavigation(app: App) {
     if (d && !d.el.classList.contains("arriving")) {
       app.world.focusOn(d);
       // Focusing the desk already in focus changes nothing, so the conversation is shown here too.
-      if (app.chat.threadId !== id || app.chat.collapsed) { app.chat.open(d); app.chat.setView(app.world.focusMode); app.pushStatus(d); }
+      if (app.chat.threadId !== id || app.chat.collapsed) { app.chat.open(d); app.pushStatus(d); }
       return;
     }
     // not at a desk: follow it wherever it is (break room, questions, park, walking)
@@ -88,7 +88,7 @@ export function wireFollow(app: App) {
   app.world.onWatchChat = (id) => {
     app.world.revealThread(id);
     const d = app.world.deskFor(id);
-    if (d && !d.el.classList.contains("arriving")) { app.chat.open(d); app.chat.setView("desk"); app.pushStatus(d); return; }
+    if (d && !d.el.classList.contains("arriving")) { app.chat.open(d); app.pushStatus(d); return; }
     app.world.onFollowChat(id);
   };
   // A robot waiting for your answer: its chat opens with the answer card focused. At its desk if it

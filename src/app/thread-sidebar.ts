@@ -170,6 +170,8 @@ export function defineThreadSidebar(app: App) {
   };
 
   app.markSelected = function markSelected(id: string | null) {
+    // The open chat's robot carries its marks in the office (world/chat-mark.ts).
+    app.world.setChatThread(id);
     for (const row of document.querySelectorAll<HTMLElement>("#th-list .th-row[data-id], #rail-list .rail-th[data-id]")) {
       const current = row.dataset.id === id;
       row.classList.toggle(row.classList.contains("rail-th") ? "cur" : "sel", current);

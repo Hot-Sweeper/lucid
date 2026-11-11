@@ -170,6 +170,7 @@ export class WorldCameraView {
     const realCam = this.cam, realBox = this.sceneBox;
     if (this.glideSpan) { this.cam = this.glideSpan.cam; this.sceneBox = this.glideSpan.box; }
     try { this.applyView(); } finally { this.cam = realCam; this.sceneBox = realBox; }
+    if (this.chatThread) this.paintChatMark();
     const robotsOnCanvas = canvasRobotsWanted(this.cam.s);
     if (robotsOnCanvas !== this.canvasRobots) { this.canvasRobots = robotsOnCanvas; syncRobotCanvases(this.cam.s); }
     // small looping details (steam, swaying plants, birds) only move when you are close enough to see them

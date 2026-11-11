@@ -1,0 +1,53 @@
+/* The open chat's robot (world/chat-mark.ts): a small chat tag over its head, the accent ring on
+   its desk's nameplate, and a portrait at the office edge pointing at it when it is out of view. */
+
+/* The tag: an accent speech bubble whose tail points at the robot's head. Its anchor is the
+   bottom of the tail, so the far-view scale (set from the camera) grows it upward. */
+.chat-mark { position: absolute; z-index: 6; width: 30px; height: 25px; margin: -31px 0 0 -15px; display: grid; place-items: center;
+  border-radius: 9px; background: var(--accent); color: var(--accent-ink); transform-origin: 50% calc(100% + 6px); pointer-events: none;
+  box-shadow: 0 0 0 2px #fffaf3, 0 3px 8px rgba(40, 30, 20, .28); }
+.chat-mark::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 9px; height: 9px; margin-left: -4.5px; rotate: 45deg;
+  background: var(--accent); border-radius: 0 0 2px 0; box-shadow: 2px 2px 0 0 #fffaf3; }
+.chat-mark > svg { position: relative; z-index: 1; }
+.chat-mark.on-walker { top: calc(-1 * var(--head-top, 60px) - 8px); z-index: 2; }
+/* Arrival: the tag hops once and a ring opens from it. */
+.chat-mark .cm-ping { position: absolute; inset: -2px; border-radius: 11px; border: 2px solid var(--accent); opacity: 0; pointer-events: none; }
+.chat-mark.ping { animation: chat-mark-hop 420ms var(--ease-out-strong); }
+.chat-mark.ping .cm-ping { animation: chat-mark-ring 700ms var(--ease-out) both; }
+@keyframes chat-mark-hop { 0% { transform: translateY(0); } 35% { transform: translateY(-7px) scale(1.08); } 100% { transform: translateY(0); } }
+@keyframes chat-mark-ring { 0% { opacity: .75; transform: scale(1); } 100% { opacity: 0; transform: scale(2.1); } }
+
+/* The nameplate of the open chat's desk, and a hovered robot's own plate. */
+.desk-plate { transition: box-shadow var(--dur-hover) var(--ease-out-strong); }
+.desk-unit.robot-hover:not(.chat-open) .desk-plate { box-shadow: 0 0 0 2px rgba(45, 49, 66, .32), 0 3px 8px rgba(40, 30, 20, 0.15); }
+.desk-unit.chat-open .desk-plate { box-shadow: 0 0 0 2px var(--accent), 0 3px 8px rgba(40, 30, 20, 0.18); }
+
+/* The edge pointer: the robot's portrait on the floating HUD surface, an accent notch toward it. */
+.chat-beacon { position: absolute; left: 0; top: 0; z-index: 30; width: 44px; height: 44px; margin: -22px 0 0 -22px; padding: 0; border: 0; border-radius: 50%;
+  display: grid; place-items: center; background: var(--ui-float); box-shadow: 0 0 0 1px var(--ui-edge, rgba(255,255,255,.1)), 0 6px 16px rgba(10, 14, 30, .35);
+  cursor: pointer; transition: transform 160ms var(--ease-out-strong), background-color var(--dur-hover) var(--ease-out-strong); }
+.chat-beacon[hidden] { display: none; }
+.chat-beacon .cb-face { display: grid; place-items: center; width: 30px; height: 30px; transition: scale var(--dur-press) var(--ease-out-strong); }
+.chat-beacon .cb-face svg { width: 30px; height: 30px; }
+.chat-beacon .cb-arrow { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform: rotate(var(--dir, 0rad)) translateX(25px); }
+.chat-beacon .cb-arrow::before { content: ""; position: absolute; left: -3px; top: -6px; border: 6px solid transparent; border-left: 8px solid var(--accent); border-right: 0; }
+.chat-beacon:hover { background: var(--ui-float-hover); }
+.chat-beacon:hover .cb-face { scale: 1.06; }
+.chat-beacon:active .cb-face { scale: .94; }
+.chat-beacon:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* "Show this robot" in the chat header: the viewfinder closes in on the robot as it is pressed. */
+.cp-locate svg path:first-child { transition: transform var(--dur-hover) var(--ease-out-strong); transform-origin: 8px 8px; transform-box: view-box; }
+.cp-locate:hover svg path:first-child { transform: scale(.9); }
+.cp-locate.going svg path:first-child { animation: locate-close 360ms var(--ease-out-strong); }
+.cp-locate.going .ic-bot { animation: locate-bot 360ms var(--ease-out-strong); transform-origin: 8px 9px; transform-box: view-box; }
+@keyframes locate-close { 0% { transform: scale(1); } 40% { transform: scale(.78); } 100% { transform: scale(1); } }
+@keyframes locate-bot { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-mark.ping, .cp-locate.going svg path, .cp-locate.going .ic-bot { animation: none; }
+  .chat-mark.ping .cm-ping { animation: chat-mark-fade 600ms var(--ease-out) both; }
+  .chat-beacon, .chat-beacon .cb-face, .cp-locate svg path:first-child { transition: none; }
+  .chat-beacon:hover .cb-face, .chat-beacon:active .cb-face, .cp-locate:hover svg path:first-child { scale: none; transform: none; }
+}
+@keyframes chat-mark-fade { 0% { opacity: .7; } 100% { opacity: 0; } }

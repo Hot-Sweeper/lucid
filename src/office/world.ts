@@ -30,6 +30,7 @@ import { WorldCameraInput } from "./world/camera-input";
 import { WorldCameraFocus } from "./world/camera-focus";
 import { WorldCampus } from "./world/campus";
 import { WorldHarnessSwap, type SwapRun } from "./world/harness-swap";
+import { WorldChatMark } from "./world/chat-mark";
 import type { WThread, WorldData, Room, RoomKind, RoomExtension, PhysicalRoomPlan, OfficeLayout } from "./world/types";
 import { HALL } from "./world/geometry";
 export type { WThread, WProject, WorldData, OfficeLayout, RoomKind, Room, RoomExtension } from "./world/types";
@@ -44,7 +45,7 @@ export type { WThread, WProject, WorldData, OfficeLayout, RoomKind, Room, RoomEx
 // onto World, and the interface merge gives World their types. This file keeps the state they
 // share, the constructor, settling a thread into its room, empty desks and saved layouts.
 
-export interface World extends WorldRouting, WorldJourneys, WorldOutdoors, WorldRooms, WorldLayout, WorldDesks, WorldDeskDrag, WorldCameraView, WorldCameraInput, WorldCameraFocus, WorldCampus, WorldHarnessSwap {}
+export interface World extends WorldRouting, WorldJourneys, WorldOutdoors, WorldRooms, WorldLayout, WorldDesks, WorldDeskDrag, WorldCameraView, WorldCameraInput, WorldCameraFocus, WorldCampus, WorldHarnessSwap, WorldChatMark {}
 
 export class World {
   scene: HTMLElement;
@@ -104,6 +105,13 @@ export class World {
   swaps = new Map<string, SwapRun>();
   /** A resting worker picked for a swap: its room's door hand-over starts its walk to the desk. */
   swapArrivals = new Map<string, { id: string; resolve: (at: Pt | null, face?: Facing) => void }>();
+  /** The open chat's thread and its marks in the world (world/chat-mark.ts). */
+  chatThread: string | null = null;
+  chatTag: HTMLElement | null = null;
+  chatBeacon: HTMLButtonElement | null = null;
+  chatMarkTimer = 0;
+  chatPingTimer = 0;
+  hoverRobot: HTMLElement | null = null;
   /** A thread's worker changed (the chat header shows the new name). */
   onWorkerSwap: (threadId: string) => void = () => {};
 
@@ -323,7 +331,7 @@ export class World {
     this.root = scene.querySelector(".world")!;
     this.roomLayer = scene.querySelector(".room-layer")!;
     this.deskLayer = scene.querySelector(".desk-layer")!;
-    if (!hostWorld) { this.mountTouchInput(); this.camera(); }
+    if (!hostWorld) { this.mountTouchInput(); this.camera(); this.mountChatMark(); }
     document.addEventListener('visibilitychange', this.visibilityPresentation);
     if (!hostWorld) window.addEventListener('pagehide', () => document.removeEventListener('visibilitychange', this.visibilityPresentation), { once: true });
     this.daylight();
@@ -565,4 +573,4 @@ export class World {
 
 // --- room art (top-down) -----------------------------------------------------------------
 
-mixin(World, WorldRouting, WorldJourneys, WorldOutdoors, WorldRooms, WorldLayout, WorldDesks, WorldDeskDrag, WorldCameraView, WorldCameraInput, WorldCameraFocus, WorldCampus, WorldHarnessSwap);
+mixin(World, WorldRouting, WorldJourneys, WorldOutdoors, WorldRooms, WorldLayout, WorldDesks, WorldDeskDrag, WorldCameraView, WorldCameraInput, WorldCameraFocus, WorldCampus, WorldHarnessSwap, WorldChatMark);
