@@ -17,7 +17,7 @@ export function mountRoomList(app: App) {
       const pin = office && app.world.isRoomExpanded(r.id);
       return `<li class="room-list-row">
         ${movableRoom(r.id) ? `<button type="button" class="room-grab" data-room-id="${esc(r.id)}" aria-label="Move ${esc(r.title)}" title="Drag to reorder ${esc(r.title)}. Click for move options.">${uiIcon("grip", 14)}</button>` : ""}
-        <button type="button" class="room-open" data-room="${esc(r.id)}" title="${esc(r.title)}${r.collapsed ? ": open quiet office" : ""}">
+        <button type="button" class="room-open" data-room="${esc(r.id)}" title="${esc(r.title)}${r.collapsed ? ": open folded office" : ""}">
           ${r.icon ? `<img src="${esc(r.icon)}" alt="">` : `<span class="dot ${r.kind}"></span>`}
           <span class="rt">${esc(r.title)}</span><span class="rc">${r.threadIds.length || ""}</span>
         </button>
