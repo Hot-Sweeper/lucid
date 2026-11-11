@@ -88,7 +88,7 @@ export function defineThreadSidebar(app: App) {
     const presentationOf = (t: typeof list[number]) => threadState(t, reviewOf(t), app.delegate.phaseOf(t.id) === "reading");
     const stateOf = (t: typeof list[number]) => {
       const state = presentationOf(t);
-      return state.tone ? statusBadge(state.tone, { detail: state.detail, suffix: state.since ? app.ago(state.since) : "", cls: "th-st", size: 13 }) : `<span class="th-ago" title="${esc(state.detail || "")}">${app.ago(t.updatedAt)}</span>`;
+      return state.tone ? statusBadge(state.tone, { detail: state.detail, suffix: state.since ? app.ago(state.since) : "", cls: "th-st", size: 16 }) : `<span class="th-ago" title="${esc(state.detail || "")}">${app.ago(t.updatedAt)}</span>`;
     };
     const dotOf = (t: typeof list[number]) => presentationOf(t).tone;
     const statusAttr = (t: typeof list[number]) => { const s = dotOf(t); return s ? ` data-status="${s}"` : ""; };

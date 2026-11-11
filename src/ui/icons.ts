@@ -70,9 +70,9 @@ const PATHS = {
   fullscreen: '<path d="M5.5 2.5h-3v3M10.5 2.5h3v3M2.5 10.5v3h3M13.5 10.5v3h-3"/>',
   fullscreenExit: '<path d="M2.5 5.5h3v-3M10.5 2.5v3h3M5.5 13.5v-3h-3M13.5 10.5h-3v3"/>',
   // status vocabulary (src/ui/status.ts)
-  statusWorking: '<circle cx="8" cy="8" r="5.5" stroke-dasharray="2.6 2.2"/>',
+  statusWorking: '<circle cx="8" cy="8" r="6.5" stroke-dasharray="2.6 2.2"/>',
   statusNeeds: '<circle cx="8" cy="8" r="5.5"/><path d="M8 5.2v3.3M8 10.8h.01"/>',
-  statusDone: '<circle cx="8" cy="8" r="5.5"/><path d="M5.8 8.2l1.5 1.5 3-3.2"/>',
+  statusDone: '<circle cx="8" cy="8" r="6.5"/><path d="m6 8 1.33 1.33 2.67-2.67"/>',
   statusSettled: '<path d="M2.5 4.5h11v2.5h-11zM3.5 7v4.5A1.5 1.5 0 0 0 5 13h6a1.5 1.5 0 0 0 1.5-1.5V7M6.5 9.5h3"/>',
 } as const;
 
