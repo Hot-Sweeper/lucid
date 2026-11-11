@@ -113,7 +113,7 @@ function windowName(minutes: number | null): string {
 type LimitRow = { root: HTMLElement; name: HTMLElement; reset: HTMLElement; pace: HTMLElement; bar: HTMLElement; fill: HTMLElement; tick: HTMLElement; pct: HTMLElement };
 type CreditState = "idle" | "confirm" | "busy" | "done" | "error";
 type LimitGroup = { root: HTMLElement; name: HTMLElement; rows: HTMLElement; credit: CreditBox; instanceId: string | null; label: string };
-type CreditBox = { root: HTMLElement; text: HTMLElement; use: HTMLButtonElement; confirm: HTMLElement; ask: HTMLElement; yes: HTMLButtonElement; no: HTMLButtonElement; state: CreditState; usable: boolean };
+type CreditBox = { root: HTMLElement; text: HTMLElement; expiry: HTMLElement; use: HTMLButtonElement; confirm: HTMLElement; ask: HTMLElement; yes: HTMLButtonElement; no: HTMLButtonElement; state: CreditState; usable: boolean };
 
 export type StatsOptions = {
   background?: boolean;
@@ -248,6 +248,13 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
     const use = el("button", "link-btn st-cuse", "Use reset");
     use.type = "button";
     line.append(text, use);
+    const meta = el("div", "st-cmeta");
+    const expiry = el("span", "st-cexpiry");
+    const details = document.createElement("details");
+    details.className = "st-cdetails";
+    const summary = el("summary", "", "Details");
+    details.append(summary, el("p", "", "Credits may be model-specific. T3 does not report which limits each credit covers."));
+    meta.append(expiry, details);
     const confirm = el("div", "st-cconfirm");
     confirm.hidden = true;
     confirm.setAttribute("role", "group");
@@ -257,12 +264,15 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
     const no = el("button", "link-btn st-cno", "Cancel");
     yes.type = no.type = "button";
     actions.append(yes, no);
-    confirm.append(ask, actions);
+    const caution = el("p", "st-ccaution", "May be model-specific. Cannot be undone.");
+    const permission = el("p", "st-cpermission", "T3 provider permission is required.");
+    permission.hidden = true;
+    confirm.append(ask, caution, permission, actions);
     const status = el("p", "st-cstatus");
     status.setAttribute("role", "status");
     status.hidden = true;
-    root.append(line, confirm, status);
-    const box: CreditBox = { root, text, use, confirm, ask, yes, no, state: "idle", usable: false };
+    root.append(line, meta, confirm, status);
+    const box: CreditBox = { root, text, expiry, use, confirm, ask, yes, no, state: "idle", usable: false };
     let clear = 0;
     const set = (state: CreditState, message = "") => {
       box.state = state;
@@ -277,12 +287,18 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
     use.addEventListener("click", async () => {
       const g = limitGroups.get(key);
       if (!g?.instanceId || !options.useResetCredit) return;
-      ask.textContent = `Use the next reset credit for ${g.label}? It may cover only a specific model or limit. Credit coverage is unavailable. Using it cannot be undone.`;
+      ask.textContent = `Use a reset for ${g.label}?`;
+      permission.hidden = true;
+      details.open = false;
       set("confirm");
       no.focus();
+      confirm.scrollIntoView({ block: "nearest" });
       // The first redemption also asks T3 for permission to manage providers; say so up front.
       const allowed = await options.canManageProviders?.().catch(() => true);
-      if (box.state === "confirm" && allowed === false) ask.textContent += " T3 will also give this app permission to manage its providers, used only for reset credits.";
+      if (box.state === "confirm") {
+        permission.hidden = allowed !== false;
+        confirm.scrollIntoView({ block: "nearest" });
+      }
     });
     no.addEventListener("click", () => { set("idle"); use.focus(); });
     confirm.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); set("idle"); use.focus(); } });
@@ -313,7 +329,9 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
     box.root.hidden = !c || (count === 0 && box.state === "idle");
     if (!c) return;
     const expires = c.nextExpiresAt ? Date.parse(c.nextExpiresAt) - now : NaN;
-    setText(box.text, count === 0 ? "No reset credits banked" : `${count} reset ${count === 1 ? "credit" : "credits"} (coverage unknown)${Number.isFinite(expires) && expires > 0 ? `, next expires in ${duration(expires)}` : ""}`);
+    setText(box.text, count === 0 ? "No reset credits banked" : `${count} reset ${count === 1 ? "credit" : "credits"}`);
+    setText(box.expiry, Number.isFinite(expires) && expires > 0 ? `Next expires in ${duration(expires)}` : "No expiry reported");
+    box.expiry.hidden = count === 0;
     box.text.title = c.nextExpiresAt ? `Next credit expires ${new Date(c.nextExpiresAt).toLocaleString()}` : "";
     box.usable = count > 0 && !!h.instanceId && !!options.useResetCredit;
     box.use.hidden = !box.usable || box.state === "confirm" || box.state === "busy";
