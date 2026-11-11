@@ -76,6 +76,8 @@ body.th-dragging, body.th-dragging * { user-select: none !important; cursor: gra
 .cpc-two { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .cpc-proj { font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cp-refchip .cpc-name { font-weight: 500; }
+.cp-refchip.flash { animation: cp-chip-flash 800ms var(--ease-out); }
+@keyframes cp-chip-flash { from { background-color: color-mix(in srgb, var(--accent) 35%, transparent); } }
 .cp-refchip.preview { padding-right: 10px; background: color-mix(in srgb, var(--accent) 10%, transparent); outline: 1.5px dashed color-mix(in srgb, var(--accent) 75%, transparent); outline-offset: -1.5px; }
 /* a sent message: the threads it referenced */
 .cp-reffile { max-width: 280px; }

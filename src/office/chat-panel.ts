@@ -325,7 +325,8 @@ export class ChatPanel {
     }
     this.renderChips();
     const chip = this.el.querySelector(`.cp-refchip[data-ref="${CSS.escape(ref.id)}"]`) as HTMLElement | null;
-    if (chip && state === "dup") gsap.fromTo(chip, { backgroundColor: "rgba(255, 159, 90, 0.35)" }, { backgroundColor: "rgba(255, 255, 255, 0.07)", duration: 0.8, clearProps: "backgroundColor" });
+    // an already referenced thread: its chip flashes in the accent (panels.css .cp-refchip.flash)
+    if (chip && state === "dup") { chip.classList.remove("flash"); void chip.offsetWidth; chip.classList.add("flash"); chip.addEventListener("animationend", () => chip.classList.remove("flash"), { once: true }); }
     if (state === "own") this.note("That is this robot's own thread, so there is nothing to reference.");
     (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
     return chip;
