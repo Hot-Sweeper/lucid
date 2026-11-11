@@ -2,7 +2,7 @@
 import { gameSound } from "../office/sound";
 import { openDecorate, type RoomTheme } from "../office/decorate";
 import { Delegate } from "../office/delegate";
-import { showMenu, confirmDialog } from "../office/menus";
+import { showMenu, confirmDialog, noticeDialog } from "../office/menus";
 import { openHire, BUILTIN_ROLES } from "../office/hire";
 import { openCustomizeFor } from "../office/customize";
 import { movableRoom } from "../office/room-order";
@@ -30,8 +30,8 @@ export function defineMenus(app: App) {
       const room = slot.split("#")[0];
       showMenu(x, y, room === "main" ? "Drag a thread here from the sidebar" : "Free desk", [
         ...(room === "main" ? [] : [{ label: "Hire someone for this desk", run: () => app.world.onFreeDesk(d, slot, x, y) }]),
-        ...(app.world.canRemoveEmptyDesk(slot) ? [{ label: "Remove this desk", run: () => app.world.onRemoveEmptyDesk(slot) }] : []),
-        ...(app.world.emptyDeskSlots(room).length > 1 ? [{ label: "Remove empty desks in this office", run: () => applyDeskRemoval(() => app.world.removeEmptyDesks(room)) }] : []),
+        ...(app.world.canRemoveEmptyDesk(slot) ? [{ label: "Remove this desk", danger: true, run: () => app.world.onRemoveEmptyDesk(slot) }] : []),
+        ...(app.world.emptyDeskSlots(room).length > 1 ? [{ label: "Remove empty desks in this office", danger: true, run: () => applyDeskRemoval(() => app.world.removeEmptyDesks(room)) }] : []),
       ]);
     };
     const hireForOffice = (room: string, idx: number, intent?: "thread" | "delegate") => {
@@ -108,7 +108,7 @@ export function defineMenus(app: App) {
       ];
       const deco = { label: "Decorate", run: () => decorate(room) };
       const free = app.world.emptyDeskSlots(room.id).length;
-      const cleanup = free ? [{ label: `Remove ${free} empty desk${free === 1 ? "" : "s"}`, run: () => applyDeskRemoval(() => app.world.removeEmptyDesks(room.id)) }] : [];
+      const cleanup = free ? [{ label: `Remove ${free} empty desk${free === 1 ? "" : "s"}`, danger: true, run: () => applyDeskRemoval(() => app.world.removeEmptyDesks(room.id)) }] : [];
       const policy = { label: app.world.isRoomExpanded(room.id) ? "Collapse office" : "Expand office", run: () => app.world.setRoomExpanded(room.id, !app.world.isRoomExpanded(room.id)) };
       const order = app.world.orderRooms(app.world.rooms.filter((r) => movableRoom(r.id)));
       const index = order.findIndex((r) => r.id === room.id);
@@ -136,7 +136,7 @@ export function defineMenus(app: App) {
             "T3 removes the project only if it has no threads left. Threads are never deleted from here. You can add the folder again any time.", "Remove project");
           if (!ok) return;
           try { await api.removeProject({ id: pid }); void app.refresh(); }
-          catch (err: any) { await confirmDialog("T3 kept the project", String(err.message || err), "OK"); }
+          catch (err: any) { await noticeDialog("T3 kept the project", String(err.message || err)); }
         } },
       ]);
     };

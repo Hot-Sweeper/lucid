@@ -34,7 +34,7 @@
 .mt-main { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .mt-state { margin: 0; font-size: 15px; color: var(--ink-2, #c3c4dc); }
 /* the shared status word and icon (ui/status.ts), never a coloured capsule */
-.mt-chip { display: inline-block; font-weight: 600; }
+.mt-chip { display: inline-block; font-weight: 600; background: none; }
 .mt-chip[data-state="stopped"] { color: #ffcf8a; }
 .mt-task { margin: 2px 0 0; font-size: 16px; line-height: 1.4; color: var(--ink-2, #c3c4dc); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .mt-label { margin: 6px 0 0; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #9aa0c8; }

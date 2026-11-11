@@ -12,6 +12,7 @@
   --mint: #4ff0a0;
   --danger: #ff8a7a;        /* destructive actions */
   --danger-ink: #ffb4a8;    /* destructive menu items on raised surfaces */
+  --on-danger: #2a0d07;     /* text and icons on danger fills */
   /* Colours a light palette must change (themes/t3.css sets them for a light T3 theme). */
   --wash: #fff;             /* translucent hover and selection fills: color-mix(var(--wash) N%, transparent) */
   --ink-hi: #fff;           /* the strongest text: chat headings, the selected thread */

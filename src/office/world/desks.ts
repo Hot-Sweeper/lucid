@@ -157,6 +157,9 @@ export class WorldDesks {
       if (!d.threadId) { this.onFreeDeskMenu(d, [...this.slotDesks.entries()].find(([, v]) => v === d)?.[0] ?? "", e.clientX, e.clientY); return; }
       this.select(d); this.onDeskMenu(d, e.clientX, e.clientY);
     });
+    // A double click zooms into the screen; it must not also select a word on it (an unfocused
+    // window paints that selection as a grey box, which read as a broken status badge).
+    d.el.addEventListener("mousedown", (e) => { if (e.detail > 1 && !(e.target as Element).closest("input, textarea, select, [contenteditable]")) e.preventDefault(); });
     d.monitor.addEventListener("click", (e) => {
       if (this.dragged || !d.threadId) return;
       e.stopPropagation();

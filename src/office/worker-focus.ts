@@ -47,7 +47,7 @@ export function openWorkerFocus(o: WorkerFocusOptions) {
           <button type="button" class="primary wf-chat" hidden>Open chat</button>
           <button type="button" class="ghost wf-customize">Customize</button>
           <button type="button" class="ghost wf-retrain">Retrain</button>
-          <button type="button" class="ghost wf-retire">Retire</button>
+          <button type="button" class="ghost danger wf-retire">Retire</button>
         </div>
         <div class="wf-retrain-box" hidden>
           <label class="hire-field"><span>Harness</span><select data-wf="provider"></select></label>
@@ -56,7 +56,7 @@ export function openWorkerFocus(o: WorkerFocusOptions) {
         </div>
         <div class="wf-retire-box" hidden>
           <p></p>
-          <div><button type="button" class="primary wf-retire-yes">Retire</button><button type="button" class="ghost wf-retire-no">Keep working</button></div>
+          <div><button type="button" class="primary danger wf-retire-yes">Retire</button><button type="button" class="ghost wf-retire-no">Keep working</button></div>
         </div>
         <p class="wf-note" role="status"></p>
         <button type="button" class="link-btn wf-wall">Staff wall</button>

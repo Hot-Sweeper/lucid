@@ -56,11 +56,21 @@ export function showMenu(x: number, y: number, title: string, items: MenuItem[],
   (m.querySelector("input, button") as HTMLElement | null)?.focus();
 }
 
+/** Asks before a destructive action: Cancel (focused) and the action in the danger style. */
 export function confirmDialog(title: string, body: string, action: string): Promise<boolean> {
+  return dialog(title, body, action, true);
+}
+
+/** Tells the user something went wrong: one plain OK, nothing destructive about it. */
+export function noticeDialog(title: string, body: string): Promise<void> {
+  return dialog(title, body, "OK", false).then(() => undefined);
+}
+
+function dialog(title: string, body: string, action: string, destructive: boolean): Promise<boolean> {
   return new Promise((resolve) => {
     const wrap = document.createElement("div");
     wrap.className = "dialog-wrap";
-    wrap.innerHTML = `<div class="dialog" role="alertdialog" aria-modal="true"><h2></h2><p></p><div class="dialog-actions"><button type="button" class="ghost" data-a="no">Cancel</button><button type="button" class="primary danger" data-a="yes"></button></div></div>`;
+    wrap.innerHTML = `<div class="dialog" role="alertdialog" aria-modal="true"><h2></h2><p></p><div class="dialog-actions">${destructive ? '<button type="button" class="ghost" data-a="no">Cancel</button><button type="button" class="primary danger" data-a="yes"></button>' : '<button type="button" class="primary" data-a="yes"></button>'}</div></div>`;
     wrap.querySelector("h2")!.textContent = title;
     wrap.querySelector("p")!.textContent = body;
     (wrap.querySelector('[data-a="yes"]') as HTMLElement).textContent = action;
@@ -74,7 +84,7 @@ export function confirmDialog(title: string, body: string, action: string): Prom
       else if (e.target === wrap) done(false);
     });
     gsap.fromTo(wrap.querySelector(".dialog"), { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.2 });
-    (wrap.querySelector('[data-a="no"]') as HTMLElement).focus();
+    (wrap.querySelector<HTMLElement>('[data-a="no"]') ?? wrap.querySelector<HTMLElement>('[data-a="yes"]'))?.focus();
   });
 }
 

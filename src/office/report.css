@@ -16,7 +16,9 @@
 .paper-verdict .paper-icon { width:30px; height:30px; grid-row:span 2; }
 .paper-verdict strong { font-size:17px; }
 .paper-verdict span { font-size:11px; color:var(--paper-muted); }
-.paper-verdict[data-state=settled],.paper-row-state[data-state=settled] { color:#37815f; }
+/* The status vocabulary's meanings on paper: approved work is done (green), settled work is filed away (quiet ink, archive tray). */
+.paper-verdict[data-state=approved],.paper-row-state[data-state=approved] { color:#37815f; }
+.paper-verdict[data-state=settled],.paper-row-state[data-state=settled] { color:var(--paper-muted); }
 .paper-verdict[data-state=changes-requested],.paper-verdict[data-state=manual-review] { color:#b26a37; }
 .paper-resources { display:flex; flex-wrap:wrap; column-gap:30px; row-gap:10px; padding:14px 0; color:var(--paper-muted); font-size:12px; }
 .paper-resources > div { display:flex; align-items:center; gap:8px; }

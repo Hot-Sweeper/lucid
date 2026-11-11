@@ -746,7 +746,8 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .cq-edit div { display: flex; align-items: center; gap: 6px; }
 .cq-edit div span { margin-left: auto; font-size: 11px; color: var(--ink-3); }
 .cq-save, .cq-yes { border: 0; border-radius: var(--radius-md); padding: 5px 11px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; background: var(--accent); color: var(--accent-ink); }
-.cq-yes { background: #ffb4a8; color: #2a0d07; }
+.cq-yes { background: var(--danger); color: var(--on-danger); }
+.cq-yes:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 82%, #fff); }
 .cq-save:disabled, .cq-yes:disabled { opacity: 0.6; cursor: progress; }
 .cq-discard, .cq-no { padding: 5px 10px; font-size: 12.5px; }
 .cq-save:focus-visible, .cq-yes:focus-visible, .cq-discard:focus-visible, .cq-no:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -816,7 +817,7 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 .world[data-label-detail="compact"] .desk-plate[data-compact-title]:not([data-compact-title=""]) { max-width: 140px; }
 
 /* Vacant furniture can be removed without opening a hiring dialog. */
-.empty-desk-remove { position:absolute; left:289px; top:0; z-index:8; display:grid; place-items:center; width:30px; height:30px; padding:0; border:0; border-radius:6px; background:var(--night-2); color:var(--ink-2); cursor:pointer; transition:background 130ms,transform 130ms cubic-bezier(.23,1,.32,1); }
+.empty-desk-remove { position:absolute; left:289px; top:0; z-index:8; display:grid; place-items:center; width:30px; height:30px; padding:0; border:0; border-radius:6px; background:var(--night-2); color:var(--danger-ink); cursor:pointer; transition:background 130ms,transform 130ms cubic-bezier(.23,1,.32,1); }
 .desk-unit:not(.empty) .empty-desk-remove { display:none; }
 .empty-desk-remove:hover { background:color-mix(in srgb, var(--danger) 22%, var(--night-2)); color:var(--danger-ink); }
 .empty-desk-remove:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }

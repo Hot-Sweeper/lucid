@@ -1,6 +1,6 @@
 // Thread actions: referencing a thread in the chat, pins, thread menus and moving threads between offices.
 import { gameSound } from "../office/sound";
-import { showMenu, confirmDialog } from "../office/menus";
+import { showMenu, confirmDialog, noticeDialog } from "../office/menus";
 import { wireThreadDrag } from "../office/thread-drag";
 import type { ThreadRef } from "../office/thread-ref";
 import { $ } from "./dom";
@@ -31,7 +31,7 @@ export function defineThreadActions(app: App) {
     if (!t || t.settled || id === app.world.orchThread) return [];
     return [{ label: t.pinned ? "Unpin in T3" : "Pin in T3", run: async () => {
       try { await (window as any).lucidT3.pin({ threadId: id, pinned: !t.pinned }); gameSound.play("clip"); await app.refresh(); app.renderThreads(true); }
-      catch (err: any) { void confirmDialog(t.pinned ? "T3 kept the thread pinned" : "T3 did not pin the thread", String(err?.message || err), "OK"); }
+      catch (err: any) { void noticeDialog(t.pinned ? "T3 kept the thread pinned" : "T3 did not pin the thread", String(err?.message || err)); }
     } }];
   };
 
@@ -42,13 +42,13 @@ export function defineThreadActions(app: App) {
     const items: any[] = [];
     if (RUNNING.has((t.runStatus ?? "").toLowerCase())) items.push({ label: "Stop", run: async () => {
       try { await t3.stop({ threadId: id }); gameSound.play("switch"); await app.refresh(); }
-      catch (err: any) { void confirmDialog("T3 did not stop the thread", String(err?.message || err), "OK"); }
+      catch (err: any) { void noticeDialog("T3 did not stop the thread", String(err?.message || err)); }
     } });
     items.push({ input: "Rename", placeholder: "Thread name", value: t.title || "", submit: "Rename", run: async (title: string) => { await t3.rename({ threadId: id, title }); await app.refresh(); app.renderThreads(true); } });
     if (id !== app.world.orchThread && !RUNNING.has((t.runStatus ?? "").toLowerCase())) items.push({ label: "Archive in T3", danger: true, run: async () => {
       if (!await confirmDialog("Archive this thread?", "It leaves the office and T3's thread list. Archived threads stay in T3, where you can restore them.", "Archive")) return;
       try { await t3.archive({ threadId: id }); gameSound.play("paper"); await app.refresh(); app.renderThreads(true); }
-      catch (err: any) { void confirmDialog("T3 did not archive the thread", String(err?.message || err), "OK"); }
+      catch (err: any) { void noticeDialog("T3 did not archive the thread", String(err?.message || err)); }
     } });
     return items;
   };

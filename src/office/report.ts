@@ -42,7 +42,7 @@ export async function showReport(id: string, title: string, openThread: () => vo
       <div class="paper-owner">
         <div class="paper-portrait">${reportPortrait(p.provider, p.robot.look || {})}</div>
         <div class="paper-owner-name"><strong>${esc(p.robot.name)}</strong><span>${esc(p.project)}</span>${identity(p)}</div>
-        <div class="paper-verdict" data-state="${esc(p.status)}">${reportIcon(p.status === "settled" ? "check" : "paper")}<strong>${esc(state(p.status))}</strong><span>${p.reviewer ? `Reviewed by ${esc(p.reviewer)}` : "Waiting at the review desk"}</span></div>
+        <div class="paper-verdict" data-state="${esc(p.status)}">${reportIcon(p.status === "settled" ? "settled" : p.status === "approved" ? "check" : "paper")}<strong>${esc(state(p.status))}</strong><span>${p.reviewer ? `Reviewed by ${esc(p.reviewer)}` : "Waiting at the review desk"}</span></div>
       </div>
       <div class="paper-thread"><a href="${esc(threadUrl(p.threadId))}" data-related-thread="${esc(p.threadId)}">Open source thread</a><code>${esc(p.threadId)}</code><button type="button" class="ghost" data-copy-thread>Copy ID</button></div>
       ${team.length > 1 ? `<section class="paper-team"><h3>${reportIcon("crew")}Team</h3><ul>${team.map((m: any) => `<li>${m.robot?.look ? reportPortrait(m.provider || p.provider, m.robot.look, 64) : (logoFor(m.provider, "light") ? `<img class="paper-harness-logo" src="${logoFor(m.provider, "light")}" alt="">` : reportIcon("crew"))}<div><a href="${esc(threadUrl(m.threadId))}" data-related-thread="${esc(m.threadId)}">${esc(m.robot?.name || m.title || "Contributor")}</a><span class="paper-team-role">${esc(m.role)}${m.runIds?.length ? `, ${m.runIds.length} ${m.runIds.length === 1 ? "run" : "runs"}` : ""}</span>${identity(m)}</div></li>`).join("")}</ul></section>` : ""}
@@ -176,7 +176,7 @@ export async function showReportArchive(openThread: (id: string) => void) {
       list.replaceChildren();
       for (const p of matches) {
         const row = document.createElement("button"); row.type = "button"; row.className = "paper-register-row";
-        row.innerHTML = `${reportPortrait(p.provider, p.robot.look || {}, 62)}<div><strong>${esc(p.title)}</strong><span>${esc(p.robot.name)}, ${esc(p.project)}</span><time>${esc(date(p.submittedAt))}</time></div><span class="paper-row-state" data-state="${esc(p.status)}">${reportIcon(p.status === "settled" ? "check" : "paper")}${esc(state(p.status))}</span>`;
+        row.innerHTML = `${reportPortrait(p.provider, p.robot.look || {}, 62)}<div><strong>${esc(p.title)}</strong><span>${esc(p.robot.name)}, ${esc(p.project)}</span><time>${esc(date(p.submittedAt))}</time></div><span class="paper-row-state" data-state="${esc(p.status)}">${reportIcon(p.status === "settled" ? "settled" : p.status === "approved" ? "check" : "paper")}${esc(state(p.status))}</span>`;
         row.addEventListener("click", () => { view.close(); void showReport(p.threadId, p.title, () => openThread(p.threadId), p.id, openThread); });
         list.appendChild(row);
       }
