@@ -70,7 +70,7 @@ html[data-chrome="mac"] #app:has(> .panel.peeking) ~ .app-wc { background: trans
 html[data-chrome="linux"] #app:has(> .chat-panel.open:not(.tabbed)) ~ .app-wc::before { opacity: 1; }
 html:not([data-chrome="linux"]) .app-wc::before { display: none; }
 .wc-btn { position: relative; width: 36px; padding: 0; display: grid; place-items: center; border: 0; background: none; color: var(--ink-3); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color 120ms var(--ease-out-strong, cubic-bezier(.23,1,.32,1)); }
-.wc-btn::before { content: ""; position: absolute; left: 3px; right: 3px; top: calc(50% - 15px); height: 30px; border-radius: 6px; background: transparent; transition: background-color 120ms var(--ease-out-strong, cubic-bezier(.23,1,.32,1)), transform 120ms var(--ease-out-strong, cubic-bezier(.23,1,.32,1)); }
+.wc-btn::before { content: ""; position: absolute; left: 3px; right: 3px; top: calc(50% - 15px); height: 30px; border-radius: var(--radius-sm); background: transparent; transition: background-color 120ms var(--ease-out-strong, cubic-bezier(.23,1,.32,1)), transform 120ms var(--ease-out-strong, cubic-bezier(.23,1,.32,1)); }
 .wc-btn > .ui-icon { position: relative; transition: transform 120ms var(--ease-out-strong, cubic-bezier(.23,1,.32,1)); }
 .wc-btn:hover { color: var(--ink); }
 .wc-btn:hover::before { background: color-mix(in srgb, var(--ink) 10%, transparent); }

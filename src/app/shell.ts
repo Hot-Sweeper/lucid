@@ -22,7 +22,7 @@ export function renderShell(app: App) {
         </div>
       </header>
 
-      <section class="wallet" id="wallet"><button type="button" class="wl-coins" id="wl-coins" aria-haspopup="dialog" aria-expanded="false" title="1 coin for every dollar of AI work at API prices. Open the coin ledger">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></button></section>
+      <section class="wallet" id="wallet"><h3>Coins</h3><button type="button" class="wl-coins" id="wl-coins" aria-haspopup="dialog" aria-expanded="false" title="1 coin for every dollar of AI work at API prices. Open the coin ledger">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></button></section>
 
       <section class="threads">
         <div class="th-head"><h3>Threads</h3><label class="th-search">${uiIcon("search", 14)}<input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label><button type="button" class="primary th-new-task" id="th-new-task" title="Start a new task (Ctrl+N)">${uiIcon("plus", 14)}Task</button><button type="button" class="ghost th-new-project" id="th-new-project" aria-label="New project" title="New project: create a folder or add one you have">${uiIcon("plus", 14)}Project</button>${foldButton("threads", "threads")}</div>
@@ -61,7 +61,7 @@ export function renderShell(app: App) {
       <button type="button" class="link-btn" id="orch-power-attention" hidden></button>
       <button type="button" class="link-btn" id="orch-controls-open" aria-label="Orchestrator settings">Settings</button>
     </section>
-    <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button><button type="button" id="coin-bank" class="coin-bank" aria-haspopup="dialog" aria-expanded="false">${coinIcon(18)}<b id="coin-bank-bal">0</b><span class="coin-label"> coins</span></button><button type="button" id="terrible-song" disabled>Mark song terrible</button><button type="button" id="game-sound" aria-pressed="true">Sound on</button></div>`;
+    <div class="zoom-ui"><button type="button" id="back-btn" hidden>Back to the office</button><button type="button" id="coin-bank" class="coin-bank" aria-haspopup="dialog" aria-expanded="false">${coinIcon(18)}<b id="coin-bank-bal">0</b><span class="coin-label"> coins</span></button><button type="button" id="game-sound" class="hud-icon" aria-label="Game sound" aria-pressed="true"></button></div>`;
 }
 
 export function mountOfficeSettings(app: App) {
@@ -74,17 +74,30 @@ export function mountOfficeSettings(app: App) {
   app.extras.setAttribute("aria-label", "Office and settings");
   app.extras.innerHTML = '<header class="os-head"><h2>Office &amp; settings</h2><button type="button" class="ghost os-close" aria-label="Close">Close</button></header><div class="sidebar-extras-body"></div>';
   app.extrasBody = app.extras.querySelector<HTMLElement>(".sidebar-extras-body")!;
-  mountLanguageSetting(app.extrasBody, () => app.dailyWriter);
-  mountInterfaceThemeSetting(app.extrasBody);
+  // Sections in a fixed order: general choices, sound and radio, the office's rooms, linked
+  // buildings, the Orchestrator and the coin wallet. Each starts with the same quiet heading.
+  const section = (cls: string, title?: string) => {
+    const el = document.createElement("section"); el.className = `os-sec ${cls}`;
+    if (title) { const h = document.createElement("h3"); h.textContent = title; el.appendChild(h); }
+    app.extrasBody.appendChild(el); return el;
+  };
+  const general = section("os-general");
+  mountLanguageSetting(general, () => app.dailyWriter);
+  mountInterfaceThemeSetting(general);
+  // Sliders and the radio are added by app/sound-controls.ts.
+  app.extrasSound = document.createElement("div"); app.extrasSound.className = "os-sound";
+  section("os-sound-sec", "Sound").appendChild(app.extrasSound);
+  for (const selector of [".rooms", "#environment-body", "#orch", "#wallet"]) {
+    const el = document.querySelector(selector);
+    if (el) app.extrasBody.appendChild(el);
+  }
   {
     const wall = document.createElement("button"); wall.type = "button"; wall.className = "link-btn extras-staff-wall"; wall.textContent = "Staff wall";
-    wall.addEventListener("click", () => app.openWall()); app.extrasBody.appendChild(wall);
+    wall.title = "Every robot on the staff wall";
+    wall.addEventListener("click", () => app.openWall()); app.extrasBody.querySelector(".room-links")?.appendChild(wall);
   }
-  mountPerformancePanel(app.extrasBody);
-  for (const selector of ["#environment-body", ".rooms", "#orch", "#wallet"]) {
-    const section = document.querySelector(selector);
-    if (section) app.extrasBody.appendChild(section);
-  }
+  // Developer diagnostics only for development runs (LUCID_DEV_TOOLS=1).
+  if (new URLSearchParams(location.search).has("devTools")) mountPerformancePanel(section("os-dev", "Developer"));
   document.body.appendChild(app.extras);
   $("side-panel").appendChild($("usage"));
   {

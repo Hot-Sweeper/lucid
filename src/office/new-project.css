@@ -1,4 +1,4 @@
-.dialog.new-project { width: min(460px, 100%); padding: 22px 24px; border-radius: 16px; background: var(--night-3); display: flex; flex-direction: column; gap: 14px; }
+.dialog.new-project { width: min(460px, 100%); padding: 22px 24px; border-radius: var(--radius-xl); background: var(--night-3); display: flex; flex-direction: column; gap: 14px; }
 .np-head { display: flex; align-items: center; justify-content: space-between; }
 .np-head h2 { margin: 0; font-size: 20px; font-weight: 650; }
 .np-field { display: flex; flex-direction: column; gap: 5px; }
@@ -12,7 +12,7 @@
 .np-existing button { font-size: 12px; padding: 6px 10px; }
 .np-picked { font: 400 11px "JetBrains Mono", ui-monospace, monospace; color: var(--ink-3); overflow-wrap: anywhere; }
 .new-project p.np-msg { margin: 0; min-height: 1.4em; font-size: 12px; color: var(--accent-2); }
-.th-new-project { flex: none; padding: 4px 6px; font-size: 11px; border-radius: 6px; white-space: nowrap; }
+.th-new-project { flex: none; padding: 4px 6px; font-size: 11px; border-radius: var(--radius-sm); white-space: nowrap; }
 .th-new-project .ui-icon { color: var(--accent-2); }
 .th-head .th-search { flex-basis: 64px; }
 .th-head { column-gap: 8px; }

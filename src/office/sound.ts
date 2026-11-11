@@ -4,7 +4,7 @@ import { SoundtrackQueue, type SoundtrackSong, type SoundtrackMode } from './sou
 import ambienceUrl from '../assets/audio/room-air.opus';
 
 export type MusicState = {
-  song: SoundtrackSong | null; terrible: boolean; mode: SoundtrackMode;
+  song: SoundtrackSong | null; mode: SoundtrackMode;
   chapter: SoundtrackQueue['chapter']; chapterProgress: number; paused: boolean;
   status: 'playing' | 'loading' | 'error' | 'paused' | 'muted' | 'hidden' | 'locked';
 };
@@ -129,7 +129,6 @@ export class GameSound {
   private spareTheme: BackgroundTrack | null = null;
   private soundtrack = new SoundtrackQueue(SOUNDTRACK);
   private themeSong: SoundtrackSong | null = null;
-  private terribleSongs = new Set<string>();
   private musicPaused = false;
   private musicError = false;
   private musicWaiting = false;
@@ -162,7 +161,6 @@ export class GameSound {
       if (Number.isFinite(saved?.themeVolume)) this.themeVolume = clamp(saved.themeVolume, 0, 1);
       if (Number.isFinite(saved?.ambienceVolume)) this.ambienceVolume = clamp(saved.ambienceVolume, 0, 1);
       this.soundtrack = new SoundtrackQueue(SOUNDTRACK, saved?.soundtrack);
-      if (Array.isArray(saved?.terribleSongs)) this.terribleSongs = new Set(saved.terribleSongs.filter((id: unknown): id is string => typeof id === 'string' && SOUNDTRACK.some(song => song.id === id)));
       if (typeof saved?.musicPaused === 'boolean') this.musicPaused = saved.musicPaused;
       if (typeof saved?.currentTheme?.id === 'string') {
         this.themeSong = SOUNDTRACK.find(song => song.id === saved.currentTheme.id) ?? null;
@@ -189,7 +187,7 @@ export class GameSound {
       : this.context?.state !== 'running' ? 'locked'
       : track?.pending || this.musicWaiting ? 'loading'
       : track && !track.media.paused ? 'playing' : 'paused';
-    return { song: this.themeSong, terrible: !!this.themeSong && this.terribleSongs.has(this.themeSong.id), mode: this.soundtrack.mode, chapter: this.soundtrack.chapter,
+    return { song: this.themeSong, mode: this.soundtrack.mode, chapter: this.soundtrack.chapter,
       chapterProgress: this.soundtrack.chapterProgress, paused: this.musicPaused, status };
   }
   subscribeMusic(listener: (state: MusicState) => void) {
@@ -201,20 +199,13 @@ export class GameSound {
   private notifyMusic() {
     const state = this.musicState;
     // Chapter progress is UI guidance, not a per-frame animation or clock.
-    const signature = JSON.stringify([state.song?.id, state.terrible, state.mode, state.chapter.id,
+    const signature = JSON.stringify([state.song?.id, state.mode, state.chapter.id,
       Math.floor(state.chapterProgress * 100), state.paused, state.status]);
     if (signature === this.musicSignature) return;
     this.musicSignature = signature;
     for (const listener of this.musicListeners) {
       try { listener(state); } catch { /* A stale control cannot interrupt sound. */ }
     }
-  }
-  toggleTerribleSong() {
-    if (this.disposed || !this.themeSong) return;
-    const id = this.themeSong.id;
-    if (this.terribleSongs.has(id)) this.terribleSongs.delete(id);
-    else this.terribleSongs.add(id);
-    this.save(); this.notifyMusic();
   }
   configureMusic(mode: SoundtrackMode) {
     if (this.disposed) return;
@@ -480,7 +471,7 @@ export class GameSound {
   }
   private save() {
     const position = this.background.get('theme')?.media.currentTime ?? this.restoredPosition;
-    try { localStorage.setItem(KEY, JSON.stringify({ terribleSongs: [...this.terribleSongs], enabled: this.enabled, volume: this.volume, themeVolume: this.themeVolume, ambienceVolume: this.ambienceVolume, musicPaused: this.musicPaused, currentTheme: this.themeSong ? { id: this.themeSong.id, position: Number.isFinite(position) ? position : 0 } : null, soundtrack: this.soundtrack.state })); } catch { /* Optional persistence. */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ enabled: this.enabled, volume: this.volume, themeVolume: this.themeVolume, ambienceVolume: this.ambienceVolume, musicPaused: this.musicPaused, currentTheme: this.themeSong ? { id: this.themeSong.id, position: Number.isFinite(position) ? position : 0 } : null, soundtrack: this.soundtrack.state })); } catch { /* Optional persistence. */ }
   }
   private visibility = () => {
     if (document.hidden) {

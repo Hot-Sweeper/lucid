@@ -31,21 +31,22 @@ export type ThemeDef = {
   world: WorldLook;
 };
 
-// Follow T3 takes the colours of the theme active in T3 Code (themes/t3-theme.ts). Its scheme,
-// window colour and world change with that theme, so this entry is updated in place.
-const DARK_WORLD: WorldLook = { alwaysMidnight: true, nightSky: { sky1: "#000000", sky2: "#08080b" }, artShade: 0.78, mapEdge: "#000000" };
+// Follow T3 takes the colours of the theme active in T3 Code (themes/t3-theme.ts). Its scheme and
+// window colour change with that theme, so this entry is updated in place. The office world keeps
+// the warm season art and real time-of-day light under every T3 palette: a dark interface must not
+// crush the park and rooms into black (only OLED black chooses the moonlit office on purpose).
+const WARM_WORLD: WorldLook = { alwaysMidnight: false, artShade: 0 };
 export const T3_THEME: ThemeDef = {
   id: "t3",
   label: { en: "Follow T3", de: "Wie T3" },
   metaColor: "#000000",
   appScheme: "dark",
-  world: DARK_WORLD,
+  world: WARM_WORLD,
 };
-/** A light T3 theme keeps the warm daylight office; a dark one takes the moonlit office of OLED black. */
-export function setT3Look(appearance: "light" | "dark", canvas: string, raised: string) {
+/** Follows T3's appearance: window colour and the computers' app scheme. The office stays warm. */
+export function setT3Look(appearance: "light" | "dark", canvas: string) {
   T3_THEME.metaColor = canvas;
   T3_THEME.appScheme = appearance;
-  T3_THEME.world = appearance === "dark" ? { ...DARK_WORLD, nightSky: { sky1: canvas, sky2: raised }, mapEdge: canvas } : { alwaysMidnight: false, artShade: 0 };
 }
 
 export const THEMES: readonly ThemeDef[] = [

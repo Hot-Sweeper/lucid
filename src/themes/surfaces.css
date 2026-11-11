@@ -39,8 +39,6 @@ html:root[data-theme] .cp-drop { background: var(--ui-drop-scrim); }
 html:root[data-theme] .wx-menu { background: var(--ui-menu); outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 html:root[data-theme] .office-settings { outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 html:root[data-theme] .dialog-wrap { background: var(--ui-scrim); }
-html:root[data-theme] .zoom-ui > button,
-html:root[data-theme] .zoom-ui > button:hover,
 html:root[data-theme] .cp-tab:hover { background: var(--ui-hover); }
 html:root[data-theme] .cp-tab.ref-over { background: var(--ui-drop); }
 html:root[data-theme] .th-ghost.over { background: var(--ui-ghost-over); }

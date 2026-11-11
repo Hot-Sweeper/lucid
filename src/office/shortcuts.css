@@ -7,5 +7,5 @@
 .help-cols dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 9px 14px; margin: 0; font-size: 13px; line-height: 1.45; }
 .help-cols dt { color: var(--ink); font-weight: 600; white-space: nowrap; }
 .help-cols dd { margin: 0; color: var(--ink-2); }
-.help-cols kbd { display: inline-block; min-width: 18px; padding: 1px 6px; margin: 0 1px; border-radius: 5px; background: var(--night-2); border: 1px solid var(--line); box-shadow: 0 2px 0 rgba(4, 6, 24, 0.5); font: 500 11.5px var(--font); text-align: center; color: var(--ink); }
+.help-cols kbd { display: inline-block; min-width: 18px; padding: 1px 6px; margin: 0 1px; border-radius: var(--radius-sm); background: var(--night-2); border: 1px solid var(--line); box-shadow: 0 2px 0 rgba(4, 6, 24, 0.5); font: 500 11.5px var(--font); text-align: center; color: var(--ink); }
 @media (max-width: 720px) { .help-cols { grid-template-columns: 1fr; } .help-cols dt { white-space: normal; } }

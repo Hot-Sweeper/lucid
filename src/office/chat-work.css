@@ -9,7 +9,7 @@
 .cp-worked > summary { list-style: none; display: flex; align-items: center; gap: 6px; min-width: 0; padding: 2px 4px 8px; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 1.5; color: var(--ink-3); cursor: pointer; user-select: none; font-variant-numeric: tabular-nums; }
 .cp-worked > summary::-webkit-details-marker { display: none; }
 .cp-worked > summary:hover { color: var(--ink-2); }
-.cp-worked > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.cp-worked > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
 .cw-head { flex: none; }
 .cw-chev { flex: none; transition: transform 0.15s ease; }
 .cp-worked[open] > summary .cw-chev { transform: rotate(90deg); }
@@ -17,10 +17,10 @@
 .cw-bad { flex: none; margin-left: auto; color: var(--cw-bad); }
 .cp-worked-body { display: flex; flex-direction: column; gap: 10px; padding: 10px 0 12px; border-bottom: 1px solid var(--line); }
 .cp-worked-body .cp-msg.bot .cp-text { color: var(--ink-2); font-size: 13.5px; line-height: 1.55; }
-.cw-scroll { max-height: min(18rem, 50vh); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border-radius: 6px; }
+.cw-scroll { max-height: min(18rem, 50vh); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border-radius: var(--radius-sm); }
 .cw-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .cw-list { list-style: none; margin: 0; padding: 0 2px; display: flex; flex-direction: column; min-width: 0; }
-.cw-list li { display: flex; align-items: center; gap: 8px; min-width: 0; height: 26px; padding: 0 6px; border-radius: 6px; font-size: 12.5px; color: var(--ink-3); }
+.cw-list li { display: flex; align-items: center; gap: 8px; min-width: 0; height: 26px; padding: 0 6px; border-radius: var(--radius-sm); font-size: 12.5px; color: var(--ink-3); }
 .cw-list li:hover { background: color-mix(in srgb, var(--wash) 4%, transparent); }
 .cw-list li > svg { flex: none; opacity: 0.8; }
 .cw-list li > b { flex: none; max-width: 60%; font-weight: 500; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -42,7 +42,7 @@
 /* ---- T3's timeline, in the app's palette ---- */
 /* Your message: a quiet raised bubble (T3's bg-message) with a faint warm tint, not a loud block. */
 .chat-panel .cp-msg.you { --bubble: color-mix(in srgb, var(--night-3) 82%, var(--accent) 18%); }
-.chat-panel .cp-msg.you .cp-text { background: var(--bubble); color: var(--ink); border-radius: 16px; padding: 10px 13px; }
+.chat-panel .cp-msg.you .cp-text { background: var(--bubble); color: var(--ink); border-radius: var(--radius-xl); padding: 10px 13px; }
 /* a folded long message fades into its own bubble color, not the old peach */
 .chat-panel .cp-msg.you.long .cp-text { overflow: hidden; }
 .chat-panel .cp-msg.you.long .cp-text::after { background: linear-gradient(to bottom, transparent, var(--bubble)); border-radius: 0 0 16px 16px; }
@@ -61,7 +61,7 @@
 
 /* Tool groups: one summary line with an icon, opening into the calls (T3 WorkGroupHeader). */
 .cw-group { min-width: 0; }
-.cw-toggle { width: 100%; min-width: 0; display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px; border: 0; border-radius: 6px; background: none; color: var(--ink-3); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.cw-toggle { width: 100%; min-width: 0; display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink-3); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 .cw-toggle:hover { background: color-mix(in srgb, var(--wash) 4%, transparent); color: var(--ink-2); }
 .cw-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .cw-toggle > svg:first-child { flex: none; opacity: 0.8; }

@@ -1,8 +1,9 @@
 /* Follow T3: the palette of the theme active in T3 Code. themes/t3-theme.ts sets T3's colours
    as --t3-* on <html> (sRGB hex, text and accent ink already lifted to WCAG AA by
    electron/t3-theme.cjs) and data-t3-appearance="light" | "dark". Everything below derives
-   the app's tokens from those few colours. A dark T3 theme also takes the dark office from
-   oled.css (materials, robots, the computers' apps); a light one keeps the warm daylight office.
+   the app's tokens from those few colours, including the one accent every interactive control
+   uses. A dark T3 theme also takes the computers' dark apps from oled.css; the office world keeps
+   its warm art and time-of-day light under every T3 palette.
    The [data-t3-appearance] attribute in each selector keeps these rules above that shared block. */
 :root[data-theme="t3"][data-t3-appearance] {
   color-scheme: light;
@@ -17,6 +18,9 @@
   --line: var(--t3-border);
   --accent: var(--t3-accent);
   --accent-2: var(--t3-accent-text);
+  --accent-ink: var(--t3-accent-ink);
+  --link: var(--t3-accent-text);
+  --link-hover: color-mix(in oklab, var(--t3-accent-text) 70%, var(--t3-text));
   --ui-chat: var(--t3-canvas);
   --ui-field: var(--t3-surface);
   --ui-code: var(--t3-code);
@@ -33,7 +37,6 @@
   --ui-ghost-over: var(--t3-row-selected);
   --ui-queue: var(--t3-surface);
   --ui-queue-drag: var(--t3-row-selected);
-  --ui-tray: color-mix(in srgb, var(--t3-sidebar) 96%, transparent);
   --ui-plate: var(--t3-control);
   --ui-plate-hover: var(--t3-control-hover);
   --ui-plate-ink: var(--t3-text);
@@ -51,6 +54,11 @@
   --mt-chip-kept: var(--t3-secondary);
   --mt-remove: var(--t3-secondary);
   --mt-viewer-scrim: color-mix(in srgb, var(--t3-canvas) 88%, transparent);
+
+  /* the office world: real time-of-day light with a gentler night, so the park and rooms stay
+     readable beside T3's panels (the art itself keeps its warm season colours, registry.ts) */
+  --world-outdoor-tint-k: 0.62;
+  --world-indoor-shade-k: 0.72;
 
   /* the robots' computers: desktop chrome and the app's own apps in T3's colours */
   --os-ink: var(--t3-text);
@@ -114,7 +122,6 @@
 :root[data-theme="t3"][data-t3-appearance="light"] {
   --wash: var(--t3-text);
   --ink-hi: var(--t3-text);
-  --link: var(--t3-accent-text);
   --link-hover: var(--t3-text);
   --mono-logo-filter: brightness(0);
   --coin-ink: #7f5d02;
@@ -137,12 +144,6 @@
   /* wallpapers keep the OLED light pools, veiled in T3's canvas instead of black */
   --os-veil: var(--t3-canvas);
 }
-
-/* Buttons filled with the accent take T3's accent ink, whatever their component chose for peach. */
-html:root[data-theme="t3"][data-t3-appearance] :is(.update, .reply button, .primary, .sh-play, .uac-btns .uac-yes, .desk-plan-body li[data-state="doing"] .desk-plan-step-number, .cp-send, .cq-save, .cq-yes, .st-cyes) {
-  color: var(--t3-accent-ink);
-}
-html:root[data-theme="t3"][data-t3-appearance] .cm-fast[aria-checked="true"] i::after { background: var(--t3-accent-ink); }
 
 /* Fields that are a faint fill on a dark sidebar read as a bordered field on a light one, like T3. */
 html:root[data-theme="t3"][data-t3-appearance="light"] .th-search { background: var(--t3-surface); box-shadow: inset 0 0 0 1px var(--t3-border); }

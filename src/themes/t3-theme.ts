@@ -49,7 +49,7 @@ export function applyT3Palette(): boolean {
   // Input fields sit a step off the surface, toward the text.
   root.style.setProperty("--t3-input-surface", `color-mix(in oklab, ${p.surface} 93%, ${p.text})`);
   root.dataset.t3Appearance = look;
-  setT3Look(look, p.canvas, p.surfaceRaised);
+  setT3Look(look, p.canvas);
   return true;
 }
 

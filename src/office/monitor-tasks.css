@@ -41,7 +41,7 @@
 .mt-shots { display: flex; flex-direction: column; gap: 10px; width: 210px; }
 .mt-shot { display: block; padding: 0; border: 1px solid #3a4170; border-radius: 10px; overflow: hidden; background: #0f1430; cursor: pointer; }
 .mt-shot img { display: block; width: 208px; height: 117px; object-fit: cover; }
-.mt-shot:hover { border-color: #ff9f5a; }
+.mt-shot:hover { border-color: var(--accent); }
 .monitor-task-done > .mt-actions { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 12px 26px 16px; border-top: 1px solid var(--line, #343b62); }
 .mt-actions > .monitor-task-collect { font: inherit; font-size: 20px; font-weight: 600; padding: 11px 26px; border-radius: 12px; }
 .mt-actions > .monitor-task-collect:disabled { opacity: .7; }
