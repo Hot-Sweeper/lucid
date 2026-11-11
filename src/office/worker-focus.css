@@ -6,11 +6,11 @@
 .wf-float .world-walker, .wf-float .world-say { pointer-events: none; cursor: default; }
 .wf-float .world-walker::before { display: none; }
 .wf-shadow { position: absolute; left: 50%; bottom: 14px; width: 150px; height: 22px; margin-left: -75px; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(0, 0, 0, .5), transparent 70%); }
-.wf-panel { display: flex; flex-direction: column; gap: 12px; min-height: 0; max-height: calc(100dvh - 48px); overflow-y: auto; overscroll-behavior: contain; padding: 22px 24px; border-radius: 16px; background: var(--night-3); color: var(--ink); }
+.wf-panel { display: flex; flex-direction: column; gap: 12px; min-height: 0; max-height: calc(100dvh - 48px); overflow-y: auto; overscroll-behavior: contain; padding: 22px 24px; border-radius: var(--radius-xl); background: var(--night-3); color: var(--ink); }
 .wf-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .wf-head h2 { margin: 0; font-size: 24px; font-weight: 650; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .wf p.wf-setup { margin: 4px 0 0; color: var(--ink-2); font-size: 12px; overflow-wrap: anywhere; }
-.wf .wf-close { flex: none; width: 32px; height: 32px; padding: 0; font-size: 24px; line-height: 1; }
+.wf .wf-close { margin: -4px -6px 0 0; }
 .wf p.wf-job { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
 .wf-record { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 2px 26px; margin: 0; }
 .wf-record dt { grid-row: 2; color: var(--ink-3); font-size: 11px; }
@@ -24,7 +24,7 @@
 .wf-retrain-box { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
 .wf-retrain-box[hidden], .wf-retire-box[hidden] { display: none; }
 .wf-retrain-box .hire-field { flex: 1 1 130px; }
-.wf-retrain-box select { width: 100%; min-height: 32px; font: 400 12px var(--font); color: var(--ink); color-scheme: dark; background: var(--night-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.wf-retrain-box select { width: 100%; min-height: 32px; font: 400 12px var(--font); color: var(--ink); color-scheme: dark; background: var(--night-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 6px 8px; }
 .wf-retrain-box .hire-field > span { color: var(--ink-3); font-size: 11px; }
 .wf-retrain-box button, .wf-retire-box button { font-size: 12px; padding: 8px 12px; }
 .wf-retire-box p { margin: 0 0 8px; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
@@ -38,17 +38,17 @@
   .wf-panel { max-height: none; overflow: visible; padding: 16px; }
 }
 
-.dialog.staff-wall { width: min(760px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; padding: 22px 24px; border-radius: 16px; background: var(--night-3); }
+.dialog.staff-wall { width: min(760px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; padding: 22px 24px; border-radius: var(--radius-xl); background: var(--night-3); }
 .sw-head { display: flex; align-items: center; justify-content: space-between; }
-.sw-head h2 { margin: 0; font-size: 21px; font-weight: 650; }
-.sw-head .sw-close { width: 32px; height: 32px; padding: 0; font-size: 24px; line-height: 1; }
+.sw-head h2 { margin: 0; font-size: 20px; font-weight: 600; }
+.sw-head .sw-close { margin: -4px -6px 0 0; }
 .sw-star { display: flex; align-items: center; gap: 14px; margin: 14px 0 6px; }
 .sw-star[hidden] { display: none; }
 .sw-star b { display: block; font-size: 14px; }
 .sw-star span { font-size: 12px; color: var(--ink-2); }
 .sw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 10px; margin-top: 12px; }
 .sw-cell { display: flex; flex-direction: column; align-items: center; }
-.sw-open { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; background: transparent; border: 0; border-radius: 10px; color: var(--ink); text-align: center; cursor: pointer; }
+.sw-open { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; background: transparent; border: 0; border-radius: var(--radius-lg); color: var(--ink); text-align: center; cursor: pointer; }
 .sw-open:hover, .sw-open:focus-visible { background: color-mix(in srgb, var(--wash) 5%, transparent); }
 .sw-open b { font-size: 13px; font-weight: 550; overflow-wrap: anywhere; }
 .sw-open span { font-size: 10px; line-height: 1.4; color: var(--ink-3); overflow-wrap: anywhere; }

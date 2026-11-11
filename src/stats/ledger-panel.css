@@ -113,16 +113,13 @@ button.rail-coins { border: 0; background: none; color: var(--ink-2); cursor: po
 button.rail-coins:hover, button.rail-coins[aria-expanded="true"] { background: color-mix(in srgb, var(--ink) 7%, transparent); }
 button.wl-coins { margin: -4px -6px; padding: 4px 6px; border: 0; border-radius: var(--radius-sm); background: none; cursor: pointer; transition: background var(--dur-hover) var(--ease-out-strong), transform var(--dur-press) var(--ease-out-strong); }
 button.wl-coins:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
-.zoom-ui button#coin-bank { cursor: pointer; transition: background var(--dur-hover) var(--ease-out-strong), transform var(--dur-press) var(--ease-out-strong); }
-.zoom-ui button#coin-bank:hover, .zoom-ui button#coin-bank[aria-expanded="true"] { background: var(--ui-float-hover, rgba(37, 45, 92, .95)); }
-.zoom-ui button#coin-bank:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-:is(button.rail-coins, button.wl-coins, .zoom-ui button#coin-bank):active { transform: scale(.96); }
+:is(button.rail-coins, button.wl-coins):active { transform: scale(.96); }
 
 @media (prefers-reduced-motion: reduce) {
   .coin-ledger.cl-entering { animation: cl-fade 150ms var(--ease-out) both; }
   .coin-ledger.cl-leaving { animation: cl-fade 120ms var(--ease-out) reverse forwards; }
   .cl-seg-thumb, .cl-share::after, button.cl-cell, .cl-seg button, button.cl-page { transition: none; }
-  button.cl-cell:hover, :is(button.rail-coins, button.wl-coins, .zoom-ui button#coin-bank):active { transform: none; }
+  button.cl-cell:hover, :is(button.rail-coins, button.wl-coins):active { transform: none; }
   .cl-flash { animation-duration: .6s; }
 }
 @keyframes cl-fade { from { opacity: 0; } }

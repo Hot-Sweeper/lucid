@@ -26,7 +26,6 @@
   --ui-ghost-over: #262626;
   --ui-queue: #0d0d0d;
   --ui-queue-drag: #1f1f1f;
-  --ui-tray: rgba(10, 10, 10, 0.96);
   --ui-plate: #1c1c1f;
   --ui-plate-hover: #2a2a2e;
   --ui-building-plate: #1c1c1f;
@@ -39,17 +38,13 @@
   --mt-panel: #000000;
   --mt-shot: #0a0a0a;
   --mt-shot-line: rgba(255, 255, 255, 0.12);
-  --mt-chip-settled: #222225;
-  --mt-chip-kept: #222225;
-  --mt-remove: #222225;
   --mt-viewer-scrim: rgba(0, 0, 0, 0.88);
 }
 
-/* The dark office: moonlit grounds, dark oak and charcoal materials, dark robot bodies and the
-   robots' computers in their dark look. Follow T3 uses the same office under a dark T3 theme
-   (themes/t3.css then gives the interface and the computers' chrome T3's own colours). */
-:root[data-theme="oled"],
-:root[data-theme="t3"][data-t3-appearance="dark"] {
+/* The dark office of OLED black: moonlit grounds, dark oak and charcoal materials and dark robot
+   bodies. Only OLED black chooses this on purpose; a dark Follow T3 palette darkens the interface
+   and the computers' apps, but the office keeps its warm art and real time-of-day light. */
+:root[data-theme="oled"] {
   /* world: the grounds are drawn moonlit, so the outdoor tint is lighter; indoors is deeper */
   --world-night-tint: #000000;
   --world-outdoor-tint: #000000;
@@ -110,7 +105,12 @@
   --acc-silk-2: #18181b;
   --acc-silk-3: #26262b;
 
-  /* robot computers */
+}
+
+/* The robots' computers in their dark look, for OLED black and any dark T3 palette (themes/t3.css
+   then gives the computers' chrome T3's own colours). */
+:root[data-theme="oled"],
+:root[data-theme="t3"][data-t3-appearance="dark"] {
   --os-ink: #e6e6e6;
   --os-desk: #000000;
   /* Wallpapers: true black with two light pools in the robot's own colours, a brighter one low

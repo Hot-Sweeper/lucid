@@ -1,9 +1,9 @@
 /* Answering a robot's question from its chat (answer.ts). Same tokens as the chat panel. */
-.cp-answer { flex: none; max-height: 58%; overflow-y: auto; margin: 4px 10px 0; padding: 12px 14px 10px; border-radius: 12px;
+.cp-answer { flex: none; max-height: 58%; overflow-y: auto; margin: 4px 10px 0; padding: 12px 14px 10px; border-radius: var(--radius-lg);
   background: #1f2549; box-shadow: inset 0 0 0 1px var(--line); scrollbar-width: thin; scrollbar-color: rgba(190, 200, 255, 0.22) transparent; }
 .cp-answer[hidden] { display: none; }
 .cp-answer::-webkit-scrollbar { width: 8px; }
-.cp-answer::-webkit-scrollbar-thumb { background: rgba(190, 200, 255, 0.2); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+.cp-answer::-webkit-scrollbar-thumb { background: rgba(190, 200, 255, 0.2); border-radius: var(--radius-md); border: 2px solid transparent; background-clip: padding-box; }
 .cp-answer::-webkit-scrollbar-track { background: transparent; }
 
 .ca-req + .ca-req, .ca-done + .ca-req, .ca-req + .ca-done { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
@@ -19,7 +19,7 @@
   --choice-picked: color-mix(in srgb, var(--accent, #ff9f5a) 13%, transparent);
   --choice-ease: cubic-bezier(.23,1,.32,1);
 }
-.ca-opt { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); column-gap: 10px; align-items: start; padding: 7px 8px; border-radius: 8px; cursor: pointer; transition: background-color 130ms var(--choice-ease); }
+.ca-opt { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); column-gap: 10px; align-items: start; padding: 7px 8px; border-radius: var(--radius-md); cursor: pointer; transition: background-color 130ms var(--choice-ease); }
 .ca-opt:hover { background: var(--choice-hover); }
 .ca-opt:has(> input:checked) { background: var(--choice-picked); }
 .ca-opt:has(> input:focus-visible) { background: var(--choice-hover); }
@@ -33,7 +33,7 @@
 .ca-opt > input::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; scale: 0; transition: scale 160ms var(--choice-ease); }
 .ca-opt > input:checked { border-color: var(--accent, #ff9f5a); }
 .ca-opt > input:checked::before { scale: 1; }
-.ca-opt > input[type="checkbox"] { border-radius: 5px; }
+.ca-opt > input[type="checkbox"] { border-radius: var(--radius-sm); }
 .ca-opt > input[type="checkbox"]::before { width: 11px; height: 11px; border-radius: 0; clip-path: polygon(12% 45%, 38% 70%, 86% 16%, 100% 29%, 39% 96%, 0% 58%); }
 .ca-opt > input[type="checkbox"]:checked { background: var(--accent, #ff9f5a); color: var(--choice-face); }
 .ca-opt > input:focus-visible { outline: 2px solid var(--ink, #f1edff); outline-offset: 3px; }
@@ -57,15 +57,15 @@
   .ca-opt > input::before { display: none; }
 }
 
-.ca-text { display: block; width: 100%; box-sizing: border-box; border: 0; border-radius: 9px; padding: 7px 10px; background: #12153a;
+.ca-text { display: block; width: 100%; box-sizing: border-box; border: 0; border-radius: var(--radius-md); padding: 7px 10px; background: #12153a;
   box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); font: inherit; font-size: 13.5px; line-height: 1.45; outline: none; transition: box-shadow 0.15s; }
 .ca-text::placeholder { color: var(--ink-3); }
-.ca-text:focus { box-shadow: inset 0 0 0 1.5px rgba(255, 159, 90, 0.75); }
+.ca-text:focus { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 75%, transparent); }
 textarea.ca-text { resize: vertical; min-height: 54px; max-height: 200px; }
 .ca-free { padding: 0 2px; }
 
 .ca-title { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--ink); }
-.ca-prompt { margin: 0 0 8px; max-height: 160px; overflow: auto; padding: 8px 10px; border-radius: 9px; background: #0f1230; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wash) 6%, transparent);
+.ca-prompt { margin: 0 0 8px; max-height: 160px; overflow: auto; padding: 8px 10px; border-radius: var(--radius-md); background: #0f1230; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wash) 6%, transparent);
   font-family: var(--mono); font-size: 12px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
 .ca-detail { margin: 0 0 8px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); overflow-wrap: anywhere; }
 
@@ -96,7 +96,7 @@ textarea.ca-text { resize: vertical; min-height: 54px; max-height: 200px; }
 .ca-boss { margin: 0 0 10px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); overflow-wrap: anywhere; }
 .ca-boss[hidden] { display: none; }
 .ca-boss[data-state="failed"] { color: #ffcf9e; }
-.ca-alt.ca-suggested { box-shadow: inset 0 0 0 1px rgba(255, 159, 90, 0.6); }
+.ca-alt.ca-suggested { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent); }
 
-.ca-secret { display: block; width: 100%; margin-top: 7px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: var(--night); font: 13px var(--mono); }
+.ca-secret { display: block; width: 100%; margin-top: 7px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink); background: var(--field-fill); font: 13px var(--mono); }
 .ca-secret:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

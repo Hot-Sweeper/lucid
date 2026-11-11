@@ -121,7 +121,7 @@ export function openCustomize(o: CustomizeOptions) {
     if (tab === "body") {
       const hsIdx = HEAD_SIZES.indexOf(L.head) >= 0 ? HEAD_SIZES.indexOf(L.head) : 2;
       html = row("Build", chips("build", BUILDS, L.build)) +
-        row("Head size", `<div class="cz-range"><input type="range" min="0" max="${HEAD_SIZES.length - 1}" step="1" value="${hsIdx}" data-k="head" aria-label="Head size" aria-valuetext="${Math.round(L.head * 100)} percent"><output>${Math.round(L.head * 100)}%</output></div>`) +
+        row("Head size", `<div class="cz-range"><input type="range" min="0" max="${HEAD_SIZES.length - 1}" step="1" value="${hsIdx}" style="--fill:${(hsIdx / Math.max(1, HEAD_SIZES.length - 1)) * 100}%" data-k="head" aria-label="Head size" aria-valuetext="${Math.round(L.head * 100)} percent"><output>${Math.round(L.head * 100)}%</output></div>`) +
         row("Shell tint", swatches("tint", TINTS.map((t) => ({ val: t.id, color: tintPalette(base, t.id).shell, label: t.label })), L.tint) + `<small class="cz-note">A slight shift of the ${esc(harnessName(o.provider))} shell</small>`, TINTS.find((t) => t.id === L.tint)?.label) +
         row("Trim and fabric", swatches("accent", ACCENTS.map((c) => ({ val: c, color: c, label: named(c) })), L.accent ?? ACCENTS[0]), named(L.accent ?? ACCENTS[0]));
     } else if (tab === "hat") {

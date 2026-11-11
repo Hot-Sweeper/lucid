@@ -28,7 +28,7 @@
 /* Row navigation and settlement are siblings, with a shared status position. */
 .th-entry { position: relative; }
 .th-can-collect .th-top .th-st { min-width: 76px; justify-content: flex-end; }
-.th-collect { position: absolute; top: 1px; right: 10px; min-width: 76px; min-height: 32px; padding: 4px 0 4px 8px; display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; border: 0; border-radius: 5px; background: transparent; color: var(--thread-title-working); font: 500 11.5px var(--font); cursor: pointer; opacity: 0; pointer-events: none; transition: opacity 130ms var(--ease-out-strong), color 130ms var(--ease-out-strong); }
+.th-collect { position: absolute; top: 1px; right: 10px; min-width: 76px; min-height: 32px; padding: 4px 0 4px 8px; display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--thread-title-working); font: 500 11.5px var(--font); cursor: pointer; opacity: 0; pointer-events: none; transition: opacity 130ms var(--ease-out-strong), color 130ms var(--ease-out-strong); }
 .th-can-collect:is(:hover,:focus-within) .th-top .th-st, .th-can-collect:has(.th-collect[aria-busy="true"]) .th-top .th-st { opacity: 0; }
 .th-can-collect:is(:hover,:focus-within) .th-collect, .th-collect[aria-busy="true"] { opacity: 1; pointer-events: auto; }
 .th-collect:hover { color: var(--thread-title); }

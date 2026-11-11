@@ -29,6 +29,8 @@ export interface App {
   dailyWriter: DailyWriter | null;
   extras: HTMLDivElement;
   extrasBody: HTMLElement;
+  /** The Sound section of Office & settings (volume sliders). */
+  extrasSound: HTMLElement;
   world: World;
   threadLines: ThreadEventLines;
   projectLife: ProjectLife;
@@ -158,8 +160,6 @@ export interface App {
   takeChair(): void;
   wallet: Wallet;
   soundButton: HTMLElement;
-  terribleSongButton: HTMLButtonElement;
-  paintTerribleSong: () => void;
   paintSound: () => void;
   volumeControl: HTMLLabelElement;
   volumeSlider: HTMLInputElement;

@@ -82,6 +82,8 @@ function createWindow() {
   if (process.env.LUCID_THREAD) query.thread = process.env.LUCID_THREAD;
   if (process.env.LUCID_PROJECT) query.project = process.env.LUCID_PROJECT;
   if (process.env.LUCID_IDLE_SCALE) query.idleScale = process.env.LUCID_IDLE_SCALE;
+  // developer diagnostics (Performance testing) in Office & settings
+  if (process.env.LUCID_DEV_TOOLS) query.devTools = "1";
   // test runs: the orchestrator only answers questions from this project (by title), and
   // answers none at all without one, so a test run never answers your real threads
   if (process.env.LUCID_AUTO_SCOPE) query.autoScope = process.env.LUCID_AUTO_SCOPE;

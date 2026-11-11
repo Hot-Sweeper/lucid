@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { Walker, PALETTES, brandFor, harnessName, personaLines, type RobotProfile } from "../robot";
 import { gameSound } from "./sound";
+import { icon } from "../ui/icons";
 import { avatar, type HireRuntime } from "./hire";
 import "./worker-focus.css";
 
@@ -38,7 +39,7 @@ export function openWorkerFocus(o: WorkerFocusOptions) {
     <section class="wf" role="dialog" aria-modal="true" aria-labelledby="wf-name">
       <div class="wf-stage" aria-hidden="true"><div class="wf-shadow"></div><div class="wf-float"></div></div>
       <div class="wf-panel">
-        <header class="wf-head"><div><h2 id="wf-name"></h2><p class="wf-setup"></p></div><button type="button" class="ghost wf-close" aria-label="Back to the office">×</button></header>
+        <header class="wf-head"><div><h2 id="wf-name"></h2><p class="wf-setup"></p></div><button type="button" class="wf-close" aria-label="Back to the office" title="Back to the office (Esc)">${icon("close")}</button></header>
         <p class="wf-job"></p>
         <dl class="wf-record"></dl>
         <ul class="wf-persona" aria-label="Persona"></ul>
@@ -184,7 +185,7 @@ export function openStaffWall(o: { robots: RobotProfile[]; onFocus: (r: RobotPro
   const wrap = document.createElement("div");
   wrap.className = "dialog-wrap";
   wrap.innerHTML = `<div class="dialog staff-wall" role="dialog" aria-modal="true" aria-labelledby="sw-title">
-    <header class="sw-head"><h2 id="sw-title">Staff wall</h2><button type="button" class="ghost sw-close" aria-label="Close staff wall">×</button></header>
+    <header class="sw-head"><h2 id="sw-title">Staff wall</h2><button type="button" class="sw-close" aria-label="Close staff wall" title="Close (Esc)">${icon("close")}</button></header>
     <div class="sw-star"></div>
     <div class="sw-grid"></div>
   </div>`;
@@ -200,7 +201,7 @@ export function openStaffWall(o: { robots: RobotProfile[]; onFocus: (r: RobotPro
     const open = document.createElement("button"); open.type = "button"; open.className = "sw-open";
     open.innerHTML = avatar(r.provider, r.look, 54);
     const name = document.createElement("b"); name.textContent = r.name;
-    const meta = document.createElement("span"); meta.textContent = `${harnessName(r.provider)}${r.lastModel ? `, ${r.lastModel}` : ""}. ${r.jobs} jobs${r.retired ? ", retired" : ""}`;
+    const meta = document.createElement("span"); meta.textContent = `${harnessName(r.provider)}${r.lastModel ? `, ${r.lastModel}` : ""}. ${r.jobs} ${r.jobs === 1 ? "job" : "jobs"}${r.retired ? ", retired" : ""}`;
     open.append(name, meta); open.setAttribute("aria-label", `${r.name}, ${meta.textContent}`);
     open.addEventListener("click", () => { close(); o.onFocus(r); });
     cell.append(open);

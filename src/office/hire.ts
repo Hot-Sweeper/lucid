@@ -59,7 +59,7 @@ export function openHire(opts: {
   wrap.className = "dialog-wrap hire-wrap";
   wrap.innerHTML = `
     <form class="dialog hire" role="dialog" aria-modal="true" aria-labelledby="hire-title" aria-describedby="hire-location">
-      <header class="hire-header"><div><h2 id="hire-title">${opts.intent === "thread" ? "New thread" : opts.intent === "delegate" ? "Delegate task" : "Hire a robot"}</h2><p id="hire-location" class="hire-sub">${esc(opts.roomTitle)} · Desk ${opts.seat + 1}</p></div><button type="button" class="ghost hire-close" data-a="cancel" aria-label="Close hiring dialog">×</button></header>
+      <header class="hire-header"><div><h2 id="hire-title">${opts.intent === "thread" ? "New thread" : opts.intent === "delegate" ? "Delegate task" : "Hire a robot"}</h2><p id="hire-location" class="hire-sub">${esc(opts.roomTitle)} · Desk ${opts.seat + 1}</p></div><button type="button" class="hire-close" data-a="cancel" aria-label="Close hiring dialog" title="Close (Esc)">${icon("close")}</button></header>
       <div class="hire-body">
         <section class="hire-stage" aria-labelledby="hire-worker-name">
           <div class="hire-stage-floor" aria-hidden="true"></div>

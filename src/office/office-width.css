@@ -10,7 +10,7 @@
 .office-width-controls button:active:enabled, .office-width-handle:active { transform: scale(.97); }
 .office-width-controls button:disabled { opacity: .5; cursor: default; }
 .office-width-controls button:focus-visible, .office-width-handle:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-.office-width-preview { position: absolute; left: 0; top: 0; height: 100%; box-sizing: border-box; border: 4px dashed #ff9f5a; pointer-events: none; z-index: 5; text-align: right; padding: 118px 24px 0; color: #fff0df; font: 600 18px Lexend, sans-serif; text-shadow: 0 1px 3px #000; }
+.office-width-preview { position: absolute; left: 0; top: 0; height: 100%; box-sizing: border-box; border: 4px dashed var(--accent); pointer-events: none; z-index: 5; text-align: right; padding: 118px 24px 0; color: #fff0df; font: 600 18px Lexend, sans-serif; text-shadow: 0 1px 3px #000; }
 @media (prefers-reduced-motion: reduce) { .office-width-controls button, .office-width-handle { transition: none; } }
 
 .room:has(> .office-width-preview) { overflow: visible; }

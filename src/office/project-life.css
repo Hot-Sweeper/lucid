@@ -1,7 +1,7 @@
-.room.has-project-office-board > .project-office-prop { position:absolute; right:70px; top:30px; width:40px; height:40px; z-index:3; display:grid; place-items:center; padding:0; border:0; border-radius:7px; background:#51434b; color:#fff8eb; box-shadow:0 2px 0 #302c4533; cursor:pointer; transition:background 140ms,transform 140ms cubic-bezier(.23,1,.32,1); }
+.room.has-project-office-board > .project-office-prop { position:absolute; right:70px; top:30px; width:40px; height:40px; z-index:3; display:grid; place-items:center; padding:0; border:0; border-radius:var(--radius-sm); background:#51434b; color:#fff8eb; box-shadow:0 2px 0 #302c4533; cursor:pointer; transition:background 140ms,transform 140ms cubic-bezier(.23,1,.32,1); }
 .room.has-project-office-board > .project-office-prop:hover { background:#67545c; transform:translateY(-1px); }
 .room.has-project-office-board > .project-office-prop:active { transform:translateY(1px); }
-.room.has-project-office-board > .room-size-hit { right:22px; top:30px; width:40px; min-width:40px; height:40px; padding:0; display:grid; place-items:center; border-radius:7px; }
+.room.has-project-office-board > .room-size-hit { right:22px; top:30px; width:40px; min-width:40px; height:40px; padding:0; display:grid; place-items:center; border-radius:var(--radius-sm); }
 .room.has-project-office-board > .room-size-hit .room-size-label { display:none; }
 .project-office-wrap .project-office { width:min(900px,calc(100vw - 32px)); max-width:900px; max-height:calc(100dvh - 32px); padding:0; display:flex; flex-direction:column; overflow:hidden; background:var(--night); color:var(--ink); animation:project-office-enter 180ms cubic-bezier(.23,1,.32,1); }
 .project-office-header { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; padding:24px 26px 16px; }
@@ -15,13 +15,14 @@
 .project-office-banner strong { display:block; margin-top:10px; font-size:15px; }
 .project-office-columns { display:grid; grid-template-columns:1.1fr 1fr; gap:30px; }
 .project-office h3 { font-size:17px; margin:0 0 8px; }
-.project-office input { min-width:0; width:100%; box-sizing:border-box; min-height:38px; background:var(--night-2); color:var(--ink); border:1px solid var(--ink-2); border-radius:6px; padding:8px; font:inherit; }
+.project-office input { min-width:0; width:100%; box-sizing:border-box; min-height:38px; background:var(--night-2); color:var(--ink); border:1px solid var(--ink-2); border-radius:var(--radius-sm); padding:8px; font:inherit; }
 .project-goal { display:grid; grid-template-columns:26px minmax(0,1fr) 32px; align-items:center; gap:8px; margin:10px 0; }
 .project-goal input[type=checkbox] { width:24px; min-height:24px; height:24px; accent-color:var(--accent); }
 .project-goal:has(:checked) input[data-goal] { text-decoration:line-through; }
 .project-calendar-entry { display:grid; grid-template-columns:minmax(0,1fr) 32px; gap:8px; margin:14px 0; }
 .project-calendar-entry input[data-event-title] { grid-column:1/-1; }
 .project-office button { min-height:36px; transition:background 130ms,transform 130ms; }
+.project-office .project-remove { min-height:var(--icon-btn); }
 .project-office button:active { transform:scale(.98); }
 .project-office :is(button,input):focus-visible,.project-office-prop:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 .project-office-banner input:focus-visible { outline-color:#302c45; }

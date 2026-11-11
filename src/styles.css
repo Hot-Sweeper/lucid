@@ -8,22 +8,25 @@
   --line: rgba(190, 200, 255, 0.1);
   --accent: #ff9f5a;
   --accent-2: #ffbf86;
+  --accent-ink: #2a1407;    /* text and icons on accent fills */
   --mint: #4ff0a0;
   --danger: #ff8a7a;        /* destructive actions */
   --danger-ink: #ffb4a8;    /* destructive menu items on raised surfaces */
   /* Colours a light palette must change (themes/t3.css sets them for a light T3 theme). */
   --wash: #fff;             /* translucent hover and selection fills: color-mix(var(--wash) N%, transparent) */
   --ink-hi: #fff;           /* the strongest text: chat headings, the selected thread */
-  --coin-ink: #ffd27a;      /* coin amounts and other gold text */
-  --link: #8fc8ff;          /* links in chat text */
-  --link-hover: #b9dcff;
+  --coin-ink: #ffd27a;      /* coin amounts only: interactive states use the accent */
+  --link: var(--accent-2);  /* links in chat text: the accent, like every other link */
+  --link-hover: #ffd9b8;
+  --field-fill: color-mix(in srgb, var(--ink) 6%, transparent);        /* inputs and selects on any panel */
+  --field-fill-hover: color-mix(in srgb, var(--ink) 10%, transparent);
   --mono-logo-filter: none; /* one-colour harness logos are drawn white for dark surfaces */
   /* spacing, radii, control sizes and motion shared by every control (src/ui/controls.css) */
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
-  --radius-sm: 6px;         /* buttons, icon buttons, menu items, chips */
-  --radius-md: 8px;         /* fields, composer tools, code and tables */
-  --radius-lg: 10px;        /* menus and popovers (items stay concentric at 4px padding) */
-  --radius-xl: 14px;        /* dialogs and the composer */
+  --radius-sm: 6px;         /* controls: buttons, icon buttons, selects, one-line inputs, menu items, chips */
+  --radius-md: 8px;         /* text areas, cards, the HUD, code blocks, tables and media */
+  --radius-lg: 10px;        /* menus, popovers and tooltips (items stay concentric at 4px padding) */
+  --radius-xl: 14px;        /* panels and dialogs (settings, ledger, hire) and the chat composer */
   --control-h: 32px;        /* composer tools, send */
   --icon-btn: 30px;         /* header icon buttons */
   --shadow-pop: 0 16px 40px rgba(4, 6, 24, 0.5);
@@ -42,7 +45,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--night); color: var(--ink); font-family: var(--font); overflow: hidden; }
 button, textarea, input { font: inherit; color: inherit; }
-::selection { background: rgba(255, 159, 90, 0.35); }
+::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-thumb { background: rgba(185, 191, 230, 0.18); border-radius: 9px; border: 2px solid transparent; background-clip: padding-box; }
 ::-webkit-scrollbar-thumb:hover { background-color: rgba(185, 191, 230, 0.32); }
@@ -53,13 +56,10 @@ button, textarea, input { font: inherit; color: inherit; }
 /* ---------------- panel ---------------- */
 .panel { display: flex; flex-direction: column; gap: 22px; padding: 20px 16px 0; background: var(--night-2); min-height: 0; }
 .brand { display: flex; align-items: center; gap: 10px; }
-.update { margin-left: auto; border: 0; background: var(--accent); color: #2a1407; font-weight: 600; font-size: 13px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+.update { margin-left: auto; border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 13px; padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer; }
 .update:hover { background: var(--accent-2); }
 .update:disabled { opacity: 0.7; cursor: progress; }
 
-.now h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
-.now .sub { margin: 4px 0 0; color: var(--ink-3); font-size: 13px; }
-.now .activity { margin: 10px 0 0; color: var(--accent-2); font-size: 14px; min-height: 1.4em; }
 
 h3 { margin: 0 0 8px; font-size: 13px; font-weight: 500; color: var(--ink-3); }
 
@@ -71,15 +71,6 @@ textarea::placeholder { color: var(--ink-3); }
 .form-msg { margin: 8px 0 0; font-size: 13px; color: var(--ink-2); min-height: 1.2em; }
 
 .threads { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.thread-list { list-style: none; margin: 0 -8px; padding: 0 0 16px; overflow-y: auto; flex: 1; }
-.thread { width: 100%; display: grid; grid-template-columns: 18px 1fr; column-gap: 10px; row-gap: 2px; text-align: left; border: 0; background: transparent; padding: 9px 8px; border-radius: 10px; cursor: pointer; }
-.thread:hover { background: color-mix(in srgb, var(--wash) 5%, transparent); }
-.thread.on { background: rgba(255, 159, 90, 0.13); }
-.thread .pv { grid-row: 1 / span 2; width: 16px; height: 16px; margin-top: 2px; }
-.thread .pv.codex { filter: none; }
-.thread .tt { font-size: 14px; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.thread .meta { grid-column: 2; font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.thread-list .err { color: var(--danger-ink); font-size: 13px; padding: 8px; }
 
 /* ---------------- scene ---------------- */
 .scene { position: relative; overflow: hidden; background: #1a2049; }
@@ -217,7 +208,7 @@ textarea::placeholder { color: var(--ink-3); }
 .sh-stage canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
 .sh-stage canvas.px { image-rendering: pixelated; }
 .sh-ctrl { flex: none; display: flex; align-items: center; gap: 10px; }
-.sh-play { flex: none; width: 24px; height: 24px; padding: 5px; border: 0; border-radius: 50%; background: var(--accent); color: #2a1407; display: grid; place-items: center; }
+.sh-play { flex: none; width: 24px; height: 24px; padding: 5px; border: 0; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; }
 .sh-play svg { width: 100%; height: 100%; }
 .sh-bar { flex: 1; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.2); overflow: hidden; }
 .sh-bar i { display: block; height: 100%; background: var(--accent); transform-origin: 0 50%; }
@@ -363,7 +354,7 @@ textarea::placeholder { color: var(--ink-3); }
 .wx-place { margin: 0; font-size: 12px; opacity: 0.9; }
 .wx-temp { margin: 0; font: 600 38px/1 var(--font); }
 .wx-kind { margin: 3px 0 0; font-size: 11.5px; opacity: 0.92; }
-.wx-hours { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; padding: 8px 6px; border-radius: 12px; background: rgba(255, 255, 255, 0.16); }
+.wx-hours { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; padding: 8px 6px; border-radius: var(--radius-lg); background: rgba(255, 255, 255, 0.16); }
 .wx-hours div { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; }
 .wx-hours b { font-weight: 600; }
 .wx-sun { margin: 0; font-size: 10.5px; opacity: 0.85; }
@@ -392,7 +383,7 @@ textarea::placeholder { color: var(--ink-3); }
 .uac-rows code { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; font: 10px/1.5 var(--mono); color: #d6d9ff; }
 .uac-btns { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px 8px; }
 .uac-btns span { min-width: 84px; padding: 7px 0; border-radius: 8px; text-align: center; font-size: 12px; font-weight: 600; background: #2e3577; color: #e9ecff; }
-.uac-btns .uac-yes { background: var(--accent); color: #2a1407; }
+.uac-btns .uac-yes { background: var(--accent); color: var(--accent-ink); }
 .uac-btns .faded { opacity: 0.4; }
 .uac-btns .pressed { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55); }
 .uac-foot { margin: 0; padding: 0 16px 12px; text-align: right; font-size: 10px; color: #8a91c4; }
