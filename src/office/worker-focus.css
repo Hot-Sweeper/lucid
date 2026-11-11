@@ -26,7 +26,6 @@
 .wf-retrain-box .hire-field { flex: 1 1 130px; }
 .wf-retrain-box select { width: 100%; min-height: 32px; font: 400 12px var(--font); color: var(--ink); color-scheme: dark; background: var(--night-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 6px 8px; }
 .wf-retrain-box .hire-field > span { color: var(--ink-3); font-size: 11px; }
-.wf-retrain-box button, .wf-retire-box button { font-size: 12px; padding: 8px 12px; }
 .wf-retire-box p { margin: 0 0 8px; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
 .wf-retire-box div { display: flex; gap: 8px; }
 .wf p.wf-note { margin: 0; min-height: 1.4em; font-size: 11px; color: var(--accent-2); }

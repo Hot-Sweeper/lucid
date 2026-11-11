@@ -1,11 +1,10 @@
 .orch-power { grid-column:2; grid-row:1; align-self:start; justify-self:end; z-index:60; display:flex; align-items:center; gap:12px; max-width:calc(100% - 24px); box-sizing:border-box; margin:12px; padding:6px 10px; background:var(--night-2); color:var(--ink); border-radius:var(--radius-sm); }
-.orch-power .orch-power-switch { margin:0; gap:8px; min-height:32px; font-size:13px; white-space:nowrap; }
+.orch-power .orch-power-switch { margin:0; gap:8px; min-height:var(--control-h); font-size:13px; white-space:nowrap; }
 #orch-power-status { min-width:20px; font-size:12px; font-weight:500; }
-.orch-power > button { flex:none; min-height:32px; font-size:12px; }
-.orch-power:has(input:disabled) .orch-power-switch { opacity:.65; cursor:default; }
+.orch-power > button { flex:none; min-height:var(--control-h); font-size:12px; }
 .orch-controls { width:min(430px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); overflow:auto; box-sizing:border-box; }
 .orch-control { display:flex; flex-direction:column; gap:7px; margin:16px 0; font-size:13px; }
-.orch-control select { width:100%; min-height:38px; }
+.orch-control select { width:100%; }
 .orch-controls .dialog-actions { flex-wrap:wrap; }
 .orch-facts { margin:0 0 14px; padding-left:18px; font-size:13px; color:var(--ink-2); line-height:1.45; }
 .orch-facts li + li { margin-top:4px; }

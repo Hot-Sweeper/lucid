@@ -32,7 +32,7 @@ export function openChair(o: ChairOptions) {
   wrap.className = "chair-wrap";
   wrap.innerHTML = `
     <section class="chair" role="dialog" aria-modal="true" aria-labelledby="chair-title">
-      <header class="chair-head"><h2 id="chair-title">In the orchestrator's chair</h2><span class="chair-count" role="status"></span><button type="button" class="ghost chair-leave">Leave the chair</button></header>
+      <header class="chair-head"><h2 id="chair-title">In the orchestrator's chair</h2><span class="chair-count" role="status"></span><button type="button" class="ghost compact chair-leave">Leave the chair</button></header>
       <div class="chair-line" aria-hidden="true"></div>
       <div class="chair-counter">
         <article class="chair-paper" tabindex="-1" aria-live="polite"></article>

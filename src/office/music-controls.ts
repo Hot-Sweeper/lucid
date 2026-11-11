@@ -47,7 +47,7 @@ export function mountMusicControls(parent: HTMLElement): () => void {
   const journey = document.createElement('p'); journey.className = 'office-radio-journey';
   const actions = document.createElement('div'); actions.className = 'office-radio-actions';
   const pause = document.createElement('button'), next = document.createElement('button');
-  pause.type = next.type = 'button'; actions.append(pause, next);
+  pause.type = next.type = 'button'; pause.className = next.className = 'ghost'; actions.append(pause, next);
   const status = document.createElement('p'); status.className = 'office-radio-status';
   status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
   section.append(heading, now, label, journey, actions, status); parent.append(section);

@@ -16,6 +16,17 @@ function gear(): string {
   return `<path d="${d}Z"/><circle cx="8" cy="8" r="2.1"/>`;
 }
 
+/**
+ * The Working ring: `count` equal dashes. pathLength makes the circumference exactly `2 * count`
+ * units, so the dash pattern repeats a whole number of times and every gap matches, at any size.
+ * A 0.8 unit dash plus its round caps (1.5px, non-scaling) reads as a dash about twice its gap
+ * at 16px (3.5px and 1.6px); every size keeps all gaps equal because the caps add the same to
+ * each dash.
+ */
+export const WORKING_RING = { r: 6.5, count: 8, dash: 0.8 } as const;
+const workingRing = ({ r, count, dash } = WORKING_RING) =>
+  `<circle cx="8" cy="8" r="${r}" pathLength="${count * 2}" stroke-dasharray="${dash} ${2 - dash}"/>`;
+
 const PATHS = {
   // window and panels
   close: '<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>',
@@ -79,7 +90,7 @@ const PATHS = {
   fullscreen: '<path d="M5.5 2.5h-3v3M10.5 2.5h3v3M2.5 10.5v3h3M13.5 10.5v3h-3"/>',
   fullscreenExit: '<path d="M2.5 5.5h3v-3M10.5 2.5v3h3M5.5 13.5v-3h-3M13.5 10.5h-3v3"/>',
   // status vocabulary (src/ui/status.ts)
-  statusWorking: '<circle cx="8" cy="8" r="6.5" stroke-dasharray="2.6 2.2"/>',
+  statusWorking: workingRing(),
   statusNeeds: '<circle cx="8" cy="8" r="5.5"/><path d="M8 5.2v3.3M8 10.8h.01"/>',
   statusDone: '<circle cx="8" cy="8" r="6.5"/><path d="m6 8 1.33 1.33 2.67-2.67"/>',
   statusSettled: '<path d="M2.5 4.5h11v2.5h-11zM3.5 7v4.5A1.5 1.5 0 0 0 5 13h6a1.5 1.5 0 0 0 1.5-1.5V7M6.5 9.5h3"/>',

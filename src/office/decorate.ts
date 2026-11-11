@@ -24,7 +24,7 @@ export function openDecorate(o: { title: string; theme: RoomTheme; onChange: (t:
     return `<svg viewBox="-70 ${wall ? -100 : -110} 140 130" width="70" height="65" aria-hidden="true">${drawDecor(id, 0, wall ? 20 : 0, id === "pingpong" || id === "rug" ? 0.5 : 0.75)}</svg>`;
   };
   el.innerHTML = `
-    <header><div><h2>Decorate</h2><p>${esc(o.title)}</p></div><button type="button" class="dc-x" aria-label="Done">Done</button></header>
+    <header><div><h2>Decorate</h2><p>${esc(o.title)}</p></div><button type="button" class="primary dc-x" aria-label="Done">Done</button></header>
     <section><h3>Floor</h3><div class="dc-sw" data-k="floor">
       ${(Object.keys(FLOORS) as FloorId[]).map((id) => `<button type="button" data-v="${id}" title="${esc(FLOORS[id].name)}" aria-label="${esc(FLOORS[id].name)}">${floorSw(id)}</button>`).join("")}
     </div></section>

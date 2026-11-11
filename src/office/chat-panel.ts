@@ -456,7 +456,7 @@ export class ChatPanel {
           <span class="cm-note" aria-live="polite"></span>
         </div>
         <p class="cm-error" role="alert" hidden></p>
-        <p class="cp-connect" hidden><span>Connect ${BRAND.name} to T3 to change models and reorder</span><button type="button" class="ghost">Connect</button></p>
+        <p class="cp-connect" hidden><span>Connect ${BRAND.name} to T3 to change models and reorder</span><button type="button" class="ghost compact">Connect</button></p>
         <div class="cp-box">
           <div class="cp-chips" hidden></div>
           <textarea rows="1" placeholder="Message this robot" aria-label="Message"></textarea>
@@ -464,7 +464,7 @@ export class ChatPanel {
             <button type="button" class="cp-attach" aria-label="Attach files or images" title="Attach files or images (you can also paste or drop them)">${icon("attach", 18)}</button>
             <span class="cp-hint">${HINT}</span>
             <button type="button" class="ghost cp-stop" title="Stop the current run. Queued messages wait until you send again." hidden>Stop</button>
-            <button type="submit" class="cp-send" aria-label="Send"><span>Send</span>${icon("send", 14)}</button>
+            <button type="submit" class="primary cp-send" aria-label="Send"><span>Send</span>${icon("send", 14)}</button>
           </div>
           <input type="file" class="cp-fileinput" multiple hidden>
         </div>
@@ -1751,7 +1751,7 @@ export class ChatPanel {
     const p = li.querySelector("p") as HTMLElement;
     const box = document.createElement("div");
     box.className = "cq-edit";
-    box.innerHTML = `<textarea rows="3" aria-label="Edit queued message"></textarea><div><button type="button" class="cq-save">Save</button><button type="button" class="cq-discard ghost">Discard changes</button><span>Ctrl+Enter saves</span></div>`;
+    box.innerHTML = `<textarea rows="3" aria-label="Edit queued message"></textarea><div><button type="button" class="primary compact cq-save">Save</button><button type="button" class="ghost compact cq-discard">Discard changes</button><span>Ctrl+Enter saves</span></div>`;
     const ta = box.querySelector("textarea")!;
     ta.value = m.text;
     p.replaceWith(box);
@@ -1802,7 +1802,7 @@ export class ChatPanel {
     const bar = document.createElement("div");
     bar.className = "cq-confirm";
     bar.setAttribute("role", "group");
-    bar.innerHTML = `<span>Remove this message from the queue? This cannot be undone.</span><button type="button" class="cq-yes">Remove</button><button type="button" class="cq-no ghost">Keep</button>`;
+    bar.innerHTML = `<span>Remove this message from the queue? This cannot be undone.</span><button type="button" class="primary compact danger cq-yes">Remove</button><button type="button" class="ghost compact cq-no">Keep</button>`;
     li.appendChild(bar);
     const keep = bar.querySelector(".cq-no") as HTMLButtonElement;
     keep.focus();

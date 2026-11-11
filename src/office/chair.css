@@ -3,7 +3,6 @@
 .chair-head { display: flex; align-items: center; gap: 14px; padding: 16px 24px; }
 .chair-head h2 { margin: 0; font-size: 19px; font-weight: 650; }
 .chair-count { flex: 1; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.chair-head .chair-leave { font-size: 12px; padding: 8px 14px; }
 /* The view from the chair: the review room's warm wall, the line, then the counter. */
 .chair-line { position: relative; overflow: hidden; background: linear-gradient(to bottom, #3a2e3f, #5b4652 70%, #6c5560); }
 .chair-line .world-walker, .chair-line .world-say { pointer-events: none; cursor: default; }

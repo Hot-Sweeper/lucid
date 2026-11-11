@@ -142,7 +142,7 @@ export function mountLimits(box: HTMLElement, note: HTMLElement, options: Limits
     const permission = el("p", "lim-cnote lim-cquiet", "T3 provider permission is required.");
     permission.hidden = true;
     const actions = el("div", "lim-cactions");
-    const yes = el("button", "lim-cyes", "Use credit");
+    const yes = el("button", "primary compact lim-cyes", "Use credit");
     const no = el("button", "link-btn lim-cno", "Cancel");
     yes.type = no.type = "button";
     actions.append(yes, no);

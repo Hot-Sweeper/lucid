@@ -16,7 +16,7 @@ export function renderShell(app: App) {
   document.getElementById("app")!.innerHTML = `
     <aside class="panel" id="side-panel">
       <header class="brand"><span class="mark" aria-hidden="true">${brandMark()}</span><h1>${esc(BRAND.name)}</h1><button type="button" class="wx" id="wx" hidden aria-haspopup="menu"></button>
-        <button class="update" id="update" type="button" title="Check for game updates">Check updates</button>
+        <button class="primary compact update" id="update" type="button" title="Check for game updates">Check updates</button>
         <div class="brand-actions">
         <button type="button" class="ghost side-help side-settings" id="side-settings" aria-label="Office and settings" aria-expanded="false" title="Office and settings: rooms, language, staff wall, linked computers">${uiIcon("settings")}</button><button type="button" class="ghost side-help" id="side-help" aria-label="How ${esc(BRAND.name)} works" title="How ${esc(BRAND.name)} works and keyboard shortcuts (?)">${uiIcon("help")}</button><button type="button" class="side-pin pin-btn" id="side-pin" aria-pressed="true">${PIN_ICON}</button><button type="button" class="side-hide" id="side-hide" aria-expanded="true" aria-controls="side-panel" aria-label="Hide sidebar" title="Hide sidebar: it folds into a rail on the left (Ctrl+B)">${uiIcon("sidebarHide")}<span>Hide<span class="sh-more"> sidebar</span></span></button>
         </div>
@@ -25,7 +25,7 @@ export function renderShell(app: App) {
       <section class="wallet" id="wallet"><h3>Coins</h3><button type="button" class="wl-coins" id="wl-coins" aria-haspopup="dialog" aria-expanded="false" title="1 coin for every dollar of AI work at API prices. Open the coin ledger">${coinIcon(18)}<b id="wl-bal">0</b><span>coins</span></button></section>
 
       <section class="threads">
-        <div class="th-head"><h3>Threads</h3><label class="th-search">${uiIcon("search", 14)}<input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label><button type="button" class="primary th-new-task" id="th-new-task" title="Start a new task (Ctrl+N)">${uiIcon("plus", 14)}Task</button><button type="button" class="ghost th-new-project" id="th-new-project" aria-label="New project" title="New project: create a folder or add one you have">${uiIcon("plus", 14)}Project</button>${foldButton("threads", "threads")}</div>
+        <div class="th-head"><h3>Threads</h3><label class="th-search">${uiIcon("search", 14)}<input id="th-q" type="search" placeholder="Search" aria-label="Search threads"></label><button type="button" class="primary compact th-new-task" id="th-new-task" title="Start a new task (Ctrl+N)">${uiIcon("plus", 14)}Task</button><button type="button" class="ghost compact th-new-project" id="th-new-project" aria-label="New project" title="New project: create a folder or add one you have">${uiIcon("plus", 14)}Project</button>${foldButton("threads", "threads")}</div>
         <div class="fold-body" id="fold-threads"><ol class="th-list" id="th-list" aria-label="Threads. Drag one into the chat, or press R, to reference it"></ol></div>
       </section>
 
@@ -72,7 +72,7 @@ export function mountOfficeSettings(app: App) {
   app.extras.hidden = true;
   app.extras.setAttribute("role", "dialog");
   app.extras.setAttribute("aria-label", "Office and settings");
-  app.extras.innerHTML = '<header class="os-head"><h2>Office &amp; settings</h2><button type="button" class="ghost os-close" aria-label="Close">Close</button></header><div class="sidebar-extras-body"></div>';
+  app.extras.innerHTML = '<header class="os-head"><h2>Office &amp; settings</h2><button type="button" class="ghost compact os-close" aria-label="Close">Close</button></header><div class="sidebar-extras-body"></div>';
   app.extrasBody = app.extras.querySelector<HTMLElement>(".sidebar-extras-body")!;
   // Sections in a fixed order: general choices, sound and radio, the office's rooms, linked
   // buildings, the Orchestrator and the coin wallet. Each starts with the same quiet heading.

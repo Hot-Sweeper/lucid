@@ -108,7 +108,7 @@ export class CoinLedgerPanel {
     r.setAttribute("role", "dialog"); r.setAttribute("aria-labelledby", "cl-title");
     const head = el("header", "cl-head");
     const title = el("h2", "", "Coin ledger"); title.id = "cl-title";
-    const close = el("button", "ghost cl-close", "Close"); close.type = "button";
+    const close = el("button", "ghost compact cl-close", "Close"); close.type = "button";
     close.addEventListener("click", () => this.close());
     head.append(title, close);
 

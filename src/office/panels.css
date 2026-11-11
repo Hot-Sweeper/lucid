@@ -116,8 +116,8 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .panel .th-top img { width: 13px; height: 13px; }
 .panel .th-head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto 28px; gap: 8px; }
 .panel .th-head h3 { grid-column: 1; grid-row: 1; }
-.panel .th-new-task { grid-column: 2; grid-row: 1; padding: 5px 10px; font-size: 12px; border-radius: var(--radius-sm); white-space: nowrap; }
-.panel .th-new-project { grid-column: 3; grid-row: 1; padding: 5px 8px; }
+.panel .th-new-task { grid-column: 2; grid-row: 1; }
+.panel .th-new-project { grid-column: 3; grid-row: 1; }
 .panel .th-head .sec-fold { grid-column: 4; grid-row: 1; margin: 0; }
 .panel .th-head .th-search { grid-column: 1 / -1; grid-row: 2; padding: 7px 9px; }
 .panel .sec-fold { min-width: 28px; min-height: 28px; justify-content: center; margin: -3px 0; }
@@ -190,7 +190,6 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .office-settings[hidden] { display: none; }
 .os-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 14px 0 12px; background: var(--night-3); }
 .os-head h2 { margin: 0 auto 0 0; font-size: 15px; font-weight: 600; }
-.os-close { padding: 5px 10px; font-size: 12px; }
 .sidebar-extras-body { display: flex; flex-direction: column; gap: 18px; }
 .sidebar-extras-body > * + * { padding-top: 18px; border-top: 1px solid var(--line); }
 .os-sec, .office-settings .rooms, .office-settings .orch { display: grid; gap: 10px; min-width: 0; }

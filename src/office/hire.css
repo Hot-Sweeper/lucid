@@ -28,7 +28,6 @@
 .hire .hire-task textarea { min-height: 150px; max-height: 320px; height: 172px; padding: 10px 0; border: 0; border-radius: 0; background: transparent; font-size: 15px; line-height: 1.55; resize: vertical; outline: none; }
 .hire-composer-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px 12px; }
 .hire-composer-tools > span { font-size: 11px; color: var(--ink-2); }
-.hire .hire-attach { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; padding: 7px 10px; }
 .hire-runtime-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; padding: 20px 0 0; }
 .hire-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1 1 90px; }
 .hire-field > span { color: var(--ink-2); font-size: 12px; }
@@ -62,7 +61,6 @@
 .hire button:not(:disabled):active { transform: scale(.97); }
 .hire :is(button, select, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .hire .hire-task textarea:focus-visible { outline: none; }
-.hire-footer button { min-height: 40px; padding-inline: 18px; }
 .hire-footer button[type="submit"] { min-width: 92px; }
 .hire .hire-task textarea::placeholder { color: var(--ink-2); opacity: 1; }
 

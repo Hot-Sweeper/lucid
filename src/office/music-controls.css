@@ -7,11 +7,9 @@
 .office-radio-direction { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 12px; color: var(--ink-2); font-size: 13px; }
 .office-radio select { width: 100%; min-width: 0; }
 .office-radio-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.office-radio button { flex: 1; min-height: var(--control-h); min-width: 110px; padding: 6px 10px; background: color-mix(in srgb, var(--ink) 7%, transparent); color: var(--ink); border: 0; border-radius: var(--radius-sm); font: 500 13px var(--font); cursor: pointer; transition: background-color var(--dur-hover) var(--ease-out-strong), transform var(--dur-press) var(--ease-out-strong); }
-.office-radio button:hover:enabled { background: color-mix(in srgb, var(--ink) 12%, transparent); }
-.office-radio button:active { transform: scale(.97); }
+/* Pause music and Next song are shared ghost buttons (src/ui/controls.css), sharing the row. */
+.office-radio button { flex: 1; min-width: 110px; }
 .office-radio button[aria-pressed="true"] { box-shadow: inset 0 0 0 1.5px var(--accent); }
 .office-radio :is(button, select):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.office-radio button:disabled { cursor: wait; opacity: .6; transform: none; }
+.office-radio button:disabled { cursor: wait; }
 .office-radio-status:empty { display: none; }
-@media (prefers-reduced-motion: reduce) { .office-radio button { transition: none; } .office-radio button:active { transform: none; } }

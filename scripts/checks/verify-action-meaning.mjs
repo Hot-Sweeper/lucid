@@ -20,8 +20,9 @@ assert.ok(/button:where\(\.primary\.danger\):hover:not\(:disabled\)/.test(contro
 assert.ok(/button:where\(\.pop-menu > \.danger\) \{ color: var\(--danger-ink\)/.test(controls) && /button:where\(\.pop-menu > \.danger\):is\(:hover, :focus-visible\)/.test(controls), 'destructive menu items read and hover as destructive');
 assert.ok(/button:where\(\.ghost\.danger\)/.test(controls));
 const office = await read('src/office/office.css');
-assert.ok(/\.cq-yes \{ background: var\(--danger\)/.test(office) && /\.empty-desk-remove \{[^}]*color:var\(--danger-ink\)/.test(office), 'queue removal and empty-desk removal use the danger token');
-assert.ok(/primary danger wf-retire-yes/.test(await read('src/office/worker-focus.ts')), 'retiring a worker is confirmed with the danger button');
+const chatPanel = await read('src/office/chat-panel.ts');
+assert.ok(/class="primary compact danger cq-yes"/.test(chatPanel) && !/\.cq-yes \{[^}]*background/.test(office) && /\.empty-desk-remove \{[^}]*color:var\(--danger-ink\)/.test(office), 'queue removal is the shared danger button and empty-desk removal uses the danger token');
+assert.ok(/primary (compact )?danger wf-retire-yes/.test(await read('src/office/worker-focus.ts')), 'retiring a worker is confirmed with the danger button');
 console.log('PASS: destructive actions, notices and confirmations are styled by meaning');
 
 const status = await read('src/ui/status.css');

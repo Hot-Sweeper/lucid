@@ -209,17 +209,17 @@ export class AnswerCard {
     let body = "", actions = "";
     if (r.type === 'input' && r.sensitive) {
       body = `<h3 class="ca-title">${esc(r.label || 'Secret requested')}</h3>${r.detail ? `<p class="ca-detail">${esc(r.detail)}</p>` : ''}<label for="ca${n}-secret">Secure value</label><input id="ca${n}-secret" class="ca-secret" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(r.placeholder || '')}"><p class="ca-detail">Sent securely to T3. Never added to chat history.</p>`;
-      actions = this.foot(r, '<button type="submit" name="secretAction" value="decline" class="ghost ca-alt">Decline</button><button type="submit" class="cp-send ca-send">Send securely</button>');
+      actions = this.foot(r, '<button type="submit" name="secretAction" value="decline" class="ghost ca-alt">Decline</button><button type="submit" class="primary cp-send ca-send">Send securely</button>');
     } else if (r.type === "input") {
       body = r.questions.map((q, i) => this.question(q, `ca${n}-${i}`, r.questions.length)).join("");
       const many = r.questions.length > 1;
-      actions = this.foot(r, `<button type="submit" class="cp-send ca-send">${many ? "Send answers" : "Send answer"}</button>`);
+      actions = this.foot(r, `<button type="submit" class="primary cp-send ca-send">${many ? "Send answers" : "Send answer"}</button>`);
     } else {
       const title = APPROVAL_TITLE[r.requestKind] ?? "Allow this?";
       const opts = r.options.length ? r.options : [{ decision: "decline", label: "Deny", warning: null }, { decision: "accept", label: "Approve", warning: null }];
       // the approve choice is the main button; the rest sit beside it, quieter
       const sorted = [...opts].sort((a, b) => Number(a.decision === "accept") - Number(b.decision === "accept"));
-      const buttons = sorted.map((o) => `<button type="submit" name="decision" value="${esc(o.decision)}" class="${o.decision === "accept" ? "cp-send ca-send" : "ghost ca-alt"}"${o.warning ? ` title="${esc(o.warning)}"` : ""}>${esc(o.decision === "decline" && /^decline$/i.test(o.label) ? "Deny" : o.label)}</button>`).join("");
+      const buttons = sorted.map((o) => `<button type="submit" name="decision" value="${esc(o.decision)}" class="${o.decision === "accept" ? "primary cp-send ca-send" : "ghost ca-alt"}"${o.warning ? ` title="${esc(o.warning)}"` : ""}>${esc(o.decision === "decline" && /^decline$/i.test(o.label) ? "Deny" : o.label)}</button>`).join("");
       body = `<h3 class="ca-title" id="ca${n}-t">${esc(title)}</h3>
         ${r.prompt ? `<pre class="ca-prompt" aria-labelledby="ca${n}-t">${esc(r.prompt)}</pre>` : ""}
         ${r.detail ? `<p class="ca-detail">${esc(r.detail)}</p>` : ""}`;
@@ -303,7 +303,7 @@ export class AnswerCard {
 
   private foot(r: PendingRequest, actions: string) {
     const note = r.answerable ? "" : esc(r.reason ? "The agent stopped waiting for this answer. Stop the run in T3 and ask again." : "This request can no longer be answered.");
-    return `<p class="ca-connect" hidden><span>Connect ${BRAND.name} to T3 to answer here</span><button type="button" class="ghost">Connect</button></p>
+    return `<p class="ca-connect" hidden><span>Connect ${BRAND.name} to T3 to answer here</span><button type="button" class="ghost compact">Connect</button></p>
       <div class="ca-foot"><p class="ca-state" role="status" aria-live="polite">${note}</p>${actions}</div>`;
   }
 

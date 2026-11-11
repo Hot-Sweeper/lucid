@@ -50,6 +50,8 @@ export const CHECKS = [
   "verify-snake-desks.mjs",
   "verify-office-drag.mjs",
   "verify-desk-drop-layout.mjs",
+  "verify-status-ring.mjs",
+  "verify-button-uniformity.mjs",
   "verify-worker-match.mjs",
   "verify-harness-swap.mjs",
   "verify-chat-robot-marks.mjs",

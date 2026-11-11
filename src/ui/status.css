@@ -15,6 +15,7 @@
 .ui-status > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .status-icon { color: var(--status-color, currentColor); }
 /* Working turns slowly; it stops for reduced motion, hidden windows and rows scrolled away. */
-.status-icon[data-icon="statusWorking"] { animation: status-turn 2.4s linear infinite; transform-origin: 50% 50%; }
+/* Its own compositor layer turns the rasterized ring about its exact centre, so it never wobbles on the pixel grid. */
+.status-icon[data-icon="statusWorking"] { animation: status-turn 2.4s linear infinite; transform-origin: 50% 50%; will-change: transform; }
 @keyframes status-turn { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .status-icon[data-icon="statusWorking"] { animation: none; } }

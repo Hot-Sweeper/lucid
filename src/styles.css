@@ -28,7 +28,8 @@
   --radius-md: 8px;         /* text areas, cards, the HUD, code blocks, tables and media */
   --radius-lg: 10px;        /* menus, popovers and tooltips (items stay concentric at 4px padding) */
   --radius-xl: 14px;        /* panels and dialogs (settings, ledger, hire) and the chat composer */
-  --control-h: 32px;        /* composer tools, send */
+  --control-h: 32px;        /* text buttons, composer tools, send, selects */
+  --control-h-sm: 26px;     /* compact buttons (.compact), segmented choices, the room toolbar */
   --icon-btn: 30px;         /* header icon buttons */
   --shadow-pop: 0 16px 40px rgba(4, 6, 24, 0.5);
   --ease-out: cubic-bezier(0, 0, .58, 1);
@@ -57,9 +58,9 @@ button, textarea, input { font: inherit; color: inherit; }
 /* ---------------- panel ---------------- */
 .panel { display: flex; flex-direction: column; gap: 22px; padding: 20px 16px 0; background: var(--night-2); min-height: 0; }
 .brand { display: flex; align-items: center; gap: 10px; }
-.update { margin-left: auto; border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 13px; padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer; }
-.update:hover { background: var(--accent-2); }
-.update:disabled { opacity: 0.7; cursor: progress; }
+/* The Update button is a compact primary (src/ui/controls.css); only its place is its own. */
+.update { margin-left: auto; }
+.update:disabled { cursor: progress; }
 
 
 h3 { margin: 0 0 8px; font-size: 13px; font-weight: 500; color: var(--ink-3); }

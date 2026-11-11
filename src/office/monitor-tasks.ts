@@ -178,7 +178,7 @@ export class MonitorTasks {
         </div>
       </div>`;
       const footer = document.createElement('footer'); footer.className = 'mt-actions';
-      footer.innerHTML = `<p class="monitor-task-error" role="status"></p><button type="button" class="cp-send monitor-task-collect" data-task-collect>Settle session</button>`;
+      footer.innerHTML = `<p class="monitor-task-error" role="status"></p><button type="button" class="primary cp-send monitor-task-collect" data-task-collect>Settle session</button>`;
       el.append(footer);
       const button = el.querySelector<HTMLButtonElement>('[data-task-collect]')!, error = el.querySelector<HTMLElement>('.monitor-task-error')!;
       button.addEventListener('click', async () => {

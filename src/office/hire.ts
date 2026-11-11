@@ -77,7 +77,7 @@ export function openHire(opts: {
           <div class="hire-composer">
             <label class="hire-task"><span>Task</span><textarea rows="6" placeholder="What should we work on? Add files, screenshots, or anything the job needs." aria-describedby="hire-file-hint"></textarea></label>
             <div class="hire-attachments" aria-label="Attached files"></div>
-            <div class="hire-composer-tools"><button type="button" class="ghost hire-attach">${icon("attach", 18)}Attach files</button><span id="hire-file-hint">or drop files and paste images</span><input class="hire-files" type="file" multiple hidden></div>
+            <div class="hire-composer-tools"><button type="button" class="ghost compact hire-attach">${icon("attach", 14)}Attach files</button><span id="hire-file-hint">or drop files and paste images</span><input class="hire-files" type="file" multiple hidden></div>
           </div>
           <div class="hire-runtime-controls" aria-label="Runtime settings"></div>
           <div class="hire-runtime-note"><span class="hire-runtime" role="status">Loading T3 defaults...</span><button type="button" class="link-btn hire-reset" hidden>Use T3 defaults</button><button type="button" class="link-btn hire-reload" hidden>Retry</button></div>
