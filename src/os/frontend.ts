@@ -30,7 +30,8 @@ export class FrontendView {
   private resize: ResizeObserver;
   private target: FrontendTarget;
   private api: Api | undefined = (window as any).lucid;
-  constructor(target: FrontendTarget, private active: () => boolean, private title: (title: string) => void) {
+  /** `size`: a captured window's real pixel size, for a window that takes its shape. */
+  constructor(target: FrontendTarget, private active: () => boolean, private title: (title: string) => void, private size?: (size: { w: number; h: number }) => void) {
     this.target = target;
     this.root.className = 'frontend-view';
     this.root.classList.toggle('workspace-browser-view', !!target.workspace);
@@ -47,6 +48,14 @@ export class FrontendView {
     this.timer = window.setTimeout(() => void this.poll(), 0);
   }
   update(target: FrontendTarget) { this.root.classList.toggle('workspace-browser-view', !!target.workspace); this.target = target; this.opened = false; this.revision++; }
+  /** One frame before the view is on screen, so its window can open in the right shape. */
+  async prefetch(ms = 2500): Promise<boolean> {
+    if (this.opened || this.dead) return this.opened;
+    let timer = 0;
+    await Promise.race([this.request('full', this.revision).catch(() => {}), new Promise<void>(r => { timer = window.setTimeout(r, ms); })]);
+    clearTimeout(timer);
+    return this.opened;
+  }
   point(action: FrontendAction) { this.action = action; this.actionUntil = performance.now() + 2200; }
   stop() {
     if (this.dead) return;
@@ -68,29 +77,40 @@ export class FrontendView {
       }
       this.paused = false;
       if (!this.api?.frontendFrame) { this.status.textContent = `Update ${BRAND.name} to view live frontends.`; return; }
-      const revision = this.revision;
-      const frame = await this.api.frontendFrame({ id: this.id, target: this.opened ? undefined : this.target, mode,
-        density: Math.min(2, Math.max(1, renderPixelRatio(this.root))), height: this.viewportHeight,
-        action: performance.now() < this.actionUntil ? this.action : undefined });
-      if (this.dead) { void this.api.frontendFrame({ id: this.id, close: true }).catch(() => {}); return; }
-      if (revision !== this.revision) return;
-      if (!frame.ok) { if (frame.missing) this.opened = false; this.status.hidden = false; this.status.textContent = frame.error || 'Waiting for the frontend…'; delay = 2000; return; }
-      this.opened = true;
-      this.status.hidden = true;
-      if (frame.unchanged) return;
-      if (frame.title) this.title(frame.title);
+      if (!await this.request(mode, this.revision)) delay = 2000;
+    } catch { if (!this.dead) { this.status.hidden = false; this.status.textContent = 'Waiting for the frontend connection…'; delay = 2000; } }
+    finally { if (!this.dead) this.timer = window.setTimeout(() => void this.poll(), delay); }
+  }
+  /** One frame request; false while the source is unavailable. */
+  private async request(mode: string, revision: number) {
+    if (!this.api?.frontendFrame) return false;
+    const frame = await this.api.frontendFrame({ id: this.id, target: this.opened ? undefined : this.target, mode,
+      density: Math.min(2, Math.max(1, renderPixelRatio(this.root))), height: this.viewportHeight,
+      action: performance.now() < this.actionUntil ? this.action : undefined });
+    if (this.dead) { void this.api.frontendFrame({ id: this.id, close: true }).catch(() => {}); return true; }
+    if (revision !== this.revision) return true;
+    if (!frame.ok) { if (frame.missing) this.opened = false; this.status.hidden = false; this.status.textContent = frame.error || 'Waiting for the frontend…'; return false; }
+    this.opened = true;
+    this.status.hidden = true;
+    if (frame.unchanged) return true;
+    if (frame.title) this.title(frame.title);
+    if (this.target.workspace) {
+      // A captured window is its own picture at every distance: the reduced tiers draw the
+      // image itself, and its window takes the capture's real shape.
+      if (frame.width > 0 && frame.height > 0) this.size?.({ w: frame.width, h: frame.height });
+      if (this.signature) { clearDetailScene(this.root); this.signature = ''; }
+    } else {
       const scene: DetailScene = { width: frame.width, height: frame.height, background: frame.background, shapes: frame.shapes };
       const signature = JSON.stringify(scene);
       if (signature !== this.signature) { setDetailScene(this.root, scene); this.signature = signature; }
-      if (frame.image) { this.image.src = frame.image; this.image.hidden = false; }
-      this.status.hidden = true;
-      this.marker.hidden = !frame.target; this.pointer.hidden = !frame.pointer;
-      if (frame.target) {
-        const r = frame.target; this.marker.style.cssText = `left:${r.x / frame.width * 100}%;top:${r.y / frame.height * 100}%;width:${r.w / frame.width * 100}%;height:${r.h / frame.height * 100}%`;
-      }
-      if (frame.pointer) this.pointer.style.cssText = `left:${frame.pointer.x / frame.width * 100}%;top:${frame.pointer.y / frame.height * 100}%`;
-    } catch { if (!this.dead) { this.status.hidden = false; this.status.textContent = 'Waiting for the frontend connection…'; delay = 2000; } }
-    finally { if (!this.dead) this.timer = window.setTimeout(() => void this.poll(), delay); }
+    }
+    if (frame.image) { this.image.src = frame.image; this.image.hidden = false; }
+    this.marker.hidden = !frame.target; this.pointer.hidden = !frame.pointer;
+    if (frame.target) {
+      const r = frame.target; this.marker.style.cssText = `left:${r.x / frame.width * 100}%;top:${r.y / frame.height * 100}%;width:${r.w / frame.width * 100}%;height:${r.h / frame.height * 100}%`;
+    }
+    if (frame.pointer) this.pointer.style.cssText = `left:${frame.pointer.x / frame.width * 100}%;top:${frame.pointer.y / frame.height * 100}%`;
+    return true;
   }
 }
 

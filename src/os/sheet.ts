@@ -161,7 +161,8 @@ const PAUSE = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" wid
  * The player: the sheet's frames play in order on a stage, a bar and a filmstrip follow the
  * frame that is really showing. The robot presses play, watches it loop, then jumps to a frame.
  */
-export async function playSheet(wm: WM, body: HTMLElement, found: { img: HTMLImageElement; sheet: Sheet }, src: string, opts: { loops?: number; width?: number } = {}) {
+/** `measured`: the space the controls take around the stage, once laid out. */
+export async function playSheet(wm: WM, body: HTMLElement, found: { img: HTMLImageElement; sheet: Sheet }, src: string, opts: { loops?: number; width?: number; measured?: (inset: { w: number; h: number }) => void } = {}) {
   const { img, sheet: s } = found, e = wm.epoch;
   const tiny = s.fw <= 80 && s.fh <= 80;
   body.innerHTML = `
@@ -175,10 +176,11 @@ export async function playSheet(wm: WM, body: HTMLElement, found: { img: HTMLIma
   g.imageSmoothingEnabled = !tiny;
   const play = body.querySelector(".sh-play") as HTMLElement, bar = body.querySelector(".sh-bar i") as HTMLElement, time = body.querySelector(".sh-time b") as HTMLElement;
   const thumbs = Array.from(body.querySelectorAll(".sh-f")) as HTMLElement[];
+  opts.measured?.({ w: body.clientWidth - stage.clientWidth, h: body.clientHeight - stage.clientHeight });
   // the filmstrip shows the same pixels, cut out of the sheet
   const url = src.replace(/"/g, "%22");
   // size of one filmstrip frame: as large as fits (max 64 wide, 40 tall), in the sheet's own proportions
-  const avail = (opts.width ?? 496) - 3 * (s.frames - 1);
+  const avail = (opts.width ?? body.clientWidth - 24) - 3 * (s.frames - 1);
   let tw = Math.min(64, Math.floor(avail / s.frames)), th = Math.round((tw * s.fh) / s.fw);
   if (th > 40) { th = 40; tw = Math.round((th * s.fw) / s.fh); }
   thumbs.forEach((t, n) => {

@@ -35,7 +35,8 @@ async function capture(target) {
     const size=image.getSize();
     if(size.width>1600) image=image.resize({width:1600});
     const jpeg=image.toJPEG(85), hash=require('node:crypto').createHash('sha256').update(jpeg).digest('hex');
-    return {ok:true,width:size.width,height:size.height,background:'#141a33',shapes:[],title:String(shot.windows?.[0]?.title||'Agent browser').replace(/ [—–] (Mozilla Firefox|Chromium|Google Chrome)$/,''),image:`data:image/jpeg;base64,${jpeg.toString('base64')}`,hash};
+    // width and height are the window's real pixels: the robot's window takes that shape.
+    return {ok:true,width:size.width,height:size.height,title:String(shot.windows?.[0]?.title||'Agent browser').replace(/ [—–] (Mozilla Firefox|Chromium|Google Chrome)$/,''),image:`data:image/jpeg;base64,${jpeg.toString('base64')}`,hash};
   } finally { await fs.rm(directory,{recursive:true,force:true}); }
 }
 function close(key) {const s=sessions.get(key);clearTimeout(s?.expiry);sessions.delete(key);}

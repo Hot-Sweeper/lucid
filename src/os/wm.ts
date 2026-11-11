@@ -8,10 +8,11 @@ import { ICONS } from "./icons";
 import { wakeRender, renderFps } from "../perf/render";
 import { watchClock, clockTime } from "../perf/clock";
 import { CHAT_TITLE } from "../brand";
+import { fitWindow, maximizedFrame, snappedFrame, refitFrame, type ContentFit, type Size } from "./window-fit";
 
 export class Cancelled extends Error {}
 
-export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "t3code" | "instaweb" | "spoolweb" | "sparkplug" | "photos" | "player" | "codex" | "vapor" | "trading" | "studio";
+export type AppId = "files" | "editor" | "terminal" | "browser" | "chat" | "tool" | "game" | "harness" | "beats" | "social" | "notes" | "tasks" | "calc" | "music" | "weather" | "gitdesk" | "botword" | "cellsheet" | "slidedeck" | "botsapp" | "telegrid" | "chirp" | "doodle" | "crossword" | "solitaire" | "stocks" | "mail" | "lingo" | "t3code" | "instaweb" | "spoolweb" | "sparkplug" | "photos" | "player" | "codex" | "vapor" | "trading" | "studio" | "livebrowser";
 
 type Frame = { x: number; y: number; w: number; h: number };
 const FRAMES: Record<AppId, Frame> = {
@@ -20,6 +21,7 @@ const FRAMES: Record<AppId, Frame> = {
   terminal: { x: 24, y: 196, w: 500, h: 208 },
   browser: { x: 40, y: 12, w: 740, h: 390 },
   studio: { x: 40, y: 12, w: 740, h: 390 },
+  livebrowser: { x: 40, y: 12, w: 740, h: 390 },
   chat: { x: 110, y: 12, w: 600, h: 396 },
   tool: { x: 470, y: 228, w: 330, h: 170 },
   game: { x: 190, y: 14, w: 440, h: 392 },
@@ -54,9 +56,17 @@ codex: { x: 70, y: 12, w: 680, h: 396 },
   vapor: { x: 50, y: 10, w: 720, h: 398 },
   trading: { x: 40, y: 10, w: 740, h: 398 },
 };
-const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: CHAT_TITLE, tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "Git", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", instaweb: "Instabot", spoolweb: "Spool", sparkplug: "Sparkplug", t3code: "T3 Code", photos: "Photos", player: "Player", codex: "Codex", vapor: "Vapor", trading: "Botcoin Exchange", studio: "Studio" };
+const TITLES: Record<AppId, string> = { files: "Files", editor: "Code", terminal: "Terminal", browser: "Browser", chat: CHAT_TITLE, tool: "Tools", game: "Games", harness: "Agents", beats: "BeatLab", social: "Botcord", notes: "Notes", tasks: "Tasks", calc: "Calculator", music: "Botify", weather: "Weather", gitdesk: "Git", botword: "Botword", cellsheet: "Cellsheet", slidedeck: "Slidedeck", botsapp: "BotsApp", telegrid: "Telegrid", chirp: "Chirp", doodle: "Sketchpad", crossword: "Crossbot", solitaire: "Solitaire", stocks: "Ticker", mail: "Botmail", lingo: "Lingobot", instaweb: "Instabot", spoolweb: "Spool", sparkplug: "Sparkplug", t3code: "T3 Code", photos: "Photos", player: "Player", codex: "Codex", vapor: "Vapor", trading: "Botcoin Exchange", studio: "Studio", livebrowser: "Web browser" };
 const DOCK: AppId[] = ["files", "editor", "terminal", "browser", "studio", "gitdesk", "music", "t3code", "chat", "notes", "tasks", "calc", "weather", "harness", "tool", "beats", "social", "game", "botword", "cellsheet", "slidedeck", "botsapp", "telegrid", "chirp", "mail", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "photos", "player", "codex", "vapor", "trading"];
 // Real browser tabs, work, files, terminal output and thread conversations stay untouched.
+// The agent's real browser window brings its own tabs and address bar: no second title bar.
+const BARE_APPS = new Set<AppId>(["livebrowser"]);
+// Height of .win-bar in styles.css.
+const BAR_H = 26;
+// Where windows may go: above the dock, inside a small margin (the maximized frame).
+const AREA = { x: 4, y: 4, w: SCREEN.w - 8, h: SCREEN.h - 58 };
+type WinMode = "max" | "left" | "right";
+const halfOf = (side: "left" | "right"): Frame => ({ x: side === "left" ? 4 : Math.round(SCREEN.w / 2) + 2, y: 4, w: Math.round(SCREEN.w / 2) - 6, h: SCREEN.h - 54 });
 const FICTIONAL_APPS = new Set<AppId>(["beats", "social", "game", "music", "botsapp", "telegrid", "chirp", "doodle", "crossword", "solitaire", "stocks", "lingo", "instaweb", "spoolweb", "sparkplug", "vapor", "trading"]);
 
 export type Win = { id: AppId; el: HTMLElement; body: HTMLElement; title: HTMLElement; lastUsed: number };
@@ -77,6 +87,10 @@ export class WM {
   epoch = 0;
   // An app can ask for a different window size before it opens (the Tasks checklist is narrower).
   frameHint: Partial<Record<AppId, Frame>> = {};
+  // Apps whose content has a real size (a captured browser window, a photo): the window's
+  // content box keeps that shape when it opens, maximizes, snaps, restores and when it changes.
+  private contents = new Map<AppId, Omit<ContentFit, "inset"> & { inset: Size }>();
+  private modes = new Map<AppId, WinMode>();
   private z = 10;
   private overlayCovered = false;
   private overlayOwners = new Set<string>();
@@ -384,13 +398,15 @@ export class WM {
     this.trim(id);
     const base0 = this.frameHint[id] ?? FRAMES[id];
     // a little variety in size, then the spot that overlaps the open windows least
-    const k = 0.92 + Math.random() * 0.12;
-    const base = { ...base0, w: Math.min(SCREEN.w - 8, Math.round(base0.w * k)), h: Math.min(SCREEN.h - 58, Math.round(base0.h * (0.96 + Math.random() * 0.06))) };
+    const k = 0.92 + Math.random() * 0.12, fit = this.fitOf(id);
+    const base = fit
+      ? { ...base0, ...fitWindow({ ...fit, prefer: { w: (fit.prefer ?? base0).w * k, h: (fit.prefer ?? base0).h * k } }, AREA) }
+      : { ...base0, w: Math.min(SCREEN.w - 8, Math.round(base0.w * k)), h: Math.min(SCREEN.h - 58, Math.round(base0.h * (0.96 + Math.random() * 0.06))) };
     // tidy robots find free space; messy ones drop windows wherever, often on top of others
     const messy = this.prefs?.tidiness === "messy" && Math.random() < 0.7;
     const f = this.wins.size && !messy ? this.bestSpot(base) : { ...base, ...this.jitter(base) };
     const el = document.createElement("section");
-    el.className = `win app-${id} render-opening`;
+    el.className = `win app-${id} render-opening${BARE_APPS.has(id) ? " win-bare" : ""}`;
     el.style.cssText = `left:${f.x}px;top:${f.y}px;width:${f.w}px;height:${f.h}px`;
     el.innerHTML = `<header class="win-bar">${this.iconOf(id)}<span class="win-title"></span><span class="win-x" aria-hidden="true"></span></header><div class="win-body"></div>`;
     const titleEl = el.querySelector(".win-title") as HTMLElement;
@@ -602,6 +618,7 @@ export class WM {
     const w = this.wins.get(id);
     if (!w) return;
     const e = this.epoch;
+    this.modes.delete(id);
     const bar = w.el.querySelector(".win-bar")!;
     await this.pointAt(bar, 0.35, 0.5, 340);
     const r = this.frameOf(w);
@@ -618,22 +635,21 @@ export class WM {
   }
   // drag to a screen edge: the window snaps to that half, like on a real desktop
   async snap(id: AppId, side: "left" | "right") {
-    const H = SCREEN.h - 50;
-    const half = { x: side === "left" ? 4 : Math.round(SCREEN.w / 2) + 2, y: 4, w: Math.round(SCREEN.w / 2) - 6, h: H - 4 };
-    await this.dragTo(id, { ...half, w: this.frameOf(this.wins.get(id)!).w, h: this.frameOf(this.wins.get(id)!).h, x: side === "left" ? 2 : SCREEN.w - this.frameOf(this.wins.get(id)!).w - 2 });
+    const start = this.wins.get(id);
+    if (!start) return;
+    const r = this.frameOf(start);
+    await this.dragTo(id, { ...r, x: side === "left" ? 2 : SCREEN.w - r.w - 2, y: 4 });
     const w = this.wins.get(id);
     if (!w) return;
-    const flash = document.createElement("div");
-    flash.className = "snap-hint";
-    flash.style.cssText = `left:${half.x}px;top:${half.y}px;width:${half.w}px;height:${half.h}px`;
-    this.layer.appendChild(flash);
-    gsap.fromTo(flash, { opacity: 0 }, { opacity: 1, duration: 0.15, yoyo: true, repeat: 1, onComplete: () => flash.remove() });
-    this.animateFrame(w, half, 0.32);
+    // No shaded target region: the window itself settles into its half.
+    this.modes.set(id, side);
+    this.animateFrame(w, this.frameFor(id, halfOf(side), side), 0.32);
     // the window on the other side fills the rest, if there is one
     const other = [...this.wins.values()].filter((o) => o.id !== id).sort((a, b) => b.lastUsed - a.lastUsed)[0];
     if (other && Math.random() < 0.7) {
-      const rest = { x: side === "left" ? Math.round(SCREEN.w / 2) + 2 : 4, y: 4, w: half.w, h: half.h };
-      this.animateFrame(other, rest, 0.36, 0.12);
+      const otherSide = side === "left" ? "right" : "left";
+      this.modes.set(other.id, otherSide);
+      this.animateFrame(other, this.frameFor(other.id, halfOf(otherSide), otherSide), 0.36, 0.12);
     }
     await this.sleep(380);
   }
@@ -645,7 +661,8 @@ export class WM {
     this.unmax.set(id, { left: w.el.style.left, top: w.el.style.top, width: w.el.style.width, height: w.el.style.height });
     await this.pointAt(w.el.querySelector(".win-bar")!, 0.5, 0.5, 340);
     await this.click(true);
-    this.animateFrame(w, { x: 4, y: 4, w: SCREEN.w - 8, h: SCREEN.h - 58 }, 0.32);
+    this.modes.set(id, "max");
+    this.animateFrame(w, this.frameFor(id, AREA, "max"), 0.32);
     await this.sleep(360);
   }
 
@@ -656,8 +673,58 @@ export class WM {
     this.unmax.delete(id);
     await this.pointAt(w.el.querySelector(".win-bar")!, 0.5, 0.5, 300);
     await this.click(true);
-    this.animateFrame(w, was, 0.3);
+    this.modes.delete(id);
+    // The content may have changed shape while maximized: restore its place, in its new shape.
+    const frame = { x: parseFloat(was.left), y: parseFloat(was.top), w: parseFloat(was.width), h: parseFloat(was.height) };
+    this.animateFrame(w, this.fitOf(id) ? this.floatingFrame(id, frame) : was, 0.3);
     await this.sleep(340);
+  }
+
+  /**
+   * The app's content has a real size (`null`: it no longer has one). `inset` is what the app
+   * draws around it inside the window body, `prefer` the window it would like at rest and
+   * `maxScale` how far the content may be enlarged beyond its own pixels. An open window
+   * takes the new shape in place: maximized, snapped and floating windows each stay so.
+   */
+  fitContent(id: AppId, content: Size | null, o: { inset?: Size; prefer?: Size; maxScale?: number } = {}) {
+    if (!content || !(content.w > 0 && content.h > 0)) { this.contents.delete(id); return; }
+    const old = this.contents.get(id);
+    const next = { content: { w: content.w, h: content.h }, inset: o.inset ?? { w: 0, h: 0 }, prefer: o.prefer, maxScale: o.maxScale };
+    this.contents.set(id, next);
+    const same = old && Math.abs(old.content.w / old.content.h - content.w / content.h) < 0.002 && old.inset.w === next.inset.w && old.inset.h === next.inset.h;
+    const w = this.wins.get(id);
+    if (!w || same) return;
+    const mode = this.modes.get(id), current = this.frameOf(w);
+    const to = mode ? this.frameFor(id, mode === "max" ? AREA : halfOf(mode), mode) : this.floatingFrame(id, current);
+    if (Math.abs(to.x - current.x) + Math.abs(to.y - current.y) + Math.abs(to.w - current.w) + Math.abs(to.h - current.h) > 1) this.animateFrame(w, to, 0.3);
+  }
+
+  /** The live title of an open window (a real page title). */
+  retitle(id: AppId, title: string) {
+    const w = this.wins.get(id);
+    if (!w || this.windowTitles.get(w) === title) return;
+    this.windowTitles.set(w, title);
+    w.title.textContent = title;
+  }
+
+  private fitOf(id: AppId): ContentFit | null {
+    const c = this.contents.get(id);
+    return c ? { ...c, inset: { w: c.inset.w, h: c.inset.h + (BARE_APPS.has(id) ? 0 : BAR_H) } } : null;
+  }
+
+  /** A floating window with real content: unchanged when it already has the content's shape,
+   * else the app's preferred size in that shape, around the same centre. */
+  private floatingFrame(id: AppId, frame: Frame): Frame {
+    const fit = this.fitOf(id)!, bw = frame.w - fit.inset.w, bh = frame.h - fit.inset.h, r = fit.content.w / fit.content.h;
+    if (bw > 0 && bh > 0 && (bw / bh > r ? bw - bh * r : bh - bw / r) <= 1) return frame;
+    return refitFrame({ ...fit, prefer: fit.prefer ?? FRAMES[id] }, frame, AREA);
+  }
+
+  /** A maximized or snapped frame: the whole region, or the content's shape inside it. */
+  private frameFor(id: AppId, region: Frame, mode: WinMode): Frame {
+    const fit = this.fitOf(id);
+    if (!fit) return region;
+    return mode === "max" ? maximizedFrame(fit, region) : snappedFrame(fit, region, mode);
   }
 
   // Open an app by typing its name into the launcher, like a keyboard person would.
@@ -701,6 +768,7 @@ export class WM {
     const bar = w.el.querySelector(".win-bar")!;
     await this.pointAt(bar, 0.4, 0.5, 360);
     const r = this.frameOf(w);
+    this.modes.delete(id);
     const nx = Math.max(4, Math.min(SCREEN.w - r.w - 4, r.x + (Math.random() - 0.5) * 220));
     const ny = Math.max(4, Math.min(SCREEN.h - 50 - r.h, r.y + (Math.random() - 0.5) * 70));
     const grab = { x: this.cursor.x - r.x, y: this.cursor.y - r.y };
@@ -791,6 +859,7 @@ export class WM {
     if (!w) return;
     this.localizationStops.get(id)?.(); this.localizationStops.delete(id);
     this.wins.delete(id);
+    this.contents.delete(id); this.modes.delete(id); this.unmax.delete(id);
     this.syncOcclusion();
     const dockItem = (this.dock.querySelector(`[data-app="${id}"]`) as HTMLElement | null) ?? this.dock;
     dockItem.classList.remove("running");
@@ -836,6 +905,7 @@ export class WM {
     gsap.killTweensOf(this.cursor);
     for (const w of this.wins.values()) w.el.remove();
     this.wins.clear();
+    this.contents.clear(); this.modes.clear(); this.unmax.clear();
     this.opening.clear();
     this.root.querySelectorAll(".launcher, .alttab, .sel-box, .click-ring").forEach((el) => el.remove());
     this.renderDock(false);

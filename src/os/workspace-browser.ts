@@ -1,11 +1,16 @@
 export type WorkspaceBrowserTarget = { id:string; appId:string; sessionId:string };
-export type BrowserObservation = { workspace:WorkspaceBrowserTarget; url:string; title:string };
+/** `browser`: the real browser's name (Firefox, Chromium, Google Chrome), empty when unknown. */
+export type BrowserObservation = { workspace:WorkspaceBrowserTarget; url:string; title:string; browser:string };
 function resultOf(raw:any):any {
   if(raw?.structuredContent)return raw.structuredContent;
   if(raw?.status || raw?.apps || raw?.browser_navigate)return raw;
   try {return JSON.parse(typeof raw==='string'?raw:(raw?.content||[]).filter((c:any)=>c.type==='text').map((c:any)=>c.text).join('\n'));}catch{return {};}
 }
 const webUrl=(value:any):string=>{try{const u=new URL(value);return /^https?:$/.test(u.protocol)&&!u.username&&!u.password?u.href:'';}catch{return '';}};
+export function browserName(command:any):string {
+  const exe=Array.isArray(command)?String(command[0]||'').split(/[/\\]/).pop()||'':'';
+  return /firefox$/.test(exe)?'Firefox':/^chromium/.test(exe)?'Chromium':/chrome/.test(exe)?'Google Chrome':'';
+}
 const isBrowser=(command:any)=>Array.isArray(command)&&(/(?:^|[/\\])agent-firefox$/.test(command[0]||'')||/(?:^|[/\\])(?:chromium|chrome|google-chrome)(?:-stable)?$/.test(command[0]||'')&&command.some((a:any)=>typeof a==='string'&&a.startsWith('--user-data-dir=')));
 /** Observed workspace handles only. Shell URLs never identify a browser session. */
 export class WorkspaceBrowserTracker {
@@ -28,6 +33,6 @@ export class WorkspaceBrowserTracker {
     if(!app&&!/^workspace_(browser_|click|key|paste|type|scroll|screenshot|observe|focus|wait)/.test(base))return null;
     const url=webUrl(browser.page?.url||input?.url)||app?.command.map(webUrl).find(Boolean)||prior?.url||'';
     const title=browser.page?.title||out.windows?.find((w:any)=>w.app_id===appId)?.title||prior?.title||'Agent browser';
-    const observation={workspace:{id,appId,sessionId},url,title};this.targets.set(id,observation);return observation;
+    const observation={workspace:{id,appId,sessionId},url,title,browser:app?browserName(app.command):prior?.browser||''};this.targets.set(id,observation);return observation;
   }
 }

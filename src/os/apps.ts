@@ -198,6 +198,22 @@ export class TerminalApp {
   }
 }
 
+// The player's padding, controls and filmstrip around its stage (styles.css .sheet); the
+// real layout is measured once it renders.
+const PLAYER_INSET = { w: 24, h: 100 };
+
+/** A picture's pixel size, or null when it does not load quickly. */
+function naturalSize(src: string, ms = 1500): Promise<{ w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const done = (size: { w: number; h: number } | null) => { clearTimeout(timer); img.onload = img.onerror = null; resolve(size); };
+    const timer = setTimeout(() => done(null), ms);
+    img.onload = () => done(img.naturalWidth > 0 && img.naturalHeight > 0 ? { w: img.naturalWidth, h: img.naturalHeight } : null);
+    img.onerror = () => done(null);
+    img.src = src;
+  });
+}
+
 // ---------------------------------------------------------------------------
 export class ToolApp {
   constructor(private wm: WM) {}
@@ -214,10 +230,18 @@ export class ToolApp {
     const sheet = await probe;
     this.wm.check(epoch);
     if (sheet?.f) {
+      // The stage takes one frame's shape; the controls and filmstrip sit under it.
+      const { fw, fh } = sheet.f.sheet, fit = { prefer: { w: 520, h: 340 }, maxScale: fw <= 80 && fh <= 80 ? 6 : 2 };
+      this.wm.fitContent("player", { w: fw, h: fh }, { ...fit, inset: PLAYER_INSET });
       const w = await this.wm.open("player", name);
-      await playSheet(this.wm, w.body, sheet.f, sheet.d, { width: 520 - 24 });
+      await playSheet(this.wm, w.body, sheet.f, sheet.d, { measured: (inset) => this.wm.fitContent("player", { w: fw, h: fh }, { ...fit, inset }) });
       return;
     }
+    // The viewer opens in the picture's own shape (no letterbox bars), as large as a
+    // comfortable viewer at rest and never more than twice the picture's own pixels.
+    const size = src ? await naturalSize(src) : null;
+    this.wm.check(epoch);
+    this.wm.fitContent("photos", size, { prefer: { w: 440, h: 300 }, maxScale: 2 });
     const w = await this.wm.open("photos", name);
     w.body.innerHTML = src
       ? `<div class="pic"><img alt="${esc(name)}"></div>`
