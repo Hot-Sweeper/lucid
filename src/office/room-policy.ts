@@ -107,6 +107,18 @@ export function physicalSeatIndices(_reservations: (string | null)[], physical: 
   return physical.map((_, i) => i);
 }
 
+/**
+ * A desk dropped into another office takes the snake place it was dropped on: `id` leaves any
+ * other place and goes in at `index`, after the occupied places at most, so later desks move on
+ * one place in order instead of the drop landing at the end.
+ */
+export function insertSeat(reservations: (string | null)[], id: string, index: number) {
+  const occupied = reservations.filter((seat): seat is string => !!seat && seat !== id);
+  occupied.splice(Math.max(0, Math.min(Math.round(index), occupied.length)), 0, id);
+  // Trailing free places (desks added by hand) stay.
+  return [...occupied, ...Array<null>(Math.max(0, reservations.length - occupied.length)).fill(null)];
+}
+
 export function reorderPhysicalSeats(reservations: (string | null)[], before: (string | null)[], after: (string | null)[]) {
   const result = [...reservations];
   before.forEach((_, i) => { while (result.length <= i) result.push(null); result[i] = after[i] ?? null; });

@@ -288,6 +288,8 @@ export class World {
   retiringRoomById = new Map<string, HTMLElement>();
   physicalPlans: PhysicalRoomPlan[] = [];
   physicalLayoutHeld = false;
+  /** The next layout pass promotes the floor at once: the user moved a desk (desk-drag.ts). */
+  forceLayout = false;
   layoutParticipants = new Set<string>();
   pendingMeeting: ReturnType<typeof layoutMeeting> | null = null;
   meetingSpots = new Map<string, ReturnType<typeof layoutMeeting>>();

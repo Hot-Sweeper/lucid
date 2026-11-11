@@ -49,6 +49,7 @@ export const CHECKS = [
   "verify-room-policy.mjs",
   "verify-snake-desks.mjs",
   "verify-office-drag.mjs",
+  "verify-desk-drop-layout.mjs",
   "verify-worker-match.mjs",
   "verify-harness-swap.mjs",
   "verify-chat-robot-marks.mjs",

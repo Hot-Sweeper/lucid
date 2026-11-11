@@ -5,7 +5,7 @@ import type { Pt } from "../../robot";
 import { gameSound } from "../sound";
 import gsap from "gsap";
 import { Desk, UNIT_W, UNIT_H } from "../desk";
-import { hasOfficeDesk, reserveRoomSeats, snakeSeat, reorderPhysicalSeats } from "../room-policy";
+import { hasOfficeDesk, reserveRoomSeats, snakeSeat, reorderPhysicalSeats, insertSeat } from "../room-policy";
 import type { World } from "../world";
 import { WALL_FACE, SLOT_W, SLOT_H, columnsForRoom } from "./geometry";
 
@@ -36,7 +36,7 @@ export class WorldDeskDrag {
       const cols = columnsForRoom(room);
       const positions = original.map((_, i) => { const { c, row } = snakeSeat(i, cols); return { x: room.x + 70 + c * SLOT_W, y: room.y + WALL_FACE + 40 + row * SLOT_H }; });
       let active = false, target = source, ended = false;
-      let destination: string | null = null;
+      let destination: string | null = null, landing: number | undefined;
       let lastX = x0, lastY = y0, lastTiltX = x0;
       let preview: HTMLElement | null = null;
       const arrange = (index: number) => { const order = [...original]; order.splice(source, 1); order.splice(index, 0, d); return order; };
@@ -57,8 +57,9 @@ export class WorldDeskDrag {
         lastX = ev.clientX; lastY = ev.clientY;
         const over = d.threadId && d.threadId !== this.orchThread ? this.threadDropZone(ev.clientX, ev.clientY) : null;
         const nextDestination = over && over !== room.id ? over : null;
-        if (nextDestination !== destination) { destination = nextDestination; this.previewThreadDrop(destination, d.threadId); }
         const rawX = start.x + (ev.clientX - x0) / z, rawY = start.y + (ev.clientY - y0) / z;
+        const nextLanding = nextDestination ? this.dropPlace(nextDestination, d.threadId!, { x: rawX, y: rawY }) : undefined;
+        if (nextDestination !== destination || nextLanding !== landing) { destination = nextDestination; landing = nextLanding; this.previewThreadDrop(destination, d.threadId, false, landing); }
         const x = d.threadId ? rawX : Math.max(room.x + 22, Math.min(room.x + room.w - UNIT_W - 22, rawX));
         const y = d.threadId ? rawY : Math.max(room.y + WALL_FACE + 12, Math.min(room.y + room.h - UNIT_H - 22, rawY));
         d.el.style.setProperty("--desk-tilt", `${Math.max(-2, Math.min(2, (ev.clientX - lastTiltX) * .12))}deg`);
@@ -80,6 +81,8 @@ export class WorldDeskDrag {
         try { d.el.releasePointerCapture(e.pointerId); } catch {}
         if (!active) return;
         const transfer = commit && destination && d.threadId;
+        // A drop is a decision: it changes the floor at once (see forceLayout).
+        if (commit) this.forceLayout = true;
         // A release in the hall cancels; another office uses the shared home assignment.
         const reorder = commit && !transfer && (!d.threadId || this.threadDropZone(lastX, lastY) === room.id);
         const order = reorder ? arrange(target) : original;
@@ -96,7 +99,7 @@ export class WorldDeskDrag {
         };
         if (waitForRelease) window.addEventListener("pointerup", eatClick, { capture: true, once: true }); else eatClick();
         setTimeout(() => { this.dragged = false; }, 0);
-        if (transfer && this.placeThread(transfer, destination!, start)) gameSound.play("switch");
+        if (transfer && this.placeThread(transfer, destination!, start, landing)) gameSound.play("switch");
         else {
           if (this.lastData) this.update(this.lastData);
           if (reorder) this.onLayoutChange();
@@ -117,7 +120,28 @@ export class WorldDeskDrag {
     return this.rooms.find((r) => ["main", "project", "freelance"].includes(r.kind) && at.x >= r.x && at.x <= r.x + r.w && at.y >= r.y && at.y <= r.y + r.h)?.id ?? null;
   }
 
-  previewThreadDrop(this: World, roomId: string | null, threadId: string | null = null, pending = false) {
+  /** The reservations of `roomId` once `threadId` lands there, at snake place `index` when the drop chose one. */
+  landingSeats(this: World, roomId: string, threadId: string | null, index?: number) {
+    const claims = this.lastData?.threads.filter(t => t.id === threadId || this.homeForThread(t, this.lastData!.projects) === roomId) ?? [];
+    const seats = reserveRoomSeats(this.seats.get(roomId) ?? [], claims, threadId);
+    return threadId && index !== undefined ? insertSeat(seats, threadId, index) : seats;
+  }
+
+  /** The snake place nearest to a desk carried over `roomId` (`at`: the desk's top left corner). */
+  dropPlace(this: World, roomId: string, threadId: string, at: Pt) {
+    const room = this.roomById(roomId);
+    const taken = this.landingSeats(roomId, null).filter(id => id && id !== threadId).length;
+    if (!room || room.collapsed) return taken;
+    const cols = columnsForRoom(room);
+    let best = taken, distance = Infinity;
+    for (let i = 0; i <= taken; i++) {
+      const { c, row } = snakeSeat(i, cols), dist = Math.hypot(at.x - (room.x + 70 + c * SLOT_W), at.y - (room.y + WALL_FACE + 40 + row * SLOT_H));
+      if (dist < distance) { distance = dist; best = i; }
+    }
+    return best;
+  }
+
+  previewThreadDrop(this: World, roomId: string | null, threadId: string | null = null, pending = false, place?: number) {
     const room = this.roomById(roomId);
     if (!room) { this.threadDropPreview?.remove(); this.threadDropPreview = null; return; }
     // Reuse one preview while tracking. Recreating it on every move restarts its
@@ -130,8 +154,7 @@ export class WorldDeskDrag {
       el.lastElementChild!.className = "office-drop-seat";
       this.deskLayer.appendChild(el); this.threadDropPreview = el;
     }
-    const claims = this.lastData?.threads.filter(t => t.id === threadId || this.homeForThread(t, this.lastData!.projects) === room.id) ?? [];
-    const seats = reserveRoomSeats(this.seats.get(room.id) ?? [], claims, threadId);
+    const seats = this.landingSeats(room.id, threadId, place);
     const index = Math.max(0, threadId ? seats.indexOf(threadId) : seats.findIndex(id => !id));
     const cols = room.collapsed ? this.roomColumns.get(room.id) ?? 1 : columnsForRoom(room);
     const { c, row } = snakeSeat(index, cols);
@@ -158,16 +181,20 @@ export class WorldDeskDrag {
     this.previewThreadDrop(p.room, p.id, true);
   }
 
-  placeThread(this: World, id: string, roomId: string, origin?: Pt) {
+  /** Gives a thread its home office (desk drags, sidebar drops and menus); `index` is the dropped-on snake place. */
+  placeThread(this: World, id: string, roomId: string, origin?: Pt, index?: number) {
     const room = this.roomById(roomId), t = this.lastData?.threads.find((t) => t.id === id);
     if (!room || !t || id === this.orchThread || !["main", "project", "freelance"].includes(room.kind)) return false;
     this.homes.set(id, roomId);
     this.revealedThread = id;
     this.expandedRooms.add(roomId); this.collapsedRooms.delete(roomId);
     for (const [r, seats] of this.seats) if (r !== roomId) this.seats.set(r, seats.map((seat) => seat === id ? null : seat));
+    if (index !== undefined) this.seats.set(roomId, this.landingSeats(roomId, id, index));
     // User placement takes effect immediately. Questions can still take the robot to the queue.
     this.placed.set(id, { room: t.question ? "queue" : roomId });
     this.pendingPlacement = { id, room: roomId, origin };
+    // The user's move takes effect now, not after robots elsewhere finish walking.
+    this.forceLayout = true;
     this.update(this.lastData!); this.syncPlacementPreview(); this.onLayoutChange();
     return true;
   }

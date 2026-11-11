@@ -7,7 +7,7 @@ import { subscriptionBatteries, needsCharge } from "../battery";
 import { chargingSize } from "../../world/charging";
 import gsap from "gsap";
 import { Desk, shortTitle } from "../desk";
-import { officePlan } from "../floor-plan";
+import { officePlan, carryPoint } from "../floor-plan";
 import { buildingFootprint } from "../building-footprint";
 import { hasOfficeWork, hasOfficeDesk, reserveRoomSeats, remainingDeskExtras, snakeSeat, projectRoomSeats, layoutMeeting, layoutWaitingSpots, layoutSafeAt, addDeskPlace, FOLDED_OFFICE } from "../room-policy";
 import { vectorOwner } from "../../perf/shared-vector";
@@ -39,6 +39,9 @@ export class WorldLayout {
     if (this.hasLayout && this.touchLayoutHeld) { this.touchLayoutPending = true; return; }
     if (this.deskDragActive || this.layoutHeld) return; // no physical layout changes under any held drag
     this.touchLayoutPending = false;
+    // A user's desk move or drop is promoted at once; walkers on changed floor are carried along.
+    const forced = this.forceLayout;
+    this.forceLayout = false;
     const seatsBefore = JSON.stringify([...this.seats]);
     const byProject = new Map(data.projects.map((p) => [p.id, p]));
     const byThread = new Map(data.threads.map((t) => [t.id, t]));
@@ -52,8 +55,9 @@ export class WorldLayout {
     // Park visitors walk to the park gate outside the building. Their exit never
     // touches office geometry, so it must not hold a fold or expansion.
     const indoorExits = [...this.exits].filter(([, ex]) => ex.from !== "park").map(([id]) => id);
-    const wasHeld = this.physicalLayoutHeld;
-    let holdPhysical = this.hasLayout && this.physicalPlans.length > 0 && (retiringIds.size > 0 || indoorJourney || indoorExits.length > 0 || this.layoutParticipants.size > 0);
+    // A forced pass ends any hold: everything is promoted now.
+    const wasHeld = this.physicalLayoutHeld && !forced;
+    let holdPhysical = !forced && this.hasLayout && this.physicalPlans.length > 0 && (retiringIds.size > 0 || indoorJourney || indoorExits.length > 0 || this.layoutParticipants.size > 0);
     const classifiedRoom = new Map<string, string>();
     const queue: WThread[] = [], main: WThread[] = [], brk: WThread[] = [], charging: WThread[] = [];
     const perProject = new Map<string, WThread[]>();
@@ -162,7 +166,7 @@ export class WorldLayout {
       return source !== destination && (source === 'break' || source === 'queue' || source === 'charging') &&
         !this.transit.has(id) && !this.exits.has(id);
     }).map(([id]) => id));
-    if (this.hasLayout && departingResidents.size) holdPhysical = true;
+    if (!forced && this.hasLayout && departingResidents.size) holdPhysical = true;
     // Folding the main office must not move the entrance corridor out from under
     // its occupants. Keep that corridor for the folded state and its expansion,
     // so evacuation can finish in the hall instead of crossing the entire campus.
@@ -206,6 +210,12 @@ export class WorldLayout {
     // Full-size project offices in stable columns, joined by real cross halls.
     const rooms: Room[] = [];
     const floorPlan = officePlan(top, bottom, HALL, GAP, holdPhysical ? this.topH : hallTop);
+    const previousFloor = this.floorPlan;
+    const carry = (p: Pt) => forced && this.hasLayout && !this.outside(p) ? carryPoint(p, previousFloor, floorPlan) : p;
+    if (forced && this.hasLayout) for (const w of this.transit.values()) {
+      const to = carry(w);
+      if (to.x !== w.x || to.y !== w.y) w.setPos(to.x, to.y);
+    }
     const topH = floorPlan.topH;
     this.topH = topH;
     this.floorPlan = floorPlan;
@@ -361,7 +371,7 @@ export class WorldLayout {
     const wanted = new Set(slots.filter((s) => s.t).map((s) => s.t!.id));
     // where every robot is right now, so a robot changing rooms can walk over
     const desksBefore = new Map<string, Pt>();
-    for (const [id, d] of this.desks) if (!d.el.classList.contains("arriving")) desksBefore.set(id, this.pendingPlacement?.id === id && this.pendingPlacement.origin ? this.pendingPlacement.origin : this.deskPos(d));
+    for (const [id, d] of this.desks) if (!d.el.classList.contains("arriving")) desksBefore.set(id, carry(this.pendingPlacement?.id === id && this.pendingPlacement.origin ? this.pendingPlacement.origin : this.deskPos(d)));
     const nowRoom = new Map<string, string>();
     for (const s of slots) if (s.t && classifiedRoom.get(s.t.id) === s.key.split("#")[0]) nowRoom.set(s.t.id, s.key.split("#")[0]);
     if (holdPhysical) for (const [id, room] of classifiedRoom) if ((room === "main" || room === "freelance" || room.startsWith("p:")) && previousPhysical.get(id) !== room) nowRoom.set(id, room);

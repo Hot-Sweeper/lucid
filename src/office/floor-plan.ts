@@ -96,3 +96,28 @@ export function hallRoute(plan: OfficePlan, from: PlanPoint, to: PlanPoint, pref
   }
   return result.slice(1);
 }
+
+/**
+ * Where a point on the old floor stands on the new one: it moves with the room or hall strip it
+ * was on (rooms by id, hall strips by axis, column and order), kept `inset` inside that floor. A
+ * user's desk move changes the floor at once, so robots walking there are carried along instead
+ * of being left inside a wall or on floor that no longer exists.
+ */
+export function carryPoint(p: PlanPoint, old: OfficePlan, next: OfficePlan, inset = 30): PlanPoint {
+  const keep = (r: PlanRect, q: PlanPoint) => ({
+    x: Math.max(r.x + Math.min(inset, r.w / 2), Math.min(r.x + r.w - Math.min(inset, r.w / 2), q.x)),
+    y: Math.max(r.y + Math.min(inset, r.h / 2), Math.min(r.y + r.h - Math.min(inset, r.h / 2), q.y)),
+  });
+  const shift = (from: PlanRect, to: PlanRect) => keep(to, { x: p.x - from.x + to.x, y: p.y - from.y + to.y });
+  for (const [id, r] of old.rooms) if (contains(r, p)) { const to = next.rooms.get(id); return to ? shift(r, to) : p; }
+  const index = old.halls.findIndex((h) => contains(h, p));
+  if (index < 0) return p;
+  const strip = old.halls[index];
+  const peers = (plan: OfficePlan, h: HallStrip) => plan.halls.filter((q) => q.axis === h.axis && q.column === h.column);
+  const to = index === 0 ? next.halls[0] : peers(next, strip)[peers(old, strip).indexOf(strip)];
+  if (to) return shift(strip, to);
+  // The strip is gone (the offices reflowed into fewer columns): the nearest hall floor.
+  let best = p, distance = Infinity;
+  for (const h of next.halls) { const q = keep(h, p), d = Math.hypot(q.x - p.x, q.y - p.y); if (d < distance) { distance = d; best = q; } }
+  return best;
+}

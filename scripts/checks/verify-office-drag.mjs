@@ -10,6 +10,7 @@ const policy = await import('data:text/javascript;base64,' + Buffer.from(policyC
 const method = (from, to) => source.slice(source.indexOf(from), source.indexOf(to, source.indexOf(from)));
 const code = (await transformWithOxc(`class DragWorld {
 ${method('  wireDeskDrag(', '  threadDropZone(')}
+${method('  /** The reservations of', '  previewThreadDrop(')}
 ${method('  previewThreadDrop(', '  placeThread(')}
 ${method('  placeThread(', '\n  select(')}
 ${method('  homeForThread(', '  reconcilePhysicalLayout(')}
@@ -33,9 +34,9 @@ function harness(room = 'freelance') {
   const win = new Element(), doc = { body: new Element(), createElement: () => new Element() };
   win.getSelection = () => null;
   const timers = [], cues = [];
-  const World = new Function('gsap', 'window', 'document', 'setTimeout', 'columnsForRoom', 'reserveRoomSeats', 'snakeSeat', 'reorderPhysicalSeats', 'UNIT_W', 'UNIT_H', 'WALL_FACE', 'SLOT_W', 'SLOT_H', 'gameSound', 'hasOfficeDesk', code + '; return DragWorld;')(
+  const World = new Function('gsap', 'window', 'document', 'setTimeout', 'columnsForRoom', 'reserveRoomSeats', 'snakeSeat', 'reorderPhysicalSeats', 'UNIT_W', 'UNIT_H', 'WALL_FACE', 'SLOT_W', 'SLOT_H', 'gameSound', 'hasOfficeDesk', 'insertSeat', code + '; return DragWorld;')(
     { set(el, props) { Object.assign(el.style, props); }, killTweensOf() {} }, win, doc, cb => timers.push(cb), () => 2, policy.reserveRoomSeats, policy.snakeSeat, (_, __, after) => after,
-    400, 350, 100, 440, 400, { play: cue => cues.push(cue) }, t => !t.settled);
+    400, 350, 100, 440, 400, { play: cue => cues.push(cue) }, t => !t.settled, policy.insertSeat);
   const w = new World(), a = { el: new Element(), room, threadId: 'a' }, b = { el: new Element(), room, threadId: 'b' };
   Object.assign(w, {
     cam: { s: 1 }, slotDesks: new Map([[`${room}#0`, a], [`${room}#1`, b]]), seats: new Map([['main', []], [room, ['a', 'b']]]),
@@ -47,7 +48,7 @@ function harness(room = 'freelance') {
     slideDesk(desk, at) { Object.assign(desk.el.style, { left: at.x, top: at.y }); },
     threadDropZone(x) { return x < 0 ? null : x > 1000 ? 'freelance' : 'main'; },
     previewThreadDrop(id) { this.preview = id; },
-    update() { this.updates = (this.updates ?? 0) + 1; }, onLayoutChange() { this.saves = (this.saves ?? 0) + 1; },
+    update() { this.updates = (this.updates ?? 0) + 1; this.forcedUpdates = (this.forcedUpdates ?? 0) + Number(!!this.forceLayout); this.forceLayout = false; }, onLayoutChange() { this.saves = (this.saves ?? 0) + 1; },
   });
   w.wireDeskDrag(a);
   const start = () => a.el.dispatch('pointerdown');
@@ -101,6 +102,34 @@ for (const end of ['escape', 'blur', 'pointercancel', 'lostpointercapture', 'hal
   assert.deepEqual(h.w.placed.get('b'), { room: 'queue' }, 'questions retain their queue while their home moves');
 }
 console.log('PASS: desk transfers to/from Main office, pinned homes, same-room reorder, threshold, cancel, invalid drops and question queue');
+
+// A drop is final: it lands on the snake place it was dropped on and the next layout pass is
+// forced, so robots walking elsewhere can never hold the desk back in its old room.
+{
+  const h = harness();
+  h.w.lastData.threads.push({ id: 'm1', runStatus: 'running' }, { id: 'm2', runStatus: 'running' });
+  h.w.homes.set('m1', 'main'); h.w.homes.set('m2', 'main'); h.w.seats.set('main', ['m1', 'm2']);
+  assert.equal(h.w.dropPlace('main', 'a', { x: 80, y: 150 }), 0, 'nearest place to the carried desk');
+  assert.equal(h.w.dropPlace('main', 'a', { x: 520, y: 560 }), 2, 'the next free place after the last desk');
+  assert.equal(h.w.dropPlace('main', 'a', { x: 5000, y: 5000 }), 2, 'never beyond the next free place');
+  h.start(); h.move(90); h.up();
+  assert.deepEqual(h.w.seats.get('main'), ['a', 'm1', 'm2'], 'the dropped desk takes the place it was dropped on');
+  assert.equal(h.w.forcedUpdates, 1, 'the transfer forces its layout pass');
+  assert.equal(h.w.forceLayout, false, 'the forced pass consumed the flag');
+  assert.equal(h.w.threadDropPreview, undefined);
+}
+{
+  const h = harness('main'); h.start(); h.move(500); h.up();
+  assert.deepEqual(h.w.seats.get('main'), ['b', 'a']);
+  assert.equal(h.w.forcedUpdates, 1, 'a same-room reorder forces its layout pass');
+}
+{
+  const h = harness(); h.start(); h.move(200); h.win.dispatch('keydown', { key: 'Escape' }); h.up();
+  assert.equal(h.w.forcedUpdates ?? 0, 0, 'a cancelled drag forces nothing');
+  assert.equal(h.w.placeThread('a', 'main'), true);
+  assert.equal(h.w.forcedUpdates, 1, 'menu and sidebar moves force their layout pass too');
+}
+console.log('PASS: drops land on the dropped-on place and force their layout pass (drag, reorder, menu)');
 
 // The same preview node survives repeated motion and reconciles on world updates.
 {

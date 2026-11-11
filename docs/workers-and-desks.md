@@ -39,6 +39,8 @@ A robot is a permanent **worker**. A desk is one **job**, which is one T3 thread
 
 Desk k in a room is reservation k (`src/office/room-policy.ts`). The places follow a snake: the first row goes left to right, the second right to left, and subsequent rows alternate. Removing a desk closes its gap by shifting every later workstation forward in the same order, including running work, questions and pinned threads. Existing desk objects, sessions, reports and drafts stay mounted. A launch that has only a temporary reservation holds compaction until its thread is known. Room capacity trims at the empty tail; deliberate extra capacity remains available. Placement, drag targets, the Add a desk placeholder and decoration footprints share the same snake coordinates.
 
+Moving desks by hand (`src/office/world/desk-drag.ts`): a drop within an office reorders the snake, a drop into another office inserts the desk at the dropped-on place (`insertSeat`), and menu moves append it. Each sets `forceLayout`, so the next layout pass promotes the new floor at once instead of holding the old floor for walkers (the hold remains for automatic changes), and walkers on moved floor are carried with their room or hall strip (`carryPoint` in `src/office/floor-plan.ts`). Reservations are saved with the layout and survive refreshes and restarts (`scripts/checks/verify-desk-drop-layout.mjs`).
+
 ### Adding a desk
 
 Desks are real furniture only. `projectRoomSeats` makes one physical desk per reservation up to the last occupied one, plus the spare desks added by hand (`extra`). The rest of a partly filled row is bare floor, not a vacant desk.

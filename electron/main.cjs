@@ -32,7 +32,8 @@ if (process.env.LUCID_SHOT) {
   const real = app.getPath("userData");
   const test = process.env.LUCID_SHOT_PROFILE || path.join(app.getPath("temp"), "lucid-test-profile");
   require("node:fs").mkdirSync(test, { recursive: true });
-  try { require("node:fs").copyFileSync(path.join(real, "settings.json"), path.join(test, "settings.json")); } catch {}
+  // LUCID_SHOT_KEEP=1 relaunches on the profile's own settings (restart persistence checks).
+  if (!process.env.LUCID_SHOT_KEEP) try { require("node:fs").copyFileSync(path.join(real, "settings.json"), path.join(test, "settings.json")); } catch {}
   app.setPath("userData", test);
   // keep animating even though the window is off-screen
   app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion");
