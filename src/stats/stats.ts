@@ -277,7 +277,7 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
     use.addEventListener("click", async () => {
       const g = limitGroups.get(key);
       if (!g?.instanceId || !options.useResetCredit) return;
-      ask.textContent = `Use a reset credit for ${g.label}? It clears the current limits now and cannot be undone.`;
+      ask.textContent = `Use the next reset credit for ${g.label}? It may cover only a specific model or limit. Credit coverage is unavailable. Using it cannot be undone.`;
       set("confirm");
       no.focus();
       // The first redemption also asks T3 for permission to manage providers; say so up front.
@@ -313,7 +313,7 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
     box.root.hidden = !c || (count === 0 && box.state === "idle");
     if (!c) return;
     const expires = c.nextExpiresAt ? Date.parse(c.nextExpiresAt) - now : NaN;
-    setText(box.text, count === 0 ? "No reset credits banked" : `${count} reset ${count === 1 ? "credit" : "credits"}${Number.isFinite(expires) && expires > 0 ? `, next expires in ${duration(expires)}` : ""}`);
+    setText(box.text, count === 0 ? "No reset credits banked" : `${count} reset ${count === 1 ? "credit" : "credits"} (coverage unknown)${Number.isFinite(expires) && expires > 0 ? `, next expires in ${duration(expires)}` : ""}`);
     box.text.title = c.nextExpiresAt ? `Next credit expires ${new Date(c.nextExpiresAt).toLocaleString()}` : "";
     box.usable = count > 0 && !!h.instanceId && !!options.useResetCredit;
     box.use.hidden = !box.usable || box.state === "confirm" || box.state === "busy";
