@@ -24,7 +24,9 @@ function checkRuntime(root) {
         try {
           const source = fs.readFileSync(path.join(root, name), 'utf8').replace(/^#![^\n]*/, '');
           new vm.Script(require('node:module').wrap(source), { filename: name });
-          missingRequire(root, name, source);
+          // Only the app's own backend. Check scripts may read repository files (packaging config,
+          // build icons) that the update's private input copy deliberately leaves out.
+          if (name.startsWith(`electron${path.sep}`)) missingRequire(root, name, source);
           count++;
         } catch (error) { throw Error(`Update runtime syntax check failed in ${name}: ${error.message}. Your previous build was preserved.`); }
       }
