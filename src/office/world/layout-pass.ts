@@ -310,8 +310,12 @@ export class WorldLayout {
         size.addEventListener('click', event => { event.stopPropagation(); this.setRoomExpanded(r.id, !this.isRoomExpanded(r.id)); });
         size.addEventListener('pointerdown', event => event.stopPropagation());
         r.el.append(size);
-        if (!r.collapsed) mountOfficeWidth(r.el, r.title, columnsForRoom(r), SLOT_W,
-          held => this.setLayoutHeld(held), columns => this.setRoomColumns(r.id, columns));
+        if (!r.collapsed) {
+          mountOfficeWidth(r.el, r.title, columnsForRoom(r), SLOT_W,
+            held => this.setLayoutHeld(held), columns => this.setRoomColumns(r.id, columns));
+          // Collapse joins Narrow and Widen in one toolbar
+          r.el.querySelector(".office-width-controls")?.append(size);
+        }
         if (r.collapsed) {
           const open = document.createElement("button");
           open.type = "button"; open.className = "room-reopen-hit";

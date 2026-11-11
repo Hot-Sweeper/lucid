@@ -1,5 +1,5 @@
 .cp-dictate { display:inline-flex; align-items:center; gap:5px; flex:none; border:0; border-radius:6px; background:none; color:var(--ink-2); padding:6px; font:inherit; font-size:12px; cursor:pointer; }
-.cp-dictate:hover { background:rgba(255,255,255,.08); color:var(--ink); }
+.cp-dictate:hover { background:color-mix(in srgb, var(--wash) 8%, transparent); color:var(--ink); }
 .cp-dictate[aria-pressed="true"] { color:var(--accent); }
 .cp-dictate:disabled { opacity:.6; cursor:wait; }
 .cp-dictate:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }

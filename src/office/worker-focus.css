@@ -49,7 +49,7 @@
 .sw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 10px; margin-top: 12px; }
 .sw-cell { display: flex; flex-direction: column; align-items: center; }
 .sw-open { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; background: transparent; border: 0; border-radius: 10px; color: var(--ink); text-align: center; cursor: pointer; }
-.sw-open:hover, .sw-open:focus-visible { background: rgba(255, 255, 255, .05); }
+.sw-open:hover, .sw-open:focus-visible { background: color-mix(in srgb, var(--wash) 5%, transparent); }
 .sw-open b { font-size: 13px; font-weight: 550; overflow-wrap: anywhere; }
 .sw-open span { font-size: 10px; line-height: 1.4; color: var(--ink-3); overflow-wrap: anywhere; }
 .sw-cell.retired .sw-open { opacity: .6; }

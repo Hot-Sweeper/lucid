@@ -24,7 +24,9 @@ export class CoinRewards {
   /** Called after every successful read, for the coin ledger's calendar revision. */
   onRead: (snapshot: { calendarRev?: number }) => void = () => {};
   constructor(private wallet: Wallet, private world: World, private load: () => Promise<{ usage: Parameters<Wallet['observe']>[0]; sources: CoinSource[]; calendarRev?: number }>,
-    private work: { ready(id: string): boolean; collected(id: string): Promise<void> } = { ready: () => true, collected: async () => {} }) {
+    private work: { ready(id: string): boolean; collected(id: string): Promise<void> } = { ready: () => true, collected: async () => {} },
+    /** Where the tray lives: the office's bottom row, so it wraps with those buttons instead of covering them. */
+    hud: HTMLElement = world.scene) {
     this.tray.className = 'coin-tray'; this.tray.hidden = true;
     this.summary.textContent = 'Coins to collect';
     this.list.className = 'coin-reward-list';
@@ -36,7 +38,8 @@ export class CoinRewards {
     this.tray.addEventListener('click', e => e.stopPropagation());
     this.tray.addEventListener('wheel', e => e.stopPropagation(), { passive: true });
     this.tray.addEventListener('keydown', e => { if (e.key === 'Escape' && this.disclosure.open) { e.stopPropagation(); this.disclosure.open = false; this.summary.focus(); } });
-    this.world.scene.append(this.tray, this.status);
+    hud.append(this.tray);
+    this.world.scene.append(this.status);
     this.timer = window.setInterval(() => { if (!document.hidden) void this.refresh(); }, 15000);
     document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('pagehide', this.destroy);

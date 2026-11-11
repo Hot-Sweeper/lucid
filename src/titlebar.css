@@ -19,10 +19,17 @@ html[data-fullscreen] { --wc-left: 0px; --wc-right: 0px; }
 }
 .chat-panel > .cp-head { box-sizing: border-box; min-height: var(--chrome-h); padding-block: 7px; padding-right: max(12px, calc(var(--wc-right) + 4px)); }
 /* A narrow chat keeps its title readable beside the window controls: the actions move to a
-   second line, right aligned under them. */
+   second line, right aligned under them. The harness logo stays on the title's line (20px logo
+   plus the header's 10px gap), so it never wraps alone into the controls' corner. */
 @container (max-width: 470px) {
   html:is([data-chrome="linux"], [data-chrome="windows"]):not([data-fullscreen]) .chat-panel > .cp-head { flex-wrap: wrap; justify-content: flex-end; row-gap: var(--space-1); }
-  html:is([data-chrome="linux"], [data-chrome="windows"]):not([data-fullscreen]) .chat-panel > .cp-head > .cp-who { flex-basis: calc(100% - 24px); }
+  html:is([data-chrome="linux"], [data-chrome="windows"]):not([data-fullscreen]) .chat-panel > .cp-head > .cp-who { flex-basis: calc(100% - 32px); }
+  html:is([data-chrome="linux"], [data-chrome="windows"]):not([data-fullscreen]) .chat-panel > .cp-head > .cp-logo[hidden] + .cp-who { flex-basis: 100%; }
+}
+/* With the chat folded, the controls' tab reaches past the slim chat rail into the office, so
+   the Orchestrator controls in the office's top right corner keep clear of it. */
+html:is([data-chrome="linux"], [data-chrome="windows"]):not([data-fullscreen]) #app.chat-folded > .orch-power {
+  margin-right: max(12px, calc(var(--wc-right) - var(--chat, 64px) + 12px));
 }
 html[data-chrome="mac"]:not([data-fullscreen]) #app > .side-rail { padding-top: calc(var(--chrome-h) + 4px); }
 html:is([data-chrome="linux"], [data-chrome="windows"]):not([data-fullscreen]) #app > .cp-tab { padding-top: calc(var(--chrome-h) + 6px); }

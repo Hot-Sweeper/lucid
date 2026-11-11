@@ -18,6 +18,7 @@
   --ui-edge: rgba(255, 255, 255, 0.11);
   --ui-scrim: rgba(0, 0, 0, 0.62);
   --ui-float: rgba(0, 0, 0, 0.82);
+  --ui-float-hover: rgba(31, 31, 31, 0.95);
   --ui-hover: #1a1a1a;
   --ui-drop: #1f1f1f;
   --ui-drop-field: #1a1a1a;
@@ -30,6 +31,9 @@
   --ui-plate-hover: #2a2a2e;
   --ui-building-plate: #1c1c1f;
   --ui-drop-scrim: rgba(0, 0, 0, 0.94);
+  --ui-answer: #0d0d0d;
+  --ui-viewer: #161616;
+  --ui-viewer-edge: rgba(255, 255, 255, 0.11);
   --ui-scroll: rgba(255, 255, 255, 0.16);
   --ui-scroll-hover: rgba(255, 255, 255, 0.3);
   --mt-panel: #000000;

@@ -1,6 +1,10 @@
-.office-width-controls { position: absolute; right: 22px; top: 82px; display: flex; gap: 6px; z-index: 3; }
+/* One toolbar on the room's top edge (Narrow, Widen, Collapse), left of the hall door and above
+   the windows, the clock and the sign card, so it never sits over the wall art. */
+.office-width-controls { position: absolute; right: 88px; top: 2px; display: flex; align-items: center; gap: 4px; z-index: 3; }
 .office-width-controls button, .office-width-handle { color: #fff0df; background: #36364e; border: 0; border-radius: 8px; font: 600 14px Lexend, sans-serif; cursor: pointer; transition: background 130ms cubic-bezier(.23,1,.32,1), transform 130ms cubic-bezier(.23,1,.32,1); }
-.office-width-controls button { min-height: 28px; padding: 4px 10px; }
+.office-width-controls button { min-height: 26px; padding: 3px 10px; font-size: 13px; line-height: 20px; }
+.office-width-controls > .room-size-hit { position: static; width: auto; height: auto; min-width: 0; padding: 3px 6px 3px 10px; gap: 2px; font: 600 13px/20px var(--font); }
+.office-width-controls > .room-size-hit svg { width: 18px; height: 18px; }
 .office-width-handle { position: absolute; right: 0; top: 142px; width: 32px; height: 80px; cursor: ew-resize; touch-action: none; z-index: 4; }
 .office-width-controls button:hover:enabled, .office-width-handle:hover { background: #514b68; }
 .office-width-controls button:active:enabled, .office-width-handle:active { transform: scale(.97); }

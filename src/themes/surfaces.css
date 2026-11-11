@@ -15,23 +15,32 @@ html:root[data-theme] .ca-text,
 html:root[data-theme] .cq-edit textarea { background: var(--ui-field); }
 html:root[data-theme] .cp-answer { --choice-face: var(--ui-field); }
 html:root[data-theme] .chat-panel .cp-box.ref-over { background: var(--ui-drop-field); }
-html:root[data-theme] .md-code { background: var(--ui-code); }
+html:root[data-theme] .md-code,
+html:root[data-theme] .ca-prompt { background: var(--ui-code); }
+html:root[data-theme] .chat-panel .cp-answer { background: var(--ui-answer); }
+html:root[data-theme] .cp-zoom { background: var(--ui-viewer); border-color: var(--ui-viewer-edge); }
+/* One-colour harness logos come drawn white (harness/logos.ts logoUrl); a light palette darkens
+   them through --mono-logo-filter. The robots' computers theme their own logos. */
+html:root[data-theme] img[src*="fill%3D%22%23ffffff%22"]:not(.screen img, .os img) { filter: var(--mono-logo-filter); }
 html:root[data-theme] .pop-menu,
 html:root[data-theme] .dialog { background: var(--ui-raised); outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 html:root[data-theme] .cm-menu { background: var(--ui-raised); outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 html:root[data-theme] .office-width-controls button,
 html:root[data-theme] .office-width-handle,
+html:root[data-theme] .room-size-hit,
 html:root[data-theme] .neighbor-open,
 html:root[data-theme] .neighbor-status { background: var(--ui-plate); }
 html:root[data-theme] .office-width-controls button:hover:enabled,
-html:root[data-theme] .office-width-handle:hover { background: var(--ui-plate-hover); }
+html:root[data-theme] .office-width-handle:hover,
+html:root[data-theme] .room-size-hit:hover { background: var(--ui-plate-hover); }
+html:root[data-theme] :is(.office-width-controls button, .office-width-handle, .room-size-hit) { color: var(--ui-plate-ink); }
 html:root[data-theme] .building-plate { background: var(--ui-building-plate); }
 html:root[data-theme] .cp-drop { background: var(--ui-drop-scrim); }
 html:root[data-theme] .wx-menu { background: var(--ui-menu); outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 html:root[data-theme] .office-settings { outline: 1px solid var(--ui-edge); outline-offset: -1px; }
 html:root[data-theme] .dialog-wrap { background: var(--ui-scrim); }
-html:root[data-theme] .zoom-ui button,
-html:root[data-theme] .zoom-ui button:hover,
+html:root[data-theme] .zoom-ui > button,
+html:root[data-theme] .zoom-ui > button:hover,
 html:root[data-theme] .cp-tab:hover { background: var(--ui-hover); }
 html:root[data-theme] .cp-tab.ref-over { background: var(--ui-drop); }
 html:root[data-theme] .th-ghost.over { background: var(--ui-ghost-over); }
@@ -39,7 +48,6 @@ html:root[data-theme] .cpc-ref,
 html:root[data-theme] .cpc-ext { background: var(--ui-chip); }
 html:root[data-theme] .cp-queue { background: var(--ui-queue); }
 html:root[data-theme] .cp-queue li.dragging { background: var(--ui-queue-drag); }
-html:root[data-theme] .coin-tray { background: var(--ui-tray); }
 
 /* The app's own monitor screens: task reports, questions, image viewer. */
 html:root[data-theme] .monitor-task-panel,

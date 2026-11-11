@@ -1,4 +1,6 @@
 /* Turns, like T3 Code: your message, a quiet "Worked for 7m" fold, then the final reply. */
+/* Tool marks in the work log; a light palette deepens them (themes/t3.css). */
+:root { --cw-edit: #ffbf5a; --cw-search: #4fd2ff; --cw-agent: #b07cff; --cw-bad: #ff8a8a; --cw-live: #8cc4ff; }
 .cp-turn { flex: none; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .cp-turn-you { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 0; }
 .cp-turn-you:empty, .cp-turn-final:empty { display: none; }
@@ -12,23 +14,23 @@
 .cw-chev { flex: none; transition: transform 0.15s ease; }
 .cp-worked[open] > summary .cw-chev { transform: rotate(90deg); }
 .cw-counts { flex: 1 1 auto; min-width: 0; margin-left: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.8; }
-.cw-bad { flex: none; margin-left: auto; color: #ff8a8a; }
+.cw-bad { flex: none; margin-left: auto; color: var(--cw-bad); }
 .cp-worked-body { display: flex; flex-direction: column; gap: 10px; padding: 10px 0 12px; border-bottom: 1px solid var(--line); }
 .cp-worked-body .cp-msg.bot .cp-text { color: var(--ink-2); font-size: 13.5px; line-height: 1.55; }
 .cw-scroll { max-height: min(18rem, 50vh); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border-radius: 6px; }
 .cw-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .cw-list { list-style: none; margin: 0; padding: 0 2px; display: flex; flex-direction: column; min-width: 0; }
 .cw-list li { display: flex; align-items: center; gap: 8px; min-width: 0; height: 26px; padding: 0 6px; border-radius: 6px; font-size: 12.5px; color: var(--ink-3); }
-.cw-list li:hover { background: rgba(255, 255, 255, 0.04); }
+.cw-list li:hover { background: color-mix(in srgb, var(--wash) 4%, transparent); }
 .cw-list li > svg { flex: none; opacity: 0.8; }
 .cw-list li > b { flex: none; max-width: 60%; font-weight: 500; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cw-list li > span { flex: 1 1 0; min-width: 0; font: 11px/1.4 var(--mono); opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cw-list li > em { flex: none; margin-left: auto; font: 500 11px var(--mono); font-style: normal; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.cw-list li.cw-edit > svg { color: #ffbf5a; }
-.cw-list li.cw-search > svg { color: #4fd2ff; }
-.cw-list li.cw-agent > svg { color: #b07cff; }
-.cw-list li.bad > svg, .cw-list li.bad > b { color: #ff8a8a; }
-.cw-list li.live > svg, .cw-list li.live > b { color: #8cc4ff; }
+.cw-list li.cw-edit > svg { color: var(--cw-edit); }
+.cw-list li.cw-search > svg { color: var(--cw-search); }
+.cw-list li.cw-agent > svg { color: var(--cw-agent); }
+.cw-list li.bad > svg, .cw-list li.bad > b { color: var(--cw-bad); }
+.cw-list li.live > svg, .cw-list li.live > b { color: var(--cw-live); }
 .cw-more { margin: 0; padding: 0 4px; font-size: 11.5px; color: var(--ink-3); }
 /* Times stay out of the way until you point at a message, except under the final reply. */
 .cp-turn .cp-msg > time { opacity: 0; transition: opacity 0.15s ease; }
@@ -45,8 +47,8 @@
 .chat-panel .cp-msg.you.long .cp-text { overflow: hidden; }
 .chat-panel .cp-msg.you.long .cp-text::after { background: linear-gradient(to bottom, transparent, var(--bubble)); border-radius: 0 0 16px 16px; }
 .chat-panel .cp-msg.you .cp-text a { color: var(--accent-2); }
-.chat-panel .cp-msg.you .cp-text a:hover { color: #fff; }
-.chat-panel .cp-msg.you .cp-text code { background: rgba(255, 255, 255, 0.08); }
+.chat-panel .cp-msg.you .cp-text a:hover { color: var(--ink-hi); }
+.chat-panel .cp-msg.you .cp-text code { background: color-mix(in srgb, var(--wash) 8%, transparent); }
 .chat-panel .cp-msg.you { max-width: 80%; }
 /* the Working line replaces the old "It is working on this" note */
 .cp-turn .cp-live { display: none; }
@@ -60,14 +62,14 @@
 /* Tool groups: one summary line with an icon, opening into the calls (T3 WorkGroupHeader). */
 .cw-group { min-width: 0; }
 .cw-toggle { width: 100%; min-width: 0; display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px; border: 0; border-radius: 6px; background: none; color: var(--ink-3); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
-.cw-toggle:hover { background: rgba(255, 255, 255, 0.04); color: var(--ink-2); }
+.cw-toggle:hover { background: color-mix(in srgb, var(--wash) 4%, transparent); color: var(--ink-2); }
 .cw-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .cw-toggle > svg:first-child { flex: none; opacity: 0.8; }
 .cw-toggle > b { flex: 0 1 auto; min-width: 0; font-weight: 500; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cw-toggle > .cw-chev { flex: none; margin-left: 2px; opacity: 0.7; transition: transform 0.15s ease; }
 .cw-group.open > .cw-toggle > .cw-chev { transform: rotate(90deg); }
 .cw-toggle.bad > b { color: var(--ink-2); }
-.cw-x { flex: none; color: #ff8a8a; }
+.cw-x { flex: none; color: var(--cw-bad); }
 .cw-group > .cw-scroll { margin: 2px 0 2px 20px; }
 .cw-group > .cw-scroll[hidden] { display: none; }
 .cw-single { padding: 0; }

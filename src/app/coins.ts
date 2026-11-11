@@ -41,7 +41,7 @@ export function mountCoins(app: App) {
   };
   app.wallet.onChange = (_bal, gained) => app.paintWallet(gained);
   app.paintWallet();
-  app.coinRewards = new CoinRewards(app.wallet, app.world, () => (api as any).coinUsage(), { ready: id => app.coinReady(id), collected: id => app.coinCollected(id).then(() => app.refresh()) });
+  app.coinRewards = new CoinRewards(app.wallet, app.world, () => (api as any).coinUsage(), { ready: id => app.coinReady(id), collected: id => app.coinCollected(id).then(() => app.refresh()) }, document.querySelector<HTMLElement>(".zoom-ui") ?? undefined);
   (window as any).__coinRewards = app.coinRewards;
   // The coin ledger opens from every coin counter; the wallet sits in Office & settings, which closes first.
   app.coinLedger = new CoinLedgerPanel({

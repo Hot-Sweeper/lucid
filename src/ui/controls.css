@@ -17,6 +17,9 @@ button:where(.primary, .ghost), a:where(.primary, .ghost) {
 :where(.primary, .ghost):active:not(:disabled) { transform: scale(.97); }
 :where(.primary, .ghost):disabled { opacity: .6; cursor: default; }
 :where(.primary, .ghost)[aria-busy="true"] { cursor: progress; }
+/* An author display rule beats the browser's own [hidden] rule, so hidden controls say it again. */
+button:where(.primary, .ghost, .link-btn, .cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hire-prev, .hire-next)[hidden],
+a:where(.primary, .ghost)[hidden] { display: none; }
 button:where(.link-btn) { border: 0; background: none; color: var(--accent-2); padding: var(--space-1) 0; cursor: pointer; font: inherit; font-size: 13px; text-underline-offset: 3px; }
 :where(.link-btn:hover) { text-decoration: underline; }
 

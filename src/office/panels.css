@@ -15,7 +15,7 @@
 .sec-head + .fold-body { padding-top: 8px; }
 .fold-body[hidden] { display: none !important; }
 .sec-fold { flex: none; display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 12px; line-height: 1.2; padding: 3px 6px; margin: -3px -6px -3px 0; border-radius: 7px; cursor: pointer; }
-.sec-fold:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
+.sec-fold:hover { background: color-mix(in srgb, var(--wash) 7%, transparent); color: var(--ink); }
 .sec-fold svg { transition: transform 200ms var(--ease-out-strong); }
 .sec-fold[aria-expanded="false"] svg { transform: rotate(-90deg); }
 .th-head { justify-content: flex-start; }
@@ -26,15 +26,15 @@
 
 /* the folded sidebar: a rail with the threads and coins */
 .side-rail { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 0 10px; background: var(--night-2); min-height: 0; overflow: hidden; }
-.rail-show { width: 54px; display: flex; flex-direction: column; align-items: center; gap: 5px; border: 0; background: rgba(255, 255, 255, 0.06); color: var(--ink-2); font: inherit; font-size: 10.5px; line-height: 1.2; padding: 8px 2px 7px; border-radius: 10px; cursor: pointer; text-align: center; }
-.rail-show:hover { background: rgba(255, 255, 255, 0.11); color: var(--ink); }
+.rail-show { width: 54px; display: flex; flex-direction: column; align-items: center; gap: 5px; border: 0; background: color-mix(in srgb, var(--wash) 6%, transparent); color: var(--ink-2); font: inherit; font-size: 10.5px; line-height: 1.2; padding: 8px 2px 7px; border-radius: 10px; cursor: pointer; text-align: center; }
+.rail-show:hover { background: color-mix(in srgb, var(--wash) 11%, transparent); color: var(--ink); }
 .rail-coins { width: 54px; display: flex; flex-direction: column; align-items: center; gap: 3px; margin: 0; padding: 6px 0; border-radius: 10px; font: inherit; }
-.rail-coins b { font-size: 12px; font-weight: 600; color: #ffd27a; font-variant-numeric: tabular-nums; }
+.rail-coins b { font-size: 12px; font-weight: 600; color: var(--coin-ink); font-variant-numeric: tabular-nums; }
 .rail-list { list-style: none; margin: 0; padding: 2px 0 0; width: 100%; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .rail-list::-webkit-scrollbar { width: 4px; }
 .rail-th { position: relative; width: 42px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 10px; background: none; cursor: pointer; user-select: none; }
-.rail-th:hover { background: rgba(255, 255, 255, 0.07); }
-.rail-th.cur { background: rgba(255, 255, 255, 0.11); }
+.rail-th:hover { background: color-mix(in srgb, var(--wash) 7%, transparent); }
+.rail-th.cur { background: color-mix(in srgb, var(--wash) 11%, transparent); }
 .rail-th img { width: 18px; height: 18px; object-fit: contain; pointer-events: none; }
 .rail-th:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .rail-mono { width: 18px; height: 18px; border-radius: 4px; display: grid; place-items: center; font: 700 8px var(--font); background: #5a2340; color: #ff9fc6; }
@@ -48,7 +48,7 @@
 .cp-tab span { writing-mode: vertical-rl; font-size: 13px; font-weight: 500; white-space: nowrap; max-height: calc(100vh - 110px); overflow: hidden; text-overflow: ellipsis; }
 .cp-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 .cp-tab.ref-dragging { box-shadow: inset 0 0 0 1.5px rgba(255, 159, 90, 0.45), 0 14px 34px rgba(5, 8, 30, 0.45); }
-.cp-tab.ref-over { background: #262553; color: #ffd27a; box-shadow: inset 0 0 0 2px var(--accent), 0 14px 34px rgba(5, 8, 30, 0.45); }
+.cp-tab.ref-over { background: #262553; color: var(--coin-ink); box-shadow: inset 0 0 0 2px var(--accent), 0 14px 34px rgba(5, 8, 30, 0.45); }
 
 /* ---------- referencing a thread in the chat ---------- */
 .th-row, .rail-th { user-select: none; -webkit-user-drag: none; }
@@ -61,13 +61,13 @@ body.th-dragging, body.th-dragging * { user-select: none !important; cursor: gra
 .th-ghost span { display: flex; flex-direction: column; min-width: 0; }
 .th-ghost b { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .th-ghost i { font-style: normal; font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.th-ghost em { grid-column: 1 / -1; margin-top: 5px; font-style: normal; font-size: 11.5px; color: #ffd27a; }
+.th-ghost em { grid-column: 1 / -1; margin-top: 5px; font-style: normal; font-size: 11.5px; color: var(--coin-ink); }
 .th-ghost em:empty { display: none; }
 
 /* the message box as the drop target, and the chip that shows where the thread lands */
 .chat-panel.ref-dragging .cp-box { box-shadow: inset 0 0 0 1.5px rgba(255, 159, 90, 0.4); }
 .chat-panel .cp-box.ref-over { box-shadow: inset 0 0 0 2px var(--accent); background: #1a1d48; }
-.cp-box.ref-over .cp-hint { color: #ffd27a; font-weight: 500; }
+.cp-box.ref-over .cp-hint { color: var(--coin-ink); font-weight: 500; }
 .chat-panel .cp-box.ref-no { box-shadow: inset 0 0 0 2px rgba(185, 191, 230, 0.35); }
 .cp-box.ref-no .cp-hint { color: var(--ink-2); }
 .cp-refchip { max-width: 260px; }
@@ -128,7 +128,7 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .game-language-tools .link-btn { font-size: 11px; padding: 3px 0; }
 .game-language-tools .link-btn:disabled { opacity: .6; cursor: default; }
 .game-language-status { color: var(--ink-3); }
-.panel > .usage { flex: none; margin-top: auto; border-top: 1px solid rgba(255,255,255,.07); padding-top: 12px; }
+.panel > .usage { flex: none; margin-top: auto; border-top: 1px solid color-mix(in srgb, var(--wash) 7%, transparent); padding-top: 12px; }
 .panel > .usage .st-head { margin-top: 12px; }
 .panel > .usage .st-ltop { flex-wrap: wrap; }
 .panel > .usage .st-reset { white-space: normal; overflow-wrap: anywhere; }
@@ -136,7 +136,7 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 /* A matching right rail, with the current conversation always within reach. */
 .cp-tab { width: 64px; background: var(--night-2); padding: 18px 5px 14px; gap: 14px; overflow: hidden; }
 .cp-tab:hover { background: color-mix(in srgb, var(--night-2) 90%, white); }
-.cp-tab .cp-rail-icon { flex: none; padding: 8px; box-sizing: content-box; border-radius: 8px; background: rgba(255,255,255,.06); }
+.cp-tab .cp-rail-icon { flex: none; padding: 8px; box-sizing: content-box; border-radius: 8px; background: color-mix(in srgb, var(--wash) 6%, transparent); }
 .cp-tab > span { font-size: 12px; max-height: calc(100dvh - 160px); }
 .cp-tab > svg:last-child { margin-top: auto; flex: none; }
 .cp-tab img { object-fit: contain; }
@@ -149,8 +149,8 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 /* Thread rows in T3's layout: three single lines beside the worker's face. */
 .panel .th-row.th-t3 { align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; }
 .panel .th-row.th-t3.on { background: none; }
-.panel .th-row.th-t3:hover { background: rgba(255, 255, 255, 0.05); }
-.panel .th-row.th-t3.sel { background: rgba(255, 255, 255, 0.09); box-shadow: inset 2px 0 var(--accent); }
+.panel .th-row.th-t3:hover { background: color-mix(in srgb, var(--wash) 5%, transparent); }
+.panel .th-row.th-t3.sel { background: color-mix(in srgb, var(--wash) 9%, transparent); box-shadow: inset 2px 0 var(--accent); }
 .panel .th-t3 .th-text { gap: 3px; }
 .panel .th-t3 .th-top { gap: 7px; font-size: 12px; line-height: 18px; color: var(--ink-3); }
 .panel .th-t3 .th-top > img, .panel .th-t3 .th-top > .th-mono, .panel .th-t3 .th-top > .th-none { width: 18px; height: 18px; border-radius: 5px; }
@@ -179,9 +179,9 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 
 /* Thread rows like T3: project and state, then the title with the harness logo. No faces, no stripe. */
 .panel .th-row.th-t3 { padding: 8px 10px; border-radius: 8px; }
-.panel .th-row.th-t3.sel { background: rgba(255, 255, 255, 0.085); box-shadow: none; }
-.panel .th-row.th-t3.sel:hover { background: rgba(255, 255, 255, 0.11); }
-.panel .th-row.th-t3.sel .th-title { color: #fff; }
+.panel .th-row.th-t3.sel { background: color-mix(in srgb, var(--wash) 8.5%, transparent); box-shadow: none; }
+.panel .th-row.th-t3.sel:hover { background: color-mix(in srgb, var(--wash) 11%, transparent); }
+.panel .th-row.th-t3.sel .th-title { color: var(--ink-hi); }
 .panel .th-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .panel .th-line .th-title { flex: 1 1 auto; min-width: 0; }
 .panel .th-line .th-logo { flex: none; width: 14px; height: 14px; opacity: 0.7; margin: 0; }

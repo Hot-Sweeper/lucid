@@ -11,6 +11,13 @@
   --mint: #4ff0a0;
   --danger: #ff8a7a;        /* destructive actions */
   --danger-ink: #ffb4a8;    /* destructive menu items on raised surfaces */
+  /* Colours a light palette must change (themes/t3.css sets them for a light T3 theme). */
+  --wash: #fff;             /* translucent hover and selection fills: color-mix(var(--wash) N%, transparent) */
+  --ink-hi: #fff;           /* the strongest text: chat headings, the selected thread */
+  --coin-ink: #ffd27a;      /* coin amounts and other gold text */
+  --link: #8fc8ff;          /* links in chat text */
+  --link-hover: #b9dcff;
+  --mono-logo-filter: none; /* one-colour harness logos are drawn white for dark surfaces */
   /* spacing, radii, control sizes and motion shared by every control (src/ui/controls.css) */
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
   --radius-sm: 6px;         /* buttons, icon buttons, menu items, chips */
@@ -66,13 +73,13 @@ textarea::placeholder { color: var(--ink-3); }
 .threads { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .thread-list { list-style: none; margin: 0 -8px; padding: 0 0 16px; overflow-y: auto; flex: 1; }
 .thread { width: 100%; display: grid; grid-template-columns: 18px 1fr; column-gap: 10px; row-gap: 2px; text-align: left; border: 0; background: transparent; padding: 9px 8px; border-radius: 10px; cursor: pointer; }
-.thread:hover { background: rgba(255, 255, 255, 0.05); }
+.thread:hover { background: color-mix(in srgb, var(--wash) 5%, transparent); }
 .thread.on { background: rgba(255, 159, 90, 0.13); }
 .thread .pv { grid-row: 1 / span 2; width: 16px; height: 16px; margin-top: 2px; }
 .thread .pv.codex { filter: none; }
 .thread .tt { font-size: 14px; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .thread .meta { grid-column: 2; font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.thread-list .err { color: #ffb4a8; font-size: 13px; padding: 8px; }
+.thread-list .err { color: var(--danger-ink); font-size: 13px; padding: 8px; }
 
 /* ---------------- scene ---------------- */
 .scene { position: relative; overflow: hidden; background: #1a2049; }

@@ -13,8 +13,8 @@
 .panel .th-row.th-worker[data-status] .th-title { color: var(--status-color); }
 .panel .th-row.th-worker[data-status="working"] .th-text .th-title { color: var(--thread-title-working); }
 .panel .th-row.th-worker:not([data-status]) .th-text .th-title { color: var(--thread-title); }
-.panel .th-row.th-worker.sel, .panel .th-row.th-worker[data-status].sel { background: rgba(255,255,255,.085); }
-.panel .th-row.th-worker.sel:hover, .panel .th-row.th-worker[data-status].sel:hover { background: rgba(255,255,255,.11); }
+.panel .th-row.th-worker.sel, .panel .th-row.th-worker[data-status].sel { background: color-mix(in srgb, var(--wash) 8.5%, transparent); }
+.panel .th-row.th-worker.sel:hover, .panel .th-row.th-worker[data-status].sel:hover { background: color-mix(in srgb, var(--wash) 11%, transparent); }
 .panel .th-row.th-worker:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .panel .th-st { flex: none; font-size: 11.5px; line-height: 18px; }
 

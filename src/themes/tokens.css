@@ -19,6 +19,7 @@
   --ui-edge: transparent;           /* hairline round raised surfaces and panels */
   --ui-scrim: rgba(8, 10, 30, 0.55);
   --ui-float: rgba(20, 26, 51, 0.85);   /* buttons floating over the office */
+  --ui-float-hover: rgba(37, 45, 92, 0.95);
   --ui-hover: #1d2350;
   --ui-drop: #262553;
   --ui-drop-field: #1a1d48;
@@ -29,8 +30,12 @@
   --ui-tray: #1b2246f5;
   --ui-plate: #36364e;              /* office width controls, neighbour office labels */
   --ui-plate-hover: #514b68;
+  --ui-plate-ink: #fff0df;          /* text on those plates */
   --ui-building-plate: #3a3f4f;     /* the building name over each campus */
   --ui-drop-scrim: rgba(18, 21, 58, 0.94);   /* drop files onto the chat */
+  --ui-answer: #1f2549;             /* the answer form in the chat */
+  --ui-viewer: #171c38;             /* the attachment preview */
+  --ui-viewer-edge: #404568;
   --ui-scroll: rgba(185, 191, 230, 0.18);
   --ui-scroll-hover: rgba(185, 191, 230, 0.32);
   --ui-close: #e5484d;              /* the window close button on hover (src/titlebar.ts) */

@@ -25,6 +25,7 @@
   --ui-edge: var(--t3-border);
   --ui-scrim: color-mix(in srgb, var(--t3-canvas) 62%, transparent);
   --ui-float: color-mix(in srgb, var(--t3-raised) 90%, transparent);
+  --ui-float-hover: color-mix(in srgb, var(--t3-control-hover) 95%, transparent);
   --ui-hover: var(--t3-row-hover);
   --ui-drop: var(--t3-row-selected);
   --ui-drop-field: color-mix(in oklab, var(--t3-surface) 86%, var(--t3-accent));
@@ -35,8 +36,12 @@
   --ui-tray: color-mix(in srgb, var(--t3-sidebar) 96%, transparent);
   --ui-plate: var(--t3-control);
   --ui-plate-hover: var(--t3-control-hover);
+  --ui-plate-ink: var(--t3-text);
   --ui-building-plate: var(--t3-control);
   --ui-drop-scrim: color-mix(in srgb, var(--t3-canvas) 94%, transparent);
+  --ui-answer: var(--t3-surface);
+  --ui-viewer: var(--t3-overlay);
+  --ui-viewer-edge: var(--t3-border);
   --ui-scroll: color-mix(in srgb, var(--t3-text) 18%, transparent);
   --ui-scroll-hover: color-mix(in srgb, var(--t3-text) 32%, transparent);
   --mt-panel: var(--t3-canvas);
@@ -103,6 +108,30 @@
   --os-status: var(--t3-sidebar);
 }
 
+/* A light palette: fills darken instead of lighten, strongest text is T3's text, and the bright
+   accents made for dark panels take deeper shades of the same hue (each at least 4.5:1 on white
+   and #fafafa, measured). One-colour harness logos turn dark. */
+:root[data-theme="t3"][data-t3-appearance="light"] {
+  --wash: var(--t3-text);
+  --ink-hi: var(--t3-text);
+  --link: var(--t3-accent-text);
+  --link-hover: var(--t3-text);
+  --mono-logo-filter: brightness(0);
+  --coin-ink: #7f5d02;
+  --danger-ink: #9c4439;
+  --thread-title: var(--t3-text);
+  --thread-title-working: color-mix(in oklab, var(--t3-text) 58%, var(--t3-text-muted));
+  --thread-work: #1b66a9;
+  --thread-ask: #7f5d02;
+  --thread-fail: #b4202e;
+  --thread-done: #067746;
+  --cw-edit: #845a03;
+  --cw-search: #086e8b;
+  --cw-agent: #763ebc;
+  --cw-bad: #b4202e;
+  --cw-live: #2366a4;
+}
+
 :root[data-theme="t3"][data-t3-appearance="dark"] {
   color-scheme: dark;
   /* wallpapers keep the OLED light pools, veiled in T3's canvas instead of black */
@@ -110,7 +139,13 @@
 }
 
 /* Buttons filled with the accent take T3's accent ink, whatever their component chose for peach. */
-html:root[data-theme="t3"][data-t3-appearance] :is(.update, .reply button, .primary, .sh-play, .uac-btns .uac-yes, .desk-plan-body li[data-state="doing"] .desk-plan-step-number, .cp-msg.you .cp-text, .cp-send, .cq-save, .cq-yes, .st-cyes) {
+html:root[data-theme="t3"][data-t3-appearance] :is(.update, .reply button, .primary, .sh-play, .uac-btns .uac-yes, .desk-plan-body li[data-state="doing"] .desk-plan-step-number, .cp-send, .cq-save, .cq-yes, .st-cyes) {
   color: var(--t3-accent-ink);
 }
 html:root[data-theme="t3"][data-t3-appearance] .cm-fast[aria-checked="true"] i::after { background: var(--t3-accent-ink); }
+
+/* Fields that are a faint fill on a dark sidebar read as a bordered field on a light one, like T3. */
+html:root[data-theme="t3"][data-t3-appearance="light"] .th-search { background: var(--t3-surface); box-shadow: inset 0 0 0 1px var(--t3-border); }
+html:root[data-theme="t3"][data-t3-appearance="light"] .th-search:focus-within { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, transparent); }
+html:root[data-theme="t3"][data-t3-appearance="light"] .switch .track { background: color-mix(in srgb, var(--t3-text) 22%, transparent); }
+html:root[data-theme="t3"][data-t3-appearance="light"] .cpc-ext { color: var(--accent-2); }
