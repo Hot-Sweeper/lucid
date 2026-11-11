@@ -22,6 +22,7 @@ export const CHECKS = [
   "verify-t3-theme.cjs",
   "verify-interface-tokens.mjs",
   "verify-favicons.cjs",
+  "verify-preview-html.cjs",
   "verify-game-sound.cjs",
   "verify-background-audio.cjs",
   "verify-soundtrack.cjs",

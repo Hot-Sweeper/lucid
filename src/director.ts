@@ -1199,10 +1199,12 @@ export class Director {
       const inp = this.get(id).data.input || {};
       const html = typeof inp.html === "string" && /</.test(inp.html) ? inp.html : null;
       if (html) {
-        const title = String(inp.title || "").trim();
+        const title = String(inp.title || "").trim() || previewTitle(html);
         this.stage.setGlow(GLOW.browser);
         this.onActivity(title ? `Looking at “${title.slice(0, 50)}” in the browser` : "Looking at the page it built");
-        await this.browser.open("about:blank", { instant: this.catchingUp, title: title || undefined, html, key: `frontend-html`, newTab: false });
+        // An honest address for HTML handed to T3's preview, never a fake about:blank tab.
+        const slug = title.toLowerCase().normalize("NFKD").replace(/[^\w]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "page";
+        await this.browser.open(`t3://preview/${slug}`, { instant: this.catchingUp, title: title || "Preview", html, key: `frontend-html`, newTab: false });
         return true;
       }
     }
@@ -1698,4 +1700,13 @@ export class Director {
         return;
     }
   }
+}
+
+/** A readable title for HTML shown through T3's preview tools: its <title>, first heading, first image description or first words. */
+function previewTitle(html: string): string {
+  const text = (s: string | undefined) => (s || "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+  const pick = text(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]) || text(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/i.exec(html)?.[1])
+    || text(/<img[^>]*\balt\s*=\s*["']([^"']+)["']/i.exec(html)?.[1])
+    || text(html.replace(/<(style|script)[\s\S]*?<\/\1>/gi, " ")).split(/(?<=[.!?])\s/)[0];
+  return pick.slice(0, 80);
 }

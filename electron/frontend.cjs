@@ -11,8 +11,29 @@ const MAX_SESSIONS = 6, LEASE_MS = 90000;
 function localUrl(value) {
   try { const u = new URL(value); return /^https?:$/.test(u.protocol) && !u.username && !u.password && ['localhost', '127.0.0.1', '[::1]', '0.0.0.0'].includes(u.hostname) ? u.href.replace('://0.0.0.0', '://127.0.0.1') : null; } catch { return null; }
 }
+const IMAGE_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.avif': 'image/avif' };
+const IMAGE_MAX = 8 * 1024 * 1024, IMAGES_TOTAL = 24 * 1024 * 1024;
+/** Inline HTML loads from a data: URL, so an agent's local image paths (/tmp/qr.png, file:///…) point nowhere.
+ *  Embed those images (image files only, size-capped) so the robot's screen shows what the agent showed. */
+function embedLocalImages(html) {
+  let total = 0;
+  const embed = (raw) => {
+    try {
+      const file = raw.startsWith('file:') ? fileURLToPath(raw) : raw;
+      if (!path.isAbsolute(file)) return null;
+      const type = IMAGE_TYPES[path.extname(file).toLowerCase()];
+      const st = type && fs.statSync(file);
+      if (!st || !st.isFile() || st.size > IMAGE_MAX || total + st.size > IMAGES_TOTAL) return null;
+      total += st.size;
+      return `data:${type};base64,${fs.readFileSync(file).toString('base64')}`;
+    } catch { return null; }
+  };
+  return html
+    .replace(/(<(?:img|source|image)\b[^>]*?\s(?:src|href|xlink:href)\s*=\s*)(["'])((?:\/|file:\/\/)[^"']+)\2/gi, (m, pre, q, src) => { const d = embed(src); return d ? `${pre}${q}${d}${q}` : m; })
+    .replace(/url\(\s*(["']?)((?:\/|file:\/\/)[^"')]+)\1\s*\)/gi, (m, q, src) => { const d = embed(src); return d ? `url(${q}${d}${q})` : m; });
+}
 function sourceOf(target) {
-  if (typeof target?.html === 'string' && target.html.length <= 400000) return { key: target.html, url: `data:text/html;charset=utf-8;base64,${Buffer.from(target.html).toString('base64')}` };
+  if (typeof target?.html === 'string' && target.html.length <= 400000) return { key: target.html, url: `data:text/html;charset=utf-8;base64,${Buffer.from(embedLocalImages(target.html)).toString('base64')}` };
   const url = localUrl(target?.url); if (url) return { key: url, url };
   if (typeof target?.file === 'string' && typeof target?.root === 'string') {
     const root = fs.realpathSync(target.root), file = fs.realpathSync(path.resolve(root, target.file));
@@ -146,4 +167,4 @@ function register(ipcMain, app) {
   });
   app.once('before-quit', () => { require('./workspace-browser.cjs').closeOwner(); for (const key of sessions.keys()) close(key); });
 }
-module.exports = { register, frame, close, localUrl, sourceOf };
+module.exports = { register, frame, close, localUrl, sourceOf, embedLocalImages };
