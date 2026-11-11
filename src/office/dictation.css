@@ -1,4 +1,4 @@
-.cp-dictate { display:inline-flex; align-items:center; gap:5px; flex:none; border:0; border-radius:var(--radius-sm); background:none; color:var(--ink-2); padding:6px; font:inherit; font-size:12px; cursor:pointer; }
+.cp-dictate { display:inline-flex; align-items:center; gap:6px; flex:none; min-height:var(--control-h-sm); border:0; border-radius:var(--radius-sm); background:none; color:var(--ink-2); padding:0 8px; font:inherit; font-size:12px; cursor:pointer; }
 .cp-dictate:hover { background:color-mix(in srgb, var(--wash) 8%, transparent); color:var(--ink); }
 .cp-dictate[aria-pressed="true"] { color:var(--accent); }
 .cp-dictate:disabled { opacity:.6; cursor:wait; }
