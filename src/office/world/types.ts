@@ -1,6 +1,6 @@
 // The data the world is drawn from (T3 threads and projects), saved office layouts, rooms and the
 // contract a utility room (break room, question line, charging room) implements.
-import { Walker, type Facing, type Pt } from "../../robot";
+import { Walker, type Facing, type Pt, type RobotProfile } from "../../robot";
 import type { RoomTheme } from "../decorate";
 import { icon } from "../../ui/icons";
 
@@ -15,6 +15,8 @@ export type WThread = {
   branch?: string | null; lastStatus?: string | null; runStartedAt?: string | null; unseen?: boolean;
   coinPending?: boolean;
   completionPending?: boolean;
+  /** A journey of a worker that is not (any more) this thread's own: the robot to draw. */
+  robot?: RobotProfile | null;
 };
 export type WProject = { id: string; title: string; root: string; icon: string | null; scratch: boolean };
 export type WorldData = { nativeEnvironmentId?: string; environmentId?: string; projects: WProject[]; threads: WThread[]; models?: Record<string, string[]>; prices?: Record<string, { input: number; output: number }> };

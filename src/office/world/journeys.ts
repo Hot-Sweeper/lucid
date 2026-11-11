@@ -2,7 +2,7 @@
 // the layout to settle), handing over to a room's own walker, sprints to a new desk and the boss desk.
 // Part of the World class (world.ts); see the note there on how its parts are combined.
 import { line } from "../../lines";
-import { Walker, wait as pause, type Facing, type Pt } from "../../robot";
+import { Walker, wait as pause, type Facing, type Pt, type RobotProfile } from "../../robot";
 import { gameSound } from "../sound";
 import { printerStation } from "../printer";
 import gsap from "gsap";
@@ -28,8 +28,9 @@ export class WorldJourneys {
     });
   }
 
-  spawn(this: World, t: { id: string; provider: string; model?: string | null }, at: Pt, face: Facing, outdoors = this.outside(at)) {
-    const profile = this.roster.byThread(t.id);
+  spawn(this: World, t: { id: string; provider: string; model?: string | null; robot?: RobotProfile | null }, at: Pt, face: Facing, outdoors = this.outside(at)) {
+    // The thread's worker, or the worker who did a settled job before it moved on to other work.
+    const profile = t.robot ?? this.roster.forJob(t.id);
     const out = outdoors;
     const w = new Walker(out ? this.park.layer : this.deskLayer, { id: t.id, provider: t.provider, name: profile?.name, model: t.model ?? undefined, scale: WALK_SCALE, look: profile?.look });
     w.el.classList.add("hall-walker");
@@ -263,6 +264,9 @@ export class WorldJourneys {
     const ex = this.exits.get(id);
     if (!ex) return false;
     this.exits.delete(id);
+    // The worker resting from this job was picked for a harness swap: it walks on to that desk.
+    const swap = this.swapArrivals.get(id);
+    if (swap) { this.swapArrivals.delete(id); swap.resolve(at, face); return true; }
     void this.travel(ex.t, { at, face }, ex.to);
     return true;
   }

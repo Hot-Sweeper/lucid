@@ -62,6 +62,9 @@ export interface RobotProfile {
   log?: { at: string; title: string; project?: string; paper: string }[];
 }
 
+/** A thread's job passing to a worker of its new harness. `previous`: the settled job the new worker was resting from. */
+export type WorkerSwap = { threadId: string; from: RobotProfile; to: RobotProfile; previous: string | null };
+
 export const WALLPAPERS = [
   "radial-gradient(120% 90% at 30% 10%, #3a3f99 0%, #24286b 45%, #161a45 100%)",
   "radial-gradient(120% 90% at 70% 0%, #ff9f5a 0%, #b4507a 45%, #2b1d4a 100%)",
@@ -231,14 +234,18 @@ export class Roster {
 
   // Give every working thread a robot. Robots whose thread is settled or gone are free.
   // A free worker with the same harness and model takes the job; otherwise a new one is hired.
-  assign(working: { id: string; provider: string; model?: string | null }[], settledIds: Set<string>, knownIds: Set<string>, pinned = new Set<string>()) {
+  // A thread that moved to another harness gets a worker of that harness (takeOver); the
+  // swaps are returned so the office can show the new robot taking over the desk.
+  assign(working: { id: string; provider: string; model?: string | null }[], settledIds: Set<string>, knownIds: Set<string>, pinned = new Set<string>()): WorkerSwap[] {
     this.reservedPinned = pinned;
+    const swaps: WorkerSwap[] = [];
     const working_ = new Set(working.map((t) => t.id));
     for (const r of this.robots) {
       if (r.threadId && !working_.has(r.threadId) && !settledIds.has(r.threadId) && !knownIds.has(r.threadId)) r.threadId = null;
     }
     for (const t of working) {
       const assigned = this.byThread(t.id);
+      if (assigned && brandFor(assigned.provider) !== brandFor(t.provider)) { const swap = this.takeOver(t.id, t.provider, t.model, settledIds); if (swap) swaps.push(swap); continue; }
       if (assigned) { if (t.model) assigned.lastModel = t.model; continue; }
       const isFree = (r: RobotProfile) => !r.retired && (!r.threadId || (settledIds.has(r.threadId) && !pinned.has(r.threadId)));
       const free = compatibleWorkers(this.robots.filter(isFree), t.provider, t.model)[0];
@@ -247,6 +254,27 @@ export class Roster {
       if (t.model) this.byThread(t.id)!.lastModel = t.model;
     }
     this.save();
+    return swaps;
+  }
+
+  /**
+   * The thread moved to another harness (Codex to Claude, say). A worker's setup is its harness,
+   * so a free worker of the new harness takes the job, by the same rule as any assignment, or
+   * the next new hire of that harness. The previous worker keeps the job in its record and is free.
+   */
+  takeOver(threadId: string, provider: string, model: string | null | undefined, settledIds: Set<string>): WorkerSwap | null {
+    const from = this.byThread(threadId);
+    if (!from || brandFor(from.provider) === brandFor(provider)) return null;
+    from.threadId = null;
+    if (!from.done?.includes(threadId)) (from.done ??= []).push(threadId);
+    const free = compatibleWorkers(this.freeTeam(settledIds).filter((r) => r !== from), provider, model)[0];
+    const previous = free?.threadId ?? null;
+    let to: RobotProfile;
+    if (free) { if (free.threadId) (free.done ??= []).push(free.threadId); free.threadId = threadId; free.provider = provider; free.brand = brandFor(provider); free.jobs++; to = free; }
+    else { to = this.hire(threadId, provider); this.robots.push(to); }
+    if (model) to.lastModel = model;
+    this.save();
+    return { threadId, from, to, previous };
   }
 
   // Settled threads keep their robot only if nobody reassigned it (it is chilling in the break room).

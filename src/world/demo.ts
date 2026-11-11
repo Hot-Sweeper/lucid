@@ -2,7 +2,7 @@ import "@fontsource-variable/lexend";
 import "@fontsource-variable/jetbrains-mono";
 import gsap from "gsap";
 import "./world.css";
-import { UNIT, TopDownRobot, Walker, playHandoff, type Expression, type Pose, type Reaction, type RobotLook, type Activity, type Facing } from "../robot";
+import { UNIT, TopDownRobot, Walker, highFive, type Expression, type Pose, type Reaction, type RobotLook, type Activity, type Facing } from "../robot";
 import { DemoDesk } from "./demo-desk";
 import { BreakRoom } from "./breakroom";
 import { QuestionLine } from "./queue";
@@ -201,20 +201,21 @@ if (want("queue")) {
 }
 
 // ---- handoff ---------------------------------------------------------------------------------------
+// The gesture two workers share when a thread moves to another harness (office/world/harness-swap.ts).
 if (want("handoff")) {
   const sec = section("Handoff", UNIT.w, UNIT.h, ONLY ? 1.5 : 1);
-  const pairs: [string, string, string, string][] = [
-    ["claudeAgent", "claude-opus-5-5", "codex", "gpt-5.5-codex"],
-    ["codex", "gpt-5.5-codex", "grok", "grok-5"],
-    ["grok", "grok-5", "opencode", "qwen-coder-4"],
-  ];
+  const pairs: [string, string][] = [["claudeAgent", "codex"], ["codex", "grok"], ["grok", "opencode"]];
   let k = 0, playing = false;
   const play = async () => {
     if (playing) return;
     playing = true;
-    const [fp, fm, tp, tm] = pairs[k++ % pairs.length];
-    sec.status.textContent = `${fm} hands over to ${tm}`;
-    await playHandoff(sec.stage, { provider: fp, model: fm }, { provider: tp, model: tm }, { x: UNIT.w / 2, y: UNIT.h - 90 });
+    const [from, to] = pairs[k++ % pairs.length];
+    const y = UNIT.h - 90, a = new Walker(sec.stage, { id: "handoff-from", provider: from, scale: 0.48 }), b = new Walker(sec.stage, { id: "handoff-to", provider: to, scale: 0.48 });
+    a.setPos(UNIT.w / 2 - 40, y); a.face("right"); b.setPos(UNIT.w / 2 + 40, y); b.face("left");
+    sec.status.textContent = `${from} hands over to ${to}`;
+    await highFive(sec.stage, a, b);
+    await new Promise((r) => setTimeout(r, 900));
+    a.destroy(); b.destroy();
     sec.status.textContent = "";
     playing = false;
   };

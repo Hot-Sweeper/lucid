@@ -82,8 +82,6 @@ export const BASE = {
   thanks: [["Thanks!", "Danke!"], ["Got it, thank you!", "Verstanden, danke!"], ["Perfect, thanks!", "Perfekt, danke!"], ["Thank you, boss.", "Danke, Boss."]],
   bossHandoff: [["Over to you.", "Du bist dran."], ["Your call.", "Deine Entscheidung."]],
   bossAck: [["Done.", "Erledigt."], ["Checked.", "Geprüft."], ["Noted.", "Notiert."], ["All set.", "Alles klar."]],
-  handoffHi: [["Oh hi!", "Oh, hallo!"], ["There you are.", "Da bist du ja."]],
-  handoffBrief: [["So here is where we are.", "Also, so weit sind wir."], ["Everything is in the thread.", "Alles steht im Thread."], ["The history is all there.", "Der Verlauf ist komplett da."]],
   handoffBye: [["All yours.", "Gehört dir."], ["Have fun with it.", "Viel Spaß damit."]],
   handoffGotIt: [["Got it.", "Verstanden."], ["On it.", "Übernehme."]],
   printing: [["Printing report...", "Drucke Bericht..."]],

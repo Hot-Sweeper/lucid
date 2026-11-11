@@ -728,6 +728,25 @@ export class ChatPanel {
       this.renderQueue([]);
       void this.loadT3();
     }
+    this.paintHeader(desk);
+    if (!this.isOpen) {
+      this.el.classList.add("open");
+      // the empty panel becomes this robot's chat: its parts settle in one after another
+      if (!this.collapsed && !matchMedia("(prefers-reduced-motion: reduce)").matches) gsap.from([...this.el.children].filter((c) => !c.classList.contains("cp-empty")), { opacity: 0, duration: 0.14, ease: "power3.out", clearProps: "opacity" });
+    }
+    this.setCollapsed(false);
+    this.refresh();
+    this.renderPending(false);
+    if (!same && this.sendErrors.has(this.threadId!)) this.note(this.sendErrors.get(this.threadId!)!);
+    this.onPresent();
+    // Selecting a robot opens its conversation. A phone keyboard appears when
+    // the user touches the composer, leaving the conversation readable first.
+    if (focus) (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
+  }
+
+  /** The header and tab name the thread and its current worker (a harness swap changes the worker). */
+  repaintHeader(threadId: string) { if (this.desk && this.isOpen && this.desk.threadId === threadId) this.paintHeader(this.desk); }
+  private paintHeader(desk: Desk) {
     const info = desk.info, logo = logoFor(info?.provider);
     const img = this.el.querySelector(".cp-logo") as HTMLImageElement;
     img.hidden = !logo;
@@ -749,19 +768,6 @@ export class ChatPanel {
     const tabLogo = this.tab.querySelector("img") as HTMLImageElement;
     tabLogo.hidden = !logo;
     if (logo) tabLogo.src = logo;
-    if (!this.isOpen) {
-      this.el.classList.add("open");
-      // the empty panel becomes this robot's chat: its parts settle in one after another
-      if (!this.collapsed && !matchMedia("(prefers-reduced-motion: reduce)").matches) gsap.from([...this.el.children].filter((c) => !c.classList.contains("cp-empty")), { opacity: 0, duration: 0.14, ease: "power3.out", clearProps: "opacity" });
-    }
-    this.setCollapsed(false);
-    this.refresh();
-    this.renderPending(false);
-    if (!same && this.sendErrors.has(this.threadId!)) this.note(this.sendErrors.get(this.threadId!)!);
-    this.onPresent();
-    // Selecting a robot opens its conversation. A phone keyboard appears when
-    // the user touches the composer, leaving the conversation readable first.
-    if (focus) (this.el.querySelector("textarea") as HTMLTextAreaElement).focus({ preventScroll: true });
   }
 
   private clearTranscript() {

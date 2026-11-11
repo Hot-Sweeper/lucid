@@ -16,12 +16,12 @@ export {
 } from "./look";
 export { stickerSvg } from "./art/outfit";
 export { portraitSvg } from "./art/portrait";
-export { Roster, HOBBY_LABEL, WALLPAPERS, interestsFrom, type RobotProfile, type Prefs, type Hobby, type OfficeTaste } from "./roster";
+export { Roster, HOBBY_LABEL, WALLPAPERS, interestsFrom, type RobotProfile, type Prefs, type Hobby, type OfficeTaste, type WorkerSwap } from "./roster";
 export { personaLines, personaMarkdown } from "./persona";
 export { robotSay } from "./voice";
 export { TopDownRobot, emptyChairSvg } from "./seated/robot";
 export { Walker, SIT_HEAD, type Facing, type Activity } from "./walker/walker";
-export { playHandoff } from "./walker/handoff";
+export { highFive } from "./walker/handoff";
 export { wait } from "./util";
 export { DeferredRobot } from "./render/deferred";
 export { RobotPower, setRobotModes } from "./render/power";

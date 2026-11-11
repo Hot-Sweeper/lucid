@@ -105,4 +105,6 @@ export function wireChatHooks(app: App) {
     app.chat.setView(app.world.focusMode);
   };
   app.chat.onPresent = app.paintSelectedStatus;
+  // A harness swap gave the thread another worker: the header names the new one.
+  app.world.onWorkerSwap = (id) => app.chat.repaintHeader(id);
 }

@@ -1,5 +1,5 @@
 import { officeColumns } from "./office-width";
-import { Walker, Roster, type Pt } from "../robot";
+import { Walker, Roster, type Pt, type Facing } from "../robot";
 import { subscriptionBatteries } from "./battery";
 import type { Usage } from "../stats/stats";
 import gsap from "gsap";
@@ -29,6 +29,7 @@ import { WorldCameraView } from "./world/camera-view";
 import { WorldCameraInput } from "./world/camera-input";
 import { WorldCameraFocus } from "./world/camera-focus";
 import { WorldCampus } from "./world/campus";
+import { WorldHarnessSwap, type SwapRun } from "./world/harness-swap";
 import type { WThread, WorldData, Room, RoomKind, RoomExtension, PhysicalRoomPlan, OfficeLayout } from "./world/types";
 import { HALL } from "./world/geometry";
 export type { WThread, WProject, WorldData, OfficeLayout, RoomKind, Room, RoomExtension } from "./world/types";
@@ -43,7 +44,7 @@ export type { WThread, WProject, WorldData, OfficeLayout, RoomKind, Room, RoomEx
 // onto World, and the interface merge gives World their types. This file keeps the state they
 // share, the constructor, settling a thread into its room, empty desks and saved layouts.
 
-export interface World extends WorldRouting, WorldJourneys, WorldOutdoors, WorldRooms, WorldLayout, WorldDesks, WorldDeskDrag, WorldCameraView, WorldCameraInput, WorldCameraFocus, WorldCampus {}
+export interface World extends WorldRouting, WorldJourneys, WorldOutdoors, WorldRooms, WorldLayout, WorldDesks, WorldDeskDrag, WorldCameraView, WorldCameraInput, WorldCameraFocus, WorldCampus, WorldHarnessSwap {}
 
 export class World {
   scene: HTMLElement;
@@ -99,6 +100,12 @@ export class World {
   get hallY() { return this.topH + HALL / 2; }
 
   sprinting = new Map<string, number>();
+  /** Harness swaps in progress (world/harness-swap.ts), by thread. */
+  swaps = new Map<string, SwapRun>();
+  /** A resting worker picked for a swap: its room's door hand-over starts its walk to the desk. */
+  swapArrivals = new Map<string, { id: string; resolve: (at: Pt | null, face?: Facing) => void }>();
+  /** A thread's worker changed (the chat header shows the new name). */
+  onWorkerSwap: (threadId: string) => void = () => {};
 
   // today's office event from the orchestrator, on the building's name sign
   eventName = "";
@@ -558,4 +565,4 @@ export class World {
 
 // --- room art (top-down) -----------------------------------------------------------------
 
-mixin(World, WorldRouting, WorldJourneys, WorldOutdoors, WorldRooms, WorldLayout, WorldDesks, WorldDeskDrag, WorldCameraView, WorldCameraInput, WorldCameraFocus, WorldCampus);
+mixin(World, WorldRouting, WorldJourneys, WorldOutdoors, WorldRooms, WorldLayout, WorldDesks, WorldDeskDrag, WorldCameraView, WorldCameraInput, WorldCameraFocus, WorldCampus, WorldHarnessSwap);

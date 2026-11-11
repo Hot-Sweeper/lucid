@@ -212,7 +212,7 @@ export class WorldLayout {
     // Robots: working threads get one (reusing free teammates first), resting ones keep theirs.
     const working = [...queue, ...main, ...freelance, ...[...perProject.values()].flat(), ...charging.filter(t => !t.settled)];
     const otherBuildings = this.roster.robots.flatMap(r => r.threadId && (r.threadId.includes('::') ? r.threadId.split('::')[0] : '') !== (data.environmentId || '') ? [r.threadId] : []);
-    this.roster.assign(working, new Set(brk.map((t) => t.id)), new Set([...data.threads.map(t => t.id), ...otherBuildings]), new Set(data.threads.filter(t => t.pinned).map(t => t.id)));
+    const swaps = this.roster.assign(working, new Set(brk.map((t) => t.id)), new Set([...data.threads.map(t => t.id), ...otherBuildings]), new Set(data.threads.filter(t => t.pinned).map(t => t.id)));
     const resting = this.roster.restingFor(brk.slice(0, 8));
     const restingIds = new Set(resting.map((r) => r.thread));
     const brkShown = brk.filter((t) => restingIds.has(t.id)).slice(0, 8);
@@ -424,7 +424,8 @@ export class WorldLayout {
       const appearance = this.themes.get(d.room);
       const computer = appearance?.computers?.[s.key] ?? appearance?.computer ?? "classic";
       d.el.dataset.computer = computer;
-      if (d.threadId && (nowRoom.get(d.threadId) !== d.room || moving.some((m) => m.t.id === d!.threadId) || this.transit.has(d.threadId))) d.setSeated(false);
+      // During a harness swap the previous worker stays seated while the new one walks over.
+      if (d.threadId && (nowRoom.get(d.threadId) !== d.room || moving.some((m) => m.t.id === d!.threadId) || this.transit.has(d.threadId) && !this.swaps.has(d.threadId))) d.setSeated(false);
       if (d.threadId) d.el.classList.toggle("orch-desk", d.threadId === this.orchThread);
       // Folding hides a desk where it stands; opening places it at once and unfolds it.
       if (s.folded !== d.folded) {
@@ -443,6 +444,7 @@ export class WorldLayout {
     // leaving a desk: it gets up from its chair; leaving the break room, questions or park: that
     // room walks it to its door and hands it over there
     for (const m of moving) this.move(m.t, m.from, m.to, desksBefore.get(m.t.id) ?? null);
+    for (const swap of swaps) { const t = byThread.get(swap.threadId); if (t) this.swapWorker(t, swap, first); }
     for (const [id, walker] of this.transit) {
       const thread = byThread.get(id);
       walker.setRunning(!!thread && hasOfficeWork(thread) && !thread.question && !!this.desks.get(id)?.el.classList.contains("arriving"));
