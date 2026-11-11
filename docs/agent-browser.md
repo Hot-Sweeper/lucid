@@ -2,7 +2,7 @@
 
 The app follows browsers explicitly identified in completed agent-workspace tool events. `WorkspaceBrowserTracker` unwraps MCP results, retains the workspace session and browser app handles, and follows subsequent navigation and input. The director handles both completed streaming events and normal tool playback. Linked environments never resolve those handles against this computer.
 
-`frontend:frame` routes workspace sources to `electron/workspace-browser.cjs`. It validates the saved workspace session and browser command before requesting a screenshot of that app's window through the installed agent-workspace CLI. It never captures the root desktop, navigates another browser, copies cookies, or sends input. The renderer displays the actual window, including native tabs and address bar, without a duplicate the app toolbar. Images retain their aspect ratio. The title follows the live window, including navigation not accompanied by another tool result.
+`frontend:frame` routes workspace sources to `electron/workspace-browser.cjs`. It validates the saved workspace session and browser command before requesting a screenshot of that app's window through the installed agent-workspace CLI. It never captures the root desktop, navigates another browser, copies cookies, or sends input. `src/os/live-browser.ts` shows the actual window as its own robot window (`livebrowser`), named after the real browser and without a robot title bar, so the native tabs and address bar are the only chrome. Its first capture is fetched before the window opens, and the window manager keeps the window's content box at the capture's exact aspect ratio (`src/os/window-fit.ts`) when it opens, maximizes, snaps, restores or the real window is resized. Reduced detail tiers draw the capture itself. The title follows the live window, including navigation not accompanied by another tool result.
 
 Visible views request at most one capture per second. Requests for the same source share in-flight work. Hidden, inactive and covered views pause. Captures use temporary files removed after encoding; closed views and renderer destruction release their session ownership. Old workspace IDs cannot attach to a new workspace session. Stopped or unavailable browsers retain an explicit waiting state.
 
@@ -11,6 +11,7 @@ Checks:
 - `node scripts/checks/verify-workspace-browser.mjs`: event parsing, actual browser handles, navigation, failure, terminal isolation, stop and reset.
 - `node scripts/checks/verify-workspace-browser.cjs`: command scope, session reuse, ownership, pause, stable frames and cleanup.
 - `node scripts/checks/verify-frontend-client.mjs`: serial polling, suspension, recovery and disposal.
+- `node scripts/checks/verify-window-fit.mjs`: content-shaped window math and the window manager's open, refit, maximize, restore and snap behavior.
 - `node scripts/review/verify-frontend.cjs`: native frontend sandbox and session lifecycle.
 - `npm run verify:update`: required repository validation and candidate build.
 

@@ -47,7 +47,7 @@ const root = Object.assign(new Node(), { classList: { toggle(k, on) { if (on) cl
 const owned = Object.assign(new Node(root), { remove() {} }), unrelated = new Node();
 const robot = { setTyping: on => actions.push(['typing', on]), setPose: p => actions.push(['pose', p]),
   mouseTo: (...p) => actions.push(['mouse', ...p]), click: () => actions.push('click'), lookAt() {} };
-const wm = Object.assign(Object.create(WM.prototype), { root, robot, wins: new Map(), opening: new Map(), epoch: 0,
+const wm = Object.assign(Object.create(WM.prototype), { root, robot, wins: new Map(), opening: new Map(), contents: new Map(), modes: new Map(), unmax: new Map(), epoch: 0,
   speed: 1, operatorHere: true, operatorWaiters: new Set(), pausedByAbsence: new Set(), cursorMotion: null,
   absenceAt: null, absenceDuration: 0,
   cursor: { x: 0, y: 0 }, cursorEl: {}, cursorX() {}, cursorY() {}, renderDock() {} });
