@@ -48,6 +48,16 @@ assert.equal(mod.resolveVars('var(--ear, var(--glow))', look), '#ff9d6c', 'an em
 assert.equal(mod.resolveVars('var(--missing, #123)', look), '#123');
 assert.equal(mod.resolveVars('<rect fill="var(--shell)" stroke="var(--cap, var(--glow))"/>', look), '<rect fill="#ecdfcc" stroke="#ff9d6c"/>');
 
+// Gradient parts are keyed by the robot's resolved defs: a theme, brand or look change draws a new
+// head instead of reusing the first one (dark heads stayed on light bodies). Plain parts still share.
+const head = '<rect fill="url(#r1-hs)"/>';
+const lightDefs = '<linearGradient id="r1-hs"><stop stop-color="#c9d3e6"/></linearGradient>';
+const darkDefs = '<linearGradient id="r1-hs"><stop stop-color="#121214"/></linearGradient>';
+assert.notEqual(mod.pictureKey(head, lightDefs), mod.pictureKey(head, darkDefs));
+assert.equal(mod.pictureKey(head, lightDefs), mod.pictureKey(head, lightDefs));
+assert.equal(mod.pictureKey('<rect fill="#fff"/>', lightDefs), mod.pictureKey('<rect fill="#fff"/>', darkDefs));
+const src = await fs.readFile(new URL('../../src/robot/render/canvas.ts', import.meta.url), 'utf8');
+assert.ok(src.includes('addEventListener("lucid:interface-theme"') && src.includes('r.restyle()'), 'every canvas robot rebuilds on a theme change');
 assert.equal(mod.canvasRobotsWanted(0.3), true, 'zoomed out (monitor shows only its icon): canvas');
 assert.equal(mod.canvasRobotsWanted(1), false, 'close up: the real SVG');
 console.log('PASS: canvas robots parse SVG transforms, resolve robot colors and switch by zoom');

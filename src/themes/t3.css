@@ -147,3 +147,10 @@ html:root[data-theme="t3"][data-t3-appearance="light"] .th-search { background: 
 html:root[data-theme="t3"][data-t3-appearance="light"] .th-search:focus-within { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, transparent); }
 html:root[data-theme="t3"][data-t3-appearance="light"] .switch .track { background: color-mix(in srgb, var(--t3-text) 22%, transparent); }
 html:root[data-theme="t3"][data-t3-appearance="light"] .cpc-ext { color: var(--accent-2); }
+/* The far monitor signs keep their status hues, in the deeper shades a light panel needs. */
+html:root[data-theme="t3"][data-t3-appearance="light"] .mt-far[data-state="done"] b { color: var(--thread-done); }
+html:root[data-theme="t3"][data-t3-appearance="light"] .mt-far[data-state="question"] b { color: var(--thread-ask); }
+html:root[data-theme="t3"][data-t3-appearance="light"] .mt-far[data-state="stopped"] b { color: var(--cw-edit); }
+html:root[data-theme="t3"][data-t3-appearance="light"] .mt-far[data-state="settled"] :is(b, span) { color: var(--coin-ink); }
+html:root[data-theme="t3"][data-t3-appearance="light"] .mt-far[data-state="background"] b { color: var(--thread-work); }
+html:root[data-theme="t3"][data-t3-appearance="light"] .mt-far[data-state="job-failed"] b { color: var(--thread-fail); }

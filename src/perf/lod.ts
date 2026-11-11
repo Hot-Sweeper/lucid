@@ -5,8 +5,8 @@
 //
 //   full   ≥ 440 px  app text is readable (13 px app text lands at about 7 device px)
 //   lines  ≥ 300 px  text becomes line shapes; the desk's status sign replaces small panels
-//   shapes ≥ 190 px  layout blocks only
-//   icon   < 190 px  the app's icon; robots are drawn on their canvas
+//   shapes ≥ 190 px  layout blocks, pictures and soft text bars
+//   icon   < 190 px  the same layout under the app's icon; robots are drawn on their canvas
 //   tiny   <  70 px  the dock row is skipped and background motion slows down
 export const MONITOR_UNITS = 276;
 export const LOD_PX = { tiny: 70, icon: 190, shapes: 300, full: 440 } as const;

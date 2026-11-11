@@ -38,4 +38,10 @@ assert.equal(bulk.removeEmptyDesks('main'),3,'bulk removes every eligible vacanc
 assert.deepEqual(bulk.seats.get('main'),['running']);assert.equal(bulk.extra.get('main'),0);
 assert.equal(bulk.removeEmptyDesks('other'),0,'cleanup stays in the owning office');
 bulk.pendingSeat={room:'main',index:1};assert.deepEqual(bulk.emptyDeskSlots('main'),[],'launching jobs block cleanup');
-console.log('PASS: no cloned spares, no automatic starter desks and guarded bulk removal');
+// The Add a desk ghost is one placeholder: exactly one dashed outline round a faint workstation.
+const ghostSvg=(await readFile('src/office/world/desks.ts','utf8')).match(/makeDeskGhost[\s\S]*?<\/svg>/)[0];
+assert.equal((ghostSvg.match(/class="dg-frame"/g)||[]).length,1,'one dashed outline');
+assert.ok(/<rect class="dg-frame"[^>]*\/>/.test(ghostSvg),'the outline is a single shape, not a group of boxes');
+const officeCss=await readFile('src/office/office.css','utf8');
+assert.ok(/\.desk-ghost \.dg-ghost \{[^}]*fill:/.test(officeCss)&&!/\.dg-ghost \{[^}]*stroke/.test(officeCss),'the inner workstation is a faint fill without its own outline');
+console.log('PASS: no cloned spares, no automatic starter desks, guarded bulk removal and one Add a desk outline');

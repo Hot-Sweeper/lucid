@@ -137,6 +137,12 @@ function fingerprint(text: string) {
   return `${(h >>> 0).toString(36)}.${text.length}`;
 }
 
+/** A picture's cache key. Parts filled from defs (url(#...)) include those resolved defs; plain
+ * parts are keyed by markup alone, so robots that look alike still share them. */
+export function pictureKey(markup: string, defs: string) {
+  return /url\(#/.test(markup) ? `${fingerprint(defs)}|${markup}` : markup;
+}
+
 function picture(id: string, markup: string, defs: string, box: Box, density: number) {
   const key = `${density}|${id}`;
   let p = pictures.get(key);
@@ -426,8 +432,7 @@ export class RobotCanvas {
     if (!box) return null;   // nothing visible (for now); a change rebuilds
     // A part filled from the robot's defs (the head and body gradients) looks different whenever
     // those resolved colours do (brand, look, theme), though its own markup is unchanged.
-    const key = /url\(#/.test(markup) ? `${fingerprint(this.defs)}|${markup}` : markup;
-    const pic: Pic = { kind: "pic", el, els, key, box, markup };
+    const pic: Pic = { kind: "pic", el, els, key: pictureKey(markup, this.defs), box, markup };
     this.pics.push(pic);
     return pic;
   }

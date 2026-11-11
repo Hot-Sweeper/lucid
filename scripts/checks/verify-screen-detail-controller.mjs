@@ -8,7 +8,7 @@ const { screenDetail: detail, SCREEN_DETAIL_WIDTHS } = new Function(`${await com
 const { paintDetailScene } = new Function(`${await compile('detail-scene')};return {paintDetailScene}`)();
 let now=0, nextId=0, reads=0, canvases=0;
 const timers=new Map(), observers=[];
-const window={devicePixelRatio:1,setTimeout(fn,delay=0){const id=++nextId;timers.set(id,{fn,due:now+delay});return id;}};
+const window={devicePixelRatio:1,listeners:{},addEventListener(type,fn){(this.listeners[type]??=[]).push(fn);},setTimeout(fn,delay=0){const id=++nextId;timers.set(id,{fn,due:now+delay});return id;}};
 const drain=()=>{let count=0;while(timers.size){assert.ok(++count<100,'Queue must settle');const [id,job]=[...timers].sort((a,b)=>a[1].due-b[1].due)[0];timers.delete(id);now=Math.max(now,job.due);job.fn();}};
 class Element {
   constructor(cls=''){this.className=cls;this.dataset={};this.style={setProperty(key,value){this[key]=value;}};this.attributes={};this.childNodes=[];this.parentElement=null;this.isConnected=true;this.tagName='DIV';this.offsetWidth=600;this.offsetHeight=360;}
@@ -75,13 +75,23 @@ job=[...timers][0];timers.delete(job[0]);job[1].fn();
 assert.ok([...timers.values()].some(t=>t.due>now),'Content refresh is throttled');
 api.setScreenDetail(host,true,160);
 assert.ok([...timers.values()].some(t=>t.due===now),'Zoom bypasses a pending content throttle');
-drain();assert.equal(canvases,afterDensityCanvases+1,'Icons allocate no canvas');
-const overview=a.w.querySelector('.screen-detail-surface');
-assert.equal(overview.children.length,1,'Farthest view contains only app color and icon, with no title bar');
-const overviewIcon=overview.querySelector('.screen-detail-icon');
+drain();
+// The overview keeps the window's layout (a small canvas at the icon cutoff's density) under the
+// app icon, instead of one flat colour that read as an empty monitor.
+const overview=a.w.querySelector('.screen-detail');
+assert.equal(overview.dataset.detailTier,'icon');
+const overviewCanvas=overview.children.find(n=>n.dataset.sourceDensity);
+assert.ok(overviewCanvas,'Overview draws the window layout');
+assert.ok(Number(overviewCanvas.dataset.sourceDensity)<Number(resizedCanvas.dataset.sourceDensity),'Overview layout uses fewer source pixels than the line view');
+const overviewIcon=overview.querySelector('.screen-detail-icon-overview');
 assert.ok(overviewIcon.querySelector('.authentic-app-icon'),'Overview preserves the real app icon');
 assert.equal(overviewIcon.style['--screen-detail-icon-size'],'176px','Overview icon is substantially larger');
-const iconReads=reads;for(let i=0;i<100;i++)mutation(a.message,'characterData');drain();assert.equal(reads,iconReads,'Icon tier ignores text updates');
+// Content changes refresh the overview too (no stale art), throttled: a burst of 100 updates is one capture.
+const iconCanvases=canvases;for(let i=0;i<100;i++)mutation(a.message,'characterData');
+job=[...timers][0];timers.delete(job[0]);job[1].fn();
+assert.equal(canvases,iconCanvases,'No overview capture inside its throttle');
+assert.ok([...timers.values()].every(t=>t.due>=now+1000),'Overview refresh waits for its throttle');
+drain();assert.equal(canvases,iconCanvases+1,'A burst of text updates recaptures the overview once');
 api.setScreenDetail(host,true,240);drain();
 const shapeIcon=a.w.querySelector('.screen-detail-icon');
 assert.ok(shapeIcon.querySelector('.authentic-app-icon'),'Text-free core UI already shows the app icon');
@@ -90,6 +100,9 @@ const shapeReads=reads;
 api.setScreenDetail(host,true,160);drain();api.setScreenDetail(host,true,240);drain();assert.equal(reads,shapeReads,'Returning to cached tiers requires zero layout/style reads');
 api.setScreenDetail(host,true,520);assert.equal(host.dataset.screenDetail,undefined);assert.equal(a.w.dataset.detailReady,undefined);
 api.setScreenDetail(host,true,160);drain();const c=makeWin();mutation(layer,'childList',[c.w]);drain();assert.equal(c.w.dataset.detailReady,'1','New apps inherit LOD automatically');
+// A theme change restyles every app without a DOM mutation: each visible window is captured again.
+const beforeTheme=canvases;for(const fn of window.listeners['lucid:interface-theme']??[])fn();drain();
+assert.equal(canvases,beforeTheme+layer.children.length,'A theme change recaptures every visible window once');
 const beforeHidden=reads;api.setScreenDetail(host,false,160);mutation(c.w);drain();assert.equal(reads,beforeHidden,'Offscreen apps do no capture work');
 // A paused/arriving desk can still be visibly on screen. It must receive the same
 // visual tier without forcing background captures or leaking full-text app DOM.
@@ -106,7 +119,7 @@ assert.ok(css.includes('.win:not([data-detail-ready="1"]) { -webkit-text-fill-co
 assert.ok(css.includes('[data-screen-detail] .os-clock { visibility: hidden; }'));
 assert.ok(css.includes('[data-screen-detail] .toast span { position: relative; visibility: hidden; }'));
 
-console.log(JSON.stringify({cursorCaptures:0,typingWindowsRefreshed:1,iconCanvasAllocations:0,iconTypingLayoutReads:0,cachedTierLayoutReads:0,newAppsInherit:true,offscreenCaptures:0}));
+console.log(JSON.stringify({cursorCaptures:0,typingWindowsRefreshed:1,overviewBurstCaptures:1,cachedTierLayoutReads:0,newAppsInherit:true,offscreenCaptures:0}));
 
 // First-time transitions across a busy office must yield rather than walking every
 // app in one task. Subsequent forward/reverse transitions reuse those exact nodes.

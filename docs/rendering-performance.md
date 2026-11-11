@@ -51,8 +51,12 @@ Visibility for the body budget is tracked on whichever of the two is shown.
 
 All levels use one set of distances in `src/perf/lod.ts`, measured in device pixels of a desk's
 monitor (276 world units wide): full app text from 440 px, line shapes from 300 px, layout shapes
-from 190 px, the app icon below that (where robots also switch to their canvas), and below 70 px
-the dock row is skipped and background motion slows. Earlier these were page pixels or zoom
+with soft text bars from 190 px, the same layout under the app icon below that (where robots also
+switch to their canvas), and below 70 px the dock row is skipped and background motion slows.
+Reduced views draw backgrounds and CSS gradients, canvases, images and video frames, and inline SVG
+shapes in their resolved colours; they are captured again when the app changes or the theme does.
+Robot canvases key their pictures by the robot's resolved gradients too, and rebuild on every theme
+or T3 palette change, so a far robot always wears its current colours. Earlier these were page pixels or zoom
 values chosen separately, so on a 150 % display they switched at uneven, too-early distances.
 Robot canvases switch the moment the zoom crosses their level and resharpen when the camera
 settles, instead of waiting for each robot's next draw.

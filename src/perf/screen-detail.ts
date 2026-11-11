@@ -6,7 +6,7 @@ type Reduced = Exclude<ScreenDetail, 'full'>;
 type State = { host: HTMLElement; tier: ScreenDetail; visible: boolean; logicalWidth: number; dpr: number; observer: MutationObserver };
 type Cached = { nodes: Node[]; dpr: number; logicalWidth: number; revision: number };
 type Capture = { run: Generator<void, void, void>; bounds: DOMRect; tier: Reduced; revision: number; dpr: number; logicalWidth: number };
-type Cache = { views: Map<Reduced, Cached>; lastPaint: number; width: number; height: number; revision: number; iconRevision: number; shellStyle: string };
+type Cache = { views: Map<Reduced, Cached>; lastPaint: number; width: number; height: number; revision: number; shellStyle: string };
 const states = new WeakMap<HTMLElement, State>();
 /** Every live host, so a theme change can recapture what each one shows. */
 const live = new Set<State>();
@@ -45,7 +45,7 @@ function syncShell(host: HTMLElement) {
 
 function cacheFor(win: HTMLElement) {
   let cache = caches.get(win);
-  if (!cache) { cache = { views: new Map(), lastPaint: -Infinity, width: 0, height: 0, revision: 0, iconRevision: 0, shellStyle: '' }; caches.set(win, cache); }
+  if (!cache) { cache = { views: new Map(), lastPaint: -Infinity, width: 0, height: 0, revision: 0, shellStyle: '' }; caches.set(win, cache); }
   return cache;
 }
 function overlayFor(win: HTMLElement) {
@@ -65,12 +65,14 @@ function showCached(win: HTMLElement, tier: Reduced, state: State) {
   overlay.dataset.detailTier = tier;
   if (win.dataset.detailReady !== '1') win.dataset.detailReady = '1';
   // Retain the last valid view during refresh instead of rebuilding in a camera event.
-  return cached.revision === (tier === 'icon' ? cacheFor(win).iconRevision : cacheFor(win).revision);
+  return cached.revision === cacheFor(win).revision;
 }
 function enqueue(win: HTMLElement, state: State, transition = false) {
   if (!state.visible || state.tier === 'full' || win.dataset.renderHidden === '1') return;
   if (showCached(win, state.tier, state)) { pending.delete(win); return; }
-  const interval = state.tier === 'lines' ? 750 : 1500;
+  // Content refreshes are throttled; the overview refreshes least often (it is the cheapest to
+  // leave a moment behind, and there are the most monitors in view).
+  const interval = state.tier === 'lines' ? 750 : state.tier === 'shapes' ? 1500 : 4000;
   const due = transition ? 0 : cacheFor(win).lastPaint + interval;
   const previous = pending.get(win);
   pending.set(win, { state, due: Math.min(previous?.due ?? Infinity, due), urgent: transition || !!previous?.urgent, capture: previous?.capture?.tier === state.tier ? previous.capture : undefined });
@@ -104,7 +106,7 @@ function flush(deadline?: IdleDeadline) {
     if (!capture || capture.tier !== state.tier || capture.dpr / capture.logicalWidth < state.dpr / state.logicalWidth) {
       const cache = cacheFor(win);
       capture = { run: null!, bounds: win.getBoundingClientRect(), tier: state.tier,
-        revision: state.tier === 'icon' ? cache.iconRevision : cache.revision, dpr: state.dpr, logicalWidth: state.logicalWidth };
+        revision: cache.revision, dpr: state.dpr, logicalWidth: state.logicalWidth };
       capture.run = paint(win, state.tier, state, capture); job.capture = capture;
     }
     // Re-normalize after camera moves between idle chunks.
@@ -122,7 +124,7 @@ function flush(deadline?: IdleDeadline) {
         const cache = cacheFor(win);
         cache.views.set(capture.tier, { nodes: Array.from(overlay.childNodes), dpr: capture.dpr,
           logicalWidth: capture.logicalWidth, revision: capture.revision }); cache.lastPaint = now;
-        if (capture.revision !== (capture.tier === 'icon' ? cache.iconRevision : cache.revision)) enqueue(win, state);
+        if (capture.revision !== cache.revision) enqueue(win, state);
       }
     } else {
       pending.delete(win); pending.set(win, job); // round-robin across visible apps
@@ -140,12 +142,12 @@ export function setScreenDetail(host: HTMLElement, visible: boolean, width: numb
   let state = states.get(host);
   if (!state) {
     const observer = new MutationObserver(records => {
-      const changed = new Map<HTMLElement, { shell: boolean; motionOnly: boolean }>();
+      const changed = new Map<HTMLElement, { motionOnly: boolean }>();
       let shellChanged = false;
       for (const record of records) {
         // Newly opened windows are reported on the shared layer, outside .win.
         if (record.type === 'childList') for (const node of record.addedNodes) {
-          if (node instanceof HTMLElement && node.matches('.win')) changed.set(node, { shell: true, motionOnly: false });
+          if (node instanceof HTMLElement && node.matches('.win')) changed.set(node, { motionOnly: false });
         }
         const target = record.target instanceof Element ? record.target : record.target.parentElement;
         if (!target || target.closest('.screen-detail')) continue;
@@ -157,14 +159,11 @@ export function setScreenDetail(host: HTMLElement, visible: boolean, width: numb
           if ((record.type === 'childList' && target.closest('.dock, .toast-layer')) || (target.closest('.dock-item, .toast') && target.tagName.toLowerCase() === 'svg')) shellChanged = true;
           continue;
         }
-        const body = win.querySelector('.win-body');
-        // The icon tier depends only on the shell, body surface and app icon.
-        const shell = !body?.contains(target) || target === body || target.parentElement === body && record.type === 'attributes';
         const previous = changed.get(win);
-        changed.set(win, { shell: (previous?.shell ?? false) || shell, motionOnly: (previous?.motionOnly ?? true) && record.target === win && record.type === 'attributes' && record.attributeName === 'style' });
+        changed.set(win, { motionOnly: (previous?.motionOnly ?? true) && record.target === win && record.type === 'attributes' && record.attributeName === 'style' });
       }
       if (shellChanged && state!.tier !== 'full') syncShell(host);
-      for (const [win, { shell, motionOnly }] of changed) {
+      for (const [win, { motionOnly }] of changed) {
         const cache = cacheFor(win);
         const shellStyle = [win.style.width, win.style.height, win.style.background, win.style.backgroundColor, win.style.color, win.style.borderRadius].join('|');
         if (motionOnly && cache.shellStyle === shellStyle) continue;
@@ -174,7 +173,6 @@ export function setScreenDetail(host: HTMLElement, visible: boolean, width: numb
         const width = parseFloat(win.style.width), height = parseFloat(win.style.height);
         const resized = cache.width > 0 && (width > 0 && width !== cache.width || height > 0 && height !== cache.height);
         cache.revision++;
-        if (shell) cache.iconRevision++;
         // Keep the last complete frame on screen during the urgent replacement.
         // Clearing here leaves both the preview and its hidden source blank.
         if (resized) { cache.views.clear(); pending.delete(win); }
@@ -216,7 +214,7 @@ window.addEventListener('lucid:interface-theme', () => {
     shellIcons = new WeakMap(); // marks drawn in currentColor follow the theme too
     syncShell(state.host);
     state.host.querySelectorAll<HTMLElement>('.win').forEach(win => {
-      const cache = cacheFor(win); cache.revision++; cache.iconRevision++;
+      cacheFor(win).revision++;
       enqueue(win, state, true);
     });
   }
@@ -243,12 +241,15 @@ type Rect = { x: number; y: number; w: number; h: number };
 
 /** A picture element's own pixels (canvas, image, video frame), placed like object-fit does. */
 function paintMedia(ctx: CanvasRenderingContext2D, el: Element, r: Rect, style: CSSStyleDeclaration) {
-  let source: CanvasImageSource | null = null, w = 0, h = 0;
-  if (el instanceof HTMLCanvasElement) { source = el; w = el.width; h = el.height; }
-  else if (el instanceof HTMLImageElement && el.complete) { source = el; w = el.naturalWidth; h = el.naturalHeight; }
-  else if (el instanceof HTMLVideoElement && el.readyState >= 2) { source = el; w = el.videoWidth; h = el.videoHeight; }
-  if (!source || !(w > 0 && h > 0)) return false;
-  const fit = el instanceof HTMLCanvasElement ? 'fill' : style.objectFit;
+  // Tag names rather than instanceof, so the headless check can drive this module.
+  const media = el as HTMLCanvasElement & HTMLImageElement & HTMLVideoElement;
+  let w = 0, h = 0;
+  if (el.tagName === 'CANVAS') { w = media.width; h = media.height; }
+  else if (el.tagName === 'IMG' && media.complete) { w = media.naturalWidth; h = media.naturalHeight; }
+  else if (el.tagName === 'VIDEO' && media.readyState >= 2) { w = media.videoWidth; h = media.videoHeight; }
+  if (!(w > 0 && h > 0)) return false;
+  const source: CanvasImageSource = media;
+  const fit = el.tagName === 'CANVAS' ? 'fill' : style.objectFit;
   let dx = r.x, dy = r.y, dw = r.w, dh = r.h;
   if (fit === 'contain' || fit === 'cover' || fit === 'scale-down') {
     const k = fit === 'cover' ? Math.max(r.w / w, r.h / h) : Math.min(r.w / w, r.h / h);
@@ -306,7 +307,7 @@ function paintBackgroundImage(ctx: CanvasRenderingContext2D, value: string, r: R
 
 const SVG_SHAPES = 'path, rect, circle, ellipse, line, polyline, polygon, text';
 /** An inline SVG drawn from its own shapes and resolved colours, in the window's coordinates. */
-function paintSvg(ctx: CanvasRenderingContext2D, svg: SVGSVGElement, toLocal: DOMMatrix, tier: ScreenDetail, budget: number) {
+function paintSvg(ctx: CanvasRenderingContext2D, svg: SVGSVGElement, toLocal: () => DOMMatrix, tier: ScreenDetail, budget: number) {
   const n = (el: Element, a: string) => Number(el.getAttribute(a)) || 0;
   let drawn = 0;
   for (const el of svg.querySelectorAll<SVGGraphicsElement>(SVG_SHAPES)) {
@@ -317,15 +318,15 @@ function paintSvg(ctx: CanvasRenderingContext2D, svg: SVGSVGElement, toLocal: DO
     const ctm = el.getScreenCTM();
     if (!ctm) continue;
     drawn++;
-    const m = toLocal.multiply(ctm);
+    const m = toLocal().multiply(ctm);
     ctx.save();
     ctx.setTransform(ctx.getTransform().multiply(m));
     const alpha = Number(style.opacity) || 1;
     if (el.localName === 'text') {
-      if (tier === 'lines' && colored(style.fill)) {
-        const b = el.getBBox();
-        ctx.globalAlpha = .45 * alpha; ctx.fillStyle = style.fill;
-        ctx.fillRect(b.x, b.y + b.height * .45, b.width, Math.max(1, b.height * .16));
+      if (colored(style.fill)) {
+        const b = el.getBBox(), thin = tier === 'lines';
+        ctx.globalAlpha = (thin ? .45 : .3) * alpha; ctx.fillStyle = style.fill;
+        ctx.fillRect(b.x, b.y + b.height * (thin ? .45 : .3), b.width, Math.max(1, b.height * (thin ? .16 : .4)));
       }
       ctx.restore(); continue;
     }
@@ -365,8 +366,8 @@ function paintSvg(ctx: CanvasRenderingContext2D, svg: SVGSVGElement, toLocal: DO
   return drawn;
 }
 
-// Node budgets per tier: the overview only needs the layout's largest blocks.
-const NODE_BUDGET: Record<Reduced, number> = { lines: 450, shapes: 250, icon: 120 };
+// Node budgets per tier (the overview is captured only when its windows change).
+const NODE_BUDGET: Record<Reduced, number> = { lines: 450, shapes: 250, icon: 250 };
 
 function* paint(win: HTMLElement, tier: Reduced, state: State, capture: Capture): Generator<void, void, void> {
   const width = win.offsetWidth, height = win.offsetHeight, bounds = win.getBoundingClientRect();
@@ -406,24 +407,30 @@ function* paint(win: HTMLElement, tier: Reduced, state: State, capture: Capture)
       ctx.fillStyle = style.backgroundColor;
       ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, radius); ctx.fill();
     }
-    if (style.backgroundImage !== 'none' && style.backgroundImage.includes('gradient(')) paintBackgroundImage(ctx, style.backgroundImage, r, radius);
+    if (style.backgroundImage?.includes('gradient(')) paintBackgroundImage(ctx, style.backgroundImage, r, radius);
     if (paintDetailScene(ctx, el, r, tier)) { ctx.restore(); return; }
     if (['IMG', 'CANVAS', 'VIDEO'].includes(el.tagName) && paintMedia(ctx, el, r, style)) { ctx.restore(); return; }
-    if (el instanceof SVGSVGElement) {
+    if (el.tagName === 'svg') {
       const b = capture.bounds, kx = width / b.width, ky = height / b.height;
-      const toLocal = new DOMMatrix([kx, 0, 0, ky, -b.left * kx, -b.top * ky]);
-      const drawn = paintSvg(ctx, el, toLocal, tier, Math.min(160, Math.max(8, budget - count)));
+      const toLocal = () => new DOMMatrix([kx, 0, 0, ky, -b.left * kx, -b.top * ky]);
+      const drawn = paintSvg(ctx, el as SVGSVGElement, toLocal, tier, Math.min(160, Math.max(8, budget - count)));
       count += drawn;
       if (drawn) { ctx.restore(); return; }
     }
     if (['svg', 'IMG', 'CANVAS', 'VIDEO'].includes(el.tagName)) {
       ctx.fillStyle = style.color; ctx.globalAlpha = .18; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.restore(); return;
     }
-    if (tier === 'lines') for (const node of el.childNodes) {
+    // Text becomes thin lines, and from further away soft bars, so a text app (chat, plan,
+    // notes) keeps its recognisable rhythm instead of turning into an empty panel.
+    for (const node of el.childNodes) {
       if (node.nodeType !== Node.TEXT_NODE || !node.textContent?.trim()) continue;
       const range = document.createRange(); range.selectNodeContents(node);
       ctx.fillStyle = style.color;
-      for (const line of range.getClientRects()) { const t = rect(line); ctx.globalAlpha = .45; ctx.fillRect(t.x, t.y + t.h * .45, t.w, Math.max(1.5, t.h * .16)); }
+      for (const line of range.getClientRects()) {
+        const t = rect(line);
+        if (tier === 'lines') { ctx.globalAlpha = .45; ctx.fillRect(t.x, t.y + t.h * .45, t.w, Math.max(1.5, t.h * .16)); }
+        else { ctx.globalAlpha = .3; ctx.beginPath(); ctx.roundRect(t.x, t.y + t.h * .3, t.w, Math.max(2, t.h * .4), t.h * .2); ctx.fill(); }
+      }
     }
     const nextClip = /hidden|clip|auto|scroll/.test(style.overflow + style.overflowY) ? { x: Math.max(clip.x, r.x), y: Math.max(clip.y, r.y), w: Math.max(0, Math.min(clip.x + clip.w, r.x + r.w) - Math.max(clip.x, r.x)), h: Math.max(0, Math.min(clip.y + clip.h, r.y + r.h) - Math.max(clip.y, r.y)) } : clip;
     ctx.globalAlpha = 1;
