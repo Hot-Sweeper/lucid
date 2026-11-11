@@ -9,6 +9,7 @@ import { gameSound } from "../office/sound";
 import { brandFor, portraitSvg, PALETTES, type RobotLook } from "../robot";
 import { addDays, breakdown, dayDate, dayKey, heatScale, mergeDays, summarize, weekStart, type CalendarDoc, type Days, type PersonalRecord, type Share, type Summary } from "./coin-calendar";
 import { esc } from "../util/html";
+import { el, setText } from "./dom";
 
 export type LedgerRobot = { id: string; name: string; provider: string; look: RobotLook };
 type Options = {
@@ -31,13 +32,6 @@ const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
 const RECORD_NAME: Record<PersonalRecord["kind"], string> = { day: "Best day", week: "Best week", streak: "Longest streak" };
 const CHEER: Record<PersonalRecord["kind"], string> = { day: "New best day", week: "New best week", streak: "Longest streak yet" };
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text !== undefined) e.textContent = text;
-  return e;
-}
-const setText = (e: HTMLElement, text: string) => { if (e.textContent !== text) e.textContent = text; };
 
 /** A small radio group with a sliding indicator, keyboard operable with the arrow keys. */
 function segmented<T extends string>(label: string, options: [T, string][], onPick: (value: T) => void) {

@@ -47,6 +47,10 @@ const PATHS = {
   chevronLeft: '<path d="M9.5 4.5 6 8l3.5 3.5"/>',
   arrowLeft: '<path d="M7 3.5 2.5 8 7 12.5M2.5 8h11"/>',
   arrowRight: '<path d="M9 3.5 13.5 8 9 12.5M13.5 8h-11"/>',
+  // pace beside a limit: spending ahead of, on or under even pace
+  trendUp: '<path d="M2 11.5 6 7.5l2.5 2.5L14 4.5"/><path d="M10.5 4.5H14V8"/>',
+  trendFlat: '<path d="M2 8h12M11 5l3 3-3 3"/>',
+  trendDown: '<path d="M2 4.5 6 8.5 8.5 6l5.5 5.5"/><path d="M10.5 11.5H14V8"/>',
   // things
   screen: '<rect x="2" y="2.5" width="12" height="8.5" rx="2"/><path d="M6 13.5h4M8 11v2.5"/>',
   studio: '<rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M2 6h12M10 6v7.5"/>',
@@ -59,6 +63,9 @@ const PATHS = {
   agent: '<rect x="3" y="4.5" width="10" height="8" rx="2.5"/><path d="M8 2v2.5M6.2 8.5h.01M9.8 8.5h.01" />',
   warning: '<path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.3h.01"/>',
   users: '<circle cx="6" cy="5" r="2.2"/><path d="M2 13v-1.5a4 4 0 0 1 8 0V13M11 3a2.2 2.2 0 0 1 0 4.4M12.5 9.5a3.5 3.5 0 0 1 1.5 2.9V13"/>',
+  // a limit's reset countdown and a banked reset credit
+  reset: '<path d="M13.5 8A5.5 5.5 0 1 1 8 2.5c1.5 0 3 .6 4.1 1.7l1.4 1.3"/><path d="M13.5 2v3.5H10"/>',
+  ticket: '<path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h9A1.5 1.5 0 0 1 14 5.5v1a1.5 1.5 0 0 0 0 3v1a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 10.5v-1a1.5 1.5 0 0 0 0-3z"/><path d="M10 4.5v.5M10 7.75v.5M10 11v.5"/>',
   bolt: '<path d="M9 1.5 3 9.5h4.5L7 14.5l6-8H8.5z"/>',
   coin: '<circle cx="8" cy="8" r="6"/><path d="M10 5.7H7.2a1.3 1.3 0 0 0 0 2.6h1.6a1.3 1.3 0 0 1 0 2.6H6M8 4.5v7"/>',
   checkSquare: '<path d="M3.5 7.5l2.5 2.5L13.5 2.5M13.5 8v4a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5h6"/>',

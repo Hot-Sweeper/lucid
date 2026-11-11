@@ -33,6 +33,16 @@ test("stale T3 readings use the local fallback in the same provider group", () =
   assert.equal(reset.limits["t3:codex"].windows[0].stale, true); assert.equal(reset.limits.codex, null);
 });
 
+test("an old T3 reading without local logs stays visible as stale, with the reason the card shows", () => {
+  const old = new Date(now - 20 * 60000).toISOString();
+  const result = mergeProviderLimits({ limits: {} }, { providers: [{ instanceId: "codex", driver: "codex", name: "Codex", usageLimits: { checkedAt: old, windows: [window("weekly", { usedPercent: 40 })], resetCredits: { availableCount: 1, nextExpiresAt: null } } }] }, now);
+  const w = result.limits["t3:codex"].windows[0];
+  assert.equal(w.stale, true);
+  assert.equal(w.staleReason, "T3 reading is out of date");
+  assert.equal(w.usedPercent, 40, "the old value is kept, but the card never shows it as current");
+  assert.deepEqual(result.limits["t3:codex"].resetCredits, { availableCount: 1, nextExpiresAt: null }, "credits stay usable while the reading is stale");
+});
+
 test("offline and unsupported quota sources preserve local fallback and expose their provenance", () => {
   const result = mergeProviderLimits(usage, { providers: [{ instanceId: "claudeAgent", driver: "claudeAgent", name: "Claude", usageLimits: null }], error: "T3 limits could not be refreshed." }, now);
   assert.equal(result.limits.codex, usage.limits.codex);

@@ -18,8 +18,6 @@ export type PeekOptions = {
   side: "left" | "right";
   /** The panel that slides over the office. */
   panel: HTMLElement;
-  /** Parts that travel with the panel (the sidebar's usage strip). Each keeps its own vertical placement. */
-  riders?: () => HTMLElement[];
   /** The folded rail or tab. Hovering it opens the panel. */
   edge: () => HTMLElement | null;
   width: () => number;
@@ -100,7 +98,7 @@ export class EdgePeek {
     this.motions = [];
   }
 
-  private parts() { return [this.o.panel, ...(this.o.riders?.() ?? []).filter((r) => !r.hidden)]; }
+  private parts() { return [this.o.panel]; }
 
   /** Lift the panel out of its grid column and over the office, at its usual width. */
   private float(on: boolean) {
