@@ -77,7 +77,9 @@ export function mountLimits(box: HTMLElement, note: HTMLElement, options: Limits
     const num = el("b", "lim-num");
     const word = el("span", "lim-word");
     const trend = el("span", "lim-trend");
-    value.append(num, word, trend);
+    // A stale or unknown reading says so where the number would be, and the bar stays empty.
+    const note = el("span", "lim-note");
+    value.append(num, word, trend, note);
     top.append(name, value);
     const bar = el("div", "lim-bar");
     const meter = el("div", "lim-meter");
@@ -87,9 +89,7 @@ export function mountLimits(box: HTMLElement, note: HTMLElement, options: Limits
     const fill = el("i", "lim-fill");
     // Where the bar would be if spending were spread evenly over the window.
     const tick = el("b", "lim-tick");
-    // A stale or unknown reading says so inside the empty bar.
-    const note = el("span", "lim-note");
-    meter.append(fill, tick, note);
+    meter.append(fill, tick);
     const chip = el("span", "lim-chip");
     const reset = el("span", "lim-reset");
     reset.setAttribute("aria-hidden", "true");
@@ -138,7 +138,7 @@ export function mountLimits(box: HTMLElement, note: HTMLElement, options: Limits
     root.setAttribute("aria-label", "Use a reset credit");
     const ask = el("p", "lim-cask");
     const expiry = el("p", "lim-cnote");
-    const caution = el("p", "lim-cnote", "Credits may be model-specific. T3 does not report which limits each one clears. Cannot be undone.");
+    const caution = el("p", "lim-cnote", "The next credit may cover only one model or limit (T3 does not say which). Cannot be undone.");
     const permission = el("p", "lim-cnote lim-cquiet", "T3 provider permission is required.");
     permission.hidden = true;
     const actions = el("div", "lim-cactions");
@@ -256,7 +256,7 @@ export function mountLimits(box: HTMLElement, note: HTMLElement, options: Limits
     const arrow = p ? PACE_ARROW[p] : "";
     if (arrow !== c.arrow) { c.arrow = arrow; c.trend.innerHTML = arrow ? icon(arrow, 14) : ""; }
 
-    // The bar, its pace tick and the honest empty state.
+    // The bar and its pace tick; the honest note replaces the number.
     c.meter.style.setProperty("--fill", `${live ? reading.fill : 0}%`);
     c.tick.hidden = reading.mark === null;
     if (reading.mark !== null) c.meter.style.setProperty("--mark", `${reading.mark}%`);
@@ -264,7 +264,8 @@ export function mountLimits(box: HTMLElement, note: HTMLElement, options: Limits
     c.note.hidden = !status;
 
     // The chip: reset countdown and the provider's banked credits.
-    const countdown = chipCountdown(l.resetsAt, now);
+    // A passed reset is already what the stale note says.
+    const countdown = l.stale && chipCountdown(l.resetsAt, now) === "now" ? null : chipCountdown(l.resetsAt, now);
     setText(c.resetText, countdown || "");
     c.reset.hidden = !countdown;
     const { count, usable, title } = g.credits;

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en" data-theme="night">
+<head>
+  <meta charset="utf-8">
+  <title>Limits cards</title>
+  <style>
+    body { margin: 0; padding: 24px 16px; background: var(--night); color: var(--ink); font-family: var(--font); }
+    .demo-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; font-size: 12px; color: var(--ink-2); }
+    .demo-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
+    .demo-side { padding: 14px 16px; border-radius: var(--radius-md); background: var(--night-2); }
+  </style>
+</head>
+<body>
+  <div class="demo-bar" id="bar"></div>
+  <div class="demo-row">
+    <div class="demo-side" style="width: 208px"><div id="narrow"></div></div>
+    <div class="demo-side" style="width: 528px"><div id="wide"></div></div>
+  </div>
+  <script type="module" src="/src/stats/limits-demo.ts"></script>
+</body>
+</html>

@@ -12,14 +12,15 @@
 
 /* One card per window: label and big percentage on one line (the number wraps under a long
    label), the bar full width beneath. */
-.lim-card { min-width: 0; padding: 8px 10px 10px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--limit-card); }
+.lim-card { container-type: inline-size; min-width: 0; padding: 8px 10px 10px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--limit-card); }
 .lim-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; min-width: 0; }
 .lim-name { flex: 1 1 auto; min-width: 0; font-size: 12.5px; line-height: 1.3; color: var(--ink-2); overflow-wrap: anywhere; }
-.lim-value { display: inline-flex; align-items: baseline; gap: 4px; margin-left: auto; white-space: nowrap; }
+.lim-value { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; margin-left: auto; white-space: nowrap; }
 .lim-num { display: inline-block; font-size: 20px; font-weight: 600; line-height: 1.2; color: var(--ink); font-variant-numeric: tabular-nums; }
-.lim-word { font-size: 12px; color: var(--ink-3); }
+.lim-word { font-size: 12px; color: var(--ink-2); }
 .lim-trend { display: inline-flex; align-self: center; color: var(--ink-3); }
 .lim-trend:empty { display: none; }
+.lim-note { font-size: 12px; line-height: 1.3; color: var(--ink-2); white-space: normal; text-align: right; }
 .lim-ahead .lim-trend { color: var(--accent); }
 .lim-high .lim-num { color: var(--thread-fail); }
 
@@ -31,17 +32,21 @@
 .lim-fill { position: absolute; inset: 0; border-radius: 0 calc(var(--radius-sm) - 1px) calc(var(--radius-sm) - 1px) 0; background: var(--lim-tint); transform: translateX(calc(var(--fill, 0%) - 100%)); transition: transform 420ms var(--ease-in-out); }
 .lim-high .lim-fill { background: var(--limit-high); }
 .lim-tick { position: absolute; top: 3px; bottom: 3px; left: clamp(2px, var(--mark, 0%), calc(100% - 2px)); width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); box-shadow: 0 0 0 1px var(--limit-card); transition: left 420ms var(--ease-in-out); }
-.lim-note { position: absolute; top: 3px; left: 3px; max-width: calc(100% - 6px); padding: 0 7px; border-radius: calc(var(--radius-sm) - 2px); background: var(--limit-card); font-size: 11px; line-height: 18px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lim-chip { flex: none; display: flex; align-items: center; gap: 6px; margin: 3px; padding: 0 6px; border-radius: calc(var(--radius-sm) - 2px); background: var(--limit-card); font-size: 11px; line-height: 18px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .lim-reset, .lim-credit { display: inline-flex; align-items: center; gap: 4px; }
 .lim-chip:has(.lim-credit:not([hidden])) .lim-reset::after { content: ""; width: 2px; height: 2px; margin-left: 2px; border-radius: 50%; background: currentColor; }
+/* Narrow sidebars: a tighter chip leaves the scale more room. */
+@container (max-width: 250px) {
+  .lim-chip { gap: 4px; padding: 0 5px; }
+  .lim-reset { gap: 3px; }
+}
 /* The credit count opens the Use reset confirmation; its hit area fills the bar's height. */
 .lim-credit { position: relative; height: 18px; margin: 0 -4px; padding: 0 4px; border: 0; border-radius: 3px; background: none; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer;
   transition: background-color var(--dur-hover) var(--ease-out-strong), transform var(--dur-press) var(--ease-out-strong); }
 .lim-credit::after { content: ""; position: absolute; inset: -3px -2px; }
 .lim-credit:hover:not(:disabled) { background: var(--ui-hover); }
 .lim-credit:active:not(:disabled) { transform: scale(.96); }
-.lim-credit[aria-expanded="true"] { background: color-mix(in oklab, var(--accent) 24%, transparent); }
+.lim-credit[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
 .lim-credit:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
 .lim-credit:disabled { cursor: default; color: var(--ink-2); }
 
