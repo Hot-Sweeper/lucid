@@ -15,7 +15,7 @@
   /* Colours a light palette must change (themes/t3.css sets them for a light T3 theme). */
   --wash: #fff;             /* translucent hover and selection fills: color-mix(var(--wash) N%, transparent) */
   --ink-hi: #fff;           /* the strongest text: chat headings, the selected thread */
-  --coin-ink: #ffd27a;      /* coin amounts and other gold text */
+  --coin-ink: #ffd27a;      /* coin amounts only: interactive states use the accent */
   --link: var(--accent-2);  /* links in chat text: the accent, like every other link */
   --link-hover: #ffd9b8;
   --field-fill: color-mix(in srgb, var(--ink) 6%, transparent);        /* inputs and selects on any panel */

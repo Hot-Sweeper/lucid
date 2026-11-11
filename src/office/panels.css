@@ -48,7 +48,7 @@
 .cp-tab span { writing-mode: vertical-rl; font-size: 13px; font-weight: 500; white-space: nowrap; max-height: calc(100vh - 110px); overflow: hidden; text-overflow: ellipsis; }
 .cp-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 .cp-tab.ref-dragging { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 45%, transparent), 0 14px 34px rgba(5, 8, 30, 0.45); }
-.cp-tab.ref-over { background: #262553; color: var(--coin-ink); box-shadow: inset 0 0 0 2px var(--accent), 0 14px 34px rgba(5, 8, 30, 0.45); }
+.cp-tab.ref-over { background: var(--ui-drop); color: var(--accent-2); box-shadow: inset 0 0 0 2px var(--accent), 0 14px 34px rgba(5, 8, 30, 0.45); }
 
 /* ---------- referencing a thread in the chat ---------- */
 .th-row, .rail-th { user-select: none; -webkit-user-drag: none; }
@@ -61,13 +61,13 @@ body.th-dragging, body.th-dragging * { user-select: none !important; cursor: gra
 .th-ghost span { display: flex; flex-direction: column; min-width: 0; }
 .th-ghost b { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .th-ghost i { font-style: normal; font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.th-ghost em { grid-column: 1 / -1; margin-top: 5px; font-style: normal; font-size: 11.5px; color: var(--coin-ink); }
+.th-ghost em { grid-column: 1 / -1; margin-top: 5px; font-style: normal; font-size: 11.5px; color: var(--accent-2); }
 .th-ghost em:empty { display: none; }
 
 /* the message box as the drop target, and the chip that shows where the thread lands */
 .chat-panel.ref-dragging .cp-box { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 40%, transparent); }
 .chat-panel .cp-box.ref-over { box-shadow: inset 0 0 0 2px var(--accent); background: #1a1d48; }
-.cp-box.ref-over .cp-hint { color: var(--coin-ink); font-weight: 500; }
+.cp-box.ref-over .cp-hint { color: var(--accent-2); font-weight: 500; }
 .chat-panel .cp-box.ref-no { box-shadow: inset 0 0 0 2px rgba(185, 191, 230, 0.35); }
 .cp-box.ref-no .cp-hint { color: var(--ink-2); }
 .cp-refchip { max-width: 260px; }
