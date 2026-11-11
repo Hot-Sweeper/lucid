@@ -34,7 +34,6 @@
 /* floating over the office: a soft shadow falls on the scene side only */
 html:root .panel.peeking, html:root[data-theme] .panel.peeking { box-shadow: 22px 0 48px -12px rgba(4, 6, 24, .55), 1px 0 0 var(--line); }
 html:root .chat-panel.peeking, html:root[data-theme] .chat-panel.peeking { box-shadow: -22px 0 48px -12px rgba(4, 6, 24, .55), inset 1px 0 0 var(--line); }
-#app > .side-limits[style*="absolute"] { box-shadow: 22px 0 48px -12px rgba(4, 6, 24, .55); }
 
 @media (prefers-reduced-motion: reduce) {
   .pin-btn .pin-body { transition: none; }

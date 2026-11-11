@@ -13,7 +13,8 @@ const read = (path) => readFile(new URL(path, root), 'utf8');
 const INTERFACE = ['src/ui/controls.css', 'src/titlebar.css', 'src/stats/ledger-panel.css', 'src/stats/stats.css',
   'src/office/panels.css', 'src/office/answer.css', 'src/office/hire.css', 'src/office/music-controls.css',
   'src/office/thread-list.css', 'src/office/orchestrator-controls.css', 'src/office/new-project.css',
-  'src/office/media-player.css', 'src/office/worker-focus.css', 'src/office/chat-work.css', 'src/office/limits-section.css'];
+  'src/office/media-player.css', 'src/office/worker-focus.css', 'src/office/chat-work.css', 'src/office/limits-section.css',
+  'src/stats/limits.css'];
 for (const path of INTERFACE) {
   const css = await read(path);
   assert.doesNotMatch(css, /rgba\(255, ?159, ?90/, `${path}: peach is hardcoded; use color-mix with var(--accent)`);

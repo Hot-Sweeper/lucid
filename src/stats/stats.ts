@@ -2,8 +2,10 @@
 // harness (only where the logs report them), and a per-model breakdown on demand.
 // Data comes from electron/usage.cjs through the `load` callback.
 import "./stats.css";
-import { logoFor, harnessName } from "../robot";
-import { elapsedShare, pace, resetCountdown, duration, limitReading, PACE_TEXT, type LimitView } from "./limit-pace";
+import { harnessName } from "../robot";
+import { el, setText } from "./dom";
+import { mountLimits, type LimitsOptions } from "./limits";
+import type { LimitView } from "./limit-pace";
 
 export type Limit = {
   /** A local fallback reading may be merged into a T3 provider window. */
@@ -59,19 +61,6 @@ export type Usage = {
 
 const REFRESH_MS = 20000;
 const TOP_MODELS = 4;
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text !== undefined) e.textContent = text;
-  return e;
-}
-
-function setText(e: HTMLElement, text: string) {
-  if (e.textContent !== text) e.textContent = text;
-}
 
 export function formatTokens(n: number): string {
   if (n < 1000) return String(Math.round(n));
@@ -86,41 +75,8 @@ export function formatCost(usd: number): string {
   return `$${usd.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 }
 
-function clock(d: Date): string {
-  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-}
-
-// "14:30" today, "Wed 14:30" within the week, "4 Nov" further out.
-function when(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const days = Math.round((startOf(d) - startOf(now)) / 86400000);
-  if (days === 0) return clock(d);
-  if (days > 0 && days < 7) return `${DAYS[d.getDay()]} ${clock(d)}`;
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
-}
-
-function windowName(minutes: number | null): string {
-  if (minutes === 300) return "5 hour";
-  if (minutes === 10080) return "Weekly";
-  if (!minutes) return "Limit";
-  if (minutes % 1440 === 0) return `${minutes / 1440} day`;
-  if (minutes % 60 === 0) return `${minutes / 60} hour`;
-  return `${minutes} min`;
-}
-
-type LimitRow = { root: HTMLElement; name: HTMLElement; reset: HTMLElement; pace: HTMLElement; bar: HTMLElement; fill: HTMLElement; tick: HTMLElement; pct: HTMLElement };
-type CreditState = "idle" | "confirm" | "busy" | "done" | "error";
-type LimitGroup = { root: HTMLElement; name: HTMLElement; rows: HTMLElement; credit: CreditBox; instanceId: string | null; label: string };
-type CreditBox = { root: HTMLElement; text: HTMLElement; expiry: HTMLElement; use: HTMLButtonElement; confirm: HTMLElement; ask: HTMLElement; yes: HTMLButtonElement; no: HTMLButtonElement; state: CreditState; usable: boolean };
-
-export type StatsOptions = {
+export type StatsOptions = LimitsOptions & {
   background?: boolean;
-  /** Redeem one banked reset credit through T3 (provider.consumeResetCredit). */
-  useResetCredit?: (instanceId: string) => Promise<{ outcome: string; message: string; warning?: string | null }>;
-  /** Whether the T3 session may already manage providers, so the confirmation can say if it asks. */
-  canManageProviders?: () => Promise<boolean>;
   /** Show limits as used (filling up) or left (counting down). */
   limitView?: LimitView;
 };
@@ -141,7 +97,7 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
   head.append(tokCol, costCol);
   const sub = el("p", "st-sub", "Reading usage logs");
 
-  const limitsBox = el("div", "st-limits");
+  const limitsBox = el("div", "lim-groups");
 
   // per-model breakdown
   const toggle = el("button", "st-toggle");
@@ -182,13 +138,11 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
     root.classList.toggle("st-projects-open", open);
     if (open && last) renderProjects(last.windows.today);
   });
-  const limitsNote = el("p", "st-more st-limit-note");
+  const limitsNote = el("p", "lim-source");
   const note = el("p", "st-note");
   root.append(limitsBox, limitsNote, head, sub, projectToggle, projectsWrap, toggle, modelsWrap, note);
   host.append(root);
 
-  const limitRows = new Map<string, LimitRow>();
-  const limitGroups = new Map<string, LimitGroup>();
   const modelRows = new Map<string, ModelRow>();
   const projectRows = new Map<string, ModelRow>();
   let last: Usage | null = null;
@@ -197,227 +151,7 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
   let destroyed = false;
   let loading = false;
   let view: LimitView = options.limitView === "left" ? "left" : "used";
-
-  function limitRow(key: string): LimitRow {
-    let r = limitRows.get(key);
-    if (r) return r;
-    const rowEl = el("div", "st-limit");
-    const top = el("div", "st-ltop");
-    const name = el("span", "st-lname");
-    const pct = el("span", "st-pct");
-    top.append(name, pct);
-    const bar = el("div", "st-bar");
-    bar.setAttribute("role", "meter");
-    bar.setAttribute("aria-valuemin", "0");
-    bar.setAttribute("aria-valuemax", "100");
-    const fill = el("i");
-    // Where usage would be if it were spread evenly over the window.
-    const tick = el("b", "st-pacemark");
-    tick.setAttribute("aria-hidden", "true");
-    bar.append(fill, tick);
-    const foot = el("div", "st-lfoot");
-    const reset = el("span", "st-reset");
-    const paceText = el("span", "st-pace");
-    foot.append(reset, paceText);
-    rowEl.append(top, bar, foot);
-    r = { root: rowEl, name, reset, pace: paceText, bar, fill, tick, pct };
-    limitRows.set(key, r);
-    return r;
-  }
-
-  function limitGroup(key: string, harness: string): LimitGroup {
-    let g = limitGroups.get(key);
-    if (g) return g;
-    const root = el("section", "st-lgroup");
-    const head = el("div", "st-lhead");
-    const mark = el("span", "st-logo");
-    const logo = logoFor(harness);
-    if (logo) { const img = el("img"); img.src = logo; img.alt = ""; mark.append(img); }
-    const name = el("h4", "st-gname");
-    head.append(mark, name);
-    const rows = el("div", "st-lrows");
-    const credit = creditBox(key);
-    root.append(head, rows, credit.root);
-    g = { root, name, rows, credit, instanceId: null, label: "" };
-    limitGroups.set(key, g);
-    return g;
-  }
-
-  // Banked reset credits with a confirmation step: redeeming is irreversible.
-  function creditBox(key: string): CreditBox {
-    const root = el("div", "st-credit");
-    const line = el("div", "st-cline");
-    const text = el("span", "st-ctext");
-    const use = el("button", "link-btn st-cuse", "Use reset");
-    use.type = "button";
-    line.append(text, use);
-    const meta = el("div", "st-cmeta");
-    const expiry = el("span", "st-cexpiry");
-    const details = document.createElement("details");
-    details.className = "st-cdetails";
-    const summary = el("summary", "", "Details");
-    details.append(summary, el("p", "", "Credits may be model-specific. T3 does not report which limits each credit covers."));
-    meta.append(expiry, details);
-    const confirm = el("div", "st-cconfirm");
-    confirm.hidden = true;
-    confirm.setAttribute("role", "group");
-    const ask = el("p", "st-cask");
-    const actions = el("div", "st-cactions");
-    const yes = el("button", "st-cyes", "Use credit");
-    const no = el("button", "link-btn st-cno", "Cancel");
-    yes.type = no.type = "button";
-    actions.append(yes, no);
-    const caution = el("p", "st-ccaution", "May be model-specific. Cannot be undone.");
-    const permission = el("p", "st-cpermission", "T3 provider permission is required.");
-    permission.hidden = true;
-    confirm.append(ask, caution, permission, actions);
-    const status = el("p", "st-cstatus");
-    status.setAttribute("role", "status");
-    status.hidden = true;
-    root.append(line, meta, confirm, status);
-    const box: CreditBox = { root, text, expiry, use, confirm, ask, yes, no, state: "idle", usable: false };
-    let clear = 0;
-    const set = (state: CreditState, message = "") => {
-      box.state = state;
-      clearTimeout(clear);
-      confirm.hidden = state !== "confirm";
-      use.hidden = !box.usable || state === "confirm" || state === "busy";
-      status.hidden = !message;
-      status.textContent = message;
-      status.classList.toggle("st-cerror", state === "error");
-      root.classList.toggle("st-cbusy", state === "busy");
-    };
-    use.addEventListener("click", async () => {
-      const g = limitGroups.get(key);
-      if (!g?.instanceId || !options.useResetCredit) return;
-      ask.textContent = `Use a reset for ${g.label}?`;
-      permission.hidden = true;
-      details.open = false;
-      set("confirm");
-      no.focus();
-      confirm.scrollIntoView({ block: "nearest" });
-      // The first redemption also asks T3 for permission to manage providers; say so up front.
-      const allowed = await options.canManageProviders?.().catch(() => true);
-      if (box.state === "confirm") {
-        permission.hidden = allowed !== false;
-        confirm.scrollIntoView({ block: "nearest" });
-      }
-    });
-    no.addEventListener("click", () => { set("idle"); use.focus(); });
-    confirm.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); set("idle"); use.focus(); } });
-    yes.addEventListener("click", async () => {
-      const g = limitGroups.get(key);
-      if (box.state !== "confirm" || !g?.instanceId || !options.useResetCredit) return;
-      set("busy", "Using reset credit...");
-      try {
-        const r = await options.useResetCredit(g.instanceId);
-        if (destroyed) return;
-        set(r.outcome === "reset" ? "done" : "error", [r.message, r.warning].filter(Boolean).join(" "));
-        if (r.outcome === "reset") clear = window.setTimeout(() => { if (box.state === "done") set("idle"); }, 8000);
-        void refresh();
-      } catch (err) {
-        if (destroyed) return;
-        set("error", err instanceof Error && err.message ? err.message : "Could not use the reset credit.");
-      }
-      use.focus();
-    });
-    return box;
-  }
-
-  function renderCredits(g: LimitGroup, h: HarnessLimits, now: number) {
-    const c = h.resetCredits;
-    const box = g.credit;
-    const count = c?.availableCount ?? 0;
-    // Keep a result message visible until the next state; hide only when nothing is banked or said.
-    box.root.hidden = !c || (count === 0 && box.state === "idle");
-    if (!c) return;
-    const expires = c.nextExpiresAt ? Date.parse(c.nextExpiresAt) - now : NaN;
-    setText(box.text, count === 0 ? "No reset credits banked" : `${count} reset ${count === 1 ? "credit" : "credits"}`);
-    setText(box.expiry, Number.isFinite(expires) && expires > 0 ? `Next expires in ${duration(expires)}` : "No expiry reported");
-    box.expiry.hidden = count === 0;
-    box.text.title = c.nextExpiresAt ? `Next credit expires ${new Date(c.nextExpiresAt).toLocaleString()}` : "";
-    box.usable = count > 0 && !!h.instanceId && !!options.useResetCredit;
-    box.use.hidden = !box.usable || box.state === "confirm" || box.state === "busy";
-  }
-
-  function renderLimits(u: Usage) {
-    const now = Date.now();
-    const groups: { key: string; harness: string; name: string; h: HarnessLimits; list: Limit[] }[] = [];
-    for (const [group, h] of Object.entries(u.limits)) {
-      if (!h) continue;
-      const harness = h.harness || group;
-      const list = [...(h.windows || [h.primary, h.secondary].filter((l): l is Limit => !!l))];
-      list.sort((a, b) => (a.windowMinutes ?? 0) - (b.windowMinutes ?? 0));
-      groups.push({ key: group, harness, name: h.name || harnessName(harness), h, list });
-    }
-    const keepGroups = new Set(groups.map((g) => g.key));
-    for (const [k, g] of limitGroups) if (!keepGroups.has(k)) { g.root.remove(); limitGroups.delete(k); }
-    const keepRows = new Set<string>();
-    groups.forEach((w, gi) => {
-      const g = limitGroup(w.key, w.harness);
-      g.instanceId = w.h.instanceId || null;
-      g.label = w.name;
-      setText(g.name, w.name);
-      w.list.forEach((l, i) => {
-        const key = `${w.key}:${l.id || `${l.pool || "legacy"}:${i}`}`;
-        keepRows.add(key);
-        const r = limitRow(key);
-        renderLimit(r, l, w.h.source || "Local logs", now);
-        if (g.rows.children[i] !== r.root) g.rows.insertBefore(r.root, g.rows.children[i] || null);
-      });
-      renderCredits(g, w.h, now);
-      if (limitsBox.children[gi] !== g.root) limitsBox.insertBefore(g.root, limitsBox.children[gi] || null);
-    });
-    for (const [k, r] of limitRows) if (!keepRows.has(k)) { r.root.remove(); limitRows.delete(k); }
-    limitsBox.hidden = groups.length === 0;
-    const available = new Set(groups.map(w => w.harness));
-    const unavailable = (["codex", "claude"] as const).filter((h) => !available.has(h)).map(harnessName);
-    const missing = unavailable.length ? `${unavailable.join(" and ")} limits unavailable${u.limitSource ? "" : " in local logs"}` : "";
-    setText(limitsNote, [u.limitSource?.detail, missing].filter(Boolean).join(" "));
-    limitsNote.hidden = !limitsNote.textContent;
-  }
-
-  function renderLimit(r: LimitRow, l: Limit, source: string, now: number) {
-    setText(r.name, l.labelIsComplete && l.label ? l.label : `${l.label ? `${l.label} ` : ""}${windowName(l.windowMinutes)}`);
-    const known = typeof l.usedPercent === "number" && Number.isFinite(l.usedPercent);
-    const used = known ? Math.max(0, Math.min(100, l.usedPercent!)) : 0;
-    const elapsed = known && !l.stale ? elapsedShare(l.resetsAt, l.windowMinutes, now) : null;
-    const where = `${l.source || source}${l.observedAt ? `, reported ${new Date(l.observedAt).toLocaleString()}` : ""}`;
-    let detail: string;
-    if (l.stale) {
-      r.fill.style.width = "0%";
-      setText(r.pct, "");
-      setText(r.reset, l.staleReason || "no reading since reset");
-      detail = r.reset.textContent || "";
-    } else if (!known) {
-      r.fill.style.width = "0%";
-      setText(r.pct, "n/a");
-      const countdown = resetCountdown(l.resetsAt, now);
-      setText(r.reset, countdown ? `usage unavailable, ${countdown}` : "usage unavailable");
-      detail = r.reset.textContent || "";
-    } else {
-      detail = "";
-    }
-    const reading = limitReading(used, elapsed, view);
-    if (known && !l.stale) {
-      r.fill.style.width = `${reading.fill}%`;
-      setText(r.pct, reading.text);
-      setText(r.reset, resetCountdown(l.resetsAt, now) || (l.resetsAt ? `resets ${when(l.resetsAt)}` : ""));
-      detail = `${reading.text}${r.reset.textContent ? `, ${r.reset.textContent}` : ""}${l.resetsAt ? ` (${when(l.resetsAt)})` : ""}`;
-    }
-    const p = elapsed === null ? null : pace(used, elapsed);
-    r.tick.hidden = reading.mark === null;
-    if (reading.mark !== null) r.tick.style.left = `${reading.mark}%`;
-    setText(r.pace, p ? PACE_TEXT[p] : "");
-    if (p) detail += `. ${reading.pace}: ${PACE_TEXT[p]}`;
-    for (const k of ["ahead", "on", "under"] as const) r.root.classList.toggle(`st-${k}`, p === k);
-    r.root.classList.toggle("st-stale", !!l.stale || !known);
-    r.root.classList.toggle("st-high", known && !l.stale && used >= 90);
-    r.bar.setAttribute("aria-valuenow", String(known && !l.stale ? reading.value : 0));
-    r.bar.setAttribute("aria-valuetext", known && !l.stale ? reading.text : r.pct.textContent || "unavailable");
-    r.bar.setAttribute("aria-label", `${r.name.textContent}: ${detail}`);
-    r.root.title = `${r.name.textContent}: ${detail}\n${where}`;
-  }
+  const limits = mountLimits(limitsBox, limitsNote, options, { destroyed: () => destroyed, refresh: () => void refresh() });
 
   function renderModels(t: Totals) {
     const entries = Object.entries(t.byModel).sort((a, b) => b[1].tokens - a[1].tokens);
@@ -483,7 +217,7 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
     setText(costNum, formatCost(t.costUsd));
     const w = u.windows.week;
     setText(sub, `Last 7 days ${formatTokens(w.tokens)} tokens, ${formatCost(w.costUsd)}`);
-    renderLimits(u);
+    limits.render(u, view);
     // Closed breakdowns need no sorting, row allocation or DOM updates.
     if (toggle.getAttribute("aria-expanded") === "true") renderModels(t);
     if (projectToggle.getAttribute("aria-expanded") === "true") renderProjects(t);
@@ -534,7 +268,7 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
     setLimitView(next) {
       if (next === view) return;
       view = next;
-      if (last && !document.hidden) renderLimits(last);
+      if (last && !document.hidden) limits.render(last, view);
     },
     destroy() {
       destroyed = true;

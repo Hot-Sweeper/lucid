@@ -33,22 +33,48 @@ export function resetCountdown(resetsAt: string | null | undefined, now = Date.n
   return `resets in ${duration(end - now)}`;
 }
 
+/** The bar chip's countdown: "4d 1h", "now", or null without a reset time. */
+export function chipCountdown(resetsAt: string | null | undefined, now = Date.now()): string | null {
+  const end = resetsAt ? Date.parse(resetsAt) : NaN;
+  if (!Number.isFinite(end)) return null;
+  if (end <= now) return "now";
+  return end - now < 60000 ? "<1m" : duration(end - now);
+}
+
+/** The countdown in words for screen readers: "resets in 4 days 1 hour", or null. */
+export function spokenCountdown(resetsAt: string | null | undefined, now = Date.now()): string | null {
+  const end = resetsAt ? Date.parse(resetsAt) : NaN;
+  if (!Number.isFinite(end)) return null;
+  if (end <= now) return "resets now";
+  if (end - now < 60000) return "resets in a moment";
+  const s = (end - now) / 1000;
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  const unit = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const parts = d > 0 ? [unit(d, "day"), h ? unit(h, "hour") : ""] : h > 0 ? [unit(h, "hour"), m ? unit(m, "minute") : ""] : [unit(m, "minute")];
+  return `resets in ${parts.filter(Boolean).join(" ")}`;
+}
+
 export const PACE_TEXT: Record<Pace, string> = { ahead: "ahead of pace", on: "on pace", under: "under pace" };
 
 /** People read limits either way: how much is used (the bar fills up) or how much is left
  * (the bar counts down). Both views show the same reading. */
 export type LimitView = "used" | "left";
 
-/** What a limit row shows for a known reading: bar fill, pace mark position (both 0 to 100,
- * measured from the bar's start) and the percentage words. `used` is 0 to 100. */
+/** What a limit card shows for a known reading: bar fill, pace mark position (both 0 to 100,
+ * measured from the bar's start), the big number with its word, and the same as one phrase.
+ * `used` is 0 to 100. */
 export function limitReading(used: number, elapsed: number | null, view: LimitView) {
   const usedWhole = Math.round(used);
   if (view === "left") {
     const left = 100 - usedWhole;
     // Even pace leaves the unelapsed share of the window; the mark sits there on the countdown bar.
-    return { fill: 100 - used, value: left, mark: elapsed === null ? null : 100 - elapsed * 100, text: `${left}% left`,
+    return { fill: 100 - used, value: left, word: "left", mark: elapsed === null ? null : 100 - elapsed * 100, text: `${left}% left`,
       pace: elapsed === null ? "" : `Even pace would leave ${Math.round(100 - elapsed * 100)}% by now` };
   }
-  return { fill: used, value: usedWhole, mark: elapsed === null ? null : elapsed * 100, text: `${usedWhole}% used`,
+  return { fill: used, value: usedWhole, word: "used", mark: elapsed === null ? null : elapsed * 100, text: `${usedWhole}% used`,
     pace: elapsed === null ? "" : `Even pace would be ${Math.round(elapsed * 100)}% used by now` };
 }
+
+/** The trend arrow beside the number describes spending, so it never flips with the view:
+ * rising when ahead of pace (burning fast), falling when under, level on pace. */
+export const PACE_ARROW: Record<Pace, "trendUp" | "trendFlat" | "trendDown"> = { ahead: "trendUp", on: "trendFlat", under: "trendDown" };

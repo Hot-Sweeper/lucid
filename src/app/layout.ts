@@ -123,7 +123,6 @@ export function mountLayout(app: App) {
   app.sidePeek = new EdgePeek({
     side: "left",
     panel: app.sidePanel,
-    riders: () => [...document.querySelectorAll<HTMLElement>("#app > .side-limits")],
     edge: () => $("side-rail"),
     width: app.sideOpenWidth,
     reveal: () => { app.sidePanel.hidden = false; app.sidePanel.scrollTop = Number(app.sidePanel.dataset.scroll || 0); },

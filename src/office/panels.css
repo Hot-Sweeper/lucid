@@ -128,8 +128,6 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .game-language-status { color: var(--ink-3); }
 .panel > .usage { flex: none; margin-top: auto; border-top: 1px solid color-mix(in srgb, var(--wash) 7%, transparent); padding-top: 12px; }
 .panel > .usage .st-head { margin-top: 12px; }
-.panel > .usage .st-ltop { flex-wrap: wrap; }
-.panel > .usage .st-reset { white-space: normal; overflow-wrap: anywhere; }
 
 /* A matching right rail, with the current conversation always within reach. */
 .cp-tab { width: 64px; background: var(--night-2); padding: 18px 5px 14px; gap: 14px; overflow: hidden; }
@@ -184,22 +182,6 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .panel .th-line .th-title { flex: 1 1 auto; min-width: 0; }
 .panel .th-line .th-logo { flex: none; width: 14px; height: 14px; opacity: 0.7; margin: 0; }
 .panel .th-t3 .th-where::before { content: none; }
-
-/* Usage limits pinned below the sidebar's scroll area: thin strips, two per line. */
-#app > .panel { margin-bottom: var(--limits-h, 0px); }
-.side-limits { grid-column: 1; grid-row: 1; align-self: end; z-index: 3; min-width: 0; padding: 9px 16px 11px; background: var(--night-2); border-top: 1px solid var(--line); }
-.side-limits[hidden], .panel[hidden] ~ .side-limits { display: none; }
-#app.rail-moving .side-limits { visibility: hidden; }
-.side-limits .st-limits { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
-.side-limits .st-limit { min-width: 0; }
-.side-limits .st-ltop { gap: 5px; font-size: 11px; line-height: 14px; flex-wrap: nowrap; }
-.side-limits .st-logo { width: 11px; height: 11px; }
-.side-limits .st-lname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; color: var(--ink-2); }
-.side-limits .st-reset { display: none; }
-.side-limits .st-barline { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin-top: 4px; }
-.side-limits .st-bar { height: 3px; }
-.side-limits .st-pct { font-size: 10.5px; line-height: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.side-limits .st-high .st-pct { color: #ff8a7a; }
 
 /* Office & settings: occasional controls in a panel from the gear, not a sidebar section.
    Sections share one rhythm (20px apart, a hairline between, 10px inside) and one quiet heading;
