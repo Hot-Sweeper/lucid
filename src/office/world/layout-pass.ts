@@ -402,7 +402,10 @@ export class WorldLayout {
         if (!d) {
           // a newcomer takes the empty desk already standing in its seat
           d = here && !here.threadId ? here : this.makeDesk(s.x, s.y);
-          d.assign({ id: s.t.id, title: s.t.title, provider: s.t.provider, model: s.t.model }, this.roster.byThread(s.t.id));
+          // A swap seen as the desk opens (the harness changed while the app was closed) starts
+          // with the previous worker in the chair, so it can hand over like any other swap.
+          const swapping = swaps.find((w) => w.threadId === s.t!.id);
+          d.assign({ id: s.t.id, title: s.t.title, provider: swapping?.from.provider ?? s.t.provider, model: s.t.model }, swapping?.from ?? this.roster.byThread(s.t.id));
           d.folder = s.t.folder ?? null;
           this.desks.set(s.t.id, d);
         }
@@ -444,7 +447,7 @@ export class WorldLayout {
     // leaving a desk: it gets up from its chair; leaving the break room, questions or park: that
     // room walks it to its door and hands it over there
     for (const m of moving) this.move(m.t, m.from, m.to, desksBefore.get(m.t.id) ?? null);
-    for (const swap of swaps) { const t = byThread.get(swap.threadId); if (t) this.swapWorker(t, swap, first); }
+    for (const swap of swaps) { const t = byThread.get(swap.threadId); if (t) this.swapWorker(t, swap); }
     for (const [id, walker] of this.transit) {
       const thread = byThread.get(id);
       walker.setRunning(!!thread && hasOfficeWork(thread) && !thread.question && !!this.desks.get(id)?.el.classList.contains("arriving"));

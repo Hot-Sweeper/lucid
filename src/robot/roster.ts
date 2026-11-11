@@ -54,6 +54,9 @@ export interface RobotProfile {
   done?: string[];
   role?: string | null;
   lastModel?: string | null;
+  /** The harness its current job was on when last seen. A later change starts a swap (takeOver);
+   *  saved, so a change made while the app was closed still swaps once on the next launch. */
+  jobHarness?: string | null;
   /** Left the floor for the staff wall. Kept with its history, never assigned work. */
   retired?: boolean;
   retiredAt?: number;
@@ -245,11 +248,13 @@ export class Roster {
     }
     for (const t of working) {
       const assigned = this.byThread(t.id);
-      if (assigned && brandFor(assigned.provider) !== brandFor(t.provider)) { const swap = this.takeOver(t.id, t.provider, t.model, settledIds); if (swap) swaps.push(swap); continue; }
-      if (assigned) { if (t.model) assigned.lastModel = t.model; continue; }
+      // Only a real change of the job's harness swaps workers. An assignment first seen here keeps its
+      // worker, also one older releases left on another harness.
+      if (assigned && assigned.jobHarness && brandFor(assigned.jobHarness) !== brandFor(t.provider)) { const swap = this.takeOver(t.id, t.provider, t.model, settledIds); if (swap) swaps.push(swap); continue; }
+      if (assigned) { assigned.jobHarness = t.provider; if (t.model) assigned.lastModel = t.model; continue; }
       const isFree = (r: RobotProfile) => !r.retired && (!r.threadId || (settledIds.has(r.threadId) && !pinned.has(r.threadId)));
       const free = compatibleWorkers(this.robots.filter(isFree), t.provider, t.model)[0];
-      if (free) { if (free.threadId) (free.done ??= []).push(free.threadId); free.threadId = t.id; free.provider = t.provider; free.jobs++; }
+      if (free) { if (free.threadId) (free.done ??= []).push(free.threadId); free.threadId = t.id; free.provider = t.provider; free.jobHarness = t.provider; free.jobs++; }
       else this.robots.push(this.hire(t.id, t.provider));
       if (t.model) this.byThread(t.id)!.lastModel = t.model;
     }
@@ -264,7 +269,7 @@ export class Roster {
    */
   takeOver(threadId: string, provider: string, model: string | null | undefined, settledIds: Set<string>): WorkerSwap | null {
     const from = this.byThread(threadId);
-    if (!from || brandFor(from.provider) === brandFor(provider)) return null;
+    if (!from || brandFor(from.jobHarness ?? from.provider) === brandFor(provider)) return null;
     from.threadId = null;
     if (!from.done?.includes(threadId)) (from.done ??= []).push(threadId);
     const free = compatibleWorkers(this.freeTeam(settledIds).filter((r) => r !== from), provider, model)[0];
@@ -272,6 +277,7 @@ export class Roster {
     let to: RobotProfile;
     if (free) { if (free.threadId) (free.done ??= []).push(free.threadId); free.threadId = threadId; free.provider = provider; free.brand = brandFor(provider); free.jobs++; to = free; }
     else { to = this.hire(threadId, provider); this.robots.push(to); }
+    to.jobHarness = provider;
     if (model) to.lastModel = model;
     this.save();
     return { threadId, from, to, previous };
@@ -292,7 +298,7 @@ export class Roster {
   // The hiring screen picked someone for a new thread: a free teammate, or a fresh hire.
   assignRobot(threadId: string, robotId: string | null, provider: string, role: string | null = null, model?: string, resuming = false) {
     const assigned = this.byThread(threadId);
-    if (assigned && (!robotId || assigned.id === robotId)) { assigned.provider = provider; assigned.brand = brandFor(provider); if (role !== null) assigned.role = role || null; if (model) assigned.lastModel = model; this.save(); return; }
+    if (assigned && (!robotId || assigned.id === robotId)) { assigned.provider = provider; assigned.brand = brandFor(provider); assigned.jobHarness = provider; if (role !== null) assigned.role = role || null; if (model) assigned.lastModel = model; this.save(); return; }
     // A world refresh can discover the launch before its hiring callback returns.
     // Undo that automatic assignment so the explicitly chosen teammate gets the job.
     if (assigned) {
@@ -304,7 +310,7 @@ export class Roster {
       if (r.threadId && r.threadId !== threadId) (r.done ??= []).push(r.threadId);
       const returning = resuming && r.done?.includes(threadId);
       if (returning) r.done = r.done?.filter(id => id !== threadId);
-      r.threadId = threadId; r.provider = provider; r.brand = brandFor(provider); if (!returning) r.jobs++;
+      r.threadId = threadId; r.provider = provider; r.brand = brandFor(provider); r.jobHarness = provider; if (!returning) r.jobs++;
     } else { r = this.hire(threadId, provider); this.robots.push(r); }
     if (role !== null) r.role = role || null;
     if (model) r.lastModel = model;
@@ -396,6 +402,7 @@ export class Roster {
       },
       hiredAt: Date.now(),
       threadId,
+      jobHarness: provider,
       jobs: 1,
     };
   }

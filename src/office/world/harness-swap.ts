@@ -18,15 +18,15 @@ import { IN_FRONT, WALK_SCALE } from "./geometry";
 export type SwapRun = { cancelled: boolean; outgoing: { walker: Walker; robot: RobotProfile } | null };
 
 export class WorldHarnessSwap {
-  /** Shows a roster swap. `quiet`: apply it without a scene (the first layout after launch). */
-  swapWorker(this: World, t: WThread, swap: WorkerSwap, quiet: boolean) {
+  /** Shows a roster swap: the normal scene where the desk is in view, otherwise at once. */
+  swapWorker(this: World, t: WThread, swap: WorkerSwap) {
     const desk = this.desks.get(t.id);
     const running = this.swaps.get(t.id);
     if (running) this.cancelSwap(t.id, running);
-    const still = quiet || reducedMotion() || document.hidden || this.scene.inert || !desk || desk.folded || !!this.hostWorld
+    const still = reducedMotion() || document.hidden || this.scene.inert || !desk || desk.folded || !!this.hostWorld
       || desk.el.classList.contains("arriving") || desk.el.classList.contains("culled")
       || this.transit.has(t.id) || this.exits.has(t.id) || !this.roomById(desk.room);
-    if (still) { this.finishSwap(t, swap.to, !quiet); return; }
+    if (still) { this.finishSwap(t, swap.to); return; }
     void this.playSwap(t, desk, swap);
   }
 

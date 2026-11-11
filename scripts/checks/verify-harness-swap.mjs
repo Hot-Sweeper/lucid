@@ -51,6 +51,19 @@ try {
   assert.equal(swaps[0].to.provider, 'grok'); assert.equal(swaps[0].previous, null);
   assert.ok(!roster.robots.slice(0, -1).includes(swaps[0].to), 'a new hire joins the roster');
   assert.equal(new Set(roster.robots.map(r => r.threadId).filter(Boolean)).size, roster.robots.filter(r => r.threadId).length, 'one worker per thread, no clones');
+  // An assignment first seen on another harness (left by an older release) keeps its worker.
+  const legacy = roster.robots.find(r => r.provider === 'codex' && r.threadId === null && r.id !== juno.id) ?? juno;
+  roster.robots.push({ ...structuredClone(legacy), id: 'legacy', name: 'Legacy', provider: 'codex', threadId: 'kept', jobHarness: undefined, done: [] });
+  assert.deepEqual(roster.assign([{ id: 'kept', provider: 'claudeAgent', model: 'opus' }], new Set(), new Set(['kept'])), [], 'an existing mismatch is not swapped');
+  assert.equal(roster.byThread('kept').id, 'legacy', 'the existing worker stays on its job');
+  assert.equal(roster.byThread('kept').jobHarness, 'claudeAgent', 'its job harness is recorded from now on');
+  // A change made while the app was closed swaps once on the next launch.
+  store.set('roster', saved.at(-1));
+  const relaunched = new Roster();
+  const closed = relaunched.assign([{ id: 'kept', provider: 'codex', model: 'gpt' }], new Set(), new Set(['kept']));
+  assert.equal(closed.length, 1, 'a harness change made while closed swaps on the next launch');
+  assert.equal(closed[0].from.id, 'legacy');
+  assert.deepEqual(relaunched.assign([{ id: 'kept', provider: 'codex', model: 'gpt' }], new Set(), new Set(['kept'])), [], 'and only once');
   // A model change on the same harness keeps the worker.
   assert.deepEqual(roster.assign([{ id: 'job', provider: 'grok', model: 'grok-6' }], new Set(['old']), new Set(['job', 'old'])), []);
   console.log('PASS: harness changes reuse a free worker or hire one, free the previous worker and are saved');
@@ -65,5 +78,7 @@ assert.ok(/reducedMotion\(\)/.test(swapSource) && /finishSwap/.test(swapSource),
 assert.ok(/this\.spawn\(t,/.test(swapSource) && /this\.travel\(t, \{ walker: incoming \}/.test(swapSource) && /this\.walkOff\(/.test(swapSource), 'the new worker walks in and sits through the shared journey, the previous one walks off');
 assert.ok(/swap\.from\.look/.test(swapSource), 'the previous worker leaves as itself');
 const layout = await readFile('src/office/world/layout-pass.ts', 'utf8');
-assert.ok(/const swaps = this\.roster\.assign\(/.test(layout) && /this\.swapWorker\(t, swap, first\)/.test(layout), 'the layout pass shows every roster swap, quietly on the first layout');
+assert.ok(/const swaps = this\.roster\.assign\(/.test(layout) && /this\.swapWorker\(t, swap\)/.test(layout), 'the layout pass shows every roster swap');
+assert.ok(/swapping\?\.from \?\? this\.roster\.byThread/.test(layout), 'a desk opened during a swap starts with the previous worker, so the scene can play after a launch');
+assert.ok(!/quiet/.test(swapSource), 'no quiet swaps');
 console.log('PASS: the swap uses the walker, seat and handoff systems with reduced motion');
