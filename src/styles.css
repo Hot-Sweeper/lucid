@@ -23,10 +23,10 @@
   --mono-logo-filter: none; /* one-colour harness logos are drawn white for dark surfaces */
   /* spacing, radii, control sizes and motion shared by every control (src/ui/controls.css) */
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
-  --radius-sm: 6px;         /* buttons, icon buttons, menu items, chips */
-  --radius-md: 8px;         /* fields, composer tools, code and tables */
-  --radius-lg: 10px;        /* menus and popovers (items stay concentric at 4px padding) */
-  --radius-xl: 14px;        /* dialogs and the composer */
+  --radius-sm: 6px;         /* controls: buttons, icon buttons, selects, one-line inputs, menu items, chips */
+  --radius-md: 8px;         /* text areas, cards, the HUD, code blocks, tables and media */
+  --radius-lg: 10px;        /* menus, popovers and tooltips (items stay concentric at 4px padding) */
+  --radius-xl: 14px;        /* panels and dialogs (settings, ledger, hire) and the chat composer */
   --control-h: 32px;        /* composer tools, send */
   --icon-btn: 30px;         /* header icon buttons */
   --shadow-pop: 0 16px 40px rgba(4, 6, 24, 0.5);

@@ -54,9 +54,10 @@ button:where(.cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hi
 
 /* ---- fields ---- */
 :where(textarea, .pm-form input, .np-field input) {
-  border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--field-fill);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--field-fill);
   transition: border-color var(--dur-hover) var(--ease-out-strong);
 }
+:where(textarea) { border-radius: var(--radius-md); }
 :where(.pm-form input, .np-field input) { padding: 7px 10px; font: 400 14px var(--font); color: var(--ink); }
 :where(textarea, .pm-form input, .np-field input):focus { outline: none; border-color: color-mix(in srgb, var(--accent) 65%, transparent); }
 :where(.pm-form input, .np-field input):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

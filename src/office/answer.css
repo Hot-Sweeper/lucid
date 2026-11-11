@@ -98,5 +98,5 @@ textarea.ca-text { resize: vertical; min-height: 54px; max-height: 200px; }
 .ca-boss[data-state="failed"] { color: #ffcf9e; }
 .ca-alt.ca-suggested { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent); }
 
-.ca-secret { display: block; width: 100%; margin-top: 7px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink); background: var(--night); font: 13px var(--mono); }
+.ca-secret { display: block; width: 100%; margin-top: 7px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink); background: var(--field-fill); font: 13px var(--mono); }
 .ca-secret:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
