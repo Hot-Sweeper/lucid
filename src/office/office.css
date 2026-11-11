@@ -667,6 +667,9 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .scene:not(.near) :is(.mug-steam path, .amb-tree, .amb-bare, .amb-bush, .amb-fl, .amb-plant, .amb-rock, .amb-sit, .amb-blink, .amb-flap, .amb-cloud) { animation: none; }
 .scene:not(.near) :is(.amb-drop, .amb-ripple, .amb-ring, .amb-path, .amb-occ, .amb-hop, .amb-ffly) { animation: none; visibility: hidden; }
 .desk-unit.culled *, .room.culled *, .screen.render-paused * { animation-play-state: paused !important; }
+/* A folded office's desks keep working out of sight (World.setDeskFolded); they are not hit-tested either. */
+.desk-unit.folded-away { pointer-events: none; }
+.desk-unit.folding { pointer-events: none; will-change: transform, opacity; }
 .os.unattended * { animation-play-state: paused !important; }
 .os.unattended .cursor { visibility: hidden; }
 .win.render-hidden .win-body { visibility: hidden; content-visibility: hidden; }

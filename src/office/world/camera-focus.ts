@@ -43,7 +43,17 @@ export class WorldCameraFocus {
     if (r) { this.unfocus(false); this.flyTo({ x: r.x, y: r.y, w: r.w, h: r.h }, 30, 1, insetRight); }
   }
 
+  /** A desk in a folded office opens its office first; false while a held floor plan keeps it folded. */
+  unfoldDesk(this: World, d: Desk) {
+    if (!d.folded) return true;
+    this.setRoomExpanded(d.room, true);
+    if (!d.folded) return true;
+    this.showRoom(d.room);
+    return false;
+  }
+
   showDesk(this: World, d: Desk) {
+    if (!this.unfoldDesk(d)) return;
     this.stopFollow();
     this.unfocus(false);
     this.flyTo({ x: parseFloat(d.el.style.left) - 20, y: parseFloat(d.el.style.top) - 40, w: UNIT_W + 40, h: UNIT_H + 60 }, 30);
@@ -78,6 +88,7 @@ export class WorldCameraFocus {
 
   focusOn(this: World, d: Desk) {
     if (this.hostWorld) { this.onOpenDesk(d, false); return; }
+    if (!this.unfoldDesk(d)) return;
     this.stopFollow();
     this.focusDesk = d;
     this.focusMode = "desk";
@@ -91,6 +102,7 @@ export class WorldCameraFocus {
   // Fill the view with the robot's screen.
   focusScreen(this: World, d: Desk) {
     if (this.hostWorld) { this.onOpenDesk(d, true); return; }
+    if (!this.unfoldDesk(d)) return;
     this.focusDesk = d;
     this.focusMode = "screen";
     const m = GEOM.screen;

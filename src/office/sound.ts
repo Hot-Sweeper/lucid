@@ -502,7 +502,8 @@ export class GameSound {
   /** Where a world object sits for the listening camera (one layout read, for discrete events).
    *  Undefined: nothing can sound now. Null: the element is outside any scene (UI placement). */
   placement(source: Element, intensity = 1): { mix: SoundMix; key: string } | null | undefined {
-    if (!this.active || !source.isConnected) return undefined;
+    // A folded office keeps its robots working out of sight, and out of earshot.
+    if (!this.active || !source.isConnected || source.closest('.folded-away')) return undefined;
     const scene = this.view?.scene ?? source.closest<HTMLElement>('.scene');
     if (!scene) return null;
     const bounds = scene.getBoundingClientRect(), rect = source.getBoundingClientRect();

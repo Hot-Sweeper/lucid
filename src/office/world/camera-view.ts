@@ -38,13 +38,13 @@ export class WorldCameraView {
       const st = el.style, desk = el.classList.contains("desk-unit");
       const l = parseFloat(st.left) || 0, t = parseFloat(st.top) || 0;
       const w = desk ? UNIT_W : parseFloat(st.width) || 0, h = desk ? UNIT_H : parseFloat(st.height) || 0;
-      const out = l + w < x0 || l > x1 || t + h < y0 || t > y1;
+      const out = l + w < x0 || l > x1 || t + h < y0 || t > y1 || el.classList.contains("folded-away");
       if (out !== el.classList.contains("culled")) el.classList.toggle("culled", out);
     }
     for (const d of this.allDesks) {
       const left = this.cam.x + (parseFloat(d.el.style.left) + 54) * s;
       const top = this.cam.y + (parseFloat(d.el.style.top) + 4) * s;
-      const inView = !this.scene.inert && !!d.threadId && left < box.width && left + 292 * s > 0 && top < box.height && top + 172 * s > 0;
+      const inView = !this.scene.inert && !!d.threadId && !d.el.classList.contains("folded-away") && left < box.width && left + 292 * s > 0 && top < box.height && top + 172 * s > 0;
       const shown = inView && !d.el.classList.contains("arriving");
       setRenderView(d.screen, shown, 276 * s, 820, inView);
       // far away the desk's monitor shows a simple sign instead of its unreadable panel

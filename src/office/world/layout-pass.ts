@@ -46,7 +46,7 @@ export class WorldLayout {
     const retiringIds = new Set([...this.desks].filter(([id, desk]) => {
       if (this.roomOf.get(id) !== desk.room) return false;
       const t = byThread.get(id);
-      return !t || needsCharge(t) || (!!t.question && desk.room !== "queue") || this.collapsedRooms.has(desk.room) || !hasOfficeDesk(t, this.revealedThread) || this.homeForThread(t, data.projects) !== desk.room;
+      return !t || needsCharge(t) || (!!t.question && desk.room !== "queue") || !hasOfficeDesk(t, this.revealedThread) || this.homeForThread(t, data.projects) !== desk.room;
     }).map(([id]) => id));
     const indoorJourney = [...this.transit.values()].some((w) => !this.outside(w));
     // Park visitors walk to the park gate outside the building. Their exit never
@@ -69,10 +69,10 @@ export class WorldLayout {
       if (!residents.has(home)) residents.set(home, []);
       residents.get(home)!.push(t);
       const report = this.reports.get(t.id);
-      if (report?.writing && this.collapsedRooms.has(home)) report.writing = false;
       // A worker with a report writes it at the desk, carries it to the orchestrator and waits in
       // its line until the review is decided. Approval sends it back to its desk to be collected.
-      const want = depleted ? "charging" : t.question ? "queue" : this.collapsedRooms.has(home) && !this.reports.has(t.id) ? "break" : report ? (report.writing || report.approved ? home : "queue") : (t.coinPending || t.completionPending) && t.runStatus === 'completed' ? home : hasOfficeDesk(t, this.revealedThread) ? home : "break";
+      // A folded office keeps its robots at their desks: folding only changes how it is drawn.
+      const want = depleted ? "charging" : t.question ? "queue" : report ? (report.writing || report.approved ? home : "queue") : (t.coinPending || t.completionPending) && t.runStatus === 'completed' ? home : hasOfficeDesk(t, this.revealedThread) ? home : "break";
       // Existing actors finish their old-floor journey first. A newly started robot
       // waits in its current room until its physical desk can safely be opened.
       const currentRoom = this.roomOf.get(t.id) ?? null;
@@ -131,7 +131,7 @@ export class WorldLayout {
       const extra = this.extra.get(id) ?? 0;
       const projection = projectRoomSeats(this.seats.get(id)!, reserved, this.isRoomExpanded(id), this.revealedThread, extra, this.collapsedRooms.has(id));
       const { slots, collapsed } = projection;
-      const ghost = addDeskPlace(projection.threads, collapsed) !== null;
+      const ghost = addDeskPlace(projection.threads, collapsed, kind) !== null;
       const { w, h } = collapsed ? FOLDED_OFFICE : officeSize(slots + (ghost ? 1 : 0), needsLounge(this.themes.get(id)) ? LOUNGE : 0, officeColumns(this.roomColumns.get(id)));
       return { id, kind, title, icon, threads: projection.threads, slots, w, h, collapsed, ghost };
     };
@@ -344,7 +344,7 @@ export class WorldLayout {
     }
 
     // Desks: keep each thread's desk, slide it to its new slot, create or retire as needed.
-    const slots: { key: string; x: number; y: number; t: WThread | null }[] = [];
+    const slots: { key: string; x: number; y: number; t: WThread | null; folded: boolean }[] = [];
     plans.forEach((p, i) => {
       if (!p.slots) return;
       const r = rooms[i];
@@ -355,7 +355,7 @@ export class WorldLayout {
         const occupant = p.threads[k];
         if (occupant?.settled && !hasOfficeDesk(occupant)) continue;
         const { c, row } = snakeSeat(k, cols);
-        slots.push({ key: `${p.id}#${k}`, x: r.x + 70 + c * SLOT_W, y: r.y + WALL_FACE + 40 + row * SLOT_H, t: p.threads[k] ?? null });
+        slots.push({ key: `${p.id}#${k}`, x: r.x + 70 + c * SLOT_W, y: r.y + WALL_FACE + 40 + row * SLOT_H, t: p.threads[k] ?? null, folded: p.collapsed });
       }
     });
     const wanted = new Set(slots.filter((s) => s.t).map((s) => s.t!.id));
@@ -392,6 +392,8 @@ export class WorldLayout {
     const slotKeys = new Set(slots.map((s) => s.key));
     for (const k of [...this.slotDesks.keys()]) if (!slotKeys.has(k)) this.slotDesks.delete(k);
     this.freeDesks = [];
+    const unfolding = new Map<string, number>();
+    const foldMotion = !first && !document.hidden && !this.scene.inert && !matchMedia('(prefers-reduced-motion: reduce)').matches;
     for (const s of slots) {
       let d: Desk | undefined;
       const here = this.slotDesks.get(s.key);
@@ -424,9 +426,14 @@ export class WorldLayout {
       d.el.dataset.computer = computer;
       if (d.threadId && (nowRoom.get(d.threadId) !== d.room || moving.some((m) => m.t.id === d!.threadId) || this.transit.has(d.threadId))) d.setSeated(false);
       if (d.threadId) d.el.classList.toggle("orch-desk", d.threadId === this.orchThread);
-      const cur = { x: parseFloat(d.el.style.left), y: parseFloat(d.el.style.top) };
-      if (Math.abs(cur.x - s.x) > 1 || Math.abs(cur.y - s.y) > 1) {
-        this.slideDesk(d, s);
+      // Folding hides a desk where it stands; opening places it at once and unfolds it.
+      if (s.folded !== d.folded) {
+        const room = s.key.split("#")[0], order = unfolding.get(room) ?? 0;
+        if (!s.folded) unfolding.set(room, order + 1);
+        this.setDeskFolded(d, s.folded, s, foldMotion, order);
+      } else if (!d.folded) {
+        const cur = { x: parseFloat(d.el.style.left), y: parseFloat(d.el.style.top) };
+        if (Math.abs(cur.x - s.x) > 1 || Math.abs(cur.y - s.y) > 1) this.slideDesk(d, s);
       }
     }
     this.playDeskBuild();

@@ -175,7 +175,7 @@ export class WorldJourneys {
         continue;
       }
       // the last steps (beside the chair, into it) are drawn over the desk, whatever raised it
-      const near = plan.desk ? 2 : 0, n = plan.pts.length;
+      const near = plan.desk && !plan.folded ? 2 : 0, n = plan.pts.length;
       const w0 = this.transit.get(t.id);
       if (w0) w0.zBias = 0;
       await this.walkLegs(t, plan.pts.slice(0, n - near), trip, plan.revision);
@@ -210,6 +210,12 @@ export class WorldJourneys {
       }
       const d = plan.desk, moved = !!d && (this.desks.get(t.id) !== d || !d.el.isConnected || Math.hypot(this.deskPos(d).x - plan.deskAt!.x, this.deskPos(d).y - plan.deskAt!.y) > 1);
       if (plan.revision === this.layoutRevision && !moved && (!end || Math.hypot(w.x - end.x, w.y - end.y) <= 8)) {
+        if (d && plan.folded) {
+          // It steps in through the folded office's door and sits down inside, out of sight.
+          await new Promise<void>((resolve) => gsap.to(w.el, { opacity: 0, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : .22, ease: "power1.in", onComplete: resolve }));
+          if (this.trips.get(t.id) !== trip) return;
+          break;
+        }
         if (d) {
           w.face("up"); w.do("sit");
           await pause(0.55);
@@ -269,7 +275,9 @@ export class WorldJourneys {
     if (ex) { ex.t = t; ex.to = to; return; }                 // still walking out of its room: it goes on from the door
     const cur = this.transit.get(t.id);
     if (cur) { void this.travel(t, { walker: cur }, to); return; }
-    if (seat) { void this.travel(t, { seat, room: from }, to); return; }
+    // A folded office's robot leaves through its door: its desk is not drawn.
+    const folded = !!this.roomById(from)?.collapsed;
+    if (seat && !folded) { void this.travel(t, { seat, room: from }, to); return; }
     if (from === "break" || from === "queue" || from === "charging" || from === "park") {
       // the room walks it to its door first and hands it over there (handOver)
       this.exits.set(t.id, { t, from, to });
@@ -277,6 +285,7 @@ export class WorldJourneys {
     }
     const r = this.roomById(from);
     void this.travel(t, r ? { at: this.door(r)[1], face: "down" } : { outside: true }, to);
+    if (folded && this.reports.has(t.id)) this.transit.get(t.id)?.carryReport(`Report: ${t.title}`);
   }
 
   /** What the orchestrator is doing with a robot's question, shown at the questions desk. */

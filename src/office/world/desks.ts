@@ -10,6 +10,7 @@ import { wireDeskChatTargets } from "../desk-chat-targets";
 import { icon } from "../../ui/icons";
 import type { World } from "../world";
 import type { Room, PhysicalRoomPlan } from "./types";
+import type { Pt } from "../../robot";
 import { slotOrigin } from "./geometry";
 
 export class WorldDesks {
@@ -96,6 +97,32 @@ export class WorldDesks {
     if (table) tl.fromTo(table, { y: -24, opacity: 0 }, { y: 0, opacity: 1, duration: .22, ease }, 0);
     tl.fromTo(d.monitor, { scaleY: .15, opacity: 0, transformOrigin: "50% 100%" }, { scaleY: 1, opacity: 1, duration: .24, ease }, .13);
     this.deskBuildTween = tl;
+  }
+
+  /**
+   * Folding an office is purely visual: its desks, robots and computers keep running, they are
+   * only hidden. A fold tucks them toward the wall; opening places them at once and lets them
+   * unfold in snake order, so robots are already seated when the room appears.
+   */
+  setDeskFolded(this: World, d: Desk, folded: boolean, at: Pt, animate: boolean, order = 0) {
+    d.folded = folded;
+    gsap.killTweensOf(d.el, "opacity,scale,y");
+    const ease = folded ? cubicBezier(.42, 0, 1, 1) : cubicBezier(.23, 1, .32, 1);
+    if (folded) {
+      const hide = () => { d.el.classList.add("folded-away"); gsap.set(d.el, { clearProps: "opacity,scale,y,transformOrigin" }); this.recull(); };
+      if (!animate) { hide(); return; }
+      d.el.classList.add("folding");
+      gsap.to(d.el, { opacity: 0, scale: .94, y: -14, transformOrigin: "50% 0%", duration: .2, ease,
+        onComplete: () => { d.el.classList.remove("folding"); if (d.folded) hide(); }, onInterrupt: () => d.el.classList.remove("folding") });
+      return;
+    }
+    d.el.classList.remove("folded-away", "folding");
+    gsap.killTweensOf(d.el, "left,top");
+    gsap.set(d.el, { left: at.x, top: at.y });
+    d.baseZ = Math.round(at.y); d.lift("move", false);
+    this.recull();
+    if (animate) gsap.fromTo(d.el, { opacity: 0, scale: .96, y: -12, transformOrigin: "50% 0%" },
+      { opacity: 1, scale: 1, y: 0, duration: .26, delay: .08 + Math.min(order, 8) * .04, ease, clearProps: "opacity,scale,y,transformOrigin" });
   }
 
   makeDesk(this: World, x: number, y: number) {

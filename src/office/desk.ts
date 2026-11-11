@@ -155,6 +155,8 @@ export class Desk implements DeskStage {
   }
 
   profile: RobotProfile | null = null;
+  /** Its office is folded: the desk keeps working but is not drawn (World.setDeskFolded). */
+  folded = false;
   folder: string | null = null;
   room = "";
   private model: string | null = null;

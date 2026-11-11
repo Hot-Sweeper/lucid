@@ -21,8 +21,9 @@ export function officeSize(slots: number, lounge = 0, columns = 1) {
   return officeDimensions(slots, columns, SLOT_W, SLOT_H, lounge);
 }
 export const columnsForRoom = (room: { w: number }) => officeColumns((room.w - 120) / SLOT_W);
-/** Desk places the floor holds: every desk plus the Add a desk placeholder. Decor keeps clear of them. */
-export const floorSlots = (plan: PhysicalRoomPlan) => plan.slots + (plan.ghost ? 1 : 0);
+/** Desk places the floor holds: every desk plus the Add a desk placeholder. Decor keeps clear of them.
+ * A folded office draws only its facade, so its floor holds no places while folded. */
+export const floorSlots = (plan: PhysicalRoomPlan) => plan.collapsed ? 0 : plan.slots + (plan.ghost ? 1 : 0);
 /** Top-left corner of desk place `index` in world coordinates, following the snake. */
 export const slotOrigin = (room: { x: number; y: number; w: number }, index: number) => {
   const { c, row } = snakeSeat(index, columnsForRoom(room));

@@ -72,16 +72,18 @@ export class WorldRouting {
     if (meeting && !meeting.outside) {
       if (startOut) pts.push(this.parkDoor, this.entrance());
       throughHall(meeting);
-      return { pts, desk: null as Desk | null, deskAt: null as Pt | null, blocked, revision: this.layoutRevision, rendezvous: true };
+      return { pts, desk: null as Desk | null, deskAt: null as Pt | null, blocked, revision: this.layoutRevision, rendezvous: true, folded: false };
     }
+    // A folded office is entered through its door; its desk is seated out of sight.
+    const folded = !!toRoom?.collapsed;
     // A resumed journey already inside its destination goes straight to the chair.
     // Sending it back through the hall creates long loops after layout changes.
-    if (desk && toRoom && p.x >= toRoom.x && p.x <= toRoom.x + toRoom.w &&
+    if (desk && toRoom && !folded && p.x >= toRoom.x && p.x <= toRoom.x + toRoom.w &&
         p.y >= toRoom.y + WALL_FACE && p.y <= toRoom.y + toRoom.h) {
       const deskAt = this.deskPos(desk), seat = this.seatAt(deskAt);
       const side = { x: seat.x + (p.x < seat.x ? -62 : 62), y: seat.y };
       const path = furniturePath(p, side, this.furniture(toRoom), this.walkBounds(toRoom));
-      return { pts: path ? [...path, seat] : [], desk, deskAt, blocked: !path, revision: this.layoutRevision, rendezvous: false };
+      return { pts: path ? [...path, seat] : [], desk, deskAt, blocked: !path, revision: this.layoutRevision, rendezvous: false, folded };
     }
     if (startOut && !endOut) pts.push(this.parkDoor, this.entrance());
     if (!startOut && endOut) { throughHall(this.entrance()); pts.push(this.parkDoor); }
@@ -89,10 +91,10 @@ export class WorldRouting {
     if (toRoom) {
       const [out, inn] = this.door(toRoom);
       throughHall(out);
-      if (desk) { deskAt = this.deskPos(desk); pts.push(...this.toSeat(toRoom, deskAt)); }
-      else pts.push(inn);
+      if (desk && !folded) { deskAt = this.deskPos(desk); pts.push(...this.toSeat(toRoom, deskAt)); }
+      else { if (desk) deskAt = this.deskPos(desk); pts.push(inn); }
     } else if (to !== "park") pts.push({ x: this.parkDoor.x + 110, y: this.parkDoor.y });   // away down the path
-    return { pts, desk, deskAt, blocked, revision: this.layoutRevision, rendezvous: false };
+    return { pts, desk, deskAt, blocked, revision: this.layoutRevision, rendezvous: false, folded };
   }
 
   furniture(this: World, r: Room): Footprint[] {

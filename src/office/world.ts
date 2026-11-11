@@ -291,7 +291,7 @@ export class World {
     if (cur.room === want) { cur.pending = undefined; return want; }
     // questions and new work never wait: the robot heads over right away
     // and an answered robot that is working again leaves the question line at once
-    const urgent = this.collapsedRooms.has(cur.room) || want === "charging" || cur.room === "charging" || want === "queue" || ((hasOfficeWork(t) || this.revealedThread === t.id) && (cur.room === "break" || cur.room === "queue")) || (want === "break" && !hasOfficeWork(t) && this.revealedThread !== t.id);
+    const urgent = want === "charging" || cur.room === "charging" || want === "queue" || ((hasOfficeWork(t) || this.revealedThread === t.id) && (cur.room === "break" || cur.room === "queue")) || (want === "break" && !hasOfficeWork(t) && this.revealedThread !== t.id);
     if (urgent) { this.placed.set(t.id, { room: want }); return want; }
     if (!cur.pending || cur.pending.room !== want) cur.pending = { room: want, since: Date.now() };
     if (Date.now() - cur.pending.since > 20000) { this.placed.set(t.id, { room: want }); return want; }

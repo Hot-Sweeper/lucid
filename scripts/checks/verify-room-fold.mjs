@@ -1,9 +1,10 @@
+// Folding an office is purely visual: robots stay logically seated, nothing walks or re-routes.
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 import { worldSource } from './world-source.mjs';
 const policy = (await transformWithOxc(await readFile(new URL('../../src/office/room-policy.ts', import.meta.url), 'utf8'), 'room-policy.ts')).code;
-const { hasOfficeWork } = await import('data:text/javascript;base64,' + Buffer.from(policy).toString('base64'));
+const { hasOfficeWork, projectRoomSeats } = await import('data:text/javascript;base64,' + Buffer.from(policy).toString('base64'));
 const worldText = await worldSource();
 const settleSource = worldText.slice(worldText.indexOf('  settleRoom('), worldText.indexOf('  constructor(scene:'));
 const settleCode = (await transformWithOxc(`class Placement { placed = new Map(); collapsedRooms = new Set(); revealedThread = null; ${settleSource} }`, 'placement.ts')).code;
@@ -11,10 +12,21 @@ const Placement = new Function('hasOfficeWork', `${settleCode}; return Placement
 const placement = new Placement();
 const active = { id: 'active', runStatus: 'running', settled: false };
 placement.placed.set(active.id, { room: 'p:project' });
-assert.equal(placement.settleRoom(active, 'break'), 'p:project', 'automatic changes retain the stability delay');
 placement.collapsedRooms.add('p:project');
-assert.equal(placement.settleRoom(active, 'break'), 'break', 'explicit collapse evacuates working robots immediately');
-assert.equal(placement.placed.get(active.id).pending, undefined);
-placement.collapsedRooms.delete('p:project');
-assert.equal(placement.settleRoom(active, 'p:project'), 'p:project', 'expand returns active robots immediately');
-console.log('PASS: explicit collapse departure and expansion bypass automatic placement delay.');
+assert.equal(placement.settleRoom(active, 'p:project'), 'p:project', 'a folded office keeps its working robot');
+assert.equal(placement.settleRoom(active, 'break'), 'p:project', 'folding is not a reason to hurry a robot out');
+console.log('PASS: folding keeps robots placed in their office');
+
+const layout = await readFile(new URL('../../src/office/world/layout-pass.ts', import.meta.url), 'utf8');
+const want = layout.slice(layout.indexOf('const want ='), layout.indexOf('\n', layout.indexOf('const want =')));
+assert.ok(!want.includes('collapsedRooms'), 'classification never sends a folded office to the break room');
+const retiring = layout.slice(layout.indexOf('const retiringIds'), layout.indexOf('.map(([id]) => id));', layout.indexOf('const retiringIds')));
+assert.ok(!retiring.includes('collapsedRooms'), 'folding retires no desk');
+const folded = projectRoomSeats(['a', 'b'], [{ id: 'a', runStatus: 'running' }, { id: 'b', runStatus: 'completed' }], false, null, 0, true);
+assert.deepEqual(folded.threads.map(t => t.id), ['a', 'b'], 'folded desks keep their sessions');
+assert.ok(/setDeskFolded\(/.test(layout), 'the layout pass folds desks in place instead of removing them');
+const desks = await readFile(new URL('../../src/office/world/desks.ts', import.meta.url), 'utf8');
+assert.ok(/prefers-reduced-motion|animate/.test(desks) && /folded-away/.test(desks), 'folded desks are hidden, with an optional fold animation');
+const journeys = await readFile(new URL('../../src/office/world/journeys.ts', import.meta.url), 'utf8');
+assert.ok(/plan\.folded/.test(journeys) && /seat && !folded/.test(journeys), 'robots enter and leave a folded office through its door');
+console.log('PASS: collapse and expand are visual only, no evacuation, reassignment or retired desks');

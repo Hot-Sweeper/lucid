@@ -70,8 +70,12 @@ export function remainingDeskExtras(previous: (string | null)[], next: (string |
   return Math.max(0, extra - Math.max(0, occupied(next) - occupied(previous)));
 }
 
+/**
+ * The desks a room holds. Folding an office is purely visual: a folded office keeps every
+ * occupied desk (its robots stay seated at their computers), only its floor is drawn as a
+ * small facade and deliberate spare desks wait until it opens again.
+ */
 export function projectRoomSeats<T extends ActivityThread>(reservations: (string | null)[], threads: T[], expanded: boolean, revealed: string | null, extra = 0, folded = false) {
-  if (folded) return { threads: [] as (T | null)[], slots: 0, collapsed: true };
   const byId = new Map(threads.map((t) => [t.id, t]));
   const placed = reservations.map((id) => {
     const t = id ? byId.get(id) : undefined;
@@ -83,18 +87,19 @@ export function projectRoomSeats<T extends ActivityThread>(reservations: (string
   // tail here; deliberate extra capacity is added after the occupied places.
   // Vacant furniture is explicit. An unused office keeps its Add a desk control,
   // without manufacturing a starter workstation after every removal or restart.
-  const slots = last + 1 + (expanded ? Math.max(0, extra) : 0);
+  const slots = last + 1 + (expanded && !folded ? Math.max(0, extra) : 0);
   const physical: (T | null)[] = Array.from({ length: slots }, (_, i) => placed[i] ?? null);
-  return { threads: physical, slots, collapsed: false };
+  return { threads: physical, slots, collapsed: folded };
 }
 
 /**
  * Snake place of the Add a desk placeholder, or null when there is none. It stands at the
  * next place only while every physical desk is taken (an empty office counts: place 0). A
- * vacant desk already offers that place, so a second empty one would be redundant.
+ * vacant desk already offers that place, so a second empty one would be redundant. The Main
+ * office has none: it only holds the desks the user drags there because they matter now.
  */
-export function addDeskPlace(physical: readonly unknown[], folded = false) {
-  return !folded && physical.every(Boolean) ? physical.length : null;
+export function addDeskPlace(physical: readonly unknown[], folded = false, kind = "") {
+  return kind !== "main" && !folded && physical.every(Boolean) ? physical.length : null;
 }
 
 /** Physical desk k is reservation k. */

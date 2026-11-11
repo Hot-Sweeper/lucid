@@ -168,7 +168,20 @@ assert(!layoutClearAt({x:4020,y:875},oldFloor,newFloor), 'outside actor must cle
   assert(!layoutSafeAt({x:b.x+b.w/2,y:b.y+b.h/2},folded,open), 'expansion waits for floor that becomes the office');
 }
 
-assert.deepEqual(projectRoomSeats(reservations, working, false, null, 0, true), {threads:[],slots:0,collapsed:true}, "explicit collapse hides desks without changing sessions or reservations");
+// Folding is purely visual: the folded office keeps every occupied desk at its own place.
+{
+  const open = projectRoomSeats(reservations, working, true, null, 2), folded = projectRoomSeats(reservations, working, false, null, 2, true);
+  assert.equal(folded.collapsed, true);
+  assert.deepEqual(folded.threads.map(t => t?.id ?? null), open.threads.slice(0, 6).map(t => t?.id ?? null), "a folded office keeps its robots seated at the same desks");
+  assert.equal(folded.slots, 6, "deliberate spare desks wait while the office is folded");
+  assert.equal(JSON.stringify(reservations), snapshot, "folding never changes reservations");
+}
+// The Main office only holds desks dragged there: no Add a desk placeholder, empty or full.
+const busyIds = (...ids) => ids.map(id => ({ id, runStatus: 'running' }));
+assert.equal(addDeskPlace([], false, 'main'), null, 'an empty Main office offers no placeholder');
+assert.equal(addDeskPlace(busyIds('a', 'b'), false, 'main'), null, 'a full Main office offers no placeholder');
+assert.equal(addDeskPlace(busyIds('a'), false, 'project'), 1, 'project offices keep the placeholder');
+assert.equal(addDeskPlace([], false, 'freelance'), 0, 'Freelancers keep the placeholder');
 
 // Every removal closes a continuous snake, including turns at both row ends.
 for (const count of [1, 2, 3, 4, 5, 6, 7, 9, 12]) {
