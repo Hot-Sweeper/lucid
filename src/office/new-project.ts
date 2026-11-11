@@ -39,7 +39,9 @@ export function openNewProject(api: NewProjectApi, opts: { onDone: (title: strin
   const safe = (s: string) => s.trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g, "").replace(/[. ]+$/, "");
   const paint = () => {
     const n = safe(name.value);
-    q("[data-new]").textContent = base ? `${base}${base.endsWith("\\") || base.endsWith("/") ? "" : "\\"}${n || "Name"}` : "";
+    // The folder preview uses the separator the base path already uses (backslash only on Windows).
+    const sep = base.includes("\\") && !base.includes("/") ? "\\" : "/";
+    q("[data-new]").textContent = base ? `${base}${base.endsWith(sep) ? "" : sep}${n || "Name"}` : "";
     q(".np-existing").hidden = mode() !== "existing";
     q("[data-new]").hidden = mode() !== "new";
     q(".np-picked").textContent = picked || "No folder chosen";

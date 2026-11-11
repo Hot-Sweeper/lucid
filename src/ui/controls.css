@@ -18,21 +18,21 @@ button:where(.primary, .ghost), a:where(.primary, .ghost) {
 :where(.primary, .ghost):disabled { opacity: .6; cursor: default; }
 :where(.primary, .ghost)[aria-busy="true"] { cursor: progress; }
 /* An author display rule beats the browser's own [hidden] rule, so hidden controls say it again. */
-button:where(.primary, .ghost, .link-btn, .cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hire-prev, .hire-next)[hidden],
+button:where(.primary, .ghost, .link-btn, .cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hire-close, .sw-close, .wf-close, .project-remove, .hire-prev, .hire-next)[hidden],
 a:where(.primary, .ghost)[hidden] { display: none; }
 button:where(.link-btn) { border: 0; background: none; color: var(--accent-2); padding: var(--space-1) 0; cursor: pointer; font: inherit; font-size: 13px; text-underline-offset: 3px; }
 :where(.link-btn:hover) { text-decoration: underline; }
 
 /* ---- icon buttons: one face for header, chat and dialog actions ---- */
-button:where(.cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hire-prev, .hire-next) {
+button:where(.cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hire-close, .sw-close, .wf-close, .project-remove, .hire-prev, .hire-next) {
   flex: none; width: var(--icon-btn); height: var(--icon-btn); min-width: var(--icon-btn); padding: 0;
   display: inline-grid; place-items: center; border: 0; border-radius: var(--radius-sm);
   background: transparent; color: var(--ink-2); cursor: pointer;
   transition: background-color var(--dur-hover) var(--ease-out-strong), color var(--dur-hover) var(--ease-out-strong), transform var(--dur-press) var(--ease-out-strong);
 }
-:where(.cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hire-prev, .hire-next):hover:not(:disabled),
+:where(.cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hire-close, .sw-close, .wf-close, .project-remove, .hire-prev, .hire-next):hover:not(:disabled),
 :where(.brand .brand-actions > button[aria-expanded="true"]:not(.side-hide)) { background: color-mix(in srgb, var(--ink) 9%, transparent); color: var(--ink); }
-:where(.cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hire-prev, .hire-next):active:not(:disabled) { transform: scale(.94); }
+:where(.cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hire-close, .sw-close, .wf-close, .project-remove, .hire-prev, .hire-next):active:not(:disabled) { transform: scale(.94); }
 :where(.cp-icon.on) { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent-2); }
 /* small remove buttons on chips: a 22px face inside a 28px hit area */
 :where(.cp-chip > button:not(.cp-file-preview)) { position: relative; flex: none; width: 22px; height: 22px; padding: 0; display: grid; place-items: center; border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink-3); cursor: pointer; transition: background-color var(--dur-hover) var(--ease-out-strong), color var(--dur-hover) var(--ease-out-strong); }
@@ -54,7 +54,7 @@ button:where(.cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hi
 
 /* ---- fields ---- */
 :where(textarea, .pm-form input, .np-field input) {
-  border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--night);
+  border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--field-fill);
   transition: border-color var(--dur-hover) var(--ease-out-strong);
 }
 :where(.pm-form input, .np-field input) { padding: 7px 10px; font: 400 14px var(--font); color: var(--ink); }
@@ -78,19 +78,19 @@ button:where(.cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hi
 :where(.game-volume, .cz-range) input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 55%, transparent); }
 
 /* ---- selects: one quiet field look (Office & settings, radio, orchestrator, hire) ---- */
-:where(.game-language, .office-radio, .orch-control) select {
+:where(.game-language, .office-radio, .orch-control, .hire-field) select {
   min-height: var(--control-h); padding: 0 8px; border: 1px solid var(--line); border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); font: 400 13px var(--font); cursor: pointer;
+  background: var(--field-fill); color: var(--ink); font: 400 13px var(--font); cursor: pointer;
   transition: background-color var(--dur-hover) var(--ease-out-strong), border-color var(--dur-hover) var(--ease-out-strong);
 }
-:where(.game-language, .office-radio, .orch-control) select:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
-:where(.game-language, .office-radio, .orch-control) select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-:where(.game-language, .office-radio, .orch-control) select option { background: var(--night-3); color: var(--ink); }
+:where(.game-language, .office-radio, .orch-control, .hire-field) select:hover:enabled { background: var(--field-fill-hover); }
+:where(.game-language, .office-radio, .orch-control, .hire-field) select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:where(.game-language, .office-radio, .orch-control, .hire-field) select option { background: var(--night-3); color: var(--ink); }
 
 @media (prefers-reduced-motion: reduce) {
   :where(.game-volume, .cz-range) input[type="range"]::-webkit-slider-thumb { transition: none; transform: none !important; }
-  :where(.primary, .ghost, .cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hire-prev, .hire-next, .cp-chip > button) { transition: none; }
-  :where(.primary, .ghost, .cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hire-prev, .hire-next, .cp-attach, .cp-send):active { transform: none; }
+  :where(.primary, .ghost, .cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hire-close, .sw-close, .wf-close, .project-remove, .hire-prev, .hire-next, .cp-chip > button) { transition: none; }
+  :where(.primary, .ghost, .cp-icon, .cp-close, .brand .brand-actions > button, .np-close, .hire-close, .sw-close, .wf-close, .project-remove, .hire-prev, .hire-next, .cp-attach, .cp-send):active { transform: none; }
   .wx-menu { animation: ui-fade-in 150ms linear; }
 }
 @keyframes ui-fade-in { from { opacity: 0; } }

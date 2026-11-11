@@ -38,9 +38,6 @@
   --mt-panel: #000000;
   --mt-shot: #0a0a0a;
   --mt-shot-line: rgba(255, 255, 255, 0.12);
-  --mt-chip-settled: #222225;
-  --mt-chip-kept: #222225;
-  --mt-remove: #222225;
   --mt-viewer-scrim: rgba(0, 0, 0, 0.88);
 }
 

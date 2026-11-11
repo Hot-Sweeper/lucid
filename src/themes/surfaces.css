@@ -52,9 +52,6 @@ html:root[data-theme] .monitor-task-panel,
 html:root[data-theme] .mt-far,
 html:root[data-theme] .monitor-task-question .ca-actions { background: var(--mt-panel); }
 html:root[data-theme] .mt-shot { background: var(--mt-shot); border-color: var(--mt-shot-line); }
-html:root[data-theme] .mt-chip[data-state="settled"] { background: var(--mt-chip-settled); }
-html:root[data-theme] .mt-chip[data-state="kept"] { background: var(--mt-chip-kept); }
-html:root[data-theme] .mt-actions > .monitor-task-collect.mt-remove { background: var(--mt-remove); }
 html:root[data-theme] .mt-image-viewer::backdrop { background: var(--mt-viewer-scrim); }
 
 /* ---- The office world (lighting; the art itself follows registry.ts world settings) ------- */

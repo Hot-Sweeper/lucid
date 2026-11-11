@@ -29,7 +29,7 @@ export function openOrchestratorSetup(orch: Orchestrator, onHired: (threadId: st
     <label class="switch"><input type="checkbox" data-review checked><span class="track" aria-hidden="true"><i></i></span><span>Review finished work for me</span></label>
     <label class="switch"><input type="checkbox" data-auto checked><span class="track" aria-hidden="true"><i></i></span><span>Answer routine questions for me</span></label>
     <p class="form-msg" data-msg role="status"></p>
-    <div class="dialog-actions"><button type="button" class="ghost" data-retry hidden>Retry</button><button type="submit" class="primary" data-hire disabled>Hire orchestrator</button><button type="button" class="ghost" data-close>Cancel</button></div>
+    <div class="dialog-actions"><button type="button" class="ghost" data-retry hidden>Retry</button><button type="button" class="ghost" data-close>Cancel</button><button type="submit" class="primary" data-hire disabled>Hire orchestrator</button></div>
   </form>`;
   const form = wrap.querySelector<HTMLFormElement>("form")!;
   const provider = form.querySelector<HTMLSelectElement>("[data-provider]")!, model = form.querySelector<HTMLSelectElement>("[data-model]")!;

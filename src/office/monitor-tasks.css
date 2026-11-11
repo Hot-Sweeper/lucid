@@ -33,8 +33,9 @@
 .monitor-task-result.mt-done { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 22px; align-items: start; justify-content: stretch; min-height: 0; padding: 16px 26px 12px; }
 .mt-main { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .mt-state { margin: 0; font-size: 15px; color: var(--ink-2, #c3c4dc); }
-.mt-chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-weight: 600; background: #2c5a46; color: #c9f2dc; }
-.mt-chip[data-state="stopped"] { background: #5a4424; color: #ffe0b0; }
+/* the shared status word and icon (ui/status.ts), never a coloured capsule */
+.mt-chip { display: inline-block; font-weight: 600; }
+.mt-chip[data-state="stopped"] { color: #ffcf8a; }
 .mt-task { margin: 2px 0 0; font-size: 16px; line-height: 1.4; color: var(--ink-2, #c3c4dc); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .mt-label { margin: 6px 0 0; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #9aa0c8; }
 .mt-report { margin: 0; max-height: 196px; overflow: auto; font-size: 17px; line-height: 1.5; white-space: pre-line; color: var(--ink, #f1edff); overscroll-behavior: contain; }
@@ -80,8 +81,9 @@
 /* A kept desk (settled and collected): calm, and its one action is to remove the desk. */
 .mt-far[data-state="kept"] b { color: #cfe0ff; }
 .mt-far[data-state="kept"] span { color: #9fb3d6; }
-.mt-actions > .monitor-task-collect.mt-remove { background: #2c3550; color: #e6ecff; box-shadow: inset 0 0 0 1px #46557a; }
-.mt-actions > .monitor-task-collect.mt-remove:hover { background: #3a2a3a; color: #ffd6dc; box-shadow: inset 0 0 0 1px #8a4a5a; }
+/* Removing a desk is destructive: it reads in the danger colour, quietly until hovered. */
+.mt-actions > .monitor-task-collect.mt-remove { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 45%, transparent); }
+.mt-actions > .monitor-task-collect.mt-remove:hover { background: color-mix(in srgb, var(--danger) 26%, transparent); }
 
 /* Questions use the whole monitor; only unusually long content scrolls. Actions
    are outside that scroll area, so answering never requires finding the footer. */

@@ -7,7 +7,7 @@
 .monitor-task-done .monitor-task-result.mt-done { display: block; padding: 18px 26px 26px; }
 .monitor-task-done .mt-main { gap: var(--mt-gap); }
 .monitor-task-done .mt-state { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
-.monitor-task-done .mt-chip { background: transparent; padding: 0; border-radius: 0; color: var(--ink); font-weight: 600; }
+.monitor-task-done .mt-chip { color: var(--ink); }
 /* Keep the same state colors as the distant monitor sign at reading distance. */
 .monitor-task-done .mt-chip[data-state="stopped"] { color: #ffcf8a; }
 .monitor-task-done .mt-chip .ui-status { gap: 8px; }
@@ -59,7 +59,6 @@
 }
 @media (prefers-reduced-motion: reduce) { .monitor-task-done :is(.mt-shot,.mt-shot-thumb) { transition: none; } }
 
-.monitor-task-done .mt-chip[data-state] { background: transparent; }
 
 .mt-result-layout { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); align-items: start; gap: 24px; }
 .mt-written { min-width: 0; display: flex; flex-direction: column; gap: 12px; }

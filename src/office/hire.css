@@ -1,9 +1,9 @@
 .hire-wrap { padding: 20px; }
-.hire-wrap > .dialog.hire { --hire-ease: cubic-bezier(.23, 1, .32, 1); --hire-control: 38px; --hire-control-line: color-mix(in srgb, var(--ink-3) 78%, var(--night-2)); width: min(980px, 100%); max-height: calc(100dvh - 40px); padding: 0; gap: 0; overflow: hidden; border-radius: var(--radius-lg); background: var(--night-2); }
+.hire-wrap > .dialog.hire { --hire-ease: cubic-bezier(.23, 1, .32, 1); --hire-control: 38px; width: min(980px, 100%); max-height: calc(100dvh - 40px); padding: 0; gap: 0; overflow: hidden; border-radius: var(--radius-xl); background: var(--ui-raised); }
 .hire-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 26px 30px 22px; flex: none; }
-.hire h2 { font-size: 24px; font-weight: 650; letter-spacing: -0.025em; }
+.hire h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
 .hire p.hire-sub { margin: 5px 0 0; font-size: 12px; color: var(--ink-2); }
-.hire .hire-close { padding: 0; width: 32px; height: 32px; font-size: 24px; line-height: 1; }
+.hire .hire-close { margin: -4px -6px 0 0; }
 .hire-body { min-height: 0; overflow-y: auto; padding: 0 30px 18px; overscroll-behavior: contain; scrollbar-gutter: stable; display: grid; grid-template-columns: 210px minmax(0, 1fr); grid-auto-rows: max-content; gap: 30px; align-items: start; flex: 1; }
 .hire-main { min-width: 0; }
 .hire-stage { position: sticky; top: 0; display: flex; flex-direction: column; background: transparent; border-radius: 0; overflow: hidden; }
@@ -19,13 +19,13 @@
 .hire .hire-nowrap { display: inline-block; max-width: 100%; overflow-wrap: anywhere; vertical-align: bottom; }
 .hire-worker-pick button { display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; border-radius: var(--radius-sm); }
 .hire-worker-count { min-width: 44px; text-align: center; font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.hire-composer { background: var(--night); border: 1px solid transparent; border-radius: var(--radius-md); transition: border-color 140ms var(--hire-ease), background-color 140ms var(--hire-ease); }
+.hire-composer { background: var(--field-fill); border: 1px solid var(--line); border-radius: var(--radius-md); transition: border-color 140ms var(--hire-ease), background-color 140ms var(--hire-ease); }
 .hire-composer:focus-within, .hire-composer.file-over { border-color: var(--accent); }
-.hire-composer.file-over { background: var(--night-2); }
+.hire-composer.file-over { background: var(--field-fill-hover); }
 .hire .hire-task { gap: 0; padding: 16px 18px 0; }
 .hire .hire-task > span { color: var(--ink-2); font-size: 12px; font-weight: 500; }
 .hire .hire-label { color: var(--ink-2); font-size: 12px; }
-.hire .hire-task textarea { min-height: 150px; max-height: 320px; height: 172px; padding: 12px 0; border: 0; border-radius: 0; background: transparent; font-size: 16px; line-height: 1.55; resize: vertical; outline: none; }
+.hire .hire-task textarea { min-height: 150px; max-height: 320px; height: 172px; padding: 10px 0; border: 0; border-radius: 0; background: transparent; font-size: 15px; line-height: 1.55; resize: vertical; outline: none; }
 .hire-composer-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px 12px; }
 .hire-composer-tools > span { font-size: 11px; color: var(--ink-2); }
 .hire .hire-attach { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; padding: 7px 10px; }
@@ -33,9 +33,8 @@
 .hire-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1 1 90px; }
 .hire-field > span { color: var(--ink-2); font-size: 12px; }
 .hire-field:has([data-setting="model"]) { flex-grow: 2; flex-basis: 160px; }
-.hire-field select { width: 100%; min-width: 0; max-width: 100%; min-height: var(--hire-control); font: 400 13px var(--font); color: var(--ink); color-scheme: dark; background: var(--night-3); border: 1px solid var(--hire-control-line); border-radius: var(--radius-sm); padding: 6px 24px 6px 8px; text-overflow: ellipsis; cursor: pointer; }
+.hire-field select { width: 100%; min-width: 0; max-width: 100%; min-height: var(--hire-control); padding: 6px 24px 6px 8px; text-overflow: ellipsis; }
 .hire-field select:disabled { opacity: 0.6; cursor: default; }
-.hire-field option { color: var(--ink); background: var(--night-2); }
 .hire .hire-runtime-note { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; min-height: 30px; padding: 7px 2px 0; }
 .hire .hire-runtime { color: var(--ink-2); font-size: 11px; line-height: 1.6; }
 .hire .link-btn { font-size: 11px; padding: 3px 0; text-align: left; }
@@ -47,7 +46,7 @@
 .hire-role-body { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; padding-top: 8px; }
 .hire-role-body > .hire-field { max-width: 260px; }
 .hire .role-new { flex-basis: 100%; }
-.hire .role-new input, .hire .role-new textarea { width: 100%; background: var(--night); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 12px; margin-bottom: 6px; }
+.hire .role-new input, .hire .role-new textarea { width: 100%; background: var(--field-fill); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 12px; margin-bottom: 6px; }
 .hire .hire-attachments { padding: 0 16px; }
 .hire .hire-attachments:empty { display: none; }
 .hire .hire-attachments > div { gap: 8px; border-top: 1px solid var(--line); padding: 7px 0; }
@@ -98,9 +97,9 @@
 .hire-harness img { object-fit: contain; flex: none; }
 .hire-harness small { display: block; font-size: 11px; }
 .hire-harness-check { visibility: hidden; flex: none; color: var(--accent); }
-.hire-harness input:checked + span { background: var(--night-3); color: var(--ink); }
+.hire-harness input:checked + span { background: var(--field-fill-hover); color: var(--ink); }
 .hire-harness input:checked + span .hire-harness-check { visibility: visible; }
-.hire-harness:hover > span { background: var(--night-3); color: var(--ink); }
+.hire-harness:hover > span { background: var(--field-fill); color: var(--ink); }
 .hire-harness input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 .hire-harness:has(input:disabled) { cursor: default; }
 .hire-harness input:disabled + span { opacity: .6; }

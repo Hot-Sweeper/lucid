@@ -18,6 +18,8 @@
   --coin-ink: #ffd27a;      /* coin amounts and other gold text */
   --link: var(--accent-2);  /* links in chat text: the accent, like every other link */
   --link-hover: #ffd9b8;
+  --field-fill: color-mix(in srgb, var(--ink) 6%, transparent);        /* inputs and selects on any panel */
+  --field-fill-hover: color-mix(in srgb, var(--ink) 10%, transparent);
   --mono-logo-filter: none; /* one-colour harness logos are drawn white for dark surfaces */
   /* spacing, radii, control sizes and motion shared by every control (src/ui/controls.css) */
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;

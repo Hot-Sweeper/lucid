@@ -50,9 +50,6 @@
   --mt-panel: var(--t3-canvas);
   --mt-shot: var(--t3-surface);
   --mt-shot-line: var(--t3-border);
-  --mt-chip-settled: var(--t3-secondary);
-  --mt-chip-kept: var(--t3-secondary);
-  --mt-remove: var(--t3-secondary);
   --mt-viewer-scrim: color-mix(in srgb, var(--t3-canvas) 88%, transparent);
 
   /* the office world: real time-of-day light with a gentler night, so the park and rooms stay

@@ -22,6 +22,7 @@
 .project-calendar-entry { display:grid; grid-template-columns:minmax(0,1fr) 32px; gap:8px; margin:14px 0; }
 .project-calendar-entry input[data-event-title] { grid-column:1/-1; }
 .project-office button { min-height:36px; transition:background 130ms,transform 130ms; }
+.project-office .project-remove { min-height:var(--icon-btn); }
 .project-office button:active { transform:scale(.98); }
 .project-office :is(button,input):focus-visible,.project-office-prop:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 .project-office-banner input:focus-visible { outline-color:#302c45; }
