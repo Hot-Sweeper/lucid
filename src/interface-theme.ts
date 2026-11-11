@@ -25,8 +25,6 @@ const apply = (chosen: ThemeDef) => {
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme.metaColor);
   // The office relights and redraws its grounds for the new theme (world.ts).
   window.dispatchEvent(new Event("lucid:interface-theme"));
-  // Far robots drawn on canvas cache their resolved colours until their SVG's class changes.
-  for (const svg of document.querySelectorAll("svg.robot")) { svg.classList.add("theme-swap"); svg.classList.remove("theme-swap"); }
 };
 
 const transition = (swap: () => void) => {

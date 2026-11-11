@@ -34,3 +34,21 @@ export function resetCountdown(resetsAt: string | null | undefined, now = Date.n
 }
 
 export const PACE_TEXT: Record<Pace, string> = { ahead: "ahead of pace", on: "on pace", under: "under pace" };
+
+/** People read limits either way: how much is used (the bar fills up) or how much is left
+ * (the bar counts down). Both views show the same reading. */
+export type LimitView = "used" | "left";
+
+/** What a limit row shows for a known reading: bar fill, pace mark position (both 0 to 100,
+ * measured from the bar's start) and the percentage words. `used` is 0 to 100. */
+export function limitReading(used: number, elapsed: number | null, view: LimitView) {
+  const usedWhole = Math.round(used);
+  if (view === "left") {
+    const left = 100 - usedWhole;
+    // Even pace leaves the unelapsed share of the window; the mark sits there on the countdown bar.
+    return { fill: 100 - used, value: left, mark: elapsed === null ? null : 100 - elapsed * 100, text: `${left}% left`,
+      pace: elapsed === null ? "" : `Even pace would leave ${Math.round(100 - elapsed * 100)}% by now` };
+  }
+  return { fill: used, value: usedWhole, mark: elapsed === null ? null : elapsed * 100, text: `${usedWhole}% used`,
+    pace: elapsed === null ? "" : `Even pace would be ${Math.round(elapsed * 100)}% used by now` };
+}

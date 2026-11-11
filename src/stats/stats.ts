@@ -3,7 +3,7 @@
 // Data comes from electron/usage.cjs through the `load` callback.
 import "./stats.css";
 import { logoFor, harnessName } from "../robot";
-import { elapsedShare, pace, resetCountdown, duration, PACE_TEXT } from "./limit-pace";
+import { elapsedShare, pace, resetCountdown, duration, limitReading, PACE_TEXT, type LimitView } from "./limit-pace";
 
 export type Limit = {
   /** A local fallback reading may be merged into a T3 provider window. */
@@ -121,10 +121,12 @@ export type StatsOptions = {
   useResetCredit?: (instanceId: string) => Promise<{ outcome: string; message: string; warning?: string | null }>;
   /** Whether the T3 session may already manage providers, so the confirmation can say if it asks. */
   canManageProviders?: () => Promise<boolean>;
+  /** Show limits as used (filling up) or left (counting down). */
+  limitView?: LimitView;
 };
 type ModelRow = { root: HTMLElement; name: HTMLElement; tokens: HTMLElement; cost: HTMLElement };
 
-export function mountStats(host: HTMLElement, load: () => Promise<Usage>, options: StatsOptions = {}): { refresh(): void; destroy(): void } {
+export function mountStats(host: HTMLElement, load: () => Promise<Usage>, options: StatsOptions = {}): { refresh(): void; destroy(): void; setLimitView(view: LimitView): void } {
   const root = el("div", "st");
   root.setAttribute("aria-live", "off");
 
@@ -194,6 +196,7 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
   let timer: ReturnType<typeof setInterval> | null = null;
   let destroyed = false;
   let loading = false;
+  let view: LimitView = options.limitView === "left" ? "left" : "used";
 
   function limitRow(key: string): LimitRow {
     let r = limitRows.get(key);
@@ -393,20 +396,25 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
       setText(r.reset, countdown ? `usage unavailable, ${countdown}` : "usage unavailable");
       detail = r.reset.textContent || "";
     } else {
-      r.fill.style.width = `${used}%`;
-      setText(r.pct, `${Math.round(used)}%`);
+      detail = "";
+    }
+    const reading = limitReading(used, elapsed, view);
+    if (known && !l.stale) {
+      r.fill.style.width = `${reading.fill}%`;
+      setText(r.pct, reading.text);
       setText(r.reset, resetCountdown(l.resetsAt, now) || (l.resetsAt ? `resets ${when(l.resetsAt)}` : ""));
-      detail = `${Math.round(used)}% used${r.reset.textContent ? `, ${r.reset.textContent}` : ""}${l.resetsAt ? ` (${when(l.resetsAt)})` : ""}`;
+      detail = `${reading.text}${r.reset.textContent ? `, ${r.reset.textContent}` : ""}${l.resetsAt ? ` (${when(l.resetsAt)})` : ""}`;
     }
     const p = elapsed === null ? null : pace(used, elapsed);
-    r.tick.hidden = elapsed === null;
-    if (elapsed !== null) r.tick.style.left = `${elapsed * 100}%`;
+    r.tick.hidden = reading.mark === null;
+    if (reading.mark !== null) r.tick.style.left = `${reading.mark}%`;
     setText(r.pace, p ? PACE_TEXT[p] : "");
-    if (p && elapsed !== null) detail += `. Even pace would be ${Math.round(elapsed * 100)}% by now: ${PACE_TEXT[p]}`;
+    if (p) detail += `. ${reading.pace}: ${PACE_TEXT[p]}`;
     for (const k of ["ahead", "on", "under"] as const) r.root.classList.toggle(`st-${k}`, p === k);
     r.root.classList.toggle("st-stale", !!l.stale || !known);
     r.root.classList.toggle("st-high", known && !l.stale && used >= 90);
-    r.bar.setAttribute("aria-valuenow", String(Math.round(used)));
+    r.bar.setAttribute("aria-valuenow", String(known && !l.stale ? reading.value : 0));
+    r.bar.setAttribute("aria-valuetext", known && !l.stale ? reading.text : r.pct.textContent || "unavailable");
     r.bar.setAttribute("aria-label", `${r.name.textContent}: ${detail}`);
     r.root.title = `${r.name.textContent}: ${detail}\n${where}`;
   }
@@ -523,6 +531,11 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
 
   return {
     refresh: () => void refresh(),
+    setLimitView(next) {
+      if (next === view) return;
+      view = next;
+      if (last && !document.hidden) renderLimits(last);
+    },
     destroy() {
       destroyed = true;
       if (timer) clearInterval(timer);

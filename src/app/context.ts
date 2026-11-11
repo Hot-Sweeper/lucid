@@ -116,6 +116,7 @@ export interface App {
         chatW?: number;
         sideAuto?: boolean;
         chatAuto?: boolean;
+        limitView?: "used" | "left";
     };
 };
   ui: {
@@ -126,6 +127,7 @@ export interface App {
     chatW?: number;
     sideAuto?: boolean;
     chatAuto?: boolean;
+    limitView?: "used" | "left";
 };
   folded: Set<string>;
   appEl: HTMLElement;

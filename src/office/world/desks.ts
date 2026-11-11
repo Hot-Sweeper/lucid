@@ -43,8 +43,11 @@ export class WorldDesks {
   makeDeskGhost(this: World, room: string) {
     const b = document.createElement("button");
     b.type = "button"; b.className = "desk-ghost"; b.title = "Add a desk";
+    // One dashed outline round a faint screen, stand and desk top, so the ghost reads as one
+    // workstation (two separate dashed boxes looked like two placeholders, especially from afar).
     b.innerHTML = `<svg viewBox="0 0 332 264" width="332" height="264" aria-hidden="true" focusable="false">
-      <g class="dg-frame"><rect x="21.5" y="1.5" width="289" height="169" rx="12"/><path d="M166 172v12"/><rect x="1.5" y="177.5" width="329" height="76" rx="8"/></g>
+      <rect class="dg-frame" x="1.5" y="1.5" width="329" height="252" rx="14"/>
+      <g class="dg-ghost"><rect x="30" y="12" width="272" height="150" rx="10"/><rect x="152" y="162" width="28" height="14"/><rect x="12" y="176" width="308" height="66" rx="8"/></g>
       <g class="dg-plus"><circle cx="166" cy="86" r="30"/><path d="M166 73v26M153 86h26"/></g>
     </svg><span aria-hidden="true">Add a desk</span>`;
     b.addEventListener("click", (e) => { e.stopPropagation(); this.addDeskFromGhost(room); });

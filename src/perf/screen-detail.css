@@ -24,7 +24,7 @@
 [data-screen-detail] .os-clock { visibility: hidden; }
 [data-screen-detail] .os-clock::after {
   content: ''; visibility: visible; position: absolute; left: 8px; right: 8px;
-  top: 50%; height: 3px; border-radius: 2px; background: #c9cdf5; opacity: .6;
+  top: 50%; height: 3px; border-radius: 2px; background: currentColor; opacity: .6;
 }
 [data-screen-detail] .toast span { position: relative; visibility: hidden; }
 [data-screen-detail="lines"] .toast span::after {

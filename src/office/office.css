@@ -287,12 +287,13 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 /* Add a desk placeholder (office/world/desks.ts placeDeskGhosts): a faint dashed ghost of the next workstation. */
 .desk-ghost { --dg-ease:cubic-bezier(.23,1,.32,1); position:absolute; box-sizing:border-box; padding:0; border:0; border-radius:14px; background:none; color:var(--wd-ghost-ink, #4f3219); font:600 18px/1 var(--font); cursor:pointer; touch-action:manipulation; transition:transform 140ms var(--dg-ease); }
 .desk-ghost > svg { position:absolute; inset:0; overflow:visible; pointer-events:none; }
-.desk-ghost .dg-frame { fill:var(--wd-ghost-fill, rgba(255, 246, 226, .28)); stroke:var(--wd-ghost-line, #6b4a2c); stroke-width:3; stroke-dasharray:12 9; stroke-linecap:round; opacity:.5; transition:opacity 140ms var(--dg-ease); }
+.desk-ghost .dg-frame { fill:none; stroke:var(--wd-ghost-line, #6b4a2c); stroke-width:3; stroke-dasharray:12 9; stroke-linecap:round; stroke-linejoin:round; opacity:.5; transition:opacity 140ms var(--dg-ease); }
+.desk-ghost .dg-ghost { fill:var(--wd-ghost-fill, rgba(255, 246, 226, .28)); opacity:.6; transition:opacity 140ms var(--dg-ease); }
 .desk-ghost .dg-plus { opacity:.85; transition:opacity 140ms var(--dg-ease); }
 .desk-ghost .dg-plus circle { fill:var(--wd-ghost-fill, rgba(255, 246, 226, .28)); stroke:currentColor; stroke-width:3; transition:fill 140ms var(--dg-ease); }
 .desk-ghost .dg-plus path { fill:none; stroke:currentColor; stroke-width:4; stroke-linecap:round; }
 .desk-ghost > span { position:absolute; left:0; right:0; top:205px; text-align:center; white-space:nowrap; pointer-events:none; }
-.desk-ghost:not(:disabled):is(:hover, :focus-visible, .is-pending) :is(.dg-frame, .dg-plus) { opacity:1; }
+.desk-ghost:not(:disabled):is(:hover, :focus-visible, .is-pending) :is(.dg-frame, .dg-ghost, .dg-plus) { opacity:1; }
 .desk-ghost:not(:disabled):is(:hover, :focus-visible, .is-pending) .dg-plus circle { fill:color-mix(in srgb, var(--accent, #ff9f5a) 32%, transparent); }
 .desk-ghost:focus-visible { outline:3px solid var(--accent, #ff9f5a); outline-offset:6px; }
 .desk-ghost:not(:disabled):active, .desk-ghost.is-pending { transform:scale(.97); }

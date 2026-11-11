@@ -38,6 +38,9 @@ export const canvasRobotsWanted = (scale: number) => enabled && monitorPx(scale)
 const all = new Set<RobotCanvas>();
 /** The camera crossed a level or settled: switch and resharpen every robot now. */
 export function syncRobotCanvases(scale: number) { for (const r of all) r.sync(scale); }
+// A theme or T3 palette change recolours every robot through inherited variables, which no
+// observer on the robot sees. Resting robots do not redraw, so rebuild them all here.
+if (typeof window !== "undefined") window.addEventListener("lucid:interface-theme", () => { for (const r of all) r.restyle(); });
 
 // ---- shared caches ---------------------------------------------------------------------------
 const matrices = new Map<string, DOMMatrix>();
@@ -78,12 +81,27 @@ export function svgMatrix(value: string | null) {
 }
 const path2d = (d: string) => { let p = paths.get(d); if (!p) { p = new Path2D(d); paths.set(d, p); } return p; };
 
-/** Replace var(--x, fallback) with the robot's own colors, innermost first. */
+/** Replace var(--x, fallback) with the robot's own colors, innermost first. A fallback may itself
+ * hold parentheses once its inner var() is resolved (a computed colour is often color(srgb ...)). */
 export function resolveVars(text: string, lookup: (name: string) => string) {
-  let prev = "";
-  while (prev !== text && text.includes("var(")) {
-    prev = text;
-    text = text.replace(/var\(\s*(--[\w-]+)\s*(?:,\s*([^()]*))?\)/g, (_, name: string, fallback?: string) => lookup(name) || (fallback ?? "").trim());
+  for (let from = text.length; from >= 0;) {
+    const at = text.lastIndexOf("var(", from);
+    if (at < 0) break;
+    from = at - 1;
+    // the last var( holds no other var(; find its closing parenthesis and top-level comma
+    let depth = 1, end = at + 4, comma = -1;
+    for (; end < text.length && depth; end++) {
+      const ch = text[end];
+      if (ch === "(") depth++;
+      else if (ch === ")") depth--;
+      else if (ch === "," && depth === 1 && comma < 0) comma = end;
+    }
+    if (depth) continue;   // unbalanced: leave it as it is
+    const close = end - 1;
+    const name = text.slice(at + 4, comma < 0 ? close : comma).trim();
+    if (!name.startsWith("--")) continue;
+    const value = lookup(name) || (comma < 0 ? "" : text.slice(comma + 1, close).trim());
+    text = text.slice(0, at) + value + text.slice(end);
   }
   return text;
 }
@@ -112,8 +130,15 @@ function measureBox(markup: string, defs: string): Box | null {
   return box;
 }
 
-function picture(markup: string, defs: string, box: Box, density: number) {
-  const key = `${density}|${markup}`;
+/** Short fingerprint of a robot's resolved gradients and clip paths. */
+function fingerprint(text: string) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return `${(h >>> 0).toString(36)}.${text.length}`;
+}
+
+function picture(id: string, markup: string, defs: string, box: Box, density: number) {
+  const key = `${density}|${id}`;
   let p = pictures.get(key);
   if (p) { p.used = performance.now(); return p; }
   const w = Math.max(1, Math.ceil(box.w * density)), h = Math.max(1, Math.ceil(box.h * density));
@@ -134,7 +159,7 @@ const INHERITED = ["fill", "stroke", "stroke-width", "stroke-linecap", "stroke-l
 function inheritedFrom(parent: Element | null, stop: Element) {
   const out: Record<string, string> = {};
   for (let e = parent; e && e !== stop.parentElement; e = e.parentElement) {
-    for (const a of INHERITED) if (!(a in out)) { const v = e.getAttribute(a); if (v != null) out[a] = v; }
+    for (const a of INHERITED) if (!(a in out)) { const v = (e as SVGElement).style?.getPropertyValue(a) || e.getAttribute(a); if (v) out[a] = v; }
     if (e === stop) break;
   }
   return out;
@@ -158,6 +183,7 @@ export class RobotCanvas {
   private active = false;
   private dead = false;
   private failed = false;
+  private scale = 1;
   private live = new WeakSet<Element>();
   private inherit = new WeakMap<Element, Record<string, string>>();
   private structure: MutationObserver;
@@ -198,6 +224,7 @@ export class RobotCanvas {
   /** Called after the rig has drawn: show and paint the canvas when zoomed out, else the SVG. */
   frame(wanted: boolean, scale: number) {
     if (this.dead) return;
+    this.scale = scale;
     if (!wanted || this.failed) { this.show(false); return; }
     const density = pixelRatioBucket(scale * (window.devicePixelRatio || 1));
     if (this.dirty && !this.building) void this.build(density);
@@ -211,6 +238,7 @@ export class RobotCanvas {
    * when zoomed in, or paint the current pose at the right resolution when zoomed out. */
   sync(scale: number) {
     if (this.dead) return;
+    this.scale = scale;
     const wanted = canvasRobotsWanted(scale) && this.allowed() && !this.failed;
     if (!wanted) { this.show(false); return; }
     const density = pixelRatioBucket(scale * (window.devicePixelRatio || 1));
@@ -218,6 +246,13 @@ export class RobotCanvas {
     if (!this.ready || !this.tree) return;
     if (density !== this.density && !this.building) void this.resample(density);
     if (!this.active) { this.paint(); this.show(true); }
+  }
+
+  /** Colours changed from outside the robot (theme): resolve them again and repaint. */
+  restyle() {
+    if (this.dead) return;
+    this.vars.clear(); this.colors.clear(); this.failed = false; this.dirty = true;
+    this.sync(this.scale);
   }
 
   /** Whether the canvas (not the SVG) is what is on screen. */
@@ -298,6 +333,7 @@ export class RobotCanvas {
       this.density = density;
       this.ready = true;
       this.resize();
+      this.present();
     } finally { this.building = false; }
   }
   private async resample(density: number) {
@@ -307,10 +343,18 @@ export class RobotCanvas {
       if (this.dead || this.dirty) return;
       this.density = density;
       this.resize();
+      this.present();
     } finally { this.building = false; }
   }
+  /** New pictures are ready: a robot that is resting (no draws of its own) shows them now. */
+  private present() {
+    if (this.dead || this.failed || !this.tree) return;
+    if (!this.active && !(canvasRobotsWanted(this.scale) && this.allowed())) return;
+    this.paint();
+    this.show(true);
+  }
   private async load(pics: Pic[], density: number) {
-    const results = await Promise.all(pics.map((p) => picture(p.markup, this.defs, p.box, density).promise));
+    const results = await Promise.all(pics.map((p) => picture(p.key, p.markup, this.defs, p.box, density).promise));
     if (results.some((r) => !r)) this.failed = true;   // something only the SVG can draw: keep showing it
   }
   private resize() {
@@ -380,7 +424,10 @@ export class RobotCanvas {
     if (/<image[^>]*href="(?!data:)/.test(markup) || markup.includes("<foreignObject")) return false;
     const box = measureBox(markup, this.defs);
     if (!box) return null;   // nothing visible (for now); a change rebuilds
-    const pic: Pic = { kind: "pic", el, els, key: markup, box, markup };
+    // A part filled from the robot's defs (the head and body gradients) looks different whenever
+    // those resolved colours do (brand, look, theme), though its own markup is unchanged.
+    const key = /url\(#/.test(markup) ? `${fingerprint(this.defs)}|${markup}` : markup;
+    const pic: Pic = { kind: "pic", el, els, key, box, markup };
     this.pics.push(pic);
     return pic;
   }
@@ -431,7 +478,11 @@ export class RobotCanvas {
     return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 1;
   }
 
-  private attr(el: Element, name: string) { return el.getAttribute(name) ?? this.inherit.get(el)?.[name] ?? null; }
+  /** A presentation value as the SVG resolves it: inline style first (the model plate's tier rim
+   * is a style), then the attribute, then what the element inherits. */
+  private attr(el: Element, name: string) {
+    return (el as SVGElement).style?.getPropertyValue(name) || el.getAttribute(name) || this.inherit.get(el)?.[name] || null;
+  }
 
   private paint() {
     const ctx = this.ctx, d = this.density;
@@ -461,7 +512,7 @@ export class RobotCanvas {
     }
   }
   private paintPic(p: Pic) {
-    const entry = pictures.get(`${this.density}|${p.markup}`) ?? null;
+    const entry = pictures.get(`${this.density}|${p.key}`) ?? null;
     const bitmap = entry?.bitmap ?? this.anyDensity(p);
     if (!bitmap) return;
     if (entry) entry.used = performance.now();
@@ -469,7 +520,7 @@ export class RobotCanvas {
   }
   /** While a new resolution loads, draw the picture from any resolution that exists. */
   private anyDensity(p: Pic) {
-    for (const [key, entry] of pictures) if (entry.bitmap && key.endsWith(`|${p.markup}`)) return entry.bitmap;
+    for (const [key, entry] of pictures) if (entry.bitmap && key.slice(key.indexOf("|") + 1) === p.key) return entry.bitmap;
     return null;
   }
   private paintPrim(el: SVGGraphicsElement) {
