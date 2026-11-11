@@ -1,5 +1,9 @@
 # Interface design
 
+## Thread references in sentences
+
+Thread references within chat prose use a compact inline control, aligned with the text, with a 20px worker portrait, the authored thread title, 6px corners and the existing hover, press and peach focus feedback. Worker, harness and model details remain in the native tooltip and accessible text. A reference on its own retains the full two-line robot card. Long titles wrap within the chat at narrow widths; sentence references must not inflate the line to the height of a standalone card.
+
 ## Studio on robot monitors
 
 When a robot saves a web file, its Studio app shows that page being built like a person in a design tool, reconstructed only from the saved renders. The page sits as a 1200px artboard on the navy `#1b2044` canvas, scaled to fit with 16px gutters, a soft two-layer shadow and 3px corners. A quiet line above the artboard names the page and shows the real zoom in tabular mono. Selection boxes, handles, size readouts, guides and the caret are peach; the cursor is the robot's own white desktop arrow, switching to a white crosshair, I-beam or resize mark with a navy halo while it draws, types or scales. A small peach tag names the current action. The desktop cursor hides while the Studio cursor works and continues from where it stopped. Settling uses the strong ease-out, element moves the in-out curve, fades the plain ease-out. Reduced motion, a far camera, a covered window or an empty chair show the change directly.
