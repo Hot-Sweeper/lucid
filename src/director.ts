@@ -18,6 +18,7 @@ import { UacPrompt } from "./os/uac";
 import { harnessName, type SeatedRobot as Robot } from "./robot";
 import { FilesApp, EditorApp, TerminalApp, BrowserApp, ToolApp, toolActivity } from "./os/apps";
 import { StudioApp } from "./os/studio";
+import { LiveBrowserApp } from "./os/live-browser";
 import { findUpload, ToolViewWatch } from "./os/tool-view";
 import { attachmentsOf, sourcesFor } from "./os/attachment-source";
 import { attachmentSendOutcome, playSend, type DiskFact, type SendOutcome } from "./os/send-files";
@@ -136,7 +137,7 @@ export class Director {
   private compaction: CompactionScreen;
   // Screen rule: talking with you happens in the native chat app (messages), working with other
   // robots (messaging, delegating, starting or checking threads) in T3 Code (chat).
-  private browser: BrowserApp; private studio: StudioApp; private codex: CodexApp; private chat: T3CodeApp; private messages: T3CodeApp;
+  private browser: BrowserApp; private liveBrowser: LiveBrowserApp; private studio: StudioApp; private codex: CodexApp; private chat: T3CodeApp; private messages: T3CodeApp;
   private attachmentChat: { id: string; app: T3CodeApp } | null = null;
   private readonly messageApp = "chat"; private tool: ToolApp; private toolWatch = new ToolViewWatch(); private tasks: TasksApp;
   private planSig = "";
@@ -171,6 +172,7 @@ export class Director {
       outcome: async (threadId, requestId) => (await lucid()?.requestOutcome?.(threadId, requestId)) ?? null,
     });
     this.browser = new BrowserApp(wm, peek);
+    this.liveBrowser = new LiveBrowserApp(wm);
     this.studio = new StudioApp(wm);
     // T3 Code is the build the user runs (stable or Nightly); the chat app is the conversation you see
     this.chat = new T3CodeApp(wm);
@@ -205,7 +207,7 @@ export class Director {
     this.messages.reset();
     this.attachmentChat?.app.reset(); this.attachmentChat = null;
     this.imageRefresh.reset();
-    this.browser.reset();
+    this.browser.reset(); this.liveBrowser.reset();
     this.studio.reset(); this.devServer = null;
     this.codex.reset();
     this.uac.reset();
@@ -381,7 +383,7 @@ export class Director {
           const signal = observation && `workspace:${JSON.stringify(observation.workspace)}`;
           if (observation && this.frontendSignals.get(it.id) !== signal) {
             this.frontendSignals.set(it.id, signal!);
-            void this.browser.followWorkspace(observation).catch(() => {});
+            void this.liveBrowser.follow(observation).catch(() => {});
           }
         }
         if (/html_(render|preview)$/.test(tool) && typeof it.data.input?.html === 'string') this.browser.refreshFrontendHtml(it.data.input.html);
@@ -1117,7 +1119,7 @@ export class Director {
       if (observation) {
         this.stage.setGlow(GLOW.browser);
         this.onActivity('Watching the actual browser page');
-        await this.browser.followWorkspace(observation);
+        await this.liveBrowser.follow(observation);
         return true;
       }
     }

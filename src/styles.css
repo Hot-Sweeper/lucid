@@ -104,6 +104,12 @@ textarea::placeholder { color: var(--ink-3); }
 .win-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .win-x { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); }
 .win-body { flex: 1; min-height: 0; position: relative; }
+/* A window that brings its own chrome (the agent's real browser): no second title bar. The bar
+   stays as an invisible handle over the window's own tab strip, so the robot grabs, focuses and
+   closes it there. Themes paint every bar, hence the !important. */
+.win-bare > .win-bar { position: absolute; inset: 0 0 auto; z-index: 1; background: transparent !important; }
+.win-bare > .win-bar > :not(.win-x) { display: none; }
+.win-bare > .win-bar > .win-x { margin-left: auto; opacity: 0; }
 
 .dock { position: absolute; left: 50%; bottom: 7px; transform: translateX(-50%); display: flex; gap: 7px; padding: 6px 9px; border-radius: 14px; background: rgba(15, 18, 52, 0.62); backdrop-filter: blur(6px); }
 .dock-item { position: relative; width: 28px; height: 28px; display: grid; place-items: center; }
@@ -198,14 +204,16 @@ textarea::placeholder { color: var(--ink-3); }
 
 .browser { position: relative; }
 .b-action { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 6px 12px; border-radius: 9px; background: rgba(27, 31, 69, 0.9); color: #fff; font-size: 11px; white-space: nowrap; pointer-events: none; }
-.pic { height: 100%; min-height: 0; display: flex; background: #11143a; padding: 8px; box-sizing: border-box; }
-/* the whole picture at its own shape, as big as the window allows */
-.pic img { flex: 1; min-width: 0; min-height: 0; width: 100%; height: 100%; object-fit: contain; border-radius: 6px; }
+.pic { height: 100%; min-height: 0; display: flex; background: #11143a; }
+/* The window takes the picture's own shape, so the picture fills it edge to edge. A picture
+   too small for the smallest window stays whole and centred. */
+.pic img { flex: 1; min-width: 0; min-height: 0; width: 100%; height: 100%; object-fit: contain; }
 
 /* a sprite sheet playing like a video: stage, controls, filmstrip */
 .sheet { height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 10px; background: #11143a; }
-.sh-stage { flex: 1; min-height: 0; display: grid; place-items: center; border-radius: 8px; background: #0b0d28; overflow: hidden; }
-.sh-stage canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+.sh-stage { position: relative; flex: 1; min-height: 0; border-radius: 8px; background: #0b0d28; overflow: hidden; }
+/* The window gives the stage the frame's own shape, so a frame fills it. */
+.sh-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .sh-stage canvas.px { image-rendering: pixelated; }
 .sh-ctrl { flex: none; display: flex; align-items: center; gap: 10px; }
 .sh-play { flex: none; width: 24px; height: 24px; padding: 5px; border: 0; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; }
@@ -249,7 +257,6 @@ textarea::placeholder { color: var(--ink-3); }
   background-image: repeating-linear-gradient(#fff7d6 0 17px, #f0e3b0 17px 18px); }
 .notes p { margin: 0 0 10px; }
 
-.snap-hint { position: absolute; border-radius: 12px; background: rgba(143, 200, 255, 0.16); box-shadow: inset 0 0 0 2px rgba(143, 200, 255, 0.55); pointer-events: none; z-index: 1; }
 
 .sel-box { position: absolute; z-index: 0; border: 1px solid rgba(143, 200, 255, 0.85); background: rgba(143, 200, 255, 0.18); border-radius: 2px; pointer-events: none; }
 /* the calculator */

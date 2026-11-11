@@ -146,6 +146,7 @@ export const CHECKS = [
   "verify-usage.cjs",
   "verify-watch-items.cjs",
   "verify-wheel-direction.mjs",
+  "verify-window-fit.mjs",
   "verify-window-occlusion.mjs",
   "verify-work-details.mjs",
   "verify-workspace-browser.cjs",

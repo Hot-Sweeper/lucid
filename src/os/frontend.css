@@ -7,7 +7,7 @@
 @media (prefers-reduced-motion: reduce) { .frontend-pointer { transition: none; } }
 .b-page.frontend-page { overflow: hidden; padding: 0; }
 
-/* The captured browser includes its own real tabs and address bar. */
-.browser.browser-workspace > .b-tabs, .browser.browser-workspace > .b-bar, .browser.browser-workspace > .b-progress { display: none; }
-.browser .workspace-browser-view { background: var(--night-2, #141a33); }
+/* The agent's real browser window, captured whole: its window takes the capture's shape, so
+   contain only ever leaves sub-pixel rounding uncovered. */
+.workspace-browser-view { background: var(--night-2, #141a33); }
 .workspace-browser-view .frontend-frame { object-fit: contain; }

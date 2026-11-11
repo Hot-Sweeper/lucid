@@ -14,7 +14,7 @@ const el = (frame, z) => {
   return { style:{left:`${frame.x}px`,top:`${frame.y}px`,width:`${frame.w}px`,height:`${frame.h}px`,zIndex:String(z)},dataset:{},querySelector:()=>null,classList:{contains:c=>classes.has(c),toggle:(c,on)=>on?classes.add(c):classes.delete(c),add:c=>classes.add(c),remove:c=>classes.delete(c)} };
 };
 const wm=Object.create(WM.prototype);
-wm.wins=new Map();wm.movingWindows=new Map();wm.unmax=new Map();wm.speed=1;
+wm.wins=new Map();wm.movingWindows=new Map();wm.unmax=new Map();wm.contents=new Map();wm.modes=new Map();wm.speed=1;
 wm.pointAt=async()=>{};wm.click=async()=>{};wm.sleep=async()=>{};
 const full={x:4,y:4,w:812,h:403}, small={x:40,y:30,w:300,h:240};
 const lower={id:'game',el:el(small,10)},upper={id:'notes',el:el(full,11)};
