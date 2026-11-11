@@ -122,6 +122,9 @@ export class WorldHarnessSwap {
     run.outgoing = null;
     this.walkOff(outgoing, id, swap.from);
     this.swaps.delete(id);
+    // back beside the chair the way it came, then into it through the shared journey
+    await incoming.walkTo(side.x, side.y);
+    if (this.trips.get(id) !== trip) return;
     await this.travel(t, { walker: incoming }, room.id);
   }
 
