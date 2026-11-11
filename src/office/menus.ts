@@ -18,7 +18,10 @@ export function showMenu(x: number, y: number, title: string, items: MenuItem[],
   m.setAttribute("role", "menu");
   m.innerHTML = `<p class="pm-title"></p>`;
   m.querySelector(".pm-title")!.textContent = title;
-  for (const it of items) {
+  // Destructive actions always come last, behind a divider, so their place carries meaning too.
+  const ordered = [...items.filter((it) => "input" in it || !it.danger), ...items.filter((it) => !("input" in it) && it.danger)];
+  let dividerDone = false;
+  for (const it of ordered) {
     if ("input" in it) {
       const f = document.createElement("form");
       f.className = "pm-form";
@@ -42,6 +45,7 @@ export function showMenu(x: number, y: number, title: string, items: MenuItem[],
       b.type = "button";
       b.setAttribute("role", "menuitem");
       b.className = it.danger ? "danger" : "";
+      if (it.danger && !dividerDone && ordered.length > 1) { b.classList.add("pm-danger-start"); dividerDone = true; }
       b.textContent = it.label;
       b.addEventListener("click", async () => { closeMenu(); await it.run(); });
       m.appendChild(b);

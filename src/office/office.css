@@ -272,6 +272,10 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .pm-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--ink-2); }
 .pm-form .primary { align-self: flex-end; }
 .pm-form:not(:last-child) { border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.pop-menu > .pm-danger-start { position: relative; margin-top: 9px; }
+.pop-menu > .pm-danger-start::before { content: ""; position: absolute; left: 8px; right: 8px; top: -5px; border-top: 1px solid var(--line); pointer-events: none; }
+.pop-menu > .pm-form + .pm-danger-start { margin-top: 0; }
+.pop-menu > .pm-form + .pm-danger-start::before { display: none; }
 .pm-msg { margin: 0; font-size: 12px; color: var(--ink-2); overflow-wrap: anywhere; }
 .pm-msg:empty { display: none; }
 .dialog-wrap { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: rgba(8, 10, 30, 0.55); }
