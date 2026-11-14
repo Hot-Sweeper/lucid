@@ -41,21 +41,14 @@ function decryptDesktop(value, { profile = path.join(process.env.APPDATA || '', 
 const electronSafeStorage = () => process.versions.electron ? require('electron').safeStorage : null;
 
 /**
- * Opens one os_crypt value with Electron's safeStorage. T3 writes with whichever API was
- * available to it, so the async API is tried first and the synchronous one after it (on
- * Linux, T3's values open only with the synchronous API even when the async one reports
- * itself available).
+ * Opens one os_crypt value with the synchronous safeStorage API. On Linux it uses the keyring
+ * entry every Chromium app shares ("Chromium Safe Storage"), where T3 keeps its catalog key.
+ * The async API is app-named ("<app> Safe Storage"), so it could only open this app's own
+ * values; T3's async values open in keyring-helper.cjs instead.
  */
 async function decryptSafeStorage(value, safeStorage = electronSafeStorage()) {
-  if (!safeStorage) throw Error('safeStorage is unavailable.');
-  const bytes = Buffer.from(value, 'base64');
-  if (typeof safeStorage.decryptStringAsync === 'function') {
-    try {
-      if (await safeStorage.isAsyncEncryptionAvailable()) { const out = await safeStorage.decryptStringAsync(bytes); return typeof out === 'string' ? out : out.result; }
-    } catch {}
-  }
-  if (!safeStorage.isEncryptionAvailable()) throw Error('The keyring is unavailable.');
-  return safeStorage.decryptString(bytes);
+  if (!safeStorage?.isEncryptionAvailable()) throw Error('The keyring is unavailable.');
+  return safeStorage.decryptString(Buffer.from(value, 'base64'));
 }
 
 /**
@@ -76,6 +69,9 @@ function createCatalogStore({ home = t3Home(), platform = process.platform, safe
   const opened = new Map(); // value -> plaintext opened by the helper (main process memory only)
   async function decrypt(value) {
     if (platform === 'win32') return dpapi(value);
+    // macOS: T3's key is T3's own keychain item. Trying would only create an item for this
+    // app (or prompt), and could never open T3's values, so the catalog reads as locked.
+    if (platform === 'darwin') throw Error('T3 Code keeps this key in its own keychain item.');
     try { return await decryptSafeStorage(value, safeStorage === undefined ? electronSafeStorage() : safeStorage); }
     catch (error) {
       if (!helper) throw error;

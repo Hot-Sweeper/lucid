@@ -35,8 +35,8 @@ const catalogFor = (lan, tailnet) => ({
   disabledEnvironmentIds: ['disabled-device'],
 });
 
-// Chromium os_crypt stand-in: "v11" + payload. Like Linux, the async API reports itself
-// available but cannot open T3's values; the synchronous one can.
+// Chromium os_crypt stand-in: "v11" + payload. Like Linux, the async (app-named) API cannot
+// open T3's values; the synchronous one can, so the async one must not even be touched.
 function fakeSafeStorage({ locked = false } = {}) {
   const calls = { sync: 0, async: 0 };
   return {
@@ -65,7 +65,8 @@ async function catalogChecks(home) {
   const store = createCatalogStore({ home, platform: 'linux', safeStorage: storage, helper: null, debounceMs: 20 });
   const read = await store.read();
   assert.equal(read.state, 'ok'); assert.equal(read.catalog.targets[0].label, 'ARES');
-  assert.equal(storage.calls.async, 1, 'the async API is tried first'); assert.equal(storage.calls.sync, 1, 'then the synchronous API opens T3\'s value');
+  assert.equal(storage.calls.sync, 1, 'the synchronous API opens T3\'s value');
+  assert.equal(storage.calls.async, 0, 'the app-named async API is not used: it would create a key entry for this app');
   await store.read(); assert.equal(storage.calls.sync, 1, 'an unchanged catalog is not decrypted again');
 
   // A rewrite (temp file + rename, like T3) is noticed and re-read.
@@ -84,8 +85,10 @@ async function catalogChecks(home) {
   assert.equal(first.state, 'locked'); assert.match(first.reason, /keyring/); assert.equal(first.catalog, null);
   await locked.read(); await locked.read();
   assert.equal(lockedStorage.calls.sync, 1, 'a locked keyring is not asked again until the catalog changes');
-  const mac = await createCatalogStore({ home, platform: 'darwin', safeStorage: fakeSafeStorage({ locked: true }), helper: null }).read();
+  const macStorage = fakeSafeStorage();
+  const mac = await createCatalogStore({ home, platform: 'darwin', safeStorage: macStorage, helper: null }).read();
   assert.equal(mac.state, 'locked'); assert.match(mac.reason, /keychain/, 'macOS explains that T3 keeps its own keychain item');
+  assert.equal(macStorage.calls.sync + macStorage.calls.async, 0, 'macOS never touches the keychain, so it never prompts');
   locked.close();
 
   // Windows keeps the DPAPI path.

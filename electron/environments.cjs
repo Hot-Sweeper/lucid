@@ -115,8 +115,8 @@ function createEnvironmentRegistry({ descriptor = localDescriptor, links = cliLi
     },
     /** Record the outcome of an authenticated read of a linked computer. */
     markLink(id, ok, error = null) { live.set(id, { ok, offline: !ok && !!error?.offline, error: ok ? null : String(error?.message || error || "The connection failed."), at: now() }); },
-    /** Forget cached rows and link outcomes (T3 rewrote its catalog). */
-    invalidate() { cached = null; at = 0; live.clear(); },
+    /** Forget cached rows (T3 rewrote its catalog); link outcomes stay until the next read. */
+    invalidate() { at = 0; },
   };
 }
 

@@ -97,6 +97,8 @@ function createConnectClient({ catalog, request = fetch, now = Date.now, readSes
       // Without an answering address, T3 Connect may still reach it through its tunnel.
       d.status = d.route ? 'reachable' : d.relay || !d.routes.length ? 'unknown' : 'unreachable';
     }));
+    // A computer removed or disabled in T3 loses its link here too.
+    for (const id of sessions.keys()) if (!found.some(d => d.environmentId === id)) sessions.delete(id);
     devices = found; snapshotAt = now();
     snapshot = found.map(publicRow);
     return snapshot;
@@ -162,7 +164,7 @@ function createConnectClient({ catalog, request = fetch, now = Date.now, readSes
     /** Re-reads the catalog when T3 rewrites it. */
     onCatalogChange(listener) {
       if (catalog) return () => {};
-      return catalogStore().onChange(() => { snapshot = null; devices = null; sessions.clear(); listener(); });
+      return catalogStore().onChange(() => { snapshot = null; listener(); });
     },
     async rpc(id, tag, payload) {
       const ticket = await this.fetch(id, '/api/auth/websocket-ticket/rpc', { method: 'POST' });
