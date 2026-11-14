@@ -9,13 +9,14 @@ async function main() {
   const missing = () => { throw Object.assign(Error('private path'), { code: 'ENOENT' }); };
   const current = path.join('test-home', 'userdata', 'clerk', 'clerk-tokens.json');
   const legacy = path.join('test-home', 'userdata', 'clerk-tokens.json');
-  const session = read => readDesktopSession({ home: 'test-home', read, decrypt: value => { assert.equal(value, 'protected'); return 'session'; } });
-  assert.equal(session(file => { assert.equal(file, current); return JSON.stringify({ __clerk_client_jwt: 'enc:protected' }); }), 'session');
-  assert.equal(session(file => file === legacy ? JSON.stringify({ __clerk_client_jwt: 'raw:legacy' }) : missing()), 'legacy');
-  assert.throws(() => session(missing), /Open T3 Code/);
-  assert.throws(() => session(() => '{broken'), /Open T3 Code/);
-  assert.throws(() => session(() => JSON.stringify({})), /Open T3 Code/);
-  assert.throws(() => session(file => file === current ? '{}' : JSON.stringify({ __clerk_client_jwt: 'raw:stale' })), /Open T3 Code/, 'an invalid current session must not revive a legacy session');
+  const session = read => readDesktopSession({ home: 'test-home', read: async file => read(file), decrypt: async value => { assert.equal(value, 'protected'); return 'session'; } });
+  assert.equal(await session(file => { assert.equal(file, current); return JSON.stringify({ __clerk_client_jwt: 'enc:protected' }); }), 'session');
+  assert.equal(await session(file => file === legacy ? JSON.stringify({ __clerk_client_jwt: 'raw:legacy' }) : missing()), 'legacy');
+  await assert.rejects(session(missing), /Open T3 Code/);
+  await assert.rejects(session(() => '{broken'), /Open T3 Code/);
+  await assert.rejects(session(() => JSON.stringify({})), /Open T3 Code/);
+  await assert.rejects(session(file => file === current ? '{}' : JSON.stringify({ __clerk_client_jwt: 'raw:stale' })), /Open T3 Code/, 'an invalid current session must not revive a legacy session');
+  await assert.rejects(readDesktopSession({ home: 'test-home', read: async () => JSON.stringify({ __clerk_client_jwt: 'enc:locked' }), decrypt: async () => { throw Error('keyring'); } }), /Open T3 Code/, 'a session the keyring cannot open reads as signed out');
   const calls = [], jtIs = new Set(); let now = Date.now(), failOnce = false;
   let saved = { targets: [{ environmentId: 'ares', label: 'ARES' }, { environmentId: 'ares', label: 'Duplicate' }, { environmentId: 'disabled', label: 'Disabled' }, { environmentId: 'profile-label' }, {}, null], disabledEnvironmentIds: ['disabled'], profiles: [
     { environmentId: 'ares', label: 'Route', httpBaseUrl: 'http://ares.local:3773/api?secret=hidden' },
@@ -25,7 +26,7 @@ async function main() {
     { environmentId: 'profile-label', label: 'Studio' },
     { environmentId: 'disabled', label: 'Disabled route' },
   ] };
-  const catalog = () => saved;
+  const catalog = async () => ({ state: 'ok', catalog: saved });
   const request = async (url, options) => {
     calls.push({ url, method: options.method || 'GET' });
     const proof = options.headers?.dpop;
@@ -40,6 +41,7 @@ async function main() {
     }
     const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
     if (url === 'http://ares.local:3773/.well-known/t3/environment') return reply({ environmentId: 'different-device' });
+    if (url.endsWith('/.well-known/t3/environment')) throw TypeError('fetch failed');
     if (url.endsWith('/v1/client')) return reply({ response: { sessions: [{ id: 'signed-in', status: 'active' }], last_active_session_id: 'signed-in' } });
     if (url.endsWith('/tokens/t3-relay')) return reply({ jwt: 'clerk-session' });
     if (url.endsWith('/v1/client/dpop-token')) { assert.equal(options.body.get('subject_token'), 'clerk-session'); return reply({ access_token: 'relay-access' }); }
@@ -53,13 +55,15 @@ async function main() {
     if (url.includes('/api/orchestration/threads/')) return reply({ projection: { thread: { id: 't', title: 'Actual thread', providerInstanceId: 'codex', projectId: 'p', modelSelection: { instanceId: 'codex', model: 'example', options: [] } }, runs: [], turnItems: [], runtimeRequests: [], messages: [{ id: 'm', role: 'assistant', createdAt: 'now', text: 'Actual reply' }] } });
     throw Error('Unexpected route');
   };
-  const client = createConnectClient({ catalog, request, now: () => now, readSession: () => 'existing-desktop-session' });
-  assert.deepEqual(client.inventory().map(x => x.environmentId), ['ares', 'profile-label', 'profile-only']);
-  assert.deepEqual(client.inventory()[0].urls, ['http://ares.local:3773']);
-  assert.equal(client.inventory()[1].label, 'Studio');
-  assert.equal(client.inventory()[2].label, 'Laptop');
-  assert(!JSON.stringify(client.inventory()).includes('secret'));
-  assert(!JSON.stringify(client.inventory()).includes('session'));
+  const client = createConnectClient({ catalog, request, now: () => now, readSession: async () => 'existing-desktop-session' });
+  const listed = await client.inventory();
+  assert.deepEqual(listed.map(x => x.environmentId), ['ares', 'profile-label', 'profile-only']);
+  assert.deepEqual(listed[0].urls, ['http://ares.local:3773']);
+  assert.equal(listed[0].status, 'unreachable', 'a saved address that answers as another machine is not this computer');
+  assert.equal(listed[1].label, 'Studio');
+  assert.equal(listed[2].label, 'Laptop');
+  assert(!JSON.stringify(listed).includes('secret'));
+  assert(!JSON.stringify(listed).includes('session'));
   const building = createRemoteBuilding(client);
   const data = await building.world('ares');
   assert.equal(data.threads[0].id, 'ares::t'); assert.equal(data.projects[0].id, 'ares::p'); assert(data.threads[0].pinned);
@@ -73,8 +77,8 @@ async function main() {
   await assert.rejects(building.dispatch({ type: 'thread.pin', threadId: 'ares::t', projectId: 'other::p' }), /one building/);
   await assert.rejects(client.fetch('disabled', '/api/orchestration/shell'), /not saved/);
   saved = { targets: [{ environmentId: 'new-device', label: 'New device' }], profiles: [] };
-  assert.equal(client.inventory().length, 3, 'ordinary reads use the cache');
-  assert.deepEqual(client.inventory(true).map(x => x.environmentId), ['new-device'], 'refresh discovers additions and removes disconnected devices');
+  assert.equal((await client.inventory()).length, 3, 'ordinary reads use the cache');
+  assert.deepEqual((await client.inventory(true)).map(x => x.environmentId), ['new-device'], 'refresh discovers additions and removes disconnected devices');
   console.log('PASS: all saved devices, profile-only connections, route deduplication, safe origins, refresh, existing session reuse, signed DPoP proofs, automatic expiry/401 recovery and namespace isolation');
 }
 main().catch(e => { console.error(e); process.exitCode = 1; });

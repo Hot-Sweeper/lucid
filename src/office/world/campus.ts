@@ -14,6 +14,7 @@ import { PARK_W, PARK_H } from "../outside";
 import type { World } from "../world";
 import type { WorldData } from "./types";
 import { HALL, releaseRoomVectors } from "./geometry";
+import { markScale } from "./edge-point";
 
 export class WorldCampus {
   activityDeskFor(this: World, id: string) { return this.deskFor(id) ?? this.campusDesks.find(row => row.id === id)?.desk ?? null; }
@@ -106,6 +107,9 @@ export class WorldCampus {
   }
 
   syncBuildings(this: World) {
+    // Building signs stay readable from the campus overview (about 24px tall, at most 3x their size).
+    const sign = Math.min(3, markScale(this.cam.s, 64, 24)).toFixed(2);
+    if (sign !== this.signScale) { this.signScale = sign; this.root.style.setProperty('--sign-scale', sign); }
     for (const entry of this.neighbors.values()) if (entry.office) {
       const office = entry.office;
       office.cam = { x: this.cam.x + (parseFloat(entry.el.style.left) || entry.x) * this.cam.s, y: this.cam.y + (parseFloat(entry.el.style.top) || entry.y) * this.cam.s, s: this.cam.s };
@@ -121,7 +125,9 @@ export class WorldCampus {
     for (const [id, entry] of this.neighbors) if (!keep.has(id)) { entry.office?.rememberLayout(); entry.office?.destroyEmbedded(); this.roomTweens.get(entry.el)?.kill(); entry.el.remove(); this.neighbors.delete(id); }
     const campus = campusPlan([
       { id: 'active', ...this.size, entranceY: this.topH + HALL / 2 },
-      ...buildings.map(b => { const office = this.neighbors.get(b.id)?.office; return { id: b.id, outdoors: false, w: office?.size.w ?? CLOSED_BUILDING.w, h: office?.size.h ?? CLOSED_BUILDING.h, entranceY: office ? office.topH + HALL / 2 : CLOSED_BUILDING.h / 2 }; }),
+      ...buildings.map(b => { const office = this.neighbors.get(b.id)?.office;
+        // An open office draws its own park beside its entrance, so its district reserves it.
+        return { id: b.id, outdoors: !!office, w: office?.size.w ?? CLOSED_BUILDING.w, h: office?.size.h ?? CLOSED_BUILDING.h, entranceY: office ? office.topH + HALL / 2 : CLOSED_BUILDING.h / 2 }; }),
     ], { w: PARK_W, h: PARK_H });
     this.campusRight = campus.bounds.w; this.campusHeight = campus.bounds.h;
     let createdOffice = false;

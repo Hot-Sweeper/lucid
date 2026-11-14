@@ -101,6 +101,8 @@ export const CHECKS = [
   "verify-desk-chat-targets.mjs",
   "verify-empty-desks.mjs",
   "verify-environments.cjs",
+  "verify-linked-computers.cjs",
+  "verify-building-state.mjs",
   "verify-exposed-scene.mjs",
   "verify-flavor-localization.cjs",
   "verify-floor-tiles.mjs",

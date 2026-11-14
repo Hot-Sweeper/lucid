@@ -2,7 +2,7 @@
 // seen from above with its roof on: nothing inside is shown until a real read succeeds.
 // Same top-down vocabulary and frame as the rooms (room-art.ts).
 
-export const CLOSED_BUILDING = { w: 1000, h: 460 };
+export const CLOSED_BUILDING = { w: 1200, h: 560 };
 
 /** `lit`: the skylights glow while the computer is reachable; dark when it is offline. */
 export function closedBuildingSvg(lit: boolean) {

@@ -11,8 +11,12 @@ pins, themes, dictation and usage.
 - `t3.cjs` reads T3 Code's state database read-only (`~/.t3/userdata/statev2.sqlite`, or
   `T3CODE_HOME`) and polls watched threads. `t3server.cjs` talks to the local T3 server for
   actions (starting, steering, answering, settling, pinning), pairing through T3's own `t3` CLI.
-- `environments.cjs`, `connect-*.cjs` and `remote-*.cjs`: other computers linked in T3 Connect,
-  shown as separate buildings. Remote data and actions always use the same authenticated link.
+- `environments.cjs`, `connect-*.cjs`, `keyring-helper.cjs` and `remote-*.cjs`: other computers
+  linked in T3 Code, shown as separate buildings. `connect-catalog.cjs` opens T3's saved
+  connections read-only (DPAPI on Windows, safeStorage on Linux and macOS) and watches the file;
+  `keyring-helper.cjs` is a short-lived process named like T3 for values under T3's own keyring
+  key (started through a flag at the top of `main.cjs`). Remote data and actions always use the
+  same authenticated link, and credentials never leave the main process.
 - `orchestrator.cjs`, `reports.cjs`, `headless-writer.cjs`: the optional orchestrator, settlement
   reports and flavor text written by a headless harness CLI (never a T3 thread).
 - `localization.cjs`, `t3-theme.cjs`, `t3-voice.cjs`, `usage.cjs`, `provider-limits.cjs`:

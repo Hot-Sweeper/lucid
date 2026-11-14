@@ -252,7 +252,7 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .monitor, .os, .win-layer, .win { overflow: clip; }
 
 /* building, office options, menus, dialogs */
-.building-plate { position: absolute; left: 0; top: -92px; display: flex; align-items: center; gap: 12px; padding: 12px 22px; border-radius: 14px; background: #3a3f4f; color: #fff; font: 600 30px var(--font); }
+.building-plate { position: absolute; left: 0; top: -92px; transform-origin: 0 100%; transform: scale(var(--sign-scale, 1)); display: flex; align-items: center; gap: 12px; padding: 12px 22px; border-radius: 14px; background: #3a3f4f; color: #fff; font: 600 30px var(--font); }
 .bp-dot { width: 14px; height: 14px; border-radius: 50%; background: #4ff0a0; }
 .room-sign-hit { position: absolute; left: 30px; top: 22px; width: 148px; height: 72px; border: 0; background: transparent; border-radius: 10px; cursor: pointer; }
 .room-sign-hit:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }

@@ -55,8 +55,11 @@ fast-forward changes, checks and rebuilds them, and only then replaces the runni
 
 Your work stays on your computer. There is no account, no telemetry and no analytics. The app
 reads T3 Code's data read-only and acts only through T3 Code's own server on this computer, or on
-computers you linked in T3 Connect. Dictation audio goes only to T3 Code's local speech service
-and is not saved.
+computers you linked in T3 Code. For those, it reads T3's saved connections with your desktop
+keyring, signs in through T3 Connect (clerk.t3.codes and relay.t3.codes, with T3's own session),
+checks each computer's saved addresses and then talks to that computer directly; the
+credentials stay in the app's main process and are never saved by it. Dictation audio goes only
+to T3 Code's local speech service and is not saved.
 
 A few features fetch public data. These requests carry no account or tracking id, but like any
 web request they reveal your IP address to the service:

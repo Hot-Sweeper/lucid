@@ -61,7 +61,7 @@ if (!process.versions.electron) {
       check(await js('!window.__world.lastData.environmentId'), 'returning to this computer restores its local world');
 
       await until("!!document.querySelector('.neighbor-building[data-projects] .desk-unit')");
-      const campus = await js(`({ active: window.__world.lastData.environmentId || null, computers: [...document.querySelectorAll('.neighbor-building')].map(el=>({label:el.querySelector('.neighbor-open').textContent,projects:Number(el.dataset.projects),sessions:Number(el.dataset.sessions),desks:el.querySelectorAll('.desk-unit').length,workers:el.querySelectorAll('.world-walker,.desk-unit:not(.vacant)').length})) })`);
+      const campus = await js(`({ active: window.__world.lastData.environmentId || null, computers: [...document.querySelectorAll('.neighbor-building')].map(el=>({label:el.querySelector('.neighbor-open b').textContent,projects:Number(el.dataset.projects),sessions:Number(el.dataset.sessions),desks:el.querySelectorAll('.desk-unit').length,workers:el.querySelectorAll('.world-walker,.desk-unit:not(.vacant)').length})) })`);
       check(!campus.active && campus.computers.every(b=>b.projects>0 && b.sessions>0 && b.desks>0), 'remote projects, sessions and rendered desks coexist with the active local office');
       check(await js("!document.querySelector('.neighbor-roof')"), 'remote office has visible rooms instead of a roof');
       result.campus=campus;
@@ -75,7 +75,7 @@ if (!process.versions.electron) {
       await js('window.__world.overview();void 0');
       await pause(1200);
       check(await js(`document.querySelectorAll('.neighbor-building').length === ${inventory.buildings.length - 1}`), 'each other computer has one neighboring building');
-      check(await js("(async()=>{const inv=await window.lucid.environments();const labels=inv.buildings.filter(b=>!b.local).map(b=>b.label);return labels.length>0&&labels.every(l=>[...document.querySelectorAll('.neighbor-open')].some(b=>b.textContent===l));})()"), 'every linked computer has a physical neighboring entrance on the local grounds');
+      check(await js("(async()=>{const inv=await window.lucid.environments();const labels=inv.buildings.filter(b=>!b.local).map(b=>b.label);return labels.length>0&&labels.every(l=>[...document.querySelectorAll('.neighbor-open b')].some(b=>b.textContent===l));})()"), 'every linked computer has a physical neighboring entrance on the local grounds');
       fs.writeFileSync(path.join(out, 'campus.png'), (await win.webContents.capturePage()).toPNG());
 
       // Exercise real quiet-office controls while both authenticated worlds coexist.
