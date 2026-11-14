@@ -119,6 +119,8 @@
 :root[data-theme="t3"][data-t3-appearance="light"] {
   --wash: var(--t3-text);
   --ink-hi: var(--t3-text);
+  --ui-building-plate-ink: var(--t3-text);   /* building signs sit on T3's light control colour */
+  --ui-building-plate-note: var(--ink-2);
   --link-hover: var(--t3-text);
   --mono-logo-filter: brightness(0);
   --coin-ink: #7f5d02;

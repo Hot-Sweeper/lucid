@@ -33,7 +33,7 @@ html:root[data-theme] .office-width-controls button:hover:enabled,
 html:root[data-theme] .office-width-handle:hover,
 html:root[data-theme] .room-size-hit:hover { background: var(--ui-plate-hover); }
 html:root[data-theme] :is(.office-width-controls button, .office-width-handle, .room-size-hit) { color: var(--ui-plate-ink); }
-html:root[data-theme] :is(.building-plate, .neighbor-open) { background: var(--ui-building-plate); }
+html:root[data-theme] :is(.building-plate, .neighbor-open) { background: var(--ui-building-plate); color: var(--ui-building-plate-ink, #fff); }
 html:root[data-theme] .neighbor-open:enabled:hover { background: var(--ui-plate-hover); }
 html:root[data-theme] .cp-drop { background: var(--ui-drop-scrim); }
 html:root[data-theme] .wx-menu { background: var(--ui-menu); outline: 1px solid var(--ui-edge); outline-offset: -1px; }
