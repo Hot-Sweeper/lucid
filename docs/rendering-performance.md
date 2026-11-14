@@ -96,6 +96,31 @@ zoom from a desk to the whole campus and back went from 36 to 58 fps with 23 lon
 179 ms to none at 2560 x 1440; the main process went from about 17 to 25 % of a core to about 1 to 11 %.
 `scripts/checks/verify-far-view-performance.mjs` guards these behaviours.
 
+### Second pass: a 144 Hz budget
+
+The user's display is 3840 x 2160 at 144 Hz, so a frame has 6.9 ms. Measured the same way at
+2560 x 1440 CSS pixels (main-thread BeginMainFrame times from Chromium traces):
+
+- All camera motion moves one held compositor animation (`presentCamera`), zoom included.
+  Chromium re-rasterizes an animated layer at the scale it reaches, so a touchpad zoom stays
+  sharp without redraw passes; the settled camera returns to the inline transform and is redrawn
+  once. A settled zoom matched a directly placed camera except for weather leaves (0.05 % of pixels).
+- While you pan or zoom over robots small enough for their canvases, GSAP work (robots, walkers,
+  room games) advances on ambient beats at 30 Hz (`perf/budget.ts`); flights and following a
+  robot keep every frame. Frames between beats carry only the camera.
+- Floating marks (sleepers' Zs, sighs) are compositor animations (`robot/render/float-mark.ts`)
+  and are not drawn far out. Releasing a pan prevents Chromium's text-selection pass (235 ms).
+
+Tried and not kept: walking robots on canvases (`RobotCanvas`) looked softer and lighter than
+their SVG at the switch distance, and their canvas uploads cost as much as the SVG they replaced;
+and the static-art rasters for far offices, which left the cost of a layer update unchanged
+(5.6 ms at the whole-campus view), because Chromium already reuses the raster of unchanged rooms
+and what remains is regrouping the live actors and rooms whenever something moves.
+
+Remaining: beat frames during a far pan still take about 10 to 12 ms at the 95th percentile, and an
+idle whole-campus view keeps about a fifth of a core busy while robots walk (their moves regroup
+the campus 15 times a second). Both are dominated by Chromium's layer update over a large page.
+
 ## Profiling
 
 Build, then run the isolated camera benchmark. It uses the app's offscreen `LUCID_SHOT` path,
