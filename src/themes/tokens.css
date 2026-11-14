@@ -44,7 +44,8 @@
      and chroma carry the meaning. */
   --limit-surface: color-mix(in oklab, var(--ink) 4%, var(--night-2));
   --limit-track: color-mix(in oklab, var(--ink) 7%, var(--night-2));
-  --limit-zone: color-mix(in oklab, var(--ink) 25%, var(--night-2));
+  --limit-zone: color-mix(in oklab, var(--ink) 28%, var(--night-2));
+  --limit-quiet: color-mix(in oklab, var(--ink-3) 70%, var(--ink-2));   /* meta line and the used / left word: AA on the surface */
   --limit-calm: color-mix(in oklab, var(--ink) 68%, var(--night-2));
   --limit-warn: oklch(from var(--limit-calm) l 0.13 70);
   --limit-crit: oklch(from var(--limit-calm) l 0.15 25);

@@ -314,6 +314,7 @@ export function mountLimits(box: HTMLElement, note: HTMLElement, options: Limits
       g.instanceId = w.h.instanceId || null;
       g.label = w.name;
       setText(g.name, w.name);
+      g.name.title = w.name;
       readCredits(g, w.h, now);
       g.members = w.windows.map((l, i) => {
         const key = `${w.key}:${l.id || `${l.pool || "legacy"}:${i}`}`;
