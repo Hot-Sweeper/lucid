@@ -17,7 +17,8 @@ function monogram(title: string) {
   return ((words[0]?.[0] || "?") + (words[1]?.[0] || "")).toUpperCase();
 }
 
-const SIGN_FONT = '600 15px "Lexend Variable"';
+export const ROOM_LABEL_FONT = '600 15px "Lexend Variable"';
+const SIGN_FONT = ROOM_LABEL_FONT;
 /**
  * A room sign's one line and its width: the office's name, or the words of it that fit (never
  * wrapped or cut with an ellipsis). The sign is a plate that sizes to the name: the icon, then the

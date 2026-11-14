@@ -98,6 +98,7 @@ assert.ok(!/…|shortTitle|compactTitle/.test(desk) && /fitTopic\(/.test(desk), 
 assert.ok(!/plate\.title\s*=/.test(desk), 'no native tooltip that differs from the card');
 const roomArt = await read('src/office/world/room-art.ts');
 assert.ok(/roomSign\(/.test(roomArt) && !/foreignObject[^>]*><div[^>]*class="room-name"/.test(roomArt), 'room signs are one fitted line');
+assert.ok(/\.room-far-label \{[^}]*scale: min\(var\(--plate-zoom, 1\), var\(--room-cap, 1\)\)/.test(css) && /placeRoomLabels\(rooms\)/.test(await read('src/office/world/layout-pass.ts')), 'far views label each room at plate size, within the room');
 const camera = await read('src/office/world/camera-view.ts');
 assert.ok(/this\.syncPlates\(\)/.test(camera) && /this\.hidePlateCard\(\)/.test(camera), 'plates follow the settled camera and the card hides when it moves');
 const plates = await read('src/office/world/plates.ts');

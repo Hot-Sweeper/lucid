@@ -16,9 +16,26 @@ import { icon } from "../../ui/icons";
 import type { World } from "../world";
 import type { WThread, WorldData, Room, RoomKind, PhysicalRoomPlan } from "./types";
 import { WALL_FACE, SLOT_W, SLOT_H, GAP, HALL, LOUNGE, officeSize, columnsForRoom, floorSlots, needsLounge } from "./geometry";
-import { roomSign, roomSvg } from "./room-art";
+import { ROOM_LABEL_FONT, roomSign, roomSvg } from "./room-art";
+import { textMeasure } from "../topic-label";
 
 export class WorldLayout {
+  /** Far away a room's own sign is too small to read: a label with its name takes over, above the desks (plates.css). */
+  placeRoomLabels(this: World, rooms: Room[]) {
+    let layer = this.root.querySelector<HTMLElement>(":scope > .room-label-layer");
+    if (!layer) { layer = document.createElement("div"); layer.className = "room-label-layer"; layer.setAttribute("aria-hidden", "true"); this.deskLayer.after(layer); }
+    const keep = new Set<Element>();
+    for (const r of rooms) {
+      let label = layer.querySelector<HTMLElement>(`:scope > [data-room="${CSS.escape(r.id)}"]`);
+      if (!label) { label = document.createElement("div"); label.className = "room-far-label"; label.dataset.room = r.id; layer.append(label); }
+      const name = r.kind === "break" || r.kind === "queue" || r.kind === "charging" ? r.title : roomSign(r).text;
+      if (label.textContent !== name) label.textContent = name;
+      label.style.cssText = `left:${r.x + 24}px;top:${r.y + 24}px;--room-cap:${(Math.max(40, r.w - 48) / (textMeasure(ROOM_LABEL_FONT)(name) + 24)).toFixed(2)}`;
+      keep.add(label);
+    }
+    for (const el of [...layer.children]) if (!keep.has(el)) el.remove();
+  }
+
   // --- layout -------------------------------------------------------------------
   update(this: World, data: WorldData) {
     if (!this.hostWorld) for (const entry of this.neighbors.values()) if (entry.office?.needsRefresh && entry.office.lastData) entry.office.update(entry.office.lastData);
@@ -302,6 +319,7 @@ export class WorldLayout {
       // the outdoors: grass and trees around the building, a park beside the entrance
       this.layoutGrounds();
       // the room sign is the handle for office options
+      this.placeRoomLabels(rooms);
       for (const r of rooms) {
         if (r.kind !== "project" && r.kind !== "freelance" && r.kind !== "main") continue;
         const existing = r.el.querySelector<HTMLElement>(".room-sign-hit");

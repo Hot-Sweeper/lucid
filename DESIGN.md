@@ -109,7 +109,7 @@ A desk plate is one line of topic (12px Lexend 600, plate ink) over the worker's
 
 Hovering a plate or a robot (also a walking one), or focusing a robot with the keyboard, shows a hover card at screen size over the office: the full title (14px, 600), the logo, worker and model, the shared status badge and what a click does ("Click to open this chat" or "This chat is open"). It sits below the plate, above it near the bottom edge, on the raised surface with `--radius-lg`, enters in 180ms on the strong ease-out from 4px toward the plate and leaves in 120ms; it waits 260ms of hover intent unless a card was just showing, and hides when the camera moves, on press or wheel. Reduced motion keeps only the fade.
 
-Room signs are one line too (15px Lexend 600 beside the office icon), sized to the name with the same shortener at most 220px wide; the windows start after the sign. Question cards in the question line show the question's first sentence or clause, or the thread's topic, unclamped and without an ellipsis.
+Room signs are one line too (15px Lexend 600 beside the office icon), sized to the name with the same shortener at most 220px wide; the windows start after the sign. In far views (where the plates turn into one line) each room's name also sits as a label at its top left, above the desks, keeping the plates' on-screen size but never wider than its room. Question cards in the question line show the question's first sentence or clause, or the thread's topic, unclamped and without an ellipsis.
 
 ## Questions that fit the monitor
 

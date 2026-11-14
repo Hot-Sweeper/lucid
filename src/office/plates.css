@@ -23,6 +23,13 @@
 .world[data-plate-form="far"] .desk-plate .dp-who { display: none; }
 .world[data-plate-form="hidden"] .desk-plate { visibility: hidden; }
 
+/* Far views: each room's name as a label that keeps the plates' on-screen size, never wider than its room. */
+.room-label-layer { position: absolute; left: 0; top: 0; z-index: 600002; width: 0; height: 0; pointer-events: none; }
+.room-far-label { position: absolute; display: none; padding: 4px 12px; border-radius: 8px;
+  background: var(--wd-sign, #fff); color: var(--wd-sign-ink, #3a3f4f); font: 600 15px/1.3 var(--font); white-space: nowrap;
+  box-shadow: 0 3px 8px rgba(40, 30, 20, 0.18); pointer-events: none; transform-origin: 0 0; scale: min(var(--plate-zoom, 1), var(--room-cap, 1)); }
+.world[data-plate-form="far"] .room-far-label, .world[data-plate-form="hidden"] .room-far-label { display: block; }
+
 /* The hovered robot's plate gets a quiet ring, the open chat's plate the accent ring. */
 .desk-unit.robot-hover:not(.chat-open) .desk-plate { box-shadow: 0 0 0 2px color-mix(in srgb, var(--wd-plate-ink, #2d3142) 38%, transparent), 0 4px 10px rgba(40, 30, 20, 0.2); }
 .desk-unit.chat-open .desk-plate { box-shadow: 0 0 0 2px var(--accent), 0 4px 10px rgba(40, 30, 20, 0.2); }
