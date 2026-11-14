@@ -44,8 +44,6 @@ html:root[data-theme] .cp-tab.ref-over { background: var(--ui-drop); }
 html:root[data-theme] .th-ghost.over { background: var(--ui-ghost-over); }
 html:root[data-theme] .cpc-ref,
 html:root[data-theme] .cpc-ext { background: var(--ui-chip); }
-html:root[data-theme] .cp-queue { background: var(--ui-queue); }
-html:root[data-theme] .cp-queue li.dragging { background: var(--ui-queue-drag); }
 
 /* The app's own monitor screens: task reports, questions, image viewer. */
 html:root[data-theme] .monitor-task-panel,

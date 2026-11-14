@@ -109,6 +109,7 @@ contextBridge.exposeInMainWorld("lucidT3", {
   settle: t3s("t3s:settle"),
   edit: t3s("t3s:edit"),
   steer: t3s("t3s:steer"),
+  startQueued: t3s("t3s:start-queued"),
   setModel: t3s("t3s:setModel"),
   respond: t3s("t3s:respond"),
   useResetCredit: t3s("t3s:reset-credit"),

@@ -1,6 +1,7 @@
 // Bounded history reads with stable keyset pagination, including equal timestamps.
 const { answerArtifacts } = require("./answer-artifacts.cjs");
 const { historyEvents } = require("./chat-history.cjs");
+const { withdrawn, deliveryOrder } = require("./queued.cjs");
 const parse = (s) => { try { return JSON.parse(s); } catch { return null; } };
 
 // T3's work log: what each turn did (commands, edits, searches, tools), read with
@@ -102,17 +103,30 @@ function readConversation(db, threadId, options = {}, attachmentPath = () => nul
       .all(threadId, ...rows.map((r) => r.id));
     recent.push(...olderRuns.filter((r) => !haveRuns.has(r.runId)));
   }
-  for (const run of [...queuedRuns.sort((a, b) => b.ordinal - a.ordinal), ...recent].sort((a, b) => b.ordinal - a.ordinal)) {
+  // A message names its own run. A queued message promoted into the live turn (Send now) moves
+  // to that run, and its old queued run ends cancelled, so the message's own run decides.
+  const byRun = new Map();
+  const loaded = [...queuedRuns, ...recent];
+  for (const run of loaded) byRun.set(run.runId, run);
+  const named = [...new Set(rows.map((r) => safeJson(r.p)?.runId).filter((id) => typeof id === "string" && !byRun.has(id)))];
+  if (named.length) for (const run of db.prepare(`select run_id as runId, status, ordinal, payload_json as p from orchestration_v2_projection_runs where thread_id = ? and run_id in (${named.map(() => "?").join(",")})`).all(threadId, ...named)) byRun.set(run.runId, run);
+  for (const run of loaded.sort((a, b) => b.ordinal - a.ordinal)) {
     const rp = safeJson(run.p);
+    run.meta = rp;
     if (rp?.userMessageId) runs.set(rp.userMessageId, run.status);
-    if (rp?.userMessageId && run.status !== "queued" && !runMeta.has(rp.userMessageId)) runMeta.set(rp.userMessageId, { runId: run.runId, status: run.status, startedAt: rp.startedAt, completedAt: rp.completedAt });
+    if (rp?.userMessageId && run.status !== "queued" && !withdrawn({ status: run.status, startedAt: rp.startedAt }) && !runMeta.has(rp.userMessageId)) runMeta.set(rp.userMessageId, { runId: run.runId, status: run.status, startedAt: rp.startedAt, completedAt: rp.completedAt });
     if (rp?.userMessageId && rp.startedAt) started.set(rp.userMessageId, rp.startedAt);
-    if (run.status === "queued" && rp?.userMessageId) queued.push({ id: rp.userMessageId, runId: run.runId, ordinal: run.ordinal, pos: rp.queuePosition ?? run.ordinal });
+    if (run.status === "queued" && rp?.userMessageId) queued.push({ id: rp.userMessageId, runId: run.runId, ordinal: run.ordinal, queuePosition: rp.queuePosition, held: rp.queueHeld === true });
     // the turn a queued message can be steered into
     if (!liveRunId && ["running", "starting", "preparing"].includes(run.status)) liveRunId = run.runId;
   }
-  // T3 delivers by queuePosition (set when you reorder), then by ordinal
-  queued.sort((a, b) => a.pos - b.pos || a.ordinal - b.ordinal).forEach((q, i) => { queuePos.set(q.id, i + 1); queueRun.set(q.id, q.runId); });
+  const runOf = (r) => {
+    const id = safeJson(r.p)?.runId, run = id && byRun.get(id);
+    if (!run) return runs.has(r.id) ? { status: runs.get(r.id), startedAt: started.get(r.id) || null } : null;
+    run.meta ??= safeJson(run.p);
+    return { status: run.status, startedAt: run.meta?.startedAt || null };
+  };
+  queued.sort(deliveryOrder).forEach((q, i) => { queuePos.set(q.id, i + 1); queueRun.set(q.id, q); });
   // A message that waited in the queue belongs where the robot picked it up, not where it was
   // typed, so it never lands behind replies that came while it waited. Ties keep the
   // database order, so messages with the same timestamp stay in the order they were written.
@@ -120,13 +134,18 @@ function readConversation(db, threadId, options = {}, attachmentPath = () => nul
   const ordered = rows.map((r, i) => ({ r, i, k: key(r) })).sort((a, b) => (a.k < b.k ? -1 : a.k > b.k ? 1 : a.i - b.i)).map((x) => x.r);
   // Memory-learning batches are the app's housekeeping, not messages from the
   // human. Keep raw rows as pagination boundaries so hidden batches cannot
-  // strand older conversation history.
-  const messages = ordered.filter((r) => !(r.role === "user" && /^\s*New messages the user wrote to robots\. Learn lasting preferences from them and update memory\.md:/.test(safeJson(r.p)?.text || ""))).map((r) => {
+  // strand older conversation history. A message removed from the queue never
+  // reached the agent, so it is not part of the conversation either.
+  const messages = ordered.filter((r) => !(r.role === "user" && /^\s*New messages the user wrote to robots\. Learn lasting preferences from them and update memory\.md:/.test(safeJson(r.p)?.text || ""))
+    && !(r.role === "user" && !queueRun.has(r.id) && withdrawn(runOf(r))))
+    .map((r) => {
     const p = safeJson(r.p) || {};
+    const q = queueRun.get(r.id);
     return {
-      id: r.id, role: r.role, at: r.at, orderAt: key(r), sourceOrder: r.rowid, streaming: !!r.streaming, text: p.text || "", run: runs.get(r.id) || null, queue: queuePos.get(r.id) || null,
-      // queued messages: their run, the live turn to steer into, and whether T3 lets you change them
-      ...(queueRun.has(r.id) ? { queueRunId: queueRun.get(r.id), steerTarget: liveRunId, queueFixed: !!(p.delegatedCompletion || p.notification), queueGuest: !!p.context?.guest } : {}),
+      id: r.id, role: r.role, at: r.at, orderAt: key(r), sourceOrder: r.rowid, streaming: !!r.streaming, text: p.text || "", run: q ? "queued" : runOf(r)?.status || null, queue: queuePos.get(r.id) || null,
+      // queued messages: their run, the live turn to steer into, whether T3 holds the queue
+      // (after a stop) and whether T3 lets you change them
+      ...(q ? { queueRunId: q.runId, steerTarget: liveRunId, queueHeld: q.held, queueFixed: !!(p.delegatedCompletion || p.notification), queueGuest: !!p.context?.guest } : {}),
       attachments: (p.attachments || []).map((a) => ({ type: a.type, name: a.name, mime: a.mimeType, size: a.sizeBytes, path: attachmentPath(a) })),
     };
   });

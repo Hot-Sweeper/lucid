@@ -305,7 +305,9 @@ function failureText(exit) {
   return friendly(raw);
 }
 function friendly(s) {
-  if (/is not queued|not queued\./i.test(s)) return "That message already left the queue.";
+  if (/is not queued|not queued\.|no longer queued/i.test(s)) return "That message already left the queue.";
+  if (/only be sent now while the thread is stopped/i.test(s)) return "The robot started working again. Use Send now to add it to the current turn.";
+  if (/Continue the limited thread/i.test(s)) return "This thread reached its usage limit. Continue it in T3 before sending queued messages.";
   if (/cannot be edited to an empty/i.test(s)) return "A queued message cannot be empty.";
   if (/Automatic completion/i.test(s)) return "Automatic task reports cannot be changed.";
   if (/guest's message cannot be edited/i.test(s)) return "A guest's message cannot be edited. Cancel it instead.";
@@ -347,13 +349,21 @@ function dispatch(command) {
 
 // --- queue -------------------------------------------------------------------
 
-const reorderQueued = (threadId, runId, beforeRunId) => dispatch({ type: "queued-run.reorder", threadId, runId, beforeRunId: beforeRunId ?? null });
-const cancelQueued = (threadId, runId) => dispatch({ type: "queued-run.cancel", threadId, runId });
+// Each action names the thread and the queued run it changes; a linked computer's thread goes to
+// that computer through dispatch, with the run ids it gave us.
+const ids = (...values) => values.every((v) => typeof v === "string" && v.length > 0 && v.length < 512);
+const invalid = () => Promise.reject(new T3ServerError("Choose a queued message.", "invalid"));
+const reorderQueued = (threadId, runId, beforeRunId) => !ids(threadId, runId) || (beforeRunId != null && !ids(beforeRunId)) ? invalid() : dispatch({ type: "queued-run.reorder", threadId, runId, beforeRunId: beforeRunId ?? null });
+const cancelQueued = (threadId, runId) => !ids(threadId, runId) ? invalid() : dispatch({ type: "queued-run.cancel", threadId, runId });
 function editQueued(threadId, runId, text) {
+  if (!ids(threadId, runId)) return invalid();
   if (!String(text || "").trim()) return Promise.reject(new T3ServerError("A queued message cannot be empty.", "invalid"));
   return dispatch({ type: "queued-run.edit", threadId, runId, text: String(text) });
 }
-const steerNow = (threadId, queuedRunId, targetRunId) => dispatch({ type: "queued-message.promote-to-steer", threadId, queuedRunId, targetRunId });
+/** Send now while the robot works: the message joins the current turn. */
+const steerNow = (threadId, queuedRunId, targetRunId) => !ids(threadId, queuedRunId, targetRunId) ? invalid() : dispatch({ type: "queued-message.promote-to-steer", threadId, queuedRunId, targetRunId });
+/** Send now after a stop, when T3 holds the queue: that message starts the next turn. Without a run, the held queue resumes in order. */
+const startQueued = (threadId, runId) => !ids(threadId) || (runId != null && !ids(runId)) ? invalid() : dispatch(runId ? { type: "queued-run.start", threadId, runId } : { type: "queue.resume", threadId });
 
 // --- questions and approvals -------------------------------------------------
 
@@ -597,6 +607,6 @@ module.exports = {
   setRemoteSecret: fn => { remoteSecret = fn; },
   setRemoteDispatch: fn => { remoteDispatch = fn; },
   ensurePaired, hasScope, grantScope, authedRaw, status, dispatch, call, listProviders, hireConfig, startHire, selection, usageLimits, consumeResetCredit,
-  settleThread, unsettleThread, reorderQueued, cancelQueued, editQueued, steerNow, setThreadModel, respondToRequest,
+  settleThread, unsettleThread, reorderQueued, cancelQueued, editQueued, steerNow, startQueued, setThreadModel, respondToRequest,
   closeSock, T3ServerError,
 };

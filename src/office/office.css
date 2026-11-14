@@ -311,7 +311,7 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .hire-task { display: flex; flex-direction: column; gap: 6px; }
 .hire-msg { margin: 0; min-height: 1.2em; font-size: 13px; color: var(--accent-2); }
 
-/* chat status, queued messages */
+/* chat status */
 .cp-status { flex: none; display: flex; align-items: center; gap: 8px; margin: 0; padding: 0 16px 10px; font-size: 13px; color: var(--ink-2); }
 .cp-status i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; }
 .cp-status[data-state="working"] i { background: var(--mint); }
@@ -355,14 +355,6 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .monitor .screen .os { border-radius: 22px; overflow: hidden; }
 .monitor .dock { backdrop-filter: none; background: rgba(15, 18, 52, 0.85); }
 
-/* queued messages, pinned above the message box */
-.cp-queue { flex: none; max-height: 24%; overflow-y: auto; margin: 0 10px; padding: 8px 10px 10px; border-radius: var(--radius-lg); background: rgba(255, 210, 122, 0.08); }
-.cp-queue[hidden] { display: none; }
-.cp-queue h4 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--ink); }
-.cp-queue ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.cp-queue li { display: grid; grid-template-columns: 38px 1fr; gap: 8px; align-items: start; }
-.cq-n { font-size: 11px; color: var(--ink-3); padding-top: 2px; font-variant-numeric: tabular-nums; }
-.cp-queue li p { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 
 .outside-layer { position: absolute; pointer-events: none; }
 .outside-layer svg { display: block; }
@@ -446,15 +438,6 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .md-table tr:last-child td { border-bottom: 0; }
 .md-table td { font-variant-numeric: tabular-nums; }
 
-.cq-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 0 0 6px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
-.cq-head b { font-size: 12px; font-weight: 600; color: var(--ink); }
-.cq-head .cq-count { font-size: 11.5px; color: var(--ink-3); flex: 1; }
-.cq-head i { width: 8px; height: 8px; border-right: 2px solid var(--ink-3); border-bottom: 2px solid var(--ink-3); transform: rotate(45deg) translate(-2px, -2px); transition: transform 0.2s; }
-.cp-queue.folded .cq-head i { transform: rotate(-135deg) translate(-2px, -2px); }
-.cp-queue.folded { max-height: none; padding-bottom: 4px; }
-.cp-queue.folded ol { display: none; }
-.cq-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
-.cp-queue li p { -webkit-line-clamp: 2; }
 
 /* coins and the shop */
 .wallet { display: flex; align-items: center; justify-content: space-between; gap: 10px; position: relative; }
@@ -642,8 +625,6 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .cp-msg.you.long.open .cp-text::after { display: none; }
 .cp-more { align-self: flex-end; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 12px; cursor: pointer; padding: 0 4px; }
 .cp-more:hover { color: var(--ink); }
-/* the queue box is solid, nothing from the office shows through */
-.cp-queue { background: #241f3a; box-shadow: inset 0 0 0 1px rgba(255, 210, 122, 0.18); }
 
 /* performance: skip painting what nobody can see */
 /* Only desks and rooms outside the viewport skip painting. A visible screen always
@@ -674,7 +655,7 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 
 /* model bar above the message box: harness, model, effort and speed of this thread */
 .cp-model { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; padding: 0 2px 6px; }
-.cp-model[hidden], .cp-connect[hidden], .cm-error[hidden], .cq-note[hidden], .cm-pick[hidden], .cm-fast[hidden] { display: none; }
+.cp-model[hidden], .cp-connect[hidden], .cm-error[hidden], .cm-pick[hidden], .cm-fast[hidden] { display: none; }
 .cm-pick, .cm-fast { display: inline-flex; align-items: center; gap: 6px; min-width: 0; height: var(--control-h-sm); padding: 0 8px; border: 0; border-radius: var(--radius-sm); background: none;
   color: var(--ink-2); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; }
 .cm-pick > span { overflow: hidden; text-overflow: ellipsis; }
@@ -707,35 +688,6 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .cm-menu [role="option"] svg { flex: none; color: var(--accent); }
 .cm-menu [aria-selected="true"] { font-weight: 600; }
 .cm-menu.below { transform-origin: 24px 0; }
-
-/* queued rows you can drag, move, edit, send now or remove */
-.cq-note { margin: 0 0 6px; font-size: 12px; line-height: 1.4; color: var(--danger-ink); }
-.cp-queue.can-act li { grid-template-columns: 18px 34px minmax(0, 1fr) auto; gap: 6px; align-items: center; border-radius: var(--radius-md); }
-.cp-queue.can-act .cq-n { padding-top: 0; }
-.cq-grip { width: 18px; height: 26px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink-3); cursor: grab; touch-action: none; }
-.cq-grip:hover { color: var(--ink); background: color-mix(in srgb, var(--wash) 7%, transparent); }
-/* actions keep their space; they show on hover and keyboard focus, and always on touch screens */
-.cq-acts { display: flex; gap: 1px; visibility: hidden; }
-.cp-queue li:hover .cq-acts, .cp-queue li:focus-within .cq-acts { visibility: visible; }
-@media (hover: none) { .cq-acts { visibility: visible; } }
-.cq-act { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink-2); cursor: pointer; }
-.cq-act:hover:not(:disabled) { background: color-mix(in srgb, var(--wash) 9%, transparent); color: var(--ink); }
-.cq-act[data-act="cancel"]:hover:not(:disabled) { color: var(--danger-ink); }
-.cq-act:disabled { opacity: 0.3; cursor: default; }
-.cq-grip:focus-visible, .cq-act:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
-.cp-queue li.dragging { position: relative; z-index: 2; background: #2e2a4c; box-shadow: 0 8px 22px rgba(4, 6, 24, 0.5); }
-body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !important; }
-.cp-queue li.editing { align-items: start; }
-.cp-queue li.editing .cq-acts { display: none; }
-.cq-edit { grid-column: 3 / -1; display: flex; flex-direction: column; gap: 6px; }
-.cq-edit textarea { width: 100%; box-sizing: border-box; min-height: 56px; max-height: 140px; resize: vertical; padding: 7px 9px; border: 0; border-radius: var(--radius-md);
-  background: #12153a; box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); font: inherit; font-size: 13px; line-height: 1.45; outline: none; }
-.cq-edit textarea:focus { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 75%, transparent); }
-.cq-edit div { display: flex; align-items: center; gap: 6px; }
-.cq-edit div span { margin-left: auto; font-size: 11px; color: var(--ink-3); }
-.cq-save:disabled, .cq-yes:disabled { cursor: progress; }
-.cq-confirm { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 2px 0 4px 24px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
-.cq-confirm span { flex: 1 1 180px; }
 
 .cm-error.calm { color: var(--ink-3); }
 

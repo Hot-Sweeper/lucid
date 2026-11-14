@@ -8,6 +8,7 @@ const { runCliProcess } = require("./cli-runner.cjs");
 const path = require("node:path");
 const fs = require("node:fs");
 const { t3Home } = require("./t3-home.cjs");
+const { queuedText, deliveryOrder } = require("./queued.cjs");
 
 const T3_HOME = t3Home();
 const DB_PATH = path.join(T3_HOME, "userdata", "statev2.sqlite");
@@ -26,6 +27,12 @@ function getDb() {
   return db;
 }
 
+// The runs that tell a thread's status. A message removed from the queue never ran, and a queue
+// T3 holds after a stop waits for you (T3 shows that thread idle), so neither counts. Live work outranks waiting messages, which
+// outrank newer runs that ended.
+const STATUS_ORDER = "case when r.status in ('running','starting','preparing','waiting','awaiting_input') then 0 when r.status = 'queued' then 1 else 2 end, r.ordinal desc";
+const STATUS_RUN = "not ((r.status in ('cancelled','canceled') and json_extract(r.payload_json, '$.startedAt') is null) or (r.status = 'queued' and ifnull(json_extract(r.payload_json, '$.queueHeld'), 0) = 1))";
+
 function safeJson(s) {
   try { return JSON.parse(s); } catch { return null; }
 }
@@ -36,13 +43,12 @@ function listProjects() {
     .all();
 }
 
-// A thread's run status: a run still in progress outranks newer ones that ended, such as queued
-// messages cancelled while the robot kept working; otherwise the newest run decides.
+// A thread's run status, picked by STATUS_RUN and STATUS_ORDER.
 function listThreads(limit = 60) {
   const rows = getDb()
     .prepare(`select t.thread_id as id, t.project_id as projectId, t.title, t.updated_at as updatedAt,
                      coalesce(t.provider_instance_id, t.default_provider) as provider, p.title as projectTitle,
-                     (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by case when r.status in ('running','starting','preparing','waiting','awaiting_input','queued') then 0 else 1 end, r.ordinal desc limit 1) as runStatus
+                     (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id and ${STATUS_RUN} order by ${STATUS_ORDER} limit 1) as runStatus
               from orchestration_v2_projection_threads t
               left join projection_projects p on p.project_id = t.project_id
               where t.archived_at is null and t.deleted_at is null
@@ -67,15 +73,6 @@ function effortOf(options) {
   return null;
 }
 
-// a queued message as a to-do line: its words, with attachments as a short note
-function queuedText(m) {
-  const raw = String(m?.text || "");
-  const files = (raw.match(/^\s*-\s*(image|file):/gim) || []).length + (m?.attachments?.length || 0);
-  const words = raw.replace(/\s*Attached:[\s\S]*$/, "").replace(/\s+/g, " ").trim().slice(0, 140);
-  return words + (files ? `${words ? " " : ""}(+ ${files > 1 ? files + " attachments" : "attachment"})` : "");
-}
-
-
 function threadInfo(threadId) {
   const t = getDb()
     .prepare(`select t.thread_id as id, t.project_id as projectId, t.title, coalesce(t.provider_instance_id, t.default_provider) as provider, t.payload_json as payload,
@@ -85,15 +82,15 @@ function threadInfo(threadId) {
     .get(threadId);
   if (!t) return null;
   const run = getDb()
-    .prepare("select run_id as id, status, payload_json as payload from orchestration_v2_projection_runs where thread_id = ? order by ordinal desc limit 1")
+    .prepare(`select r.run_id as id, r.status, r.payload_json as payload from orchestration_v2_projection_runs r where r.thread_id = ? and ${STATUS_RUN} order by ${STATUS_ORDER} limit 1`)
     .get(threadId);
   const payload = safeJson(t.payload) || {};
   // your queued messages, in the order T3 will deliver them (for the robot's to-do app)
   const queued = getDb()
     .prepare("select r.run_id as id, r.ordinal, r.payload_json as p, m.payload_json as mp from orchestration_v2_projection_runs r left join orchestration_v2_projection_messages m on m.message_id = json_extract(r.payload_json, '$.userMessageId') where r.thread_id = ? and r.status = 'queued'")
     .all(threadId)
-    .map((r) => ({ id: r.id, pos: safeJson(r.p)?.queuePosition ?? r.ordinal, ordinal: r.ordinal, text: queuedText(safeJson(r.mp)) }))
-    .sort((a, b) => a.pos - b.pos || a.ordinal - b.ordinal)
+    .map((r) => ({ id: r.id, queuePosition: safeJson(r.p)?.queuePosition, ordinal: r.ordinal, text: queuedText(safeJson(r.mp)) }))
+    .sort(deliveryOrder)
     .map(({ id, text }) => ({ id, text }));
   return {
     id: t.id,
@@ -266,7 +263,7 @@ function coinBindings() {
   // Archived sessions also belong in the baseline, so reopening old work
   // cannot mint coins for usage credited before manual collection existed.
   const rows = getDb().prepare(`select p.provider, p.thread_id as threadId, p.payload_json as binding,
-    t.title, t.project_id as projectId, (select pp.title from projection_projects pp where pp.project_id = t.project_id) as project, (select r.status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by case when r.status in ('running','starting','preparing','waiting','awaiting_input','queued') then 0 else 1 end, r.ordinal desc limit 1) as status,
+    t.title, t.project_id as projectId, (select pp.title from projection_projects pp where pp.project_id = t.project_id) as project, (select r.status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id and ${STATUS_RUN} order by ${STATUS_ORDER} limit 1) as status,
     (select count(*) from orchestration_v2_projection_runtime_requests q where q.thread_id = t.thread_id and q.status not in ('resolved','cancelled','expired','failed')) as pending
     from orchestration_v2_projection_provider_threads p join orchestration_v2_projection_threads t on t.thread_id = p.thread_id`).all();
   return rows.flatMap(r => {
@@ -280,8 +277,8 @@ function world(limit = 40) {
   const rows = db
     .prepare(`select t.thread_id as id, t.project_id as projectId, t.title, t.updated_at as updatedAt, t.payload_json as payload,
                      coalesce(t.provider_instance_id, t.default_provider) as provider,
-                     (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by case when r.status in ('running','starting','preparing','waiting','awaiting_input','queued') then 0 else 1 end, r.ordinal desc limit 1) as runStatus,
-                     (select json_extract(r.payload_json, '$.startedAt') from orchestration_v2_projection_runs r where r.thread_id = t.thread_id order by case when r.status in ('running','starting','preparing','waiting','awaiting_input','queued') then 0 else 1 end, r.ordinal desc limit 1) as runStartedAt,
+                     (select status from orchestration_v2_projection_runs r where r.thread_id = t.thread_id and ${STATUS_RUN} order by ${STATUS_ORDER} limit 1) as runStatus,
+                     (select json_extract(r.payload_json, '$.startedAt') from orchestration_v2_projection_runs r where r.thread_id = t.thread_id and ${STATUS_RUN} order by ${STATUS_ORDER} limit 1) as runStartedAt,
                      (select count(*) from orchestration_v2_projection_runtime_requests q where q.thread_id = t.thread_id and q.status not in ('resolved','cancelled','expired','failed')) as pending
               from orchestration_v2_projection_threads t
               where t.archived_at is null and t.deleted_at is null and t.thread_id not like 'thread:%'

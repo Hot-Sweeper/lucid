@@ -1,3 +1,5 @@
+import { messageParts, splitRefs, type MessageRef } from "./message-parts";
+
 // A thread you point a robot to: dragged from the sidebar into the chat, shown as a chip in the
 // message box, and sent as a short block the receiving agent can read (and look up by its id).
 
@@ -10,14 +12,13 @@ export type ThreadRef = {
   reply?: string;  // the last answer there
 };
 
-const TAG = "referenced_thread";
+const TAG = "referenced_thread"; // read back by message-parts.ts
 const attr = (s: string) => String(s ?? "").replace(/"/g, "'").replace(/[\r\n]+/g, " ").trim();
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 
 // Text without earlier references, file lists and extra whitespace, for a one-glance summary.
 export function plain(text: string) {
-  return stripRefs(text).body
-    .replace(/\n*Attached:\n(?:- (?:image|file): .+(?:\n|$))+\s*$/, "")
+  return messageParts(text).body
     .replace(/```[\s\S]*?```/g, " [code] ")
     .replace(/\s+/g, " ")
     .trim();
@@ -44,11 +45,8 @@ export function refBlock(r: ThreadRef, harness?: string) {
   return lines.join("\n");
 }
 
-const RE = new RegExp(`\\n*<${TAG} id="([^"]*)" title="([^"]*)" project="([^"]*)"(?: harness="([^"]*)")?>[\\s\\S]*?</${TAG}>`, "g");
-
 // Splits a sent message into what you typed and the threads it referenced.
-export function stripRefs(text: string): { body: string; refs: { id: string; title: string; project: string; harness?: string }[] } {
-  const refs: { id: string; title: string; project: string; harness?: string }[] = [];
-  const body = text.replace(RE, (_m, id, title, project, harness) => { refs.push({ id, title, project, harness }); return ""; }).trim();
+export function stripRefs(text: string): { body: string; refs: MessageRef[] } {
+  const { body, refs } = splitRefs(text);
   return { body, refs };
 }

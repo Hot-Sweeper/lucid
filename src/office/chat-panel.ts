@@ -28,6 +28,9 @@ import { chatReaderAnchor } from "./chat-scroll";
 import { chatFileUrl, chatMediaKind, inlineChatImage, prepareChatImages, chatImageFailed, setMediaThread, thumbSrc, inlineChatFile, mountChatArtifact } from "./chat-media";
 import { reviewReportId, renderChatReview, renderSourceChatReport, type ChatReviewPaper } from "./chat-review";
 import { esc } from "../util/html";
+import { ChatQueue } from "./chat-queue";
+import { splitQueue, pendingPlace, settlePending, deliveredIds, type PendingSend } from "./queue-model";
+import { messageParts } from "./message-parts";
 
 // The chat beside a robot's screen: your whole conversation with it, live, with your
 // attachments shown inline, and a box to message it without leaving its desk.
@@ -45,6 +48,7 @@ export type T3Api = {
   cancel(o: { threadId: string; runId: string }): Promise<unknown>;
   edit(o: { threadId: string; runId: string; text: string }): Promise<unknown>;
   steer(o: { threadId: string; queuedRunId: string; targetRunId: string }): Promise<unknown>;
+  startQueued?(o: { threadId: string; runId?: string | null }): Promise<unknown>;
   setModel(o: { threadId: string; selection: { providerInstanceId: string; model: string; options: Record<string, OptionValue> } }): Promise<unknown>;
   stop?(o: { threadId: string }): Promise<unknown>;
 };
@@ -91,19 +95,11 @@ function carryOptions(m: T3Model | undefined, prev: Record<string, OptionValue>)
   }
   return out;
 }
-const ordLabel = (n: number) => (n === 1 ? "next" : `${n}${n === 2 ? "nd" : n === 3 ? "rd" : "th"}`);
 const CHEVRON = icon("chevronDown", 12);
-const ICON = {
-  up: icon("chevronUp", 14),
-  down: icon("chevronDown", 14),
-  edit: icon("edit", 14),
-  steer: icon("steer", 14),
-  remove: icon("close", 14),
-  grip: icon("grip", 14),
-  check: icon("check", 14),
-};
+const ICON = { check: icon("check", 14) };
 
 const HINT = "Enter to send, Shift+Enter for a new line";
+const QUEUE_HINT = "Enter to queue, Shift+Enter for a new line";
 export const fileUrl = chatFileUrl;
 function mediaAttachment(path: string, name: string, mime = "", reveal = false) {
   const kind = chatMediaKind(path, mime);
@@ -211,12 +207,15 @@ export class ChatPanel {
   threadFacts: (id: string) => { title?: string; project?: string; model?: string | null } | null = () => null;
   /** You started or stopped typing a message to this robot. */
   onTyping: (on: boolean) => void = () => {};
-  private pending: { threadId: string; text: string; at: number }[] = [];
+  private pending: PendingSend[] = [];
+  private pendingKey = 0;
+  private queue!: ChatQueue;
+  private queued: Msg[] = [];
+  private working = false;
   private files: File[] = [];
   private drafts = new Map<string, { text: string; files: File[]; refs: ThreadRef[] }>();
   private sending = new Set<string>();
   private sendErrors = new Map<string, string>();
-  private queueCleanups = new Set<() => void>();
   private resizeComposer: () => void = () => {};
   private stopComposerTyping: () => void = () => {};
   private dictation = { cancel() {} };
@@ -228,8 +227,6 @@ export class ChatPanel {
   private sel: Selection | null = null;
   private selAt = 0;
   private saving = 0;
-  private queueHold = 0; // dragging, editing or confirming: live updates wait
-  private queueLatest: Msg[] = [];
   private menuClose: (() => void) | null = null;
 
   private addFiles(list: File[]) {
@@ -302,7 +299,7 @@ export class ChatPanel {
     box.classList.toggle("ref-no", zone === "box" && state !== "ok");
     this.tab.classList.toggle("ref-over", zone === "tab");
     (this.tab.querySelector("span") as HTMLElement).textContent = zone === "tab" ? "Drop to reference" : this.tabLabel;
-    hint.textContent = zone === "box" ? (state === "own" ? "This is this robot's own thread" : state === "dup" ? "Already referenced" : "Drop to reference this thread") : HINT;
+    hint.textContent = zone === "box" ? (state === "own" ? "This is this robot's own thread" : state === "dup" ? "Already referenced" : "Drop to reference this thread") : this.working ? QUEUE_HINT : HINT;
     const next = zone === "box" && state === "ok" ? ref : null;
     if (next?.id === this.refPreview?.id) return;
     this.refPreview = next;
@@ -445,7 +442,7 @@ export class ChatPanel {
       <div class="cp-sub"><p class="cp-status" aria-live="polite"><i></i><span></span></p></div>
       <details class="cp-plan" hidden><summary>Plan</summary><ol></ol></details>
       <div class="cp-list" role="log" aria-live="polite"></div>
-      <section class="cp-queue" aria-label="Queued messages" hidden><button type="button" class="cq-head" aria-expanded="true"><b>Queued</b><span class="cq-count"></span><i aria-hidden="true"></i></button><p class="cq-note" role="status" hidden></p><ol></ol></section>
+      <section class="cp-queue" hidden></section>
       <dialog class="cp-zoom" aria-label="Attachment preview"><header><strong></strong><button type="button" class="ghost">Close preview</button></header><div class="cp-media-stage"></div></dialog>
       <form class="cp-form">
         <div class="cp-model" role="group" aria-label="Harness and model for this thread" hidden>
@@ -463,7 +460,7 @@ export class ChatPanel {
           <div class="cp-tools">
             <button type="button" class="cp-attach" aria-label="Attach files or images" title="Attach files or images (you can also paste or drop them)">${icon("attach", 18)}</button>
             <span class="cp-hint">${HINT}</span>
-            <button type="button" class="ghost cp-stop" title="Stop the current run. Queued messages wait until you send again." hidden>Stop</button>
+            <button type="button" class="ghost cp-stop" title="Stop the current run. T3 holds your queued messages until you resume or send one now." hidden>Stop</button>
             <button type="submit" class="primary cp-send" aria-label="Send"><span>Send</span>${icon("send", 14)}</button>
           </div>
           <input type="file" class="cp-fileinput" multiple hidden>
@@ -472,6 +469,18 @@ export class ChatPanel {
       </form>`;
     host.appendChild(this.el);
     watchMedia(this.el);
+    this.queue = new ChatQueue(this.el.querySelector<HTMLElement>(".cp-queue")!, {
+      threadId: () => this.threadId,
+      t3: () => (this.canAct() ? this.api.t3! : null),
+      failed: (err) => this.failed(err, "queue"),
+      refresh: (ms) => this.refreshSoon(ms),
+      zoom: (src, kind, name) => this.zoom(src, kind, name),
+      rescue: (text) => {
+        const ta = this.el.querySelector("textarea") as HTMLTextAreaElement;
+        ta.value = ta.value.trim() ? `${ta.value}\n\n${text}` : text;
+        this.saveDraft(); this.resizeComposer();
+      },
+    });
     const stop = this.el.querySelector<HTMLButtonElement>(".cp-stop")!;
     stop.addEventListener("click", async () => {
       const threadId = this.threadId;
@@ -614,7 +623,7 @@ export class ChatPanel {
       const composerFiles = this.files;
       const files = [...composerFiles];
       const refs = [...this.refs];
-      let pending: { threadId: string; text: string; at: number } | null = null;
+      let pending: PendingSend | null = null;
       try {
         // files are saved where the agent can open them, and listed in the message
         const saved: { path: string; image: boolean }[] = [];
@@ -624,11 +633,12 @@ export class ChatPanel {
         let text = typed || (saved.length ? "Have a look at the attached files." : refs.length > 1 ? "Have a look at these threads." : refs.length ? "Have a look at this thread." : "");
         if (refs.length) text += `\n\n${refs.map((r) => refBlock(r, harnessName(r.provider))).join("\n\n")}`;
         if (saved.length) text += `\n\nAttached:\n${saved.map((s) => `- ${s.image ? "image" : "file"}: ${s.path}`).join("\n")}`;
-        // show it right away; it turns into the real message once T3 has it
-        pending = { threadId, text, at: Date.now() };
+        // show it right away where it will land (the queue while the robot works), until T3 has it
+        pending = { key: String(++this.pendingKey), threadId, text, at: Date.now(), place: threadId === this.threadId ? pendingPlace(this.working, this.queue.size) : "transcript" };
         this.pending.push(pending);
         if (threadId === this.threadId) this.renderPending();
         await this.api.sendMessage({ threadId, message: text });
+        pending.sentAt = Date.now();
         this.drafts.delete(threadId);
         writePromptDraft(`chat:${threadId}`, "");
         if (threadId === this.threadId) {
@@ -714,7 +724,7 @@ export class ChatPanel {
     // opened again while it was sliding out (you clicked another robot): it stays
     if (this.closing) { this.closing = false; gsap.killTweensOf(this.el); gsap.set(this.el, { clearProps: "x,opacity" }); }
     const same = !!desk.threadId && this.threadId === desk.threadId;
-    if (!same) { this.dictation.cancel(); this.stopComposerTyping(); this.saveDraft(); for (const clean of [...this.queueCleanups]) clean(); }
+    if (!same) { this.dictation.cancel(); this.stopComposerTyping(); this.saveDraft(); this.queue.cancel(false); }
     this.desk = desk;
     this.setPlan(desk.planSteps || []);
     if (!same) {
@@ -729,9 +739,7 @@ export class ChatPanel {
       this.resizeComposer();
       this.typingOn = false;
       this.clearTranscript();
-      this.sel = null; this.queueHold = 0; this.closeMenu();
-      (this.el.querySelector(".cp-queue ol") as HTMLElement).dataset.sig = "";
-      this.renderQueue([]);
+      this.sel = null; this.closeMenu();
       void this.loadT3();
     }
     this.paintHeader(desk);
@@ -786,11 +794,8 @@ export class ChatPanel {
     this.reviewPapers.clear(); this.reviewLookups.clear();
     this.sourceReport = null; this.sourceReportLoaded = false; this.sourceReportVersion++; this.sourceReportSignature = "";
     (this.el.querySelector(".cp-list") as HTMLElement).replaceChildren();
-    this.typingOn = false; this.queueLatest = []; this.queueHold = 0;
-    const queue = this.el.querySelector<HTMLElement>(".cp-queue")!;
-    queue.hidden = true;
-    const rows = queue.querySelector<HTMLElement>("ol")!;
-    rows.replaceChildren(); rows.dataset.sig = "";
+    this.typingOn = false; this.queued = [];
+    this.queue.clear();
   }
 
   close() {
@@ -799,7 +804,7 @@ export class ChatPanel {
     this.dictation.cancel();
     if (!this.isOpen) return;
     this.stopComposerTyping(); this.saveDraft();
-    for (const clean of [...this.queueCleanups]) clean();
+    this.queue.cancel(false);
     this.el.classList.remove("open");
     this.closeMenu();
     this.desk = null;
@@ -823,10 +828,16 @@ export class ChatPanel {
     const mark = p.querySelector("i")!;
     if (mark.dataset.icon) { mark.dataset.icon = ""; mark.innerHTML = ""; }
     p.title = "";
-    const send = this.el.querySelector(".cp-send span") as HTMLElement;
-    send.textContent = state === "working" ? "Queue" : "Send";
+    // While the robot works, T3 queues what you send: the button and the hint say so.
+    this.working = state === "working";
+    const send = this.el.querySelector(".cp-send span") as HTMLElement, button = send.parentElement as HTMLElement;
+    const label = this.working ? "Queue" : "Send";
+    if (send.textContent !== label) send.textContent = label;
+    button.setAttribute("aria-label", this.working ? "Add to the queue" : "Send");
+    button.title = this.working ? "The robot is working. Your message waits in the queue above and goes when this turn ends." : "Send";
+    const hint = this.el.querySelector<HTMLElement>(".cp-hint")!;
+    if (hint.textContent !== (this.working ? QUEUE_HINT : HINT)) hint.textContent = this.working ? QUEUE_HINT : HINT;
     (this.el.querySelector(".cp-stop") as HTMLElement).hidden = state !== "working" || !this.api.t3?.stop;
-    (send.parentElement as HTMLElement).title = state === "working" ? "It is busy: your message waits in the queue and comes next" : "Send";
     const span = p.querySelector("span")!;
     if (span.textContent !== text) { span.textContent = text; gsap.fromTo(span, { opacity: 0.3 }, { opacity: 1, duration: 0.3 }); }
   }
@@ -867,17 +878,20 @@ export class ChatPanel {
     }
   }
 
+  // A message on its way waits where it will land: in the queue while the robot works (see
+  // ChatQueue), otherwise at the end of the transcript, marked Sending instead of a time.
   private renderPending(scroll = true) {
     const list = this.el.querySelector(".cp-list") as HTMLElement;
     list.querySelectorAll(".cp-msg.pending").forEach((e) => e.remove());
-    for (const p of this.pending.filter((p) => p.threadId === this.threadId)) {
+    const mine = this.pending.filter((p) => p.threadId === this.threadId);
+    for (const p of mine.filter((p) => p.place === "transcript")) {
       const el = document.createElement("div");
       el.className = "cp-msg you pending";
-      const view = this.render({ id: "pending", role: "user", at: new Date(p.at).toISOString(), streaming: false, text: p.text, attachments: [] });
-      el.innerHTML = view.replace(/<time>[^<]*<\/time>$/, "<time>Sending</time>");
+      el.innerHTML = this.render({ id: "pending", role: "user", at: new Date(p.at).toISOString(), streaming: false, text: p.text, attachments: [] }, "Sending");
       list.appendChild(el);
     }
-    if (scroll) list.scrollTop = list.scrollHeight;
+    this.queue.setPending(mine.filter((p) => p.place === "queue"));
+    if (scroll && mine.some((p) => p.place === "transcript")) list.scrollTop = list.scrollHeight;
   }
 
   // Called when new events arrive for a thread.
@@ -975,10 +989,13 @@ export class ChatPanel {
     if (this.paired && !this.saving && Date.now() - this.selAt > 4000) void this.loadSelection();
     const started = beginSystem();
     const list = this.el.querySelector(".cp-list") as HTMLElement;
-    // Queued messages wait in their own section at the bottom, in the order the robot takes them.
-    const queued = msgs.filter((m) => m.role === "user" && m.run === "queued").sort((a, b) => (a.queue ?? 99) - (b.queue ?? 99));
-    const timeline = msgs.filter((m) => !(m.role === "user" && m.run === "queued"));
-    this.renderQueue(queued);
+    // A queued message lives only in the queue; it joins the transcript when T3 delivers it, and
+    // flies there from its row (`arrivals`, captured before the queue drops it).
+    const { timeline, queued } = splitQueue(msgs);
+    const arrivals = this.queue.rects(deliveredIds(this.queue.ids, timeline));
+    this.queued = queued;
+    this.queue.render(queued);
+    this.settlePending(msgs);
     this.setPlan(this.desk?.planSteps || []);
     const historyButton = this.historyButton();
     const changed = new Set<string>();
@@ -991,6 +1008,7 @@ export class ChatPanel {
     const reordered = !this.timelineIds || timeline.length !== this.timelineIds.length || timeline.some((m, i) => m.id !== this.timelineIds![i]);
     for (const node of this.shown.values()) hydrateThreadCards(node, this.api.threadCard);
     if (!changed.size && !reordered) { endSystem("chat", started); return; }
+    if (!this.timelineIds) arrivals.clear(); // a conversation just opened: nothing arrives, it is already there
     this.timelineIds = timeline.map(m => m.id);
     // Read layout only when the visible timeline actually needs an update.
     const nearBottom = !preservePosition && list.scrollHeight - list.scrollTop - list.clientHeight < 80;
@@ -1122,15 +1140,9 @@ export class ChatPanel {
       previous = row;
     }
     for (const [key, group] of this.groups) if (!activeGroups.has(key)) { group.remove(); this.groups.delete(key); }
-    // pending bubbles disappear once the real message shows up
-    const texts = new Set(msgs.filter((m) => m.role === "user").map((m) => m.text.trim()));
     list.querySelectorAll(".cp-msg.pending").forEach((e) => list.appendChild(e));
     const typing = list.querySelector(".cp-typing");
     if (typing) list.appendChild(typing);
-    const pending = this.pending.filter((p) => p.threadId !== id || (!texts.has(p.text) && Date.now() - p.at < 60000));
-    const pendingChanged = pending.length !== this.pending.length;
-    this.pending = pending;
-    if (pendingChanged) this.renderPending(false);
     if (!timeline.length && !list.querySelector(".cp-msg.pending,.cp-typing,.cp-empty")) list.insertAdjacentHTML("beforeend", `<p class="cp-empty">No messages yet. Say hello.</p>`);
     else if (timeline.length) list.querySelector(".cp-empty:not(.cp-notice)")?.remove();
     const sourceReport = list.querySelector(".cp-source-report");
@@ -1138,9 +1150,32 @@ export class ChatPanel {
     if (nearBottom || (initial && !preservePosition)) list.scrollTop = list.scrollHeight;
     else if (anchor?.isConnected && anchorY != null) list.scrollTop += anchor.getBoundingClientRect().top - anchorY;
     else if (preservePosition) list.scrollTop += list.scrollHeight - oldHeight;
+    for (const [id, from] of arrivals) this.arrive(id, from);
     const latestPrompt = [...timeline].reverse().find(m => m.role === "user");
     this.promptContext.set(latestPrompt ? this.shown.get(latestPrompt.id) ?? null : null);
     endSystem("chat", started);
+  }
+
+  // Sends T3 now lists (queued or delivered) stop showing as pending, in either place.
+  private settlePending(msgs: Msg[]) {
+    const id = this.threadId;
+    if (!id || !this.pending.length) return;
+    const next = settlePending(this.pending, id, msgs, Date.now());
+    if (next.length === this.pending.length) return;
+    this.pending = next;
+    this.renderPending(false);
+  }
+
+  // T3 delivered a queued message: its bubble rises from the queue row into its place in the
+  // transcript, so it reads as the same message moving, not a new one appearing.
+  private arrive(id: string, from: DOMRect) {
+    const el = this.shown.get(id);
+    const target = el?.querySelector<HTMLElement>(".cp-text") ?? el;
+    if (!el?.isConnected || !target) return;
+    const list = this.el.querySelector<HTMLElement>(".cp-list")!.getBoundingClientRect(), to = target.getBoundingClientRect();
+    if (to.bottom < list.top || to.top > list.bottom) return; // you are reading further up: it is simply there
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { el.animate([{ opacity: 0.4 }, { opacity: 1 }], { duration: 150, easing: "cubic-bezier(0, 0, .58, 1)" }); return; }
+    el.animate([{ transform: `translate(${from.left - to.left}px, ${from.top - to.top}px)`, opacity: 0.85 }, { transform: "none", opacity: 1 }], { duration: 320, easing: "cubic-bezier(.77, 0, .175, 1)" });
   }
 
   // A view of the saved paper, never a synthetic T3 message or settlement action.
@@ -1198,28 +1233,19 @@ export class ChatPanel {
     return `<span class="cp-event-line" aria-hidden="true"></span><span class="cp-event-body"><span>${label}</span>${e.from || e.to ? selection(e.from) + '<span aria-hidden="true">&rarr;</span>' + selection(e.to) : ""}<time datetime="${esc(m.at)}">${when(m.at)}</time></span><span class="cp-event-line" aria-hidden="true"></span>`;
   }
 
-  private render(m: Msg) {
+  private render(m: Msg, timeLabel?: string) {
     setMediaThread(this.threadId);   // files of a thread on another computer load from there
     let body = m.text;
     const sent: string[] = [];
-    const at = m.role === "user" ? body.match(/\n*Attached:\n((?:- (?:image|file): .+(?:\n|$))+)\s*$/) : null;
-    if (at) {
-      body = body.slice(0, at.index).trim();
-      for (const line of at[1].trim().split("\n")) {
-        const mm = line.match(/^- (image|file): (.+)$/);
-        if (!mm) continue;
-        const p = mm[2].trim(), name = p.split(/[\\/]/).pop()!.replace(/^\d+-/, "");
-        sent.push(mediaAttachment(p, name, mm[1] === "image" ? "image/" : "", !!this.api.revealFile));
-      }
-    }
-    // threads you referenced show as small chips, not as the block the agent reads
-    if (m.role === "user" && body.includes("<referenced_thread ")) {
-      const rr = stripRefs(body);
-      body = rr.body;
-      for (const r of rr.refs.reverse()) {
+    // files you attached show inline, and threads you referenced as small chips, not as the block the agent reads
+    if (m.role === "user") {
+      const parts = messageParts(body);
+      body = parts.body;
+      for (const r of parts.refs) {
         const logo = logoFor(r.harness);
-        sent.unshift(`<div class="cp-file cp-reffile" title="${esc(`${r.title}, ${r.project}`)}">${logo ? `<img src="${logo}" alt="">` : ""}<span>${esc(r.title)}</span><i>${esc(r.project)}</i></div>`);
+        sent.push(`<div class="cp-file cp-reffile" title="${esc(`${r.title}, ${r.project}`)}">${logo ? `<img src="${logo}" alt="">` : ""}<span>${esc(r.title)}</span><i>${esc(r.project)}</i></div>`);
       }
+      for (const f of parts.files) sent.push(mediaAttachment(f.path, f.name, f.kind === "image" ? "image/" : "", !!this.api.revealFile));
     }
     m = { ...m, text: body };
     const atts = sent.join("") + m.attachments.map((a) => {
@@ -1229,83 +1255,7 @@ export class ChatPanel {
     const state = m.role === "user" && m.run === "running" ? `<em class="cp-live">It is working on this</em>` : "";
     const paper = m.role === "assistant" ? this.reviewPapers.get(reviewReportId(m.text) || "") : null;
     const report = paper ? renderChatReview(m.text, m.streaming, paper, md) : null;
-    return `${atts ? `<div class="cp-atts">${atts}</div>` : ""}${m.text ? `<div class="cp-text">${report ?? (md(m.text) + (m.streaming ? '<span class="caret"></span>' : ""))}</div>` : ""}${state}<time datetime="${esc(m.at)}" title="${esc(new Date(m.at).toLocaleString())}">${when(m.at)}</time>`;
-  }
-
-  private renderQueue(queued: Msg[]) {
-    const box = this.el.querySelector(".cp-queue") as HTMLElement;
-    const ol = box.querySelector("ol") as HTMLOListElement;
-    box.hidden = !queued.length;
-    (box.querySelector(".cq-count") as HTMLElement).textContent = `${queued.length} waiting`;
-    if (!box.dataset.wired) {
-      box.dataset.wired = "1";
-      const head = box.querySelector(".cq-head") as HTMLButtonElement;
-      head.addEventListener("click", () => {
-        const open = head.getAttribute("aria-expanded") !== "true";
-        head.setAttribute("aria-expanded", String(open));
-        box.classList.toggle("folded", !open);
-      });
-    }
-    this.queueLatest = queued;
-    // never replace rows while you drag, edit or confirm; the latest state lands afterwards
-    if (this.queueHold > 0) return;
-    const live = this.canAct();
-    const sig = JSON.stringify([live, queued]);
-    if (ol.dataset.sig === sig) return;
-    ol.dataset.sig = sig;
-    box.classList.toggle("can-act", live);
-    // keep rows that are already there (and focus inside them); only new rows fade in
-    const old = new Map([...ol.children].map((li) => [(li as HTMLElement).dataset.id!, li as HTMLElement]));
-    const fresh: HTMLElement[] = [];
-    const rows = queued.map((m) => {
-      let li = old.get(m.id);
-      if (!li) { li = document.createElement("li"); fresh.push(li); }
-      old.delete(m.id);
-      this.fillQueueRow(li, m, live);
-      return li;
-    });
-    for (const li of old.values()) li.remove();
-    rows.forEach((li, i) => { if (ol.children[i] !== li) ol.insertBefore(li, ol.children[i] ?? null); });
-    this.numberQueue();
-    if (fresh.length) gsap.fromTo(fresh, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.25, stagger: 0.04 });
-  }
-
-  private fillQueueRow(li: HTMLElement, m: Msg, live: boolean) {
-    // rebuild only when something it shows changed, so focus inside the row survives updates
-    const sig = `${live}:${m.queueRunId}:${m.queueFixed}:${m.queueGuest}:${!!m.steerTarget}:${m.text}`;
-    if (li.dataset.sig === sig) return;
-    li.dataset.sig = sig;
-    li.dataset.id = m.id;
-    li.dataset.run = m.queueRunId ?? "";
-    li.classList.toggle("fixed", !!m.queueFixed);
-    const movable = live && !!m.queueRunId && !m.queueFixed;
-    const btn = (act: string, label: string, icon: string, show = true) =>
-      `<button type="button" class="cq-act" data-act="${act}" aria-label="${label}" title="${label}"${show ? "" : " disabled"}>${icon}</button>`;
-    li.innerHTML = `${movable ? `<button type="button" class="cq-grip" aria-label="Reorder: drag, or use the arrow keys" title="Drag to reorder">${ICON.grip}</button>` : live ? `<span class="cq-grip-gap"></span>` : ""}`
-      + `<span class="cq-n"></span><p></p>`
-      + (movable ? `<span class="cq-acts">${btn("up", "Move up", ICON.up)}${btn("down", "Move down", ICON.down)}`
-        + btn("edit", m.queueGuest ? "A guest's message cannot be edited" : "Edit", ICON.edit, !m.queueGuest)
-        + btn("steer", m.steerTarget ? "Send now, into the current turn" : "Send now works while it is working", ICON.steer, !!m.steerTarget)
-        + btn("cancel", "Remove from the queue", ICON.remove) + `</span>` : live ? `<span></span>` : "");
-    const p = li.querySelector("p")!;
-    const rr = m.text.includes("<referenced_thread ") ? stripRefs(m.text) : null;
-    p.textContent = rr ? `${rr.body} (references ${rr.refs.map((r) => r.title).join(", ")})` : m.text;
-    p.title = p.textContent;
-  }
-
-  // "next", "2nd", ... and which arrows make sense, after any change of order
-  private numberQueue() {
-    const ol = this.el.querySelector(".cp-queue ol") as HTMLElement;
-    const items = [...ol.children] as HTMLElement[];
-    const first = items.findIndex((li) => !li.classList.contains("fixed"));
-    items.forEach((li, i) => {
-      const n = i + 1;
-      (li.querySelector(".cq-n") as HTMLElement).textContent = ordLabel(n);
-      const up = li.querySelector('[data-act="up"]') as HTMLButtonElement | null;
-      const down = li.querySelector('[data-act="down"]') as HTMLButtonElement | null;
-      if (up) up.disabled = i <= first;
-      if (down) down.disabled = i === items.length - 1;
-    });
+    return `${atts ? `<div class="cp-atts">${atts}</div>` : ""}${m.text ? `<div class="cp-text">${report ?? (md(m.text) + (m.streaming ? '<span class="caret"></span>' : ""))}</div>` : ""}${state}${timeLabel ? `<time>${timeLabel}</time>` : `<time datetime="${esc(m.at)}" title="${esc(new Date(m.at).toLocaleString())}">${when(m.at)}</time>`}`;
   }
 
   // --- T3 session: pairing, model bar, queue actions -----------------------------
@@ -1347,12 +1297,10 @@ export class ChatPanel {
     if (code === "unauthorized" || code === "pair-failed") {
       this.paired = false;
       this.renderBar();
-      (this.el.querySelector(".cp-queue ol") as HTMLElement).dataset.sig = "";
-      this.refreshSoon(0);
+      this.queue.render(this.queued); // its rows lose their actions
     }
     const text = String(err?.message || err || "T3 did not answer.");
-    if (where === "queue") this.queueNote(text);
-    else {
+    if (where !== "queue") {
       const p = this.el.querySelector(".cm-error") as HTMLElement;
       p.textContent = text;
       p.classList.remove("calm");
@@ -1372,14 +1320,6 @@ export class ChatPanel {
     p.hidden = false;
     window.clearTimeout(Number(p.dataset.t));
     p.dataset.t = String(window.setTimeout(() => (p.hidden = true), 7000));
-  }
-
-  private queueNote(text: string) {
-    const p = this.el.querySelector(".cq-note") as HTMLElement;
-    p.textContent = text;
-    p.hidden = false;
-    window.clearTimeout(Number(p.dataset.t));
-    p.dataset.t = String(window.setTimeout(() => (p.hidden = true), 6000));
   }
 
   private renderBar() {
@@ -1443,7 +1383,7 @@ export class ChatPanel {
         note.textContent = "Saved";
         // T3 runs each queued message with the model it was queued with, and switches the
         // thread back to that model when it starts, so say so instead of looking forgetful
-        const waiting = this.queueLatest.filter((m) => !m.queueFixed).length;
+        const waiting = this.queued.filter((m) => !m.queueFixed).length;
         if (waiting) this.hint(`New messages use this. ${waiting === 1 ? "The queued message keeps" : `The ${waiting} queued messages keep`} the model ${waiting === 1 ? "it was" : "they were"} queued with.`);
       }
     } catch (err: any) {
@@ -1582,249 +1522,6 @@ export class ChatPanel {
       connectBtn.disabled = false;
       connectBtn.textContent = "Connect";
       if (!this.paired) this.failed(new Error(`T3 did not pair with ${BRAND.name}. Make sure T3 Code is open, then try again.`), "bar");
-    });
-    this.wireQueue();
-  }
-
-  private wireQueue() {
-    const ol = this.el.querySelector(".cp-queue ol") as HTMLOListElement;
-    const items = () => [...ol.children] as HTMLElement[];
-    const hold = (on: boolean, threadId = this.threadId) => {
-      if (threadId !== this.threadId) return;
-      this.queueHold = Math.max(0, this.queueHold + (on ? 1 : -1));
-      if (!this.queueHold) { ol.dataset.sig = ""; this.renderQueue(this.queueLatest); }
-    };
-    // Moves a row to a new index on screen (animated), then tells T3; puts it back if T3 says no.
-    // FLIP: rows glide from where they were on screen (`seen`, when a drag left them shifted).
-    const glide = (list: HTMLElement[], seen: Map<HTMLElement, number>) => {
-      for (const x of list) {
-        const dy = seen.get(x)! - x.getBoundingClientRect().top;
-        if (dy) gsap.fromTo(x, { y: dy }, { y: 0, duration: 0.22, ease: "power2.out", clearProps: "transform" });
-      }
-    };
-    const move = async (li: HTMLElement, to: number, seen?: Map<HTMLElement, number>) => {
-      const threadId = this.threadId;
-      const list = items();
-      const from = list.indexOf(li);
-      const min = list.findIndex((x) => !x.classList.contains("fixed"));
-      to = Math.max(min, Math.min(list.length - 1, to));
-      if (to === from || !threadId) return;
-      // T3 wants the run it should now sit in front of (null: the end of the queue)
-      const before = list.filter((x) => x !== li)[to] ?? null;
-      seen ??= new Map(list.map((x) => [x, x.getBoundingClientRect().top]));
-      ol.insertBefore(li, before);
-      glide(list, seen);
-      this.numberQueue();
-      hold(true, threadId);
-      try {
-        await this.api.t3!.reorder({ threadId, runId: li.dataset.run!, beforeRunId: before?.dataset.run || null });
-      } catch (err: any) {
-        if (threadId !== this.threadId) return;
-        const back = new Map(list.map((x) => [x, x.getBoundingClientRect().top]));
-        ol.insertBefore(li, list[from + 1] ?? null);
-        glide(list, back);
-        this.numberQueue();
-        this.failed(err, "queue");
-      } finally {
-        hold(false, threadId);
-        this.refreshSoon(250);
-      }
-    };
-
-    ol.addEventListener("click", async (e) => {
-      const b = (e.target as HTMLElement).closest("[data-act]") as HTMLButtonElement | null;
-      const li = b?.closest("li") as HTMLElement | null;
-      if (!b || !li || b.disabled || !this.threadId) return;
-      const threadId = this.threadId;
-      const rowHold = (on: boolean) => hold(on, threadId);
-      const i = items().indexOf(li);
-      const act = b.dataset.act;
-      if (act === "up" || act === "down") {
-        await move(li, act === "up" ? i - 1 : i + 1);
-        (li.querySelector(`[data-act="${act}"]`) as HTMLButtonElement | null)?.focus();
-      } else if (act === "edit") this.editRow(li, rowHold);
-      else if (act === "cancel") this.confirmRemove(li, rowHold);
-      else if (act === "steer") {
-        const m = this.queueLatest.find((x) => x.id === li.dataset.id);
-        if (!m?.steerTarget) return;
-        rowHold(true);
-        gsap.to(li, { opacity: 0.35, duration: 0.15 });
-        try {
-          await this.api.t3!.steer({ threadId, queuedRunId: li.dataset.run!, targetRunId: m.steerTarget });
-          if (threadId !== this.threadId) return;
-          li.remove(); this.numberQueue();
-        } catch (err: any) { if (threadId === this.threadId) { gsap.to(li, { opacity: 1, duration: 0.15 }); this.failed(err, "queue"); } }
-        finally { rowHold(false); this.refreshSoon(250); }
-      }
-    });
-
-    // keyboard on the grip: arrow keys move the row
-    ol.addEventListener("keydown", async (e) => {
-      const grip = (e.target as HTMLElement).closest(".cq-grip") as HTMLElement | null;
-      if (!grip || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
-      e.preventDefault();
-      const li = grip.closest("li") as HTMLElement;
-      await move(li, items().indexOf(li) + (e.key === "ArrowUp" ? -1 : 1));
-      (li.querySelector(".cq-grip") as HTMLElement | null)?.focus();
-    });
-
-    // dragging by the grip: the other rows make room where it will land
-    ol.addEventListener("pointerdown", (e) => {
-      const grip = (e.target as HTMLElement).closest(".cq-grip") as HTMLElement | null;
-      if (!grip || e.button !== 0) return;
-      e.preventDefault();
-      const li = grip.closest("li") as HTMLElement;
-      const list = items();
-      const from = list.indexOf(li);
-      const min = list.findIndex((x) => !x.classList.contains("fixed"));
-      const rects = list.map((x) => x.getBoundingClientRect());
-      const gap = rects.length > 1 ? rects[1].top - rects[0].bottom : 6;
-      const step = rects[from].height + gap;
-      const startY = e.clientY;
-      const threadId = this.threadId;
-      const pointerId = e.pointerId;
-      let to = from;
-      try { grip.setPointerCapture(pointerId); } catch { /* window handlers cover synthetic and lost capture */ }
-      li.classList.add("dragging");
-      document.body.classList.add("cq-dragging");
-      hold(true, threadId);
-      const onMove = (ev: PointerEvent) => {
-        if (ev.pointerId !== pointerId) return;
-        const dy = ev.clientY - startY;
-        gsap.set(li, { y: dy });
-        const mid = rects[from].top + rects[from].height / 2 + dy;
-        to = from;
-        while (to < list.length - 1 && mid > rects[to + 1].top + rects[to + 1].height / 2) to++;
-        while (to > min && mid < rects[to - 1].top + rects[to - 1].height / 2) to--;
-        list.forEach((x, i) => {
-          if (x === li) return;
-          const shift = from < to && i > from && i <= to ? -step : to < from && i >= to && i < from ? step : 0;
-          gsap.to(x, { y: shift, duration: 0.15, ease: "power2.out", overwrite: true });
-        });
-        // the position labels follow the preview, so "next" is always the top row
-        const preview = list.filter((x) => x !== li);
-        preview.splice(to, 0, li);
-        preview.forEach((x, i) => ((x.querySelector(".cq-n") as HTMLElement).textContent = ordLabel(i + 1)));
-      };
-      let ended = false;
-      const finish = (cancel: boolean) => {
-        if (ended) return;
-        ended = true;
-        if (cancel) to = from;
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-        window.removeEventListener("pointercancel", onCancel);
-        window.removeEventListener("blur", onCancel);
-        window.removeEventListener("keydown", onKey, true);
-        grip.removeEventListener("lostpointercapture", onCancel);
-        this.queueCleanups.delete(onCancel);
-        li.classList.remove("dragging");
-        document.body.classList.remove("cq-dragging");
-        // remember where everything is on screen, drop the drag offsets, then glide into place
-        gsap.killTweensOf(list);
-        const seen = new Map(list.map((x) => [x, x.getBoundingClientRect().top]));
-        list.forEach((x) => gsap.set(x, { clearProps: "transform" }));
-        if (to !== from) void move(li, to, seen).finally(() => hold(false, threadId));
-        else { glide(list, seen); this.numberQueue(); hold(false, threadId); }
-      };
-      const onUp = (ev: PointerEvent) => { if (ev.pointerId === pointerId) finish(false); };
-      const onCancel = () => finish(true);
-      const onKey = (ev: KeyboardEvent) => { if (ev.key === "Escape") { ev.preventDefault(); ev.stopImmediatePropagation(); finish(true); } };
-      this.queueCleanups.add(onCancel);
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
-      window.addEventListener("pointercancel", onCancel);
-      window.addEventListener("blur", onCancel);
-      window.addEventListener("keydown", onKey, true);
-      grip.addEventListener("lostpointercapture", onCancel);
-    });
-  }
-
-  // Edit a queued message in place. Save sends it to T3; a failed save keeps your text.
-  private editRow(li: HTMLElement, hold: (on: boolean) => void) {
-    if (li.classList.contains("editing")) return;
-    const m = this.queueLatest.find((x) => x.id === li.dataset.id);
-    if (!m) return;
-    const threadId = this.threadId!;
-    hold(true);
-    li.classList.add("editing");
-    const p = li.querySelector("p") as HTMLElement;
-    const box = document.createElement("div");
-    box.className = "cq-edit";
-    box.innerHTML = `<textarea rows="3" aria-label="Edit queued message"></textarea><div><button type="button" class="primary compact cq-save">Save</button><button type="button" class="ghost compact cq-discard">Discard changes</button><span>Ctrl+Enter saves</span></div>`;
-    const ta = box.querySelector("textarea")!;
-    ta.value = m.text;
-    p.replaceWith(box);
-    ta.focus();
-    ta.setSelectionRange(ta.value.length, ta.value.length);
-    let finished = false;
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      this.queueCleanups.delete(finish);
-      window.removeEventListener("keydown", onEsc, true);
-      box.replaceWith(p);
-      li.classList.remove("editing");
-      hold(false);
-    };
-    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape" && box.contains(document.activeElement)) { e.stopImmediatePropagation(); finish(); (li.querySelector('[data-act="edit"]') as HTMLElement | null)?.focus(); } };
-    window.addEventListener("keydown", onEsc, true);
-    this.queueCleanups.add(finish);
-    const save = async () => {
-      const text = ta.value.trim();
-      if (!text) { this.queueNote("A queued message cannot be empty. Remove it instead."); return; }
-      if (text === m.text.trim()) { finish(); return; }
-      const saveBtn = box.querySelector(".cq-save") as HTMLButtonElement;
-      saveBtn.disabled = true; saveBtn.textContent = "Saving";
-      try {
-        await this.api.t3!.edit({ threadId, runId: li.dataset.run!, text });
-        if (threadId !== this.threadId) return;
-        p.textContent = text; p.title = text;
-        finish();
-        this.refreshSoon(200);
-      } catch (err: any) {
-        if (threadId !== this.threadId) return;
-        saveBtn.disabled = false; saveBtn.textContent = "Save";
-        this.failed(err, "queue");
-      }
-    };
-    box.querySelector(".cq-save")!.addEventListener("click", save);
-    box.querySelector(".cq-discard")!.addEventListener("click", finish);
-    ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void save(); } });
-  }
-
-  // Removing cannot be undone in T3, so the row asks once, in place.
-  private confirmRemove(li: HTMLElement, hold: (on: boolean) => void) {
-    if (li.classList.contains("confirming")) return;
-    const threadId = this.threadId!;
-    hold(true);
-    li.classList.add("confirming");
-    const bar = document.createElement("div");
-    bar.className = "cq-confirm";
-    bar.setAttribute("role", "group");
-    bar.innerHTML = `<span>Remove this message from the queue? This cannot be undone.</span><button type="button" class="primary compact danger cq-yes">Remove</button><button type="button" class="ghost compact cq-no">Keep</button>`;
-    li.appendChild(bar);
-    const keep = bar.querySelector(".cq-no") as HTMLButtonElement;
-    keep.focus();
-    let finished = false;
-    const finish = () => { if (finished) return; finished = true; this.queueCleanups.delete(finish); window.removeEventListener("keydown", onEsc, true); bar.remove(); li.classList.remove("confirming"); hold(false); };
-    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape" && bar.contains(document.activeElement)) { e.stopImmediatePropagation(); finish(); (li.querySelector('[data-act="cancel"]') as HTMLElement | null)?.focus(); } };
-    window.addEventListener("keydown", onEsc, true);
-    this.queueCleanups.add(finish);
-    keep.addEventListener("click", () => { finish(); (li.querySelector('[data-act="cancel"]') as HTMLElement | null)?.focus(); });
-    bar.querySelector(".cq-yes")!.addEventListener("click", async () => {
-      const yes = bar.querySelector(".cq-yes") as HTMLButtonElement;
-      yes.disabled = true; yes.textContent = "Removing";
-      try {
-        await this.api.t3!.cancel({ threadId, runId: li.dataset.run! });
-        if (threadId !== this.threadId) return;
-        const next = (li.nextElementSibling ?? li.previousElementSibling) as HTMLElement | null;
-        gsap.to(li, { opacity: 0, height: 0, marginTop: 0, duration: 0.2, onComplete: () => { li.remove(); if (threadId === this.threadId) this.numberQueue(); finish(); this.refreshSoon(100); } });
-        (next?.querySelector(".cq-grip") as HTMLElement | null)?.focus();
-      } catch (err: any) {
-        finish();
-        if (threadId === this.threadId) this.failed(err, "queue");
-      }
     });
   }
 
