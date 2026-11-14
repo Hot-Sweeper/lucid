@@ -5,7 +5,7 @@
 // Hovering a plate or a robot, or focusing a robot, shows the full title, the worker, its status
 // and what a click does in a card over the office, at screen size and outside the zoomed world.
 // Part of the World class (world.ts); see the note there on how its parts are combined.
-import { harnessName, logoFor } from "../../robot";
+import { HOBBY_LABEL, harnessName, logoFor } from "../../robot";
 import { statusBadge } from "../../ui/status";
 import { esc } from "../../util/html";
 import { reducedMotion } from "../../util/dom";
@@ -18,12 +18,13 @@ import "../plates.css";
 const ROBOT = ".world-walker[data-id], .desk-unit .poke-head, .desk-unit .robot-host, .desk-unit .desk-plate";
 
 /** The hover card's content: full title, the worker with its harness and model, status and what a click does. */
-export function plateCardHtml(o: { title: string; worker: string; provider: string; model?: string | null; status: ThreadState | null; open: boolean }) {
+export function plateCardHtml(o: { title: string; worker: string; provider: string; model?: string | null; status: ThreadState | null; open: boolean; note?: string }) {
   const logo = logoFor(o.provider);
   const who = [o.worker || harnessName(o.provider), o.model].filter(Boolean).join(" · ");
   const status = o.status?.tone ? statusBadge(o.status.tone, { detail: o.status.detail, cls: "hc-status" }) : "";
   return `<p class="hc-title">${esc(o.title || "Untitled")}</p>`
     + `<p class="hc-who">${logo ? `<img src="${esc(logo)}" alt="">` : ""}<span>${esc(who)}</span></p>`
+    + (o.note ? `<p class="hc-note">${esc(o.note)}</p>` : "")
     + `<p class="hc-meta">${status}<span>${o.open ? "This chat is open" : "Click to open this chat"}</span></p>`;
 }
 
@@ -65,12 +66,15 @@ export class WorldPlates {
       this.hoverRobot?.closest(".desk-unit")?.classList.remove("robot-hover");
       this.hoverRobot = hit;
       hit.closest(".desk-unit:not(.empty)")?.classList.add("robot-hover");
+      // A walking robot's own tooltip (battery, report) moves into the card instead of showing twice.
+      if (hit.matches(".world-walker") && hit.title && this.plateTarget(hit)) { hit.dataset.tip = hit.title; hit.removeAttribute("title"); }
       if (this.plateTarget(hit)) show(hit); else hide(0);
     });
     this.root.addEventListener("pointerout", (e) => {
       const hit = this.hoverRobot;
       if (!hit || hit.contains(e.relatedTarget as Node | null)) return;
       hit.closest(".desk-unit")?.classList.remove("robot-hover");
+      if (hit.dataset.tip !== undefined) { if (!hit.title) hit.title = hit.dataset.tip; delete hit.dataset.tip; }
       this.hoverRobot = null;
       hide();
     });
@@ -108,7 +112,11 @@ export class WorldPlates {
     const { desk, thread } = target;
     const robot = desk?.profile ?? this.roster.forJob(thread.id);
     const worker = desk?.workerName || robot?.name || "";
-    const html = plateCardHtml({ title: thread.title, worker, provider: thread.provider, model: desk?.modelName ?? thread.model, status: this.threadStatus(thread), open: thread.id === this.chatThread });
+    const model = desk?.modelName ?? thread.model;
+    // A walker's own tooltip (battery, report) or a seated worker's free time, as one quiet line.
+    const hobby = robot?.prefs?.hobby ? `Free time: ${HOBBY_LABEL[robot.prefs.hobby]}` : "";
+    const note = desk ? hobby : (hit.dataset.tip ?? "").split(", ").filter((part) => part && part !== robot?.name && part !== model).join(" · ");
+    const html = plateCardHtml({ title: thread.title, worker, provider: thread.provider, model, status: this.threadStatus(thread), open: thread.id === this.chatThread, note });
     if (card.dataset.html !== html) { card.dataset.html = html; card.innerHTML = html; }
     // Anchored to the plate for a seated robot, to the robot itself when it walks.
     const anchor = (desk?.el.querySelector<HTMLElement>(".desk-plate") ?? hit).getBoundingClientRect();
@@ -118,7 +126,9 @@ export class WorldPlates {
     const w = card.offsetWidth, h = card.offsetHeight, gap = 8, edge = 8;
     // Below the plate, over the floor, so the robot and its monitor stay in view; above near the bottom edge.
     const above = anchor.bottom - box.top + gap + h > box.height - edge && anchor.top - box.top - h - gap >= edge;
-    const x = Math.min(Math.max(anchor.left - box.left, edge), box.width - w - edge);
+    // Left-aligned with a plate; centred under a walking robot (its anchor is the point at its feet).
+    const left = anchor.width < 40 ? anchor.left + anchor.width / 2 - w / 2 : anchor.left;
+    const x = Math.min(Math.max(left - box.left, edge), box.width - w - edge);
     const y = above ? anchor.top - box.top - h - gap : Math.min(anchor.bottom - box.top + gap, box.height - h - edge);
     card.style.translate = `${Math.round(x)}px ${Math.round(y)}px`;
     card.dataset.side = above ? "above" : "below";

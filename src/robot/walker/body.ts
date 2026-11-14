@@ -225,7 +225,11 @@ export abstract class WalkerBody {
     this.$.plate.setAttribute("width", String(w));
     this.updateTitle();
   }
-  protected updateTitle() { this.el.title = [this.name, this.model, this.reportTitle, this.remainingBattery === null ? "" : `${Math.floor(this.remainingBattery)}% subscription battery remaining`].filter(Boolean).join(", "); }
+  // While the office's hover card shows this robot (office/world/plates.ts) the text waits in data-tip.
+  protected updateTitle() {
+    const text = [this.name, this.model, this.reportTitle, this.remainingBattery === null ? "" : `${Math.floor(this.remainingBattery)}% subscription battery remaining`].filter(Boolean).join(", ");
+    if (this.el.dataset.tip !== undefined) this.el.dataset.tip = text; else this.el.title = text;
+  }
 
   /** Height of the robot above its feet, in px (for placing things over its head). */
   get height() {

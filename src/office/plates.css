@@ -48,6 +48,7 @@
 .plate-card .hc-title { font: 600 14px/1.35 var(--font); color: var(--ink-hi); overflow-wrap: anywhere; text-wrap: pretty; }
 .plate-card .hc-who { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
 .plate-card .hc-who img { width: 14px; height: 14px; flex: none; filter: var(--mono-logo-filter); }
+.plate-card .hc-note { margin-top: 2px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
 .plate-card .hc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 6px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
 .plate-card .hc-status { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
