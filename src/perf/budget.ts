@@ -24,6 +24,8 @@ export function unwatch(el: Element) { io?.unobserve(el); visible.delete(el); co
 let scale = 1;
 /** The camera's current zoom (1 = normal size). */
 export const cameraScale = () => scale;
+/** Far enough out that background motion slows down (a monitor is a few pixels wide, perf/lod.ts). */
+export const farCamera = () => scale < farZoom();
 // Calm mode: after a moment with no mouse, keys, wheel or camera movement, every background
 // animation (GSAP tweens and per-frame robot/walker callbacks, robot bodies, monitors, weather)
 // moves together on one beat frame in three. Idle on screen, the app redrew something on nearly

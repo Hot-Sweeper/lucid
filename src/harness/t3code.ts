@@ -90,8 +90,9 @@ const IC = {
   list: I(`<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/>`),
 };
 
-/** A turning arc (T3's working icon). The element stays put; only text around it changes, so it never restarts. */
-const SPIN = `<svg class="t3-spin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/></svg>`;
+/** A turning arc (T3's working icon). The element stays put; only text around it changes, so it never restarts.
+ *  The HTML wrapper turns, not the SVG: Chromium runs an SVG element's animation on the main thread. */
+const SPIN = `<span class="t3-spin" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/></svg></span>`;
 
 // ---------------------------------------------------------------------------------------------
 /** A file in the composer or in a sent message: its icon, a picture when the real file can be shown, its size. */

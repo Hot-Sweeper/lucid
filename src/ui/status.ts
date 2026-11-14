@@ -12,8 +12,12 @@ export const STATUS: Record<Status, { label: string; icon: IconName }> = {
   settled: { label: "Settled", icon: "statusSettled" },
 };
 
-/** The status icon alone, coloured by its token through `data-status`. */
-export const statusIcon = (s: Status, size = 14) => icon(STATUS[s].icon, size, { cls: "status-icon" });
+/** The status icon alone, coloured by its token through `data-status`. Working turns inside an HTML
+ *  wrapper: Chromium cannot hand an SVG element's animation to the compositor, and a main-thread
+ *  turn regrouped the whole page into layers on every frame while any thread was working. */
+export const statusIcon = (s: Status, size = 14) => s === "working"
+  ? `<span class="status-turn">${icon(STATUS[s].icon, size, { cls: "status-icon" })}</span>`
+  : icon(STATUS[s].icon, size, { cls: "status-icon" });
 
 /**
  * Icon and word as one inline element. `detail` (why it needs you, what it is working on) goes

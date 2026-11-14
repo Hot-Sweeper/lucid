@@ -26,9 +26,16 @@ for (const size of [14, 16, 18, 28]) {
 }
 assert(/vector-effect: non-scaling-stroke/.test(await read('icons.css')), 'the stroke the math assumes is non-scaling');
 const css = await read('status.css');
-const turn = css.match(/\.status-icon\[data-icon="statusWorking"\] \{([^}]*)\}/)[1];
+const turn = css.match(/\.status-turn \{([^}]*)\}/)[1];
 assert(/transform-origin: 50% 50%/.test(turn), 'turns about its centre');
 assert(/linear infinite/.test(turn), 'a spinner runs at a constant speed');
 assert(/will-change: transform/.test(turn), 'turns on its own layer, never re-snapped to the pixel grid');
-assert(/@media \(prefers-reduced-motion: reduce\) \{ \.status-icon\[data-icon="statusWorking"\] \{ animation: none; \} \}/.test(css), 'reduced motion stops it');
-console.log('PASS: the Working ring has even dashes at 14 to 28px, turns about its centre and stops for reduced motion');
+assert(/display: inline-flex/.test(turn), 'the wrapper is the icon box, so the ring keeps its exact centre');
+assert(/@media \(prefers-reduced-motion: reduce\) \{ \.status-turn \{ animation: none; \} \}/.test(css), 'reduced motion stops it');
+// Chromium runs an animation on an SVG element on the main thread, where each turn regrouped the
+// whole page into layers on every frame. Only the HTML wrapper may animate.
+assert(!/\.status-icon[^{]*\{[^}]*animation/.test(css), 'the SVG icon itself never animates');
+const status = (await read('status.ts'));
+assert(/s === "working"\s*\?\s*`<span class="status-turn">\$\{icon\(/.test(status), 'Working icons are wrapped in the turning span');
+assert(/\.ui-status > span:not\(\.status-turn\)/.test(css), 'the label truncation rule leaves the spinner box alone');
+console.log('PASS: the Working ring has even dashes at 14 to 28px, turns about its centre on the compositor and stops for reduced motion');

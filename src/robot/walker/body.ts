@@ -5,7 +5,8 @@ import { hatInfo, paintLookColors, type RobotLook } from "../look";
 import { robotSay } from "../voice";
 import gsap from "gsap";
 import { batteryWeakness, subscriptionBatteries } from "../../office/battery";
-import { watch, unwatch, drawNow, sinceDraw, finishDraw } from "../../perf/budget";
+import { watch, unwatch, drawNow, sinceDraw, finishDraw, farCamera } from "../../perf/budget";
+import { ambientBeat } from "../../perf/beat";
 import type { RouteView } from "../../world/hidden-route";
 import { beginSystem, endSystem } from "../../perf/metrics";
 import { setSvgAttribute } from "../../perf/svg-write";
@@ -241,9 +242,16 @@ export abstract class WalkerBody {
   setPos(x: number, y: number) { this.x = x; this.y = y; this.place(); }
 
   protected place() {
-    this.el.style.transform = `translate(${this.x.toFixed(1)}px, ${this.y.toFixed(1)}px)`;
-    this.el.style.zIndex = String(Math.round(this.y) + this.zBias + (this.st.sit > 0.5 ? -2 : 0));
+    // Far out, a walking step moves the robot on ambient beat frames only, like its body: a move on
+    // every display frame made Chromium regroup the whole campus into layers on every frame.
+    if (this.stepping && farCamera() && !ambientBeat()) { this.placeDue = true; return; }
+    this.placeDue = false;
+    const transform = `translate(${this.x.toFixed(1)}px, ${this.y.toFixed(1)}px)`, z = String(Math.round(this.y) + this.zBias + (this.st.sit > 0.5 ? -2 : 0));
+    if (this.el.style.transform !== transform) this.el.style.transform = transform;
+    if (this.el.style.zIndex !== z) this.el.style.zIndex = z;
   }
+  private stepping = false;
+  private placeDue = false;
 
   face(dir: Facing) {
     const was = this.facing;
@@ -381,7 +389,8 @@ export abstract class WalkerBody {
     let dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
     if (!this.svg.isConnected) return;
-    this.moveStep(dt);
+    this.stepping = true;
+    try { this.moveStep(dt); if (this.placeDue) this.place(); } finally { this.stepping = false; }
     // walking goes on every frame; the body is redrawn less often when off screen or tiny
     dt = sinceDraw(this, now);
     if (!drawNow(this, this.svg, now)) return;

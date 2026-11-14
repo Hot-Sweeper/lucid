@@ -142,7 +142,9 @@ export class WorldCameraView {
     if (this.scene.inert || document.hidden) { this.presentationDirty = true; return; }
     const started = beginSystem();
     this.clampCam();
-    this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
+    // Panning a camera that is already moving, at an unchanged zoom (and with no wheel glide on top).
+    const pan = this.zooming && !this.glideAnim && this.cam.s === this.lastScale && (this.cam.x !== this.lastX || this.cam.y !== this.lastY);
+    this.presentCamera(pan);
     // While the camera moves, the GPU slides and scales one frozen picture of the world
     // (see .world.zooming). Zooming in magnifies it, so it is redrawn every 1.12x, too
     // small a step to see as a resolution change; shrinking stays crisp longer (1.6x).
@@ -162,7 +164,7 @@ export class WorldCameraView {
         // a glide whose finish event was missed must not keep the camera "moving" forever
         if (this.glideAnim?.playState === "finished") this.endGlide(this.glideAnim);
         if (this.glideAnim) { this.zoomEnd = window.setTimeout(settle, 40); return; }
-        this.zooming = false; setCameraMoving(false); this.redrawSharp(); this.scheduleOutsideWarm();
+        this.zooming = false; setCameraMoving(false); this.presentCamera(false); this.redrawSharp(); this.scheduleOutsideWarm();
         syncRobotCanvases(this.cam.s);   // resharpen robot canvases for the zoom it settled at
       };
       this.zoomEnd = window.setTimeout(settle, 180);
@@ -184,6 +186,22 @@ export class WorldCameraView {
     const overview = this.cam.s < .3;
     if (overview !== this.overviewLayers) { this.overviewLayers = overview; this.root.classList.toggle('overview', overview); }
     endSystem("camera", started);
+  }
+
+  /** Puts the camera on the page. A pan moves the keyframes of a held compositor animation
+   * instead of the inline transform: an inline transform change made Chromium regroup every paint
+   * chunk of the campus into layers on each frame (about 5 ms with a linked computer), while an
+   * animated transform is repositioned on the compositor. Zoom steps, glides and the settled
+   * camera use the inline transform, so rasterization follows the scale exactly as before. */
+  presentCamera(this: World, pan: boolean) {
+    const t = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`, frames = [{ transform: t }, { transform: t }];
+    if (pan) {
+      if (this.panAnim) (this.panAnim.effect as KeyframeEffect).setKeyframes(frames);
+      else this.panAnim = this.root.animate(frames, { duration: 1e9, fill: "both" });
+      return;
+    }
+    if (this.root.style.transform !== t) this.root.style.transform = t;
+    if (this.panAnim) { this.panAnim.cancel(); this.panAnim = null; }
   }
 
   /** Everything that follows the visible area (this.cam and this.sceneBox). */

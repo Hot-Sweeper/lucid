@@ -12,10 +12,11 @@
 
 /* Icon and word in the status colour, never a capsule: no fill, padding or outline on any surface. */
 .ui-status { display: inline-flex; align-items: center; gap: 5px; min-width: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--status-color, var(--ink-2)); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.ui-status > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ui-status > span:not(.status-turn) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .status-icon { color: var(--status-color, currentColor); }
 /* Working turns slowly; it stops for reduced motion, hidden windows and rows scrolled away. */
 /* Its own compositor layer turns the rasterized ring about its exact centre, so it never wobbles on the pixel grid. */
-.status-icon[data-icon="statusWorking"] { animation: status-turn 2.4s linear infinite; transform-origin: 50% 50%; will-change: transform; }
+/* The HTML wrapper turns: an animation on the SVG itself runs on the main thread (status.ts). */
+.status-turn { display: inline-flex; flex: none; animation: status-turn 2.4s linear infinite; transform-origin: 50% 50%; will-change: transform; }
 @keyframes status-turn { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .status-icon[data-icon="statusWorking"] { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .status-turn { animation: none; } }

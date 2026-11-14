@@ -161,6 +161,8 @@ export class World {
    * the world once at the glide's sharpest scale and moves it on its compositor thread, so
    * the motion keeps the display rate however busy the page is. this.cam is the glide's goal. */
   glideAnim: Animation | null = null;
+  /** A pan's held compositor animation of the world transform (camera-view.ts presentCamera). */
+  panAnim: Animation | null = null;
   glideSpan: { cam: { x: number; y: number; s: number }; box: DOMRect } | null = null;
   /** Where the running glide goes and when it started, on the clock its animation uses. */
   glidePath: { from: { x: number; y: number; s: number }; to: { x: number; y: number; s: number }; start: number } | null = null;
