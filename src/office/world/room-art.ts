@@ -10,16 +10,30 @@ import { icon } from "../../ui/icons";
 import type { Room } from "./types";
 import { WALL_FACE, SLOT_W, SLOT_H, columnsForRoom, usable } from "./geometry";
 import { esc } from "../../util/html";
+import { fitTopic, textMeasure } from "../topic-label";
 
 function monogram(title: string) {
   const words = title.replace(/[^A-Za-z0-9 ]/g, " ").trim().split(/\s+/);
   return ((words[0]?.[0] || "?") + (words[1]?.[0] || "")).toUpperCase();
 }
 
+const SIGN_FONT = '600 15px "Lexend Variable"';
+/**
+ * A room sign's one line and its width: the office's name, or the words of it that fit (never
+ * wrapped or cut with an ellipsis). The sign is a plate that sizes to the name: the icon, then the
+ * name, at most 220px of text and always leaving the right of the wall to the windows and controls.
+ */
+export function roomSign(r: { w: number; title: string; collapsed?: boolean }) {
+  const max = Math.max(60, r.collapsed ? r.w - 222 : Math.min(220, r.w - 260));
+  const fit = fitTopic(r.title, max, SIGN_FONT, { task: false, maxWords: 5 });
+  const text = Math.ceil(textMeasure(SIGN_FONT)(fit.text));
+  return { text: fit.text, fits: fit.fits, width: 66 + Math.min(text, max) + 16 };
+}
+
 export function officeDecor(r: Room, slots: number, theme?: RoomTheme) {
   const { w, h, kind } = r, T = 16, cols = columnsForRoom(r);
   const desks = Array.from({ length: slots }, (_, k) => { const { c, row } = snakeSeat(k, cols); return { x: 70 + c * SLOT_W, y: WALL_FACE + 40 + row * SLOT_H, w: UNIT_W, h: UNIT_H }; });
-  const avoid = [{ x: 30, y: T, w: 148, h: WALL_FACE - T }, ...(kind === "main" ? [{ x: w - 112, y: T, w: 64, h: 66 }] : []), ...(kind === "freelance" ? [{ x: w - 430, y: WALL_FACE - 10, w: 310, h: 70 }] : [])];
+  const avoid = [{ x: 30, y: T, w: roomSign(r).width + 8, h: WALL_FACE - T }, ...(kind === "main" ? [{ x: w - 112, y: T, w: 64, h: 66 }] : []), ...(kind === "freelance" ? [{ x: w - 430, y: WALL_FACE - 10, w: 310, h: 70 }] : [])];
   return placeDecor(usable(theme), w, h, WALL_FACE, desks, { avoid, wallTop: T });
 }
 
@@ -46,7 +60,7 @@ export function roomSvg(r: Room, slots: number, theme?: RoomTheme, owner?:string
       <rect x="16" y="16" width="${w - 32}" height="${WALL_FACE - 16}" style="fill:${pal.wall}"/>
       <rect x="30" y="26" width="${w - 140}" height="68" rx="8" style="fill:var(--wd-sign, #fff)" opacity="0.94"/>
       ${icon ? `<image href="${icon}" x="40" y="37" width="46" height="46" preserveAspectRatio="xMidYMid meet"/>` : `<rect x="40" y="37" width="46" height="46" rx="10" fill="${pal.accent}"/><text x="63" y="68" text-anchor="middle" font-size="19" fill="#fff" font-family="var(--font)">${esc(monogram(title))}</text>`}
-      <foreignObject x="98" y="35" width="${w - 218}" height="52"><div xmlns="http://www.w3.org/1999/xhtml" class="room-name">${esc(title)}</div></foreignObject>
+      <text class="room-name" x="98" y="66" style="fill:var(--wd-sign-ink, #3a3f4f)">${esc(roomSign(r).text)}</text>
       <rect x="${doorX - 4}" y="${doorY - 4}" width="68" height="${kind === "main" ? 68 : 102}" rx="4" style="fill:${pal.trim}"/>
       <rect x="${doorX}" y="${doorY}" width="60" height="${kind === "main" ? 64 : 94}" rx="3" fill="#887461"/>
       <rect x="${doorX + 7}" y="${doorY + 8}" width="46" height="${kind === "main" ? 43 : 72}" rx="2" fill="#9b8771"/>
@@ -64,9 +78,11 @@ export function roomSvg(r: Room, slots: number, theme?: RoomTheme, owner?:string
   // windows on the north wall face
   const windows: string[] = [];
   const hallDoor = kind === "project" || kind === "freelance";
-  const nWin = Math.max(1, Math.floor((w - 240 - (hallDoor ? 60 : 0)) / 300));
+  // The windows start after the room sign, however long the office's name is.
+  const sign = roomSign(r), winX = Math.max(200, 34 + sign.width + 26), span = w - 60 - winX;
+  const nWin = Math.max(1, Math.floor((span + 20 - (hallDoor ? 60 : 0)) / 300));
   for (let i = 0; i < nWin; i++) {
-    const wx = 200 + i * ((w - 260) / nWin), ww = Math.min(220, (w - 260) / nWin - 40);
+    const wx = winX + i * (span / nWin), ww = Math.min(220, span / nWin - 40);
     windows.push(`
       <rect x="${wx - 6}" y="${T + 14}" width="${ww + 12}" height="${WALL_FACE - T - 30}" rx="6" style="fill:${pal.trim}"/>
       <rect x="${wx}" y="${T + 20}" width="${ww}" height="${WALL_FACE - T - 42}" rx="3" fill="url(#sky${uid})"/>
@@ -83,10 +99,10 @@ export function roomSvg(r: Room, slots: number, theme?: RoomTheme, owner?:string
       lamps.push(`<ellipse cx="${lx}" cy="${ly}" rx="190" ry="150" fill="url(#pool${uid})" style="opacity:var(--lamp)"/>`);
   const signBox = kind !== "break" && kind !== "queue" ? `
     <g transform="translate(34 ${T + 10})">
-      <rect width="140" height="${WALL_FACE - T - 24}" rx="10" style="fill:var(--wd-sign, #ffffff)" opacity="0.94"/>
+      <rect width="${sign.width}" height="${WALL_FACE - T - 24}" rx="10" style="fill:var(--wd-sign, #ffffff)" opacity="0.94"/>
       ${icon ? `<image href="${icon}" x="10" y="12" width="46" height="46" preserveAspectRatio="xMidYMid meet"/>`
         : `<rect x="10" y="12" width="46" height="46" rx="12" fill="${pal.accent}"/><text x="33" y="42" text-anchor="middle" font-size="19" font-weight="600" fill="#fff" font-family="var(--font)">${esc(monogram(title))}</text>`}
-      <foreignObject x="62" y="8" width="74" height="${WALL_FACE - T - 40}"><div xmlns="http://www.w3.org/1999/xhtml" class="room-name">${esc(title)}</div></foreignObject>
+      <text class="room-name" x="66" y="40" style="fill:var(--wd-sign-ink, #3a3f4f)">${esc(sign.text)}</text>
     </g>` : `<text x="40" y="${T + 52}" font-size="28" font-weight="600" style="fill:var(--wd-sign-ink, #3a3f4f)" font-family="var(--font)">${esc(title)}</text>`;
   const clock = kind === "main" ? `
     <g transform="translate(${w - 80} ${T + 46})">

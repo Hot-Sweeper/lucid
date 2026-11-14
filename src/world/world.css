@@ -15,10 +15,11 @@
 .world-say.think p { border-radius: 18px; font-style: italic; color: #4a5063; }
 .world-say.think p::after { left: calc(50% - 5px); bottom: -11px; width: 10px; height: 10px; border-radius: 50%; transform: none; }
 .world-say.think p::before { content: ""; position: absolute; left: calc(50% + 4px); bottom: -19px; width: 6px; height: 6px; border-radius: 50%; background: inherit; }
-.world-card { position: absolute; left: var(--hx); top: var(--hy); transform: translate(-14px, -100%); display: none; width: 132px; padding: 8px 10px 9px;
+.world-card { position: absolute; left: var(--hx); top: var(--hy); transform: translate(-14px, -100%); display: none; width: 150px; padding: 8px 10px 9px;
   background: #fffdf7; color: #2d3142; border-radius: 7px; box-shadow: 0 8px 16px rgba(40, 28, 14, 0.22); font: 500 11px/1.3 var(--font); pointer-events: none; }
 .world-card.on { display: block; }
-.world-card span { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+/* The question is chosen to fit (queue.ts shortQuestion): whole sentences, never clamped. */
+.world-card span { display: block; overflow-wrap: break-word; text-wrap: pretty; }
 .world-battery { position: absolute; left: -15px; bottom: calc(var(--head-top) + 14px - var(--bob)); width: 30px; height: 14px; border-radius: 4px; background: #3a3f4f; padding: 2px; display: none; }
 .world-battery::after { content: ""; position: absolute; right: -4px; top: 4px; width: 3px; height: 6px; border-radius: 0 2px 2px 0; background: #3a3f4f; }
 .world-battery.on { display: none; }

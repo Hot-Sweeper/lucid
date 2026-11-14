@@ -16,7 +16,7 @@ import { icon } from "../../ui/icons";
 import type { World } from "../world";
 import type { WThread, WorldData, Room, RoomKind, PhysicalRoomPlan } from "./types";
 import { WALL_FACE, SLOT_W, SLOT_H, GAP, HALL, LOUNGE, officeSize, columnsForRoom, floorSlots, needsLounge } from "./geometry";
-import { roomSvg } from "./room-art";
+import { roomSign, roomSvg } from "./room-art";
 
 export class WorldLayout {
   // --- layout -------------------------------------------------------------------
@@ -304,12 +304,13 @@ export class WorldLayout {
       // the room sign is the handle for office options
       for (const r of rooms) {
         if (r.kind !== "project" && r.kind !== "freelance" && r.kind !== "main") continue;
-        if (r.el.querySelector(".room-sign-hit")) continue;
+        const existing = r.el.querySelector<HTMLElement>(".room-sign-hit");
+        if (existing) { if (!r.collapsed) existing.style.setProperty("--sign-w", `${roomSign(r).width + 8}px`); continue; }
         const hit = document.createElement("button");
         hit.type = "button";
         hit.className = "room-sign-hit";
         hit.dataset.roomId = r.id;
-        if (r.collapsed) hit.style.width = `${r.w - 120}px`;
+        if (r.collapsed) hit.style.width = `${r.w - 120}px`; else hit.style.setProperty("--sign-w", `${roomSign(r).width + 8}px`);
         hit.title = this.hostWorld ? `Show ${r.title} office` : `${r.title}${r.collapsed ? ": open office or drag to rearrange" : ": office options or drag to rearrange"}`;
         hit.setAttribute("aria-label", `${r.title} office options`);
         hit.addEventListener("click", (e) => { e.stopPropagation(); this.onRoomMenu(this.rooms.find(room => room.id === r.id) ?? r, e.clientX, e.clientY); });

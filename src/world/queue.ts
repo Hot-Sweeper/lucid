@@ -1,3 +1,4 @@
+import { estimateWidth, topicLabel } from "../office/topic-label";
 import gsap from "gsap";
 import { Walker, type Facing } from "../robot";
 import { PAL, RoomStage, WALL, plantSvg, posterArt, windowArt } from "./room";
@@ -114,7 +115,7 @@ export class QuestionLine implements RoomExtension {
     for (const q of [...this.line]) if (q.alive && !ids.has(q.id)) void this.leave(q);
     for (const t of want) {
       const q = this.line.find((x) => x.id === t.id);
-      const text = shortQuestion(t.question || t.title);
+      const text = shortQuestion(t.question || t.title, topicLabel(t.title, 300, estimateWidth).text);
       if (q) {
         q.w.carryReport(this.reports.has(t.id) ? text : null);
         if (!q.alive) {
@@ -361,11 +362,17 @@ export class QuestionLine implements RoomExtension {
 }
 
 /** A short version of a question for a hand-held card. */
-export function shortQuestion(q: string) {
-  const clean = q.replace(/\s+/g, " ").replace(/[`*_#>]/g, "").trim();
+/**
+ * A question (or answer) short enough for a card or a bubble, never cut mid-thought: its first
+ * sentence, or the first clause of a long one. Without either, `fallback` (the thread's topic).
+ */
+export function shortQuestion(q: string, fallback?: string) {
+  const clean = q.replace(/\s+/g, " ").replace(/[`*_#>]/g, "").replace(/…|\.{3,}/g, " ").trim();
   const first = clean.split(/(?<=[?.!])\s/)[0] || clean;
-  const s = first.length <= 72 ? first : first.slice(0, 70).replace(/\s+\S*$/, "") + "…";
-  return s;
+  if (first.length <= 90) return first;
+  const clause = first.split(/(?<=[,;:])\s|\s[-\u2013\u2014]\s|\s\(/)[0];
+  if (clause.length >= 12 && clause.length <= 90) return clause.replace(/[,;:]$/, "");
+  return fallback ?? clause.split(" ").reduce((s, w) => (s + " " + w).length > 90 ? s : `${s} ${w}`.trim(), "");
 }
 
 

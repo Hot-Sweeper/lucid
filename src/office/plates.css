@@ -3,7 +3,7 @@
    (the topic is chosen to fit, topic-label.ts) and ends left of the seated robot's arm, so the
    robot never covers it. Hover, keyboard focus and the open chat only add a ring: size, type,
    padding and position never change. --plate-zoom keeps it readable as the camera pulls back. */
-.desk-plate { position: absolute; z-index: 2; left: 12px; top: 260px; width: max-content; max-width: 150px;
+.desk-plate { position: absolute; z-index: 2; left: 2px; top: 260px; width: max-content; max-width: 146px;
   display: flex; flex-direction: column; gap: 1px; padding: 4px 8px 5px; border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.93); color: #2d3142; font: 500 10px/1.25 var(--font); white-space: nowrap;
   box-shadow: 0 3px 8px rgba(40, 30, 20, 0.15); cursor: grab;

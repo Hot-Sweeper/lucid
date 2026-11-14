@@ -21,7 +21,7 @@ const FILLER = set("herr frau mr mrs ms dr full new minor small quick better pro
 const NOT_ADVERB = set("daily weekly monthly yearly hourly early family italy july reply apply supply only holy fly ally rally jelly belly bully assembly anomaly butterfly firefly");
 
 type Unit = { text: string; score: number; clause: number; index: number };
-type Token = { text: string; kind: "word" | "clause" | "prep" };
+type Token = { text: string; kind: "word" | "clause" | "prep" | "colon"; aside?: boolean };
 
 const strong = (w: string) => /\d/.test(w) || /[a-z][A-Z]/.test(w) || /^[A-Z][A-Z0-9]+$/.test(w);
 const key = (w: string) => w.toLowerCase().replace(/[^\p{L}\p{N}&+]/gu, "");
@@ -35,16 +35,20 @@ export function cleanTitle(title: string) {
 
 function tokenize(text: string): Token[] {
   const out: Token[] = [];
+  let depth = 0;   // inside (asides) or [tags]
   for (const raw of text.split(" ")) {
-    // trailing commas, semicolons and colons separate clauses; a lone dash too
+    // trailing commas and semicolons separate clauses, a lone dash too; a colon ends a prefix ("Sidebar: ...")
     const m = /^(.*?)([,;:]+)?$/.exec(raw)!;
-    const word = m[1].replace(/^[("'“„‘]+|[)"'”“’]+$/g, "").replace(/(?<=\w)\.[a-z0-9]{1,4}$/, "");
-    if (/^[-–—|]+$/.test(word)) { out.push({ text: ",", kind: "clause" }); continue; }
-    if (word) {
+    const opens = /^[([]/.test(m[1]), closes = /[)\]]$/.test(m[1]);
+    if (opens) depth++;
+    const word = m[1].replace(/^[([("'“„‘]+|[)\]"'”“’]+$/g, "").replace(/(?<=\w)\.[a-z0-9]{1,4}$/, "");
+    if (/^[-–—|]+$/.test(word)) out.push({ text: ",", kind: "clause" });
+    else if (word) {
       const k = key(word);
-      out.push({ text: word, kind: CLAUSE.has(k) || CLAUSE.has(word) ? "clause" : PREP.has(k) ? "prep" : "word" });
+      out.push({ text: word, kind: CLAUSE.has(k) || CLAUSE.has(word) ? "clause" : PREP.has(k) ? "prep" : "word", aside: depth > 0 });
     }
-    if (m[2]) out.push({ text: m[2][0], kind: "clause" });
+    if (closes) depth = Math.max(0, depth - 1);
+    if (m[2]) out.push({ text: m[2][0], kind: m[2][0] === ":" ? "colon" : "clause" });
   }
   return out;
 }
@@ -55,8 +59,9 @@ function units(text: string, task: boolean): { units: Unit[]; tokens: Token[] } 
   // A verb at the start of the title or of a later clause ("Fix X and Improve Y") is the task, not the topic.
   if (task) tokens = tokens.filter((t, i) => {
     if (t.kind !== "word") return true;
-    const prev = tokens[i - 1], k = key(t.text);
-    const clauseStart = !prev || prev.kind === "clause";
+    // the token before, skipping [tags] and (asides)
+    const prev = tokens.slice(0, i).reverse().find((p) => !p.aside), k = key(t.text);
+    const clauseStart = !prev || prev.kind === "clause" || prev.kind === "colon";
     if (clauseStart && VERBS.has(k) && tokens.slice(i + 1).some((n) => n.kind === "word")) { (t as any).drop = true; return false; }
     if (prev && (prev as any).drop && PARTICLES.has(k)) { (t as any).drop = true; return false; }
     return true;
@@ -79,9 +84,11 @@ function units(text: string, task: boolean): { units: Unit[]; tokens: Token[] } 
   const opening: Unit[] = [];
   tokens.forEach((t, index) => {
     if (t.kind === "clause") { clause++; run = -1; phrase = false; return; }
+    // after a prefix ("Sidebar: Thread order") the opening phrase starts again
+    if (t.kind === "colon") { if (clause === 0) { run = -1; phrase = true; opening.length = 0; } return; }
     if (t.kind === "prep") { if (clause === 0) { run = index; phrase = false; } return; }
     const k = key(t.text.split(" ")[0]);
-    let score = GENERIC.has(k) ? .5 : FILLER.has(k) || adverb(t.text) ? .4 : 1;
+    let score = t.aside ? .3 : GENERIC.has(k) ? .5 : FILLER.has(k) || adverb(t.text) ? .4 : 1;
     if (score === 1 && strong(t.text)) score += 1;
     if (clause > 0) score *= .5;
     const u = { text: t.text, score, clause, index };
@@ -95,7 +102,8 @@ function units(text: string, task: boolean): { units: Unit[]; tokens: Token[] } 
   if (real[0]) real[0].score += 1;
   const head = opening[opening.length - 1];
   if (head && head !== real[0]) head.score += 1.5;
-  for (const words of runs.values()) words[words.length - 1].score += .5;
+  // (a name right after the preposition is the object itself: "on CachyOS KDE")
+  for (const words of runs.values()) (strong(words[0].text) ? words[0] : words[words.length - 1]).score += .5;
   return { units: list, tokens };
 }
 
@@ -106,8 +114,9 @@ function join(kept: Unit[], tokens: Token[]) {
     if (i) {
       const between = tokens.slice(kept[i - 1].index + 1, u.index);
       const sep = [...between].reverse().find((t) => t.kind === "clause");
+      const colon = between.some((t) => t.kind === "colon");
       const prep = between.length && between[between.length - 1].kind === "prep" ? between[between.length - 1] : null;
-      s += sep ? (sep.text === "," || sep.text === ";" || sep.text === ":" ? ", " : ` ${sep.text} `) : prep ? ` ${prep.text} ` : " ";
+      s += sep ? (sep.text === "," || sep.text === ";" ? ", " : ` ${sep.text} `) : colon ? ": " : prep ? ` ${prep.text} ` : " ";
     }
     s += u.text;
   });
@@ -126,8 +135,9 @@ export function topicLabel(title: string, max: number, measure: Measure = estima
   if (!clean || measure(clean) <= max) return { text: clean, fits: true };
   const { units: all, tokens } = units(clean, o.task !== false);
   if (!all.length) return { text: clean, fits: false };
-  const capital = /^\p{Lu}/u.test(clean);
-  const finish = (s: string) => capital ? upperFirst(s) : s;
+  // "fix the website header" stays lowercase; "Fix the website header" gives "Website header".
+  const capital = /^\P{L}*\p{Lu}/u.test(clean);
+  const finish = (s: string) => capital && /^\p{Ll}+(?=\s|$)/u.test(s) ? upperFirst(s) : s;
   // Search the 12 most meaningful words (in title order) for the best combination that fits.
   // Filler ("Full", "Natively") only ever appears with the whole title.
   const pool = all.filter((u) => u.score > .4 || all.every((v) => v.score <= .4)).sort((a, b) => b.score - a.score || a.index - b.index).slice(0, 12).sort((a, b) => a.index - b.index);

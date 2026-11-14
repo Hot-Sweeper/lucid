@@ -55,6 +55,7 @@ export const CHECKS = [
   "verify-worker-match.mjs",
   "verify-harness-swap.mjs",
   "verify-chat-robot-marks.mjs",
+  "verify-nameplates.mjs",
   "verify-action-meaning.mjs",
   "verify-title-refresh.cjs",
   "verify-remote-media.cjs",

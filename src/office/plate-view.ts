@@ -7,10 +7,10 @@
 export const PLATE_FONT = '600 12px "Lexend Variable"';
 export const TOPIC_PX = 12;
 /** The widest topic at desk scale: the plate ends left of the seated robot's arm. */
-export const DESK_TOPIC = 134;
+export const DESK_TOPIC = 130;
 const MIN_PX = 11, DESK_GROW = 1.85, FAR_WIDTH = 380, PAD = 16;
 // Far topics come in a few widths, so zooming changes a label only now and then.
-const STEPS = [134, 110, 90, 72];
+const STEPS = [130, 110, 90, 72];
 
 export type PlateView = { form: "desk" | "far" | "hidden"; zoom: number; budget: number };
 

@@ -104,8 +104,8 @@ Orchestrator settings, Take the chair (`src/office/chair.ts`). The AI orchestrat
 ## Threads
 
 - After each newly finished run, the app asks T3 to regenerate the title (`thread.metadata.update` with `regenerateTitle`, the same command as T3's menu action, using T3's text generation model). Once per run, never for pinned threads, settled work or linked computers; existing history is recorded without renaming on first use (`electron/title-refresh.cjs`).
-- Desk name plates lead with the job title, the worker's name below.
-- The thread list shows pinned threads first, then the title, and the worker's name and model.
+- Desk name plates lead with one line of topic fitted from the job title (`src/office/topic-label.ts`), the harness logo and worker's name below; the full title is in the hover card.
+- The thread list shows pinned threads first, then Needs you, Working, Done and the rest (T3's order inside each group), with the title, and the worker's name and model.
 
 ## Evidence
 

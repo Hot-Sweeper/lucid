@@ -11,7 +11,8 @@
    separate layers; with the art mixed into the world's layer Chromium re-sorted it against all of
    them on every frame (Layerize ~5.5 ms of a 6.9 ms 144 Hz frame while panning, ~2.4 ms like this). */
 .room-art { will-change: transform; }
-.room-name { font: 600 12px/1.25 var(--font); color: #3a3f4f; text-align: center; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+/* A room sign's name: one line, sized to fit (room-art.ts roomSign). */
+.room-name { font: 600 15px var(--font); }
 .night-shade { position: absolute; inset: 0; background: #0b1030; opacity: calc(var(--night) * 0.9); pointer-events: none; }
 .world.no-night-shade > .night-shade { display: none; }
 
@@ -244,7 +245,7 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 /* building, office options, menus, dialogs */
 .building-plate { position: absolute; left: 0; top: -92px; transform-origin: 0 100%; transform: scale(var(--sign-scale, 1)); display: flex; align-items: center; gap: 12px; padding: 12px 22px; border-radius: 14px; background: #3a3f4f; color: #fff; font: 600 30px var(--font); }
 .bp-dot { width: 14px; height: 14px; border-radius: 50%; background: #4ff0a0; }
-.room-sign-hit { position: absolute; left: 30px; top: 22px; width: 148px; height: 72px; border: 0; background: transparent; border-radius: 10px; cursor: pointer; }
+.room-sign-hit { position: absolute; left: 30px; top: 22px; width: var(--sign-w, 148px); height: 72px; border: 0; background: transparent; border-radius: 10px; cursor: pointer; }
 .room-sign-hit:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .room-sign-hit:focus-visible { outline: 3px solid var(--accent); }
 .pop-menu { position: fixed; z-index: 200; min-width: 220px; max-width: 300px; }
