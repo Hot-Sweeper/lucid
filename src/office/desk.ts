@@ -1,4 +1,4 @@
-import { RobotPower, robotSay, GEOM, PHONE_SCALE, UNIT, emptyChairSvg, TopDownRobot, logoFor, WALLPAPERS, DeferredRobot, type DeskRig, type Pt, type SeatedRobot, type RobotProfile } from "../robot";
+import { RobotPower, robotSay, GEOM, PHONE_SCALE, UNIT, emptyChairSvg, TopDownRobot, logoFor, WALLPAPERS, DeferredRobot, type DeskRig, type Pt, type SeatedRobot, type RobotProfile, floatMark, dropMarks, marksTooSmall, MARK_EASE } from "../robot";
 import { line } from "../lines";
 import { DeskPlanWidget } from "./desk-plan";
 import gsap from "gsap";
@@ -359,21 +359,17 @@ export class Desk implements DeskStage {
     window.clearInterval(this.zTimer);
     this.zTimer = 0;
     this.lift("zz", on);
-    if (!on) {
-      this.el.querySelectorAll(".zz").forEach((z) => gsap.to(z, { opacity: 0, duration: 0.3, onComplete: () => z.remove() }));
-      return;
-    }
+    if (!on) { dropMarks(this.el.querySelectorAll(".zz")); return; }
     const spawn = () => {
+      if (marksTooSmall()) return;
       const z = document.createElement("span");
       z.className = "zz";
       z.textContent = "z";
       z.setAttribute("aria-hidden", "true");
       this.el.appendChild(z);
-      gsap.set(z, { x: GEOM.head.x + 18, y: GEOM.head.y - 46, scale: 0.6, opacity: 0, rotation: -10 });
-      gsap.timeline({ onComplete: () => z.remove() })
-        .to(z, { opacity: 0.9, duration: 0.6, ease: "sine.out" })
-        .to(z, { x: GEOM.monitor.x + GEOM.monitor.w + 14 + Math.random() * 26, y: GEOM.head.y - 120, scale: 1.4, rotation: 12, duration: 3.2, ease: "sine.inOut" }, 0)
-        .to(z, { opacity: 0, duration: 1, ease: "sine.in" }, 2.2);
+      floatMark(z, { x: GEOM.head.x + 18, y: GEOM.head.y - 46, scale: 0.6, opacity: 0, rotation: -10 },
+        [{ at: 3.2, pose: { x: GEOM.monitor.x + GEOM.monitor.w + 14 + Math.random() * 26, y: GEOM.head.y - 120, scale: 1.4, rotation: 12 }, ease: MARK_EASE.sineInOut }],
+        [{ at: 0.6, pose: { opacity: 0.9 }, ease: MARK_EASE.sineOut }, { at: 2.2, pose: { opacity: 0.9 } }, { at: 3.2, pose: { opacity: 0 }, ease: MARK_EASE.sineIn }]);
     };
     spawn();
     this.zTimer = window.setInterval(spawn, 1700);

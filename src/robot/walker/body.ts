@@ -7,6 +7,7 @@ import gsap from "gsap";
 import { batteryWeakness, subscriptionBatteries } from "../../office/battery";
 import { watch, unwatch, drawNow, sinceDraw, finishDraw, farCamera } from "../../perf/budget";
 import { ambientBeat } from "../../perf/beat";
+import { floatMark, marksTooSmall, MARK_EASE } from "../render/float-mark";
 import type { RouteView } from "../../world/hidden-route";
 import { beginSystem, endSystem } from "../../perf/metrics";
 import { setSvgAttribute } from "../../perf/svg-write";
@@ -330,29 +331,26 @@ export abstract class WalkerBody {
   }
 
   protected spawnZ() {
+    if (marksTooSmall()) return;
     const z = document.createElement("span");
     z.className = "world-z";
     z.textContent = "z";
     this.el.appendChild(z);
     const h = this.height - this.st.sit * SIT_DROP * this.s;
-    gsap.set(z, { x: 14, y: -h + 10, opacity: 0, scale: 0.6, rotation: -10 });
-    gsap.timeline({ onComplete: () => z.remove() })
-      .to(z, { opacity: 0.9, duration: 0.5 })
-      .to(z, { x: 40 + Math.random() * 20, y: -h - 50, scale: 1.3, rotation: 12, duration: 3, ease: "sine.inOut" }, 0)
-      .to(z, { opacity: 0, duration: 0.9, ease: "sine.in" }, 2.1);
+    floatMark(z, { x: 14, y: -h + 10, opacity: 0, scale: 0.6, rotation: -10 },
+      [{ at: 3, pose: { x: 40 + Math.random() * 20, y: -h - 50, scale: 1.3, rotation: 12 }, ease: MARK_EASE.sineInOut }],
+      [{ at: 0.5, pose: { opacity: 0.9 } }, { at: 2.1, pose: { opacity: 0.9 } }, { at: 3, pose: { opacity: 0 }, ease: MARK_EASE.sineIn }]);
   }
 
   protected puff() {
-    if (this.facing === "up") return;   // it sighs out of its face, which is turned away
+    if (this.facing === "up" || marksTooSmall()) return;   // it sighs out of its face, which is turned away
     const p = document.createElement("span");
     p.className = "world-puff";
     this.el.appendChild(p);
     const h = this.height - this.st.sit * SIT_DROP * this.s;
     const dx = this.facing === "left" ? -26 : this.facing === "right" ? 26 : 0;
-    gsap.set(p, { x: dx, y: -h * 0.6, opacity: 0, scale: 0.4 });
-    gsap.timeline({ onComplete: () => p.remove() })
-      .to(p, { opacity: 0.8, scale: 1, x: dx * 1.6, y: -h * 0.66, duration: 0.6, ease: "power2.out" })
-      .to(p, { opacity: 0, scale: 1.3, duration: 0.6 });
+    floatMark(p, { x: dx, y: -h * 0.6, opacity: 0, scale: 0.4 }, [{ at: 0.6, pose: { scale: 1, x: dx * 1.6, y: -h * 0.66 }, ease: MARK_EASE.power2Out }, { at: 1.2, pose: { scale: 1.3 } }],
+      [{ at: 0.6, pose: { opacity: 0.8 }, ease: MARK_EASE.power2Out }, { at: 1.2, pose: { opacity: 0 } }]);
   }
 
   // ---- idle life: blinks, glances, small weight shifts ---------------------------------------------

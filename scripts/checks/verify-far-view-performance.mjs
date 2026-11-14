@@ -16,12 +16,12 @@ async function load(file, names, fakes = {}) {
 
 // --- the camera: a pan at an unchanged zoom moves compositor keyframes -----------------------
 {
-  const timers = new Map(); let timerId = 0;
+  const timers = new Map(); let timerId = 0; const direct = [];
   globalThis.window = { setTimeout: (fn) => { timers.set(++timerId, fn); return timerId; }, clearTimeout: (id) => timers.delete(id) };
   const noop = () => {};
   const { WorldCameraView } = await load('office/world/camera-view.ts', ['WorldCameraView'], {
     canvasRobotsWanted: () => false, syncRobotCanvases: noop, LOD_PX: { full: 440, tiny: 70 }, monitorPx: (s) => s * 414,
-    gsap: {}, setZoom: noop, setCameraMoving: noop, UNIT_W: 400, UNIT_H: 380, footprintCovers: () => false,
+    gsap: {}, setZoom: noop, setCameraMoving: noop, setCameraDirect: (on) => { direct.push(on); }, UNIT_W: 400, UNIT_H: 380, footprintCovers: () => false,
     updateOutside: noop, setRenderView: noop, beginSystem: () => -1, endSystem: noop, updateStaticArt: noop,
   });
   const animations = [];
@@ -40,7 +40,8 @@ async function load(file, names, fakes = {}) {
     chatThread: '', canvasRobots: false, near: false, overviewLayers: true, zoomEnd: 0,
     clampCam: noop, hidePlateCard: noop, cancelOutsideWarm: noop, applyView: noop, scheduleOutsideWarm: noop, syncPlates: noop,
   });
-  world.redrawSharp = noop;
+  let redraws = 0;
+  world.redrawSharp = () => { redraws++; };
   globalThis.document = { hidden: false };
   globalThis.requestAnimationFrame = () => 0; globalThis.cancelAnimationFrame = noop;
   const t = (c) => `translate(${c.x}px, ${c.y}px) scale(${c.s})`;
@@ -58,13 +59,27 @@ async function load(file, names, fakes = {}) {
   assert.equal(animations[0].updates, 1, 'later pan frames only move its keyframes');
   assert.deepEqual(animations[0].frames, [{ transform: t(world.cam) }, { transform: t(world.cam) }]);
   world.cam.s = 0.25; world.apply();
-  assert.equal(animations[0].cancelled, true, 'a zoom step drops the pan animation');
+  world.cam.s = 0.6; world.apply();
+  assert.equal(animations.length, 1, 'a touchpad zoom continues on the same held animation');
+  assert.equal(root.inlineWrites, writes, 'zoom steps during a gesture never rewrite the inline transform');
+  assert.equal(redraws, 0, 'Chromium re-rasterizes the animated world itself: no redraw passes during the gesture (they made 66 ms frames at 4K)');
+  assert.deepEqual(animations[0].frames, [{ transform: t(world.cam) }, { transform: t(world.cam) }]);
+  assert.equal(direct.at(-1), true, 'input-driven motion lets robots advance on beats (perf/budget.ts)');
+  world.cameraTween = { isActive: () => true }; world.cam.x = 35; world.apply();
+  assert.equal(direct.at(-1), false, 'a flight keeps every GSAP frame');
+  world.cameraTween = null;
+  for (const fn of [...timers.values()]) fn(); timers.clear();
+  assert.equal(world.zooming, false, 'the gesture settles');
+  assert.equal(animations[0].cancelled, true, 'settling drops the held animation');
   assert.equal(world.panAnim, null);
-  assert.equal(transform, t(world.cam), 'zoom steps keep the inline transform, so rasterization follows the scale');
+  assert.equal(transform, t(world.cam), 'the settled camera is the inline transform again');
+  assert.equal(redraws, 1, 'and the world is redrawn sharp once, when it settles');
+  world.cam.x = 36; world.apply();
   world.glideAnim = {}; world.lastScale = world.cam.s; world.cam.x = 40; world.apply();
   assert.equal(animations.length, 1, 'a running wheel glide is never covered by a pan animation');
   world.glideAnim = null; world.cam.x = 50; world.apply();
   assert.equal(animations.length, 2);
+  world.cam.x = 60; world.apply();
   for (const fn of [...timers.values()]) fn();
   assert.equal(world.zooming, false, 'the camera settles');
   assert.equal(animations[1].cancelled, true, 'the settled camera returns to the inline transform');
@@ -96,6 +111,56 @@ async function load(file, names, fakes = {}) {
   delete globalThis.window; delete globalThis.document; delete globalThis.localStorage;
 }
 
+// --- beats while the camera moves over small robots ---------------------------------------------
+{
+  const fps = [], wakes = [], rafs = [];
+  const ticker = { fps: (n) => fps.push(n), wake: () => wakes.push(1), sleep() {}, tick() {} };
+  const listen = { addEventListener() {}, removeEventListener() {} };
+  globalThis.window = { ...listen, setInterval: () => 0, setTimeout: (fn) => { rafs.push(fn); return rafs.length; }, clearTimeout() {} };
+  globalThis.document = { ...listen, hidden: false, hasFocus: () => true, getAnimations: () => [], timeline: { currentTime: 0 } };
+  globalThis.requestAnimationFrame = (fn) => { rafs.push(fn); return rafs.length; }; globalThis.cancelAnimationFrame = () => {};
+  const rates = [];
+  const budget = await load('perf/budget.ts', ['setZoom', 'setCameraMoving', 'setCameraDirect'], {
+    gsap: { ticker }, ambientBeat: () => true, setAmbientRate: (hz) => rates.push(hz), nextBeat: (t) => t + 33, AMBIENT_HZ: 72, CALM_HZ: 30, CALM_AWAY_HZ: 15,
+    diagnosticOff: () => false, LOD_PX: { tiny: 70, icon: 190 }, zoomForMonitorPx: (px) => px / (276 * 1.5),
+  });
+  budget.setZoom(0.3);             // robots on their canvases at 1.5x (icon level is 0.46)
+  budget.setCameraDirect(true);
+  assert.notEqual(fps.at(-1), 1, 'a resting camera keeps GSAP on every frame');
+  budget.setCameraMoving(true);
+  assert.equal(fps.at(-1), 1, 'panning or zooming over small robots moves them on ambient beats');
+  assert.equal(rates.at(-1), 30, 'at 30 Hz, so most display frames carry only the compositor camera');
+  budget.setCameraDirect(false);
+  assert.equal(fps.at(-1), 240, 'a flight or a followed robot gets every frame back');
+  budget.setCameraDirect(true); budget.setZoom(0.8);
+  assert.equal(fps.at(-1), 240, 'close up every frame is used, as before');
+  budget.setZoom(0.3); assert.equal(fps.at(-1), 1);
+  budget.setCameraMoving(false);
+  assert.equal(fps.at(-1), 240, 'the settled camera restores every frame');
+  delete globalThis.window; delete globalThis.document;
+}
+
+// --- marks floating off robots are compositor animations ------------------------------------------
+{
+  let far = false;
+  const { floatMark, marksTooSmall } = await load('robot/render/float-mark.ts', ['floatMark', 'marksTooSmall'], { farCamera: () => far });
+  const made = [];
+  const el = { style: {}, removed: false, remove() { this.removed = true; }, animate(frames, options) { const a = { frames, options, onfinish: null }; made.push(a); return a; } };
+  const motion = floatMark(el, { x: 10, y: 20, scale: .6, opacity: 0, rotation: -10 },
+    [{ at: 3.2, pose: { x: 50, y: -40, scale: 1.4, rotation: 12 }, ease: 'ease-in-out' }],
+    [{ at: .6, pose: { opacity: .9 }, ease: 'ease-out' }, { at: 2.2, pose: { opacity: .9 } }, { at: 3.2, pose: { opacity: 0 }, ease: 'ease-in' }]);
+  assert.equal(made.length, 2, 'transform and opacity each get one animation');
+  assert.deepEqual(made[0].options, { duration: 3200, fill: 'forwards' });
+  assert.deepEqual(made[0].frames, [{ offset: 0, transform: 'translate(10px, 20px) rotate(-10deg) scale(0.6)', easing: 'ease-in-out' }, { offset: 1, transform: 'translate(50px, -40px) rotate(12deg) scale(1.4)' }]);
+  assert.deepEqual(made[1].frames.map(f => [+f.offset.toFixed(4), f.opacity, f.easing]), [[0, '0', 'ease-out'], [0.1875, '0.9', 'linear'], [0.6875, '0.9', 'ease-in'], [1, '0', undefined]], 'the fade keeps the timeline it replaces (in by 0.6 s, out from 2.2 s)');
+  assert.equal(el.style.transform, 'translate(10px, 20px) rotate(-10deg) scale(0.6)', 'it starts where the tween started');
+  motion.onfinish(); assert.equal(el.removed, true, 'and removes itself');
+  assert.equal(marksTooSmall(), false); far = true; assert.equal(marksTooSmall(), true, 'far out they are not drawn');
+  const desk = await read('office/desk.ts'), walker = await read('robot/walker/body.ts');
+  assert(/if \(marksTooSmall\(\)\) return;\s*const z = document.createElement\("span"\);\s*z.className = "zz"/.test(desk) && !/gsap\.timeline\(\{ onComplete: \(\) => z\.remove\(\) \}\)/.test(desk), 'desk Zs float on the compositor');
+  assert(/protected spawnZ\(\) \{\s*if \(marksTooSmall\(\)\) return;/.test(walker) && /floatMark\(p,/.test(walker), 'walker Zs and puffs float on the compositor');
+}
+
 // --- per-frame paths ---------------------------------------------------------------------------
 const plates = await read('office/world/plates.ts'), campus = await read('office/world/campus.ts');
 assert(!/root\.style\.setProperty\(\s*["']--plate-zoom/.test(plates), 'the plate zoom is never inherited from the office root');
@@ -103,6 +168,8 @@ assert(/d\.setPlateZoom\(zoom\)/.test(plates) && /room-far-label/.test(plates), 
 assert(!/root\.style\.setProperty\(\s*["']--sign-scale/.test(campus), 'the sign scale is never inherited from the campus root');
 assert(/paintSigns\(this: World\)/.test(campus), 'the signs carry their own scale');
 const view = await read('office/world/camera-view.ts');
+const input = await read('office/world/camera-input.ts');
+assert(/addEventListener\("mouseup", \(e\) => \{ if \(e\.button === 1 \|\| this\.dragged\) e\.preventDefault\(\); \}, true\)/.test(input), 'releasing a pan skips Chromium text selection over the campus');
 assert(!/this\.root\.querySelector\(["']\.outside-live/.test(view), 'camera frames never search the campus for the live grounds');
 const chatMark = await read('office/world/chat-mark.ts');
 assert(!/querySelectorAll\(["']\.desk-unit\.chat-open/.test(chatMark), 'camera frames never search the campus for the open chat desk');
@@ -112,4 +179,4 @@ const walker = await read('robot/walker/body.ts');
 assert(/this\.stepping && farCamera\(\) && !ambientBeat\(\)/.test(walker), 'far walking steps are presented on ambient beats');
 assert(/if \(this\.el\.style\.transform !== transform\)/.test(walker) && /if \(this\.el\.style\.zIndex !== z\)/.test(walker), 'unchanged walker positions are not rewritten');
 
-console.log('PASS: pans move compositor keyframes, Follow T3 ignores key order, and per-frame paths stay local');
+console.log('PASS: camera motion moves compositor keyframes, robots advance on beats while it moves, marks float on the compositor, Follow T3 ignores key order, and per-frame paths stay local');

@@ -4,7 +4,7 @@
 import { canvasRobotsWanted, syncRobotCanvases } from "../../robot";
 import { LOD_PX, monitorPx } from "../../perf/lod";
 import gsap from "gsap";
-import { setZoom, setCameraMoving } from "../../perf/budget";
+import { setZoom, setCameraMoving, setCameraDirect } from "../../perf/budget";
 import { UNIT_W, UNIT_H } from "../desk";
 import { footprintCovers } from "../building-footprint";
 import { updateOutside } from "../outside-zoom";
@@ -142,12 +142,16 @@ export class WorldCameraView {
     if (this.scene.inert || document.hidden) { this.presentationDirty = true; return; }
     const started = beginSystem();
     this.clampCam();
-    // Panning a camera that is already moving, at an unchanged zoom (and with no wheel glide on top).
-    const pan = this.zooming && !this.glideAnim && this.cam.s === this.lastScale && (this.cam.x !== this.lastX || this.cam.y !== this.lastY);
-    this.presentCamera(pan);
-    // While the camera moves, the GPU slides and scales one frozen picture of the world
-    // (see .world.zooming). Zooming in magnifies it, so it is redrawn every 1.12x, too
-    // small a step to see as a resolution change; shrinking stays crisp longer (1.6x).
+    // A camera that is already moving (a drag, a touchpad zoom, a flight), with no wheel glide on top.
+    const moving = this.zooming && !this.glideAnim && (this.cam.s !== this.lastScale || this.cam.x !== this.lastX || this.cam.y !== this.lastY);
+    this.presentCamera(moving);
+    // Input and compositor glides move the camera by themselves; a flight or a followed robot
+    // advance on GSAP's frames and keep them all (perf/budget.ts).
+    setCameraDirect(!this.cameraTween?.isActive() && !this.followEl);
+    // While the camera moves, its transform is a held compositor animation (presentCamera), and
+    // Chromium rasterizes an animated layer at the scale the animation reaches, so the world stays
+    // sharp without the page redrawing it. Otherwise (the first frame of a move) the GPU slides
+    // one frozen picture (see .world.zooming), redrawn every 1.12x zooming in and 1.6x out.
     // It is redrawn once more when the camera settles.
     if (this.cam.s !== this.lastScale || this.cam.x !== this.lastX || this.cam.y !== this.lastY) {
       this.lastScale = this.cam.s; this.lastX = this.cam.x; this.lastY = this.cam.y;
@@ -155,6 +159,7 @@ export class WorldCameraView {
       if (!this.zooming) { this.zooming = true; setCameraMoving(true); this.rasterScale = this.cam.s; this.root.classList.add("zooming"); }
       // A compositor glide is rasterized by Chromium at its sharpest scale up front.
       else if (this.glideAnim) this.rasterScale = this.cam.s;
+      else if (this.panAnim) this.rasterScale = this.cam.s;
       else if (!this.resharpen && (this.cam.s / this.rasterScale > 1.12 || this.rasterScale / this.cam.s > 1.6)) this.redrawSharp();
       window.clearTimeout(this.zoomEnd);
       this.cancelOutsideWarm();
@@ -188,14 +193,15 @@ export class WorldCameraView {
     endSystem("camera", started);
   }
 
-  /** Puts the camera on the page. A pan moves the keyframes of a held compositor animation
-   * instead of the inline transform: an inline transform change made Chromium regroup every paint
-   * chunk of the campus into layers on each frame (about 5 ms with a linked computer), while an
-   * animated transform is repositioned on the compositor. Zoom steps, glides and the settled
-   * camera use the inline transform, so rasterization follows the scale exactly as before. */
-  presentCamera(this: World, pan: boolean) {
+  /** Puts the camera on the page. While it moves, the keyframes of a held compositor animation
+   * change instead of the inline transform: an inline transform change made Chromium regroup every
+   * paint chunk of the campus into layers on each frame (about 5 ms with a linked computer, and
+   * 66 ms frames in a touchpad zoom at 4K), while an animated transform is repositioned and
+   * re-rasterized at its new scale by the compositor. Glides and the settled camera use the
+   * inline transform, and settling redraws the world sharp as before. */
+  presentCamera(this: World, moving: boolean) {
     const t = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`, frames = [{ transform: t }, { transform: t }];
-    if (pan) {
+    if (moving) {
       if (this.panAnim) (this.panAnim.effect as KeyframeEffect).setKeyframes(frames);
       else this.panAnim = this.root.animate(frames, { duration: 1e9, fill: "both" });
       return;

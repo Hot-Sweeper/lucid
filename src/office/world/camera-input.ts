@@ -85,6 +85,9 @@ export class WorldCameraInput {
     // the middle button pans too: claim it, or Chromium starts its own autoscroll and fights the pan
     s.addEventListener("mousedown", (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } }, true);
     s.addEventListener("pointerdown", (e) => { if (e.button === 1) beginPan(e); }, true);
+    // Releasing a pan otherwise runs Chromium's text-selection handling over the whole campus
+    // (235 ms with a linked computer at 4K). A camera drag never selects text.
+    s.addEventListener("mouseup", (e) => { if (e.button === 1 || this.dragged) e.preventDefault(); }, true);
     s.addEventListener("pointerdown", (e) => {
       if (e.button === 0) beginPan(e);
     });

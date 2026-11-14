@@ -26,3 +26,4 @@ export { wait } from "./util";
 export { DeferredRobot } from "./render/deferred";
 export { RobotPower, setRobotModes } from "./render/power";
 export { canvasRobotsWanted, syncRobotCanvases } from "./render/canvas";
+export { floatMark, dropMarks, marksTooSmall, MARK_EASE } from "./render/float-mark";

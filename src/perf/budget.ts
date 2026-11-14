@@ -39,8 +39,16 @@ const calmRate = () => document.hasFocus() ? CALM_HZ : CALM_AWAY_HZ;
 const FAR_HZ = 30, FAR_CALM_HZ = 15;
 // where a monitor is only a few pixels wide (perf/lod.ts)
 const farZoom = () => zoomForMonitorPx(LOD_PX.tiny);
+// While you pan or zoom over robots small enough to be drawn on their canvases (perf/lod.ts icon
+// level), robots, walkers and room games advance on ambient beats at this rate, as in calm mode:
+// the frames in between carry only the camera, which moves on the compositor.
+const MOVING_HZ = 30;
+const smallZoom = () => zoomForMonitorPx(LOD_PX.icon);
+let movingSmall = false, cameraDirect = false;
+/** GSAP ticks only on ambient beats (calm, or the camera moving over small robots). */
+const onBeats = () => calm || movingSmall;
 const ambientRate = () => {
-  const base = calm ? calmRate() : AMBIENT_HZ;
+  const base = calm ? calmRate() : movingSmall ? MOVING_HZ : AMBIENT_HZ;
   return scale < farZoom() ? Math.min(base, calm ? FAR_CALM_HZ : FAR_HZ) : base;
 };
 const calmListeners = new Set<(calm: boolean) => void>();
@@ -51,7 +59,7 @@ export const isCalm = () => calm;
 let asleep = false;
 export const isAsleep = () => asleep;
 export function onCalmChange(fn: (calm: boolean) => void) { calmListeners.add(fn); return () => { calmListeners.delete(fn); }; }
-const syncTicker = () => gsap.ticker.fps(document.hidden ? 60 : calm ? 1 : 240);
+const syncTicker = () => gsap.ticker.fps(document.hidden ? 60 : onBeats() ? 1 : 240);
 // Looping CSS animations (fish, bubbles, clock hands, steam in the office; spinners and pulses in
 // the sidebar) make Chromium update style on every display frame: those on parts inside SVG
 // drawings cannot run on the GPU at all. In calm mode they are paused and stepped to the right
@@ -84,7 +92,7 @@ function releaseDecor() {
 // Calm frames happen only on beats: the loop sleeps in between and GSAP's own loop sleeps too,
 // so Chromium has no frame to make (no style, layout or GPU frame) between beats.
 function scheduleCalm() {
-  if (!calm || asleep || document.hidden || calmRaf || calmTimer) return;
+  if (!onBeats() || asleep || document.hidden || calmRaf || calmTimer) return;
   // Wake just after the beat starts: waking early let the next frame land before it, which then
   // asked for one more frame, so calm still drew every frame on a 60 Hz screen.
   const now = performance.now(), wait = nextBeat(now) - now + 1;
@@ -93,12 +101,12 @@ function scheduleCalm() {
 }
 function calmFrame(t: number) {
   calmRaf = 0;
-  if (!calm || asleep || document.hidden) return;
+  if (!onBeats() || asleep || document.hidden) return;
   if (ambientBeat(t)) {
     gsap.ticker.tick();
     // animations that started since (a redrawn sidebar row, a new desk) join the beat too
-    if (t - lastHold > 1000) { lastHold = t; holdDecor(); }
-    stepDecor();
+    if (calm && t - lastHold > 1000) { lastHold = t; holdDecor(); }
+    if (calm) stepDecor();
   }
   gsap.ticker.sleep(); // new tweens may wake it; it is put back to sleep on the next beat
   scheduleCalm();
@@ -116,7 +124,7 @@ function syncSleep() {
     if (calmTimer) clearTimeout(calmTimer);
     calmRaf = calmTimer = 0;
     stepDecor(); gsap.ticker.sleep(); holdTicker(true);
-  } else { holdTicker(calm); if (calm) { setAmbientRate(ambientRate()); scheduleCalm(); } }
+  } else { holdTicker(onBeats()); if (onBeats()) { setAmbientRate(ambientRate()); scheduleCalm(); } }
   for (const fn of calmListeners) fn(calm);
 }
 function setCalm(on: boolean) {
@@ -125,19 +133,31 @@ function setCalm(on: boolean) {
   if (!on && asleep) asleep = false;
   // Calm frames tick GSAP themselves on beats, so a tween starting in between (robots start
   // them often) must not restart GSAP's own loop: that brought back a frame on every vsync.
-  holdTicker(on);
+  holdTicker(onBeats());
   setAmbientRate(ambientRate());
   syncTicker();
-  if (on) holdDecor(); else releaseDecor();
+  if (on) holdDecor(); else if (!cameraMoving) releaseDecor();
   if (on) { scheduleCalm(); syncSleep(); }
-  else {
-    if (calmRaf) cancelAnimationFrame(calmRaf);
-    if (calmTimer) clearTimeout(calmTimer);
-    calmRaf = calmTimer = 0;
-    gsap.ticker.wake();
-  }
+  else if (!onBeats()) stopBeats();
   for (const fn of calmListeners) fn(on);
 }
+function stopBeats() {
+  if (calmRaf) cancelAnimationFrame(calmRaf);
+  if (calmTimer) clearTimeout(calmTimer);
+  calmRaf = calmTimer = 0;
+  gsap.ticker.wake();
+}
+/** Starts or ends beat ticking for camera motion over small robots. */
+function syncMovingSmall() {
+  const next = cameraMoving && cameraDirect && scale < smallZoom();
+  if (next === movingSmall) return;
+  movingSmall = next;
+  holdTicker(onBeats()); setAmbientRate(ambientRate()); syncTicker();
+  if (onBeats()) scheduleCalm(); else stopBeats();
+}
+/** The camera moves by itself or by input, not by a GSAP tween (a flight or following a robot
+ * advance on GSAP's own frames, so they must keep every frame). */
+export function setCameraDirect(on: boolean) { if (on !== cameraDirect) { cameraDirect = on; syncMovingSmall(); } }
 /** Something moved or was touched: full frame rate for a while. */
 export function markActive() {
   lastActive = performance.now();
@@ -162,6 +182,7 @@ export function setCameraMoving(on: boolean) {
   cameraMoving = on;
   // looping decorations (fish, bubbles, signs, spinners) hold too, as calm mode does
   if (on) holdDecor(true); else if (!calm) releaseDecor();
+  syncMovingSmall();
 }
 /** The camera's zoom (1 = normal size) and position. */
 export function setZoom(s: number, x = 0, y = 0) {
@@ -169,6 +190,7 @@ export function setZoom(s: number, x = 0, y = 0) {
   const crossed = (s < farZoom()) !== (scale < farZoom());
   scale = s; lastX = x; lastY = y;
   if (crossed) setAmbientRate(ambientRate());
+  syncMovingSmall();
 }
 let lastX = 0, lastY = 0;
 
