@@ -255,6 +255,8 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .pm-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pop-menu-message .pm-title { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; color: var(--ink-2); font-size: 13px; line-height: 1.45; }
 .pop-menu > button { display: block; width: 100%; text-align: left; border: 0; background: transparent; cursor: pointer; }
+.pop-menu > button.pm-icon { display: flex; align-items: center; gap: 8px; }
+.pop-menu > button.pm-icon > span { min-width: 0; overflow-wrap: anywhere; }
 .pm-form { padding: 8px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); margin-top: 4px; }
 .pm-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--ink-2); }
 .pm-form .primary { align-self: flex-end; }
@@ -750,3 +752,4 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .empty-desk-remove:disabled { opacity:.35; cursor:default; }
 @media(prefers-reduced-motion:reduce) { .empty-desk-remove { transition:none; transform:none; } }
 .cp-stop { flex: none; }
+.pm-room-main { flex: none; display: grid; place-items: center; width: 16px; height: 16px; color: var(--ink-2); }

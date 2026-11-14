@@ -4,8 +4,11 @@ import { showMenu, confirmDialog, noticeDialog } from "../office/menus";
 import { wireThreadDrag } from "../office/thread-drag";
 import type { ThreadRef } from "../office/thread-ref";
 import { projectIcon, projectMark, projectName } from "../ui/project-icon";
+import { icon as uiIcon } from "../ui/icons";
 import { $ } from "./dom";
 import type { App } from "./context";
+/** An office's mark in menus: its project's mark, the dashed square for the No project office, the team glyph for the main office. */
+const roomMark = (r: { kind: string; title: string; icon: string | null }) => r.kind === "main" ? `<span class="pm-room-main">${uiIcon("users", 14)}</span>` : projectIcon(r.kind === "project" ? { title: r.title, icon: r.icon } : null, 16);
 const RUNNING = new Set(["running", "starting", "preparing", "queued"]);
 
 /** Registers this module's functions on the app (before anything runs, like function hoisting). */
@@ -59,7 +62,7 @@ export function defineThreadActions(app: App) {
     if (id === app.world.orchThread) return [];
     const current = app.world.homes.get(id) ?? app.world.deskFor(id)?.room;
     return app.world.rooms.filter(r => ["main", "project", "freelance"].includes(r.kind) && r.id !== current).map(r => ({
-      label: `Move to ${r.title}`,
+      label: `Move to ${r.title}`, icon: roomMark(r),
       run: () => { if (app.world.placeThread(id, r.id)) gameSound.play("switch"); },
     }));
   };

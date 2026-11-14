@@ -6,6 +6,17 @@ import "./report.css";
 import { harnessName, logoFor } from "../robot";
 import { costText } from "./orchestrator-panel";
 import { esc } from "../util/html";
+import { NO_PROJECT, projectChip, type ProjectMark } from "../ui/project-icon";
+
+// A paper's project as the sidebar shows it. The app tells reports how to find a project's mark
+// by its folder (useReportProjects); a project T3 no longer lists keeps its name and monogram.
+let lookupProject: (root: string) => ProjectMark | undefined = () => undefined;
+export function useReportProjects(lookup: (root: string) => ProjectMark | undefined) { lookupProject = lookup; }
+function paperProject(p: { project?: string; root?: string }): ProjectMark {
+  const known = p.root ? lookupProject(p.root) : undefined;
+  if (known !== undefined) return known;
+  return !p.project || p.project === NO_PROJECT || /[\\/]\.t3[\\/]scratch$/i.test(p.root || "") ? null : { title: p.project };
+}
 
 const state = (s: string) => ({ "manager-excluded": "Pinned, excluded from automatic review", "pending-dependency": "Waiting for dependency evidence", submitted: "Awaiting delivery", reviewing: "Under review", approved: "Approved, ready to collect", settled: "Settled", "manual-review": "Needs review", "changes-requested": "Changes requested", superseded: "Replaced by newer work" }[s] || s);
 const date = (s: string) => s ? new Date(s).toLocaleString() : "Not recorded";
@@ -41,7 +52,7 @@ export async function showReport(id: string, title: string, openThread: () => vo
     view.body.innerHTML = `
       <div class="paper-owner">
         <div class="paper-portrait">${reportPortrait(p.provider, p.robot.look || {})}</div>
-        <div class="paper-owner-name"><strong>${esc(p.robot.name)}</strong><span>${esc(p.project)}</span>${identity(p)}</div>
+        <div class="paper-owner-name"><strong>${esc(p.robot.name)}</strong>${projectChip(paperProject(p), 16, "paper-project")}${identity(p)}</div>
         <div class="paper-verdict" data-state="${esc(p.status)}">${reportIcon(p.status === "settled" ? "settled" : p.status === "approved" ? "check" : "paper")}<strong>${esc(state(p.status))}</strong><span>${p.reviewer ? `Reviewed by ${esc(p.reviewer)}` : "Waiting at the review desk"}</span></div>
       </div>
       <div class="paper-thread"><a href="${esc(threadUrl(p.threadId))}" data-related-thread="${esc(p.threadId)}">Open source thread</a><code>${esc(p.threadId)}</code><button type="button" class="ghost" data-copy-thread>Copy ID</button></div>
@@ -166,7 +177,7 @@ export async function showReportArchive(openThread: (id: string) => void) {
           row.innerHTML = `<strong>${esc(a.questions || a.title)}</strong><span>${esc(a.robot?.name || a.title)}, ${esc(a.outcome === "answered" ? "Answered by orchestrator" : a.outcome === "user" ? "Answered by you" : "Passed to you")}</span><time>${esc(date(a.at))}</time>`;
           row.addEventListener("click", () => {
             view.close(); const paper = dialog(a.title || "Decision paper");
-            paper.body.innerHTML = `<h3>${esc(a.questions)}</h3><p>${esc(a.robot?.name || "Robot")}, ${esc(a.project)}</p><p>${esc(a.answer || a.userAnswer || a.suggestion || "No answer recorded")}</p><p>${esc(a.reason)}</p><h3>Decision history</h3>${(a.updates || []).map((u: any) => `<p>${esc(date(u.at))}, ${esc(u.outcome)}<br>${esc(u.reason)}</p>`).join("")}`;
+            paper.body.innerHTML = `<h3>${esc(a.questions)}</h3><p class="paper-who">${esc(a.robot?.name || "Robot")}${projectChip(paperProject(a), 14)}</p><p>${esc(a.answer || a.userAnswer || a.suggestion || "No answer recorded")}</p><p>${esc(a.reason)}</p><h3>Decision history</h3>${(a.updates || []).map((u: any) => `<p>${esc(date(u.at))}, ${esc(u.outcome)}<br>${esc(u.reason)}</p>`).join("")}`;
           }); list.appendChild(row);
         }
         if (!list.children.length) list.textContent = "No matching decision papers.";
@@ -176,7 +187,7 @@ export async function showReportArchive(openThread: (id: string) => void) {
       list.replaceChildren();
       for (const p of matches) {
         const row = document.createElement("button"); row.type = "button"; row.className = "paper-register-row";
-        row.innerHTML = `${reportPortrait(p.provider, p.robot.look || {}, 62)}<div><strong>${esc(p.title)}</strong><span>${esc(p.robot.name)}, ${esc(p.project)}</span><time>${esc(date(p.submittedAt))}</time></div><span class="paper-row-state" data-state="${esc(p.status)}">${reportIcon(p.status === "settled" ? "settled" : p.status === "approved" ? "check" : "paper")}${esc(state(p.status))}</span>`;
+        row.innerHTML = `${reportPortrait(p.provider, p.robot.look || {}, 62)}<div><strong>${esc(p.title)}</strong><span class="paper-who">${esc(p.robot.name)}${projectChip(paperProject(p), 14)}</span><time>${esc(date(p.submittedAt))}</time></div><span class="paper-row-state" data-state="${esc(p.status)}">${reportIcon(p.status === "settled" ? "settled" : p.status === "approved" ? "check" : "paper")}${esc(state(p.status))}</span>`;
         row.addEventListener("click", () => { view.close(); void showReport(p.threadId, p.title, () => openThread(p.threadId), p.id, openThread); });
         list.appendChild(row);
       }

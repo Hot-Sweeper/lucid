@@ -97,3 +97,9 @@
 .paper-team .paper-model { gap:8px 14px; }
 .paper-harness-logo { width:28px; height:28px; object-fit:contain; }
 @media(max-width:620px) { .paper-team ul { grid-template-columns:1fr; } .paper-thread button { margin-left:0; } .paper-model { gap:8px 14px; } }
+/* A paper's project, as the sidebar shows it (ui/project-icon.ts). */
+.dialog.settlement-paper { --pi-none-ink: var(--paper-muted); }
+.settlement-paper .proj-chip { display: inline-flex; color: var(--paper-muted); font-size: 12px; }
+.settlement-paper .proj-chip > span { margin: 0; }
+.settlement-paper .paper-project { margin-top: 4px; }
+.settlement-paper .paper-who { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }

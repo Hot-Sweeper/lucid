@@ -39,6 +39,10 @@
 .hire .link-btn { font-size: 11px; padding: 3px 0; text-align: left; }
 .hire-loading { font-size: 12px; color: var(--ink-2); }
 .hire-project { margin-bottom: 14px; }
+/* the chosen project's mark leads the field, as in the sidebar */
+.hire-field > .hire-project-pick { position: relative; display: block; color: inherit; font-size: inherit; }
+.hire-project-pick > .proj-icon { position: absolute; left: 9px; top: 50%; translate: 0 -50%; pointer-events: none; }
+.hire-project-pick > .proj-icon ~ select { padding-left: 35px; }
 .hire-role { margin: 2px 0 8px; }
 .hire-role > summary { width: fit-content; cursor: pointer; color: var(--ink-2); font-size: 12px; padding: 4px 2px; }
 .hire-role-name { margin-left: 8px; color: var(--ink-2); }

@@ -6,6 +6,8 @@ import { harnessName } from "../robot";
 import { el, setText } from "./dom";
 import { mountLimits, type LimitsOptions } from "./limits";
 import type { LimitView } from "./limit-pace";
+import { projectIcon, type ProjectMark } from "../ui/project-icon";
+import { esc } from "../util/html";
 
 export type Limit = {
   /** A local fallback reading may be merged into a T3 provider window. */
@@ -79,6 +81,8 @@ export type StatsOptions = LimitsOptions & {
   background?: boolean;
   /** Show limits as used (filling up) or left (counting down). */
   limitView?: LimitView;
+  /** A T3 project's mark (null: No project); undefined for usage no project claims. */
+  projectOf?: (projectId: string) => ProjectMark | undefined;
 };
 type ModelRow = { root: HTMLElement; name: HTMLElement; tokens: HTMLElement; cost: HTMLElement };
 
@@ -199,7 +203,10 @@ export function mountStats(host: HTMLElement, load: () => Promise<Usage>, option
         row.append(name, tokens, cost);
         r = { root: row, name, tokens, cost }; projectRows.set(id, r);
       }
-      setText(r.name, p.name);
+      // the project's mark as the sidebar shows it; usage no project claims keeps the gap
+      const mark = options.projectOf?.(id);
+      const nameHtml = `${mark === undefined ? '<span class="proj-icon" style="--pi:14px" aria-hidden="true"></span>' : projectIcon(mark, 14)}<span>${esc(p.name)}</span>`;
+      if (r.name.dataset.html !== nameHtml) { r.name.dataset.html = nameHtml; r.name.innerHTML = nameHtml; }
       const sources = p.sources;
       r.name.title = `${p.name}\n${sources.session ? `${formatTokens(sources.session)} tokens linked by T3 session. ` : ""}${sources.cwd ? `${formatTokens(sources.cwd)} tokens linked by logged working directory. ` : ""}${sources.unassigned ? "No unique project match." : ""}`;
       setText(r.tokens, formatTokens(p.tokens));

@@ -11,6 +11,7 @@ import { brandFor, portraitSvg, PALETTES, type RobotLook } from "../robot";
 import { addDays, breakdown, dayDate, dayKey, heatScale, mergeDays, summarize, weekStart, type CalendarDoc, type Days, type PersonalRecord, type Share, type Summary } from "./coin-calendar";
 import { esc } from "../util/html";
 import { el, setText } from "./dom";
+import { NO_PROJECT, projectIcon, type ProjectMark } from "../ui/project-icon";
 
 export type LedgerRobot = { id: string; name: string; provider: string; look: RobotLook };
 type Options = {
@@ -19,6 +20,8 @@ type Options = {
   refresh: () => Promise<void>;
   wallet: Wallet;
   robotOf: (threadId: string) => LedgerRobot | null;
+  /** The project's mark for a ledger project id (null: No project); undefined when T3 no longer lists it. */
+  projectOf?: (projectId: string) => ProjectMark | undefined;
 };
 type Scope = "day" | "week" | "month" | "all";
 type Kind = "projects" | "robots" | "threads";
@@ -418,6 +421,12 @@ export class CoinLedgerPanel {
       }
       const name = el("span", "cl-name", item.name);
       name.title = item.name;
+      if (this.kind === "projects") {
+        // the project as the sidebar shows it; a project T3 no longer lists keeps its monogram
+        const known = item.id === "none" ? null : this.opts.projectOf?.(item.id);
+        const mark = known !== undefined ? known : item.name === NO_PROJECT ? null : { title: item.name };
+        name.classList.add("cl-proj"); name.innerHTML = `${projectIcon(mark, 16)}<span>${esc(item.name)}</span>`;
+      }
       if (item.detail) name.append(el("small", "", item.detail));
       const num = el("b", "cl-num"); num.innerHTML = `${coinIcon(13)}<span>${esc(formatCoins(item.coins))}</span>`;
       const share = el("i", "cl-share"); share.style.setProperty("--w", String(Math.max(.02, item.coins / max)));

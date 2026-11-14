@@ -33,4 +33,5 @@
 }
 
 .st-toggle:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
-.st-projects-wrap .st-mname { white-space: normal; overflow-wrap: anywhere; }
+.st-projects-wrap .st-mname { display: flex; align-items: center; gap: 7px; white-space: normal; overflow-wrap: anywhere; }
+.st-projects-wrap .st-mname > span:last-child { min-width: 0; }

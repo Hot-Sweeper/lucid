@@ -8,6 +8,7 @@ import { CoinLedgerPanel } from "../stats/ledger-panel";
 import { Wallet } from "../office/wallet";
 import { api, $ } from "./dom";
 import type { App } from "./context";
+import { projectMark } from "../ui/project-icon";
 
 export function mountWallet(app: App) {
   // Coins show what the robots' API-priced work cost; they wait on each desk until collected.
@@ -47,6 +48,7 @@ export function mountCoins(app: App) {
   app.coinLedger = new CoinLedgerPanel({
     load: () => (api as any).coinCalendar(), refresh: () => app.coinRewards!.refresh(), wallet: app.wallet,
     robotOf: id => { const r = app.world.roster.forJob(id); return r ? { id: r.id, name: r.name, provider: r.provider, look: r.look } : null; },
+    projectOf: id => { const p = app.world.lastData?.projects.find(p => p.id === id); return p ? projectMark(p) : undefined; },
   });
   app.coinRewards.onRead = snapshot => app.coinLedger.observe(snapshot.calendarRev);
   for (const id of ["rail-coins", "coin-bank"]) $(id).addEventListener("click", () => app.coinLedger.toggle($(id)));

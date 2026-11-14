@@ -88,6 +88,8 @@ button.cl-cell:hover { transform: scale(1.2); }
 .cl-face { grid-row: span 2; width: 28px; height: 28px; }
 .cl-face svg { display: block; width: 28px; height: 28px; }
 .cl-name { min-width: 0; font-size: 13px; line-height: 1.3; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-name.cl-proj { display: flex; align-items: center; gap: 8px; }
+.cl-proj > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .cl-name small { display: block; font-size: 11.5px; color: var(--cl-quiet); overflow: hidden; text-overflow: ellipsis; }
 .cl-num { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 500; color: var(--ink); white-space: nowrap; }
 .cl-share { position: relative; grid-column: 1 / -1; height: 3px; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--ink) 7%, transparent); }

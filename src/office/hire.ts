@@ -8,6 +8,7 @@ import { openCustomize } from "./customize";
 import { compatibleWorkers } from "./worker-match";
 import { gameSound } from "./sound";
 import { esc } from "../util/html";
+import { projectIcon } from "../ui/project-icon";
 
 const LAST_SETUP = "lucid.hire.lastSetup";
 // The hiring screen: a new thread for a free desk. The harness and model decide the
@@ -34,7 +35,7 @@ export const BUILTIN_ROLES: Role[] = [
   { name: "UI designer", brief: "You care about polished, readable interfaces. Follow the existing visual language, check real content and states, avoid generic template styling, and verify the result visually." },
   { name: "Researcher", brief: "You research before building. Look things up, compare options, cite sources, and finish with a short recommendation instead of code unless asked." },
 ];
-type Project = { id: string; title: string };
+type Project = { id: string; title: string; icon?: string | null };
 
 // A small portrait: the robot's face with its hat, eyes, tint and colors.
 export function avatar(provider: string, look: RobotLook = {}, size = 66) {
@@ -73,7 +74,7 @@ export function openHire(opts: {
           </div>
         </section>
         <div class="hire-main">
-          ${opts.projects ? `<label class="hire-project hire-field"><span>Project</span><select>${opts.projects.length ? opts.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join("") : '<option value="">No projects available</option>'}</select></label>` : ""}
+          ${opts.projects ? `<label class="hire-project hire-field"><span>Project</span><span class="hire-project-pick">${opts.projects.length ? projectIcon(opts.projects[0], 18) : ""}<select>${opts.projects.length ? opts.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join("") : '<option value="">No projects available</option>'}</select></span></label>` : ""}
           <div class="hire-composer">
             <label class="hire-task"><span>Task</span><textarea rows="6" placeholder="What should we work on? Add files, screenshots, or anything the job needs." aria-describedby="hire-file-hint"></textarea></label>
             <div class="hire-attachments" aria-label="Attached files"></div>
@@ -282,7 +283,11 @@ export function openHire(opts: {
   });
   el(".hire-reset").onclick = () => { if (config?.selection) selection = structuredClone(config.selection); pick = 0; renderRuntime(); renderWorker(true); };
   el(".hire-reload").onclick = () => void loadRuntime();
-  el<HTMLSelectElement>(".hire-project select")?.addEventListener("change", e => { writePromptDraft(promptKey(), taskInput.value); project = (e.target as HTMLSelectElement).value; taskInput.value = readPromptDraft(promptKey()); void loadRuntime(); });
+  el<HTMLSelectElement>(".hire-project select")?.addEventListener("change", e => {
+    writePromptDraft(promptKey(), taskInput.value); project = (e.target as HTMLSelectElement).value;
+    // the field leads with the chosen project's mark, as the sidebar shows it
+    const chosen = opts.projects?.find(p => p.id === project);
+    if (chosen) el(".hire-project-pick .proj-icon").outerHTML = projectIcon(chosen, 18); taskInput.value = readPromptDraft(promptKey()); void loadRuntime(); });
   const renderRoles = () => {
     el<HTMLSelectElement>(".hire-role-select").innerHTML = `<option value="">No role</option>${opts.roles.map(r => `<option value="${esc(r.name)}"${role?.name === r.name ? " selected" : ""}>${esc(r.name)}</option>`).join("")}`;
     el(".hire-role-name").textContent = role?.name || "Optional";

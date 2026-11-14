@@ -56,7 +56,7 @@ export function defineMenus(app: App) {
         saveAttachment: (name, bytes) => (api as any).saveAttachment(name, bytes),
         roles: [...BUILTIN_ROLES, ...(app.settings.roles ?? [])],
         onNewRole: (r) => { app.settings.roles = [...(app.settings.roles ?? []), r]; app.saveSettings(); },
-        projects: projectId ? null : real.map((p) => ({ id: p.id, title: p.title })),
+        projects: projectId ? null : real.map((p) => ({ id: p.id, title: p.title, icon: p.icon })),
         onHire: async (c) => {
           const project = projectId || c.projectId;
           if (!project) throw new Error("Choose a project for this desk");

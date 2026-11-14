@@ -3,6 +3,7 @@ import "./delegate.css";
 import { BRAND } from "../brand";
 import { costText } from "./orchestrator-panel";
 import type { WThread } from "./world";
+import { NO_PROJECT, projectChip } from "../ui/project-icon";
 
 // The orchestrator answers robots' questions for you. A new question goes to it first: the app
 // sends it to the orchestrator's own T3 thread with your past answers, and it replies with an
@@ -513,7 +514,7 @@ export function showDecisions(dg: Delegate, setThreshold: (v: number) => void) {
     <p class="nb-sub">Answers it sent cannot be taken back. Anything it was not sure about, or that touches money, credentials, publishing, messages to people or things that cannot be undone, comes to you.</p>
     <div class="dl-sure"><span id="dl-sure-l">Answers on its own when at least</span><div class="chips" role="radiogroup" aria-labelledby="dl-sure-l">${steps.map((v) => `<button type="button" role="radio" aria-checked="${Math.abs(v - dg.threshold) < 0.001}" data-v="${v}">${Math.round(v * 100)}% sure</button>`).join("")}</div></div>
     <div class="nb-body dl-list">${list.length ? list.map((d) => `<article class="dl-item">
-      <p class="dl-head"><span class="dl-robot">${escH(d.title)}${d.project ? ` <span class="dl-proj">${escH(d.project)}</span>` : ""}</span><time datetime="${escH(d.at)}">${ago(d.at)}</time></p>
+      <p class="dl-head"><span class="dl-robot">${escH(d.title)} ${projectChip(d.project && d.project !== NO_PROJECT ? { title: d.project } : null, 12, "dl-proj")}</span><time datetime="${escH(d.at)}">${ago(d.at)}</time></p>
       <p class="dl-q">${escH(d.questions)}</p>${outcomeLine(d)}</article>`).join("") : "<p class=\"dl-empty\">No questions yet. When a robot asks something, it goes to the Orchestrator first and shows up here.</p>"}</div>
     <div class="dialog-actions"><button type="button" class="primary" data-a="close">Close</button></div>
   </div>`;

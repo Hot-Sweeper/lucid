@@ -9,7 +9,7 @@
 .dl-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
 .dialog.decisions .dl-head { margin-bottom: 2px; font-size: 12.5px; color: var(--ink-2); }
 .dl-robot { min-width: 0; overflow-wrap: anywhere; }
-.dl-proj { color: var(--ink-3); }
+.dl-proj { gap: 4px; margin-left: 4px; color: var(--ink-3); }
 .dl-head time { flex: none; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .dialog.decisions .dl-q { color: var(--ink); margin-bottom: 4px; overflow-wrap: anywhere; }
 .dialog.decisions .dl-out, .dialog.decisions .dl-why, .dialog.decisions .dl-you { font-size: 12.5px; color: var(--ink-2); margin-bottom: 2px; overflow-wrap: anywhere; }

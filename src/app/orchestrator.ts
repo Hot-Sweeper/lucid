@@ -1,5 +1,6 @@
 // Wires the orchestrator, the daily writer and the delegate, and their controls in the sidebar.
-import { showReport, showReportArchive } from "../office/report";
+import { showReport, showReportArchive, useReportProjects } from "../office/report";
+import { projectMark } from "../ui/project-icon";
 import { DailyWriter } from "../office/daily-writer";
 import { QuestionLine } from "../world/queue";
 import { latestSourceReport } from "../office/chat-review";
@@ -67,6 +68,8 @@ export function defineOrchestrator(app: App) {
 }
 
 export function mountOrchestrator(app: App) {
+  // Report papers show their project's mark, found by its folder in T3's project list.
+  useReportProjects(root => { const p = app.world.lastData?.projects.find(p => p.root === root); return p ? projectMark(p) : undefined; });
   app.orch = new Orchestrator(api as any, app.world, () => app.settings.orch ?? null, (s) => { app.settings.orch = s; app.saveSettings(); });
   app.dailyWriter = new DailyWriter(app.world, () => app.settings.dailyLines ?? {}, s => { app.settings.dailyLines = s; app.saveSettings(); });
   app.orch.onChange = () => {

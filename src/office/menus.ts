@@ -1,7 +1,8 @@
 import gsap from "gsap";
 
 // A small themed popover menu and a confirm dialog, positioned inside the viewport.
-export type MenuItem = { label: string; danger?: boolean; run: () => void | Promise<void> } | { input: string; placeholder: string; value?: string; submit: string; run: (v: string) => void | Promise<void> };
+/** `icon` is trusted markup shown before the label (a project mark, say). */
+export type MenuItem = { label: string; icon?: string; danger?: boolean; run: () => void | Promise<void> } | { input: string; placeholder: string; value?: string; submit: string; run: (v: string) => void | Promise<void> };
 
 let open: HTMLElement | null = null;
 export function closeMenu() {
@@ -46,7 +47,8 @@ export function showMenu(x: number, y: number, title: string, items: MenuItem[],
       b.setAttribute("role", "menuitem");
       b.className = it.danger ? "danger" : "";
       if (it.danger && !dividerDone && ordered.length > 1) { b.classList.add("pm-danger-start"); dividerDone = true; }
-      b.textContent = it.label;
+      if (it.icon) { b.classList.add("pm-icon"); b.innerHTML = it.icon; b.append(Object.assign(document.createElement("span"), { textContent: it.label })); }
+      else b.textContent = it.label;
       b.addEventListener("click", async () => { closeMenu(); await it.run(); });
       m.appendChild(b);
     }
