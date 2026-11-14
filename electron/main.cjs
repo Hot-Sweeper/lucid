@@ -1,4 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell, net, protocol, nativeImage } = require("electron");
+// A short-lived keyring helper (keyring-helper.cjs) runs under T3's name and does nothing else.
+const keyringHelper = require("./keyring-helper.cjs");
+if (keyringHelper.helperName()) { keyringHelper.run(app, keyringHelper.helperName()); return; }
 // One data folder whatever the product is called, shared by source checkouts and installed builds.
 app.setPath("userData", require("node:path").join(app.getPath("appData"), "lucid"));
 app.setName(require("./brand.cjs").name);
@@ -191,6 +194,8 @@ const remote = environments.remote;
 let desktopBuilding = null;
 const activeBuilding = () => desktopBuilding;
 ipcMain.handle("environment:list", (_e, fresh) => environments.getEnvironments({ fresh: fresh === true }));
+// T3 Code added, removed or disabled a linked computer: the campus re-reads its buildings.
+app.whenReady().then(() => environments.onEnvironmentsChange(() => send("environment:changed")));
 // Read another authenticated computer without changing the active action target.
 const campusReads = new Map();
 ipcMain.handle("environment:world", async (_e, id) => {
@@ -535,7 +540,7 @@ ipcMain.handle("t3s:move-thread", t3sWrap(async (o) => {
 ipcMain.handle("t3s:reorder", t3sWrap((o) => t3s.reorderQueued(o.threadId, o.runId, o.beforeRunId ?? null)));
 ipcMain.handle("t3s:cancel", t3sWrap((o) => t3s.cancelQueued(o.threadId, o.runId)));
 // Collecting finished work without a review clears its desk by settling the thread.
-ipcMain.handle("t3s:settle", t3sWrap((o) => { if (activeBuilding()) throw Error('Collect work on the computer that owns it.'); if (typeof o?.threadId !== 'string' || !o.threadId) throw Error('Choose finished work to collect.'); const state = require('./t3.cjs').reportState(o.threadId); if (!state.run || !['completed', 'cancelled', 'canceled', 'interrupted', 'failed', 'error', 'stopped', 'aborted'].includes(state.run.status) || state.pendingRuns || state.pendingRequests) throw Error(state.pendingRequests ? 'This session is waiting for your answer. Answer it before settling.' : 'This session is still running. Stop it before settling.'); return t3s.settleThread(o.threadId, { excludePinned: true, expectedRunId: state.run.id, ended: true }); }));
+ipcMain.handle("t3s:settle", t3sWrap((o) => { if (remote.split(o?.threadId)) return remote.settle(o.threadId); if (activeBuilding()) throw Error('Collect work on the computer that owns it.'); if (typeof o?.threadId !== 'string' || !o.threadId) throw Error('Choose finished work to collect.'); const state = require('./t3.cjs').reportState(o.threadId); if (!state.run || !['completed', 'cancelled', 'canceled', 'interrupted', 'failed', 'error', 'stopped', 'aborted'].includes(state.run.status) || state.pendingRuns || state.pendingRequests) throw Error(state.pendingRequests ? 'This session is waiting for your answer. Answer it before settling.' : 'This session is still running. Stop it before settling.'); return t3s.settleThread(o.threadId, { excludePinned: true, expectedRunId: state.run.id, ended: true }); }));
 ipcMain.handle("t3s:edit", t3sWrap((o) => t3s.editQueued(o.threadId, o.runId, o.text)));
 ipcMain.handle("t3s:steer", t3sWrap((o) => t3s.steerNow(o.threadId, o.queuedRunId, o.targetRunId)));
 ipcMain.handle("t3s:setModel", t3sWrap((o) => t3s.setThreadModel(o.threadId, o.selection)));

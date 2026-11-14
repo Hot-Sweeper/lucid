@@ -10,11 +10,29 @@
 .environments [hidden] { display: none !important; }
 
 .neighbor-building { position: absolute; top: 0; pointer-events: auto; }
-.neighbor-open { position: absolute; top: -120px; left: 0; z-index: 400000; border: 0; border-radius: 5px; background: #36364e; color: #f5e5d9; font: 42px Lexend, sans-serif; padding: 12px 28px; cursor: pointer; }
-.neighbor-open:focus-visible { outline: 5px solid #efb891; outline-offset: 5px; }
+/* The sign over another computer's building: its plate (like this building's own) with the live link state. */
+.neighbor-open { position: absolute; top: -120px; left: 0; z-index: 400000; display: grid; grid-template-columns: auto auto; align-items: center; column-gap: 14px; row-gap: 2px; border: 0; border-radius: 14px; background: #3a3f4f; color: #fff; font: 600 36px var(--font); padding: 12px 26px 12px 22px; cursor: pointer; text-align: left; transition: background-color 140ms cubic-bezier(.23,1,.32,1), transform 140ms cubic-bezier(.23,1,.32,1); }
+.neighbor-open .bp-dot { grid-row: span 2; width: 16px; height: 16px; }
+.neighbor-open b { font-weight: 600; }
+.neighbor-link { font-weight: 400; font-size: 22px; color: #d9d4e8; }
+.neighbor-open:enabled:hover { background: var(--ui-plate-hover); }
+.neighbor-open:enabled:active { transform: scale(.98); }
+.neighbor-open:focus-visible { outline: 5px solid var(--accent); outline-offset: 5px; }
 .neighbor-open:disabled { cursor: default; }
-.neighbor-status { position: absolute; top: -65px; left: 0; z-index: 400001; color: #fff0df; background: #36364e; font-size: 24px; max-width: 1100px; }
+.neighbor-status { position: absolute; top: -22px; left: 0; z-index: 400001; margin: 0; padding: 6px 16px; border-radius: 10px; color: #fff0df; background: #36364e; font-size: 22px; line-height: 1.35; max-width: 980px; transform: translateY(-100%); visibility: hidden; }
+.neighbor-building[data-state="open"] .neighbor-status:not(:empty) { visibility: visible; }
+.neighbor-building:not([data-state="open"]) .neighbor-status { position: absolute; top: auto; bottom: -18px; transform: translateY(100%); }
+.neighbor-building:not([data-state="open"]) .neighbor-status:not(:empty) { visibility: visible; }
 .neighbor-status:empty { display: none; }
+/* The roofed building of a computer whose offices are not shown (yet). */
+.neighbor-facade { position: absolute; left: 0; top: 0; }
+.neighbor-facade[hidden] { display: none; }
+.neighbor-facade svg { display: block; transition: filter 400ms cubic-bezier(.23,1,.32,1); }
+.neighbor-building[data-state="connecting"] .bp-dot { background: #ffc27a; }
+.neighbor-building[data-state="closed"] .bp-dot { background: #f08a7a; }
+.neighbor-building[data-state="offline"] .bp-dot { background: #8d8a9c; }
+.neighbor-building[data-state="offline"] .neighbor-facade svg { filter: saturate(.35) brightness(.72); }
+@media (prefers-reduced-motion: reduce) { .neighbor-open, .neighbor-facade svg { transition: none; } }
 .neighbor-office, .neighbor-office > .world { position: absolute; inset: 0; overflow: visible; }
 .neighbor-office .outside-layer, .neighbor-office .building-plate { display: none; }
 
@@ -23,4 +41,3 @@
 
 /* Embedded worlds share the viewer's sky. Saved room decoration remains per computer. */
 .neighbor-office .world { --night: inherit; --outdoor-night: inherit; --lamp: inherit; --sky1: inherit; --sky2: inherit; --stars: inherit; --city: inherit; --wind: inherit; --fog: inherit; --frost: inherit; }
-.neighbor-building[data-state="offline"] .neighbor-open { background: #4a4458; color: #d9cfd6; }

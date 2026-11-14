@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld("lucid", {
   environments: (fresh = false) => ipcRenderer.invoke("environment:list", fresh),
   buildingWorld: (id) => ipcRenderer.invoke("environment:world", id),
   selectEnvironment: (id) => ipcRenderer.invoke("environment:select", id),
+  onEnvironmentsChanged: on("environment:changed"),
   rosterLoad: () => ipcRenderer.sendSync("roster:load"),
   settingsLoad: () => ipcRenderer.sendSync("settings:load"),
   settingsSave: (json) => ipcRenderer.invoke("settings:save", json),

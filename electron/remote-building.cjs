@@ -1,5 +1,6 @@
 const crypto = require('node:crypto');
 const SEP = '::';
+const ENDED = new Set(['completed', 'cancelled', 'canceled', 'interrupted', 'failed', 'error', 'stopped', 'aborted']);
 const ref = (environmentId, id) => `${environmentId}${SEP}${id}`;
 const split = id => typeof id === 'string' && id.includes(SEP) ? { environmentId: id.slice(0, id.indexOf(SEP)), id: id.slice(id.indexOf(SEP) + SEP.length) } : null;
 
@@ -90,6 +91,16 @@ function createRemoteBuilding(client, { now = Date.now, interval = setInterval, 
       const busy = p.runs.some(r => ['running', 'preparing', 'starting', 'queued', 'waiting'].includes(r.status));
       await this.dispatch({ type: 'message.dispatch', threadId, messageId: crypto.randomUUID(), text: String(message), attachments: [], dispatchMode: { type: busy ? 'queue_after_active' : 'start_immediately' } });
       return { ok: true };
+    },
+    /** Settles finished work on the computer that owns it, with the same checks as a local settle. */
+    async settle(id) {
+      if (!split(id)) throw Error('Choose finished work to collect.');
+      const p = await detail(id, true), run = p.runs.at(-1);
+      const waiting = p.runtimeRequests.some(r => !['resolved', 'cancelled', 'expired', 'failed'].includes(r.status));
+      const queued = p.runs.some(r => r !== run && ['queued', 'running', 'preparing', 'starting', 'waiting'].includes(r.status));
+      if (!run || !ENDED.has(run.status) || queued || waiting) throw Error(waiting ? 'This session is waiting for your answer. Answer it before settling.' : 'This session is still running. Stop it before settling.');
+      if (p.thread.pinnedAt) throw Error('Pinned threads cannot be settled automatically.');
+      return this.dispatch({ type: 'thread.settle', threadId: id });
     },
     async dispatch(command) {
       const targets = [command.threadId, command.projectId].map(split).filter(Boolean);

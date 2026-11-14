@@ -1,5 +1,5 @@
-// Read-only environment inventory through T3's supported descriptor and CLI.
-// Remote credentials stay owned by T3. Inventory is not authority to read a remote world.
+// The buildings: this computer plus every computer linked in T3 Code (its saved connection
+// catalog and its CLI's environment list), with each one's live connection state.
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
@@ -52,16 +52,18 @@ function createLinkedInventory({ connect, links }) {
   const saved = [null, null];
   return async () => {
     const results = await Promise.allSettled([Promise.resolve().then(connect), Promise.resolve().then(links)]);
-    if (results.every(r => r.status === 'rejected')) throw Error('Connection inventory unavailable.');
+    if (results.every(r => r.status === 'rejected')) throw Object.assign(Error('Connection inventory unavailable.'), { publicReason: results[0].reason?.publicReason || null });
     const rows = results.flatMap((result, i) => {
       if (result.status === 'fulfilled') { saved[i] = result.value; return result.value; }
       return (saved[i] || []).map(row => ({ ...row, status: 'unknown' }));
     });
-    return { rows, error: results.some((r, i) => r.status === 'rejected' && saved[i] !== null) };
+    // Only an honest, prepared reason (a locked keyring, say) reaches the interface.
+    const reason = results[0].status === 'rejected' ? results[0].reason?.publicReason || null : null;
+    return { rows, error: !!reason || results.some((r, i) => r.status === 'rejected' && saved[i] !== null), reason };
   };
 }
 
-function createEnvironmentRegistry({ descriptor = localDescriptor, links = cliLinks, hostname = os.hostname, now = Date.now } = {}) {
+function createEnvironmentRegistry({ descriptor = localDescriptor, links = cliLinks, hostname = os.hostname, now = Date.now, routeOf = () => null } = {}) {
   let cached = null, at = 0, pending = null;
   // A saved connection is only "configured" until a real authenticated read succeeds.
   const live = new Map();
@@ -69,7 +71,9 @@ function createEnvironmentRegistry({ descriptor = localDescriptor, links = cliLi
     if (b.local) return { ...b, link: "local", linkError: null };
     if (!b.canOpen) return { ...b, link: "linked", linkError: null };
     const seen = live.get(b.id);
-    return { ...b, link: seen ? seen.ok ? "authenticated" : "failed" : "configured", linkError: seen && !seen.ok ? seen.error : null };
+    // A working read is the current truth; a computer that answered nowhere is offline.
+    const status = seen?.ok ? "reachable" : seen?.offline ? "unreachable" : b.status;
+    return { ...b, status, route: seen?.ok ? routeOf(b.id) || b.route || null : null, link: seen ? seen.ok ? "authenticated" : "failed" : "configured", linkError: seen && !seen.ok ? seen.error : null };
   }) });
   const read = async () => {
     const [identity, inventory] = await Promise.allSettled([descriptor(), links()]);
@@ -79,14 +83,16 @@ function createEnvironmentRegistry({ descriptor = localDescriptor, links = cliLi
     const devices = new Map();
     const rows = inventory.status === "fulfilled" ? Array.isArray(inventory.value) ? inventory.value : inventory.value.rows : [];
     const inventoryError = inventory.status === "rejected" || !!inventory.value?.error;
+    const inventoryReason = inventory.status === "rejected" ? inventory.reason?.publicReason : inventory.value?.reason;
     for (const row of rows) {
       const id = nonempty(row?.environmentId), label = nonempty(row?.label);
       if (!id || id === localId) continue;
       let device = devices.get(id);
-      if (!device) { device = { id, label: null, status: "unknown", canOpen: false, origins: [] }; devices.set(id, device); }
+      if (!device) { device = { id, label: null, status: "unknown", canOpen: false, origins: [], route: null }; devices.set(id, device); }
       if (label && (!device.label || row.desktop)) device.label = label;
       if (["reachable", "unreachable", "expired"].includes(row.status)) device.status = row.status;
       device.canOpen ||= !!row.desktop;
+      if (row.route) device.route = row.route;
       device.origins = publicOrigins([...device.origins, ...(Array.isArray(row.urls) ? row.urls : [])]);
     }
     for (const device of devices.values()) buildings.push({ ...device, label: device.label || "Connected computer", local: false,
@@ -97,7 +103,7 @@ function createEnvironmentRegistry({ descriptor = localDescriptor, links = cliLi
       if (!building.local && building.id !== localId) buildings.push({ ...building, status: "unknown" });
     }
     const result = { localId, buildings, remoteWorldSupported: buildings.some(b => !b.local && b.canOpen), observedAt: new Date(now()).toISOString(),
-      error: inventoryError ? "Linked environments could not be refreshed from T3 Code. Try Refresh again." : null,
+      error: inventoryReason || (inventoryError ? "Linked computers could not be refreshed from T3 Code. Try Refresh again." : null),
       connectionState: inventoryError ? "inventory-unavailable" : buildings.some(b => !b.local && b.canOpen) ? "available" : buildings.length > 1 ? "remote-feed-unavailable" : "no-linked-environments" };
     cached = result; at = now(); return result;
   };
@@ -108,17 +114,21 @@ function createEnvironmentRegistry({ descriptor = localDescriptor, links = cliLi
       return pending.then(withLink);
     },
     /** Record the outcome of an authenticated read of a linked computer. */
-    markLink(id, ok, error = null) { live.set(id, { ok, error: ok ? null : String(error || "The connection failed."), at: now() }); }
+    markLink(id, ok, error = null) { live.set(id, { ok, offline: !ok && !!error?.offline, error: ok ? null : String(error?.message || error || "The connection failed."), at: now() }); },
+    /** Forget cached rows and link outcomes (T3 rewrote its catalog). */
+    invalidate() { cached = null; at = 0; live.clear(); },
   };
 }
 
 const client = require('./connect-client.cjs').createConnectClient();
 const remote = require('./remote-building.cjs').createRemoteBuilding(client);
-const registry = createEnvironmentRegistry({ links: createLinkedInventory({ connect: () => client.inventory(true), links: cliLinks }) });
+const registry = createEnvironmentRegistry({ routeOf: client.routeOf, links: createLinkedInventory({ connect: () => client.inventory(true), links: cliLinks }) });
 // Every authenticated world read (campus, opening, refresh) updates that computer's live state.
 const readWorld = remote.world;
 remote.world = async id => {
   try { const world = await readWorld(id); registry.markLink(id, true); return world; }
-  catch (error) { registry.markLink(id, false, error?.message); throw error; }
+  catch (error) { registry.markLink(id, false, error); throw error; }
 };
-module.exports = { client, remote, getEnvironments: options => registry.get(options), createEnvironmentRegistry, createLinkedInventory };
+/** Calls back (debounced) when T3 Code adds, removes or disables a linked computer. */
+function onEnvironmentsChange(listener) { return client.onCatalogChange(() => { registry.invalidate(); listener(); }); }
+module.exports = { client, remote, getEnvironments: options => registry.get(options), onEnvironmentsChange, createEnvironmentRegistry, createLinkedInventory };

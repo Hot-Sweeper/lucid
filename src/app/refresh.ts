@@ -140,6 +140,9 @@ export function wireLiveData(app: App) {
 }
 
 export function mountBuildings(app: App) {
-  mountEnvironments($("environment-body"), (fresh) => (api as any).environments(fresh), app.selectBuilding,
-    data => app.world.setBuildings(data.buildings, app.selectBuilding, id => (api as any).buildingWorld(id)));
+  // A read on the campus can change a computer's link state; the signs follow it right away.
+  const buildings = mountEnvironments($("environment-body"), (fresh) => (api as any).environments(fresh), app.selectBuilding,
+    data => app.world.setBuildings(data.buildings, app.selectBuilding, id => (api as any).buildingWorld(id), () => void buildings.refresh()));
+  // T3 Code linked, removed or disabled a computer.
+  (api as any).onEnvironmentsChanged?.(() => void buildings.refresh(true));
 }

@@ -5,17 +5,37 @@ export type EnvironmentBuilding = {
   canOpen: boolean; reason: string | null;
   /** configured: saved in T3 but not read yet; authenticated: a real read worked; linked: T3 keeps the access to itself */
   link?: "local" | "configured" | "authenticated" | "failed" | "linked"; linkError?: string | null;
+  /** The route an authenticated link uses. */
+  route?: "lan" | "tailscale" | "public" | "relay" | null;
 };
 
-/** One honest line for a building, shared by the sidebar and the campus sign. */
+const ROUTE = { lan: "over the local network", tailscale: "over Tailscale", public: "over the internet", relay: "through T3 Connect" } as const;
+
+/** One honest short line for a building, shared by the sidebar and the campus sign. */
 export function buildingState(b: EnvironmentBuilding) {
   if (b.local) return "This computer";
   if (b.status === "expired") return "Link expired in T3 Code";
-  if (b.status === "unreachable") return "Offline in T3 Code";
   if (!b.canOpen) return "Linked in T3 Code, sessions not shared";
-  if (b.link === "authenticated") return "Connected";
-  if (b.link === "failed") return b.linkError ? `Could not connect: ${b.linkError}` : "Could not connect";
-  return "Saved in T3 Code, not connected yet";
+  if (b.link === "authenticated") return b.route ? `Connected ${ROUTE[b.route]}` : "Connected";
+  if (b.status === "unreachable") return "Offline";
+  if (b.link === "failed") return "Could not connect";
+  return "Connecting";
+}
+
+/** Why a building is closed, when it is (offline, failed, not shared). */
+export function buildingDetail(b: EnvironmentBuilding) {
+  if (b.local || b.link === "authenticated") return null;
+  if (!b.canOpen) return b.reason;
+  if (b.link === "failed" || b.status === "unreachable") return b.linkError || null;
+  return null;
+}
+
+/** open: its offices are shown; connecting: still reading; offline: not answering; closed: failed or not shared. */
+export function buildingMood(b: EnvironmentBuilding): "open" | "connecting" | "offline" | "closed" {
+  if (b.local || b.link === "authenticated") return "open";
+  if (b.status === "unreachable" || b.status === "expired") return "offline";
+  if (!b.canOpen || b.link === "failed") return "closed";
+  return "connecting";
 }
 export type EnvironmentInventory = {
   localId: string; buildings: EnvironmentBuilding[]; error: string | null;
@@ -67,8 +87,9 @@ export function mountEnvironments(host: HTMLElement, load: (fresh?: boolean) => 
         row.name.textContent = building.label;
         row.button.disabled = !building.canOpen || openingId === building.id;
         row.button.setAttribute("aria-current", building.id === (selectedId || data.localId) ? "location" : "false");
-        row.state.textContent = buildingState(building);
-        row.button.title = building.reason || `Show ${building.label}`;
+        const detail = buildingDetail(building);
+        row.state.textContent = detail ? `${buildingState(building)}. ${detail}` : buildingState(building);
+        row.button.title = building.canOpen ? `Show ${building.label}` : building.reason || building.label;
         if (list.children[index] !== row.button) list.insertBefore(row.button, list.children[index] || null);
       });
       if (!choosing) {

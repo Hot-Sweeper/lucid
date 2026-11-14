@@ -1,6 +1,7 @@
 // Outside the building: grounds and park, weather and puddles, the landscape around the campus, the
 // event banner, daylight and the room clocks.
 // Part of the World class (world.ts); see the note there on how its parts are combined.
+import { CLOSED_BUILDING } from "../closed-building";
 import { currentTheme } from "../../themes/registry";
 import { campusNight } from "../campus-light";
 import { districtPlan } from "../campus-plan";
@@ -98,7 +99,11 @@ export class WorldOutdoors {
       list.push({ building: { x: dx, y: dy, w: o.size.w, h: o.size.h }, park: m(o.outdoor?.park), door: dy + o.topH + HALL / 2 });
     };
     add(this, 0, 0);
-    for (const e of this.neighbors.values()) if (e.office) add(e.office, e.x, e.y);
+    for (const e of this.neighbors.values()) {
+      if (e.office) add(e.office, e.x, e.y);
+      // A closed building (roof on) still stands on cleared ground.
+      else list.push({ building: { x: e.x, y: e.y, w: CLOSED_BUILDING.w, h: CLOSED_BUILDING.h }, park: null, door: e.y + CLOSED_BUILDING.h / 2 });
+    }
     return list;
   }
 

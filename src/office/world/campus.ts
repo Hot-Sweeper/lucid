@@ -8,7 +8,8 @@ import gsap from "gsap";
 import { Desk } from "../desk";
 import { forestPlan } from "../forest-plan";
 import { campusPlan, districtPlan } from "../campus-plan";
-import { buildingState } from "../environments";
+import { buildingState, buildingDetail, buildingMood } from "../environments";
+import { CLOSED_BUILDING, closedBuildingSvg } from "../closed-building";
 import { PARK_W, PARK_H } from "../outside";
 import type { World } from "../world";
 import type { WorldData } from "./types";
@@ -17,8 +18,8 @@ import { HALL, releaseRoomVectors } from "./geometry";
 export class WorldCampus {
   activityDeskFor(this: World, id: string) { return this.deskFor(id) ?? this.campusDesks.find(row => row.id === id)?.desk ?? null; }
 
-  setBuildings(this: World, buildings: typeof this.buildings, open: (id: string) => Promise<void>, load: (id: string) => Promise<WorldData>) {
-    this.buildings = buildings; this.openBuilding = open; this.loadBuilding = load; this.drawBuildings();
+  setBuildings(this: World, buildings: typeof this.buildings, open: (id: string) => Promise<void>, load: (id: string) => Promise<WorldData>, reread: () => void = () => {}) {
+    this.buildings = buildings; this.openBuilding = open; this.loadBuilding = load; this.rereadBuildings = reread; this.drawBuildings();
     if (!this.campusTimer) {
       this.campusTimer = window.setInterval(() => { if (!document.hidden && !this.scene.inert) void this.refreshBuildings(); }, 15000);
       window.addEventListener('pagehide', this.destroyBuildings, { once: true });
@@ -46,11 +47,15 @@ export class WorldCampus {
 
   async refreshBuildings(this: World) {
     for (const [id, entry] of this.neighbors) {
-      if (entry.busy || !this.buildings.find(b => b.id === id)?.canOpen) continue;
+      const building = this.buildings.find(b => b.id === id);
+      if (entry.busy || !building?.canOpen) continue;
+      // A computer that failed (offline, refused) is asked again once a minute, not on every campus refresh.
+      if (entry.ok === false && Date.now() < entry.retryAt) continue;
       entry.busy = true;
       try {
         const data = await this.loadBuilding(id);
         if (this.neighbors.get(id) !== entry) continue;
+        if (entry.ok !== true) { entry.ok = true; this.rereadBuildings(); }
         if (!entry.office) {
           const host = document.createElement('div'); host.className = 'neighbor-office'; entry.el.append(host);
           const office = this.neighborOffice(host); office.scene = this.scene;
@@ -91,7 +96,11 @@ export class WorldCampus {
         entry.status.textContent = ''; entry.open.disabled = false;
         this.drawBuildings(); this.syncBuildings(); this.onCampusChange();
       } catch (error) {
-        if (this.neighbors.get(id) === entry) entry.status.textContent = error instanceof Error ? error.message : 'Could not refresh this computer. Retrying shortly.';
+        if (this.neighbors.get(id) !== entry) continue;
+        entry.retryAt = Date.now() + 60000;
+        // The sign takes its state from the next inventory read; the line says what failed now.
+        if (entry.ok !== false) { entry.ok = false; this.rereadBuildings(); }
+        if (entry.office) entry.status.textContent = error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : 'Could not refresh this computer. Retrying shortly.';
       } finally { entry.busy = false; }
     }
   }
@@ -112,7 +121,7 @@ export class WorldCampus {
     for (const [id, entry] of this.neighbors) if (!keep.has(id)) { entry.office?.rememberLayout(); entry.office?.destroyEmbedded(); this.roomTweens.get(entry.el)?.kill(); entry.el.remove(); this.neighbors.delete(id); }
     const campus = campusPlan([
       { id: 'active', ...this.size, entranceY: this.topH + HALL / 2 },
-      ...buildings.map(b => { const office = this.neighbors.get(b.id)?.office; return { id: b.id, outdoors: false, w: office?.size.w ?? 1400, h: office?.size.h ?? 800, entranceY: office ? office.topH + HALL / 2 : 400 }; }),
+      ...buildings.map(b => { const office = this.neighbors.get(b.id)?.office; return { id: b.id, outdoors: false, w: office?.size.w ?? CLOSED_BUILDING.w, h: office?.size.h ?? CLOSED_BUILDING.h, entranceY: office ? office.topH + HALL / 2 : CLOSED_BUILDING.h / 2 }; }),
     ], { w: PARK_W, h: PARK_H });
     this.campusRight = campus.bounds.w; this.campusHeight = campus.bounds.h;
     let createdOffice = false;
@@ -122,26 +131,45 @@ export class WorldCampus {
       let entry = this.neighbors.get(building.id);
       if (!entry) {
         const el = document.createElement('section'); el.className = 'neighbor-building'; el.dataset.environment = building.id;
+        // The sign: the computer's name with its connection state, like this building's own plate.
         const open = document.createElement('button'); open.type = 'button'; open.className = 'neighbor-open';
+        const dot = document.createElement('span'); dot.className = 'bp-dot';
+        const name = document.createElement('b'), state = document.createElement('span'); state.className = 'neighbor-link';
+        open.append(dot, name, state);
         const status = document.createElement('p'); status.className = 'neighbor-status'; status.setAttribute('role', 'status');
-        const created = { el, office: null, x, y, busy: false, status, open }; entry = created;
-        open.addEventListener('click', async () => { if (open.disabled) return; open.disabled = true; gameSound.at('open', open); try { await this.openBuilding(building.id); } catch (error) { status.textContent = error instanceof Error ? error.message : 'Could not open this computer. Try again.'; } finally { open.disabled = !this.buildings.find(b => b.id === building.id)?.canOpen; } });
-        el.append(open, status); this.root.append(el); this.neighbors.set(building.id, entry); createdOffice = true;
+        const facade = document.createElement('div'); facade.className = 'neighbor-facade';
+        const created = { el, office: null, x, y, busy: false, status, open, facade, lit: null, ok: null, retryAt: 0 }; entry = created;
+        open.addEventListener('click', async () => { if (open.disabled) return; open.disabled = true; gameSound.at('open', open); try { await this.openBuilding(building.id); } catch (error) { status.textContent = error instanceof Error ? error.message : 'Could not open this computer. Try again.'; } finally { const b = this.buildings.find(b => b.id === building.id); open.disabled = !b?.canOpen || buildingMood(b) === 'offline'; } });
+        el.append(facade, open, status); this.root.append(el); this.neighbors.set(building.id, entry); createdOffice = true;
       }
-      entry.open.textContent = building.label; entry.open.disabled = !building.canOpen;
-      // The sign follows T3's live state: offline, expired, not shared, or a failed connection.
-      const quiet = building.canOpen && building.link !== 'failed' && building.status !== 'unreachable' && building.status !== 'expired';
-      const note = !quiet ? buildingState(building) : entry.office ? '' : 'Reading projects and sessions from T3 Code';
-      if (entry.status.textContent !== note) entry.status.textContent = note;
-      entry.el.dataset.state = quiet ? 'open' : building.status === 'unreachable' || building.status === 'expired' ? 'offline' : 'closed';
-      entry.open.title = building.reason || buildingState(building);
-      entry.el.setAttribute('aria-label', `${building.label} office`);
+      const mood = buildingMood(building);
+      // An offline computer or one that keeps its sessions to T3 shows no offices or robots.
+      if (entry.office && (mood === 'offline' || !building.canOpen)) {
+        entry.office.rememberLayout(); entry.office.destroyEmbedded(); entry.office = null;
+        entry.el.querySelector('.neighbor-office')?.remove(); delete entry.el.dataset.projects; delete entry.el.dataset.sessions;
+        this.onCampusChange();
+      }
+      (entry.open.querySelector('b') as HTMLElement).textContent = building.label;
+      const state = buildingState(building), link = entry.open.querySelector('.neighbor-link') as HTMLElement;
+      if (link.textContent !== state) link.textContent = state;
+      entry.open.disabled = !building.canOpen || mood === 'offline';
+      const detail = buildingDetail(building);
+      const note = detail || (mood === 'connecting' && !entry.office ? 'Reading projects and sessions from T3 Code' : '');
+      if (!entry.office || mood !== 'open') { if (entry.status.textContent !== note) entry.status.textContent = note; }
+      else if (entry.ok) entry.status.textContent = '';
+      entry.el.dataset.state = mood;
+      entry.open.title = building.canOpen ? `Open ${building.label}` : building.reason || state;
+      entry.el.setAttribute('aria-label', `${building.label}, ${state}`);
+      // Roof on until a real read opens the building; skylights stay dark while it is offline.
+      const lit = mood !== 'offline';
+      entry.facade.hidden = !!entry.office;
+      if (!entry.office && entry.lit !== lit) { entry.lit = lit; entry.facade.innerHTML = closedBuildingSvg(lit); }
       const moving = entry.el.style.left && (entry.x !== x || entry.y !== y);
       entry.x = x; entry.y = y;
       if (moving && !document.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches) this.tweenRoom(entry.el, { left: x, top: y, onUpdate: () => this.syncBuildings() });
       else if (!this.roomTweens.has(entry.el)) { entry.el.style.left = `${x}px`; entry.el.style.top = `${y}px`; }
       const office = entry.office;
-      const width = office ? office.size.w : 1400;
+      const width = office ? office.size.w : CLOSED_BUILDING.w;
       const height = district.bounds.h;
       entry.el.style.width = `${width}px`; entry.el.style.height = `${height}px`;
 

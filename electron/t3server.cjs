@@ -340,7 +340,8 @@ async function call(tag, payload, { timeout = 15_000, pairedOnly = false } = {})
 /** Sends one orchestration command, with a fresh UUID commandId like T3's web app. */
 let remoteDispatch = null, remoteSecret = null;
 function dispatch(command) {
-  if (remoteDispatch && [command.threadId, command.projectId].some(id => typeof id === 'string' && id.includes('::'))) return remoteDispatch(command);
+  // A linked computer's thread or project never reaches the local T3.
+  if ([command.threadId, command.projectId].some(id => typeof id === 'string' && id.includes('::'))) return remoteDispatch ? remoteDispatch(command) : Promise.reject(new T3ServerError('That computer is not connected.', 'remote-unavailable'));
   return call("orchestration.dispatchCommand", { commandId: crypto.randomUUID(), ...command });
 }
 

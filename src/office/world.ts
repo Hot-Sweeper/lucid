@@ -552,7 +552,9 @@ export class World {
   buildings: EnvironmentBuilding[] = [];
   openBuilding: (id: string) => Promise<void> = async () => {};
   loadBuilding: (id: string) => Promise<WorldData> = async () => { throw Error('Connection unavailable'); };
-  neighbors = new Map<string, { el: HTMLElement; office: World | null; x: number; y: number; busy: boolean; status: HTMLElement; open: HTMLButtonElement }>();
+  rereadBuildings: () => void = () => {};
+  /** Other computers: lit is the roof's skylight state, ok the outcome of the last read, retryAt the next offline retry. */
+  neighbors = new Map<string, { el: HTMLElement; office: World | null; x: number; y: number; busy: boolean; status: HTMLElement; open: HTMLButtonElement; facade: HTMLElement; lit: boolean | null; ok: boolean | null; retryAt: number }>();
   onCampusChange: () => void = () => {};
   get campusDesks(): { id: string; desk: Desk; x: number; y: number }[] {
     return [...[...this.desks].map(([id, desk]) => ({ id, desk, x: 0, y: 0 })),
