@@ -5,7 +5,8 @@ import { transformWithOxc } from 'vite';
 
 const source = async file => readFile(new URL(`../../src/${file}.ts`, import.meta.url), 'utf8');
 const compile = async (file, input = null) => (await transformWithOxc((input ?? await source(file)).replace(/^import\s[^;]+;\r?\n/gm, ''), `${file}.ts`)).code.replace(/export\s*\{[^}]*\};?/g, '').replace(/^export /gm, '');
-const { SubscriptionBatteries, recovery, batteryWeakness, needsCharge } = new Function(`${await compile('office/battery')};return {SubscriptionBatteries,recovery,batteryWeakness,needsCharge}`)();
+// The charging room names windows with the Limits panel's own label helper.
+const { SubscriptionBatteries, recovery, batteryWeakness, needsCharge } = new Function(`${await compile('stats/limit-label')};${await compile('office/battery')};return {SubscriptionBatteries,recovery,batteryWeakness,needsCharge}`)();
 const now = Math.floor(Date.now() / 1000) * 1000, iso = ms => new Date(ms).toISOString();
 const window = (id, usedPercent, minutes = 60, resetsAt = now + 3600000) => ({ id, usedPercent, windowMinutes: minutes, resetsAt: resetsAt === null ? null : iso(resetsAt), observedAt: iso(now) });
 const group = (harness, list) => ({ harness, name: harness, observedAt: iso(now), windows: list, primary: list[0], secondary: list[1] || null });
@@ -17,6 +18,12 @@ assert.equal(bank.get('claude', now).remaining, null, 'ambiguous legacy driver m
 assert.equal(bank.get('codex', now).remaining, null);
 const exhausted = bank.get('claudeAgent', now);
 assert.equal(exhausted.windows.length, 2);
+assert.deepEqual(exhausted.windows.map(w => w.label), ['1 hour', 'Weekly'], 'readouts name windows like the Limits panel');
+{
+  const raw = new SubscriptionBatteries();
+  raw.setUsage({ limits: { claude: group('claude', [{ ...window('seven_day_overage_included', 100, 10080), label: 'seven day overage included' }]) } });
+  assert.deepEqual(raw.get('claude', now).windows.map(w => w.label), ['Weekly · Overage included'], 'a raw window key never reaches the charging room');
+}
 assert.match(recovery(exhausted, now).text, /^2d 0h 0m 00s/);
 assert.match(recovery(exhausted, now + 1000).text, /59s/);
 assert.equal(recovery(exhausted, now).progress, 0);

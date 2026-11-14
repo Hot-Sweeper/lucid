@@ -1,4 +1,4 @@
-/* Limits uses the same disclosure surface and full-row control as Subscriptions. Its cards come
+/* Limits uses the same disclosure surface and full-row control as Subscriptions. Its rows come
    from stats/limits.css; wide sidebars place provider groups side by side. */
 .panel > .sidebar-limits #fold-limits { max-height: min(42dvh, 380px); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .sidebar-limits .lim-groups { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); align-items: start; gap: 14px 16px; }

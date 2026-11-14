@@ -1,12 +1,14 @@
-// The Limits cards (src/stats/limits.ts), rendered against a small fake DOM:
-// - limits read as used (the bar fills up) or left (it counts down); bar, big number, word, pace
-//   tick, trend arrow and the meter's accessible value always change together, and the choice is
-//   saved in settings.ui.limitView;
-// - the pace arrow describes spending, so it never flips with the view;
-// - the chip in the bar's end shows the countdown and the provider's reset credits, and the credit
-//   opens the irreversible confirmation (Cancel focused, Escape closes, focus returns);
-// - stale and unknown readings say so honestly inside the empty bar;
-// - provider tints come from theme tokens and the hatch never animates.
+// The Limits panel (src/stats/limits.ts), rendered against a small fake DOM:
+// - limits read as used (the meter fills up) or left (it counts down); fill, big number, word, pace
+//   zone and tick, pace words and arrow and the meter's accessible value always change together,
+//   and the choice is saved in settings.ui.limitView;
+// - the pace arrow describes spending, so it never flips with the view; a used-up window says
+//   "Limit reached" instead;
+// - colour follows how a limit is going (calm, warn, crit), never the provider;
+// - each row shows its reset countdown; the provider's reset credits live once in its header and
+//   open the irreversible confirmation (Cancel focused, Escape closes, focus returns);
+// - stale and unknown readings say so honestly beside an empty meter;
+// - window labels are T3's own wording or a humanized key, never a raw key.
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
@@ -36,6 +38,32 @@ for (const u of [0, 0.5, 12.5, 41.5, 58.5, 99.4, 100]) {
 assert.equal(limitReading(10, 0.25, 'left').mark, 75);
 assert.equal(limitReading(10, 0.25, 'used').mark, 25);
 assert.equal(limitReading(10, null, 'left').mark, null, 'no reset time, no pace mark');
+const { limitTone } = pacing;
+assert.deepEqual([limitTone(20, 'under'), limitTone(40, 'on'), limitTone(40, 'ahead'), limitTone(80, 'under'), limitTone(90, 'under'), limitTone(100, 'ahead'), limitTone(30, null)],
+  ['calm', 'calm', 'warn', 'warn', 'crit', 'crit', 'calm'], 'calm under pace, warm ahead of pace or from 75%, critical from 90%');
+
+// ---- labels: T3's wording as is, raw keys humanized ------------------------------------------
+const labels = await load('src/stats/limit-label.ts');
+const { limitLabel } = labels;
+const lbl = (label, windowMinutes = 10080, labelIsComplete = true) => limitLabel({ label, windowMinutes, labelIsComplete });
+assert.equal(lbl('Weekly'), 'Weekly');
+assert.equal(lbl('Weekly · Fable'), 'Weekly · Fable');
+assert.equal(lbl('Monthly spend', null), 'Monthly spend');
+assert.equal(lbl('Go · Session', 300), 'Go · Session');
+assert.equal(lbl(null, 300), '5 hour');
+assert.equal(lbl(null, null), 'Limit');
+assert.equal(lbl('Fable', 10080, false), 'Weekly · Fable', 'a local scope gets the window length first, like T3');
+assert.equal(lbl('seven day overage included', 10080, false), 'Weekly · Overage included', 'the reported raw key, as local logs sent it');
+assert.equal(lbl('seven_day_overage_included'), 'Weekly · Overage included');
+assert.equal(lbl('seven_day_opus', 10080, false), 'Weekly · Opus');
+assert.equal(lbl('five_hour', 300), '5 hour');
+assert.equal(lbl('weekly'), 'Weekly');
+assert.equal(lbl('gpt_5_codex_mini', 300, false), '5 hour · GPT 5 codex mini');
+assert.equal(lbl('monthly_spend', null), 'Monthly · Spend');
+for (const raw of ['seven_day_overage_included', 'seven day sonnet', 'codex_bengalfox', 'five_hour', 'weekly_limit']) {
+  const shown = lbl(raw, 10080, false);
+  assert.doesNotMatch(shown, /_|^[a-z]/, `${raw} is never shown raw (${shown})`);
+}
 
 // ---- a small fake DOM -----------------------------------------------------------------------
 const doc = { activeElement: null };
@@ -78,7 +106,7 @@ host.append(box, note);
 
 const dom = await load('src/stats/dom.ts');
 const { mountLimits } = await load('src/stats/limits.ts', {
-  ...dom, ...pacing,
+  ...dom, ...pacing, ...labels,
   icon: (name) => `<svg data-icon="${name}"></svg>`,
   brandFor: (h) => (/claude/i.test(h) ? 'claude' : /codex/i.test(h) ? 'codex' : 'generic'),
   harnessName: (h) => (/claude/i.test(h) ? 'Claude' : 'Codex'),
@@ -95,6 +123,7 @@ const snapshot = (claudeCredits = 2) => ({ limitSource: { source: 'T3 Code', sta
     weekly('claude:weekly', 29), weekly('claude:fable', 0, { label: 'Weekly · Fable' }),
     weekly('claude:old', 40, { label: 'Daily', windowMinutes: 1440, stale: true, staleReason: 'T3 reading is out of date' }),
     weekly('claude:none', null, { label: 'Monthly', windowMinutes: 43200 }),
+    weekly('claude:raw', 12, { label: 'seven day overage included', labelIsComplete: false }),
   ] },
 } });
 let redeemed = 0, refreshed = 0;
@@ -104,95 +133,122 @@ limits.render(snapshot(), 'left');
 
 const [codex, claude] = box.children;
 assert.equal(codex.dataset.provider, 'codex');
-assert.equal(claude.dataset.provider, 'claude', 'the group carries its provider, so CSS can pick the token tint');
+assert.equal(claude.dataset.provider, 'claude', 'the group still names its provider (logo and accessible text)');
 assert.equal(codex.one('lim-gname').textContent, 'Codex');
-const card = (group, i) => group.one('lim-cards').children[i];
-const parts = (c) => ({
-  name: c.one('lim-name').textContent, num: c.one('lim-num').textContent, word: c.one('lim-word').textContent,
-  arrow: /data-icon="(\w+)"/.exec(c.one('lim-trend').innerHTML)?.[1] ?? null, meter: c.one('lim-meter'), tick: c.one('lim-tick'),
-  note: c.one('lim-note'), reset: c.one('lim-reset'), credit: c.one('lim-credit'),
+const row = (group, i) => group.one('lim-rows').children[i];
+const parts = (r) => ({
+  name: r.one('lim-name').textContent, num: r.one('lim-num').textContent, word: r.one('lim-word').textContent,
+  arrow: /data-icon="(\w+)"/.exec(r.one('lim-pace-icon').innerHTML)?.[1] ?? null, pace: r.one('lim-pace'), meter: r.one('lim-meter'), tick: r.one('lim-tick'),
+  note: r.one('lim-note'), reset: r.one('lim-reset'), meta: r.one('lim-meta'),
 });
+const toneOf = (r) => ['calm', 'warn', 'crit'].filter((t) => r.classList.contains(`lim-${t}`));
+const credit = (group) => group.one('lim-credit');
 
-// Left: T3's reading. 74% used with 42% of the week gone is ahead of pace, a rising arrow.
-let c = parts(card(codex, 0));
-assert.deepEqual([c.name, c.num, c.word, c.arrow], ['Weekly', '26%', 'left', 'trendUp']);
+// Left: T3's reading. 74% used with 42% of the week gone is ahead of pace, a rising arrow, warm.
+let c = parts(row(codex, 0));
+assert.deepEqual([c.name, c.num, c.word, c.arrow, c.pace.textContent, c.pace.hidden], ['Weekly', '26%', 'left', 'trendUp', 'Ahead of pace', false]);
+assert.deepEqual(toneOf(row(codex, 0)), ['warn'], 'ahead of pace reads warm');
 assert.equal(c.meter.getAttribute('role'), 'meter');
 assert.equal(c.meter.getAttribute('aria-label'), 'Codex limit');
 assert.equal(c.meter.getAttribute('aria-valuenow'), '26');
 assert.equal(c.meter.getAttribute('aria-valuetext'), 'Weekly, 26% left, resets in 4 days 1 hour, ahead of pace, 1 reset credit');
 assert.equal(c.meter.style.props['--fill'], '26%');
 const mark = Number.parseFloat(c.meter.style.props['--mark']);
-assert.ok(Math.abs(mark - (4 * day + hour) / (7 * day) * 100) < 0.1, `left: the tick sits where even pace would leave the rest (${mark})`);
+assert.ok(Math.abs(mark - (4 * day + hour) / (7 * day) * 100) < 0.1, `left: the zone and tick end where even pace would leave the rest (${mark})`);
 assert.equal(c.tick.hidden, false);
-assert.equal(c.reset.textContent, '4d 1h', 'the chip shows the countdown');
-assert.equal(c.credit.hidden, false);
-assert.equal(c.credit.textContent, '1', 'the chip shows the credit count');
-assert.equal(c.credit.getAttribute('aria-label'), 'Use a reset credit for Codex, 1 available');
-assert.match(c.credit.title, /1 reset credit banked\. The next expires in 20d 0h/, 'expiry details live in the tooltip');
-assert.equal(card(codex, 0).one('lim-top').getAttribute('aria-hidden'), 'true', 'the meter carries the reading once');
-assert.equal(c.num && card(codex, 0).one('lim-num').animations, 0, 'no motion on the first paint');
+assert.equal(c.reset.textContent, 'Resets in 4d 1h', 'each row shows its countdown');
+assert.equal(c.reset.hidden, false);
+assert.equal(row(codex, 0).one('lim-top').getAttribute('aria-hidden'), 'true', 'the meter carries the reading once');
+assert.equal(c.meta.getAttribute('aria-hidden'), 'true');
+assert.equal(row(codex, 0).one('lim-num').animations, 0, 'no motion on the first paint');
+// Credits live once, in the provider's header, never per window.
+assert.equal(codex.all('lim-credit').length, 1);
+assert.equal(credit(codex).hidden, false);
+assert.equal(credit(codex).textContent, '1 reset', 'the header shows the credit count');
+assert.equal(credit(codex).getAttribute('aria-label'), 'Use a reset credit for Codex, 1 available');
+assert.match(credit(codex).title, /1 reset credit banked\. The next expires in 20d 0h/, 'expiry details live in the tooltip');
+assert.equal(credit(claude).textContent, '2 resets');
 
-// Under pace falls; Claude's credits show on every Claude window (windows sort shortest first).
-c = parts(card(claude, 1));
-assert.deepEqual([c.num, c.word, c.arrow], ['71%', 'left', 'trendDown']);
+// Under pace falls and stays calm; windows sort shortest first.
+c = parts(row(claude, 1));
+assert.deepEqual([c.num, c.word, c.arrow, c.pace.textContent], ['71%', 'left', 'trendDown', 'Under pace']);
+assert.deepEqual(toneOf(row(claude, 1)), ['calm']);
 assert.equal(c.meter.getAttribute('aria-valuetext'), 'Weekly, 71% left, resets in 4 days 1 hour, under pace, 2 reset credits');
-assert.equal(parts(card(claude, 2)).name, 'Weekly · Fable');
-assert.equal(parts(card(claude, 2)).num, '100%');
+assert.equal(parts(row(claude, 2)).name, 'Weekly · Fable');
+assert.equal(parts(row(claude, 2)).num, '100%');
+assert.equal(parts(row(claude, 3)).name, 'Weekly · Overage included', 'a raw local key is humanized, never shown as is');
 
-// Stale and unknown readings: no number, no tick, a short honest note inside the bar.
-c = parts(card(claude, 0));
-assert.deepEqual([c.num, c.word, c.arrow, c.tick.hidden, c.note.hidden, c.note.textContent], ['', '', null, true, false, 'T3 reading is out of date']);
+// Stale and unknown readings: no number, no tick, no pace, a short honest note.
+c = parts(row(claude, 0));
+assert.deepEqual([c.num, c.word, c.arrow, c.tick.hidden, c.pace.hidden, c.note.hidden, c.note.textContent], ['', '', null, true, true, false, 'T3 reading is out of date']);
 assert.equal(c.meter.style.props['--fill'], '0%');
 assert.match(c.meter.getAttribute('aria-valuetext'), /^Daily, T3 reading is out of date, resets in/);
-assert.ok(card(claude, 0).classList.contains('lim-stale'));
-c = parts(card(claude, 3));
+assert.ok(row(claude, 0).classList.contains('lim-stale'));
+assert.deepEqual(toneOf(row(claude, 0)), [], 'a stale reading has no tone');
+c = parts(row(claude, 4));
 assert.deepEqual([c.num, c.note.textContent, c.meter.getAttribute('aria-valuenow')], ['', 'Usage unavailable', '0']);
 
 // Used: the same reading counts up; the arrow still says ahead, and the number change moves.
 limits.render(snapshot(), 'used');
-c = parts(card(codex, 0));
+c = parts(row(codex, 0));
 assert.deepEqual([c.num, c.word, c.arrow], ['74%', 'used', 'trendUp']);
+assert.deepEqual(toneOf(row(codex, 0)), ['warn'], 'tone is the same in both views');
 assert.equal(c.meter.style.props['--fill'], '74%');
 assert.ok(Math.abs(Number.parseFloat(c.meter.style.props['--mark']) - (100 - mark)) < 0.1, 'used: the tick is the elapsed share');
 assert.equal(c.meter.getAttribute('aria-valuetext'), 'Weekly, 74% used, resets in 4 days 1 hour, ahead of pace, 1 reset credit');
-assert.equal(card(codex, 0).one('lim-num').animations, 1, 'a changed value settles in');
+assert.equal(row(codex, 0).one('lim-num').animations, 1, 'a changed value settles in');
 
 // The credit opens the confirmation without redeeming; Cancel is focused, Escape closes.
 const confirm = codex.one('lim-confirm');
+const ticket = credit(codex);
 assert.equal(confirm.hidden, true);
-c.credit.click();
+ticket.click();
 assert.equal(confirm.hidden, false);
-assert.equal(c.credit.getAttribute('aria-expanded'), 'true');
-assert.equal(c.credit.getAttribute('aria-controls'), confirm.id);
+assert.equal(ticket.getAttribute('aria-expanded'), 'true');
+assert.equal(ticket.getAttribute('aria-controls'), confirm.id);
 assert.equal(doc.activeElement, confirm.one('lim-cno'), 'Cancel takes focus');
 assert.equal(confirm.one('lim-cask').textContent, 'Use a reset for Codex?');
 assert.match(confirm.all('lim-cnote')[0].textContent, /The next expires in 20d 0h/, 'expiry details on demand');
 assert.equal(redeemed, 0, 'opening never redeems');
 confirm.dispatch('keydown', { key: 'Escape' });
 assert.equal(confirm.hidden, true);
-assert.equal(doc.activeElement, c.credit, 'focus returns to the credit');
-c.credit.click();
+assert.equal(ticket.getAttribute('aria-expanded'), 'false');
+assert.equal(doc.activeElement, ticket, 'focus returns to the credit');
+ticket.click();
+ticket.click();
+assert.equal(confirm.hidden, true, 'the same credit again closes it');
+ticket.click();
 confirm.one('lim-cno').click();
 assert.equal(confirm.hidden, true);
 assert.equal(redeemed, 0);
 // Confirming redeems exactly once and asks for a fresh reading.
-c.credit.click();
+ticket.click();
 confirm.one('lim-cyes').click();
 await new Promise((r) => setTimeout(r, 0));
 assert.equal(redeemed, 1);
 assert.equal(refreshed, 1);
 assert.equal(codex.one('lim-cstatus').textContent, 'Reset codex.');
 
+// A used-up window says so instead of a pace, reads critical, and points at the banked resets.
+const spentSnap = snapshot();
+spentSnap.limits['t3:codex'].windows = [weekly('codex:weekly', 100)];
+limits.render(spentSnap, 'left');
+c = parts(row(codex, 0));
+assert.deepEqual([c.num, c.word, c.arrow, c.pace.textContent], ['0%', 'left', null, 'Limit reached']);
+assert.deepEqual(toneOf(row(codex, 0)), ['crit']);
+assert.equal(c.meter.getAttribute('aria-valuetext'), 'Weekly, 0% left, resets in 4 days 1 hour, limit reached, 1 reset credit');
+assert.ok(codex.classList.contains('lim-spent') && !claude.classList.contains('lim-spent'), 'only the provider with a used-up window is marked');
+
 // No credits: no ticket. Without the redeem bridge the count stays visible but inert.
 limits.render(snapshot(0), 'left');
-assert.equal(parts(card(claude, 1)).credit.hidden, true);
-assert.equal(parts(card(claude, 1)).meter.getAttribute('aria-valuetext'), 'Weekly, 71% left, resets in 4 days 1 hour, under pace');
+assert.equal(credit(claude).hidden, true);
+assert.equal(parts(row(claude, 1)).meter.getAttribute('aria-valuetext'), 'Weekly, 71% left, resets in 4 days 1 hour, under pace');
 const box2 = new Node('div'), note2 = new Node('p');
 const inert = mountLimits(box2, note2, {}, { destroyed: () => false, refresh() {} });
 inert.render(snapshot(), 'left');
-const lone = parts(box2.children[0].one('lim-cards').children[0]);
-assert.equal(lone.credit.disabled, true);
-assert.equal(lone.credit.getAttribute('aria-label'), '1 reset credit for Codex');
+const lone = credit(box2.children[0]);
+assert.equal(lone.disabled, true);
+assert.equal(lone.getAttribute('aria-label'), '1 reset credit for Codex');
 
 // ---- wiring, tokens and motion --------------------------------------------------------------
 const stats = await read('src/stats/stats.ts');
@@ -206,13 +262,19 @@ assert.ok(section.includes("'.lim-groups'"), 'the Limits disclosure hosts the ca
 const usage = await read('src/app/usage.ts');
 assert.ok(usage.includes('limitView: app.ui.limitView') && usage.includes('app.ui.limitView = view') && usage.includes('app.saveSettings()'), 'the choice is saved and restored');
 const tokens = await read('src/themes/tokens.css');
-for (const t of ['--limit-card', '--limit-track', '--limit-hatch', '--limit-fill', '--limit-claude', '--limit-high']) {
+for (const t of ['--limit-surface', '--limit-track', '--limit-zone', '--limit-calm']) {
   assert.match(tokens, new RegExp(`${t}: [^;]*var\\(--`), `${t} derives from the theme's own colours`);
 }
+for (const t of ['--limit-warn', '--limit-crit']) {
+  assert.match(tokens, new RegExp(`${t}: oklch\\(from var\\(--limit-calm\\) l `), `${t} keeps the calm lightness, so its contrast with the track matches`);
+}
 const css = await read('src/stats/limits.css');
-assert.match(css, /\.lim-group\[data-provider="claude"\] \{ --lim-tint: var\(--limit-claude\); \}/);
-assert.match(css, /\.lim-fill \{[^}]*background: var\(--lim-tint\)/);
-assert.doesNotMatch(css.slice(css.indexOf('.lim-bar {'), css.indexOf('.lim-meter {')), /animation|transition/, 'the hatch stays still');
+assert.doesNotMatch(css, /data-provider/, 'colour never follows the provider');
+assert.match(css, /\.lim-fill \{[^}]*background: var\(--lim-tone\)/);
+assert.match(css, /\.lim-row\.lim-warn \{ --lim-tone: var\(--limit-warn\); \}/);
+assert.match(css, /\.lim-row\.lim-crit \{ --lim-tone: var\(--limit-crit\); \}/);
+assert.match(css, /\.lim-stale \.lim-zone \{ display: none; \}/, 'a stale reading draws no pace zone');
+assert.doesNotMatch(css.slice(css.indexOf('.lim-track {'), css.indexOf('.lim-zone, .lim-fill {')), /animation|transition/, 'the track stays still');
 const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
-assert.match(reduced, /\.lim-fill, \.lim-tick[^{]*\{ transition: none; \}/, 'reduced motion drops bar motion');
-console.log('PASS: limit cards read as used or left with matching bar, number, arrow, tick, chip and accessible value; credits confirm safely.');
+assert.match(reduced, /\.lim-zone, \.lim-fill, \.lim-tick[^{]*\{ transition: none; \}/, 'reduced motion drops meter motion');
+console.log('PASS: limit rows read as used or left with matching meter, number, pace, tone and accessible value; labels are human; credits confirm safely.');

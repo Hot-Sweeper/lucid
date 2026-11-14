@@ -100,3 +100,22 @@ test("banked reset credits travel with their provider instance", () => {
   assert.equal(result.limits["t3:codex"].instanceId, "codex", "the reset RPC needs the instance id");
   assert.equal(result.limits["t3:claudeAgent"].resetCredits, undefined, "no credits reported means none shown");
 });
+
+test("Claude's overage-included log bucket is T3's model-scoped window, never a second row", () => {
+  const resetsAt = new Date(now + 1.4 * 86400000).toISOString();
+  // Local logs: a rejection names seven_day_overage_included, which Claude Code calls the Fable limit.
+  const local = { limits: { claude: { windows: [{ id: "seven_day_overage_included", label: "Fable", usedPercent: 100, windowMinutes: 10080, resetsAt, observedAt: at }] } } };
+  // T3's real ids: seven_day for the week, seven_day_<name> for each model-scoped allowance.
+  const t3 = checkedAt => ({ providers: [{ instanceId: "claudeAgent", driver: "claudeAgent", name: "Claude", usageLimits: { checkedAt, windows: [
+    window("seven_day", { kind: "weekly", label: "Weekly", usedPercent: 86, windowDurationMins: 10080, resetsAt }),
+    window("seven_day_fable", { kind: "weekly", label: "Weekly · Fable", usedPercent: 21, windowDurationMins: 10080, resetsAt }),
+  ] } }] });
+  const current = mergeProviderLimits(local, t3(at), now).limits["t3:claudeAgent"].windows;
+  assert.deepEqual(current.map(w => [w.label, w.usedPercent]), [["Weekly", 86], ["Weekly · Fable", 21]], "T3's current reading wins and no raw duplicate row appears");
+  const stale = mergeProviderLimits(local, t3(new Date(now - 20 * 60000).toISOString()), now).limits["t3:claudeAgent"].windows;
+  assert.equal(stale.length, 2);
+  assert.deepEqual([stale[1].label, stale[1].usedPercent, stale[1].source], ["Weekly · Fable", 100, "Local logs"], "a stale T3 reading takes the local exhaustion on the same row");
+  const unrelated = mergeProviderLimits({ limits: { claude: { windows: [{ id: "seven_day_opus", label: "Opus", usedPercent: 100, windowMinutes: 10080, resetsAt, observedAt: at }] } } }, t3(at), now).limits["t3:claudeAgent"].windows;
+  assert.equal(unrelated.length, 3, "another exhausted scope T3 does not report stays visible");
+  assert.equal(unrelated[2].label, "Opus", "with its scope name, which the panel shows as Weekly · Opus");
+});

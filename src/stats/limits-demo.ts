@@ -1,5 +1,6 @@
-// Stand-alone page for the Limits cards (dev/limits.html) with every state on fixed readings:
-// credits, stale and unknown windows, high usage, both views and the Night blue and OLED themes.
+// Stand-alone page for the Limits panel (dev/limits.html) with every state on fixed readings:
+// credits, stale and unknown windows, calm, ahead of pace, nearly and fully used windows, a raw
+// window key from local logs, both views and the Night blue and OLED themes.
 // Using a reset here only answers from a local fake; nothing reaches T3.
 import "@fontsource-variable/lexend";
 import "../styles.css";
@@ -20,6 +21,9 @@ const usage = {
     "t3:codex": { harness: "codex", instanceId: "codex", name: "Codex", source: "T3 Code", observedAt: at(0), primary: null, secondary: null,
       resetCredits: { availableCount: 1, nextExpiresAt: at(20 * day) },
       windows: [win("codex:5h", "5 hour", 93, { windowMinutes: 300, resetsAt: at(2 * hour) }), win("codex:weekly", "Weekly", 74)] },
+    "t3:work": { harness: "codex", instanceId: "work", name: "Work Codex", source: "T3 Code", observedAt: at(0), primary: null, secondary: null,
+      resetCredits: { availableCount: 2, nextExpiresAt: at(9 * day) },
+      windows: [win("work:weekly", "Weekly", 100, { resetsAt: at(day + 3 * hour) }), win("work:raw", "seven_day_overage_included", 12, { labelIsComplete: false, resetsAt: at(day + 3 * hour) })] },
     "t3:claudeAgent": { harness: "claude", instanceId: "claudeAgent", name: "Claude", source: "T3 Code", observedAt: at(0), primary: null, secondary: null,
       resetCredits: { availableCount: 2, nextExpiresAt: null },
       windows: [win("claude:weekly", "Weekly", 29, { resetsAt: at(4 * day + 8 * hour) }), win("claude:fable", "Weekly · Fable", 0, { resetsAt: at(4 * day + 8 * hour) }),
