@@ -6,7 +6,7 @@ const VIEWS: { view: LimitView; label: string; title: string }[] = [
   { view: 'left', label: 'Left', title: 'Show how much of each limit is left' },
 ];
 
-/** Give the live limit cards (stats/limits.ts) their own independently saved disclosure, with a small
+/** Give the live limits (stats/limits.ts) their own independently saved disclosure, with a small
  * Used / Left choice in its header (people are used to reading limits either way). */
 export function mountLimitsSection(panel: HTMLElement, usageBody: HTMLElement, open = true,
   view: LimitView = 'used', onView: (view: LimitView) => void = () => {}) {

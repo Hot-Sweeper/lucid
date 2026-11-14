@@ -1,4 +1,5 @@
 import type { HarnessLimits, Limit, Usage } from "../stats/stats";
+import { limitLabel } from "../stats/limit-label";
 
 export type Battery = {
   remaining: number | null;
@@ -10,7 +11,6 @@ export type Battery = {
 };
 const canonical = (p: string) => /^(claudeAgent|claude-code|claude)$/i.test(p) ? "claude" : p;
 const timestamp = (s?: string | null) => s && Number.isFinite(Date.parse(s)) ? Date.parse(s) : null;
-const label = (l: Limit) => l.label || (l.windowMinutes === 10080 ? "Weekly" : l.windowMinutes ? `${l.windowMinutes / 60} hour` : "Subscription");
 const windows = (h: HarnessLimits) => h.windows?.length ? h.windows : [h.primary, h.secondary].filter((l): l is Limit => !!l);
 export const UNKNOWN_BATTERY: Battery = { remaining: null, charging: false, name: "Subscription", windows: [], resetCredits: 0 };
 
@@ -53,7 +53,7 @@ export class SubscriptionBatteries {
     }
     this.blocked.set(key, held);
     return { remaining: held.size ? 0 : remaining, charging: held.size > 0, name: found?.[1].name || provider, resetCredits: found?.[1].resetCredits?.availableCount ?? 0,
-      windows: [...held.values()].map(({ limit, startedAt }) => ({ label: label(limit), resetsAt: timestamp(limit.resetsAt), startedAt })) };
+      windows: [...held.values()].map(({ limit, startedAt }) => ({ label: limitLabel(limit), resetsAt: timestamp(limit.resetsAt), startedAt })) };
   }
 }
 

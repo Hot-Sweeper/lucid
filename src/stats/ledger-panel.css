@@ -60,17 +60,17 @@ button.cl-cell:hover { transform: scale(1.2); }
 .cl-legend { display: flex; align-items: center; gap: 3px; flex: none; font-size: 10.5px; line-height: var(--cl-cell); color: var(--cl-quiet); }
 .cl-legend span { margin: 0 3px; }
 
-/* Personal records reuse the usage meter (stats.css): the tick is the user's usual pace. */
+/* Personal records reuse the Limits meter (limits.css): the zone and tick are the user's usual pace. */
 .cl-sec { margin-top: 18px; }
 .cl-sec > h3 { margin-bottom: 8px; }
 .cl-records { display: flex; flex-direction: column; gap: 12px; }
-.cl-record { margin: 0 -8px; padding: 2px 8px; border-radius: var(--radius-md); }
+.cl-record { margin: 0 -8px; padding: 2px 8px; border-radius: var(--radius-md); --lim-tone: var(--accent); --limit-surface: var(--night-3); }
+.cl-record .lim-meter { margin-top: 6px; }
 .cl-rtop { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; line-height: 1.3; }
 .cl-rname { flex: 1; min-width: 0; color: var(--ink-2); }
 .cl-rval { flex: none; font-weight: 600; color: var(--ink); }
 .cl-beaten .cl-rval { color: var(--status-done, var(--mint)); }
-.cl-beaten .st-bar i { background: var(--cl-gold); }
-.cl-record .st-pacemark { box-shadow: 0 0 0 1.5px var(--night-3); }
+.cl-beaten { --lim-tone: var(--cl-gold); }
 .cl-rnote { margin: 4px 0 0; font-size: 11.5px; line-height: 1.35; color: var(--cl-quiet); }
 .cl-flash { animation: cl-flash 1.4s var(--ease-out) both; }
 @keyframes cl-flash { from { background: color-mix(in srgb, var(--cl-gold) 24%, transparent); } to { background: transparent; } }

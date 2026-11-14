@@ -78,3 +78,12 @@ export function limitReading(used: number, elapsed: number | null, view: LimitVi
 /** The trend arrow beside the number describes spending, so it never flips with the view:
  * rising when ahead of pace (burning fast), falling when under, level on pace. */
 export const PACE_ARROW: Record<Pace, "trendUp" | "trendFlat" | "trendDown"> = { ahead: "trendUp", on: "trendFlat", under: "trendDown" };
+
+export type LimitTone = "calm" | "warn" | "crit";
+
+/** How a reading is going, independent of the view: critical from 90% used, warm when ahead of
+ * pace or from 75% used, calm otherwise. Colour follows this, never the provider. */
+export function limitTone(usedPercent: number, p: Pace | null): LimitTone {
+  if (usedPercent >= 90) return "crit";
+  return p === "ahead" || usedPercent >= 75 ? "warn" : "calm";
+}

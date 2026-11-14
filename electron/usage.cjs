@@ -616,6 +616,10 @@ function codexLimits(now) {
   return { primary, secondary, windows, observedAt: iso(Math.max(...[...pools.values()].map((l) => l.ts))), ...(main?.rl.plan_type ? { plan: main.rl.plan_type } : {}) };
 }
 
+// Claude Code's own names for its scoped weekly windows (the window length is added by the panel).
+// It calls the overage-included bucket the Fable limit; T3 shows it as its first model-scoped window.
+const CLAUDE_SCOPES = { seven_day_opus: "Opus", seven_day_sonnet: "Sonnet", seven_day_overage_included: "Fable" };
+
 function claudeLimits(now) {
   // Rejections prove a full window only until its reported reset. No reading is 0%.
   const latest = new Map();
@@ -629,7 +633,7 @@ function claudeLimits(now) {
   if (!latest.size) return null;
   const windows = [...latest].map(([id, l]) => {
     const used = l.status === "rejected" ? (l.resetsAt ? 100 : null) : typeof l.utilization === "number" && Number.isFinite(l.utilization) ? (l.utilization <= 1 ? l.utilization * 100 : l.utilization) : null;
-    return { id, pool: id, label: id === "five_hour" || id === "seven_day" ? null : id.replace(/_/g, " "),
+    return { id, pool: id, label: id === "five_hour" || id === "seven_day" ? null : CLAUDE_SCOPES[id] || id.replace(/_/g, " "),
       usedPercent: used, windowMinutes: id === "five_hour" ? 300 : id.startsWith("seven_day") ? 10080 : null,
       resetsAt: iso(l.resetsAt), observedAt: iso(l.ts), stale: !!(l.resetsAt && l.resetsAt <= now) };
   });

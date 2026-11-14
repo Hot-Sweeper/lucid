@@ -112,7 +112,7 @@ export class ChargingRoom implements RoomExtension {
     for (const r of this.residents.values()) {
       const battery = r.info.battery || subscriptionBatteries.get(r.info.provider);
       const state = recovery(battery);
-      // A banked reset credit can end the wait now (the ticket in a Limits bar opens Use reset).
+      // A banked reset credit can end the wait now (the resets button in a Limits header opens Use reset).
       const credits = battery.resetCredits ? `, ${battery.resetCredits} reset ${battery.resetCredits === 1 ? "credit" : "credits"} banked` : "";
       const source = `${battery.name}: ${battery.windows.map(w => w.label).join(", ")}${credits}`;
       const detail = r.label.querySelector(".charging-source")!;

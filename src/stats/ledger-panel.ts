@@ -2,6 +2,7 @@
 // coins earned per day (one per dollar of API-priced robot work), streaks, the user's own pace,
 // personal records and where the coins came from. Numbers come from coin-calendar.ts; nothing is
 // estimated. Beating a personal record plays one short celebration at the coin counter.
+import "./limits.css";
 import "./ledger-panel.css";
 import { coinIcon, type Wallet } from "../office/wallet";
 import { formatCoins } from "../office/coin-ledger";
@@ -367,12 +368,17 @@ export class CoinLedgerPanel {
       top.append(el("span", "cl-rname", RECORD_NAME[r.kind]), el("span", "cl-rval", !r.eligible ? "" : r.beaten ? `New record: ${fmt(r.current)}` : `${fmt(r.current)} of ${fmt(r.best)}`));
       row.append(top);
       if (r.eligible) {
-        const bar = el("div", "st-bar"); bar.setAttribute("role", "meter");
+        // The Limits meter (limits.css): the fill is the current run, the zone and tick the usual pace.
+        const bar = el("div", "lim-meter"); bar.setAttribute("role", "meter");
         bar.setAttribute("aria-valuemin", "0"); bar.setAttribute("aria-valuemax", String(r.best)); bar.setAttribute("aria-valuenow", String(Math.min(r.current, r.best)));
         bar.setAttribute("aria-label", `${RECORD_NAME[r.kind]}: ${fmt(r.current)} of ${fmt(r.best)}`);
-        const fill = el("i"); fill.style.width = `${Math.min(100, r.best ? r.current / r.best * 100 : 0)}%`;
-        bar.append(fill);
-        if (r.usual !== null && r.best > 0 && r.usual < r.best) { const tick = el("b", "st-pacemark"); tick.setAttribute("aria-hidden", "true"); tick.style.left = `${r.usual / r.best * 100}%`; bar.append(tick); }
+        const track = el("span", "lim-track");
+        const usual = r.usual !== null && r.best > 0 && r.usual < r.best ? r.usual / r.best * 100 : null;
+        if (usual !== null) track.append(el("i", "lim-zone"));
+        track.append(el("i", "lim-fill"));
+        bar.append(track);
+        bar.style.setProperty("--fill", `${Math.min(100, r.best ? r.current / r.best * 100 : 0)}%`);
+        if (usual !== null) { const tick = el("b", "lim-tick"); tick.setAttribute("aria-hidden", "true"); bar.style.setProperty("--mark", `${usual}%`); bar.append(tick); }
         row.append(bar);
       }
       const note = !r.eligible ? (r.kind === "day" ? "Counts after three days with coins" : r.kind === "week" ? "Counts after two weeks with coins" : "Counts after a two day streak")

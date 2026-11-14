@@ -39,14 +39,16 @@
   --ui-scroll-hover: rgba(185, 191, 230, 0.32);
   --ui-close: #e5484d;              /* the window close button on hover (src/titlebar.ts) */
   --ui-close-press: #c43a3f;
-  /* Limits (stats/limits.css): derived from the panel colours, so every theme gets them. The filled
-     part keeps 3:1 against its track; Claude's tint keeps that lightness with a muted terracotta hue. */
-  --limit-card: color-mix(in oklab, var(--ink) 4%, var(--night-2));
-  --limit-track: color-mix(in oklab, var(--ink) 6.5%, var(--night-2));
-  --limit-hatch: color-mix(in oklab, var(--ink) 12%, transparent);
-  --limit-fill: color-mix(in oklab, var(--ink) 55%, var(--night-2));
-  --limit-claude: oklch(from var(--limit-fill) l 0.07 42);
-  --limit-high: oklch(from var(--limit-fill) l 0.1 25);
+  /* Limits (stats/limits.css): derived from the panel colours, so every theme gets them. Calm,
+     warn and crit share one lightness, so each keeps the same 3:1 against the track and only hue
+     and chroma carry the meaning. */
+  --limit-surface: color-mix(in oklab, var(--ink) 4%, var(--night-2));
+  --limit-track: color-mix(in oklab, var(--ink) 7%, var(--night-2));
+  --limit-zone: color-mix(in oklab, var(--ink) 28%, var(--night-2));
+  --limit-quiet: color-mix(in oklab, var(--ink-3) 70%, var(--ink-2));   /* meta line and the used / left word: AA on the surface */
+  --limit-calm: color-mix(in oklab, var(--ink) 68%, var(--night-2));
+  --limit-warn: oklch(from var(--limit-calm) l 0.13 70);
+  --limit-crit: oklch(from var(--limit-calm) l 0.15 25);
   --mt-panel: #171d3b;              /* the app's own monitor screens */
   --mt-shot: #0f1430;
   --mt-shot-line: #3a4170;

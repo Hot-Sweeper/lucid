@@ -10,10 +10,6 @@
 .st-sub { margin: 8px 0 0; min-height: 1.4em; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
 
 /* A slim meter with a pace mark, used by the coin ledger's personal records (ledger-panel.ts). */
-.st-bar { position: relative; height: 6px; margin-top: 5px; border-radius: 3px; background: var(--ui-field, rgba(190, 200, 255, 0.1)); box-shadow: inset 0 0 0 1px var(--line); }
-.st-bar i { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.5s cubic-bezier(0.2, 0.7, 0.2, 1), background-color 0.3s; }
-.st-pacemark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); box-shadow: 0 0 0 1.5px var(--night-2); transition: left 0.5s cubic-bezier(0.2, 0.7, 0.2, 1); }
-.st-pacemark[hidden] { display: none; }
 
 .st-toggle { display: flex; align-items: center; gap: 7px; width: 100%; margin-top: 12px; padding: 5px 0; border: 0; background: none; color: var(--ink-3); font-size: 13px; text-align: left; cursor: pointer; }
 .st-toggle:hover { color: var(--ink-2); }
@@ -33,7 +29,7 @@
 .st-note { margin: 10px 0 0; font-size: 12px; line-height: 1.4; color: var(--ink-3); overflow-wrap: anywhere; }
 
 @media (prefers-reduced-motion: reduce) {
-  .st-bar i, .st-pacemark, .st-chev, .st-models-wrap { transition: none; }
+  .st-chev, .st-models-wrap { transition: none; }
 }
 
 .st-toggle:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }

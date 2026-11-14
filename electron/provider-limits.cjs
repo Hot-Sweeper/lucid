@@ -38,6 +38,10 @@ function mergeProviderLimits(usage, snapshot, now = Date.now()) {
     const local = usage.limits[harness];
     if (windows.length && peers.length === 1 && local) {
       const reported = new Map(windows.map((limit, index) => [quotaKey({ ...limit, id: limit.id.slice(provider.instanceId.length + 1) }), index]));
+      // Claude's overage-included bucket is the window T3 names after its first model-scoped
+      // allowance ("Weekly · Fable", id seven_day_<name>), the same row Claude Code calls the Fable limit.
+      const scoped = harness === "claude" ? windows.findIndex(limit => /^seven_day_(?!overage)/.test(limit.id.slice(provider.instanceId.length + 1))) : -1;
+      if (scoped >= 0 && !reported.has("weekly:overage-included")) reported.set("weekly:overage-included", scoped);
       for (const limit of local.windows || [local.primary, local.secondary].filter(Boolean)) {
         const index = reported.get(quotaKey(limit));
         if (index !== undefined) {

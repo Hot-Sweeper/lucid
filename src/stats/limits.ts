@@ -1,15 +1,17 @@
-// Plan limits in the sidebar, after T3 Code's own Limits view: each provider is a group (logo and
-// name) with one quiet card per T3 window. A card holds the window label, a big percentage with a
-// pace arrow, and a thick bar: the filled part in the provider's tint, the rest a quiet hatch, a
-// tick where even pace would be. A chip in the bar's end shows the reset countdown and the
-// provider's banked reset credits; the credit opens the irreversible Use reset confirmation.
+// Plan limits in the sidebar. Each provider is one quiet surface: a header with its logo, name and
+// banked reset credits (which open the irreversible Use reset confirmation), then one row per T3
+// window separated by hairlines. A row reads label and big percentage, a slim meter, and a line
+// with the pace and the reset countdown. The meter shows usage as its fill and where even pace
+// would be as a faint zone ending in a tick; its colour says how it is going (calm, ahead of pace,
+// nearly used up), not which provider it is.
 // Readings come from the usage snapshot (stats.ts); nothing here polls.
 import "./limits.css";
 import { brandFor, harnessName, logoFor } from "../robot";
 import { icon } from "../ui/icons";
 import { el, setText } from "./dom";
 import type { HarnessLimits, Limit, Usage } from "./stats";
-import { chipCountdown, duration, elapsedShare, limitReading, pace, PACE_ARROW, PACE_TEXT, resetCountdown, spokenCountdown, type LimitView } from "./limit-pace";
+import { limitLabel } from "./limit-label";
+import { chipCountdown, duration, elapsedShare, limitReading, limitTone, pace, PACE_ARROW, PACE_TEXT, resetCountdown, spokenCountdown, type LimitView } from "./limit-pace";
 
 export type LimitsOptions = {
   /** Redeem one banked reset credit through T3 (provider.consumeResetCredit). */
@@ -18,10 +20,10 @@ export type LimitsOptions = {
   canManageProviders?: () => Promise<boolean>;
 };
 
-type Card = {
-  root: HTMLElement; name: HTMLElement; num: HTMLElement; word: HTMLElement; trend: HTMLElement; arrow: string;
-  meter: HTMLElement; tick: HTMLElement; note: HTMLElement; chip: HTMLElement; reset: HTMLElement; resetText: HTMLElement;
-  credit: HTMLButtonElement; creditCount: HTMLElement; painted: boolean;
+type Row = {
+  root: HTMLElement; name: HTMLElement; num: HTMLElement; word: HTMLElement; note: HTMLElement;
+  meter: HTMLElement; tick: HTMLElement; meta: HTMLElement; pace: HTMLElement; paceIcon: HTMLElement; paceText: HTMLElement; arrow: string;
+  reset: HTMLElement; resetText: HTMLElement; painted: boolean;
 };
 type CreditState = "idle" | "confirm" | "busy" | "done" | "error";
 type Credits = { count: number; usable: boolean; expiry: string; title: string };
@@ -29,13 +31,14 @@ type Confirm = {
   root: HTMLElement; ask: HTMLElement; expiry: HTMLElement; permission: HTMLElement; yes: HTMLButtonElement; no: HTMLButtonElement;
   status: HTMLElement; state: CreditState; opener: HTMLButtonElement | null; set(state: CreditState, message?: string): void;
 };
-type Group = { root: HTMLElement; name: HTMLElement; cards: HTMLElement; confirm: Confirm; instanceId: string | null; label: string; credits: Credits; members: Card[] };
+type Group = { root: HTMLElement; name: HTMLElement; rows: HTMLElement; credit: HTMLButtonElement; creditText: HTMLElement; confirm: Confirm; instanceId: string | null; label: string; credits: Credits; members: Row[] };
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const NO_CREDITS: Credits = { count: 0, usable: false, expiry: "", title: "" };
 const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const credits = (n: number) => `${n} reset ${n === 1 ? "credit" : "credits"}`;
+const PACE_LABEL = { ahead: "Ahead of pace", on: "On pace", under: "Under pace" } as const;
 
 function clock(d: Date): string {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
@@ -52,62 +55,49 @@ function when(iso: string): string {
   return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }
 
-function windowName(minutes: number | null): string {
-  if (minutes === 300) return "5 hour";
-  if (minutes === 10080) return "Weekly";
-  if (!minutes) return "Limit";
-  if (minutes % 1440 === 0) return `${minutes / 1440} day`;
-  if (minutes % 60 === 0) return `${minutes / 60} hour`;
-  return `${minutes} min`;
-}
-
 export function mountLimits(box: HTMLElement, note: HTMLElement, options: LimitsOptions, life: { destroyed(): boolean; refresh(): void }) {
-  const cards = new Map<string, Card>();
+  const rows = new Map<string, Row>();
   const groups = new Map<string, Group>();
 
-  function card(key: string, groupKey: string): Card {
-    let c = cards.get(key);
-    if (c) return c;
-    const root = el("div", "lim-card");
-    // The meter below carries all of this for assistive technology.
+  function row(key: string): Row {
+    let r = rows.get(key);
+    if (r) return r;
+    const root = el("div", "lim-row");
+    // The meter below carries the label, reading, pace and reset for assistive technology.
     const top = el("div", "lim-top");
     top.setAttribute("aria-hidden", "true");
     const name = el("span", "lim-name");
     const value = el("span", "lim-value");
     const num = el("b", "lim-num");
     const word = el("span", "lim-word");
-    const trend = el("span", "lim-trend");
-    // A stale or unknown reading says so where the number would be, and the bar stays empty.
+    // A stale or unknown reading says so where the number would be, and the meter stays empty.
     const note = el("span", "lim-note");
-    value.append(num, word, trend, note);
+    value.append(num, word, note);
     top.append(name, value);
-    const bar = el("div", "lim-bar");
     const meter = el("div", "lim-meter");
     meter.setAttribute("role", "meter");
     meter.setAttribute("aria-valuemin", "0");
     meter.setAttribute("aria-valuemax", "100");
-    const fill = el("i", "lim-fill");
-    // Where the bar would be if spending were spread evenly over the window.
+    const track = el("span", "lim-track");
+    // Where even pace would be: a faint zone from the start, ending in a crisp tick.
+    track.append(el("i", "lim-zone"), el("i", "lim-fill"));
     const tick = el("b", "lim-tick");
-    meter.append(fill, tick);
-    const chip = el("span", "lim-chip");
+    meter.append(track, tick);
+    const meta = el("div", "lim-meta");
+    meta.setAttribute("aria-hidden", "true");
+    const pace = el("span", "lim-pace");
+    const paceIcon = el("span", "lim-pace-icon");
+    const paceText = el("span");
+    pace.append(paceIcon, paceText);
     const reset = el("span", "lim-reset");
-    reset.setAttribute("aria-hidden", "true");
     reset.innerHTML = icon("reset", 12);
     const resetText = el("span");
-    reset.append(resetText);
-    const credit = el("button", "lim-credit");
-    credit.type = "button";
-    credit.innerHTML = icon("ticket", 12);
-    const creditCount = el("span");
-    credit.append(creditCount);
-    credit.addEventListener("click", () => void openConfirm(groupKey, credit));
-    chip.append(reset, credit);
-    bar.append(meter, chip);
-    root.append(top, bar);
-    c = { root, name, num, word, trend, arrow: "", meter, tick, note, chip, reset, resetText, credit, creditCount, painted: false };
-    cards.set(key, c);
-    return c;
+    reset.append(el("span", "lim-reset-word", "Resets in "), resetText);
+    meta.append(pace, reset);
+    root.append(top, meter, meta);
+    r = { root, name, num, word, note, meter, tick, meta, pace, paceIcon, paceText, arrow: "", reset, resetText, painted: false };
+    rows.set(key, r);
+    return r;
   }
 
   function group(key: string, harness: string): Group {
@@ -120,11 +110,18 @@ export function mountLimits(box: HTMLElement, note: HTMLElement, options: Limits
     const logo = logoFor(harness);
     if (logo) { const img = el("img"); img.src = logo; img.alt = ""; mark.append(img); }
     const name = el("h4", "lim-gname");
-    head.append(mark, name);
-    const list = el("div", "lim-cards");
+    // Credits belong to the provider account, so they live once in its header.
+    const credit = el("button", "lim-credit");
+    credit.type = "button";
+    credit.innerHTML = icon("ticket", 14);
+    const creditText = el("span");
+    credit.append(creditText);
+    credit.addEventListener("click", () => void openConfirm(key, credit));
+    head.append(mark, name, credit);
+    const list = el("div", "lim-rows");
     const confirm = confirmBox(key);
     root.append(head, list, confirm.root, confirm.status);
-    g = { root, name, cards: list, confirm, instanceId: null, label: "", credits: NO_CREDITS, members: [] };
+    g = { root, name, rows: list, credit, creditText, confirm, instanceId: null, label: "", credits: NO_CREDITS, members: [] };
     groups.set(key, g);
     return g;
   }
@@ -163,9 +160,9 @@ export function mountLimits(box: HTMLElement, note: HTMLElement, options: Limits
         status.classList.toggle("lim-cerror", state === "error");
         status.classList.toggle("lim-cbusy", state === "busy");
         const g = groups.get(key);
-        for (const c of g?.members || []) {
-          c.credit.setAttribute("aria-expanded", String(state === "confirm" && box.opener === c.credit));
-          c.credit.disabled = state === "busy" || !g!.credits.usable;
+        if (g) {
+          g.credit.setAttribute("aria-expanded", String(state === "confirm"));
+          g.credit.disabled = state === "busy" || !g.credits.usable;
         }
       },
     };
@@ -203,7 +200,7 @@ export function mountLimits(box: HTMLElement, note: HTMLElement, options: Limits
     // The same credit again closes it, like any disclosure.
     if (box.state === "confirm" && box.opener === opener) { box.set("idle"); opener.focus(); return; }
     box.opener = opener;
-    for (const c of g.members) c.credit.setAttribute("aria-controls", box.root.id);
+    g.credit.setAttribute("aria-controls", box.root.id);
     setText(box.ask, `Use a reset for ${g.label}?`);
     setText(box.expiry, g.credits.expiry);
     box.permission.hidden = true;
@@ -230,11 +227,16 @@ export function mountLimits(box: HTMLElement, note: HTMLElement, options: Limits
     g.credits = { count, usable, expiry, title: `${expiry}${usable ? " Click to use one." : ""}` };
     // Keep a result message until the next state; drop a confirmation once nothing is left to use.
     if (!usable && g.confirm.state === "confirm") g.confirm.set("idle");
+    setText(g.creditText, `${count} ${count === 1 ? "reset" : "resets"}`);
+    g.credit.hidden = count === 0;
+    g.credit.disabled = !usable || g.confirm.state === "busy";
+    g.credit.title = g.credits.title;
+    g.credit.setAttribute("aria-label", usable ? `Use a reset credit for ${g.label}, ${count} available` : `${credits(count)} for ${g.label}`);
   }
 
-  function renderCard(c: Card, l: Limit, g: Group, source: string, view: LimitView, now: number) {
-    const label = l.labelIsComplete && l.label ? l.label : `${l.label ? `${l.label} ` : ""}${windowName(l.windowMinutes)}`;
-    setText(c.name, label);
+  function renderRow(r: Row, l: Limit, g: Group, source: string, view: LimitView, now: number) {
+    const label = limitLabel(l);
+    setText(r.name, label);
     const known = typeof l.usedPercent === "number" && Number.isFinite(l.usedPercent);
     const live = known && !l.stale;
     const used = known ? Math.max(0, Math.min(100, l.usedPercent!)) : 0;
@@ -243,52 +245,55 @@ export function mountLimits(box: HTMLElement, note: HTMLElement, options: Limits
     const p = elapsed === null ? null : pace(used, elapsed);
     const status = l.stale ? l.staleReason || "No reading since reset" : known ? "" : "Usage unavailable";
 
-    // Big number, its word and the pace arrow.
+    // The big number and its word; the honest note replaces both.
     const num = live ? `${reading.value}%` : "";
-    const changed = c.painted && num !== c.num.textContent;
-    setText(c.num, num);
-    setText(c.word, live ? reading.word : "");
+    const changed = r.painted && num !== r.num.textContent;
+    setText(r.num, num);
+    setText(r.word, live ? reading.word : "");
     if (changed && num) {
       const settle = reducedMotion() ? [{ opacity: 0.4 }, { opacity: 1 }] : [{ opacity: 0.4, transform: "translateY(3px)" }, { opacity: 1, transform: "none" }];
-      c.num.animate(settle, { duration: 200, easing: "cubic-bezier(.23, 1, .32, 1)" });
+      r.num.animate(settle, { duration: 200, easing: "cubic-bezier(.23, 1, .32, 1)" });
     }
-    c.painted = true;
-    const arrow = p ? PACE_ARROW[p] : "";
-    if (arrow !== c.arrow) { c.arrow = arrow; c.trend.innerHTML = arrow ? icon(arrow, 14) : ""; }
+    r.painted = true;
+    setText(r.note, status);
+    r.note.hidden = !status;
 
-    // The bar and its pace tick; the honest note replaces the number.
-    c.meter.style.setProperty("--fill", `${live ? reading.fill : 0}%`);
-    c.tick.hidden = reading.mark === null;
-    if (reading.mark !== null) c.meter.style.setProperty("--mark", `${reading.mark}%`);
-    setText(c.note, status);
-    c.note.hidden = !status;
+    // The meter: usage fill, the even-pace zone and its tick.
+    r.meter.style.setProperty("--fill", `${live ? reading.fill : 0}%`);
+    r.meter.style.setProperty("--mark", `${reading.mark ?? 0}%`);
+    r.tick.hidden = reading.mark === null;
 
-    // The chip: reset countdown and the provider's banked credits.
-    // A passed reset is already what the stale note says.
-    const countdown = l.stale && chipCountdown(l.resetsAt, now) === "now" ? null : chipCountdown(l.resetsAt, now);
-    setText(c.resetText, countdown || "");
-    c.reset.hidden = !countdown;
-    const { count, usable, title } = g.credits;
-    setText(c.creditCount, String(count));
-    c.credit.hidden = count === 0;
-    c.credit.disabled = !usable || g.confirm.state === "busy";
-    c.credit.title = title;
-    c.credit.setAttribute("aria-label", usable ? `Use a reset credit for ${g.label}, ${count} available` : `${credits(count)} for ${g.label}`);
-    c.chip.hidden = c.reset.hidden && c.credit.hidden;
+    // Pace in words with its arrow, and the reset countdown. A passed reset is already what the
+    // stale note says.
+    // A used-up window has no pace left to describe; it says so instead.
+    const spent = live && used >= 100;
+    const arrow = p && !spent ? PACE_ARROW[p] : "";
+    if (arrow !== r.arrow) { r.arrow = arrow; r.paceIcon.innerHTML = arrow ? icon(arrow, 14) : ""; }
+    setText(r.paceText, spent ? "Limit reached" : p ? PACE_LABEL[p] : "");
+    r.pace.hidden = !p && !spent;
+    const countdown = chipCountdown(l.resetsAt, now);
+    const shown = l.stale && countdown === "now" ? null : countdown;
+    setText(r.resetText, shown === "now" ? "a moment" : shown || "");
+    r.reset.hidden = !shown;
+    r.meta.hidden = r.pace.hidden && r.reset.hidden;
 
-    for (const k of ["ahead", "on", "under"] as const) c.root.classList.toggle(`lim-${k}`, p === k);
-    c.root.classList.toggle("lim-stale", !live);
-    c.root.classList.toggle("lim-high", live && used >= 90);
+    // Calm, warm (ahead of pace or getting full) or critical (nearly used up): the same in both views.
+    const tone = live ? limitTone(used, p) : null;
+    for (const t of ["calm", "warn", "crit"] as const) r.root.classList.toggle(`lim-${t}`, tone === t);
+    for (const k of ["ahead", "on", "under"] as const) r.root.classList.toggle(`lim-${k}`, p === k);
+    r.root.classList.toggle("lim-stale", !live);
+    r.root.classList.toggle("lim-spent", spent);
 
+    const { count } = g.credits;
     const spoken = spokenCountdown(l.resetsAt, now);
-    c.meter.setAttribute("aria-label", `${g.label} limit`);
-    c.meter.setAttribute("aria-valuenow", String(live ? reading.value : 0));
-    c.meter.setAttribute("aria-valuetext", [label, live ? reading.text : status, spoken, p ? PACE_TEXT[p] : "", count ? credits(count) : ""].filter(Boolean).join(", "));
+    r.meter.setAttribute("aria-label", `${g.label} limit`);
+    r.meter.setAttribute("aria-valuenow", String(live ? reading.value : 0));
+    r.meter.setAttribute("aria-valuetext", [label, live ? reading.text : status, spoken, spent ? "limit reached" : p ? PACE_TEXT[p] : "", count ? credits(count) : ""].filter(Boolean).join(", "));
     const reset = resetCountdown(l.resetsAt, now) || "";
     const at = l.resetsAt ? ` (${when(l.resetsAt)})` : "";
     const detail = [live ? reading.text : status, reset ? `${reset}${at}` : ""].filter(Boolean).join(", ") + (p ? `. ${reading.pace}: ${PACE_TEXT[p]}` : "");
     const where = `${l.source || source}${l.observedAt ? `, reported ${new Date(l.observedAt).toLocaleString()}` : ""}`;
-    c.root.title = `${label}: ${detail}\n${where}`;
+    r.root.title = `${label}: ${detail}\n${where}`;
   }
 
   function render(u: Usage, view: LimitView) {
@@ -303,24 +308,27 @@ export function mountLimits(box: HTMLElement, note: HTMLElement, options: Limits
     }
     const keepGroups = new Set(list.map((w) => w.key));
     for (const [k, g] of groups) if (!keepGroups.has(k)) { g.root.remove(); groups.delete(k); }
-    const keepCards = new Set<string>();
+    const keepRows = new Set<string>();
     list.forEach((w, gi) => {
       const g = group(w.key, w.harness);
       g.instanceId = w.h.instanceId || null;
       g.label = w.name;
       setText(g.name, w.name);
+      g.name.title = w.name;
       readCredits(g, w.h, now);
       g.members = w.windows.map((l, i) => {
         const key = `${w.key}:${l.id || `${l.pool || "legacy"}:${i}`}`;
-        keepCards.add(key);
-        const c = card(key, w.key);
-        renderCard(c, l, g, w.h.source || "Local logs", view, now);
-        if (g.cards.children[i] !== c.root) g.cards.insertBefore(c.root, g.cards.children[i] || null);
-        return c;
+        keepRows.add(key);
+        const r = row(key);
+        renderRow(r, l, g, w.h.source || "Local logs", view, now);
+        if (g.rows.children[i] !== r.root) g.rows.insertBefore(r.root, g.rows.children[i] || null);
+        return r;
       });
+      // A used-up window makes the banked resets the next thing to reach for.
+      g.root.classList.toggle("lim-spent", g.members.some((r) => r.root.classList.contains("lim-spent")));
       if (box.children[gi] !== g.root) box.insertBefore(g.root, box.children[gi] || null);
     });
-    for (const [k, c] of cards) if (!keepCards.has(k)) { c.root.remove(); cards.delete(k); }
+    for (const [k, r] of rows) if (!keepRows.has(k)) { r.root.remove(); rows.delete(k); }
     box.hidden = list.length === 0;
     const available = new Set(list.map((w) => w.harness));
     const unavailable = (["codex", "claude"] as const).filter((h) => !available.has(h)).map(harnessName);
