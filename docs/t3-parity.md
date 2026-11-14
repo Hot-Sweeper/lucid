@@ -22,8 +22,8 @@ The scopes the app has never asked for matter for the larger gaps: `terminal:ope
 |---|---|---|---|---|
 | Create | `orchestration.launchThread` (title, `modelSelection`, `runtimeMode`, `interactionMode`, `workspaceStrategy`, `initialMessage`) | `hire.ts`, `t3server.cjs` `startHire` (line 530), `hire-runtime.cjs` `launchPayload`; CLI fallback `t3.cjs` `startThread` | Launch always uses `workspaceStrategy: {type:"root"}`, `interactionMode: "default"`, `attachments: []` | covered (see Worktrees, Plan mode, Attachments) |
 | Send / follow-up | `message.dispatch` with `dispatchMode` (`start_immediately`, `queue_after_active`, `steer_active`, `restart_active`) | `chat-panel.ts` send (around line 596) via CLI `t3 thread send`; remote path uses `message.dispatch` (`remote-building.cjs` line 91) | Explicit "steer now" and "restart with this message" when sending (only queued messages can be promoted to steer) | S |
-| Queue edit / reorder / cancel / steer | `queued-run.edit`, `queued-run.reorder`, `queued-run.cancel`, `queued-message.promote-to-steer` | `t3server.cjs` lines 349 to 355, `chat-panel.ts` queue UI (lines 1597 to 1796) | Nothing | done |
-| Resume held queue | `queue.resume`, `queued-run.start` | none | Button after a stop (Stop holds the queue) | S |
+| Queue edit / reorder / cancel / steer | `queued-run.edit`, `queued-run.reorder`, `queued-run.cancel`, `queued-message.promote-to-steer` | `t3server.cjs` queue block, `chat-queue.ts` (the queue above the composer, rules in `queue-model.ts`) | Nothing | done |
+| Resume held queue | `queue.resume`, `queued-run.start` | `t3server.cjs` `startQueued` via `t3s:start-queued`: the queue's Resume and a held row's Send now | Nothing | done |
 | **Stop / interrupt** | `thread.stop` (web client uses it when `capabilities.threadStop`, which the local server sets); fallback `run.interrupt` with `runId`, `holdQueue: true`; `orchestration.forceStopThread` RPC for runs that ignore Stop; `subagent.stop` | Stop in the chat composer (`chat-panel.ts` `.cp-stop`) and the thread and desk menus, sent as `thread.stop` through `t3s:stop` (`electron/thread-actions.cjs` validates; linked computers get their own dispatch) | Force stop, subagent stop | done (S left) |
 | Settle / unsettle | `thread.settle`, `thread.unsettle` | `t3server.cjs` `settleThread` (390), `unsettleThread` (401); `t3s:settle` IPC; reports "Reopen" uses unsettle | `unsettleThread` has no IPC for the sidebar's settled list | S |
 | Auto-settle opt out | `thread.auto-settle.set` | none | Per-thread toggle | S |
@@ -91,7 +91,7 @@ The scopes the app has never asked for matter for the larger gaps: `terminal:ope
 
 ## Recommended order
 
-1. **Stop** is done (chat composer and menus). Next: **Resume queue** (`queue.resume`) after a stop, and Force stop for runs that ignore Stop.
+1. **Stop** and **Resume queue** are done (chat composer, menus, the queue). Next: Force stop for runs that ignore Stop.
 2. **Rename** and **Archive** are done in the thread and desk menus. Next: **Delete** with a confirm, then the archived list.
 3. **Mark read** (`thread.visit` on open) and **Mark unread**, so T3 and the app agree on unread state.
 4. **Unsettle** from the settled list, **Snooze**, **Auto-settle** toggle, copy id/branch.

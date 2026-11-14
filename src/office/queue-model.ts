@@ -39,7 +39,7 @@ export function settlePending(pending: PendingSend[], threadId: string, msgs: Pi
     const text = p.text.trim();
     const arrived = msgs.find((m) => m.role === "user" && !taken.has(m.id) && !p.known.has(m.id) && m.text.trim() === text);
     if (arrived) { taken.add(arrived.id); return false; }
-    return !p.sentAt || now - p.sentAt < ttl;
+    return p.sentAt === undefined || now - p.sentAt < ttl;
   });
 }
 

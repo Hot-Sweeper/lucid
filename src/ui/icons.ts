@@ -45,7 +45,6 @@ const PATHS = {
   plus: '<path d="M8 3.5v9M3.5 8h9"/>',
   check: '<path d="M3.5 8.5 6.5 11.5 12.5 5"/>',
   edit: '<path d="M10.5 3.5l2 2L6 12H4v-2z"/>',
-  steer: '<path d="M3 4.5v3a2 2 0 0 0 2 2h7.5M9.5 6.5l3 3-3 3"/>',
   attach: '<path d="M10.8 5.2 6.3 9.7a1.3 1.3 0 0 0 1.8 1.8l4.8-4.8a2.6 2.6 0 0 0-3.6-3.6L4.3 8.1a3.8 3.8 0 0 0 5.4 5.4l4-4"/>',
   send: '<path d="M8 13V3.5M4 7.5l4-4 4 4"/>',
   returnUp: '<path d="M4 6l4-4 4 4M8 2v9a3 3 0 0 1-3 3H3"/>',

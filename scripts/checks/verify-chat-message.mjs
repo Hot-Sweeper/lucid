@@ -8,13 +8,13 @@ const { sameChatMessage } = new Function(`${code};return {sameChatMessage}`)();
 const message = {
   id: 'message', role: 'assistant', at: '2026-10-31T12:00:00Z', orderAt: '2026-10-31T12:00:00Z', sourceOrder: 1,
   text: 'Long conversation content. '.repeat(10000), streaming: false, run: 'running', queue: 0,
-  queueRunId: 'run', steerTarget: 'target', queueFixed: false, queueGuest: false,
+  queueRunId: 'run', steerTarget: 'target', queueHeld: false, queueFixed: false, queueGuest: false,
   attachments: [{ type: 'image', name: 'reference.png', mime: 'image/png', size: 256, path: 'E:/reference.png' }],
   event: { kind: 'handoff', status: 'completed', from: { provider: 'claudeAgent', model: 'old' }, to: { provider: 'codex', model: 'new' } },
 };
 assert.equal(sameChatMessage(undefined, message), false);
 assert.equal(sameChatMessage(message, structuredClone(message)), true, 'IPC object identity must not force a rerender');
-for (const key of ['id', 'role', 'at', 'orderAt', 'sourceOrder', 'text', 'streaming', 'run', 'queue', 'queueRunId', 'steerTarget', 'queueFixed', 'queueGuest']) {
+for (const key of ['id', 'role', 'at', 'orderAt', 'sourceOrder', 'text', 'streaming', 'run', 'queue', 'queueRunId', 'steerTarget', 'queueHeld', 'queueFixed', 'queueGuest']) {
   const next = structuredClone(message);
   next[key] = typeof next[key] === 'boolean' ? !next[key] : typeof next[key] === 'number' ? next[key] + 1 : `${next[key]} changed`;
   assert.equal(sameChatMessage(message, next), false, `${key} changes must be detected`);
