@@ -7,6 +7,7 @@
 // Part of the World class (world.ts); see the note there on how its parts are combined.
 import { HOBBY_LABEL, harnessName, logoFor } from "../../robot";
 import { statusBadge } from "../../ui/status";
+import { projectChip, projectMarkOf, type ProjectMark } from "../../ui/project-icon";
 import { esc } from "../../util/html";
 import { reducedMotion } from "../../util/dom";
 import { DESK_TOPIC, plateView } from "../plate-view";
@@ -18,12 +19,13 @@ import "../plates.css";
 const ROBOT = ".world-walker[data-id], .desk-unit .poke-head, .desk-unit .robot-host, .desk-unit .desk-plate";
 
 /** The hover card's content: full title, the worker with its harness and model, status and what a click does. */
-export function plateCardHtml(o: { title: string; worker: string; provider: string; model?: string | null; status: ThreadState | null; open: boolean; note?: string }) {
+export function plateCardHtml(o: { title: string; worker: string; provider: string; model?: string | null; project?: ProjectMark; status: ThreadState | null; open: boolean; note?: string }) {
   const logo = logoFor(o.provider);
   const who = [o.worker || harnessName(o.provider), o.model].filter(Boolean).join(" · ");
   const status = o.status?.tone ? statusBadge(o.status.tone, { detail: o.status.detail, cls: "hc-status" }) : "";
   return `<p class="hc-title">${esc(o.title || "Untitled")}</p>`
     + `<p class="hc-who">${logo ? `<img src="${esc(logo)}" alt="">` : ""}<span>${esc(who)}</span></p>`
+    + (o.project !== undefined ? `<p class="hc-proj">${projectChip(o.project, 14)}</p>` : "")
     + (o.note ? `<p class="hc-note">${esc(o.note)}</p>` : "")
     + `<p class="hc-meta">${status}<span>${o.open ? "This chat is open" : "Click to open this chat"}</span></p>`;
 }
@@ -96,27 +98,29 @@ export class WorldPlates {
   }
 
   /** The desk (if seated) and thread a hovered robot, plate or walker belongs to. */
-  plateTarget(this: World, hit: HTMLElement): { desk: Desk | null; thread: WThread } | null {
+  plateTarget(this: World, hit: HTMLElement): { desk: Desk | null; thread: WThread; project: ProjectMark } | null {
     const deskEl = hit.closest<HTMLElement>(".desk-unit");
     const desk = deskEl ? this.deskAt(deskEl) : null;
     const id = desk ? desk.threadId : hit.closest<HTMLElement>(".world-walker[data-id]")?.dataset.id;
     if (!id) return null;
-    const thread = [this, ...[...this.neighbors.values()].flatMap((e) => e.office ? [e.office] : [])]
-      .flatMap((o) => o.lastData?.threads ?? []).find((t) => t.id === id);
-    return thread ? { desk, thread } : null;
+    for (const office of [this, ...[...this.neighbors.values()].flatMap((e) => e.office ? [e.office] : [])]) {
+      const thread = office.lastData?.threads.find((t) => t.id === id);
+      if (thread) return { desk, thread, project: projectMarkOf(office.lastData!.projects, thread.projectId) };
+    }
+    return null;
   }
 
   showPlateCard(this: World, hit: HTMLElement) {
     const card = this.plateCard, target = this.plateTarget(hit);
     if (!card || !target || !hit.isConnected) return;
-    const { desk, thread } = target;
+    const { desk, thread, project } = target;
     const robot = desk?.profile ?? this.roster.forJob(thread.id);
     const worker = desk?.workerName || robot?.name || "";
     const model = desk?.modelName ?? thread.model;
     // A walker's own tooltip (battery, report) or a seated worker's free time, as one quiet line.
     const hobby = robot?.prefs?.hobby ? `Free time: ${HOBBY_LABEL[robot.prefs.hobby]}` : "";
     const note = desk ? hobby : (hit.dataset.tip ?? "").split(", ").filter((part) => part && part !== robot?.name && part !== model).join(" · ");
-    const html = plateCardHtml({ title: thread.title, worker, provider: thread.provider, model, status: this.threadStatus(thread), open: thread.id === this.chatThread, note });
+    const html = plateCardHtml({ title: thread.title, worker, provider: thread.provider, model, project, status: this.threadStatus(thread), open: thread.id === this.chatThread, note });
     if (card.dataset.html !== html) { card.dataset.html = html; card.innerHTML = html; }
     // Anchored to the plate for a seated robot, to the robot itself when it walks.
     const anchor = (desk?.el.querySelector<HTMLElement>(".desk-plate") ?? hit).getBoundingClientRect();

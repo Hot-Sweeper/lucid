@@ -6,15 +6,18 @@ import { snakeSeat } from "../room-policy";
 import type { RoomTheme } from "../decorate";
 import { ambientPlant } from "../ambient";
 import { cafeTiles, plankJoints } from "../../perf/floor-paths";
-import { icon } from "../../ui/icons";
+import { iconArt } from "../../ui/icons";
+import { projectIconSvg } from "../../ui/project-icon";
 import type { Room } from "./types";
 import { WALL_FACE, SLOT_W, SLOT_H, columnsForRoom, usable } from "./geometry";
 import { esc } from "../../util/html";
 import { fitTopic, textMeasure } from "../topic-label";
 
-function monogram(title: string) {
-  const words = title.replace(/[^A-Za-z0-9 ]/g, " ").trim().split(/\s+/);
-  return ((words[0]?.[0] || "?") + (words[1]?.[0] || "")).toUpperCase();
+/** The office's mark on its sign: a project's own mark, the dashed square for the No project office
+ *  (Freelancers), and the main office's team glyph on its accent tile (it is not a project). */
+function signMark(r: Room, accent: string, x: number, y: number, size: number) {
+  if (r.kind === "main") return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${Math.round(size * 0.26)}" fill="${accent}"/>${iconArt("users", x + size * 0.2, y + size * 0.2, size * 0.6, "#fff")}`;
+  return projectIconSvg(r.kind === "project" ? { title: r.title, icon: r.icon } : null, x, y, size);
 }
 
 export const ROOM_LABEL_FONT = '600 15px "Lexend Variable"';
@@ -39,7 +42,7 @@ export function officeDecor(r: Room, slots: number, theme?: RoomTheme) {
 }
 
 export function roomSvg(r: Room, slots: number, theme?: RoomTheme, owner?:string) {
-  const { w, h, kind, title, icon } = r;
+  const { w, h, kind, title } = r;
   const raw = {
     main: { wall: "#ece6da", trim: "#d8cfbf", floor: "#c9a274", seam: "#b88f61", accent: "#ff9f5a" },
     project: { wall: "#e4e7ee", trim: "#cdd2dc", floor: "#bf9a70", seam: "#ab8660", accent: "#4fb6ff" },
@@ -60,7 +63,7 @@ export function roomSvg(r: Room, slots: number, theme?: RoomTheme, owner?:string
       <rect width="${w}" height="${WALL_FACE}" style="fill:${pal.wall}"/><rect width="${w}" height="16" style="fill:${pal.trim}"/>
       <rect x="16" y="16" width="${w - 32}" height="${WALL_FACE - 16}" style="fill:${pal.wall}"/>
       <rect x="30" y="26" width="${w - 140}" height="68" rx="8" style="fill:var(--wd-sign, #fff)" opacity="0.94"/>
-      ${icon ? `<image href="${icon}" x="40" y="37" width="46" height="46" preserveAspectRatio="xMidYMid meet"/>` : `<rect x="40" y="37" width="46" height="46" rx="10" fill="${pal.accent}"/><text x="63" y="68" text-anchor="middle" font-size="19" fill="#fff" font-family="var(--font)">${esc(monogram(title))}</text>`}
+      ${signMark(r, pal.accent, 40, 37, 46)}
       <text class="room-name" x="98" y="66" style="fill:var(--wd-sign-ink, #3a3f4f)">${esc(roomSign(r).text)}</text>
       <rect x="${doorX - 4}" y="${doorY - 4}" width="68" height="${kind === "main" ? 68 : 102}" rx="4" style="fill:${pal.trim}"/>
       <rect x="${doorX}" y="${doorY}" width="60" height="${kind === "main" ? 64 : 94}" rx="3" fill="#887461"/>
@@ -101,8 +104,7 @@ export function roomSvg(r: Room, slots: number, theme?: RoomTheme, owner?:string
   const signBox = kind !== "break" && kind !== "queue" ? `
     <g transform="translate(34 ${T + 10})">
       <rect width="${sign.width}" height="${WALL_FACE - T - 24}" rx="10" style="fill:var(--wd-sign, #ffffff)" opacity="0.94"/>
-      ${icon ? `<image href="${icon}" x="10" y="12" width="46" height="46" preserveAspectRatio="xMidYMid meet"/>`
-        : `<rect x="10" y="12" width="46" height="46" rx="12" fill="${pal.accent}"/><text x="33" y="42" text-anchor="middle" font-size="19" font-weight="600" fill="#fff" font-family="var(--font)">${esc(monogram(title))}</text>`}
+      ${signMark(r, pal.accent, 10, 12, 46)}
       <text class="room-name" x="66" y="40" style="fill:var(--wd-sign-ink, #3a3f4f)">${esc(sign.text)}</text>
     </g>` : `<text x="40" y="${T + 52}" font-size="28" font-weight="600" style="fill:var(--wd-sign-ink, #3a3f4f)" font-family="var(--font)">${esc(title)}</text>`;
   const clock = kind === "main" ? `

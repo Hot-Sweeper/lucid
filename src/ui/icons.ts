@@ -102,3 +102,8 @@ export function icon(name: IconName, size = 16, o: { cls?: string; label?: strin
   const a11y = o.label ? `role="img" aria-label="${o.label.replace(/"/g, "&quot;")}"` : 'aria-hidden="true"';
   return `<svg class="ui-icon${o.cls ? ` ${o.cls}` : ""}" data-icon="${name}" viewBox="0 0 16 16" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false" ${a11y}>${PATHS[name]}</svg>`;
 }
+
+/** An interface icon drawn into world art (an SVG room sign): it scales with the art instead of keeping a 1.5px screen stroke. */
+export function iconArt(name: IconName, x: number, y: number, size: number, color: string): string {
+  return `<svg x="${x}" y="${y}" width="${size}" height="${size}" viewBox="0 0 16 16" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[name]}</svg>`;
+}

@@ -1,4 +1,5 @@
 import { messageParts, splitRefs, type MessageRef } from "./message-parts";
+import { NO_PROJECT, type ProjectMark } from "../ui/project-icon";
 
 // A thread you point a robot to: dragged from the sidebar into the chat, shown as a chip in the
 // message box, and sent as a short block the receiving agent can read (and look up by its id).
@@ -7,10 +8,16 @@ export type ThreadRef = {
   id: string;
   title: string;
   project: string;
+  /** The project's own icon, when the thread list knows it. */
+  projectIcon?: string | null;
   provider?: string | null;
   ask?: string;    // the last thing the user asked in that thread
   reply?: string;  // the last answer there
 };
+
+/** A referenced thread's project mark: "No project" (or none) is the dashed square. */
+export const refMark = (r: { project?: string; projectIcon?: string | null }): ProjectMark =>
+  !r.project || r.project === NO_PROJECT ? null : { title: r.project, icon: r.projectIcon ?? null };
 
 const TAG = "referenced_thread"; // read back by message-parts.ts
 const attr = (s: string) => String(s ?? "").replace(/"/g, "'").replace(/[\r\n]+/g, " ").trim();

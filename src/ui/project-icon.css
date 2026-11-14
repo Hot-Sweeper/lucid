@@ -1,0 +1,17 @@
+/* Project marks (src/ui/project-icon.ts): the project's icon, a monogram tile tinted by its name,
+   or the dashed square for "No project". --pi is the size; corners scale with it. */
+:root { --pi-tile-l: 0.36; --pi-tile-c: 0.08; --pi-ink-l: 0.87; --pi-ink-c: 0.1; }
+:root[data-theme="t3"][data-t3-appearance="light"] { --pi-tile-l: 0.93; --pi-tile-c: 0.045; --pi-ink-l: 0.45; --pi-ink-c: 0.12; }
+
+.proj-icon { flex: none; display: inline-block; box-sizing: border-box; width: var(--pi, 16px); height: var(--pi, 16px);
+  border-radius: calc(var(--pi, 16px) * 0.26); vertical-align: middle; }
+img.proj-icon { object-fit: contain; }
+.proj-icon.proj-mono { display: inline-grid; place-items: center; overflow: hidden;
+  background: oklch(var(--pi-tile-l) var(--pi-tile-c) var(--pi-hue, 350)); color: oklch(var(--pi-ink-l) var(--pi-ink-c) var(--pi-hue, 350));
+  font: 700 calc(var(--pi, 16px) * 0.47)/1 var(--font); letter-spacing: 0; }
+/* No project: a dashed square the size of a tile, as in the thread sidebar. */
+.proj-icon.proj-none { border: max(1.25px, calc(var(--pi, 16px) * 0.083)) dashed var(--pi-none-ink, var(--ink-3)); border-radius: calc(var(--pi, 16px) * 0.3); }
+
+/* Mark plus name, one line. */
+.proj-chip { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; vertical-align: middle; }
+.proj-chip .proj-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

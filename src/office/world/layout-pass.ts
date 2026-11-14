@@ -18,6 +18,7 @@ import type { WThread, WorldData, Room, RoomKind, PhysicalRoomPlan } from "./typ
 import { WALL_FACE, SLOT_W, SLOT_H, GAP, HALL, LOUNGE, officeSize, columnsForRoom, floorSlots, needsLounge } from "./geometry";
 import { ROOM_LABEL_FONT, roomSign, roomSvg } from "./room-art";
 import { textMeasure } from "../topic-label";
+import { projectMark } from "../../ui/project-icon";
 
 export class WorldLayout {
   /** Far away a room's own sign is too small to read: a label with its name takes over, above the desks (plates.css). */
@@ -442,7 +443,7 @@ export class WorldLayout {
         d.room = s.key.split("#")[0];
         const proj = byProject.get(s.t.projectId);
         d.setPinned(s.t.pinned);
-        d.setProject(d.room === "main" || d.room === "queue" ? (proj && !proj.scratch ? { title: proj.title, icon: proj.icon } : { title: "No project", icon: null }) : null);
+        d.setProject(d.room === "main" || d.room === "queue" ? projectMark(proj) : false);
       } else {
         d = here && !here.threadId ? here : this.makeDesk(s.x, s.y);
         if (d.threadId) d.assign(null);

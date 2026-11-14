@@ -11,6 +11,8 @@ import { sharedVector, vectorOwner, releaseVectors } from "../perf/shared-vector
 import { cacheStaticArt } from "../perf/static-art";
 import { fitTopic } from "./topic-label";
 import { DESK_TOPIC, PLATE_FONT } from "./plate-view";
+import { projectIcon, projectName, type ProjectMark } from "../ui/project-icon";
+import { esc } from "../util/html";
 
 // One workstation, seen fake top-down: the desk surface from above, the monitor and the
 // robot as upright figures. The robot sits south of the desk with its back to us, the
@@ -93,7 +95,7 @@ export class Desk implements DeskStage {
       <button type="button" class="poke poke-mug" aria-label="Hand it its coffee" style="left:${GEOM.mug.x - 16}px;top:${GEOM.mug.y - 20}px"></button>
       <button type="button" class="poke poke-phone" aria-label="Buzz its phone" style="left:${GEOM.phoneRest.x - 16}px;top:${GEOM.phoneRest.y - 24}px"></button>
       <div class="desk-plate"><span class="dp-topic"></span><span class="dp-who"><img alt=""><b></b></span></div>
-      <div class="desk-proj" hidden><img alt=""><span class="dp-mono"></span><b></b></div>
+      <div class="desk-proj" hidden></div>
       <div class="phone-held"><div class="phone-screen"></div></div>
       <div class="bubble" role="status"></div>`;
     parent.appendChild(el);
@@ -293,21 +295,17 @@ export class Desk implements DeskStage {
   }
 
   // In shared rooms (the main office) a sign over the monitor says which project it works on.
-  private projSig = "";
-  setProject(p: { title: string; icon: string | null } | null) {
-    const sig = p ? `${p.title}|${p.icon ?? ""}` : "";
+  private projSig: string | null = null;
+  /** The project sign: a project's mark (null is "No project"), or false for none at all. */
+  setProject(p: ProjectMark | false) {
+    const sig = p === false ? "" : p ? `${p.title}|${p.icon ?? ""}` : "-";
     if (sig === this.projSig) return;
     this.projSig = sig;
     const el = this.el.querySelector(".desk-proj") as HTMLElement;
-    el.hidden = !p;
-    if (!p) return;
-    const img = el.querySelector("img") as HTMLImageElement, mono = el.querySelector(".dp-mono") as HTMLElement;
-    img.hidden = !p.icon;
-    if (p.icon) img.src = p.icon;
-    mono.hidden = !!p.icon;
-    mono.textContent = p.title.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-    (el.querySelector("b") as HTMLElement).textContent = p.title;
-    el.title = `Working on ${p.title}`;
+    el.hidden = p === false;
+    if (p === false) return;
+    el.innerHTML = `${projectIcon(p, 16)}<b>${esc(projectName(p))}</b>`;
+    el.title = p ? `Working on ${p.title}` : "";
   }
 
   // --- DeskStage -------------------------------------------------------------

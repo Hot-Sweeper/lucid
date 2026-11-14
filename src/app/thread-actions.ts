@@ -3,6 +3,7 @@ import { gameSound } from "../office/sound";
 import { showMenu, confirmDialog, noticeDialog } from "../office/menus";
 import { wireThreadDrag } from "../office/thread-drag";
 import type { ThreadRef } from "../office/thread-ref";
+import { projectIcon, projectMark, projectName } from "../ui/project-icon";
 import { $ } from "./dom";
 import type { App } from "./context";
 const RUNNING = new Set(["running", "starting", "preparing", "queued"]);
@@ -15,7 +16,8 @@ export function defineThreadActions(app: App) {
     const t = data?.threads.find((x) => x.id === id);
     if (!t) return null;
     const p = data!.projects.find((x) => x.id === t.projectId);
-    return { id, title: t.title || "Untitled thread", project: !p || p.scratch ? "No project" : p.title, provider: t.provider };
+    const mark = projectMark(p);
+    return { id, title: t.title || "Untitled thread", project: projectName(mark), projectIcon: mark?.icon ?? null, provider: t.provider };
   };
 
   app.referenceInChat = function referenceInChat(id: string, x: number, y: number) {

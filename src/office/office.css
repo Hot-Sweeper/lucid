@@ -128,9 +128,8 @@
 .rooms .room-list { list-style: none; margin: 0 -8px; padding: 0; display: flex; flex-direction: column; gap: 1px; }
 .room-list button { width: 100%; display: flex; align-items: center; gap: 9px; border: 0; background: transparent; padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer; text-align: left; font-size: 13px; color: var(--ink); transition: background-color var(--dur-hover) var(--ease-out-strong); }
 .room-list button:hover { background: color-mix(in srgb, var(--wash) 6%, transparent); }
-.room-list img { width: 16px; height: 16px; border-radius: 4px; object-fit: contain; flex: none; }
 .room-list .dot { width: 8px; height: 8px; border-radius: 50%; margin: 0 4px; flex: none; background: #ffb27a; }
-.room-list .dot.queue { background: #b07cff; } .room-list .dot.break { background: #4ff0a0; } .room-list .dot.freelance { background: #ff6f91; } .room-list .dot.project { background: #4fb6ff; }
+.room-list .dot.queue { background: #b07cff; } .room-list .dot.break { background: #4ff0a0; }
 .room-list .rt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .room-list .rc { color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
 
@@ -164,7 +163,11 @@
 .cp-logo { width: 20px; height: 20px; flex: none; }
 .cp-who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .cp-who b { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
-.cp-who span { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* robot · project (its mark and name) · model; the project name gives way first on a narrow chat */
+.cp-who .cp-meta { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.cp-meta .cpm-part { flex: none; }
+.cp-meta > i { flex: none; font-style: normal; }
+.cp-meta .cpm-proj { flex: 0 1 auto; gap: 5px; }
 /* the header's actions are small icons, so a narrow panel keeps them on the title row */
 @container (max-width: 430px) { .cp-head { gap: 4px; } }
 .cp-list { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
@@ -492,14 +495,10 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .th-settled-count { margin-left: auto; font-variant-numeric: tabular-nums; }
 .th-settled-list { list-style: none; margin: 0; padding: 0; }
 .th-row.th-settled-row { flex-direction: row; align-items: center; gap: 10px; padding: 10px; color: var(--ink-3); }
-.th-settled-row img { width: 16px; height: 16px; object-fit: contain; flex: none; border-radius: var(--radius-sm); }
 .th-settled-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .th-row.on { background: color-mix(in srgb, var(--wash) 7%, transparent); }
 .th-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .th-top { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-3); }
-.th-top img { width: 15px; height: 15px; border-radius: var(--radius-sm); object-fit: contain; flex: none; }
-.th-mono { width: 15px; height: 15px; border-radius: var(--radius-sm); flex: none; display: grid; place-items: center; font: 700 7.5px var(--font); background: #5a2340; color: #ff9fc6; }
-.th-none { width: 13px; height: 13px; flex: none; border: 1.5px dashed var(--ink-3); border-radius: 3px; }
 .th-proj { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .th-ago { flex: none; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .th-title { font-size: 14px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
@@ -576,9 +575,7 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 /* the tag sits on the monitor's top edge and grows upward; a long project name wraps to a second line before it is cut (the tooltip has all of it) */
 .desk-proj { position: absolute; z-index: 3; left: 200px; top: 6px; transform: translate(-50%, -100%); width: max-content; max-width: 380px; display: flex; align-items: center; gap: 6px; padding: 4px 11px 4px 5px; border-radius: 15px; background: rgba(255, 255, 255, 0.95); color: #2d3142; font: 600 12px/1.25 var(--font); box-shadow: 0 4px 10px rgba(40, 30, 20, 0.18); }
 .desk-proj[hidden] { display: none; }
-.desk-proj img { width: 16px; height: 16px; border-radius: 4px; object-fit: contain; flex: none; }
-.desk-proj .dp-mono { width: 16px; height: 16px; border-radius: 4px; flex: none; display: grid; place-items: center; font: 700 8px var(--font); background: #ff9f5a; color: #fff; }
-.desk-proj .dp-mono[hidden] { display: none; }
+.desk-proj { --pi-none-ink: color-mix(in srgb, currentColor 50%, transparent); }
 .desk-proj b { font-weight: 600; min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .desk-unit.empty .desk-proj { display: none; }
 

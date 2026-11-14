@@ -1,6 +1,7 @@
 import type { ThreadState } from "./thread-state";
 import { statusIcon } from "../ui/status";
 import { icon } from "../ui/icons";
+import { projectChip, type ProjectMark } from "../ui/project-icon";
 import { ChatPromptContext } from "./chat-prompt";
 import "./chat-prompt.css";
 import { watchMedia } from "./media-player";
@@ -17,7 +18,7 @@ import { BRAND } from "../brand";
 import { Marked } from "marked";
 import DOMPurify from "dompurify";
 import { highlight } from "../os/highlight";
-import { type ThreadRef, refBlock, stripRefs, summarize } from "./thread-ref";
+import { type ThreadRef, refBlock, refMark, stripRefs, summarize } from "./thread-ref";
 import { beginSystem, endSystem } from "../perf/metrics";
 import { HistoryWindow, type HistoryCursor, type HistoryPage } from "./history-window";
 import { attachDictation } from "./dictation";
@@ -204,7 +205,7 @@ export class ChatPanel {
   /** "Show this robot": the camera goes to the open chat's robot (World.showRobot). */
   onShowRobot: () => void = () => {};
   /** The thread's title and project from the thread list, for desks whose details are still loading. */
-  threadFacts: (id: string) => { title?: string; project?: string; model?: string | null } | null = () => null;
+  threadFacts: (id: string) => { title?: string; project?: ProjectMark; model?: string | null } | null = () => null;
   /** You started or stopped typing a message to this robot. */
   onTyping: (on: boolean) => void = () => {};
   private pending: PendingSend[] = [];
@@ -247,7 +248,7 @@ export class ChatPanel {
       const logo = logoFor(r.provider);
       return `<div class="cp-chip cp-refchip${i < 0 ? " preview" : ""}" data-ref="${esc(r.id)}" title="${esc(`${r.title}\n${r.project}`)}">`
         + `<span class="cpc-ref">${logo ? `<img src="${logo}" alt="">` : ""}</span>`
-        + `<span class="cpc-two"><span class="cpc-proj">${esc(r.project)}</span><span class="cpc-name">${esc(r.title)}</span></span>`
+        + `<span class="cpc-two">${projectChip(refMark(r), 12, "cpc-proj")}<span class="cpc-name">${esc(r.title)}</span></span>`
         + (i < 0 ? "" : `<button type="button" data-rmref="${i}" aria-label="Remove reference to ${esc(r.title)}" title="Remove reference">${icon("close", 12)}</button>`) + `</div>`;
     };
     box.innerHTML = this.refs.map(refChip).join("") + (preview ? refChip(preview, -1) : "") + this.files.map((f, i) => {
@@ -434,7 +435,7 @@ export class ChatPanel {
       </div>
       <header class="cp-head">
         <img class="cp-logo" alt="">
-        <div class="cp-who"><b></b><span></span></div>
+        <div class="cp-who"><b></b><span class="cp-meta"></span></div>
         <button type="button" class="cp-locate cp-icon" aria-label="Show this robot" title="Show this robot in the office">${icon("locateRobot")}</button>
         <button type="button" class="cp-pin cp-icon pin-btn" aria-pressed="true">${PIN_ICON}</button>
         <button type="button" class="cp-hide cp-icon" aria-expanded="true" aria-label="Hide chat" title="Hide the chat for more room. It stays as a tab on the right edge.">${icon("chatHide")}</button>
@@ -773,9 +774,12 @@ export class ChatPanel {
     const title = this.el.querySelector(".cp-who b") as HTMLElement;
     title.textContent = threadTitle || robotName; title.title = threadTitle;
     const model = (info?.model || facts?.model || "").replace(/^claude-/, "").replace(/^gpt-/, "GPT ").replace(/-(\d)-(\d)/, " $1.$2").replace(/-/g, " ").replace(/\b[a-z]/g, (c) => c.toUpperCase());
-    const projectTitle = info?.projectTitle || facts?.project || "";
-    const project = projectTitle && !/^no project$/i.test(projectTitle) ? projectTitle : "";
-    this.el.querySelector(".cp-who span")!.textContent = [robotName, project, model].filter(Boolean).join(" · ");
+    // The project as the sidebar shows it: its mark and name, the dashed square for No project.
+    const project: ProjectMark = facts ? facts.project ?? null : info?.projectTitle && !/^no project$/i.test(info.projectTitle) ? { title: info.projectTitle } : null;
+    const part = (text: string) => `<span class="cpm-part">${esc(text)}</span>`, dot = `<i aria-hidden="true">·</i>`;
+    const meta = [part(robotName), projectChip(project, 14, "cpm-proj"), ...(model ? [part(model)] : [])].join(dot);
+    const metaEl = this.el.querySelector<HTMLElement>(".cp-meta")!;
+    if (metaEl.dataset.html !== meta) { metaEl.dataset.html = meta; metaEl.innerHTML = meta; }
     const locate = this.el.querySelector<HTMLElement>(".cp-locate")!, show = desk.profile?.name ? `Show ${desk.profile.name}` : "Show this robot";
     locate.setAttribute("aria-label", show); locate.title = `${show} in the office`;
     this.tabLabel = `Chat with ${robotName}`;
@@ -1245,7 +1249,7 @@ export class ChatPanel {
       body = parts.body;
       for (const r of parts.refs) {
         const logo = logoFor(r.harness);
-        sent.push(`<div class="cp-file cp-reffile" title="${esc(`${r.title}, ${r.project}`)}">${logo ? `<img src="${logo}" alt="">` : ""}<span>${esc(r.title)}</span><i>${esc(r.project)}</i></div>`);
+        sent.push(`<div class="cp-file cp-reffile" title="${esc(`${r.title}, ${r.project}`)}">${logo ? `<img src="${logo}" alt="">` : ""}<span>${esc(r.title)}</span>${projectChip(refMark(r), 12, "cprf-proj")}</div>`);
       }
       for (const f of parts.files) sent.push(mediaAttachment(f.path, f.name, f.kind === "image" ? "image/" : "", !!this.api.revealFile));
     }

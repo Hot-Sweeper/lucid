@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { logoFor } from "../robot";
-import type { ThreadRef } from "./thread-ref";
+import { refMark, type ThreadRef } from "./thread-ref";
+import { projectChip } from "../ui/project-icon";
 import type { ChatPanel } from "./chat-panel";
 import { esc } from "../util/html";
 
@@ -49,7 +50,7 @@ export function wireThreadDrag(containers: HTMLElement[], chat: ChatPanel, refFo
       ghost.className = "th-ghost";
       ghost.setAttribute("aria-hidden", "true");
       const logo = logoFor(ref.provider);
-      ghost.innerHTML = `${logo ? `<img src="${logo}" alt="">` : ""}<span><b>${esc(ref.title)}</b><i>${esc(ref.project)}</i></span><em></em>`;
+      ghost.innerHTML = `${logo ? `<img src="${logo}" alt="">` : ""}<span><b>${esc(ref.title)}</b>${projectChip(refMark(ref), 12)}</span><em></em>`;
       document.body.appendChild(ghost);
       gsap.fromTo(ghost, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.14, ease: "power2.out" });
       window.addEventListener("keydown", onKey, true);

@@ -14,6 +14,7 @@ import type { Desk } from "../office/desk";
 import { foldSection } from "../office/sidebar";
 import { api, $ } from "./dom";
 import type { App } from "./context";
+import { projectMarkOf } from "../ui/project-icon";
 const threadCardPortraits = new Map<string, { signature: string; svg: string }>();
 
 /** Registers this module's functions on the app (before anything runs, like function hoisting). */
@@ -84,8 +85,7 @@ export function wireChatHooks(app: App) {
   app.chat.threadFacts = (id) => {
     const t = app.world.lastData?.threads.find(t => t.id === id);
     if (!t) return null;
-    const p = app.world.lastData!.projects.find(p => p.id === t.projectId);
-    return { title: t.title, project: p && !p.scratch ? p.title : "", model: t.model };
+    return { title: t.title, project: projectMarkOf(app.world.lastData!.projects, t.projectId), model: t.model };
   };
   app.chat.onClose = () => { app.chat.close(); app.world.unfocus(); app.world.revealThread(null); app.markSelected(null); };
   app.chat.onChooseThread = () => {

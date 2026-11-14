@@ -3,6 +3,7 @@ import { completionFirst, pinnedFirst, reconcileThreadList, statusFirst, statusR
 import { threadState } from "../office/thread-state";
 import { statusBadge } from "../ui/status";
 import { icon as uiIcon } from "../ui/icons";
+import { projectIcon, projectMark, projectName } from "../ui/project-icon";
 import { gameSound } from "../office/sound";
 import { beginSystem, endSystem } from "../perf/metrics";
 import { latestThreadReviews, threadReviewLabel } from "../office/thread-review";
@@ -104,11 +105,10 @@ export function defineThreadSidebar(app: App) {
     const dotOf = (t: typeof list[number]) => presentationOf(t).tone;
     const statusAttr = (t: typeof list[number]) => { const s = dotOf(t); return s ? ` data-status="${s}"` : ""; };
     const row = (t: typeof list[number]) => {
-      const p = projects.get(t.projectId);
-      const proj = !p || p.scratch ? "No project" : p.title;
-      const icon = p && !p.scratch ? (p.icon ? `<img src="${esc(p.icon)}" alt="">` : `<span class="th-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`) : `<span class="th-none"></span>`;
+      const mark = projectMark(projects.get(t.projectId));
+      const proj = projectName(mark);
       if (t.settled) return `<li><button type="button" class="th-row th-settled-row" data-id="${esc(t.id)}" title="${esc(`${proj}: ${t.title || "Untitled"}${app.world.roster.byThread(t.id) ? `
-  ${app.world.roster.byThread(t.id)!.name}` : ""}`)}">${icon}<span class="th-settled-title">${esc(t.title || "Untitled")}${snippetOf(t) ? `<span class="th-snippet">${esc(snippetOf(t))}</span>` : ""}</span><span class="th-ago">${app.ago(t.updatedAt)}</span></button></li>`;
+  ${app.world.roster.byThread(t.id)!.name}` : ""}`)}">${projectIcon(mark, 16)}<span class="th-settled-title">${esc(t.title || "Untitled")}${snippetOf(t) ? `<span class="th-snippet">${esc(snippetOf(t))}</span>` : ""}</span><span class="th-ago">${app.ago(t.updatedAt)}</span></button></li>`;
       // T3's row, one line each: project (logo and name) with the state, the title, then the
       // worker, model and branch with the harness logo. Nothing wraps; the tooltip has it all.
       const state = stateOf(t);
@@ -124,7 +124,7 @@ export function defineThreadSidebar(app: App) {
   ${robot.name}${t.model ? `, ${t.model}` : ""}` : ""}${t.branch ? `
   ${t.branch}` : ""}`)}">
         <span class="th-text">
-          <span class="th-top">${icon}<span class="th-proj">${esc(proj)}</span>${state}</span>
+          <span class="th-top">${projectIcon(mark, 18)}<span class="th-proj">${esc(proj)}</span>${state}</span>
           <span class="th-line"><span class="th-title">${t.pinned ? `<span class="th-pin" role="img" aria-label="Pinned">${PIN_ICON}</span>` : ""}${esc(t.title || "Untitled")}</span>${logo ? `<img class="th-logo" src="${logo}" alt="${esc(harnessName(t.provider))}">` : ""}</span>
           ${where ? `<span class="th-meta"><span class="th-where">${esc(where)}</span></span>` : ""}
           ${snippetOf(t) ? `<span class="th-snippet">${esc(snippetOf(t))}</span>` : ""}
@@ -197,8 +197,7 @@ export function defineThreadSidebar(app: App) {
     const list = app.orderThreads(data.threads).slice(0, 40);
     const reviews = latestThreadReviews(app.currentEnvironment ? [] : app.orch.papers);
     const html = list.map((t) => {
-      const p = projects.get(t.projectId);
-      const proj = !p || p.scratch ? "No project" : p.title;
+      const proj = projectName(projectMark(projects.get(t.projectId)));
       const review = threadReviewLabel(t, reviews.get(t.id), !app.currentEnvironment && !!app.settings.orch && t.id !== app.settings.orch.threadId);
       const { tone: st, label: said } = threadState(t, review, app.delegate.phaseOf(t.id) === "reading");
       const logo = logoFor(t.provider);

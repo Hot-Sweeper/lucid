@@ -1,5 +1,6 @@
 // The rooms list in the sidebar: rooms, their menus, drag to reorder, building and park buttons.
 import { icon as uiIcon } from "../ui/icons";
+import { projectIcon } from "../ui/project-icon";
 import type { Room } from "../office/world";
 import { wireRoomDrag } from "../office/room-drag";
 import { movableRoom } from "../office/room-order";
@@ -18,7 +19,7 @@ export function mountRoomList(app: App) {
       return `<li class="room-list-row">
         ${movableRoom(r.id) ? `<button type="button" class="room-grab" data-room-id="${esc(r.id)}" aria-label="Move ${esc(r.title)}" title="Drag to reorder ${esc(r.title)}. Click for move options.">${uiIcon("grip", 14)}</button>` : ""}
         <button type="button" class="room-open" data-room="${esc(r.id)}" title="${esc(r.title)}${r.collapsed ? ": open folded office" : ""}">
-          ${r.icon ? `<img src="${esc(r.icon)}" alt="">` : `<span class="dot ${r.kind}"></span>`}
+          ${r.kind === "project" || r.kind === "freelance" ? projectIcon(r.kind === "project" ? { title: r.title, icon: r.icon } : null, 16) : `<span class="dot ${r.kind}"></span>`}
           <span class="rt">${esc(r.title)}</span><span class="rc">${r.threadIds.length || ""}</span>
         </button>
         ${office ? `<button type="button" class="room-fold" data-fold-room="${esc(r.id)}" aria-pressed="${!!pin}" aria-label="${pin ? "Collapse" : "Expand"} ${esc(r.title)}" title="${pin ? "Collapse office" : "Expand office"}">${pin ? "Collapse" : "Expand"}</button>` : ""}
