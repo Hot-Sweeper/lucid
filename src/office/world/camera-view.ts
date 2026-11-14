@@ -58,7 +58,10 @@ export class WorldCameraView {
     }
     const vx = -this.cam.x / s, vy = -this.cam.y / s;
     this.viewIndoors = footprintCovers(this.footprint, { x: vx, y: vy, w: box.width / s, h: box.height / s });
-    this.root.querySelector(".outside-live")?.classList.toggle("culled", this.viewIndoors);
+    // The live grounds are a direct child of the outside layer, when drawn at all. A page-wide
+    // search for them on every camera frame walked all of the campus when they were absent.
+    const layer = this.outsideLayer ??= this.root.querySelector<HTMLElement>(":scope > .outside-layer");
+    for (const live of layer?.children ?? []) if (live.classList.contains("outside-live") && live.classList.contains("culled") !== this.viewIndoors) live.classList.toggle("culled", this.viewIndoors);
     this.fitBubbles();
   }
 

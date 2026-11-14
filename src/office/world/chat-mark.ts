@@ -79,8 +79,9 @@ export class WorldChatMark {
     if (!light || !pin || !beacon) return;
     const id = this.chatThread, spot = id ? this.locateRobot(id) : null;
     const plate = spot && "desk" in spot ? spot.desk.el : null;
-    for (const el of this.root.querySelectorAll(".desk-unit.chat-open")) if (el !== plate) el.classList.remove("chat-open");
-    plate?.classList.add("chat-open");
+    // This runs on camera frames while a chat is open: track the ringed desk instead of searching the campus for it.
+    if (this.chatOpenDesk !== plate) { this.chatOpenDesk?.classList.remove("chat-open"); this.chatOpenDesk = plate; }
+    if (plate && !plate.classList.contains("chat-open")) plate.classList.add("chat-open");
     const host = !spot ? null : "desk" in spot ? spot.desk.el : spot.walker;
     if (!host || ("desk" in spot! && spot.desk.folded)) { light.remove(); pin.remove(); }
     if (!host) { beacon.hidden = true; return; }

@@ -2,6 +2,7 @@
 // silhouette (Ultra) and two lightning bolts (Fast). One 64x80 pixel canvas behind the robot and one
 // in front, refreshed on the shared ticker about ten times a second, only while on screen.
 import gsap from "gsap";
+import { cameraScale } from "../../perf/budget";
 type Mode = { ultra?: boolean; fast?: boolean };
 const modes = new WeakMap<Element, Map<string, Mode>>();
 const none: Mode = {};
@@ -34,7 +35,8 @@ export class RobotPower {
   private dead = false;
   private box: { x: number; y: number; w: number; h: number };
   private async sample(now: number) {
-    if (this.busy || now - this.sampled < 400 || now < nextSampleAt) return;
+    // Far out the robot is a few pixels tall: its silhouette is read again every 2 s, not 2.5 times a second.
+    if (this.busy || now - this.sampled < (cameraScale() < .3 ? 2000 : 400) || now < nextSampleAt) return;
     const svg = this.host.querySelector<SVGSVGElement>("svg.world-seated,svg.world-walker-svg");
     if (!svg) return;
     this.sampled = now; nextSampleAt = now + 30; this.busy = true;

@@ -6,7 +6,7 @@ const ref = (environmentId, id) => `${environmentId}${SEP}${id}`;
 const split = id => typeof id === 'string' && id.includes(SEP) ? { environmentId: id.slice(0, id.indexOf(SEP)), id: id.slice(id.indexOf(SEP) + SEP.length) } : null;
 
 function createRemoteBuilding(client, { now = Date.now, interval = setInterval, cancel = clearInterval, timeout = setTimeout, cancelTimeout = clearTimeout, maxDetailEntries = 16 } = {}) {
-  const worlds = new Map(), detailCache = new Map(), pendingDetails = new Map();
+  const worlds = new Map(), detailCache = new Map(), pendingDetails = new Map(), unbounded = new Set();
   let cacheTimer = null;
   function trimDetails() {
     if (cacheTimer !== null) { cancelTimeout(cacheTimer); cacheTimer = null; }
@@ -18,24 +18,39 @@ function createRemoteBuilding(client, { now = Date.now, interval = setInterval, 
       cacheTimer.unref?.();
     }
   }
-  async function detail(id, fresh = false) {
+  // Two reads of a thread: `recent` is T3's bounded snapshot (the latest turns, runs and
+  // requests, what a desk, its status and its questions need); `full` is the whole projection,
+  // only for reading the conversation. Long threads on a linked computer are tens of megabytes
+  // in full, and every desk polled that every 2.5 seconds.
+  const ROUTES = { recent: id => `/api/orchestration/threads/${encodeURIComponent(id)}/bounded`, full: id => `/api/orchestration/threads/${encodeURIComponent(id)}` };
+  async function read(id, kind = 'recent', fresh = false) {
     const target = split(id); if (!target) throw Error('Choose a remote thread.');
+    const key = `${kind}:${id}`;
     // All consumers share the in-flight read, including a watch's fresh poll.
     // A failed read must release its slot so the next request can retry.
-    if (pendingDetails.has(id)) return pendingDetails.get(id);
-    const cached = detailCache.get(id);
+    if (pendingDetails.has(key)) return pendingDetails.get(key);
+    const cached = detailCache.get(key);
     if (!fresh && cached && now() - cached.at < 1200) return cached.value;
     const pending = (async () => {
-      const value = (await client.fetch(target.environmentId, `/api/orchestration/threads/${encodeURIComponent(target.id)}`)).projection;
+      // A computer on a T3 without bounded snapshots answers 404: it is read in full from then on.
+      const bounded = kind === 'recent' && !unbounded.has(target.environmentId);
+      const answer = await client.fetch(target.environmentId, ROUTES[bounded ? 'recent' : 'full'](target.id)).catch(error => {
+        if (!bounded || error?.status !== 404) throw error;
+        unbounded.add(target.environmentId);
+        return client.fetch(target.environmentId, ROUTES.full(target.id));
+      });
+      const value = { projection: answer.projection, sequence: answer.snapshotSequence ?? null };
       // A command may invalidate a read that began before the action succeeded.
-      if (pendingDetails.get(id) === pending) {
-        detailCache.delete(id); detailCache.set(id, { at: now(), value }); trimDetails();
+      if (pendingDetails.get(key) === pending) {
+        detailCache.delete(key); detailCache.set(key, { at: now(), value }); trimDetails();
       }
       return value;
-    })().finally(() => { if (pendingDetails.get(id) === pending) pendingDetails.delete(id); });
-    pendingDetails.set(id, pending);
+    })().finally(() => { if (pendingDetails.get(key) === pending) pendingDetails.delete(key); });
+    pendingDetails.set(key, pending);
     return pending;
   }
+  const detail = async (id, fresh = false, kind = 'recent') => (await read(id, kind, fresh)).projection;
+  const forget = id => { for (const kind of Object.keys(ROUTES)) { detailCache.delete(`${kind}:${id}`); pendingDetails.delete(`${kind}:${id}`); } trimDetails(); };
   const infoFrom = (id, p) => {
     const t = p.thread, run = p.runs.at(-1);
     return { id, title: t.title, provider: t.providerInstanceId, projectTitle: worlds.get(split(id).environmentId)?.projects.find(p => p.id === ref(split(id).environmentId, t.projectId))?.title || '', root: '', model: t.modelSelection?.model || null, effort: t.modelSelection?.options?.find(o => /effort/i.test(o.id))?.value || null, queued: p.runs.filter(r => r.status === 'queued').sort(deliveryOrder).map(r => ({ id: r.id, text: queuedText(p.messages.find(m => m.id === r.userMessageId)) })), run: run ? { id: run.id, status: run.status } : null };
@@ -77,8 +92,8 @@ function createRemoteBuilding(client, { now = Date.now, interval = setInterval, 
     },
     async info(id) { return infoFrom(id, await detail(id)); },
     async items(id) { return itemsFrom(await detail(id)); },
-    async conversation(id) { return messagesFrom(await detail(id)); },
-    async conversationPage(id) { return { messages: messagesFrom(await detail(id)), hasMore: false, nextCursor: null }; },
+    async conversation(id) { return messagesFrom(await detail(id, false, 'full')); },
+    async conversationPage(id) { return { messages: messagesFrom(await detail(id, false, 'full')), hasMore: false, nextCursor: null }; },
     async pending(id) {
       const p = await detail(id);
       const regular = p.runtimeRequests.filter(r => !['resolved', 'cancelled', 'expired', 'failed'].includes(r.status)).map(r => {
@@ -91,7 +106,7 @@ function createRemoteBuilding(client, { now = Date.now, interval = setInterval, 
       const secrets = p.turnItems.filter(i=>i.type==='secret_request'&&i.secretStatus==='pending').map(i=>({id:i.id,type:'input',sensitive:true,label:i.label,detail:i.reason,placeholder:i.placeholder||'',questions:[],at:i.updatedAt,answerable:true,reason:null}));
       return [...regular,...secrets];
     },
-    async answerSecret(id, turnItemId, answer) { const target=split(id); if(!target) throw Error('Choose a remote thread.'); await client.rpc(target.environmentId,'secrets.answerRequest',{threadId:target.id,turnItemId,answer}); detailCache.delete(id); return true; },
+    async answerSecret(id, turnItemId, answer) { const target=split(id); if(!target) throw Error('Choose a remote thread.'); await client.rpc(target.environmentId,'secrets.answerRequest',{threadId:target.id,turnItemId,answer}); forget(id); return true; },
     async selection(id) { const ms = (await detail(id)).thread.modelSelection; return { providerInstanceId: ms.instanceId, model: ms.model, options: Object.fromEntries((ms.options || []).map(o => [o.id, o.value])) }; },
     async providers(environmentId) {
       const config = await client.rpc(environmentId, 'server.getConfig', {});
@@ -120,15 +135,24 @@ function createRemoteBuilding(client, { now = Date.now, interval = setInterval, 
       const clean = { ...command, commandId: crypto.randomUUID() };
       for (const key of ['threadId', 'projectId']) if (split(clean[key])) clean[key] = split(clean[key]).id;
       const result = await client.rpc(targets[0].environmentId, 'orchestration.dispatchCommand', clean);
-      if (command.threadId) { detailCache.delete(command.threadId); pendingDetails.delete(command.threadId); trimDetails(); }
+      if (command.threadId) forget(command.threadId);
       return result;
     },
     watch(id, onItems, onInfo) {
-      let stopped = false, busy = false, initial = true, infoKey = '';
+      let stopped = false, busy = false, initial = true, infoKey = '', sequence = null, rest = 0;
       const seenItems = new Map();
       const tick = async () => {
-        if (stopped || busy) return; busy = true;
-        try { const p = await detail(id, true); if (stopped) return;
+        if (stopped || busy) return;
+        // A finished thread with nothing waiting is read every third beat (7.5 s): new work
+        // there starts with a message, and the campus refresh sees it as well.
+        if (rest > 0) { rest--; return; }
+        busy = true;
+        try { const answer = await read(id, 'recent', true); if (stopped) return;
+          const p = answer.projection, run = p.runs.at(-1);
+          rest = !run || ENDED.has(run.status) && !p.runtimeRequests.some(r => !['resolved', 'cancelled', 'expired', 'failed'].includes(r.status)) ? 2 : 0;
+          // The thread's own event sequence: unchanged means nothing in it changed.
+          if (!initial && answer.sequence !== null && answer.sequence === sequence) return;
+          sequence = answer.sequence;
           const changed = [], present = new Set();
           for (const item of p.turnItems) {
             present.add(item.id);
@@ -147,7 +171,7 @@ function createRemoteBuilding(client, { now = Date.now, interval = setInterval, 
         } catch {} finally { busy = false; }
       };
       const timer = interval(tick, 2500); void tick();
-      return () => { if (stopped) return; stopped = true; cancel(timer); seenItems.clear(); detailCache.delete(id); pendingDetails.delete(id); trimDetails(); };
+      return () => { if (stopped) return; stopped = true; cancel(timer); seenItems.clear(); forget(id); };
     },
   };
 }

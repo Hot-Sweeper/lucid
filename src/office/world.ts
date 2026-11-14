@@ -374,6 +374,9 @@ export class World {
     unobserve: (el: Element) => { this.cullSet.delete(el as HTMLElement); },
   };
   presentationDirty = false;
+  outsideLayer: HTMLElement | null = null;
+  /** The desk whose plate carries the open chat's ring (chat-mark.ts). */
+  chatOpenDesk: HTMLElement | null = null;
   resizePresentation: (() => void) | null = null;
   visibilityPresentation = () => { if (document.hidden) this.finishRoomTransitions(); this.refreshPresentation(); };
 
