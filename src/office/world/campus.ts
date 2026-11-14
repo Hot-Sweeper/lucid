@@ -108,14 +108,22 @@ export class WorldCampus {
 
   syncBuildings(this: World) {
     // Building signs stay readable from the campus overview (about 24px tall, at most 3x their size).
+    // Written on the signs themselves: on the campus root it was an inherited variable, and every
+    // zoom step recalculated the style of every element of every office (70 ms frames with Ares).
     const sign = Math.min(3, markScale(this.cam.s, 64, 24)).toFixed(2);
-    if (sign !== this.signScale) { this.signScale = sign; this.root.style.setProperty('--sign-scale', sign); }
+    if (sign !== this.signScale) { this.signScale = sign; this.paintSigns(); }
     for (const entry of this.neighbors.values()) if (entry.office) {
       const office = entry.office;
       office.cam = { x: this.cam.x + (parseFloat(entry.el.style.left) || entry.x) * this.cam.s, y: this.cam.y + (parseFloat(entry.el.style.top) || entry.y) * this.cam.s, s: this.cam.s };
       office.sceneBox = this.sceneBox; office.journeyInsets = this.journeyInsets; office.root.classList.toggle('overview', this.cam.s < .3);
       office.recull();
     }
+  }
+
+  /** The campus signs' readable scale (--sign-scale), on the few elements that use it. */
+  paintSigns(this: World) {
+    const signs = [this.root.querySelector<HTMLElement>(':scope > .building-plate'), ...[...this.neighbors.values()].flatMap(e => [e.open, e.status])];
+    for (const el of signs) if (el && el.style.getPropertyValue('--sign-scale') !== this.signScale) el.style.setProperty('--sign-scale', this.signScale);
   }
 
   drawBuildings(this: World) {
@@ -146,6 +154,7 @@ export class WorldCampus {
         const facade = document.createElement('div'); facade.className = 'neighbor-facade';
         const created = { el, office: null, x, y, busy: false, status, open, facade, lit: null, ok: null, retryAt: 0 }; entry = created;
         open.addEventListener('click', async () => { if (open.disabled) return; open.disabled = true; gameSound.at('open', open); try { await this.openBuilding(building.id); } catch (error) { status.textContent = error instanceof Error ? error.message : 'Could not open this computer. Try again.'; } finally { const b = this.buildings.find(b => b.id === building.id); open.disabled = !b?.canOpen || buildingMood(b) === 'offline'; } });
+        if (this.signScale) for (const sign of [open, status]) sign.style.setProperty('--sign-scale', this.signScale);
         el.append(facade, open, status); this.root.append(el); this.neighbors.set(building.id, entry); createdOffice = true;
       }
       const mood = buildingMood(building);

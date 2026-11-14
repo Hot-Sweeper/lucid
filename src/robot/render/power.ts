@@ -7,6 +7,11 @@ const modes = new WeakMap<Element, Map<string, Mode>>();
 const none: Mode = {};
 const motionQuery = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : null;
 let nextSampleAt = 0;
+// Whether each actor is near the viewport, from one shared observer. Measuring every actor with
+// getBoundingClientRect on the ticker forced a whole-page style and layout on camera frames.
+const near = new WeakMap<Element, boolean>();
+const nearby = typeof IntersectionObserver === "undefined" ? null
+  : new IntersectionObserver(es => { for (const e of es) near.set(e.target, e.isIntersecting); }, { rootMargin: "300px 200px" });
 export const robotModeFor = (id: string | null, host: Element) => id ? modes.get(host.closest(".world")!)?.get(id) || none : none;
 export function setRobotModes(threads: ({ id: string } & Mode)[], root: Element) {
   modes.set(root, new Map(threads.map(t => [t.id, { ultra: !!t.ultra, fast: !!t.fast }])));
@@ -58,7 +63,7 @@ export class RobotPower {
     this.box = box;
     this.canvas.width = 64; this.canvas.height = 80; this.canvas.setAttribute("aria-hidden", "true");
     this.canvas.style.cssText = `position:absolute;pointer-events:none;image-rendering:pixelated;left:${box.x}px;top:${box.y}px;width:${box.w}px;height:${box.h}px;display:none`;
-    this.ctx = this.canvas.getContext("2d")!; host.prepend(this.canvas); gsap.ticker.add(this.frame);
+    this.ctx = this.canvas.getContext("2d")!; host.prepend(this.canvas); gsap.ticker.add(this.frame); nearby?.observe(host);
     this.foreground.width=64; this.foreground.height=80; this.foreground.setAttribute("aria-hidden", "true");
     this.foreground.style.cssText=this.canvas.style.cssText+";z-index:1";
     this.front=this.foreground.getContext("2d")!; host.append(this.foreground);
@@ -74,11 +79,9 @@ export class RobotPower {
     const tick = reduced ? 0 : Math.floor(performance.now() / 100);
     const signature = `${!!mode.ultra}:${!!mode.fast}`;
 
-    this.canvas.style.display = mode.ultra || mode.fast ? "" : "none";
-    this.foreground.style.display = mode.ultra ? "" : "none";
-    if (!mode.ultra && !mode.fast) { this.heat.fill(0); this.fireTick=0; return; }
-    const rect = this.host.getBoundingClientRect();
-    if (rect.right < -200 || rect.left > innerWidth + 200 || rect.bottom < -200 || rect.top > innerHeight + 300 || this.host.closest('.arriving,.empty,[inert]')) { this.canvas.style.display = this.foreground.style.display = "none"; return; }
+    if (!mode.ultra && !mode.fast) { this.show(false, false); this.heat.fill(0); this.fireTick=0; return; }
+    if (near.get(this.host) === false || this.host.closest('.arriving,.empty,[inert]')) { this.show(false, false); return; }
+    this.show(true, !!mode.ultra);
     if (signature === this.signature && tick === this.last && this.mask) return;
     this.signature = signature; this.last = tick;
     const c = this.ctx, front=this.front; c.clearRect(0, 0, 64, 80); front.clearRect(0,0,64,80);
@@ -182,7 +185,17 @@ export class RobotPower {
         c.beginPath(); c.moveTo(x+7,y+lift); c.lineTo(x,y+12+lift); c.lineTo(x+5,y+12+lift); c.lineTo(x+2,y+22+lift); c.lineTo(x+13,y+8+lift); c.lineTo(x+7,y+8+lift); c.closePath(); c.fill(); c.stroke();
       }
     }
-    this.host.dataset.power = mode.ultra && mode.fast ? 'Ultra, fast' : mode.ultra ? 'Ultra' : 'Fast';
+    const power = mode.ultra && mode.fast ? 'Ultra, fast' : mode.ultra ? 'Ultra' : 'Fast';
+    if (this.host.dataset.power !== power) this.host.dataset.power = power;
   };
-  destroy() { this.dead = true; motionQuery?.removeEventListener("change", this.motionChanged); gsap.ticker.remove(this.frame); this.canvas.remove(); this.foreground.remove(); }
+  /** Only real changes are written: unchanged writes ten times a second still dirtied style. */
+  private shown = "";
+  private show(back: boolean, front: boolean) {
+    const key = `${back}${front}`;
+    if (key === this.shown) return;
+    this.shown = key;
+    this.canvas.style.display = back ? "" : "none";
+    this.foreground.style.display = front ? "" : "none";
+  }
+  destroy() { this.dead = true; nearby?.unobserve(this.host); near.delete(this.host); motionQuery?.removeEventListener("change", this.motionChanged); gsap.ticker.remove(this.frame); this.canvas.remove(); this.foreground.remove(); }
 }

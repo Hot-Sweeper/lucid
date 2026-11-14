@@ -220,6 +220,14 @@ export class Desk implements DeskStage {
   /** T3's full title; the plate shows a topic that fits (topic-label.ts), the hover card all of it. */
   labelTitle = "Free desk";
   private plateBudget = DESK_TOPIC;
+  private plateZoom = "";
+  /** The plate's readable size for the settled camera (plate-view.ts). Written on the plate itself:
+   *  an inherited variable on the office root made every element of every office recalculate style. */
+  setPlateZoom(zoom: string) {
+    if (zoom === this.plateZoom) return;
+    this.plateZoom = zoom;
+    (this.el.querySelector(".desk-plate") as HTMLElement).style.setProperty("--plate-zoom", zoom);
+  }
   /** The nameplate's one line of topic, for the width the camera leaves it (plate-view.ts). */
   setPlateBudget(width: number) {
     if (width === this.plateBudget) return;

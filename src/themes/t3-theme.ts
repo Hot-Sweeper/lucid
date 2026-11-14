@@ -61,8 +61,11 @@ async function check() {
   window.clearTimeout(timer);
   try {
     const next = await (window as any).lucid?.t3Theme?.();
-    if (valid(next) && JSON.stringify(next) !== JSON.stringify(data)) {
-      data = { themeId: next.themeId, label: next.label, mode: next.mode, source: next.source, light: next.light, dark: next.dark };
+    // Compare in one key order: the reader lists `source` last, so comparing its raw answer
+    // with the stored copy saw a change on every check and relit the whole office every 8 s.
+    const seen = valid(next) ? { themeId: next.themeId, label: next.label, mode: next.mode, source: next.source, light: next.light, dark: next.dark } : null;
+    if (seen && JSON.stringify(seen) !== JSON.stringify(data)) {
+      data = seen;
       try { localStorage.setItem(CACHE, JSON.stringify(data)); } catch { /* the palette still applies this session */ }
       onChange?.();
     }

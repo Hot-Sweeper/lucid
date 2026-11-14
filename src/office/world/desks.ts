@@ -127,7 +127,8 @@ export class WorldDesks {
 
   makeDesk(this: World, x: number, y: number) {
     const d = new Desk(this.deskLayer, x, y, this.services);
-    d.setPlateBudget(this.plateBudget);
+    const camera = this.hostWorld ?? this;
+    d.setPlateBudget(camera.plateBudget); d.setPlateZoom(camera.plateZoom);
     const remove = document.createElement('button');
     remove.type = 'button'; remove.className = 'empty-desk-remove';
     remove.title = 'Remove empty desk'; remove.setAttribute('aria-label', 'Remove empty desk');

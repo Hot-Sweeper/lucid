@@ -31,7 +31,7 @@ export class WorldLayout {
       if (!label) { label = document.createElement("div"); label.className = "room-far-label"; label.dataset.room = r.id; layer.append(label); }
       const name = r.kind === "break" || r.kind === "queue" || r.kind === "charging" ? r.title : roomSign(r).text;
       if (label.textContent !== name) label.textContent = name;
-      label.style.cssText = `left:${r.x + 24}px;top:${r.y + 24}px;--room-cap:${(Math.max(40, r.w - 48) / (textMeasure(ROOM_LABEL_FONT)(name) + 24)).toFixed(2)}`;
+      label.style.cssText = `left:${r.x + 24}px;top:${r.y + 24}px;--room-cap:${(Math.max(40, r.w - 48) / (textMeasure(ROOM_LABEL_FONT)(name) + 24)).toFixed(2)};--plate-zoom:${(this.hostWorld ?? this).plateZoom}`;
       keep.add(label);
     }
     for (const el of [...layer.children]) if (!keep.has(el)) el.remove();

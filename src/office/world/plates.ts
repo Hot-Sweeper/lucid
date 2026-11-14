@@ -35,14 +35,15 @@ export class WorldPlates {
   syncPlates(this: World) {
     const view = plateView(this.cam.s);
     if (this.root.dataset.plateForm !== view.form) this.root.dataset.plateForm = view.form;
-    const zoom = String(view.zoom);
-    if (this.root.style.getPropertyValue("--plate-zoom") !== zoom) this.root.style.setProperty("--plate-zoom", zoom);
-    const budget = view.budget || DESK_TOPIC;
-    if (budget === this.plateBudget) return;
-    this.plateBudget = budget;
+    // The zoom goes on each plate and room label, never on the office root: an inherited
+    // variable there recalculated the style of every element in every office (tens of thousands).
+    const zoom = String(view.zoom), budget = view.budget || DESK_TOPIC;
+    if (zoom === this.plateZoom && budget === this.plateBudget) return;
+    this.plateZoom = zoom; this.plateBudget = budget;
     for (const office of [this, ...[...this.neighbors.values()].flatMap((e) => e.office ? [e.office] : [])]) {
-      office.plateBudget = budget;
-      for (const d of office.allDesks) d.setPlateBudget(budget);
+      office.plateZoom = zoom; office.plateBudget = budget;
+      for (const d of office.allDesks) { d.setPlateZoom(zoom); d.setPlateBudget(budget); }
+      office.root.querySelectorAll<HTMLElement>(":scope > .room-label-layer > .room-far-label").forEach(label => label.style.setProperty("--plate-zoom", zoom));
     }
   }
 

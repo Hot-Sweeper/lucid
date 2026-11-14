@@ -119,6 +119,8 @@ export class World {
   /** The robot hover card and the nameplates' topic width (world/plates.ts). */
   plateCard: HTMLElement | null = null;
   plateBudget = DESK_TOPIC;
+  /** The settled camera's nameplate zoom (plates.ts); embedded offices take their host's. */
+  plateZoom = "1";
   /** A thread's shared status for the hover card; the app supplies its resolver (reviews included). */
   threadStatus: (t: WorldData["threads"][number]) => ThreadState = (t) => threadState(t);
   /** A thread's worker changed (the chat header shows the new name). */
