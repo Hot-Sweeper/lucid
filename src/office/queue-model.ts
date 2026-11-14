@@ -7,8 +7,11 @@ export type QueueEntry = {
   queueRunId?: string; steerTarget?: string | null; queueHeld?: boolean; queueFixed?: boolean; queueGuest?: boolean;
 };
 
-/** A message on its way to T3, shown before T3 has it. `sentAt` is set once the send call returned. */
-export type PendingSend = { key: string; threadId: string; text: string; at: number; place: "queue" | "transcript"; sentAt?: number };
+/**
+ * A message on its way to T3, shown before T3 has it. `known` holds the ids T3 had already listed
+ * when it was sent, so only a new message can take its place; `sentAt` is set once the send returned.
+ */
+export type PendingSend = { key: string; threadId: string; text: string; at: number; place: "queue" | "transcript"; known: ReadonlySet<string>; sentAt?: number };
 
 export const isQueued = (m: Pick<QueueEntry, "role" | "run">) => m.role === "user" && m.run === "queued";
 
@@ -24,18 +27,18 @@ export function splitQueue<T extends QueueEntry>(msgs: T[]): { timeline: T[]; qu
 export const pendingPlace = (working: boolean, waiting: number): PendingSend["place"] => (working || waiting > 0 ? "queue" : "transcript");
 
 /**
- * The sends still on their way. Each message T3 has (queued or delivered) takes the place of one
- * pending copy with the same text, so two identical messages sent in a row both stay until both
- * arrive. A send T3 accepted but never listed gives up after a minute.
+ * The sends still on their way. Each new message T3 lists (queued or delivered) takes the place of
+ * one pending copy with the same text, so two identical messages sent in a row both stay until
+ * both arrive. No clocks are compared, so a linked computer's time cannot confuse it. A send T3
+ * accepted but never listed gives up after a minute.
  */
-export function settlePending(pending: PendingSend[], threadId: string, msgs: Pick<QueueEntry, "role" | "text" | "at">[], now: number, ttl = 60_000): PendingSend[] {
-  const arrived = new Map<string, number>();
-  const earliest = Math.min(...pending.filter((p) => p.threadId === threadId).map((p) => p.at)) - 5 * 60_000;
-  for (const m of msgs) if (m.role === "user" && Date.parse(m.at) >= earliest) arrived.set(m.text.trim(), (arrived.get(m.text.trim()) ?? 0) + 1);
+export function settlePending(pending: PendingSend[], threadId: string, msgs: Pick<QueueEntry, "id" | "role" | "text">[], now: number, ttl = 60_000): PendingSend[] {
+  const taken = new Set<string>();
   return pending.filter((p) => {
     if (p.threadId !== threadId) return true;
-    const n = arrived.get(p.text.trim()) ?? 0;
-    if (n > 0) { arrived.set(p.text.trim(), n - 1); return false; }
+    const text = p.text.trim();
+    const arrived = msgs.find((m) => m.role === "user" && !taken.has(m.id) && !p.known.has(m.id) && m.text.trim() === text);
+    if (arrived) { taken.add(arrived.id); return false; }
     return !p.sentAt || now - p.sentAt < ttl;
   });
 }

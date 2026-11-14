@@ -211,6 +211,7 @@ export class ChatPanel {
   private pendingKey = 0;
   private queue!: ChatQueue;
   private queued: Msg[] = [];
+  private knownIds: ReadonlySet<string> = new Set(); // what T3 listed last, so a send knows what is new
   private working = false;
   private files: File[] = [];
   private drafts = new Map<string, { text: string; files: File[]; refs: ThreadRef[] }>();
@@ -634,7 +635,7 @@ export class ChatPanel {
         if (refs.length) text += `\n\n${refs.map((r) => refBlock(r, harnessName(r.provider))).join("\n\n")}`;
         if (saved.length) text += `\n\nAttached:\n${saved.map((s) => `- ${s.image ? "image" : "file"}: ${s.path}`).join("\n")}`;
         // show it right away where it will land (the queue while the robot works), until T3 has it
-        pending = { key: String(++this.pendingKey), threadId, text, at: Date.now(), place: threadId === this.threadId ? pendingPlace(this.working, this.queue.size) : "transcript" };
+        pending = { key: String(++this.pendingKey), threadId, text, at: Date.now(), place: threadId === this.threadId ? pendingPlace(this.working, this.queue.size) : "transcript", known: threadId === this.threadId ? this.knownIds : new Set() };
         this.pending.push(pending);
         if (threadId === this.threadId) this.renderPending();
         await this.api.sendMessage({ threadId, message: text });
@@ -794,7 +795,7 @@ export class ChatPanel {
     this.reviewPapers.clear(); this.reviewLookups.clear();
     this.sourceReport = null; this.sourceReportLoaded = false; this.sourceReportVersion++; this.sourceReportSignature = "";
     (this.el.querySelector(".cp-list") as HTMLElement).replaceChildren();
-    this.typingOn = false; this.queued = [];
+    this.typingOn = false; this.queued = []; this.knownIds = new Set();
     this.queue.clear();
   }
 
@@ -992,6 +993,7 @@ export class ChatPanel {
     // A queued message lives only in the queue; it joins the transcript when T3 delivers it, and
     // flies there from its row (`arrivals`, captured before the queue drops it).
     const { timeline, queued } = splitQueue(msgs);
+    this.knownIds = new Set(msgs.map((m) => m.id));
     const arrivals = this.queue.rects(deliveredIds(this.queue.ids, timeline));
     this.queued = queued;
     this.queue.render(queued);

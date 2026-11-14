@@ -84,9 +84,13 @@ export class ChatQueue {
   rects(ids: string[]) {
     const out = new Map<string, DOMRect>();
     if (this.el.hidden || this.el.classList.contains("folded")) return out;
+    const box = this.ol.getBoundingClientRect();
     for (const id of ids) {
       const text = this.row(id)?.querySelector<HTMLElement>(".cq-text");
-      if (text) out.set(id, text.getBoundingClientRect());
+      if (!text) continue;
+      // a row scrolled out of the queue's view leaves from the queue's nearest edge
+      const r = text.getBoundingClientRect(), top = Math.min(Math.max(r.top, box.top), box.bottom - Math.min(r.height, box.height));
+      out.set(id, new DOMRect(r.left, top, r.width, r.height));
     }
     return out;
   }
@@ -132,6 +136,8 @@ export class ChatQueue {
     for (const li of old.values()) li.remove();
     rows.forEach((li, i) => { if (this.ol.children[i] !== li) this.ol.insertBefore(li, this.ol.children[i] ?? null); });
     this.number();
+    // a message you just sent is always in view at the end of the queue
+    fresh.find((li) => li.classList.contains("pending"))?.scrollIntoView({ block: "nearest" });
     if (fresh.length && !reduced()) fresh.forEach((li, i) => li.animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 200, delay: i * 30, easing: EASE_OUT, fill: "backwards" }));
     this.clamp();
   }
@@ -432,7 +438,8 @@ export class ChatQueue {
     paintFiles();
     body.replaceWith(box); files.remove();
     grow();
-    ta.focus();
+    ta.focus({ preventScroll: true });
+    li.scrollIntoView({ block: "nearest", behavior: reduced() ? "auto" : "smooth" });
     ta.setSelectionRange(ta.value.length, ta.value.length);
     ta.addEventListener("input", grow);
     list.addEventListener("click", (e) => {

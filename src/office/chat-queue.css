@@ -29,8 +29,12 @@ button.cq-grip:hover { color: var(--ink); background: color-mix(in srgb, var(--w
 .cq-why { font-size: 12px; color: var(--ink-3); }
 .cq-acts { margin-left: auto; display: flex; align-items: center; gap: 2px; opacity: 0.72; transition: opacity var(--dur-hover) var(--ease-out-strong); }
 .cp-queue li:hover .cq-acts, .cp-queue li:focus-within .cq-acts { opacity: 1; }
-@media (hover: none) { .cq-acts { opacity: 1; } }
+@media (hover: none) and (pointer: coarse) { .cq-acts { opacity: 1; } }
+/* Send now leads on the next message; on later rows it shows with the row's other actions */
 .cq-send { margin-right: var(--space-1); }
+.cp-queue li:not(:first-child) .cq-send { opacity: 0; transition: opacity var(--dur-hover) var(--ease-out-strong); }
+.cp-queue li:not(:first-child):is(:hover, :focus-within) .cq-send { opacity: 1; }
+@media (hover: none) and (pointer: coarse) { .cp-queue li:not(:first-child) .cq-send { opacity: 1; } }
 .cq-act:disabled { opacity: 0.35; cursor: default; }
 .cq-act[data-act="remove"]:hover:not(:disabled) { color: var(--danger-ink); background: color-mix(in srgb, var(--danger) 14%, transparent); }
 button.cq-grip:focus-visible, .cq-act:focus-visible, .cq-more:focus-visible, .cq-thumb:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
@@ -79,5 +83,5 @@ body.cq-dragging .cp-queue li:not(.dragging) { transition: transform 150ms var(-
 body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !important; }
 
 @media (prefers-reduced-motion: reduce) {
-  .cq-fold .ui-icon, .cq-acts, .cq-thumb img, button.cq-grip, .cp-queue li, body.cq-dragging .cp-queue li:not(.dragging) { transition: none; }
+  .cq-fold .ui-icon, .cq-acts, .cq-send, .cq-thumb img, button.cq-grip, .cp-queue li, body.cq-dragging .cp-queue li:not(.dragging) { transition: none; }
 }
