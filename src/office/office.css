@@ -59,7 +59,6 @@
 .desk-unit:not(.empty) .empty-chair { display: none; }   /* a free desk keeps its chair; a robot at the desk brings its own (it swivels) */
 .desk-unit.empty { cursor: default; }
 .desk-unit { touch-action: none; }
-.desk-unit > .desk-plate { cursor: grab; }
 .desk-dragging, .desk-dragging * { user-select: none !important; cursor: grabbing !important; }
 .desk-unit { --desk-tilt: 0deg; scale: 1; rotate: 0deg; transition: scale 160ms cubic-bezier(.23,1,.32,1), rotate 160ms cubic-bezier(.23,1,.32,1); }
 .desk-grabbed { z-index: 600000 !important; scale: 1.025; rotate: var(--desk-tilt); filter: drop-shadow(0 14px 10px #24203155); }
@@ -81,16 +80,7 @@
 .desk-glow { position: absolute; left: 20px; top: 40px; width: 360px; height: 240px; pointer-events: none; --glow: #4fb6ff;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 45%, transparent), transparent); opacity: calc(0.1 + var(--night) * 1.8); }
 
-/* The plate ends left of the seated robot (its arm and hat start near x 155), so the robot never covers the title. */
-.desk-plate { position: absolute; z-index: 3; left: 12px; top: 262px; max-width: 140px; display: flex; align-items: center; gap: 5px; padding: 3px 7px;
-  background: rgba(255, 255, 255, 0.93); border-radius: var(--radius-sm); color: #2d3142; font: 500 10px/1.2 var(--font); box-shadow: 0 3px 8px rgba(40, 30, 20, 0.15); z-index: 2; }
-.desk-plate img { width: 11px; height: 11px; flex: none; }
-/* The desk is the job: its thread title leads (up to three lines), the worker's name below (all of it in the tooltip). */
-.desk-plate span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.desk-plate span i { order: -1; font-style: normal; font-weight: 600; font-size: 11px; line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; }
-.desk-plate span b { font-weight: 500; font-size: 10px; color: #5d6278; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.desk-unit.empty .desk-plate { opacity: 0.55; }
-
+/* Desk nameplates: plates.css. */
 /* The open chat's desk is marked by its nameplate ring and chat tag (chat-mark.css); a clicked desk has no glow of its own,
    so an older selection can never look like the open chat. */
 
@@ -343,7 +333,6 @@ button.cp-file { color: inherit; border: 0; cursor: pointer; font-family: inheri
 .switch input:checked + .track { background: color-mix(in srgb, var(--accent) 85%, transparent); }
 .switch input:checked + .track i { transform: translateX(16px); background: #fff; }
 .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
-.orch-desk .desk-plate { background: #ffe9b8; }
 .dialog.notebook { width: min(560px, calc(100vw - 40px)); max-height: calc(100vh - 80px); display: flex; flex-direction: column; }
 .nb-sub { margin: -4px 0 12px; }
 .nb-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 4px 4px 0; margin-bottom: 14px; }
@@ -801,13 +790,6 @@ body.cq-dragging, body.cq-dragging * { user-select: none; cursor: grabbing !impo
 /* Thread rows carry their worker's face. */
 .th-row.th-worker { flex-direction: row; align-items: center; gap: 10px; }
 .th-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-
-/* Semantic zoom: stable topics at room scale, full names on pointer inspection. */
-.world[data-label-detail="compact"] .desk-plate[data-compact-title]:not([data-compact-title=""]):not(:hover) span i { display: none; }
-.world[data-label-detail="compact"] .desk-plate[data-compact-title]:not([data-compact-title=""]):not(:hover) span::before {
-  content: attr(data-compact-title); font-size: 14px; font-weight: 600; line-height: 1.2; order: -1; overflow-wrap: anywhere;
-}
-.world[data-label-detail="compact"] .desk-plate[data-compact-title]:not([data-compact-title=""]) { max-width: 140px; }
 
 /* Vacant furniture can be removed without opening a hiring dialog. */
 .empty-desk-remove { position:absolute; left:289px; top:0; z-index:8; display:grid; place-items:center; width:30px; height:30px; padding:0; border:0; border-radius:6px; background:var(--night-2); color:var(--danger-ink); cursor:pointer; transition:background 130ms,transform 130ms cubic-bezier(.23,1,.32,1); }

@@ -1,4 +1,4 @@
-import { RobotPower, robotSay, GEOM, PHONE_SCALE, UNIT, emptyChairSvg, TopDownRobot, logoFor, WALLPAPERS, HOBBY_LABEL, DeferredRobot, type DeskRig, type Pt, type SeatedRobot, type RobotProfile } from "../robot";
+import { RobotPower, robotSay, GEOM, PHONE_SCALE, UNIT, emptyChairSvg, TopDownRobot, logoFor, WALLPAPERS, DeferredRobot, type DeskRig, type Pt, type SeatedRobot, type RobotProfile } from "../robot";
 import { line } from "../lines";
 import { DeskPlanWidget } from "./desk-plan";
 import gsap from "gsap";
@@ -9,6 +9,8 @@ import { releaseRenderView } from "../perf/render";
 import type { KeyRect } from "../perf/keyboard-path";
 import { sharedVector, vectorOwner, releaseVectors } from "../perf/shared-vector";
 import { cacheStaticArt } from "../perf/static-art";
+import { fitTopic } from "./topic-label";
+import { DESK_TOPIC, PLATE_FONT } from "./plate-view";
 
 // One workstation, seen fake top-down: the desk surface from above, the monitor and the
 // robot as upright figures. The robot sits south of the desk with its back to us, the
@@ -38,15 +40,6 @@ export interface DeskServices {
   image(path: string): Promise<string | null>;
   readText(path: string): Promise<string | null>;
 }
-
-/** The zoomed-out nameplate topic: T3's title, cut at a word boundary when it is long. */
-export function shortTitle(title: string, max = 32) {
-  const t = title.replace(/\s+/g, " ").trim();
-  if (t.length <= max) return t;
-  const cut = t.slice(0, max + 1), space = cut.lastIndexOf(" ");
-  return `${(space > max / 2 ? cut.slice(0, space) : t.slice(0, max)).replace(/[\s,.;:\u2013\u2014-]+$/, "")}…`;
-}
-
 
 // Keyboard layout: rows top to bottom, columns left to right, like a real keyboard seen from above.
 const ROWS = ["1234567890-=", "qwertyuiop[]", "asdfghjkl;'\n", "zxcvbnm,./\u0001\u0002"];
@@ -99,7 +92,7 @@ export class Desk implements DeskStage {
       <button type="button" class="poke poke-head" aria-label="Open robot chat" style="left:${GEOM.head.x - 34}px;top:${GEOM.head.y - 46}px"></button>
       <button type="button" class="poke poke-mug" aria-label="Hand it its coffee" style="left:${GEOM.mug.x - 16}px;top:${GEOM.mug.y - 20}px"></button>
       <button type="button" class="poke poke-phone" aria-label="Buzz its phone" style="left:${GEOM.phoneRest.x - 16}px;top:${GEOM.phoneRest.y - 24}px"></button>
-      <div class="desk-plate"><img alt=""><span></span></div>
+      <div class="desk-plate"><span class="dp-topic"></span><span class="dp-who"><img alt=""><b></b></span></div>
       <div class="desk-proj" hidden><img alt=""><span class="dp-mono"></span><b></b></div>
       <div class="phone-held"><div class="phone-screen"></div></div>
       <div class="bubble" role="status"></div>`;
@@ -182,7 +175,6 @@ export class Desk implements DeskStage {
     this.director.reset();
     this.clearKeys();
     this.threadId = thread?.id ?? null;
-    this.setCompactTitle("");
     this.setPinned(false);
     this.profile = profile;
     this.model = thread?.model ?? null;
@@ -215,12 +207,6 @@ export class Desk implements DeskStage {
     if (logo) this.wm.setWallpaperLogo(logo);
     if (this.info?.title || this.threadId) this.label(this.info?.title ?? this.labelTitle, provider);
   }
-
-  setCompactTitle(title: string) {
-    const plate = this.el.querySelector<HTMLElement>(".desk-plate")!;
-    if (plate.dataset.compactTitle !== title) plate.dataset.compactTitle = title;
-    (plate.querySelector("span") as HTMLElement).dataset.compactTitle = title;
-  }
   private labelSig = "";
   private pinned = false;
   /** T3's pin: a small sticker on the desk top. The robot stays an ordinary worker. */
@@ -229,12 +215,30 @@ export class Desk implements DeskStage {
     this.pinned = on;
     this.el.querySelector(".desk-pin")!.toggleAttribute("hidden", !on);   // an SVG element has no .hidden property
   }
-  private labelTitle = "Free desk";
+  /** T3's full title; the plate shows a topic that fits (topic-label.ts), the hover card all of it. */
+  labelTitle = "Free desk";
+  private plateBudget = DESK_TOPIC;
+  /** The nameplate's one line of topic, for the width the camera leaves it (plate-view.ts). */
+  setPlateBudget(width: number) {
+    if (width === this.plateBudget) return;
+    this.plateBudget = width;
+    this.paintTopic();
+  }
+  private paintTopic() {
+    const plate = this.el.querySelector(".desk-plate") as HTMLElement;
+    const fit = fitTopic(this.labelTitle, this.plateBudget || DESK_TOPIC, PLATE_FONT, { task: !!this.threadId });
+    const topic = plate.querySelector(".dp-topic") as HTMLElement;
+    if (topic.textContent !== fit.text) topic.textContent = fit.text;
+    plate.classList.toggle("dp-clip", !fit.fits);
+  }
+  /** Who works here, for the plate and the hover card: "Juno" or "Juno, Orchestrator". */
+  get workerName() { return this.profile ? (this.profile.role ? `${this.profile.name}, ${this.profile.role}` : this.profile.name) : ""; }
+  get modelName() { return this.model; }
   private label(title: string, provider: string | null) {
     this.labelTitle = title;
-    const who = this.profile ? (this.profile.role ? `${this.profile.name}, ${this.profile.role}` : this.profile.name) : "";
-    const sig = JSON.stringify([title, provider, who, this.model, this.profile?.prefs.hobby]);
-    if (sig === this.labelSig) return;
+    const who = this.workerName;
+    const sig = JSON.stringify([title, provider, who, this.model]);
+    if (sig === this.labelSig) { this.paintTopic(); return; }
     this.labelSig = sig;
     const plate = this.el.querySelector(".desk-plate") as HTMLElement;
     const img = plate.querySelector("img") as HTMLImageElement;
@@ -242,11 +246,10 @@ export class Desk implements DeskStage {
     img.hidden = !logo;
     img.onerror = () => { img.hidden = true; };
     if (logo) img.src = logo;
-    plate.querySelector("span")!.innerHTML = who ? `<b></b> <i></i>` : `<i></i>`;
-    if (who) plate.querySelector("b")!.textContent = who;
-    plate.querySelector("i")!.textContent = title;
+    (plate.querySelector(".dp-who b") as HTMLElement).textContent = who;
+    (plate.querySelector(".dp-who") as HTMLElement).hidden = !who && !logo;
     plate.setAttribute("aria-label", [title, who].filter(Boolean).join(", "));
-    plate.title = [who, title, this.model, this.profile?.prefs.hobby ? `Free time: ${HOBBY_LABEL[this.profile.prefs.hobby]}` : ""].filter(Boolean).join("\n");
+    this.paintTopic();
   }
 
   setInfo(info: ThreadInfo) {

@@ -1,5 +1,5 @@
 // The thread list, like T3 Code's sidebar: search, rows, keyboard navigation and the collapsed rail.
-import { completionFirst, pinnedFirst, reconcileThreadList } from "../office/thread-list";
+import { completionFirst, pinnedFirst, reconcileThreadList, statusFirst, statusRank } from "../office/thread-list";
 import { threadState } from "../office/thread-state";
 import { statusBadge } from "../ui/status";
 import { icon as uiIcon } from "../ui/icons";
@@ -14,6 +14,7 @@ import { PIN_ICON } from "../office/edge-peek";
 import { openShortcutHelp } from "../office/shortcuts";
 import { esc, $ } from "./dom";
 import type { App } from "./context";
+import type { WorldData } from "../office/world";
 const sidebarCollectErrors = new Map<string, string>();
 let settledOpen: boolean = false;
 let settledLimit: number = 10;
@@ -38,9 +39,19 @@ export function defineThreadSidebar(app: App) {
     } finally { app.threadMovePending = false; }
   };
 
+  // The list's order: pinned first (T3's pin), then Needs you, Working, Done (newest first) and the
+  // rest. Inside each group T3's order holds, so moving a thread works within its group.
+  app.orderThreads = function orderThreads<T extends WorldData["threads"][number]>(list: T[]) {
+    return pinnedFirst(statusFirst(completionFirst(list), t => app.operationalStatus(t).tone));
+  };
+  app.threadGroup = function threadGroup(t: WorldData["threads"][number]) {
+    const tone = app.operationalStatus(t).tone;
+    return `${!!t.pinned}|${statusRank(tone)}|${tone === "done"}`;
+  };
+
   app.threadNeighbors = function threadNeighbors(id: string) {
     const all = app.world.lastData?.threads ?? [], t = all.find(t => t.id === id);
-    const group = t && !t.settled ? all.filter(x => !x.settled && x.pinned === t.pinned) : [];
+    const group = t && !t.settled ? app.orderThreads(all.filter(x => !x.settled && app.threadGroup(x) === app.threadGroup(t))) : [];
     const index = group.findIndex(x => x.id === id);
     return { previous: group[index - 1], next: group[index + 1] };
   };
@@ -81,7 +92,7 @@ export function defineThreadSidebar(app: App) {
     if (q) list.sort((a, b) => Number(!titleHit(a)) - Number(!titleHit(b)) || (titleHit(a) ? 0 : (app.searchState.matches.get(b.id)?.quality ?? 0) - (app.searchState.matches.get(a.id)?.quality ?? 0)));
     const snippetOf = (t: typeof data.threads[number]) => q && remote && !titleHit(t) ? app.searchState.matches.get(t.id)?.snippet ?? "" : "";
     // Pinned threads (T3's own pin) come first, like in T3.
-    let active = q ? list.filter((t) => !t.settled) : pinnedFirst(completionFirst(list.filter((t) => !t.settled)));
+    let active = q ? list.filter((t) => !t.settled) : app.orderThreads(list.filter((t) => !t.settled));
     const settled = list.filter((t) => t.settled);
     const reviews = latestThreadReviews(app.currentEnvironment ? [] : app.orch.papers);
     const reviewOf = (t: typeof list[number]) => threadReviewLabel(t, reviews.get(t.id), !app.currentEnvironment && !!app.settings.orch && t.id !== app.settings.orch.threadId);
@@ -183,7 +194,7 @@ export function defineThreadSidebar(app: App) {
     const data = app.world.lastData;
     if (!data || !app.ui.rail || document.body.classList.contains("th-dragging")) return;
     const projects = new Map(data.projects.map((p) => [p.id, p]));
-    const list = pinnedFirst(completionFirst(data.threads)).slice(0, 40);
+    const list = app.orderThreads(data.threads).slice(0, 40);
     const reviews = latestThreadReviews(app.currentEnvironment ? [] : app.orch.papers);
     const html = list.map((t) => {
       const p = projects.get(t.projectId);

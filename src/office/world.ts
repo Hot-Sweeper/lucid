@@ -31,6 +31,9 @@ import { WorldCameraFocus } from "./world/camera-focus";
 import { WorldCampus } from "./world/campus";
 import { WorldHarnessSwap, type SwapRun } from "./world/harness-swap";
 import { WorldChatMark } from "./world/chat-mark";
+import { WorldPlates } from "./world/plates";
+import { DESK_TOPIC } from "./plate-view";
+import { threadState, type ThreadState } from "./thread-state";
 import type { WThread, WorldData, Room, RoomKind, RoomExtension, PhysicalRoomPlan, OfficeLayout } from "./world/types";
 import { HALL } from "./world/geometry";
 export type { WThread, WProject, WorldData, OfficeLayout, RoomKind, Room, RoomExtension } from "./world/types";
@@ -45,7 +48,7 @@ export type { WThread, WProject, WorldData, OfficeLayout, RoomKind, Room, RoomEx
 // onto World, and the interface merge gives World their types. This file keeps the state they
 // share, the constructor, settling a thread into its room, empty desks and saved layouts.
 
-export interface World extends WorldRouting, WorldJourneys, WorldOutdoors, WorldRooms, WorldLayout, WorldDesks, WorldDeskDrag, WorldCameraView, WorldCameraInput, WorldCameraFocus, WorldCampus, WorldHarnessSwap, WorldChatMark {}
+export interface World extends WorldRouting, WorldJourneys, WorldOutdoors, WorldRooms, WorldLayout, WorldDesks, WorldDeskDrag, WorldCameraView, WorldCameraInput, WorldCameraFocus, WorldCampus, WorldHarnessSwap, WorldChatMark, WorldPlates {}
 
 export class World {
   scene: HTMLElement;
@@ -112,6 +115,11 @@ export class World {
   chatMarkTimer = 0;
   chatPingTimer = 0;
   hoverRobot: HTMLElement | null = null;
+  /** The robot hover card and the nameplates' topic width (world/plates.ts). */
+  plateCard: HTMLElement | null = null;
+  plateBudget = DESK_TOPIC;
+  /** A thread's shared status for the hover card; the app supplies its resolver (reviews included). */
+  threadStatus: (t: WorldData["threads"][number]) => ThreadState = (t) => threadState(t);
   /** A thread's worker changed (the chat header shows the new name). */
   onWorkerSwap: (threadId: string) => void = () => {};
 
@@ -578,4 +586,4 @@ export class World {
 
 // --- room art (top-down) -----------------------------------------------------------------
 
-mixin(World, WorldRouting, WorldJourneys, WorldOutdoors, WorldRooms, WorldLayout, WorldDesks, WorldDeskDrag, WorldCameraView, WorldCameraInput, WorldCameraFocus, WorldCampus, WorldHarnessSwap, WorldChatMark);
+mixin(World, WorldRouting, WorldJourneys, WorldOutdoors, WorldRooms, WorldLayout, WorldDesks, WorldDeskDrag, WorldCameraView, WorldCameraInput, WorldCameraFocus, WorldCampus, WorldHarnessSwap, WorldChatMark, WorldPlates);

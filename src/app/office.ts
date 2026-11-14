@@ -22,5 +22,7 @@ export function createOffice(app: App) {
   // Rewards in the tray are only collectible once their work may be collected (see collectible).
   app.coinReady = () => true;
   app.coinCollected = async () => {};
+  // The robot hover card shows the same status as the sidebar and the chat header.
+  app.world.threadStatus = (t) => app.operationalStatus(t);
   (window as any).__world = app.world;
 }

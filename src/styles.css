@@ -252,8 +252,6 @@ textarea::placeholder { color: var(--ink-3); }
 .pc.lift { z-index: 5; filter: drop-shadow(0 8px 6px rgba(10, 8, 40, 0.45)); }
 .zz { position: absolute; left: 0; top: 0; font-size: 26px; font-weight: 600; color: #c9d4ff; pointer-events: none; }
 
-.desk-plate b { font-weight: 600; margin-right: 3px; }
-.desk-plate i { font-style: normal; opacity: 0.85; }
 
 .notes { height: 100%; overflow-y: auto; padding: 12px 14px; background: #fff7d6; color: #3d3214; font-size: 11.5px; line-height: 1.55;
   background-image: repeating-linear-gradient(#fff7d6 0 17px, #f0e3b0 17px 18px); }

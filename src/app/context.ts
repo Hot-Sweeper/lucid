@@ -182,6 +182,10 @@ export interface App {
   thSig: string;
   threadMovePending: boolean;
   moveThread(id: string, targetId: string, after: boolean): Promise<void>;
+  /** The sidebar and rail order: pinned, Needs you, Working, Done, the rest; T3's order inside each. */
+  orderThreads<T extends WorldData["threads"][number]>(list: T[]): T[];
+  /** Threads move (Alt+Up/Down, drag) only within their group of the list. */
+  threadGroup(t: WorldData["threads"][number]): string;
   threadNeighbors(id: string): {
     previous: import("../office/world").WThread;
     next: import("../office/world").WThread;

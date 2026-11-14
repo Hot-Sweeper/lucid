@@ -82,7 +82,7 @@ html:root[data-theme] .amb-window .amb-cloud { filter: var(--world-cloud-filter)
 html:root[data-theme] .world-card { background: var(--wd-plate); color: var(--wd-plate-ink); }
 /* The shop shows each material as it is sold, without the theme's restyling or shade. */
 html:root[data-theme] .desk-plate { background: var(--wd-plate); color: var(--wd-plate-ink); }
-html:root[data-theme] .desk-plate span b { color: var(--wd-plate-sub); }
+html:root[data-theme] .desk-plate .dp-who { color: var(--wd-plate-sub); }
 
 /* ---- Robot computers ---------------------------------------------------------------------- */
 html:root[data-theme] .os { color: var(--os-ink); }

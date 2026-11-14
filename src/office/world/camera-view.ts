@@ -140,14 +140,13 @@ export class WorldCameraView {
     const started = beginSystem();
     this.clampCam();
     this.root.style.transform = `translate(${this.cam.x}px, ${this.cam.y}px) scale(${this.cam.s})`;
-    const labelDetail = this.cam.s < 1.15 ? "compact" : "full";
-    if (this.root.dataset.labelDetail !== labelDetail) this.root.dataset.labelDetail = labelDetail;
     // While the camera moves, the GPU slides and scales one frozen picture of the world
     // (see .world.zooming). Zooming in magnifies it, so it is redrawn every 1.12x, too
     // small a step to see as a resolution change; shrinking stays crisp longer (1.6x).
     // It is redrawn once more when the camera settles.
     if (this.cam.s !== this.lastScale || this.cam.x !== this.lastX || this.cam.y !== this.lastY) {
       this.lastScale = this.cam.s; this.lastX = this.cam.x; this.lastY = this.cam.y;
+      this.hidePlateCard();
       if (!this.zooming) { this.zooming = true; setCameraMoving(true); this.rasterScale = this.cam.s; this.root.classList.add("zooming"); }
       // A compositor glide is rasterized by Chromium at its sharpest scale up front.
       else if (this.glideAnim) this.rasterScale = this.cam.s;
@@ -208,6 +207,7 @@ export class WorldCameraView {
   redrawSharp(this: World) {
     cancelAnimationFrame(this.resharpen);
     this.rasterScale = this.cam.s;
+    this.syncPlates();   // nameplates resize with the redraw, never during a frozen glide
     this.root.classList.remove("zooming");
     this.root.classList.add("resharp");
     // Two frames: the class change must be committed once before promotion returns.

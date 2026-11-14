@@ -2,7 +2,7 @@
 // chat tag floats over the robot's head (at its desk, walking, resting or in another building),
 // kept readable at every zoom. When the robot is out of view, a portrait at the office edge points
 // toward it and takes the camera there. The reverse holds too: clicking a robot opens its chat and
-// hovering one names its conversation. "Show this robot" glides the camera to it and the tag pings
+// hovering one names its conversation (world/plates.ts). "Show this robot" glides the camera to it and the tag pings
 // once it arrives.
 // Part of the World class (world.ts); see the note there on how its parts are combined.
 import { portraitSvg, PALETTES, brandFor, GEOM } from "../../robot";
@@ -38,40 +38,14 @@ export class WorldChatMark {
       if (!this.lastData?.threads.some((t) => t.id === id)) return;
       e.stopPropagation(); this.onWatchChat(id);
     });
-    // Hovering a robot names its conversation and lights up its desk's nameplate.
-    this.root.addEventListener("pointerover", (e) => {
-      const hit = (e.target as Element | null)?.closest<HTMLElement>(".world-walker[data-id], .desk-unit .poke-head, .desk-unit .robot-host");
-      if (!hit || hit === this.hoverRobot) return;
-      this.hoverRobot?.closest(".desk-unit")?.classList.remove("robot-hover");
-      this.hoverRobot = hit;
-      const desk = hit.closest<HTMLElement>(".desk-unit");
-      const id = desk ? this.deskAt(desk)?.threadId : hit.dataset.id;
-      if (!id) return;
-      desk?.classList.add("robot-hover");
-      const about = this.robotTitle(id);
-      if (about) (desk ? desk.querySelector<HTMLElement>(".poke-head")! : hit).title = about;
-    });
-    this.root.addEventListener("pointerout", (e) => {
-      const hit = this.hoverRobot;
-      if (!hit || hit.contains(e.relatedTarget as Node | null)) return;
-      hit.closest(".desk-unit")?.classList.remove("robot-hover");
-      this.hoverRobot = null;
-    });
+    // Hovering a robot names its conversation (world/plates.ts).
+    this.mountPlateCard();
   }
 
   deskAt(this: World, el: HTMLElement) {
     for (const d of this.allDesks) if (d.el === el) return d;
     for (const entry of this.neighbors.values()) for (const d of entry.office?.allDesks ?? []) if (d.el === el) return d;
     return null;
-  }
-
-  /** "Juno: Fix the website. This chat is open" (the name, the conversation and what a click does). */
-  robotTitle(this: World, id: string) {
-    const offices = [this, ...[...this.neighbors.values()].flatMap((e) => e.office ? [e.office] : [])];
-    const t = offices.flatMap((o) => o.lastData?.threads ?? []).find((x) => x.id === id);
-    if (!t) return "";
-    const robot = this.roster.forJob(id);
-    return `${robot?.name ? `${robot.name}: ` : ""}${t.title}\n${id === this.chatThread ? "This chat is open" : "Click to open this chat"}`;
   }
 
   /** The chat that is open now (null: none). Its robot carries the marks. */

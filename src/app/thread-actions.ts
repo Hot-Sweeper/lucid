@@ -91,7 +91,7 @@ export function mountThreadActions(app: App) {
       const row = document.elementFromPoint(x, y)?.closest<HTMLElement>("#th-list .th-row[data-id]");
       const threads = app.world.lastData?.threads ?? [];
       const source = threads.find(t => t.id === id), target = threads.find(t => t.id === row?.dataset.id);
-      if (!row || !source || !target || source === target || source.settled || target.settled || source.pinned !== target.pinned) return null;
+      if (!row || !source || !target || source === target || source.settled || target.settled || app.threadGroup(source) !== app.threadGroup(target)) return null;
       const after = y > row.getBoundingClientRect().top + row.offsetHeight / 2;
       return { row, after };
     },

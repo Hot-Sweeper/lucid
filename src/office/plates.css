@@ -1,0 +1,49 @@
+/* Desk nameplates and the robot hover card (world/plates.ts).
+   A plate is one line of topic over the worker's harness logo and name. It sizes to its words
+   (the topic is chosen to fit, topic-label.ts) and ends left of the seated robot's arm, so the
+   robot never covers it. Hover, keyboard focus and the open chat only add a ring: size, type,
+   padding and position never change. --plate-zoom keeps it readable as the camera pulls back. */
+.desk-plate { position: absolute; z-index: 2; left: 12px; top: 260px; width: max-content; max-width: 150px;
+  display: flex; flex-direction: column; gap: 1px; padding: 4px 8px 5px; border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.93); color: #2d3142; font: 500 10px/1.25 var(--font); white-space: nowrap;
+  box-shadow: 0 3px 8px rgba(40, 30, 20, 0.15); cursor: grab;
+  scale: var(--plate-zoom, 1); transform-origin: right center;
+  transition: box-shadow var(--dur-hover) var(--ease-out-strong); }
+.desk-plate .dp-topic { font: 600 12px/1.25 var(--font); }
+.desk-plate .dp-who { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; color: #5d6278; }
+.desk-plate .dp-who[hidden] { display: none; }
+.desk-plate .dp-who img { width: 10px; height: 10px; flex: none; }
+/* One compound word wider than the plate: it fades out at the edge instead of an ellipsis. */
+.desk-plate.dp-clip .dp-topic { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent); }
+.desk-unit.empty .desk-plate { opacity: 0.55; cursor: default; }
+.orch-desk .desk-plate { background: #ffe9b8; }
+
+/* Far views: one centred line under the desk, over the chair (the robot is small by then). */
+.world[data-plate-form="far"] .desk-plate { left: 200px; top: 296px; max-width: 380px; translate: -50% 0; transform-origin: center top; z-index: 7; }
+.world[data-plate-form="far"] .desk-plate .dp-who { display: none; }
+.world[data-plate-form="hidden"] .desk-plate { visibility: hidden; }
+
+/* The hovered robot's plate gets a quiet ring, the open chat's plate the accent ring. */
+.desk-unit.robot-hover:not(.chat-open) .desk-plate { box-shadow: 0 0 0 2px color-mix(in srgb, var(--wd-plate-ink, #2d3142) 38%, transparent), 0 4px 10px rgba(40, 30, 20, 0.2); }
+.desk-unit.chat-open .desk-plate { box-shadow: 0 0 0 2px var(--accent), 0 4px 10px rgba(40, 30, 20, 0.2); }
+
+/* The hover card: the full title, who works on it, its status and what a click does. It lives
+   over the office at screen size, so it reads the same at every zoom. */
+.plate-card { position: absolute; left: 0; top: 0; z-index: 40; width: max-content; max-width: min(300px, calc(100% - 16px));
+  padding: 9px 12px 10px; border-radius: var(--radius-lg); background: var(--ui-raised); color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ui-edge), 0 10px 24px rgba(4, 6, 24, 0.38); pointer-events: none;
+  opacity: 0; transform: translateY(var(--hc-from, 4px)) scale(0.97); transform-origin: 16px 100%;
+  transition: opacity 120ms var(--ease-out), transform 120ms var(--ease-out); }
+.plate-card[data-side="below"] { --hc-from: -4px; transform-origin: 16px 0; }
+.plate-card[hidden] { display: none; }
+.plate-card.on { opacity: 1; transform: none; transition-duration: var(--dur-sm); transition-timing-function: var(--ease-out-strong); }
+.plate-card p { margin: 0; }
+.plate-card .hc-title { font: 600 14px/1.35 var(--font); color: var(--ink-hi); overflow-wrap: anywhere; text-wrap: pretty; }
+.plate-card .hc-who { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+.plate-card .hc-who img { width: 14px; height: 14px; flex: none; filter: var(--mono-logo-filter); }
+.plate-card .hc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 6px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+.plate-card .hc-status { font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .desk-plate { transition: none; }
+  .plate-card, .plate-card.on { transform: none; transition: opacity 150ms var(--ease-out); }
+}

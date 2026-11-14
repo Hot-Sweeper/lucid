@@ -4,6 +4,13 @@ const completed = (t: OrderThread) => !t.settled && !t.question && !t.job && (t.
 export function completionFirst<T extends OrderThread>(threads: T[]): T[] {
   return [...threads].sort((a,b) => Number(completed(b))-Number(completed(a)) || (completed(a) && completed(b) ? (Date.parse(b.updatedAt)||0)-(Date.parse(a.updatedAt)||0) : 0));
 }
+/** Where a thread's status puts it in the list: Needs you, then Working, then everything else. */
+export const statusRank = (tone: string | null | undefined) => tone === 'needs' ? 0 : tone === 'working' ? 1 : 2;
+/** Needs you above Working above the rest (Done, idle). Each group keeps the order it had. */
+export function statusFirst<T>(threads: T[], tone: (t: T) => string | null | undefined): T[] {
+  const rank = new Map(threads.map(t => [t, statusRank(tone(t))]));
+  return [...threads].sort((a,b) => rank.get(a)! - rank.get(b)!);
+}
 /** T3's pinned threads stay on top; each group keeps its own order. */
 export function pinnedFirst<T extends { pinned?: boolean }>(threads: T[]): T[] {
   return [...threads.filter(t => t.pinned), ...threads.filter(t => !t.pinned)];

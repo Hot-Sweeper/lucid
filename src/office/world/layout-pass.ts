@@ -6,7 +6,7 @@ import { setRobotModes, type Pt } from "../../robot";
 import { subscriptionBatteries, needsCharge } from "../battery";
 import { chargingSize } from "../../world/charging";
 import gsap from "gsap";
-import { Desk, shortTitle } from "../desk";
+import { Desk } from "../desk";
 import { officePlan, carryPoint } from "../floor-plan";
 import { buildingFootprint } from "../building-footprint";
 import { hasOfficeWork, hasOfficeDesk, reserveRoomSeats, remainingDeskExtras, snakeSeat, projectRoomSeats, layoutMeeting, layoutWaitingSpots, layoutSafeAt, addDeskPlace, FOLDED_OFFICE } from "../room-policy";
@@ -419,7 +419,6 @@ export class WorldLayout {
           d.folder = s.t.folder ?? null;
           this.desks.set(s.t.id, d);
         }
-        d.setCompactTitle(shortTitle(s.t.title));
         // which room it sits in now, and in shared rooms which project it works on
         d.room = s.key.split("#")[0];
         const proj = byProject.get(s.t.projectId);
