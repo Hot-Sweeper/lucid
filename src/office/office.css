@@ -82,7 +82,7 @@
   background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 45%, transparent), transparent); opacity: calc(0.1 + var(--night) * 1.8); }
 
 /* Desk nameplates: plates.css. */
-/* The open chat's desk is marked by its nameplate ring and chat tag (chat-mark.css); a clicked desk has no glow of its own,
+/* The open chat's desk is marked by its nameplate ring, bezel and floor light (chat-mark.css); a clicked desk has no glow of its own,
    so an older selection can never look like the open chat. */
 
 .desk-notes { position: absolute; z-index: 9; left: -12px; top: 18px; width: 60px; margin: 0; padding: 0; list-style: none; }

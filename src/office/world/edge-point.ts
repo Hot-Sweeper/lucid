@@ -11,3 +11,8 @@ export function edgePoint(x: number, y: number, view: { left: number; top: numbe
 
 /** The scale that keeps a mark of `size` world pixels at least `minPx` on screen at camera zoom `s`. */
 export const markScale = (s: number, size: number, minPx: number) => Math.max(1, minPx / (size * (s || 1)));
+
+/** Below this camera zoom the open chat's robot is too small to read its light, so a pin marks it. */
+export const PIN_BELOW = 0.32;
+/** The far pin is drawn at its screen size; this undoes the camera zoom so it stays that size. */
+export const pinScale = (s: number) => 1 / Math.max(s, 1e-3);

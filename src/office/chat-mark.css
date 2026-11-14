@@ -1,30 +1,47 @@
-/* The open chat's robot (world/chat-mark.ts): a small chat tag over its head and a portrait at the
+/* The open chat's robot (world/chat-mark.ts): a warm light on the floor round its chair, the
+   monitor's bezel catching the accent, a small pin above it in far views and a portrait at the
    office edge pointing at it when it is out of view. Its nameplate's accent ring is in plates.css. */
 
-/* The tag: an accent speech bubble whose tail points at the robot's head. Its anchor is the
-   bottom of the tail, so the far-view scale (set from the camera) grows it upward. */
-.chat-mark { position: absolute; z-index: 6; width: 30px; height: 25px; margin: -31px 0 0 -15px; display: grid; place-items: center;
-  border-radius: 9px; background: var(--accent); color: var(--accent-ink); transform-origin: 50% calc(100% + 6px); pointer-events: none;
-  box-shadow: 0 0 0 2px #fffaf3, 0 3px 8px rgba(40, 30, 20, .28); }
-.chat-mark::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 9px; height: 9px; margin-left: -4.5px; rotate: 45deg;
-  background: var(--accent); border-radius: 0 0 2px 0; box-shadow: 2px 2px 0 0 #fffaf3; }
-.chat-mark > svg { position: relative; z-index: 1; }
-.chat-mark.on-walker { top: calc(-1 * var(--head-top, 60px) - 8px); z-index: 2; }
-/* Arrival: the tag hops once and a ring opens from it. */
-.chat-mark .cm-ping { position: absolute; inset: -2px; border-radius: 11px; border: 2px solid var(--accent); opacity: 0; pointer-events: none; }
-.chat-mark.ping { animation: chat-mark-hop 420ms var(--ease-out-strong); }
-.chat-mark.ping .cm-ping { animation: chat-mark-ring 700ms var(--ease-out) both; }
-@keyframes chat-mark-hop { 0% { transform: translateY(0); } 35% { transform: translateY(-7px) scale(1.08); } 100% { transform: translateY(0); } }
-@keyframes chat-mark-ring { 0% { opacity: .75; transform: scale(1); } 100% { opacity: 0; transform: scale(2.1); } }
+/* The light: a soft accent pool under the chair (drawn under the robot), as if its desk lamp were on. */
+.chat-light { position: absolute; left: 200px; top: 334px; width: 330px; height: 118px; translate: -50% -50%; pointer-events: none;
+  border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 52%, transparent), color-mix(in srgb, var(--accent) 24%, transparent) 58%, transparent);
+  transition: opacity 260ms var(--ease-out); }
+@starting-style { .chat-light { opacity: 0; } }
+.chat-light.on-walker { left: 0; top: 0; width: 120px; height: 44px; z-index: -1; }
+.chat-light .cl-bloom { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 70%, transparent); opacity: 0; }
+/* The monitor's bezel catches the same light. */
+.desk-unit.chat-open .monitor { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 72%, transparent), 0 0 18px color-mix(in srgb, var(--accent) 34%, transparent), 0 10px 18px rgba(30, 20, 10, 0.28); }
 
-/* The edge pointer: the robot's portrait on the floating HUD surface, an accent notch toward it. */
+/* The far pin: its tip on the monitor (or over a walking robot's head), never on the
+   robot, at one size on screen. Scale (set from the camera) grows it upward from the tip. */
+.chat-pin { position: absolute; left: 0; top: 0; z-index: 600003; width: 18px; height: 24px; margin: -24px 0 0 -9px; pointer-events: none;
+  transform-origin: 50% 100%; opacity: 0; visibility: hidden; transition: opacity 160ms var(--ease-out), visibility 0s 160ms; }
+.chat-pin.on { opacity: 1; visibility: visible; transition: opacity 180ms var(--ease-out); }
+.chat-pin.on-walker { left: 0; top: calc(-1 * var(--head-top, 60px) - 10px); z-index: 8; }
+.chat-pin svg { display: block; overflow: visible; filter: drop-shadow(0 1.5px 2px rgba(20, 14, 8, 0.35)); }
+.chat-pin .cpn-body { fill: var(--accent); stroke: #fffaf3; stroke-width: 1.5px; }
+.chat-pin .cpn-dot { fill: #fffaf3; }
+.chat-pin .cpn-ring { position: absolute; left: 50%; bottom: -3px; width: 14px; height: 6px; margin-left: -7px; border-radius: 50%; border: 1.5px solid var(--accent); opacity: 0; }
+
+/* Arrival ("Show this robot"): the light blooms once and a thin ring opens from it; far out the pin drops in. */
+.chat-light.ping { animation: chat-light-bloom 620ms var(--ease-out); }
+.chat-light.ping .cl-bloom { animation: chat-light-ring 620ms var(--ease-out) both; }
+.chat-pin.on.ping svg { animation: chat-pin-drop 300ms var(--ease-out-strong); }
+.chat-pin.on.ping .cpn-ring { animation: chat-pin-ring 560ms var(--ease-out) 120ms both; }
+@keyframes chat-light-bloom { 0% { filter: brightness(1); } 30% { filter: brightness(1.35); } 100% { filter: brightness(1); } }
+@keyframes chat-light-ring { 0% { opacity: 0.8; transform: scale(0.82); } 100% { opacity: 0; transform: scale(1.12); } }
+@keyframes chat-pin-drop { 0% { transform: translateY(-6px); } 100% { transform: none; } }
+@keyframes chat-pin-ring { 0% { opacity: 0.8; transform: scale(0.6); } 100% { opacity: 0; transform: scale(2.2); } }
+
+/* The edge pointer: the robot's portrait on the floating HUD surface inside the same 2px accent ring
+   as its nameplate, with an accent notch toward it. */
 .chat-beacon { position: absolute; left: 0; top: 0; z-index: 30; width: 44px; height: 44px; margin: -22px 0 0 -22px; padding: 0; border: 0; border-radius: 50%;
-  display: grid; place-items: center; background: var(--ui-float); box-shadow: 0 0 0 1px var(--ui-edge, rgba(255,255,255,.1)), 0 6px 16px rgba(10, 14, 30, .35);
+  display: grid; place-items: center; background: var(--ui-float); box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 1px var(--ui-edge, rgba(255,255,255,.1)), 0 6px 16px rgba(10, 14, 30, .35);
   cursor: pointer; transition: transform 160ms var(--ease-out-strong), background-color var(--dur-hover) var(--ease-out-strong); }
 .chat-beacon[hidden] { display: none; }
 .chat-beacon .cb-face { display: grid; place-items: center; width: 30px; height: 30px; transition: scale var(--dur-press) var(--ease-out-strong); }
 .chat-beacon .cb-face svg { width: 30px; height: 30px; }
-.chat-beacon .cb-arrow { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform: rotate(var(--dir, 0rad)) translateX(25px); }
+.chat-beacon .cb-arrow { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform: rotate(var(--dir, 0rad)) translateX(24px); }
 .chat-beacon .cb-arrow::before { content: ""; position: absolute; left: -3px; top: -6px; border: 6px solid transparent; border-left: 8px solid var(--accent); border-right: 0; }
 .chat-beacon:hover { background: var(--ui-float-hover); }
 .chat-beacon:hover .cb-face { scale: 1.06; }
@@ -40,9 +57,9 @@
 @keyframes locate-bot { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .chat-mark.ping, .cp-locate.going svg path, .cp-locate.going .ic-bot { animation: none; }
-  .chat-mark.ping .cm-ping { animation: chat-mark-fade 600ms var(--ease-out) both; }
+  .cp-locate.going svg path, .cp-locate.going .ic-bot, .chat-pin.on.ping svg, .chat-pin.on.ping .cpn-ring, .chat-light.ping .cl-bloom { animation: none; }
+  .chat-light.ping { animation: chat-light-fade 600ms var(--ease-out); }
   .chat-beacon, .chat-beacon .cb-face, .cp-locate svg path:first-child { transition: none; }
   .chat-beacon:hover .cb-face, .chat-beacon:active .cb-face, .cp-locate:hover svg path:first-child { scale: none; transform: none; }
 }
-@keyframes chat-mark-fade { 0% { opacity: .7; } 100% { opacity: 0; } }
+@keyframes chat-light-fade { 0% { opacity: 0.55; } 100% { opacity: 1; } }

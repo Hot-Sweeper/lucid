@@ -110,7 +110,8 @@ export class World {
   swapArrivals = new Map<string, { id: string; resolve: (at: Pt | null, face?: Facing) => void }>();
   /** The open chat's thread and its marks in the world (world/chat-mark.ts). */
   chatThread: string | null = null;
-  chatTag: HTMLElement | null = null;
+  chatLight: HTMLElement | null = null;
+  chatPin: HTMLElement | null = null;
   chatBeacon: HTMLButtonElement | null = null;
   chatMarkTimer = 0;
   chatPingTimer = 0;

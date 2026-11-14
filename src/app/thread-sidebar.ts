@@ -197,14 +197,14 @@ export function defineThreadSidebar(app: App) {
     const list = app.orderThreads(data.threads).slice(0, 40);
     const reviews = latestThreadReviews(app.currentEnvironment ? [] : app.orch.papers);
     const html = list.map((t) => {
-      const proj = projectName(projectMark(projects.get(t.projectId)));
+      const mark = projectMark(projects.get(t.projectId)), proj = projectName(mark);
       const review = threadReviewLabel(t, reviews.get(t.id), !app.currentEnvironment && !!app.settings.orch && t.id !== app.settings.orch.threadId);
       const { tone: st, label: said } = threadState(t, review, app.delegate.phaseOf(t.id) === "reading");
       const logo = logoFor(t.provider);
       const name = `${t.pinned ? "Pinned, " : ""}${t.title}, ${proj}${said ? `, ${said}` : ""}`;
       return `<li><button type="button" class="rail-th${t.id === app.chat.threadId ? " cur" : ""}"${st ? ` data-status="${st}"` : ""} data-id="${esc(t.id)}" aria-label="${esc(name)}" title="${esc(`${t.title}
   ${proj}${said ? ` · ${said[0].toUpperCase()}${said.slice(1)}` : ""}`)}">`
-        + (logo ? `<img src="${logo}" alt="">` : `<span class="rail-mono">${esc(proj.slice(0, 2).toUpperCase())}</span>`)
+        + (logo ? `<img src="${logo}" alt="">` : projectIcon(mark, 18))
         + (st ? `<i class="rail-st" aria-hidden="true"></i>` : "") + `</button></li>`;
     }).join("");
     if (html === app.railSig) return;
