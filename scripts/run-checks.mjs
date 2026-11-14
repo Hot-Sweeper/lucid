@@ -74,6 +74,7 @@ export const CHECKS = [
   "verify-explorer-files.mjs",
   "verify-updater.cjs",
   "verify-screen-scheduler.mjs",
+  "verify-far-view-performance.mjs",
   "verify-screen-detail.mjs",
   "verify-screen-detail-controller.mjs",
   "verify-weather-retention.mjs",

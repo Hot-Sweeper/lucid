@@ -61,6 +61,41 @@ values chosen separately, so on a 150 % display they switched at uneven, too-ear
 Robot canvases switch the moment the zoom crosses their level and resharpen when the camera
 settles, instead of waiting for each robot's next draw.
 
+## A campus with linked computers
+
+Measured in the real app with the Ares computer linked (its office with 23 rooms and 312
+sessions next to the local one, about 25,700 DOM elements, 12 desks and 31 walking robots), on
+an RTX 3080 through ANGLE OpenGL, 150 % scale, at 2560 x 1440 and 1280 x 800 CSS pixels. The
+causes of the zoomed-out lag, and what replaced them:
+
+- Camera-driven variables (`--sign-scale`, `--plate-zoom`) were set on the office root, and an
+  inherited custom property makes every descendant recalculate its style. Each zoom step
+  recalculated about 28,000 elements (70 to 100 ms frames). They are now written on the signs,
+  plates and room labels that read them. Never put a value that changes with the camera on a
+  root or container: write it on its consumers.
+- The Follow T3 check compared T3's answer with the stored palette in a different key order, so
+  every 8 s it replayed the theme transition, relighting the office and rebuilding robot canvases.
+- Chromium regroups every paint chunk of the page into layers (Layerize, about 5 ms here) on any
+  frame where an inline transform changes or a main-thread animation runs. A pan at an unchanged
+  zoom therefore moves the keyframes of a held compositor animation of the world transform
+  (`presentCamera` in `world/camera-view.ts`); zoom steps, glides and the settled camera keep the
+  inline transform. Animations on SVG elements always run on the main thread, so the Working ring
+  and T3's spinner turn an HTML wrapper instead. Far out, walking robots present their position
+  on ambient beat frames, like their bodies.
+- Every remote desk polled its whole thread every 2.5 s; one Ares thread is 30 MB of JSON.
+  Watches, status, questions and actions read T3's bounded snapshot (the latest turns), skip
+  diffing when the thread's event sequence is unchanged and read finished threads with nothing
+  waiting every third beat; only the conversation reads the whole thread
+  (`electron/remote-building.cjs`).
+- Per-frame paths searched the whole campus (`querySelector` for the live grounds, the open
+  chat's desk) and Ultra effects measured every robot with `getBoundingClientRect` on the ticker,
+  forcing layout. They now keep references and use one shared IntersectionObserver.
+
+Result in that workload (main-thread busy share, worst frame, long tasks over 50 ms): mouse-wheel
+zoom from a desk to the whole campus and back went from 36 to 58 fps with 23 long tasks up to
+179 ms to none at 2560 x 1440; the main process went from about 17 to 25 % of a core to about 1 to 11 %.
+`scripts/checks/verify-far-view-performance.mjs` guards these behaviours.
+
 ## Profiling
 
 Build, then run the isolated camera benchmark. It uses the app's offscreen `LUCID_SHOT` path,
